@@ -80,7 +80,7 @@ from specify_cli.cli.commands.agent.tasks_materialization import (
     _persist_review_artifact_override,
     _resolve_wp_slug,
 )
-from specify_cli.cli.commands.agent.tasks_move_task_hops import _mt_structured_actor
+from specify_cli.cli.commands.agent.tasks_move_task_hops import _mt_structured_actor, commits_status_record
 from specify_cli.cli.commands.agent.tasks_transition_core import (
     override_persist_signal,
 )
@@ -486,7 +486,7 @@ def _persist_review_cycle_with_queue(
     allocation/commit/read-back call.  Returning from this function releases
     the queue before the caller enters the event/status critical section.
     """
-    if not st.resolved_auto_commit:
+    if not commits_status_record(st):
         review_cycle = create(None)
         persistence = getattr(review_cycle, "persistence", None)
         if not isinstance(persistence, VerdictPersistenceOutcome):

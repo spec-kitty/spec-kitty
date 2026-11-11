@@ -40,6 +40,20 @@ from specify_cli.status import (
 )
 
 
+def commits_status_record(st: _MoveTaskState) -> bool:
+    """Whether this move commits its status record: the lane hop, its annotation and its verdict (#3933).
+
+    ``resolved_auto_commit`` (an explicit ``--auto-commit`` or a project default of
+    ``true``) commits it; so does any run where the operator did not pass
+    ``--no-auto-commit`` explicitly, whatever the project default says
+    (``status_commit``): the hop itself is always committed, so its annotation and
+    verdict must be too. Only an explicit ``--no-auto-commit`` keeps the record
+    local, the one sanctioned non-durable path (FR-013). ``getattr`` keeps a state
+    stand-in without the field on its old behaviour.
+    """
+    return bool(st.resolved_auto_commit or getattr(st, "status_commit", False))
+
+
 def _mt_plan_review_result(st: _MoveTaskState) -> ReviewResult | None:
     """Structured review outcome justifying a force-free exit from ``in_review``.
 

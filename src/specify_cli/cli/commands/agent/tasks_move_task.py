@@ -146,6 +146,7 @@ from specify_cli.task_utils import (
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError, check_pre30_layout
 
 from specify_cli.cli.commands.agent.tasks_move_task_hops import (
+    commits_status_record as commits_status_record,
     _binding_role_for_lane as _binding_role_for_lane,
     _mt_hop_review_ref as _mt_hop_review_ref,
     _mt_hop_reason_source as _mt_hop_reason_source,
@@ -320,6 +321,13 @@ class _MoveTaskState:
     tracker_ref_values: tuple[str, ...] = ()
     skip_target_branch_commit: bool = False
     resolved_auto_commit: bool = False
+    #: #3933 F-39/F-73: commit this move's status record (the lane hop, its
+    #: annotation and its review-cycle verdict) as one unit. True unless the
+    #: operator passed ``--no-auto-commit`` explicitly: the project default
+    #: ``auto_commit: false`` no longer splits a transition's record, because the
+    #: hop itself is always committed. ``resolved_auto_commit`` keeps governing
+    #: the operator's own work (the lane deliverables commit at ``for_review``).
+    status_commit: bool = False
     feature_dir: Path = field(default_factory=Path)
     mt_feature_dir: Path = field(default_factory=Path)
     wp: WorkPackage | None = None
@@ -610,7 +618,7 @@ def _mt_refuse_protected_status_commit(st: _MoveTaskState) -> None:
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
 
-    if not st.resolved_auto_commit or st.skip_target_branch_commit:
+    if not commits_status_record(st) or st.skip_target_branch_commit:
         return
     protected_error = _tasks._protected_branch_status_commit_error(st.target_branch, st.main_repo_root, "spec-kitty agent tasks move-task", st.mission_slug)
     if protected_error is None:
@@ -670,6 +678,7 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
     # FR-010 / FR-019: one-shot sparse-checkout warning before any read/mutate.
     _tasks._emit_sparse_session_warning(repo_root, command="spec-kitty agent tasks move-task")
     st.resolved_auto_commit = _tasks.get_auto_commit_default(repo_root) if st.auto_commit is None else st.auto_commit
+    st.status_commit = st.resolved_auto_commit or st.auto_commit is None
     if owned is not None:
         _mt_apply_owned_targets(st, owned)
     else:
@@ -677,7 +686,7 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
         st.main_repo_root, st.target_branch = _tasks._ensure_target_branch_checked_out(repo_root, st.mission_slug, st.json_output)
     st.resolved_binding = _mt_resolve_binding(st)
     st.skip_target_branch_commit = (
-        _tasks._skip_target_branch_commit(st.main_repo_root, st.mission_slug, st.target_branch) if st.resolved_auto_commit and st.owned is None else False
+        _tasks._skip_target_branch_commit(st.main_repo_root, st.mission_slug, st.target_branch) if commits_status_record(st) and st.owned is None else False
     )
     # Protected-branch status-commit refusal — a hard early exit that MUST fire
     # before the authoritative event-log read below (``_read_transactional_wp_lane``),
@@ -774,7 +783,7 @@ def _mt_build_request(
         agent=st.agent,
         current_agent=st.current_agent,
         note=st.note,
-        auto_commit=bool(st.resolved_auto_commit),
+        auto_commit=commits_status_record(st),
         target_branch=st.target_branch,
         skip_target_branch_commit=st.skip_target_branch_commit,
         tracker_ref_values=tuple(st.tracker_ref_values),

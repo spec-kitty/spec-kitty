@@ -605,10 +605,11 @@ def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
 
     # #5655 / #3933: the annotation is committed where the status door commits the
     # Mission's transitions (its write branch, or the coordination branch), on every
-    # topology, so mark-status leaves the checkout clean -- unless the operator
-    # opted out with --no-auto-commit / ``auto_commit: false``. Where the door cannot
-    # commit (no transaction surface), it keeps the uncommitted form.
-    commit_annotation = st.resolved_auto_commit
+    # topology, so mark-status leaves the checkout clean. Like move-task's status
+    # record, only an explicit --no-auto-commit keeps it local; the project default
+    # ``auto_commit: false`` does not (the status record is never half-committed).
+    # Where the door cannot commit (no transaction surface), it keeps the uncommitted form.
+    commit_annotation = st.resolved_auto_commit or st.auto_commit is None
     from specify_cli.coordination.status_transition import emit_runtime_annotation
 
     for wp_id, task_ids_for_wp in resolved_tasks_by_wp.items():
