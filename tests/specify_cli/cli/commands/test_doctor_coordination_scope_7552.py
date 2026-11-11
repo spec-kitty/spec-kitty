@@ -312,3 +312,23 @@ def test_malformed_meta_on_a_mission_branch_is_a_warning_not_a_crash(tmp_path: P
     unreadable = [f for f in payload if f["error_code"] == "COORDINATION_BRANCH_META_UNREADABLE"]
     assert [f["extra"]["branch"] for f in unreadable] == [C_BRANCH], output
     assert code == 0, output
+
+
+def test_mid8_shared_by_a_root_and_an_off_root_mission_is_ambiguous(two_never_created: tuple[Path, Path, Path]) -> None:
+    """A mid8 naming a root Mission and a branch-only one must not silently pick the root one."""
+    repo, meta_a, _meta_b = two_never_created
+    e_slug = "echo-mission-01J6XW9K"
+    e_branch = f"kitty/mission-{e_slug}"
+    _git(repo, "checkout", "-q", "-b", e_branch)
+    _git(repo, "rm", "-rq", "kitty-specs")
+    _write_mission(repo, e_slug, A_ID[:8] + "ZZZZZZZZZZZZZZZZZZ", mission_branch=e_branch, coordination_branch=e_branch)
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "mission E")
+    _git(repo, "checkout", "-q", "main")
+    before = meta_a.read_bytes()
+
+    code, output = _invoke("--fix", "--mission", A_ID[:8], "--json")
+
+    assert code == 1, output
+    assert "AMBIGUOUS_HANDLE" in output
+    assert meta_a.read_bytes() == before

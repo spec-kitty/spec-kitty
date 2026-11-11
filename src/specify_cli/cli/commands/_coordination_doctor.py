@@ -31,6 +31,7 @@ module is outside this WP's ``owned_files``).
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -1069,6 +1070,9 @@ def _matches_handle(meta: dict[str, object], handle: str) -> bool:
     return isinstance(slug, str) and bool(slug) and resolve_declared_mid8(meta, slug) == handle
 
 
+_MID8_HANDLE = re.compile(r"[0-9A-Za-z]{8}")
+
+
 def _scan_scoped(repo_root: Path, handle: str) -> _MissionScan:
     """The one Mission *handle* names: the canonical resolver first, then the off-root records.
 
@@ -1083,6 +1087,7 @@ def _scan_scoped(repo_root: Path, handle: str) -> _MissionScan:
         resolved = []
     if not resolved:  # no root ``kitty-specs/`` at all also lands here
         return _scan_off_root_handle(repo_root, handle)
+    _refuse_mid8_shared_with_off_root(repo_root, handle)
     mission_dir = resolved[0]
     meta = _read_scanned_meta(mission_dir)
     if meta is None:
@@ -1102,6 +1107,18 @@ def _scan_scoped(repo_root: Path, handle: str) -> _MissionScan:
         scoped_mission_id=_str_or_none(meta.get("mission_id")),
         scoped_mission_slug=_str_or_none(meta.get("mission_slug")) or mission_dir.name,
     )
+
+
+def _refuse_mid8_shared_with_off_root(repo_root: Path, handle: str) -> None:
+    """A mid8 that names a root Mission *and* an off-root one is ambiguous, never the root one."""
+    from specify_cli.context.mission_resolver import AmbiguousHandleError, iter_kitty_specs_children
+
+    if not _MID8_HANDLE.fullmatch(handle):
+        return
+    root_names = frozenset(child.name for child in iter_kitty_specs_children(repo_root))
+    off_root, _warnings = _off_root_missions(repo_root, root_names)
+    if any(_matches_handle(m.meta, handle) for m in off_root):
+        raise AmbiguousHandleError(handle, [])
 
 
 def _scan_off_root_handle(repo_root: Path, handle: str) -> _MissionScan:
