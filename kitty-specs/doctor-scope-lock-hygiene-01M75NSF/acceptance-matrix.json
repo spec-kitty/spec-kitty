@@ -1,0 +1,119 @@
+{
+  "mission_slug": "doctor-scope-lock-hygiene-01M75NSF",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_coordination_scope_7552.py::test_fix_without_scope_refuses_and_mutates_nothing",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T17:51:44.672689+00:00",
+      "notes": "--fix with no scope exits 1 with COORDINATION_FIX_SCOPE_REQUIRED; both meta.json byte-identical"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_coordination_scope_7552.py::test_fix_all_missions_repairs_every_mission",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T17:51:49.334985+00:00",
+      "notes": "--fix --all-missions flattens both Missions"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_coordination_scope_7552.py::test_fix_with_mission_repairs_only_that_mission; tests/specify_cli/cli/commands/test_doctor_coordination_scope_7552.py::test_mission_scope_drops_another_missions_strand",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T17:51:53.881519+00:00",
+      "notes": "B byte-identical; B's strand neither reported nor healed under --mission A"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_coordination_scope_7552.py::test_mission_and_all_missions_together_refuse",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T17:51:58.477992+00:00",
+      "notes": "COORDINATION_FIX_SCOPE_CONFLICT, exit 1, nothing changed"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_coordination_scope_7552.py::test_scan_sees_a_mission_held_only_by_its_coordination_worktree",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T17:52:02.770094+00:00",
+      "notes": "Mission read from its coordination worktree, reported healthy"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_coordination_scope_7552.py::test_scan_reports_the_branch_only_missions_missing_worktree; tests/specify_cli/cli/commands/test_doctor_coordination_scope_7552.py::test_fix_with_mission_materializes_the_branch_only_missions_worktree",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T17:52:07.068705+00:00",
+      "notes": "found by mission_id, mid8 and slug; worktree materialized"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_coordination_scope_7552.py::test_scan_reports_the_branch_only_missions_missing_worktree",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T17:52:11.567109+00:00",
+      "notes": "inherited Mission D on C's branch is not reported"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/decisions/test_runtime_lock_hygiene_7498.py::test_lock_is_not_dirt_in_the_repository_root_checkout; tests/decisions/test_runtime_lock_hygiene_7498.py::test_lock_is_not_dirt_in_a_linked_worktree; tests/terminus/test_decisions_lock_never_tracked_7498.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T17:52:15.944835+00:00",
+      "notes": "root, coordination and lane worktrees list no lock; consumer-shaped repo without *.lock rule"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/decisions/test_runtime_lock_hygiene_7498.py::test_safe_commit_refuses_to_stage_the_lock; tests/decisions/test_runtime_lock_hygiene_7498.py::test_safe_commit_cli_refuses_the_lock_and_commits_nothing; tests/terminus/test_decisions_lock_never_tracked_7498.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T17:52:20.647203+00:00",
+      "notes": "refused before any index mutation, also with the protected-branch escape hatch; positive control commits"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_owned_decision_runtime_lock.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T17:52:25.484019+00:00",
+      "notes": "owned repair-runtime-lock index-only removal still commits (ratchet)"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/decisions/test_runtime_lock_hygiene_7498.py::test_reset_obstruction_is_described_in_words; tests/git/test_ref_advance_git_paths.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T17:52:29.911985+00:00",
+      "notes": "state in words appended; XY prefix pins stay green"
+    }
+  ],
+  "negative_invariants": []
+}

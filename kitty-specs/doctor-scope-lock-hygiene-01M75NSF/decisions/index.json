@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-11T16:08:14.669303Z",
+      "decision_id": "01M75NVX2D22SPCRPWBARSFHPQ",
+      "final_answer": "Refuse unless --all-missions is passed",
+      "input_key": "fix_without_mission",
+      "mission_id": "01M75NSFANQ8DNQKXZV8EDKFB1",
+      "mission_slug": "doctor-scope-lock-hygiene-01M75NSF",
+      "opened_by": "cli",
+      "options": [
+        "Refuse unless --all-missions is passed",
+        "Prompt interactively",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "What should doctor coordination --fix do when no --mission is given?",
+      "rationale": null,
+      "resolved_at": "2026-11-11T16:08:20.983072Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.fix-without-mission",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M75NSFANQ8DNQKXZV8EDKFB1",
+  "version": 1
+}
