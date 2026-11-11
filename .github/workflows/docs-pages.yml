@@ -24,6 +24,14 @@ on:
       - 'scripts/docs/glossary_page/**'
       - '.github/workflows/docs-pages.yml'
   workflow_dispatch:
+    inputs:
+      canary:
+        # ADR 2026-10-31-1 D-13 step 2 (#6938): operator-only, in an announced window with docs
+        # merges to main frozen. Deploys the doc-kitty build, probes it live, then DocFX again.
+        description: 'Canary: publish the doc-kitty build, probe https://docs.spec-kitty.ai, then republish DocFX'
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -228,10 +236,65 @@ jobs:
         with:
           path: docs/_site
 
+  # --- Canary (#6938; ADR 2026-10-31-1 D-13 step 2) ---------------------------------------------
+  # Only a dispatch with `canary: true`. The doc-kitty site is built by the ONE shared build
+  # definition (D-11) under its own Pages artifact name. It goes live only once the DocFX build
+  # above has also succeeded, so the restore is ready before production changes. The probe then
+  # checks the live URL classes, and `deploy` below republishes DocFX whatever the probe said; a
+  # failed canary job leaves the run red. Pinned by tests/release/test_release_ci_ownership.py.
+  canary-build:
+    needs: [pages]
+    if: github.event_name == 'workflow_dispatch' && inputs.canary && needs.pages.outputs.configured == 'true' && needs.pages.result == 'success'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/docs-site-build.yml
+    with:
+      pages-artifact: true
+      pages-artifact-name: github-pages-canary
+
+  canary-deploy:
+    runs-on: ubuntu-24.04
+    needs: [canary-build, build]
+    if: github.repository == 'spec-kitty/spec-kitty' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.canary && needs.canary-build.result == 'success' && needs.build.result == 'success'
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy the doc-kitty canary to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+        with:
+          artifact_name: github-pages-canary
+
+  canary-probe:
+    runs-on: ubuntu-24.04
+    needs: [canary-deploy]
+    if: needs.canary-deploy.result == 'success'
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - name: Probe the live site's URL classes (ADR D-13; scripts/docs/site_live_probe.py)
+        # Standard library plus PyYAML (through moves_ledger), like site_redirects.py; retries
+        # cover Pages propagation, and each URL is bounded by a 300 s budget.
+        env:
+          PYTHONPATH: .:src
+        run: python3 -m scripts.docs.site_live_probe https://docs.spec-kitty.ai
+
+  # DocFX deploy. On a push or a plain dispatch the canary jobs are skipped and this runs after a
+  # successful DocFX build, as before (`!cancelled()` only lets the skipped canary need through).
+  # On a canary it runs after the probe whatever the probe's result (`inputs.canary`), restoring
+  # DocFX; `needs.build.result == 'success'` still blocks it after a failed DocFX build.
   deploy:
     runs-on: ubuntu-24.04
-    needs: build
-    if: github.repository == 'spec-kitty/spec-kitty' && github.ref == 'refs/heads/main' && needs.build.result == 'success'
+    needs: [build, canary-probe]
+    if: (!cancelled() || inputs.canary) && github.repository == 'spec-kitty/spec-kitty' && github.ref == 'refs/heads/main' && needs.build.result == 'success'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
