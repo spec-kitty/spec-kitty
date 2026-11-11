@@ -832,7 +832,13 @@ def move_task(
         ),
     ] = False,
     auto_commit: Annotated[
-        bool | None, typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit WP file changes to target branch (default: from project config)")
+        bool | None, typer.Option(
+            "--auto-commit/--no-auto-commit",
+            help=(
+                "Commit this move's record (the transition, its note and its review verdict); only an explicit "
+                "--no-auto-commit keeps it uncommitted. Lane deliverables follow the project config"
+            ),
+        )
     ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     skip_pre_review_gate: Annotated[
@@ -990,7 +996,10 @@ def mark_status(
     ] = None,
 
     auto_commit: Annotated[
-        bool | None, typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit status events when supported (default: from project config)")
+        bool | None, typer.Option(
+            "--auto-commit/--no-auto-commit",
+            help="Commit the status events this writes, when supported; only an explicit --no-auto-commit keeps them uncommitted",
+        )
     ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:

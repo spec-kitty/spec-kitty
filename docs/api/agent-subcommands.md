@@ -3,7 +3,7 @@ title: Agent Subcommand Reference
 description: Reference for spec-kitty agent subcommands. Learn how agent-only actions like config, status, decision, and retrospect behave in workflows.
 doc_status: active
 kind: Reference
-updated: '2026-11-03T00:00:00Z'
+updated: '2026-11-11T00:00:00Z'
 ---
 # Agent Subcommand Reference
 
@@ -2167,10 +2167,12 @@ _Task workflow commands for AI agents_
 │                                                      accepted)               │
 │    --owned-checkout                          <path>  Explicit single-branch  │
 │                                                      checkout root.          │
-│    --auto-commit         --no-auto-commit            Automatically commit    │
-│                                                      status events when      │
-│                                                      supported (default:     │
-│                                                      from project config)    │
+│    --auto-commit         --no-auto-commit            Commit the status       │
+│                                                      events this writes,     │
+│                                                      when supported; only an │
+│                                                      explicit                │
+│                                                      --no-auto-commit keeps  │
+│                                                      them uncommitted        │
 │    --json                                            Output JSON format      │
 │    --help            -h                              Show this message and   │
 │                                                      exit.                   │
@@ -2335,11 +2337,17 @@ _Task workflow commands for AI agents_
 │                                                         requires --note and  │
 │                                                         records override     │
 │                                                         evidence.            │
-│    --auto-commit            --no-auto-commit            Automatically commit │
-│                                                         WP file changes to   │
-│                                                         target branch        │
-│                                                         (default: from       │
-│                                                         project config)      │
+│    --auto-commit            --no-auto-commit            Commit this move's   │
+│                                                         record (the          │
+│                                                         transition, its note │
+│                                                         and its review       │
+│                                                         verdict); only an    │
+│                                                         explicit             │
+│                                                         --no-auto-commit     │
+│                                                         keeps it             │
+│                                                         uncommitted. Lane    │
+│                                                         deliverables follow  │
+│                                                         the project config   │
 │    --json                                               Output JSON format   │
 │    --skip-pre-review-…                                  Skip the pre-review  │
 │                                                         regression gate on a │

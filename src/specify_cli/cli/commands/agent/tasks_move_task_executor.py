@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from specify_cli.cli.commands.agent.tasks_move_task_hops import (
+    commits_status_record,
     _binding_role_for_lane,
     _build_claim_review_override,
     _mt_annotation_actor,
@@ -528,7 +529,8 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
     # plain selection lives in the coordination-owned ``emit_runtime_annotation``.
     emit_runtime_annotation(
         owned=getattr(st, "owned", None),
-        auto_commit=st.resolved_auto_commit,
+        # #3933: the annotation is part of this move's status record, committed with its hop.
+        auto_commit=commits_status_record(st),
         feature_dir=st.feature_dir,
         wp_id=st.task_id,
         delta=delta,
