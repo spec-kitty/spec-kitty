@@ -129,6 +129,31 @@
       "status": "resolved",
       "step_id": null,
       "summary_json": null
+    },
+    {
+      "created_at": "2026-11-10T20:24:46.503450Z",
+      "decision_id": "01M73J4X57HKNF5RK7WVN8QHC5",
+      "final_answer": null,
+      "input_key": "advancing_auto_materialize",
+      "mission_id": "01M73HHBGCYKH10797R6YR21WS",
+      "mission_slug": "runtime-status-read-door-01M73HHB",
+      "opened_by": "cli",
+      "options": [
+        "Drop --auto-remediate; report the implicit materialization in one line",
+        "Make materialization opt-in via --auto-remediate (block by default)",
+        "Drop --auto-remediate; leave behaviour silent",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Advancing next already auto-materializes a missing/empty coordination worktree silently (bootstrap write seam), so the 'materialize it' block and --auto-remediate are unreachable from the CLI. What should the Mission do?",
+      "rationale": null,
+      "resolved_at": null,
+      "resolved_by": null,
+      "slot_key": "plan.scope.advancing-auto-materialize",
+      "status": "open",
+      "step_id": null,
+      "summary_json": null
     }
   ],
   "mission_id": "01M73HHBGCYKH10797R6YR21WS",
