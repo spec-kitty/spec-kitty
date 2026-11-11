@@ -1017,8 +1017,8 @@ def _branch_only_warning(found: BranchOnlyMission) -> DoctorFinding:
     return DoctorFinding(
         severity="warning",
         message=(
-            f"Could not read kitty-specs/{found.dir_name}/meta.json from Mission branch "
-            f"{found.branch!r}: {found.error}"
+            f"Could not read kitty-specs/{found.dir_name}/meta.json found on Mission branch "
+            f"{found.branch!r} (the branch may only have inherited this directory): {found.error}"
         ),
         next_step=f"Inspect it with `git show {found.branch}:kitty-specs/{found.dir_name}/meta.json`.",
         error_code=_BRANCH_META_UNREADABLE_CODE,
