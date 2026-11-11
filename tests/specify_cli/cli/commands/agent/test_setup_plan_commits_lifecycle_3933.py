@@ -63,3 +63,39 @@ def test_setup_plan_commits_plan_and_lifecycle_events_together(tmp_path: Path) -
     assert dirty(repo) == []
     events = [json.loads(line)["event_type"] for line in (feature_dir / "status.events.jsonl").read_text(encoding="utf-8").splitlines() if '"event_type"' in line]
     assert "PlanCompleted" in events
+
+
+# WP04 review follow-up: pin the partition decision of ``_lifecycle_log_for_plan_commit`` directly.
+
+
+@pytest.mark.parametrize(
+    ("topology", "expected"),
+    [("SINGLE_BRANCH", True), ("LANES", True), ("COORD", False), ("LANES_WITH_COORD", False)],
+)
+def test_lifecycle_log_joins_the_plan_commit_only_on_a_primary_status_partition(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, topology: str, expected: bool
+) -> None:
+    from types import SimpleNamespace
+
+    from mission_runtime import MissionTopology
+    from specify_cli.cli.commands.agent.mission_setup_plan import _lifecycle_log_for_plan_commit
+
+    log = tmp_path / "status.events.jsonl"
+    log.write_text("{}\n", encoding="utf-8")
+    monkeypatch.setattr("mission_runtime.resolve_topology", lambda *_a, **_k: MissionTopology[topology])
+
+    assert _lifecycle_log_for_plan_commit(tmp_path, tmp_path, "m", None) == ((log,) if expected else ())
+    # An owned run reads the topology off its fact and never re-resolves the repository.
+    monkeypatch.setattr("mission_runtime.resolve_topology", lambda *_a, **_k: pytest.fail("owned run re-resolved the topology"))
+    owned = SimpleNamespace(topology=MissionTopology[topology])
+    assert _lifecycle_log_for_plan_commit(tmp_path, tmp_path, "m", owned) == ((log,) if expected else ())  # type: ignore[arg-type]
+
+
+def test_no_lifecycle_log_means_nothing_extra_to_commit(tmp_path: Path) -> None:
+    from types import SimpleNamespace
+
+    from mission_runtime import MissionTopology
+    from specify_cli.cli.commands.agent.mission_setup_plan import _lifecycle_log_for_plan_commit
+
+    owned = SimpleNamespace(topology=MissionTopology.SINGLE_BRANCH)
+    assert _lifecycle_log_for_plan_commit(tmp_path, tmp_path, "m", owned) == ()  # type: ignore[arg-type]
