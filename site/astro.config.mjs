@@ -3,7 +3,8 @@
 // `site/` is a sub-project; the pages stay in `../docs`. The folders the site leaves out and
 // the section index basenames come from scripts/docs/_dockitty_contract.py, the single
 // authority, through the generated dockitty-contract.json (`python -m scripts.docs.site_contract`).
-// Every dockitty-* gate must be run with `--astro-config astro.config.mjs` so it reads them.
+// Every dockitty-* gate that reads the site config must be run with `--astro-config astro.config.mjs`
+// so it reads them (dockitty-assert-diagrams reads only the built HTML and takes none).
 //
 // llms.txt and the agent index are pages (src/pages/llms.txt.ts, src/pages/api/index.json.ts; #6934).
 // GitHub alerts (`> [!NOTE]`) render as asides (#6935). No `starlight.head` here: it replaces the
@@ -18,8 +19,10 @@
 // Diagrams (#6936) render at build time to static SVG: run the build with DK_DIAGRAM_BUILD_RENDER=build
 // and DK_PLANTUML_SERVER_URL pointing at the pinned, SANDBOX PlantUML server (both are read from the
 // process environment only, so they live in the docs-site job's `env:` and `make docs-site`, never in
-// .env.production), with the exact-pinned `playwright` Chromium installed. The built-site check's
-// `diagrams` surface proves every published diagram is a rendered figure.
+// .env.production), with the exact-pinned `playwright` Chromium installed (package.json pins 1.62.1,
+// matching doc-kitty's optional exact peer; pnpm warns if they drift). doc-kitty's
+// dockitty-assert-diagrams proves every built diagram is an SVG figure, and the built-site check's
+// `diagrams` surface proves each published page has a figure per source diagram fence.
 import { readFileSync } from 'node:fs';
 import { defineConfig } from 'astro/config';
 import { defineDocKittyIntegrations } from '@spec-kitty/doc-toolkit/config';
