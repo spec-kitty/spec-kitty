@@ -2087,7 +2087,7 @@ jobs:
         run: gradle -p acceptance-jvm test --no-daemon --rerun-tasks -Pacceptance.pass=wip
 
       # Evidence bundle (FR-011) for the wip pass only: `passes_run` is ["wip"], the gating
-      # entry is `missing` (it lives in acceptance-bdd-results-<os>), and the script exits 0
+      # entry is `missing` (it lives in acceptance-bdd-results-<os>-shard-<k>), and the script exits 0
       # whatever the wip outcome. --wip-step-outcome records a timed-out pass as failed.
       - name: Write the acceptance evidence bundle
         if: always()

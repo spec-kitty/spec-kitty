@@ -175,7 +175,7 @@ which CLI build, on which OS, in which pass produced it. The current upload does
   leg's 60-minute cap, and the canceled leg escalated a P0 with no failing test. Each job now
   writes its own `evidence.json` (schema version 1 unchanged: both passes are present, the one
   the job did not run is `missing`, and the additive `passes_run` field names the one it ran).
-  The gating bundle stays in `acceptance-bdd-results-<os>`; the `@wip` bundle is uploaded as
+  The gating bundle stays in `acceptance-bdd-results-<os>-shard-<k>`; the `@wip` bundle is uploaded as
   `acceptance-bdd-wip-results-<os>`. spec-kitty-qa reads the `@wip` results from that artifact.
 - **Amendment (#7492 follow-up, 2026-11-10).** The gating pass runs in shards, three on Windows,
   two on macOS and one on Linux (`-Pacceptance.shard=K/N`, `kitty.acceptance.sharding.ShardFilter`), to cut the Windows leg's
