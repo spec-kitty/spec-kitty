@@ -1,13 +1,17 @@
-"""Acceptance tests for the built-site diagram check (#6936; ADR 2026-10-31-1 D-11).
+"""Acceptance tests for the built-site diagram count check (#6936, #6100; ADR 2026-10-31-1 D-11).
 
 ``scripts/docs/site_built_check_diagrams.py`` is a source surface of the built-site
-check (``site_built_check.py``): for every page the site publishes
-(``_dockitty_contract``), each ```` ```mermaid ```` and ```` ```plantuml ```` fence in
-the source is a static SVG figure in the built page, the markup doc-kitty's
-``diagramFigure`` emits in build mode (``<figure class="dk-diagram"><svg>``). These
-tests build a small ``docs/`` tree and the ``dist/`` a clean build of it gives, then
-plant one failure mode at a time (a mutant): the clean tree passes and every mutant
-fails, naming the page and the reason.
+check (``site_built_check.py``) and owns ONE rule, the per-route count: for every page
+the site publishes (``_dockitty_contract``), the built page holds as many rendered
+figures (doc-kitty's ``<figure class="dk-diagram">`` holding an ``<svg>``) as its source
+holds ```` ```mermaid ```` and ```` ```plantuml ```` fences. The built-markup rules (a
+figure with no ``<svg>``, a raw fence shipped as code, client-mode residue, a
+``plantuml-error`` block, a plantuml.com URL the page would load) belong to doc-kitty's
+``dockitty-assert-diagrams`` bin (doc-kitty 1042a40, spec-kitty/doc-kitty#314), which
+the docsite build runs before this check; this surface does not report them a second
+time. These tests build a small ``docs/`` tree and the ``dist/`` a clean build of it
+gives, then plant one failure mode at a time (a mutant): the clean tree passes and
+every count mutant fails, naming the page and the counts.
 """
 
 from __future__ import annotations
@@ -107,32 +111,15 @@ FLOWS = "/architecture/flows/"
 FLOWS_HTML = "architecture/flows/index.html"
 
 
+SHORT = "3 diagram block(s) in the source, 2 rendered figure(s)"
+
+
 @pytest.mark.parametrize(
     ("mutate", "reasons"),
     [
         pytest.param(
-            lambda dist: _flows(dist, f"{RAW_MERMAID}{CAPTIONED_FIGURE}{FIGURE}"),
-            ["raw mermaid code block", "3 diagram block(s) in the source, 2 rendered figure(s)"],
-            id="raw-mermaid-fence",
-        ),
-        pytest.param(
-            lambda dist: _flows(dist, f"{FIGURE}{RAW_PLANTUML}{FIGURE}"),
-            ["raw plantuml code block", "3 diagram block(s) in the source, 2 rendered figure(s)"],
-            id="raw-plantuml-fence",
-        ),
-        pytest.param(
-            lambda dist: _flows(dist, f"{CLIENT_MERMAID}{CAPTIONED_FIGURE}{FIGURE}"),
-            ["client-rendered mermaid block", "3 diagram block(s) in the source, 2 rendered figure(s)"],
-            id="client-mode-residue",
-        ),
-        pytest.param(
-            lambda dist: _flows(dist, f"{FIGURE}{PLANTUML_ERROR}{FIGURE}"),
-            ["diagram error block", "raw plantuml code block", "3 diagram block(s) in the source, 2 rendered figure(s)"],
-            id="error-block",
-        ),
-        pytest.param(
             lambda dist: _flows(dist, f"{FIGURE}{CAPTIONED_FIGURE}"),
-            ["3 diagram block(s) in the source, 2 rendered figure(s)"],
+            [SHORT],
             id="missing-figure",
         ),
         pytest.param(
@@ -141,11 +128,39 @@ FLOWS_HTML = "architecture/flows/index.html"
             id="extra-figure",
         ),
         pytest.param(
-            lambda dist: _flows(
-                dist, f'{FIGURE}<figure class="dk-diagram"><img src="https://www.plantuml.com/plantuml/svg/SyfFKj2rKt3CoKnELR1Io4ZDoSa70000"/></figure>{FIGURE}'
-            ),
-            ["plantuml.com URL https://www.plantuml.com/plantuml/svg/SyfFKj2rKt3CoKnELR1Io4ZDoSa70000", "3 diagram block(s) in the source, 2 rendered figure(s)"],
-            id="plantuml-com-url",
+            lambda dist: _flows(dist, f"{RAW_MERMAID}{CAPTIONED_FIGURE}{FIGURE}"),
+            [SHORT],
+            id="fence-shipped-as-code-is-a-short-count",
+        ),
+        pytest.param(
+            lambda dist: _flows(dist, f"{CLIENT_MERMAID}{CAPTIONED_FIGURE}{FIGURE}"),
+            [SHORT],
+            id="client-mode-figure-is-a-short-count",
+        ),
+        pytest.param(
+            lambda dist: _flows(dist, f"{FIGURE}{PLANTUML_ERROR}{FIGURE}"),
+            [SHORT],
+            id="error-block-is-a-short-count",
+        ),
+        pytest.param(
+            lambda dist: _flows(dist, f'{FIGURE}<figure class="dk-diagram" role="group"><p>no picture</p></figure>{FIGURE}'),
+            [SHORT],
+            id="figure-without-svg-is-not-counted",
+        ),
+        pytest.param(
+            lambda dist: _flows(dist, f'{FIGURE}<figure class="frame"><svg></svg></figure>{FIGURE}'),
+            [SHORT],
+            id="svg-in-another-figure-is-not-counted",
+        ),
+        pytest.param(
+            lambda dist: _flows(dist, f"{FIGURE}<p><svg></svg></p>{FIGURE}"),
+            [SHORT],
+            id="svg-outside-a-figure-is-not-counted",
+        ),
+        pytest.param(
+            lambda dist: _flows(dist, f'{FIGURE}<figure class="dk-diagram"><figure class="frame"></figure></figure><svg></svg>{FIGURE}'),
+            [SHORT],
+            id="svg-after-a-closed-figure-is-not-counted",
         ),
         pytest.param(
             lambda dist: (dist / FLOWS_HTML).unlink(),
@@ -154,7 +169,7 @@ FLOWS_HTML = "architecture/flows/index.html"
         ),
     ],
 )
-def test_every_mutant_is_reported(site: tuple[Path, Path], mutate: Callable[[Path], None], reasons: list[str]) -> None:
+def test_every_count_mutant_is_reported(site: tuple[Path, Path], mutate: Callable[[Path], None], reasons: list[str]) -> None:
     docs, dist = site
     mutate(dist)
 
@@ -163,15 +178,45 @@ def test_every_mutant_is_reported(site: tuple[Path, Path], mutate: Callable[[Pat
     assert sorted(findings) == sorted(f"diagrams: {FLOWS} ({FLOWS_HTML}: {reason})" for reason in reasons)
 
 
-def test_a_raw_block_marked_on_both_pre_and_code_is_reported_once(site: tuple[Path, Path]) -> None:
-    """Astro's own highlighter marks the language on the ``pre`` and on its ``code``: one block, one finding."""
+def test_a_short_count_on_every_published_page_is_reported_per_route(site: tuple[Path, Path]) -> None:
+    """Each published route is judged on its own: two short pages give two findings, one per route."""
+    docs, dist = site
+    _flows(dist, FIGURE)
+    _write(dist, "architecture/index.html", _html('<pre data-language="markdown"><code>```mermaid</code></pre><ol><li></li></ol>'))
+
+    assert sorted(_findings(docs, dist)) == [
+        "diagrams: /architecture/ (architecture/index.html: 1 diagram block(s) in the source, 0 rendered figure(s))",
+        f"diagrams: {FLOWS} ({FLOWS_HTML}: 3 diagram block(s) in the source, 1 rendered figure(s))",
+    ]
+
+
+#: Built markup that is wrong but leaves the count right: each is a rule of doc-kitty's
+#: ``dockitty-assert-diagrams`` (doc-kitty 1042a40, #314), not of this surface.
+MARKUP_DEFECTS = [
+    pytest.param(RAW_MERMAID, id="raw-mermaid-fence"),
+    pytest.param(RAW_PLANTUML, id="raw-plantuml-fence"),
+    pytest.param('<pre class="mermaid">flowchart LR</pre>', id="client-mode-residue"),
+    pytest.param(PLANTUML_ERROR, id="error-block"),
+    pytest.param('<img src="https://www.plantuml.com/plantuml/svg/SyfFKj2rKt3CoKnELR1Io4ZDoSa70000"/>', id="plantuml-com-url"),
+]
+
+
+@pytest.mark.parametrize("defect", MARKUP_DEFECTS)
+def test_a_markup_defect_with_a_right_count_is_left_to_dockitty_assert_diagrams(site: tuple[Path, Path], defect: str) -> None:
+    """One rule, one authority: the bin owns the markup rules, this surface owns the count."""
+    docs, dist = site
+    _flows(dist, f"{FIGURE}{CAPTIONED_FIGURE}{FIGURE}{defect}")
+    _write(dist, "404.html", _html(f"<p>Not found</p>{defect}"))
+
+    assert _findings(docs, dist) == []
+
+
+def test_a_raw_block_marked_on_both_pre_and_code_is_one_short_figure(site: tuple[Path, Path]) -> None:
+    """Astro's own highlighter marks the language on the ``pre`` and on its ``code``: one block, one missing figure."""
     docs, dist = site
     _flows(dist, f'<pre data-language="mermaid"><code class="language-mermaid">flowchart LR</code></pre>{CAPTIONED_FIGURE}{FIGURE}')
 
-    assert _findings(docs, dist) == [
-        f"diagrams: {FLOWS} ({FLOWS_HTML}: raw mermaid code block)",
-        f"diagrams: {FLOWS} ({FLOWS_HTML}: 3 diagram block(s) in the source, 2 rendered figure(s))",
-    ]
+    assert _findings(docs, dist) == [f"diagrams: {FLOWS} ({FLOWS_HTML}: {SHORT})"]
 
 
 def test_a_figure_holding_several_svgs_counts_once(site: tuple[Path, Path]) -> None:
@@ -183,18 +228,19 @@ def test_a_figure_holding_several_svgs_counts_once(site: tuple[Path, Path]) -> N
     assert _findings(docs, dist) == []
 
 
+def test_several_svgs_in_one_figure_do_not_stand_in_for_a_missing_figure(site: tuple[Path, Path]) -> None:
+    docs, dist = site
+    nested = '<figure class="dk-diagram" role="group"><svg></svg><svg></svg><svg></svg></figure>'
+    _flows(dist, nested)
+
+    assert _findings(docs, dist) == [f"diagrams: {FLOWS} ({FLOWS_HTML}: 3 diagram block(s) in the source, 1 rendered figure(s))"]
+
+
 def test_a_figure_on_a_page_without_a_source_diagram_is_reported(site: tuple[Path, Path]) -> None:
     docs, dist = site
     _write(dist, "index.html", _html(FIGURE))
 
     assert _findings(docs, dist) == ["diagrams: / (index.html: 0 diagram block(s) in the source, 1 rendered figure(s))"]
-
-
-def test_a_plantuml_com_url_on_any_built_page_is_reported(site: tuple[Path, Path]) -> None:
-    docs, dist = site
-    _write(dist, "404.html", _html('<a href="http://plantuml.com/plantuml/png/abc">x</a>'))
-
-    assert _findings(docs, dist) == ["diagrams: /404/ (404.html: plantuml.com URL http://plantuml.com/plantuml/png/abc)"]
 
 
 #: A legacy ``.html`` redirect stub doc-kitty's ``legacyHtmlRedirects`` writes beside the page (#6933).
@@ -259,7 +305,7 @@ def test_the_surface_runs_in_the_built_site_check_command(site: tuple[Path, Path
 
     out = capsys.readouterr().out
     assert code == 1
-    assert f"diagrams: {FLOWS} ({FLOWS_HTML}: raw mermaid code block)" in out.splitlines()
+    assert f"diagrams: {FLOWS} ({FLOWS_HTML}: {SHORT})" in out.splitlines()
 
 
 def test_the_command_summary_names_the_failing_surfaces_not_only_unpublished_routes(site: tuple[Path, Path], capsys: pytest.CaptureFixture[str]) -> None:
@@ -271,4 +317,4 @@ def test_the_command_summary_names_the_failing_surfaces_not_only_unpublished_rou
 
     summary = capsys.readouterr().err.strip().splitlines()[-1]
     assert "unpublished route" not in summary
-    assert "diagrams: 2" in summary
+    assert "diagrams: 1" in summary

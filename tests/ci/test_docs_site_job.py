@@ -46,6 +46,9 @@ _SHA_PIN = re.compile(r"^[^@\s]+@[0-9a-f]{40}$")
 _CORE_GUARD = "(github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')"
 _ASTRO_CONFIG = "--astro-config astro.config.mjs"
 _DOCKITTY_CALL = re.compile(r"\bdockitty-[a-z-]+\b")
+#: The dockitty-* bins that read no site config, so take no ``--astro-config``: ``dockitty-assert-diagrams``
+#: reads only the built HTML and refuses any argument but ``<dist>`` (exit 2; doc-kitty 1042a40, #314).
+_NO_ASTRO_CONFIG_BINS = frozenset({"dockitty-assert-diagrams"})
 
 
 def _workflow() -> dict[str, Any]:
@@ -226,8 +229,12 @@ def test_no_step_swallows_a_failure() -> None:
 
 
 def _astro_config_violations(text: str) -> list[str]:
-    """Every line that calls a ``dockitty-*`` binary without ``--astro-config astro.config.mjs``."""
-    return [line.strip() for line in text.splitlines() if _DOCKITTY_CALL.search(line) and not line.lstrip().startswith("#") and _ASTRO_CONFIG not in line]
+    """Every line that calls a ``dockitty-*`` binary that reads the site config without ``--astro-config astro.config.mjs``."""
+    return [
+        line.strip()
+        for line in text.splitlines()
+        if not line.lstrip().startswith("#") and set(_DOCKITTY_CALL.findall(line)) - _NO_ASTRO_CONFIG_BINS and _ASTRO_CONFIG not in line
+    ]
 
 
 def test_every_dockitty_call_passes_the_astro_config() -> None:
@@ -243,6 +250,83 @@ def test_a_dockitty_call_without_the_astro_config_is_caught() -> None:
     )
 
     assert _astro_config_violations(mutant) == ["run: pnpm exec dockitty-check-links ../docs --strict"]
+
+
+def test_only_the_config_free_bin_is_exempt_from_the_astro_config() -> None:
+    """The exemption names one bin: a config-reading call on the same line is still caught."""
+    exempt = "        run: pnpm exec dockitty-assert-diagrams dist\n"
+    mixed = "        run: pnpm exec dockitty-assert-diagrams dist && pnpm exec dockitty-check-links ../docs\n"
+
+    assert _astro_config_violations(exempt) == []
+    assert _astro_config_violations(mixed) == [mixed.strip()]
+
+
+# --- doc-kitty's diagram bins (#6100, spec-kitty/doc-kitty#314 at 1042a40) ----------------------
+#
+# The no-plantuml.com guard runs as doc-kitty's `dockitty-plantuml-guard` bin, not as an inline
+# `node --input-type=module` import of the toolkit's library. The built HTML's diagram markup is
+# checked by doc-kitty's `dockitty-assert-diagrams dist`, after the build and before core's
+# built-site check, whose `diagrams` surface keeps only the per-route count. Both the shared job
+# and `make docs-site` run them in that order.
+
+_GUARD = "pnpm exec dockitty-plantuml-guard --astro-config astro.config.mjs"
+_ASSERT_DIAGRAMS = "pnpm exec dockitty-assert-diagrams dist"
+_BUILD = "pnpm run build"
+_BUILT_CHECK = "-m scripts.docs.site_built_check site/dist"
+_INLINE_NODE = "--input-type"
+
+
+def _step_runs(job: dict[str, Any]) -> list[tuple[str, str]]:
+    """``(working-directory, run)`` of every run step, in order."""
+    return [(str(step.get("working-directory", "")), str(step["run"])) for step in job.get("steps", []) if "run" in step]
+
+
+def _make_docs_site_lines(makefile: str) -> list[str]:
+    """The recipe lines of the ``docs-site:`` target, in order."""
+    lines = makefile.split("\ndocs-site: ##", 1)[1].splitlines()[1:]
+    return [line.strip() for line in lines[: next(i for i, line in enumerate(lines) if not line.startswith(("\t", " ")))]]
+
+
+def _diagram_bin_violations(runs: list[str]) -> list[str]:
+    """What is wrong with the order of the guard, the build, the bin and the built-site check in *runs*."""
+    found = [f"inline node guard: {run.strip()}" for run in runs if _INLINE_NODE in run]
+    needles = {"plantuml-guard": _GUARD, "build": _BUILD, "assert-diagrams": _ASSERT_DIAGRAMS, "built-site check": _BUILT_CHECK}
+    at = {name: next((i for i, run in enumerate(runs) if needle in run), -1) for name, needle in needles.items()}
+    missing = [f"missing: {name}" for name, index in at.items() if index < 0]
+    if missing:
+        return found + missing
+    if not at["plantuml-guard"] < at["build"]:
+        found.append("plantuml-guard does not run before the build")
+    if not at["build"] < at["assert-diagrams"] < at["built-site check"]:
+        found.append("assert-diagrams does not run after the build and before the built-site check")
+    return found
+
+
+def test_the_shared_job_runs_doc_kittys_diagram_bins_in_order() -> None:
+    runs = _step_runs(_build_job())
+
+    assert _diagram_bin_violations([run for _, run in runs]) == []
+    assert {wd for wd, run in runs if _GUARD in run or _ASSERT_DIAGRAMS in run} == {"site"}
+
+
+def test_make_docs_site_runs_doc_kittys_diagram_bins_in_order() -> None:
+    lines = _make_docs_site_lines(MAKEFILE.read_text(encoding="utf-8"))
+
+    assert _diagram_bin_violations(lines) == []
+    assert all(line.startswith("cd site && ") for line in lines if _GUARD in line or _ASSERT_DIAGRAMS in line)
+
+
+def test_a_missing_misplaced_or_inline_diagram_bin_is_caught() -> None:
+    good = [_GUARD, _BUILD, _ASSERT_DIAGRAMS, f"python3 {_BUILT_CHECK} --docs docs"]
+
+    assert _diagram_bin_violations(good) == []
+    assert _diagram_bin_violations([good[0], good[1], good[3]]) == ["missing: assert-diagrams"]
+    assert _diagram_bin_violations([good[0], good[1], good[3], good[2]]) == ["assert-diagrams does not run after the build and before the built-site check"]
+    assert _diagram_bin_violations([good[1], good[0], good[2], good[3]]) == ["plantuml-guard does not run before the build"]
+    assert _diagram_bin_violations(["node --input-type=module -e x", good[1], good[2], good[3]]) == [
+        "inline node guard: node --input-type=module -e x",
+        "missing: plantuml-guard",
+    ]
 
 
 # --- required by the terminal gate since #6937 (FR-008) -----------------------------------------
