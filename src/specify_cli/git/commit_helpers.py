@@ -372,8 +372,8 @@ class SafeCommitPathPolicyError(SafeCommitError):
 
     error_code = "SAFE_COMMIT_PATH_POLICY"
 
-    def __init__(self, *, offending_path: str, worktree_root: Path) -> None:
-        message = (
+    def __init__(self, *, offending_path: str, worktree_root: Path, reason: str | None = None) -> None:
+        message = reason or (
             f"safe_commit: refusing to stage path under .worktrees/: {offending_path}. "
             "Planning artifacts must be committed from the coordination worktree, "
             "not the primary repo root."
@@ -1799,6 +1799,29 @@ def _validate_runtime_lock_removal(
     return frozenset([str(lock_path.relative_to(owned.owned_root))])
 
 
+def _refuse_decisions_runtime_lock(requested: Sequence[str], removals: frozenset[str], worktree_root: Path) -> None:
+    """#7498 (FR-009): never stage the decisions runtime lock, whatever the caller asked for.
+
+    The lock stays on disk by design (kernel ``locks`` G3), and staging uses
+    ``git add --force``, which overrides any ignore rule, so this is the one place
+    that keeps it out of every branch. The owned ``repair-runtime-lock`` index-only
+    removal (*removals*) is not staging and stays allowed. Raised before any index
+    mutation.
+    """
+    from specify_cli.coordination.coherence import is_decisions_runtime_lock
+
+    for path in requested:
+        if path not in removals and is_decisions_runtime_lock(path):
+            raise SafeCommitPathPolicyError(
+                offending_path=path,
+                worktree_root=worktree_root,
+                reason=(
+                    f"safe_commit: refusing to stage the decisions runtime lock {path}: it is Spec Kitty's "
+                    "runtime lock and is never committed. Remove it from the paths you pass; nothing was committed."
+                ),
+            )
+
+
 def safe_commit(
     *,
     repo_root: Path,
@@ -1957,6 +1980,7 @@ def safe_commit(
         capability=capability,
         owned=owned,
     )
+    _refuse_decisions_runtime_lock(normalized_files[: len(paths)], removals, worktree_root)
     if index_deletions:
         requested_files = normalized_files[: len(paths)]
         deletion_files = normalized_files[len(paths) :]

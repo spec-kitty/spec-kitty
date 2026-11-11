@@ -74,6 +74,13 @@ __all__ = [
 #: lock-only path.
 LOCK_FILENAME = "index.json.lock"
 
+#: #7498: the clone-local exclusion that keeps the lock out of ``git status`` in
+#: every checkout role. It lives in the COMMON-dir ``info/exclude`` (git honours
+#: it for the repository root checkout and every linked worktree, and it is never
+#: committed); ``**/`` matches any monorepo depth, like
+#: ``coordination.coherence.is_decisions_runtime_lock``'s ``(?:^|/)`` anchor.
+_EXCLUDE_PATTERN = f"**/kitty-specs/*/decisions/{LOCK_FILENAME}"
+
 #: Bounded wait matching the NFR-002 10 s hold ceiling, used by every holder
 #: except an open: a stuck holder fails loudly with :func:`lock_timeout_error`
 #: rather than hanging the caller. Read at call time (``_lock.ACQUIRE_TIMEOUT_S``)
@@ -151,6 +158,30 @@ def is_lock_timeout(exc: BaseException) -> bool:
     return isinstance(exc, DecisionError) and exc.code is DecisionErrorCode.LOCK_TIMEOUT
 
 
+def _ensure_runtime_lock_excluded(held_lock: Path) -> None:
+    """Make sure git never lists the runtime lock as an untracked change (#7498, FR-008).
+
+    Best effort, and never a refusal: the lock exists BY DESIGN (release truncates,
+    never unlinks: kernel ``locks`` G3), and the commit helper's refusal to stage it
+    (``git.commit_helpers.safe_commit``) is the guarantee that no branch tracks it.
+    An exclude cannot hide a lock some branch already tracks; that one is repaired by
+    ``agent decision repair-runtime-lock``.
+    """
+    from kernel.git_topology import GitTopologyError
+    from specify_cli.core.git_ops import exclude_from_git_index
+
+    anchor = next((parent for parent in held_lock.parents if parent.is_dir()), None)
+    if anchor is None:
+        return
+    try:
+        # Outside a git repository the helper finds no exclude file and does nothing.
+        # One read of ``info/exclude`` per acquire; only a missing line is appended,
+        # so a clone is written once (NFR-002).
+        exclude_from_git_index(anchor, [_EXCLUDE_PATTERN])
+    except (GitTopologyError, OSError):
+        return
+
+
 @contextmanager
 def decisions_lock(
     held_lock: Path,
@@ -163,7 +194,10 @@ def decisions_lock(
 
     ``timeout_s=None`` waits without a bound. A timeout leaves nothing written,
     since the caller's critical section never ran.
+
+    Before the first acquire in a clone, the lock is excluded from git (#7498).
     """
+    _ensure_runtime_lock_excluded(held_lock)
     with ExitStack() as stack:
         try:
             stack.enter_context(machine_file_lock(held_lock, blocking=True, timeout_s=timeout_s))

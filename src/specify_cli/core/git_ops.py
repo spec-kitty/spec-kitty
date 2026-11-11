@@ -248,20 +248,25 @@ def exclude_from_git_index(repo_path: Path, patterns: list[str]) -> None:
         patterns: List of patterns to exclude (e.g., [".worktrees/"])
     """
     exclude_file = git_exclude_file(repo_path)
-    if exclude_file is None or not exclude_file.exists():
+    if exclude_file is None:
         return
 
-    # Read existing exclusions
+    # Read existing exclusions; a clone made from an empty template may have no
+    # ``info/exclude`` yet, which git treats as empty (#7498).
     try:
-        existing = set(exclude_file.read_text(encoding="utf-8").splitlines())
+        text = exclude_file.read_text(encoding="utf-8") if exclude_file.exists() else ""
     except OSError:
-        existing = set()
+        return
+    existing = set(text.splitlines())
 
     # Add new patterns
     new_patterns = [p for p in patterns if p not in existing]
     if new_patterns:
         try:
+            exclude_file.parent.mkdir(parents=True, exist_ok=True)
             with exclude_file.open("a", encoding="utf-8") as f:
+                if text and not text.endswith("\n"):
+                    f.write("\n")  # never glue a rule onto the operator's unterminated last line
                 marker = "# Added by spec-kitty (local exclusions)"
                 if marker not in existing:
                     f.write(f"\n{marker}\n")
