@@ -96,8 +96,8 @@ def test_gradle_pin_check_runs_once_per_matrix(job: dict[str, Any]) -> None:
     assert step["if"] == "matrix.os == 'ubuntu-24.04' && matrix.shard == 1"
 
 
-def test_build_refuses_a_malformed_shard() -> None:
-    """build.gradle validates -Pacceptance.shard before any scenario starts (ShardFilter re-checks)."""
+def test_shard_property_is_wired() -> None:
+    """-Pacceptance.shard is passed to the test JVM and ShardFilter is registered (wiring only; the refusal itself is not exercised here)."""
     gradle = (WORKFLOW.parents[2] / "acceptance-jvm" / "build.gradle").read_text(encoding="utf-8")
     assert "findProperty('acceptance.shard')" in gradle
     assert re.search(r"systemProperty 'acceptance\.shard', requestedShard", gradle)
