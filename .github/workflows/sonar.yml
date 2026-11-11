@@ -17,13 +17,21 @@
 # `priivacy-ai` identity (the cross-org-rename question T062/C-008 had left open).
 # `sonar-project.properties` carries this identity; this workflow reads it from there.
 #
-# Artefact aggregation (contracts/artefact-naming.md): this workflow is triggered
-# by `schedule`/`workflow_dispatch` only -- NOT `workflow_run` on "CI Modules" (unlike
-# ci-aggregate.yml, WP10) -- so it resolves its OWN run by the checked-out source
-# revision (`git rev-parse HEAD`), not by "the newest successful run on the branch".
-# Only successful "CI Modules" runs whose `head_sha` is EXACTLY that revision (and,
-# when the ref is a branch, whose `head_branch` is that branch) may supply coverage;
-# a second such run at the SAME revision may fill missing basenames. Coverage from
+# Artefact aggregation (contracts/artefact-naming.md): this workflow runs when a
+# "CI Nightly" run on main completes (`workflow_run`, #7531), or on
+# `workflow_dispatch`. Its coverage comes from the CI Nightly full module matrix
+# (every registry shard, `module-tests-*-reports`), never from the diff-selected
+# "CI Modules" push run, which covers only the touched modules. On `workflow_run`
+# the job checks out the triggering run's `head_sha` and binds coverage to that
+# run alone; on dispatch it lists CI Nightly runs at the checked-out revision.
+# Either way the revision is the provenance key: only completed CI Nightly runs
+# (success, or failure because some suite is red) whose `head_sha` is EXACTLY the
+# checked-out revision (and, when the ref is a branch, whose `head_branch` is that
+# branch) may supply coverage; on dispatch a second such run at the SAME revision
+# may fill missing basenames. Completeness fails closed: unless every shard that
+# .github/ci-module-registry.yml expands has a report, the scan runs WITHOUT
+# coverage and a `::warning::` names the missing shards, so no partial
+# percentage is ever published. Coverage from
 # a newer/different revision, another branch, or a superseded run attempt is never
 # merged into the scan. When no matching run (or no matching coverage report) is
 # available, the scan still runs informational with a clear `::warning::` and zero
@@ -54,8 +62,12 @@
 name: Sonar
 
 on:
-  schedule:
-    - cron: '0 3 * * *'  # nightly, 03:00 UTC
+  # The CI Nightly full module matrix produces this scan's coverage (#7531), so the
+  # scan follows it rather than racing it on its own cron.
+  workflow_run:
+    workflows: ['CI Nightly']
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       mode:
@@ -81,7 +93,7 @@ permissions:
 jobs:
   scan:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
-    name: SonarCloud scan (informational, nightly/dispatch)
+    name: SonarCloud scan (informational, after CI Nightly or on dispatch)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -115,6 +127,8 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
+          # The triggering CI Nightly run's revision (empty on dispatch: the dispatched ref).
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Resolve the checked-out source revision for coverage provenance
         id: source
@@ -131,7 +145,7 @@ jobs:
           printf 'branch=%s\n' "$branch" >> "$GITHUB_OUTPUT"
           echo "sonar: coverage provenance bound to source revision $sha${branch:+ on branch $branch}"
 
-      - name: List successful "CI Modules" runs at this exact source revision
+      - name: List completed "CI Nightly" runs at this exact source revision
         id: module-runs
         if: steps.sonar_token.outputs.enabled == 'true'
         continue-on-error: true
@@ -146,19 +160,28 @@ jobs:
             // provenance key. The tested selector validates every returned run
             // again (head_sha, head_branch, status/conclusion, run attempt), so a
             // mocked or unexpectedly broad API response cannot widen the binding.
+            // On workflow_run the triggering CI Nightly run is the only candidate.
+            // A CI Nightly run is red whenever any suite is, while its module
+            // shards still upload coverage, so completed runs are listed and the
+            // registry completeness check decides whether the coverage is usable.
             const fs = require('fs');
+            if (context.eventName === 'workflow_run') {
+              fs.writeFileSync(process.env.RUNS_JSON, JSON.stringify({ workflow_runs: [context.payload.workflow_run] }));
+              core.info(`sonar: bound to triggering CI Nightly run ${context.payload.workflow_run.id}`);
+              return;
+            }
             const params = {
               owner: context.repo.owner,
               repo: context.repo.repo,
-              workflow_id: 'ci-modules.yml',
+              workflow_id: 'ci-nightly.yml',
               head_sha: process.env.SOURCE_SHA,
-              status: 'success',
+              status: 'completed',
               per_page: 100,
             };
             if (process.env.SOURCE_BRANCH) params.branch = process.env.SOURCE_BRANCH;
             const { data } = await github.rest.actions.listWorkflowRuns(params);
             fs.writeFileSync(process.env.RUNS_JSON, JSON.stringify(data));
-            core.info(`sonar: fetched ${data.workflow_runs.length} successful CI Modules run(s) for head_sha=${process.env.SOURCE_SHA}${process.env.SOURCE_BRANCH ? ` on ${process.env.SOURCE_BRANCH}` : ''}`);
+            core.info(`sonar: fetched ${data.workflow_runs.length} completed CI Nightly run(s) for head_sha=${process.env.SOURCE_SHA}${process.env.SOURCE_BRANCH ? ` on ${process.env.SOURCE_BRANCH}` : ''}`);
 
       - name: Select runs at exactly this source revision (deterministic, same-branch only)
         id: current-run
@@ -170,7 +193,7 @@ jobs:
           RUNS_JSON: ${{ runner.temp }}/ci-modules-runs.json
         run: |
           set -euo pipefail
-          args=(--runs "$RUNS_JSON" --source-sha "$SOURCE_SHA" --output "$GITHUB_OUTPUT")
+          args=(--runs "$RUNS_JSON" --source-sha "$SOURCE_SHA" --accept-failed --output "$GITHUB_OUTPUT")
           if [ -n "$SOURCE_BRANCH" ]; then
             args+=(--branch "$SOURCE_BRANCH")
           fi
@@ -207,7 +230,15 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ steps.current-run.outputs.fallback_run_id }}
 
-      - name: Reconcile coverage basenames (same-revision dedup) -> comma-joined reportPaths
+      # The registry completeness check reuses scripts/ci/reconcile_shards.py's parser, which needs PyYAML
+      # (the same pin ci-nightly.yml's matrix generation installs).
+      - name: Install PyYAML for the registry completeness check
+        if: always() && steps.sonar_token.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          pip install --quiet --disable-pip-version-check --only-binary=:all: "pyyaml==6.0.2"
+
+      - name: Reconcile coverage basenames (same-revision dedup, every registry shard required) -> comma-joined reportPaths
         id: coverage
         if: always() && steps.sonar_token.outputs.enabled == 'true'
         shell: bash
@@ -218,6 +249,7 @@ jobs:
           if ! python3 scripts/ci/sonar_coverage_provenance.py reconcile \
             --current out/reports/artifacts/current \
             --fallback out/reports/artifacts/previous \
+            --registry .github/ci-module-registry.yml \
             --source-sha "$SOURCE_SHA" \
             --output "$GITHUB_OUTPUT"; then
             echo "::warning::sonar: coverage reconciliation failed; scanning WITHOUT coverage rather than reusing an unverified report."
