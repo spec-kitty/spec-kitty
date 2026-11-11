@@ -231,9 +231,11 @@ jobs:
           run-id: ${{ steps.current-run.outputs.fallback_run_id }}
 
       # The registry completeness check reuses scripts/ci/reconcile_shards.py's parser, which needs PyYAML
-      # (the same pin ci-nightly.yml's matrix generation installs).
+      # (the same pin ci-nightly.yml's matrix generation installs). A failed install must not red this
+      # informational scan: the reconcile step below then fails closed and scans WITHOUT coverage.
       - name: Install PyYAML for the registry completeness check
         if: always() && steps.sonar_token.outputs.enabled == 'true'
+        continue-on-error: true
         shell: bash
         run: |
           pip install --quiet --disable-pip-version-check --only-binary=:all: "pyyaml==6.0.2"
