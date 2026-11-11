@@ -19,6 +19,7 @@ import pytest
 
 import specify_cli.status as status_package
 from mission_runtime import MissionTopology
+from runtime.next.next_invocation_lifecycle import emit_mission_next_invoked
 from runtime.next.runtime_bridge import decide_next_via_runtime
 from tests.runtime._next_mission_scaffold import analysis_is_current
 from tests.runtime.next.test_board_query_read_door_7507 import CELLS, _coord_cell_mission
@@ -55,4 +56,21 @@ def test_advancing_decision_door_reads(tmp_path: Path, monkeypatch: pytest.Monke
     assert decision.progress is not None
     assert decision.progress["planned_wps"] == 1
     assert decision.progress["for_review_wps"] == 1
+    assert len(door_reads) == _DOOR_READS_PER_ADVANCING_DECISION
+
+
+@pytest.mark.parametrize("cell", CELLS)
+def test_in_flight_invocation_reads_the_door_once_in_total(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, cell: str) -> None:
+    """Decide plus the ``MissionNextInvoked`` row: one door read per in-flight invocation (#7539 squad fold 1).
+
+    Only a terminal decision can name a landed Mission, so the row asks the door nothing for a
+    ``step`` and goes straight to the status write seam.
+    """
+    repo, slug = _coord_cell_mission(tmp_path, MissionTopology.COORD, cell)
+    door_reads = _counting(monkeypatch, status_package, "resolve_status_read")
+
+    decision = decide_next_via_runtime("pedro", slug, "success", repo, analysis_currency=analysis_is_current)
+    emit_mission_next_invoked("pedro", "success", slug, repo, decision)
+
+    assert str(decision.kind) == "step", decision.reason
     assert len(door_reads) == _DOOR_READS_PER_ADVANCING_DECISION
