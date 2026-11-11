@@ -64,12 +64,15 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 # interim-locked-append: this refusal type retires with kernel.event_log_append at #6193.
-from mission_runtime import MissionArtifactKind, OwnedCheckout, mission_context_for, mission_has_landed, placement_seam
+from mission_runtime import MissionArtifactKind, OwnedCheckout, mission_context_for, placement_seam
 
 from specify_cli.core.paths import MissionMetaReadError
+
+if TYPE_CHECKING:
+    from specify_cli.status import StatusReadSurface
 
 logger = logging.getLogger(__name__)
 
@@ -312,6 +315,27 @@ def write_issuance_lifecycle_record(
         return
 
 
+def _consolidated_target_dir(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None) -> Path | None:
+    """The status read door's ``CONSOLIDATED_TARGET`` directory of a landed Mission, else ``None``.
+
+    A Mission the door cannot read (not found, an unreadable ref or worktree registry) is
+    ``None`` too: the status write seam then gives the row its own outcome, as it did before the
+    door answered the landed question (#7539).
+    """
+    from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
+    from specify_cli.coordination.surface_resolver import WorktreeRegistryUnavailable
+    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+    from specify_cli.status import StatusReadSource, resolve_status_read
+
+    try:
+        surface: StatusReadSurface = resolve_status_read(repo_root, mission_slug, owned=owned)
+    except (StatusReadPathNotFound, FileNotFoundError, StatusSurfaceRefUnreadable, WorktreeRegistryUnavailable) as exc:
+        logger.debug("MissionNextInvoked row for %r: the read door cannot answer (%s); using the write seam", mission_slug, exc)
+        return None
+    landed_dir: Path | None = surface.path if surface.source is StatusReadSource.CONSOLIDATED_TARGET else None
+    return landed_dir
+
+
 def _mission_next_invoked_dir(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None) -> Path:
     """The Mission directory the ``MissionNextInvoked`` row is appended to.
 
@@ -322,16 +346,16 @@ def _mission_next_invoked_dir(repo_root: Path, mission_slug: str, owned: OwnedCh
     materialization (FR-003).
 
     A landed Mission is the exception (review cycle 2, SC-003): its status source is the
-    consolidated target (the read door's ``CONSOLIDATED_TARGET``, checked before any coordination
-    probe), consolidation tore its coordination checkout down, and ``next`` answers it with a
-    terminal decision before the decision-log wrap. Its row lands in the PRIMARY Mission directory,
-    and no coordination worktree is materialized or restored for it.
+    consolidated target, consolidation tore its coordination checkout down, and ``next`` answers
+    it with a terminal decision before the decision-log wrap. The read door decides that
+    (``CONSOLIDATED_TARGET``, checked before any coordination probe; #7539: no second landed
+    derivation here), and the row lands in that directory, the PRIMARY Mission directory; no
+    coordination worktree is materialized or restored for it.
     """
-    seam = placement_seam(repo_root, mission_slug, owned=owned)
-    primary_dir = seam.read_dir(MissionArtifactKind.PRIMARY_METADATA)
-    if mission_has_landed(primary_dir):
-        return primary_dir
-    return seam.write_dir(MissionArtifactKind.STATUS_STATE).path
+    landed_dir = _consolidated_target_dir(repo_root, mission_slug, owned)
+    if landed_dir is not None:
+        return landed_dir
+    return placement_seam(repo_root, mission_slug, owned=owned).write_dir(MissionArtifactKind.STATUS_STATE).path
 
 
 def emit_mission_next_invoked(
