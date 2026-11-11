@@ -71,6 +71,7 @@ from mission_runtime import (
     MissionArtifactKind,
     PlacementSeam,
     SeedReport,
+    placement_seam,
 )
 from specify_cli.consolidation.run_state import (
     _created_lane_worktree,
@@ -523,13 +524,111 @@ def _protected_refusal_footer(merge_record_exists: bool) -> str:
     return _REFUSED_WITH_EARLIER_RECORD if merge_record_exists else _REFUSED_BEFORE_ANY_MOVE
 
 
+_META_JSON = "meta.json"
+_RERUN_CONSOLIDATE = "re-run `spec-kitty consolidate`"
+
+
+def _coordination_branch_on_holder(main_repo: Path, holder: str, meta_rel: str) -> tuple[str, dict[str, object]] | None:
+    """``(coordination_branch, meta)`` when *holder*'s ``meta.json`` stores a coordination topology whose branch is *holder*.
+
+    Read from the branch itself (the repository root checkout carries no copy after the
+    topology settlement). ``None`` for any other stored shape, or when the blob cannot be read.
+    """
+    import json
+
+    from kernel.git import blob_at
+    from mission_runtime import routes_through_coordination
+    from specify_cli.migration.backfill_topology import stored_topology
+
+    try:
+        raw = blob_at(main_repo, holder, meta_rel)
+        meta = json.loads(raw) if raw is not None else None
+    except (GitCommandError, ValueError):
+        return None
+    if not isinstance(meta, dict):
+        return None
+    topology = stored_topology(meta)
+    if topology is None or not routes_through_coordination(topology):
+        return None
+    declared = meta.get("coordination_branch")
+    if not isinstance(declared, str) or _short_ref(declared) != holder:
+        return None
+    return holder, meta
+
+
+def _coordination_holder(main_repo: Path, mission_slug: str) -> tuple[str, dict[str, object]] | None:
+    """The local coordination branch (and its ``meta.json``) that holds *mission_slug*'s PRIMARY metadata, else ``None``."""
+    from specify_cli.lanes.single_branch_landing import branch_holding_path
+
+    meta_rel = f"kitty-specs/{mission_slug}/{_META_JSON}"
+    holder = branch_holding_path(main_repo, meta_rel)
+    if holder is None:
+        return None
+    return _coordination_branch_on_holder(main_repo, holder, meta_rel)
+
+
+def rematerialize_coordination_surface(main_repo: Path, mission_slug: str) -> bool:
+    """Rematerialize a torn-down coordination worktree before the run resolves placement (#5406).
+
+    ``consolidate --abort`` keeps its coordination teardown (operator ruling 2026-09-30),
+    so the next run finds no coordination worktree and, after the topology settlement,
+    no ``meta.json`` on the repository root checkout. When the placement seam's
+    PRIMARY_METADATA dir has no ``meta.json`` and a local ``kitty/*`` branch that holds
+    it stores a coordination topology naming that same branch, the coordination worktree
+    is materialized through the one on-demand materializer, with the identity read from
+    the branch (its default identity read sees the root checkout and would no-op).
+
+    Returns ``True`` when the materializer was called (the caller rebuilds its seam).
+    A remote-only coordination branch refuses with exit 1 and its own remediation,
+    before any state change.
+    """
+    from specify_cli.coordination.surface_resolver import materialize_coord_surface_for_write, resolve_declared_mid8
+
+    seam = placement_seam(main_repo, mission_slug)
+    if (seam.read_dir(MissionArtifactKind.PRIMARY_METADATA) / _META_JSON).is_file():
+        return False
+    found = _coordination_holder(main_repo, mission_slug)
+    if found is None:
+        return False
+    coordination_branch, meta = found
+    try:
+        materialize_coord_surface_for_write(main_repo, mission_slug, coordination_branch=coordination_branch, mid8=resolve_declared_mid8(meta, mission_slug))
+    except CoordinationWorktreeUnmaterialized as exc:
+        raise _abort_before_state_change(
+            exc,
+            f"Create the local coordination branch [bold]{escape(coordination_branch)}[/bold] from its remote, then {_RERUN_CONSOLIDATE}.",
+        ) from exc
+    return True
+
+
+def _missing_lanes_remedy(main_repo: Path, holder: str, lanes_rel: str) -> str:
+    """The remedy for a lanes manifest that only *holder* carries, by the Mission's stored topology."""
+    meta_rel = lanes_rel.rsplit("/", 1)[0] + f"/{_META_JSON}"
+    if _coordination_branch_on_holder(main_repo, holder, meta_rel) is not None:
+        return (
+            f"lanes.json is not on the current checkout, but branch {holder!r} carries this mission "
+            "(it is the Mission's coordination branch). `spec-kitty consolidate` rematerializes the "
+            "coordination worktree from the local coordination branch; when that is not possible, "
+            f"fetch or create the local branch {holder!r} and {_RERUN_CONSOLIDATE}. "
+            "Do not check that branch out in the repository root checkout."
+        )
+    return (
+        f"lanes.json is not on the current checkout, but branch {holder!r} carries this mission "
+        f"(a protected single_branch mission lives on its mission branch). Run `git checkout {holder}` "
+        f"and {_RERUN_CONSOLIDATE} from there."
+    )
+
+
 def _require_lanes_json_naming_mission_branch(main_repo: Path, lanes_read_dir: Path) -> LanesManifest:
     """``require_lanes_json``, but a missing manifest names the branch that holds the mission.
 
     A protected single_branch mission's files exist only on its minted branch; from
     the target (or any other checkout) the stock remedy -- ``finalize-tasks`` /
     ``doctor mission-state --fix`` -- is wrong. When some ``kitty/*`` branch
-    carries the manifest, say so.
+    carries the manifest, say so. For a coordination-topology holder the branch
+    is the coordination branch, which must never be checked out in the
+    repository root checkout (#5406): the remedy says the coordination worktree
+    is rematerialized from it instead.
     """
     from specify_cli.lanes.persistence import MissingLanesError
     from specify_cli.lanes.single_branch_landing import branch_holding_path
@@ -544,11 +643,7 @@ def _require_lanes_json_naming_mission_branch(main_repo: Path, lanes_read_dir: P
         holder = branch_holding_path(main_repo, rel)
         if holder is None:
             raise
-        raise MissingLanesError(
-            f"lanes.json is not on the current checkout, but branch {holder!r} carries this mission "
-            f"(a protected single_branch mission lives on its mission branch). Run `git checkout {holder}` "
-            "and re-run `spec-kitty consolidate` from there."
-        ) from exc
+        raise MissingLanesError(_missing_lanes_remedy(main_repo, holder, rel)) from exc
 
 
 _MERGE_ABORT_NOTICE = "[yellow]Merge aborted before any state change.[/yellow]"

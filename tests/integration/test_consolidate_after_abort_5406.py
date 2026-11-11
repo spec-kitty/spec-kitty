@@ -31,7 +31,6 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_san
 _FAIL_AT_RECONCILE = {"WP20_FAIL_BEFORE": "_phase_reconcile_before_teardown", "WP20_FAIL_KIND": "exit"}
 
 
-@pytest.mark.p0_repro(issue=7544)
 @pytest.mark.timeout(900)
 def test_consolidate_after_abort_rematerializes_coordination_worktree(tmp_path: Path) -> None:
     built = build(tmp_path)
