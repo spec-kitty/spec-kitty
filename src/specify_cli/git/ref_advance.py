@@ -565,7 +565,11 @@ def _dirty_reason(
         return _DirtyReason.REMOVAL, f"{entry.display()} ({_REMOVAL_NOTE})"
     if entry.is_untracked or entry.is_ignored:
         if _path_obstructs_target_tree(entry.path, target_paths):
-            return _DirtyReason.OBSTRUCTION, f"{entry.display()} ({_RESET_OBSTRUCTION_NOTE}{new_sha[:12]})"
+            # #7540 item 5: also say what the file is in words. The ``XY path`` prefix
+            # stays (callers and tests read it), but a bare ``!!`` was read as
+            # "spec-kitty ignores this" when only a broad rule such as ``*.lock`` matched.
+            state = "ignored by a .gitignore or exclude rule" if entry.is_ignored else "untracked"
+            return _DirtyReason.OBSTRUCTION, f"{entry.display()} ({_RESET_OBSTRUCTION_NOTE}{new_sha[:12]}; {state})"
         return None
     # A tracked ``meta.json`` whose only diff against HEAD is the claim-time
     # VCS lock is a regenerable stamp, not destructive local state: the

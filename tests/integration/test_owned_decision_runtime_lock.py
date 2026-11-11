@@ -41,6 +41,18 @@ def seed(c, state="tracked"):
     return lock
 
 
+def _exclude_runtime_lock(lock):
+    """#7498: every acquire attempt first ensures the clone-local exclusion of the lock.
+
+    That changes ``git status`` (the untracked lock is no longer listed) but writes
+    nothing in the checkout, index or history. A test that proves a refusal writes
+    nothing takes its "before" snapshot after the exclusion is in place.
+    """
+    from specify_cli.decisions.lock import _ensure_runtime_lock_excluded
+
+    _ensure_runtime_lock_excluded(lock)
+
+
 def invoke(c, monkeypatch, *extra):
     monkeypatch.chdir(c.owned_root)
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(c.owned_root))
@@ -261,6 +273,7 @@ def test_next_ignore_rollback_respects_commit_landing(owned_checkouts, monkeypat
     c = owned_checkouts
     lock = seed(c, "untracked")
     fact = resolve_owned_mission(c.repository_root, c.owned_root, c.mission_slug, allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES)
+    _exclude_runtime_lock(lock)
     before = snapshot(c.owned_root)
     original = commit_helpers.safe_commit
 
@@ -443,6 +456,7 @@ def test_repair_lock_timeout_is_the_structured_refusal(owned_checkouts, monkeypa
 
     c = owned_checkouts
     lock = seed(c, "untracked")
+    _exclude_runtime_lock(lock)
     before = snapshot(c.owned_root)
     inode = lock.stat().st_ino
     monkeypatch.setattr("specify_cli.decisions.lock.ACQUIRE_TIMEOUT_S", 0.2)
