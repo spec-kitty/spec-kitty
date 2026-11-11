@@ -437,5 +437,9 @@ Mission.
 
 **Dispatching.** An advancing dispatch of that Mission (one that would send an agent to work in the
 coordination workspace) refuses with `OWNED_COORDINATION_WORKSPACE_UNAVAILABLE` when that workspace
-is empty or unmaterialized. This is the operator's ruling in DM-1: an agent must not be sent into a
-missing workspace. It is a dispatch rule, not a read rule; the door itself never refuses for it.
+is empty. An unmaterialized workspace is not refused: the bootstrap's decision-log write
+materializes the coordination worktree before the dispatch is decided, the dispatch proceeds, and
+the decision reports the materialization in `Decision.remediation`. This keeps the operator's
+ruling in DM-1: an agent must not be sent into a missing workspace, and a workspace the bootstrap
+has just materialized is not missing. It is a dispatch rule, not a read rule; the door itself never
+refuses for it.
