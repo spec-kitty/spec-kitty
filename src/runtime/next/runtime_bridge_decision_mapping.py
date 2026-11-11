@@ -363,12 +363,13 @@ _WP_BOARD_DECLINE = _WpBoardAction(board_step=None, action=None, wp_id=None, wor
 
 
 @dataclasses.dataclass(frozen=True)
-class _StatusBoardRead:
+class StatusBoardRead:
     """One status read door answer and its board (#7539, NFR-002 per decision).
 
     The advancing bootstrap reads the door once, after the decision-log wrap, and carries this
     on ``DecideNextContext`` to every board reader of the same decision. A caller that builds a
     decision without the bootstrap passes nothing and the board selector reads the door itself.
+    Package-public: ``runtime_bridge`` and ``runtime_bridge_engine`` carry it too.
     """
 
     surface: StatusReadSurface
@@ -548,7 +549,7 @@ def _board_surface(
     mission_slug: str,
     repo_root: Path,
     owned: OwnedCheckout | None,
-    status_read: _StatusBoardRead | None = None,
+    status_read: StatusBoardRead | None = None,
 ) -> StatusReadSurface | _WpBoardAction:
     """The board's status surface (#7310 FR-008), or say why the board stops.
 
@@ -608,7 +609,7 @@ def _resolve_wp_board_action(
     mission_slug: str,
     repo_root: Path,
     owned: OwnedCheckout | None = None,
-    status_read: _StatusBoardRead | None = None,
+    status_read: StatusBoardRead | None = None,
 ) -> _WpBoardAction:
     """The single board-authority-backed WP-iteration action selector
     (NFR-002 / CT-7) both ``_build_wp_iteration_decision`` and
@@ -674,7 +675,7 @@ def _wp_iteration_action_and_state(
     repo_root: Path,
     *,
     owned: OwnedCheckout | None = None,
-    status_read: _StatusBoardRead | None = None,
+    status_read: StatusBoardRead | None = None,
 ) -> tuple[str | None, str | None, str | None, str | None, str]:
     """Resolve ``(action, wp_id, workspace_path, blocked_reason,
     mission_state)`` for a WP-iteration step through the single board
@@ -714,7 +715,7 @@ def _build_wp_iteration_decision(
     run_ref: MissionRunRef,
     guard_failures: list[str] | None = None,
     owned: OwnedCheckout | None = None,
-    status_read: _StatusBoardRead | None = None,
+    status_read: StatusBoardRead | None = None,
 ) -> Decision:
     """Build a Decision for WP iteration within a step — routed through the
     single board-authority selector (NFR-002 / CT-7); see
@@ -847,7 +848,7 @@ def _map_wp_step_decision(
     run_id: str | None,
     owned: OwnedCheckout | None = None,
     wp_resolution: _WpIterationResolution | None = None,
-    status_read: _StatusBoardRead | None = None,
+    status_read: StatusBoardRead | None = None,
 ) -> Decision:
     """WP-iteration branch of the ``kind="step"`` mapping (#2531 WP07/T026),
     now routed through the single board-authority selector (NFR-002 / CT-7)
@@ -1014,7 +1015,7 @@ def _map_runtime_decision(
     *,
     owned: OwnedCheckout | None = None,
     wp_resolution: _WpIterationResolution | None = None,
-    status_read: _StatusBoardRead | None = None,
+    status_read: StatusBoardRead | None = None,
 ) -> Decision:
     """Convert runtime NextDecision to CLI Decision dataclass.
 

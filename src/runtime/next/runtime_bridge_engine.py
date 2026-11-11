@@ -241,6 +241,7 @@ def advance_run_state_after_composition(
     plan: AdvancePlan,
     owned: OwnedCheckout | None = None,
     wp_resolution: tuple[str | None, str | None, str | None, str | None, str] | None = None,
+    status_read: _mapping.StatusBoardRead | None = None,
 ) -> Decision:
     """Commit the engine's advance plan after a successful composed action and return a Decision.
 
@@ -261,6 +262,8 @@ def advance_run_state_after_composition(
       (:class:`TerminalRetrospective`): the blocking capture is the engine's
       ``before_run_completed`` guard, the non-blocking capture runs after the
       commit returned.
+    * ``status_read`` is the bootstrap's one status read door answer (#7539), handed to the
+      decision mapping so mapping the advanced decision adds no door read.
 
     A plan the run moved past raises :class:`StaleAdvancePlan` from the
     commit, writing nothing; it is not caught here (the bridge turns it into
@@ -298,4 +301,5 @@ def advance_run_state_after_composition(
         origin,
         owned=owned,
         wp_resolution=wp_resolution,
+        status_read=status_read,
     )
