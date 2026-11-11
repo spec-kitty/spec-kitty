@@ -17,8 +17,9 @@ names one of those routes:
 * ``agent-index`` -- a URL in ``api/index.json`` (when the site builds one).
 
 The command also runs the :data:`SOURCE_SURFACES`, which compare the built site with the
-docs tree it was built from (``diagrams``: every published diagram is a rendered figure,
-``site_built_check_diagrams.py``).
+docs tree it was built from (``diagrams``: each published page has as many rendered figures as
+its source has diagram fences, ``site_built_check_diagrams.py``; the built diagram markup itself
+is doc-kitty's ``dockitty-assert-diagrams``, run before this command).
 
 A surface whose artifact is absent from the built site is a ``missing`` finding, not a pass
 (a toolkit layout change must not make a check vacuous).

@@ -8,14 +8,18 @@
 # verdicts on mutants (#6933), runs the built-site link gate and uploads site/dist.
 #
 # Diagrams (#6936) render at build time to static SVG: Mermaid through the exact-pinned
-# Playwright's Chromium, PlantUML against the `plantuml` service below, a digest-pinned
+# Playwright's Chromium (site/package.json pins playwright 1.62.1, matching doc-kitty's optional,
+# exact peer, so pnpm warns if the two drift), PlantUML against the `plantuml` service below, a digest-pinned
 # plantuml-server in the SANDBOX security profile (it refuses every URL read, so a diagram's
 # remote `!include` cannot reach the network). Before the build, doc-kitty's canary
 # (dockitty-assert-plantuml-no-remote-include) proves the running service refuses a remote
-# include and runs SANDBOX, and doc-kitty's plantuml-guard proves the toolkit's PlantUML stage
-# names no plantuml.com. The built-site check's `diagrams` surface proves every published
-# diagram is a rendered figure. External includes stay off (doc-kitty #268 unused, operator
-# ruling 2026-11-01 on #6936). This follows doc-kitty v0.7.0's own CI (5acb83c ci.yml).
+# include and runs SANDBOX, and doc-kitty's dockitty-plantuml-guard proves neither the toolkit,
+# the server URL nor the site config names plantuml.com. After the build, doc-kitty's
+# dockitty-assert-diagrams proves every built diagram is an SVG figure with no raw, client-mode,
+# error or plantuml.com residue, and the built-site check's `diagrams` surface proves each
+# published page has a figure per source diagram fence. External includes stay off (doc-kitty
+# #268 unused, operator ruling 2026-11-01 on #6936). This follows doc-kitty's own CI at the
+# pinned commit (1042a40 ci.yml, spec-kitty/doc-kitty#314).
 #
 # The link gates run through scripts/docs/site_link_gates.py, which fails on any problem not
 # priced in site/link-debt.json (immutable history bodies only, #7489).
@@ -148,22 +152,23 @@ jobs:
         run: |
           GATEWAY=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.Gateway}}{{end}}' "${{ job.services.plantuml.id }}")
           pnpm exec dockitty-assert-plantuml-no-remote-include --service-container "${{ job.services.plantuml.id }}" --canary-host "$GATEWAY" --astro-config astro.config.mjs
-      - name: Prove the toolkit's PlantUML stage names no plantuml.com (doc-kitty plantuml-guard)
-        # plantuml-guard.mjs is a library, not a bin: run its exported check over the installed toolkit's lib/.
+      - name: Prove no PlantUML diagram can reach plantuml.com (doc-kitty plantuml-guard)
+        # dockitty-plantuml-guard (doc-kitty 1042a40, #314): the installed toolkit's lib/ names no
+        # plantuml.com URL and defaults to a self-hosted server, the effective DK_PLANTUML_SERVER_URL
+        # is not plantuml.com, and the site config (read as text) names no plantuml.com URL.
         working-directory: site
-        run: |
-          node --input-type=module -e "
-          import { fileURLToPath } from 'node:url';
-          const guard = import.meta.resolve('@spec-kitty/doc-toolkit/scripts/plantuml-guard.mjs');
-          const { checkPlantumlSources } = await import(guard);
-          const result = checkPlantumlSources(fileURLToPath(new URL('../lib', guard)));
-          if (!result.ok) { console.error('plantuml-guard: ' + result.message); process.exit(1); }
-          console.log('plantuml-guard: ok, self-hosted default ' + result.defaultServer + ' (' + result.files + ' toolkit files)');
-          "
+        run: pnpm exec dockitty-plantuml-guard --astro-config astro.config.mjs
       - name: Build the docsite (drafts off via site/.env.production; diagrams rendered at build time)
         working-directory: site
         run: pnpm run build
-      - name: "Check the built site: no unpublished route (#6932), every published diagram rendered (#6936)"
+      - name: Prove every built diagram was drawn at build time (doc-kitty assert-diagrams)
+        # dockitty-assert-diagrams (doc-kitty 1042a40, #314) owns the built-markup rules: every
+        # dk-diagram figure holds an <svg>; no raw diagram code block, client-mode <pre class="mermaid">,
+        # plantuml-error block or plantuml.com URL the page would load. It reads no site config, so it
+        # takes no --astro-config. The per-route figure count stays in the built-site check below.
+        working-directory: site
+        run: pnpm exec dockitty-assert-diagrams dist
+      - name: "Check the built site: no unpublished route (#6932), a figure per published diagram fence (#6936)"
         # Standard library plus src/kernel, like the contract check above.
         env:
           PYTHONPATH: .:src

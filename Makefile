@@ -41,13 +41,15 @@ docs-lint: ## Spell-check docs (typos + scoped US spelling) and check the change
 	uv run --frozen python -m scripts.docs.check_changelog_style
 
 # doc-kitty docsite (#6930; ADR docs/adr/4.x/2026-10-31-1, D-1 and D-2). Needs node >= 22.22 and pnpm.
-# Any dockitty-* gate added here runs from site/ with `--astro-config astro.config.mjs` (D-1).
+# Any dockitty-* gate added here runs from site/ with `--astro-config astro.config.mjs` (D-1), except
+# dockitty-assert-diagrams, which reads only the built HTML and takes no config.
 #
 # Diagrams (#6936) render at build time against the pinned PlantUML server in the SANDBOX
 # profile: the image the docs-site CI job runs as its `services: plantuml:` container (keep the
 # two digests equal; bump the tag and the digest together). Start it with `make docs-site-plantuml`
 # (needs docker). The two DK_* variables are read from the process environment only, never from
-# site/.env.production. Build mode needs the exact-pinned Playwright's Chromium; on a bare host
+# site/.env.production. Build mode needs the exact-pinned Playwright's Chromium (playwright 1.62.1 in
+# site/package.json, matching doc-kitty's optional exact peer; pnpm warns on drift); on a bare host
 # also run `pnpm --dir site exec playwright install-deps chromium` once.
 DOCS_SITE_PLANTUML_IMAGE := plantuml/plantuml-server:jetty-v1.2026.9@sha256:065c66adc6728ba6dd353a29d4ada73f8358b68549a0f710c4bf46b43c103618
 DOCS_SITE_PLANTUML_CONTAINER := spec-kitty-docs-plantuml
@@ -55,7 +57,7 @@ DOCS_SITE_PLANTUML_PORT := 8091
 DOCS_SITE_PLANTUML_RUN := docker run --rm -d --name $(DOCS_SITE_PLANTUML_CONTAINER) -p 127.0.0.1:$(DOCS_SITE_PLANTUML_PORT):8080 -e PLANTUML_SECURITY_PROFILE=SANDBOX $(DOCS_SITE_PLANTUML_IMAGE)
 DOCS_SITE_PLANTUML_GATEWAY := docker inspect -f '{{range .NetworkSettings.Networks}}{{.Gateway}}{{end}}' $(DOCS_SITE_PLANTUML_CONTAINER)
 
-docs-site: ## Build the doc-kitty docsite (site/) as CI does: contract check, frozen install, gates, PlantUML canary, build, built-site checks
+docs-site: ## Build the doc-kitty docsite (site/) as CI does: contract check, frozen install, gates, PlantUML canary and guard, build, diagram and built-site checks
 	uv run --frozen python -m scripts.docs.site_contract --check
 	uv run --frozen python -m scripts.docs.site_redirects --check
 	cd site && pnpm install --frozen-lockfile
@@ -68,7 +70,9 @@ docs-site: ## Build the doc-kitty docsite (site/) as CI does: contract check, fr
 	  exit 2; }
 	cd site && pnpm exec playwright install chromium
 	cd site && pnpm exec dockitty-assert-plantuml-no-remote-include --service-container $(DOCS_SITE_PLANTUML_CONTAINER) --canary-host "$$($(DOCS_SITE_PLANTUML_GATEWAY))" --astro-config astro.config.mjs
+	cd site && pnpm exec dockitty-plantuml-guard --astro-config astro.config.mjs
 	cd site && pnpm run build
+	cd site && pnpm exec dockitty-assert-diagrams dist
 	uv run --frozen python -m scripts.docs.site_built_check site/dist --docs docs
 	cd site && pnpm exec dockitty-check-redirect-coverage url-baseline.txt dist --docs ../docs --declared-redirects legacy-redirects.json --astro-config astro.config.mjs
 	cd site && pnpm exec dockitty-check-redirect-coverage url-baseline.txt dist --astro-config astro.config.mjs

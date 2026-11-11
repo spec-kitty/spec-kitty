@@ -1,29 +1,31 @@
-"""The ``diagrams`` surface of the built-site check (#6936; ADR 2026-10-31-1 D-11).
+"""The ``diagrams`` surface of the built-site check (#6936, #6100; ADR 2026-10-31-1 D-11).
 
 The site renders every Mermaid and PlantUML diagram at build time to a static SVG
-(``diagrams: true``, ``DK_DIAGRAM_BUILD_RENDER=build``). This surface proves it on the
-built output, page by page:
+(``diagrams: true``, ``DK_DIAGRAM_BUILD_RENDER=build``). Two checks prove it on the
+built output, one rule each:
 
-* every page the site publishes (``_dockitty_contract.unpublished_routes`` is the one
-  authority) holds as many rendered figures as its source holds diagram fences: a
-  ```` ```mermaid ```` or ```` ```plantuml ```` fence, read as doc-kitty reads it (the
-  first word of the info string, case-sensitive, ``lib/remark/diagram-meta.ts:51``,
+* doc-kitty's ``dockitty-assert-diagrams dist`` (doc-kitty 1042a40,
+  spec-kitty/doc-kitty#314), run by the docsite build before this check, owns the
+  built-markup rules: every ``<figure class="dk-diagram">`` holds an ``<svg>``, and
+  no raw diagram code block, client-rendered ``<pre class="mermaid">``,
+  ``plantuml-error`` block or plantuml.com URL the page would load remains. This
+  surface does not repeat them.
+* this surface owns the per-route count the bin cannot know, because it never reads
+  the source: every page the site publishes (``_dockitty_contract.unpublished_routes``
+  is the one authority) holds exactly as many rendered figures as its source holds
+  diagram fences. A short count is a fence that did not reach the page as a picture,
+  whatever it became instead; an excess is a figure with no source diagram (a page
+  with figures and no fence is reported too). A diagram fence is a ```` ```mermaid ````
+  or ```` ```plantuml ```` fence, read as doc-kitty reads it (the first word of the
+  info string, case-sensitive, ``lib/remark/diagram-meta.ts:51``,
   ``lib/remark/plantuml-meta.ts:77``). A rendered figure is doc-kitty's
-  ``<figure class="dk-diagram">`` holding an ``<svg>`` (``lib/rehype/diagram-figure.ts:191-202``
-  for Mermaid, ``:282-299`` for PlantUML);
-* no raw diagram code block remains (a ``<pre data-language="mermaid">`` or a
-  ``language-plantuml`` class: the fence was shipped as code);
-* no client-rendered ``<pre class="mermaid">`` remains (doc-kitty's client mode,
-  ``lib/integrations/diagrams.ts:70-81``, renders in the browser, not at build time);
-* no diagram error block remains (``astro-plantuml``'s ``<div class="plantuml-error">``,
-  ``astro-plantuml@1.0.0 dist/render.js:122-126``; doc-kitty throws on it,
-  ``diagram-figure.ts:352-360``, and this catches a toolkit that stops doing so);
-* no built page names a ``plantuml.com`` URL (the output half of doc-kitty's
-  no-plantuml.com guard; the same URL-position pattern as its
-  ``scripts/plantuml-guard.mjs:12``, so prose naming the host does not match).
+  ``<figure class="dk-diagram">`` holding an ``<svg>``
+  (``lib/rehype/diagram-figure.ts:191-202`` for Mermaid, ``:282-299`` for PlantUML),
+  counted once however many ``<svg>`` it holds.
 
-A published page with diagram fences and no built page is a finding, not a pass.
-Standard library only (``html.parser``), like ``site_built_check.py``.
+A published page with diagram fences and no built page is a finding, not a pass. A
+legacy ``.html`` redirect stub shares its page's route and is skipped, as the bin
+skips it. Standard library only (``html.parser``), like ``site_built_check.py``.
 """
 
 from __future__ import annotations
@@ -53,14 +55,7 @@ _MD_SUFFIX: Final[str] = ".md"
 _HTML_SUFFIX: Final[str] = ".html"
 _INDEX_HTML: Final[str] = "index.html"
 _FIGURE_CLASS: Final[str] = "dk-diagram"
-_ERROR_CLASS: Final[str] = "plantuml-error"
-_CLIENT_CLASS: Final[str] = "mermaid"
-_LANGUAGE_CLASS: Final[str] = "language-"
 _FENCE: Final[re.Pattern[str]] = re.compile(r"^[ \t]*(?P<fence>`{3,}|~{3,})(?P<info>[^\n]*)$")
-_PLANTUML_COM: Final[re.Pattern[str]] = re.compile(
-    r"(?:(?:https?:)?//[a-z0-9.-]*plantuml\.com|[^\s\"'<>()]*plantuml\.com/plantuml)[^\s\"'<>()]*",
-    re.IGNORECASE,
-)
 
 
 def _opening(line: str) -> tuple[str, str] | None:
@@ -110,76 +105,44 @@ def expected_figures(docs: Path) -> dict[str, int]:
 
 
 @dataclass
-class _Block:
-    """An open ``<figure>`` or ``<pre>`` the parser is inside."""
+class _Figure:
+    """An open ``<figure>`` the parser is inside."""
 
     marked: bool
     done: bool = False
 
 
 class PageDiagrams(HTMLParser):
-    """The diagram markup of one built page: its rendered figures and its defects, in document order."""
+    """The rendered diagram figures of one built page: ``dk-diagram`` figures holding an ``<svg>``."""
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.figures = 0
-        self.defects: list[str] = []
-        self._figures: list[_Block] = []
-        self._pres: list[_Block] = []
+        self._open: list[_Figure] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        values = {name: value or "" for name, value in attrs}
-        classes = values.get("class", "").split()
-        if _ERROR_CLASS in classes:
-            self.defects.append("diagram error block")
         if tag == "figure":
-            self._figures.append(_Block(_FIGURE_CLASS in classes))
+            classes = next((value or "" for name, value in attrs if name == "class"), "").split()
+            self._open.append(_Figure(_FIGURE_CLASS in classes))
         elif tag == "svg":
             self._svg()
-        elif tag == "pre":
-            self._pre(values.get("data-language", ""), classes)
-        elif tag == "code":
-            self._code(classes)
 
     def handle_endtag(self, tag: str) -> None:
-        stack = {"figure": self._figures, "pre": self._pres}.get(tag)
-        if stack:
-            stack.pop()
+        if tag == "figure" and self._open:
+            self._open.pop()
 
     def _svg(self) -> None:
-        figure = self._figures[-1] if self._figures else None
+        figure = self._open[-1] if self._open else None
         if figure is not None and figure.marked and not figure.done:
             figure.done = True
             self.figures += 1
 
-    def _pre(self, data_language: str, classes: list[str]) -> None:
-        language = data_language or _language_of(classes)
-        raw = language in DIAGRAM_LANGUAGES
-        if raw:
-            self.defects.append(f"raw {language} code block")
-        if _CLIENT_CLASS in classes:
-            self.defects.append("client-rendered mermaid block")
-        self._pres.append(_Block(raw or _CLIENT_CLASS in classes))
-
-    def _code(self, classes: list[str]) -> None:
-        pre = self._pres[-1] if self._pres else None
-        language = _language_of(classes)
-        if language in DIAGRAM_LANGUAGES and not (pre is not None and pre.marked):
-            self.defects.append(f"raw {language} code block")
-
-
-def _language_of(classes: list[str]) -> str:
-    return next((name[len(_LANGUAGE_CLASS) :] for name in classes if name.startswith(_LANGUAGE_CLASS)), "")
-
 
 def page_defects(html: str, expected: int) -> Iterator[str]:
-    """Every diagram defect of the built page *html* whose source holds *expected* diagram fences."""
+    """The count defect of the built page *html* whose source holds *expected* diagram fences, if any."""
     page = PageDiagrams()
     page.feed(html)
     page.close()
-    yield from page.defects
-    for url in dict.fromkeys(match.group(0) for match in _PLANTUML_COM.finditer(html)):
-        yield f"plantuml.com URL {url}"
     if page.figures != expected:
         yield f"{expected} diagram block(s) in the source, {page.figures} rendered figure(s)"
 
