@@ -78,6 +78,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+#: Decision kinds that can answer for a landed Mission and so ask the status read door for the row's directory.
+_LANDED_CAPABLE_KINDS = frozenset({DecisionKind.terminal.value, DecisionKind.blocked.value})
+
 __all__ = [
     "AmbiguousPendingDecisionError",
     "NoPendingDecisionError",
@@ -338,7 +341,7 @@ def _consolidated_target_dir(repo_root: Path, mission_slug: str, owned: OwnedChe
     return landed_dir
 
 
-def _mission_next_invoked_dir(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None, *, terminal: bool) -> Path:
+def _mission_next_invoked_dir(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None, *, may_be_landed: bool) -> Path:
     """The Mission directory the ``MissionNextInvoked`` row is appended to.
 
     runtime-status-read-door WP06 (FR-009): an in-flight Mission's row is a WRITE, so it resolves
@@ -354,11 +357,13 @@ def _mission_next_invoked_dir(repo_root: Path, mission_slug: str, owned: OwnedCh
     derivation here), and the row lands in that directory, the PRIMARY Mission directory; no
     coordination worktree is materialized or restored for it.
 
-    Only a ``terminal`` decision can name a landed Mission (the merged short-circuit and the
-    completed-primary terminal), so only it asks the door; every other decision goes straight to
-    the write seam, and an in-flight invocation reads the door once, in its decision (#7539).
+    Only a ``terminal`` or ``blocked`` decision can name a landed Mission (the merged
+    short-circuit and the completed-primary terminal; a ``blocked`` one when an owned call finds
+    the coordination checkout torn down, which is answered before the terminal check), so only
+    those ask the door. A ``step`` goes straight to the write seam, so an in-flight invocation
+    reads the door once, in its decision (#7539).
     """
-    landed_dir = _consolidated_target_dir(repo_root, mission_slug, owned) if terminal else None
+    landed_dir = _consolidated_target_dir(repo_root, mission_slug, owned) if may_be_landed else None
     if landed_dir is not None:
         return landed_dir
     return placement_seam(repo_root, mission_slug, owned=owned).write_dir(MissionArtifactKind.STATUS_STATE).path
@@ -389,8 +394,8 @@ def emit_mission_next_invoked(
     repo_root_path = Path(str(repo_root)) if not isinstance(repo_root, Path) else repo_root
 
     try:
-        terminal = str(getattr(decision, "kind", "")) == DecisionKind.terminal.value
-        feature_dir: Path | None = _mission_next_invoked_dir(repo_root_path, mission_slug, owned, terminal=terminal)
+        may_be_landed = str(getattr(decision, "kind", "")) in _LANDED_CAPABLE_KINDS
+        feature_dir: Path | None = _mission_next_invoked_dir(repo_root_path, mission_slug, owned, may_be_landed=may_be_landed)
     except Exception as exc:  # best-effort observability write: never break ``next``
         logger.warning("MissionNextInvoked row not persisted for mission %r: %s: %s", mission_slug, type(exc).__name__, exc)
         feature_dir = None
