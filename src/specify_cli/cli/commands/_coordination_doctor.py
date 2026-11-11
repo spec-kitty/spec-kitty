@@ -2276,6 +2276,8 @@ def _refuse_unscoped_fix(fix: bool, mission: str | None, all_missions: bool, jso
     elif fix and mission is None and not all_missions:
         code, message = _FIX_SCOPE_REQUIRED_CODE, _FIX_SCOPE_REQUIRED_MESSAGE
     else:
+        if all_missions and not fix and not json_output:
+            console.print("Note: --all-missions only applies with --fix; reporting read-only.")
         return
     if json_output:
         console.emit_json(_doctor_shared._json_error(code, message))
