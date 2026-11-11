@@ -8,7 +8,7 @@ import os
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from kernel.clock import now_utc_stamp
-from kernel.git import GitCommandError, GitPath, StatusEntry, changed_paths
+from kernel.git import StatusEntry
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
@@ -64,6 +64,7 @@ from .summary_core import (
 
 if TYPE_CHECKING:
     from mission_runtime import OwnedCheckout
+    from specify_cli.coordination.commit_router import CommitRouterResult
     from specify_cli.consolidation.lane_cleanup import LaneCleanupReport
     from specify_cli.workspace.process_probe import ProcessProbeResult
 from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
@@ -466,6 +467,30 @@ ACCEPTANCE_CHECKS_FAILED_MESSAGE = "Acceptance checks failed; run verify to see 
 
 class AcceptanceError(TaskCliError):
     """Raised when acceptance cannot complete due to outstanding issues."""
+
+
+#: Refusal code of an acceptance record that was written but could not be committed (#7550).
+ACCEPT_RECORD_COMMIT_FAILED = "ACCEPT_RECORD_COMMIT_FAILED"
+
+
+class AcceptanceRecordCommitError(AcceptanceError):
+    """The acceptance record is written in ``meta.json`` but its commit failed (#7550).
+
+    The message starts with :data:`ACCEPT_RECORD_COMMIT_FAILED` and names the remedy, so the
+    ``accept`` command's ``except AcceptanceError`` handler renders it as a refusal (exit 1),
+    never a traceback.
+    """
+
+    error_code = ACCEPT_RECORD_COMMIT_FAILED
+
+    def __init__(self, mission_slug: str, meta_path: Path, cause: str):
+        super().__init__(
+            f"{ACCEPT_RECORD_COMMIT_FAILED}: the acceptance record of mission {mission_slug!r} could not be "
+            f"committed ({cause}). The record stays written in {meta_path}. Fix the cause, then re-run "
+            f"`spec-kitty accept --mission {mission_slug}`."
+        )
+        self.mission_slug = mission_slug
+        self.meta_path = meta_path
 
 
 class ArtifactEncodingError(AcceptanceError):
@@ -1758,14 +1783,6 @@ def _stamp_acceptance_record(
         raise AcceptanceError(f"Acceptance matrix lock timed out while recording acceptance: {exc}") from exc
 
 
-def _staged_paths(repo_root: Path, rel_path: str) -> tuple[GitPath, ...]:
-    """Staged paths under *rel_path*; a git failure is a :class:`TaskCliError` (guard: never "nothing staged")."""
-    try:
-        return changed_paths(repo_root, cached=True, renames=True, pathspecs=[rel_path])
-    except GitCommandError as exc:
-        raise TaskCliError(str(exc)) from exc
-
-
 def _stamp_accept_commit(feature_dir: Path, accept_commit: str) -> bool:
     """Stamp *accept_commit* into ``meta.json`` (and the newest history entry) under the Mission lock.
 
@@ -1786,6 +1803,51 @@ def _stamp_accept_commit(feature_dir: Path, accept_commit: str) -> bool:
     return True
 
 
+def _record_parent_commit(feature_dir: Path) -> str | None:
+    """Tip of the branch the acceptance record is written on (``accepted_from_commit``, #7550).
+
+    ``rev-parse HEAD`` runs in the checkout that holds *feature_dir* (the placement seam's write
+    home: the coordination worktree's Mission branch for a settled default Mission, the repository
+    root checkout for a ``single_branch`` Mission on its own branch), never in the repository root
+    checkout, whose HEAD is the target branch the record does not describe.
+    """
+    try:
+        return run_git(["rev-parse", "HEAD"], cwd=feature_dir, check=False).stdout.strip() or None
+    except (TaskCliError, OSError):
+        return None
+
+
+def accept_record_dir(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> Path:
+    """The Mission directory accept writes its record into (the summary's ``feature_dir`` rule).
+
+    The same resolution :func:`collect_feature_summary` uses: the placement seam's
+    ``PRIMARY_METADATA`` home, anchored by :func:`_primary_anchor_feature_dir`.
+    """
+    from mission_runtime import MissionArtifactKind, placement_seam
+
+    read_dir = placement_seam(repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+    return _primary_anchor_feature_dir(repo_root, mission_slug, read_dir, owned=owned)
+
+
+def accept_primary_ref(record_dir: Path, policy: Any) -> str | None:
+    """The branch accept's PRIMARY commits land on (decision ``plan.design.accept-primary-leg-ref``).
+
+    It is the unprotected branch checked out in the checkout that holds *record_dir*, so the
+    acceptance-metadata commit and the residual PRIMARY leg land on the branch the record is
+    written on (#7550): the Mission branch in the coordination worktree for a settled default
+    Mission, the repository root checkout's branch otherwise. ``None`` (the router's own
+    placement and protected-branch guard apply) for a protected or detached checkout or an
+    unreadable one.
+    """
+    try:
+        branch = str(run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=record_dir, check=False).stdout).strip()
+    except (TaskCliError, OSError):
+        return None
+    if not branch or branch == "HEAD" or policy.is_protected(branch):
+        return None
+    return branch
+
+
 def _commit_acceptance_meta(
     summary: AcceptanceSummary,
     actor_name: str,
@@ -1795,80 +1857,69 @@ def _commit_acceptance_meta(
 ) -> tuple[str | None, str | None, bool]:
     """Record acceptance in meta.json and commit; return (parent_commit, accept_commit, commit_created).
 
-    T016 / WP04 / FR-001 / FR-003 / FR-009: the former
-    ``assert_not_protected_branch → raise`` deadlock is removed.  Protection
-    provenance flows through ``ProtectionPolicy.resolve`` (FR-007 / SF-2).
-
-    When HEAD is on an UNPROTECTED branch (the normal mission-lane path):
-    commits go directly to that branch, preserving existing behaviour.
-
-    When HEAD is on a PROTECTED branch (e.g. ``main``, direct-repo solo-fork
-    operator): commits are routed through ``commit_for_mission`` which
-    materialises the coordination worktree on demand (C-001 / FR-003).
+    The record is committed through the one placement-aware commit seam
+    (:func:`_commit_acceptance_meta_via_router` → ``commit_for_mission`` with
+    ``PRIMARY_METADATA``) on every topology (#7550). The seam commits on the
+    branch that holds ``summary.feature_dir``: the Mission branch in the
+    coordination worktree for a settled default Mission, the root checkout's
+    branch for a ``single_branch`` Mission on its own branch, and the
+    coordination worktree (materialised on demand, C-001 / FR-003) on a
+    protected primary. Protection provenance flows through
+    ``ProtectionPolicy.resolve`` (FR-007 / FR-009). There is no second, raw
+    ``git add`` path: staging a placement-resolved path from the repository
+    root checkout hit the git-ignored ``.worktrees/`` directory.
 
     WP02 / FR-010 / C-003: the ``record_acceptance`` write (and ONLY that
-    write -- never the git ``add``/``commit`` subprocess calls below, which
-    stay OUTSIDE any lock span) happens inside
-    :func:`_stamp_acceptance_record`'s locked pre-stamp verdict re-check.
+    write -- never the git commit, which stays OUTSIDE any lock span)
+    happens inside :func:`_stamp_acceptance_record`'s locked pre-stamp
+    verdict re-check.
     """
-    from specify_cli.core.git_ops import get_current_branch
     from specify_cli.git.protection_policy import ProtectionPolicy
 
-    repo_root = summary.repo_root
-    mission_slug = summary.feature
-    policy = ProtectionPolicy.resolve(repo_root)
-    current_branch = get_current_branch(repo_root)
-    on_protected_primary = current_branch is not None and policy.is_protected(current_branch)
-
-    try:
-        parent_commit: str | None = run_git(["rev-parse", "HEAD"], cwd=repo_root, check=False).stdout.strip() or None
-    except TaskCliError:
-        parent_commit = None
+    policy = ProtectionPolicy.resolve(summary.repo_root)
+    parent_commit = _record_parent_commit(summary.feature_dir)
 
     _stamp_acceptance_record(summary, actor_name, mode, parent_commit, lenient=lenient)
 
-    meta_path = summary.feature_dir / "meta.json"
-    meta_rel = str(meta_path.relative_to(repo_root))
+    return _commit_acceptance_meta_via_router(
+        repo_root=summary.repo_root,
+        mission_slug=summary.feature,
+        meta_path=summary.feature_dir / "meta.json",
+        policy=policy,
+        parent_commit=parent_commit,
+        primary_ref=accept_primary_ref(summary.feature_dir, policy),
+    )
 
-    if on_protected_primary:
-        # Protected primary: route through commit_for_mission so the coord
-        # worktree is materialised on demand (C-001 / FR-003).
-        return _commit_acceptance_meta_via_router(
+
+def _route_meta_commit(*, repo_root: Path, mission_slug: str, meta_path: Path, policy: Any, message: str, primary_ref: str | None) -> CommitRouterResult:
+    """Commit *meta_path* through ``commit_for_mission`` (``PRIMARY_METADATA``).
+
+    Any other exception the commit seam raises (git, placement, materialisation) becomes the named
+    refusal :class:`AcceptanceRecordCommitError` (#7550): the record is already written, so the
+    operator gets the code and the remedy, never a traceback. A corrupt ``meta.json``
+    (``MissionMetaReadError``) propagates as itself.
+    """
+    from mission_runtime import MissionArtifactKind
+    from specify_cli.coordination.commit_router import commit_for_mission
+    from specify_cli.core.paths import MissionMetaReadError
+
+    try:
+        return commit_for_mission(
             repo_root=repo_root,
             mission_slug=mission_slug,
-            meta_path=meta_path,
+            files=(meta_path,),
+            message=message,
             policy=policy,
-            parent_commit=parent_commit,
+            # meta.json is PRIMARY_METADATA (write-surface-coherence WP02 / T009):
+            # the placement seam resolves the branch that holds it.
+            kind=MissionArtifactKind.PRIMARY_METADATA,
+            primary_ref=primary_ref,
         )
-
-    # Unprotected path (mission-lane branch): commit directly to current branch.
-    run_git(["add", meta_rel], cwd=repo_root, check=True)
-
-    # Scope the staged-check and commit to meta.json. A bare ``git commit`` would
-    # sweep in any unrelated files the operator had pre-staged before running
-    # ``accept``; the explicit ``-- <meta>`` pathspec commits only the
-    # acceptance metadata and leaves the operator's staged work untouched.
-    if not _staged_paths(repo_root, meta_rel):
-        return parent_commit, None, False
-
-    run_git(["commit", "-m", f"Accept {mission_slug}", "--", meta_rel], cwd=repo_root, check=True)
-    try:
-        accept_commit: str | None = run_git(["rev-parse", "HEAD"], cwd=repo_root, check=True).stdout.strip()
-    except TaskCliError:
-        accept_commit = None
-
-    # Corruption surfaces as the typed ``MissionMetaReadError`` and PROPAGATES
-    # (swallowing it would silently skip stamping ``accept_commit`` into meta.json).
-    if accept_commit and _stamp_accept_commit(summary.feature_dir, accept_commit):
-        run_git(["add", meta_rel], cwd=repo_root, check=True)
-        if _staged_paths(repo_root, meta_rel):
-            run_git(
-                ["commit", "-m", f"Record acceptance commit for {mission_slug}", "--", meta_rel],
-                cwd=repo_root,
-                check=True,
-            )
-
-    return parent_commit, accept_commit, True
+    except MissionMetaReadError:
+        # A corrupt ``meta.json`` keeps its typed fail-closed error (FR-007 / NFR-003).
+        raise
+    except Exception as exc:  # translated, never swallowed: the refusal carries the cause
+        raise AcceptanceRecordCommitError(mission_slug, meta_path, f"{type(exc).__name__}: {exc}") from exc
 
 
 def _commit_acceptance_meta_via_router(
@@ -1878,36 +1929,25 @@ def _commit_acceptance_meta_via_router(
     meta_path: Path,
     policy: Any,
     parent_commit: str | None,
+    primary_ref: str | None = None,
 ) -> tuple[str | None, str | None, bool]:
-    """Route acceptance commit through ``commit_for_mission`` on a protected primary.
+    """Commit the acceptance record through ``commit_for_mission`` (the only commit path, #7550).
 
-    Called by :func:`_commit_acceptance_meta` when HEAD is on a protected branch.
-    ``commit_for_mission`` handles coord-worktree materialisation (C-001).
-    Extracted to keep ``_commit_acceptance_meta`` complexity within the C901 ceiling.
+    ``commit_for_mission`` resolves the placement and materialises the
+    coordination worktree on demand (C-001).
 
     ``policy`` accepts any object satisfying the ``_ProtectionPolicyProtocol``
     structural protocol in ``commit_router`` (duck-typed; always a ``ProtectionPolicy``
     instance at runtime — using ``Any`` avoids a cross-module Protocol import).
     """
-    from mission_runtime import MissionArtifactKind
     from specify_cli.coordination.commit_outcome import render_commit_outcome
-    from specify_cli.coordination.commit_router import commit_for_mission
 
-    router_result = commit_for_mission(
-        repo_root=repo_root,
-        mission_slug=mission_slug,
-        files=(meta_path,),
-        message=f"Accept {mission_slug}",
-        policy=policy,
-        # meta.json is PRIMARY_METADATA (write-surface-coherence WP02 / T009):
-        # acceptance meta moves to the primary surface on the WRITE side too,
-        # realizing the INV-5 full read↔write symmetry. Primary kind → primary target.
-        kind=MissionArtifactKind.PRIMARY_METADATA,
+    router_result = _route_meta_commit(
+        repo_root=repo_root, mission_slug=mission_slug, meta_path=meta_path, policy=policy, message=f"Accept {mission_slug}", primary_ref=primary_ref
     )
     # T088 (contract rule 6): render through the shared trio rather than
-    # formatting surfaces by hand. This is the FIRST commit -- its existing
-    # ``AcceptanceError`` semantics (below) are unchanged; the render is an
-    # additional, non-blocking trace of the SAME outcome the raise describes.
+    # formatting surfaces by hand. The render is an additional, non-blocking
+    # trace of the SAME outcome the refusal below describes.
     for line in render_commit_outcome(router_result):
         logger.debug("accept: %s", line)
 
@@ -1915,25 +1955,24 @@ def _commit_acceptance_meta_via_router(
         return parent_commit, None, False
 
     if router_result.status not in ("committed",):
-        raise AcceptanceError(f"Acceptance commit failed ({router_result.status}): " + (router_result.diagnostic or "no diagnostic available"))
+        raise AcceptanceRecordCommitError(mission_slug, meta_path, f"commit status {router_result.status}: {router_result.diagnostic or 'no diagnostic available'}")
 
     accept_commit: str | None = router_result.commit_hash
 
-    # See the sibling ``_commit_acceptance_meta``; the typed error PROPAGATES.
+    # Corruption surfaces as the typed ``MissionMetaReadError`` and PROPAGATES
+    # (swallowing it would silently skip stamping ``accept_commit`` into meta.json).
     if accept_commit and _stamp_accept_commit(meta_path.parent, accept_commit):
         # Second commit: record the accept_commit SHA back into meta.json.
-        # T088 (D8): its result was discarded entirely before this WP --
-        # now warn (never raise; this write is best-effort bookkeeping on
-        # top of an already-successful acceptance commit) when a surface
-        # did not land cleanly.
-        second_result = commit_for_mission(
+        # T088 (D8): warn (never raise on a non-committed outcome; this write is
+        # best-effort bookkeeping on top of an already-successful acceptance
+        # commit) when a surface did not land cleanly.
+        second_result = _route_meta_commit(
             repo_root=repo_root,
             mission_slug=mission_slug,
-            files=(meta_path,),
-            message=f"Record acceptance commit for {mission_slug}",
+            meta_path=meta_path,
             policy=policy,
-            # meta.json → PRIMARY_METADATA (write-surface-coherence WP02 / T009).
-            kind=MissionArtifactKind.PRIMARY_METADATA,
+            message=f"Record acceptance commit for {mission_slug}",
+            primary_ref=primary_ref,
         )
         for surface in second_result.surfaces:
             if surface.status not in ("committed", "unchanged"):
