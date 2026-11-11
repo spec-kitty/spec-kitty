@@ -583,11 +583,6 @@ def test_the_run_conclusion_model_honours_continue_on_error(job_patch: dict[str,
     assert _run_conclusion({"smoketest": "failure"}) == "failure"
 
 
-def test_the_run_conclusion_model_reads_continue_on_error_false_as_not_swallowing() -> None:
-    with patch(f"{__name__}.load_workflow", return_value=_with_smoketest({"continue-on-error": False}, {"continue-on-error": False})):
-        assert _run_conclusion({"smoketest": "failure"}) == "failure"
-
-
 def test_docs_pages_never_smoketests_after_a_failed_deploy_and_the_run_stays_red() -> None:
     results = _schedule(event_name="push", fails=frozenset({"deploy"}))
 
