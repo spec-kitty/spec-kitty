@@ -1,7 +1,7 @@
 {
-  "event_count": 4,
-  "last_event_id": "01M74GG9SD4B3SEJMTKER9J8A6",
-  "materialized_at": "2026-11-11T05:15:17.165047+00:00",
+  "event_count": 5,
+  "last_event_id": "01M74GGDMDAK5824N7QT6GR1KD",
+  "materialized_at": "2026-11-11T05:15:21.101114+00:00",
   "mission_number": "",
   "mission_slug": "runtime-status-read-door-01M73HHB",
   "mission_type": "software-dev",
@@ -15,7 +15,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 4
+    "planned": 5
   },
   "work_packages": {
     "WP01": {
@@ -45,6 +45,13 @@
       "lane": "planned",
       "last_event_id": "01M74GG9SD4B3SEJMTKER9J8A6",
       "last_transition_at": "2026-11-11T05:15:17.165047+00:00"
+    },
+    "WP05": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M74GGDMDAK5824N7QT6GR1KD",
+      "last_transition_at": "2026-11-11T05:15:21.101114+00:00"
     }
   }
 }
