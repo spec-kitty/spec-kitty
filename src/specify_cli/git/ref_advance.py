@@ -100,6 +100,16 @@ def reporting_advance_intents(sink: AdvanceIntentSink) -> Iterator[None]:
         _ADVANCE_INTENT_SINK.reset(token)
 
 
+def advance_intents_reported() -> bool:
+    """True while a :func:`reporting_advance_intents` sink is installed in this context.
+
+    A writer that would otherwise move a branch without this module (``safe_commit``'s
+    porcelain ``git commit``) reads it to route its move through
+    :func:`advance_branch_ref_for_commit` instead, so the sink sees that move too.
+    """
+    return _ADVANCE_INTENT_SINK.get() is not None
+
+
 def _report_advance_intent(branch: str, old_sha: str, new_sha: str) -> None:
     """Hand an imminent advance to the installed sink, if any (a raise fails the advance closed)."""
     sink = _ADVANCE_INTENT_SINK.get()

@@ -116,7 +116,7 @@ from kernel.git_topology import (
     git_toplevel,
 )
 from specify_cli.git.protection_policy import ProtectionPolicy
-from specify_cli.git.ref_advance import RefAdvanceError, advance_branch_ref_for_commit
+from specify_cli.git.ref_advance import RefAdvanceError, advance_branch_ref_for_commit, advance_intents_reported
 
 if TYPE_CHECKING:
     from mission_runtime import OwnedCheckout
@@ -1441,9 +1441,15 @@ def _create_expected_parent_commit(
     tree_sha: str,
     expected_parent_sha: str,
     message_file: Path,
+    *,
+    honor_signing: bool = True,
 ) -> str:
-    """Create a commit object whose sole parent is the captured target tip."""
-    signing = _expected_parent_signing_args(worktree_root)
+    """Create a commit object whose sole parent is the captured target tip.
+
+    ``honor_signing=False`` creates an unsigned commit, as the porcelain path's
+    ``-c commit.gpgsign=false`` does; an in-span commit routed here keeps that.
+    """
+    signing = _expected_parent_signing_args(worktree_root) if honor_signing else []
     created = _run_git_for_commit(
         worktree_root,
         ["commit-tree", *signing, tree_sha, "-p", expected_parent_sha, "-F", str(message_file)],
@@ -1518,6 +1524,7 @@ def _safe_commit_with_expected_parent(
     normalized_files: list[str],
     expected_path_bytes: Mapping[str, bytes],
     index_only_removals: frozenset[str] = frozenset(),
+    honor_signing: bool = True,
 ) -> CommitResult:
     """Create a hook-checked commit and atomically compare-and-swap its ref."""
     landed_sha: str | None = None
@@ -1543,7 +1550,7 @@ def _safe_commit_with_expected_parent(
             expected_tree = _run_git_text(worktree_root, ["show", "-s", "--format=%T", expected_parent_sha])
             if tree_sha == expected_tree:
                 raise SafeCommitStagedTreeUnchanged(destination_ref=destination_ref)
-            new_sha = _create_expected_parent_commit(worktree_root, tree_sha, expected_parent_sha, message_file)
+            new_sha = _create_expected_parent_commit(worktree_root, tree_sha, expected_parent_sha, message_file, honor_signing=honor_signing)
             _compare_and_swap_commit_ref(
                 repo_root,
                 worktree_root,
@@ -1822,6 +1829,71 @@ def _refuse_decisions_runtime_lock(requested: Sequence[str], removals: frozenset
             )
 
 
+def _in_span_parent(worktree_root: Path, destination_ref: str) -> str | None:
+    """The destination tip an in-span commit is built on, or ``None`` outside a span (#5931).
+
+    Inside a ``reporting_advance_intents`` span (a consolidation rollback span), a
+    porcelain ``git commit`` would move ``destination_ref`` with no advance intent, so
+    a kill before the phase records its post tip leaves the run's own commit
+    unexplained. The caller commits against the tip read here through the
+    expected-parent mode, which reports the intent before its compare-and-swap. A
+    ref that no longer resolves raises :class:`SafeCommitDestinationNotFound`; a move
+    after this read fails the compare-and-swap closed.
+    """
+    if not advance_intents_reported():
+        return None
+    tip = _run_git_text(worktree_root, ["rev-parse", "--verify", "--quiet", f"refs/heads/{destination_ref}"])
+    if tip is None:
+        raise SafeCommitDestinationNotFound(destination_ref=destination_ref, worktree_root=worktree_root)
+    return tip
+
+
+def _commit_against_parent(
+    *,
+    repo_root: Path,
+    worktree_root: Path,
+    destination_ref: str,
+    message: str,
+    normalized_files: list[str],
+    expected_parent_sha: str | None,
+    expected_path_bytes: Mapping[Path, bytes] | None,
+    index_only_removals: frozenset[str],
+) -> CommitResult | None:
+    """Commit through the expected-parent mode when the caller pins a parent or a span reports intents.
+
+    ``None`` means the porcelain path commits. A caller-pinned parent keeps its raw-bytes
+    assertions, index-only removals and commit signing. An in-span commit (no pinned
+    parent) is built on the live destination tip and stays unsigned, like the porcelain
+    path's ``-c commit.gpgsign=false``.
+    """
+    if expected_parent_sha is not None:
+        return _safe_commit_with_expected_parent(
+            repo_root=repo_root,
+            worktree_root=worktree_root,
+            destination_ref=destination_ref,
+            expected_parent_sha=expected_parent_sha,
+            message=message,
+            normalized_files=normalized_files,
+            expected_path_bytes=_normalize_expected_parent_path_bytes(worktree_root, normalized_files, expected_path_bytes),
+            index_only_removals=index_only_removals,
+        )
+    if expected_path_bytes is not None:
+        raise ValueError("expected_path_bytes requires expected_parent_sha")
+    in_span_parent = _in_span_parent(worktree_root, destination_ref)
+    if in_span_parent is None:
+        return None
+    return _safe_commit_with_expected_parent(
+        repo_root=repo_root,
+        worktree_root=worktree_root,
+        destination_ref=destination_ref,
+        expected_parent_sha=in_span_parent,
+        message=message,
+        normalized_files=normalized_files,
+        expected_path_bytes={},
+        honor_signing=False,
+    )
+
+
 def safe_commit(
     *,
     repo_root: Path,
@@ -1989,24 +2061,18 @@ def safe_commit(
             raise SafeCommitIndexDeletionConflict(conflicting_paths=conflicts, worktree_root=worktree_root)
         return _commit_with_index_deletions(worktree_root, destination_ref, message, requested_files, deletion_files)
 
-    if expected_parent_sha is not None:
-        normalized_expected_path_bytes = _normalize_expected_parent_path_bytes(
-            worktree_root,
-            normalized_files,
-            expected_path_bytes,
-        )
-        return _safe_commit_with_expected_parent(
-            repo_root=repo_root,
-            worktree_root=worktree_root,
-            destination_ref=destination_ref,
-            expected_parent_sha=expected_parent_sha,
-            message=message,
-            normalized_files=normalized_files,
-            expected_path_bytes=normalized_expected_path_bytes,
-            index_only_removals=removals,
-        )
-    if expected_path_bytes is not None:
-        raise ValueError("expected_path_bytes requires expected_parent_sha")
+    parent_commit = _commit_against_parent(
+        repo_root=repo_root,
+        worktree_root=worktree_root,
+        destination_ref=destination_ref,
+        message=message,
+        normalized_files=normalized_files,
+        expected_parent_sha=expected_parent_sha,
+        expected_path_bytes=expected_path_bytes,
+        index_only_removals=removals,
+    )
+    if parent_commit is not None:
+        return parent_commit
 
     # 7. Snapshot, then stage, EXACTLY the requested paths -- and ONLY these
     #    paths. `git add --force -- <path>` mutates the index entry for that

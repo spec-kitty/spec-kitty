@@ -12,8 +12,11 @@ would land ``WP02``'s done commit: a porcelain ``commit`` carrying the message (
 compare-and-swap ``update-ref`` carrying it (the expected-parent path). Either way ``WP01``'s
 commit has landed and ``WP02``'s has not.
 
-Only the branch restore is asserted here. Whether the coordination checkout is clean after the
-abort, and a full re-run, are covered elsewhere (the residue classifier and the closeout test).
+Only the branch restore is asserted here. Until the rollback classifies the killed write's own
+status files as residue, the first abort refuses to move the branch under them and prints a
+``stash`` remedy; the test follows it and aborts again. Whether the coordination checkout is clean
+after the abort, and a full re-run, are covered elsewhere (the residue classifier and the closeout
+test).
 """
 
 from __future__ import annotations
@@ -71,11 +74,15 @@ def _install_kill_wrapper(tmp_path: Path) -> tuple[dict[str, str], Path]:
     return {"PATH": os.pathsep.join((str(bin_dir), os.environ.get("PATH", "")))}, marker
 
 
+def _abort(built: Built) -> str:
+    aborted = cli(built, "consolidate", "--mission", built.slug, "--abort")
+    return aborted.stdout + aborted.stderr
+
+
 def _coordination_tip(built: Built) -> str:
     return git(built.root, "rev-parse", f"refs/heads/{built.mission.topic}")
 
 
-@pytest.mark.p0_repro(issue=7544)
 def test_abort_restores_coordination_branch_after_kill_between_done_commits(tmp_path: Path) -> None:
     built = build(tmp_path)
     tip_before = _coordination_tip(built)
@@ -89,8 +96,17 @@ def test_abort_restores_coordination_branch_after_kill_between_done_commits(tmp_
     assert "status transition WP01" in log, log
     assert _KILL_MESSAGE not in log, log
 
-    aborted = cli(built, "consolidate", "--mission", built.slug, "--abort")
-    output = aborted.stdout + aborted.stderr
-
+    output = _abort(built)
     assert "moved by another actor" not in output, output[-4000:]
+
+    if _coordination_tip(built) != tip_before:
+        # The killed write left its own status files modified in the coordination checkout.
+        # Until the rollback classifies them as residue it refuses to move a branch checked
+        # out over them and prints this remedy; follow it, then abort again. The record
+        # must still explain the run's own commit on the second abort.
+        assert "git -C <coordination worktree> stash" in " ".join(output.split()), output[-4000:]
+        git(built.coord_worktree, "stash")
+        output = _abort(built)
+        assert "moved by another actor" not in output, output[-4000:]
+
     assert _coordination_tip(built) == tip_before, output[-4000:]
