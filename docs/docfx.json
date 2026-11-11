@@ -32,7 +32,6 @@
           "robots.txt",
           "CNAME",
           ".nojekyll",
-          "llms.txt",
           "kitty-specs/**/*.html",
           "kitty-specs/toc.yml"
         ]

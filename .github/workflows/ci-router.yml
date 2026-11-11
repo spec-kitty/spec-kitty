@@ -1449,8 +1449,8 @@ jobs:
       - name: Sync packs
         uses: ./.github/actions/sync-packs
       - uses: ./.github/actions/policy-scan-cache
-      # The PlantUML render tests need the pinned jar. Restore it from the cache
-      # docs-pages.yml fills (same key), provision it once before the tests run
+      # The PlantUML render tests need the pinned jar. Restore it from the shared
+      # cache entry (one key per pin set), provision it once before the tests run
       # (plantuml_invoke.ensure_jar re-verifies the sha256 and re-downloads a
       # stale or corrupt entry), and save it even when a test later fails, so a
       # GitHub release-asset outage no longer reds this job.
@@ -1767,9 +1767,9 @@ jobs:
   # the site/ project on every PR that touches docs/**, site/** or the inputs of the
   # site's folder contract (the `docs_site` group), and uploads site/dist. The build is
   # the shared definition .github/workflows/docs-site-build.yml (D-11, #6937), which the
-  # Pages deploy calls at cutover (#6938); DocFX keeps deploying (docs-pages.yml) until
-  # then. doc-kitty is a pnpm git dependency pinned by commit in site/pnpm-lock.yaml; the
-  # install needs no token (the repository is public).
+  # Pages deploy (docs-pages.yml) also calls since the cutover (#6938). doc-kitty is a pnpm
+  # git dependency pinned by commit in site/pnpm-lock.yaml; the install needs no token (the
+  # repository is public).
   #
   # REQUIRED: the job is in `router-gate.needs:` and carries no job-level
   # continue-on-error, so a failed build blocks the PR that caused it. Its jobs-API row is
