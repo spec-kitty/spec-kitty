@@ -212,6 +212,7 @@ def _commit_to_branch(
     json_output: bool = False,
     *,
     owned: OwnedCheckout | None = None,
+    extra_files: tuple[Path, ...] = (),
 ) -> CommitToBranchResult:
     """Commit a planning artifact to its single resolved placement.
 
@@ -244,6 +245,9 @@ def _commit_to_branch(
             ``repo_root`` argument's own value -- "the linked checkout
             cannot weaken protection" -- while the actual write lands on
             ``owned.owned_root`` (P) via ``commit_for_mission``'s ``owned=``.
+        extra_files: Files the same command wrote beside ``file_path`` that
+            belong in the same commit (#3933: the lifecycle events setup-plan
+            appends), so one phase transition is one commit.
 
     Returns:
         CommitToBranchResult: the typed commit outcome (see the class docstring).
@@ -262,7 +266,7 @@ def _commit_to_branch(
     router_result = commit_for_mission(
         repo_root=protection_root,
         mission_slug=mission_slug,
-        files=(file_path,),
+        files=(file_path, *extra_files),
         message=commit_msg,
         policy=policy,
         kind=_kind_for_artifact(artifact_type),
@@ -786,6 +790,26 @@ def _emit_spec_plan_phase_events(
         logger.debug("Lifecycle phase emission skipped: %s", _phase_exc)
 
 
+def _lifecycle_log_for_plan_commit(feature_dir: Path, repo_root: Path, mission_slug: str, owned: OwnedCheckout | None) -> tuple[Path, ...]:
+    """The Mission's lifecycle log to commit with ``plan.md``, when it shares the plan's partition (#3933).
+
+    The lifecycle events are appended to ``feature_dir``'s ``status.events.jsonl``.
+    On a topology without a coordination branch that log is a PRIMARY-partition
+    file, committed beside the plan. On a coordination topology the log's kind
+    routes to the coordination branch, whose own log the primary copy must never
+    overwrite, so it is left out (a recorded residual of #3933). An owned run
+    reads the topology off its validated fact, never re-resolving the repository.
+    """
+    from mission_runtime import resolve_topology, routes_through_coordination
+    from specify_cli.status import mission_event_log_path
+
+    log = mission_event_log_path(feature_dir)
+    topology = owned.topology if owned is not None else resolve_topology(repo_root, mission_slug)
+    if not log.is_file() or routes_through_coordination(topology):
+        return ()
+    return (log,)
+
+
 def _commit_plan_if_substantive(
     plan_file: Path,
     feature_dir: Path,
@@ -819,7 +843,9 @@ def _commit_plan_if_substantive(
     # seam that resolved ``plan_template`` itself.
     mission_type = getattr(plan_template, "mission", None) or "software-dev"
     if is_substantive(plan_file, "plan", mission_type=mission_type, project_dir=repo_root):
-        commit_result = _mission._commit_to_branch(plan_file, mission_slug, "plan", repo_root, target_branch, json_output, owned=owned)
+        # #3933: record PlanCompleted BEFORE the commit so the plan and every lifecycle
+        # event this command appended (SpecifyCompleted, PlanStarted, PlanCompleted)
+        # land in one commit instead of leaving the log dirty for the next gate.
         try:
             from specify_cli.status import emit_artifact_phase, PLAN_COMPLETED
 
@@ -833,6 +859,8 @@ def _commit_plan_if_substantive(
             )
         except Exception as _plan_exc:  # noqa: BLE001
             logger.debug("PlanCompleted emission skipped: %s", _plan_exc)
+        extra = _lifecycle_log_for_plan_commit(feature_dir, repo_root, mission_slug, owned)
+        commit_result = _mission._commit_to_branch(plan_file, mission_slug, "plan", repo_root, target_branch, json_output, owned=owned, extra_files=extra)
         return commit_result, None, False
 
     _, scaffold_only = _resolve_plan_result_state(

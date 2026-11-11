@@ -578,7 +578,6 @@ def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
     ``_ms_resolve_read_dir`` — never the primary planning directory or
     ``Path.cwd()`` (C-003/#2647).
     """
-    from mission_runtime import is_single_branch, resolve_topology
     from specify_cli.status import WPInnerStateDelta
 
     if not st.updated_tasks:
@@ -604,10 +603,12 @@ def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
         joined = ", ".join(unresolved_tasks)
         raise ValueError(f"Could not resolve owning work package for subtask event: {joined}")
 
-    # #5655: a single_branch mission commits its annotation on its write
-    # branch, like its lane transitions, so mark-status leaves the checkout clean
-    # -- unless the operator opted out with --no-auto-commit / ``auto_commit: false``.
-    commit_annotation = st.resolved_auto_commit and is_single_branch(resolve_topology(st.main_repo_root, st.mission_slug))
+    # #5655 / #3933: the annotation is committed where the status door commits the
+    # Mission's transitions (its write branch, or the coordination branch), on every
+    # topology, so mark-status leaves the checkout clean -- unless the operator
+    # opted out with --no-auto-commit / ``auto_commit: false``. Where the door cannot
+    # commit (no transaction surface), it keeps the uncommitted form.
+    commit_annotation = st.resolved_auto_commit
     from specify_cli.coordination.status_transition import emit_runtime_annotation
 
     for wp_id, task_ids_for_wp in resolved_tasks_by_wp.items():
