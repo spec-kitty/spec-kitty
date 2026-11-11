@@ -143,10 +143,13 @@ def test_c001_pre_gate_intercepts_through_tasks_namespace(tmp_path: Path) -> Non
 def test_c001_pre_gate_not_consulted_when_auto_commit_resolves_false(
     tmp_path: Path,
 ) -> None:
-    """C-001 wiring: with auto-commit resolved False the pre-gate is NOT
+    """C-001 wiring: with an explicit ``--no-auto-commit`` the pre-gate is NOT
     consulted (``skip_target_branch_commit`` stays False by the original
-    ternary), and the flow proceeds to the ports read."""
-    st = _make_state()
+    ternary), and the flow proceeds to the ports read.
+
+    #3933: only the explicit flag keeps the status record local; the config
+    default ``auto_commit: false`` alone no longer does (pinned below)."""
+    st = _make_state(auto_commit=False)
     ports = MagicMock()
     ports.coord.feature_write_dir.side_effect = _StopFlow
     with (
@@ -164,6 +167,32 @@ def test_c001_pre_gate_not_consulted_when_auto_commit_resolves_false(
         tasks_move_task._mt_resolve_targets(st, ports=ports)
     skip_mock.assert_not_called()
     assert st.skip_target_branch_commit is False
+
+
+def test_c001_pre_gate_consulted_when_only_the_config_says_auto_commit_false(
+    tmp_path: Path,
+) -> None:
+    """#3933: with ``auto_commit: false`` from config and no flag the status
+    record still commits, so the pre-gate is consulted for it."""
+    st = _make_state()
+    ports = MagicMock()
+    ports.coord.feature_write_dir.side_effect = _StopFlow
+    with (
+        patch(f"{_TASKS}.locate_project_root", return_value=tmp_path),
+        patch(f"{_TASKS}._emit_sparse_session_warning"),
+        patch(f"{_TASKS}.get_auto_commit_default", return_value=False),
+        patch(f"{_TASKS}._find_mission_slug", return_value="034-feature"),
+        patch(
+            f"{_TASKS}._ensure_target_branch_checked_out",
+            return_value=(tmp_path, "main"),
+        ),
+        patch(f"{_TASKS}._skip_target_branch_commit", return_value=False) as skip_mock,
+        pytest.raises(_StopFlow),
+    ):
+        tasks_move_task._mt_resolve_targets(st, ports=ports)
+    skip_mock.assert_called_once_with(tmp_path, "034-feature", "main")
+    assert st.resolved_auto_commit is False
+    assert st.status_commit is True
 
 
 @pytest.mark.parametrize(
@@ -185,7 +214,8 @@ def test_mt_resolve_targets_dispatch_binding_action_by_target(
     reviewer's binding for an approve stamped the WRONG profile/model onto
     ``_mt_approval_policy_metadata``'s ``policy_metadata`` sidecar. Every
     other target's resolution is unchanged (regression guard)."""
-    st = _make_state(to=to)
+    # Explicit --no-auto-commit keeps the pre-gate (a git probe) out of the way.
+    st = _make_state(to=to, auto_commit=False)
     ports = MagicMock()
     ports.coord.feature_write_dir.side_effect = _StopFlow
     with (

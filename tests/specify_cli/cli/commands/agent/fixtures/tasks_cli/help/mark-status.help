@@ -23,6 +23,6 @@ Options
 --wp <str> Work package containing the subtasks (e.g., WP02)
 --agent <str> Agent name (compact tool:model:profile accepted)
 --owned-checkout <path> Explicit single-branch checkout root.
---auto-commit --no-auto-commit Automatically commit status events when supported (default: from project config)
+--auto-commit --no-auto-commit Commit the status events this writes, when supported; only an explicit --no-auto-commit keeps them uncommitted
 --json Output JSON format
 --help -h Show this message and exit.

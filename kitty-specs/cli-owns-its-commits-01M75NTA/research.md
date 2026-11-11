@@ -125,7 +125,9 @@ No dependency is added, upgraded or removed, so the supply-chain check does not 
   deliverables are never committed for them and the for_review readiness deferral is unchanged
   (#5905). One predicate decides it, `tasks_move_task_hops.commits_status_record`; `mark-status`
   applies the same rule. An explicit `--no-auto-commit` stays the one sanctioned non-durable
-  path (FR-013).
+  path (FR-013). The protected-target refusal still keys on the operator's own commit intent
+  (flag or setting), not on this rule: with only `auto_commit: false` a protected target is not
+  newly refused, and the status door leaves that whole record uncommitted, as before.
 - **D3, extended to the repository root checkout.** `next` and `answer-decision` now commit the
   row on every topology, not only in a coordination worktree, through the same committer. A
   landed Mission's row is never committed (`MissionNextInvokedWrite.should_commit`), and a

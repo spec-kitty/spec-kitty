@@ -618,7 +618,11 @@ def _mt_refuse_protected_status_commit(st: _MoveTaskState) -> None:
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
 
-    if not commits_status_record(st) or st.skip_target_branch_commit:
+    # #3933: keyed on the operator's own intent, not ``commits_status_record``.
+    # With only the config default ``auto_commit: false`` a protected target is
+    # not refused: the status door then leaves the whole record uncommitted
+    # (never half of it), as before.
+    if not st.resolved_auto_commit or st.skip_target_branch_commit:
         return
     protected_error = _tasks._protected_branch_status_commit_error(st.target_branch, st.main_repo_root, "spec-kitty agent tasks move-task", st.mission_slug)
     if protected_error is None:

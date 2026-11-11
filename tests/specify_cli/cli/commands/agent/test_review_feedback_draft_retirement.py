@@ -183,14 +183,18 @@ def test_rejection_retires_the_draft_and_the_next_for_review_passes(tmp_path: Pa
 
 
 def test_a_non_durable_record_keeps_the_draft(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """FR-002: ``--no-auto-commit`` writes no durable record, so nothing may be removed."""
+    """FR-002: ``--no-auto-commit`` writes no durable record, so nothing may be removed.
+
+    #3933: the flag is passed explicitly; ``auto_commit: false`` in config alone
+    now commits the record (and so may retire the draft).
+    """
     _repo, feature_dir = _build_mission(tmp_path, monkeypatch, auto_commit=False)
     draft = _advertised_draft(feature_dir)
     draft.parent.mkdir(parents=True, exist_ok=True)
     body = "**Issue 1**: keep this even when the record is not committed.\n"
     draft.write_text(body, encoding="utf-8")
 
-    rejected = _reject(draft)
+    rejected = _reject(draft, "--no-auto-commit")
     assert rejected.exit_code == 0, rejected.output  # type: ignore[attr-defined]
     assert draft.exists(), "a non-durable record must never authorize removing the only copy"
     assert draft.read_text(encoding="utf-8") == body
