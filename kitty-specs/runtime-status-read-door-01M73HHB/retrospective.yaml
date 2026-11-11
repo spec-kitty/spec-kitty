@@ -1,0 +1,431 @@
+schema_version: 1
+mission_id: 01M73HHBGCYKH10797R6YR21WS
+mission_slug: runtime-status-read-door-01M73HHB
+mission_number: 254
+friendly_name: Runtime status readers through the read door
+mission_type: software-dev
+target_branch: refactor/7310-status-read-door-s5
+created_at: '2026-11-11T10:10:25.383738+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-11-11T10:10:25.383738+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-004
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-005
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-007
+  category: tooling
+  summary: 'Tracer: [2026-11-11][implement WP04] The commit guard prints `ACTIVE_WP_SCOPE_VIOLATION` for a planned, out-of-map
+    edit'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-11][implement WP04] The commit guard prints `ACTIVE_WP_SCOPE_VIOLATION` for a planned, out-of-map
+    edit** (`read_surface.py`, which belongs to WP02). That is expected under ownership leeway, but the message reads like
+    an error. Workaround: record the rationale with `add-history`.'
+- id: h-006
+  category: tooling
+  summary: 'Tracer: [2026-11-11][specify] `check-prerequisites` and `setup-plan` disagree on `branch_matches_target`'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-11][specify] `check-prerequisites` and `setup-plan` disagree on `branch_matches_target`** for a default-topology
+    Mission before landing: `setup-plan` names the topic branch as the target (true); `check-prerequisites` names `meta.target_branch`
+    (false). The prompt says to stop on false. It is expected here (CLAUDE.md: PRIMARY artifacts live on the topic branch
+    until landing), but the prompt does not say so.'
+not_helpful:
+- id: n-002
+  category: doc
+  summary: analysis-report.md records 2 finding(s)
+  evidence_refs:
+  - e-013
+  details: The analysis-report.md artifact for this mission records 2 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-001
+  category: review_loop
+  summary: WP06 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-012
+  details: WP WP06 was sent back to an earlier lane with documented review feedback 2 time(s).
+- id: n-007
+  category: tooling
+  summary: 'Tracer: [2026-11-10][op] Op records are committed unsigned and without the co-author trailer.'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-10][op] Op records are committed unsigned and without the co-author trailer.** `profile-invocation
+    complete` commits `kitty-ops/<id>.jsonl` itself (`op(<profile>): <action> [<id8>]`), unsigned and with no trailer the
+    project requires. Workaround: amend that commit. Same family as #5197.'
+- id: n-006
+  category: tooling
+  summary: 'Tracer: [2026-11-10][op→specify] `spec-kitty dispatch` refused with `ROUTER_AMBIGUOUS`.'
+  evidence_refs:
+  - e-014
+  details: "- **[2026-11-10][op→specify] `spec-kitty dispatch` refused with `ROUTER_AMBIGUOUS`.** The token \"fix\" matched
+    both `java-jenny` and `python-pedro`, although the repository is Python and the request named Python files. Workaround:
+    pass `--profile python-pedro`. Follow-up: the router could weight by the project's language set."
+- id: n-029
+  category: tooling
+  summary: 'Tracer: [2026-11-11][accept] The acceptance matrix is first checked at `accept`.'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-11][accept] The acceptance matrix is first checked at `accept`.** `finalize-tasks` scaffolds `acceptance-matrix.json`
+    with 12 placeholder criteria ("Verify FR-00N is satisfied", notes "TODO: replace with a real acceptance criterion"), all
+    `pending`. No step between finalize and accept mentions it, so `accept` refuses even after every WP is approved, and someone
+    then has to verify and record each FR. Same shape as the issue-matrix entry. Follow-up: have `analyze` or each WP review
+    fill in the criteria they prove.'
+- id: n-030
+  category: tooling
+  summary: 'Tracer: [2026-11-11][accept] `accept` passes with a test made red by the Mission.'
+  evidence_refs:
+  - e-014
+  details: "- **[2026-11-11][accept] `accept` passes with a test made red by the Mission.** `accept` checks lanes and matrices
+    but runs no tests. The verifier found `test_decision_shape_unchanged_for_composed_action` (a `Decision` field-set pin)
+    red only because it ran the blast radius on its own. Neither WP06 review caught it, because both ran the WP strategy files
+    and that file is not among them. Fix: a third WP06 cycle, with the re-pin committed on the lane. A commit there after
+    approval would make consolidation refuse with `LANE_MOVED_AFTER_APPROVAL`. Follow-up: `tasks` could add the blast-radius
+    directories to each WP's test strategy."
+- id: n-031
+  category: tooling
+  summary: 'Tracer: [2026-11-11][accept] `acceptance-verdict` commits each verdict itself.'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-11][accept] `acceptance-verdict` commits each verdict itself.** It made 12 commits, all unsigned,
+    adding to the pile to re-sign at closeout.'
+- id: n-032
+  category: tooling
+  summary: 'Tracer: [2026-11-11][accept] `spec-kitty accept` crashed with a traceback after writing the acceptance record'
+  evidence_refs:
+  - e-014
+  details: "- **[2026-11-11][accept] `spec-kitty accept` crashed with a traceback after writing the acceptance record** (`TaskCliError:
+    The following paths are ignored by one of your .gitignore files: .worktrees`). On a settled `lanes_with_coord` Mission,
+    accept writes `meta.json` in the coordination worktree, then runs `git add <.worktrees/...-coord/.../meta.json>` with
+    `cwd=` the repository root checkout (`accept.py`, the \"Unprotected path (mission-lane branch)\" commit, `run_git([\"\
+    add\", meta_rel], cwd=repo_root)`). Same root cause as the `spec-commit` / `safe-commit` placement entries. The record
+    also names `accepted_from_commit` = the root checkout's HEAD (the target branch), not the Mission branch, and adds `status_phase:
+    \"1\"`. Workaround: commit `meta.json` with git in the coordination worktree. Follow-up: file an issue (accept's meta
+    commit ignores the coordination placement after settlement)."
+- id: n-004
+  category: tooling
+  summary: 'Tracer: [2026-11-11][analyze] `spec-commit` refuses planning edits after topology settlement.'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-11][analyze] `spec-commit` refuses planning edits after topology settlement.** Once `finalize-tasks`
+    settled the default Mission to `lanes_with_coord`, the topic branch (now also the coordination branch) is checked out
+    in the coordination worktree, and the repository root checkout went back to `create_return_branch`. `spec-commit` resolves
+    the planning placement to the repository root checkout (`worktree=/home/user/spec-kitty`) and refuses with `WRONG_SURFACE`.
+    `record-analysis` and `finalize-tasks` commit fine through their own paths. Workaround: commit the remediation edits with
+    git inside the coordination worktree. Follow-up: file an issue (planning edits after settlement have no canonical commit
+    path).'
+- id: n-028
+  category: tooling
+  summary: 'Tracer: [2026-11-11][closeout] Correcting the spec after the reviews makes the analysis report stale.'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-11][closeout] Correcting the spec after the reviews makes the analysis report stale.** The analysis
+    then has to be recorded again before `accept`. The two spec notes here (owned presence and the landed-Mission row) came
+    out of the reviews, so editing the spec while WPs were still open would have blocked claims. They were deferred until
+    every WP was approved.'
+- id: n-016
+  category: tooling
+  summary: 'Tracer: [2026-11-11][implement WP04] The repro scripts cannot run with `python -I` plus `PYTHONPATH`.'
+  evidence_refs:
+  - e-014
+  details: "- **[2026-11-11][implement WP04] The repro scripts cannot run with `python -I` plus `PYTHONPATH`.** `research/repro/*.py`
+    imports `tests.*` and needs the lane's `src` first on the path, but `-I` ignores `PYTHONPATH`. Workaround: `python -I
+    -c` with a manual `sys.path` insert. Follow-up: give repro scripts a small runner, or make them pytest-driven."
+- id: n-018
+  category: tooling
+  summary: "Tracer: [2026-11-11][implement WP05] A WP's \"unchanged on every fixture\" constraint can conflict with an older,
+    binding rule, and nothing flags it before implementation."
+  evidence_refs:
+  - e-014
+  details: "- **[2026-11-11][implement WP05] A WP's \"unchanged on every fixture\" constraint can conflict with an older,
+    binding rule, and nothing flags it before implementation.** For an owned coordination Mission the old presence check looked
+    in the repository root checkout (R), not the owned checkout (P). That contradicts the WP11 rule that owned paths come
+    from P. The implementer changed it red-first and surfaced it for review. Follow-up: `analyze` could cross-check \"unchanged\"\
+    \ claims against the owned-path rule."
+- id: n-020
+  category: tooling
+  summary: 'Tracer: [2026-11-11][implement WP05] Tests that compare a baseline fail on an uncommitted tree'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-11][implement WP05] Tests that compare a baseline fail on an uncommitted tree** (`Baseline source
+    is dirty`). They go green only after committing, which reads like a real failure mid-loop. Workaround: commit first, then
+    re-run.'
+- id: n-019
+  category: tooling
+  summary: 'Tracer: [2026-11-11][implement WP05] `pytest` start-up in a lane takes about 90 s, even for a handful of tests'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-11][implement WP05] `pytest` start-up in a lane takes about 90 s, even for a handful of tests** (collection
+    plus pack loading), so small red/green loops are slow. Workaround: batch the tests into fewer runs.'
+- id: n-023
+  category: tooling
+  summary: 'Tracer: [2026-11-11][implement WP06] Measuring NFR-002 (wall time) needs a clean base checkout.'
+  evidence_refs:
+  - e-014
+  details: "- **[2026-11-11][implement WP06] Measuring NFR-002 (wall time) needs a clean base checkout.** No command gives
+    one. The implementer made a temporary `git worktree` at the lane's base commit, ran `make sync-packs` in it, and timed
+    base and head one after the other. The first base run overlapped other tests and was discarded. Follow-up: a small timing
+    helper (base vs head, `-n0`, same suites) would make NFR timings repeatable."
+- id: n-011
+  category: tooling
+  summary: 'Tracer: [2026-11-11][implement] CLI lifecycle commits are unsigned (#5197), and they pile up on the coordination
+    branch'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-11][implement] CLI lifecycle commits are unsigned (#5197), and they pile up on the coordination branch**
+    ("Start WPxx implementation", "status transition", "update issue-matrix", "Start WPxx review"): 25 after three WPs. They
+    cannot be re-signed mid-run, because lane branches are cut from them by merge and the WP claim records store their SHAs
+    as `base_commit`. Workaround: keep them unpushed and re-sign the whole PR history at closeout.'
+- id: n-012
+  category: tooling
+  summary: 'Tracer: [2026-11-11][implement] Every lane worktree needs `make sync-packs`'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-11][implement] Every lane worktree needs `make sync-packs`** (`BuiltInPackMissing` at test collection),
+    and the run creates a separate `.venv` inside each lane. Every implementer hit this and rediscovered the fix. Follow-up:
+    `implement` could sync packs when it creates a lane, or the WP prompt could say so.'
+- id: n-013
+  category: tooling
+  summary: "Tracer: [2026-11-11][implement] The shared venv's editable install points at the repository root checkout's `src/`."
+  evidence_refs:
+  - e-014
+  details: "- **[2026-11-11][implement] The shared venv's editable install points at the repository root checkout's `src/`.**
+    Inside a lane worktree, `pytest` imports the lane's code only because the lane's `pytest.ini` sets `pythonpath = src`.
+    Any test that shells out to `spec-kitty` runs the root checkout's code, not the lane's. That is a silent false green or
+    false red for CLI-level tests. Workaround: drive the CLI in-process (`CliRunner`) or use the lane's own `.venv`. It is
+    in the WP04/WP06 dispatch notes."
+- id: n-010
+  category: tooling
+  summary: 'Tracer: [2026-11-11][implement] With auto-commit off, lifecycle commands leave Mission bookkeeping uncommitted.'
+  evidence_refs:
+  - e-014
+  details: "- **[2026-11-11][implement] With auto-commit off, lifecycle commands leave Mission bookkeeping uncommitted.**
+    `agent action implement` stages claim provenance (`meta.json` VCS lock, WP `base_commit`). `move-task --to for_review`
+    writes `tasks/WPxx-*/baseline-tests.json`. Approve/reject writes `review-cycle-N.md` and prints \"written but NOT committed
+    (--no-auto-commit)\", although no such flag was passed (the config default is meant). The status log is sometimes left
+    modified. The next `implement` then refuses until the baseline is committed, and the remedy it prints cannot work after
+    topology settlement (entry above). Workaround: the orchestrator commits each WP's bookkeeping with git in the coordination
+    worktree after every transition. That is about 2 manual commits per WP and a steady stream of \"uncommitted changes\"\
+    \ nags from the host's stop hook."
+- id: n-005
+  category: tooling
+  summary: "Tracer: [2026-11-11][implement] `implement` refuses while a WP's `baseline-tests.json` is uncommitted (auto-commit
+    off), and the remedy it prints cannot work after settlement."
+  evidence_refs:
+  - e-014
+  details: "- **[2026-11-11][implement] `implement` refuses while a WP's `baseline-tests.json` is uncommitted (auto-commit
+    off), and the remedy it prints cannot work after settlement.** The printed `spec-kitty safe-commit <mission dir> --to-branch
+    kitty/mission-…` expands the directory against the repository root checkout (finding 0 changed files). With an explicit
+    file path it refuses: the repository root checkout HEAD is not the Mission branch, and the root cannot check that branch
+    out because the coordination worktree holds it. Workaround: commit the per-WP bookkeeping (`baseline-tests.json`, `review-cycle-N.md`)
+    with git in the coordination worktree. Same root cause as the `spec-commit` entry above."
+- id: n-017
+  category: tooling
+  summary: 'Tracer: [2026-11-11][implement] `mypy` on single changed files also prints errors from untouched modules'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-11][implement] `mypy` on single changed files also prints errors from untouched modules** (`runtime/next/_internal_runtime/engine.py`,
+    `retrospective_terminus.py`), because it follows imports. Every implementer had to filter the output by path. Whether
+    those errors are red on `main` gets checked at closeout (charter pre-existing-failure rule).'
+- id: n-003
+  category: tooling
+  summary: 'Tracer: [2026-11-11][plan] `spec-commit` refuses a whole batch when one listed path no longer exists.'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-11][plan] `spec-commit` refuses a whole batch when one listed path no longer exists.** I renamed
+    `contracts/next-auto-remediate.md` with `git mv` and passed the old path too. Every path in the batch was refused (`PATH_UNROUTABLE`
+    / `WRONG_SURFACE`, "Artifact(s) not present at resolved placement"), and the message did not name the missing path. A
+    removed path cannot be committed through `spec-commit` at all. Workaround: re-run without the removed path, then commit
+    the deletion with git on the topic branch.'
+- id: n-022
+  category: tooling
+  summary: 'Tracer: [2026-11-11][review WP05] A red-first check at an older commit needs a scratch worktree, and that worktree
+    has no `packs/` tree.'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-11][review WP05] A red-first check at an older commit needs a scratch worktree, and that worktree
+    has no `packs/` tree.** The reviewer copied the pack tree in by hand. Same root cause as the per-lane `make sync-packs`
+    entry.'
+- id: n-021
+  category: tooling
+  summary: 'Tracer: [2026-11-11][review WP05] `move-task --to approved --agent claude` refuses with `REVIEW_NOT_INDEPENDENT`
+    when the implementer was also `claude`.'
+  evidence_refs:
+  - e-014
+  details: "- **[2026-11-11][review WP05] `move-task --to approved --agent claude` refuses with `REVIEW_NOT_INDEPENDENT` when
+    the implementer was also `claude`.** The bare tool name compares equal on both sides. Passing `claude::reviewer-renata`
+    (tool plus profile) satisfies the independence check. The approval command in the skill's review template omits the profile
+    suffix. Follow-up: have the review prompt print the full `--agent <tool>::<profile>` identity it claimed with."
+- id: n-024
+  category: tooling
+  summary: 'Tracer: [2026-11-11][review WP06] `move-task --to approved` still prints "written but NOT committed (--no-auto-commit)"'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-11][review WP06] `move-task --to approved` still prints "written but NOT committed (--no-auto-commit)"**
+    with no such flag passed (second report; see the auto-commit entry above). Every approval leaves `review-cycle-N.md` for
+    the orchestrator to commit.'
+- id: n-025
+  category: tooling
+  summary: 'Tracer: [2026-11-11][review WP06] pytest start-up in a scratch worktree took 130–310 s per run'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-11][review WP06] pytest start-up in a scratch worktree took 130–310 s per run**, so red-first checks
+    at older commits are the slowest part of every review.'
+- id: n-014
+  category: tooling
+  summary: 'Tracer: [2026-11-11][review] The issue-matrix gate appears only at the first `move-task --to approved`.'
+  evidence_refs:
+  - e-014
+  details: "- **[2026-11-11][review] The issue-matrix gate appears only at the first `move-task --to approved`.** `finalize-tasks`
+    scaffolded the matrix with `verdict: unknown` for every issue spec.md cites (#3462, #5702, #6608, #7310, #7490, #7507).
+    Rows for #5938 and #7335, cited in the research notes, were missing. Neither `finalize-tasks` nor `analyze` flagged it,
+    so the first reviewer's approval was refused for a Mission-level reason. Workaround: the orchestrator recorded all verdicts
+    with `agent issue-verdict`, then relayed the approval. Follow-up: surface unresolved matrix rows at finalize/analyze time."
+- id: n-027
+  category: tooling
+  summary: "Tracer: [2026-11-11][rework WP06] A contract-version bump the reviewer requires falls outside the WP's `owned_files`."
+  evidence_refs:
+  - e-014
+  details: "- **[2026-11-11][rework WP06] A contract-version bump the reviewer requires falls outside the WP's `owned_files`.**
+    That triggers `ACTIVE_WP_SCOPE_VIOLATION` warnings for `envelope.py`, the API doc and the contract test, though the change
+    is mandatory under the project's own versioning rule."
+- id: n-026
+  category: tooling
+  summary: 'Tracer: [2026-11-11][rework WP06] Moving an approved WP back to `planned` resets all of its subtasks (T029–T034)
+    to unchecked.'
+  evidence_refs:
+  - e-014
+  details: "- **[2026-11-11][rework WP06] Moving an approved WP back to `planned` resets all of its subtasks (T029–T034) to
+    unchecked.** The follow-up `move-task --to for_review` then refuses until each is marked done again, although the rework
+    only added work. The reopen message says \"re-verify, don't rebuild\", but the checklist state contradicts it."
+- id: n-009
+  category: tooling
+  summary: 'Tracer: [2026-11-11][tasks] `agent context resolve --action tasks` returned `null`'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-11][tasks] `agent context resolve --action tasks` returned `null`** for `current_branch`, `branch_matches_target`,
+    `check_prerequisites` and `finalize_tasks`, which the tasks prompt says to take from the resolver. Workaround: run `agent
+    mission check-prerequisites` directly.'
+- id: n-008
+  category: tooling
+  summary: 'Tracer: [every command] Every `spec-kitty` call prints a `CharterCatalogMissWarning`'
+  evidence_refs:
+  - e-014
+  details: '- **[every command] Every `spec-kitty` call prints a `CharterCatalogMissWarning`** for `toolguide:typescript-mutation-tools`
+    / `toolguide:javascript-supply-chain` (scope-filtered by language). That is about ten lines of noise per call, which agents
+    must filter to read the real output.'
+- id: n-015
+  category: tooling
+  summary: 'Tracer: [every implement] `agent action implement` always prints "Writing to the main repository instead of the
+    lane worktree is a critical error."'
+  evidence_refs:
+  - e-014
+  details: '- **[every implement] `agent action implement` always prints "Writing to the main repository instead of the lane
+    worktree is a critical error."**, even on a correct run. A warning shown on every run trains agents to ignore it.'
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/runtime-status-read-door-01M73HHB/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/runtime-status-read-door-01M73HHB/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/runtime-status-read-door-01M73HHB/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/runtime-status-read-door-01M73HHB/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/runtime-status-read-door-01M73HHB/tasks/WP01-board-status-value.md
+- id: e-006
+  kind: file
+  path: kitty-specs/runtime-status-read-door-01M73HHB/tasks/WP02-door-owned-coordination-entry.md
+- id: e-007
+  kind: file
+  path: kitty-specs/runtime-status-read-door-01M73HHB/tasks/WP03-board-helpers-take-board.md
+- id: e-008
+  kind: file
+  path: kitty-specs/runtime-status-read-door-01M73HHB/tasks/WP04-board-and-query-read-the-door.md
+- id: e-009
+  kind: file
+  path: kitty-specs/runtime-status-read-door-01M73HHB/tasks/WP05-explicit-seam-and-bootstrap.md
+- id: e-010
+  kind: file
+  path: kitty-specs/runtime-status-read-door-01M73HHB/tasks/WP06-lifecycle-write-and-materialization-report.md
+- id: e-011
+  kind: file
+  path: kitty-specs/runtime-status-read-door-01M73HHB/status.events.jsonl
+- id: e-012
+  kind: event_range
+  path: kitty-specs/runtime-status-read-door-01M73HHB/status.events.jsonl
+  range: 01M74V2CX9A5M5HM509PRWNC09..01M74ZZP4TAHYEF0EMMVBEP789
+- id: e-013
+  kind: file
+  path: kitty-specs/runtime-status-read-door-01M73HHB/analysis-report.md
+- id: e-014
+  kind: file
+  path: kitty-specs/runtime-status-read-door-01M73HHB/traces/tooling-friction.md
+generator_version: '1.0'
+provenance_history: []
