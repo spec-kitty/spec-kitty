@@ -111,6 +111,7 @@ from specify_cli.consolidation.entry_preflight import (
     _require_lanes_json_naming_mission_branch,
     _resolve_run_status_dir,
     _synthesize_no_lane_manifest,
+    rematerialize_coordination_surface,
 )
 from specify_cli.consolidation.phase_advance import (
     _capture_pre_target_gate_artifacts,
@@ -968,6 +969,10 @@ def _run_lane_based_consolidation(
     # WRITE accessor (ruling Q4, FR-003), never from a read resolver: this is where
     # the done bookkeeping, the birth cutover and the status reads land.
     seam = placement_seam(main_repo, mission_slug)
+    # #5406: ``consolidate --abort`` keeps its coordination teardown, so rematerialize the
+    # coordination worktree first; the seam then resolves placement against it.
+    if rematerialize_coordination_surface(main_repo, mission_slug):
+        seam = placement_seam(main_repo, mission_slug)
     # #5780: the origin freshness check runs BEFORE the status dir is resolved (that
     # resolution can seed or commit the coordination surface) and before any branch moves.
     if not origin_gated:
