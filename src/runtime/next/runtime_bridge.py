@@ -489,20 +489,22 @@ def _dn_progress(
 
     Progress counts the PRIMARY ``tasks/`` against the door's board. Without a board
     (:func:`_dn_status_board` returned ``None``) it keeps today's path read of
-    ``feature_dir``. With one, ``feature_dir`` becomes the door's status directory
-    (:func:`_status_dir_from_surface`), for an owned and a non-owned call alike, so both
-    derive it from the same read after the decision-log wrap (#7539). Raises
+    ``feature_dir``. An owned call's ``feature_dir`` becomes the door's status directory
+    (:func:`_owned_status_dir`); a non-owned one keeps the directory it resolved before the
+    decision-log wrap, the one ``sync_emitter`` is built from. Raises
     :class:`_OwnedDoorUnavailable` for a registry or ref failure.
     """
     status_read = _dn_status_board(repo_root, mission_slug, owned=owned)
     if status_read is None:
         return _compute_wp_progress(feature_dir), feature_dir, None
     progress = _compute_wp_progress(primary_metadata_dir if primary_metadata_dir is not None else feature_dir, board=status_read.board)
-    return progress, _status_dir_from_surface(status_read.surface, feature_dir), status_read
+    if owned is not None:
+        feature_dir = _owned_status_dir(status_read.surface, feature_dir)
+    return progress, feature_dir, status_read
 
 
-def _status_dir_from_surface(surface: StatusReadSurface, identity_dir: Path) -> Path:
-    """The status directory a decision's later phases read: the door's, when it is one on disk.
+def _owned_status_dir(surface: StatusReadSurface, identity_dir: Path) -> Path:
+    """The status directory an owned call's later phases read: the door's, when it is one on disk.
 
     A path source (the owned write checkout, a materialized coordination worktree) names the
     directory those phases read today; a ref source has none, so they keep ``identity_dir``,
