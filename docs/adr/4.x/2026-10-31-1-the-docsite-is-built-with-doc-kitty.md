@@ -385,3 +385,24 @@ Recorded with #6933 (redirects). D-5's and D-14's text above is unchanged. This 
 - **Redirect stubs are not publications.** The built-site check recognises doc-kitty's stub through one predicate, `redirect_stub_target` in `scripts/docs/_dockitty_contract.py`. That predicate mirrors doc-kitty's `REDIRECT_STUB_RE`.
   - The `page` and `render` surfaces skip stubs.
   - The `link` surface still reports a stub whose target is unpublished.
+
+## Amendment 2026-11-11
+
+Recorded with #6938 (canary, first of two pull requests; the cutover is the second). D-11's and D-13's text above is unchanged. This section records how the D-13 canary is carried out.
+
+- **The canary is a dispatch input of the deploy workflow.** `docs-pages.yml` takes `canary` (boolean, off by default) on `workflow_dispatch`. A push to `main`, or a dispatch without it, runs the DocFX path as before: the same `pages` and `build` jobs, and a `deploy` that runs only after a successful DocFX build.
+- **The canary builds through the one shared definition (D-11).**
+  - `canary-build` calls `docs-site-build.yml` with `pages-artifact: true` and its own artifact name, `github-pages-canary`, a new input of the shared build that defaults to `github-pages`. The two Pages artifacts of one run never collide.
+  - So the deploy workflow and the `docs-site` gate now share one build definition, which was the open part of #6937.
+- **The restore is ready before production changes.** `canary-deploy` publishes the canary with `actions/deploy-pages` (`artifact_name: github-pages-canary`, environment `github-pages`) only when both the canary build and the DocFX build succeeded, from `main` of the core repository. Only this job holds `pages: write` and `id-token: write` among the canary jobs.
+- **DocFX is always republished.** `canary-probe` runs after the canary is live. The DocFX `deploy` job needs it and runs on `!cancelled() || inputs.canary`, so on a canary it republishes DocFX whatever the probe found, and also after a cancel. `needs.build.result == 'success'` still blocks it after a failed DocFX build. A failed canary job leaves the run red.
+- **The probe's URL classes.** `scripts/docs/site_live_probe.py` derives one URL per class from the committed ledgers (`site/url-baseline.txt`, `site/moves.yaml`, `site/legacy-redirects.json`), the first in sorted order. A class with no candidate refuses. The classes are:
+  - a legacy `.html` key to its own page;
+  - a moved-chain key, whose `moves.yaml` destination moved again;
+  - a live `dir/index.html` with no key (D-5 rule 3) and its directory URL;
+  - a `dir/README.html` key;
+  - the site root and `/llms.txt`;
+  - `/kitty-specs/glossary.html`, which D-5 drops and which must answer 404.
+- **What the probe asserts.** Redirects are not followed, so a 3xx fails: flat stubs exist to remove that hop. A page answers 200 and is not a stub. A key answers 200 with a stub (judged by `redirect_stub_target`) whose target equals the map's, and the target answers 200 with a page. Each URL gets bounded retries for Pages propagation, under a 300 s wall-clock budget that covers the whole request.
+- **The gate runs the probe too.** The shared build serves `site/dist` on loopback and runs the probe once with one attempt. A ledger change that drops a class, or a build that stops answering one, fails a pull request before any canary.
+- **Operation.** The operator dispatches the canary on `main` in an announced window with docs merges frozen, because a push would queue a DocFX deploy in the `pages` concurrency group. The D-5 GitHub Pages leg stays UNVERIFIED until that run passes. The post-deploy smoketest of #2361 lands with the cutover and reuses the probe.
