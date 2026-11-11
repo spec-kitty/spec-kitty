@@ -148,7 +148,8 @@ def _owned_status_prefixes(mission_slug: str) -> tuple[str, ...]:
     merge gates keep using ``coordination.coherence.is_self_bookkeeping_churn``,
     which deliberately still treats the log as dirt. The whole-directory
     ``kitty-ops/`` exemption is deliberately wider than that rule (only
-    ``kitty-ops/<ULID>.jsonl`` Op records): the claim is non-destructive, so
+    ``kitty-ops/<ULID>.jsonl`` Op records and ``kitty-ops/lifecycle/<ULID>.json``
+    lifecycle records, #7346): the claim is non-destructive, so
     exempting the directory never discards anything. Do not "align" the lists.
     The one rule the claim does share is the decision-service runtime lock, applied
     by :func:`_claim_dirty_paths` through its own predicate rather than listed here

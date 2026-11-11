@@ -236,3 +236,17 @@ def test_another_missions_derived_views_are_kept(role: CheckoutRole) -> None:
 def test_a_file_directly_under_derived_is_not_a_mission_view() -> None:
     context = ResidueContext(role=CheckoutRole.REPOSITORY_ROOT, mission_slug="alpha", topology=MissionTopology.SINGLE_BRANCH)
     assert not _is_disposable_residue(".kittify/derived/notes.md", context)
+
+
+_LIFECYCLE_RECORD = "kitty-ops/lifecycle/01ARZ3NDEKTSV4RRFFQ69G5FAV.json"
+
+
+@pytest.mark.parametrize("role", [CheckoutRole.REPOSITORY_ROOT, CheckoutRole.COORDINATION, CheckoutRole.MISSION, CheckoutRole.LANE])
+def test_7346_lifecycle_record_is_disposable_like_an_op_record(role: CheckoutRole) -> None:
+    """#7346 operator ruling: a lifecycle record is self-bookkeeping, so the destructive
+    guards treat an uncommitted one as they treat an uncommitted Op record (ADR 2026-11-01-2
+    residual). Pinned so a change to that consequence is a deliberate one."""
+    context = ResidueContext(role=role, mission_slug=_SLUG, topology=MissionTopology.COORD)
+    assert context.is_disposable(_LIFECYCLE_RECORD)
+    assert context.is_disposable("kitty-ops/01ARZ3NDEKTSV4RRFFQ69G5FAV.jsonl")
+    assert not context.is_disposable("kitty-ops/lifecycle/notes.json")

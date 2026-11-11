@@ -72,7 +72,8 @@ def is_self_bookkeeping_churn(path: str | Path) -> bool:
     OWN mission-identity ``meta.json`` (``kitty-specs/<mission>/meta.json``, depth-exact,
     including under a monorepo subdirectory, plus the legacy ``.kittify/meta.json``), the
     encoding-provenance ``.kittify/encoding-provenance/global.jsonl``, and
-    ``kitty-ops/<ULID>.jsonl`` Op-record orphans (#2251) and the decision-service runtime
+    ``kitty-ops/<ULID>.jsonl`` Op-record orphans (#2251), ``kitty-ops/lifecycle/<ULID>.json``
+    lifecycle records (#7346) and the decision-service runtime
     lock (:func:`is_decisions_runtime_lock`, #6628) are spec-kitty's own bookkeeping,
     not mission planning artifacts, and their churn must not block a dirty-state gate.
 
@@ -130,6 +131,7 @@ def is_self_bookkeeping_churn(path: str | Path) -> bool:
     # imported through the ``specify_cli.status`` facade (single-door invariant,
     # tests/architectural/test_status_module_boundary.py); kept function-local for
     # consistency with the rest of the file rather than as a defensive necessity.
+    from specify_cli.invocation.op_commit_policy import LIFECYCLE_RECORDS
     from specify_cli.status import is_dossier_snapshot
 
     kitty_ops_op_record = re.compile(r"(?:^|/)kitty-ops/[0-9A-HJKMNP-TV-Z]{26}\.jsonl$")
@@ -170,6 +172,12 @@ def is_self_bookkeeping_churn(path: str | Path) -> bool:
     if is_dossier_snapshot(normalized):
         return True
     if is_decisions_runtime_lock(normalized):
+        return True
+    # #7346 operator ruling: a ``kitty-ops/lifecycle/<ULID>.json`` lifecycle record is
+    # bookkeeping here too, exact path like the Op record, so a closure
+    # ``doctor ops --close-stale`` could not commit is not dirt in its checkout.
+    # The pattern is the record's one definition (``op_commit_policy``), not a copy.
+    if LIFECYCLE_RECORDS.pattern.search(normalized):
         return True
     return bool(kitty_ops_op_record.search(normalized))
 
