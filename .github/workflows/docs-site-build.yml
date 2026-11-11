@@ -23,8 +23,10 @@
 # Callers:
 #   - ci-router.yml `docs-site` (the required pull-request gate): plain artifact upload. Its
 #     jobs-API row reads `docs site (doc-kitty build) / build`; router-gate classifies it.
-#   - the Pages deploy at cutover (#6938): `with: {pages-artifact: true}`, so main deploys the
-#     site the gate built. DocFX (docs-pages.yml) keeps deploying until then.
+#   - docs-pages.yml's dispatched canary (#6938): `with: {pages-artifact: true,
+#     pages-artifact-name: github-pages-canary}`; it publishes this build, probes the live site and
+#     republishes DocFX. At cutover the Pages deploy itself calls it, so main deploys the site the
+#     gate built. DocFX (docs-pages.yml) keeps deploying until then.
 #
 # workflow_call only: the callers own the triggers, path filters and the fork guard. Pinned by
 # tests/ci/test_docs_site_job.py.
@@ -39,6 +41,11 @@ on:
         type: boolean
         required: false
         default: false
+      pages-artifact-name:
+        description: The Pages artifact's name; the docs-pages.yml canary (#6938) passes its own so it never collides with DocFX's github-pages artifact in the same run.
+        type: string
+        required: false
+        default: github-pages
 
 permissions:
   contents: read
@@ -176,6 +183,22 @@ jobs:
         env:
           PYTHONPATH: ..:../src
         run: python3 -m scripts.docs.site_link_gates built-links -- pnpm exec dockitty-assert-no-broken-links dist --base / --site https://docs.spec-kitty.ai --docs ../docs --astro-config astro.config.mjs
+      - name: Probe the built site over local HTTP, the canary's live-site probe (#6938)
+        # The URL classes of ADR D-13, derived from the ledgers, against site/dist served on
+        # loopback: a ledger change that drops a class, or a build that stops answering one, fails
+        # here and not in a production canary. Loopback answers in well under a second.
+        timeout-minutes: 1
+        env:
+          PYTHONPATH: .:src
+        run: |
+          python3 -m http.server 8092 --bind 127.0.0.1 --directory site/dist >/dev/null 2>&1 &
+          server=$!
+          trap 'kill "$server"' EXIT
+          for i in $(seq 1 20); do
+            if curl -sf -o /dev/null http://127.0.0.1:8092/; then break; fi
+            sleep 0.5
+          done
+          python3 -m scripts.docs.site_live_probe http://127.0.0.1:8092 --attempts 1
       - name: Upload the built site
         if: ${{ !inputs.pages-artifact }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -188,4 +211,5 @@ jobs:
         if: ${{ inputs.pages-artifact }}
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
+          name: ${{ inputs.pages-artifact-name }}
           path: site/dist

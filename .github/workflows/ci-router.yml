@@ -452,8 +452,9 @@ jobs:
             # Docsite group (#6930; ADR docs/adr/4.x/2026-10-31-1 D-11): NON-src (not in the unmatched
             # loop); gates only `docs-site`. The site's inputs: the pages, the site/ project, the folder
             # contract the site's config is generated from, the legacy redirect map's generator and
-            # self-test and the moves ledger it reads (#6933), this workflow (the job's call) and the
-            # shared build definition it calls (#6937).
+            # self-test and the moves ledger it reads (#6933), the live-site probe the build runs on
+            # site/dist (#6938), this workflow (the job's call) and the shared build definition it
+            # calls (#6937).
             docs_site:
               - 'docs/**'
               - 'site/**'
@@ -462,6 +463,7 @@ jobs:
               - 'scripts/docs/site_built_check*.py'
               - 'scripts/docs/site_link_gates.py'
               - 'scripts/docs/site_redirects*.py'
+              - 'scripts/docs/site_live_probe.py'
               - 'scripts/docs/moves_ledger.py'
               - '.github/workflows/ci-router.yml'
               - '.github/workflows/docs-site-build.yml'
