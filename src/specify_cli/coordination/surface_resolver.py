@@ -224,7 +224,7 @@ class CoordinationBranchDeleted(StatusReadPathNotFound):  # type: ignore[misc, u
                 f"The coordination branch {coordination_branch!r} declared in "
                 f"meta.json does not exist in git (never created or deleted). "
                 f"Flatten the mission — drop the `coordination_branch` key from "
-                f"meta.json — to recover: run `spec-kitty doctor coordination --fix` "
+                f"meta.json — to recover: run `spec-kitty doctor coordination --fix --mission {mission_slug}` "
                 f"to flatten automatically, or remove the key manually and run "
                 f"`spec-kitty migrate backfill-topology`."
             )

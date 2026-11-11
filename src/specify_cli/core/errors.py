@@ -49,7 +49,7 @@ class PlacementResolutionRequired(StructuredError):
     commit to whatever branch the operator happens to have checked out. A
     genuinely-legacy, coordination-less mission resolves successfully; this
     error fires only on a REAL failure, which must be fixed via
-    ``spec-kitty doctor coordination --fix`` (#5113 / FR-014 — it materializes
+    ``spec-kitty doctor coordination --fix --mission <handle>`` (#5113 / FR-014 — it materializes
     a present branch and flattens a never-created one) or migration/backfill,
     never papered over with a silent runtime fallback.
 

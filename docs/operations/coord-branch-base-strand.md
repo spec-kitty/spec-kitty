@@ -3,7 +3,7 @@ title: 'Recovery: Coordination Branch Stranded After a Base Rebase'
 description: 'Recovery when a coord-topology mission was created on an old base and the working branch was later rebased, leaving lanes forking from a stale coord branch.'
 doc_status: active
 kind: How-To
-updated: '2026-08-15T00:00:00Z'
+updated: '2026-11-11T00:00:00Z'
 related:
 - operations/recovery-index
 - operations/coord-off-main-addadd
@@ -40,7 +40,7 @@ of the target, the coord worktree is clean, and that worktree has the
 coordination branch of this repository checked out:
 
 ```bash
-spec-kitty doctor coordination --fix
+spec-kitty doctor coordination --fix --mission <mission-handle>
 ```
 
 A genuine post-rebase strand is a **divergence**, not simple staleness — the

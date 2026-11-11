@@ -416,7 +416,7 @@ def _owned_coordination_unavailable_decision(agent: str, mission_slug: str, miss
             timestamp=now,
             reason=(
                 f"Coordination worktree registry is unavailable for mission {mission_slug!r} ({exc}). "
-                "Try 'git worktree prune' or 'spec-kitty doctor coordination --fix'."
+                f"Try 'git worktree prune' or 'spec-kitty doctor coordination --fix --mission {mission_slug}'."
             ),
             error_code=OwnedRefusalCode.OWNED_COORDINATION_WORKSPACE_UNAVAILABLE.value,
         )

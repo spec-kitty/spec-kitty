@@ -29,6 +29,7 @@ from specify_cli.core.paths import WorkspaceRootNotFound, resolve_canonical_root
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
+from dataclasses import dataclass
 import enum
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -2098,9 +2099,11 @@ def mission_write_lock_dir(repo_root: Path, mission_handle: str) -> Path:
 # sites) — consult that machine-checked table rather than re-typing a hand
 # count here.
 __all__ = [
+    "BranchOnlyMission",
     "CoordState",
     "MissionSelectorAmbiguous",
     "StatusReadPathNotFound",
+    "branch_only_mission_metas",
     "candidate_feature_dir_for_mission",
     "canonical_status_read_root",
     "coord_feature_dir",
@@ -2175,3 +2178,97 @@ def _coord_worktree_mission_dir(repo_root: Path, dir_name: str) -> Path | None:
 
     candidate = coord_worktree_path_for_dir(repo_root, dir_name) / "kitty-specs" / dir_name
     return candidate if (candidate / "meta.json").is_file() else None
+
+
+_MISSION_BRANCH_REF_GLOB = "refs/heads/kitty/mission-*"
+
+
+@dataclass(frozen=True)
+class BranchOnlyMission:
+    """A Mission whose ``meta.json`` only its own Mission branch carries (#7552).
+
+    ``meta`` is the committed ``meta.json`` read from ``branch`` (``None`` when it
+    could not be read, with ``error`` saying why). No checkout holds the Mission
+    directory, so there is no path to edit: a caller may report and materialize it,
+    never edit its metadata in place.
+    """
+
+    dir_name: str
+    branch: str
+    meta: Mapping[str, object] | None
+    error: str | None = None
+
+
+def _local_mission_branches(repo_root: Path) -> list[str]:
+    """Local ``kitty/mission-*`` branches that are not lane branches, sorted."""
+    from kernel.git import run_git
+    from specify_cli.lanes.branch_naming import is_lane_branch
+
+    listed = run_git(repo_root, "for-each-ref", "--format=%(refname:short)", _MISSION_BRANCH_REF_GLOB, check=False)
+    if listed.returncode != 0:
+        return []
+    names = listed.stdout.decode("utf-8", errors="replace").split()
+    return sorted(name for name in names if not is_lane_branch(name))
+
+
+def _branch_mission_meta(repo_root: Path, branch: str, dir_name: str) -> BranchOnlyMission | None:
+    """Read ``kitty-specs/<dir_name>/meta.json`` from *branch*.
+
+    ``None`` when the directory has no ``meta.json`` there (not a Mission); an
+    unreadable or malformed one carries its error.
+    """
+    from kernel.git import GitCommandError, run_git
+    from kernel.meta_decode import MetaDecodeError, decode_meta
+
+    try:
+        shown = run_git(repo_root, "cat-file", "blob", f"{branch}:{KITTY_SPECS_DIR}/{dir_name}/meta.json", check=False)
+    except GitCommandError as exc:
+        return BranchOnlyMission(dir_name=dir_name, branch=branch, meta=None, error=str(exc) or type(exc).__name__)
+    if shown.returncode != 0:
+        return None
+    try:
+        # The one meta.json decode authority (NFR-004): bytes as UTF-8, a JSON object or a refusal.
+        decoded = decode_meta(shown.stdout)
+    except MetaDecodeError as exc:
+        return BranchOnlyMission(dir_name=dir_name, branch=branch, meta=None, error=str(exc) or type(exc).__name__)
+    return BranchOnlyMission(dir_name=dir_name, branch=branch, meta=decoded)
+
+
+def _owns_branch(found: BranchOnlyMission) -> bool:
+    """FR-007: a Mission branch contributes only the Mission whose meta names that branch."""
+    if found.meta is None:
+        return True  # unreadable: kept so the caller can report it
+    return found.branch in (found.meta.get("mission_branch"), found.meta.get("coordination_branch"))
+
+
+def branch_only_mission_metas(repo_root: Path, *, known_dir_names: frozenset[str]) -> list[BranchOnlyMission]:
+    """Missions that exist only on their own local Mission branch (#7552, FR-006).
+
+    A default Mission settled to ``lanes_with_coord`` keeps its PRIMARY partition on its
+    topic branch; once the coordination worktree is gone (``consolidate --abort``, a
+    pruned worktree), no checkout carries its directory, so a ``kitty-specs/`` walk
+    cannot see it. This reads the committed ``meta.json`` straight from each local
+    ``kitty/mission-*`` branch (lane branches skipped) -- read-only git, no checkout.
+
+    *known_dir_names* are the Mission directories some checkout already carries; they
+    are skipped, so a Mission is reported from its on-disk copy when it has one. A
+    directory a branch merely inherited (its meta names another branch) is skipped
+    (FR-007). Cost: one tree listing per Mission branch plus one blob read per
+    candidate (NFR-001); nothing when there is no Mission branch.
+    """
+    from kernel.git import GitCommandError, tree_entries
+
+    found: dict[str, BranchOnlyMission] = {}
+    for branch in _local_mission_branches(repo_root):
+        try:
+            children = tree_entries(repo_root, branch, pathspecs=(f"{KITTY_SPECS_DIR}/",))
+        except GitCommandError:
+            continue
+        for entry in children:
+            name = entry.path.parts[-1]
+            if entry.type != "tree" or name in known_dir_names or name in found:
+                continue
+            candidate = _branch_mission_meta(repo_root, branch, name)
+            if candidate is not None and _owns_branch(candidate):
+                found[name] = candidate
+    return [found[name] for name in sorted(found)]

@@ -509,7 +509,7 @@ def test_e_merge_failure_for_one_mission_does_not_block_another(
     target_sha = _git(repo, "rev-parse", _TARGET_BRANCH).stdout.strip()
 
     with pytest.raises(typer.Exit) as exc:
-        cd.run_coordination_health(json_output=True, fix=True)
+        cd.run_coordination_health(json_output=True, fix=True, all_missions=True)
 
     out = capsys.readouterr().out
     assert exc.value.exit_code == 1
@@ -602,7 +602,7 @@ def test_a_foreign_clone_fix_fails_closed_without_mutation(
     assert clone_head_before == coord_sha_before
 
     with pytest.raises(typer.Exit) as exc:
-        cd.run_coordination_health(json_output=True, fix=True)
+        cd.run_coordination_health(json_output=True, fix=True, all_missions=True)
 
     out = capsys.readouterr().out
     assert exc.value.exit_code == 1
@@ -689,7 +689,7 @@ def test_e_wrong_branch_mismatch_for_one_mission_does_not_block_another(
     target_sha = _git(repo, "rev-parse", _TARGET_BRANCH).stdout.strip()
 
     with pytest.raises(typer.Exit) as exc:
-        cd.run_coordination_health(json_output=True, fix=True)
+        cd.run_coordination_health(json_output=True, fix=True, all_missions=True)
 
     out = capsys.readouterr().out
     assert exc.value.exit_code == 1
@@ -843,7 +843,7 @@ def test_a_strict_ancestor_check_staleness_reports_and_fix_fast_forwards(
 
     # --fix fast-forwards the (clean) coord worktree.
     with pytest.raises(typer.Exit) as exc:
-        cd.run_coordination_health(json_output=True, fix=True)
+        cd.run_coordination_health(json_output=True, fix=True, all_missions=True)
     assert exc.value.exit_code == 0
 
     assert _git(worktree, "rev-parse", "HEAD").stdout.strip() == target_sha
@@ -878,7 +878,7 @@ def test_a_wrong_branch_worktree_fix_fails_closed_without_mutation(
     assert coord_sha_before != target_sha_before
 
     with pytest.raises(typer.Exit) as exc:
-        cd.run_coordination_health(json_output=True, fix=True)
+        cd.run_coordination_health(json_output=True, fix=True, all_missions=True)
 
     out = capsys.readouterr().out
     assert _git(repo, "rev-parse", _COORD_BRANCH).stdout.strip() == coord_sha_before
@@ -917,7 +917,7 @@ def test_a_detached_worktree_fix_fails_closed_without_mutation(
     target_sha_before = _git(repo, "rev-parse", _TARGET_BRANCH).stdout.strip()
 
     with pytest.raises(typer.Exit) as exc:
-        cd.run_coordination_health(json_output=True, fix=True)
+        cd.run_coordination_health(json_output=True, fix=True, all_missions=True)
 
     out = capsys.readouterr().out
     assert _git(repo, "rev-parse", _COORD_BRANCH).stdout.strip() == coord_sha_before
@@ -975,7 +975,7 @@ def test_b_diverged_fix_fails_loud_and_mutates_nothing(
     worktree_head_before = _git(worktree, "rev-parse", "HEAD").stdout.strip()
 
     with pytest.raises(typer.Exit) as exc:
-        cd.run_coordination_health(json_output=True, fix=True)
+        cd.run_coordination_health(json_output=True, fix=True, all_missions=True)
     assert exc.value.exit_code == 1
 
     out = capsys.readouterr().out
@@ -1010,7 +1010,7 @@ def test_c_dirty_worktree_fix_fails_loud(
     coord_sha_before = _git(repo, "rev-parse", _COORD_BRANCH).stdout.strip()
 
     with pytest.raises(typer.Exit) as exc:
-        cd.run_coordination_health(json_output=True, fix=True)
+        cd.run_coordination_health(json_output=True, fix=True, all_missions=True)
     assert exc.value.exit_code == 1
 
     out = capsys.readouterr().out
@@ -1169,7 +1169,7 @@ def test_e_one_diverged_mission_does_not_block_fix_for_other_missions(
     monkeypatch.setattr(cd, "_check_tracked_worktrees_content", lambda _r: [])
 
     with pytest.raises(typer.Exit) as exc:
-        cd.run_coordination_health(json_output=True, fix=True)
+        cd.run_coordination_health(json_output=True, fix=True, all_missions=True)
     # The diverged mission IS a real, surfaced error -- overall exit stays 1.
     assert exc.value.exit_code == 1
 
