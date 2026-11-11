@@ -3,7 +3,7 @@ title: Getting Started with Spec Kitty
 description: Install Spec Kitty 3.2, initialize a project, and create your first mission with a guided beginner workflow.
 doc_status: active
 kind: Tutorial
-updated: '2026-09-14T00:00:00Z'
+updated: '2026-11-11T00:00:00Z'
 audience:
 - profile: external/project-owner
   guidance_text: Written for the Project Owner reader.
@@ -89,8 +89,9 @@ OK Created .kittify/ scaffold
 >**Complete the git setup before continuing.** The first two commands prepare
 >the repository; the working branch allows planning artifacts to be committed:
 >
->1. `git init -b main` — `spec-kitty init` creates files and deliberately does
-> not touch git. It even prints `Required: run git init here before
+>1. `git init -b main` — `spec-kitty init` creates files and never runs
+> `git init` (inside an existing repository it commits the files it wrote
+> instead). It even prints `Required: run git init here before
 > agent/worktree commands`. Without a repository, `specify` stops with
 > `SPEC_KITTY_REPO_NOT_INITIALIZED`.
 >2. `git commit` — Spec Kitty needs a committed HEAD to create and commit

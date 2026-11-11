@@ -44,8 +44,8 @@ def _committed_init_project(tmp_path: Path) -> Path:
     with contextlib.chdir(project):
         result = _runner.invoke(root_app, ["init", "--non-interactive", "--ai", "claude"], catch_exceptions=False)
     assert result.exit_code == 0, result.output
-    _git(project, "add", "-A")
-    _git(project, "commit", "-qm", "init")
+    # #7555: init commits the files it wrote itself; the tree is clean afterwards.
+    assert _git(project, "status", "--porcelain") == "", _git(project, "status", "--porcelain")
     return project
 
 
