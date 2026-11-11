@@ -2201,10 +2201,13 @@ class BranchOnlyMission:
 
 def _local_mission_branches(repo_root: Path) -> list[str]:
     """Local ``kitty/mission-*`` branches that are not lane branches, sorted."""
-    from kernel.git import run_git
+    from kernel.git import GitCommandError, run_git
     from specify_cli.lanes.branch_naming import is_lane_branch
 
-    listed = run_git(repo_root, "for-each-ref", "--format=%(refname:short)", _MISSION_BRANCH_REF_GLOB, check=False)
+    try:
+        listed = run_git(repo_root, "for-each-ref", "--format=%(refname:short)", _MISSION_BRANCH_REF_GLOB, check=False)
+    except GitCommandError:  # a timeout or an unrunnable git: no branch-only Missions, never an aborted report
+        return []
     if listed.returncode != 0:
         return []
     names = listed.stdout.decode("utf-8", errors="replace").split()
