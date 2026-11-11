@@ -1,0 +1,95 @@
+{
+  "event_count": 22,
+  "last_event_id": "01M75RF9WSSFY33X2QT8AZG006",
+  "materialized_at": "2026-11-11T16:53:47.545379+00:00",
+  "mission_number": "256",
+  "mission_slug": "docsite-cutover-01M75N3E",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude-reviewer::reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M75RF87XEH6J6DBY8EM7TXEF",
+      "last_transition_at": "2026-11-11T16:53:45.853694+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-11T16:10:12Z – claude – shell_pid=3018 – Out-of-map edit: tests/ci/test_docs_site_job.py section comment only (it described the canary). Red first: 16 failed, 1 passed against the unchanged workflow; after: 252 passed (ownership, fork guard, docs-site job, tooling cache, live probe), arch gates 172 passed 1 pre-existing skip; actionlint clean; ruff and format clean; mypy --strict reports one pre-existing error in tests/ci/_gh_expr.py:45 (untouched).",
+        "Ready for review",
+        "Review passed: actionlint clean; targeted 326 passed/1 skipped (unrelated WP06 skip); red-first confirmed (16 new tests red on 2e9ca5599). Deploy only from main of core after a successful build; smoketest needs deploy, read-only, 60 min, probe CLI matches argparse, nothing swallows it. pages: read sufficient (configure-pages v6 with enablement=false only GETs /repos/{o}/{r}/pages; same as the curl probe). Revert restores DocFX; sources untouched. Low: configure-pages@v6 still tag-pinned (pre-existing); deploy-failure/smoketest-failure red-run tests near-tautological under the model (non-swallowing guarded by continue-on-error asserts); comment-only edit to tests/ci/test_docs_site_job.py outside owned_files, consistent. mypy error at tests/ci/_gh_expr.py:45 pre-existing on 2e9ca5599. Reviewer recorded issue-matrix verdicts (implementer had left them unknown).",
+        "Back for review of post-approval commit c34a59a (WP02 review Low findings), per the consolidate LANE_MOVED_AFTER_APPROVAL recovery",
+        "Re-review: only new content since the approvals is c34a59a (WP02 review Low findings) plus acceptance and verdict bookkeeping",
+        "Re-review of c34a59a33 (746a1abf1..001a48611): no Blocking/High/Medium. ADR amendment edit additive-only; revert list matches 2e9ca5599..HEAD (.github, tests/ci); changelog/ci-gate wording accurate; run-model self-test reads real docs-pages.yml and catches job/step true and expression continue-on-error. Low: docs-site-build.yml revert also restores an input description and a step name, not only comments. 987 passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261111",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 24928,
+      "shell_pid_created_at": "1794415866.97",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude-reviewer::reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M75RF9WSSFY33X2QT8AZG006",
+      "last_transition_at": "2026-11-11T16:53:47.545379+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-11T16:33:52Z – claude – shell_pid=25575 – Out-of-map edits, each with reason: site/link-debt.json (two archived pages link to the deleted docs/llms.txt; immutable bodies, priced under relative-links), .github/workflows/docs-pages.yml and tests/release/test_release_ci_ownership.py (WP01 review findings: configure-pages SHA pin; run-conclusion model replacing the near-tautological failure asserts, with a self-test). Red first: absence test failed before deletion. tests/docs: 2340 passed, 8 skipped (6 docker unavailable, 2 performance opt-in). CI ownership set: 206 passed. doc-kitty frontmatter gate valid; check-links 0 failures (46 priced). Changelog style and spelling clean. ruff, format clean; mypy --strict clean except pre-existing tests/ci/_gh_expr.py:45 (identical on 2e9ca5599).",
+        "Ready for review",
+        "Review passed (claude-reviewer::reviewer-renata). Checks: llms.txt refs all classified (history/generated/link-debt), ADR append-only (0 removed lines vs 2e9ca5599), canary run 43027580608 + #6938 comment match, configure-pages pin = v6.0.0 (45bfe019), changelog style+spelling clean, actionlint clean, tests/docs 2340 passed 8 skipped, CI/arch set 313 passed. Low: ADR revert list omits comment-only reverts and the configure-pages pin returning to @v6; _run_conclusion self-test covers job-level continue-on-error only (step-level and expression-valued untested); changelog/ci-gate-mechanics 'a site a pull request built' overstates (same definition, rebuilt on main).",
+        "Back for review of post-approval commit c34a59a (WP02 review Low findings), per the consolidate LANE_MOVED_AFTER_APPROVAL recovery",
+        "Re-review: only new content since the approvals is c34a59a (WP02 review Low findings) plus acceptance and verdict bookkeeping",
+        "Re-review of c34a59a33 (746a1abf1..001a48611): no Blocking/High/Medium. ADR amendment edit additive-only; revert list matches 2e9ca5599..HEAD (.github, tests/ci); changelog/ci-gate wording accurate; run-model self-test reads real docs-pages.yml and catches job/step true and expression continue-on-error. Low: docs-site-build.yml revert also restores an input description and a step name, not only comments. 987 passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261111",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 25261,
+      "shell_pid_created_at": "1794415884.02",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
+    }
+  }
+}

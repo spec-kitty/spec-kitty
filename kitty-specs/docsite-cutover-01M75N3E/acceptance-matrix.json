@@ -1,0 +1,93 @@
+{
+  "mission_slug": "docsite-cutover-01M75N3E",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "A push or dispatch on main runs pages, the shared doc-kitty build, deploy and smoketest",
+      "proof_type": "automated_test",
+      "evidence": "tests/release/test_release_ci_ownership.py::test_docs_pages_main_builds_the_doc_kitty_site_deploys_it_then_smoketests_the_live_site, ::test_docs_pages_builds_through_the_shared_definition_and_deploys_its_default_artifact",
+      "pass_fail": "deferred",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T16:47:28.819419+00:00",
+      "notes": "TODO: replace with a real acceptance criterion",
+      "deferral_reason": "The live switch is provable only after the operator merges this PR (SC-005). Everything testable here passes: the job-graph model shows a push to main runs pages, the shared build, deploy and smoketest (tests/release/test_release_ci_ownership.py).",
+      "deferral_follow_up": "#6938"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "A failed doc-kitty build skips deploy and smoketest",
+      "proof_type": "automated_test",
+      "evidence": "tests/release/test_release_ci_ownership.py::test_docs_pages_never_deploys_after_a_failed_doc_kitty_build",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T16:46:40.868620+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "No deploy or smoketest from a fork or off main; the Pages probe and fork guard are kept",
+      "proof_type": "automated_test",
+      "evidence": "tests/release/test_release_ci_ownership.py::test_docs_pages_publishes_and_probes_production_only_from_main_of_the_core_repository, ::test_docs_pages_a_fork_push_runs_nothing, ::test_docs_pages_probes_pages_before_it_builds_and_fails_transient_setup_errors, tests/ci/test_fork_guard.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T16:46:44.739691+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "A read-only smoketest job after deploy, main only, runs the live-site probe against the production domain",
+      "proof_type": "automated_test",
+      "evidence": "tests/release/test_release_ci_ownership.py::test_docs_pages_smoketest_runs_the_live_site_probe_against_the_production_domain, ::test_docs_pages_jobs_hold_only_the_permissions_they_need",
+      "pass_fail": "deferred",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T16:47:33.034478+00:00",
+      "notes": "TODO: replace with a real acceptance criterion",
+      "deferral_reason": "The first post-cutover smoketest on docs.spec-kitty.ai runs only after merge (SC-005). Everything testable here passes: the smoketest job's graph position, permissions and probe command are pinned, and the probe runs against every PR build on loopback.",
+      "deferral_follow_up": "#6938"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "A failed smoketest (or deploy) leaves the run red; no alert issue",
+      "proof_type": "automated_test",
+      "evidence": "tests/release/test_release_ci_ownership.py::test_docs_pages_a_failed_smoketest_leaves_the_run_red, ::test_docs_pages_never_smoketests_after_a_failed_deploy_and_the_run_stays_red, ::test_the_run_conclusion_model_honours_continue_on_error",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T16:46:53.712149+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "The canary jobs and the canary dispatch input are gone",
+      "proof_type": "automated_test",
+      "evidence": "tests/release/test_release_ci_ownership.py::test_docs_pages_retired_the_canary_into_the_smoketest",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T16:46:59.948601+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "docs/llms.txt is deleted and no live test, script or config reads it",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_dockitty_contract.py::test_the_generated_llms_txt_is_the_only_one; tests/docs (2340 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T16:47:05.484165+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "ADR 2026-10-31-1 Amendment 2026-11-11 (cutover) and a changelog fragment record the cutover",
+      "proof_type": "manual_review",
+      "evidence": "docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md; docs/changelog/unreleased/6938-docsite-cutover.changed.md; check_changelog_style and check_spelling clean",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T16:47:09.697590+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
