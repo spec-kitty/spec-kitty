@@ -397,6 +397,8 @@ class DecideNextContext:
     # #7539 (NFR-002 per decision): the bootstrap's one status read door answer and its board,
     # read after the decision-log wrap, handed to every board reader of this decision. ``None``
     # when the door could not answer there; the board selector then reads the door itself.
+    # Invariant (C-003): no status write happens inside a decision, so the carried board cannot go
+    # stale; a future composed action that writes status must re-read the door instead.
     status_read: _mapping.StatusBoardRead | None = None
 
 
