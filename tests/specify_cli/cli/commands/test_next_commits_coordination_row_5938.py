@@ -164,3 +164,24 @@ def test_answer_decision_commits_the_row_and_surfaces_a_refusal(tmp_path: Path, 
     assert envelope["success"] is True, envelope
     assert [slug for slug, _ in committed] == [mission_slug]
     assert "could not commit the row (test refusal); commit it before consolidate." in envelope["data"]["warnings"]
+
+
+def test_next_commits_its_row_in_the_repository_root_checkout_too(tmp_path: Path) -> None:
+    """On a single_branch Mission the row is written into the repository root checkout: committed there as well."""
+    repo, env = init_repo(tmp_path)
+    mission = create_mission(repo, env, "theta", topology="single_branch")
+
+    proc = _next(mission)
+
+    assert proc.returncode == 0, flat(proc)[-2000:]
+    assert f"kitty-specs/{mission.slug}/mission-events.jsonl" not in dirty(repo)
+    assert f"kitty-specs/{mission.slug}/mission-events.jsonl" in git(repo, "show", "--name-only", "--format=", "HEAD").splitlines()
+
+
+@pytest.mark.parametrize(("landed", "expected"), [(False, True), (True, False)])
+def test_a_landed_missions_row_is_never_committed(tmp_path: Path, landed: bool, expected: bool) -> None:
+    from runtime.next.next_invocation_lifecycle import MissionNextInvokedWrite
+
+    write = MissionNextInvokedWrite(tmp_path / "mission-events.jsonl", tmp_path, in_coordination_worktree=False, mission_landed=landed)
+
+    assert write.should_commit is expected
