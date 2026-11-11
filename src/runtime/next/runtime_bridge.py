@@ -133,7 +133,6 @@ from mission_runtime import ActionContextError, OwnedCheckout, OwnedRefusalCode,
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from runtime.next.board_status import BoardStatus
     from specify_cli.status import StatusReadSurface
 
 logger = logging.getLogger(__name__)
@@ -395,6 +394,10 @@ class DecideNextContext:
     # runtime-status-read-door WP06 (FR-003): the coordination worktree the decision-log wrap
     # materialized or restored, as the ``Decision.remediation`` entry; ``None`` otherwise.
     remediation: dict[str, str] | None = None
+    # #7539 (NFR-002 per decision): the bootstrap's one status read door answer and its board,
+    # read after the decision-log wrap, handed to every board reader of this decision. ``None``
+    # when the door could not answer there; the board selector then reads the door itself.
+    status_read: _mapping._StatusBoardRead | None = None
 
 
 def _with_remediation(decision: Decision, remediation: dict[str, str] | None) -> Decision:
@@ -447,8 +450,11 @@ class _OwnedDoorUnavailable(Exception):
         self.cause = cause
 
 
-def _dn_status_board(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None) -> tuple[StatusReadSurface, BoardStatus] | None:
+def _dn_status_board(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None) -> _mapping._StatusBoardRead | None:
     """Bootstrap's one status read (#7310 WP05, FR-001): the door's surface and its board.
+
+    The decision carries it to every board reader (#7539), so an advancing decision reads the
+    door once.
 
     ``None`` when the door cannot answer for a reason the board phase reports itself (a
     deleted coordination branch, a Mission the door cannot find): bootstrap then keeps today's
@@ -464,7 +470,7 @@ def _dn_status_board(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout
 
     try:
         surface = resolve_status_read(repo_root, mission_slug, owned=owned)
-        return surface, board_status_from_surface(surface)
+        return _mapping._StatusBoardRead(surface=surface, board=board_status_from_surface(surface))
     except (StatusSurfaceRefUnreadable, WorktreeRegistryUnavailable) as exc:
         raise _OwnedDoorUnavailable(exc) from exc
     except (StatusReadPathNotFound, FileNotFoundError, MissionSelectorAmbiguous) as exc:
@@ -478,27 +484,25 @@ def _dn_progress(
     owned: OwnedCheckout | None,
     feature_dir: Path,
     primary_metadata_dir: Path | None,
-) -> tuple[dict[str, int | float] | None, Path]:
-    """Bootstrap's ``(progress, feature_dir)`` from its one door read (#7310 WP05, FR-001).
+) -> tuple[dict[str, int | float] | None, Path, _mapping._StatusBoardRead | None]:
+    """Bootstrap's ``(progress, feature_dir, status_read)`` from its one door read (#7310 WP05, FR-001).
 
     Progress counts the PRIMARY ``tasks/`` against the door's board. Without a board
     (:func:`_dn_status_board` returned ``None``) it keeps today's path read of
-    ``feature_dir``. An owned call's ``feature_dir`` becomes the door's status directory
-    (:func:`_owned_status_dir`); a non-owned one is unchanged. Raises
-    :class:`_OwnedDoorUnavailable` for an owned registry or ref failure.
+    ``feature_dir``. With one, ``feature_dir`` becomes the door's status directory
+    (:func:`_status_dir_from_surface`), for an owned and a non-owned call alike, so both
+    derive it from the same read after the decision-log wrap (#7539). Raises
+    :class:`_OwnedDoorUnavailable` for a registry or ref failure.
     """
-    status_board = _dn_status_board(repo_root, mission_slug, owned=owned)
-    if status_board is None:
-        return _compute_wp_progress(feature_dir), feature_dir
-    surface, board = status_board
-    progress = _compute_wp_progress(primary_metadata_dir if primary_metadata_dir is not None else feature_dir, board=board)
-    if owned is not None:
-        feature_dir = _owned_status_dir(surface, feature_dir)
-    return progress, feature_dir
+    status_read = _dn_status_board(repo_root, mission_slug, owned=owned)
+    if status_read is None:
+        return _compute_wp_progress(feature_dir), feature_dir, None
+    progress = _compute_wp_progress(primary_metadata_dir if primary_metadata_dir is not None else feature_dir, board=status_read.board)
+    return progress, _status_dir_from_surface(status_read.surface, feature_dir), status_read
 
 
-def _owned_status_dir(surface: StatusReadSurface, identity_dir: Path) -> Path:
-    """The status directory an owned call's later phases read: the door's, when it is one on disk.
+def _status_dir_from_surface(surface: StatusReadSurface, identity_dir: Path) -> Path:
+    """The status directory a decision's later phases read: the door's, when it is one on disk.
 
     A path source (the owned write checkout, a materialized coordination worktree) names the
     directory those phases read today; a ref source has none, so they keep ``identity_dir``,
@@ -645,7 +649,7 @@ def _dn_bootstrap(
     # so a coordination worktree the wrap restored or materialized is already there, and an
     # empty or unmaterialized one reads the committed coordination branch.
     try:
-        progress, feature_dir = _dn_progress(repo_root, mission_slug, owned, feature_dir, primary_metadata_dir)
+        progress, feature_dir, status_read = _dn_progress(repo_root, mission_slug, owned, feature_dir, primary_metadata_dir)
     except _OwnedDoorUnavailable as exc:
         # An owned call: the same O8 typed ``blocked`` decision as the wrap's (FR-006). A
         # non-owned call: a ``blocked`` decision carrying the cause's own stable code, as the
@@ -725,6 +729,7 @@ def _dn_bootstrap(
             current_step_id=current_step_id,
             owned=owned,
             remediation=remediation,
+            status_read=status_read,
         ),
         None,
     )
@@ -765,7 +770,7 @@ def _dn_finalized_board_override(ctx: DecideNextContext) -> Decision | None:
     """
     if ctx.result != "success" or not _run_is_untouched(ctx.run_dir):
         return None
-    board = _mapping._resolve_wp_board_action(mission_slug=ctx.mission_slug, repo_root=ctx.repo_root, owned=ctx.owned)
+    board = _mapping._resolve_wp_board_action(mission_slug=ctx.mission_slug, repo_root=ctx.repo_root, owned=ctx.owned, status_read=ctx.status_read)
     if board.action is not None and board.board_step is not None:
         # B3: the board hands out implement as if the DAG had walked through
         # analyze; check the analysis report first, like the analyze step does.
@@ -785,6 +790,7 @@ def _dn_finalized_board_override(ctx: DecideNextContext) -> Decision | None:
             ctx.origin,
             ctx.run_ref,
             owned=ctx.owned,
+            status_read=ctx.status_read,
         )
     if board.blocked_reason is not None and board.board_step is not None and board.board_step.startswith("blocked:"):
         return _mapping._materialize_decision(
@@ -937,6 +943,7 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
                 origin,
                 run_ref,
                 owned=owned,
+                status_read=ctx.status_read,
             )
         # All WPs done for this step — check guards before advancing.
         #
@@ -983,6 +990,7 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
                 run_ref,
                 guard_failures=guard_failures,
                 owned=owned,
+                status_read=ctx.status_read,
             )
 
     # Check guards for non-WP steps before advancing.
@@ -1120,6 +1128,7 @@ def _dn_plan_composition_advance(ctx: DecideNextContext, composed_action: str) -
         feature_dir=ctx.feature_dir,
         repo_root=ctx.repo_root,
         owned=ctx.owned,
+        status_read=ctx.status_read,
     )
     return plan, wp_resolution
 
@@ -1269,6 +1278,7 @@ def _resolve_planned_wp_workspace(
     feature_dir: Path,
     repo_root: Path,
     owned: OwnedCheckout | None,
+    status_read: _mapping._StatusBoardRead | None = None,
 ) -> _mapping._WpIterationResolution | None:
     """THE single place a planned WP-iteration step's board action + workspace
     is resolved BEFORE the advance is persisted (FR-008 / R-06), shared by the
@@ -1279,7 +1289,8 @@ def _resolve_planned_wp_workspace(
     PROPAGATES -- typed, carrying its ``error_code`` -- before anything is
     written, so the run stays at the issued step instead of being advanced
     into a step whose workspace cannot be resolved (the wedge). It is
-    deliberately never wrapped into a ``blocked`` Decision (FR-008)."""
+    deliberately never wrapped into a ``blocked`` Decision (FR-008). ``status_read`` is the
+    bootstrap's one door read (#7539), handed to the board selector."""
     if decision.kind != "step" or not decision.step_id or not _mapping._is_wp_iteration_step(decision.step_id):
         return None
     return _mapping._wp_iteration_action_and_state(
@@ -1289,6 +1300,7 @@ def _resolve_planned_wp_workspace(
         feature_dir,
         repo_root,
         owned=owned,
+        status_read=status_read,
     )
 
 
@@ -1309,6 +1321,7 @@ def _dn_preresolve_wp_workspace(ctx: DecideNextContext) -> tuple[Any, _mapping._
         feature_dir=ctx.feature_dir,
         repo_root=ctx.repo_root,
         owned=ctx.owned,
+        status_read=ctx.status_read,
     )
     return plan, resolution
 
@@ -1477,6 +1490,7 @@ def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
         # Reuse the pre-persist resolution only for the very step it was
         # computed for; any other outcome resolves normally in the mapper.
         wp_resolution=preresolved if runtime_decision.step_id == preview_step_id else None,
+        status_read=ctx.status_read,
     )
 
 
