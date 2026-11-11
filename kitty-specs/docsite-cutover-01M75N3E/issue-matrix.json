@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#2361": {
+      "evidence_ref": "This PR: docs-pages.yml smoketest job (needs deploy, main only, contents: read) runs scripts/docs/site_live_probe.py against https://docs.spec-kitty.ai and fails the run on a mismatch; the optional alert issue is not adopted (operator decision); first live run is post-merge (SC-005).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "docs reliability: no post-deploy smoketest of the live docsite \u2014 deploy can go stale/broken with nothing alerting (week-long #2313 outage class)",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6938": {
+      "evidence_ref": "This PR (#6938 PR B): docs-pages.yml deploys the shared doc-kitty build (WP01, 1a6e34bb3), docs/llms.txt deleted and the cutover recorded in ADR 2026-10-31-1 Amendment 2026-11-11 (cutover) (WP02). The first post-merge deploy and smoketest are proven after the operator merges (SC-005, deferred, follow-up #6938).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Canary deploy and cutover (with #2361)",
+      "verdict": "fixed",
+      "wp": "WP02"
+    },
+    "#6943": {
+      "evidence_ref": "Cited as the later DocFX-source removal (C-001); this mission keeps the sources so a revert is the rollback",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Retire DocFX (one release after cutover)",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7484": {
+      "evidence_ref": "Cited as the test method (NFR-003): the job-graph tests evaluate the real if: through tests/ci/_gh_expr.py; no #7484 work owed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Doctrine: pro-forma TDD adherence is waste \u2014 red-first tests must earn long-term value",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

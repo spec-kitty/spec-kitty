@@ -1,0 +1,220 @@
+schema_version: 1
+mission_id: 01M75N3EP8TZGK6HW8Y5JYYW9Y
+mission_slug: docsite-cutover-01M75N3E
+mission_number: 256
+friendly_name: Docsite cutover to doc-kitty
+mission_type: software-dev
+target_branch: issue-6938-docsite-cutover
+created_at: '2026-11-11T16:54:17.980665+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-11-11T16:54:17.980665+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-002
+  category: tooling
+  summary: 'Tracer: [2026-11-11][implement] Slow targeted pytest runs.'
+  evidence_refs:
+  - e-015
+  details: '- **[2026-11-11][implement] Slow targeted pytest runs.** A single test file of `tests/release` takes about 95
+    s, mostly collection and session fixtures, which pushed the first red run past the 120 s foreground limit. Disposition:
+    ran it in the background; no gap filed.'
+- id: h-001
+  category: tooling
+  summary: 'Tracer: [2026-11-11][setup] Topic branch tracked `origin/main`.'
+  evidence_refs:
+  - e-015
+  details: "- **[2026-11-11][setup] Topic branch tracked `origin/main`.** `git checkout -b <topic> origin/main` set the topic
+    branch's upstream to `origin/main`; unsetting it before `mission create` keeps a later push from targeting main. Disposition:
+    workaround, no gap."
+not_helpful:
+- id: n-005
+  category: doc
+  summary: analysis-report.md records 2 finding(s)
+  evidence_refs:
+  - e-012
+  details: The analysis-report.md artifact for this mission records 2 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-001
+  category: process
+  summary: WP01 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-008
+  details: WP WP01 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-003
+  category: process
+  summary: WP01 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-010
+  details: WP WP01 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-002
+  category: process
+  summary: WP02 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-009
+  details: WP WP02 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-004
+  category: process
+  summary: WP02 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-011
+  details: WP WP02 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-011
+  category: tooling
+  summary: 'Tracer: [2026-11-11][implement] Archived links to `docs/llms.txt` priced, not rewritten.'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-11][implement] Archived links to `docs/llms.txt` priced, not rewritten.** Two `docs/archive/architecture/`
+    pages link to the deleted file; archive bodies are immutable, so `site/link-debt.json` lists them under the `relative-links`
+    gate (burn-down #7489).'
+- id: n-012
+  category: tooling
+  summary: 'Tracer: [2026-11-11][implement] WP01 review findings folded into WP02.'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-11][implement] WP01 review findings folded into WP02.** `actions/configure-pages` pinned by commit
+    (v6.0.0); the failure tests now judge a modelled run conclusion that reads `continue-on-error`, with a self-test that
+    a swallowed failure turns the run green.'
+- id: n-013
+  category: tooling
+  summary: 'Tracer: [2026-11-11][implement] actionlint not installed.'
+  evidence_refs:
+  - e-015
+  details: '- **[2026-11-11][implement] actionlint not installed.** The container has no `actionlint`; installed v1.7.7 with
+    `go install` into `~/go/bin`. Disposition: workaround.'
+- id: n-008
+  category: tooling
+  summary: 'Tracer: [2026-11-11][plan] Canary removed, not repurposed.'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-11][plan] Canary removed, not repurposed.** The smoketest is the one live-probe mechanism; a canary
+    of the current site would duplicate it.'
+- id: n-006
+  category: tooling
+  summary: 'Tracer: [2026-11-11][plan] Cut over through the shared build.'
+  evidence_refs:
+  - e-013
+  details: "- **[2026-11-11][plan] Cut over through the shared build.** `docs-pages.yml` calls `docs-site-build.yml`, a `needs:
+    deploy` smoketest reuses the canary's live-site probe, the canary is retired into it and `docs/llms.txt` is deleted. Tests
+    first, through the job-graph model that evaluates the real `if:` conditions (#7484)."
+- id: n-009
+  category: tooling
+  summary: 'Tracer: [2026-11-11][plan] DocFX build job removed from the deploy workflow.'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-11][plan] DocFX build job removed from the deploy workflow.** Its sources stay until #6943; a revert
+    of the pull request restores the DocFX build and deploy jobs and the canary.'
+- id: n-010
+  category: tooling
+  summary: 'Tracer: [2026-11-11][plan] Least privilege.'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-11][plan] Least privilege.** Default `contents: read`; `pages: read` on the probe job; write scopes
+    on `deploy` only.'
+- id: n-007
+  category: tooling
+  summary: 'Tracer: [2026-11-11][specify] No alert issue.'
+  evidence_refs:
+  - e-014
+  details: "- **[2026-11-11][specify] No alert issue.** A failed smoketest turns the run red; #2361's optional alert issue
+    is not adopted (operator decision)."
+gaps:
+- id: g-001
+  category: tooling
+  summary: 'Tracer: [2026-11-11][review] `move-task` reported "NOT committed (--no-auto-commit)" without the flag.'
+  evidence_refs:
+  - e-015
+  details: "- **[2026-11-11][review] `move-task` reported \"NOT committed (--no-auto-commit)\" without the flag.** The reviewer's
+    approval left `status.events.jsonl`, `status.json` and `review-cycle-1.md` uncommitted. Disposition: committed by hand;
+    candidate gap, noted in the PR."
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/docsite-cutover-01M75N3E/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/docsite-cutover-01M75N3E/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/docsite-cutover-01M75N3E/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/docsite-cutover-01M75N3E/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/docsite-cutover-01M75N3E/tasks/WP01-deploy-and-smoketest.md
+- id: e-006
+  kind: file
+  path: kitty-specs/docsite-cutover-01M75N3E/tasks/WP02-llms-and-record.md
+- id: e-007
+  kind: file
+  path: kitty-specs/docsite-cutover-01M75N3E/status.events.jsonl
+- id: e-008
+  kind: event_range
+  path: kitty-specs/docsite-cutover-01M75N3E/status.events.jsonl
+  range: 01M75R5DRG3YYSNF0CVGN1CGXP
+- id: e-009
+  kind: event_range
+  path: kitty-specs/docsite-cutover-01M75N3E/status.events.jsonl
+  range: 01M75R5J23ZV4MJC01E1TQR0EK
+- id: e-010
+  kind: event_range
+  path: kitty-specs/docsite-cutover-01M75N3E/status.events.jsonl
+  range: 01M75R5DRG3YYSNF0CVGN1CGXP
+- id: e-011
+  kind: event_range
+  path: kitty-specs/docsite-cutover-01M75N3E/status.events.jsonl
+  range: 01M75R5J23ZV4MJC01E1TQR0EK
+- id: e-012
+  kind: file
+  path: kitty-specs/docsite-cutover-01M75N3E/analysis-report.md
+- id: e-013
+  kind: file
+  path: kitty-specs/docsite-cutover-01M75N3E/traces/approach.md
+- id: e-014
+  kind: file
+  path: kitty-specs/docsite-cutover-01M75N3E/traces/design-decisions.md
+- id: e-015
+  kind: file
+  path: kitty-specs/docsite-cutover-01M75N3E/traces/tooling-friction.md
+generator_version: '1.0'
+provenance_history: []

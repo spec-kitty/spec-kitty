@@ -1,0 +1,54 @@
+{
+  "accept_commit": "c1e143815d2c4ba5aa3c32919e414f2da4e40e21",
+  "acceptance_history": [
+    {
+      "accept_commit": "bf4e73b28d89cd08f57bed57a88cf96d19da2036",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-11-11T16:47:45.271825+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "84f73d3994f3d1c7450e172bfc9753d063b899ee"
+    },
+    {
+      "accept_commit": "c1e143815d2c4ba5aa3c32919e414f2da4e40e21",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-11-11T16:53:11.232060+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "5bfda903195826ac848d863d49b0a27fd2ee69c1"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-11-11T16:53:11.232060+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "5bfda903195826ac848d863d49b0a27fd2ee69c1",
+  "baseline_merge_commit": "2e9ca5599fa777cd9f93995b40f0bbe617b16d22",
+  "contracts": "none",
+  "contracts_rationale": "No API or schema is published; the interface is the deploy workflow job graph, specified in data-model.md and pinned by tests.",
+  "create_return_branch": "issue-6938-docsite-cutover",
+  "created_at": "2026-11-11T15:54:54.786333+00:00",
+  "flattened": false,
+  "friendly_name": "Docsite cutover to doc-kitty",
+  "merged_at": "2026-11-11T16:54:14.808138+00:00",
+  "merged_commit": "787cdd788f8d552a9c5364ba5c990aadaeb8c0d3",
+  "mid8": "01M75N3E",
+  "mission_id": "01M75N3EP8TZGK6HW8Y5JYYW9Y",
+  "mission_number": 256,
+  "mission_slug": "docsite-cutover-01M75N3E",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The canary proved GitHub Pages serves the doc-kitty build's URL classes. This mission switches the docs-pages.yml deploy from DocFX to the doc-kitty artifact built by the shared docs-site-build.yml, so main deploys only a site the pull-request gate's build definition built (ADR D-11). After each deploy a smoketest job runs the ledger-derived live-site probe against docs.spec-kitty.ai and turns the run red on a mismatch (#2361). The hand-written docs/llms.txt is deleted, since the site generates /llms.txt. Rollback is reverting the pull request.",
+  "purpose_tldr": "Main deploys the doc-kitty build through the shared build definition, a post-deploy smoketest probes the live site, and docs/llms.txt is deleted (#6938 PR B, #2361)",
+  "slug": "docsite-cutover-01M75N3E",
+  "status_phase": "1",
+  "target_branch": "issue-6938-docsite-cutover",
+  "topology": "single_branch",
+  "topology_decision": {
+    "code_lane_count": 2,
+    "from": "single_branch",
+    "rule": "wp_count_le_2",
+    "target_protected": false,
+    "to": "single_branch",
+    "wp_count": 2
+  },
+  "topology_settled": true,
+  "topology_source": "default"
+}

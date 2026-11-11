@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "mission_slug": "docsite-cutover-01M75N3E",
+  "mission_id": "01M75N3EP8TZGK6HW8Y5JYYW9Y",
+  "mission_branch": "kitty/mission-docsite-cutover-01M75N3E",
+  "target_branch": "issue-6938-docsite-cutover",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-router.yml",
+        ".github/workflows/docs-pages.yml",
+        ".github/workflows/docs-site-build.yml",
+        "docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md",
+        "docs/changelog/unreleased/6938-docsite-cutover.changed.md",
+        "docs/development/reference/ci-gate-mechanics.md",
+        "docs/docfx.json",
+        "docs/llms.txt",
+        "scripts/docs/_dockitty_contract.py",
+        "tests/ci/test_nightly_tooling_cache.py",
+        "tests/docs/test_dockitty_contract.py",
+        "tests/docs/test_docs_seo.py",
+        "tests/release/test_release_ci_ownership.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-11T16:00:16.283369+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "2e9ca5599fa777cd9f93995b40f0bbe617b16d22"
+}
