@@ -14,14 +14,31 @@ from __future__ import annotations
 
 import json
 import logging
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from kernel.event_log_append import append_event_log_lines
 from kernel.clock import now_utc_iso
+from kernel.paths import to_posix
 
 logger = logging.getLogger(__name__)
 
 MISSION_EVENTS_FILE = "mission-events.jsonl"
+
+
+def is_mission_event_log_path(path: str | Path) -> bool:
+    """True for a Mission's own event log, ``kitty-specs/<mission>/mission-events.jsonl`` (depth-exact).
+
+    The one structural recognition of this file. It is tool-written and
+    append-only, never authored by an implementer. It is deliberately NOT an
+    artifact kind and NOT residue for the dirty gates: it has live readers, so
+    an uncommitted copy stays real dirt (#5669). Callers that use this predicate
+    decide something narrower; for example, the lane guard tolerates the copy a
+    lane inherits from its coordination branch, where ``next`` commits it (#5938).
+    A file of the same name anywhere else (``src/app/mission-events.jsonl``,
+    ``kitty-specs/<m>/research/mission-events.jsonl``) does not match.
+    """
+    parts = PurePosixPath(to_posix(path)).parts
+    return len(parts) == 3 and parts[0] == "kitty-specs" and parts[2] == MISSION_EVENTS_FILE
 
 
 def emit_event(

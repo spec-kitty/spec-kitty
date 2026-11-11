@@ -50,6 +50,7 @@ from specify_cli.cli.commands.agent.tasks_parsing_validation import (
 )
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.coordination.coherence import is_coord_residue_churn
+from specify_cli.mission_v1.events import is_mission_event_log_path
 from specify_cli.core.constants import KITTY_SPECS_DIR, is_occurrence_map_path
 from specify_cli.core.vcs.git import git_diff_names_checked, merge_base_changed_files_checked
 from specify_cli.paths import RUNTIME_STATE_DIR_NAME
@@ -772,6 +773,13 @@ def _list_wp_branch_mission_specs_changes(worktree_path: Path, base_branch: str)
         # SAME kinds from the sibling primary-root claim commit, so both
         # guards agree on what "lane contamination" means.
         if is_coord_residue_churn(path):
+            continue
+        # #5938: ``next`` commits this Mission's event log on the coordination
+        # branch, so a lane parented there inherits it exactly like the
+        # status pair above. It is tool-written and append-only, never
+        # implementer work; it has no artifact kind on purpose (#5669), so it
+        # is recognised by its one structural predicate instead.
+        if is_mission_event_log_path(path):
             continue
         seen.add(path)
         candidates.append(path)

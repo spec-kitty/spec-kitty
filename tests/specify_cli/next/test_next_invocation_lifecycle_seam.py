@@ -38,6 +38,7 @@ import pytest
 from typer.testing import CliRunner
 
 # --- RED signal (T004): this module does not exist until T005 lands it. ---
+from mission_runtime import TopologySurface
 from runtime.next.next_invocation_lifecycle import (
     emit_mission_next_invoked,
     pair_previous_lifecycle_record,
@@ -382,7 +383,8 @@ class _FakeWriteSeam:
         return self._path
 
     def write_dir(self, _kind: object) -> SimpleNamespace:
-        return SimpleNamespace(path=self._path)
+        # #5938: the row's checkout root and surface ride along so ``next`` can commit it.
+        return SimpleNamespace(path=self._path, surface_root=self._path.parent.parent, surface=TopologySurface.PRIMARY)
 
 
 def _owned_stand_in(store_root: Path, mission_dir: Path | None = None) -> Any:

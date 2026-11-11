@@ -333,8 +333,9 @@ def _is_coord_legacy_mission_event_log(repo_rel: str, coord_branch_for_filter: s
     """
     if coord_branch_for_filter is None:
         return False
-    parts = Path(repo_rel).parts
-    return len(parts) == 3 and parts[0] == "kitty-specs" and parts[2] == "mission-events.jsonl"
+    from specify_cli.mission_v1.events import is_mission_event_log_path
+
+    return is_mission_event_log_path(repo_rel)
 
 
 def _status_paths_for_commit(entries: list[_PorcelainEntry], coord_branch_for_filter: str | None) -> list[str]:
