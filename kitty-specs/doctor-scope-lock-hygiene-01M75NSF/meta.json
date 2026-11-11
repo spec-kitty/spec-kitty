@@ -1,0 +1,54 @@
+{
+  "accept_commit": "184fc994fc63ab6210c12b258156dde9bcc0f257",
+  "acceptance_history": [
+    {
+      "accept_commit": "dbb754212ca9ad93961431c5df742940906d99d1",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-11-11T17:52:40.656666+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "496cc7e2f15ec00fb509f5c099604b326f5839ac",
+      "lenient": true
+    },
+    {
+      "accept_commit": "184fc994fc63ab6210c12b258156dde9bcc0f257",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-11-11T18:25:33.773051+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "aa6dff363a1425387719fab34cbab5201c072a2e",
+      "lenient": true
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-11-11T18:25:33.773051+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "aa6dff363a1425387719fab34cbab5201c072a2e",
+  "baseline_merge_commit": "75a3f8cec3bd14d7ef709585b8e130835ae6b891",
+  "create_return_branch": "fix/7549-doctor-scope-lock-hygiene",
+  "created_at": "2026-11-11T16:06:56.278273+00:00",
+  "flattened": false,
+  "friendly_name": "Coordination doctor scope and decisions runtime lock hygiene",
+  "merged_at": "2026-11-11T18:27:07.431691+00:00",
+  "merged_commit": "84270cd035c5935970ff03c7eb28b13c305ea862",
+  "mid8": "01M75NSF",
+  "mission_id": "01M75NSFANQ8DNQKXZV8EDKFB1",
+  "mission_number": 256,
+  "mission_slug": "doctor-scope-lock-hygiene-01M75NSF",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Sub-epic #7549 (epic #7543): #7552 gives doctor coordination --fix a required Mission scope and Mission-branch-only discovery; #7498 pins the decisions runtime lock as runtime-only on every topology.",
+  "purpose_tldr": "doctor coordination --fix touches only the Missions named; the decisions runtime lock can never be committed to, survive as dirt in, or block a checkout.",
+  "slug": "doctor-scope-lock-hygiene-01M75NSF",
+  "status_phase": "1",
+  "target_branch": "fix/7549-doctor-scope-lock-hygiene",
+  "topology": "single_branch",
+  "topology_decision": {
+    "code_lane_count": 2,
+    "from": "single_branch",
+    "rule": "wp_count_le_2",
+    "target_protected": false,
+    "to": "single_branch",
+    "wp_count": 2
+  },
+  "topology_settled": true,
+  "topology_source": "default"
+}

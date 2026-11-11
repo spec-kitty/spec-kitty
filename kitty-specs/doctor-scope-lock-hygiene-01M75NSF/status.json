@@ -1,0 +1,98 @@
+{
+  "event_count": 32,
+  "last_event_id": "01M75XS95SEAJCE8M284P4KMAM",
+  "materialized_at": "2026-11-11T18:26:37.369606+00:00",
+  "mission_number": "256",
+  "mission_slug": "doctor-scope-lock-hygiene-01M75NSF",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 3,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M75XS71FJN12BF1GBP40H8WB",
+      "last_transition_at": "2026-11-11T18:26:35.183893+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-11T16:34:54Z – claude – shell_pid=5645 – Red 075c9c42 (9 failed/2 passed on base), fix 3ca45bff. Walker allowlist entry kept: _resolve_mission_dirs still walks the root kitty-specs/. Out-of-map: test files given explicit --all-missions/--mission; consolidation remedy strings left (C-002).",
+        "Ready for review",
+        "Independent review (reviewer agent, no blockers); should-fix findings folded in f13c459f. Red->green verified on origin/main: 9 red/2 controls. 14/14 scope tests green.",
+        "Back from approved: post-approval commit 91bf114 (FR-005 test) must be reviewed (LANE_MOVED_AFTER_APPROVAL)",
+        "Re-submitted for review by the implementer (claude); --force only because the agent field still named the reviewer after the reviewer reopened the WP. New: 91bf114 (FR-005 test), f13c459f + 44cfc73a (review folds).",
+        "Resubmitted by the implementer after the reviewer restored the implementer of record; no code change since 44cfc73a",
+        "Approve: #7552 doctor --fix scope; mission files byte-identical to reviewed 44cfc73a after rebase onto target (adds only #7346 base commits)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP01:20261111",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1129,
+      "shell_pid_created_at": "1794421448.55",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 3,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M75XS95SEAJCE8M284P4KMAM",
+      "last_transition_at": "2026-11-11T18:26:37.369606+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-11T17:11:58Z – claude – shell_pid=15885 – Red 0565d422 (7 failed/2 passed on base), fix 5302b026. T010: lane dirty gates read git status without --ignored, so the common-dir exclude keeps the lock out of them; the e2e coordination pin is tests/terminus/test_decisions_lock_never_tracked_7498.py. Out-of-map: tests/terminus (new), tests/integration/test_owned_decision_runtime_lock.py (snapshot re-pin), changelog fragment. FR-011 changed to keep the XY prefix (5 ref_advance tests pin it) and add the state in words.",
+        "Ready for review",
+        "Independent review (reviewer agent, no blockers); should-fix findings folded in f13c459f. Red->green verified: 7 red/2 controls on origin/main; terminus e2e pin red with base source restored. 11/11 lock tests green.",
+        "Back from approved: post-approval commit 91bf114 (FR-005 test) must be reviewed (LANE_MOVED_AFTER_APPROVAL)",
+        "Re-submitted for review by the implementer (claude); --force only because the agent field still named the reviewer after the reviewer reopened the WP. New: 91bf114 (FR-005 test), f13c459f + 44cfc73a (review folds).",
+        "Resubmitted by the implementer after the reviewer restored the implementer of record; no code change since 44cfc73a",
+        "Approve: #7498 decisions runtime lock hygiene; mission files byte-identical to reviewed 44cfc73a after rebase onto target"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP02:20261111",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1966,
+      "shell_pid_created_at": "1794421494.14",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    }
+  }
+}

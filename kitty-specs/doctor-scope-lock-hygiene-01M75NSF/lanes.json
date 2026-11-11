@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "mission_slug": "doctor-scope-lock-hygiene-01M75NSF",
+  "mission_id": "01M75NSFANQ8DNQKXZV8EDKFB1",
+  "mission_branch": "kitty/mission-doctor-scope-lock-hygiene-01M75NSF",
+  "target_branch": "fix/7549-doctor-scope-lock-hygiene",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "src/runtime/next/runtime_bridge.py",
+        "src/specify_cli/cli/commands/_coordination_doctor.py",
+        "src/specify_cli/cli/commands/decision.py",
+        "src/specify_cli/cli/commands/doctor.py",
+        "src/specify_cli/coordination/surface_resolver.py",
+        "src/specify_cli/decisions/lock.py",
+        "src/specify_cli/git/commit_helpers.py",
+        "src/specify_cli/git/ref_advance.py",
+        "src/specify_cli/missions/_read_path_resolver.py",
+        "tests/architectural/test_mission_resolver_walker_gate.py",
+        "tests/decisions/test_runtime_lock_hygiene_7498.py",
+        "tests/specify_cli/cli/commands/test_coordination_doctor.py",
+        "tests/specify_cli/cli/commands/test_coordination_remedy_5113.py",
+        "tests/specify_cli/cli/commands/test_doctor_cli_surface_golden.py",
+        "tests/specify_cli/cli/commands/test_doctor_coordination.py",
+        "tests/specify_cli/cli/commands/test_doctor_coordination_scope_7552.py",
+        "tests/specify_cli/cli/commands/test_doctor_flatten_remote_reverify_4979.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-11T16:13:45.839401+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "2e9ca5599fa777cd9f93995b40f0bbe617b16d22"
+}
