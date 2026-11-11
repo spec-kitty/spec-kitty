@@ -103,3 +103,55 @@ def test_init_outside_git_commits_nothing(tmp_path: Path) -> None:
 
     assert proc.returncode == 0, flat(proc)[-2000:]
     assert not (target / ".git").exists()
+
+
+def test_init_preserves_the_users_staged_changes(tmp_path: Path) -> None:
+    """A staged new file and a staged edit stay staged and out of init's commit (#5905)."""
+    repo, env = _repo(tmp_path)
+    (repo / "staged.txt").write_text("mine\n", encoding="utf-8")
+    (repo / "README.md").write_text("# demo\n\nstaged edit\n", encoding="utf-8")
+    git(repo, "add", "staged.txt", "README.md")
+
+    proc = run_sk(repo, env, *_INIT)
+
+    assert proc.returncode == 0, flat(proc)[-2000:]
+    committed = git(repo, "show", "--name-only", "--format=", "HEAD").splitlines()
+    assert "staged.txt" not in committed
+    assert "README.md" not in committed
+    staged = git(repo, "diff", "--cached", "--name-only").splitlines()
+    assert sorted(staged) == ["README.md", "staged.txt"]
+    assert "left out of that commit" in flat(proc)
+
+
+def test_init_words_the_committers_reasons_for_init() -> None:
+    from specify_cli.cli.commands.init import _init_commit_warning
+    from specify_cli.upgrade import autocommit
+
+    for reason in (
+        autocommit.UPGRADE_COMMIT_SKIP_WARNING,
+        autocommit.DETACHED_HEAD_WARNING,
+        autocommit.BRANCH_DETECTION_FAILED_WARNING,
+        autocommit.METADATA_DIRTY_AT_BASELINE_WARNING,
+    ):
+        worded = _init_commit_warning(reason)
+        assert "upgrade" not in worded
+        assert "init" in worded
+    assert _init_commit_warning("something else") == "something else"
+
+
+@pytest.mark.parametrize(
+    ("sha", "stash", "expected"),
+    [
+        ("abc123", "stash@{0}", ["Commit abc123 did land.", "git stash pop --index stash@{0}"]),
+        (None, None, ["No commit landed."]),
+    ],
+)
+def test_init_renders_a_failed_staging_restore_honestly(sha: str | None, stash: str | None, expected: list[str]) -> None:
+    from specify_cli.cli.commands.init import _render_init_recovery_failed
+    from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
+
+    rendered = _render_init_recovery_failed(SafeCommitRecoveryFailed("restore failed", commit_sha=sha, orphan_stash_ref=stash))
+
+    for fragment in expected:
+        assert fragment in rendered
+    assert "upgrade" not in rendered
