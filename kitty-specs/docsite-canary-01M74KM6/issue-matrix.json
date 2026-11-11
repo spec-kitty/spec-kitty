@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#2361": {
+      "evidence_ref": "WP01 delivers the derived URL sample and status/stub assertions #2361 asks for (site_live_probe.py, tests/docs/test_site_live_probe.py). The post-deploy smoketest job that runs it after every main deploy lands with the cutover, PR B of #6938.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "docs reliability: no post-deploy smoketest of the live docsite",
+      "verdict": "deferred-with-followup",
+      "wp": "WP01"
+    },
+    "#6937": {
+      "evidence_ref": "The remaining D-11 piece (deploy and gate share one build definition): WP02's canary deploy builds through docs-site-build.yml; the regular main deploy switches to it at the cutover, PR B of #6938.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Make the docs-site gate required",
+      "verdict": "deferred-with-followup",
+      "wp": "WP02"
+    },
+    "#6938": {
+      "evidence_ref": "PR A of #6938: WP01 adds the live probe (scripts/docs/site_live_probe.py), WP02 the dispatch-only canary. The canary run (operator window) and the cutover PR B stay open under #6938.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Canary deploy and cutover (with #2361)",
+      "verdict": "deferred-with-followup",
+      "wp": "WP01"
+    },
+    "#7484": {
+      "evidence_ref": "Cited as test-value policy only; this Mission follows it and owes it no work.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Pro-forma TDD is wasteful when tests have no lasting value",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

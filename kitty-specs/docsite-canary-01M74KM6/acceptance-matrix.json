@@ -1,0 +1,103 @@
+{
+  "mission_slug": "docsite-canary-01M74KM6",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "The probe derives one URL per D-13 class from the committed ledgers, deterministically, and refuses a missing class.",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_site_live_probe.py (derivation on committed and synthetic ledgers)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T07:44:12.394583+00:00",
+      "notes": "Real ledgers yield all 8 classes; a local build of site/dist answers 8/8."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Each URL is checked over HTTP: 200 page, 404 retired, stub naming the map target whose target serves a page.",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_site_live_probe.py (assertion branches against a local http.server)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T07:44:16.638131+00:00",
+      "notes": "Every defect fixture fails its class; redirects are not followed."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Bounded retries, a 300 s wall-clock budget per URL, one report line per URL, exit 1 on mismatch.",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_site_live_probe.py (retry, budget and CLI tests)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T07:44:20.534862+00:00",
+      "notes": "Fake-clock and trickling real-HTTP tests pin the budget."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "A dispatched canary builds through the shared definition, publishes, and probes https://docs.spec-kitty.ai.",
+      "proof_type": "manual_check",
+      "evidence": "tests/release/test_release_ci_ownership.py (job graph); real run pending",
+      "pass_fail": "deferred",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T07:44:24.255785+00:00",
+      "notes": "TODO: replace with a real acceptance criterion",
+      "deferral_reason": "The job graph, pins and permissions are proven by tests; only an operator-dispatched run on the real Pages service proves the canary deploy and the live probe.",
+      "deferral_follow_up": "#6938"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "DocFX is rebuilt and republished after the canary whatever the probe found, and the run is red on a probe failure.",
+      "proof_type": "manual_check",
+      "evidence": "tests/release/test_release_ci_ownership.py (restore scenarios); real run pending",
+      "pass_fail": "deferred",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T07:44:28.177484+00:00",
+      "notes": "TODO: replace with a real acceptance criterion",
+      "deferral_reason": "The scheduling model proves deploy runs after any canary failure; the actual DocFX restore on Pages is proven only by the operator's canary run.",
+      "deferral_follow_up": "#6938"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Push and plain dispatch keep the DocFX path: deploy runs only after a successful DocFX build.",
+      "proof_type": "automated_test",
+      "evidence": "tests/release/test_release_ci_ownership.py::test_docs_pages_default_path_deploys_docfx_alone",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T07:44:32.314068+00:00",
+      "notes": "Mutation of the deploy condition fails these tests."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Probe-then-configure, main-only core-repo publish, fork guard and pages concurrency kept; ownership test pins the new path.",
+      "proof_type": "automated_test",
+      "evidence": "tests/release/test_release_ci_ownership.py, tests/ci/test_fork_guard.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T07:44:35.971590+00:00",
+      "notes": "No assertion loosened."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "ADR amendment and changelog fragment record the canary and probe classes.",
+      "proof_type": "automated_test",
+      "evidence": "docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md (Amendment 2026-11-11); docs/changelog/unreleased/6938-docsite-canary.changed.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T07:44:40.207151+00:00",
+      "notes": "Fragment passes check_changelog_style and check_spelling."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "A probe change selects the docs-site gate; the router filter and scrub copy agree.",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_docs_site_job.py, tests/architectural/test_retirement_scrub.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T07:44:44.328070+00:00",
+      "notes": "The shared build runs the probe on site/dist."
+    }
+  ],
+  "negative_invariants": []
+}
