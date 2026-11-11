@@ -54,7 +54,6 @@ __all__ = [
     "read_status_stream",
     "read_status_text",
     "ref_source_remedy",
-    "unmaterialized_coordination_refusal",
     "resolve_committed_status_read",
     "resolve_consolidated_target_read",
     "resolve_landing_evidence_read",
@@ -150,12 +149,26 @@ class StatusReadSurface:
         return self.path if self.path is not None else self.repo_root / _KITTY_SPECS / self.mission_dir_name
 
     def unmaterialized_refusal(self) -> CoordinationWorktreeUnmaterialized | None:
-        """The placement seam's refusal when this surface's coordination worktree is not materialized.
+        """The placement seam's refusal for a surface whose coordination worktree is not materialized.
 
-        Delegates to :func:`unmaterialized_coordination_refusal`, so callers outside
-        ``specify_cli.status`` reach it through the exported surface type.
+        ``None`` for every other surface. The exception is built by its one factory
+        (``CoordinationWorktreeUnmaterialized.for_mission``) from the door's own facts, so its
+        message and ``next_step`` are the ones the placement seam raises for the same cell; the
+        remedy keeps one composer. Built on demand: composing ``next_step`` runs a git probe.
         """
-        return unmaterialized_coordination_refusal(self)
+        facts = self.unmaterialized
+        if facts is None:
+            return None
+        from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
+
+        refusal: CoordinationWorktreeUnmaterialized = CoordinationWorktreeUnmaterialized.for_mission(
+            repo_root=self.repo_root,
+            mission_slug=facts.mission_slug,
+            mid8=facts.mid8,
+            coordination_branch=facts.coordination_branch,
+            primary_candidate=facts.primary_dir,
+        )
+        return refusal
 
 
 @dataclass(frozen=True)
@@ -232,29 +245,6 @@ def resolve_status_read(repo_root: Path, mission: str, *, owned: OwnedCheckout |
         # coordination worktree is registered.
         return decide_status_read(owned.repository_root, mission, primary_dir=owned.mission_dir).surface()
     return decide_status_read(repo_root, mission).surface()
-
-
-def unmaterialized_coordination_refusal(surface: StatusReadSurface) -> CoordinationWorktreeUnmaterialized | None:
-    """The placement seam's refusal for a surface whose coordination worktree is not materialized.
-
-    ``None`` for every other surface. The exception is built by its one factory
-    (``CoordinationWorktreeUnmaterialized.for_mission``) from the door's own facts, so its
-    message and ``next_step`` are the ones the placement seam raises for the same cell; the
-    remedy keeps one composer. Built on demand: composing ``next_step`` runs a git probe.
-    """
-    facts = surface.unmaterialized
-    if facts is None:
-        return None
-    from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
-
-    refusal: CoordinationWorktreeUnmaterialized = CoordinationWorktreeUnmaterialized.for_mission(
-        repo_root=surface.repo_root,
-        mission_slug=facts.mission_slug,
-        mid8=facts.mid8,
-        coordination_branch=facts.coordination_branch,
-        primary_candidate=facts.primary_dir,
-    )
-    return refusal
 
 
 def resolve_committed_status_read(repo_root: Path, mission: str) -> StatusReadSurface | None:
