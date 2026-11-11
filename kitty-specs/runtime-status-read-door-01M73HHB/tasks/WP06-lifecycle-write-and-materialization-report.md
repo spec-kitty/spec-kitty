@@ -140,6 +140,7 @@ Use language identifiers in code blocks: ````python`,````bash`
 ### Subtask T034 – Gate and fast tier
 
 - **Steps** (out-of-map edit of WP04's gate files): delete `src/runtime/next/next_invocation_lifecycle.py::emit_mission_next_invoked::artifact(STATUS_STATE)`; set `_LIVE_HIT_FLOOR = 33`; change `_baselines.yaml` `legacy_read_allowlist` from 34 to 33 and append `Shrunk 34 -> 33 by runtime-status-read-door WP06; no src/runtime/next entry remains` to the justification. Then run `make test-fast`, and check SC-002: no allowlist key starts with `src/runtime/next/`.
+- **NFR-002 (analysis finding C1)**: time the `next` suites from WP04 T022 and WP05 T028 with `-n0` on the Mission's base commit and on this WP's head, on the same machine. Record both wall times in `add-history`; the head must be within +10% of the base. Report the numbers in the PR.
 
 ## Test Strategy
 

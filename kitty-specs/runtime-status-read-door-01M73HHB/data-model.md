@@ -22,8 +22,8 @@ One reduced reading of a Mission's status for one `next` decision or query. It i
 | State | Door source | Query / progress | Advancing `next` (non-owned) | Board selector called directly | Owned query | Owned dispatch |
 |---|---|---|---|---|---|---|
 | materialized | `coord_worktree` | real lanes | proceeds, no report | dispatch | real lanes | dispatch |
-| empty | `coord_branch_ref` | real lanes (**#7507 fix**) | bootstrap restores it, **reports it** (**new**), real progress (**fix**) | dispatch from real lanes (**fix**) | real lanes (**fix**) | refuse `OWNED_COORDINATION_WORKSPACE_UNAVAILABLE` |
-| unmaterialized | `coord_branch_ref` | real lanes (**#7507 fix**) | bootstrap materializes it, **reports it** (**new**), real progress (**fix**) | named "materialize it" block, today's text | real lanes (**fix**) | refuse `OWNED_COORDINATION_WORKSPACE_UNAVAILABLE` |
+| empty | `coord_branch_ref` | real lanes (**#7507 fix**) | bootstrap restores it, **reports it** (**new**), real progress (**fix**) | dispatch from real lanes (**fix**) | real lanes (**fix**) | today's outcome, characterised first (WP05 T023): refuses `OWNED_COORDINATION_WORKSPACE_UNAVAILABLE` where unavailable |
+| unmaterialized | `coord_branch_ref` | real lanes (**#7507 fix**) | bootstrap materializes it, **reports it** (**new**), real progress (**fix**) | named "materialize it" block, today's text | real lanes (**fix**) | today's outcome, characterised first (WP05 T023): proceeds if bootstrap materializes, else refuses |
 | deleted, not landed | raises `CoordinationBranchDeleted` | flatten guidance (unchanged) | flatten guidance, nothing materialized or reported | flatten guidance | flatten guidance | flatten guidance |
 | landed | `consolidated_target` | landed terminal (unchanged) | landed terminal | landed terminal | landed terminal | landed terminal |
 

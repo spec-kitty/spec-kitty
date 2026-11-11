@@ -120,8 +120,9 @@ Done when:
 
 ## Subtasks & Detailed Guidance
 
-### Subtask T023 – Characterisation of guard paths and presence
+### Subtask T023 – Characterisation of guard paths, presence and owned dispatch
 
+- **Owned dispatch (analysis finding I1, FR-006)**: before any change, pin today's advancing `next` outcome (`decide_next_via_runtime` with `owned=`) for an owned `coord` and `lanes_with_coord` Mission whose coordination worktree is **empty** and **unmaterialized**: the decision kind, and the code when blocked. Put this in `tests/runtime/next/test_bootstrap_read_door.py` as a green characterisation commit. FR-006 is "keep this outcome": if it is a refusal, it stays a refusal; if bootstrap materializes and proceeds, that stays too. Record the observed outcome in `add-history`.
 - **Steps**: new `tests/runtime/next/test_artifact_presence_seam_param.py`. For non-owned single_branch, non-owned coord (materialized), owned single_branch and owned coord (materialized), record today's `guard_failure_artifact_paths(...)` and `gather_artifact_presence(...)` output for a fixed set of guard failures and artifact names: spec.md, plan.md, tasks.md, a coord-kind artifact, and a custom filename. Commit it green on the base, before any move.
 
 ### Subtask T024 – `seam=` on the presence API; delete the reverse map

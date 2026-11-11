@@ -121,7 +121,7 @@ T022 Run the board/query/owned suites + gate and record counts
 
 ### Included Subtasks
 
-T023 Characterisation: pin today's guard-failure paths and artifact-presence answers (non-owned, owned, coordination)
+T023 Characterisation: pin today's guard-failure paths and artifact-presence answers (non-owned, owned, coordination), and today's owned advancing outcome on empty and unmaterialized worktrees (FR-006, analysis I1)
 T024 `runtime_bridge_io.py`: `gather_artifact_presence` / `guard_failure_artifact_paths` take `seam=`; remove `_artifact_presence_seam`
 T025 Callers pass the seam: `runtime_bridge.py`, `runtime_bridge_composition.py`, `acceptance/non_wp_runtime.py`, and `decision._with_guard_failure_paths` (out-of-map edit)
 T026 Red test, then fix: `_dn_bootstrap` reads the door after the wrap; advancing progress true for empty and unmaterialized; owned arm keeps O8
@@ -148,7 +148,7 @@ T030 Red test: advancing `next` reports the materialization (line + JSON) on emp
 T031 Detect the bootstrap materialization in the decision-log wrap and carry it on the decision
 T032 Render: one human line in `next_cmd.py`; `remediation` key in `Decision.to_dict` (out-of-map edit), only when set
 T033 [P] Negative tests: materialized, query mode, deleted branch, non-coordination Mission never report
-T034 Gate: remove the last runtime entry; floor 34 → 33, baseline 34 → 33 (out-of-map gate edit); `make test-fast`
+T034 Gate: remove the last runtime entry; floor 34 → 33, baseline 34 → 33 (out-of-map gate edit); `make test-fast`; NFR-002 timing (analysis C1)
 
 ### Dependencies
 
