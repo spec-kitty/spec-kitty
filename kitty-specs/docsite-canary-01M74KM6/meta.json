@@ -1,0 +1,47 @@
+{
+  "accept_commit": "5617caabeaccfd657966336ad8c60703b8077ef4",
+  "acceptance_history": [
+    {
+      "accept_commit": "5617caabeaccfd657966336ad8c60703b8077ef4",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-11-11T07:44:56.090210+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "a6557e5e1570e707d81ab1cf1e1b94e626519fe7"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-11-11T07:44:56.090210+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "a6557e5e1570e707d81ab1cf1e1b94e626519fe7",
+  "baseline_merge_commit": "09c4679f5c6870cdc7624838605815bbbcaf7a71",
+  "contracts": "none",
+  "contracts_rationale": "No API or schema is published; the interfaces are the probe's command line and the deploy workflow's canary input, specified in data-model.md and pinned by tests.",
+  "create_return_branch": "issue-6938-docsite-canary",
+  "created_at": "2026-11-11T06:09:56.300285+00:00",
+  "flattened": false,
+  "friendly_name": "Docsite canary deploy",
+  "merged_at": "2026-11-11T07:46:11.017311+00:00",
+  "merged_commit": "0dfc022a02930c728bceb3372fea5ddb5b014da3",
+  "mid8": "01M74KM6",
+  "mission_id": "01M74KM61KD72NVPFSAAJAS9NQ",
+  "mission_number": 255,
+  "mission_slug": "docsite-canary-01M74KM6",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Before the docsite cuts over from DocFX to doc-kitty, the real GitHub Pages service must be shown to serve the doc-kitty build's redirect stubs, pages and directory URLs. An operator-dispatched canary in the deploy workflow builds the site through the one shared build definition, deploys it, probes a ledger-derived sample of URL classes over HTTP, and always redeploys DocFX. The probe is the logic the post-cutover smoketest (#2361) reuses.",
+  "purpose_tldr": "A dispatched canary deploys the doc-kitty build to Pages, probes the live D-13 URL classes, then restores DocFX (#6938 PR A)",
+  "slug": "docsite-canary-01M74KM6",
+  "status_phase": "1",
+  "target_branch": "issue-6938-docsite-canary",
+  "topology": "single_branch",
+  "topology_decision": {
+    "code_lane_count": 2,
+    "from": "single_branch",
+    "rule": "wp_count_le_2",
+    "target_protected": false,
+    "to": "single_branch",
+    "wp_count": 2
+  },
+  "topology_settled": true,
+  "topology_source": "default"
+}
