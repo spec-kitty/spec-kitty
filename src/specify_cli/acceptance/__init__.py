@@ -1854,6 +1854,7 @@ def _commit_acceptance_meta(
     mode: AcceptanceMode,
     *,
     lenient: bool = False,
+    owned: OwnedCheckout | None = None,
 ) -> tuple[str | None, str | None, bool]:
     """Record acceptance in meta.json and commit; return (parent_commit, accept_commit, commit_created).
 
@@ -1867,7 +1868,9 @@ def _commit_acceptance_meta(
     protected primary. Protection provenance flows through
     ``ProtectionPolicy.resolve`` (FR-007 / FR-009). There is no second, raw
     ``git add`` path: staging a placement-resolved path from the repository
-    root checkout hit the git-ignored ``.worktrees/`` directory.
+    root checkout hit the git-ignored ``.worktrees/`` directory. ``owned`` is
+    the validated owned-checkout fact the CLI edge resolved ``summary.feature_dir``
+    with; the commit resolves its placement against the same fact.
 
     WP02 / FR-010 / C-003: the ``record_acceptance`` write (and ONLY that
     write -- never the git commit, which stays OUTSIDE any lock span)
@@ -1888,10 +1891,20 @@ def _commit_acceptance_meta(
         policy=policy,
         parent_commit=parent_commit,
         primary_ref=accept_primary_ref(summary.feature_dir, policy),
+        owned=owned,
     )
 
 
-def _route_meta_commit(*, repo_root: Path, mission_slug: str, meta_path: Path, policy: Any, message: str, primary_ref: str | None) -> CommitRouterResult:
+def _route_meta_commit(
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    meta_path: Path,
+    policy: Any,
+    message: str,
+    primary_ref: str | None,
+    owned: OwnedCheckout | None = None,
+) -> CommitRouterResult:
     """Commit *meta_path* through ``commit_for_mission`` (``PRIMARY_METADATA``).
 
     Any other exception the commit seam raises (git, placement, materialisation) becomes the named
@@ -1914,12 +1927,52 @@ def _route_meta_commit(*, repo_root: Path, mission_slug: str, meta_path: Path, p
             # the placement seam resolves the branch that holds it.
             kind=MissionArtifactKind.PRIMARY_METADATA,
             primary_ref=primary_ref,
+            owned=owned,
         )
     except MissionMetaReadError:
         # A corrupt ``meta.json`` keeps its typed fail-closed error (FR-007 / NFR-003).
         raise
     except Exception as exc:  # translated, never swallowed: the refusal carries the cause
         raise AcceptanceRecordCommitError(mission_slug, meta_path, f"{type(exc).__name__}: {exc}") from exc
+
+
+def _commit_accept_commit_stamp(
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    meta_path: Path,
+    policy: Any,
+    primary_ref: str | None,
+    owned: OwnedCheckout | None,
+) -> None:
+    """Second commit: record the ``accept_commit`` SHA back into ``meta.json``; best-effort.
+
+    The acceptance commit already landed, so a failure here only warns (T088 / D8): it never
+    turns into the ``ACCEPT_RECORD_COMMIT_FAILED`` refusal of the first commit.
+    """
+    try:
+        second_result = _route_meta_commit(
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            meta_path=meta_path,
+            policy=policy,
+            message=f"Record acceptance commit for {mission_slug}",
+            primary_ref=primary_ref,
+            owned=owned,
+        )
+    except AcceptanceRecordCommitError as exc:
+        logger.warning("accept: recording accept_commit for %s did not land: %s", mission_slug, exc)
+        return
+    for surface in second_result.surfaces:
+        if surface.status not in ("committed", "unchanged"):
+            logger.warning(
+                "accept: recording accept_commit on %s (%s) for %s did not land (%s): %s",
+                surface.surface,
+                surface.branch,
+                mission_slug,
+                surface.status,
+                surface.diagnostic or "no diagnostic available",
+            )
 
 
 def _commit_acceptance_meta_via_router(
@@ -1930,6 +1983,7 @@ def _commit_acceptance_meta_via_router(
     policy: Any,
     parent_commit: str | None,
     primary_ref: str | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> tuple[str | None, str | None, bool]:
     """Commit the acceptance record through ``commit_for_mission`` (the only commit path, #7550).
 
@@ -1943,7 +1997,13 @@ def _commit_acceptance_meta_via_router(
     from specify_cli.coordination.commit_outcome import render_commit_outcome
 
     router_result = _route_meta_commit(
-        repo_root=repo_root, mission_slug=mission_slug, meta_path=meta_path, policy=policy, message=f"Accept {mission_slug}", primary_ref=primary_ref
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+        meta_path=meta_path,
+        policy=policy,
+        message=f"Accept {mission_slug}",
+        primary_ref=primary_ref,
+        owned=owned,
     )
     # T088 (contract rule 6): render through the shared trio rather than
     # formatting surfaces by hand. The render is an additional, non-blocking
@@ -1962,28 +2022,7 @@ def _commit_acceptance_meta_via_router(
     # Corruption surfaces as the typed ``MissionMetaReadError`` and PROPAGATES
     # (swallowing it would silently skip stamping ``accept_commit`` into meta.json).
     if accept_commit and _stamp_accept_commit(meta_path.parent, accept_commit):
-        # Second commit: record the accept_commit SHA back into meta.json.
-        # T088 (D8): warn (never raise on a non-committed outcome; this write is
-        # best-effort bookkeeping on top of an already-successful acceptance
-        # commit) when a surface did not land cleanly.
-        second_result = _route_meta_commit(
-            repo_root=repo_root,
-            mission_slug=mission_slug,
-            meta_path=meta_path,
-            policy=policy,
-            message=f"Record acceptance commit for {mission_slug}",
-            primary_ref=primary_ref,
-        )
-        for surface in second_result.surfaces:
-            if surface.status not in ("committed", "unchanged"):
-                logger.warning(
-                    "accept: recording accept_commit on %s (%s) for %s did not land (%s): %s",
-                    surface.surface,
-                    surface.branch,
-                    mission_slug,
-                    surface.status,
-                    surface.diagnostic or "no diagnostic available",
-                )
+        _commit_accept_commit_stamp(repo_root=repo_root, mission_slug=mission_slug, meta_path=meta_path, policy=policy, primary_ref=primary_ref, owned=owned)
 
     return parent_commit, accept_commit, True
 
@@ -2157,6 +2196,7 @@ def perform_acceptance(
     tests: Sequence[str] | None = None,
     auto_commit: bool | None = None,
     lenient: bool = False,
+    owned: OwnedCheckout | None = None,
 ) -> AcceptanceResult:
     if auto_commit is None:
         auto_commit = get_auto_commit_default(summary.repo_root)
@@ -2172,7 +2212,7 @@ def perform_acceptance(
     commit_created = False
 
     if auto_commit and mode != "checklist":
-        parent_commit, accept_commit, commit_created = _commit_acceptance_meta(summary, actor_name, mode, lenient=lenient)
+        parent_commit, accept_commit, commit_created = _commit_acceptance_meta(summary, actor_name, mode, lenient=lenient, owned=owned)
 
     branch = summary.branch or summary.feature
     # FR-008 / #2139: delegate to the single target_branch read authority

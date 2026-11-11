@@ -1546,6 +1546,7 @@ def _perform_acceptance_step(
             tests=acceptance_tests,
             auto_commit=run.commit_required,
             lenient=run.lenient,
+            owned=run.owned,
         )
         outcome.result = result
         if run.commit_required and not run.json_output:

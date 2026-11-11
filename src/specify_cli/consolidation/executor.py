@@ -970,7 +970,9 @@ def _run_lane_based_consolidation(
     # the done bookkeeping, the birth cutover and the status reads land.
     seam = placement_seam(main_repo, mission_slug)
     # #5406: ``consolidate --abort`` keeps its coordination teardown, so rematerialize the
-    # coordination worktree first; the seam then resolves placement against it.
+    # coordination worktree first; the seam then resolves placement against it. This only
+    # checks out the existing local coordination branch in a worktree (no commit, no ref move),
+    # so it may precede the origin gate below.
     if rematerialize_coordination_surface(main_repo, mission_slug):
         seam = placement_seam(main_repo, mission_slug)
     # #5780: the origin freshness check runs BEFORE the status dir is resolved (that
