@@ -191,7 +191,8 @@ gradle -p acceptance-jvm test --no-daemon -Pacceptance.pass=gating
 `@wip` scenarios. The property selects the tag filter and the output folder together.
 `-Pacceptance.shard=K/N` runs shard `K` of `N` of the pass: the scenarios the tag filter would run,
 ordered by feature path and line and dealt out round-robin, so the shards are disjoint and together
-run every scenario. The nightly runs the gating pass as three shards per OS.
+run every scenario. The nightly runs the gating pass in three shards on Windows, two on macOS and one
+on Linux.
 
 The runner builds a wheel from your checkout with `uv build` and installs it into a
 throwaway virtual environment, so it tests your working tree as a user would install

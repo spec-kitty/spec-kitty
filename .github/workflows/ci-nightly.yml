@@ -1868,18 +1868,23 @@ jobs:
   acceptance-bdd:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
     name: Acceptance BDD (acceptance-jvm, nightly-only, 3-OS)
-    # Sharded (#7492 follow-up): each OS runs the gating pass as ACCEPTANCE_SHARD_COUNT legs, one shard
-    # each (kitty.acceptance.sharding.ShardFilter: the executable scenarios in path/line order, dealt
-    # out round-robin, every scenario in exactly one shard). The Windows pass took ~47 minutes on one
-    # runner; three shards of 85 scenarios (29/28/28) cut the critical path to roughly a third.
-    # The matrix `shard` list must be 1..ACCEPTANCE_SHARD_COUNT (pinned by tests/ci/test_acceptance_bdd_job.py).
+    # Sharded per OS (#7492 follow-up): each leg runs shard `shard` of `shards` of the gating pass
+    # (kitty.acceptance.sharding.ShardFilter: the executable scenarios in path/line order, dealt out
+    # round-robin, every scenario in exactly one shard of its OS). Sized from the unsharded gating pass
+    # (nightlies 2026-11-02..10): Windows ~47 min -> 3 shards, macOS ~16-19 min -> 2, Linux ~11-15 min
+    # -> 1. Only the slow OSes are split, so the extra per-leg setup (~3 min) is paid where it buys
+    # wall-clock time. Each OS's `shard` values must be exactly 1..shards (pinned by
+    # tests/ci/test_acceptance_bdd_job.py).
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-latest, windows-latest]
-        shard: [1, 2, 3]
-    env:
-      ACCEPTANCE_SHARD_COUNT: 3
+        include:
+          - {os: ubuntu-24.04, shard: 1, shards: 1}
+          - {os: macos-latest, shard: 1, shards: 2}
+          - {os: macos-latest, shard: 2, shards: 2}
+          - {os: windows-latest, shard: 1, shards: 3}
+          - {os: windows-latest, shard: 2, shards: 3}
+          - {os: windows-latest, shard: 3, shards: 3}
     runs-on: ${{ matrix.os }}
     # Measured on run 38761757042 (56 gating scenarios, four at a time): Linux 6 min, macOS
     # 16 min, Windows over 30 min (a Mission lifecycle scenario runs dozens of CLI commands,
@@ -1962,7 +1967,7 @@ jobs:
         # #6787: below the job cap, so a timeout fails this step and the if: always() evidence and upload steps still run.
         timeout-minutes: 55
         shell: bash
-        run: gradle -p acceptance-jvm test --no-daemon -Pacceptance.pass=gating "-Pacceptance.shard=${{ matrix.shard }}/${ACCEPTANCE_SHARD_COUNT}"
+        run: gradle -p acceptance-jvm test --no-daemon -Pacceptance.pass=gating "-Pacceptance.shard=${{ matrix.shard }}/${{ matrix.shards }}"
 
       # Evidence bundle (FR-011): one versioned evidence.json per leg, counted from
       # the JUnit XML of each pass folder (not from step outcomes). if: always() so
@@ -1976,7 +1981,7 @@ jobs:
       - name: Write the acceptance evidence bundle
         if: always()
         shell: bash
-        run: uv run --frozen --no-sync python -m scripts.ci.acceptance_evidence --root acceptance-jvm/build/acceptance --os "${{ matrix.os }}" --shard "${{ matrix.shard }}/${ACCEPTANCE_SHARD_COUNT}" --pass gating --gating-step-outcome "${{ steps.gating.outcome }}"
+        run: uv run --frozen --no-sync python -m scripts.ci.acceptance_evidence --root acceptance-jvm/build/acceptance --os "${{ matrix.os }}" --shard "${{ matrix.shard }}/${{ matrix.shards }}" --pass gating --gating-step-outcome "${{ steps.gating.outcome }}"
 
       # Hand the per-pass results (allure-results, cucumber.json, junit) and
       # evidence.json to the spec-kitty-qa nightly under an OS- and shard-qualified name so

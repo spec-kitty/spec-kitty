@@ -177,8 +177,8 @@ which CLI build, on which OS, in which pass produced it. The current upload does
   the job did not run is `missing`, and the additive `passes_run` field names the one it ran).
   The gating bundle stays in `acceptance-bdd-results-<os>`; the `@wip` bundle is uploaded as
   `acceptance-bdd-wip-results-<os>`. spec-kitty-qa reads the `@wip` results from that artifact.
-- **Amendment (#7492 follow-up, 2026-11-10).** The gating pass runs as three shards per OS
-  (`-Pacceptance.shard=K/N`, `kitty.acceptance.sharding.ShardFilter`), to cut the Windows leg's
+- **Amendment (#7492 follow-up, 2026-11-10).** The gating pass runs in shards, three on Windows,
+  two on macOS and one on Linux (`-Pacceptance.shard=K/N`, `kitty.acceptance.sharding.ShardFilter`), to cut the Windows leg's
   ~47-minute critical path. Each shard uploads `acceptance-bdd-results-<os>-shard-<k>`, and its
   `evidence.json` adds `shard: "K/N"` (additive; `null` when unsharded). A consumer reads every
   shard artifact of an OS to see the whole gating pass. Every shard still lists the tag-skipped
