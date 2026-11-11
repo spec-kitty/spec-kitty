@@ -81,7 +81,7 @@ def test_no_commit_opts_out(tmp_path: Path) -> None:
 
 def test_init_on_an_unborn_branch_says_to_make_the_first_commit(tmp_path: Path) -> None:
     """Residual: ``safe_commit`` lands only on an existing branch, so on a repository
-    with no commit yet init leaves its files and names the one command to run."""
+    with no commit yet init leaves its files and says to make them the first commit."""
     repo, env = _repo(tmp_path, with_commit=False)
 
     proc = run_sk(repo, env, *_INIT)
@@ -89,7 +89,9 @@ def test_init_on_an_unborn_branch_says_to_make_the_first_commit(tmp_path: Path) 
     assert proc.returncode == 0, flat(proc)[-2000:]
     assert _commit_count(repo) == 0
     assert "no commits yet" in flat(proc)
-    assert "git add -A && git commit" in flat(proc)
+    assert "commit them as your first commit" in flat(proc)
+    # It never suggests a sweeping `git add -A`: that would also commit files the user already had.
+    assert "add -A" not in flat(proc)
 
 
 def test_init_outside_git_commits_nothing(tmp_path: Path) -> None:

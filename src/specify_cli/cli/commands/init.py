@@ -887,8 +887,8 @@ def _commit_init_writes(project_path: Path, baseline: set[str] | None) -> None:
         # commit is the operator's to make (a residual of #7555).
         _console.print(
             "[yellow]Note:[/yellow] this repository has no commits yet, so init did not commit its files. "
-            "Make them your first commit (for example `git add -A && git commit -m "
-            f'"{_INIT_COMMIT_MESSAGE}"`) before running other spec-kitty commands.'
+            "Review `git status`, stage the files init created, and commit them as your first commit "
+            f"(for example `{_INIT_COMMIT_MESSAGE}`) before running other spec-kitty commands."
         )
         return
     try:
