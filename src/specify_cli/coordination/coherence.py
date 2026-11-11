@@ -28,7 +28,7 @@ import subprocess
 from enum import StrEnum
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass, field
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 from kernel.paths import to_posix
 from mission_runtime import (
@@ -39,6 +39,7 @@ from mission_runtime import (
     kind_is_coordination_residue,
 )
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.coordination.mission_dirt import DirtScope, classify_dirt, derived_view_mission_dir, mission_dir_segments
 from specify_cli.coordination.worktree_branch import coord_worktree_branch, normalize_ref
 
 __all__ = [
@@ -167,7 +168,7 @@ def is_self_bookkeeping_churn(path: str | Path) -> bool:
         return True
     if mission_state_audit.search(normalized):
         return True
-    if _derived_view_mission_dir(normalized) is not None:
+    if derived_view_mission_dir(normalized) is not None:
         return True
     if is_dossier_snapshot(normalized):
         return True
@@ -199,18 +200,6 @@ def is_decisions_runtime_lock(path: str | Path) -> bool:
     """
     decisions_runtime_lock = re.compile(r"(?:^|/)kitty-specs/[^/]+/decisions/index\.json\.lock$")
     return bool(decisions_runtime_lock.search(to_posix(path).rstrip("/")))
-
-
-def _derived_view_mission_dir(path: str | Path) -> str | None:
-    """The Mission directory of a ``.kittify/derived/<mission>/<view>`` status view, else ``None``.
-
-    The status views (``status/views.py``) are regenerated from the event log, so
-    their churn is spec-kitty's own bookkeeping. Depth-exact like the ``meta.json``
-    leg: a file directly under ``.kittify/derived/`` or nested deeper is not a view.
-    The pattern is function-local for the same R-014 reason as the owner's literals.
-    """
-    match = re.search(r"(?:^|/)\.kittify/derived/([^/]+)/[^/]+$", to_posix(path).rstrip("/"))
-    return match.group(1) if match else None
 
 
 def kind_across_mission_dir_names(
@@ -559,20 +548,21 @@ def _checkout_role_for(repo_root: Path, worktree: Path) -> CheckoutRole:
 def _is_other_mission_path(path: str, context: ResidueContext) -> bool:
     """True when ``path`` belongs to another Mission: under ``kitty-specs/<name>/``, or one of its derived status views.
 
-    A structural look at the Mission directory segment only: which files of
-    that directory count as residue stays with the kind authority.
+    A structural look at the Mission directory segment only, through the one
+    Mission-scoped dirt rule (:func:`~specify_cli.coordination.mission_dirt.classify_dirt`):
+    which files of that directory count as residue stays with the kind authority.
+
+    One deliberate difference from the gate rule: a bare Mission directory entry
+    (``kitty-specs/<name>/``, git's collapsed untracked directory) is NOT another
+    Mission's path here. The destructive guards list with
+    ``--untracked-files=all`` and never see that shape; keeping the answer
+    ``False`` keeps their behaviour unchanged.
     """
+    after = mission_dir_segments(path)
+    if after is not None and len(after) < 2 and derived_view_mission_dir(path) is None:
+        return False
     own = context.mission_dir_names or {context.mission_slug}
-    derived = _derived_view_mission_dir(path)
-    if derived is not None:
-        return derived not in own
-    parts = PurePosixPath(to_posix(path)).parts
-    if KITTY_SPECS_DIR not in parts:
-        return False
-    after = parts[parts.index(KITTY_SPECS_DIR) + 1 :]
-    if len(after) < 2:
-        return False
-    return after[0] not in own
+    return classify_dirt(path, own_dir_names=own) is DirtScope.OTHER_MISSION
 
 
 def _is_disposable_residue(path: str | Path, context: ResidueContext) -> bool:
