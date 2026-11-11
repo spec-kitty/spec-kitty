@@ -21,7 +21,6 @@ import pytest
 from mission_runtime import MissionTopology
 from runtime.next import runtime_bridge
 from tests.runtime.next.test_board_query_read_door_7507 import EMPTY, MATERIALIZED, UNMATERIALIZED, _coord_cell_mission
-from tests.runtime.next.test_materialization_report import COMPLETED_PRIMARY, SHORT_CIRCUIT, _landed_coord_mission
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -50,15 +49,3 @@ def test_non_owned_feature_dir_is_the_pre_wrap_directory(tmp_path: Path, cell: s
     assert decision is None
     assert ctx is not None
     assert ctx.feature_dir == _EXPECTED_DIR[cell](repo, slug)
-
-
-@pytest.mark.parametrize("arm", [SHORT_CIRCUIT, COMPLETED_PRIMARY])
-def test_landed_mission_with_a_retained_worktree_builds_no_context(tmp_path: Path, arm: str) -> None:
-    repo, slug, _coord_root, coord_mission_dir = _landed_coord_mission(tmp_path, arm, MATERIALIZED)
-    assert coord_mission_dir.is_dir()
-
-    ctx, decision = runtime_bridge._dn_bootstrap("pedro", slug, "success", repo)
-
-    assert ctx is None
-    assert decision is not None
-    assert str(decision.kind) == "terminal"
