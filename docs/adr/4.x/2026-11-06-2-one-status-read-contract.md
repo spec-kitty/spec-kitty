@@ -442,4 +442,6 @@ materializes the coordination worktree before the dispatch is decided, the dispa
 the decision reports the materialization in `Decision.remediation`. This keeps the operator's
 ruling in DM-1: an agent must not be sent into a missing workspace, and a workspace the bootstrap
 has just materialized is not missing. It is a dispatch rule, not a read rule; the door itself never
-refuses for it.
+refuses for it. The code is raised by `mission_runtime.resolution._resolve_status_surface_dir_owned`
+(an empty owned coordination worktree) and mapped to the typed `blocked` decision by
+`runtime.next.runtime_bridge._owned_coordination_unavailable_decision`.
