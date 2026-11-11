@@ -26,7 +26,7 @@ from tests.runtime.next.test_board_query_read_door_7507 import CELLS, _coord_cel
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 #: Door reads per advancing decision: the bootstrap's one read, carried to every board reader.
-_DOOR_READS_PER_ADVANCING_DECISION = 3
+_DOOR_READS_PER_ADVANCING_DECISION = 1
 
 
 def _counting(monkeypatch: pytest.MonkeyPatch, owner: Any, name: str) -> list[object]:
