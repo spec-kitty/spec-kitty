@@ -10,7 +10,7 @@ import subprocess
 from kernel.clock import now_utc
 from pathlib import Path
 from collections.abc import Callable
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import typer
 from rich.markup import escape
@@ -34,6 +34,9 @@ from specify_cli.core.vcs import (
     VCSBackend,
 )
 from specify_cli.gitignore_manager import GitignoreManager
+
+if TYPE_CHECKING:
+    from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
 from specify_cli.core.agent_config import (
     AgentConfig,
     AgentConfigError,
@@ -855,6 +858,7 @@ def _capture_init_commit_baseline(project_path: Path, *, enabled: bool) -> set[s
     a larger repository is left for that repository's owner to commit. The
     baseline is the upgrade committer's (``upgrade.autocommit``): every path
     already dirty or ignored before init's first write stays out of the commit.
+    When the git status cannot be read, nothing will be committed, and init says so.
     """
     if not enabled or not (project_path / ".git").exists():
         return None
@@ -862,23 +866,53 @@ def _capture_init_commit_baseline(project_path: Path, *, enabled: bool) -> set[s
 
     # Explicit annotation: under ``follow_imports = "skip"`` the cross-module return reads as Any.
     baseline: set[str] | None = capture_upgrade_baseline(project_path)
+    if baseline is None and _console is not None:
+        _console.print("[yellow]Note:[/yellow] could not read the git status before init, so init will not commit its files; review and commit them yourself.")
     return baseline
+
+
+def _init_commit_warning(warning: str) -> str:
+    """The upgrade committer's no-commit reason, worded for init (#7555 review)."""
+    from specify_cli.upgrade import autocommit
+
+    reasons = {
+        autocommit.UPGRADE_COMMIT_SKIP_WARNING: "could not commit the files init wrote; review them and commit them yourself.",
+        autocommit.DETACHED_HEAD_WARNING: "the checkout is on a detached HEAD, so init did not commit its files; review them and commit them yourself.",
+        autocommit.BRANCH_DETECTION_FAILED_WARNING: (
+            "could not determine the current branch, so init did not commit its files; review them and commit them yourself."
+        ),
+        autocommit.METADATA_DIRTY_AT_BASELINE_WARNING: (
+            ".kittify/metadata.yaml had uncommitted changes before init, so its new content was left uncommitted; commit it yourself."
+        ),
+    }
+    return reasons.get(warning, warning)
+
+
+def _render_init_recovery_failed(exc: SafeCommitRecoveryFailed) -> str:
+    """Say plainly whether init's commit landed and where any stashed staging went (#4888 shape)."""
+    landed = f"Commit {exc.commit_sha} did land." if exc.commit_sha else "No commit landed."
+    stash = (
+        f" Your staged changes were stashed at {exc.orphan_stash_ref!r}; restore them with `git stash pop --index {exc.orphan_stash_ref}`."
+        if exc.orphan_stash_ref
+        else ""
+    )
+    return f"committing the files init wrote could not restore your staging: {exc}. {landed}{stash}"
 
 
 def _commit_init_writes(project_path: Path, baseline: set[str] | None) -> None:
     """Commit what init wrote in one commit, through the upgrade committer (#7555).
 
     The commit set is the git diff against ``baseline``, never a file list, so an
-    operator's pre-existing edit is never swept in (#5905). The committer holds the
-    one sanctioned capability for project-scaffold bookkeeping, so a protected
-    branch is handled exactly as ``spec-kitty upgrade`` handles it. A commit that
-    cannot be made is reported, never fatal: the files are already on disk.
+    operator's pre-existing edit or staged change is never swept in (#5905). The
+    committer holds the one sanctioned capability for project-scaffold bookkeeping,
+    so a protected branch is handled exactly as ``spec-kitty upgrade`` handles it.
+    A commit that cannot be made is reported, never fatal: the files are already on disk.
     """
     if baseline is None:
         return
     from specify_cli import __version__
     from specify_cli.core.git_ops import has_unborn_head
-    from specify_cli.git.commit_helpers import SafeCommitError
+    from specify_cli.git.commit_helpers import SafeCommitError, SafeCommitRecoveryFailed
     from specify_cli.upgrade.autocommit import commit_touched_checkout
 
     assert _console is not None
@@ -893,13 +927,18 @@ def _commit_init_writes(project_path: Path, baseline: set[str] | None) -> None:
         return
     try:
         committed, paths, warning = commit_touched_checkout(project_path, baseline, __version__, __version__, message=_INIT_COMMIT_MESSAGE)
+    except SafeCommitRecoveryFailed as exc:
+        _console.print(f"[yellow]Note:[/yellow] {escape(_render_init_recovery_failed(exc))}")
+        return
     except SafeCommitError as exc:
         _console.print(f"[yellow]Note:[/yellow] {escape(f'Could not commit the files init wrote: {exc}')}")
         return
     if committed:
         _console.print(f"[green]Committed {len(paths)} spec-kitty project files[/green] [dim](`{_INIT_COMMIT_MESSAGE}`; pass --no-commit to skip)[/dim]")
-    elif warning:
-        _console.print(f"[yellow]Note:[/yellow] {escape(warning)}")
+        if baseline:
+            _console.print(f"[dim]{len(baseline)} path(s) that already had uncommitted changes before init were left out of that commit.[/dim]")
+    if warning:
+        _console.print(f"[yellow]Note:[/yellow] {escape(_init_commit_warning(warning))}")
 
 
 def _save_vcs_config(config_path: Path, _detected_vcs: VCSBackend) -> None:
