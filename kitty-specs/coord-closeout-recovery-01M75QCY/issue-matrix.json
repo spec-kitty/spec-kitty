@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#5406": {
+      "evidence_ref": "lane-d d5eb62bf9; tests/integration/test_consolidate_after_abort_5406.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP04"
+    },
+    "#5931": {
+      "evidence_ref": "lane-c 8773a2eb1 + lane-b b24a34410 (checkout resync); tests/integration/test_consolidate_kill_done_commit_5931.py; full abort+rerun in WP05",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP03"
+    },
+    "#7540": {
+      "evidence_ref": "items 1-3 fixed here (#7550 WP01, item 2 WP02+WP03, #5406 WP04); items 4-6 tracked in #7552, #7498, #7551",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP02"
+    },
+    "#7543": {
+      "evidence_ref": "parent epic; context citation only",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7544": {
+      "evidence_ref": "lane-e b18341dea tests/integration/test_coord_closeout_recovery_7544.py (2 passed; red on origin/main)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP05"
+    },
+    "#7550": {
+      "evidence_ref": "lane-a b42b5f4d2; tests/integration/test_accept_record_commit_coord_7550.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
