@@ -92,6 +92,7 @@ def _run_text(job: dict[str, Any]) -> str:
         "scripts/docs/site_built_check_llms.py",
         "scripts/docs/site_built_check_render.py",
         "scripts/docs/site_link_gates.py",
+        "scripts/docs/site_live_probe.py",
     ],
 )
 def test_a_docs_or_site_change_selects_the_job(path: str) -> None:
@@ -352,6 +353,47 @@ def test_the_shared_definition_is_only_callable_with_read_only_access() -> None:
     assert set(call) == {"workflow_call"}, "no automated trigger: callers own when it runs (and the fork guard)"
     assert "secrets" not in (call["workflow_call"] or {})
     assert workflow["permissions"] == {"contents": "read"}
+
+
+# --- the live-site probe on every build (#6938) -------------------------------------------------
+#
+# The canary probes the production site; the shared build first probes the site it just built,
+# served over local HTTP, so a pull request that removes a URL class from the ledgers, or a build
+# that stops answering one, fails before any canary. The Pages artifact's name is an input, so the
+# canary's artifact never collides with DocFX's `github-pages` in the same run.
+
+
+def _step_index(job: dict[str, Any], fragment: str) -> int:
+    (index,) = [i for i, step in enumerate(job["steps"]) if fragment in str(step.get("run", "")) or fragment in str(step.get("uses", ""))]
+    return index
+
+
+def test_the_build_probes_the_built_site_over_local_http_before_any_upload() -> None:
+    job = _build_job()
+    probe = job["steps"][_step_index(job, "scripts.docs.site_live_probe")]
+    run = str(probe["run"])
+
+    assert _step_index(job, "pnpm run build") < _step_index(job, "scripts.docs.site_live_probe")
+    assert _step_index(job, "scripts.docs.site_live_probe") < _step_index(job, "actions/upload-artifact@")
+    assert _step_index(job, "scripts.docs.site_live_probe") < _step_index(job, "actions/upload-pages-artifact@")
+    assert "http.server" in run and "site/dist" in run
+    assert "--attempts 1" in run
+    assert probe["env"]["PYTHONPATH"] == ".:src"
+    assert probe.get("timeout-minutes", 99) <= 1, "the local probe adds well under 30 s; a hang must not hold the job"
+
+
+def test_the_pages_artifact_name_is_an_input_defaulting_to_github_pages() -> None:
+    job = _build_job()
+    inputs = _triggers(_shared())["workflow_call"]["inputs"]
+    upload = job["steps"][_step_index(job, "actions/upload-pages-artifact@")]
+
+    assert inputs["pages-artifact-name"] == {
+        "description": inputs["pages-artifact-name"]["description"],
+        "type": "string",
+        "required": False,
+        "default": "github-pages",
+    }
+    assert upload["with"]["name"] == "${{ inputs.pages-artifact-name }}"
 
 
 # --- one PlantUML renderer, CI and local (#6936, ADR D-11) -------------------------------------
