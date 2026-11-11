@@ -23,10 +23,11 @@ otherwise. Each one shares :func:`_lanes_mission` with its positive control
   on top of it, is never recorded as this run's post tip; the door keeps it.
 * Orchestrator ruling -- a coord-strand heal that cannot clear its marker leaves
   the coordination branch unsettled, so the claim refuses.
-* Residual (fail closed) -- an in-span move that reports no intent (the plain
-  ``safe_commit`` of the ``done`` bookkeeping on a LANES target; the primary-tree
-  mission-number bake is the other such site) killed before its recorder is
-  unprovable and refused.
+* #5931 -- an in-span ``safe_commit`` (the ``done`` bookkeeping on a LANES target; the
+  primary-tree mission-number bake commits the same way) reports its advance intent
+  before the branch moves, so a kill right after it lands is provable: ``--abort``
+  adopts the intent and restores the target. (Until #5931 this was the documented
+  fail-closed residual: no intent, refused ``UNEXPLAINED_BRANCH_MOVE``.)
 """
 
 from __future__ import annotations
@@ -94,25 +95,24 @@ sys.argv = ["spec-kitty", *sys.argv[3:]]
 specify_cli.main()
 """
 
-# Ends the REAL CLI right after the first plain ``safe_commit`` lands on the target: the
-# ``commit --only`` path of ``git/commit_helpers.py`` (``_run_commit_capture_sha``) reports no
-# advance intent. In a LANES run it is the ``done`` bookkeeping commit inside the door span.
+# Ends the REAL CLI right after the first in-span ``safe_commit`` lands on the target. Inside the
+# door span ``safe_commit`` commits through its expected-parent mode (#5931), which reports the
+# advance intent before its compare-and-swap. In a LANES run it is the ``done`` bookkeeping commit.
 _PLAIN_COMMIT_RUNNER = """
 import os, subprocess, sys
 import specify_cli
 from specify_cli.git import commit_helpers
 
 target = sys.argv[1]
-_real = commit_helpers._run_commit_capture_sha
+_real = commit_helpers._safe_commit_with_expected_parent
 
-def _commit_then_die(repo_path, *args, **kwargs):
-    result = _real(repo_path, *args, **kwargs)
-    head = subprocess.run(["git", "-C", str(repo_path), "symbolic-ref", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
-    if result[0] is not None and head == target:
+def _commit_then_die(*args, **kwargs):
+    result = _real(*args, **kwargs)
+    if kwargs.get("destination_ref") == target:
         os._exit(137)
     return result
 
-commit_helpers._run_commit_capture_sha = _commit_then_die
+commit_helpers._safe_commit_with_expected_parent = _commit_then_die
 sys.argv = ["spec-kitty", *sys.argv[2:]]
 specify_cli.main()
 """
@@ -493,23 +493,25 @@ def test_a_heal_that_cannot_clear_its_marker_leaves_the_coordination_branch_refu
 # --------------------------------------------- residual: an in-span move with no intent
 
 
-def test_a_kill_after_an_intentless_in_span_commit_is_refused(tmp_path: Path) -> None:
-    """Residual (fail closed): a plain ``safe_commit`` on the target reports no intent; killed before its recorder it is refused."""
+def test_a_kill_after_an_in_span_commit_is_restored_by_abort(tmp_path: Path) -> None:
+    """#5931: an in-span ``safe_commit`` on the target persists its intent; killed right after it lands, ``--abort`` restores the target."""
     mission = _lanes_mission(tmp_path, "01M5686N")
     before = ref_shas(mission)
     killed = _run_script(mission, _PLAIN_COMMIT_RUNNER, [mission.target_branch, *_consolidate_args(mission)])
-    assert killed.returncode == _KILLED, f"fixture precondition: the plain target commit must be killed. output={flat(killed)}"
+    assert killed.returncode == _KILLED, f"fixture precondition: the in-span target commit must be killed. output={flat(killed)}"
     landed = _rev(mission.repo, mission.target_branch)
-    assert landed != before["target"], "fixture precondition: the plain commit moved the target"
+    assert landed != before["target"], "fixture precondition: the in-span commit moved the target"
     state = load_state(mission.repo, mission.mission_id)
-    assert state is not None and landed not in state.advance_intents.get(mission.target_branch, []), "precondition: no intent proves it"
+    assert state is not None and landed in state.advance_intents.get(mission.target_branch, []), "the persisted intent proves the landing"
     _remove_the_dead_runs_lock(mission)
-    record = _state_path(mission).read_bytes()
 
-    output = _assert_refused_unexplained(_rerun(mission), mission.target_branch)
+    result = _abort(mission)
 
-    assert landed in output and _state_path(mission).read_bytes() == record, f"the refusal changes nothing. output={output}"
-    _assert_abort_keeps_the_record(mission, _abort(mission))
+    output = flat(result)
+    assert result.returncode == 0, f"--abort must restore a provable in-span commit. output={output}"
+    assert "moved by another actor" not in output, output
+    assert _rev(mission.repo, mission.target_branch) == before["target"], f"the target is back at its pre-run tip. output={output}"
+    assert re.search(rf"restored {re.escape(mission.target_branch)} .*\(adopted interrupted advance\)", output), output
 
 
 # ------------------------- P1: a foreign commit between the pre-check and the claim
