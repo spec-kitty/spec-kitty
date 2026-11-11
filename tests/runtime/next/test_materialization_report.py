@@ -250,6 +250,33 @@ def test_landed_mission_terminal_neither_materializes_nor_reports(tmp_path: Path
     assert any(row.get("type") == "MissionNextInvoked" for row in rows), "the MissionNextInvoked row was dropped"
 
 
+def _tree_files(root: Path) -> set[Path]:
+    return {path.relative_to(root) for path in root.rglob("*") if path.is_file() and ".git" not in path.relative_to(root).parts}
+
+
+@pytest.mark.parametrize("arm", [SHORT_CIRCUIT, COMPLETED_PRIMARY])
+def test_landed_mission_with_a_retained_materialized_worktree_writes_to_primary(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, arm: str) -> None:
+    """A landed Mission whose coordination worktree is retained and still materialized (``--retain-worktrees``).
+
+    The door reads its status from the consolidated target (``CONSOLIDATED_TARGET``), so the
+    ``MissionNextInvoked`` row lands in the PRIMARY Mission directory, not in the retained
+    coordination worktree; nothing is reported and nothing is created there.
+    """
+    repo, slug, coord_root, coord_mission_dir = _landed_coord_mission(tmp_path, arm, MATERIALIZED)
+    assert coord_mission_dir.is_dir()
+    coord_files_before = _tree_files(coord_root)
+
+    _exit, stdout = _run_cli(repo, monkeypatch, "--mission", slug, "--result", "success", "--json")
+
+    payload = json.loads(stdout)
+    assert payload["kind"] == "terminal", payload
+    assert "remediation" not in payload
+    row_log = repo / "kitty-specs" / slug / "mission-events.jsonl"
+    rows = [json.loads(line) for line in row_log.read_text(encoding="utf-8").splitlines()] if row_log.is_file() else []
+    assert any(row.get("type") == "MissionNextInvoked" for row in rows), "the MissionNextInvoked row did not land in PRIMARY"
+    assert _tree_files(coord_root) == coord_files_before, "the retained coordination worktree was written to"
+
+
 # ---------------------------------------------------------------------------
 # Review cycle 2 (FR-006): an owned coordination Mission keeps today's outcome; the report follows it
 # ---------------------------------------------------------------------------
