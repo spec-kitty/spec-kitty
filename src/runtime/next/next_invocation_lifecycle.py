@@ -63,11 +63,12 @@ was never actually checked there):
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 # interim-locked-append: this refusal type retires with kernel.event_log_append at #6193.
-from mission_runtime import MissionArtifactKind, OwnedCheckout, mission_context_for, placement_seam
+from mission_runtime import MissionArtifactKind, OwnedCheckout, TopologySurface, mission_context_for, placement_seam
 
 from runtime.next.decision import DecisionKind
 
@@ -82,6 +83,7 @@ logger = logging.getLogger(__name__)
 _LANDED_CAPABLE_KINDS = frozenset({DecisionKind.terminal.value, DecisionKind.blocked.value})
 
 __all__ = [
+    "MissionNextInvokedWrite",
     "AmbiguousPendingDecisionError",
     "NoPendingDecisionError",
     "emit_mission_next_invoked",
@@ -341,7 +343,21 @@ def _consolidated_target_dir(repo_root: Path, mission_slug: str, owned: OwnedChe
     return landed_dir
 
 
-def _mission_next_invoked_dir(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None, *, may_be_landed: bool) -> Path:
+@dataclass(frozen=True)
+class MissionNextInvokedWrite:
+    """Where :func:`emit_mission_next_invoked` appended its row (#5938).
+
+    ``next`` commits the row when it landed in the coordination worktree,
+    because nothing else ever would and ``consolidate`` refuses to tear down a
+    worktree holding an untracked file (``MERGE_UNSAFE_WORKTREE_DIRTY``).
+    """
+
+    log_path: Path
+    checkout_root: Path
+    in_coordination_worktree: bool
+
+
+def _mission_next_invoked_dir(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None, *, may_be_landed: bool) -> tuple[Path, Path, bool]:
     """The Mission directory the ``MissionNextInvoked`` row is appended to.
 
     runtime-status-read-door WP06 (FR-009): an in-flight Mission's row is a WRITE, so it resolves
@@ -362,11 +378,17 @@ def _mission_next_invoked_dir(repo_root: Path, mission_slug: str, owned: OwnedCh
     the coordination checkout torn down, which is answered before the terminal check), so only
     those ask the door. A ``step`` goes straight to the write seam, so an in-flight invocation
     reads the door once, in its decision (#7539).
+
+    Returns ``(mission_dir, checkout_root, in_coordination_worktree)``: the
+    directory to append to, the root of the checkout that holds it, and whether
+    that checkout is the coordination worktree (#5938: ``next`` commits the row
+    there).
     """
     landed_dir = _consolidated_target_dir(repo_root, mission_slug, owned) if may_be_landed else None
     if landed_dir is not None:
-        return landed_dir
-    return placement_seam(repo_root, mission_slug, owned=owned).write_dir(MissionArtifactKind.STATUS_STATE).path
+        return landed_dir, repo_root, False
+    location = placement_seam(repo_root, mission_slug, owned=owned).write_dir(MissionArtifactKind.STATUS_STATE)
+    return location.path, location.surface_root, location.surface is TopologySurface.COORD
 
 
 def emit_mission_next_invoked(
@@ -377,15 +399,18 @@ def emit_mission_next_invoked(
     decision: object,
     *,
     owned: OwnedCheckout | None = None,
-) -> None:
+) -> MissionNextInvokedWrite | None:
     """Append a ``MissionNextInvoked`` event to the mission event log.
 
     Best-effort: an unresolvable ``feature_dir`` degrades to an
     ``emit_event`` call with ``feature_dir=None`` (warning-logged, never
     persisted) rather than raising — this observability write must never
     break ``next`` itself.
+
+    Returns where the row was appended (#5938), or ``None`` when nothing was
+    persisted. The caller decides whether to commit it.
     """
-    from specify_cli.mission_v1.events import emit_event
+    from specify_cli.mission_v1.events import MISSION_EVENTS_FILE, emit_event
 
     # WP09/FR-001 (kind-correct): ``mission-events.jsonl`` is a legacy
     # append-only per-mission event log, the same coord-aware STATUS-namespace
@@ -393,12 +418,14 @@ def emit_mission_next_invoked(
     # ``STATUS_STATE`` rather than the kind-blind resolver (NFR-001).
     repo_root_path = Path(str(repo_root)) if not isinstance(repo_root, Path) else repo_root
 
+    feature_dir: Path | None = None
+    checkout_root = repo_root_path
+    in_coordination_worktree = False
     try:
         may_be_landed = str(getattr(decision, "kind", "")) in _LANDED_CAPABLE_KINDS
-        feature_dir: Path | None = _mission_next_invoked_dir(repo_root_path, mission_slug, owned, may_be_landed=may_be_landed)
+        feature_dir, checkout_root, in_coordination_worktree = _mission_next_invoked_dir(repo_root_path, mission_slug, owned, may_be_landed=may_be_landed)
     except Exception as exc:  # best-effort observability write: never break ``next``
         logger.warning("MissionNextInvoked row not persisted for mission %r: %s: %s", mission_slug, type(exc).__name__, exc)
-        feature_dir = None
     # ``decision`` is typed ``object`` (this WP's pinned target signature) so
     # calling code need not import ``Decision`` — narrow to ``Any`` once here
     # for plain attribute access (identical at runtime to the original
@@ -418,3 +445,6 @@ def emit_mission_next_invoked(
         mission_name=decision_fields.mission,
         feature_dir=feature_dir if feature_dir is not None and feature_dir.is_dir() else None,
     )
+    if feature_dir is None or not (feature_dir / MISSION_EVENTS_FILE).is_file():
+        return None
+    return MissionNextInvokedWrite(feature_dir / MISSION_EVENTS_FILE, checkout_root, in_coordination_worktree)
