@@ -114,17 +114,31 @@ No dependency is added, upgraded or removed, so the supply-chain check does not 
   yet `init` prints the first commit to make instead. This is the residual most relevant to the
   rc7 benchmark, whose harness ran `git init` immediately before `spec-kitty init`.
 
+## Operator follow-up (2026-11-11): the auto-commit-off rule and two folded residuals
+
+- **D7, auto-commit off (#3933 F-39/F-73), operator-directed.** A command's status record (the
+  lane transition, its `--note` annotation, the refreshed snapshot and an approval's or
+  rejection's review-cycle verdict) is committed whole unless the operator passes
+  `--no-auto-commit` explicitly. The project setting `auto_commit: false` no longer splits that
+  record: the status door always committed the transition, so the setting only ever left the
+  rest of the same record behind. The setting keeps governing the operator's own work: lane
+  deliverables are never committed for them and the for_review readiness deferral is unchanged
+  (#5905). One predicate decides it, `tasks_move_task_hops.commits_status_record`; `mark-status`
+  applies the same rule. An explicit `--no-auto-commit` stays the one sanctioned non-durable
+  path (FR-013).
+- **D3, extended to the repository root checkout.** `next` and `answer-decision` now commit the
+  row on every topology, not only in a coordination worktree, through the same committer. A
+  landed Mission's row is never committed (`MissionNextInvokedWrite.should_commit`), and a
+  refused commit outside a coordination worktree is not reported, since the claim gate already
+  exempts the row there.
+- **D6, messages.** `init` words the committer's skip reasons in its own terms, reports a failed
+  staging restore honestly (whether its commit landed, and `git stash pop --index` to recover the
+  staged changes), and says how many already-dirty paths it left out of its commit.
+
 ## Residuals (for follow-up)
 
-1. **Auto-commit off (#3933 F-39/F-73).** With `auto_commit: false`, which is this repository's
-   own setting, `move-task` commits the lane transition but leaves the `--note` annotation and
-   the review-cycle verdict uncommitted, and the approval transition itself too. This Mission
-   reproduced it on every WP (tracer). Deciding what `auto_commit: false` should mean for status
-   writes is an operator decision.
-2. **`init` on an unborn branch:** see D6.
-3. **setup-plan on a coordination Mission:** the lifecycle events still go to the primary log,
-   and are left for a later commit (WP04).
-4. **Lane-guard exemption content check:** see D3.
-5. **#5938 in the repository root checkout:** on single_branch and lanes topologies the row is
-   written into the root checkout and not committed. The claim gate already exempts it there
-   (Decision Moment `01M75NYB0GQSB8G62TD9W53KC6`).
+1. **`init` on an unborn branch:** see D6. `safe_commit` needs an existing branch.
+2. **setup-plan on a coordination Mission:** the lifecycle events still go to the primary log,
+   and are left for a later commit (WP04); the router classifies that log as coordination
+   residue, so committing it needs a routing decision.
+3. **Lane-guard exemption content check:** see D3.
