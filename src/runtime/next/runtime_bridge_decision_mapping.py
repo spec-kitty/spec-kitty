@@ -362,6 +362,19 @@ class _WpBoardAction:
 _WP_BOARD_DECLINE = _WpBoardAction(board_step=None, action=None, wp_id=None, workspace_path=None, blocked_reason=None)
 
 
+@dataclasses.dataclass(frozen=True)
+class _StatusBoardRead:
+    """One status read door answer and its board (#7539, NFR-002 per decision).
+
+    The advancing bootstrap reads the door once, after the decision-log wrap, and carries this
+    on ``DecideNextContext`` to every board reader of the same decision. A caller that builds a
+    decision without the bootstrap passes nothing and the board selector reads the door itself.
+    """
+
+    surface: StatusReadSurface
+    board: BoardStatus
+
+
 def _inspect_board_recovery_command(mission_slug: str) -> str:
     """CT-4's runnable recovery command for the generic 'inspect the board'
     blocked arms (``no_actionable_wp`` / ``review_in_progress`` / a
@@ -514,8 +527,33 @@ def _board_status_or_block(mission_slug: str, surface: StatusReadSurface) -> Boa
         return _status_surface_unreadable_block(mission_slug, exc)
 
 
-def _board_surface(mission_slug: str, repo_root: Path, owned: OwnedCheckout | None) -> StatusReadSurface | _WpBoardAction:
-    """Read the status read door once for the board (#7310 FR-008), or say why the board stops.
+def _read_board_surface(mission_slug: str, repo_root: Path, owned: OwnedCheckout | None) -> StatusReadSurface | _WpBoardAction:
+    """The board's own door read (no bootstrap read carried), or the block/decline for its error."""
+    from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
+    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted, WorktreeRegistryUnavailable
+    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+    from specify_cli.status import resolve_status_read
+
+    try:
+        return resolve_status_read(repo_root, mission_slug, owned=owned)
+    except CoordinationBranchDeleted as exc:
+        return _coord_unreadable_block(mission_slug, exc, exc.next_step)
+    except (StatusSurfaceRefUnreadable, WorktreeRegistryUnavailable) as exc:
+        return _status_surface_unreadable_block(mission_slug, exc)
+    except (StatusReadPathNotFound, FileNotFoundError):
+        return _WP_BOARD_DECLINE
+
+
+def _board_surface(
+    mission_slug: str,
+    repo_root: Path,
+    owned: OwnedCheckout | None,
+    status_read: _StatusBoardRead | None = None,
+) -> StatusReadSurface | _WpBoardAction:
+    """The board's status surface (#7310 FR-008), or say why the board stops.
+
+    The surface is *status_read*'s when the bootstrap carried one (#7539), else one door read
+    of its own (:func:`_read_board_surface`).
 
     * A deleted coordination branch keeps today's flatten block (its own ``next_step``).
     * An unreadable ref or worktree registry is a named block, never a traceback.
@@ -527,20 +565,11 @@ def _board_surface(mission_slug: str, repo_root: Path, owned: OwnedCheckout | No
       declared pre-seed fallback) declines: dispatch never runs from a missing owned
       workspace (FR-006); bootstrap owns the typed refusal.
     """
-    from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
-    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted, WorktreeRegistryUnavailable
-    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
-    from specify_cli.status import StatusReadSource, resolve_status_read
+    from specify_cli.status import StatusReadSource
 
-    try:
-        surface = resolve_status_read(repo_root, mission_slug, owned=owned)
-    except CoordinationBranchDeleted as exc:
-        return _coord_unreadable_block(mission_slug, exc, exc.next_step)
-    except (StatusSurfaceRefUnreadable, WorktreeRegistryUnavailable) as exc:
-        return _status_surface_unreadable_block(mission_slug, exc)
-    except (StatusReadPathNotFound, FileNotFoundError):
-        return _WP_BOARD_DECLINE
-
+    surface = status_read.surface if status_read is not None else _read_board_surface(mission_slug, repo_root, owned)
+    if isinstance(surface, _WpBoardAction):
+        return surface
     if owned is not None and (surface.source is StatusReadSource.COORD_BRANCH_REF or surface.fallback_reason is not None):
         return _WP_BOARD_DECLINE
     refusal = surface.unmaterialized_refusal()
@@ -574,7 +603,13 @@ def _board_step_action(
     return _WP_BOARD_DECLINE  # forward-compat: an unrecognized board step declines rather than guesses
 
 
-def _resolve_wp_board_action(*, mission_slug: str, repo_root: Path, owned: OwnedCheckout | None = None) -> _WpBoardAction:
+def _resolve_wp_board_action(
+    *,
+    mission_slug: str,
+    repo_root: Path,
+    owned: OwnedCheckout | None = None,
+    status_read: _StatusBoardRead | None = None,
+) -> _WpBoardAction:
     """The single board-authority-backed WP-iteration action selector
     (NFR-002 / CT-7) both ``_build_wp_iteration_decision`` and
     ``_map_wp_step_decision`` consult instead of the bare ``_state_to_action``
@@ -593,10 +628,13 @@ def _resolve_wp_board_action(*, mission_slug: str, repo_root: Path, owned: Owned
     ``no_actionable_wp`` floor (see :func:`_board_surface`). An EMPTY coordination
     worktree is not refused: the door reads the committed coordination branch, so the
     board dispatches from the real lanes (#7507).
+
+    ``status_read`` is the advancing bootstrap's one door read and board (#7539): when given,
+    the selector reads neither the door nor the log again.
     """
     from mission_runtime import ActionContextError, MissionArtifactKind, mission_context_for
 
-    surface = _board_surface(mission_slug, repo_root, owned)
+    surface = _board_surface(mission_slug, repo_root, owned, status_read)
     if isinstance(surface, _WpBoardAction):
         return surface
     try:
@@ -609,7 +647,7 @@ def _resolve_wp_board_action(*, mission_slug: str, repo_root: Path, owned: Owned
         return _WP_BOARD_DECLINE
 
     task_board_dir = mission_context.artifact(MissionArtifactKind.WORK_PACKAGE_TASK).read_dir
-    board = _board_status_or_block(mission_slug, surface)
+    board = status_read.board if status_read is not None else _board_status_or_block(mission_slug, surface)
     if isinstance(board, _WpBoardAction):
         return board
     task_error = _wp_task_surface_error(task_board_dir, None, mission_slug, board=board)
@@ -636,6 +674,7 @@ def _wp_iteration_action_and_state(
     repo_root: Path,
     *,
     owned: OwnedCheckout | None = None,
+    status_read: _StatusBoardRead | None = None,
 ) -> tuple[str | None, str | None, str | None, str | None, str]:
     """Resolve ``(action, wp_id, workspace_path, blocked_reason,
     mission_state)`` for a WP-iteration step through the single board
@@ -653,7 +692,7 @@ def _wp_iteration_action_and_state(
     matching query mode's ``_build_finalized_override_query_decision``
     (data-model.md's "post-fix required: mission_state = board step").
     """
-    board = _resolve_wp_board_action(mission_slug=mission_slug, repo_root=repo_root, owned=owned)
+    board = _resolve_wp_board_action(mission_slug=mission_slug, repo_root=repo_root, owned=owned, status_read=status_read)
     if board.blocked_reason is not None:
         return None, None, None, board.blocked_reason, step_id
     if board.action is not None:
@@ -675,6 +714,7 @@ def _build_wp_iteration_decision(
     run_ref: MissionRunRef,
     guard_failures: list[str] | None = None,
     owned: OwnedCheckout | None = None,
+    status_read: _StatusBoardRead | None = None,
 ) -> Decision:
     """Build a Decision for WP iteration within a step — routed through the
     single board-authority selector (NFR-002 / CT-7); see
@@ -686,6 +726,7 @@ def _build_wp_iteration_decision(
         feature_dir,
         repo_root,
         owned=owned,
+        status_read=status_read,
     )
 
     if blocked_reason is not None:
@@ -806,6 +847,7 @@ def _map_wp_step_decision(
     run_id: str | None,
     owned: OwnedCheckout | None = None,
     wp_resolution: _WpIterationResolution | None = None,
+    status_read: _StatusBoardRead | None = None,
 ) -> Decision:
     """WP-iteration branch of the ``kind="step"`` mapping (#2531 WP07/T026),
     now routed through the single board-authority selector (NFR-002 / CT-7)
@@ -827,6 +869,7 @@ def _map_wp_step_decision(
             feature_dir,
             repo_root,
             owned=owned,
+            status_read=status_read,
         )
     )
     if blocked_reason is not None:
@@ -971,6 +1014,7 @@ def _map_runtime_decision(
     *,
     owned: OwnedCheckout | None = None,
     wp_resolution: _WpIterationResolution | None = None,
+    status_read: _StatusBoardRead | None = None,
 ) -> Decision:
     """Convert runtime NextDecision to CLI Decision dataclass.
 
@@ -1066,6 +1110,7 @@ def _map_runtime_decision(
             run_id=run_id,
             owned=owned,
             wp_resolution=wp_resolution,
+            status_read=status_read,
         )
 
     return _map_non_wp_step_decision(
