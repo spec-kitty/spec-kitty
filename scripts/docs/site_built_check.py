@@ -16,6 +16,10 @@ names one of those routes:
 * ``llms`` -- a URL in ``llms.txt`` (when the site builds one);
 * ``agent-index`` -- a URL in ``api/index.json`` (when the site builds one).
 
+The command also runs the :data:`SOURCE_SURFACES`, which compare the built site with the
+docs tree it was built from (``diagrams``: every published diagram is a rendered figure,
+``site_built_check_diagrams.py``).
+
 A surface whose artifact is absent from the built site is a ``missing`` finding, not a pass
 (a toolkit layout change must not make a check vacuous).
 
@@ -30,7 +34,7 @@ Usage (from the repository root, after ``pnpm run build`` in ``site/``)::
 
     PYTHONPATH=.:src python3 -m scripts.docs.site_built_check site/dist [--docs docs]
 
-Exit 0 when no surface names an unpublished route, 1 with one line per finding,
+Exit 0 when no surface has a finding, 1 with one line per finding and a per-surface tally,
 2 when the built site or the docs tree is missing.
 """
 
@@ -42,6 +46,7 @@ import json
 import re
 import sys
 import zlib
+from collections import Counter
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -51,9 +56,9 @@ from urllib.parse import unquote, urljoin, urlsplit
 # Runnable bare (`python3 scripts/docs/site_built_check.py`): resolve `scripts.*` from the script, not the cwd.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from scripts.docs._dockitty_contract import redirect_stub_target, route_of, unpublished_routes  # noqa: E402  (after the path bootstrap above)
-from scripts.docs import site_built_check_llms, site_built_check_render  # noqa: E402  (surfaces kept in their own modules)
+from scripts.docs import site_built_check_diagrams, site_built_check_llms, site_built_check_render  # noqa: E402  (surfaces kept in their own modules)
 
-__all__ = ["SITE_ORIGIN", "SURFACES", "Finding", "check", "main", "normalise_url", "unpublished_routes"]
+__all__ = ["SITE_ORIGIN", "SOURCE_SURFACES", "SURFACES", "Finding", "check", "main", "normalise_url", "unpublished_routes"]
 
 #: The site's origin (``site`` in ``site/astro.config.mjs``); absolute URLs on it are site routes.
 SITE_ORIGIN: Final[str] = "https://docs.spec-kitty.ai"
@@ -225,10 +230,21 @@ SURFACES: Final[dict[str, Callable[[Path, frozenset[str]], Iterator[Finding]]]] 
     site_built_check_render.SURFACE: site_built_check_render.surface,
 }
 
+#: Every surface that compares the built site with the docs tree it was built from: name -> checker(dist, docs).
+SOURCE_SURFACES: Final[dict[str, Callable[[Path, Path], Iterator[Finding]]]] = {
+    site_built_check_diagrams.SURFACE: site_built_check_diagrams.surface,
+}
 
-def check(dist: Path, routes: frozenset[str]) -> list[Finding]:
-    """Every finding of every surface of the built site at *dist* for the unpublished *routes*."""
-    return [finding for surface in SURFACES.values() for finding in surface(dist, routes)]
+
+def check(dist: Path, routes: frozenset[str], *, docs: Path | None = None) -> list[Finding]:
+    """Every finding of every surface of the built site at *dist* for the unpublished *routes*.
+
+    With *docs* (the docs tree the site was built from), the :data:`SOURCE_SURFACES` run too.
+    """
+    found = [finding for surface in SURFACES.values() for finding in surface(dist, routes)]
+    if docs is not None:
+        found += [finding for source_surface in SOURCE_SURFACES.values() for finding in source_surface(dist, docs)]
+    return found
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -241,14 +257,16 @@ def main(argv: list[str] | None = None) -> int:
             print(f"site built check: the {name} {folder} does not exist", file=sys.stderr)
             return 2
     routes = unpublished_routes(args.docs)
-    findings = check(args.dist, routes)
+    findings = check(args.dist, routes, docs=args.docs)
     for finding in findings:
         print(finding)
-    surfaces = ", ".join(SURFACES)
+    surfaces = ", ".join([*SURFACES, *SOURCE_SURFACES])
     if findings:
-        print(f"site built check: {len(findings)} finding(s): an unpublished route is on a built surface ({surfaces})", file=sys.stderr)
+        tally = Counter(finding.surface for finding in findings)
+        per_surface = ", ".join(f"{name}: {count}" for name, count in tally.items())
+        print(f"site built check: {len(findings)} finding(s) ({per_surface})", file=sys.stderr)
         return 1
-    print(f"site built check: {len(routes)} unpublished route(s), none on a built surface ({surfaces})")
+    print(f"site built check: no finding on any surface ({surfaces}); {len(routes)} unpublished route(s) checked")
     return 0
 
 

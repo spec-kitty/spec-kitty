@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help dev-setup sync-packs sync-services lint format-check format-check-files docs-lint docs-site docs-site-bump typecheck test-fast test-full convergence-census ci-parity test-quality-scan
+.PHONY: help dev-setup sync-packs sync-services lint format-check format-check-files docs-lint docs-site docs-site-plantuml docs-site-bump typecheck test-fast test-full convergence-census ci-parity test-quality-scan
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -42,18 +42,50 @@ docs-lint: ## Spell-check docs (typos + scoped US spelling) and check the change
 
 # doc-kitty docsite (#6930; ADR docs/adr/4.x/2026-10-31-1, D-1 and D-2). Needs node >= 22.22 and pnpm.
 # Any dockitty-* gate added here runs from site/ with `--astro-config astro.config.mjs` (D-1).
-docs-site: ## Build the doc-kitty docsite (site/) as CI does: contract check, frozen install, gates, build, built-site checks
+#
+# Diagrams (#6936) render at build time against the pinned PlantUML server in the SANDBOX
+# profile: the image the docs-site CI job runs as its `services: plantuml:` container (keep the
+# two digests equal; bump the tag and the digest together). Start it with `make docs-site-plantuml`
+# (needs docker). The two DK_* variables are read from the process environment only, never from
+# site/.env.production. Build mode needs the exact-pinned Playwright's Chromium; on a bare host
+# also run `pnpm --dir site exec playwright install-deps chromium` once.
+DOCS_SITE_PLANTUML_IMAGE := plantuml/plantuml-server:jetty-v1.2026.9@sha256:065c66adc6728ba6dd353a29d4ada73f8358b68549a0f710c4bf46b43c103618
+DOCS_SITE_PLANTUML_CONTAINER := spec-kitty-docs-plantuml
+DOCS_SITE_PLANTUML_PORT := 8091
+DOCS_SITE_PLANTUML_RUN := docker run --rm -d --name $(DOCS_SITE_PLANTUML_CONTAINER) -p 127.0.0.1:$(DOCS_SITE_PLANTUML_PORT):8080 -e PLANTUML_SECURITY_PROFILE=SANDBOX $(DOCS_SITE_PLANTUML_IMAGE)
+DOCS_SITE_PLANTUML_GATEWAY := docker inspect -f '{{range .NetworkSettings.Networks}}{{.Gateway}}{{end}}' $(DOCS_SITE_PLANTUML_CONTAINER)
+
+docs-site: ## Build the doc-kitty docsite (site/) as CI does: contract check, frozen install, gates, PlantUML canary, build, built-site checks
 	uv run --frozen python -m scripts.docs.site_contract --check
 	uv run --frozen python -m scripts.docs.site_redirects --check
 	cd site && pnpm install --frozen-lockfile
 	cd site && pnpm exec dockitty-validate-frontmatter ../docs --astro-config astro.config.mjs
 	uv run --frozen python -m scripts.docs.site_link_gates check-links -- pnpm --dir site exec dockitty-check-links ../docs --strict --astro-config astro.config.mjs
+	@curl -sf -o /dev/null --max-time 5 http://localhost:$(DOCS_SITE_PLANTUML_PORT)/ || { \
+	  echo "docs-site: no PlantUML server answers on localhost:$(DOCS_SITE_PLANTUML_PORT); diagrams render at build time against it." >&2; \
+	  echo "Start the pinned SANDBOX server with 'make docs-site-plantuml', which runs:" >&2; \
+	  echo "  $(DOCS_SITE_PLANTUML_RUN)" >&2; \
+	  exit 2; }
+	cd site && pnpm exec playwright install chromium
+	cd site && pnpm exec dockitty-assert-plantuml-no-remote-include --service-container $(DOCS_SITE_PLANTUML_CONTAINER) --canary-host "$$($(DOCS_SITE_PLANTUML_GATEWAY))" --astro-config astro.config.mjs
 	cd site && pnpm run build
 	uv run --frozen python -m scripts.docs.site_built_check site/dist --docs docs
 	cd site && pnpm exec dockitty-check-redirect-coverage url-baseline.txt dist --docs ../docs --declared-redirects legacy-redirects.json --astro-config astro.config.mjs
 	cd site && pnpm exec dockitty-check-redirect-coverage url-baseline.txt dist --astro-config astro.config.mjs
 	uv run --frozen python -m scripts.docs.site_redirects_selftest site/dist
 	uv run --frozen python -m scripts.docs.site_link_gates built-links -- pnpm --dir site exec dockitty-assert-no-broken-links dist --base / --site https://docs.spec-kitty.ai --docs ../docs --astro-config astro.config.mjs
+
+# Build-mode diagram rendering for every docs-site step (the canary reads the server URL too).
+docs-site: export DK_DIAGRAM_BUILD_RENDER := build
+docs-site: export DK_PLANTUML_SERVER_URL := http://localhost:$(DOCS_SITE_PLANTUML_PORT)/svg/
+
+docs-site-plantuml: ## Start the pinned SANDBOX PlantUML server `make docs-site` renders diagrams against (needs docker)
+	$(DOCS_SITE_PLANTUML_RUN)
+	@for i in $$(seq 1 30); do \
+	  if curl -sf -o /dev/null http://localhost:$(DOCS_SITE_PLANTUML_PORT)/; then echo "PlantUML ready on localhost:$(DOCS_SITE_PLANTUML_PORT) (stop it with: docker stop $(DOCS_SITE_PLANTUML_CONTAINER))"; exit 0; fi; \
+	  echo "waiting for PlantUML ($$i/30)..."; sleep 2; \
+	done; \
+	echo "PlantUML did not become ready on :$(DOCS_SITE_PLANTUML_PORT)" >&2; exit 1
 
 docs-site-bump: ## Bump the doc-kitty pin and peer ranges (REF=<tag|sha>; ADR D-2 steps 1-2)
 	@test -n "$(REF)" || { echo "Usage: make docs-site-bump REF=<doc-kitty tag or commit>"; exit 2; }

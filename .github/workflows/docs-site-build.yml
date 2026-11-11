@@ -5,8 +5,20 @@
 # frontmatter and source link gates and that the legacy redirect map is generated (#6933), builds
 # with drafts off (site/.env.production), checks that the built site publishes no unpublished
 # route (#6932), gates redirect coverage of every legacy URL twice and proves the gate's own
-# verdicts on mutants (#6933), runs the built-site link gate and uploads site/dist. The link gates run through scripts/docs/site_link_gates.py, which fails on
-# any problem not priced in site/link-debt.json (immutable history bodies only, #7489).
+# verdicts on mutants (#6933), runs the built-site link gate and uploads site/dist.
+#
+# Diagrams (#6936) render at build time to static SVG: Mermaid through the exact-pinned
+# Playwright's Chromium, PlantUML against the `plantuml` service below, a digest-pinned
+# plantuml-server in the SANDBOX security profile (it refuses every URL read, so a diagram's
+# remote `!include` cannot reach the network). Before the build, doc-kitty's canary
+# (dockitty-assert-plantuml-no-remote-include) proves the running service refuses a remote
+# include and runs SANDBOX, and doc-kitty's plantuml-guard proves the toolkit's PlantUML stage
+# names no plantuml.com. The built-site check's `diagrams` surface proves every published
+# diagram is a rendered figure. External includes stay off (doc-kitty #268 unused, operator
+# ruling 2026-11-01 on #6936). This follows doc-kitty v0.7.0's own CI (5acb83c ci.yml).
+#
+# The link gates run through scripts/docs/site_link_gates.py, which fails on any problem not
+# priced in site/link-debt.json (immutable history bodies only, #7489).
 #
 # Callers:
 #   - ci-router.yml `docs-site` (the required pull-request gate): plain artifact upload. Its
@@ -36,6 +48,25 @@ jobs:
     name: build
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    # The job runs on the runner, not in a container, so the mapped port is a localhost port and
+    # the canary can inspect the service container with the runner's docker CLI.
+    services:
+      plantuml:
+        # Pinned by digest: a re-tag cannot swap the renderer. The multi-arch index digest of
+        # jetty-v1.2026.9, the one doc-kitty v0.7.0 recommends (docs/guides/consumer-setup.md).
+        # Bump the tag and the digest together, here and in the Makefile (DOCS_SITE_PLANTUML_IMAGE);
+        # tests/ci/test_docs_site_job.py keeps them equal.
+        image: plantuml/plantuml-server:jetty-v1.2026.9@sha256:065c66adc6728ba6dd353a29d4ada73f8358b68549a0f710c4bf46b43c103618
+        ports:
+          - 8091:8080
+        env:
+          # The image default is INTERNET (fetches over http(s)); the canary refuses anything but SANDBOX.
+          PLANTUML_SECURITY_PROFILE: SANDBOX
+    # Read from the process environment only (never site/.env.production): build mode is pinned,
+    # so a missing Chromium fails the build instead of silently falling back to client rendering.
+    env:
+      DK_DIAGRAM_BUILD_RENDER: build
+      DK_PLANTUML_SERVER_URL: http://localhost:8091/svg/
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
@@ -71,10 +102,61 @@ jobs:
         env:
           PYTHONPATH: ..:../src
         run: python3 -m scripts.docs.site_link_gates check-links -- pnpm exec dockitty-check-links ../docs --strict --astro-config astro.config.mjs
-      - name: Build the docsite (drafts off via site/.env.production)
+      - name: Wait for the PlantUML server
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf -o /dev/null http://localhost:8091/; then echo "PlantUML ready"; exit 0; fi
+            echo "waiting for PlantUML ($i/30)..."; sleep 2
+          done
+          echo "PlantUML did not become ready on :8091" >&2; exit 1
+      - name: Resolve the pinned Playwright version
+        id: playwright
+        working-directory: site
+        run: echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Restore the Chromium download
+        id: playwright-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-chromium
+      - name: Install Chromium for build-time diagrams (the pinned Playwright's revision)
+        # Retried with a pause: one 403 from the download host failed a doc-kitty deploy (doc-kitty #117).
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        working-directory: site
+        run: |
+          for attempt in 1 2 3; do
+            if pnpm exec playwright install chromium; then exit 0; fi
+            echo "Chromium download failed (attempt $attempt/3)" >&2
+            if [ "$attempt" -lt 3 ]; then sleep $((attempt * 20)); fi
+          done
+          exit 1
+      - name: Install Chromium system dependencies
+        working-directory: site
+        run: pnpm exec playwright install-deps chromium
+      - name: Prove the PlantUML server refuses remote includes (canary, SANDBOX profile)
+        # The service reaches the runner at its Docker network gateway; the check first proves the
+        # canary is reachable from inside the service, then that two remote-include fixtures render
+        # as errors with zero canary hits, then reads the container's security profile and ports.
+        working-directory: site
+        run: |
+          GATEWAY=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.Gateway}}{{end}}' "${{ job.services.plantuml.id }}")
+          pnpm exec dockitty-assert-plantuml-no-remote-include --service-container "${{ job.services.plantuml.id }}" --canary-host "$GATEWAY" --astro-config astro.config.mjs
+      - name: Prove the toolkit's PlantUML stage names no plantuml.com (doc-kitty plantuml-guard)
+        # plantuml-guard.mjs is a library, not a bin: run its exported check over the installed toolkit's lib/.
+        working-directory: site
+        run: |
+          node --input-type=module -e "
+          import { fileURLToPath } from 'node:url';
+          const guard = import.meta.resolve('@spec-kitty/doc-toolkit/scripts/plantuml-guard.mjs');
+          const { checkPlantumlSources } = await import(guard);
+          const result = checkPlantumlSources(fileURLToPath(new URL('../lib', guard)));
+          if (!result.ok) { console.error('plantuml-guard: ' + result.message); process.exit(1); }
+          console.log('plantuml-guard: ok, self-hosted default ' + result.defaultServer + ' (' + result.files + ' toolkit files)');
+          "
+      - name: Build the docsite (drafts off via site/.env.production; diagrams rendered at build time)
         working-directory: site
         run: pnpm run build
-      - name: Check the built site publishes no unpublished route (#6932)
+      - name: "Check the built site: no unpublished route (#6932), every published diagram rendered (#6936)"
         # Standard library plus src/kernel, like the contract check above.
         env:
           PYTHONPATH: .:src

@@ -15,7 +15,11 @@
 // flat stub per legacy `.html` URL. Astro's own `redirects` stays empty: `.html` keys are fatal on
 // static output (doc-kitty #253).
 //
-// Not wired here yet: diagrams (#6936, needs the pinned PlantUML service).
+// Diagrams (#6936) render at build time to static SVG: run the build with DK_DIAGRAM_BUILD_RENDER=build
+// and DK_PLANTUML_SERVER_URL pointing at the pinned, SANDBOX PlantUML server (both are read from the
+// process environment only, so they live in the docs-site job's `env:` and `make docs-site`, never in
+// .env.production), with the exact-pinned `playwright` Chromium installed. The built-site check's
+// `diagrams` surface proves every published diagram is a rendered figure.
 import { readFileSync } from 'node:fs';
 import { defineConfig } from 'astro/config';
 import { defineDocKittyIntegrations } from '@spec-kitty/doc-toolkit/config';
@@ -34,7 +38,7 @@ export default defineConfig({
     indexBasename: contract.indexBasename,
     exclude: contract.exclude,
     legacyHtmlRedirects,
-    diagrams: false,
+    diagrams: true,
     githubAlerts: true,
     starlight: { disable404Route: true },
   }),

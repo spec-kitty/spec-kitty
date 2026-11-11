@@ -1,0 +1,47 @@
+{
+  "accept_commit": "769df186a3894153ae1f3085f648cabf12d3dadf",
+  "acceptance_history": [
+    {
+      "accept_commit": "769df186a3894153ae1f3085f648cabf12d3dadf",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-11-10T13:11:05.519341+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "a3d6a0f4c0944824a2c6ca7e212ac7fd18d19b6a"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-11-10T13:11:05.519341+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "a3d6a0f4c0944824a2c6ca7e212ac7fd18d19b6a",
+  "baseline_merge_commit": "87fd7af8c0e632e47da82bc9043c21a2eaea2dba",
+  "contracts": "none",
+  "contracts_rationale": "No API or schema is published; the interfaces are the shared workflow's service container and the built-site diagram surface, specified in data-model.md and pinned by tests and the real CI run.",
+  "create_return_branch": "issue-6936-docsite-diagrams",
+  "created_at": "2026-11-10T09:26:38.616100+00:00",
+  "flattened": false,
+  "friendly_name": "Docsite diagrams",
+  "merged_at": "2026-11-10T13:12:40.375295+00:00",
+  "merged_commit": "ad3a55997173ceac7c19b623046e8a0bb4566824",
+  "mid8": "01M72CFS",
+  "mission_id": "01M72CFSFXERJD0ZGJANW5SNF7",
+  "mission_number": 254,
+  "mission_slug": "docsite-diagrams-01M72CFS",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The doc-kitty docsite must render the docs' Mermaid and PlantUML diagrams at build time, as DocFX does today, without letting a diagram fetch remote content. A self-hosted PlantUML server pinned by digest runs in SANDBOX mode beside the build, a canary check proves it refuses remote includes, and the ADR records that guarantee. DocFX keeps deploying with its own PlantUML path.",
+  "purpose_tldr": "Render every Mermaid and PlantUML diagram as a static SVG in the doc-kitty build, against a digest-pinned sandboxed PlantUML server (#6936)",
+  "slug": "docsite-diagrams-01M72CFS",
+  "status_phase": "1",
+  "target_branch": "issue-6936-docsite-diagrams",
+  "topology": "single_branch",
+  "topology_decision": {
+    "code_lane_count": 2,
+    "from": "single_branch",
+    "rule": "wp_count_le_2",
+    "target_protected": false,
+    "to": "single_branch",
+    "wp_count": 2
+  },
+  "topology_settled": true,
+  "topology_source": "default"
+}
