@@ -258,6 +258,8 @@ acceptance-jvm/allure-report/
 # doc-kitty docsite (site/, #6930): Astro's generated types and cache. node_modules/ and dist/
 # are ignored above.
 site/.astro/
+# doc-kitty's build-time Mermaid disk cache (#6936), written by a build-mode render.
+site/.beoe-cache/
 
 # >>> Spec Kitty agent files (auto-managed; lines in this block are replaced) >>>
 .codex/auth.json
