@@ -67,7 +67,7 @@ def test_published_pages_have_title_and_description(path: Path) -> None:
 
 
 def test_static_seo_files_exist() -> None:
-    for relative_path in ["robots.txt", "CNAME", ".nojekyll", "llms.txt"]:
+    for relative_path in ["robots.txt", "CNAME", ".nojekyll"]:
         assert (DOCS_DIR / relative_path).is_file(), f"Missing docs/{relative_path}"
 
 

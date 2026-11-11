@@ -417,12 +417,10 @@ def test_private_factory_ci_fence_is_retired_from_public_workflows() -> None:
         assert "blacksmith" not in text.lower(), workflow.name
 
 
-def test_docs_pages_deploys_only_from_promotion_repo_and_fails_transient_setup_errors() -> None:
+def test_docs_pages_probes_pages_before_it_builds_and_fails_transient_setup_errors() -> None:
     workflow = load_workflow("docs-pages.yml")
     pages_job = workflow["jobs"]["pages"]
     probe_step, setup_step = pages_job["steps"]
-    build_job = workflow["jobs"]["build"]
-    deploy_job = workflow["jobs"]["deploy"]
 
     assert pages_job["outputs"] == {"configured": "${{ steps.probe-pages.outputs.available }}"}
     assert probe_step["id"] == "probe-pages"
@@ -435,30 +433,26 @@ def test_docs_pages_deploys_only_from_promotion_repo_and_fails_transient_setup_e
     assert "::error::GitHub Pages configuration probe failed with HTTP $status." in probe_step["run"]
     assert setup_step["id"] == "setup-pages"
     assert setup_step["if"] == "steps.probe-pages.outputs.available == 'true'"
-    assert setup_step["uses"] == "actions/configure-pages@v6"
+    assert setup_step["uses"].split(" ")[0] == "actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d"
     assert "continue-on-error" not in setup_step
-    assert build_job["needs"] == ["pages"]
-    assert build_job["if"] == "needs.pages.outputs.configured == 'true' && needs.pages.result == 'success'"
-    assert deploy_job["needs"] == ["build", "canary-probe"]
-    assert deploy_job["if"] == (
-        "(!cancelled() || inputs.canary) && github.repository == 'spec-kitty/spec-kitty' && github.ref == 'refs/heads/main' && needs.build.result == 'success'"
-    )
+    assert workflow["concurrency"] == {"group": "pages", "cancel-in-progress": False}
 
 
-# --- the docsite canary (#6938; ADR 2026-10-31-1 D-13 step 2) ------------------------------------
+# --- the docsite deploy (#6938 cutover, ADR 2026-10-31-1 D-11 and D-13 step 3; #2361 smoketest) ---
 #
-# A dispatch with `canary: true` builds the doc-kitty site through the shared definition (D-11),
-# publishes it, probes https://docs.spec-kitty.ai, and the DocFX `deploy` job then republishes
-# DocFX whatever the probe said. These tests run the REAL `if:` conditions through a model of
-# GitHub's job scheduling (a job with no status function in its `if:` runs only when every job
-# it needs succeeded), so the push path and the restore are judged on behaviour, not YAML text.
+# A push to `main` (or a plain dispatch) builds the doc-kitty site through the ONE shared build
+# definition the `docs-site` pull-request gate runs (D-11), publishes that artifact, then probes the
+# live site (#2361). These tests run the REAL `if:` conditions through a model of GitHub's job
+# scheduling (a job with no status function in its `if:` runs only when every job it needs
+# succeeded), so the deploy and the smoketest are judged on behaviour, not YAML text (#7484).
+# Rollback is reverting the cutover pull request (D-13 step 4), which restores the DocFX jobs.
 
 _STATUS_CALL = re.compile(r"\b(?:always|cancelled|success|failure)\(\)")
-_CANARY_JOBS = ("canary-build", "canary-deploy", "canary-probe")
 _DEPLOY_PAGES_PIN = "actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346"
 _CHECKOUT_PIN = "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8"
 _SHARED_BUILD = "./.github/workflows/docs-site-build.yml"
-_CANARY_ARTIFACT = "github-pages-canary"
+_DOCS_JOBS = ("pages", "build", "deploy", "smoketest")
+_FORK = "someone/spec-kitty"
 
 
 def _needs(job: dict[str, Any]) -> list[str]:
@@ -476,7 +470,6 @@ def _ancestors(jobs: dict[str, Any], name: str) -> set[str]:
 def _schedule(
     *,
     event_name: str,
-    canary: bool | None = None,
     ref: str = "refs/heads/main",
     repository: str = "spec-kitty/spec-kitty",
     fails: frozenset[str] = frozenset(),
@@ -484,6 +477,7 @@ def _schedule(
     """Each job's result ("success", "failure" or "skipped") for one run of docs-pages.yml.
 
     A job that runs succeeds unless it is in *fails*. The `pages` probe reports Pages configured.
+    The context models no `inputs.*`: a condition that starts reading a dispatch input goes red.
     """
     from tests.ci import _gh_expr
 
@@ -500,7 +494,6 @@ def _schedule(
             "github.event_name": event_name,
             "github.ref": ref,
             "github.repository": repository,
-            "inputs.canary": canary,
         }
         for need in _needs(jobs[name]):
             context[f"needs.{need}.result"] = results[need]
@@ -524,82 +517,171 @@ def _schedule(
     return results
 
 
-@pytest.mark.parametrize(("event_name", "canary"), [("push", None), ("workflow_dispatch", False)])
-def test_docs_pages_default_path_deploys_docfx_alone(event_name: str, canary: bool | None) -> None:
-    results = _schedule(event_name=event_name, canary=canary)
+@pytest.mark.parametrize("event_name", ["push", "workflow_dispatch"])
+def test_docs_pages_main_builds_the_doc_kitty_site_deploys_it_then_smoketests_the_live_site(event_name: str) -> None:
+    jobs = load_workflow("docs-pages.yml")["jobs"]
+    results = _schedule(event_name=event_name)
 
-    assert {name: results[name] for name in ("pages", "build", "deploy")} == {"pages": "success", "build": "success", "deploy": "success"}
-    assert all(results[name] == "skipped" for name in _CANARY_JOBS)
+    assert results == dict.fromkeys(_DOCS_JOBS, "success"), "exactly these jobs, all run, all green"
+    assert _ancestors(jobs, "build") == {"pages"}
+    assert _ancestors(jobs, "deploy") == {"pages", "build"}, "only the doc-kitty build feeds the deploy"
+    assert _ancestors(jobs, "smoketest") == {"pages", "build", "deploy"}, "the live site is probed after the deploy"
 
 
-@pytest.mark.parametrize(("event_name", "canary"), [("push", None), ("workflow_dispatch", False), ("workflow_dispatch", True)])
-def test_docs_pages_never_deploys_after_a_failed_docfx_build(event_name: str, canary: bool | None) -> None:
-    results = _schedule(event_name=event_name, canary=canary, fails=frozenset({"build"}))
+@pytest.mark.parametrize("event_name", ["push", "workflow_dispatch"])
+def test_docs_pages_never_deploys_after_a_failed_doc_kitty_build(event_name: str) -> None:
+    results = _schedule(event_name=event_name, fails=frozenset({"build"}))
+
+    assert results["build"] == "failure"
+    assert results["deploy"] == "skipped"
+    assert results["smoketest"] == "skipped"
+
+
+def _may_swallow(continue_on_error: object) -> bool:
+    """A `continue-on-error` that is `true`, or an expression that could evaluate to true, may swallow a failure."""
+    return continue_on_error is True or (isinstance(continue_on_error, str) and "${{" in continue_on_error)
+
+
+def _run_conclusion(results: dict[str, str]) -> str:
+    """The run's conclusion as GitHub computes it: red when a job failed that does not continue on error.
+
+    Reads each job's real `continue-on-error` and its steps', so a job that swallows its failure (or a
+    step that does, which keeps the job itself green) turns the modelled run green, as on GitHub. An
+    expression value is treated as one that may swallow, since the model cannot know its value.
+    """
+    jobs = load_workflow("docs-pages.yml")["jobs"]
+
+    def swallowed(name: str) -> bool:
+        job = jobs[name]
+        return _may_swallow(job.get("continue-on-error")) or any(_may_swallow(step.get("continue-on-error")) for step in job.get("steps", []))
+
+    return "failure" if any(result == "failure" and not swallowed(name) for name, result in results.items()) else "success"
+
+
+def _with_smoketest(job_patch: dict[str, Any] | None = None, step_patch: dict[str, Any] | None = None) -> dict[str, Any]:
+    jobs = load_workflow("docs-pages.yml")["jobs"]
+    smoketest = {**jobs["smoketest"], **(job_patch or {})}
+    if step_patch is not None:
+        smoketest["steps"] = [*smoketest["steps"][:-1], {**smoketest["steps"][-1], **step_patch}]
+    return {"jobs": {**jobs, "smoketest": smoketest}}
+
+
+@pytest.mark.parametrize(
+    ("job_patch", "step_patch"),
+    [
+        ({"continue-on-error": True}, None),
+        (None, {"continue-on-error": True}),
+        ({"continue-on-error": "${{ github.event_name == 'push' }}"}, None),
+        (None, {"continue-on-error": "${{ inputs.lenient }}"}),
+    ],
+    ids=["job-true", "step-true", "job-expression", "step-expression"],
+)
+def test_the_run_conclusion_model_honours_continue_on_error(job_patch: dict[str, Any] | None, step_patch: dict[str, Any] | None) -> None:
+    """The model is not vacuous: a swallowed failure, at job or step level, yields a green run as on GitHub."""
+    with patch(f"{__name__}.load_workflow", return_value=_with_smoketest(job_patch, step_patch)):
+        assert _run_conclusion({"smoketest": "failure"}) == "success"
+    assert _run_conclusion({"smoketest": "failure"}) == "failure"
+
+
+def test_the_run_conclusion_model_reads_continue_on_error_false_as_not_swallowing() -> None:
+    with patch(f"{__name__}.load_workflow", return_value=_with_smoketest({"continue-on-error": False}, {"continue-on-error": False})):
+        assert _run_conclusion({"smoketest": "failure"}) == "failure"
+
+
+def test_docs_pages_never_smoketests_after_a_failed_deploy_and_the_run_stays_red() -> None:
+    results = _schedule(event_name="push", fails=frozenset({"deploy"}))
+
+    assert results["smoketest"] == "skipped"
+    assert _run_conclusion(results) == "failure"
+
+
+def test_docs_pages_a_failed_smoketest_leaves_the_run_red() -> None:
+    """No alert issue is filed (operator decision on #2361): the red run is the signal."""
+    jobs = load_workflow("docs-pages.yml")["jobs"]
+    results = _schedule(event_name="push", fails=frozenset({"smoketest"}))
+
+    assert results["deploy"] == "success"
+    assert _run_conclusion(results) == "failure", "the smoketest's failure is not swallowed"
+    assert not any("smoketest" in _needs(job) for job in jobs.values()), "no job reacts to the smoketest's result"
+
+
+@pytest.mark.parametrize(
+    ("event_name", "ref", "repository"),
+    [
+        ("push", "refs/heads/main", _FORK),
+        ("workflow_dispatch", "refs/heads/main", _FORK),
+        ("workflow_dispatch", "refs/heads/topic", "spec-kitty/spec-kitty"),
+        ("push", "refs/heads/2.x", "spec-kitty/spec-kitty"),
+    ],
+)
+def test_docs_pages_publishes_and_probes_production_only_from_main_of_the_core_repository(event_name: str, ref: str, repository: str) -> None:
+    results = _schedule(event_name=event_name, ref=ref, repository=repository)
 
     assert results["deploy"] == "skipped"
-    assert results["canary-deploy"] == "skipped", "no canary goes live when the DocFX restore artifact is missing"
+    assert results["smoketest"] == "skipped"
 
 
-def test_docs_pages_canary_deploys_probes_then_restores_docfx() -> None:
+def test_docs_pages_a_fork_push_runs_nothing() -> None:
+    results = _schedule(event_name="push", repository=_FORK)
+
+    assert set(results.values()) == {"skipped"}
+
+
+def test_docs_pages_builds_through_the_shared_definition_and_deploys_its_default_artifact() -> None:
     jobs = load_workflow("docs-pages.yml")["jobs"]
-    results = _schedule(event_name="workflow_dispatch", canary=True)
-
-    assert all(results[name] == "success" for name in (*_CANARY_JOBS, "build", "deploy"))
-    assert {"canary-probe", "canary-deploy"} <= _ancestors(jobs, "deploy"), "DocFX is republished after the canary is probed"
-    assert {"build", "canary-build"} <= _ancestors(jobs, "canary-deploy"), "both artifacts exist before production changes"
-
-
-@pytest.mark.parametrize("failing", ["canary-probe", "canary-deploy", "canary-build"])
-def test_docs_pages_canary_restores_docfx_and_stays_red_when_any_canary_step_fails(failing: str) -> None:
-    results = _schedule(event_name="workflow_dispatch", canary=True, fails=frozenset({failing}))
-
-    assert results["deploy"] == "success", "DocFX is republished whatever the canary did"
-    assert "failure" in results.values(), "the run ends red"
-
-
-@pytest.mark.parametrize(("ref", "repository"), [("refs/heads/topic", "spec-kitty/spec-kitty"), ("refs/heads/main", "fork/spec-kitty")])
-def test_docs_pages_canary_publishes_only_from_main_of_the_core_repository(ref: str, repository: str) -> None:
-    results = _schedule(event_name="workflow_dispatch", canary=True, ref=ref, repository=repository)
-
-    assert results["canary-deploy"] == "skipped"
-    assert results["deploy"] == "skipped"
-
-
-def test_docs_pages_canary_is_a_dispatch_input_off_by_default() -> None:
-    dispatch = load_workflow("docs-pages.yml")[True]["workflow_dispatch"]
-
-    assert dispatch["inputs"]["canary"]["type"] == "boolean"
-    assert dispatch["inputs"]["canary"]["default"] is False
-
-
-def test_docs_pages_canary_builds_through_the_shared_definition_and_deploys_its_own_artifact() -> None:
-    jobs = load_workflow("docs-pages.yml")["jobs"]
-    build, deploy = jobs["canary-build"], jobs["canary-deploy"]
+    build, deploy = jobs["build"], jobs["deploy"]
     (deploy_step,) = deploy["steps"]
 
     assert build["uses"] == _SHARED_BUILD
-    assert build["with"] == {"pages-artifact": True, "pages-artifact-name": _CANARY_ARTIFACT}
+    assert build["with"] == {"pages-artifact": True}, "the shared build's default Pages artifact name, github-pages"
+    assert "steps" not in build, "no second build definition beside the shared one (D-11)"
     assert deploy_step["uses"].split(" ")[0] == _DEPLOY_PAGES_PIN
-    assert deploy_step["with"] == {"artifact_name": _CANARY_ARTIFACT}
+    assert "with" not in deploy_step, "deploy-pages reads the default github-pages artifact the build uploads"
     assert deploy["environment"]["name"] == "github-pages"
 
 
-def test_docs_pages_canary_jobs_hold_only_the_permissions_they_need() -> None:
-    jobs = load_workflow("docs-pages.yml")["jobs"]
+def test_docs_pages_jobs_hold_only_the_permissions_they_need() -> None:
+    workflow = load_workflow("docs-pages.yml")
+    jobs = workflow["jobs"]
 
-    assert jobs["canary-build"]["permissions"] == {"contents": "read"}
-    assert jobs["canary-deploy"]["permissions"] == {"pages": "write", "id-token": "write"}
-    assert jobs["canary-probe"]["permissions"] == {"contents": "read"}
+    assert workflow["permissions"] == {"contents": "read"}
+    assert jobs["pages"]["permissions"] == {"pages": "read"}
+    assert jobs["build"]["permissions"] == {"contents": "read"}
+    assert jobs["deploy"]["permissions"] == {"pages": "write", "id-token": "write"}
+    assert jobs["smoketest"]["permissions"] == {"contents": "read"}
 
 
-def test_docs_pages_canary_probe_runs_the_live_site_probe_against_the_production_domain() -> None:
-    probe = load_workflow("docs-pages.yml")["jobs"]["canary-probe"]
-    uses = [str(step["uses"]) for step in probe["steps"] if "uses" in step]
-    run = "\n".join(str(step["run"]) for step in probe["steps"] if "run" in step)
+def test_docs_pages_smoketest_runs_the_live_site_probe_against_the_production_domain() -> None:
+    smoketest = load_workflow("docs-pages.yml")["jobs"]["smoketest"]
+    uses = [str(step["uses"]).split(" ")[0] for step in smoketest["steps"] if "uses" in step]
+    checkout = next(step for step in smoketest["steps"] if "uses" in step)
+    run = "\n".join(str(step["run"]) for step in smoketest["steps"] if "run" in step)
 
     assert uses == [_CHECKOUT_PIN]
+    assert checkout["with"] == {"persist-credentials": False}
     assert "python3 -m scripts.docs.site_live_probe https://docs.spec-kitty.ai" in run
-    assert "|| true" not in run and all("continue-on-error" not in step for step in probe["steps"])
+    assert "|| true" not in run
+    assert "continue-on-error" not in smoketest and all("continue-on-error" not in step for step in smoketest["steps"])
+    assert 0 < smoketest["timeout-minutes"] <= 60
+
+
+def test_docs_pages_retired_the_canary_into_the_smoketest() -> None:
+    workflow = load_workflow("docs-pages.yml")
+
+    assert set(workflow["jobs"]) == set(_DOCS_JOBS)
+    assert not workflow[True]["workflow_dispatch"], "a plain dispatch takes no input: no second deploy path"
+
+
+def test_docs_pages_deploys_whenever_an_input_of_the_shared_build_changes() -> None:
+    """The push filter covers the gate's `docs_site` group, so a build input never changes without a deploy."""
+    router = load_workflow("ci-router.yml")
+    (filter_step,) = [step for step in router["jobs"]["changes"]["steps"] if "docs_site" in str((step.get("with") or {}).get("filters", ""))]
+    gate_inputs = set(yaml.safe_load(filter_step["with"]["filters"])["docs_site"]) - {".github/workflows/ci-router.yml"}
+    push_paths = set(load_workflow("docs-pages.yml")[True]["push"]["paths"])
+
+    assert gate_inputs, "the router's docs_site group is empty: the check would be vacuous"
+    assert gate_inputs <= push_paths
+    assert ".github/workflows/docs-pages.yml" in push_paths
 
 
 @pytest.mark.parametrize("name", sorted(RESTORED_WORKFLOWS))

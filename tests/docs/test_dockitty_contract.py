@@ -392,10 +392,10 @@ def test_route_of_matches_the_built_directory_route() -> None:
     assert contract.route_of("index.md") == "/"
 
 
-def test_the_hand_written_llms_txt_still_carries_the_stance() -> None:
-    """``docs/llms.txt`` keeps a copy of the stance until #6938 deletes it; the copies must agree."""
+def test_the_generated_llms_txt_is_the_only_one() -> None:
+    """The site generates ``/llms.txt`` with the stance (D-9); the hand copy was deleted at cutover (#6938)."""
     assert contract.LLMS_STANCE.startswith("## Current Version Stance\n")
-    assert contract.LLMS_STANCE in _DOCS_LLMS.read_text(encoding="utf-8")
+    assert not _DOCS_LLMS.exists(), "docs/llms.txt is back: the site's generated /llms.txt is the one source (ADR 2026-10-31-1 D-9)"
 
 
 # --- Redirect stubs (#6933) ----------------------------------------------------------
