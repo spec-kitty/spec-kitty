@@ -1488,10 +1488,11 @@ def test_decision_shape_unchanged_for_composed_action(
         # ``next --json`` gets a structured error_code without parsing
         # reason text. Additive and defaulted (None) on every other kind.
         "error_code",
-        # runtime-status-read-door WP06 (FR-003, DM-2): the coordination
-        # worktree an advancing bootstrap materialized, reported to the
-        # operator. Additive and defaulted (None); ``to_dict`` emits it only
-        # when set.
+        # runtime-status-read-door WP06 (FR-003, DM-2): what an advancing
+        # ``next`` changed in the workspace on its own, e.g.
+        # ``{"kind": "materialized_coordination_worktree", "path": ...}``.
+        # ``None`` when nothing was changed; ``to_dict`` then emits nothing
+        # and the envelope stays byte-identical.
         "remediation",
     }
     actual_fields = set(vars(decision).keys())
