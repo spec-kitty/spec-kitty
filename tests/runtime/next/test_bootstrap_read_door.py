@@ -109,3 +109,25 @@ def test_owned_door_failure_after_the_wrap_is_the_typed_blocked_decision(tmp_pat
 
     assert str(decision.kind) == "blocked"
     assert decision.error_code == OwnedRefusalCode.OWNED_COORDINATION_WORKSPACE_UNAVAILABLE.value
+
+
+@pytest.mark.parametrize("error", ["registry", "ref"])
+def test_non_owned_door_failure_is_a_typed_blocked_decision_not_stale_progress(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, error: str) -> None:
+    """A non-owned bootstrap whose door read fails blocks with the cause's own code (as the board does)."""
+    from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
+    from specify_cli.coordination.surface_resolver import WorktreeRegistryUnavailable
+    import specify_cli.status as status_package
+
+    repo, slug = _coord_cell_mission(tmp_path, MissionTopology.COORD, MATERIALIZED)
+
+    def _failing(*args: Any, **kwargs: Any) -> Any:
+        if error == "registry":
+            raise WorktreeRegistryUnavailable(repo_root=repo, detail="injected worktree-list failure")
+        raise StatusSurfaceRefUnreadable(repo_root=repo, ref="refs/heads/x", path="kitty-specs/m/status.events.jsonl", detail="bad object")
+
+    monkeypatch.setattr(status_package, "resolve_status_read", _failing)
+
+    decision = decide_next_via_runtime("pedro", slug, "success", repo, analysis_currency=analysis_is_current)
+
+    assert str(decision.kind) == "blocked"
+    assert decision.error_code == ("WORKTREE_REGISTRY_UNAVAILABLE" if error == "registry" else "STATUS_SURFACE_REF_UNREADABLE")

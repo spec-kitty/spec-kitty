@@ -423,8 +423,24 @@ def _owned_coordination_unavailable_decision(agent: str, mission_slug: str, miss
     )
 
 
+def _door_unreadable_decision(agent: str, mission_slug: str, mission_type: str, now: str, exc: Exception) -> Decision:
+    """The ``blocked`` Decision of a non-owned status read the door cannot make (the cause's own code)."""
+    return _mapping._materialize_decision(
+        _cores.DecisionEnvelope(
+            kind=DecisionKind.blocked,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission=mission_type,
+            mission_state="unknown",
+            timestamp=now,
+            reason=f"Status surface for mission {mission_slug!r} is not readable: {exc}",
+            error_code=getattr(exc, "error_code", None),
+        )
+    )
+
+
 class _OwnedDoorUnavailable(Exception):
-    """An owned bootstrap's door read hit an unreadable ref or worktree registry (``cause``)."""
+    """A bootstrap's door read hit an unreadable ref or worktree registry (``cause``)."""
 
     def __init__(self, cause: Exception) -> None:
         super().__init__(str(cause))
@@ -435,11 +451,10 @@ def _dn_status_board(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout
     """Bootstrap's one status read (#7310 WP05, FR-001): the door's surface and its board.
 
     ``None`` when the door cannot answer for a reason the board phase reports itself (a
-    deleted coordination branch, a Mission the door cannot find) or, for a non-owned call, an
-    unreadable ref or worktree registry: bootstrap then keeps today's path progress and lets
-    the later phases name the problem. An owned call raises :class:`_OwnedDoorUnavailable` for
-    the registry and ref failures, for the typed refusal. A corrupt log line raises
-    ``StoreError``, as the path read's lanes step does.
+    deleted coordination branch, a Mission the door cannot find): bootstrap then keeps today's
+    path progress. An unreadable ref or worktree registry raises
+    :class:`_OwnedDoorUnavailable` on every call, for the typed ``blocked`` decision (never stale
+    path progress). A corrupt log line raises ``StoreError``, as the path read's lanes step does.
     """
     from runtime.next.board_status import board_status_from_surface
     from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
@@ -451,9 +466,7 @@ def _dn_status_board(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout
         surface = resolve_status_read(repo_root, mission_slug, owned=owned)
         return surface, board_status_from_surface(surface)
     except (StatusSurfaceRefUnreadable, WorktreeRegistryUnavailable) as exc:
-        if owned is not None:
-            raise _OwnedDoorUnavailable(exc) from exc
-        logger.debug("decide_next bootstrap: status door unavailable for %s, keeping path progress: %s", mission_slug, exc)
+        raise _OwnedDoorUnavailable(exc) from exc
     except (StatusReadPathNotFound, FileNotFoundError, MissionSelectorAmbiguous) as exc:
         logger.debug("decide_next bootstrap: no status surface for %s, keeping path progress: %s", mission_slug, exc)
     return None
@@ -634,8 +647,11 @@ def _dn_bootstrap(
     try:
         progress, feature_dir = _dn_progress(repo_root, mission_slug, owned, feature_dir, primary_metadata_dir)
     except _OwnedDoorUnavailable as exc:
-        # The door's own registry/ref failure is the same O8 typed ``blocked`` decision as
-        # the wrap's (FR-006); only an owned call raises it here.
+        # An owned call: the same O8 typed ``blocked`` decision as the wrap's (FR-006). A
+        # non-owned call: a ``blocked`` decision carrying the cause's own stable code, as the
+        # board and query mode do.
+        if owned is None:
+            return None, _with_remediation(_door_unreadable_decision(agent, mission_slug, mission_type, now, exc.cause), remediation)
         return None, _with_remediation(_owned_coordination_unavailable_decision(agent, mission_slug, mission_type, now, exc.cause), remediation)
 
     # Get or start runtime run (before result handling so failed/blocked
