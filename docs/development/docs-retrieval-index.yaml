@@ -2789,6 +2789,7 @@ pages:
     - {slug: "accessibility-carve-out-nfr-005", text: "Accessibility carve-out (NFR-005)", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "references", text: "References", level: 2}
+    - {slug: "amendment-2026-11-10-the-doc-kitty-site-renders-against-a-sandboxed-plantuml-service", text: "Amendment 2026-11-10 — the doc-kitty site renders against a sandboxed PlantUML service", level: 2}
   - path: "docs/adr/3.x/2026-08-13-1-built-in-mission-subtree-stays-nested-retire-legacy-step-contracts.md"
     title: "ADR: The built-in mission subtree stays nested and self-contained; retire the legacy step-contract surface"
     divio_type: "none"
