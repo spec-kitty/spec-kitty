@@ -245,6 +245,31 @@ def test_board_names_an_unreadable_status_ref(tmp_path: Path, monkeypatch: pytes
     assert board.blocked_reason.startswith("Status surface for mission 'm' is not readable: ")
 
 
+def test_board_names_a_status_ref_that_fails_at_read_time(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A ref that resolves but cannot be read when the board reads it is the same named block.
+
+    The door resolved a surface (e.g. ``MISSION_BRANCH_REF`` with no prefetched read) and the
+    ref then fails at the board's own stream read: a deleted or unreadable Mission topic
+    branch. Before the fold the error escaped ``decide_next`` as a traceback.
+    """
+    from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
+
+    repo, slug = _coord_cell_mission(tmp_path, MissionTopology.COORD, MATERIALIZED)
+
+    def _unreadable(*args: Any, **kwargs: Any) -> Any:
+        raise StatusSurfaceRefUnreadable(repo_root=repo, ref="refs/heads/x", path="kitty-specs/m/status.events.jsonl", detail="bad object")
+
+    monkeypatch.setattr(board_status_mod, "read_status_stream", _unreadable)
+
+    board = decision_mapping._resolve_wp_board_action(mission_slug=slug, repo_root=repo)
+
+    assert board.action is None
+    assert board.board_step is None
+    assert board.blocked_reason is not None
+    assert board.blocked_reason.startswith(f"Status surface for mission {slug!r} is not readable: ")
+    assert "bad object" in board.blocked_reason
+
+
 def test_query_maps_a_mission_the_door_cannot_find(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from runtime.next.runtime_bridge_query import MissionNotFoundError, _query_read_board
 
