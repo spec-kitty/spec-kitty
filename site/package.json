@@ -12,7 +12,7 @@
     "dev": "astro dev"
   },
   "dependencies": {
-    "@spec-kitty/doc-toolkit": "github:spec-kitty/doc-kitty#ae0786d47c72c9be40e15aa00b5a8b6dd74e86fe&path:/src",
+    "@spec-kitty/doc-toolkit": "github:spec-kitty/doc-kitty#1042a40792b47df4339b4511e2107c55854adce1&path:/src",
     "astro": ">=7.2.10 <8",
     "@astrojs/starlight": ">=0.42.0 <0.43.0",
     "@astrojs/markdown-remark": ">=7.3.0 <8",
