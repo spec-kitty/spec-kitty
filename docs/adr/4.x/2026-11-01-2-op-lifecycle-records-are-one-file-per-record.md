@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-11-01'
-updated: '2026-11-10T00:00:00Z'
+updated: '2026-11-11T00:00:00Z'
 ---
 
 # Op lifecycle records are one file per record
@@ -138,9 +138,18 @@ record shipped open in the pull request (#7340's WP04).
   repository-root `kitty-ops/lifecycle/<ULID>.json` file is `consolidate`'s bookkeeping, as a root
   `kitty-ops/<ULID>.jsonl` Op record is (`reconciliation_kernel._KITTY_OPS_ROOT_RECORD`; operator
   ruling, Decision Moment `01M72P4C1S5Z4MG13Q2W1S1KM0`), so a closure committed on an approved lane
-  branch is not a commit after the approval and does not trip `LANE_MOVED_AFTER_APPROVAL`. The
-  dirty-state classifier (`coordination.coherence.is_self_bookkeeping_churn`) is unchanged: a closure
-  the sweep could not commit is still dirt in that checkout.
+  branch is not a commit after the approval and does not trip `LANE_MOVED_AFTER_APPROVAL`.
+- The general dirty-state classifier (`coordination.coherence.is_self_bookkeeping_churn`) counts the
+  same exact path, `kitty-ops/lifecycle/<ULID>.json`, as bookkeeping, as it counts a
+  `kitty-ops/<ULID>.jsonl` Op record (operator ruling of 2026-11-11 by Stijn Dejongh, follow-up to
+  #7506; recorded here, because the Mission that holds Decision Moment `01M72P4C1S5Z4MG13Q2W1S1KM0`
+  has landed and its history is frozen). A closure the sweep could not commit is no longer dirt in its
+  checkout, so it no longer refuses `accept`, the `record-analysis` preflight or the review
+  handoff's dirty check, and a staged one no longer refuses `consolidate`'s dirty-tree probe or its
+  post-merge working-tree invariant (both skip untracked files already). The destructive guards
+  read the same rule through `ResidueContext.is_disposable` (see Residuals). The pattern is the
+  record's one definition (`op_commit_policy.LIFECYCLE_RECORDS`). The claim check of `implement`
+  already exempted the whole `kitty-ops/` directory and is unchanged.
 
 **Residuals.**
 
@@ -156,6 +165,20 @@ record shipped open in the pull request (#7340's WP04).
 - The bookkeeping path rule trusts a lifecycle record by its path, not its content: a commit on an
   approved lane that adds only a hand-written `kitty-ops/lifecycle/<ULID>.json` record is not
   refused by the approval bound. It changes pairing data, never code.
+- The dirty-state rule matches a record by its exact path. A gate that lists untracked files
+  without `--untracked-files=all` sees a wholly untracked `kitty-ops/lifecycle/` as one
+  `kitty-ops/lifecycle/` (or `kitty-ops/`) entry, which the rule does not match, so that gate still
+  counts it as dirt. The operator ruled the exemption to the exact path, not the directory. The
+  checkout guard of `git/ref_advance.py` lists every untracked file, so it sees each record.
+- The destructive guards (`git/destructive_guard.py`, through `ResidueContext.is_disposable`) count
+  an uncommitted lifecycle record as disposable in every checkout role, as they count an uncommitted
+  Op record. `consolidate`'s lane cleanup, the worktree allocator's remove and `reset --hard`, and the
+  coordination worktree teardown no longer keep a checkout for one, so they can discard it. This
+  covers every phase, not only an `abandoned` closure: a lost `started` record drops out of pairing,
+  and a lost `completed` or `failed` record leaves its `started` record open, which the next sweep
+  then closes as `abandoned`, so that action's real outcome is lost. Records are left uncommitted
+  where the primary branch tracks none (the #6410 skip) or a protected branch refuses the commit.
+  `tests/coordination/test_disposable_residue.py` pins this consequence.
 - A closure the sweep could not commit (skipped or refused) leaves the command's exit code unchanged,
   as for an Op record. `spec-kitty next` commits any uncommitted lifecycle record with its own
   commit, so such a closure is committed with the next action that `next` reports in that checkout.
