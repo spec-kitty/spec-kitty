@@ -4102,6 +4102,7 @@ pages:
     - {slug: "amendment-2026-11-09", text: "Amendment 2026-11-09", level: 2}
     - {slug: "amendment-2026-11-10", text: "Amendment 2026-11-10", level: 2}
     - {slug: "amendment-2026-11-11", text: "Amendment 2026-11-11", level: 2}
+    - {slug: "amendment-2026-11-11-cutover", text: "Amendment 2026-11-11 (cutover)", level: 2}
   - path: "docs/adr/4.x/2026-11-01-1-pull-requests-touch-no-shared-generated-files-and-land-through-a-merge-queue.md"
     title: "ADR: pull requests touch no shared generated file and land through a merge queue"
     divio_type: "none"
@@ -12212,7 +12213,7 @@ pages:
     - {slug: "docs-lint", text: "`docs-lint`", level: 3}
     - {slug: "touching-any-docs-path-can-surface-a-pre-existing-docs-test-flake", text: "Touching any docs path can surface a pre-existing docs-test flake", level: 3}
     - {slug: "where-the-docs-site-deploys-from", text: "Where the docs site deploys from", level: 3}
-    - {slug: "the-github-pages-docsite-build-needs-pythonpath", text: "The GitHub Pages docsite build needs `PYTHONPATH`", level: 3}
+    - {slug: "the-docsite-s-python-steps-need-pythonpath", text: "The docsite's Python steps need `PYTHONPATH`", level: 3}
     - {slug: "accept-to-consolidate-gates", text: "Accept-to-consolidate gates", level: 2}
     - {slug: "the-issue-matrix-verdict-gate-blocks-wp-approval", text: "The issue-matrix verdict gate blocks WP approval", level: 3}
     - {slug: "the-other-close-out-gates", text: "The other close-out gates", level: 3}
