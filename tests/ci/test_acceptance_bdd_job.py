@@ -68,13 +68,27 @@ def test_evidence_step_has_no_fallback(job: dict[str, Any]) -> None:
     _assert_no_retry(step)
 
 
+# The shard count per OS (#7492 follow-up, operator ruling): only the slow OSes are split.
+EXPECTED_SHARDS = {"ubuntu-24.04": 1, "macos-latest": 2, "windows-latest": 3}
+
+
+def _legs(job: dict[str, Any]) -> list[dict[str, Any]]:
+    matrix = job["strategy"]["matrix"]
+    assert set(matrix) == {"include"}, "one explicit leg per (os, shard): no cross product"
+    return list(matrix["include"])
+
+
 def test_gating_pass_runs_as_disjoint_shards_on_every_os(job: dict[str, Any]) -> None:
-    """#7492 follow-up: each OS runs the gating pass as shards 1..N, and every leg names its own shard."""
-    count = int(job["env"]["ACCEPTANCE_SHARD_COUNT"])
-    assert count >= 2
-    assert job["strategy"]["matrix"]["shard"] == list(range(1, count + 1))
+    """#7492 follow-up: each OS runs shards 1..N of the gating pass, N set per OS, every leg naming its own shard."""
+    by_os: dict[str, list[tuple[int, int]]] = {}
+    for leg in _legs(job):
+        by_os.setdefault(leg["os"], []).append((int(leg["shard"]), int(leg["shards"])))
+    assert {os_name: len(legs) for os_name, legs in by_os.items()} == EXPECTED_SHARDS
+    for os_name, legs in by_os.items():
+        count = EXPECTED_SHARDS[os_name]
+        assert sorted(legs) == [(index, count) for index in range(1, count + 1)], os_name
     (step,) = _steps_running(job, "-Pacceptance.pass=gating")
-    assert '"-Pacceptance.shard=${{ matrix.shard }}/${ACCEPTANCE_SHARD_COUNT}"' in step["run"]
+    assert '"-Pacceptance.shard=${{ matrix.shard }}/${{ matrix.shards }}"' in step["run"]
 
 
 def test_gradle_pin_check_runs_once_per_matrix(job: dict[str, Any]) -> None:
@@ -131,7 +145,7 @@ def test_evidence_step_runs_always(job: dict[str, Any]) -> None:
     assert "--root acceptance-jvm/build/acceptance" in run
     assert '--os "${{ matrix.os }}"' in run
     assert "--pass gating" in run and "--pass wip" not in run
-    assert '--shard "${{ matrix.shard }}/${ACCEPTANCE_SHARD_COUNT}"' in run
+    assert '--shard "${{ matrix.shard }}/${{ matrix.shards }}"' in run
     (gating,) = _steps_running(job, "-Pacceptance.pass=gating")
     assert f'--gating-step-outcome "${{{{ steps.{gating["id"]}.outcome }}}}"' in run
 
@@ -173,7 +187,7 @@ def wip_job(jobs: dict[str, Any]) -> dict[str, Any]:
 
 
 def test_wip_job_runs_on_every_gating_os_without_fail_fast(job: dict[str, Any], wip_job: dict[str, Any]) -> None:
-    assert wip_job["strategy"]["matrix"]["os"] == job["strategy"]["matrix"]["os"]
+    assert wip_job["strategy"]["matrix"]["os"] == list(dict.fromkeys(leg["os"] for leg in _legs(job)))
     assert wip_job["strategy"]["fail-fast"] is False
     assert wip_job["if"] == job["if"]
     assert "pull_request" not in str(wip_job["if"])

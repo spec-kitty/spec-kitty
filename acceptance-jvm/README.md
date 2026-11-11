@@ -116,7 +116,8 @@ To run one shard of a pass, add `-Pacceptance.shard=K/N` (for example
 `gradle test -Pacceptance.pass=gating -Pacceptance.shard=2/3 --no-daemon`). `ShardFilter`
 (`kitty.acceptance.sharding`) orders the scenarios the tag filter would run by feature path and
 line and deals them out round-robin, so the N shards are disjoint and together run every scenario.
-A malformed value fails the build. The nightly runs the gating pass in three shards per OS.
+A malformed value fails the build. The nightly runs the gating pass in three shards on Windows, two on
+macOS and one on Linux.
 
 For an ad-hoc run, omit the property and pass a tag filter instead
 (`gradle test -Dcucumber.filter.tags='@init' --no-daemon`); its results land in
