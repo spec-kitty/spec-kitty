@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "mission_slug": "cli-owns-its-commits-01M75NTA",
+  "mission_id": "01M75NTAHXW268NWPY4PB7SH4A",
+  "mission_branch": "fix/7545-cli-owns-its-commits",
+  "target_branch": "fix/7545-cli-owns-its-commits",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/3933-setup-plan-mark-status-commit-their-writes.fixed.md",
+        "docs/changelog/unreleased/5938-next-commits-coordination-row.fixed.md",
+        "docs/changelog/unreleased/7555-init-commits-its-writes.fixed.md",
+        "docs/changelog/unreleased/7556-mission-scoped-dirty-gates.fixed.md",
+        "src/runtime/next/next_invocation_lifecycle.py",
+        "src/specify_cli/cli/commands/agent/mission_record_analysis.py",
+        "src/specify_cli/cli/commands/agent/mission_setup_plan.py",
+        "src/specify_cli/cli/commands/agent/tasks_mark_status.py",
+        "src/specify_cli/cli/commands/init.py",
+        "src/specify_cli/cli/commands/next_cmd.py",
+        "src/specify_cli/coordination/coherence.py",
+        "src/specify_cli/coordination/mission_dirt.py",
+        "src/specify_cli/lanes/implement_support.py",
+        "src/specify_cli/upgrade/autocommit.py",
+        "tests/coordination/test_mission_dirt.py",
+        "tests/init/test_init_commits_its_writes_7555.py",
+        "tests/init/test_init_in_existing_repo.py",
+        "tests/specify_cli/cli/commands/agent/test_mark_status_commits_coordination_3933.py",
+        "tests/specify_cli/cli/commands/agent/test_record_analysis_mission_scoped_7556.py",
+        "tests/specify_cli/cli/commands/agent/test_setup_plan_commits_lifecycle_3933.py",
+        "tests/specify_cli/cli/commands/test_next_commits_coordination_row_5938.py",
+        "tests/specify_cli/cli/commands/test_single_branch_implement_refusals.py",
+        "tests/specify_cli/test_analysis_report.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-11T16:18:29.813010+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "4c93b24f7bfb35e86af16049c215b14684d3b12f"
+}
