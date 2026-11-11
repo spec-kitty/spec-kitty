@@ -130,6 +130,7 @@ def test_count_wp_endings_without_tasks_dir_is_zero(tmp_path: Path) -> None:
 
 def test_wp_board_action_declines_when_mission_context_is_unresolvable(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """A Mission the status read door cannot find declines, after exactly one door read (#7310 FR-008)."""
+    import specify_cli.status as status_package
     from specify_cli.status import read_surface
 
     door_reads: list[str] = []
@@ -139,7 +140,7 @@ def test_wp_board_action_declines_when_mission_context_is_unresolvable(monkeypat
         door_reads.append(mission)
         return real_door(repo_root, mission, **kwargs)
 
-    monkeypatch.setattr(read_surface, "resolve_status_read", _door)
+    monkeypatch.setattr(status_package, "resolve_status_read", _door)
 
     action = _resolve_wp_board_action(mission_slug=_MISSION, repo_root=tmp_path)
 

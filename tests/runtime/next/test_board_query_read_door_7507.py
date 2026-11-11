@@ -30,7 +30,7 @@ from runtime.next import board_status as board_status_mod
 from runtime.next import runtime_bridge_decision_mapping as decision_mapping
 from runtime.next.runtime_bridge import query_current_state
 from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
-from specify_cli.status import read_surface
+import specify_cli.status as status_package
 from tests.runtime._next_mission_scaffold import analysis_is_current, scaffold_coord_software_dev
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -201,7 +201,7 @@ def _counting(monkeypatch: pytest.MonkeyPatch, owner: Any, name: str) -> list[ob
 @pytest.mark.parametrize("cell", [MATERIALIZED, EMPTY])
 def test_query_reads_the_door_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, cell: str) -> None:
     repo, slug = _coord_cell_mission(tmp_path, MissionTopology.COORD, cell)
-    door_reads = _counting(monkeypatch, read_surface, "resolve_status_read")
+    door_reads = _counting(monkeypatch, status_package, "resolve_status_read")
     stream_reads = _counting(monkeypatch, board_status_mod, "read_status_stream")
 
     decision = query_current_state("pedro", slug, repo, analysis_currency=analysis_is_current)
@@ -214,7 +214,7 @@ def test_query_reads_the_door_once(tmp_path: Path, monkeypatch: pytest.MonkeyPat
 @pytest.mark.parametrize("cell", [MATERIALIZED, EMPTY])
 def test_board_reads_the_door_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, cell: str) -> None:
     repo, slug = _coord_cell_mission(tmp_path, MissionTopology.COORD, cell)
-    door_reads = _counting(monkeypatch, read_surface, "resolve_status_read")
+    door_reads = _counting(monkeypatch, status_package, "resolve_status_read")
     stream_reads = _counting(monkeypatch, board_status_mod, "read_status_stream")
 
     board = decision_mapping._resolve_wp_board_action(mission_slug=slug, repo_root=repo)
@@ -236,7 +236,7 @@ def test_board_names_an_unreadable_status_ref(tmp_path: Path, monkeypatch: pytes
     def _unreadable(*args: Any, **kwargs: Any) -> Any:
         raise StatusSurfaceRefUnreadable(repo_root=tmp_path, ref="refs/heads/x", path="kitty-specs/m/status.events.jsonl", detail="bad object")
 
-    monkeypatch.setattr(read_surface, "resolve_status_read", _unreadable)
+    monkeypatch.setattr(status_package, "resolve_status_read", _unreadable)
 
     board = decision_mapping._resolve_wp_board_action(mission_slug="m", repo_root=tmp_path)
 
@@ -276,7 +276,7 @@ def test_query_maps_a_mission_the_door_cannot_find(tmp_path: Path, monkeypatch: 
     def _missing(*args: Any, **kwargs: Any) -> Any:
         raise FileNotFoundError("meta.json not found")
 
-    monkeypatch.setattr(read_surface, "resolve_status_read", _missing)
+    monkeypatch.setattr(status_package, "resolve_status_read", _missing)
 
     with pytest.raises(MissionNotFoundError):
         _query_read_board(tmp_path, "m")
@@ -294,7 +294,7 @@ def test_board_names_an_unavailable_worktree_registry(tmp_path: Path, monkeypatc
     def _unavailable(*args: Any, **kwargs: Any) -> Any:
         raise WorktreeRegistryUnavailable(repo_root=tmp_path, detail="injected worktree-list failure")
 
-    monkeypatch.setattr(read_surface, "resolve_status_read", _unavailable)
+    monkeypatch.setattr(status_package, "resolve_status_read", _unavailable)
 
     board = decision_mapping._resolve_wp_board_action(mission_slug="m", repo_root=tmp_path)
 
@@ -331,7 +331,7 @@ def test_query_renders_an_unreadable_status_source_as_a_typed_error(
             raise StatusSurfaceRefUnreadable(repo_root=repo, ref="refs/heads/x", path="kitty-specs/m/status.events.jsonl", detail="bad object")
         raise WorktreeRegistryUnavailable(repo_root=repo, detail="injected worktree-list failure")
 
-    monkeypatch.setattr(read_surface, "resolve_status_read", _unreadable)
+    monkeypatch.setattr(status_package, "resolve_status_read", _unreadable)
 
     with pytest.raises(typer.Exit) as exited:
         next_cmd._run_query_mode("pedro", slug, repo, True, None, None)

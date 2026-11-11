@@ -530,10 +530,10 @@ def _board_surface(mission_slug: str, repo_root: Path, owned: OwnedCheckout | No
     from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
     from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted, WorktreeRegistryUnavailable
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
-    from specify_cli.status import read_surface
+    from specify_cli.status import StatusReadSource, resolve_status_read
 
     try:
-        surface = read_surface.resolve_status_read(repo_root, mission_slug, owned=owned)
+        surface = resolve_status_read(repo_root, mission_slug, owned=owned)
     except CoordinationBranchDeleted as exc:
         return _coord_unreadable_block(mission_slug, exc, exc.next_step)
     except (StatusSurfaceRefUnreadable, WorktreeRegistryUnavailable) as exc:
@@ -541,9 +541,9 @@ def _board_surface(mission_slug: str, repo_root: Path, owned: OwnedCheckout | No
     except (StatusReadPathNotFound, FileNotFoundError):
         return _WP_BOARD_DECLINE
 
-    if owned is not None and (surface.source is read_surface.StatusReadSource.COORD_BRANCH_REF or surface.fallback_reason is not None):
+    if owned is not None and (surface.source is StatusReadSource.COORD_BRANCH_REF or surface.fallback_reason is not None):
         return _WP_BOARD_DECLINE
-    refusal = read_surface.unmaterialized_coordination_refusal(surface)
+    refusal = surface.unmaterialized_refusal()
     if refusal is not None:
         return _coord_unreadable_block(mission_slug, refusal, refusal.next_step)
     return surface

@@ -149,6 +149,14 @@ class StatusReadSurface:
         """The Mission directory the event parser anchors legacy identity lookups on."""
         return self.path if self.path is not None else self.repo_root / _KITTY_SPECS / self.mission_dir_name
 
+    def unmaterialized_refusal(self) -> CoordinationWorktreeUnmaterialized | None:
+        """The placement seam's refusal when this surface's coordination worktree is not materialized.
+
+        Delegates to :func:`unmaterialized_coordination_refusal`, so callers outside
+        ``specify_cli.status`` reach it through the exported surface type.
+        """
+        return unmaterialized_coordination_refusal(self)
+
 
 @dataclass(frozen=True)
 class _Decision:
