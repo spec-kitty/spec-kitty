@@ -389,9 +389,18 @@ def _owned_stand_in(store_root: Path, mission_dir: Path | None = None) -> Any:
     """A stand-in fact whose owned root is the record store under test.
 
     These tests exercise the seam functions, not the validator, so a
-    ``SimpleNamespace`` carrying just the two fields the seam reads is enough.
+    ``SimpleNamespace`` carrying the fields the seam reads is enough: the owned
+    root and Mission directory, plus the topology and repository root the
+    status read door reads for the ``MissionNextInvoked`` row (#7539).
     """
-    return SimpleNamespace(owned_root=store_root, mission_dir=mission_dir)
+    from mission_runtime import MissionTopology
+
+    return SimpleNamespace(
+        owned_root=store_root,
+        mission_dir=mission_dir,
+        repository_root=store_root,
+        topology=MissionTopology.SINGLE_BRANCH,
+    )
 
 
 class TestSeamFunctionsOwnedFork:
