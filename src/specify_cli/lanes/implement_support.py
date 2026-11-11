@@ -8,6 +8,7 @@ This module handles both supported execution paths:
 
 from __future__ import annotations
 
+import logging
 import subprocess
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -37,6 +38,8 @@ from specify_cli.mission_metadata import set_vcs_lock
 from specify_cli.paths import RUNTIME_STATE_DIR_NAME
 from specify_cli.workspace.context import ResolvedWorkspace
 from specify_cli.workspace.context import WorkspaceContext
+
+logger = logging.getLogger(__name__)
 
 
 def git_stdout(repo_root: Path, args: list[str]) -> str:
@@ -182,11 +185,24 @@ def _claim_dirty_paths(write_checkout: Path, mission_slug: str) -> list[str]:
     Git collapses a wholly untracked directory to one ``dir/`` entry, so a
     ``decisions/`` that holds nothing but the lock reads as ``decisions/``;
     such an entry is dropped only when every file under it is a lock.
+
+    #7556: another Mission's paths are not this claim's to guard -- the WP commits
+    its own code and this Mission's files, never another Mission's directory -- so
+    they are dropped through the one Mission-scoped dirt rule
+    (:func:`~specify_cli.coordination.mission_dirt.partition_mission_dirt`) and
+    logged as a warning. Code dirt (outside every Mission) still refuses: the WP
+    commits code in this checkout (#5905).
     """
+    from specify_cli.coordination.mission_dirt import partition_mission_dirt
     from specify_cli.lanes.checkout_occupancy import dirty_paths
+    from specify_cli.missions._read_path_resolver import mission_dir_aliases
 
     owned = _owned_status_prefixes(mission_slug)
-    return [path for path in dirty_paths(write_checkout, owned_prefixes=owned) if not _is_only_decisions_runtime_locks(write_checkout, path)]
+    listed = [path for path in dirty_paths(write_checkout, owned_prefixes=owned) if not _is_only_decisions_runtime_locks(write_checkout, path)]
+    dirt = partition_mission_dirt(listed, own_dir_names=mission_dir_aliases(write_checkout, mission_slug))
+    for path in dirt.other_mission:
+        logger.warning("Another Mission's uncommitted path in the write checkout (left as is, not part of this claim): %s", path)
+    return [path for path in listed if path not in dirt.other_mission]
 
 
 def _is_only_decisions_runtime_locks(write_checkout: Path, path: str) -> bool:

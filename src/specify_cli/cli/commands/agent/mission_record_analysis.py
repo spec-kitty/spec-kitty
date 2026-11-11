@@ -36,6 +36,7 @@ from mission_runtime import (
     routes_through_coordination,
 )
 from specify_cli.coordination.coherence import is_coord_residue_churn, is_self_bookkeeping_churn
+from specify_cli.coordination.mission_dirt import partition_mission_dirt
 from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.core.git_ops import is_git_repo
 from specify_cli.review.dirty_classifier import status_entry_paths
@@ -169,7 +170,7 @@ def _enforce_analysis_report_write_preflight(
     placement_ref: CommitTarget | None = None,
     mission_slug: str | None = None,
     owned: OwnedCheckout | None = None,
-) -> None:
+) -> tuple[str, ...]:
     """Fail before `record-analysis` mutates a mission artifact in unsafe git state.
 
     The dirty-tree check is context-aware. Under coordination topology,
@@ -177,9 +178,18 @@ def _enforce_analysis_report_write_preflight(
     primary checkout may legitimately carry stale copies. When ``placement_ref``
     resolves to a coordination target, drop only artifact-home residue from the
     dirty set so the preflight still gates on genuine uncommitted edits.
+
+    #7556: the gate refuses only on THIS Mission's own uncommitted paths. The
+    write commits one report file through the commit router, so dirt anywhere
+    else (another Mission's files, an operator's scratch file) cannot be mixed
+    into it; those paths are returned so the caller reports them as a warning.
+
+    Returns:
+        The dirty paths outside this Mission (another Mission's, then outside
+        every Mission), in ``git status`` order; empty when there are none.
     """
     if not is_git_repo(repo_root):
-        return
+        return ()
 
     dirty_paths = _git_dirty_paths(repo_root)
     # FR-003 (#2102): drop spec-kitty's OWN bookkeeping churn unconditionally —
@@ -205,6 +215,15 @@ def _enforce_analysis_report_write_preflight(
         and routes_through_coordination(owned.topology if owned else resolve_topology(repo_root, mission_slug))
     ):
         dirty_paths = [path for path in dirty_paths if not is_coord_residue_churn(path, mission_slug=mission_slug)]
+    foreign: tuple[str, ...] = ()
+    if mission_slug is not None:
+        from specify_cli.missions._read_path_resolver import mission_dir_aliases
+
+        dirt = partition_mission_dirt(dirty_paths, own_dir_names=mission_dir_aliases(repo_root, mission_slug))
+        material = _material_input_paths(repo_root, mission_slug) if dirt.outside else frozenset()
+        blocking_outside = [path for path in dirt.outside if _is_material_input(path, material)]
+        dirty_paths = [*dirt.own, *blocking_outside]
+        foreign = tuple(path for path in dirt.foreign if path not in blocking_outside)
     if dirty_paths:
         payload = {
             _PAYLOAD_KEY_SUCCESS: False,
@@ -232,6 +251,42 @@ def _enforce_analysis_report_write_preflight(
     # dir (primary_feature_dir_for_mission), which is not a git operation;
     # the subsequent commit_for_mission call stages the written artifact on
     # the coordination worktree before committing.
+    return foreign
+
+
+def _material_input_paths(repo_root: Path, mission_slug: str) -> frozenset[str] | None:
+    """The repository-relative paths the analysis report fingerprints, or ``None`` when unknown.
+
+    A dirty material input (the charter, ``.kittify/config.yaml``, a template the
+    Mission resolves) would be hashed into the report as uncommitted state, so it
+    keeps refusing even though it sits outside the Mission directory (#7556).
+    ``None`` (the closure could not be collected) makes every outside path refuse:
+    the gate fails closed, as it did before #7556.
+    """
+    from specify_cli.analysis_inputs import collect_material_inputs
+    from specify_cli.core.constants import KITTY_SPECS_DIR
+
+    try:
+        inputs = collect_material_inputs(repo_root / KITTY_SPECS_DIR / mission_slug, repo_root)
+    except (ValueError, OSError):
+        return None
+    return frozenset(path for key, entry in inputs.items() if key.startswith("material:") and isinstance(path := entry.get("path"), str))
+
+
+def _is_material_input(path: str, material: frozenset[str] | None) -> bool:
+    """Whether a dirty ``path`` (a file, or git's collapsed ``dir/`` entry) holds a material input."""
+    if material is None:
+        return True
+    if path.endswith("/"):
+        return any(candidate.startswith(path) for candidate in material)
+    return path in material
+
+
+def _warn_on_foreign_dirt(paths: tuple[str, ...]) -> None:
+    """Name each uncommitted path outside this Mission that the report commit left alone (#7556)."""
+    for path in paths:
+        # A path can carry literal ``[...]``: plain text, never Rich markup.
+        console.print(f"Warning: uncommitted path outside this Mission (left as is): {path}", markup=False)
 
 
 def _warn_on_incomplete_surfaces(result: CommitRouterResult, *, json_output: bool) -> None:
@@ -436,8 +491,9 @@ def record_analysis(
         # dirty set (see ``_require_record_analysis_placement``).
         placement_ref = _resolve_record_analysis_placement_ref(repo_root, feature_dir, owned=owned)
         placement_ref = _require_record_analysis_placement(placement_ref, mission_slug=feature_dir.name)
+        foreign_dirty_paths: tuple[str, ...] = ()
         if not report_only:
-            _enforce_analysis_report_write_preflight(
+            foreign_dirty_paths = _enforce_analysis_report_write_preflight(
                 cwd_repo_root,
                 json_output=json_output,
                 placement_ref=placement_ref,
@@ -529,6 +585,9 @@ def record_analysis(
         )
 
         payload = {_PAYLOAD_KEY_SUCCESS: True, "result": "success", **result.to_dict()}
+        if foreign_dirty_paths:
+            # #7556: dirt outside this Mission no longer refuses; it is reported.
+            payload["foreign_dirty_paths"] = list(foreign_dirty_paths)
         if owned is not None:
             payload.update(stale_copy_payload(owned))
         if commit_result is not None and commit_result.surfaces:
@@ -540,6 +599,7 @@ def record_analysis(
         else:
             if commit_result is not None:
                 _warn_on_incomplete_surfaces(commit_result, json_output=json_output)
+            _warn_on_foreign_dirt(foreign_dirty_paths)
             rel = result.path.relative_to(repo_root) if result.path.is_relative_to(repo_root) else result.path
             console.print(f"[green]✓[/green] Analysis report persisted: {rel}")
 

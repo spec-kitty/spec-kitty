@@ -637,7 +637,8 @@ def test_record_analysis_dirty_worktree_wins_over_empty_body_matching_host_cli(
 
     # Dirty the tree with one untracked, non-bookkeeping file -- real dirt
     # neither surface's residue-churn allowlist would filter out.
-    (repo / "untracked-dirty-marker.txt").write_text("dirt\n", encoding="utf-8")
+    # #7556: only this Mission's own uncommitted paths refuse, so the dirt sits in its directory.
+    (repo / "kitty-specs" / mission_slug / "untracked-dirty-marker.txt").write_text("dirt\n", encoding="utf-8")
     status = _git(repo, "status", "--porcelain").stdout
     assert "untracked-dirty-marker.txt" in status, "fixture setup failed to dirty the tree"
 
@@ -905,7 +906,8 @@ def test_record_analysis_dirty_worktree_fails_closed_with_well_formed_body(
     repo = _init_repo(tmp_path)
     mission_slug, feature_dir = _build_mission(repo, "wp04-tests003-dirty")
 
-    (repo / "untracked-dirty-marker.txt").write_text("dirt\n", encoding="utf-8")
+    # #7556: only this Mission's own uncommitted paths refuse, so the dirt sits in its directory.
+    (repo / "kitty-specs" / mission_slug / "untracked-dirty-marker.txt").write_text("dirt\n", encoding="utf-8")
     status = _git(repo, "status", "--porcelain").stdout
     assert "untracked-dirty-marker.txt" in status, "fixture setup failed to dirty the tree"
 

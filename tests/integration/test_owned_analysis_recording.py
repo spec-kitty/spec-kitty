@@ -191,7 +191,8 @@ def test_material_race_keeps_written_report_unqualified(analysis_checkouts, monk
 @pytest.mark.parametrize("protected", [False, True])
 def test_ordinary_owned_dirt_refuses_before_write(analysis_checkouts, monkeypatch):
     primary, owned, sibling = analysis_checkouts
-    (owned / "app.py").write_text("pending application change\n", encoding="utf-8")
+    # #7556: the gate refuses on this Mission's own dirt; dirt outside the Mission is reported.
+    (owned / "kitty-specs" / SLUG / "notes.md").write_text("pending Mission change\n", encoding="utf-8")
     monkeypatch.chdir(owned)
     before = tuple(snapshot(root) for root in (primary, owned, sibling))
     result = record(owned, explicit=False, report_only=False)

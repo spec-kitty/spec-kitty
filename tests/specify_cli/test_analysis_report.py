@@ -574,7 +574,11 @@ def test_record_analysis_refuses_dirty_worktree_before_write(tmp_path, monkeypat
     feature_dir = repo_root / "kitty-specs" / "sample-01KS"
     _write_required_artifacts(feature_dir)
     _init_committed_git_project(repo_root, branch="feature")
-    (repo_root / "dirty.txt").write_text("uncommitted\n", encoding="utf-8")
+    # #7556: the gate refuses only on THIS Mission's own uncommitted paths; a
+    # root-level scratch file is now a warning (pinned in
+    # tests/specify_cli/cli/commands/agent/test_record_analysis_mission_scoped_7556.py).
+    # The dirt here is therefore an uncommitted edit inside the Mission directory.
+    (feature_dir / "spec.md").write_text("# Spec\n\nFR-001. Edited, not committed.\n", encoding="utf-8")
     input_file = tmp_path.parent / f"{tmp_path.name}-analysis.md"
     input_file.write_text("# Analysis\n\nPASS\n", encoding="utf-8")
 

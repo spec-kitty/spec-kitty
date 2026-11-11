@@ -198,10 +198,34 @@ def test_report_only_preserves_unrelated_partial_staging(repo: Path) -> None:
     assert check_analysis_report_current(repo / "kitty-specs" / SLUG, repo).ok
 
 
-def test_default_still_refuses_unrelated_work(repo: Path) -> None:
+def test_default_reports_unrelated_work_without_refusing(repo: Path) -> None:
+    """#7556: the default mode no longer refuses on dirt outside the Mission.
+
+    It commits only the report (through the commit router), so an unrelated
+    pending change cannot be mixed into it; the path is reported instead.
+    """
     (repo / "application.txt").write_text("pending\n")
     result = invoke()
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["foreign_dirty_paths"] == ["application.txt"]
+    assert (repo / "application.txt").read_text() == "pending\n"
+
+
+def test_default_still_refuses_this_missions_own_uncommitted_work(repo: Path) -> None:
+    (repo / "kitty-specs" / SLUG / "notes.md").write_text("pending\n")
+    result = invoke()
     assert result.exit_code == 1
+    assert "DIRTY_WORKTREE" in result.output
+    assert not (repo / REPORT).exists()
+
+
+@pytest.mark.parametrize("path", [".kittify/config.yaml", ".kittify/charter/charter.yaml"])
+def test_default_still_refuses_a_dirty_material_input_outside_the_mission(repo: Path, path: str) -> None:
+    """#7556 control: a material input the report fingerprints keeps refusing."""
+    with (repo / path).open("a") as stream:
+        stream.write("\n# changed\n")
+    result = invoke()
+    assert result.exit_code == 1, result.output
     assert "DIRTY_WORKTREE" in result.output
     assert not (repo / REPORT).exists()
 
