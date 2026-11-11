@@ -1,4 +1,5 @@
 {
+  "coordination_branch": "kitty/mission-runtime-status-read-door-01M73HHB",
   "create_return_branch": "refactor/7310-status-read-door-s5",
   "created_at": "2026-11-10T20:14:07.502269+00:00",
   "flattened": false,
@@ -14,7 +15,15 @@
   "purpose_tldr": "Make spec-kitty next and its status queries read Mission status from one declared source, so a coordination Mission never shows an empty board while its lanes are committed.",
   "slug": "runtime-status-read-door-01M73HHB",
   "target_branch": "refactor/7310-status-read-door-s5",
-  "topology": "single_branch",
-  "topology_settled": false,
+  "topology": "lanes_with_coord",
+  "topology_decision": {
+    "code_lane_count": 6,
+    "from": "single_branch",
+    "rule": "lanes_with_coord",
+    "target_protected": false,
+    "to": "lanes_with_coord",
+    "wp_count": 6
+  },
+  "topology_settled": true,
   "topology_source": "default"
 }
