@@ -1,0 +1,169 @@
+{
+  "mission_slug": "next-lifecycle-integrity-01M77BWP",
+  "mission_number": "257",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Finished, unaccepted software-dev board -> blocked MISSION_AWAITING_ACCEPTANCE + next_command accept",
+      "proof_type": "automated_test",
+      "evidence": "tests/next/test_finished_board_gate_7553.py cells 1,3,4 (CLI); WP02 review approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T14:12:03.553269+00:00",
+      "notes": "A finished, unaccepted software-dev board answers blocked MISSION_AWAITING_ACCEPTANCE naming spec-kitty accept, through the CLI and the bridge."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Fresh acceptance -> terminal; stale acceptance -> blocked",
+      "proof_type": "automated_test",
+      "evidence": "tests/next/test_finished_board_gate_7553.py cells 2,6; tests/runtime/next/test_finished_board_verdict.py freshness table; WP01+WP02 reviews approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T14:12:29.524574+00:00",
+      "notes": "An acceptance newer than the board's latest WP transition answers terminal; a stale or reopened-then-reapproved acceptance answers blocked again."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Gate answers record no step row (tree-snapshot probe, exactly one blocked/terminal MissionNextInvoked row, no stale pairing)",
+      "proof_type": "automated_test",
+      "evidence": "tests/next/test_finished_board_gate_7553.py no-row probe + cell 9; WP02 review D",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T14:12:33.977986+00:00",
+      "notes": "Gate answers change the tree only by one blocked/terminal MissionNextInvoked row, start no run, and leave a stale planning-step started record unpaired."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Stale walked runs (discovery, plan) answered by the gate, snapshot unchanged",
+      "proof_type": "automated_test",
+      "evidence": "tests/next/test_finished_board_gate_7553.py cell 8; residual pins cell 10",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T14:12:38.180350+00:00",
+      "notes": "Engine-direct stale runs at discovery, plan and tasks are answered by the gate with the run snapshot unchanged; analyze/implement runs keep the engine path."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "--result failed/blocked on a finished board never issues a step",
+      "proof_type": "automated_test",
+      "evidence": "tests/next/test_finished_board_gate_7553.py cell 5",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T14:12:42.205933+00:00",
+      "notes": "--result failed and --result blocked on a finished board answer MISSION_AWAITING_ACCEPTANCE and never issue a step."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Authoritative runs and other families unchanged",
+      "proof_type": "automated_test",
+      "evidence": "tests/next/test_finished_board_gate_7553.py FR-006 controls; tests/next/test_next_advance_first_contact_5310.py::test_advance_of_an_already_walked_run_keeps_dag_progression unchanged green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T14:12:46.762643+00:00",
+      "notes": "Authoritative runs (analyze..accept), documentation Missions and Missions without WPs keep their pre-gate path."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "One finished-board predicate for query and advance",
+      "proof_type": "automated_test",
+      "evidence": "finished_board_verdict used by runtime_bridge.py and runtime_bridge_query.py; tests/runtime/next/test_finished_board_verdict.py; tests/next/test_query_next_command_7553.py cells 3-5",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T14:12:50.967781+00:00",
+      "notes": "One finished_board_verdict serves query and advance; both modes agree on unaccepted, stale and fresh acceptance."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Read-only envelopes carry next_command except pending decision / landed",
+      "proof_type": "automated_test",
+      "evidence": "tests/next/test_query_next_command_7553.py cells 1,3-9 (CLI cells 1-2)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T14:12:55.150886+00:00",
+      "notes": "Read-only envelopes name the advance, accept or consolidate command, except a pending decision on a started run and a landed Mission."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "First decision_required keeps decision fields",
+      "proof_type": "automated_test",
+      "evidence": "tests/next/test_query_next_command_7553.py cell 2 (CLI)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T14:12:59.417958+00:00",
+      "notes": "An untouched run's first decision_required preview keeps question, decision_id and input_key/options, plus the advance next_command."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "question <=> decision_id; options or input_key, enforced at construction",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/next/test_pending_decision_prompt.py; tests/next/test_query_next_command_7553.py cell 10; tests/runtime fixtures re-pinned with valid prompts",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T14:13:03.734428+00:00",
+      "notes": "PendingDecisionPrompt refuses a question without a decision_id and a decision without options or input_key at construction."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "rollback_reset recorded on PLANNED transition with lane_head kept",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_move_task_rollback_reset_7582.py cells 1,9,11",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T14:13:08.113864+00:00",
+      "notes": "A rollback to planned records rollback_reset (scope, reset, previously completed, reason) on the PLANNED event beside lane_head."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "--reset-subtasks narrows the reset",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_move_task_rollback_reset_7582.py cell 2",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T14:13:12.204413+00:00",
+      "notes": "--reset-subtasks T002 resets only T002; T001 keeps done and the record says narrowed."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Narrowing refused before any write with own messages",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_move_task_rollback_reset_7582.py cells 3-6 (mutation-tested by reviewer)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T14:13:16.372571+00:00",
+      "notes": "Each narrowing refusal exits non-zero with its own code and message before any write, with auto-commit on, and echoes operator input literally."
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Full reset default; for_review subtask gate still blocks",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_move_task_rollback_reset_7582.py cell 7",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T14:13:20.617829+00:00",
+      "notes": "Without --reset-subtasks every non-skipped subtask resets; the for_review subtask gate still blocks on a reset subtask."
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Announcement names scope and reason (human + JSON)",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_move_task_rollback_reset_7582.py cell 10; tests/specify_cli/cli/commands/agent/test_move_task_rollback_signal.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T14:13:24.877847+00:00",
+      "notes": "The human and JSON output name the reset scope and reason."
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "Mid-implementation: non-dispatchable board step -> blocked BOARD_STEP_NOT_DISPATCHABLE with resume command",
+      "proof_type": "automated_test",
+      "evidence": "tests/next/test_finished_board_gate_7553.py cell 7",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T14:13:29.084230+00:00",
+      "notes": "A claimed or in-progress WP answers blocked BOARD_STEP_NOT_DISPATCHABLE naming the WP and its agent action resume command."
+    }
+  ],
+  "negative_invariants": []
+}

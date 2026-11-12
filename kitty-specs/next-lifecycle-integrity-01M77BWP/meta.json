@@ -1,0 +1,45 @@
+{
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-12T12:58:54.314640+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "7834070f939f719c7ea87a39e7cd0ff650684650"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-12T12:58:54.314640+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "7834070f939f719c7ea87a39e7cd0ff650684650",
+  "baseline_merge_commit": "7834070f939f719c7ea87a39e7cd0ff650684650",
+  "create_return_branch": "fix/7548-next-lifecycle-integrity",
+  "created_at": "2026-11-12T07:52:34.120049+00:00",
+  "flattened": true,
+  "friendly_name": "next lifecycle integrity (#7548)",
+  "merged_at": "2026-11-12T13:12:37.068148+00:00",
+  "merged_commit": "8609dccec86881a4b93f71537e7b0a812f2c957c",
+  "mid8": "01M77BWP",
+  "mission_branch": "kitty/mission-next-lifecycle-integrity-01M77BWP",
+  "mission_id": "01M77BWPZ3E805PYVPYS8A49MZ",
+  "mission_number": 257,
+  "mission_slug": "next-lifecycle-integrity-01M77BWP",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Fixes #7553, #5929 and #7565 (advancing next on a finished board falls through to the DAG and records false step rows) and #7582 (rejection resets every subtask without recording which were completed or allowing a narrowed reset).",
+  "purpose_tldr": "next never records steps that did not run; rejection subtask resets are recorded and narrowable",
+  "slug": "next-lifecycle-integrity-01M77BWP",
+  "status_phase": "1",
+  "target_branch": "fix/7548-next-lifecycle-integrity",
+  "topology_decision": {
+    "code_lane_count": 4,
+    "from": "single_branch",
+    "rule": "lanes_with_coord",
+    "target_protected": false,
+    "to": "lanes_with_coord",
+    "wp_count": 4
+  },
+  "topology_settled": true,
+  "topology_source": "default",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-12T09:17:00.628616+00:00"
+}
