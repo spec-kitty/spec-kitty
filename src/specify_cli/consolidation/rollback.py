@@ -75,12 +75,14 @@ persisted record.
 
 from __future__ import annotations
 
+import logging
 import subprocess
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from enum import StrEnum
 from pathlib import Path
 
+from specify_cli.consolidation.landed_coordination import clear_landed_coordination_tip
 from specify_cli.consolidation.state import UNSETTLED_ALL, ConsolidationState, reconciliation_passed_for_tip, save_state
 from specify_cli.coordination.coherence import CheckoutRole, ResidueContext, is_status_state_path
 from specify_cli.core.paths import MissionMetaReadError
@@ -93,6 +95,8 @@ from specify_cli.git.ref_advance import (
 )
 from specify_cli.lanes.compute import lane_created_branch
 from specify_cli.lanes.models import LanesManifest
+
+logger = logging.getLogger(__name__)
 
 # Only the entry points other modules call. The report/outcome types and
 # ``snapshot_branches`` stay public (tests and typed callers import them by name)
@@ -948,6 +952,19 @@ def _resync_kept_coord_checkout(repo_root: Path, state: ConsolidationState, outc
     return None
 
 
+def _clear_landed_coordination_ref(repo_root: Path, state: ConsolidationState) -> None:
+    """Delete the landed-coordination ref of this record's coordination branch (best effort, logged).
+
+    The ref exists only while its landing stands; a coordination anchor that names the target
+    (LANES / SINGLE_BRANCH) has no such ref.
+    """
+    if _coord_anchor_is_the_target(state):
+        return
+    coord_ref = state.pre_mutation_coord_ref or ""
+    if not clear_landed_coordination_tip(repo_root, coord_ref):
+        logger.warning("Could not delete the landed-coordination ref of %s after the rollback restored the target", coord_ref)
+
+
 def rollback_to_snapshot(repo_root: Path, state: ConsolidationState, *, target_branch: str) -> RollbackReport:
     """Undo this attempt's mutation by CAS-restoring every snapshotted branch; persist the settle bookkeeping."""
     if not state.pre_mutation_refs:
@@ -966,6 +983,8 @@ def rollback_to_snapshot(repo_root: Path, state: ConsolidationState, *, target_b
     if any(o.branch == target_branch and o.kind is BranchOutcomeKind.RESTORED for o in outcomes):
         # F4: the target left the landing the PASS anchor verified; never keep a stale anchor.
         state.clear_reconciliation_pass()
+        # #4041/#7491: nor a landed-coordination ref naming a tip whose landing was just undone.
+        _clear_landed_coordination_ref(repo_root, state)
     if report.fully_restored:
         _clear_bookkeeping(state, outcomes)
     save_state(state, repo_root)

@@ -657,7 +657,7 @@ def _run_lane_based_consolidation_locked(
     # snapshotted branch through ``rollback_to_snapshot`` (``_report_rollback``) and
     # re-raises the original; ``typer.Exit(0)`` passes through untouched
     # (``typer.Exit`` subclasses ``RuntimeError``, so its clause comes first).
-    # ``anchor_before`` lets ``_report_rollback`` undo THIS run's own PASS anchor
+    # ``anchor_before`` / ``coord_tip_before`` (the PASS anchor and its #7491 coordination tip) let ``_report_rollback`` undo THIS run's own PASS anchor
     # (BLOCKER 1) while an EARLIER attempt's anchor keeps its verified landing.
     # The phase calls stay inline: the phase-boundary pins index them here.
     #
@@ -667,7 +667,7 @@ def _run_lane_based_consolidation_locked(
     # with the identical ``anchor_before`` + ``_report_rollback`` mechanism over the
     # whole span, so the interim variant is removed and the done-and-project phase
     # calls the base ``_phase_record_done_and_project`` inside this try.
-    anchor_before = run.state.reconciliation_passed_target_sha
+    anchor_before, coord_tip_before = run.state.reconciliation_pass_pair()
     # #5686 (FR-006): every advance inside the span persists its intent first, so a
     # kill between the compare-and-swap write and the phase recorder stays provable.
     with reporting_advance_intents(functools.partial(_note_advance_intent, run)):
@@ -697,10 +697,10 @@ def _run_lane_based_consolidation_locked(
             _phase_reconcile_before_teardown(run)
         except typer.Exit as exc:
             if exc.exit_code:
-                _report_rollback(run, anchor_before=anchor_before)
+                _report_rollback(run, anchor_before=anchor_before, coord_tip_before=coord_tip_before)
             raise
         except BaseException:
-            _report_rollback(run, anchor_before=anchor_before)
+            _report_rollback(run, anchor_before=anchor_before, coord_tip_before=coord_tip_before)
             raise
     # #5686 (FR-003, post-tasks squad HIGH): the reconciliation PASS and the squash
     # projection proof both succeeded (or an earlier attempt's PASS still holds for
@@ -771,14 +771,14 @@ def _rebaseline_record_after_full_restore(run: _MergeRunState, report: rollback.
         )
 
 
-def _report_rollback(run: _MergeRunState, *, anchor_before: str | None) -> None:
+def _report_rollback(run: _MergeRunState, *, anchor_before: str | None, coord_tip_before: str | None = None) -> None:
     """Roll every snapshotted branch back after a post-mutation failure and print the report (#5318 / #5385).
 
     The single rollback door's body: the driver calls it for a non-zero exit, an
     exception or an interrupt anywhere from ``_phase_merge_lanes`` through the gate.
 
     ``anchor_before`` is ``reconciliation_passed_target_sha`` as it stood BEFORE
-    the span ran. Since F3 the gate persists THIS run's own PASS anchor only as
+    the span ran (``coord_tip_before`` is its paired #7491 coordination tip, restored with it). Since F3 the gate persists THIS run's own PASS anchor only as
     its last step, after the projection proof passed, so a gate refusal leaves
     none; the reset stays as a backstop for any exit after that write (a failed
     save, an interrupt): left in place, the authority would read it as a landing
@@ -798,7 +798,7 @@ def _report_rollback(run: _MergeRunState, *, anchor_before: str | None) -> None:
     ``raise`` still propagates that original.
     """
     try:
-        if run.state.restore_reconciliation_pass(anchor_before):
+        if run.state.restore_reconciliation_pass(anchor_before, coord_tip_before):
             save_state(run.state, run.main_repo)
         report = rollback.rollback_to_snapshot(run.main_repo, run.state, target_branch=run.lanes_manifest.target_branch)
     except BaseException as exc:

@@ -45,7 +45,8 @@ from specify_cli.git.ref_advance import (
     RefDeleteMismatchError,
     delete_branch_ref,
 )
-from specify_cli.consolidation.git_probes import _paths_have_status_changes
+from specify_cli.consolidation.git_probes import GitProbeError, _paths_have_status_changes, is_ancestor_strict
+from specify_cli.consolidation.landed_coordination import LandedCoordinationRefError, record_landed_coordination_tip
 from specify_cli.consolidation import lane_cleanup
 from specify_cli.consolidation.lane_cleanup import (
     LaneCleanupReport,
@@ -82,6 +83,7 @@ from specify_cli.consolidation.run_state import (
     CoordinationTeardownError,
     _MergeRunState,
     _is_coord_topology_mission,
+    landing_verified_for_resume,
 )
 
 
@@ -420,15 +422,71 @@ def _advance_approved_tip(run: _MergeRunState, coord_ref: str, projected_tip: st
     """
     if _resolve_ref_sha(run.main_repo, coord_ref) == projected_tip:
         run.coord_tip_after_projection = projected_tip
+        _persist_proven_coordination_tip(run, projected_tip)
+
+
+def _persist_proven_coordination_tip(run: _MergeRunState, proven_tip: str) -> None:
+    """Keep the persisted coordination tip (#7491) current with a late window just proven landed.
+
+    Only while the record carries a PASS anchor: the tip is written with that anchor and is only
+    sound beside it. The window was proven landed before this advance, so a narrower resume base
+    is still sound. The landed-coordination ref follows (#4041).
+    """
+    if not run.state.reconciliation_passed_target_sha or run.state.coord_tip_after_projection == proven_tip:
+        return
+    run.state.coord_tip_after_projection = proven_tip
+    save_state(run.state, run.main_repo)
+    record_landed_coordination_ref(run, proven_tip)
+
+
+def record_landed_coordination_ref(run: _MergeRunState, tip: str | None) -> None:
+    """Best effort: record *tip* as the landed coordination tip of this run's coordination branch (#4041).
+
+    Written only for a coordination topology (the checkpoint ref names a coordination branch, not the
+    target). A failure never fails the landing: the ref only enables a later reclaim, which refuses
+    without it, so it is logged at warning and the run goes on.
+    """
+    checkpoint = run.coord_checkpoint
+    if not tip or checkpoint is None:
+        return
+    branch = checkpoint.ref.removeprefix("refs/heads/")
+    if branch in ("", run.lanes_manifest.target_branch) or branch != run.lanes_manifest.mission_branch:
+        return
+    try:
+        record_landed_coordination_tip(run.main_repo, branch, tip)
+    except (LandedCoordinationRefError, GitProbeError, ValueError) as exc:
+        logger.warning("Could not record the landed coordination tip of %s at %s: %s", branch, tip[:12], exc)
+
+
+def _verified_resume_base(run: _MergeRunState) -> str | None:
+    """The persisted post-projection coordination tip, when a resume may start its late window there (#7491).
+
+    Sound only when the landing is verified (``landing_verified_for_resume``: exactly the resume that
+    skips the phases, so no attempt re-ran past the tip) AND the tip is still an ancestor of the live
+    coordination branch (a rewritten branch falls back). A git failure falls back too: the wider
+    ``pre_mutation_coord_sha`` base refuses rather than passes what it cannot prove.
+    """
+    tip = run.state.coord_tip_after_projection
+    if not tip or not landing_verified_for_resume(run.main_repo, run.state):
+        return None
+    try:
+        on_branch = is_ancestor_strict(run.main_repo, tip, f"refs/heads/{run.lanes_manifest.mission_branch}")
+    except GitProbeError:
+        return None
+    return str(tip) if on_branch else None
 
 
 def _late_window_base(run: _MergeRunState) -> str | None:
     """The coordination tip the late-teardown window starts at, per RUN KIND (#6871).
 
-    A ``--resume`` has no in-memory record of what the interrupted merge verified, so it anchors on
-    the persisted PRE-mutation coordination snapshot (``state.pre_mutation_coord_sha``): that window
-    spans everything the coordination branch changed since the merge began, which is what a second
-    attempt must not drop (#5570/#6791).
+    A ``--resume`` has no in-memory record of what the interrupted merge verified. When the record
+    proves the landing was verified (``landing_verified_for_resume``) and carries the coordination
+    tip persisted with that PASS anchor, still an ancestor of the live coordination branch, the
+    window starts there, exactly like the first run's (#7491): everything at or before it was
+    covered by the verified landing. Otherwise it anchors on the persisted PRE-mutation coordination
+    snapshot (``state.pre_mutation_coord_sha``): that window spans everything the coordination
+    branch changed since the merge began, which is what a second attempt must not drop
+    (#5570/#6791).
 
     A first run does have that record. ``run.coord_tip_after_projection`` is captured at the end of
     the bookkeeping phase, after every merge-owned coordination write, and is the tip the
@@ -448,7 +506,8 @@ def _late_window_base(run: _MergeRunState) -> str | None:
     # Typed locals: the ``specify_cli.*`` ``follow_imports=skip`` override resolves these
     # cross-module attributes as ``Any``, and returning ``Any`` trips ``no-any-return``.
     if run.is_resume:
-        resume_base: str | None = run.state.pre_mutation_coord_sha
+        verified = _verified_resume_base(run)
+        resume_base: str | None = verified if verified is not None else run.state.pre_mutation_coord_sha
         return resume_base
     first_run_base: str | None = run.coord_tip_after_projection
     return first_run_base
@@ -495,13 +554,15 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
     byte-identical on the target, or the teardown REFUSES (branch, worktree and marker kept)
     instead of deleting a commit it did not land.
 
-    On a resume the window starts at the PRE-mutation coordination snapshot
-    (``state.pre_mutation_coord_sha``), so it spans everything the coordination branch changed
-    SINCE THE MERGE BEGAN, not only what landed after the landing was verified: it also carries
-    commits made while the merge ran (a first run starts at ``coord_tip_after_projection``). The
-    refusal is therefore reachable on an ordinary resume, not just one that follows a refused
-    teardown -- a window that deletes a record the target holds REFUSES (exit 1) where this path
-    used to exit 0 and drop the deletion with the branch (see :func:`assert_late_window_landed`).
+    On a resume whose landing is not verified (or whose record has no persisted coordination tip)
+    the window starts at the PRE-mutation coordination snapshot (``state.pre_mutation_coord_sha``),
+    so it spans everything the coordination branch changed SINCE THE MERGE BEGAN: it also carries
+    commits made while the merge ran. After a verified landing it starts at the coordination tip
+    persisted with the PASS anchor, like a first run (#7491), so the merge's own lane merges of
+    PRIMARY artifacts the target later changed are not re-judged. The refusal is reachable on an
+    ordinary resume, not just one that follows a refused teardown -- a window that deletes a record
+    the target holds REFUSES (exit 1) where this path used to exit 0 and drop the deletion with the
+    branch (see :func:`assert_late_window_landed`).
 
     #7198: the proof above covers EVERY change in the window, not only coordination-kind records. The
     two exemptions it used to carry -- the status byte-sets and every non-coordination path -- were
@@ -575,9 +636,10 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
             coord_ref=projected_tip,
         )
         late_paths = [run.main_repo / rel for rel in _post_checkpoint_mission_paths(run.main_repo, run.mission_slug, base, projected_tip)]
-        # #6791: a gate matrix changed in this window is projected too. On a resume the window
-        # starts at the PRE-mutation snapshot, so it reaches back to the start of the merge (a
-        # first run starts at ``coord_tip_after_projection``); a matrix in it is newer than the
+        # #6791: a gate matrix changed in this window is projected too. On a resume without a
+        # verified landing the window starts at the PRE-mutation snapshot, so it reaches back to the
+        # start of the merge (a first run, and a verified resume (#7491), start at the post-projection
+        # coordination tip); a matrix in it is newer than the
         # checkpoint but not necessarily newer than the target's accept-time fill, so the
         # projection is guarded -- it never loses or overturns a judgement the target already holds.
         gate_matrix_paths = list(

@@ -146,11 +146,21 @@ def _record_reconciliation_pass(run: _MergeRunState, verified_sha: str | None) -
     against a possibly torn-down lane's now-partial ``authored_blobs`` claim
     (#5021 r1). A no-op when the target ref could not be resolved (nothing safe
     to anchor).
+
+    #7491: the coordination tip the merge projected (``run.coord_tip_after_projection``)
+    is persisted in the SAME save, so a resume after a verified landing can start its
+    late window where this run's would; the landed-coordination ref (#4041) records it
+    too (best effort, after the save).
     """
     if not verified_sha:
         return
     run.state.reconciliation_passed_target_sha = verified_sha
+    run.state.coord_tip_after_projection = run.coord_tip_after_projection
     save_state(run.state, run.main_repo)
+    # Function-local: phase_teardown is the late-window owner and imports far more than this phase.
+    from specify_cli.consolidation.phase_teardown import record_landed_coordination_ref
+
+    record_landed_coordination_ref(run, run.coord_tip_after_projection)
 
 
 def _refuse_target_moved_during_verification(run: _MergeRunState, verified_sha: str | None) -> None:

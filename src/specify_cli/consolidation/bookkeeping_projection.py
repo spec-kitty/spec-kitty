@@ -726,9 +726,10 @@ def _post_checkpoint_mission_paths(
     #
     # #6791 -- the gate-matrix exclusion is WINDOW-SCOPED, not a property of the kind:
     # in the MID-MERGE window above the coord ref can only hold the stale placeholder,
-    # but the resumed teardown's late window (``pre_mutation_coord_sha..coord-tip``)
-    # starts at the PRE-mutation snapshot the merge persisted before it touched anything,
-    # so it reaches back to the start of the merge -- it also holds every coordination
+    # but a resumed teardown's late window without a verified landing
+    # (``pre_mutation_coord_sha..coord-tip``; a verified resume starts at the persisted
+    # post-projection tip, #7491) starts at the PRE-mutation snapshot the merge persisted
+    # before it touched anything, so it reaches back to the start of the merge -- it also holds every coordination
     # commit made while the merge ran, not only those made after the landing was
     # verified. A gate matrix in it is therefore newer than the checkpoint but NOT
     # necessarily newer than the target's accept-time fill, so this window lands one
@@ -1117,10 +1118,11 @@ def project_late_gate_matrix_commits(
     """Project the gate-matrix commits that landed in the late window (#6791).
 
     The late window ``checkpoint_sha..coord_ref`` starts at the coordination tip the merge
-    captured. On a ``--resume`` that is the PRE-mutation coordination snapshot, so the window
-    reaches back to the START of the merge and holds every coordination commit made since
-    then, including the ones the merge itself carried to the target; on a first run it is the
-    post-projection tip (``coord_tip_after_projection``, #6871). A gate matrix there is newer
+    captured. On a ``--resume`` without a verified landing that is the PRE-mutation coordination
+    snapshot, so the window reaches back to the START of the merge and holds every coordination
+    commit made since then, including the ones the merge itself carried to the target; on a first
+    run, and on a resume after a verified landing (#7491), it is the post-projection tip
+    (``coord_tip_after_projection``, #6871). A gate matrix there is newer
     than the checkpoint but not necessarily newer
     than the target's accept-time fill -- unlike the mid-merge window the general selector
     excludes them for, where the coord ref can only hold a stale placeholder. That is why
@@ -1376,10 +1378,10 @@ def assert_late_window_landed(
     lands in the refusing bucket until a rule names it. That is what makes the guarantee independent of
     the run kind -- a first run and a ``--resume`` reach the same verdict for the same window.
 
-    The window starts at the coordination tip the merge captured: on a ``--resume`` the
-    PRE-mutation coordination snapshot, so "the late window" is everything the coordination
-    branch changed SINCE THE MERGE BEGAN; on a first run the post-projection tip
-    (``coord_tip_after_projection``, #6871). A record the window deletes therefore counts here
+    The window starts at the coordination tip the merge captured: on a ``--resume`` without a
+    verified landing the PRE-mutation coordination snapshot, so "the late window" is everything the
+    coordination branch changed SINCE THE MERGE BEGAN; on a first run, and on a resume after a
+    verified landing (#7491), the post-projection tip (``coord_tip_after_projection``, #6871). A record the window deletes therefore counts here
     too, and an ordinary resume that contains such a deletion refuses where it used to exit 0
     and drop the deletion with the branch.
 

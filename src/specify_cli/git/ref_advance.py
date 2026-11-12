@@ -1049,7 +1049,7 @@ def _require_bookkeeping_ref(ref: str) -> None:
         )
 
 
-def bookkeeping_ref_write_args(ref: str, sha: str, *, create_only: bool = False) -> list[str]:
+def bookkeeping_ref_write_args(ref: str, sha: str, *, create_only: bool = False, expected_old: str | None = None) -> list[str]:
     """The git arguments :func:`write_bookkeeping_ref` runs (after ``git``).
 
     Also what a caller prints when it hands the same write to the operator, so
@@ -1057,12 +1057,19 @@ def bookkeeping_ref_write_args(ref: str, sha: str, *, create_only: bool = False)
 
     Raises:
         BookkeepingRefError: *ref* is not under ``refs/spec-kitty/``.
+        ValueError: both ``create_only`` and ``expected_old`` were given.
     """
     _require_bookkeeping_ref(ref)
-    return ["update-ref", ref, sha, ""] if create_only else ["update-ref", ref, sha]
+    if create_only and expected_old is not None:
+        raise ValueError("create_only and expected_old are exclusive: a created ref has no old value")
+    if create_only:
+        return ["update-ref", ref, sha, ""]
+    if expected_old is not None:
+        return ["update-ref", ref, sha, expected_old]
+    return ["update-ref", ref, sha]
 
 
-def write_bookkeeping_ref(repo_root: Path, ref: str, sha: str, *, create_only: bool = False) -> bool:
+def write_bookkeeping_ref(repo_root: Path, ref: str, sha: str, *, create_only: bool = False, expected_old: str | None = None) -> bool:
     """Point the bookkeeping ref *ref* at *sha*; return ``True`` on success.
 
     A plain (2-arg) ``git update-ref``: bookkeeping refs are single-writer
@@ -1070,12 +1077,14 @@ def write_bookkeeping_ref(repo_root: Path, ref: str, sha: str, *, create_only: b
     (a best-effort recorder ignores ``False``; a mandatory one raises).
     With ``create_only`` the write fails (``False``) rather than move a ref
     that already exists, so a record of an earlier tip is never overwritten.
+    With ``expected_old`` the write is a compare-and-swap: it fails (``False``)
+    unless the ref still holds that value.
 
     Raises:
         BookkeepingRefError: *ref* is not under ``refs/spec-kitty/`` -- a
             branch or any other namespace must never be moved through here.
     """
-    return _run_git(repo_root, bookkeeping_ref_write_args(ref, sha, create_only=create_only)).returncode == 0
+    return _run_git(repo_root, bookkeeping_ref_write_args(ref, sha, create_only=create_only, expected_old=expected_old)).returncode == 0
 
 
 def delete_bookkeeping_ref(repo_root: Path, ref: str) -> bool:

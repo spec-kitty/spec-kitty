@@ -265,6 +265,16 @@ class ConsolidationState:
     # Round-trips through ``from_dict``'s known-fields filter like the other
     # anchors (absent key -> default ``None``).
     reconciliation_passed_target_sha: str | None = None
+    # #7491 (Mission coord-closeout-leftovers): the coordination tip whose records
+    # the verified landing covered -- ``run.coord_tip_after_projection`` at the
+    # reconciliation PASS, advanced only where teardown proved a late window
+    # landed. Written ONLY with the PASS anchor above and cleared/restored with
+    # it (:meth:`clear_reconciliation_pass` / :meth:`restore_reconciliation_pass`),
+    # so it never outlives the landing it describes. A ``--resume`` uses it as the
+    # late-window base only behind ``landing_verified_for_resume`` plus an
+    # ancestry check (``phase_teardown._verified_resume_base``). Absent in legacy
+    # records -> ``None`` (the resume falls back to ``pre_mutation_coord_sha``).
+    coord_tip_after_projection: str | None = None
     # consolidation-claim-rollback-integrity-01M3PD1T WP02 (#5318/#5332): the
     # single pre-mutation snapshot (short branch name -> sha), written ONCE by
     # ``consolidation.rollback.capture_pre_mutation_snapshot`` and never
@@ -382,26 +392,32 @@ class ConsolidationState:
         self.updated_at = now_utc_iso()
 
     def clear_reconciliation_pass(self) -> bool:
-        """Drop the reconciliation PASS anchor (#5021); return whether anything changed.
+        """Drop the reconciliation PASS anchor (#5021) and its coordination tip (#7491); return whether anything changed.
 
-        The one clear door for ``reconciliation_passed_target_sha``, so a field
-        that must travel with the anchor (#7491, Mission
-        coord-closeout-leftovers) is cleared in the same place. A pure field
-        mutator: it neither persists the record nor touches git.
+        The one clear door for ``reconciliation_passed_target_sha`` and the
+        ``coord_tip_after_projection`` paired with it, so the two are always
+        cleared together. A pure field mutator: it neither persists the record
+        nor touches git.
         """
         return self.restore_reconciliation_pass(None)
 
-    def restore_reconciliation_pass(self, anchor: str | None) -> bool:
-        """Set the reconciliation PASS anchor (#5021) back to ``anchor``; return whether it changed.
+    def reconciliation_pass_pair(self) -> tuple[str | None, str | None]:
+        """The PASS anchor and its coordination tip, as :meth:`restore_reconciliation_pass` takes them back."""
+        return self.reconciliation_passed_target_sha, self.coord_tip_after_projection
 
-        The one restore door for ``reconciliation_passed_target_sha`` (``None``
-        clears it), so a field paired with the anchor (#7491, Mission
-        coord-closeout-leftovers) is restored with it. A pure field mutator: the
-        caller persists the record when this returns ``True``.
+    def restore_reconciliation_pass(self, anchor: str | None, coord_tip: str | None = None) -> bool:
+        """Set the reconciliation PASS anchor (#5021) and its coordination tip (#7491) back; return whether either changed.
+
+        The one restore door for the pair (``None`` clears the anchor; a tip
+        without an anchor is never kept, since it is only sound beside a verified
+        landing). A pure field mutator: the caller persists the record when this
+        returns ``True``.
         """
-        if self.reconciliation_passed_target_sha == anchor:
+        tip = coord_tip if anchor is not None else None
+        if (self.reconciliation_passed_target_sha, self.coord_tip_after_projection) == (anchor, tip):
             return False
         self.reconciliation_passed_target_sha = anchor
+        self.coord_tip_after_projection = tip
         return True
 
 
