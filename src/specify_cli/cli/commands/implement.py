@@ -8,7 +8,7 @@ from collections.abc import Callable
 from contextlib import ExitStack
 from io import StringIO
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, TypeAlias
 
 import typer
 from pydantic import ValidationError
@@ -31,7 +31,11 @@ from specify_cli.lanes.worktree_allocator import (
     PlanningCommitMergeConflictError,
 )
 from specify_cli.lanes.lane_invocation import LaneTestInvocation, ProbeStatus
-from specify_cli.review.lane_test_invocation import render_lane_test_invocation_lines, workspace_lane_test_invocation
+from specify_cli.review.lane_test_invocation import (
+    render_lane_test_invocation_failure_lines,
+    render_lane_test_invocation_lines,
+    workspace_lane_test_invocation,
+)
 from specify_cli.task_utils import TaskCliError, find_repo_root
 
 from specify_cli.cli.commands import implement_phases, implement_recover
@@ -42,6 +46,10 @@ from specify_cli.cli.commands import implement_phases, implement_recover
 # banners (now in ``implement_phases``) use a different close tag.
 _BANNER_OPEN = "[bold yellow]"
 _BANNER_CLOSE = "[/bold yellow]"
+
+#: #7547: the lane test invocation, ``None`` for planning-artifact work, or the
+#: error that kept it from being built (fail-open: never fails ``implement``).
+_InvocationOutcome: TypeAlias = LaneTestInvocation | Exception | None
 
 
 def _json_wrapper_resolve_wp_id(args: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
@@ -212,7 +220,7 @@ def _build_implement_json_payload(
     branch_name: str | None,
     result: Any,
     resolved_workspace: Any,
-    lane_test_invocation: LaneTestInvocation | None = None,
+    lane_test_invocation: _InvocationOutcome = None,
 ) -> dict[str, Any]:
     """Assemble the ``--json`` success payload (FR-004/FR-005 #2186 identity
     anchor + FR-006 lane-test-env passthrough + #7547 FR-001 lane test invocation)."""
@@ -250,34 +258,47 @@ def _build_implement_json_payload(
         # (e.g. a MagicMock in unit tests).
         "lane_test_env": (result.lane_test_env if isinstance(getattr(result, "lane_test_env", None), dict) else {}),
         # #7547 FR-001: how to run this lane's tests, with its probe result
-        # (``None`` for planning-artifact work). Re-derived per command, never persisted.
-        "lane_test_invocation": lane_test_invocation.to_dict() if lane_test_invocation is not None else None,
+        # (``None`` for planning-artifact work or when it could not be built).
+        # Re-derived per command, never persisted.
+        "lane_test_invocation": lane_test_invocation.to_dict() if isinstance(lane_test_invocation, LaneTestInvocation) else None,
     }
 
 
-def _lane_test_invocation(repo_root: Path, mission_slug: str, result: Any) -> LaneTestInvocation | None:
-    """#7547 FR-001: the lane test invocation for this claim, built and probed once per command."""
-    return workspace_lane_test_invocation(
-        result.workspace_path,
-        config_root=repo_root,
-        mission_slug=mission_slug,
-        lane_id=result.lane_id,
-        resolution_kind=result.resolution_kind,
-        execution_mode=result.execution_mode,
-    )
+def _lane_test_invocation(repo_root: Path, mission_slug: str, result: Any) -> _InvocationOutcome:
+    """#7547 FR-001: the lane test invocation for this claim, built and probed once per command.
+
+    Fail-open like the prompts: it runs after the claim is committed, so an
+    unexpected error is returned (and reported) rather than failing ``implement``.
+    """
+    try:
+        return workspace_lane_test_invocation(
+            result.workspace_path,
+            config_root=repo_root,
+            mission_slug=mission_slug,
+            lane_id=result.lane_id,
+            resolution_kind=result.resolution_kind,
+            execution_mode=result.execution_mode,
+        )
+    except Exception as exc:  # fail-open: the claim is already committed
+        return exc
 
 
-def _print_lane_test_invocation(invocation: LaneTestInvocation | None) -> None:
-    """Print the shared lane test invocation block; a foreign probe line prints as a warning."""
+def _print_lane_test_invocation(invocation: _InvocationOutcome) -> None:
+    """Print the shared lane test invocation block; a foreign or failed probe line prints as a warning."""
     if invocation is None:
         return
-    header, *body = render_lane_test_invocation_lines(invocation)
+    if isinstance(invocation, LaneTestInvocation):
+        lines = render_lane_test_invocation_lines(invocation)
+        warn = invocation.probe is not None and invocation.probe.status is ProbeStatus.FOREIGN
+    else:
+        lines = render_lane_test_invocation_failure_lines(invocation)
+        warn = True
+    header, *body = lines
     console.print()
     console.print(f"[bold cyan]{escape(header)}[/bold cyan]")
     for line in body[:-1]:
         console.print(escape(line), highlight=False)
-    foreign = invocation.probe is not None and invocation.probe.status is ProbeStatus.FOREIGN
-    console.print(escape(body[-1]), style="bold yellow" if foreign else None, highlight=False)
+    console.print(escape(body[-1]), style="bold yellow" if warn else None, highlight=False)
 
 
 def _report_workspace_created(tracker: StepTracker, result: Any, workspace_path: Path, repo_root: Path) -> None:
@@ -298,7 +319,7 @@ def _report_workspace_created(tracker: StepTracker, result: Any, workspace_path:
         console.print("[cyan]→ Workspace contract: repository root planning workspace[/cyan]")
 
 
-def _print_workspace_ready_banner(result: Any, workspace_path: Path, lane_test_invocation: LaneTestInvocation | None = None) -> None:
+def _print_workspace_ready_banner(result: Any, workspace_path: Path, lane_test_invocation: _InvocationOutcome = None) -> None:
     """Human-readable "workspace ready" banner (repo-root planning vs lane
     worktree), plus the FR-006 lane-test-env export block and the #7547 lane
     test invocation block."""
