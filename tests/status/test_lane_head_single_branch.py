@@ -5,7 +5,8 @@ Mission whose STORED topology is ``single_branch`` is stamped with the head of t
 branch (``refs/heads/<meta.mission_branch>``) as ``policy_metadata.lane_head``. The decision is
 keyed on the stored topology, never on ``is_planning_lane`` or ``execution_mode: direct_repo``:
 a ``lanes`` Mission's planning-lane work package stays unstamped (positive control), and a
-commit-to-target Mission (write branch == target) keeps today's unstamped behaviour (FR-078).
+commit-to-target Mission (write branch == target) stamps the target head (#7578; it stays
+unbounded in consolidation, FR-078).
 
 The probe tests build their Missions by hand in a real git repository, so they hold whatever
 shape the shared flat fixture of ``tests/integration/coord_topology_fixture.py`` takes. The CLI
@@ -152,8 +153,8 @@ def test_lanes_planning_lane_wp_stays_unstamped(two_missions: Path) -> None:
 
 
 @pytest.mark.fast
-def test_commit_to_target_single_branch_stays_unstamped(tmp_path: Path) -> None:
-    """FR-078 residual: a ``single_branch`` Mission whose write branch is its target keeps today's behaviour (no stamp)."""
+def test_commit_to_target_single_branch_stamps_the_target_head(tmp_path: Path) -> None:
+    """#7578: a ``single_branch`` Mission whose write branch is its target stamps the target head (it was unstamped before)."""
     repo = tmp_path / "repo"
     repo.mkdir()
     _git(repo, "init", "-q", "-b", _TARGET)
@@ -162,7 +163,7 @@ def test_commit_to_target_single_branch_stays_unstamped(tmp_path: Path) -> None:
     _write_mission(repo, _SB_SLUG, topology="single_branch", mission_branch=None)
     _commit(repo, "seed.txt", "seed\n", "seed")
 
-    assert read_lane_head(repo_root=repo, mission_slug=_SB_SLUG, wp_id="WP01").sha is None
+    assert read_lane_head(repo_root=repo, mission_slug=_SB_SLUG, wp_id="WP01").sha == _git(repo, "rev-parse", f"refs/heads/{_TARGET}")
 
 
 @pytest.mark.fast
