@@ -584,8 +584,10 @@ dedicated tests listed.
 **Status:** Accepted (operator rulings Q3 and Q8, 2026-11-12).
 
 **What changes.** A commit-to-target `single_branch` Mission is one whose write branch *is* its target
-branch: a Mission created with `--commit-to-target`, or created `single_branch` on an unprotected
-target, where no Mission branch is minted. A Mission whose minted branch has landed reads as one too:
+branch: a Mission created with `--commit-to-target`, or created with an explicit
+`--topology single_branch` on an unprotected target, where no Mission branch is minted. A Mission
+created without `--topology` is not one: it mints a topic branch on every target
+(`core/mission_creation.py`, FR-051). A Mission whose minted branch has landed reads as one too:
 the landing's teardown (`consolidation/phase_teardown.py::_clear_landed_single_branch_mission_branch`)
 clears `meta.mission_branch`, so its later transitions are stamped at the target head; consolidation
 has finished by then. Until now such a Mission recorded nothing: its transitions carried no
@@ -593,9 +595,13 @@ has finished by then. Until now such a Mission recorded nothing: its transitions
 the head of the target branch (`status/lane_head.py::_single_branch_write_branch`). The opening move
 (`claimed` / `in_progress`) records `wp_window.open_sha`; every lifecycle move records `lane_head`. A
 missing target branch or a git failure is a typed gap, never a refused move. The planning lane of a
-`lanes` or `lanes_with_coord` Mission still records nothing (its work package's review range is derived
-from its committed status events, operator ruling Q10), and a Mission with an unlanded minted Mission
-branch is unchanged.
+`lanes` or `lanes_with_coord` Mission still records nothing, and a Mission with an unlanded minted
+Mission branch is unchanged. Its work package's review range is derived from its committed status
+events (operator ruling Q10) only where those events are committed on the branch its work is written
+to: on a `lanes` Mission, and on a `lanes_with_coord` Mission whose coordination branch is the
+planning lane's write branch (a Mission created without `--topology` that settled `lanes_with_coord`,
+before its landing). On any other `lanes_with_coord` Mission the events sit on the coordination
+branch, apart from the work, and the range is unavailable.
 
 **Why.** The review range of a work package (#7578) reads a recorded window on every topology instead of
 guessing one from branch history (ruling Q3).
