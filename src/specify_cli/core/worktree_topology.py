@@ -249,22 +249,32 @@ def materialize_worktree_topology(repo_root: Path, mission_slug: str, *, owned: 
     )
 
 
-def render_topology_json(topology: FeatureTopology, current_wp_id: str) -> list[str]:
-    """Render lane topology as structured JSON for prompt injection."""
+def _workspace_diff_command(topology: FeatureTopology, current_wp_id: str) -> str:
+    """The implement-side ``diff_command``: the work package's lane base up to ``HEAD``."""
     current_entry = topology.get_entry(current_wp_id)
     diff_base = topology.get_actual_base_for_wp(current_wp_id)
+    if current_entry and current_entry.resolution_kind == "repo_root" and not diff_base:
+        return "unavailable: no deterministic implementation claim commit found"
+    if current_entry and current_entry.resolution_kind == "repo_root" and current_entry.review_paths and diff_base:
+        return f"git diff {diff_base}..HEAD -- {' '.join(current_entry.review_paths)}"
+    return f"git diff {diff_base}..HEAD"
+
+
+def render_topology_json(topology: FeatureTopology, current_wp_id: str, *, diff_command: str | None = None) -> list[str]:
+    """Render lane topology as structured JSON for prompt injection.
+
+    *diff_command* replaces the lane-base ``git diff <base>..HEAD`` value. The review prompt passes
+    its work package review range's own command (operator ruling Q13, #7590), so the prompt names
+    one range; the implement prompt passes nothing.
+    """
+    current_entry = topology.get_entry(current_wp_id)
     identity = mission_identity_fields(
         topology.mission_slug,
         topology.mission_number,
         topology.mission_type,
     )
-    diff_command = (
-        f"git diff {diff_base}..HEAD -- {' '.join(current_entry.review_paths)}"
-        if current_entry and current_entry.resolution_kind == "repo_root" and current_entry.review_paths and diff_base
-        else f"git diff {diff_base}..HEAD"
-    )
-    if current_entry and current_entry.resolution_kind == "repo_root" and not diff_base:
-        diff_command = "unavailable: no deterministic implementation claim commit found"
+    if diff_command is None:
+        diff_command = _workspace_diff_command(topology, current_wp_id)
 
     entries_json = []
     for entry in topology.entries:

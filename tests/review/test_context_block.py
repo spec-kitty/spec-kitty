@@ -13,7 +13,7 @@ from typing import Any
 import pytest
 
 from specify_cli.requirement_mapping.text import CitedRequirement, Resolution
-from specify_cli.review.context_block import BYTE_BUDGET, UNAVAILABLE_COMMAND_LINE, describe_gap, render_review_context
+from specify_cli.review.context_block import BYTE_BUDGET, UNAVAILABLE_COMMAND_LINE, describe_gap, render_review_context, review_diff_command
 from specify_cli.review.wp_range import FileChange, RangeCommit, RangeGap, RangeSource, RangeStatus, WpReviewRange
 
 pytestmark = [pytest.mark.fast]
@@ -349,3 +349,22 @@ def test_many_owned_files_still_list_a_single_commit() -> None:
     assert next(line for line in lines if "OUTSIDE OWNED FILES" in line).endswith("): docs/notes.md")
     command = next(line for line in lines if line.startswith("  git log "))
     assert shlex.split(command)[shlex.split(command).index("--") + 1 :] == list(_MANY_SPECS)
+
+
+def test_review_diff_command_is_the_blocks_git_diff_line() -> None:
+    """Q13 (#7590): one command string, printed by the block and carried by the review prompt's topology payload."""
+    review_range = _range()
+    block = render_review_context(review_range, ())
+
+    assert review_diff_command(review_range) == f"git diff {BASE}..{TIP} -- 'src/m2/**'"
+    assert f"  {review_diff_command(review_range)}" in block
+
+
+def test_review_diff_command_of_an_unavailable_range_names_the_gap_and_points_at_the_notice() -> None:
+    unavailable = WpReviewRange.unavailable("WP02", "no_submission", ("src/m2/**",))
+
+    command = review_diff_command(unavailable)
+
+    assert command == "unavailable: the work package has no for_review submission (no_submission); see REVIEW RANGE"
+    assert render_review_context(unavailable, ())[0].endswith(describe_gap("no_submission"))
+    assert ".." not in command

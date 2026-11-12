@@ -65,7 +65,7 @@ from specify_cli.core.constants import MISSION_TYPE_RESEARCH
 from specify_cli.core.subtask_recipe import mark_status_recipe
 from specify_cli.missions._read_path_resolver import mission_write_lock_dir
 from specify_cli.requirement_mapping.text import CitedRequirement, resolve_requirement_texts
-from specify_cli.review.context_block import render_review_context
+from specify_cli.review.context_block import render_review_context, review_diff_command
 from specify_cli.review.wp_range import RangeStatus, WpReviewRange, resolve_wp_review_range
 from specify_cli.review.lane_test_invocation import (
     render_lane_test_invocation_failure_lines,
@@ -2150,12 +2150,24 @@ _SPEC_FILENAME = "spec.md"
 _DEFAULT_MISSION_TYPE = "software-dev"
 _GIT_LOG_PREFIX = "  git log "
 _UNAVAILABLE_MARK = "unavailable — "
+_NO_REVIEW_RANGE_DIFF_COMMAND = "unavailable: no review range was resolved for this review"
 
 
 def _review_range_of(review_ctx: dict[str, object]) -> WpReviewRange | None:
     """The WP review range ``_resolve_review_context`` resolved once for this review, if any."""
     found = review_ctx.get("review_range")
     return found if isinstance(found, WpReviewRange) else None
+
+
+def _topology_review_diff_command(review_ctx: dict[str, object]) -> str:
+    """The review prompt's topology ``diff_command``: the review range's own ``git diff`` line (operator ruling Q13, #7590).
+
+    One source, the range resolved once for this review; an unavailable range names its gap and
+    points at the REVIEW RANGE notice, and a review with no resolved range says so. Never a
+    ``<base>..HEAD`` diff.
+    """
+    review_range = _review_range_of(review_ctx)
+    return review_diff_command(review_range) if review_range is not None else _NO_REVIEW_RANGE_DIFF_COMMAND
 
 
 def _review_spec_text(repo_root: Path, mission_slug: str) -> str:
@@ -2384,7 +2396,7 @@ def build_review_prompt_lines(
         # owned is None until owned-mode implement/review is unblocked (#6321 forward-readiness)
         topology = materialize_worktree_topology(repo_root, mission_slug, owned=owned)
         if topology.has_stacking:
-            lines.extend(render_topology_json(topology, current_wp_id=normalized_wp_id))
+            lines.extend(render_topology_json(topology, current_wp_id=normalized_wp_id, diff_command=_topology_review_diff_command(review_ctx)))
             lines.append("")
     except Exception as exc:
         lines.append(f"[Topology unavailable: {exc}]")
