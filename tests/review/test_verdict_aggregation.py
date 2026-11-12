@@ -261,3 +261,53 @@ def test_result_type_and_should_exit_property() -> None:
     assert warn.should_exit is False
     blocked = aggregate_verdicts([_verdict(GateOutcome.NEW_FAILURES)], block_enabled=True, force=False)
     assert blocked.should_exit is True
+
+
+# ---------------------------------------------------------------------------
+# Refusal tier (#7547 WP03): a proven foreign evidence tree refuses unless forced
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("block_enabled", [True, False])
+def test_foreign_tree_refuses_when_not_forced_regardless_of_block(block_enabled: bool) -> None:
+    foreign = _verdict(GateOutcome.FOREIGN_TREE)
+    result = aggregate_verdicts([foreign], block_enabled=block_enabled, force=False)
+    assert result.decision is AggregateDecision.REFUSE
+    assert result.should_exit is True
+    assert result.transition_applied is False
+    assert result.refusing_verdicts == (foreign,)
+    assert result.terminal_verdict is None
+
+
+@pytest.mark.parametrize("block_enabled", [True, False])
+def test_foreign_tree_forced_proceeds_and_still_lists_the_refusing_verdict(block_enabled: bool) -> None:
+    foreign = _verdict(GateOutcome.FOREIGN_TREE)
+    result = aggregate_verdicts([foreign], block_enabled=block_enabled, force=True)
+    assert result.decision is AggregateDecision.WARN_PROCEED
+    assert result.should_exit is False
+    assert result.transition_applied is True
+    assert result.refusing_verdicts == (foreign,)
+
+
+@pytest.mark.parametrize("terminal", _TERMINAL + (GateOutcome.SCOPE_OVERSIZED,))
+def test_terminal_beats_foreign_tree(terminal: GateOutcome) -> None:
+    stop = _verdict(terminal)
+    result = aggregate_verdicts([_verdict(GateOutcome.FOREIGN_TREE), stop], block_enabled=True, force=False)
+    assert result.decision is AggregateDecision.TERMINAL
+    assert result.terminal_verdict is stop
+
+
+def test_refusal_precedes_block() -> None:
+    foreign = _verdict(GateOutcome.FOREIGN_TREE)
+    result = aggregate_verdicts([_verdict(GateOutcome.NEW_FAILURES), foreign], block_enabled=True, force=False)
+    assert result.decision is AggregateDecision.REFUSE
+    assert result.refusing_verdicts == (foreign,)
+
+
+@pytest.mark.parametrize("outcome", _NON_TERMINAL)
+@pytest.mark.parametrize("block_enabled", [True, False])
+@pytest.mark.parametrize("force", [True, False])
+def test_only_foreign_tree_reaches_the_refusal_tier(outcome: GateOutcome, block_enabled: bool, force: bool) -> None:
+    result = aggregate_verdicts([_verdict(outcome)], block_enabled=block_enabled, force=force)
+    assert result.decision is not AggregateDecision.REFUSE
+    assert result.refusing_verdicts == ()

@@ -190,3 +190,37 @@ def test_handler_returns_normally_for_a_new_failures_shaped_verdict(monkeypatch:
 
     assert result is canned_verdict
     assert result.outcome is GateOutcome.NEW_FAILURES
+
+
+# ---------------------------------------------------------------------------
+# Run environment (#7547 WP03)
+# ---------------------------------------------------------------------------
+
+
+def _spy_run_env(monkeypatch: pytest.MonkeyPatch) -> list[object]:
+    seen: list[object] = []
+
+    def _fake_evaluate(*args: object, **kwargs: object) -> GateVerdict:
+        del args
+        seen.append(kwargs["run_env"])
+        return GateVerdict(outcome=GateOutcome.NO_COVERAGE, scope=ScopeResult.from_override(()))
+
+    monkeypatch.setattr(gate_registry, "evaluate_pre_review_gate", _fake_evaluate)
+    return seen
+
+
+def test_handler_forwards_the_context_run_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen = _spy_run_env(monkeypatch)
+    run_env = {"MARK": "1"}
+
+    get_gate_handler(_HANDLER_NAME).run(_build_context(run_env=run_env))
+
+    assert seen == [run_env]
+
+
+def test_context_run_env_defaults_to_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen = _spy_run_env(monkeypatch)
+
+    get_gate_handler(_HANDLER_NAME).run(_build_context())
+
+    assert seen == [None]
