@@ -9,7 +9,7 @@ A Mission created without ``--topology`` and settled to ``lanes_with_coord`` by 
 * ``consolidate --abort`` tears the coordination worktree down (operator ruling on #5406), and
 * the next ``consolidate`` rematerializes it and lands every lane (#5406).
 
-A second scenario kills ``consolidate`` while it records the work packages done (#5931): ``--abort``
+A second scenario (the #5931 real-CLI kill, formerly its own test) kills ``consolidate`` while it records the work packages done (#5931): ``--abort``
 restores the run's own coordination commits and the next ``consolidate`` lands every lane.
 
 The fixture is the one ``test_default_mission_consolidate_lands_primary`` uses (root checkout and
@@ -21,12 +21,13 @@ shim's ``WP20_FAIL_BEFORE`` hook) and the kill (a ``git`` wrapper first on ``PAT
 from __future__ import annotations
 
 import json
+import os
+import shutil
 from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
 
-from tests.integration.test_consolidate_kill_done_commit_5931 import _install_kill_wrapper
 from tests.integration.test_default_mission_consolidate_lands_primary import (
     _ANALYSIS,
     _SHIM,
@@ -44,6 +45,48 @@ _TARGET = "work"
 _SIX_LANES = tuple(f"src/mod{index}.py" for index in range(1, 7))
 _LANE_IDS = "abcdef"
 _LATE_FAILURE = {"WP20_FAIL_BEFORE": "_phase_reconcile_before_teardown", "WP20_FAIL_KIND": "exit"}
+
+_KILL_MESSAGE = "status transition WP02"
+_SIGKILL_EXIT = -9
+
+#: Bash ``git`` that SIGKILLs its caller (the CLI) once, before WP02's done commit lands (a porcelain
+#: ``commit`` carrying the message, or the compare-and-swap ``update-ref`` of the expected-parent path).
+_WRAPPER = """#!/usr/bin/env bash
+marker='__MARKER__'
+if [ ! -e "$marker" ]; then
+  lands=0
+  names_wp=0
+  for arg in "$@"; do
+    case "$arg" in
+      commit|update-ref) lands=1 ;;
+    esac
+    case "$arg" in
+      *'__MESSAGE__'*) names_wp=1 ;;
+    esac
+  done
+  if [ "$lands" = 1 ] && [ "$names_wp" = 1 ]; then
+    : > "$marker"
+    kill -9 "$PPID"
+    exit 137
+  fi
+fi
+exec '__REAL_GIT__' "$@"
+"""
+
+
+def _install_kill_wrapper(tmp_path: Path) -> tuple[dict[str, str], Path]:
+    real_git = shutil.which("git")
+    assert real_git is not None
+    bin_dir = tmp_path / "kill-bin"
+    bin_dir.mkdir()
+    marker = tmp_path / "kill-fired"
+    wrapper = bin_dir / "git"
+    wrapper.write_text(
+        _WRAPPER.replace("__MARKER__", str(marker)).replace("__MESSAGE__", _KILL_MESSAGE).replace("__REAL_GIT__", real_git),
+        encoding="utf-8",
+    )
+    wrapper.chmod(0o755)
+    return {"PATH": os.pathsep.join((str(bin_dir), os.environ.get("PATH", "")))}, marker
 
 
 @pytest.fixture(autouse=True)
@@ -146,7 +189,7 @@ def test_closeout_after_kill_in_done_commits(tmp_path: Path) -> None:
     env, marker = _install_kill_wrapper(tmp_path)
 
     killed = consolidate(built, hooks=env)
-    assert marker.exists() and killed.returncode != 0, _output(killed)
+    assert marker.exists() and killed.returncode == _SIGKILL_EXIT, _output(killed)
 
     # (1) --abort explains the run's own done commits (#5931) and resyncs the coordination checkout (#7540 item 2).
     aborted = cli(built, "consolidate", "--mission", built.slug, "--abort")

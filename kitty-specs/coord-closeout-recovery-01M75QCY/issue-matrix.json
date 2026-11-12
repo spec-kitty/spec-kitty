@@ -13,7 +13,7 @@
       "wp": "WP04"
     },
     "#5931": {
-      "evidence_ref": "lane-c 8773a2eb1 + lane-b b24a34410 (checkout resync); tests/integration/test_consolidate_kill_done_commit_5931.py; full abort+rerun in WP05",
+      "evidence_ref": "lane-c 8773a2eb1 + lane-b b24a34410 (checkout resync); tests/integration/test_coord_closeout_recovery_7544.py::test_closeout_after_kill_in_done_commits; full abort+rerun in WP05",
       "fr": null,
       "nfr": null,
       "repo": null,
