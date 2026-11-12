@@ -1,0 +1,141 @@
+schema_version: 1
+mission_id: 01M774QFV4PFK8Y0AXFQV30EEE
+mission_slug: review-context-wp-diff-01M774QF
+mission_number: 257
+friendly_name: Review context carries the WP diff and cited requirement text
+mission_type: software-dev
+target_branch: feat/7578-review-context
+created_at: '2026-11-12T13:46:07.266100+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-11-12T13:46:07.266100+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-003
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-004
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-005
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-006
+  category: implementation
+  summary: WP07 completed without rejection cycles
+  evidence_refs:
+  - e-012
+not_helpful:
+- id: n-002
+  category: doc
+  summary: analysis-report.md records 6 finding(s)
+  evidence_refs:
+  - e-014
+  details: The analysis-report.md artifact for this mission records 6 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-001
+  category: review_loop
+  summary: WP03 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-013
+  details: WP WP03 was sent back to an earlier lane with documented review feedback 1 time(s).
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/review-context-wp-diff-01M774QF/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/review-context-wp-diff-01M774QF/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/review-context-wp-diff-01M774QF/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/review-context-wp-diff-01M774QF/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/review-context-wp-diff-01M774QF/tasks/WP01-tidy-first-shared-homes.md
+- id: e-006
+  kind: file
+  path: kitty-specs/review-context-wp-diff-01M774QF/tasks/WP02-commit-to-target-window-stamp.md
+- id: e-007
+  kind: file
+  path: kitty-specs/review-context-wp-diff-01M774QF/tasks/WP03-review-range-resolver.md
+- id: e-008
+  kind: file
+  path: kitty-specs/review-context-wp-diff-01M774QF/tasks/WP04-requirement-text-resolver.md
+- id: e-009
+  kind: file
+  path: kitty-specs/review-context-wp-diff-01M774QF/tasks/WP05-one-renderer-all-review-sites.md
+- id: e-010
+  kind: file
+  path: kitty-specs/review-context-wp-diff-01M774QF/tasks/WP06-docs-close-out.md
+- id: e-011
+  kind: file
+  path: kitty-specs/review-context-wp-diff-01M774QF/tasks/WP07-agent-action-review-sites.md
+- id: e-012
+  kind: file
+  path: kitty-specs/review-context-wp-diff-01M774QF/status.events.jsonl
+- id: e-013
+  kind: event_range
+  path: kitty-specs/review-context-wp-diff-01M774QF/status.events.jsonl
+  range: 01M77F3CY1HSNZZQCFT8CK9031
+- id: e-014
+  kind: file
+  path: kitty-specs/review-context-wp-diff-01M774QF/analysis-report.md
+generator_version: '1.0'
+provenance_history: []
