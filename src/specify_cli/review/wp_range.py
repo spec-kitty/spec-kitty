@@ -46,8 +46,8 @@ follow the resolved Mission directory name, never the caller's handle (a mid8 or
   (``status.read_lane_head``), so the work package's own status commits never count.
 
 Bookkeeping is ``lanes.for_review_gate.status_only_excluded_prefixes`` (``.kittify/`` included).
-``owned_pathspecs`` also excludes every bookkeeping prefix (plus the Mission's ``tasks.md``) that an
-owned glob can reach, judged by the glob's literal lead (the text before its first wildcard), so a
+``owned_pathspecs`` also excludes every bookkeeping prefix (plus the Mission's ``tasks.md``, as one
+exact path) that an owned glob can reach, judged by the glob's literal lead (the text before its first wildcard), so a
 commit that touches only bookkeeping paths is never listed, whatever the owned files are.
 
 Fail-soft (FR-013, NFR-004): nothing here raises. A status surface that cannot be read is an
@@ -224,10 +224,13 @@ def _owned_pathspecs(owned_files: Sequence[str], mission_dir_name: str) -> tuple
     test errs towards excluding; a glob that cannot reach any bookkeeping path gets no exclude.
     """
     patterns: tuple[str, ...] = owned_patterns(owned_files)
-    candidates = (*status_only_excluded_prefixes(mission_dir_name), f"kitty-specs/{mission_dir_name}/{_TASKS_INDEX}")
+    # The gate's bookkeeping entries are prefixes (``status.`` means ``status.*``), so they keep the
+    # wildcard; the task index is one exact file, so an owned ``tasks.md.bak`` is never excluded.
+    tasks_index = f"kitty-specs/{mission_dir_name}/{_TASKS_INDEX}"
+    candidates = (*((prefix, f"{prefix}*") for prefix in status_only_excluded_prefixes(mission_dir_name)), (tasks_index, tasks_index))
     leads = [_literal_lead(pattern) for pattern in patterns]
-    reached = [prefix for prefix in candidates if any(prefix.startswith(lead) or lead.startswith(prefix) for lead in leads)]
-    return (*patterns, *(f"{_EXCLUDE}{prefix}*" for prefix in reached))
+    reached = [spec for prefix, spec in candidates if any(prefix.startswith(lead) or lead.startswith(prefix) for lead in leads)]
+    return (*patterns, *(f"{_EXCLUDE}{spec}" for spec in reached))
 
 
 def _bookkeeping_excludes(mission_slug: str) -> tuple[str, ...]:
