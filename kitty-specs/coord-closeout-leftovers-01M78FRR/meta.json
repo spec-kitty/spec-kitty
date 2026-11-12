@@ -1,4 +1,5 @@
 {
+  "coordination_branch": "kitty/mission-coord-closeout-leftovers-01M78FRR",
   "create_return_branch": "fix/7598-coord-closeout-leftovers",
   "created_at": "2026-11-12T18:19:24.762424+00:00",
   "flattened": false,
@@ -13,7 +14,15 @@
   "purpose_tldr": "Every coordination closeout refusal names its blocker and a remedy that works; archived Missions can reclaim their coordination triple",
   "slug": "coord-closeout-leftovers-01M78FRR",
   "target_branch": "fix/7598-coord-closeout-leftovers",
-  "topology": "single_branch",
-  "topology_settled": false,
+  "topology": "lanes_with_coord",
+  "topology_decision": {
+    "code_lane_count": 6,
+    "from": "single_branch",
+    "rule": "lanes_with_coord",
+    "target_protected": false,
+    "to": "lanes_with_coord",
+    "wp_count": 7
+  },
+  "topology_settled": true,
   "topology_source": "default"
 }
