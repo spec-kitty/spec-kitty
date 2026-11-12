@@ -284,7 +284,9 @@ def test_owned_lane_review_base_is_the_facts_target_branch_not_the_repository_ro
 
 
 @pytest.mark.parametrize("owned_files", ["[]", "[wp01.py]"], ids=["no_owned_files", "owned_files_no_stamps"])
-def test_owned_lane_review_never_refuses_and_prints_the_range_notice(owned_checkouts_lanes: OwnedCheckouts, stale_root_copy_for_lanes: Any, owned_files: str) -> None:
+def test_owned_lane_review_never_refuses_and_prints_the_range_notice(
+    owned_checkouts_lanes: OwnedCheckouts, stale_root_copy_for_lanes: Any, owned_files: str
+) -> None:
     """Operator ruling Q9: on an owned ``lanes``/``lanes_with_coord`` arm (lane id set) the review never refuses.
 
     ``OWNED_REVIEW_BASE_UNAVAILABLE`` stays on the lane-less owned arm only, where origin/main
