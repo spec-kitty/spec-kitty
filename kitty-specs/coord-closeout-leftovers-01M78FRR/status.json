@@ -68,7 +68,8 @@
         "- 2026-11-12T19:35:27Z – claude – shell_pid=18456 – Leeway: consolidation/bookkeeping_projection.py (WP03-owned) - docstring/comment-only edits at the three places that said a resume window spans since the merge began.",
         "- 2026-11-12T19:35:31Z – claude – shell_pid=18456 – Leeway: consolidation/rollback.py - F4 site only: deletes refs/spec-kitty/landed-coordination/<coord branch> when the rollback restores the target (logger + import added); no text/render changes.",
         "- 2026-11-12T19:35:36Z – claude – shell_pid=18456 – Leeway: git/ref_advance.py - keyword-only expected_old on bookkeeping_ref_write_args/write_bookkeeping_ref (CAS write for the landed-coordination ref; raw update-ref stays in its owner).",
-        "- 2026-11-12T19:35:40Z – claude – shell_pid=18456 – Leeway: tests/consolidation/test_executor_rollback_wiring.py - spy signature accepts coord_tip_before (no assertion changes)."
+        "- 2026-11-12T19:35:40Z – claude – shell_pid=18456 – Leeway: tests/consolidation/test_executor_rollback_wiring.py - spy signature accepts coord_tip_before (no assertion changes).",
+        "Ready for review: #7491 resume base (persisted tip behind verified landing + ancestry), landed-coordination ref module, #4380 item 2 text"
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
