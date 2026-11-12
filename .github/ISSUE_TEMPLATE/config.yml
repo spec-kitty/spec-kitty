@@ -3,3 +3,12 @@ contact_links:
   - name: 📖 Contributing guide & how to give feedback
     url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/development/contributing.md
     about: How to contribute — including issues tagged "feedback-welcome" that want your input (no code required).
+  - name: 📚 Doctrine content (directives, tactics, styleguides, prompts, templates)
+    url: https://github.com/spec-kitty/spec-kitty-open-packs/issues
+    about: Pack content is authored in spec-kitty-open-packs. File content issues there.
+  - name: 🧭 Charter service (packs registration, DRG, artifact kinds, mission-type API)
+    url: https://github.com/spec-kitty/spec-kitty-charter/issues
+    about: The charter service and pack composition live in spec-kitty-charter.
+  - name: 📡 Event contracts and the events services
+    url: https://github.com/spec-kitty/spec-kitty-events/issues
+    about: Event schemas, reducers, the mission-status/mission-write contracts and the Java services live in spec-kitty-events.
