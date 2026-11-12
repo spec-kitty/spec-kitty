@@ -161,6 +161,9 @@
       "last_event_id": "01M77EY1VQFR6YMBC2QSRM4TWT",
       "last_transition_at": "2026-11-12T08:45:33.943291+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "ADR 2026-08-13-6 amended (2026-11-12): foreign_tree outcome refuses with EVIDENCE_TREE_MISMATCH, exit 1, regardless of fail_on_pre_review_regression; --force bypass recorded; C-003 carve-out (only proven foreign refuses; unverified proceeds); probe only on run tiers; skip switch still skips. Changelog 7554.fixed.md: two Fixed entries (#7554/#7547; #7577 lane packs)."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 1442,
