@@ -13,16 +13,16 @@
       "wp": null
     },
     "#1907": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Detection half folded (probe foreign); prevention and stale-ancestor halves stay open",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Stale ancestors and editable-install repoint hazard",
+      "verdict": "in-mission",
+      "wp": "WP01"
     },
     "#2330": {
       "evidence_ref": "<link or commit>",
