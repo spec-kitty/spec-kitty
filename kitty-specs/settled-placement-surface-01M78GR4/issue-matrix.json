@@ -13,7 +13,7 @@
       "wp": null
     },
     "#1878": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Parent placement/identity strangler epic, context only (not re-parented)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,7 +21,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#2453": {
