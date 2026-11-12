@@ -30,7 +30,7 @@ from specify_cli.core.paths import (
     assert_safe_path_segment,
     load_meta_fail_closed,
 )
-from specify_cli.git.ref_advance import advance_branch_ref
+from specify_cli.git.ref_advance import RefAdvanceDirtyWorktreeError, advance_branch_ref
 from specify_cli.consolidation._constants import logger as _merge_logger
 from specify_cli.consolidation.baseline import MissionNumberVerificationError
 from specify_cli.consolidation.git_probes import _has_branch_ref, _is_git_repo, mission_residue_context, path_is_under_worktrees
@@ -684,12 +684,20 @@ def _write_mission_number_to_branch(
         # so exclude it from the dirty gate via the single canonical churn
         # owner (#1878 / #2795 / FR-012 / WP13-IC-07c) rather than abort the
         # post-write ff-advance.
-        advance_branch_ref(
-            main_repo,
-            mission_branch,
-            new_sha,
-            context=mission_residue_context(main_repo, mission_slug),
-        )
+        try:
+            advance_branch_ref(
+                main_repo,
+                mission_branch,
+                new_sha,
+                context=mission_residue_context(main_repo, mission_slug),
+            )
+        except RefAdvanceDirtyWorktreeError as exc:
+            # #7600 fold: the error names only the blocker; this is a consolidate step, so
+            # append its next step (the lane/Mission merge text) and keep the type.
+            from specify_cli.lanes.consolidation import lane_merge_error_text
+
+            exc.args = (lane_merge_error_text(exc),)
+            raise
         return True
     finally:
         # The numbering worktree is this function's own scratch checkout (tool-owned, #5965).
