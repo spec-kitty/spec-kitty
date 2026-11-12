@@ -3,7 +3,7 @@ title: Recover from an Interrupted Consolidation
 description: 'How to recover from an interrupted consolidation: Learn how to resume or abort a spec-kitty consolidate run that was interrupted before it completed.'
 doc_status: active
 kind: How-To
-updated: '2026-11-02T00:00:00Z'
+updated: '2026-11-12T00:00:00Z'
 audience:
 - profile: external/project-owner
   guidance_text: Written for the Project Owner reader.
@@ -293,8 +293,15 @@ The command prints a rollback report that starts `Rollback to the pre-consolidat
 What happens next depends on the report:
 
 - **Everything restored.** The command prints `Aborted consolidation for <mission>` and exits 0. It also aborts a git merge left in the Mission's own scratch workspace, removes that workspace, and releases the merge lock it took.
-- **A branch is `NOT restored`.** The command prints `Kept the consolidation record` and exits 1. Nothing was cleared. Resolve the branches the report names, then run `spec-kitty consolidate --abort` again.
-- **The landing was already verified.** The command prints `Kept the landing verified by an earlier reconciliation`, rolls nothing back, exits 1 and keeps the record. Finish the run with `spec-kitty consolidate --resume`.
+- **A branch is `NOT restored`.** Nothing was cleared, and the command exits 1. Under `Next steps:` the report names one step per branch, by cause, each of which completes the abort:
+  - **A checkout holds local changes**: commit or stash the changes in the named checkout, then re-run `spec-kitty consolidate --abort`.
+  - **Another actor moved the branch**: inspect the commits it shows (`git log <expected>..<observed>`); to keep them and finish the abort, run `spec-kitty consolidate --abort --release-branch <branch> --release-reason "<why>"`.
+  - **The branch no longer exists**: recreate it with the `git branch <branch> <sha>` command the report prints, then re-run `spec-kitty consolidate --abort`.
+  - **The restore was refused** (the branch moved while it was being restored, or git failed): inspect it (`git log -3 <branch>`), then re-run `spec-kitty consolidate --abort`.
+  - **The coordination worktree holds a change that is not the tool's own**: commit or stash it there, then re-run `spec-kitty consolidate --abort`.
+
+  The report then closes with `Kept the consolidation record so nothing is lost; complete the next steps above to finish the abort.`
+- **The landing was already verified.** The command prints `Kept the landing verified by an earlier reconciliation`, rolls nothing back, exits 1 and keeps the record. A verified landing is never rolled back, so `--abort` cannot finish here; its next step is `spec-kitty consolidate --resume`, which finishes the teardown of that landing.
 - **The record has no snapshot** (written by an older release). The command prints a notice that no branch is restored, clears the record and exits 0.
 - **Another Mission's consolidation holds the merge lock and is still active.** The command refuses, exits 1, and restores and clears nothing. Finish or abort that consolidation first.
 
