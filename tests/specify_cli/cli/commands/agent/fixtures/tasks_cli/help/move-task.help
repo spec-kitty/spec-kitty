@@ -22,6 +22,7 @@ spec-kitty agent tasks move-task WP03 --to approved --note "Review passed"
 spec-kitty agent tasks move-task WP03 --to approved --reason "Review passed"
 spec-kitty agent tasks move-task WP03 --to done --done-override-reason "Branch deleted after hotfix merge"
 spec-kitty agent tasks move-task WP03 --to planned --review-feedback-file feedback.md
+spec-kitty agent tasks move-task WP03 --to planned --review-feedback-file feedback.md --reset-subtasks T002 --note "T002 regressed"
 Arguments
 * task_id <str> Task ID (e.g., WP01) [required]
 Options
@@ -35,6 +36,7 @@ Options
 --shell-pid <str> Shell PID
 --note,--reason <str> History note (alias: --reason, matching issue-verdict's vocabulary). If both --note and --reason are given, the one supplied LAST on the command line wins.
 --review-feedback-file <path> Path to review feedback file. Required for review-rejection edges (--to planned, incl. with --force; and in_review->in_progress); omitting it there makes the status event contract-invalid. On --to approved/done its content is recorded when the move writes a new approval review-cycle record; otherwise a warning on stderr says it was not recorded (JSON stdout is unchanged). Refused (exit 1) on every other edge: those edges write no review cycle, so the file would be validated and then dropped.
+--reset-subtasks <str> Comma-separated subtask ids (e.g. T002,T003) to reset on a --to planned rollback; the others keep their state. Requires --note/--reason. Without it every non-skipped subtask resets.
 --approval-ref <str> Approval reference for approval/done transitions (e.g., PR#42)
 --reviewer <str> Reviewer name (auto-detected from git if omitted)
 --self-review-fallback Record that approval is a self-review fallback after the intended reviewer failed.

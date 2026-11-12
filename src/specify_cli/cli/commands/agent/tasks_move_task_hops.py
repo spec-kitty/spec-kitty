@@ -275,7 +275,9 @@ def _mt_hop_policy_metadata(st: _MoveTaskState, target: str) -> dict[str, Any] |
     slots (``build_claim_policy_metadata`` is the WP01 shape authority). The
     pre-review-gate metadata rides the ``* -> for_review`` hop. FR-006: the
     APPROVED/DONE hop carries the gate-side decision-evidence sidecar
-    (``_mt_approval_policy_metadata``, IC-04). ``None`` otherwise.
+    (``_mt_approval_policy_metadata``, IC-04). #7582: the PLANNED hop of a move to
+    ``planned`` carries ``rollback_reset`` (computed once by
+    ``_mt_prepare_rollback_reset``). ``None`` otherwise.
     """
     if target == Lane.CLAIMED and st.shell_pid:
         from specify_cli.status import build_claim_policy_metadata
@@ -288,6 +290,10 @@ def _mt_hop_policy_metadata(st: _MoveTaskState, target: str) -> dict[str, Any] |
         return {"pre_review_gate": st.pre_review_gate_metadata}
     if target in (Lane.APPROVED, Lane.DONE):
         return _mt_approval_policy_metadata(st)
+    if target == Lane.PLANNED and st.target_lane == Lane.PLANNED and st.rollback_reset_summary is not None:
+        # #7582 FR-011: the PLANNED hop records the reset (scope, ids, reason). The
+        # pipeline merges ``lane_head``/``wp_window`` beside it, never over it.
+        return {"rollback_reset": st.rollback_reset_summary.record()}
     return None
 
 
@@ -394,13 +400,13 @@ def _mt_reassignment_binding_fields(st: _MoveTaskState) -> dict[str, Any]:
 def _build_claim_review_override(st: _MoveTaskState, ports: TasksPorts) -> dict[str, Any]:
     """Compute the rollback-to-``planned`` off-axis field additions.
 
-    SIDE EFFECT (#3578, adversarial review finding 1a): besides returning the
-    ``additions`` dict, this records the operator signal for the three deltas on
-    ``st.rollback_reset_summary`` (read later by :func:`_mt_output`). The summary
-    is built HERE because this is the one place that resolves the reset map, and
-    the completion split it carries must read the PRE-reset snapshot — which is
-    still intact at this point (the reset delta is not emitted until
-    :func:`_mt_emit_runtime_state` returns from this helper).
+    #7582 (single authority): the reset map and the operator signal
+    (``st.rollback_reset_summary``, read later by :func:`_mt_output`) are computed
+    once, by ``_mt_prepare_rollback_reset``, before the PLANNED hop records them;
+    this helper reads ``st.rollback_reset_map``. Only a caller that ran no PLANNED
+    hop (no stored map) has it computed here, with the same side effect on *st*.
+    Either way the completion split reads the PRE-reset snapshot (the reset delta
+    is not emitted until :func:`_mt_emit_runtime_state` returns from this helper).
 
     Campsite extraction (WP02, verdict-seam-boundary-hardening-01KZG179,
     T007/NFR-004): pulled out of :func:`_mt_emit_runtime_state` (cc=14, close
@@ -440,17 +446,20 @@ def _build_claim_review_override(st: _MoveTaskState, ports: TasksPorts) -> dict[
       reader of ``status.json`` could see a withdrawn "approved" verdict on a
       WP that is actually back in ``planned`` awaiting rework.
     """
-    from specify_cli.cli.commands.agent.tasks_move_task_executor import _mt_build_rollback_summary, _mt_rollback_subtasks_reset
+    from specify_cli.cli.commands.agent.tasks_move_task_executor import _mt_prepare_rollback_reset
 
     additions: dict[str, Any] = {}
-    reset = _mt_rollback_subtasks_reset(st, ports)
+    # #7582: read the map ``_mt_prepare_rollback_reset`` computed before the PLANNED
+    # hop (single authority); compute it here only when no hop ran it first.
+    reset: dict[str, Lane] | None = getattr(st, "rollback_reset_map", None)
+    if reset is None:
+        reset = _mt_prepare_rollback_reset(st, ports)
     if reset:
         additions["subtasks"] = reset
     additions["release_runtime_claim"] = True
     additions["review"] = ReviewOverride(at="", actor="", wp_id="", reason="")
-    # #3578: capture the operator signal for all three otherwise-silent deltas
-    # (subtask reset + claim release + review-override clear) so ``_mt_output``
-    # can surface them as a human line + JSON fields. Set unconditionally on a
-    # rollback-to-``planned`` — the siblings apply even for an empty roster.
-    st.rollback_reset_summary = _mt_build_rollback_summary(st, ports, reset)
+    # #3578: the operator signal for all three otherwise-silent deltas (subtask
+    # reset + claim release + review-override clear) is ``st.rollback_reset_summary``,
+    # set with the map -- unconditionally on a rollback-to-``planned``, the siblings
+    # apply even for an empty roster.
     return additions
