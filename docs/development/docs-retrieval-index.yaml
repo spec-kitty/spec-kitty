@@ -6330,12 +6330,14 @@ pages:
     - {slug: "when-to-use-the-runtime-loop", text: "When to Use the Runtime Loop", level: 2}
     - {slug: "concurrent-advances-are-serialised", text: "Concurrent advances are serialised", level: 3}
     - {slug: "query-mode-vs-advancing-mode", text: "Query Mode vs Advancing Mode", level: 2}
+    - {slug: "what-a-query-envelope-tells-you", text: "What a query envelope tells you", level: 3}
     - {slug: "what-the-runtime-consumes-a-single-resolved-mission-type", text: "What the Runtime Consumes: a Single Resolved Mission Type", level: 2}
     - {slug: "the-four-advancing-decisions", text: "The Four Advancing Decisions", level: 2}
     - {slug: "step-an-action-is-available", text: "`step` -- An action is available", level: 3}
     - {slug: "decision-required-the-runtime-needs-input", text: "`decision_required` -- The runtime needs input", level: 3}
     - {slug: "blocked-cannot-proceed", text: "`blocked` -- Cannot proceed", level: 3}
     - {slug: "terminal-mission-complete", text: "`terminal` -- Mission complete", level: 3}
+    - {slug: "a-finalized-board-is-never-rewound", text: "A Finalized Board Is Never Rewound", level: 2}
     - {slug: "the-agent-loop-pattern", text: "The Agent Loop Pattern", level: 2}
     - {slug: "wp-iteration-within-a-single-step", text: "WP iteration within a single step", level: 3}
     - {slug: "reporting-results", text: "Reporting results", level: 3}
