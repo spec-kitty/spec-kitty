@@ -1,4 +1,5 @@
 {
+  "coordination_branch": "kitty/mission-next-lifecycle-integrity-01M77BWP",
   "create_return_branch": "fix/7548-next-lifecycle-integrity",
   "created_at": "2026-11-12T07:52:34.120049+00:00",
   "flattened": false,
@@ -14,7 +15,15 @@
   "purpose_tldr": "next never records steps that did not run; rejection subtask resets are recorded and narrowable",
   "slug": "next-lifecycle-integrity-01M77BWP",
   "target_branch": "fix/7548-next-lifecycle-integrity",
-  "topology": "single_branch",
-  "topology_settled": false,
+  "topology": "lanes_with_coord",
+  "topology_decision": {
+    "code_lane_count": 4,
+    "from": "single_branch",
+    "rule": "lanes_with_coord",
+    "target_protected": false,
+    "to": "lanes_with_coord",
+    "wp_count": 4
+  },
+  "topology_settled": true,
   "topology_source": "default"
 }

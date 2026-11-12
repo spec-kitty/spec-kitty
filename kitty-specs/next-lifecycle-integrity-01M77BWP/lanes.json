@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "mission_slug": "next-lifecycle-integrity-01M77BWP",
+  "mission_id": "01M77BWPZ3E805PYVPYS8A49MZ",
+  "mission_branch": "kitty/mission-next-lifecycle-integrity-01M77BWP",
+  "target_branch": "fix/7548-next-lifecycle-integrity",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/runtime/next/decision.py",
+        "src/runtime/next/runtime_bridge_cores.py",
+        "src/runtime/next/runtime_bridge_io.py",
+        "tests/runtime/next/test_finished_board_verdict.py",
+        "tests/runtime/next/test_pending_decision_prompt.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "src/specify_cli/cli/commands/agent/tasks_move_task_executor.py",
+        "src/specify_cli/cli/commands/agent/tasks_move_task_hops.py",
+        "tests/specify_cli/cli/commands/agent/test_move_task_rollback_reset_7582.py",
+        "tests/specify_cli/cli/commands/agent/test_move_task_rollback_signal.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/runtime/next/runtime_bridge.py",
+        "src/runtime/next/runtime_bridge_decision_mapping.py",
+        "src/specify_cli/cli/commands/next_cmd.py",
+        "tests/next/test_finished_board_gate_7553.py",
+        "tests/next/test_next_advance_first_contact_5310.py",
+        "tests/runtime/test_runtime_bridge_read_path_branches.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/architecture/runtime-loop.md",
+        "src/charter/offering/skills/spec-kitty-runtime-next/SKILL.md",
+        "src/runtime/next/runtime_bridge_query.py",
+        "tests/next/test_query_next_command_7553.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-11-12T09:14:07.516803+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "7834070f939f719c7ea87a39e7cd0ff650684650"
+}
