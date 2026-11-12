@@ -365,7 +365,7 @@ def claim_preflight(ctx: ImplementContext, wp_id: str) -> ClaimPreflight:
     """Target branch, protected-branch refusal, status and lanes surfaces, dependency gate."""
     repo_root, mission_slug, auto_commit, declared_deps = ctx.repo_root, ctx.mission_slug, ctx.auto_commit, ctx.declared_deps
     planning_branch = workspace_context.resolve_mission_target_branch(mission_slug, repo_root)
-    implement_claim._raise_if_status_commit_protected(repo_root, planning_branch, auto_commit, mission_slug)
+    implement_claim._raise_if_status_commit_protected(repo_root, planning_branch, auto_commit, mission_slug, ctx.mission_dir)
 
     from specify_cli.status import materialize_status, resolve_status_read
 

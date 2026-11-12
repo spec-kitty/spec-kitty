@@ -251,15 +251,15 @@ class _Finding:
 #: never touches ``mission_id``/``mid8``/``primary_root`` or a write
 #: ``CommitTarget``).
 #:
-#: WS#3 — ``cli/commands/implement_claim.py`` / ``_status_commit_destination_branch``
-#: (moved from ``implement.py`` by implement-degod WP08):
-#: tracked #2453 — the ``get_current_branch(repo_root) or fallback_branch``
-#: git-HEAD selector. It ONLY predicts the pre-lane status-commit branch for
-#: the protected-branch guard (``_protected_branch_status_commit_error``) —
-#: it never feeds a write ``CommitTarget``/``destination_ref``. Routing the
-#: prediction through the placement seam would change which branch the guard
-#: evaluates (a behavior change), so it is deferred to the #2453 read-site
-#: sweep bucket (D-1/C-003) rather than routed here.
+#: WS#3 — ``cli/commands/implement_claim.py`` / ``checkout_branch_or_fallback``
+#: (moved from ``implement.py`` by implement-degod WP08; settled-placement-surface
+#: WP03 / #7601 moved the read from ``_status_commit_destination_branch`` into this
+#: one shared helper): tracked #2453 — the ``get_current_branch(checkout) or
+#: fallback_branch`` git-HEAD selector. It ONLY reads the branch of the checkout a
+#: commit runs in for the protected-branch guards (the implement claim preflight and
+#: move-task's WP-file holder) — it never feeds a write ``CommitTarget``/
+#: ``destination_ref``. #2453 stays open: the read is re-pointed, not drained, and
+#: the entry count is unchanged (D-1/C-003).
 #:
 #: Adding a NEW entry here is a deliberate scope decision, not a routine
 #: escape: it must point at a specific deferred-by-spec finding, with a
@@ -284,16 +284,18 @@ _ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
     ),
     ContentDescriptor(
         rel_path="src/specify_cli/cli/commands/implement_claim.py",
-        qualname="_status_commit_destination_branch",
-        token_substring="get_current_branch ( repo_root ) or fallback_branch",
+        qualname="checkout_branch_or_fallback",
+        token_substring="get_current_branch ( checkout ) or fallback_branch",
         occurrence=None,
         rationale=(
-            "tracked: #2453 - predicts the pre-lane status-commit branch for "
-            "the protected-branch guard only; never feeds a write "
+            "tracked: #2453 - reads the branch of the checkout a commit runs in "
+            "for the protected-branch guards only (implement claim preflight, "
+            "move-task WP-file holder); never feeds a write "
             "CommitTarget/destination_ref. Deferred to the #2453 read-site "
-            "sweep bucket (D-1/C-003). implement-degod WP08: the function "
-            "moved implement.py -> implement_claim.py; descriptor re-pointed, "
-            "same underlying code."
+            "sweep bucket (D-1/C-003). implement-degod WP08 moved it "
+            "implement.py -> implement_claim.py; settled-placement-surface WP03 "
+            "(#7601) moved it from _status_commit_destination_branch into this "
+            "one shared helper; descriptor re-pointed, count unchanged."
         ),
     ),
 )
@@ -335,8 +337,8 @@ def _scan_source(source: str, path: Path) -> list[_Finding]:
       git-HEAD write-target selectors.
     * ``get_current_branch(...) or <fallback>`` git-HEAD branch selectors — the
       generic checkout-derived ``current-branch-or-fallback`` shape (e.g.
-      ``implement_claim.py``'s ``_status_commit_destination_branch``, which predicts
-      the pre-lane status-commit branch for the protected-branch guard). Making
+      ``implement_claim.py``'s ``checkout_branch_or_fallback``, which reads the
+      branch of the checkout a commit runs in for the protected-branch guards). Making
       this shape a first-class finding pulls the last checkout-derived selector
       an adopted module carries into the ratchet's field of view so it cannot
       silently drift; the one live site is tracked-VISIBLE in ``_ALLOW_LIST_SEED``
@@ -501,8 +503,9 @@ def test_ws1_descriptor_no_longer_seeded_after_the_1716_drain() -> None:
 def test_checkout_head_selector_entry_is_still_a_live_finding() -> None:
     """Staleness twin-guard for the tracked #2453 checkout-HEAD selector descriptor.
 
-    The ``implement_claim.py`` descriptor pins ``_status_commit_destination_branch``'s
-    ``get_current_branch(repo_root) or fallback_branch`` prediction selector. If
+    The ``implement_claim.py`` descriptor pins ``checkout_branch_or_fallback``'s
+    ``get_current_branch(checkout) or fallback_branch`` selector (#7601 moved it there
+    from ``_status_commit_destination_branch``; #2453 stays open). If
     that site is finally routed through the placement seam (or removed),
     :func:`descriptor_still_live` returns ``False`` (0 matches, or a
     key-inequality) and this test fails loudly — the fix is to DELETE the
