@@ -174,6 +174,28 @@ def test_root_only_copy_is_refused_and_remedy_is_followable(settled: DefaultMiss
     assert_on_topic(settled, tail, "# stray\n", "stray tracer")
 
 
+def test_edited_root_copy_beside_holder_copy_is_refused(settled: DefaultMission, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A root copy whose bytes differ from the holder copy is refused, never silently dropped."""
+    tail = "spec.md"
+    holder_copy = settled.coord_mission_dir / tail
+    holder_text = holder_copy.read_text(encoding="utf-8")
+    root_copy = write(settled.root / rel(settled, tail), "# EDITED AT ROOT\n")
+    topic_tip = git(settled.root, "rev-parse", settled.topic)
+
+    code, payload = spec_commit(settled.root, monkeypatch, rel(settled, tail), "-m", "root spec edit")
+
+    assert code != 0, payload
+    surfaces = payload["surfaces"]
+    assert isinstance(surfaces, list)
+    reasons = {fate["reason"] for surface in surfaces for fate in surface.get("refused", [])}
+    assert reasons == {"WRONG_SURFACE"}, payload
+    message = str(payload.get("error") or "")
+    assert str(holder_copy) in message, message
+    assert str(root_copy) in message, message
+    assert holder_copy.read_text(encoding="utf-8") == holder_text, "the root copy must never be copied over the holder copy"
+    assert git(settled.root, "rev-parse", settled.topic) == topic_tip
+
+
 # ---------------------------------------------------------------------------
 # (f) control: absolute coordination-worktree path from the root (works today)
 # ---------------------------------------------------------------------------
