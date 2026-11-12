@@ -122,45 +122,47 @@ def test_rematerializes_from_the_coordination_holder_with_explicit_identity(tmp_
     assert calls == [{"repo_root": repo, "mission_slug": _SLUG, "coordination_branch": _HOLDER, "mid8": _MID8}]
 
 
-def test_noop_when_meta_json_is_at_the_seam_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def _noop_meta_at_the_seam_dir(tmp_path: Path) -> Path:
     repo = _repo(tmp_path, topology="lanes_with_coord")
     _git(repo, "checkout", "-q", _HOLDER)  # the root checkout now carries meta.json
-    calls = _spy_materializer(monkeypatch)
-    assert rematerialize_coordination_surface(repo, _SLUG) is False
-    assert calls == []
+    return repo
 
 
-def test_noop_when_no_branch_holds_the_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    repo = _repo(tmp_path, topology=None, holder=False)
-    calls = _spy_materializer(monkeypatch)
-    assert rematerialize_coordination_surface(repo, _SLUG) is False
-    assert calls == []
-
-
-@pytest.mark.parametrize("topology", ["single_branch", "lanes", None])
-def test_noop_when_the_holder_topology_is_not_a_coordination_one(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, topology: str | None) -> None:
-    repo = _repo(tmp_path, topology=topology)
-    calls = _spy_materializer(monkeypatch)
-    assert rematerialize_coordination_surface(repo, _SLUG) is False
-    assert calls == []
-
-
-def test_noop_when_the_coordination_branch_is_not_the_holder(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    repo = _repo(tmp_path, topology="lanes_with_coord", coordination_branch="kitty/elsewhere")
-    calls = _spy_materializer(monkeypatch)
-    assert rematerialize_coordination_surface(repo, _SLUG) is False
-    assert calls == []
-
-
-def test_unreadable_holder_meta_is_a_noop(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def _noop_unreadable_holder_meta(tmp_path: Path) -> Path:
     repo = _repo(tmp_path, topology="lanes_with_coord")
     _git(repo, "checkout", "-q", _HOLDER)
     (repo / "kitty-specs" / _SLUG / "meta.json").write_text("{not json", encoding="utf-8")
     _git(repo, "commit", "-qam", "corrupt")
     _git(repo, "checkout", "-q", "main")
+    return repo
+
+
+_NOOP_REPOS = {
+    "meta_json_at_the_seam_dir": _noop_meta_at_the_seam_dir,
+    "no_branch_holds_the_mission": lambda tmp_path: _repo(tmp_path, topology=None, holder=False),
+    "single_branch_holder": lambda tmp_path: _repo(tmp_path, topology="single_branch"),
+    "lanes_holder": lambda tmp_path: _repo(tmp_path, topology="lanes"),
+    "topology_absent": lambda tmp_path: _repo(tmp_path, topology=None),
+    "coordination_branch_not_local": lambda tmp_path: _repo(tmp_path, topology="lanes_with_coord", coordination_branch="kitty/elsewhere"),
+    "unreadable_holder_meta": _noop_unreadable_holder_meta,
+}
+
+
+@pytest.mark.parametrize("case", sorted(_NOOP_REPOS))
+def test_rematerialization_is_a_noop(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str) -> None:
+    repo = _NOOP_REPOS[case](tmp_path)
     calls = _spy_materializer(monkeypatch)
     assert rematerialize_coordination_surface(repo, _SLUG) is False
     assert calls == []
+
+
+def test_rematerializes_when_a_lane_branch_is_the_holder_found(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """MINOR 2: a lane branch that sorts before the coordination branch carries the same meta.json."""
+    repo = _repo(tmp_path, topology="lanes_with_coord")
+    _git(repo, "branch", "kitty/aaa-lane-a", _HOLDER)
+    calls = _spy_materializer(monkeypatch)
+    assert rematerialize_coordination_surface(repo, _SLUG) is True
+    assert calls == [{"repo_root": repo, "mission_slug": _SLUG, "coordination_branch": _HOLDER, "mid8": _MID8}]
 
 
 def test_materializer_refusal_exits_without_traceback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:

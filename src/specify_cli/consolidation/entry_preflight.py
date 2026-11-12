@@ -556,14 +556,6 @@ def _stored_coordination_branch(main_repo: Path, holder: str, meta_rel: str) -> 
     return _short_ref(declared), meta
 
 
-def _coordination_branch_on_holder(main_repo: Path, holder: str, meta_rel: str) -> tuple[str, dict[str, object]] | None:
-    """``(coordination_branch, meta)`` when *holder* is itself the stored coordination branch, else ``None``."""
-    found = _stored_coordination_branch(main_repo, holder, meta_rel)
-    if found is None or found[0] != holder:
-        return None
-    return found
-
-
 def _coordination_holder(main_repo: Path, mission_slug: str) -> tuple[str, dict[str, object]] | None:
     """The local coordination branch (and its ``meta.json``) that holds *mission_slug*'s PRIMARY metadata, else ``None``."""
     from specify_cli.lanes.single_branch_landing import branch_holding_path
@@ -572,7 +564,12 @@ def _coordination_holder(main_repo: Path, mission_slug: str) -> tuple[str, dict[
     holder = branch_holding_path(main_repo, meta_rel)
     if holder is None:
         return None
-    return _coordination_branch_on_holder(main_repo, holder, meta_rel)
+    # The holder may be a lane branch (it sorts first and carries the same meta.json): the
+    # coordination branch is whatever the stored topology declares, provided it is a local head.
+    found = _stored_coordination_branch(main_repo, holder, meta_rel)
+    if found is None or not (found[0] == holder or _has_branch_ref(main_repo, f"refs/heads/{found[0]}")):
+        return None
+    return found
 
 
 def rematerialize_coordination_surface(main_repo: Path, mission_slug: str) -> bool:
