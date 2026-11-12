@@ -48,10 +48,10 @@
       "criterion_id": "FR-005",
       "description": "Verify FR-005 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/agent/test_build_implement_prompt_lines.py + tests/agent/test_implement_lane_invocation.py (implement and review prompts carry the invocation and probe status) \u2014 WP02 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T08:51:59.335694+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
