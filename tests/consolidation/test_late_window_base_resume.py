@@ -25,8 +25,9 @@ from specify_cli.consolidation.landed_coordination import (
     landed_coordination_tip,
     record_landed_coordination_tip,
 )
-from specify_cli.consolidation.run_state import _CoordCheckpoint
+from specify_cli.consolidation.run_state import CoordinationTeardownError, _CoordCheckpoint
 from specify_cli.consolidation.state import ConsolidationState, load_state
+from specify_cli.git.ref_advance import RefAdvanceError
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.fast]
 
@@ -303,3 +304,52 @@ def test_the_rollback_helper_leaves_a_target_anchored_record_alone(repo: _Repo) 
     rollback._clear_landed_coordination_ref(repo.root, state)
 
     assert landed_coordination_tip(repo.root, _COORD) == repo.projected
+
+
+# -- #4380 item 2: the kept-branch refusal says what is true ------------------------------------------------
+
+
+def _teardown_run(repo: _Repo, monkeypatch: pytest.MonkeyPatch) -> Any:
+    run = _run(repo, is_resume=True, state=_state(repo, anchor=repo.landing, coord_tip=repo.projected))
+    for name in ("_refuse_unlanded_topic_primary", "_land_late_coordination_commits", "_fold_coord_status_before_flatten"):
+        monkeypatch.setattr(phase_teardown, name, lambda _run: None)
+    monkeypatch.setattr(phase_teardown, "_teardown_coord_worktree", lambda _run: None)
+    monkeypatch.setattr(phase_teardown, "_delete_mission_branch", lambda _run, _tip: False)
+    return run
+
+
+def test_kept_branch_text_with_the_worktree_gone_names_the_refused_delete(repo: _Repo, monkeypatch: pytest.MonkeyPatch) -> None:
+    run = _teardown_run(repo, monkeypatch)
+
+    with pytest.raises(CoordinationTeardownError) as refused:
+        phase_teardown._teardown_coordination_triple(run)
+
+    message = str(refused.value)
+    assert "still exists after teardown" in message and "No worktree has it checked out" in message, message
+    assert "compare-and-swap delete" in message and "consolidate --resume" in message, message
+    assert "stay consistent" not in message and "git worktree list" not in message, message
+
+
+def test_kept_branch_text_names_the_worktree_that_still_holds_it(repo: _Repo, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    holder = tmp_path / "holder"
+    _git(repo.root, "worktree", "add", "-q", str(holder), _COORD)
+    run = _teardown_run(repo, monkeypatch)
+
+    with pytest.raises(CoordinationTeardownError) as refused:
+        phase_teardown._teardown_coordination_triple(run)
+
+    message = str(refused.value)
+    assert "checked out in" in message and holder.name in message and "git worktree list" in message, message
+
+
+def test_kept_branch_text_when_worktrees_cannot_be_listed(repo: _Repo, monkeypatch: pytest.MonkeyPatch) -> None:
+    run = _teardown_run(repo, monkeypatch)
+
+    def _unlistable(*_args: object, **_kwargs: object) -> list[Path]:
+        raise RefAdvanceError("worktree list failed")
+
+    monkeypatch.setattr(phase_teardown, "worktrees_with_branch_checked_out", _unlistable)
+
+    message = phase_teardown._branch_kept_after_teardown_message(run)
+
+    assert "could not be listed" in message and "worktree list failed" in message, message
