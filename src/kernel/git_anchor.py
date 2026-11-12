@@ -48,13 +48,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
-from kernel.ancestor_walk import git_ceiling_dirs, iter_ancestors
+from kernel.ancestor_walk import find_ancestor, git_ceiling_dirs, iter_ancestors
 from kernel.resolution import resolve_rejecting_loops
 
 __all__ = [
     "AnchorKind",
     "GitAnchor",
     "UNRESOLVABLE_START_REASON",
+    "checkout_root_containing",
     "find_git_anchor",
 ]
 
@@ -188,3 +189,22 @@ def find_git_anchor(start: Path, *, environ: Mapping[str, str] | None = None) ->
         if verdict.kind is not AnchorKind.RESIDUE:
             return verdict
     return None
+
+
+def checkout_root_containing(path: Path) -> Path | None:
+    """The git checkout (repository root checkout or linked worktree) that contains *path*.
+
+    The nearest ancestor of *path* (inclusive) holding a ``.git`` entry of any kind: the
+    repository root checkout has a ``.git`` *directory*, a linked worktree a ``.git`` *file*;
+    both count. This is a containment question, not the identity classifier above: it never
+    reads the entry, so residue is not walked past. It runs on the one ancestor walk
+    (:func:`kernel.ancestor_walk.find_ancestor`, #7056), so it honours
+    ``GIT_CEILING_DIRECTORIES`` and returns the **resolved** checkout (symbolic links
+    followed, e.g. macOS ``/var`` -> ``/private/var``): compare it with resolved forms. No
+    subprocess. *path* need not exist; the walk starts at it either way.
+
+    Returns:
+        The resolved checkout root, or ``None`` when no ancestor up to the ceiling holds a
+        ``.git`` entry.
+    """
+    return find_ancestor(path, lambda candidate: (candidate / _GIT_DIR_NAME).exists())
