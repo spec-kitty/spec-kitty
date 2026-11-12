@@ -55,9 +55,10 @@ A supervising orchestrator runs `move-task WP11 --to approved --agent kitty-orch
 
 **Acceptance Scenarios**:
 
-1. **Given** WP11 was claimed by R, **When** an unforced `move-task WP11 --to approved --agent S` runs with S different from R, **Then** it is refused naming both identities and the remedy `spec-kitty agent action review WP11 --agent <id>` (re-claim). No event or review cycle is written.
+1. **Given** WP11 was claimed by R, **When** an unforced `move-task WP11 --to approved --agent S` runs with S different from R, **Then** it is refused with `APPROVER_NOT_CLAIMANT`, naming both identities. The remedy is to have the claimant record the verdict (`--agent <R>`) or, as an operator override, `--force`, which is recorded as a forced move. No event or review cycle is written.
 2. **Given** the same, **When** `--reviewer S` is passed instead of `--agent S`, **Then** the same refusal applies.
 3. **Given** WP11 was claimed by R, **When** `move-task WP11 --to approved --agent R` runs, **Then** it succeeds as in Story 1.
+3a. **Given** WP11 was claimed by `claude:sonnet:reviewer-renata`, **When** an unforced approval passes `--agent claude:sonnet:supervisor` (same tool, different profile), **Then** it is refused with `APPROVER_NOT_CLAIMANT`.
 4. **Given** WP11 was claimed by R, **When** the operator runs `move-task WP11 --to approved --force --agent S`, **Then** the move is recorded as forced with reviewer S and reference `force-override`. It is never recorded as a review approval, and no review cycle attributed to S as a reviewer is written.
 
 ---
@@ -111,6 +112,9 @@ An agent following the shipped `spk-run-verdict-capture` skill, or the approval 
 
 ### Edge Cases
 
+- **Who the review claimant is.** The newest unforced, non-migration entry into `in_review` whose actor is not a generic placeholder. This is the same rule consolidation uses. A forced or placeholder entry yields no claimant, so the claimant check does not apply.
+- **`--reviewer` alone.** It is an identity assertion: it also becomes the actor, and it must equal any `--agent` and the claimant.
+- **Auto-walk.** A single `move-task` from `for_review` to `approved` records its own claim in the same command, so there is no earlier claimant to compare (documented residual).
 - **Approval leaving `in_review` vs a direct approval.** An unforced approval from `for_review` or `in_progress`, with no claim, needs an asserted identity (`--agent` or `--reviewer`). The approval is refused without one (Story 1, scenario 3). With one, the existing independence check against the implementer still applies.
 - **`--reviewer` and `--agent` both passed and different, on an unforced approval out of `in_review`.** Both must equal the claimant, or the approval is refused (Story 2).
 - **Identity comparison.** "Equal to the claimant" uses the repository's existing segment-wise identity rules. It accepts the same identity written with or without trailing empty segments. It never accepts a different tool or profile.
@@ -126,16 +130,17 @@ An agent following the shipped `spk-run-verdict-capture` skill, or the approval 
 
 | ID | Title | User Story | Priority | Status | Delivery | No-op passable? |
 |----|-------|------------|----------|--------|----------|-----------------|
-| FR-001 | One reviewer of record | As a reviewer, I want every identity field of an approval (event actor, review result, evidence, policy-metadata tool, review-cycle `reviewer_agent`) to name the same reviewer of record, resolved as `--reviewer`/`--agent`, else the review claimant, so that the ledger never contradicts itself. | High | Open | [build] | no — the fixture's git `user.name` is distinctive and asserted absent |
+| FR-001 | One reviewer of record | As a reviewer, I want every identity field of an approval (event actor, review result, evidence, policy-metadata tool, review-cycle `reviewer_agent`, the cycle body's "Approved by" line and its reproduction command) to name the same reviewer of record, resolved as `--reviewer`/`--agent`, else the review claimant, so that the ledger never contradicts itself. | High | Open | [build] | no — the fixture's git `user.name` is distinctive and asserted absent |
 | FR-002 | Never the git user | As an operator, I want the approval path never to read the git `user.name` as a reviewer identity, so that a human who did not review is never named as reviewer. | High | Open | [build] | no — same distinctive git name, positive control is the claimant appearing |
-| FR-003 | No synthetic reference | As an auditor, I want an approval's reference to be the `review-cycle://` pointer of its review cycle, or a validated caller reference, or `force-override` for a forced move, and never a newly minted `auto-approval:` token, so that every reference points at real evidence. | High | Open | [build] | no — asserts the pointer resolves to an existing file |
+| FR-003 | No synthetic reference | As an auditor, I want an approval's reference to be the `review-cycle://` pointer of its review cycle, or a validated caller reference, or `force-override` for a forced move, and never a newly minted synthetic token (`auto-approval:`, `approval:`, `auto-forward:`), so that every reference points at real evidence. | High | Open | [build] | no — asserts the pointer resolves to an existing file |
 | FR-004 | Refuse an approval with no identity | As an operator, I want an unforced approval with no asserted identity and no review claim refused, writing nothing, with a remedy naming how to claim the review, so that no approval is recorded without a reviewer. | High | Open | [build] | no — paired with the claimed-and-approved success case on the same fixture |
-| FR-005 | Approver must be the claimant | As an operator, I want an unforced approval out of `in_review` refused when its asserted identity is not the review claimant, naming both identities and the re-claim command, so that a supervisor cannot approve another identity's review. | High | Open | [build] | no — paired with the claimant-approves success case |
-| FR-006 | Forced moves are not reviews | As an auditor, I want a forced approval recorded with the forcing actor's identity and reference `force-override`, never as a review approval and never with a fabricated reviewer, so that forced moves stay distinguishable. | Medium | Open | [build] | no — asserts reviewer equals the passed `--agent` and reference equals `force-override` |
-| FR-007 | Done carries the approval forward | As an auditor, I want `approved -> done` (and the arbiter-override path) to carry the reviewer and reference of the approval it follows, introducing no new identity or token, so that the done record matches the approval. | Medium | Open | [build] | no — asserts the done event's reviewer equals the approval's |
+| FR-005 | Approver must be the claimant | As an operator, I want an unforced approval out of `in_review` refused when its asserted identity is not the review claimant, compared on the full tool, model and profile, naming both identities and the remedy (the claimant records the verdict, or the operator uses `--force`), so that a supervisor cannot approve another identity's review. | High | Open | [build] | no — paired with the claimant-approves success case |
+| FR-006 | Forced moves are not reviews | As an auditor, I want a forced approval recorded with the forcing actor's identity and reference `force-override` (an arbiter override: its decision reference), never with a fabricated reviewer, so that forced moves stay distinguishable in the recorded fields. How consolidation reads a forced approval is unchanged (C-004, #5721). | Medium | Open | [build] | no — asserts reviewer equals the passed `--agent` and reference equals `force-override` |
+| FR-007 | Done carries the approval forward | As an auditor, I want `approved -> done` (and the arbiter-override path) to carry the reviewer and reference of the recorded approval verbatim, introducing no new identity or token (with no readable approval: the asserted `--agent` with `force-override`, else the existing placeholder refusal), so that the done record matches the approval. | Medium | Open | [build] | no — asserts the done event's reviewer equals the approval's |
 | FR-008 | Adopt the reviewer's cycle | As a reviewer, I want an approval to adopt the approved review cycle that I wrote after the latest review claim, instead of writing a second one, so that one review is one cycle. | High | Open | [build] | no — asserts the cycle count is unchanged and the reference names the existing cycle |
 | FR-009 | Never adopt a stale cycle | As a reviewer, I want a review cycle written before the latest review claim never adopted, so that an approval never points behind a later rejection. | Medium | Open | [build] | no — fixture has an older approved cycle that must not be referenced |
-| FR-010 | Cited cycle must exist | As an auditor, I want an approval whose `--approval-ref` is a `review-cycle://` pointer, or whose note or reference text cites "cycle N", refused when that work package's `review-cycle-N.md` does not exist or is not an approved verdict, naming the expected path, so that cited evidence is real. | Medium | Open | [build] | no — paired with the existing-cycle success case |
+| FR-010 | Cited cycle must exist | As an auditor, I want an approval whose `--approval-ref` is a `review-cycle://` pointer, or whose note or reference text cites "cycle N", refused with `REVIEW_CYCLE_CITATION_MISSING` when that work package's `review-cycle-N.md` does not exist, is invalid, is the cycle of a recorded rejection, or predates the latest review claim, naming the expected path, so that cited evidence is real and current. | Medium | Open | [build] | no — paired with the existing-cycle success case |
+| FR-014 | Refuse a non-adoptable reviewer cycle | As an auditor, I want an unforced approval refused with `REVIEW_CYCLE_NOT_ADOPTABLE` when a `review-cycle-N.md` written after the latest claim is invalid or attributed to another identity, naming the file and the canonical route (`review-feedback-N.md` + `--review-feedback-file`), so that a hand-written cycle is never silently doubled or mis-attributed. | Medium | Open | [build] | no — paired with the adoptable-cycle success case |
 | FR-011 | Shipped guidance passes identity | As an agent, I want the `spk-run-verdict-capture` skill and the `spec-kitty next` approval hint to show the approve command with `--agent <identity>`, so that following the guidance records an honest approval. | Low | Open | [build] | no — asserts the rendered text contains `--agent` |
 | FR-012 | #6709 edge semantics settled | As an operator, I want an approval-time feedback file on an already-approved work package, a damaged verdict slot, and an empty feedback file on approval to keep today's warn-and-continue behaviour, writing no new review cycle for an already-approved work package, so that #6709's open questions are answered without changing any refusal. | Low | Open | [ratchet] | yes — pins existing behaviour; positive control is the existing #6696 tests |
 | FR-013 | Review-cycle writer is named for what it does | As a maintainer, I want the review-cycle writer that writes both approvals and rejections named for that, with the old name kept as an alias, so that #6709's rename item is done without breaking callers. | Low | Open | [build] | yes — a pure rename; covered by existing writer tests |
@@ -146,7 +151,7 @@ An agent following the shipped `spk-run-verdict-capture` skill, or the approval 
 |----|-------|-------------|----------|----------|--------|
 | NFR-001 | No slower approvals | A `move-task --to approved` run on the existing CLI test fixtures takes at most 10% longer (wall time, median of 5 runs) than on the base commit. | Performance | Medium | Open |
 | NFR-002 | Clean static checks | Changed code passes `ruff check`, `ruff format --check --force-exclude` and `mypy` with 0 findings and no new suppressions. No touched function exceeds cyclomatic complexity 15. | Maintainability | High | Open |
-| NFR-003 | Refusals write nothing | For 100% of the new refusal paths, the status event log, the review-cycle files and the git index are byte-identical before and after the refused command. | Reliability | High | Open |
+| NFR-003 | Refusals write nothing | For 100% of the new refusal paths, the status event log, the review-cycle files and the git index are byte-identical before and after the refused command. The one pre-existing exception is unchanged and out of scope: the review-artifact override record that `--skip-review-artifact-check` persists before every guard (follow-up issue). | Reliability | High | Open |
 | NFR-004 | Coverage of new code | New and changed lines reach at least 90% line coverage in the mission's targeted tests (the diff-cover gate). | Maintainability | High | Open |
 
 ### Constraints
@@ -173,10 +178,10 @@ An agent following the shipped `spk-run-verdict-capture` skill, or the approval 
 ### Measurable Outcomes
 
 - **SC-001**: In an end-to-end run of claim → approve → done, the git `user.name` of the repository appears in 0 approval-related fields or artifacts. — [build] · no-op passable: no
-- **SC-002**: Across the approval paths exercised by the mission's tests (unforced, `--no-auto-commit`, forced, `approved -> done`, arbiter override), 0 newly written records carry an `auto-approval:` token. — [build] · no-op passable: no
+- **SC-002**: Across the approval paths exercised by the mission's tests (unforced, `--no-auto-commit`, forced, `approved -> done`, arbiter override), 0 approvals recorded by the fixed CLI carry a newly minted synthetic token, and every `review-cycle://` reference they carry resolves to an existing file. — [build] · no-op passable: no
 - **SC-003**: One claimed review followed by one approval yields exactly 1 review cycle, both when the reviewer wrote the cycle and when they did not. — [build] · no-op passable: no
 - **SC-004**: 100% of approvals that cite a non-existent cycle, come from a non-claimant, or carry no identity are refused, with nothing written. — [build] · no-op passable: no
-- **SC-005**: #7569, #7571, #7570, #7573 and #6709 are each closed by the mission's pull request with a passing reproduction test. #3451 is closed only if its reproduction shows the same cause. — [build] · no-op passable: no
+- **SC-005**: #7569, #7571, #7570, #7573 (recording side) and #6709 are each closed by the mission's pull request with a passing reproduction test. #3451 is closed only if its reproduction shows the same cause. — [build] · no-op passable: no
 
 ## Scope
 
@@ -187,7 +192,10 @@ An agent following the shipped `spk-run-verdict-capture` skill, or the approval 
 - `agent status emit` and `orchestrator-api transition`, which accept any asserted reviewer;
 - the open-packs review prompt (`--actor <name>`);
 - a doctor report that flags historical fabricated approvals;
-- lane-tip citations in approval notes (#7570's secondary ask).
+- lane-tip citations in approval notes (#7570's secondary ask);
+- the review-artifact override record written before every guard (`--skip-review-artifact-check`).
+
+**Documented residuals (operator ruling `closure`):** `--force` bypasses the new refusals, and consolidation still counts a forced approval after a claim as a review (#5721 route (a)). An auto-walk claims and approves in one command. `--agent <claimant>` impersonation cannot be detected.
 
 ## Assumptions
 

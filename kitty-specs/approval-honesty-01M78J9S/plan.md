@@ -76,86 +76,121 @@ docs/changelog/unreleased/<id>.fixed.md
 
 ## Design
 
-### Reviewer of record (FR-001, FR-002, FR-006, FR-007)
+### Two pieces: one fact, one combiner
 
-One function `resolve_reviewer_of_record(st) -> ReviewerOfRecord` lives in
-`tasks_move_task.py`, next to `_mt_resolve_active_reviewer_identity`, and is computed once in
-`_mt_gather_late_facts`. Resolution order:
+- **Claimant, the fact.** It is a pure `latest_review_claim_identity(events, wp_id)` in
+  `status/review_roles.py`, the declared role leaf, next to `latest_implementer_identity`. It
+  returns the newest **unforced**, non-migration entry into `in_review` whose actor is not in
+  `GENERIC_IMPLEMENTATION_ACTORS`. This is the same rule as consolidation's
+  `approved_bound._entered_review_by_claim` (decision `claimant_definition`). It is imported as a
+  submodule (`from specify_cli.status.review_roles import …`), so `status/__init__.py`, which
+  #7596 touches, stays untouched. `_mt_resolve_active_reviewer_identity` delegates to it.
+- **Reviewer of record, the combiner.** A pure `resolve_reviewer_of_record(facts)` in
+  `tasks_move_task.py` combines `--agent`, `--reviewer`, the claimant, the forced flag, the
+  recorded approval (for `approved -> done`) and, as a late input, the arbiter reference. It
+  returns `ReviewerOfRecord(identity, reference, kind ∈ {review, forced, carried})`.
 
-1. **Forced move** (`--force`, including arbiter override): the forcing actor's asserted identity
-   (`--agent`, else the claimant, else the recorded placeholder `user`). Reference:
-   `force-override`; for an arbiter override it is the arbiter decision's own `arb_review_ref`.
-   Kind: `forced`.
-2. **`approved -> done`** (approval already recorded): the reviewer and reference of the recorded
-   approval, read through `event_sourced_review_result`. Kind: `carried`.
-3. **Unforced approval**: the asserted identity, else the claimant. `--reviewer` is an assertion,
-   not a fallback, and must agree (see the refusals below). Kind: `review`.
+Today six sources each pick an identity. Every one of them reads the combiner instead:
+1. `_mt_approval_facts`;
+2. `_mt_resolve_reviewer_identity`;
+3. the cycle writer chain;
+4. `_mt_hop_actor` and `_mt_approval_actor`;
+5. `_mt_approval_policy_metadata.tool`;
+6. the executor's `st.actor`.
 
-The resolved value feeds every identity field:
-- `evidence.review.reviewer`;
-- `review_result.reviewer`;
-- `policy_metadata.tool`;
-- the cycle's `reviewer_agent`;
-- the reproduction command.
+The fields that carry the identity are the event `actor`, `review_result`, `evidence.review`,
+`policy_metadata.tool`, the cycle's `reviewer_agent`, the cycle body and its reproduction command.
 
-The `durably_persisted` overwrite in the executor then only swaps the **reference** to the
-verified pointer. The reviewer is already the same on both paths, so `--no-auto-commit` and a
-damaged slot record the same identity.
+The resolution order:
 
-The resolver is pure over a small fact bundle: asserted identities, claimant, forced flag,
-recorded approval and arbiter reference. It is unit-testable without git.
+1. **Forced** (`--force`, including arbiter override). The reviewer is the forcing actor
+   (`--agent`/`--reviewer`, else the claimant, else the recorded placeholder `user`). The reference
+   is `force-override`, or the arbiter's `arb_review_ref`, which is resolved after
+   `_mt_fire_arbiter_persist`.
+2. **`approved -> done`.** The recorded approval's reviewer and reference are copied **verbatim**
+   (`event_sourced_review_result`; decision `carry_forward`). With no readable approval, the
+   asserted identity with `force-override`, else the existing `REVIEW_NOT_INDEPENDENT` placeholder
+   refusal.
+3. **Unforced review.** `--agent`, else `--reviewer`, else the claimant. `--reviewer` is an
+   assertion: it sets the actor when `--agent` is absent, and it must agree with `--agent` and the
+   claimant (decision `codes_and_reviewer`).
 
-### Refusals (FR-004, FR-005, FR-010; C-008)
+`_detect_reviewer_name` (with its `tasks.py:408` re-export) and the approval-path mints of
+`synthetic_auto_approval_ref`, `synthetic_approval_ref` and the `auto-forward:` arm are deleted.
+The executor's durable overwrite then swaps only the **reference** to the verified pointer, which
+makes `--no-auto-commit` honest too. Historical tokens stay readable (C-002); the grammar module
+keeps its classifiers.
 
-| Condition (unforced only) | Code | Remedy in message |
-|---|---|---|
-| No asserted identity and no claim | `REVIEW_NOT_INDEPENDENT` (**existing** placeholder refusal; ratchet, no new code) | `--agent <identity>` |
-| Approval out of `in_review` whose `--agent` / `--reviewer` is not the claimant (segment-wise equality via the existing identity helpers) | **`APPROVER_NOT_CLAIMANT`** *(new; see decision D-P2)* | `spec-kitty agent action review <WP> --mission <m> --agent <id>` to re-claim |
-| `--reviewer` and `--agent` both given and different | **`APPROVER_NOT_CLAIMANT`** (same rule: one reviewer of record) | pass one identity |
-| `--approval-ref review-cycle://…`, or reference/note text that cites `cycle N`, where the cycle's file is missing, invalid, or the reference of a recorded rejection | **`REVIEW_CYCLE_CITATION_MISSING`** *(new)* | names the expected path; write the review via `--review-feedback-file`, or cite an existing cycle |
+### Refusals and where they run (FR-004, FR-005, FR-010, FR-014; NFR-003)
 
-All refusals run in the pre-mutation decision pass (`_mt_run_decision`), before any persist, so
-NFR-003 (byte-identical on refusal) follows from placement. The new checks live in
-`tasks_move_task_gates.py`, keeping `_do_move_task` at complexity 15.
+| Check | Code | Home | Runs |
+|---|---|---|---|
+| No identity and no claim | `REVIEW_NOT_INDEPENDENT` (existing; ratchet) | `_mt_require_independent_approval` | unchanged |
+| Unforced `in_review -> approved/done` whose identity is not identity-equal to the claimant; `--agent` and `--reviewer` disagree | `APPROVER_NOT_CLAIMANT` | **pure guard** `_guard_review_claimant`, added to `_GUARDS` right after `_guard_agent_ownership` (`tasks_transition_core.py`). It is a sibling of the existing ownership authority, not a second authority. | decision pass 1 |
+| Cited cycle (a `review-cycle://` ref, or `cycle N` / `cycle-N` / `review-cycle-N` in ref or note) is missing, invalid, a rejection's cycle, or not after the latest claim | `REVIEW_CYCLE_CITATION_MISSING` | helper called from `_mt_require_independent_approval` (no new branch in `_do_move_task`) | before any cycle write |
+| A post-claim `review-cycle-N.md` that is invalid or attributed to another identity | `REVIEW_CYCLE_NOT_ADOPTABLE` | same helper | before any cycle write |
 
-### One review, one cycle (FR-008, FR-009, FR-012)
+**Identity equality.** Drop the role segment and require tool, model and profile to be equal
+where both are recorded. Bare `claude` against `claude:sonnet:reviewer-renata` is **not** equal.
+The rule is never derived from `not actor_identities_independent`.
 
-The approval write gains an adoption probe. It looks for a `review-cycle-N.md` in the work
-package's cycle directory that meets all of:
-- it is **valid** (`validate_review_artifact_file`);
-- its `reviewed_at` is at or after the latest claim's `at`;
-- its `reviewer_agent` equals the reviewer of record;
-- no recorded rejection references it.
+**Codes.** Defined as constants in `tasks_transition_core.py` (not in `wp_evidence`, C-004), with
+exit 1, the move-task refusal shape, and the code in the JSON diagnostic.
 
-If one exists, the approval references it and writes nothing. If none exists, it writes one, as
-today. Cycles written before the claim are never adopted (FR-009). This is what makes the #6709
-"repeat approval reuses an older cycle" case honest. `approved -> done` writes no cycle, which is
-unchanged and now pinned (FR-012).
+**NFR-003.** The new refusals all run before any write *this mission adds*. The pre-existing
+`_mt_fire_override_persist` (`--skip-review-artifact-check` over a rejection) still runs before
+pass 1. That ordering is pinned by an earlier mission's partial-write rule and is listed as a
+residual with a follow-up issue. A test combines it with a non-claimant to document the boundary.
+
+### One review, one cycle (FR-008, FR-009, FR-012, FR-014; decision `adoption_rule`)
+
+The probe lives in `review/cycle.py` and reads through `_review_cycle_read_candidate_dirs`, with
+no new path join (#7546). A file is **adoptable** when all of these hold:
+- it is valid;
+- **no status event references it** (a rejection's cycle is always referenced by its rejection);
+- its N is greater than every cycle number referenced in the event log;
+- its `reviewer_agent` is identity-equal to the reviewer of record.
+
+**Outcomes:**
+- Adoptable: the approval references it and writes nothing.
+- A post-claim file that fails validity or identity: `REVIEW_CYCLE_NOT_ADOPTABLE` (unforced).
+- `--review-feedback-file` given: no adoption; the #6652 leg writes as today.
+- `approved -> done`: no cycle written (pinned).
+- An adopted file is never undone by `revert_committed_verdict_write`.
+- A pointer to an adopted file that is not committed is treated as local-only, exactly like a
+  local-only write today.
+
+The frontmatter has no verdict field (verified, `artifacts.py:218`), so verdicts are never read
+from it.
 
 ### Shipped guidance (FR-011)
 
 - **`SKILL.md`:** the approve line gains `--agent <your identity>`.
-- **`runtime_bridge_decision_mapping.py:318`:** the hint gains `--agent <identity>`.
-- **`--reviewer` help text:** drops "auto-detected from git".
+- **`runtime_bridge_decision_mapping.py:318`:** the hint gains `--agent <identity>` (outside
+  #7596's files).
+- **`--reviewer` help text:** "identity of the reviewer; must match --agent and the review
+  claimant".
+- **`prompt_builder.py`:** untouched (#7596).
 
-## Decisions to escalate (plan point-cut)
+## Operator rulings applied (plan point-cut)
 
-- **D-P1: a non-adoptable reviewer-written cycle file.** Covers a post-claim `review-cycle-N.md`
-  that is invalid (for example no frontmatter, as in `stale-coord-lane-base-01M67HRA` WP01) or
-  attributed to another identity. `review-cycle-N.md` is a **tool-owned** filename
-  (`review_feedback_source_path` docstring). The canonical route for a reviewer's text is
-  `review-feedback-N.md` + `--review-feedback-file`.
-  - *Recommend*: refuse with `REVIEW_CYCLE_NOT_ADOPTABLE`, naming the file and the canonical
-    route.
-  - *Alternative*: write N+1 as today and warn. That leaves part of #7571 open, because the
-    reviewer's render and the tool render still count as two cycles.
-- **D-P2: the new codes.** Names `APPROVER_NOT_CLAIMANT` and `REVIEW_CYCLE_CITATION_MISSING`
-  (plus `REVIEW_CYCLE_NOT_ADOPTABLE` if D-P1 is accepted), exit 1, the move-task refusal shape,
-  and recorded in an ADR `2026-10-04-5` amendment. Are they also aliased under `SINGLE_BRANCH_*`
-  like `REVIEW_NOT_INDEPENDENT`? *Recommend*: no alias. They are not topology-specific.
-- **D-P3: `--reviewer` semantics.** It becomes an identity assertion that must equal the approver;
-  it is never a display name. *Recommend*: yes. An alternative that keeps it as free text would
-  re-open #7569, because a caller could pass any human name.
+| Decision | Ruling |
+|---|---|
+| `claimant_remedy` | `APPROVER_NOT_CLAIMANT` remedy is: the claimant records the verdict, or the operator uses `--force` (recorded as forced). No handoff path. Supersedes the re-claim remedy. |
+| `non_adoptable_cycle` | Refuse with `REVIEW_CYCLE_NOT_ADOPTABLE`. |
+| `codes_and_reviewer` | Three codes, no `SINGLE_BRANCH_*` alias, ADR amendment. `--reviewer` is a strict identity assertion. |
+| `closure` | Close the four core issues on the recording side. The residuals below are documented and followed up. |
+
+Agent design calls (recorded): `claimant_definition`, `carry_forward`, `adoption_rule`.
+
+**Residuals (documented, not fixed):**
+- `--force` bypasses the new refusals, and consolidation counts a forced approval after a claim as
+  a review (#5721 route (a)).
+- An auto-walk claims and approves in one move.
+- `--agent <claimant>` impersonation cannot be detected.
+- The override-persist ordering.
+- `agent status emit` and `orchestrator-api transition` accept any reviewer.
+- Consolidation's done bookkeeping uses the git user.
 
 ## Complexity Tracking
 
@@ -163,42 +198,42 @@ No charter violations.
 
 ## Implementation Concern Map
 
-### IC-01 — Reviewer-of-record resolver (tidy-first enabler)
+### IC-01 — Claimant fact and reviewer-of-record combiner (tidy-first enabler)
 
-- **Purpose**: Extract one pure resolver and route today's three identity sources through it with no behaviour change. This is the enabler step; it also applies #6709's rename with an alias.
+- **Purpose**: Add `latest_review_claim_identity` and the pure combiner. Route all six identity sources through them with **behaviour preserved**: the git fallback and the tokens stay for now, but behind the combiner. Apply #6709's rename `create_rejected_review_cycle` → `create_review_cycle`, keeping the old name as an alias, with callers kept on the alias the existing patches intercept.
 - **Relevant requirements**: FR-001 (structure), FR-013
-- **Affected surfaces**: `tasks_move_task.py`, `tasks_move_task_hops.py`, `tasks_verdict_persistence.py`, `review/cycle.py`
+- **Affected surfaces**: `status/review_roles.py`, `tasks_move_task.py`, `tasks_move_task_hops.py`, `tasks_move_task_executor.py`, `tasks_verdict_persistence.py`, `review/cycle.py`
 - **Sequencing/depends-on**: none
-- **Risks**: Source-text call-site counters (`test_verdict_attribution_4670.py:434-462`) and the arch gates listed in research §6 may pin names. Run them in this step.
+- **Risks**: `test_verdict_attribution_4670.py:434-462` counts call sites in source text. The patches on `create_rejected_review_cycle` (seam, durability and materialization tests) must keep intercepting. Run the arch gates listed in research §6.
 
-### IC-02 — Honest identity and reference on approval
+### IC-02 — Honest identity and reference
 
-- **Purpose**: The resolver stops falling back to the git user and stops minting `auto-approval:`. All five fields read it, and `approved -> done` and the arbiter path carry the approval forward.
+- **Purpose**: Remove the git-user and synthetic-token fallbacks, so the combiner's resolution order becomes real. Add the forced, carried and arbiter paths, and update the guidance (skill, hint, `--reviewer` help).
 - **Relevant requirements**: FR-001, FR-002, FR-003, FR-004, FR-006, FR-007, FR-011
-- **Affected surfaces**: `tasks_move_task.py` (delete `_detect_reviewer_name`), `tasks_transition_core.py`, `tasks_move_task_hops.py`, `tasks_move_task_executor.py`, `tasks.py` help, `runtime_bridge_decision_mapping.py`, `SKILL.md`
+- **Affected surfaces**: `tasks_move_task.py`, `tasks.py`, `tasks_transition_core.py` (`_approval_evidence`), `tasks_move_task_hops.py`, `tasks_move_task_executor.py`, `tasks_verdict_persistence.py`, `runtime/next/runtime_bridge_decision_mapping.py`, `src/charter/offering/skills/spk-run-verdict-capture/SKILL.md`
 - **Sequencing/depends-on**: IC-01
-- **Risks**: Re-pins ~10 test files that assert the git fallback or the token. `DoneEvidence` requires a non-empty reference, which the carried or `force-override` reference satisfies.
+- **Risks**: Re-pin these stale tests (research table): `test_tasks_helpers.py` and `test_review_feedback_pointer_2x_unit.py` (import), `test_tasks_move_task_seam.py:302`, `test_review_durability_matrix.py:526`, plus the fixtures whose claimant identity differs from the approver.
 
 ### IC-03 — Approver must be the claimant
 
-- **Purpose**: Refuse an unforced approval out of `in_review` by a non-claimant, or with a conflicting `--reviewer`.
+- **Purpose**: Add the pure `_guard_review_claimant` with the identity-equality rule and the `APPROVER_NOT_CLAIMANT` code, and the `--agent`/`--reviewer` conflict check.
 - **Relevant requirements**: FR-005
-- **Affected surfaces**: `tasks_move_task_gates.py` (new check), `tasks_move_task.py` (registration in the decision pass)
+- **Affected surfaces**: `tasks_transition_core.py`, `MoveTaskRequest` (claimant fact)
 - **Sequencing/depends-on**: IC-01
-- **Risks**: An existing test that approves with a different `--agent` than its claim would now refuse; re-pin it after checking intent. The claimant comparison must reuse the segment-wise identity helpers, never string equality.
+- **Risks**: `test_move_task_structured_actor_6400` (bare `codex` against `codex::reviewer-renata`), `test_ac5_hash_guard.py:229`, `test_verdict_save_performance.py`, `test_move_task_approval_evidence.py`, `test_move_task_approval_body_collision.py` and `test_move_task_done_issue_matrix_orchestrator.py` all seed a claimant that differs from the approver. Re-pin each one's fixture identity after checking its intent. The 4670 fixture seeds a forced claim, so it gets an unforced one.
 
 ### IC-04 — One review, one cycle; cited cycles exist
 
-- **Purpose**: Adopt the reviewer's post-claim cycle instead of allocating another, and refuse citations of missing or rejected cycles.
-- **Relevant requirements**: FR-008, FR-009, FR-010, FR-012
-- **Affected surfaces**: `tasks_verdict_persistence.py`, `review/cycle.py` (adoption probe and citation parser), `tasks_move_task_gates.py`
-- **Sequencing/depends-on**: IC-01; it can follow IC-02
-- **Risks**: The cycle directory placement is shared with #7546, so read through the existing `_review_cycle_read_candidate_dirs` and never add a new join. Citation regex false positives are limited to the explicit `cycle N` forms.
+- **Purpose**: Add the adoption probe, the citation parser and verification, the `REVIEW_CYCLE_CITATION_MISSING` and `REVIEW_CYCLE_NOT_ADOPTABLE` refusals, and pin #6709's edge semantics.
+- **Relevant requirements**: FR-008, FR-009, FR-010, FR-012, FR-014
+- **Affected surfaces**: `review/cycle.py`, `tasks_verdict_persistence.py`, `tasks_move_task.py` (helper inside `_mt_require_independent_approval`)
+- **Sequencing/depends-on**: IC-02
+- **Risks**: `tests/architectural/test_untrusted_path_containment.py` needs a sink row if N from user text builds a path. Resolve through `build_review_cycle_pointer` and `resolve_review_cycle_pointer` instead of a new join. `_do_move_task` must stay at complexity 15.
 
-### IC-05 — Documentation, ADR amendment, changelog, follow-ups
+### IC-05 — ADR amendment, changelog, follow-ups
 
-- **Purpose**: Record the reviewer-of-record rule and the new codes in an amendment to ADR `2026-10-04-5`, add the changelog fragment, file the follow-up issues named in the spec Scope, and file the #3451 disposition.
+- **Purpose**: Amend ADR `2026-10-04-5` with the reviewer-of-record rule, the three codes and the residuals. Add the changelog fragment, including the `--reviewer` behaviour change. File the follow-ups: done bookkeeping; the status emit and orchestrator-api doors; the open-packs prompt; the override-persist ordering; a doctor report for historical fabricated approvals; lane-tip citations. Record #3451 as reproduced with the same cause (+2 per review when the reviewer wrote the cycle).
 - **Relevant requirements**: C-008, SC-005
-- **Affected surfaces**: `docs/adr/4.x/2026-10-04-5-…md`, `docs/changelog/unreleased/`, the CLAUDE.md approval-stamp paragraph (one sentence; check the charter-vs-CLAUDE.md drift rule)
+- **Affected surfaces**: `docs/adr/4.x/2026-10-04-5-…md`, `docs/changelog/unreleased/`
 - **Sequencing/depends-on**: IC-02, IC-03, IC-04
-- **Risks**: none
+- **Risks**: CLAUDE.md quotes the ADR. Add one sentence to its approval-stamp paragraph, or flag the drift instead.
