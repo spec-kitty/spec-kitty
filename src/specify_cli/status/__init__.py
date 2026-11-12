@@ -154,6 +154,7 @@ from .wp_state import (
     wp_state_for,
 )
 from .actor import (
+    MERGE_ACTOR,
     ActorRole,
     actor_from_option,
     build_status_actor,
@@ -802,6 +803,7 @@ __all__ = [
     "compose_status_actor",
     # #6722: the system writers' actor (same four keys, role ``system``).
     "build_system_actor",
+    "MERGE_ACTOR",
     "role_for_wp",
     "role_for_hop",
     "emit_status_transition",
