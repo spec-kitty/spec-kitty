@@ -205,7 +205,7 @@
       "wp": "WP03"
     },
     "#7602": {
-      "evidence_ref": "WP05 path-convention frame",
+      "evidence_ref": "WP05 e75ca49b (path-convention frame); red e42e807c",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -213,7 +213,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP05"
     },
     "#7607": {
