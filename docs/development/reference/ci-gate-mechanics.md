@@ -3,7 +3,7 @@ title: 'CI and Architectural Gate Mechanics'
 description: 'What trips each spec-kitty CI gate — marker gates, the architectural battery, docs-freshness registration, and accept-to-consolidate close-out — with symptom and repro.'
 doc_status: active
 kind: Reference
-updated: '2026-11-01T00:00:00Z'
+updated: '2026-11-12T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.
@@ -812,8 +812,9 @@ The prose of those pages is linted by a separate, always-on job: see
      find it yet. The per-PR content check is
      `tests/docs/test_docs_index_regenerates_cleanly.py`: the generators must
      run cleanly over the tree you merge.
-  3. **Frontmatter `description`** — a hard **50–180 character** band, enforced by
-     `scripts/docs/description_length_check.py` and the docs SEO tests.
+  3. **Frontmatter `description`** — a hard **50–180 character** band on every
+     published page, enforced by `tests/docs/test_docs_seo.py` (over 180 also fails
+     the docsite build's frontmatter gate).
 
   Verify with `PYTHONPATH=. python scripts/docs/check_docs_freshness.py --ci`
   (expect `errors=0`; staleness and external-URL link-health *warnings* are fine).
@@ -897,8 +898,9 @@ The `deploy` job runs only for `spec-kitty/spec-kitty` on
 `refs/heads/main`; a `workflow_dispatch` on another branch builds but does not
 deploy. After each deploy, the `smoketest` job runs
 `scripts/docs/site_live_probe.py` against `https://docs.spec-kitty.ai`, and a
-mismatch turns the run red. Rolling the site back to DocFX means reverting the
-cutover pull request (#6938) until DocFX is retired (#6943).
+mismatch turns the run red. The legacy generator the cutover replaced is retired
+(#6943): rolling back to it means reverting that pull request and the cutover
+(#7558), so rolling forward is preferred.
 
 ### The docsite's Python steps need `PYTHONPATH`
 

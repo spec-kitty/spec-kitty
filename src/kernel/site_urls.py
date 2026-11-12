@@ -23,7 +23,7 @@ __all__ = ["INSTALL_AND_UPGRADE_URL"]
 #: The one registrable domain Spec Kitty owns for its branded hosts.
 OWNED_DOMAIN = "spec-kitty.ai"
 
-#: The published documentation site (``docs/CNAME``).
+#: The published documentation site (``site/public/CNAME``).
 DOCS_BASE_URL = f"https://docs.{OWNED_DOMAIN}"
 
 #: Install and upgrade guide: ``docs/guides/how-to/installation/install-and-upgrade.md``.

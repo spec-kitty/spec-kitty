@@ -1,9 +1,9 @@
 ---
 title: Configuration Reference
-description: Reference for Spec Kitty configurations. Explore parameters for meta.json, work package frontmatter, docfx.json, toc.yml, config.yaml's env_file pointer, and agent settings.
+description: Reference for Spec Kitty configurations. Explore parameters for meta.json, work package frontmatter, the docsite build, config.yaml's env_file pointer, and agent settings.
 doc_status: active
 kind: Reference
-updated: '2026-10-21T00:00:00Z'
+updated: '2026-11-12T00:00:00Z'
 related:
 - api/agent-subcommands
 - api/cli-commands
@@ -141,83 +141,19 @@ history:
 
 ---
 
-## docfx.json (Documentation Build)
+## Docsite build (doc-kitty)
 
-DocFX configuration for building the documentation site.
+The documentation site, `docs.spec-kitty.ai`, is built from `docs/` by [doc-kitty](https://github.com/spec-kitty/doc-kitty) in the `site/` sub-project (ADR `2026-10-31-1`). These files configure it:
 
-**Location**: `docs/docfx.json`
+| File | What it holds |
+|------|---------------|
+| `site/package.json` | The doc-kitty toolkit, pinned by commit, and the site's own dependencies. Bump it with `make docs-site-bump REF=<tag or commit>`. |
+| `site/astro.config.mjs` | The Astro and doc-kitty configuration: the docs directory, the folders left out, the legacy redirects and the diagram rendering. |
+| `docs/_meta/sections.yaml` | The section registry: one entry per published top-level folder of `docs/`, with its label, order and feeds. |
+| `scripts/docs/_dockitty_contract.py` | The single authority in core for which folders are excluded and which pages are published; projected to `site/dockitty-contract.json` by `python -m scripts.docs.site_contract`. |
+| `site/moves.yaml`, `site/url-baseline.txt` | The append-only moves ledger and every route the site has published; `python -m scripts.docs.site_redirects` derives `site/legacy-redirects.json` from them. |
 
-**Key sections**:
-
-```json
-{
-  "build": {
-    "content": [
-      {
-        "files": [
-          "*.md",
-          "tutorials/*.md",
-          "how-to/*.md",
-          "reference/*.md",
-          "explanation/*.md",
-          "toc.yml"
-        ]
-      }
-    ],
-    "resource": [
-      {
-        "files": ["assets/**"]
-      }
-    ],
-    "dest": "_site",
-    "template": ["default", "modern"],
-    "globalMetadata": {
-      "_appTitle": "Spec Kitty Documentation",
-      "_enableSearch": true
-    }
-  }
-}
-```
-
-| Section | Description |
-|---------|-------------|
-| `content.files` | Markdown files to include |
-| `resource.files` | Static assets (images, CSS) |
-| `dest` | Output directory (don't commit this) |
-| `template` | DocFX templates to use |
-| `globalMetadata` | Site-wide settings |
-
----
-
-## toc.yml (Table of Contents)
-
-Defines the documentation navigation structure.
-
-**Location**: `docs/toc.yml`
-
-**Format**:
-
-```yaml
-- name: Home
-  href: index.md
-
-- name: Tutorials
-  items:
-    - name: Getting Started
-      href: tutorials/getting-started.md
-    - name: Your First Mission
-      href: tutorials/your-first-mission.md
-
-- name: How-To Guides
-  items:
-    - name: Install & Upgrade
-      href: how-to/install-spec-kitty.md
-```
-
-Each entry has:
-- `name`: Display text in navigation
-- `href`: Path to markdown file
-- `items`: Nested navigation items (optional)
+A page is published unless it lies in an excluded folder (`archive`, `reports`, `convergence`, `changelog/unreleased`), lies in a working-note folder whose pages are all drafts (`plans/engineering-notes`, `plans/investigations`, `plans/research`), or has `doc_status: draft` (an absent `doc_status` counts as a draft). `EXCLUDED_FOLDERS` and `DRAFT_FOLDERS` in the contract module name these folders. Navigation comes from the section registry and the folder tree, not from a hand-written table of contents. Build the site locally with `make docs-site`.
 
 ---
 
