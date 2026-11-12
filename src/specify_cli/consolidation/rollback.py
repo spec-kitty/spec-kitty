@@ -827,7 +827,7 @@ def _clear_bookkeeping(state: ConsolidationState, outcomes: Iterable[BranchOutco
         state.pending_coord_reconcile = None
     state.mission_number_baked = False
     state.completed_wps = []
-    state.reconciliation_passed_target_sha = None
+    state.clear_reconciliation_pass()
     state.post_mutation_refs = {}
     state.advance_intents = {}
     state.unsettled_refs = []
@@ -901,8 +901,7 @@ def rebaseline_after_full_restore(state: ConsolidationState, outcomes: Iterable[
             if getattr(state, field_name) != empty:
                 setattr(state, field_name, empty)
                 changed = True
-    if state.reconciliation_passed_target_sha is not None:
-        state.reconciliation_passed_target_sha = None
+    if state.clear_reconciliation_pass():
         changed = True
     return changed
 
@@ -966,7 +965,7 @@ def rollback_to_snapshot(repo_root: Path, state: ConsolidationState, *, target_b
     _settle_outcomes(state, outcomes)
     if any(o.branch == target_branch and o.kind is BranchOutcomeKind.RESTORED for o in outcomes):
         # F4: the target left the landing the PASS anchor verified; never keep a stale anchor.
-        state.reconciliation_passed_target_sha = None
+        state.clear_reconciliation_pass()
     if report.fully_restored:
         _clear_bookkeeping(state, outcomes)
     save_state(state, repo_root)
