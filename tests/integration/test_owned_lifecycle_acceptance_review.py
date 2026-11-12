@@ -210,15 +210,23 @@ def _non_owned_review_ready(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
 
 class TestFr025RepositoryRootReviewBase:
     def test_agent_action_review_context_names_the_claim_commit(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """FR-025: the repository-root ``agent action review`` names a deterministic review base.
+
+        Re-pin (#7578, IC-05, DIRECTIVE_041): the base is the WP review range's window open, not the
+        claim commit; the printed ``git log <base>..<tip>`` is scoped to the WP's owned files and
+        runs as written.
+        """
         repo, mission_dir = _non_owned_review_ready(tmp_path, monkeypatch)
-        claim = _independent_claim_commit(repo, mission_dir, "WP01")
+        base, tip = recorded_window_ends(mission_dir / _EVENTS, "WP01")
         monkeypatch.chdir(repo)
         monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo))
 
         result = runner.invoke(workflow_module.app, ["review", "WP01", "--mission", _NON_OWNED_SLUG, "--agent", "claude"])
 
         assert result.exit_code == 0, result.output
-        assert claim in result.output, result.output
+        log_line = f"  git log --oneline {base}..{tip} -- wp01.py"
+        assert log_line in result.output.splitlines(), result.output
+        assert "work on wp01.py" in run_printed_command(repo, log_line)
 
 
 # ---------------------------------------------------------------------------

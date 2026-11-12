@@ -10,11 +10,13 @@ Reproduces the original failure mode:
   candidate list and later passed to ``subprocess.run(["git", "merge-base", branch, None])``
   which raised ``TypeError: expected str, bytes or os.PathLike object, not NoneType``.
 
-The fix in ``workflow.py`` skips dependency workspaces with no branch name
-instead of letting them flow into the merge-base loop. This test locks that
-contract down by exercising the exact mixed-dependency case end-to-end with
-a real git worktree, so any future regression that re-introduces the
-``None``-flows-into-git-merge-base bug fails the suite.
+The fix in ``workflow.py`` skipped dependency workspaces with no branch name
+instead of letting them flow into the merge-base loop. #7578 retired that
+loop: the review base is the work package's review range
+(``review.wp_range.resolve_wp_review_range``), so no dependency workspace is
+consulted at all. These tests keep the mixed-dependency case end-to-end with a
+real git worktree and now pin that no ``git merge-base`` runs and nothing
+crashes (re-pin, IC-05, DIRECTIVE_041).
 """
 
 from __future__ import annotations
@@ -26,6 +28,7 @@ from unittest.mock import patch
 import pytest
 
 from specify_cli.cli.commands.agent.workflow import _resolve_review_context
+from specify_cli.review.wp_range import RangeStatus, WpReviewRange
 from specify_cli.workspace.context import ResolvedWorkspace
 
 pytestmark = [pytest.mark.git_repo]
@@ -125,19 +128,21 @@ class TestMixedDependencyReviewContext:
                 wp_frontmatter=wp_frontmatter,
             )
 
-        # The contract: no crash, branch is the lane branch, base is one of
-        # the common ancestors (here: ``main``, since the planning-artifact
-        # dependency contributes no candidate).
+        # The contract: no crash, branch is the lane branch, and the base is the
+        # WP review range's (#7578 re-pin): this repository records no status
+        # events for WP02, so the range is unavailable and the base stays
+        # unknown -- never a common-ancestor branch guess.
         assert ctx["branch_name"] == lane_branch
-        assert ctx["base_branch"] in {"main", "master"}
-        assert ctx["commit_count"] >= 1
+        review_range = ctx["review_range"]
+        assert isinstance(review_range, WpReviewRange) and review_range.status is RangeStatus.UNAVAILABLE
+        assert ctx["base_branch"] == "unknown"
+        assert ctx["commit_count"] == 0
 
     def test_planning_artifact_dependency_does_not_pollute_candidates(
         self, tmp_path: Path
     ) -> None:
-        """The exact mechanism: even when ``main`` does not exist, dependency
-        ``branch_name=None`` must not be appended to the candidate list and
-        passed to ``git merge-base``.
+        """The exact mechanism: dependency ``branch_name=None`` never reaches
+        ``git merge-base`` -- since #7578 no candidate search runs at all.
         """
         repo = _make_repo(tmp_path)
         lane_branch = "kitty/mission-078-feature-lane-b"
@@ -208,7 +213,5 @@ class TestMixedDependencyReviewContext:
                 wp_frontmatter=wp_frontmatter,
             )
 
-        assert observed_calls, "Expected at least one git merge-base call"
-        for call in observed_calls:
-            assert None not in call
+        assert observed_calls == [], "the review base comes from the WP review range, never a git merge-base search"
         assert ctx["branch_name"] == lane_branch

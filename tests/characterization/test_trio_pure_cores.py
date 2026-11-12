@@ -14,7 +14,7 @@ Targets (CC19-37, all currently pure/deterministic given controlled inputs):
 * ``acceptance._build_recommended_fix_order``  (pure, no I/O)
 * ``acceptance._check_lane_gates``              (CC19; I/O collaborators mocked)
 * ``acceptance.collect_feature_summary``        (CC25; wiring, collaborators mocked)
-* ``workflow._resolve_review_context``          (CC37; subprocess/git mocked)
+* ``workflow._resolve_review_context``          (CC37; the WP review range and git mocked; #7578 re-pin)
 * ``workflow_cores.resolve_review_feedback_context`` / ``has_prior_rejection``
   (the rejection/rewind/resume paths feeding review-context)
 
@@ -35,6 +35,7 @@ from specify_cli import acceptance as acceptance_module
 from specify_cli.acceptance import AcceptanceCheckDiagnostic, collect_feature_summary
 from specify_cli.acceptance.gates_core import LaneGateOutcome
 from specify_cli.cli.commands.agent import workflow as workflow_module
+from specify_cli.cli.commands.agent import workflow_executor as executor_module
 from specify_cli.cli.commands.agent.tasks_transition_core import (
     is_review_rejection_edge,
 )
@@ -49,6 +50,7 @@ from specify_cli.cli.commands.agent.workflow_cores import (
     validate_force_note,
 )
 from specify_cli.review.cycle import create_rejected_review_cycle
+from specify_cli.review.wp_range import RangeCommit, RangeSource, RangeStatus, WpReviewRange
 from specify_cli.status import Lane, StatusEvent
 from specify_cli.task_utils import WorkPackage
 from specify_cli.workspace.context import ResolvedWorkspace, WorkspaceContext
@@ -509,12 +511,8 @@ class TestCheckLaneGates:
 
 
 # ===========================================================================
-# Section C -- ``_resolve_review_context`` (CC37) -- subprocess/git mocked
+# Section C -- ``_resolve_review_context`` (CC37) -- the WP review range and git mocked
 # ===========================================================================
-
-
-def _cp(returncode: int, stdout: str = "") -> SimpleNamespace:
-    return SimpleNamespace(returncode=returncode, stdout=stdout, stderr="")
 
 
 def _lane_workspace(*, wp_id: str, branch_name: str | None, context: WorkspaceContext | None = None) -> ResolvedWorkspace:
@@ -564,8 +562,43 @@ def _seam_stub(read_dir: Path) -> SimpleNamespace:
     return SimpleNamespace(read_dir=lambda _kind: read_dir)
 
 
+_BASE = "a" * 40
+_TIP = "b" * 40
+
+
+def _review_range(*, base: str | None, commits: int = 0) -> WpReviewRange:
+    if base is None:
+        return WpReviewRange.unavailable("WP01", "not_recorded")
+    return WpReviewRange(
+        wp_id="WP01",
+        base=base,
+        tip=_TIP,
+        base_source=RangeSource.RECORDED_WINDOW,
+        tip_source=RangeSource.RECORDED_SUBMISSION,
+        gap=None,
+        status=RangeStatus.RECORDED,
+        commits=tuple(RangeCommit(sha=f"{index:040d}", subject=f"c{index}") for index in range(commits)),
+    )
+
+
+def _patch_range(monkeypatch: pytest.MonkeyPatch, review_range: WpReviewRange) -> list[dict[str, Any]]:
+    """Stub the one range authority; return the recorded calls (re-pin, #7578: the range replaces the claim-commit / base-search arms)."""
+    calls: list[dict[str, Any]] = []
+
+    def _resolve(repo_root: Path, mission_slug: str, wp_id: str, **kwargs: Any) -> WpReviewRange:
+        calls.append({"repo_root": repo_root, "mission_slug": mission_slug, "wp_id": wp_id, **kwargs})
+        return review_range
+
+    monkeypatch.setattr(executor_module, "resolve_wp_review_range", _resolve)
+    return calls
+
+
+def _no_git(*args: Any, **_kw: Any) -> SimpleNamespace:
+    raise AssertionError(f"unexpected git invocation: {args}")
+
+
 class TestResolveReviewContext:
-    """Branch matrix over workspace existence / resolution_kind / base-ref discovery."""
+    """Branch matrix over workspace existence / resolution_kind / the WP review range (#7578 re-pin)."""
 
     def test_nonexistent_workspace_returns_default_context(self, tmp_path: Path) -> None:
         missing = tmp_path / "nope"
@@ -582,60 +615,53 @@ class TestResolveReviewContext:
         }
 
     def test_repo_root_kind_with_claim_commit_found(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Re-pin (#7578): the base is the WP review range base, scoped to the WP's owned_files, never a claim commit."""
         workspace_path = tmp_path / "workspace"
         workspace_path.mkdir()
         monkeypatch.setattr(workflow_module, "resolve_workspace_for_wp", lambda *_a, **_k: _repo_root_workspace(wp_id="WP01"))
         monkeypatch.setattr(workflow_module, "_workflow_placement_seam", lambda *_a, **_k: _seam_stub(tmp_path / "kitty-specs" / "trio-mission"))
         monkeypatch.setattr("specify_cli.lanes.persistence.read_lanes_json", lambda _fd: None)
+        calls = _patch_range(monkeypatch, _review_range(base=_BASE, commits=3))
+        monkeypatch.setattr(workflow_module.subprocess, "run", _no_git)
 
-        monkeypatch.setattr("mission_runtime.claim_commit_for_wp", lambda _mission_dir, _wp_id: "abc1234def")
-
-        def _fake_run(args: list[str], **_kw: Any) -> SimpleNamespace:
-            if args[1] == "rev-list":
-                return _cp(0, "3")
-            raise AssertionError(f"unexpected git invocation: {args}")
-
-        monkeypatch.setattr(workflow_module.subprocess, "run", _fake_run)
-
-        ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP01", "")
+        ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP01", "owned_files: [src/a.py]\n")
 
         assert ctx["branch_name"] == "HEAD"
-        assert ctx["base_branch"] == "abc1234def"
+        assert ctx["base_branch"] == _BASE
         assert ctx["lane_branch"] == "HEAD"
-        assert ctx["base_ref"] == "abc1234def"
+        assert ctx["base_ref"] == _BASE
         assert ctx["commit_count"] == 3
+        assert calls == [{"repo_root": tmp_path, "mission_slug": "trio-mission", "wp_id": "WP01", "owned_files": ["src/a.py"], "owned": None}]
 
     def test_repo_root_kind_claim_commit_not_found_returns_default(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Re-pin (#7578): an unavailable range leaves the base unknown and carries the range for its notice."""
         workspace_path = tmp_path / "workspace"
         workspace_path.mkdir()
         monkeypatch.setattr(workflow_module, "resolve_workspace_for_wp", lambda *_a, **_k: _repo_root_workspace(wp_id="WP01"))
         monkeypatch.setattr(workflow_module, "_workflow_placement_seam", lambda *_a, **_k: _seam_stub(tmp_path / "kitty-specs" / "trio-mission"))
         monkeypatch.setattr("specify_cli.lanes.persistence.read_lanes_json", lambda _fd: None)
-        from mission_runtime import ClaimCommitUnresolved
-
-        def _unresolved(_mission_dir: Path, wp_id: str) -> str:
-            raise ClaimCommitUnresolved(wp_id, "no_claim_event")
-
-        monkeypatch.setattr("mission_runtime.claim_commit_for_wp", _unresolved)
+        review_range = _review_range(base=None)
+        _patch_range(monkeypatch, review_range)
 
         ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP01", "")
 
-        assert ctx["branch_name"] == "unknown"
+        assert ctx["base_branch"] == "unknown" and ctx["base_ref"] == "unknown"
         assert ctx["commit_count"] == 0
+        assert ctx["review_range"] is review_range
 
     def test_repo_root_kind_rev_list_failure_defaults_commit_count_to_one(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Re-pin (#7578): the count is the range's listed commits (a failed listing lists none), never a rev-list fallback."""
         workspace_path = tmp_path / "workspace"
         workspace_path.mkdir()
         monkeypatch.setattr(workflow_module, "resolve_workspace_for_wp", lambda *_a, **_k: _repo_root_workspace(wp_id="WP01"))
         monkeypatch.setattr(workflow_module, "_workflow_placement_seam", lambda *_a, **_k: _seam_stub(tmp_path / "kitty-specs" / "trio-mission"))
         monkeypatch.setattr("specify_cli.lanes.persistence.read_lanes_json", lambda _fd: None)
-
-        monkeypatch.setattr("mission_runtime.claim_commit_for_wp", lambda _mission_dir, _wp_id: "abc1234def")
-        monkeypatch.setattr(workflow_module.subprocess, "run", lambda *_a, **_k: _cp(1, ""))
+        _patch_range(monkeypatch, _review_range(base=_BASE, commits=0))
+        monkeypatch.setattr(workflow_module.subprocess, "run", _no_git)
 
         ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP01", "")
 
-        assert ctx["commit_count"] == 1
+        assert ctx["commit_count"] == 0
 
     def test_lane_workspace_current_branch_missing_returns_default(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         workspace_path = tmp_path / "workspace"
@@ -644,6 +670,7 @@ class TestResolveReviewContext:
         monkeypatch.setattr(workflow_module, "_workflow_placement_seam", lambda *_a, **_k: _seam_stub(tmp_path / "kitty-specs" / "trio-mission"))
         monkeypatch.setattr("specify_cli.lanes.persistence.read_lanes_json", lambda _fd: None)
         monkeypatch.setattr("specify_cli.core.git_ops.get_current_branch", lambda _wp: None)
+        _patch_range(monkeypatch, _review_range(base=None))
 
         ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP02", "")
 
@@ -651,6 +678,7 @@ class TestResolveReviewContext:
         assert ctx["mission_branch"] == "unknown"
 
     def test_base_ref_resolved_from_lanes_manifest_mission_branch(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Re-pin (#7578): the manifest still names the mission branch; the review base is the range base, not that branch."""
         workspace_path = tmp_path / "workspace"
         workspace_path.mkdir()
         monkeypatch.setattr(workflow_module, "resolve_workspace_for_wp", lambda *_a, **_k: _lane_workspace(wp_id="WP02", branch_name="kitty/mission-x-lane-a"))
@@ -660,16 +688,18 @@ class TestResolveReviewContext:
             lambda _fd: SimpleNamespace(mission_branch="kitty/mission-x"),
         )
         monkeypatch.setattr("specify_cli.core.git_ops.get_current_branch", lambda _wp: "kitty/mission-x-lane-a")
-        monkeypatch.setattr(workflow_module.subprocess, "run", lambda *_a, **_k: _cp(0, "5"))
+        _patch_range(monkeypatch, _review_range(base=_BASE, commits=5))
+        monkeypatch.setattr(workflow_module.subprocess, "run", _no_git)
 
         ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP02", "")
 
         assert ctx["mission_branch"] == "kitty/mission-x"
-        assert ctx["base_branch"] == "kitty/mission-x"
-        assert ctx["base_ref"] == "kitty/mission-x"
+        assert ctx["base_branch"] == _BASE
+        assert ctx["base_ref"] == _BASE
         assert ctx["commit_count"] == 5
 
     def test_base_ref_resolved_from_workspace_context_base_branch(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Re-pin (#7578): a workspace context's ``base_branch`` no longer becomes the review base."""
         workspace_path = tmp_path / "workspace"
         workspace_path.mkdir()
         wctx = WorkspaceContext(
@@ -692,85 +722,76 @@ class TestResolveReviewContext:
         monkeypatch.setattr(workflow_module, "_workflow_placement_seam", lambda *_a, **_k: _seam_stub(tmp_path / "kitty-specs" / "trio-mission"))
         monkeypatch.setattr("specify_cli.lanes.persistence.read_lanes_json", lambda _fd: None)
         monkeypatch.setattr("specify_cli.core.git_ops.get_current_branch", lambda _wp: "kitty/mission-x-lane-a")
-        monkeypatch.setattr(workflow_module.subprocess, "run", lambda *_a, **_k: _cp(0, "2"))
+        _patch_range(monkeypatch, _review_range(base=_BASE, commits=2))
+        monkeypatch.setattr(workflow_module.subprocess, "run", _no_git)
 
         ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP02", "")
 
-        assert ctx["base_branch"] == "main"
+        assert ctx["base_branch"] == _BASE
+        assert ctx["mission_branch"] == "main"
         assert ctx["commit_count"] == 2
 
     def test_unknown_base_ref_discovers_candidate_via_dependency(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Re-pin (#7578): no dependency-branch candidate search runs; the range base stands."""
         workspace_path = tmp_path / "workspace"
         workspace_path.mkdir()
         current = _lane_workspace(wp_id="WP02", branch_name="kitty/mission-x-lane-b")
-        dependency = _lane_workspace(wp_id="WP01", branch_name="kitty/mission-x-lane-a")
+        resolved: list[str] = []
 
         def _fake_resolve(_repo_root: Path, _slug: str, wp_id: str) -> ResolvedWorkspace:
-            return current if wp_id == "WP02" else dependency
+            resolved.append(wp_id)
+            return current
 
         monkeypatch.setattr(workflow_module, "resolve_workspace_for_wp", _fake_resolve)
         monkeypatch.setattr(workflow_module, "_workflow_placement_seam", lambda *_a, **_k: _seam_stub(tmp_path / "kitty-specs" / "trio-mission"))
         monkeypatch.setattr("specify_cli.lanes.persistence.read_lanes_json", lambda _fd: None)
         monkeypatch.setattr("specify_cli.core.git_ops.get_current_branch", lambda _wp: "kitty/mission-x-lane-b")
-
-        def _fake_run(args: list[str], **_kw: Any) -> SimpleNamespace:
-            if args[1] == "merge-base":
-                candidate = args[3]
-                if candidate == "kitty/mission-x-lane-a":
-                    return _cp(0, "cafe123")
-                return _cp(1, "")
-            if args[1] == "rev-list":
-                return _cp(0, "1")
-            raise AssertionError(f"unexpected git invocation: {args}")
-
-        monkeypatch.setattr(workflow_module.subprocess, "run", _fake_run)
+        _patch_range(monkeypatch, _review_range(base=_BASE, commits=1))
+        monkeypatch.setattr(workflow_module.subprocess, "run", _no_git)
 
         ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP02", 'dependencies: ["WP01"]')
 
-        assert ctx["base_branch"] == "kitty/mission-x-lane-a"
+        assert ctx["base_branch"] == _BASE
         assert ctx["commit_count"] == 1
+        assert resolved == ["WP02"], "the dependency WP's workspace is no longer resolved for a base search"
 
     def test_unknown_base_ref_falls_back_to_well_known_branch(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Re-pin (#7578): no well-known-branch (``main`` / ``2.x`` / ...) fallback; the range base stands."""
         workspace_path = tmp_path / "workspace"
         workspace_path.mkdir()
         monkeypatch.setattr(workflow_module, "resolve_workspace_for_wp", lambda *_a, **_k: _lane_workspace(wp_id="WP02", branch_name="kitty/mission-x-lane-a"))
         monkeypatch.setattr(workflow_module, "_workflow_placement_seam", lambda *_a, **_k: _seam_stub(tmp_path / "kitty-specs" / "trio-mission"))
         monkeypatch.setattr("specify_cli.lanes.persistence.read_lanes_json", lambda _fd: None)
         monkeypatch.setattr("specify_cli.core.git_ops.get_current_branch", lambda _wp: "kitty/mission-x-lane-a")
-
-        def _fake_run(args: list[str], **_kw: Any) -> SimpleNamespace:
-            if args[1] == "merge-base":
-                return _cp(0, "cafe123") if args[3] == "main" else _cp(1, "")
-            if args[1] == "rev-list":
-                return _cp(0, "7")
-            raise AssertionError(f"unexpected git invocation: {args}")
-
-        monkeypatch.setattr(workflow_module.subprocess, "run", _fake_run)
+        _patch_range(monkeypatch, _review_range(base=_BASE, commits=7))
+        monkeypatch.setattr(workflow_module.subprocess, "run", _no_git)
 
         ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP02", "")
 
-        assert ctx["base_branch"] == "main"
+        assert ctx["base_branch"] == _BASE
         assert ctx["commit_count"] == 7
 
     def test_unknown_base_ref_no_candidate_survives_stays_unknown(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Re-pin (#7578): an unavailable range leaves the base unknown; the branch is still shown."""
         workspace_path = tmp_path / "workspace"
         workspace_path.mkdir()
         monkeypatch.setattr(workflow_module, "resolve_workspace_for_wp", lambda *_a, **_k: _lane_workspace(wp_id="WP02", branch_name="kitty/mission-x-lane-a"))
         monkeypatch.setattr(workflow_module, "_workflow_placement_seam", lambda *_a, **_k: _seam_stub(tmp_path / "kitty-specs" / "trio-mission"))
         monkeypatch.setattr("specify_cli.lanes.persistence.read_lanes_json", lambda _fd: None)
         monkeypatch.setattr("specify_cli.core.git_ops.get_current_branch", lambda _wp: "kitty/mission-x-lane-a")
-        monkeypatch.setattr(workflow_module.subprocess, "run", lambda *_a, **_k: _cp(1, ""))
+        _patch_range(monkeypatch, _review_range(base=None))
+        monkeypatch.setattr(workflow_module.subprocess, "run", _no_git)
 
         ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP02", "")
 
         assert ctx["base_branch"] == "unknown"
         assert ctx["commit_count"] == 0
-        # branch_name/lane_branch/mission_branch were already resolved before
-        # candidate discovery ran -- this is a genuine PARTIAL fill, not a
-        # full reset to the all-unknown default.
+        # branch_name/lane_branch were resolved for display although the range is unavailable --
+        # a genuine PARTIAL fill, not a full reset to the all-unknown default.
         assert ctx["branch_name"] == "kitty/mission-x-lane-a"
 
     def test_known_base_ref_rev_list_failure_yields_zero_commit_count(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Re-pin (#7578): the count is the range's listed commits; the mission branch is never the base."""
         workspace_path = tmp_path / "workspace"
         workspace_path.mkdir()
         monkeypatch.setattr(workflow_module, "resolve_workspace_for_wp", lambda *_a, **_k: _lane_workspace(wp_id="WP02", branch_name="kitty/mission-x-lane-a"))
@@ -780,11 +801,12 @@ class TestResolveReviewContext:
             lambda _fd: SimpleNamespace(mission_branch="kitty/mission-x"),
         )
         monkeypatch.setattr("specify_cli.core.git_ops.get_current_branch", lambda _wp: "kitty/mission-x-lane-a")
-        monkeypatch.setattr(workflow_module.subprocess, "run", lambda *_a, **_k: _cp(1, ""))
+        _patch_range(monkeypatch, _review_range(base=_BASE, commits=0))
+        monkeypatch.setattr(workflow_module.subprocess, "run", _no_git)
 
         ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP02", "")
 
-        assert ctx["base_branch"] == "kitty/mission-x"
+        assert ctx["base_branch"] == _BASE
         assert ctx["commit_count"] == 0
 
 
