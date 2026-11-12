@@ -48,12 +48,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 _TEST_COMMAND = 'PYTEST_ADDOPTS="--junitxml={output_file}" python -m pytest -q'
 _REDIRECT_KEYS = ("PYTHONPATH", "UV_PROJECT_ENVIRONMENT", "VIRTUAL_ENV")
 # Prints the package value, then spawns a grandchild (inheriting this environment) that does the same.
-_CHILD_SCRIPT = (
-    "import subprocess, sys\n"
-    "import pkg\n"
-    "print(pkg.V, flush=True)\n"
-    "subprocess.run([sys.executable, '-c', 'import pkg; print(pkg.V)'], check=True)\n"
-)
+_CHILD_SCRIPT = "import subprocess, sys\nimport pkg\nprint(pkg.V, flush=True)\nsubprocess.run([sys.executable, '-c', 'import pkg; print(pkg.V)'], check=True)\n"
 
 
 def _bin_dir(venv: Path) -> Path:
@@ -211,7 +206,9 @@ def _review_wp(repo: Path) -> WorkPackage:
     )
 
 
-def _review_workspace(worktree: Path, *, execution_mode: str = "code_change", lane_id: str = "lane-a", resolution_kind: str = "lane_workspace") -> ResolvedWorkspace:
+def _review_workspace(
+    worktree: Path, *, execution_mode: str = "code_change", lane_id: str = "lane-a", resolution_kind: str = "lane_workspace"
+) -> ResolvedWorkspace:
     return ResolvedWorkspace(
         mission_slug=_REVIEW_SLUG,
         wp_id="WP01",

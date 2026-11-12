@@ -65,6 +65,11 @@ from specify_cli.cli.commands.agent.workflow_cores import (
 from specify_cli.core.constants import MISSION_TYPE_RESEARCH
 from specify_cli.core.subtask_recipe import mark_status_recipe
 from specify_cli.missions._read_path_resolver import mission_write_lock_dir
+from specify_cli.review.lane_test_invocation import (
+    render_lane_test_invocation_failure_lines,
+    render_lane_test_invocation_lines,
+    workspace_lane_test_invocation,
+)
 from specify_cli.mission import get_deliverables_path, get_mission_type
 from specify_cli.status import FORCE_NOTE_HINT, ActorRole, Lane, StoreError, WorkPackageClaimConflict, WorkPackageStartRejected, read_wp_frontmatter
 from specify_cli.status import RollbackOutcome, RollbackPoint, RollbackRefusal, UNBOUNDED_LOCK_WAIT, appended_event_ids, capture_rollback_point, mission_write_lock
@@ -1573,6 +1578,30 @@ def _subtask_completion_recipe(normalized_wp_id: str, mission_slug: str, subtask
     return mark_status_recipe(subtask_cmd.split(), wp_id=normalized_wp_id, mission_slug=mission_slug)
 
 
+def _lane_test_invocation_prompt_lines(workspace: ResolvedWorkspace, workspace_path: Path, mission_slug: str, config_root: Path) -> list[str]:
+    """The lane test invocation block of the implement and review prompts (#7547 FR-005).
+
+    Re-derived and re-probed from the resolved workspace at render time, never
+    read from a stored copy; empty for planning-artifact work. Fail-open like
+    the topology block: an error renders as an unverified probe, never aborts
+    the prompt.
+    """
+    try:
+        invocation = workspace_lane_test_invocation(
+            workspace_path,
+            config_root=config_root,
+            mission_slug=mission_slug,
+            lane_id=workspace.lane_id,
+            resolution_kind=workspace.resolution_kind,
+            execution_mode=workspace.execution_mode,
+        )
+    except Exception as exc:  # fail-open: the prompt must render whatever the probe hit
+        return [*render_lane_test_invocation_failure_lines(exc), ""]
+    if invocation is None:
+        return []
+    return [*render_lane_test_invocation_lines(invocation), ""]
+
+
 def build_implement_prompt_lines(
     *,
     normalized_wp_id: str,
@@ -1653,6 +1682,7 @@ def build_implement_prompt_lines(
     else:
         lines.append("   # Planning-artifact work for this WP happens in the repository root")
     lines.append("")
+    lines.extend(_lane_test_invocation_prompt_lines(workspace, workspace_path, mission_slug, repo_root))
     lines.extend(shared_artifact_guidance(workspace, repo_root, mission_slug))
     lines.append("")
     lines.append("📋 STATUS TRACKING:")
@@ -2360,6 +2390,7 @@ def build_review_prompt_lines(
     else:
         lines.append("   # Review the planning-artifact changes directly in the repository root")
     lines.append("")
+    lines.extend(_lane_test_invocation_prompt_lines(workspace, workspace_path, mission_slug, main_repo_root))
     lines.extend(shared_artifact_guidance(workspace, repo_root, mission_slug))
     lines.append("")
     lines.append("📋 STATUS TRACKING:")
