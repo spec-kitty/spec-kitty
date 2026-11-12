@@ -253,6 +253,8 @@ DOOR_ONLY_MODULES: frozenset[str] = frozenset(
         # #7433: the merged_at backfill and its terminal-WP evidence read the door only.
         "src/specify_cli/migration/backfill_merged_at.py",
         "src/specify_cli/status/landing_evidence.py",
+        # #7578 (IC-03): the review range reads the door only.
+        "src/specify_cli/review/wp_range.py",
     }
 )
 
