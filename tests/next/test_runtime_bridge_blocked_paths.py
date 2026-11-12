@@ -200,7 +200,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
 
         # Stub helpers to drive the exact branch with no real runtime engine.
         run_ref = SimpleNamespace(run_id="run-guard-01", run_dir=str(tmp_path / "run"))
-        snapshot = SimpleNamespace(issued_step_id="specify")
+        snapshot = SimpleNamespace(issued_step_id="specify", completed_steps=["discovery"], pending_decisions={}, decisions=[])
 
         with (
             patch.object(rb, "get_mission_type", return_value="software-dev"),
@@ -257,7 +257,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
         prompt_path.write_text("# specify\n", encoding="utf-8")
 
         run_ref = SimpleNamespace(run_id="run-guard-02", run_dir=str(tmp_path / "run"))
-        snapshot = SimpleNamespace(issued_step_id="specify")
+        snapshot = SimpleNamespace(issued_step_id="specify", completed_steps=["discovery"], pending_decisions={}, decisions=[])
 
         with (
             patch.object(rb, "get_mission_type", return_value="software-dev"),
@@ -310,7 +310,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
         prompt_path.write_text("# specify\n", encoding="utf-8")
 
         run_ref = SimpleNamespace(run_id="run-guard-04", run_dir=str(tmp_path / "run"))
-        snapshot = SimpleNamespace(issued_step_id="specify")
+        snapshot = SimpleNamespace(issued_step_id="specify", completed_steps=["discovery"], pending_decisions={}, decisions=[])
 
         with (
             patch.object(rb, "get_mission_type", return_value="software-dev"),
@@ -363,7 +363,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
         self._build_minimal_feature_dir(tmp_path, mission_slug)
 
         run_ref = SimpleNamespace(run_id="run-guard-03", run_dir=str(tmp_path / "run"))
-        snapshot = SimpleNamespace(issued_step_id="exotic-step")
+        snapshot = SimpleNamespace(issued_step_id="exotic-step", completed_steps=["discovery"], pending_decisions={}, decisions=[])
 
         with (
             patch.object(rb, "get_mission_type", return_value="software-dev"),
