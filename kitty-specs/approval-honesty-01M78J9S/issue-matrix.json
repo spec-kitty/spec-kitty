@@ -25,15 +25,15 @@
       "wp": "WP03"
     },
     "#5721": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Refs only: consolidation side is out of scope (C-004); the --force route stays a documented residual",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "title": "Consolidation residuals of the approval-stamp bound",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6696": {
