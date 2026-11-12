@@ -1,0 +1,19 @@
+{
+  "create_return_branch": "fix/7598-coord-closeout-leftovers",
+  "created_at": "2026-11-12T18:19:24.762424+00:00",
+  "flattened": false,
+  "friendly_name": "Coordination closeout leftovers",
+  "mid8": "01M78FRR",
+  "mission_branch": "kitty/mission-coord-closeout-leftovers-01M78FRR",
+  "mission_id": "01M78FRR35PEG47XS52SS8SMV9",
+  "mission_number": null,
+  "mission_slug": "coord-closeout-leftovers-01M78FRR",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Coordination closeout leftovers on fix/7598-coord-closeout-leftovers so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Every coordination closeout refusal names its blocker and a remedy that works; archived Missions can reclaim their coordination triple",
+  "slug": "coord-closeout-leftovers-01M78FRR",
+  "target_branch": "fix/7598-coord-closeout-leftovers",
+  "topology": "single_branch",
+  "topology_settled": false,
+  "topology_source": "default"
+}
