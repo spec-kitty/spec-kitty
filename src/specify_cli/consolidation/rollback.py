@@ -958,10 +958,16 @@ def _clear_landed_coordination_ref(repo_root: Path, state: ConsolidationState) -
     The ref exists only while its landing stands; a coordination anchor that names the target
     (LANES / SINGLE_BRANCH) has no such ref.
     """
-    if _coord_anchor_is_the_target(state):
+    coord_ref = state.pre_mutation_coord_ref
+    if not coord_ref or _coord_anchor_is_the_target(state):
         return
-    coord_ref = state.pre_mutation_coord_ref or ""
-    if not clear_landed_coordination_tip(repo_root, coord_ref):
+    try:
+        cleared = clear_landed_coordination_tip(repo_root, coord_ref)
+    except ValueError as exc:
+        # A ref that names no branch (or one outside refs/spec-kitty/): nothing to delete, never fail the rollback.
+        logger.warning("Could not delete the landed-coordination ref of %r after the rollback restored the target: %s", coord_ref, exc)
+        return
+    if not cleared:
         logger.warning("Could not delete the landed-coordination ref of %s after the rollback restored the target", coord_ref)
 
 

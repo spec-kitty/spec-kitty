@@ -234,17 +234,23 @@ def _tip_moved_teardown_error(branch: str, exc: RefDeleteMismatchError, *, coord
 
 
 def _delete_mission_branch(run: _MergeRunState, expected_tip: str | None = None) -> bool:
+    """Delete the mission/coordination branch; ``True`` when it is gone afterwards (see :func:`_refused_mission_branch_delete`)."""
+    return _refused_mission_branch_delete(run, expected_tip) is None
+
+
+def _refused_mission_branch_delete(run: _MergeRunState, expected_tip: str | None = None) -> str | None:
     """Delete the mission/coordination branch from git, if it exists.
 
-    Returns whether the branch is gone afterwards — deleted now, or already
-    absent. The delete is a compare-and-swap at ``expected_tip`` (#5570): the
+    Returns ``None`` when the branch is gone afterwards — deleted now, or already
+    absent — else git's refusal text (#4380 item 2: the caller puts it in its
+    refusal instead of pointing at a log line). The delete is a compare-and-swap at ``expected_tip`` (#5570): the
     tip the teardown gate approved, or — when no gate ran — the tip read at the
     start of the teardown phase; ``None`` reads it now. A commit that landed
     after that tip survives (the branch is kept) and the refusal is raised as
     :class:`CoordinationTeardownError`, never restored or force-deleted here.
 
     Git refuses to drop a branch that is checked out in a worktree (#3926); the
-    typed refusal is reported as ``False`` rather than assumed to be success,
+    typed refusal is reported (its text) rather than assumed to be success,
     so the caller that couples this to the rest of the coord triple gets the
     answer.
 
@@ -265,11 +271,11 @@ def _delete_mission_branch(run: _MergeRunState, expected_tip: str | None = None)
     lanes_manifest = run.lanes_manifest
     branch = lanes_manifest.mission_branch
     if branch == lanes_manifest.target_branch:
-        return True
+        return None
     tip = expected_tip or _mission_branch_tip(run)
     if tip is None:
         logger.debug("Mission branch %s does not exist, skipping deletion", branch)
-        return True
+        return None
     try:
         delete_branch_ref(run.main_repo, branch, tip)
     except RefDeleteMismatchError as exc:
@@ -277,12 +283,12 @@ def _delete_mission_branch(run: _MergeRunState, expected_tip: str | None = None)
             # The post-failure probe found no ref at all, so the branch IS gone and the
             # postcondition (absent) holds. If someone else removed it, that was not this
             # delete: it never ran against a moved or surviving tip.
-            return True
+            return None
         raise _tip_moved_teardown_error(branch, exc, coordination=_is_coord_topology_mission(run)) from exc
     except RefDeleteError as exc:
         logger.warning("Mission branch %s was not deleted: %s", branch, exc)
-        return False
-    return True
+        return str(exc) or type(exc).__name__
+    return None
 
 
 def _carry_pass_anchor_over_own_commit(run: _MergeRunState, commit_sha: str) -> None:
@@ -1040,18 +1046,20 @@ def _teardown_coordination_triple(run: _MergeRunState) -> None:
     _fold_coord_status_before_flatten(run)
     pre_teardown_tip = _mission_branch_tip(run)
     approved_tip = _teardown_coord_worktree(run) or pre_teardown_tip
-    if not _delete_mission_branch(run, approved_tip):
-        raise CoordinationTeardownError(_branch_kept_after_teardown_message(run))
+    refusal = _refused_mission_branch_delete(run, approved_tip)
+    if refusal is not None:
+        raise CoordinationTeardownError(_branch_kept_after_teardown_message(run, refusal))
     _flatten_coordination_metadata_after_branch_delete(run)
 
 
-def _branch_kept_after_teardown_message(run: _MergeRunState) -> str:
+def _branch_kept_after_teardown_message(run: _MergeRunState, refusal: str) -> str:
     """Describe a coordination branch the teardown could not delete, from what is true now (#4380 item 2).
 
     The worktree leg ran first, so the coordination worktree is usually gone already. The text names
     the worktrees that still have the branch checked out (read through the one checkout authority,
     :func:`~specify_cli.git.ref_advance.worktrees_with_branch_checked_out`), or says that none does
-    and the compare-and-swap delete itself refused.
+    and the compare-and-swap delete itself refused, quoting *refusal* (git's own text) so the
+    operator sees it whatever the logging setup.
     """
     branch = run.lanes_manifest.mission_branch
     kept = f"coordination branch {branch!r} still exists after teardown; it and the mission's coordination marker were kept."
@@ -1064,7 +1072,7 @@ def _branch_kept_after_teardown_message(run: _MergeRunState) -> str:
         return f"{kept} It is still checked out in {where}. Remove that worktree (`git worktree list`), then re-run `spec-kitty consolidate --resume`."
     return (
         f"{kept} No worktree has it checked out any more: the compare-and-swap delete of the branch refused "
-        "(see the warning above). Re-run `spec-kitty consolidate --resume`."
+        f"({escape(refusal)}). Re-run `spec-kitty consolidate --resume`."
     )
 
 
