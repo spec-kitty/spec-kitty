@@ -1,0 +1,39 @@
+import sys, shutil, json
+from pathlib import Path
+sys.path.insert(0, "/home/user/spec-kitty")
+import tests.terminus.conftest as c
+from tests.consolidation.test_late_teardown_projection import _declare_subtask_rosters, _seed_matrix, _refuse_teardown, _git
+tmp = Path("/tmp/claude-0/-home-user-spec-kitty/f6db598b-54ee-5bcc-8496-d7638dcc35d7/scratchpad/reproA/a2")
+shutil.rmtree(tmp, ignore_errors=True); tmp.mkdir(parents=True)
+mid8="01M7491A"; slug=f"terminus-{mid8}"; wps=("WP01","WP02")
+SPEC=f"kitty-specs/{slug}/spec.md"
+base_lines=[f"line {i}\n" for i in range(20)]
+m = c._init_fixture_repo(tmp, mid8=mid8, slug=slug, target_branch="main", extra_base_files={SPEC:"".join(base_lines)})
+(m.feature_dir/"tasks").mkdir(parents=True)
+c._write_meta(m); c._write_manifest(m, wps)
+for w in wps: c._write_wp_file(m, w)
+c._commit_planning_artifacts(m, "bootstrap")
+c._cut_coord_branch(m)
+events=[]
+for idx,w in enumerate(wps):
+    def plant(repo, w=w, idx=idx):
+        code = repo/"src"/"pkg"/f"{w.lower()}.py"; code.parent.mkdir(parents=True, exist_ok=True)
+        code.write_text(f"def {w.lower()}() -> int:\n    return {idx}\n")
+        files=[str(code)]
+        if idx==0:
+            s=repo/SPEC; l=list(base_lines); l[0]="line 0 amended (synced from target)\n"; s.write_text("".join(l)); files.append(str(s))
+        c._git(repo,"add",*files); c._git(repo,"commit","-qm",f"{w} code")
+    lane_id=f"lane-{chr(97+idx)}"; claim=m.rev(m.coord_branch)
+    m.lane_branches[w]=c._cut_lane_branch(m,lane_id,[plant])
+    events.extend(c._stamped_approve_events(m,w,claim_head=claim,approved_head=m.rev(m.lane_branches[w])))
+c._commit_status_events(m, events, "approve")
+m = c._finish_coord_mission(m)
+_declare_subtask_rosters(m); _seed_matrix(m)
+# target: same line0 change + a later re-finalize amendment on line 10
+s=m.repo/SPEC; l=list(base_lines); l[0]="line 0 amended (synced from target)\n"; l[10]="line 10 amended on target after re-finalize\n"; s.write_text("".join(l))
+_git(m.repo,"add",SPEC); _git(m.repo,"commit","-qm","docs: amend spec on target")
+run=_refuse_teardown(m,tmp)
+print("FIRST rc", run.result.returncode)
+run.commit_review_cycle()
+r=run.resume()
+print("RESUME rc", r.returncode); print((r.stdout+r.stderr)[-2500:])
