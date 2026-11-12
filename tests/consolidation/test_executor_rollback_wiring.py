@@ -519,9 +519,9 @@ def _spy_report(monkeypatch: pytest.MonkeyPatch) -> list[Any]:
     calls: list[Any] = []
     real = executor._report_rollback
 
-    def spy(run: Any, *, anchor_before: str | None) -> None:
+    def spy(run: Any, *, anchor_before: str | None, coord_tip_before: str | None = None) -> None:
         calls.append(run)
-        real(run, anchor_before=anchor_before)
+        real(run, anchor_before=anchor_before, coord_tip_before=coord_tip_before)
 
     monkeypatch.setattr(executor, "_report_rollback", spy)
     return calls
