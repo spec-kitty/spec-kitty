@@ -187,10 +187,11 @@ def _place_pinned_packs(checkout: Path) -> None:
     Never fails the checkout. Each pack left out, and any unexpected error, becomes one
     remedy line on stderr, the channel lane allocation already warns on.
     """
-    from specify_cli.lanes.lane_packs import place_pinned_packs
+    from specify_cli.lanes.lane_packs import LanePacksResult, place_pinned_packs
 
     try:
-        lines = place_pinned_packs(checkout).remedy_lines(checkout)
+        result: LanePacksResult = place_pinned_packs(checkout)
+        lines = result.remedy_lines(checkout)
     except Exception as exc:  # best effort by design: a pack problem must never fail `implement`
         lines = (f"packs not placed in the lane (unexpected {type(exc).__name__}); run `make sync-packs` in {checkout}",)
     for line in lines:
