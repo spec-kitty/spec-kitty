@@ -166,7 +166,7 @@ class TestWpReviewRangeOwnedPathspecs:
         result = _pathspecs(["kitty-specs/my-mission/**", "src/foo.py"], tmp_path)
         assert result[:2] == ["kitty-specs/my-mission/**", "src/foo.py"]
         assert ":(exclude)kitty-specs/my-mission/tasks/*" in result
-        assert ":(exclude)kitty-specs/my-mission/tasks.md*" in result
+        assert ":(exclude)kitty-specs/my-mission/tasks.md" in result  # the task index is one exact path (#7578 L1)
         assert ":(exclude)kitty-specs/my-mission/status.*" in result
         assert ":(exclude)kitty-specs/my-mission/meta.json*" in result
         assert ":(exclude).kittify/*" not in result
