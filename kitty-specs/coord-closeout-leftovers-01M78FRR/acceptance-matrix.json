@@ -28,10 +28,10 @@
       "criterion_id": "FR-003",
       "description": "Verify FR-003 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "WP02: tests/consolidation/test_late_window_base_resume.py base-selection cells (verified/unverified/non-ancestor/legacy)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T23:12:41.194858+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
