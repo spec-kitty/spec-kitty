@@ -93,22 +93,6 @@ def _payload(result: Any) -> dict[str, Any]:
     return data
 
 
-def _last_claim_event_id(mission_dir: Path, wp_id: str) -> str:
-    events = [json.loads(line) for line in (mission_dir / _EVENTS).read_text(encoding="utf-8").splitlines() if line.strip()]
-    claimed = [e for e in events if e.get("wp_id") == wp_id and e.get("to_lane") == "claimed"]
-    assert claimed, f"no claimed event for {wp_id}"
-    return str(claimed[-1]["event_id"])
-
-
-def _independent_claim_commit(root: Path, mission_dir: Path, wp_id: str) -> str:
-    """The claim commit computed the R-05 way, independently of the helper under test."""
-    event_id = _last_claim_event_id(mission_dir, wp_id)
-    rel = mission_dir.relative_to(root) / _EVENTS
-    shas = _git(root, "log", "--format=%H", f"-S{event_id}", "HEAD", "--", str(rel)).splitlines()
-    assert len(shas) == 1, shas
-    return shas[0]
-
-
 def _move(monkeypatch: pytest.MonkeyPatch, cwd: Path, slug: str, wp_id: str, to: str, *extra: str, agent: str = "claude") -> None:
     monkeypatch.delenv("SPECIFY_REPO_ROOT", raising=False)
     monkeypatch.setenv("SPEC_KITTY_SKIP_PRE_REVIEW_GATE", "1")
