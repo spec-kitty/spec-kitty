@@ -115,7 +115,7 @@ work_packages:
   role: implementer
   agent: claude
 - id: WP05
-  title: One renderer for every review render site, driven by acceptance tests
+  title: One renderer, and the `next` review step (site 1) on it, driven by acceptance tests
   dependencies:
   - WP02
   - WP03
@@ -123,29 +123,21 @@ work_packages:
   owned_files:
   - src/specify_cli/review/context_block.py
   - src/runtime/next/prompt_builder.py
-  - src/specify_cli/cli/commands/agent/workflow_executor.py
-  - src/specify_cli/cli/commands/agent/workflow_cores.py
-  - src/specify_cli/review/prompt_metadata.py
+  - tests/review/test_context_block.py
   - tests/integration/review/test_review_range_acceptance.py
   - tests/integration/review/review_range_fixtures.py
-  - tests/review/test_context_block.py
   - tests/next/test_prompt_builder_review_base.py
-  - tests/specify_cli/cli/commands/agent/test_workflow_cores.py
-  - tests/agent/test_workflow_mixed_dependency_review_context.py
-  - tests/integration/review/test_canonical_review_diff_refs.py
-  - tests/characterization/test_trio_pure_cores.py
+  - tests/next/test_prompt_builder_unit.py
   - tests/integration/test_prompt_builder_owned_arms.py
+  - tests/integration/test_owned_lifecycle_acceptance_review.py
+  - tests/integration/test_owned_lifecycle_acceptance_e2e.py
   requirement_refs:
   - FR-008
-  - FR-012
   - NFR-001
   - C-001
-  - C-002
-  - C-004
   - C-010
   - SC-001
   - SC-002
-  - SC-003
   plan_concern_refs:
   - IC-05
   - IC-06
@@ -155,8 +147,6 @@ work_packages:
   - T024
   - T025
   - T026
-  - T027
-  - T028
   prompt_file: tasks/WP05-one-renderer-all-review-sites.md
   agent_profile: python-pedro
   role: implementer
@@ -164,7 +154,7 @@ work_packages:
 - id: WP06
   title: 'Documentation close-out: changelog fragment and CLAUDE.md'
   dependencies:
-  - WP05
+  - WP07
   owned_files:
   - docs/changelog/unreleased/7578.*.md
   - CLAUDE.md
@@ -180,4 +170,40 @@ work_packages:
   prompt_file: tasks/WP06-docs-close-out.md
   agent_profile: scribe-sally
   role: documentarian
+  agent: claude
+- id: WP07
+  title: Agent action review render sites (2 and 3) on the shared renderer
+  dependencies:
+  - WP05
+  owned_files:
+  - src/specify_cli/cli/commands/agent/workflow_executor.py
+  - src/specify_cli/cli/commands/agent/workflow_cores.py
+  - src/specify_cli/cli/commands/agent/workflow.py
+  - src/specify_cli/review/prompt_metadata.py
+  - tests/integration/review/test_review_range_acceptance_action.py
+  - tests/specify_cli/cli/commands/agent/test_workflow_cores.py
+  - tests/agent/test_workflow_mixed_dependency_review_context.py
+  - tests/integration/review/test_canonical_review_diff_refs.py
+  - tests/characterization/test_trio_pure_cores.py
+  requirement_refs:
+  - FR-012
+  - FR-013
+  - NFR-004
+  - C-002
+  - C-004
+  - C-010
+  - SC-003
+  plan_concern_refs:
+  - IC-05
+  - IC-06
+  subtasks:
+  - T032
+  - T033
+  - T034
+  - T035
+  - T036
+  - T037
+  prompt_file: tasks/WP07-agent-action-review-sites.md
+  agent_profile: python-pedro
+  role: implementer
   agent: claude

@@ -1,7 +1,7 @@
 ---
 work_package_id: "WP06"
 title: "Documentation close-out: changelog fragment and CLAUDE.md"
-dependencies: ["WP05"]
+dependencies: ["WP07"]
 requirement_refs: ["C-003", "NFR-006"]
 subtasks: ["T029", "T030", "T031"]
 owned_files: ["docs/changelog/unreleased/7578.*.md", "CLAUDE.md"]
@@ -48,14 +48,15 @@ spec-kitty agent action implement WP06 --agent claude --mission review-context-w
   range, and an `spec-kitty-open-packs` follow-up for template wording that this Mission makes
   stale. The ADR `2026-11-08-2` amendment (C-008) ships with IC-02 in an earlier WP; this WP does
   not edit the ADR.
-- **What it depends on.** WP05 (the shared renderer and the retirement of the old pathspec
-  builders). Every behaviour this WP describes must already be on the Mission branch. Before you
+- **What it depends on.** WP07, and through it WP05 (the shared renderer on all three review
+  render sites, and the retirement of both old pathspec builders). Every behaviour this WP describes must already be on the Mission branch. Before you
   write a sentence, confirm the module and behaviour it names exist in the tree:
   - `src/specify_cli/status/wp_window_selector.py` (the moved FR-021 window-opener rule, IC-01);
   - `src/specify_cli/review/wp_range.py` (`resolve_wp_review_range` -> `WpReviewRange`, IC-03),
     whose `owned_pathspecs` is the one owner of the review pathspecs;
   - `src/specify_cli/review/context_block.py` (`render_review_context`, IC-05), called by
-    `src/runtime/next/prompt_builder.py` and by `workflow_executor.py` (both review entry points);
+    `src/runtime/next/prompt_builder.py` (WP05) and by `workflow_executor.py` (WP07; both review
+    entry points);
   - `src/specify_cli/requirement_mapping/text.py` (`resolve_requirement_texts`, IC-04);
   - `src/specify_cli/status/lane_head.py` (commit-to-target `single_branch` reading, IC-02).
   If any of these is missing or named differently, describe what actually shipped and report the

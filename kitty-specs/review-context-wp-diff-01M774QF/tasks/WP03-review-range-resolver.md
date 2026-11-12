@@ -57,17 +57,31 @@ caller (that is WP05).
   entry points render from (FR-012, done in WP05).
 - **Depends on WP01**: WP01 moves the FR-021 selector to `src/specify_cli/status/wp_window_selector.py`
   (`window_opener_events`, `window_open_of`, `WindowOpen`, `WindowGap`, `WindowGapReason`, `OpenerSelection`,
-  `is_migration_event`) and `owned_patterns` / `matches_owned` to `src/specify_cli/ownership/matching.py`. Import
-  them from those new homes, never from `consolidation` (C-005, C-007; `src/runtime` imports this module through
-  WP05 and may not reach `consolidation`). Do **not** write a second window selector or a second owned-path matcher.
-- **Reads WP02's stamps when present**: after WP02, commit-to-target `single_branch` WPs carry `lane_head` and
-  `wp_window` like every other topology. This WP must also work without them (older Missions), which is what the
-  `single_branch`-only event-commit fallbacks are for.
-- **Downstream**: WP05 renders `WpReviewRange` through `review/context_block.py`, retires
-  `prompt_builder._review_pathspecs` and `workflow_cores.build_owned_files_review_pathspecs` in favour of
-  `WpReviewRange.owned_pathspecs`, and rewires the `claim_commit_for_wp` callers. Keep the public surface of this
-  module small and stable: `resolve_wp_review_range`, `WpReviewRange`, `RangeSource`, `RangeStatus`, `RangeCommit`,
-  `FileChange`.
+  `is_migration_event`) and `owned_patterns` / `matches_owned` to `src/specify_cli/ownership/matching.py`, and
+  re-exports `read_lane_head` on the status facade.
+  - **Status names come ONLY through the `specify_cli.status` facade.** `tests/architectural/test_status_module_boundary.py`
+    (SR-2) forbids `from specify_cli.status.wp_window_selector import ...`, `from specify_cli.status.lane_head
+    import ...` and every other `specify_cli.status.<submodule>` import outside the package, lazy imports included.
+    Write `from specify_cli.status import OpenerSelection, WindowGap, WindowGapReason, WindowOpen, read_lane_head,
+    read_status_events, resolve_status_read, window_open_of, window_opener_events` (check each name is on the
+    facade; `read_lane_head` is an alias WP01 adds, outside `__all__`).
+  - The matcher comes from `specify_cli.ownership.matching` (not a status submodule, so SR-2 does not apply).
+  - Never import from `consolidation` (C-005, C-007; `src/runtime` imports this module through WP05 and may not
+    reach `consolidation`). Do **not** write a second window selector or a second owned-path matcher.
+- **Reads WP02's stamps when present, but this lane does not have them**: after WP02, commit-to-target
+  `single_branch` WPs carry `lane_head` and `wp_window` like every other topology. WP03 depends only on WP01, so
+  WP02's stamp is NOT on this lane: a commit-to-target fixture built here records no window and yields a
+  `DERIVED` range (event commits / `wp-base`). Write the tests for what this lane does:
+  - commit-to-target cells assert `status is RangeStatus.DERIVED` and the derived `base_source` / `tip_source`;
+  - every `RECORDED` assertion uses the minted `single_branch` or the `lanes` / `lanes_with_coord` fixtures, which
+    are stamped today.
+  The recorded commit-to-target case is asserted in WP05's acceptance test, after WP02 has landed.
+- **Downstream**: WP05 renders `WpReviewRange` through `review/context_block.py` and rewires site 1
+  (`prompt_builder`, retiring `_review_pathspecs`); WP07 rewires sites 2 and 3 (`workflow_executor`, retiring
+  `workflow_cores.build_owned_files_review_pathspecs`). Both use `WpReviewRange.owned_pathspecs`. Keep the public
+  surface of this module small and stable: `resolve_wp_review_range`, `WpReviewRange`, `RangeSource`,
+  `RangeStatus`, `RangeCommit`, `FileChange`. Put a name in `__all__` only if WP05 or WP07 imports it (all six
+  above are imported by the renderer); helpers stay private.
 - **Key design decisions (do not relitigate)**:
   - Tip = newest non-migration `for_review` event **after the window opener** (P14), never the live head (ruling Q2).
   - Event commits (`git log -S<event_id>`) are used **only on `single_branch`**: on lane topologies the status log
@@ -81,6 +95,11 @@ caller (that is WP05).
 - **Layering / gates**: `specify_cli/review` is already on the runtime ledger (`_RUNTIME_ALLOWED_SPECIFY_CLI`), so
   the count stays 22. Status reads go through `status/read_surface.resolve_status_read` + `read_status_events`
   (C-006). No `--stat/--numstat/--name-only/...` argv outside `kernel/git` (`test_git_path_listing_owner.py`).
+
+**C-010 (per work package): the lane's first commit is a failing test.** Write T012's `tests/review/test_wp_range.py`
+and T011's new `tests/mission_runtime/test_claim_commit.py` cases first, and commit them together as the lane's
+first commit (`test(WP03): red — review range resolver and general event-commit lookup`). They fail only on the
+missing module / names. T011's production change and T013-T015 follow.
 
 ## Subtask T011: Generalise the event-commit lookup in `mission_runtime/claim_commit.py`
 
@@ -109,11 +128,10 @@ ref surface, so the range resolver does not grow a second one (P4).
    `_last_claim_event_id`) and call `commit_introducing_status_event(mission_dir, wp_id, event_id)`. Its behaviour,
    signature and raised reasons stay byte-identical; its callers (`runtime/next/prompt_builder.py`,
    `workflow_executor.py`, `core/worktree_topology.py`) are not edited in this WP.
-4. Export `commit_introducing_status_event` (and the ref value type, if you add one) from the package root. MR-1/MR-2
-   forbid submodule imports, so `src/specify_cli/review/wp_range.py` must import it from `mission_runtime`.
-   **Ownership note**: `src/mission_runtime/__init__.py` is NOT in this WP's `owned_files`. Adding the export there is
-   required for the design; record it in the PR and in `tracer-tooling-friction.md` as an owned-files gap, or ask the
-   orchestrator to extend the map before editing it. Do not work around it with a submodule import.
+4. Export `commit_introducing_status_event` (and the ref value type, if you add one) from the package root,
+   `src/mission_runtime/__init__.py` (owned by this WP). MR-1/MR-2 forbid submodule imports, so
+   `src/specify_cli/review/wp_range.py` must import it from `mission_runtime`. Do not work around it with a
+   submodule import.
 5. Update the pin in `tests/architectural/test_mission_runtime_surface.py`: add the new name(s) next to
    `claim_commit_for_wp` with a one-line comment citing this Mission (#7578, IC-03).
 6. Update module docstring: the algorithm now describes the general lookup, with `claim_commit_for_wp` as one
@@ -144,10 +162,21 @@ ref surface, so the range resolver does not grow a second one (P4).
      key for the plain `lanes` cell.
    - Use `monkeypatch.delenv` for harness `SPEC_KITTY_*` variables (CLAUDE.md baseline-red gotcha 5).
 3. Cases (one test each; names should read as the rule):
-   - recorded range: base = recorded window open, tip = newest `for_review` `lane_head`, `status is RECORDED`;
+   - recorded range (minted `single_branch`, `lanes`, `lanes_with_coord`): base = recorded window open, tip = newest
+     `for_review` `lane_head`, `status is RECORDED`, `base_source is RECORDED_WINDOW`;
+   - commit-to-target on this lane: `status is DERIVED` (no WP02 stamp here), with the exact derived sources;
    - lane-mate excluded: WP02's range on a shared lane contains none of WP01's commits;
-   - rework after rejection: `send_back` then resubmit; the range spans opener -> newest `for_review`, not the fix
-     delta and not a last-claim base (FR-003 pairing);
+   - **rework after rejection (a real one, FR-003 pairing)**: `send_back` in `single_branch_window_support` is a
+     forced `in_progress` move, which never returns the WP to `planned`, so it cannot tell the window-opener rule
+     from a last-claim rule and is vacuous here. Build the real cycle with the module's `emit` / `move` helpers:
+     claim -> implement (commit A) -> `for_review` -> `in_review` -> `planned` (the review rejection, carrying a
+     rejected review result in the same shape `approve` uses for `_REVIEW`; force only if the transition matrix
+     requires it) -> implement a commit so the head moves -> `claimed` / `in_progress` again (the second claim) ->
+     implement the fix (commit B) -> `for_review`. Assert:
+     - `base` equals the FIRST opener's recorded open point (the window survives the rejection);
+     - `base` is NOT the second claim's open point / claim commit (assert the two SHAs differ, so the test is not
+       vacuous);
+     - `tip` is the newest `for_review` `lane_head`; both A and B are in `commits`;
    - tip = newest `for_review` AFTER the opener: a `for_review` from a previous, rewound cycle is ignored;
    - pre-#7403 lane Mission: strip `wp_window` from the opener (`set_window_state(..., "not_recorded")`); base is the
      opener event's own `lane_head`, `base_source` names it, `status is DERIVED`, `gap == "not_recorded"`;
@@ -164,7 +193,17 @@ ref surface, so the range resolver does not grow a second one (P4).
      implementation commit after the tip gives `1`;
    - out-of-map: a commit touching a non-owned path appears in `out_of_map`; a commit touching only non-owned paths
      is absent from `commits` and is counted (the out-of-map-only commit count field);
+   - **numstat values**: assert exact `FileChange` values, not only paths. A file with 3 added / 1 removed lines is
+     `FileChange(path, 3, 1)`; a newly added 5-line file is `(path, 5, 0)`; a binary file is `(path, None, None)`;
+     `files` is path-sorted and holds only owned paths;
    - no `owned_files`: `owned_pathspecs == ()`, `out_of_map == ()`, commits unscoped (bookkeeping still excluded);
+   - **mission-dir bookkeeping excluded only when owned**: the retired `build_owned_files_review_pathspecs` added the
+     `:(exclude)kitty-specs/<slug>/tasks/**`, `tasks.md`, `status.events.jsonl` and `status.json` excludes only when
+     a WP owns a path under `kitty-specs/<slug>/`. Pin that intent on the new authority: (i) a WP owning
+     `kitty-specs/<slug>/research/**` gets `owned_pathspecs` that carry those excludes, and a status-only commit is
+     absent from `commits` although its path is under the owned tree; (ii) a WP owning only `src/...` gets no
+     mission-dir excludes in `owned_pathspecs`, and its status commits are still absent from `commits` (they are
+     outside its globs). This is the cell WP07 relies on when it re-pins `test_workflow_cores.py`;
    - foreign commit on a shared commit-to-target target touching only non-owned paths: excluded from `commits`;
    - merge commit inside the range: behaviour documented in T015 and asserted here;
    - determinism (NFR-005): two calls on the same state return equal values.
@@ -183,8 +222,9 @@ red commit, and passes fully after T015.
 
 1. In `src/specify_cli/review/wp_range.py` define, as `@dataclass(frozen=True, slots=True)` / `StrEnum`:
    - `RangeSource`: `RECORDED_WINDOW`, `OPENER_LANE_HEAD`, `CLAIM_BASE_REF`, `EVENT_COMMIT`, `RECORDED_SUBMISSION`,
-     `NONE`. (`OPENER_LANE_HEAD` is the pre-#7403 lane base the contract labels "opener lane_head stamp"; it is
-     missing from the data-model table, so add it and note the addition in `tracer-design-decisions.md`.)
+     `NONE`. (`OPENER_LANE_HEAD` is the pre-#7403 lane base the contract labels "opener lane_head stamp"; the
+     data-model table already lists it. Report any field you add beyond data-model.md in your completion note; the
+     orchestrator records it in the tracer. Lanes never edit `tracer-*.md`.)
    - `RangeStatus`: `RECORDED` (both ends recorded), `DERIVED` (either end derived), `UNAVAILABLE`.
    - `RangeCommit(sha: str, subject: str)`.
    - `FileChange(path: str, added: int | None, removed: int | None)`; `None` marks binary.
@@ -269,8 +309,9 @@ with a fixed number of git calls (NFR-002), and make `owned_pathspecs` the singl
    4. Out-of-map: `kernel.git.listing.changed_paths(repo_root, base, tip)` classified with
       `ownership.matches_owned`, minus bookkeeping prefixes, sorted -> `out_of_map`. Use the same matcher as the
       evidence axis so review and `IMPLEMENTATION_MISSING` agree (P2).
-   5. Moved-past: the live head of the WP's write branch (reuse `status.lane_head.read_lane_head`, which already
-      resolves lane vs write branch and never raises) then one `rev-list --count tip..<head> -- . <bookkeeping
+   5. Moved-past: the live head of the WP's write branch (reuse `read_lane_head`, imported as
+      `from specify_cli.status import read_lane_head` per SR-2; it already resolves lane vs write branch and never
+      raises) then one `rev-list --count tip..<head> -- . <bookkeeping
       excludes>`. Zero when the head equals the tip or cannot be read.
    A plain `log --format` is not a listing flag, so it is allowed outside `kernel.git` (research R7); do not pass
    `--stat`, `--numstat`, `--name-only`, `--name-status`, `--raw` or `--summary` in this module.
@@ -292,14 +333,22 @@ with a fixed number of git calls (NFR-002), and make `owned_pathspecs` the singl
 
 **Steps**:
 
-1. Follow `tests/consolidation/test_lane_window_query_count.py`: build a recorded-range fixture with 1 and with 200
-   implementation commits in the WP's window (a fast loop of `commit_file` / `_commit_in`; build once per size).
-2. Count every git subprocess the resolver spawns: wrap `kernel.git.runner.run_git` and `subprocess.run` (for
-   `mission_runtime.claim_commit` and the status door's object read) with a counting spy via `monkeypatch`, filtering
-   argv[0] == "git".
-3. Assert `count <= 10` for both sizes and `count_1 == count_200` (constant, not merely bounded).
-4. Add one derived-path cell (`single_branch` without stamps, event-commit fallback) and assert it also stays at or
-   below 10.
+1. Follow `tests/consolidation/test_lane_window_query_count.py`: build a recorded-range fixture (minted
+   `single_branch` or `lanes`, stamped on this lane) with 1 and with 200 implementation commits in the WP's window.
+   The 200-commit window touches **at least 50 distinct owned files** (cycle the commits over 50+ paths), plus a few
+   out-of-map paths, so a per-file call would show up as well as a per-commit one. Build each size once
+   (fast-import or a tight loop of plumbing commits), then copy per test.
+2. Count git processes at **one level only: the subprocess level**. `kernel.git.runner.run_git` itself calls
+   `subprocess.run`, so wrapping both double-counts. Patch `subprocess.run` (and `subprocess.Popen` /
+   `check_output` if any path uses them) with a delegating spy that records argv when `argv[0] == "git"` (or ends in
+   `/git`). Patch where the callers look it up (`subprocess.run` on the `subprocess` module is seen by both
+   `kernel.git.runner` and `mission_runtime.claim_commit`).
+3. **Sanity assertion (committed)**: the spy saw at least the expected listing calls, i.e. argv lists containing
+   `log`, `diff --numstat` (through `numstat_entries`) and the changed-path listing. A spy that sees nothing would
+   pass any bound, so this assertion makes the count test non-vacuous.
+4. Assert `count <= 10` for both sizes and `count_1 == count_200` (constant, not merely bounded).
+5. Add one derived-path cell (commit-to-target `single_branch` on this lane, event-commit fallback) and assert it also
+   stays at or below 10.
 
 **Files**: `tests/review/test_wp_range_git_calls.py` (about 100 lines).
 
@@ -319,16 +368,26 @@ with a fixed number of git calls (NFR-002), and make `owned_pathspecs` the singl
    - `tests/architectural/test_status_read_single_door.py`
    - `tests/architectural/test_git_path_listing_owner.py`
    - `tests/architectural/test_layer_rules.py` (no `consolidation` import, ledger count still 22)
-   - `tests/architectural/test_no_dead_symbols.py` (every new public name needs a `src/` caller; until WP05 wires
-     `resolve_wp_review_range`, check whether the gate counts test-only callers; if it does not, coordinate with WP05
-     or keep the names private until wired, and say so in the PR)
    - `tests/architectural/test_mission_runtime_surface.py`
-3. Keep heavy imports lazy if `test_cold_import_status_boundary.py` flags the module (it is imported by
+   - `tests/architectural/test_status_module_boundary.py` (SR-2: status names only through the facade)
+3. **Expected-red policy for the dead-code gates (exact list, no allowlist, no fake caller).** Run
+   `tests/architectural/test_no_dead_symbols.py` and `tests/architectural/test_no_dead_modules.py`. The first `src/`
+   caller of `resolve_wp_review_range` is WP05's `prompt_builder` rewiring, so on this lane these two gates may be red
+   for exactly:
+   - the symbol `resolve_wp_review_range` (`test_no_dead_symbols.py`);
+   - the module `specify_cli.review.wp_range` (`test_no_dead_modules.py`).
+   That red is expected and is cleared by WP05's final run (and confirmed again in WP07's). Record the exact failing
+   names in the hand-off. Do NOT add an allowlist entry, do NOT add a fake caller, and do NOT keep the names private
+   to dodge the gate. Any other name red in either gate is yours to fix (`RangeSource`, `RangeStatus`,
+   `RangeCommit`, `FileChange`, `WpReviewRange` are used inside the module; `commit_introducing_status_event` is
+   called by `wp_range.py` and `claim_commit_for_wp`).
+4. Keep heavy imports lazy if `test_cold_import_status_boundary.py` flags the module (it is imported by
    `src/runtime` through WP05).
 
 **Files**: `tests/architectural/test_status_read_single_door.py` (+2 lines).
 
-**Validation**: the five gate files above pass.
+**Validation**: the gate files above pass, except the two dead-code gates, which may be red for exactly the two names
+of step 3 and nothing else.
 
 ## Validation commands (record counts in the PR)
 
@@ -337,7 +396,8 @@ make test-fast
 uv run --frozen pytest tests/review/ tests/mission_runtime/ tests/status/ -q
 uv run --frozen pytest tests/architectural/test_status_read_single_door.py \
   tests/architectural/test_git_path_listing_owner.py tests/architectural/test_layer_rules.py \
-  tests/architectural/test_no_dead_symbols.py tests/architectural/test_mission_runtime_surface.py -q
+  tests/architectural/test_mission_runtime_surface.py tests/architectural/test_status_module_boundary.py -q
+uv run --frozen pytest tests/architectural/test_no_dead_symbols.py tests/architectural/test_no_dead_modules.py -q   # expected red: exactly the two T017 names
 uv run --frozen ruff check src/specify_cli/review/wp_range.py src/mission_runtime/claim_commit.py
 uv run --frozen ruff format --check --force-exclude src/specify_cli/review/wp_range.py src/mission_runtime/claim_commit.py tests/review/
 uv run --frozen mypy --strict src/specify_cli/review/wp_range.py src/mission_runtime/claim_commit.py
@@ -348,14 +408,23 @@ Do not run `make test-full` or the whole `tests/architectural/` directory (NO_FU
 ## Definition of Done
 
 - `src/specify_cli/review/wp_range.py` exists with `resolve_wp_review_range` and the frozen value objects of
-  data-model.md (plus `OPENER_LANE_HEAD` and `out_of_map_only_commits`, recorded in `tracer-design-decisions.md`).
+  data-model.md; any field added beyond data-model.md is reported in the completion note (the orchestrator records
+  it in the tracer; no `tracer-*.md` is edited from the lane).
+- Every status name (selector names, `read_lane_head`, the read door) is imported from the `specify_cli.status`
+  facade; SR-2 (`test_status_module_boundary.py`) is green.
 - `commit_introducing_status_event` exists in `mission_runtime/claim_commit.py` and is exported from the package
   root; `claim_commit_for_wp` is a thin wrapper with unchanged behaviour; the surface pin is updated.
-- The T012 red commit precedes the implementation commit(s) in the lane history.
-- All T012 cases pass on `single_branch` (commit-to-target and minted), `lanes` and `lanes_with_coord` fixtures.
-- The git-call-count test passes at 1 and 200 commits with an equal count of at most 10.
-- `wp_range.py` is in `DOOR_ONLY_MODULES`; the five named architectural gate files pass.
-- `ruff`, `ruff format --check --force-exclude` and `mypy --strict` are clean with no new suppression; every
+- C-010: the lane's first commit holds only the red T012 file and the new T011 test cases, failing on missing
+  names; every implementation commit follows it.
+- All T012 cases pass on `single_branch` (commit-to-target asserting `DERIVED`, minted asserting `RECORDED`), `lanes`
+  and `lanes_with_coord` fixtures, including the real rework cell, the numstat value cell and the mission-dir
+  bookkeeping cell.
+- The git-call-count test passes at 1 and 200 commits (200 over at least 50 files) with an equal count of at most 10,
+  counted at the subprocess level only, with the committed sanity assertion.
+- `wp_range.py` is in `DOOR_ONLY_MODULES`; the named architectural gate files pass; `test_no_dead_symbols.py` and
+  `test_no_dead_modules.py` are red for exactly `resolve_wp_review_range` and `specify_cli.review.wp_range` (recorded
+  in the hand-off), with no allowlist entry and no fake caller.
+- NFR-006: `ruff`, `ruff format --check --force-exclude` and `mypy --strict` are clean with no new suppression; every
   function has complexity <= 15.
 - No resolver path raises: every failure yields an `UNAVAILABLE` range or a degraded listing with a named reason.
 - Each subtask is recorded done with `spec-kitty agent tasks mark-status <Txxx> --status done`
@@ -363,9 +432,8 @@ Do not run `make test-full` or the whole `tests/architectural/` directory (NO_FU
 
 ## Risks
 
-- **Owned-files gap for `mission_runtime/__init__.py`**: the root export is required (MR-1/MR-2) but the file is not
-  owned. Mitigation: ask the orchestrator to extend the map, or record the one-line edit as a declared gap in the PR
-  and in `tracer-tooling-friction.md`.
+- **SR-2 facade**: a direct `specify_cli.status.<submodule>` import (even inside a function) fails
+  `test_status_module_boundary.py`. Mitigation: import every status name from `specify_cli.status`.
 - **Git budget**: the fallback chain plus five listing calls can approach 10. Mitigation: memoize ancestry probes,
   reuse the door's prefetched read, and fold the bookkeeping count into the out-of-map log where possible.
 - **Event commits on coordination topologies**: they sit on the status branch, so using them on lanes would produce a
@@ -373,13 +441,16 @@ Do not run `make test-full` or the whole `tests/architectural/` directory (NO_FU
   path (T012).
 - **Foreign commits touching owned paths on a commit-to-target target**: a named residual (spec edge case). They
   appear in the list; the out-of-map counts make other spill visible. Do not try to attribute them.
-- **`test_no_dead_symbols` before WP05 wires the caller**: see T017 step 2.
+- **`test_no_dead_symbols` / `test_no_dead_modules` before WP05 wires the caller**: expected red for exactly two names
+  (T017 step 3); anything else is a real finding.
 - **Window over-wide for parallel claims (#5721)**: inherited residual; owned-file scoping keeps the summary honest.
 - **Rebased / landed branches**: `open_sha` is BRANCH_RELATIVE and may not resolve; that is a `not_on_lane` /
   `unresolvable_sha` gap, never an exception.
 
 ## Reviewer Guidance
 
+- **Facade only**: `rg -n "specify_cli\.status\.[a-z_]+ import" src/specify_cli/review/wp_range.py` is empty.
+- **Rework cell is real**: it goes through `planned` via a review rejection and asserts base != second claim's point.
 - **No second authority**: no second window selector (only `status.wp_window_selector`), no second `-S` lookup (only
   `mission_runtime.claim_commit`), no second pathspec builder (`WpReviewRange.owned_pathspecs` from
   `ownership.owned_patterns`), no second owned-path matcher (`ownership.matches_owned`).

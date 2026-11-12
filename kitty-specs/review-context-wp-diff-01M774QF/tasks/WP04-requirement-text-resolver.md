@@ -33,7 +33,7 @@ If no profile is specified, run `spec-kitty agent profile list` and select the b
 **Implementation command**:
 
 ```bash
-spec-kitty agent action implement WP04 --agent <name> --mission review-context-wp-diff-01M774QF
+spec-kitty agent action implement WP04 --agent claude --mission review-context-wp-diff-01M774QF
 ```
 
 ## Objective
@@ -157,8 +157,12 @@ reviewer can see the tests fail on the parent commit (ATDD-first, red-first disc
    - **Truncation (NFR-003)**: a statement whose rendered text exceeds 600 characters yields text of
      exactly 600 characters followed by the truncation marker; a text of exactly 600 characters gets no
      marker. Pin the marker constant (`TEXT_LIMIT`, `TRUNCATION_MARKER`) by import.
-   - **Budget sanity (NFR-003)**: 20 cited IDs each with a long statement produce total text length
-     ≤ 20 × (600 + len(marker) + len(id) + 4), i.e. under 12 KB.
+   - **Budget (NFR-003), measured in bytes**: build a spec declaring 20 IDs (FR-001..FR-020), each with a
+     statement far over 600 characters that includes non-ASCII characters (an em dash, accented letters), so
+     every result is truncated at the maximum length. Render the lines the way the contract prints them,
+     `rendered_lines = [f"  {c.text}" for c in results]` (the text already carries the `ID — ` prefix), and
+     assert `len("\n".join(rendered_lines).encode()) <= 12 * 1024`. Also assert every result is `DECLARED`
+     and ends with `TRUNCATION_MARKER`, so the cell really exercises maximum-length citations.
    - **Order**: output order equals citation order (`["NFR-001", "FR-002", "C-001"]` comes back in that
      order, not sorted). A repeated citation appears once, at its first position (pin this).
    - **Whitespace**: internal runs of whitespace and line breaks collapse to single spaces; markdown bold
@@ -321,6 +325,7 @@ gates, and record the results for the review.
 
 ## Definition of Done
 
+- C-010 (per work package): the lane's first commit is the failing T018 test file alone.
 - `tests/specify_cli/test_requirement_mapping_text.py` exists, was committed alone first (red), and passes
   after T019/T020 (`spec-kitty agent tasks mark-status T018 --status done`).
 - `src/specify_cli/requirement_mapping/text.py` exports `resolve_requirement_texts`, `CitedRequirement`,
@@ -330,10 +335,13 @@ gates, and record the results for the review.
 - `CitedRequirement` is a frozen dataclass matching `data-model.md`; `Resolution` has exactly the four
   members; `text is None` for every non-`DECLARED` result (`mark-status T020 --status done`).
 - Every cited ref comes back exactly once, in citation order; no citation is dropped (FR-011).
-- Each declared text is at most 600 characters plus the marker (NFR-003).
+- Each declared text is at most 600 characters plus the marker, and 20 maximum-length citations render to at
+  most 12 * 1024 bytes (`len("\n".join(rendered_lines).encode())`, NFR-003).
 - All 34 IDs of this Mission's own spec resolve `DECLARED` with non-empty text.
-- ruff, `ruff format --check --force-exclude` and `mypy --strict` are clean on both owned files; no
+- NFR-006: ruff, `ruff format --check --force-exclude` and `mypy --strict` are clean on both owned files; no
   suppression comments; every function at complexity ≤ 15.
+- No `tracer-*.md` is edited from the lane; anything worth recording goes in the completion note for the
+  orchestrator.
 - T021 commands are recorded with counts; any dead-symbol/module red is limited to the WP05-pending names
   and recorded (`mark-status T021 --status done`).
 - No file outside `owned_files` is changed.

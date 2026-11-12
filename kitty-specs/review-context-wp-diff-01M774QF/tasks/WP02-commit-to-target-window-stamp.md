@@ -18,7 +18,7 @@ create_intent:
 
 # WP02: Commit-to-target single_branch records window points (characterize first, then stamp)
 
-> NOTE (orchestrator, 2026-11-12): `tests/integration/test_single_branch_approval_windows.py::test_commit_to_target_unbounded_residual` asserts `rc == 1` with `LANE_MOVED_AFTER_APPROVAL` on a commit-to-target Mission although its docstring says it is NOT refused. So some bound DOES reach commit-to-target today, contrary to the plan's premise. In T006, trace which code path refuses it (cite file:line) and pin it as a characterization cell; fix the stale docstring (this file is now in owned_files). Record the finding in tracer-design-decisions.md and in the ADR amendment. Both `tests/status/test_lane_head_single_branch.py` and this file are now owned by WP02.
+> NOTE (orchestrator, 2026-11-12): `tests/integration/test_single_branch_approval_windows.py::test_commit_to_target_unbounded_residual` asserts `rc == 1` with `LANE_MOVED_AFTER_APPROVAL` on a commit-to-target Mission although its docstring says it is NOT refused. So some bound DOES reach commit-to-target today, contrary to the plan's premise. In T006, trace which code path refuses it (cite file:line) and pin it as a characterization cell; fix the stale docstring (this file is in owned_files). Record the finding in the ADR amendment and report it in your completion note (the orchestrator records it in `tracer-design-decisions.md`; lanes never edit tracer files). Both `tests/status/test_lane_head_single_branch.py` and this file are owned by WP02.
 
 ## ⚡ Do This First: Load Agent Profile
 
@@ -75,8 +75,12 @@ change in an amendment to ADR `2026-11-08-2`.
   Only the stored-`single_branch` commit-to-target case changes.
 - **SC-004 / User Story 5.** Verdicts are unchanged, or differ only as recorded. Any previously PASSING
   cell that now REFUSES is an operator decision, not yours.
-- **Discipline.** Red-first (charter test-remediation discipline): the characterization (T006) is its own
-  commit, landed before any `src/` change. The unit test (T007) is committed red before T008.
+- **Discipline and commit order (C-010, per work package: the lane's first commit is a failing test).**
+  1. First lane commit: T007's red unit test, alone.
+  2. Second commit: T006's characterization, alone (green on the base: it pins today's verdicts).
+  3. Then T008 (`src/`), T009, T010.
+  Both test commits land before any `src/` change. Write the subtasks in this order even though T006 is
+  described first below.
 - **Dependents.** IC-03's review-range resolver (later WP) reads these stamps when present. This WP has no
   dependencies and can run in parallel with WP01.
 - **Do not edit** `tests/integration/test_single_branch_write_checkout_e2e.py` (PR #7562 overlap).
@@ -110,9 +114,36 @@ change in an amendment to ADR `2026-11-08-2`.
        whether the attestation is accepted or refused and the resulting consolidate verdict. This exercises
        `_has_review_approval_stamp`.
   5. Each cell carries a short docstring naming the reader it pins.
-  6. Mark the tests with the markers the neighbouring integration-style consolidation tests use (check
+  6. **Reachability, so "0 differences" cannot pass as a no-op.** A cell whose reader is never reached
+     would show no verdict change whether or not the stamp exists. Each cell must therefore prove, in the
+     AFTER state (once T008 lands), that its reader actually ran on stamped inputs:
+     - **Inputs carry the stamps.** Read the Mission's status events (through
+       `specify_cli.status.resolve_status_read` + `read_status_events`, not a hand-parsed file) and assert
+       that the cell's WPs carry `policy_metadata["lane_head"]` on their lifecycle moves and
+       `policy_metadata["wp_window"]` with an `open_sha` on their opening move. Write this assertion now,
+       parametrised on a module constant `STAMPED = False` (T006: assert the keys are ABSENT, today's
+       state); T009 flips it to `True` and the same assertion then requires them PRESENT.
+     - **The reader ran.** Wrap the targeted reader with a `monkeypatch.setattr` spy that records each call
+       and delegates to the original (the pattern `characterization_support.run_in_process` uses for
+       `MergeOutcomeVerifier.verify`):
+       - cell (b): `reconciliation_canceled._mixed_lanes` (and the attribution entry that calls
+         `lacks_lane_head_stamps`);
+       - cell (c): `reconciliation_closed_world._recorded_lane_heads`;
+       - cell (d): `approved_attestation._has_review_approval_stamp`;
+       - cell (a): `MergeOutcomeVerifier.verify` (the approved-only gate).
+       Assert the spy recorded at least one call, and for (b)-(d) record what it returned (for example the
+       stamp set `_recorded_lane_heads` produced), so T009's AFTER expectation can show the reader saw a
+       non-empty stamp input. Patch the attribute where the caller looks it up (the module that calls it),
+       not only where it is defined.
+     - **In-process, so the spy can see it.** `single_branch_window_support.consolidate` runs the CLI as a
+       subprocess, which a `monkeypatch` spy cannot observe. Drive `consolidate` / `accept` in-process for
+       these cells with `CliRunner().invoke(specify_cli.app, [...])` inside the same environment the module
+       sets up (`cli_env`, `chdir` to the repo), as `characterization_support.run_in_process` does. Use the
+       support module's subprocess `consolidate` only for a cross-check cell, never as the only driver.
+  7. Mark the tests with the markers the neighbouring integration-style consolidation tests use (check
      `tests/integration/test_single_branch_approval_windows.py` for the marker set).
-  7. Run them: all pass on the unmodified code. Commit **alone**:
+  8. Run them: all pass on the unmodified code (with `STAMPED = False`). Commit **alone**, right after the
+     T007 red commit (see "Discipline and commit order"):
      `test(consolidation): characterize commit-to-target single_branch verdicts before window stamp (#7578)`.
 - **Files**: `tests/consolidation/test_commit_to_target_stamp_characterization.py` (new, ~200–300 lines).
 - **Validation**: `uv run --frozen pytest tests/consolidation/test_commit_to_target_stamp_characterization.py -q`
@@ -124,7 +155,9 @@ change in an amendment to ADR `2026-11-08-2`.
 - **Steps**:
   1. Create `tests/status/test_lane_head_commit_to_target.py`. Borrow the fixture shape of
      `tests/status/test_lane_head_single_branch.py` (`_git`, `_write_mission`, `_commit`, `_TARGET`), by
-     copying the minimal helpers into your file (do not edit that file).
+     copying the minimal helpers into your file. That file is owned by this WP, but its only planned edit is
+     the inversion of `test_commit_to_target_single_branch_stays_unstamped` in T008; do not move helpers
+     out of it.
   2. Tests:
      - commit-to-target `single_branch` (`topology="single_branch"`, no `mission_branch`): `read_lane_head`
        returns the target branch head SHA (`reading.sha == git rev-parse <target>`), `applicable` True.
@@ -137,7 +170,8 @@ change in an amendment to ADR `2026-11-08-2`.
        `policy_metadata.wp_window` with `open_sha` == target head; moving to `for_review` writes
        `policy_metadata.lane_head` == target head. Drive it through `emit_status_transition` (or the CLI
        `agent status emit` / `move-task` path) the same way existing `tests/status/` pipeline tests do.
-  3. Run: the commit-to-target cases are red, the C-009 / minted cases green. Commit red:
+  3. Run: the commit-to-target cases are red, the C-009 / minted cases green. Commit red, as the lane's
+     **first** commit (C-010):
      `test(status): red — commit-to-target single_branch stamps lane_head and wp_window (#7578)`.
 - **Files**: `tests/status/test_lane_head_commit_to_target.py` (new, ~150–220 lines).
 - **Validation**: the expected subset fails for the right reason (`sha is None` / missing `wp_window`).
@@ -164,22 +198,28 @@ change in an amendment to ADR `2026-11-08-2`.
      says a commit-to-target Mission "keeps the lane-map behaviour (unbounded residual, FR-078)". State
      that it now stamps the target head (#7578) and stays unbounded in consolidation; planning lanes of
      lane topologies stay unstamped.
-  5. Run T007: green. Run `ruff check`, `ruff format --check --force-exclude`, `mypy` on the file.
+  5. Invert `tests/status/test_lane_head_single_branch.py::test_commit_to_target_single_branch_stays_unstamped`
+     (owned by this WP): it asserts `sha is None` and goes red by design. Re-pin it to the new reading
+     (the target head), rename it to say so, and cite #7578 in its docstring and the commit message. Never
+     delete it.
+  6. Run T007: green. Run `ruff check`, `ruff format --check --force-exclude`, `mypy --strict` on the file.
 - **Files**: `src/specify_cli/status/lane_head.py` (~20–40 changed lines).
 - **Validation**: `tests/status/test_lane_head_commit_to_target.py`, `tests/status/test_lane_head.py`,
-  `tests/status/test_lane_head_single_branch.py` (see Risks: one test there pins the old behaviour).
+  `tests/status/test_lane_head_single_branch.py` (with the step 5 inversion).
 
 ### Subtask T009: Re-run the characterization and record the verdict change
 
 - **Purpose**: measure what the stamp changed (SC-004, User Story 5).
 - **Steps**:
-  1. Re-run `tests/consolidation/test_commit_to_target_stamp_characterization.py`.
+  1. Flip `STAMPED = True` (T006 step 6) and re-run
+     `tests/consolidation/test_commit_to_target_stamp_characterization.py`. Every cell must now show the
+     stamps present on its inputs and its reader spy called with a non-empty stamp input. A cell whose spy
+     never fires is not a characterization: fix the cell (drive the reader), never drop the assertion.
   2. For every cell whose verdict changed, update its pinned expectation **only** with an explicit
      comment block `# BEFORE (#7578 base): ... / AFTER: ... / reader: ...`. Never delete a cell.
-  3. Record the before/after table in
-     `kitty-specs/review-context-wp-diff-01M774QF/tracer-design-decisions.md` (an out-of-map edit; add a
-     one-line rationale in the commit message), or, if you prefer to stay in map, report the table to the
-     orchestrator to record.
+  3. Put the before/after table in the ADR amendment (T010) and report it in your completion note. Do not
+     edit `tracer-design-decisions.md` (or any `tracer-*.md`) from the lane: the orchestrator records the
+     entry from your note.
   4. **STOP rule.** If any previously PASSING cell now REFUSES (or refuses with a new code), do not adjust
      the expectation. Stop and escalate to the orchestrator with the cell, the before/after output and the
      reader responsible. That is an operator decision.
@@ -188,8 +228,9 @@ change in an amendment to ADR `2026-11-08-2`.
      `test_commit_to_target_unbounded_residual`), `tests/consolidation/test_write_branch_bound.py`,
      `tests/consolidation/test_single_branch_evidence_axis.py`,
      `tests/consolidation/test_single_branch_stamp_warnings.py`. Any change there follows the same STOP rule.
-- **Files**: the characterization test (expectation updates), `tracer-design-decisions.md` (out-of-map).
-- **Validation**: all green; every changed verdict has a BEFORE/AFTER comment and a recorded row.
+- **Files**: the characterization test (expectation updates and the `STAMPED` flip).
+- **Validation**: all green; every cell proves its reader ran on stamped inputs; every changed verdict has
+  a BEFORE/AFTER comment, a row in the ADR table and an entry in the completion note.
 
 ### Subtask T010: ADR amendment
 
@@ -217,14 +258,17 @@ change in an amendment to ADR `2026-11-08-2`.
 
 ## Definition of Done
 
-- T006 committed alone, before any `src/` change, green on the base.
-- T007 committed red before T008; green after.
+- C-010: T007's red unit test is the lane's first commit; T006's characterization is the second, alone,
+  green on the base; both precede any `src/` change. T007 is green after T008.
 - `_read_lane_head` stamps the target head for stored-`single_branch` commit-to-target Missions only;
   lanes planning lanes remain `not_applicable`; minted `single_branch` unchanged; never raises.
-- Every changed verdict is recorded (comment + `tracer-design-decisions.md` row or orchestrator report);
-  no previously passing cell silently refuses.
+- Every characterization cell proves reachability in the AFTER state: its inputs carry `lane_head` /
+  `wp_window` and its reader spy recorded a call on them, so "0 differences" is not no-op passable.
+- Every changed verdict is recorded (BEFORE/AFTER comment + ADR table row + completion-note entry for the
+  orchestrator's tracer); no previously passing cell silently refuses. No `tracer-*.md` edited from the lane.
 - ADR amendment written with the measured table and the mechanism correction.
-- `ruff check`, `ruff format --check --force-exclude`, `mypy` clean on changed files; function complexity ≤ 15.
+- NFR-006: `ruff check`, `ruff format --check --force-exclude`, `mypy --strict` clean on changed files, no
+  new suppressions; function complexity ≤ 15.
 - Tests run and passing (record commands + counts in the PR):
   - `tests/status/` (in particular `test_lane_head.py`, `test_lane_head_single_branch.py`,
     `test_lane_head_commit_to_target.py`)
@@ -239,8 +283,8 @@ change in an amendment to ADR `2026-11-08-2`.
 ## Risks
 
 - **An existing test pins the old behaviour.** `tests/status/test_lane_head_single_branch.py::test_commit_to_target_single_branch_stays_unstamped`
-  asserts `sha is None`. It goes red by design. The file is not in this WP's map: report it to the
-  orchestrator and update it only with an out-of-map rationale (invert it, citing #7578), never delete it.
+  asserts `sha is None`. It goes red by design; T008 step 5 inverts it (owned by this WP), citing #7578.
+  Never delete it.
 - **Verdict change on mixed planning lanes.** Canceled-content attribution now has stamps; a Mission that
   passed may refuse, or vice versa. Mitigation: T006/T009 measure it; STOP rule on any new refusal.
 - **Foreign commits on the shared target.** The target head moves with other work, so `open_sha` and
@@ -252,12 +296,14 @@ change in an amendment to ADR `2026-11-08-2`.
 
 ## Reviewer Guidance
 
-- Confirm by `git log --stat` that the characterization commit precedes the `src/` change, and the T007
-  red commit precedes T008.
+- Confirm by `git log --stat` that the first lane commit is T007's red test alone, the second is the
+  characterization alone, and both precede the `src/` change.
 - Confirm the `lanes` planning-lane case is untouched (C-009) and that minted `single_branch` stamping is
   byte-for-byte unchanged.
 - Confirm every changed verdict in the characterization has a BEFORE/AFTER comment and a recorded row, and
   that no passing cell was quietly turned into an expected refusal.
+- Confirm reachability: each cell asserts the stamps on its inputs (`STAMPED = True` on the final tip) and a
+  reader spy call; temporarily reverting T008 locally must make the stamp assertions fail.
 - Confirm the ADR amendment corrects the `check_write_branch_windows` mechanism note and states that the
   approval-stamp and write-branch bounds still exclude these Missions.
 - Confirm best-effort semantics: no new path can raise out of `read_lane_head`.
