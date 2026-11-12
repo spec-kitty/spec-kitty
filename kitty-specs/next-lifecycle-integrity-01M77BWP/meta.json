@@ -1,0 +1,20 @@
+{
+  "create_return_branch": "fix/7548-next-lifecycle-integrity",
+  "created_at": "2026-11-12T07:52:34.120049+00:00",
+  "flattened": false,
+  "friendly_name": "next lifecycle integrity (#7548)",
+  "mid8": "01M77BWP",
+  "mission_branch": "kitty/mission-next-lifecycle-integrity-01M77BWP",
+  "mission_id": "01M77BWPZ3E805PYVPYS8A49MZ",
+  "mission_number": null,
+  "mission_slug": "next-lifecycle-integrity-01M77BWP",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Fixes #7553, #5929 and #7565 (advancing next on a finished board falls through to the DAG and records false step rows) and #7582 (rejection resets every subtask without recording which were completed or allowing a narrowed reset).",
+  "purpose_tldr": "next never records steps that did not run; rejection subtask resets are recorded and narrowable",
+  "slug": "next-lifecycle-integrity-01M77BWP",
+  "target_branch": "fix/7548-next-lifecycle-integrity",
+  "topology": "single_branch",
+  "topology_settled": false,
+  "topology_source": "default"
+}
