@@ -24,6 +24,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#470": {
+      "evidence_ref": "Context - dead-symbol gate reference in WP prompts",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#5331": {
       "evidence_ref": "Related, excluded - for_review gate policy",
       "fr": null,
