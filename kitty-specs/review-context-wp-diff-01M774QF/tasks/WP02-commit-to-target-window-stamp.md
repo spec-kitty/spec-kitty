@@ -4,16 +4,21 @@ title: "Commit-to-target single_branch records window points (characterize first
 dependencies: []
 requirement_refs: ["FR-002", "C-008", "C-009", "SC-004"]
 subtasks: ["T006", "T007", "T008", "T009", "T010"]
-owned_files: ["src/specify_cli/status/lane_head.py", "tests/consolidation/test_commit_to_target_stamp_characterization.py", "tests/status/test_lane_head_commit_to_target.py", "docs/adr/4.x/2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition.md"]
-authoritative_surface: ""
+owned_files: ["src/specify_cli/status/lane_head.py", "tests/consolidation/test_commit_to_target_stamp_characterization.py", "tests/status/test_lane_head_commit_to_target.py", "docs/adr/4.x/2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition.md", "tests/status/test_lane_head_single_branch.py", "tests/integration/test_single_branch_approval_windows.py"]
+authoritative_surface: "src/specify_cli/status/"
 execution_mode: "code_change"
 agent_profile: "python-pedro"
 role: "implementer"
 agent: "claude"
 model: ""
+create_intent:
+  - "tests/consolidation/test_commit_to_target_stamp_characterization.py"
+  - "tests/status/test_lane_head_commit_to_target.py"
 ---
 
 # WP02: Commit-to-target single_branch records window points (characterize first, then stamp)
+
+> NOTE (orchestrator, 2026-11-12): `tests/integration/test_single_branch_approval_windows.py::test_commit_to_target_unbounded_residual` asserts `rc == 1` with `LANE_MOVED_AFTER_APPROVAL` on a commit-to-target Mission although its docstring says it is NOT refused. So some bound DOES reach commit-to-target today, contrary to the plan's premise. In T006, trace which code path refuses it (cite file:line) and pin it as a characterization cell; fix the stale docstring (this file is now in owned_files). Record the finding in tracer-design-decisions.md and in the ADR amendment. Both `tests/status/test_lane_head_single_branch.py` and this file are now owned by WP02.
 
 ## ⚡ Do This First: Load Agent Profile
 

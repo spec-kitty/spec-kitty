@@ -5,7 +5,7 @@ dependencies: ["WP05"]
 requirement_refs: ["C-003", "NFR-006"]
 subtasks: ["T029", "T030", "T031"]
 owned_files: ["docs/changelog/unreleased/7578.*.md", "CLAUDE.md"]
-authoritative_surface: ""
+authoritative_surface: "docs/changelog/unreleased/"
 execution_mode: "code_change"
 agent_profile: "scribe-sally"
 role: "documentarian"

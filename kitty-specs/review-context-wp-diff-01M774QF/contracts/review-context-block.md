@@ -11,6 +11,7 @@ This is the text block both review entry points print. Agents parse it by eye, s
 REVIEW RANGE (WP02): <base12>..<tip12>  [recorded | derived | unavailable]
   base: <base12> (<window open | opener lane_head stamp | claim base ref | claim event commit>)
 ? note: recorded window not used: <gap reason>
+? scope: unscoped (no owned_files declared)
   tip:  <tip12> (<for_review submission | for_review event commit>)
 ? note: <branch> has moved <N> commit(s) past the submitted tip
 IMPLEMENTATION COMMITS (<n>; = output of the git log command below):

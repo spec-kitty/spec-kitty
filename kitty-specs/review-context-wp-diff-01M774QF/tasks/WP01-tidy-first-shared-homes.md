@@ -12,12 +12,18 @@ owned_files:
   - "src/specify_cli/ownership/__init__.py"
   - "tests/status/test_wp_window_selector.py"
   - "tests/specify_cli/ownership/test_matching.py"
-authoritative_surface: ""
+  - "src/specify_cli/status/__init__.py"
+authoritative_surface: "src/specify_cli/"
 execution_mode: "code_change"
 agent_profile: "python-pedro"
 role: "implementer"
 agent: "claude"
 model: ""
+create_intent:
+  - "src/specify_cli/status/wp_window_selector.py"
+  - "src/specify_cli/ownership/matching.py"
+  - "tests/status/test_wp_window_selector.py"
+  - "tests/specify_cli/ownership/test_matching.py"
 ---
 
 # WP01: Tidy-first: shared homes for the window-opener rule and owned-file matching

@@ -14,13 +14,13 @@ All types are frozen dataclasses (value objects). Nothing is persisted, except t
 | `wp_id` | `str` | |
 | `base` | `str \| None` | Full SHA. `None` iff `status is UNAVAILABLE`. |
 | `tip` | `str \| None` | Full SHA. `None` iff `status is UNAVAILABLE`. |
-| `base_source` | `RangeSource` | `RECORDED_WINDOW` · `CLAIM_BASE_REF` · `EVENT_COMMIT` · `NONE` |
+| `base_source` | `RangeSource` | `RECORDED_WINDOW` · `OPENER_LANE_HEAD` · `CLAIM_BASE_REF` · `EVENT_COMMIT` · `NONE` |
 | `tip_source` | `RangeSource` | `RECORDED_SUBMISSION` · `EVENT_COMMIT` · `NONE` |
 | `gap` | `str \| None` | The reason the recorded value was not used: `not_recorded`, `lane_branch_missing`, `capture_failed`, `not_on_lane`, `no_submission`, `unresolvable_sha`. |
 | `status` | `RangeStatus` | `RECORDED` (both ends recorded) · `DERIVED` (either end derived) · `UNAVAILABLE` |
 | `moved_past` | `int` | Commits on the branch after `tip`. 0 when the tip is the live head. |
 | `commits` | `tuple[RangeCommit, ...]` | Implementation commits, oldest first, bookkeeping excluded. |
-| `bookkeeping_commits` | `int` | Count of excluded commits. |
+| `out_of_map_only_commits` | `int` | Count of commits in range that touch only out-of-map (non-bookkeeping) paths. |
 | `files` | `tuple[FileChange, ...]` | In-owned-files, path-sorted. |
 | `out_of_map` | `tuple[str, ...]` | Changed paths outside the owned files. Empty when no owned files are declared. |
 | `owned_pathspecs` | `tuple[str, ...]` | Pathspecs the commands use. Empty means unscoped. |

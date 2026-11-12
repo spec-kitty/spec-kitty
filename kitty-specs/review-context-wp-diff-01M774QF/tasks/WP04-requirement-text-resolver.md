@@ -5,12 +5,15 @@ dependencies: []
 requirement_refs: ["FR-010", "FR-011", "NFR-003"]
 subtasks: ["T018", "T019", "T020", "T021"]
 owned_files: ["src/specify_cli/requirement_mapping/text.py", "tests/specify_cli/test_requirement_mapping_text.py"]
-authoritative_surface: ""
+authoritative_surface: "src/specify_cli/requirement_mapping/"
 execution_mode: "code_change"
 agent_profile: "python-pedro"
 role: "implementer"
 agent: "claude"
 model: ""
+create_intent:
+  - "src/specify_cli/requirement_mapping/text.py"
+  - "tests/specify_cli/test_requirement_mapping_text.py"
 ---
 
 # WP04: Requirement-text resolver for cited IDs

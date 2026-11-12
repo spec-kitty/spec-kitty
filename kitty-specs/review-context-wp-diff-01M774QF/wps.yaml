@@ -1,159 +1,183 @@
 work_packages:
-  - id: WP01
-    title: "Tidy-first: shared homes for the window-opener rule and owned-file matching"
-    dependencies: []
-    owned_files:
-      - "src/specify_cli/status/wp_window_selector.py"
-      - "src/specify_cli/consolidation/wp_attribution.py"
-      - "src/specify_cli/consolidation/wp_evidence.py"
-      - "src/specify_cli/ownership/matching.py"
-      - "src/specify_cli/ownership/__init__.py"
-      - "tests/status/test_wp_window_selector.py"
-      - "tests/specify_cli/ownership/test_matching.py"
-    requirement_refs:
-      - FR-003
-      - C-005
-      - C-007
-    plan_concern_refs:
-      - IC-01
-    subtasks:
-      - T001
-      - T002
-      - T003
-      - T004
-      - T005
-
-  - id: WP02
-    title: "Commit-to-target single_branch records window points (characterize first, then stamp)"
-    dependencies: []
-    owned_files:
-      - "src/specify_cli/status/lane_head.py"
-      - "tests/consolidation/test_commit_to_target_stamp_characterization.py"
-      - "tests/status/test_lane_head_commit_to_target.py"
-      - "docs/adr/4.x/2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition.md"
-    requirement_refs:
-      - FR-002
-      - C-008
-      - C-009
-      - SC-004
-    plan_concern_refs:
-      - IC-02
-    subtasks:
-      - T006
-      - T007
-      - T008
-      - T009
-      - T010
-
-  - id: WP03
-    title: "Review-range resolver: one owner of a WP's review range and pathspecs"
-    dependencies:
-      - WP01
-    owned_files:
-      - "src/specify_cli/review/wp_range.py"
-      - "src/mission_runtime/claim_commit.py"
-      - "tests/review/test_wp_range.py"
-      - "tests/review/test_wp_range_git_calls.py"
-      - "tests/mission_runtime/test_claim_commit.py"
-      - "tests/architectural/test_mission_runtime_surface.py"
-      - "tests/architectural/test_status_read_single_door.py"
-    requirement_refs:
-      - FR-001
-      - FR-004
-      - FR-005
-      - FR-006
-      - FR-007
-      - FR-009
-      - FR-013
-      - NFR-002
-      - NFR-004
-      - NFR-005
-      - C-006
-    plan_concern_refs:
-      - IC-03
-    subtasks:
-      - T011
-      - T012
-      - T013
-      - T014
-      - T015
-      - T016
-      - T017
-
-  - id: WP04
-    title: "Requirement-text resolver for cited IDs"
-    dependencies: []
-    owned_files:
-      - "src/specify_cli/requirement_mapping/text.py"
-      - "tests/specify_cli/test_requirement_mapping_text.py"
-    requirement_refs:
-      - FR-010
-      - FR-011
-      - NFR-003
-    plan_concern_refs:
-      - IC-04
-    subtasks:
-      - T018
-      - T019
-      - T020
-      - T021
-
-  - id: WP05
-    title: "One renderer for every review render site, driven by acceptance tests"
-    dependencies:
-      - WP02
-      - WP03
-      - WP04
-    owned_files:
-      - "src/specify_cli/review/context_block.py"
-      - "src/runtime/next/prompt_builder.py"
-      - "src/specify_cli/cli/commands/agent/workflow_executor.py"
-      - "src/specify_cli/cli/commands/agent/workflow_cores.py"
-      - "src/specify_cli/review/prompt_metadata.py"
-      - "tests/integration/review/test_review_range_acceptance.py"
-      - "tests/integration/review/review_range_fixtures.py"
-      - "tests/review/test_context_block.py"
-      - "tests/next/test_prompt_builder_review_base.py"
-      - "tests/specify_cli/cli/commands/agent/test_workflow_cores.py"
-      - "tests/agent/test_workflow_mixed_dependency_review_context.py"
-      - "tests/integration/review/test_canonical_review_diff_refs.py"
-      - "tests/characterization/test_trio_pure_cores.py"
-    requirement_refs:
-      - FR-008
-      - FR-012
-      - NFR-001
-      - C-001
-      - C-002
-      - C-004
-      - C-010
-      - SC-001
-      - SC-002
-      - SC-003
-    plan_concern_refs:
-      - IC-05
-      - IC-06
-    subtasks:
-      - T022
-      - T023
-      - T024
-      - T025
-      - T026
-      - T027
-      - T028
-
-  - id: WP06
-    title: "Documentation close-out: changelog fragment and CLAUDE.md"
-    dependencies:
-      - WP05
-    owned_files:
-      - "docs/changelog/unreleased/7578.*.md"
-      - "CLAUDE.md"
-    requirement_refs:
-      - C-003
-      - NFR-006
-    plan_concern_refs:
-      - IC-07
-    subtasks:
-      - T029
-      - T030
-      - T031
+- id: WP01
+  title: 'Tidy-first: shared homes for the window-opener rule and owned-file matching'
+  dependencies: []
+  owned_files:
+  - src/specify_cli/status/wp_window_selector.py
+  - src/specify_cli/consolidation/wp_attribution.py
+  - src/specify_cli/consolidation/wp_evidence.py
+  - src/specify_cli/ownership/matching.py
+  - src/specify_cli/ownership/__init__.py
+  - tests/status/test_wp_window_selector.py
+  - tests/specify_cli/ownership/test_matching.py
+  - src/specify_cli/status/__init__.py
+  requirement_refs:
+  - FR-003
+  - C-005
+  - C-007
+  plan_concern_refs:
+  - IC-01
+  subtasks:
+  - T001
+  - T002
+  - T003
+  - T004
+  - T005
+  prompt_file: tasks/WP01-tidy-first-shared-homes.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP02
+  title: Commit-to-target single_branch records window points (characterize first, then stamp)
+  dependencies: []
+  owned_files:
+  - src/specify_cli/status/lane_head.py
+  - tests/consolidation/test_commit_to_target_stamp_characterization.py
+  - tests/status/test_lane_head_commit_to_target.py
+  - docs/adr/4.x/2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition.md
+  - tests/status/test_lane_head_single_branch.py
+  - tests/integration/test_single_branch_approval_windows.py
+  requirement_refs:
+  - FR-002
+  - C-008
+  - C-009
+  - SC-004
+  plan_concern_refs:
+  - IC-02
+  subtasks:
+  - T006
+  - T007
+  - T008
+  - T009
+  - T010
+  prompt_file: tasks/WP02-commit-to-target-window-stamp.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP03
+  title: 'Review-range resolver: one owner of a WP''s review range and pathspecs'
+  dependencies:
+  - WP01
+  owned_files:
+  - src/specify_cli/review/wp_range.py
+  - src/mission_runtime/claim_commit.py
+  - tests/review/test_wp_range.py
+  - tests/review/test_wp_range_git_calls.py
+  - tests/mission_runtime/test_claim_commit.py
+  - tests/architectural/test_mission_runtime_surface.py
+  - tests/architectural/test_status_read_single_door.py
+  - src/mission_runtime/__init__.py
+  requirement_refs:
+  - FR-001
+  - FR-004
+  - FR-005
+  - FR-006
+  - FR-007
+  - FR-009
+  - FR-013
+  - NFR-002
+  - NFR-004
+  - NFR-005
+  - C-006
+  plan_concern_refs:
+  - IC-03
+  subtasks:
+  - T011
+  - T012
+  - T013
+  - T014
+  - T015
+  - T016
+  - T017
+  prompt_file: tasks/WP03-review-range-resolver.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP04
+  title: Requirement-text resolver for cited IDs
+  dependencies: []
+  owned_files:
+  - src/specify_cli/requirement_mapping/text.py
+  - tests/specify_cli/test_requirement_mapping_text.py
+  requirement_refs:
+  - FR-010
+  - FR-011
+  - NFR-003
+  plan_concern_refs:
+  - IC-04
+  subtasks:
+  - T018
+  - T019
+  - T020
+  - T021
+  prompt_file: tasks/WP04-requirement-text-resolver.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP05
+  title: One renderer for every review render site, driven by acceptance tests
+  dependencies:
+  - WP02
+  - WP03
+  - WP04
+  owned_files:
+  - src/specify_cli/review/context_block.py
+  - src/runtime/next/prompt_builder.py
+  - src/specify_cli/cli/commands/agent/workflow_executor.py
+  - src/specify_cli/cli/commands/agent/workflow_cores.py
+  - src/specify_cli/review/prompt_metadata.py
+  - tests/integration/review/test_review_range_acceptance.py
+  - tests/integration/review/review_range_fixtures.py
+  - tests/review/test_context_block.py
+  - tests/next/test_prompt_builder_review_base.py
+  - tests/specify_cli/cli/commands/agent/test_workflow_cores.py
+  - tests/agent/test_workflow_mixed_dependency_review_context.py
+  - tests/integration/review/test_canonical_review_diff_refs.py
+  - tests/characterization/test_trio_pure_cores.py
+  - tests/integration/test_prompt_builder_owned_arms.py
+  requirement_refs:
+  - FR-008
+  - FR-012
+  - NFR-001
+  - C-001
+  - C-002
+  - C-004
+  - C-010
+  - SC-001
+  - SC-002
+  - SC-003
+  plan_concern_refs:
+  - IC-05
+  - IC-06
+  subtasks:
+  - T022
+  - T023
+  - T024
+  - T025
+  - T026
+  - T027
+  - T028
+  prompt_file: tasks/WP05-one-renderer-all-review-sites.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP06
+  title: 'Documentation close-out: changelog fragment and CLAUDE.md'
+  dependencies:
+  - WP05
+  owned_files:
+  - docs/changelog/unreleased/7578.*.md
+  - CLAUDE.md
+  requirement_refs:
+  - C-003
+  - NFR-006
+  plan_concern_refs:
+  - IC-07
+  subtasks:
+  - T029
+  - T030
+  - T031
+  prompt_file: tasks/WP06-docs-close-out.md
+  agent_profile: scribe-sally
+  role: documentarian
+  agent: claude
