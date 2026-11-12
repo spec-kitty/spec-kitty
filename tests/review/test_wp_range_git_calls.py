@@ -21,7 +21,7 @@ from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
 from specify_cli.review.wp_range import RangeStatus, WpReviewRange, resolve_wp_review_range
 from tests.consolidation import characterization_support as cs
 from tests.integration import single_branch_window_support as sb
-from tests.integration.review.review_range_fixtures import strip_single_branch_stamps
+from tests.integration.review.review_range_fixtures import strip_single_branch_stamps, submitted_planning_lane_wp
 from tests.terminus.canceled_dependency_support import ACTOR, _commit_in
 from tests.terminus.mixed_lane_support import transition
 
@@ -133,5 +133,18 @@ def test_derived_pre_stamp_commit_to_target_range_stays_within_budget(tmp_path: 
     found, calls = _measure(git_processes, lambda: resolve_wp_review_range(copy, slug, "WP01", owned_files=["src/m1/**"]))
 
     assert found.status is RangeStatus.DERIVED, "precondition: a pre-stamp commit-to-target range is derived"
+    assert _has(calls, "log", "--format=%H", "--no-show-signature"), calls
+    assert len(calls) <= _DERIVED_BUDGET, calls
+
+
+def test_derived_planning_lane_range_stays_within_budget(tmp_path: Path, git_processes: list[list[str]], monkeypatch: pytest.MonkeyPatch) -> None:
+    """Operator ruling Q10: a planning-lane WP's derived range on a ``lanes`` Mission keeps the derived budget."""
+    for key in _HARNESS_VARIABLES:
+        monkeypatch.delenv(key, raising=False)
+    submitted = submitted_planning_lane_wp(tmp_path)
+
+    found, calls = _measure(git_processes, lambda: resolve_wp_review_range(submitted.repo, submitted.slug, submitted.wp_id, owned_files=submitted.owned_files))
+
+    assert found.status is RangeStatus.DERIVED, "precondition: a planning-lane range is derived"
     assert _has(calls, "log", "--format=%H", "--no-show-signature"), calls
     assert len(calls) <= _DERIVED_BUDGET, calls
