@@ -108,10 +108,10 @@
       "criterion_id": "FR-011",
       "description": "Verify FR-011 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "WP05 lane-e: tests/consolidation/test_abort_remedies.py (red eaa8ddff); reviewer ran each remedy through real consolidate --abort to exit 0",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T23:13:47.384029+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
