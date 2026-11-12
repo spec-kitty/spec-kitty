@@ -421,6 +421,9 @@ from .cutover_eligibility import (
 # re-exported the same way for the consolidation reader (WP08).
 from .lane_head import (
     LANE_HEAD_KEY,
+    # review-context-wp-diff-01M774QF (#7578): the review range reads the live write-branch head
+    # through the facade (SR-2); a re-export marker only, not advertised in ``__all__``.
+    read_lane_head as read_lane_head,
 )
 
 # consolidation-window-provenance-01M6Y84D pre-PR fold (M5): the one ``wp_window`` codec,
@@ -431,6 +434,18 @@ from .wp_window import (
     ParsedWpWindow,
     RecordedGapReason,
     parse_wp_window,
+)
+
+# review-context-wp-diff-01M774QF (#7578): the one FR-021 window-opener selector, moved here
+# from ``consolidation/wp_attribution.py`` so ``runtime`` and ``review`` share it; SR-2.
+from .wp_window_selector import (
+    OpenerSelection,
+    WindowGap,
+    WindowGapReason,
+    WindowOpen,
+    is_migration_event,
+    window_open_of,
+    window_opener_events,
 )
 
 # concurrent-mission-writers-01M4BT23 WP01 (#5819): the Mission write primitive
@@ -556,6 +571,14 @@ __all__ = [
     "ParsedWpWindow",
     "RecordedGapReason",
     "parse_wp_window",
+    # review-context-wp-diff-01M774QF (#7578): the FR-021 window-opener selector.
+    "OpenerSelection",
+    "WindowGap",
+    "WindowGapReason",
+    "WindowOpen",
+    "is_migration_event",
+    "window_open_of",
+    "window_opener_events",
     "API_PREFIX",
     "ENDPOINT_DIRECTORY",
     "HANDSHAKE_PATH",
