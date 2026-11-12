@@ -599,3 +599,111 @@ def test_late_projection_refuses_a_target_matrix_it_cannot_compare(refused_run: 
     assert document in message and "the target's" in message, message
     assert phrase in message, message
     assert (mission.repo / matrix_rel).read_text(encoding="utf-8") == target_bytes, "a refused projection must not touch the target"
+
+
+# -- #7491: a resume after the kept-only-copy remedy, where the target amended a planning file --------------
+
+_PLANNING_LINES = tuple(f"line {index}\n" for index in range(20))
+_LANE_LINE_0 = "line 0 amended (synced from target)\n"
+
+
+def _spec_rel(mission: CoordMission) -> str:
+    return f"kitty-specs/{mission.slug}/spec.md"
+
+
+def _spec_with(**edits: str) -> str:
+    """The planning file with ``line_<n>=text`` edits applied to the base lines."""
+    lines = list(_PLANNING_LINES)
+    for key, text in edits.items():
+        lines[int(key.removeprefix("line_"))] = text
+    return "".join(lines)
+
+
+def _build_mission_whose_lane_edits_planning(tmp_path: Path) -> CoordMission:
+    """A coordination Mission whose WP01 lane commit also edits ``spec.md``, then the target re-amends it (#7491).
+
+    Lane WP01's approved commit edits line 0 of the PRIMARY ``spec.md``; the target carries the same
+    line-0 edit plus a later, different line-10 edit ("re-finalize on the target"). The merge brings the
+    lane's ``spec.md`` onto the coordination branch, and nothing projects a primary artifact back, so the
+    coordination branch and the target hold different ``spec.md`` bytes for the merge's own reasons.
+    """
+    from tests.terminus import conftest as terminus
+
+    mid8 = "01M7491A"
+    slug = f"terminus-{mid8}"
+    spec_rel = f"kitty-specs/{slug}/spec.md"
+    wps = ("WP01", "WP02")
+    mission = terminus._init_fixture_repo(tmp_path, mid8=mid8, slug=slug, target_branch=_TARGET, extra_base_files={spec_rel: _spec_with()})
+    (mission.feature_dir / "tasks").mkdir(parents=True)
+    terminus._write_meta(mission)
+    terminus._write_manifest(mission, wps)
+    for wp_id in wps:
+        terminus._write_wp_file(mission, wp_id)
+    terminus._commit_planning_artifacts(mission, f"chore({slug}): bootstrap coord mission")
+    terminus._cut_coord_branch(mission)
+    events: list[dict[str, object]] = []
+    for idx, wp_id in enumerate(wps):
+
+        def _plant(repo: Path, wp_id: str = wp_id, idx: int = idx) -> None:
+            code = repo / "src" / "pkg" / f"{wp_id.lower()}.py"
+            code.parent.mkdir(parents=True, exist_ok=True)
+            code.write_text(f"def {wp_id.lower()}() -> int:\n    return {idx}\n", encoding="utf-8")
+            files = [str(code)]
+            if idx == 0:
+                (repo / spec_rel).write_text(_spec_with(line_0=_LANE_LINE_0), encoding="utf-8")
+                files.append(str(repo / spec_rel))
+            _git(repo, "add", *files)
+            _git(repo, "commit", "-qm", f"feat({wp_id}): approved code")
+
+        claim_head = mission.rev(mission.coord_branch)
+        mission.lane_branches[wp_id] = terminus._cut_lane_branch(mission, f"lane-{chr(97 + idx)}", [_plant])
+        events.extend(terminus._stamped_approve_events(mission, wp_id, claim_head=claim_head, approved_head=mission.rev(mission.lane_branches[wp_id])))
+    terminus._commit_status_events(mission, events, f"chore({slug}): approve every WP")
+    mission = terminus._finish_coord_mission(mission)
+    _declare_subtask_rosters(mission)
+    _seed_matrix(mission)
+    (mission.repo / spec_rel).write_text(_spec_with(line_0=_LANE_LINE_0, line_10="line 10 amended on target after re-finalize\n"), encoding="utf-8")
+    _git(mission.repo, "add", spec_rel)
+    _git(mission.repo, "commit", "-qm", "docs: amend spec on target")
+    return mission
+
+
+@pytest.fixture
+def refused_run_with_planning_lane(tmp_path: Path) -> _RefusedRun:
+    return _refuse_teardown(_build_mission_whose_lane_edits_planning(tmp_path), tmp_path)
+
+
+def test_resume_completes_after_kept_only_copy_when_target_amended_planning(refused_run_with_planning_lane: _RefusedRun) -> None:
+    """#7491: the remedy (commit the review cycle, ``--resume``) finishes the teardown at exit 0.
+
+    The late commit never touched ``spec.md``. The resume window must start where the verified landing
+    left the coordination branch, not at the pre-mutation snapshot that re-walks the lane merge.
+    """
+    run, mission = refused_run_with_planning_lane, refused_run_with_planning_lane.mission
+    spec_before = _git(mission.repo, "show", f"{mission.target_branch}:{_spec_rel(mission)}")
+    run.commit_review_cycle()
+
+    resumed = run.resume()
+
+    output = f"stdout:\n{resumed.stdout}\nstderr:\n{resumed.stderr}"
+    assert resumed.returncode == 0, output
+    assert not run.worktree.exists() and not run.branch_exists(), output
+    assert blob_present_at(mission.repo, mission.target_branch, str(run.review_cycle.relative_to(run.worktree))), output
+    assert _git(mission.repo, "show", f"{mission.target_branch}:{_spec_rel(mission)}") == spec_before, "the target's own spec.md must not change"
+
+
+def test_resume_still_refuses_a_late_planning_edit_not_on_target(refused_run_with_planning_lane: _RefusedRun) -> None:
+    """#7491 negative control: a late coordination commit that edits ``spec.md`` is still refused, naming it."""
+    run, mission = refused_run_with_planning_lane, refused_run_with_planning_lane.mission
+    run.commit_review_cycle()
+    late_spec = run.worktree / _spec_rel(mission)
+    late_spec.write_text(late_spec.read_text(encoding="utf-8").replace("line 5\n", "line 5 edited late on the coordination branch\n"), encoding="utf-8")
+    _git(run.worktree, "add", _spec_rel(mission))
+    _git(run.worktree, "commit", "-qm", "docs: edit the spec on the coordination branch after the refusal")
+
+    resumed = run.resume()
+
+    output = f"stdout:\n{resumed.stdout}\nstderr:\n{resumed.stderr}"
+    assert resumed.returncode == 1, output
+    assert COORD_LATE_PROJECTION_REFUSED in output and "spec.md" in output, output
+    assert run.branch_exists(), "a refused teardown keeps the coordination branch"
