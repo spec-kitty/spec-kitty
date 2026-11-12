@@ -265,7 +265,7 @@
       "wp": "WP04"
     },
     "#7577": {
-      "evidence_ref": "WP06, decision 01M774QJP2HZ0A2A8KQ05MQCRS",
+      "evidence_ref": "WP06: new lanes get the pinned, verified packs trees offline",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -273,7 +273,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "Lane worktrees lack the fetched packs tree",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP06"
     }
   },
