@@ -29,6 +29,7 @@ this module never imports ``runtime_bridge``; the bridge imports it.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NoReturn
 
@@ -44,7 +45,8 @@ from runtime.next import runtime_bridge_io as _io_seam
 from runtime.next._internal_runtime import provide_decision_answer as runtime_provide_decision_answer
 from runtime.next._internal_runtime.events import runtime_emitter_for_mission, seed_runtime_emitter
 from runtime.next._internal_runtime.schema import ActorIdentity, MissionRuntimeError, load_mission_template_file
-from runtime.next.decision import AnalysisCurrency, Decision, DecisionKind, _compute_wp_progress
+from runtime.next.decision import AnalysisCurrency, Decision, DecisionKind, PendingDecisionPrompt, _compute_wp_progress
+from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
 from specify_cli.mission import get_mission_type
 
 if TYPE_CHECKING:
@@ -64,6 +66,100 @@ _READ_PATH_ERROR_CODES: frozenset[str] = frozenset(
         "MISSION_AMBIGUOUS_SELECTOR",
     }
 )
+
+
+#: ``mission_state`` of an untouched run's preview (the specify prompt's replay guard reads it).
+_NOT_STARTED = "not_started"
+#: The board step whose acceptance freshness the query judges once per call (FR-007).
+_ACCEPT_STEP = "accept"
+
+
+@dataclass(frozen=True)
+class _QueryLifecycleFacts:
+    """What one query knows about a Mission's lifecycle, computed once (FR-007, IC-03).
+
+    ``finalized_override`` is the finalized board's step (or ``None``); ``verdict`` judges a
+    finished board's acceptance (``NONE`` unless the board is finished); ``accepted`` says the
+    recorded acceptance is newer than the board's latest WP transition, whatever the board step.
+    """
+
+    finalized_override: str | None
+    verdict: _cores.FinishedBoardVerdict
+    accepted: bool
+
+
+def _query_lifecycle_facts(
+    task_board_dir: Path,
+    progress: dict[str, Any] | None,
+    board: BoardStatus,
+    primary_metadata_dir: Path,
+) -> _QueryLifecycleFacts:
+    """The finalized override and the acceptance verdict, from the board the query already read.
+
+    No second status read: ``board`` is the one door read of ``query_current_state``; the
+    acceptance comes from the PRIMARY ``meta.json``. The verdict is the advance gate's (FR-007).
+    """
+    finalized_override = _mapping._finalized_task_board_override_step(task_board_dir, progress, board=board)
+    acceptance = _cores.finished_board_verdict(
+        _ACCEPT_STEP,
+        accepted_at=_io_seam.mission_accepted_at(primary_metadata_dir),
+        latest_transition_at=_io_seam.board_latest_transition_at(board),
+    )
+    finished = finalized_override in _cores.FINISHED_BOARD_STEPS
+    return _QueryLifecycleFacts(
+        finalized_override=finalized_override,
+        verdict=acceptance if finished else _cores.FinishedBoardVerdict.NONE,
+        accepted=acceptance is _cores.FinishedBoardVerdict.ACCEPTED,
+    )
+
+
+def _advance_command(agent: str | None, mission_slug: str) -> str:
+    """The advance command; ``<agent>`` stands in for a query that named no agent."""
+    return _cores.ADVANCE_COMMAND.format(agent=agent or _cores.AGENT_PLACEHOLDER, mission_slug=mission_slug)
+
+
+def _query_next_command(
+    decision: Decision,
+    *,
+    agent: str | None,
+    mission_slug: str,
+    verdict: _cores.FinishedBoardVerdict,
+    family_is_software_dev: bool,
+    accepted: bool,
+) -> str | None:
+    """The command a read-only envelope names next (FR-008), or ``None``.
+
+    - A pending, answerable decision (a decision on a touched run) gets none: it is answered
+      with ``--answer``. A first decision on an untouched run (``not_started``) is not pending
+      yet, so it gets the advance command.
+    - A finished software-dev board names ``accept`` while acceptance is missing or stale, and
+      ``consolidate`` once it is fresh. Other families get the advance command (decision
+      ``plan.next.gate_scope_family``).
+    - A run that completed with no finished board (``mission_state="done"``) names ``accept``,
+      or ``consolidate`` once accepted.
+    - Everything else (a preview, an in-flight or blocked run) names the advance command.
+
+    A landed Mission never reaches here: the merged short-circuit returns first.
+    """
+    if decision.decision_id is not None and decision.mission_state != _NOT_STARTED:
+        return None
+    accept = _cores.ACCEPT_COMMAND.format(mission_slug=mission_slug)
+    consolidate = _cores.CONSOLIDATE_COMMAND.format(mission_slug=mission_slug)
+    if family_is_software_dev and verdict is not _cores.FinishedBoardVerdict.NONE:
+        return consolidate if verdict is _cores.FinishedBoardVerdict.ACCEPTED else accept
+    if verdict is _cores.FinishedBoardVerdict.NONE and decision.mission_state == "done":
+        return consolidate if accepted else accept
+    return _advance_command(agent, mission_slug)
+
+
+def _runtime_prompt(runtime_decision: Any) -> PendingDecisionPrompt:
+    """The validated prompt of a runtime ``decision_required`` (FR-010: whole and answerable)."""
+    return PendingDecisionPrompt(
+        decision_id=runtime_decision.decision_id,
+        question=runtime_decision.question,
+        input_key=runtime_decision.input_key,
+        options=runtime_decision.options,
+    )
 
 
 def _is_read_path_error(exc: object) -> bool:
@@ -190,7 +286,7 @@ def _build_finalized_override_query_decision(
             from runtime.next.discovery import preview_claimable_wp
 
             if task_board_dir is None or board is None:
-                _slug, task_board_dir, _type = _query_resolve_primary(repo_root, mission_slug, owned=owned)
+                _slug, task_board_dir, _type, _meta_dir = _query_resolve_primary(repo_root, mission_slug, owned=owned)
                 board = _query_read_board(repo_root, mission_slug, owned=owned)
             preview = preview_claimable_wp(task_board_dir, board=board)
             override_wp_id = preview.wp_id
@@ -223,19 +319,28 @@ def _build_initial_query_decision(
     progress: dict[str, Any] | None,
     emitted_run_id: str | None,
 ) -> Decision:
+    """The preview of an untouched run: ``mission_state="not_started"`` and the first step.
+
+    ``kind``, ``mission_state`` and ``preview_step`` stay as they were, so the built-in specify
+    prompt's replay guard is unchanged. A first ``decision_required`` keeps its prompt fields
+    (FR-009), built through :class:`PendingDecisionPrompt`. It is not pending yet (nothing is
+    pending on an untouched run, and an answer to an id outside ``pending_decisions`` is
+    refused), so ``query_current_state`` also names the advance command for it.
+    """
+    prompt = _runtime_prompt(runtime_decision) if runtime_decision.kind == DecisionKind.decision_required else None
     return _mapping._materialize_decision(
         _cores.DecisionEnvelope(
             kind=DecisionKind.query,
             agent=agent,
             mission_slug=mission_slug,
             mission=mission_type,
-            mission_state="not_started",
+            mission_state=_NOT_STARTED,
             timestamp=now,
             reason=None,
             progress=progress,
             run_id=emitted_run_id,
             preview_step=runtime_decision.step_id,
-        )
+        ).with_prompt(prompt)
     )
 
 
@@ -262,11 +367,7 @@ def _build_decision_required_query(
             progress=progress,
             run_id=emitted_run_id,
             step_id=snapshot.issued_step_id or runtime_decision.step_id,
-            decision_id=runtime_decision.decision_id,
-            input_key=runtime_decision.input_key,
-            question=runtime_decision.question,
-            options=runtime_decision.options,
-        )
+        ).with_prompt(_runtime_prompt(runtime_decision))
     )
 
 
@@ -367,7 +468,7 @@ def query_current_state(
     if merged_short_circuit is not None:
         return merged_short_circuit
 
-    mission_slug, task_board_dir, mission_type = _query_resolve_primary(repo_root, mission_slug, owned=owned)
+    mission_slug, task_board_dir, mission_type, primary_metadata_dir = _query_resolve_primary(repo_root, mission_slug, owned=owned)
 
     if not task_board_dir.is_dir():
         # Conscious decision (C-IC02): reaching here means the resolver RESOLVED
@@ -396,10 +497,13 @@ def query_current_state(
                 mission_state="blocked",
                 timestamp=now,
                 reason=task_error,
+                # FR-008: the advance re-surfaces the task error with its details.
+                next_command=_advance_command(agent, mission_slug),
             )
         )
 
     progress = _compute_wp_progress(task_board_dir, board=board)
+    facts = _query_lifecycle_facts(task_board_dir, progress, board, primary_metadata_dir)
 
     # Root discipline: the run store (and the template/policy reads that start
     # an ephemeral preview run) live at P for an owned mission.
@@ -429,9 +533,10 @@ def query_current_state(
         if ephemeral_run_store is None:
             emitted_run_id = getattr(run_ref, "run_id", None)
 
-        return _query_dispatch_decision(
+        decision = _query_dispatch_decision(
             task_board_dir=task_board_dir,
             board=board,
+            finalized_override=facts.finalized_override,
             progress=progress,
             snapshot=snapshot,
             runtime_decision=runtime_decision,
@@ -445,6 +550,15 @@ def query_current_state(
             analysis_currency=analysis_currency,
             run_dir=Path(run_ref.run_dir),
         )
+        decision.next_command = _query_next_command(
+            decision,
+            agent=agent,
+            mission_slug=mission_slug,
+            verdict=facts.verdict,
+            family_is_software_dev=mission_type == MISSION_TYPE_SOFTWARE_DEV,
+            accepted=facts.accepted,
+        )
+        return decision
     finally:
         if ephemeral_run_store is not None:
             remove_tool_owned_tree(ephemeral_run_store, tool_root=ephemeral_run_store, reason="ephemeral query run store", best_effort=True)
@@ -487,8 +601,8 @@ def _query_resolve_primary(
     mission_slug: str,
     *,
     owned: OwnedCheckout | None = None,
-) -> tuple[str, Path, str]:
-    """``(canonical slug, task board dir, mission type)``: the query's PRIMARY reads.
+) -> tuple[str, Path, str, Path]:
+    """``(canonical slug, task board dir, mission type, PRIMARY metadata dir)``: the query's PRIMARY reads.
 
     Non-owned: the Mission context, as before. Owned: only the PRIMARY kind is resolved
     (``placement_seam(...).read_dir(WORK_PACKAGE_TASK)``), never the whole context, which also
@@ -503,7 +617,8 @@ def _query_resolve_primary(
 
         context = _query_resolve_mission_context(repo_root, mission_slug)
         task_board_dir: Path = context.artifact(MissionArtifactKind.WORK_PACKAGE_TASK).read_dir
-        return context.mission_slug, task_board_dir, context.mission_type
+        meta_dir: Path = context.artifact(MissionArtifactKind.PRIMARY_METADATA).read_dir
+        return context.mission_slug, task_board_dir, context.mission_type, meta_dir
 
     from mission_runtime import ActionContextError, MissionArtifactKind, placement_seam
 
@@ -513,7 +628,7 @@ def _query_resolve_primary(
         owned_meta_dir: Path = seam.read_dir(MissionArtifactKind.PRIMARY_METADATA)
     except ActionContextError as exc:
         _raise_context_error(exc, mission_slug)
-    return owned.mission_slug, owned_task_dir, get_mission_type(owned_meta_dir)
+    return owned.mission_slug, owned_task_dir, get_mission_type(owned_meta_dir), owned_meta_dir
 
 
 def _query_read_board(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> BoardStatus:
@@ -594,6 +709,7 @@ def _query_dispatch_decision(
     *,
     task_board_dir: Path,
     board: BoardStatus,
+    finalized_override: str | None,
     progress: dict[str, Any] | None,
     snapshot: Any,
     runtime_decision: Any,
@@ -609,12 +725,8 @@ def _query_dispatch_decision(
 ) -> Decision:
     """Campsite extraction (T058) of ``query_current_state``'s
     finalized-override / initial / decision-required / runtime branch
-    ladder. Behaviour-preserving."""
-    finalized_override = _mapping._finalized_task_board_override_step(
-        task_board_dir,
-        progress,
-        board=board,
-    )
+    ladder. ``finalized_override`` is computed once by ``query_current_state``
+    (:func:`_query_lifecycle_facts`), which also judges the acceptance."""
     if finalized_override is not None:
         return _build_finalized_override_query_decision(
             agent=agent,
