@@ -9,6 +9,9 @@ requirement_refs:
 planning_base_branch: feat/7578-review-context
 merge_target_branch: feat/7578-review-context
 branch_strategy: Planning artifacts for this mission were generated on feat/7578-review-context. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/7578-review-context unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-review-context-wp-diff-01M774QF
+base_commit: 36f2f1a6855c8cbb77f8289de2a1de998a516988
+created_at: '2026-11-12T13:08:07.078559+00:00'
 subtasks:
 - T029
 - T030
