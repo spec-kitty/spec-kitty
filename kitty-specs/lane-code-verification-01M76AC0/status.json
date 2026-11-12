@@ -1,20 +1,20 @@
 {
-  "event_count": 45,
-  "last_event_id": "01M77EZWJJ5SB4BCS2JNCYCBYA",
-  "materialized_at": "2026-11-12T08:46:34.066315+00:00",
+  "event_count": 46,
+  "last_event_id": "01M77F4FZATZNJR3AWW9NVMEHM",
+  "materialized_at": "2026-11-12T08:49:05.002730+00:00",
   "mission_number": "",
   "mission_slug": "lane-code-verification-01M76AC0",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 5,
+    "approved": 6,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {
@@ -157,14 +157,19 @@
       "agent_profile_version": "1.0",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_review",
-      "last_event_id": "01M77EZWJJ5SB4BCS2JNCYCBYA",
-      "last_transition_at": "2026-11-12T08:46:34.066315+00:00",
+      "lane": "approved",
+      "last_event_id": "01M77F4FZATZNJR3AWW9NVMEHM",
+      "last_transition_at": "2026-11-12T08:49:05.002730+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "ADR 2026-08-13-6 amended (2026-11-12): foreign_tree outcome refuses with EVIDENCE_TREE_MISMATCH, exit 1, regardless of fail_on_pre_review_regression; --force bypass recorded; C-003 carve-out (only proven foreign refuses; unverified proceeds); probe only on run tiers; skip switch still skips. Changelog 7554.fixed.md: two Fixed entries (#7554/#7547; #7577 lane packs)."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20261112",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 14048,
       "shell_pid_created_at": "1794473180.04",
