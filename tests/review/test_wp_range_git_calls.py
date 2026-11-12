@@ -21,6 +21,7 @@ from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
 from specify_cli.review.wp_range import RangeStatus, WpReviewRange, resolve_wp_review_range
 from tests.consolidation import characterization_support as cs
 from tests.integration import single_branch_window_support as sb
+from tests.integration.review.review_range_fixtures import strip_single_branch_stamps
 from tests.terminus.canceled_dependency_support import ACTOR, _commit_in
 from tests.terminus.mixed_lane_support import transition
 
@@ -109,7 +110,7 @@ def test_recorded_range_costs_a_constant_number_of_git_processes(
     assert counts[1] == counts[200], f"the cost must not depend on the range size: {counts}"
 
 
-def test_derived_commit_to_target_range_stays_within_budget(tmp_path: Path, git_processes: list[list[str]], monkeypatch: pytest.MonkeyPatch) -> None:
+def test_derived_pre_stamp_commit_to_target_range_stays_within_budget(tmp_path: Path, git_processes: list[list[str]], monkeypatch: pytest.MonkeyPatch) -> None:
     repo, slug = sb.build_template(tmp_path / "template", commit_to_target=True)
     copy = tmp_path / "copy" / "repo"
     shutil.copytree(repo, copy, symlinks=True)
@@ -123,9 +124,11 @@ def test_derived_commit_to_target_range_stays_within_budget(tmp_path: Path, git_
     sb.claim(m, "WP01")
     sb.implement(m, "WP01")
     sb.submit(m, "WP01")
+    # The Mission's events predate the window stamps (recorded before #7578).
+    strip_single_branch_stamps(copy, copy / "kitty-specs" / slug, "WP01")
 
     found, calls = _measure(git_processes, lambda: resolve_wp_review_range(copy, slug, "WP01", owned_files=["src/m1/**"]))
 
-    assert found.status is RangeStatus.DERIVED, "precondition: commit-to-target is derived on this lane"
+    assert found.status is RangeStatus.DERIVED, "precondition: a pre-stamp commit-to-target range is derived"
     assert _has(calls, "log", "--format=%H", "--no-show-signature"), calls
     assert len(calls) <= _BUDGET, calls

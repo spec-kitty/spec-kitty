@@ -3,8 +3,9 @@
 ``resolve_wp_review_range`` yields the range ``window open .. newest for_review submission`` with
 provenance, the owned-file commit list, numstat and out-of-map split, on every topology:
 
-* ``single_branch`` minted (stamped today) and commit-to-target (not stamped on this lane, so its
-  range is DERIVED from the event commits / the ``wp-base`` ref);
+* ``single_branch`` minted and commit-to-target, both stamped today (RECORDED); a commit-to-target
+  Mission whose events predate the stamps keeps a range DERIVED from the event commits / the
+  ``wp-base`` ref (pinned here by stripping the stamps);
 * ``lanes`` and ``lanes_with_coord``, built through the production status shell
   (``tests/consolidation/characterization_support.build_two_wp_lane``).
 
@@ -27,6 +28,7 @@ from specify_cli.review import wp_range
 from specify_cli.review.wp_range import FileChange, RangeCommit, RangeSource, RangeStatus, WpReviewRange, resolve_wp_review_range
 from tests.consolidation import characterization_support as cs
 from tests.integration import single_branch_window_support as sb
+from tests.integration.review.review_range_fixtures import strip_single_branch_stamps
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -178,14 +180,7 @@ def _resolve_lane(mission: cs.ShapeMission, wp_id: str, owned: tuple[str, ...] =
 
 
 def _strip_stamps_sb(m: sb.Mission) -> None:
-    log = m.repo / "kitty-specs" / m.slug / _EVENTS
-    rows = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines() if line.strip()]
-    for row in rows:
-        if row.get("wp_id") == "WP01" and row.get("policy_metadata"):
-            row["policy_metadata"] = {k: v for k, v in row["policy_metadata"].items() if k not in ("lane_head", "wp_window")} or None
-    log.write_text("".join(json.dumps(row, sort_keys=True) + "\n" for row in rows), encoding="utf-8")
-    sb.git(m.repo, "add", "-A", "kitty-specs")
-    sb.git(m.repo, "commit", "-qm", "test: strip WP01's stamps")
+    strip_single_branch_stamps(m.repo, m.repo / "kitty-specs" / m.slug, "WP01")
 
 
 def _strip_stamps_lane(mission: cs.ShapeMission, wp_id: str) -> None:
@@ -302,9 +297,30 @@ def test_lane_mate_commits_are_not_in_the_range(lane_templates: _LaneTemplates, 
 # --------------------------------------------------------------------------- derived ranges
 
 
-def test_commit_to_target_range_is_derived_from_the_event_commits(sb_templates: _SingleBranchTemplates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_stamped_commit_to_target_range_is_recorded_from_window_open_to_submission(
+    sb_templates: _SingleBranchTemplates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     m = _checkout(sb_templates.get("ctt+submitted"), tmp_path, monkeypatch)
     rows = _sb_events(m)
+
+    found = _resolve_sb(m)
+
+    assert found.status is RangeStatus.RECORDED
+    assert found.base == _open_sha(_of(rows, "claimed")[0])
+    assert found.base_source is RangeSource.RECORDED_WINDOW
+    assert found.tip == _meta(_of(rows, "for_review")[-1])["lane_head"]
+    assert found.tip_source is RangeSource.RECORDED_SUBMISSION
+    assert found.gap is None
+    assert _subjects(found) == [_IMPL_SUBJECT]
+
+
+def test_pre_stamp_commit_to_target_range_is_derived_from_the_event_commits(
+    sb_templates: _SingleBranchTemplates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A commit-to-target Mission whose events predate the window stamps keeps the derived range."""
+    m = _checkout(sb_templates.get("ctt+submitted"), tmp_path, monkeypatch)
+    rows = _sb_events(m)
+    _strip_stamps_sb(m)
 
     found = _resolve_sb(m)
 
@@ -317,10 +333,12 @@ def test_commit_to_target_range_is_derived_from_the_event_commits(sb_templates: 
     assert _subjects(found) == [_IMPL_SUBJECT]
 
 
-def test_commit_to_target_range_prefers_the_claim_base_ref(sb_templates: _SingleBranchTemplates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_pre_stamp_commit_to_target_range_prefers_the_claim_base_ref(sb_templates: _SingleBranchTemplates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without window stamps, a commit-to-target Mission's claim-base ref beats the claim event's commit."""
     m = _checkout(sb_templates.get("ctt"), tmp_path, monkeypatch)
     claim_base = record_claim_base(m.repo, m.repo, m.slug, "WP01")
     _submit_wp01(m)
+    _strip_stamps_sb(m)
 
     found = _resolve_sb(m)
 
@@ -649,15 +667,20 @@ def test_opener_lane_head_off_the_lane_is_never_a_base(lane_templates: _LaneTemp
     assert found.gap == "not_recorded"
 
 
-def test_stale_claim_base_ref_off_the_tip_is_skipped(sb_templates: _SingleBranchTemplates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_pre_stamp_commit_to_target_stale_claim_base_ref_off_the_tip_is_skipped(
+    sb_templates: _SingleBranchTemplates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Without window stamps, a claim-base ref that never landed on the target falls through to the event commit."""
     m = _checkout(sb_templates.get("ctt"), tmp_path, monkeypatch)
     stale = sb.git(m.repo, "commit-tree", "HEAD^{tree}", "-p", "HEAD", "-m", "test: a commit that never lands on the target")
     sb.git(m.repo, "update-ref", f"refs/spec-kitty/wp-base/{m.slug}/WP01", stale)
     _submit_wp01(m)
     rows = _sb_events(m)
+    _strip_stamps_sb(m)
 
     found = _resolve_sb(m)
 
+    assert found.status is RangeStatus.DERIVED
     assert found.base != stale
     assert found.base_source is RangeSource.EVENT_COMMIT
     assert found.base == _event_commit(m, _of(rows, "claimed")[0]["event_id"])
