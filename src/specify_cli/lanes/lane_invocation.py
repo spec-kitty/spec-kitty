@@ -24,6 +24,7 @@ import contextlib
 import dataclasses
 import json
 import os
+import re
 import subprocess
 import sys
 from collections.abc import Callable, Mapping
@@ -66,6 +67,10 @@ _REASON_MAX_CHARS: Final[int] = 200
 _DEFAULT_TIMEOUT_S: Final[float] = 5.0
 _GIT_TIMEOUT_S: Final[float] = 10.0
 _NO_PACKAGES_REASON: Final[str] = "no tracked source-layout packages to probe"
+_EXTERNAL_PREFIX: Final[str] = "<external>"
+_EXTERNAL_TAIL_PARTS: Final[int] = 2
+# An absolute POSIX or drive-letter path inside free text, not a relative one that contains a slash.
+_ABSOLUTE_PATH_IN_TEXT: Final[re.Pattern[str]] = re.compile(r"""(?<![\w./\\])(?:/|[A-Za-z]:[\\/])[^\s,'"]+""")
 
 # Runs in the child: resolve each named package without executing it. ``-c``
 # puts the working directory first on ``sys.path``; drop it so a package in the
@@ -391,11 +396,21 @@ def _relative_posix(path: Path, base: Path) -> str | None:
         return None
 
 
+def _external(path: str) -> str:
+    """A path outside the repository, reduced to ``<external>/`` and its last two segments.
+
+    The tracked status log must not carry a home directory or user name.
+    """
+    tail = [part for part in re.split(r"[\\/]+", path) if part][-_EXTERNAL_TAIL_PARTS:]
+    return "/".join([_EXTERNAL_PREFIX, *tail])
+
+
 def _display_path(root: Path, repo_root: Path | None) -> str:
-    """*root* relative to *repo_root* (posix), lexically first, then through symlinks; else unchanged.
+    """*root* relative to *repo_root* (posix), lexically first, then through symlinks; else redacted.
 
     Lexical first, so a venv interpreter that symlinks out of the tree keeps its
-    in-tree name.
+    in-tree name. A path outside *repo_root* is reduced by :func:`_external`;
+    without a *repo_root* nothing is redacted.
     """
     if repo_root is not None:
         lexical = _relative_posix(Path(os.path.abspath(root)), Path(os.path.abspath(repo_root)))
@@ -407,11 +422,12 @@ def _display_path(root: Path, repo_root: Path | None) -> str:
             resolved = None
         if resolved is not None:
             return resolved
+        return _external(str(root))
     return str(root)
 
 
 def _relative_reason(reason: str | None, repo_root: Path) -> str | None:
-    """*reason* with the absolute *repo_root* prefix removed from every path in it."""
+    """*reason* with the absolute *repo_root* prefix removed and any other absolute path redacted."""
     if reason is None:
         return None
     prefixes = {os.path.abspath(repo_root)}
@@ -419,7 +435,7 @@ def _relative_reason(reason: str | None, repo_root: Path) -> str | None:
         prefixes.add(str(repo_root.resolve()))
     for prefix in sorted(prefixes, key=len, reverse=True):
         reason = reason.replace(prefix.rstrip(os.sep) + os.sep, "")
-    return reason
+    return _ABSOLUTE_PATH_IN_TEXT.sub(lambda match: _external(match.group(0)), reason)
 
 
 def _display_optional(path: str | None, repo_root: Path | None) -> str | None:
@@ -443,8 +459,8 @@ def capture_evidence_tree(root: Path, probe: ProbeResult, *, repo_root: Path | N
     """Record the tree a verdict was produced in. Never raises.
 
     ``path``, and the probe's origins, interpreter and reason, are relative to *repo_root*
-    (posix form) when they lie under it, else unchanged, so the tracked status log
-    carries no machine paths it does not need; ``head`` and ``dirty`` are ``None``
+    (posix form) when they lie under it, else reduced to ``<external>/<last segments>``,
+    so the tracked status log carries no machine paths; ``head`` and ``dirty`` are ``None``
     when git cannot say.
     """
     recorded = _recorded_probe(probe, repo_root)
