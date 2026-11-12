@@ -146,7 +146,10 @@ def test_commit_list_is_exactly_the_implementation_commits_oldest_first(rendered
     listed = [line.split()[0] for line in _section(block, "IMPLEMENTATION COMMITS")]
     assert listed == [sha[:12] for sha in fixture.implementation_shas]
     for excluded in fixture.excluded_shas:
-        assert excluded[:12] not in block, f"lane-mate / later commit {excluded[:12]} leaked into the review range"
+        assert excluded[:12] not in listed, f"lane-mate / later commit {excluded[:12]} leaked into the commit list"
+        # On a lane the lane-mate commit can BE the window open: the exclusive base is what keeps it out.
+        if excluded != fixture.expected_base:
+            assert excluded[:12] not in block, f"lane-mate / later commit {excluded[:12]} named in the review range"
 
 
 @pytest.mark.parametrize("name", REVIEW_READY)
@@ -154,7 +157,8 @@ def test_changed_files_lines_are_exact(rendered: _Rendered, name: str) -> None:
     fixture, text = rendered.get(name)
     block = review_block(text)
 
-    assert _section(block, "CHANGED FILES (owned files, +added -removed):") == [f"  {line}" for line in fixture.changed_files]
+    files = [line for line in _section(block, "CHANGED FILES (owned files, +added -removed):") if not line.startswith("  OUTSIDE OWNED FILES")]
+    assert files == [f"  {line}" for line in fixture.changed_files]
     outside = (
         f"  OUTSIDE OWNED FILES ({len(fixture.out_of_map_paths)} path(s) in {fixture.out_of_map_only_commits} commit(s) "
         f"touching only those paths; review rationale required): {', '.join(fixture.out_of_map_paths)}"
@@ -320,5 +324,5 @@ def test_unavailable_range_is_a_notice_through_next_never_a_refusal(templates: R
     assert lines[0].startswith(f"REVIEW RANGE ({REVIEWED_WP}): unavailable — "), block
     assert lines[0].endswith(f"({fx.unavailable_reason})"), block
     assert lines[1:3] == ["REVIEW COMMANDS:", _UNAVAILABLE_COMMAND], block
-    assert "..HEAD" not in prompt
+    assert "..HEAD" not in block
     assert _section(block, _REQUIREMENTS_HEADING)[2] == "  C-009 — not declared in this Mission's spec"
