@@ -123,6 +123,11 @@ DOSSIER_SHA_FIELDS: Mapping[tuple[str, str], ShaProvenance] = {
     # opening transition (wp_window, Mission consolidation-window-provenance-01M6Y84D);
     # provenance of the lane branch, valid for one consolidation attempt.
     ("status.events.jsonl", "policy_metadata.wp_window.open_sha"): _BR,
+    # cli/commands/agent/tasks_move_task_gates.py via lanes/lane_invocation.py
+    # (capture_evidence_tree, Mission lane-code-verification-01M76AC0, #7547):
+    # the HEAD of the lane or write checkout the pre-review gate's verdict was
+    # produced in; provenance of that branch at review time.
+    ("status.events.jsonl", "policy_metadata.pre_review_gate.evidence_tree.head"): _BR,
     # Review references that happen to be commit ids.
     ("status.events.jsonl", "review_ref"): _BR,
     ("status.events.jsonl", "review_result.reference"): _BR,
