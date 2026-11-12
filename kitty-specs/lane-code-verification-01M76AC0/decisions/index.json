@@ -95,6 +95,29 @@
       "status": "resolved",
       "step_id": null,
       "summary_json": null
+    },
+    {
+      "created_at": "2026-11-12T05:20:43.266699Z",
+      "decision_id": "01M7736Z82HQKQPYB8A40PDVC3",
+      "final_answer": "confirmed via operator brief and rulings",
+      "input_key": "intent_summary",
+      "mission_id": "01M76AC0C79GVMYF5740T7B84H",
+      "mission_slug": "lane-code-verification-01M76AC0",
+      "opened_by": "claude-orchestrator",
+      "options": [
+        "confirmed via operator brief and rulings",
+        "revise"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Confirm the Intent Summary for lane code verification (#7547/#7554).",
+      "rationale": "Brief-intake mode: the operator's dispatch brief for #7547 (goal, slices, done-when, non-goals) plus the four rulings recorded 2026-11-12 is a comprehensive brief; the operator ordered semi-auto delivery without stopping between routine steps, which waives the extra confirmation round. Actor: implementer and reviewer agents (and the CLI's pre-review gate) working in a lane worktree. Trigger: spec-kitty implement on a WP, then move-task to for_review. Outcome: implement hands the lane a test invocation that is verified to import the lane's own code, prompts carry it, and the gate records the evidence tree and refuses (EVIDENCE_TREE_MISMATCH, --force bypassable) a run that imported another tree. Rule: provenance is recorded for every gate run; non-Python projects are never refused on provenance.",
+      "resolved_at": "2026-11-12T05:20:45.640857Z",
+      "resolved_by": "operator",
+      "slot_key": "specify.intent.summary",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
     }
   ],
   "mission_id": "01M76AC0C79GVMYF5740T7B84H",
