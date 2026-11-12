@@ -77,7 +77,7 @@
     },
     "WP03": {
       "actor": "claude-reviewer",
-      "agent": "claude-reviewer",
+      "agent": "claude-reviewer::reviewer-renata",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 0,
@@ -87,7 +87,8 @@
       "last_transition_at": "2026-11-12T06:58:51.135468+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ready for review: GateOutcome.FOREIGN_TREE; run_env threaded context->handler->evaluate_pre_review_gate->evaluate_with_scope->both runners (None = inherited env, PWHEADLESS forced); uv strip via INTERPRETER_REDIRECT_KEYS; baseline uses lane invocation recipe (source identity untouched); REFUSE tier between TERMINAL and BLOCK. tests/review 725 passed, 8 skipped. Baseline subprocess doubles narrowed per orchestrator ruling. Dead-symbol gate red on WP01 names until WP04 wires them."
+        "Ready for review: GateOutcome.FOREIGN_TREE; run_env threaded context->handler->evaluate_pre_review_gate->evaluate_with_scope->both runners (None = inherited env, PWHEADLESS forced); uv strip via INTERPRETER_REDIRECT_KEYS; baseline uses lane invocation recipe (source identity untouched); REFUSE tier between TERMINAL and BLOCK. tests/review 725 passed, 8 skipped. Baseline subprocess doubles narrowed per orchestrator ruling. Dead-symbol gate red on WP01 names until WP04 wires them.",
+        "Review passed: run_env plumbing byte-identical when None (positive controls on declared + override tiers); one strip list (INTERPRETER_REDIRECT_KEYS); baseline uses lane recipe at its worktree, source identity untouched (C-008 ratchets green); REFUSE tier TERMINAL>REFUSE(!force)>BLOCK>WARN, only FOREIGN_TREE reaches it, forced keeps refusing_verdicts. Red->green verified at f29fc875 (30 red for right reasons). tests/review 725 passed/8 skipped; ruff/format/mypy clean; dead-symbol reds are WP01 names (expected until WP04). Coordination: test_baseline.py/test_baseline_anti_narrowing.py touched under orchestrator ruling (unowned files, assertions unchanged). WP04 must wire REFUSE in tasks_move_task_gates (should_exit True with blocked=terminal=False today)."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
