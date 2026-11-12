@@ -3,7 +3,7 @@ title: Managing the Issue Tracker
 description: 'Conventions for the Spec Kitty issue tracker: epics vs meta-trackers, sub-issue parenting, dependencies, triage, the label taxonomy, and the label-driven fleet workflow.'
 doc_status: active
 kind: How-To
-updated: '2026-11-01T00:00:00Z'
+updated: '2026-11-12T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.
@@ -133,6 +133,35 @@ When you decompose an epic into issues:
 - **Ground each slice in the real code first.** If a named slice already shipped,
   record that with evidence rather than filing a phantom "to-do" ticket that
   misrepresents completed work as pending.
+
+## File an issue in the repository that owns the concern
+
+Three concerns no longer live in this repository. File an issue about any of them
+in the repository that owns it, not here:
+
+| Concern | Repository |
+|---|---|
+| Doctrine content: directives, tactics, styleguides, toolguides, procedures, paradigms, agent profiles as content, mission-step prompts and templates, pack manifests and DRG fragments | `spec-kitty/spec-kitty-open-packs` |
+| The charter service: pack registration and composition, the DRG model and its relations, artifact kinds and schemas, profile resolution and the mission-type API | `spec-kitty/spec-kitty-charter` |
+| The events domain: the envelope and payload schemas, the `spec_kitty_events` reducers and conformance fixtures, the `mission-status` and `mission-write` contracts and the Java read and write services | `spec-kitty/spec-kitty-events` |
+
+File it here when the change lands in this repository. That covers the CLI and
+runtime, migrations, `charter.activation`, the in-core Python charter code until it is
+retired, and how core consumes the other three: the pins, `make sync-packs`, the
+`charter.offering.api` seam, the event emitters and the conformance checks.
+
+When a concern has a half in each, file each half where it lands and link the two.
+A bug users hit today in core's Python stays here, even when the owning repository
+will later replace that code. A new capability for the charter service, or a change
+to pack content, goes to the owning repository from the start.
+
+A triage pass that finds a misfiled issue applies the same rule. If the issue can be
+moved, recreate it in the owning repository with a `Moved from spec-kitty/spec-kitty#N`
+header, its full body and a summary of its comments. Then close the original as
+`not_planned` with a link forward. If only half of it belongs elsewhere, split it: open
+the other half there, and put a "Scope narrowed" note at the top of the original. The
+operator ruled this on 2026-11-12, after the scope-migration sweep of the open core
+issues (Op records `01M776T1`, `01M77BZ3`).
 
 ## Triaging issues: type, severity, and release-blocking bugs
 
