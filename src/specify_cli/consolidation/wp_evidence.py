@@ -52,7 +52,6 @@ other topology emits the neutral codes. :data:`_SINGLE_BRANCH_ALIASES` maps one 
 
 from __future__ import annotations
 
-import fnmatch
 import logging
 import re
 import subprocess
@@ -66,6 +65,7 @@ from specify_cli.consolidation.git_probes import GitProbeError, changed_paths_in
 from specify_cli.lanes.compute import is_planning_lane, lane_created_branch, lane_fully_canceled
 from specify_cli.lanes.for_review_gate import status_only_excluded_prefixes
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.ownership.matching import matches_owned as matches_owned, owned_patterns as owned_patterns
 from specify_cli.status import is_migration_actor
 
 if TYPE_CHECKING:
@@ -128,28 +128,6 @@ def _refusal_codes(text: str) -> list[str]:
     """Every distinct evidence code (neutral or alias) that leads a line of *text*, first-seen first."""
     pattern = "|".join(re.escape(code) for code in sorted(_ALL_CODES, key=len, reverse=True))
     return list(dict.fromkeys(re.findall(rf"^({pattern}): ", text, flags=re.MULTILINE)))
-
-
-def owned_patterns(owned_files: Iterable[str]) -> tuple[str, ...]:
-    """Normalized ownership globs for a work package (blank entries dropped, ``./`` and ``\\`` normalized)."""
-    return tuple(pattern.replace("\\", "/").removeprefix("./") for pattern in owned_files if pattern.strip())
-
-
-def matches_owned(path: str, patterns: Sequence[str]) -> bool:
-    """Glob match of a repo-relative *path* against ownership *patterns*: the evidence axis' matcher.
-
-    ``move-task`` and the evidence axis share it. It mirrors the commit guard's own matcher
-    (``policy.commit_guard._matches_any_glob``), a separate, pre-existing authority for commit
-    scoping that this does not replace.
-    """
-    normalized = path.replace("\\", "/").removeprefix("./")
-    for pattern in patterns:
-        if fnmatch.fnmatch(normalized, pattern):
-            return True
-        prefix = pattern.replace("/**", "").replace("/*", "").rstrip("/")
-        if prefix and normalized.startswith(prefix + "/"):
-            return True
-    return False
 
 
 def _bookkeeping_prefixes(mission_slug: str) -> tuple[str, ...]:
