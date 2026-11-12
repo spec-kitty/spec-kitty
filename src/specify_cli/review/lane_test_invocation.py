@@ -29,7 +29,6 @@ from specify_cli.ownership.models import WorkProductKind
 from specify_cli.review.baseline import _get_test_command
 
 __all__ = [
-    "LANE_TEST_INVOCATION_HEADER",
     "lane_test_invocation_for",
     "render_lane_test_invocation_failure_lines",
     "render_lane_test_invocation_lines",
@@ -41,7 +40,8 @@ LANE_TEST_INVOCATION_HEADER: Final[str] = "🧪 LANE TEST INVOCATION (run tests 
 _INDENT: Final[str] = "   "
 _NO_COMMAND: Final[str] = "(no review.test_command configured)"
 _LANE_WORKSPACE: Final[str] = "lane_workspace"
-_FOREIGN_ADVICE: Final[str] = "outside this lane. Fix the lane's environment before trusting any test result."
+# Worded for any workspace: a lane worktree or a write checkout (single_branch, owned checkout).
+_FOREIGN_ADVICE: Final[str] = "outside this workspace. Fix its environment before trusting any test result."
 
 
 def lane_test_invocation_for(
