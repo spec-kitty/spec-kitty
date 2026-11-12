@@ -779,7 +779,7 @@ def answer_decision(
         # #5938: commit the row where it was written, exactly like the host CLI's ``next``.
         from specify_cli.mission_v1.events import commit_mission_event_log
 
-        row_commit_warning = commit_mission_event_log(main_repo_root, mission, event_row.log_path, event_row.checkout_root)
+        row_commit_warning = commit_mission_event_log(main_repo_root, mission, event_row.log_path, event_row.surface_root)
         if row_commit_warning is not None and event_row.in_coordination_worktree:
             commit_warnings.append(row_commit_warning)
 

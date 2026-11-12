@@ -353,7 +353,7 @@ class MissionNextInvokedWrite:
     """
 
     log_path: Path
-    checkout_root: Path
+    surface_root: Path
     in_coordination_worktree: bool
     #: A landed Mission's row goes to the PRIMARY directory on its target branch;
     #: nothing commits it there (post-landing writes have their own surfaces).
@@ -387,7 +387,7 @@ def _mission_next_invoked_dir(repo_root: Path, mission_slug: str, owned: OwnedCh
     those ask the door. A ``step`` goes straight to the write seam, so an in-flight invocation
     reads the door once, in its decision (#7539).
 
-    Returns ``(mission_dir, checkout_root, in_coordination_worktree, landed)``:
+    Returns ``(mission_dir, surface_root, in_coordination_worktree, landed)``:
     the directory to append to, the root of the checkout that holds it, whether
     that checkout is the coordination worktree, and whether the Mission has
     landed (#5938: ``next`` commits the row where it was written, unless landed).
@@ -427,12 +427,12 @@ def emit_mission_next_invoked(
     repo_root_path = Path(str(repo_root)) if not isinstance(repo_root, Path) else repo_root
 
     feature_dir: Path | None = None
-    checkout_root = repo_root_path
+    surface_root = repo_root_path
     in_coordination_worktree = False
     landed = False
     try:
         may_be_landed = str(getattr(decision, "kind", "")) in _LANDED_CAPABLE_KINDS
-        feature_dir, checkout_root, in_coordination_worktree, landed = _mission_next_invoked_dir(repo_root_path, mission_slug, owned, may_be_landed=may_be_landed)
+        feature_dir, surface_root, in_coordination_worktree, landed = _mission_next_invoked_dir(repo_root_path, mission_slug, owned, may_be_landed=may_be_landed)
     except Exception as exc:  # best-effort observability write: never break ``next``
         logger.warning("MissionNextInvoked row not persisted for mission %r: %s: %s", mission_slug, type(exc).__name__, exc)
     # ``decision`` is typed ``object`` (this WP's pinned target signature) so
@@ -456,4 +456,4 @@ def emit_mission_next_invoked(
     )
     if feature_dir is None or not (feature_dir / MISSION_EVENTS_FILE).is_file():
         return None
-    return MissionNextInvokedWrite(feature_dir / MISSION_EVENTS_FILE, checkout_root, in_coordination_worktree, mission_landed=landed)
+    return MissionNextInvokedWrite(feature_dir / MISSION_EVENTS_FILE, surface_root, in_coordination_worktree, mission_landed=landed)

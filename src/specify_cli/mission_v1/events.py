@@ -41,7 +41,7 @@ def is_mission_event_log_path(path: str | Path) -> bool:
     return len(parts) == 3 and parts[0] == "kitty-specs" and parts[2] == MISSION_EVENTS_FILE
 
 
-def commit_mission_event_log(repo_root: Path, mission_slug: str, log_path: Path, checkout_root: Path) -> str | None:
+def commit_mission_event_log(repo_root: Path, mission_slug: str, log_path: Path, surface_root: Path) -> str | None:
     """Commit a Mission's event log where it was appended, staging that one file only (#5938).
 
     ``spec-kitty next`` (and ``orchestrator-api answer-decision``, which mirrors
@@ -67,7 +67,7 @@ def commit_mission_event_log(repo_root: Path, mission_slug: str, log_path: Path,
     try:
         safe_commit(
             repo_root=repo_root,
-            worktree_root=checkout_root,
+            worktree_root=surface_root,
             target=resolve_placement_only(repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE),
             message=f"chore(next): record next invocation for {mission_slug}",
             paths=(log_path,),
