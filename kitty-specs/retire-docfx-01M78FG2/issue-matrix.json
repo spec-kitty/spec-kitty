@@ -1,0 +1,137 @@
+{
+  "rows": {
+    "#3024": {
+      "evidence_ref": "Cited as the dependency of the D-6 glossary port; open, no work owed here. WP01 deleted glossary_linker.py and glossary_page/ early (DocFX-only, unrun since #6938); WP02's ADR amendment records it",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3891": {
+      "evidence_ref": "Cited as out of scope (spec C-004): the content pass follows with #6939; no work owed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Epic: Docs content refresh and editorial pass",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3914": {
+      "evidence_ref": "Closed; cited for the rename reconcile test kept in tests/docs/test_moves_ledger.py, now read from collapse",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4562": {
+      "evidence_ref": "Cited as policy only: its root occurrence_map.yaml is an immutable bulk-edit record left unedited (spec Context)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Repo-wide cleanup: retire stale Priivacy-ai/spec-kitty references (post org move)",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6933": {
+      "evidence_ref": "Closed; cited as the doc-kitty redirect generator (site_redirects.py) that supersedes redirect_stub_generator.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6936": {
+      "evidence_ref": "Closed; cited as the doc-kitty diagram render that supersedes the deleted plantuml scripts",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6938": {
+      "evidence_ref": "Cited as the precondition: the cutover is merged (PR #7558); this mission retires what it left in the tree",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Canary deploy and cutover (with #2361)",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6939": {
+      "evidence_ref": "Cited as the next step (spec C-004); not started here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Rename the 60 `index.md` section indexes to `README.md`",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6940": {
+      "evidence_ref": "Cited as the port target of the glossary (doc-kitty Contextive, D-10); open and owns the glossary page and auto-link; its 'retire glossary_linker' bullet is done early by WP01, to be noted on #6940 and in WP02's ADR amendment",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6943": {
+      "evidence_ref": "This PR ([#6943] Retire DocFX, branch issue-6943-retire-docfx): WP01 removes the DocFX sources, scripts and tests and rebases live guards on _dockitty_contract.py; WP02 removes the router jar steps, updates living docs, adds the living-files gate, ADR Amendment 2026-11-12 and the changelog. Deferred to after merge, follow-up on #6943: CI green on main and the next docs-pages deploy and smoketest.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Retire DocFX (one release after cutover)",
+      "verdict": "fixed",
+      "wp": "WP02"
+    },
+    "#7558": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: pr_or_commit_ref>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
