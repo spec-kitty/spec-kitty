@@ -171,7 +171,14 @@ class SafeCommitError(RuntimeError):
 
 
 class SafeCommitHeadMismatch(SafeCommitError):
-    """Worktree HEAD does not match the declared ``destination_ref``."""
+    """Worktree HEAD does not match the declared ``destination_ref``.
+
+    ``holder`` (optional) is another non-lane checkout that already has
+    ``destination_ref`` checked out. git refuses to check out a branch another
+    worktree holds, so the remedy then names that checkout instead of the
+    impossible ``git -C <worktree> checkout`` (#7551, FR-004). Message text only:
+    the type, ``error_code`` and structured fields are unchanged.
+    """
 
     error_code = "SAFE_COMMIT_HEAD_MISMATCH"
 
@@ -181,18 +188,37 @@ class SafeCommitHeadMismatch(SafeCommitError):
         destination_ref: str,
         observed_head: str,
         worktree_root: Path,
+        holder: Path | None = None,
     ) -> None:
-        message = (
-            f"safe_commit: worktree {worktree_root} HEAD is {observed_head!r}, "
-            f"expected {destination_ref!r}. "
-            f"Run `git -C {worktree_root} checkout {destination_ref}` first."
-        )
+        if holder is not None:
+            remedy = f"{destination_ref!r} is checked out in {holder}; run the command from there (or pass a path inside it)."
+        else:
+            remedy = f"Run `git -C {worktree_root} checkout {destination_ref}` first."
+        message = f"safe_commit: worktree {worktree_root} HEAD is {observed_head!r}, expected {destination_ref!r}. {remedy}"
         super().__init__(
             message,
             destination_ref=destination_ref,
             observed_head=observed_head,
             worktree_root=worktree_root,
         )
+
+
+def _head_mismatch_holder(repo_root: Path, worktree_root: Path, destination_ref: str) -> Path | None:
+    """The non-lane checkout already holding *destination_ref*, for the HEAD-mismatch remedy text only.
+
+    This is a remedy-text lookup, not a "which checkout holds this Mission write"
+    decision (C-001): the commit is refused either way, and the placement seam
+    stays the only authority for where a write lands. It names the checkout an
+    operator can actually run from; a lane worktree is never named (the same
+    ``non_lane_checkout_holding_branch`` probe ``coordination/transaction.py``
+    uses), and *worktree_root* itself is never named as its own remedy.
+    """
+    from specify_cli.status.read_surface import non_lane_checkout_holding_branch
+
+    holder: Path | None = non_lane_checkout_holding_branch(repo_root, destination_ref)
+    if holder is None or holder.resolve() == worktree_root.resolve():
+        return None
+    return holder
 
 
 class SafeCommitDestinationRefShape(SafeCommitError):
@@ -1662,6 +1688,7 @@ def preflight_commit(
             destination_ref=destination_ref,
             observed_head=observed_head if observed_head is not None else "<detached>",
             worktree_root=worktree_root,
+            holder=_head_mismatch_holder(repo_root, worktree_root, destination_ref),
         )
 
     # 5. destination_ref exists.
