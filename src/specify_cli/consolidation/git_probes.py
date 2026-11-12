@@ -400,6 +400,14 @@ class GitProbeError(RuntimeError):
     """
 
 
+class MergeDriverNotRegisteredError(GitProbeError):
+    """:func:`driver_replay_expected_bytes` found no registered merge driver for the path (#5867).
+
+    A subclass, so every caller that refuses on :class:`GitProbeError` still does; the squash
+    projection refusal reads it to tell a deterministic cause (no driver) from a transient one.
+    """
+
+
 def sha_reachable_from(repo_root: Path, sha: str, ref: str) -> bool:
     """Return True iff *sha* is an ancestor of (reachable from) *ref*.
 
@@ -980,7 +988,7 @@ def driver_replay_expected_bytes(
     with _ephemeral_merge_driver_activation(repo_root, restore_config=True):
         config_key = _resolve_merge_driver_config_key(repo_root, ours_ref, repo_rel_path)
     if config_key is None:
-        raise GitProbeError(f"driver replay for {repo_rel_path!r}: no registered merge driver at {ours_ref}")
+        raise MergeDriverNotRegisteredError(f"driver replay for {repo_rel_path!r}: no registered merge driver at {ours_ref}")
     driver = _resolve_registered_driver_callable(config_key)
 
     ours_bytes = _read_git_blob_bytes(repo_root, ours_ref, repo_rel_path)
@@ -1028,6 +1036,7 @@ __all__ = [
     "_is_git_repo",
     "_has_branch_ref",
     "GitProbeError",
+    "MergeDriverNotRegisteredError",
     "sha_reachable_from",
     "commit_in_clone",
     "is_ancestor_strict",
