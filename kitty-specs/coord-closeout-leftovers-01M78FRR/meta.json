@@ -27,6 +27,7 @@
   "purpose_context": "This mission advances Coordination closeout leftovers on fix/7598-coord-closeout-leftovers so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "Every coordination closeout refusal names its blocker and a remedy that works; archived Missions can reclaim their coordination triple",
   "slug": "coord-closeout-leftovers-01M78FRR",
+  "status_phase": "1",
   "target_branch": "fix/7598-coord-closeout-leftovers",
   "topology": "lanes_with_coord",
   "topology_decision": {
