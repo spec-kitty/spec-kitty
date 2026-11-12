@@ -31,8 +31,7 @@ LEGACY_TOOL: Final[str] = "doc" + "fx"
 #: History whose bodies never change (spec C-001): path prefixes and single files.
 IMMUTABLE_HISTORY: Final[tuple[str, ...]] = (
     "docs/adr/",
-    "docs/changelog/",
-    "CHANGELOG.md",
+    "docs/changelog/",  # CHANGELOG.md is a symlink into it, and a symlink is never scanned
     "docs/plans/",
     "docs/reports/",
     "docs/archive/",
@@ -94,9 +93,10 @@ def test_no_living_file_names_the_legacy_tool() -> None:
 
 
 def test_every_excluded_entry_exists() -> None:
-    """A stale exclusion would silently widen the gate's blind spot."""
-    missing = [entry for entry in (*IMMUTABLE_HISTORY, *GENERATED) if not (_REPO_ROOT / entry.rstrip("/")).exists()]
-    assert missing == []
+    """A stale exclusion would silently widen the gate's blind spot: each entry must match a tracked file."""
+    tracked = tracked_regular_files(_REPO_ROOT)
+    unmatched = [entry for entry in (*IMMUTABLE_HISTORY, *GENERATED) if not any(rel == entry or (entry.endswith("/") and rel.startswith(entry)) for rel in tracked)]
+    assert unmatched == []
 
 
 def test_the_scan_finds_a_planted_mention(tmp_path: Path) -> None:
