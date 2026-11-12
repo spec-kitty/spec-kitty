@@ -1,7 +1,7 @@
 {
-  "event_count": 4,
-  "last_event_id": "01M777M4QQ7WED3KCGCSG464H4",
-  "materialized_at": "2026-11-12T06:37:49.175807+00:00",
+  "event_count": 5,
+  "last_event_id": "01M777M91DC7FJMEXDDGF9S9FA",
+  "materialized_at": "2026-11-12T06:37:53.581691+00:00",
   "mission_number": "",
   "mission_slug": "review-context-wp-diff-01M774QF",
   "mission_type": "software-dev",
@@ -15,7 +15,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 4
+    "planned": 5
   },
   "work_packages": {
     "WP01": {
@@ -45,6 +45,13 @@
       "lane": "planned",
       "last_event_id": "01M777M4QQ7WED3KCGCSG464H4",
       "last_transition_at": "2026-11-12T06:37:49.175807+00:00"
+    },
+    "WP05": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M777M91DC7FJMEXDDGF9S9FA",
+      "last_transition_at": "2026-11-12T06:37:53.581691+00:00"
     }
   }
 }
