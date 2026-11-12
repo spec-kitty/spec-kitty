@@ -9,8 +9,10 @@
 | `env_unset` | list str | `PYTHONPATH`, `UV_PROJECT_ENVIRONMENT`, `VIRTUAL_ENV` (removed before `env_set` applies) |
 | `probe` | ProbeResult or null | filled by `probe_lane_imports` |
 
-Invariant: `environ(base)` = `base` minus `env_unset`, then plus `env_set`. Serialized as
-`to_dict()` (see `contracts/lane-test-invocation.md`).
+Invariant: `environ(base)` = `base` minus `env_unset`, then plus `env_set` (`PYTHONPATH`
+joined with `os.pathsep` when it has more than one entry). Serialized as `to_dict()` (see
+`contracts/lane-test-invocation.md`). Never persisted: each step re-derives it from the
+resolved workspace.
 
 ## ProbeResult (value object, frozen)
 | Field | Type | Notes |
@@ -21,13 +23,14 @@ Invariant: `environ(base)` = `base` minus `env_unset`, then plus `env_set`. Seri
 | `reason` | str or null | why unverified, or which package was foreign |
 | `interpreter` | str or null | the interpreter the probe ran |
 
-Rules: any foreign package → `foreign`; all inside → `verified`; no package, no interpreter,
-timeout, non-JSON output or a crash → `unverified`. Never raises.
+Rules: "inside" means inside `<lane>/src`. Any foreign package → `foreign`; all inside →
+`verified`; no tracked regular package, a package `find_spec` cannot find, no interpreter,
+timeout (5 s), non-JSON output or a crash → `unverified`. Never raises.
 
 ## EvidenceTree (value object, frozen)
 | Field | Type | Notes |
 |---|---|---|
-| `path` | str | the tree the gate ran in |
+| `path` | str | the tree the gate ran in, relative to the repository root checkout when under it |
 | `head` | str or null | `git rev-parse HEAD` there |
 | `dirty` | bool or null | any tracked change or untracked file |
 | `probe` | ProbeResult | |
@@ -37,6 +40,6 @@ Adds `foreign_tree`. Aggregation precedence: TERMINAL (`timed_out`, `cancelled`,
 `scope_oversized`) > REFUSE (`foreign_tree`, unless `--force`) > BLOCK (`new_failures`,
 opt-in) > WARN_PROCEED.
 
-## WorkspaceContext (extended)
-Optional `lane_test_invocation` (the `to_dict()` form, probe included); absent in contexts
-written before this Mission (read side ignores unknown/missing keys).
+## LaneWorkspaceResult (extended)
+Optional `lane_test_invocation` (default `None`), set for lane and write-checkout
+workspaces, `None` for planning-lane workspaces. `WorkspaceContext` is not changed.

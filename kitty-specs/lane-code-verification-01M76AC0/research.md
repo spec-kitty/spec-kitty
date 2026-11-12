@@ -55,3 +55,27 @@ No dependency is added, upgraded or removed (DIRECTIVE_051: not applicable).
 ## Adversarial evidence
 A post-plan adversarial squad runs before `/spec-kitty.tasks`; contested findings and their
 dispositions are appended below.
+
+### Post-plan squad (architecture lens, test lens) — dispositions, 2026-11-12
+
+| # | Finding | Disposition |
+|---|---|---|
+| A1/T2 | With `PYTHONPATH` injected the probe is always `verified`; foreign is reachable only through a lane with its own environment | Accepted. Foreign fixtures are a lane `.venv` whose install points elsewhere (US1 AS2 reworded); this is the #1907 detection case. |
+| A1 | Probe interpreter differs from the command's | Accepted as a documented limit (D2); interpreter recorded in evidence. |
+| A2/T5 | Head and baseline would run in different environments → spurious `new_failures` | Accepted. Baseline uses the same recipe rooted at its worktree. |
+| A2/T5 | Stripping `UV_PROJECT_ENVIRONMENT` makes `uv run` sync a lane venv in the gate budget | Accepted as today's behaviour when the variable is unset; stripping only removes the root-venv redirect (which risks #1907). Recorded in plan risks. |
+| A3 | Override tier bypasses the handler; lane id dropped | Accepted. Hook builds invocation/probe/evidence; plain `run_env` goes to both runners. |
+| A4 | `lanes`→`review.baseline` import loop | Accepted. Caller passes the command; no review import in the leaf. |
+| A5/T7/T11 | Unlisted aggregation consumers; `force_bypassed` formula; parity tests | Accepted. Full consumer list in plan; `bypassed_refusal` key; `run_env` read with default. |
+| A6/T9 | Persisted probe goes stale; three context writers | Accepted. Never persisted; re-derived per surface; FR-001 reworded. |
+| A7/T13 | Windows interpreter, PATH `python3` stub, 15 s per render | Accepted. Lane venv interpreter via `kernel.paths.is_windows`, else `sys.executable`; 5 s; `-P`. |
+| A8/T1 | Probe set: untracked/namespace dirs; existing fixtures could flip to refusal | Accepted. Only git-tracked regular packages under `src/`. |
+| T3 | Containment against lane root lets a lane-venv copy pass | Accepted. Containment against `<lane>/src`. |
+| A9 | Skip path bypasses provenance; force records no test run | Accepted. Spec says so. |
+| A10 | Null case keyed on root path catches `single_branch` code work | Accepted. Keyed on planning lane. |
+| T4 | FR-004 no-op passable half by half | Accepted. Env-recorder test on the declared path + lane-venv PYTHONPATH test. |
+| T6 | SC-005 "unchanged" false: two goldens gain a key | Accepted. SC-005 reworded. |
+| T8 | NFR-004 cannot fail on Linux | Accepted. Injected `pathmod`. |
+| T10 | Evidence scope wording; key-set test | Accepted. Conditional key; FR-007 reworded. |
+| T13 | Absolute machine paths in a tracked log | Accepted. Repository-relative paths where possible. |
+| A8 | `spec_kitty_services` workspace member not probed | Rejected for this Mission: only `src/` packages are in scope (assumption recorded). |

@@ -2,7 +2,8 @@
 
 ## Recorded evidence
 `status.events.jsonl` → transition `policy_metadata.pre_review_gate.evidence_tree`, present
-whenever the gate built an invocation (absent on the skip path and on planning lanes):
+whenever the gate built an invocation (absent on the skip path, on planning lanes and on
+verdicts synthesized before inputs resolved):
 
 ```json
 {"path": "/abs/lane", "head": "<40-hex>", "dirty": false,
@@ -19,5 +20,8 @@ whenever the gate built an invocation (absent on the skip path and on planning l
 - JSON diagnostic: `{"result": "error", "error_code": "EVIDENCE_TREE_MISMATCH", "error": …,
   "transition_applied": false, "pre_review_gate": {…, "outcome": "foreign_tree", "evidence_tree": {…}}}`.
 
-With `--force`: the transition proceeds; `pre_review_gate.force_bypassed` is `true`.
+With `--force` (whether or not `review.fail_on_pre_review_regression` is on): the
+transition proceeds; `pre_review_gate.force_bypassed` is `true`,
+`bypassed_refusal` is `"EVIDENCE_TREE_MISMATCH"`, and no test run happened (outcome stays
+`foreign_tree`).
 `unverified` never refuses.
