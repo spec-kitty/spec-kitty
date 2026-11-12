@@ -13,16 +13,16 @@
       "wp": null
     },
     "#3451": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Mission approval-honesty-01M78J9S WP03 (reproduced: same cause as #7571)",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "move-task double-increments the review-cycle counter",
+      "verdict": "in-mission",
+      "wp": "WP03"
     },
     "#5721": {
       "evidence_ref": "<link or commit>",
