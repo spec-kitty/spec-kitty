@@ -1,8 +1,8 @@
 """The finished-board verdict and its acceptance/transition inputs (next-lifecycle-integrity WP01).
 
-Covers T001 (the pure ``finished_board_verdict`` in the cores leaf, FR-002 freshness, FR-007)
-and T003 (the I/O helpers ``mission_accepted_at`` and ``board_latest_transition_at`` that
-gather its inputs).
+Covers T001 (the pure ``finished_board_verdict`` in the cores leaf, FR-007), FR-002 freshness
+(``acceptance_is_fresh`` in the I/O seam, parsing through ``kernel.clock``) and T003 (the I/O
+helpers ``mission_accepted_at`` and ``board_latest_transition_at`` that gather its inputs).
 """
 
 from __future__ import annotations
@@ -20,9 +20,13 @@ from runtime.next.runtime_bridge_cores import (
     MISSION_AWAITING_ACCEPTANCE_ERROR_CODE,
     FinishedBoardVerdict,
     finished_board_verdict,
+)
+from runtime.next.runtime_bridge_io import (
+    acceptance_is_fresh,
+    board_latest_transition_at,
+    mission_accepted_at,
     parse_iso_timestamp,
 )
-from runtime.next.runtime_bridge_io import board_latest_transition_at, mission_accepted_at
 from tests.runtime.next._board_path import board_status_from_dir
 
 pytestmark = pytest.mark.fast
@@ -32,7 +36,7 @@ _LATE = "2026-11-12T09:00:00+00:00"
 
 
 # ---------------------------------------------------------------------------
-# T001 -- the pure verdict
+# T001 -- the pure verdict (the cores leaf maps the board step + freshness fact)
 # ---------------------------------------------------------------------------
 
 
@@ -42,51 +46,68 @@ def test_constants() -> None:
 
 
 @pytest.mark.parametrize(
-    ("board_step", "accepted_at", "latest", "expected"),
+    ("board_step", "accepted", "expected"),
     [
         # Not a finished board: NONE, whatever the acceptance says.
-        (None, _LATE, _EARLY, FinishedBoardVerdict.NONE),
-        ("implement", _LATE, _EARLY, FinishedBoardVerdict.NONE),
-        ("review", None, None, FinishedBoardVerdict.NONE),
-        ("blocked:WP01", _LATE, None, FinishedBoardVerdict.NONE),
-        # Finished board, fresh acceptance.
-        ("accept", _LATE, _EARLY, FinishedBoardVerdict.ACCEPTED),
-        ("done", _LATE, _EARLY, FinishedBoardVerdict.ACCEPTED),
-        # A missing latest transition counts as fresh.
-        ("accept", _LATE, None, FinishedBoardVerdict.ACCEPTED),
-        # No acceptance recorded.
-        ("accept", None, _EARLY, FinishedBoardVerdict.AWAITING_ACCEPTANCE),
-        ("done", None, None, FinishedBoardVerdict.AWAITING_ACCEPTANCE),
-        ("accept", "", None, FinishedBoardVerdict.AWAITING_ACCEPTANCE),
+        (None, True, FinishedBoardVerdict.NONE),
+        ("implement", True, FinishedBoardVerdict.NONE),
+        ("review", False, FinishedBoardVerdict.NONE),
+        ("blocked:WP01", True, FinishedBoardVerdict.NONE),
+        # Finished board.
+        ("accept", True, FinishedBoardVerdict.ACCEPTED),
+        ("done", True, FinishedBoardVerdict.ACCEPTED),
+        ("accept", False, FinishedBoardVerdict.AWAITING_ACCEPTANCE),
+        ("done", False, FinishedBoardVerdict.AWAITING_ACCEPTANCE),
     ],
 )
-def test_truth_table(board_step: str | None, accepted_at: str | None, latest: str | None, expected: FinishedBoardVerdict) -> None:
-    assert finished_board_verdict(board_step, accepted_at=accepted_at, latest_transition_at=latest) is expected
+def test_truth_table(board_step: str | None, accepted: bool, expected: FinishedBoardVerdict) -> None:
+    assert finished_board_verdict(board_step, accepted=accepted) is expected
+
+
+# ---------------------------------------------------------------------------
+# FR-002 freshness -- acceptance_is_fresh (the I/O seam, parsing via kernel.clock)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("accepted_at", "latest", "expected"),
+    [
+        (_LATE, _EARLY, True),
+        # A missing latest transition counts as fresh.
+        (_LATE, None, True),
+        # No acceptance recorded.
+        (None, _EARLY, False),
+        (None, None, False),
+        ("", None, False),
+    ],
+)
+def test_freshness_truth_table(accepted_at: str | None, latest: str | None, expected: bool) -> None:
+    assert acceptance_is_fresh(accepted_at, latest) is expected
 
 
 def test_equal_timestamps_are_not_accepted() -> None:
-    assert finished_board_verdict("accept", accepted_at=_LATE, latest_transition_at=_LATE) is FinishedBoardVerdict.AWAITING_ACCEPTANCE
+    assert acceptance_is_fresh(_LATE, _LATE) is False
 
 
 def test_acceptance_older_than_latest_transition_is_stale() -> None:
-    assert finished_board_verdict("done", accepted_at=_EARLY, latest_transition_at=_LATE) is FinishedBoardVerdict.AWAITING_ACCEPTANCE
+    assert acceptance_is_fresh(_EARLY, _LATE) is False
 
 
 def test_timezone_offsets_compare_by_instant_not_by_string() -> None:
     # 10:30+02:00 is 08:30Z: later than 08:00Z although its string sorts after 09:00Z.
-    assert finished_board_verdict("accept", accepted_at="2026-11-12T10:30:00+02:00", latest_transition_at=_EARLY) is FinishedBoardVerdict.ACCEPTED
+    assert acceptance_is_fresh("2026-11-12T10:30:00+02:00", _EARLY) is True
     # 10:30+02:00 is 08:30Z: earlier than 09:00Z although its string sorts later.
-    assert finished_board_verdict("accept", accepted_at="2026-11-12T10:30:00+02:00", latest_transition_at=_LATE) is FinishedBoardVerdict.AWAITING_ACCEPTANCE
+    assert acceptance_is_fresh("2026-11-12T10:30:00+02:00", _LATE) is False
 
 
 def test_zulu_suffix_and_naive_timestamps_are_read_as_utc() -> None:
-    assert finished_board_verdict("accept", accepted_at="2026-11-12T09:00:01Z", latest_transition_at=_LATE) is FinishedBoardVerdict.ACCEPTED
-    assert finished_board_verdict("accept", accepted_at="2026-11-12T09:00:01", latest_transition_at=_LATE) is FinishedBoardVerdict.ACCEPTED
+    assert acceptance_is_fresh("2026-11-12T09:00:01Z", _LATE) is True
+    assert acceptance_is_fresh("2026-11-12T09:00:01", _LATE) is True
 
 
 @pytest.mark.parametrize(("accepted_at", "latest"), [("not-a-date", _EARLY), ("not-a-date", None), (_LATE, "garbage")])
 def test_garbage_fails_toward_blocked(accepted_at: str, latest: str | None) -> None:
-    assert finished_board_verdict("accept", accepted_at=accepted_at, latest_transition_at=latest) is FinishedBoardVerdict.AWAITING_ACCEPTANCE
+    assert acceptance_is_fresh(accepted_at, latest) is False
 
 
 def test_parse_iso_timestamp() -> None:
@@ -207,4 +228,5 @@ def test_an_unparsable_timestamp_is_returned_so_the_verdict_fails_closed() -> No
     board = _board({"WP01": {"last_transition_at": _EARLY}, "WP02": {"last_transition_at": "garbage"}})
     latest = board_latest_transition_at(board)
     assert latest == "garbage"
-    assert finished_board_verdict("accept", accepted_at=_LATE, latest_transition_at=latest) is FinishedBoardVerdict.AWAITING_ACCEPTANCE
+    assert acceptance_is_fresh(_LATE, latest) is False
+    assert finished_board_verdict("accept", accepted=acceptance_is_fresh(_LATE, latest)) is FinishedBoardVerdict.AWAITING_ACCEPTANCE

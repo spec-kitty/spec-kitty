@@ -630,8 +630,7 @@ def _finished_board_answer(inputs: _GateInputs, resolved: _mapping._FinalizedBoa
     accepted_at = _io_seam.mission_accepted_at(primary_metadata_dir) if primary_metadata_dir is not None else None
     verdict = _cores.finished_board_verdict(
         resolved.board_step,
-        accepted_at=accepted_at,
-        latest_transition_at=_io_seam.board_latest_transition_at(resolved.board),
+        accepted=_io_seam.acceptance_is_fresh(accepted_at, _io_seam.board_latest_transition_at(resolved.board)),
     )
     if verdict is _cores.FinishedBoardVerdict.ACCEPTED:
         return _gate_envelope(
