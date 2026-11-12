@@ -1,0 +1,119 @@
+{
+  "mission_slug": "lane-code-verification-01M76AC0",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/agent/test_implement_lane_invocation.py (implement --json lane_test_invocation key; banner; planted change 2/2 vs 1/1 on one fixture) \u2014 WP02, review cycle 2 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T08:51:17.977626+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_lane_invocation.py (child-process probe; lane-venv foreign/verified pair on one fixture; mutation run 6/7 killed) \u2014 WP01 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T08:51:29.471689+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_lane_invocation.py + tests/agent/test_implement_lane_invocation.py (planted change visible to child and grandchild with PYTHONPATH=<lane>/src when no lane venv) \u2014 WP01/WP02 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T08:51:39.942287+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_lane_invocation.py (redirect strip proven half by half; SPEC_KITTY_TEST_DB_NAME applied) \u2014 WP01 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T08:51:49.546446+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/agent/test_build_implement_prompt_lines.py + tests/agent/test_implement_lane_invocation.py (implement and review prompts carry the invocation and probe status) \u2014 WP02 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T08:51:59.335694+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/review/test_gate_run_environment.py (run_env reaches declared and override runners; baseline symmetric recipe; one strip list) \u2014 WP03 approved; tests/review 725 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T08:52:09.068980+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_tasks_move_task_evidence_tree.py (evidence_tree path/head/dirty/probe recorded on test-running tiers) \u2014 WP04 approved cycle 2",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T08:52:18.891138+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_tasks_move_task_evidence_tree.py + tests/review/test_verdict_aggregation.py (EVIDENCE_TREE_MISMATCH exit 1, block on/off, no status event, no test run; verified same-fixture control proceeds) \u2014 WP03/WP04 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T08:52:28.965427+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_tasks_move_task_evidence_tree.py (--force proceeds, force_bypassed true with block off, bypassed_refusal recorded) \u2014 WP04 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T08:52:38.360803+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_lane_invocation.py + test_tasks_move_task_evidence_tree.py (unverified never raises, never refuses; no src packages -> unverified) \u2014 WP01/WP04 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T08:52:47.735540+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Unchanged-behaviour ratchet: tests/review 725 passed; tests/specify_cli/cli/commands/agent 3068 passed; make test-fast 3017 passed (= origin/main baseline); undeclared gate stays skipped, empty diff stays no_coverage (WP04 cycle 2 cells)",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T08:52:57.173715+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
