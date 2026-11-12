@@ -118,7 +118,7 @@
     },
     "WP04": {
       "actor": "claude-reviewer",
-      "agent": "claude-reviewer",
+      "agent": null,
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 1,
@@ -131,6 +131,7 @@
         "for_review hook builds the lane test invocation (WP02 adapter), probes and captures the evidence tree before any run; a foreign tree refuses with EVIDENCE_TREE_MISMATCH (exit 1, no transition) regardless of the block toggle; --force records force_bypassed + bypassed_refusal; run_env reaches the handler and override tier; evidence_tree in policy_metadata. T015 red first (95274c9d), green 15c1fa84."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/lane-code-verification-01M76AC0-coord/kitty-specs/lane-code-verification-01M76AC0/tasks/WP04-for-review-hook-evidence-and-refusal/review-cycle-1.md",
         "reference": "review-cycle://lane-code-verification-01M76AC0/WP04-for-review-hook-evidence-and-refusal/review-cycle-1.md",
@@ -138,13 +139,13 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 10845,
-      "shell_pid_created_at": "1794470747.85",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T015": "done",
-        "T016": "done",
-        "T017": "done",
-        "T018": "done"
+        "T015": "planned",
+        "T016": "planned",
+        "T017": "planned",
+        "T018": "planned"
       }
     },
     "WP05": {
