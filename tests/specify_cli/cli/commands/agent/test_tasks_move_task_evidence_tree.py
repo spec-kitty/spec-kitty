@@ -225,13 +225,72 @@ def test_foreign_tree_refusal_human_line(tmp_path: Path, capsys: pytest.CaptureF
 
 
 # ---------------------------------------------------------------------------
+# Arms that run no test never probe and never refuse (FR-011, C-003)
+# ---------------------------------------------------------------------------
+
+
+def _probe_spy(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
+    calls: list[Path] = []
+    real = tasks_move_task_gates.lane_test_invocation_for
+
+    def spy(root: Path, **kwargs: Any) -> Any:
+        calls.append(root)
+        return real(root, **kwargs)
+
+    monkeypatch.setattr(tasks_move_task_gates, "lane_test_invocation_for", spy)
+    return calls
+
+
+@pytest.mark.integration
+def test_undeclared_gate_on_a_foreign_tree_stays_a_quiet_skip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    fx = _Fixture(tmp_path, changed=True)
+    fx.make_foreign()
+    calls = _probe_spy(monkeypatch)
+
+    fx.move()
+
+    metadata = _metadata(fx.router)
+    assert metadata["outcome"] == "skipped"
+    assert "evidence_tree" not in metadata
+    assert calls == []
+
+
+@pytest.mark.integration
+def test_declared_gate_with_an_empty_diff_on_a_foreign_tree_stays_no_coverage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    fx = _Fixture(tmp_path, changed=False)
+    fx.write_review_config(block=True)
+    fx.make_foreign()
+    calls = _probe_spy(monkeypatch)
+
+    fx.move()
+
+    metadata = _metadata(fx.router)
+    assert metadata["outcome"] == "no_coverage"
+    assert "evidence_tree" not in metadata
+    assert calls == []
+    assert not fx.marker.exists()
+
+
+@pytest.mark.integration
+def test_override_tier_on_a_foreign_tree_is_refused(tmp_path: Path) -> None:
+    fx = _Fixture(tmp_path, changed=True, extra_frontmatter="pre_review_test_scope: tests\n")
+    fx.make_foreign()
+
+    with pytest.raises(typer.Exit) as exc_info:
+        fx.move()
+
+    assert exc_info.value.exit_code == 1
+    assert fx.router.status_calls == []
+
+
+# ---------------------------------------------------------------------------
 # Cell 3: the verified positive control records the evidence tree
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.integration
 def test_verified_tree_records_evidence_and_applies(tmp_path: Path) -> None:
-    fx = _Fixture(tmp_path, changed=False)
+    fx = _Fixture(tmp_path, changed=True)
     fx.write_review_config()
     fx.make_verified()
 
@@ -277,7 +336,7 @@ def test_force_past_a_foreign_tree_records_the_bypass(tmp_path: Path) -> None:
 
 @pytest.mark.integration
 def test_unverified_tree_is_never_refused(tmp_path: Path) -> None:
-    fx = _Fixture(tmp_path, changed=False)
+    fx = _Fixture(tmp_path, changed=True)
     fx.write_review_config(block=True)
     _git(fx.lane, "rm", "-q", "--cached", "src/pkg/__init__.py")
     _git(fx.lane, "commit", "-q", "-m", "untrack the package")
@@ -298,7 +357,7 @@ def test_unverified_tree_is_never_refused(tmp_path: Path) -> None:
 @pytest.mark.integration
 @pytest.mark.parametrize("route", ["flag", "env", "none"])
 def test_skip_paths_never_probe(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, route: str) -> None:
-    fx = _Fixture(tmp_path, changed=False)
+    fx = _Fixture(tmp_path, changed=True)
     fx.write_review_config()
     fx.make_foreign()
     calls: list[Path] = []
@@ -388,7 +447,7 @@ def test_run_env_reaches_the_override_tier(tmp_path: Path, monkeypatch: pytest.M
 
 @pytest.mark.integration
 def test_invocation_failure_fails_open_without_evidence(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    fx = _Fixture(tmp_path, changed=False)
+    fx = _Fixture(tmp_path, changed=True)
     fx.write_review_config(block=True)
     fx.make_foreign()
 
