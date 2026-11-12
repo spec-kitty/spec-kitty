@@ -2878,6 +2878,7 @@ pages:
     abstract: "Gate outcomes carry a typed severity; an operator strategy maps it to the CLI effect. The default blocks at BLOCKING only; trust failures are always BLOCKING."
     anchors:
     - {slug: "amendment-note-2026-09-27", text: "Amendment note (2026-09-27)", level: 2}
+    - {slug: "amendment-2026-11-12-a-proven-foreign-evidence-tree-refuses-move-task", text: "Amendment (2026-11-12): a proven foreign evidence tree refuses `move-task`", level: 2}
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
     - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
