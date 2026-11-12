@@ -173,18 +173,15 @@ def _command(block: str, prefix: str) -> str:
     return matches[0]
 
 
-_FRAME_START = "─── GIT REVIEW CONTEXT "
-_FRAME_END = "─" * 80
+#: The one ``..HEAD`` the review prompt may carry: the anti-pattern checklist's frozen-surface recipe
+#: (``review/antipattern_checklist.py`` item 5), a ``<base>`` placeholder the reviewer fills, not a range
+#: the prompt computed. The worktree topology's ``diff_command`` was the other source until Q13 (#7590).
+_CHECKLIST_HEAD_RECIPE = "`git log --oneline <base>..HEAD -- <frozen-file>` must be empty."
 
 
-def _review_context_frame(prompt: str) -> str:
-    """Site 2's ``GIT REVIEW CONTEXT`` frame: the review commands the prompt gives (other sections, such as the
-    charter doctrine or the worktree topology's ``diff_command``, are not review-range commands)."""
-    lines = prompt.splitlines()
-    start = next((index for index, line in enumerate(lines) if line.startswith(_FRAME_START)), None)
-    assert start is not None, f"no GIT REVIEW CONTEXT frame in:\n{prompt}"
-    end = next(index for index in range(start + 1, len(lines)) if lines[index] == _FRAME_END)
-    return "\n".join(lines[start : end + 1])
+def _head_ranges(prompt: str) -> list[str]:
+    """Every prompt line naming a ``..HEAD`` range, the anti-pattern checklist's placeholder recipe excepted."""
+    return [line for line in prompt.splitlines() if "..HEAD" in line and line.strip() != _CHECKLIST_HEAD_RECIPE]
 
 
 def _site2_block(review: _Review) -> str:
@@ -209,7 +206,7 @@ def test_site2_header_carries_exact_recorded_provenance(reviews: _Reviews, name:
     assert lines[0] == f"REVIEW RANGE ({REVIEWED_WP}): {base12}..{tip12}  [recorded]", block
     assert f"  base: {base12} ({fx.base_label})" in lines
     assert f"  tip:  {tip12} ({fx.tip_label})" in lines
-    assert "..HEAD" not in _review_context_frame(review.prompt)
+    assert not _head_ranges(review.prompt), review.prompt
 
 
 @pytest.mark.parametrize("name", REVIEW_READY)
@@ -371,7 +368,7 @@ def test_unavailable_range_is_a_notice_on_sites_2_and_3(templates: ReviewTemplat
     assert lines, f"site 2 printed no REVIEW RANGE notice:\n{review.prompt}"
     assert lines[0].startswith(f"REVIEW RANGE ({REVIEWED_WP}): unavailable — ") and lines[0].endswith(reason_suffix), review.prompt
     assert lines[1:3] == ["REVIEW COMMANDS:", _UNAVAILABLE_COMMAND]
-    assert "..HEAD" not in _review_context_frame(review.prompt)
+    assert not _head_ranges(review.prompt), review.prompt
     reason = lines[0].split("unavailable — ", 1)[1]
     # Q13 (#7590): the topology payload names the same gap and points at the notice, never a ``<base>..HEAD`` diff.
     assert _topology_diff_command(review.prompt) == f"unavailable: {reason}; see REVIEW RANGE"
