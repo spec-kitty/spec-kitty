@@ -29,6 +29,9 @@
       "last_event_id": "01M78KEE0C5EXCMAGWBZ3DPFM0",
       "last_transition_at": "2026-11-12T19:23:39.404809+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: seam write_dir surface_root names the containing checkout; kernel checkout_root_containing; primary_partition_checkout delegates to the seam"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 17949,
