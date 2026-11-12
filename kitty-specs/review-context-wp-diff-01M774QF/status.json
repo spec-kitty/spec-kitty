@@ -82,7 +82,8 @@
       "last_transition_at": "2026-11-12T07:24:09.350384+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "resolve_requirement_texts in requirement_mapping/text.py on _declaration_occurrences + duplicate_declared_ids (no third parser). 45/45 new tests; red-first commit 495bb95b. Expected red until WP05 wires review/context_block.py: test_no_dead_symbols (text::CitedRequirement, Resolution, TEXT_LIMIT, TRUNCATION_MARKER, resolve_requirement_texts) and test_no_dead_modules (specify_cli.requirement_mapping.text). TRUNCATION_MARKER is a single U+2026 because the suggested ' … [truncated]' cannot meet the NFR-003 12 KiB bound for 20 x 600 chars."
+        "resolve_requirement_texts in requirement_mapping/text.py on _declaration_occurrences + duplicate_declared_ids (no third parser). 45/45 new tests; red-first commit 495bb95b. Expected red until WP05 wires review/context_block.py: test_no_dead_symbols (text::CitedRequirement, Resolution, TEXT_LIMIT, TRUNCATION_MARKER, resolve_requirement_texts) and test_no_dead_modules (specify_cli.requirement_mapping.text). TRUNCATION_MARKER is a single U+2026 because the suggested ' … [truncated]' cannot meet the NFR-003 12 KiB bound for 20 x 600 chars.",
+        "Review passed: red-first verified (495bb95b ModuleNotFoundError), 45/45 green at HEAD, 5 mutations each turn tests red, built only on _declaration_occurrences/duplicate_declared_ids (no third parser), ruff/format --force-exclude/mypy --strict clean, C901<=10. Dead-symbol/module red limited to requirement_mapping.text names (CitedRequirement, Resolution, TEXT_LIMIT, TRUNCATION_MARKER, resolve_requirement_texts; module) with no allowlist and no fake caller: WP05 reviewer must confirm green. Non-blocking: NFR-003 12 KiB bound holds for mostly-ASCII text only (600 chars, not bytes); one-char marker deviation accepted."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
