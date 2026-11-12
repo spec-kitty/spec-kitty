@@ -109,7 +109,7 @@
       "wp": null
     },
     "#7595": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP04 target helpers through the seam (folded, operator ruling)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -117,8 +117,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP04"
     },
     "#7598": {
       "evidence_ref": "<auto-classified: no action required>",
