@@ -98,10 +98,10 @@
       "criterion_id": "FR-010",
       "description": "Verify FR-010 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/lanes/test_lane_invocation.py + test_tasks_move_task_evidence_tree.py (unverified never raises, never refuses; no src packages -> unverified) \u2014 WP01/WP04 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T08:52:47.735540+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
