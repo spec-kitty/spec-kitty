@@ -79,3 +79,20 @@ dispositions are appended below.
 | T10 | Evidence scope wording; key-set test | Accepted. Conditional key; FR-007 reworded. |
 | T13 | Absolute machine paths in a tracked log | Accepted. Repository-relative paths where possible. |
 | A8 | `spec_kitty_services` workspace member not probed | Rejected for this Mission: only `src/` packages are in scope (assumption recorded). |
+
+## Close-out corrections (2026-11-12, aggregate review)
+
+The decisions above are the record as taken; the shipped implementation differs in these
+points, each settled by a later disposition or fold:
+
+- **D2 timeout**: the probe timeout is 5 s (disposition A7/T13), not 15 s.
+- **D3 interpreter**: the probe runs the lane's own venv interpreter when the lane has one,
+  else `sys.executable` (A7/T13), not the first `python` on `PATH`. To keep the run and the
+  probe on the same interpreter, a lane with its own `.venv` gets that venv's script
+  directory in front of `PATH` (`path_prepend`), so a declared bare `python` or `pytest`
+  resolves to it rather than to a venv the caller's `PATH` points at.
+- **D6 baseline environment**: superseded by disposition A2; the baseline run gets the same
+  recipe, rooted at the baseline worktree (it gets no lane test database name).
+- **`-P`**: dropped; the probe child removes the working directory from `sys.path` itself.
+- **Non-file origins** (`frozen`, `built-in`) are `unverified`, never `foreign`, so only a
+  proven foreign tree refuses.

@@ -1,118 +1,228 @@
 {
   "mission_slug": "lane-code-verification-01M76AC0",
-  "mission_number": "",
+  "mission_number": "257",
   "mission_type": "software-dev",
   "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
-      "description": "Verify FR-001 is satisfied",
+      "description": "spec-kitty implement prints, and returns under --json key lane_test_invocation, the lane's test invocation (cwd, command, env_set, env_unset, path_prepend) with a probe result; the prompts and the gate re-derive and re-probe it from the lane.",
       "proof_type": "automated_test",
       "evidence": "tests/agent/test_implement_lane_invocation.py (implement --json lane_test_invocation key; banner; planted change 2/2 vs 1/1 on one fixture) \u2014 WP02, review cycle 2 approved",
       "pass_fail": "pass",
       "verified_by": "claude-orchestrator",
-      "verified_at": "2026-11-12T08:51:17.977626+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
+      "verified_at": "2026-11-12T09:56:29.697023+00:00",
+      "notes": "Close-out: real criterion text written after the aggregate review (the generated row carried a placeholder)."
     },
     {
       "criterion_id": "FR-002",
-      "description": "Verify FR-002 is satisfied",
+      "description": "A child process started with exactly the invocation's cwd and environment, on the lane's own venv interpreter when it has one (else the CLI's), reports where each git-tracked src/<pkg>/__init__.py package loads from; the verdict is verified (inside <lane>/src), foreign (an absolute file origin elsewhere) or unverified.",
       "proof_type": "automated_test",
       "evidence": "tests/lanes/test_lane_invocation.py (child-process probe; lane-venv foreign/verified pair on one fixture; mutation run 6/7 killed) \u2014 WP01 approved",
       "pass_fail": "pass",
       "verified_by": "claude-orchestrator",
-      "verified_at": "2026-11-12T08:51:29.471689+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
+      "verified_at": "2026-11-12T09:56:50.512627+00:00",
+      "notes": "Close-out: real criterion text written after the aggregate review (the generated row carried a placeholder)."
     },
     {
       "criterion_id": "FR-003",
-      "description": "Verify FR-003 is satisfied",
+      "description": "In a src-layout lane without its own .venv, the invocation sets PYTHONPATH=<lane>/src, so a planted change in the lane is seen by the command and by processes it spawns, while the bare root interpreter on the same fixture does not see it.",
       "proof_type": "automated_test",
       "evidence": "tests/lanes/test_lane_invocation.py + tests/agent/test_implement_lane_invocation.py (planted change visible to child and grandchild with PYTHONPATH=<lane>/src when no lane venv) \u2014 WP01/WP02 approved",
       "pass_fail": "pass",
       "verified_by": "claude-orchestrator",
-      "verified_at": "2026-11-12T08:51:39.942287+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
+      "verified_at": "2026-11-12T09:56:56.414800+00:00",
+      "notes": "Close-out: real criterion text written after the aggregate review (the generated row carried a placeholder)."
     },
     {
       "criterion_id": "FR-004",
-      "description": "Verify FR-004 is satisfied",
+      "description": "The invocation removes inherited PYTHONPATH, VIRTUAL_ENV and UV_PROJECT_ENVIRONMENT, sets the lane test database name, and puts a lane .venv's script directory first on PATH.",
       "proof_type": "automated_test",
       "evidence": "tests/lanes/test_lane_invocation.py (redirect strip proven half by half; SPEC_KITTY_TEST_DB_NAME applied) \u2014 WP01 approved",
       "pass_fail": "pass",
       "verified_by": "claude-orchestrator",
-      "verified_at": "2026-11-12T08:51:49.546446+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
+      "verified_at": "2026-11-12T09:57:02.092689+00:00",
+      "notes": "Close-out: real criterion text written after the aggregate review (the generated row carried a placeholder)."
     },
     {
       "criterion_id": "FR-005",
-      "description": "Verify FR-005 is satisfied",
+      "description": "The implement and review prompts the CLI builds for a lane-backed (or write-checkout) work package print the lane test invocation block and its probe line.",
       "proof_type": "automated_test",
       "evidence": "tests/agent/test_build_implement_prompt_lines.py + tests/agent/test_implement_lane_invocation.py (implement and review prompts carry the invocation and probe status) \u2014 WP02 approved",
       "pass_fail": "pass",
       "verified_by": "claude-orchestrator",
-      "verified_at": "2026-11-12T08:51:59.335694+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
+      "verified_at": "2026-11-12T09:57:07.906739+00:00",
+      "notes": "Close-out: real criterion text written after the aggregate review (the generated row carried a placeholder)."
     },
     {
       "criterion_id": "FR-006",
-      "description": "Verify FR-006 is satisfied",
+      "description": "The pre-review gate runs the declared test command and the override tier's interpreter fallback in the invocation's environment; the uv run --project path also drops the redirect variables.",
       "proof_type": "automated_test",
       "evidence": "tests/review/test_gate_run_environment.py (run_env reaches declared and override runners; baseline symmetric recipe; one strip list) \u2014 WP03 approved; tests/review 725 passed",
       "pass_fail": "pass",
       "verified_by": "claude-orchestrator",
-      "verified_at": "2026-11-12T08:52:09.068980+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
+      "verified_at": "2026-11-12T09:57:13.369654+00:00",
+      "notes": "Close-out: real criterion text written after the aggregate review (the generated row carried a placeholder)."
     },
     {
       "criterion_id": "FR-007",
-      "description": "Verify FR-007 is satisfied",
+      "description": "Every gate verdict reached on a test-running tier records pre_review_gate.evidence_tree (repository-relative path, head, dirty flag, probe with repository-relative origins, interpreter and reason).",
       "proof_type": "automated_test",
       "evidence": "tests/specify_cli/cli/commands/agent/test_tasks_move_task_evidence_tree.py (evidence_tree path/head/dirty/probe recorded on test-running tiers) \u2014 WP04 approved cycle 2",
       "pass_fail": "pass",
       "verified_by": "claude-orchestrator",
-      "verified_at": "2026-11-12T08:52:18.891138+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
+      "verified_at": "2026-11-12T09:57:19.128788+00:00",
+      "notes": "Close-out: real criterion text written after the aggregate review (the generated row carried a placeholder)."
     },
     {
       "criterion_id": "FR-008",
-      "description": "Verify FR-008 is satisfied",
+      "description": "move-task --to for_review refuses a proven foreign tree with EVIDENCE_TREE_MISMATCH and exit 1, writes no status event and runs no test, whether or not review.fail_on_pre_review_regression is set.",
       "proof_type": "automated_test",
       "evidence": "tests/specify_cli/cli/commands/agent/test_tasks_move_task_evidence_tree.py + tests/review/test_verdict_aggregation.py (EVIDENCE_TREE_MISMATCH exit 1, block on/off, no status event, no test run; verified same-fixture control proceeds) \u2014 WP03/WP04 approved",
       "pass_fail": "pass",
       "verified_by": "claude-orchestrator",
-      "verified_at": "2026-11-12T08:52:28.965427+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
+      "verified_at": "2026-11-12T09:57:24.651297+00:00",
+      "notes": "Close-out: real criterion text written after the aggregate review (the generated row carried a placeholder)."
     },
     {
       "criterion_id": "FR-009",
-      "description": "Verify FR-009 is satisfied",
+      "description": "--force past a foreign tree applies the move and records force_bypassed: true and bypassed_refusal: EVIDENCE_TREE_MISMATCH with outcome foreign_tree, also with the regression block off.",
       "proof_type": "automated_test",
       "evidence": "tests/specify_cli/cli/commands/agent/test_tasks_move_task_evidence_tree.py (--force proceeds, force_bypassed true with block off, bypassed_refusal recorded) \u2014 WP04 approved",
       "pass_fail": "pass",
       "verified_by": "claude-orchestrator",
-      "verified_at": "2026-11-12T08:52:38.360803+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
+      "verified_at": "2026-11-12T09:57:30.198816+00:00",
+      "notes": "Close-out: real criterion text written after the aggregate review (the generated row carried a placeholder)."
     },
     {
       "criterion_id": "FR-010",
-      "description": "Verify FR-010 is satisfied",
+      "description": "A project the probe cannot judge (no tracked src packages, probe fault, timeout, non-file origin) records unverified with git facts and never refuses.",
       "proof_type": "automated_test",
       "evidence": "tests/lanes/test_lane_invocation.py + test_tasks_move_task_evidence_tree.py (unverified never raises, never refuses; no src packages -> unverified) \u2014 WP01/WP04 approved",
       "pass_fail": "pass",
       "verified_by": "claude-orchestrator",
-      "verified_at": "2026-11-12T08:52:47.735540+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
+      "verified_at": "2026-11-12T09:57:35.677149+00:00",
+      "notes": "Close-out: real criterion text written after the aggregate review (the generated row carried a placeholder)."
     },
     {
       "criterion_id": "FR-011",
-      "description": "Verify FR-011 is satisfied",
+      "description": "Existing gate outcomes, severities, the skip flag and environment variable, and baseline source identity are unchanged; the existing gate suites pass, with the run-environment change stated in the ADR amendment and changelog.",
       "proof_type": "automated_test",
       "evidence": "Unchanged-behaviour ratchet: tests/review 725 passed; tests/specify_cli/cli/commands/agent 3068 passed; make test-fast 3017 passed (= origin/main baseline); undeclared gate stays skipped, empty diff stays no_coverage (WP04 cycle 2 cells)",
       "pass_fail": "pass",
       "verified_by": "claude-orchestrator",
-      "verified_at": "2026-11-12T08:52:57.173715+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
+      "verified_at": "2026-11-12T09:57:41.271056+00:00",
+      "notes": "Close-out: real criterion text written after the aggregate review (the generated row carried a placeholder)."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "spec-kitty implement places the pinned, digest-verified pack trees into a new lane from the local cache, offline; a cold cache places nothing and prints the make sync-packs remedy; no pack file is edited.",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_lane_packs.py, tests/agent/test_implement_lane_packs.py (warm/cold pair on one fixture) - WP06 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T10:30:00+00:00",
+      "notes": "Close-out: added by hand after the aggregate review; the acceptance-verdict CLI updates existing rows only and the generator omitted this id (gap #4232)."
+    },
+    {
+      "criterion_id": "NFR-001",
+      "description": "The probe adds at most 2 s to implement and is bounded by a timeout of at most 15 s, after which it reports unverified.",
+      "proof_type": "manual_qa",
+      "evidence": "Timeout 5 s, pinned by tests/lanes/test_lane_invocation.py::test_probe_unverified_on_timeout; cost measured at 0.03-0.04 s per build+probe on this repository (5 runs, close-out). No automated timing test (a wall-clock assertion would be flaky).",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T10:30:00+00:00",
+      "notes": "Close-out: added by hand after the aggregate review; the acceptance-verdict CLI updates existing rows only and the generator omitted this id (gap #4232)."
+    },
+    {
+      "criterion_id": "NFR-002",
+      "description": "Lane contexts persisted before this change load; every existing implement --json key keeps its meaning.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_implement_characterization.py, test_implement_phases.py (goldens gain only lane_test_invocation)",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T10:30:00+00:00",
+      "notes": "Close-out: added by hand after the aggregate review; the acceptance-verdict CLI updates existing rows only and the generator omitted this id (gap #4232)."
+    },
+    {
+      "criterion_id": "NFR-003",
+      "description": "ruff check, ruff format --check and mypy clean on changed code; complexity <= 15; no new blanket suppressions.",
+      "proof_type": "code_review",
+      "evidence": "Local ruff/format/mypy on all changed src files at close-out; the one new narrow BLE001 on the fail-open path carries a rationale; diff-cover is gated in CI (ci-aggregate.yml).",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T10:30:00+00:00",
+      "notes": "Close-out: added by hand after the aggregate review; the acceptance-verdict CLI updates existing rows only and the generator omitted this id (gap #4232)."
+    },
+    {
+      "criterion_id": "NFR-004",
+      "description": "Origin containment is correct for POSIX and Windows path forms, case-insensitive drives and symlinked lane paths.",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_lane_invocation.py::test_origin_inside (ntpath/posixpath cases) and test_origin_inside_resolves_symlinks_on_the_host",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T10:30:00+00:00",
+      "notes": "Close-out: added by hand after the aggregate review; the acceptance-verdict CLI updates existing rows only and the generator omitted this id (gap #4232)."
+    },
+    {
+      "criterion_id": "SC-001",
+      "description": "A planted lane change is seen through the invocation in every run and not by the bare root interpreter on the same fixture.",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_lane_invocation.py::test_invocation_loads_the_lane_source_in_child_and_grandchild; tests/agent/test_implement_lane_invocation.py",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T10:30:00+00:00",
+      "notes": "Close-out: added by hand after the aggregate review; the acceptance-verdict CLI updates existing rows only and the generator omitted this id (gap #4232)."
+    },
+    {
+      "criterion_id": "SC-002",
+      "description": "A gate run that would load another tree's code is refused without --force; the same fixture with a correct environment proceeds.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_tasks_move_task_evidence_tree.py (foreign cells block on/off; verified control runs the declared command)",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T10:30:00+00:00",
+      "notes": "Close-out: added by hand after the aggregate review; the acceptance-verdict CLI updates existing rows only and the generator omitted this id (gap #4232)."
+    },
+    {
+      "criterion_id": "SC-003",
+      "description": "Every implement and review prompt for a lane-backed work package carries the invocation and its probe.",
+      "proof_type": "automated_test",
+      "evidence": "tests/agent/test_build_implement_prompt_lines.py, tests/agent/test_implement_lane_invocation.py",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T10:30:00+00:00",
+      "notes": "Close-out: added by hand after the aggregate review; the acceptance-verdict CLI updates existing rows only and the generator omitted this id (gap #4232)."
+    },
+    {
+      "criterion_id": "SC-004",
+      "description": "Every gate verdict that ran tests carries an evidence tree with path, head, dirty flag and probe.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_tasks_move_task_evidence_tree.py::test_verified_tree_records_evidence_and_applies",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T10:30:00+00:00",
+      "notes": "Close-out: added by hand after the aggregate review; the acceptance-verdict CLI updates existing rows only and the generator omitted this id (gap #4232)."
+    },
+    {
+      "criterion_id": "SC-005",
+      "description": "The existing gate, lane, workspace and implement suites pass; only the goldens and test doubles listed in SC-005 changed.",
+      "proof_type": "automated_test",
+      "evidence": "make test-fast 3017 passed; blast radius 5402 passed, 15 skipped, 2 xfailed; architectural gates 773 passed (close-out run)",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T10:30:00+00:00",
+      "notes": "Close-out: added by hand after the aggregate review; the acceptance-verdict CLI updates existing rows only and the generator omitted this id (gap #4232)."
+    },
+    {
+      "criterion_id": "SC-006",
+      "description": "Lanes created from a warm cache in a pinned repository hold verified pack trees; no pack file is edited.",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_lane_packs.py, tests/agent/test_implement_lane_packs.py",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T10:30:00+00:00",
+      "notes": "Close-out: added by hand after the aggregate review; the acceptance-verdict CLI updates existing rows only and the generator omitted this id (gap #4232)."
     }
   ],
   "negative_invariants": []
