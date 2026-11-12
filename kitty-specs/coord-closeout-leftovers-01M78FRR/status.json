@@ -1,7 +1,7 @@
 {
-  "event_count": 53,
-  "last_event_id": "01M78YQNNWFXHRQT97G9XHX3AN",
-  "materialized_at": "2026-11-12T22:40:56.508477+00:00",
+  "event_count": 54,
+  "last_event_id": "01M78Z3DE66WZTVR3S0YJNZXZZ",
+  "materialized_at": "2026-11-12T22:47:21.286638+00:00",
   "mission_number": "",
   "mission_slug": "coord-closeout-leftovers-01M78FRR",
   "mission_type": "software-dev",
@@ -12,8 +12,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 1,
     "planned": 1
   },
@@ -95,15 +95,15 @@
       }
     },
     "WP03": {
-      "actor": "claude",
+      "actor": "user",
       "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M78WZ5CPS79E3SNXCMTP4XAA",
-      "last_transition_at": "2026-11-12T22:10:03.926359+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M78Z3DE66WZTVR3S0YJNZXZZ",
+      "last_transition_at": "2026-11-12T22:47:21.286638+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: squash projection refusal names paths, reasons, per-reason remedy and SQUASH_PROJECTION_NOT_LANDED; exit 1 + rollback door unchanged; stale comment fixed",
