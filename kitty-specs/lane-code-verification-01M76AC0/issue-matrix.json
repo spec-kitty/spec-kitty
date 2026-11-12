@@ -169,7 +169,7 @@
       "wp": null
     },
     "#5985": {
-      "evidence_ref": "Item 2 folded in WP03; item 1 stays open",
+      "evidence_ref": "Item 2 (isolate the no-uv fallback) fixed in WP03; Follow-up: #5985 keeps item 1 (refuse vs no_coverage policy)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -177,7 +177,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "Pre-review gate no-uv fallback / no_coverage policy",
-      "verdict": "in-mission",
+      "verdict": "deferred-with-followup",
       "wp": "WP03"
     },
     "#6851": {
