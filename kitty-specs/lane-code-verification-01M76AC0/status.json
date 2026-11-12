@@ -1,7 +1,7 @@
 {
-  "event_count": 23,
-  "last_event_id": "01M7787157P3ABQH4Q2JM3VWQ4",
-  "materialized_at": "2026-11-12T06:48:08.103780+00:00",
+  "event_count": 24,
+  "last_event_id": "01M7788W9ZV4PJSXS762T687GT",
+  "materialized_at": "2026-11-12T06:49:08.671901+00:00",
   "mission_number": "",
   "mission_slug": "lane-code-verification-01M76AC0",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 2,
     "planned": 2
   },
   "work_packages": {
@@ -76,23 +76,23 @@
       }
     },
     "WP03": {
-      "actor": "claude",
-      "agent": "claude",
-      "agent_profile": "python-pedro",
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "for_review",
-      "last_event_id": "01M7786R2TNJ7QR85WY0849KTM",
-      "last_transition_at": "2026-11-12T06:47:58.810432+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M7788W9ZV4PJSXS762T687GT",
+      "last_transition_at": "2026-11-12T06:49:08.671901+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: GateOutcome.FOREIGN_TREE; run_env threaded context->handler->evaluate_pre_review_gate->evaluate_with_scope->both runners (None = inherited env, PWHEADLESS forced); uv strip via INTERPRETER_REDIRECT_KEYS; baseline uses lane invocation recipe (source identity untouched); REFUSE tier between TERMINAL and BLOCK. tests/review 725 passed, 8 skipped. Baseline subprocess doubles narrowed per orchestrator ruling. Dead-symbol gate red on WP01 names until WP04 wires them."
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 12383,
-      "shell_pid_created_at": "1794464186.55",
+      "role": "reviewer",
+      "shell_pid": 25479,
+      "shell_pid_created_at": "1794466136.08",
       "subtasks": {
         "T010": "done",
         "T011": "done",
