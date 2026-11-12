@@ -23,6 +23,7 @@ Two load-bearing layering rules keep this module clean:
 
 from __future__ import annotations
 
+import logging
 import re
 import subprocess
 from enum import StrEnum
@@ -492,6 +493,9 @@ class ResidueContext:
         )
 
 
+_logger = logging.getLogger(__name__)
+
+
 def _seam_metadata_dir(repo_root: Path, mission_slug: str) -> Path | None:
     """The directory the placement seam resolves for ``PRIMARY_METADATA``, or ``None`` when it cannot resolve.
 
@@ -501,10 +505,14 @@ def _seam_metadata_dir(repo_root: Path, mission_slug: str) -> Path | None:
     Mission, an unreadable registry) is not a verdict here: the caller falls back to the raw join.
     """
     from mission_runtime import placement_seam
+    from specify_cli.coordination.surface_resolver import WorktreeRegistryUnavailable
+    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
     try:
         return placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
-    except Exception:  # any seam failure falls back to the raw join, which keeps the pre-#7540 verdict
+    except (StatusReadPathNotFound, WorktreeRegistryUnavailable) as exc:
+        # No checkout holds the Mission, or the worktree registry is unreadable: fall back to the raw join.
+        _logger.debug("placement seam could not resolve PRIMARY_METADATA for %s: %s", mission_slug, exc)
         return None
 
 
