@@ -38,10 +38,10 @@
       "criterion_id": "FR-004",
       "description": "Verify FR-004 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/lanes/test_lane_invocation.py (redirect strip proven half by half; SPEC_KITTY_TEST_DB_NAME applied) \u2014 WP01 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T08:51:49.546446+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
