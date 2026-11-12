@@ -281,3 +281,25 @@ def test_owned_lane_review_base_is_the_facts_target_branch_not_the_repository_ro
     assert f"{checkouts.target_branch}..HEAD" not in text
     assert "wrong-repository-root-target" not in text
     path.unlink()
+
+
+@pytest.mark.parametrize("owned_files", ["[]", "[wp01.py]"], ids=["no_owned_files", "owned_files_no_stamps"])
+def test_owned_lane_review_never_refuses_and_prints_the_range_notice(owned_checkouts_lanes: OwnedCheckouts, stale_root_copy_for_lanes: Any, owned_files: str) -> None:
+    """Operator ruling Q9: on an owned ``lanes``/``lanes_with_coord`` arm (lane id set) the review never refuses.
+
+    ``OWNED_REVIEW_BASE_UNAVAILABLE`` stays on the lane-less owned arm only, where origin/main
+    already raised it. Here the Mission is in origin/main's shape (no stamps, no submission), with
+    and without ``owned_files``: the prompt carries the block's unavailable notice and proceeds.
+    """
+    checkouts = owned_checkouts_lanes
+    if owned_files != "[]":
+        _set_wp_frontmatter(checkouts, owned_files=owned_files)
+    stale_root_copy_for_lanes()
+
+    text, path = _build(checkouts, "review")
+
+    assert f"REVIEW RANGE ({_WP}): unavailable — " in text
+    assert "REVIEW COMMANDS:" in text
+    assert "wrong-repository-root-target" not in text
+    assert "WORK PACKAGE PROMPT BEGINS" in text
+    path.unlink()
