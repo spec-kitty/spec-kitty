@@ -30,6 +30,8 @@ from specify_cli.lanes.worktree_allocator import (
     OrphanedPlanningCommitError,
     PlanningCommitMergeConflictError,
 )
+from specify_cli.lanes.lane_invocation import LaneTestInvocation, ProbeStatus
+from specify_cli.review.lane_test_invocation import render_lane_test_invocation_lines, workspace_lane_test_invocation
 from specify_cli.task_utils import TaskCliError, find_repo_root
 
 from specify_cli.cli.commands import implement_phases, implement_recover
@@ -210,9 +212,10 @@ def _build_implement_json_payload(
     branch_name: str | None,
     result: Any,
     resolved_workspace: Any,
+    lane_test_invocation: LaneTestInvocation | None = None,
 ) -> dict[str, Any]:
     """Assemble the ``--json`` success payload (FR-004/FR-005 #2186 identity
-    anchor + FR-006 lane-test-env passthrough)."""
+    anchor + FR-006 lane-test-env passthrough + #7547 FR-001 lane test invocation)."""
     result_execution_mode = result.execution_mode if isinstance(result.execution_mode, str) else resolved_workspace.execution_mode
     workspace_rel = str(workspace_path.relative_to(repo_root))
     # FR-004/FR-005 (#2186): the JSON ``mission_slug``/``mission_number``/
@@ -246,7 +249,35 @@ def _build_implement_json_payload(
         # when the result type doesn't carry a real dict
         # (e.g. a MagicMock in unit tests).
         "lane_test_env": (result.lane_test_env if isinstance(getattr(result, "lane_test_env", None), dict) else {}),
+        # #7547 FR-001: how to run this lane's tests, with its probe result
+        # (``None`` for planning-artifact work). Re-derived per command, never persisted.
+        "lane_test_invocation": lane_test_invocation.to_dict() if lane_test_invocation is not None else None,
     }
+
+
+def _lane_test_invocation(repo_root: Path, mission_slug: str, result: Any) -> LaneTestInvocation | None:
+    """#7547 FR-001: the lane test invocation for this claim, built and probed once per command."""
+    return workspace_lane_test_invocation(
+        result.workspace_path,
+        config_root=repo_root,
+        mission_slug=mission_slug,
+        lane_id=result.lane_id,
+        resolution_kind=result.resolution_kind,
+        execution_mode=result.execution_mode,
+    )
+
+
+def _print_lane_test_invocation(invocation: LaneTestInvocation | None) -> None:
+    """Print the shared lane test invocation block; a foreign probe line prints as a warning."""
+    if invocation is None:
+        return
+    header, *body = render_lane_test_invocation_lines(invocation)
+    console.print()
+    console.print(f"[bold cyan]{escape(header)}[/bold cyan]")
+    for line in body[:-1]:
+        console.print(escape(line), highlight=False)
+    foreign = invocation.probe is not None and invocation.probe.status is ProbeStatus.FOREIGN
+    console.print(escape(body[-1]), style="bold yellow" if foreign else None, highlight=False)
 
 
 def _report_workspace_created(tracker: StepTracker, result: Any, workspace_path: Path, repo_root: Path) -> None:
@@ -267,9 +298,10 @@ def _report_workspace_created(tracker: StepTracker, result: Any, workspace_path:
         console.print("[cyan]→ Workspace contract: repository root planning workspace[/cyan]")
 
 
-def _print_workspace_ready_banner(result: Any, workspace_path: Path) -> None:
+def _print_workspace_ready_banner(result: Any, workspace_path: Path, lane_test_invocation: LaneTestInvocation | None = None) -> None:
     """Human-readable "workspace ready" banner (repo-root planning vs lane
-    worktree), plus the FR-006 lane-test-env export block."""
+    worktree), plus the FR-006 lane-test-env export block and the #7547 lane
+    test invocation block."""
     if result.lane_id is None:
         console.print("\n[bold green]✓ Repository-root workspace ready[/bold green]")
         console.print()
@@ -291,6 +323,7 @@ def _print_workspace_ready_banner(result: Any, workspace_path: Path) -> None:
         console.print(f"  [bold]cd {workspace_path}[/bold]")
         console.print()
         console.print("[dim]This WP runs directly in the repository root; commit your work on this branch yourself.[/dim]")
+        _print_lane_test_invocation(lane_test_invocation)
         return
 
     console.print("\n[bold green]✓ Lane worktree ready[/bold green]")
@@ -315,6 +348,7 @@ def _print_workspace_ready_banner(result: Any, workspace_path: Path) -> None:
         for key, value in sorted(lane_env.items()):
             console.print(f"  export {key}={value}")
         console.print("[dim]Two parallel SaaS / Django lanes will collide on a single shared test DB unless these are exported in the lane's test process.[/dim]")
+    _print_lane_test_invocation(lane_test_invocation)
 
 
 @_json_safe_output
@@ -468,11 +502,18 @@ def implement(
 
         implement_phases.commit_claim(ctx, wp_id, status_result, allocation)
 
+    lane_test_invocation = _lane_test_invocation(ctx.repo_root, ctx.mission_slug, result)
     if json_output:
-        print(json.dumps(_build_implement_json_payload(ctx.repo_root, ctx.mission_slug, wp_id, workspace_path, branch_name, result, selection.resolved_workspace)))
+        print(
+            json.dumps(
+                _build_implement_json_payload(
+                    ctx.repo_root, ctx.mission_slug, wp_id, workspace_path, branch_name, result, selection.resolved_workspace, lane_test_invocation
+                )
+            )
+        )
         return
 
-    _print_workspace_ready_banner(result, workspace_path)
+    _print_workspace_ready_banner(result, workspace_path, lane_test_invocation)
 
 
 __all__ = ["implement"]
