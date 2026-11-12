@@ -1,0 +1,145 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-12T05:49:45.869363Z",
+      "decision_id": "01M774W50DJNYP39QVKD7MN7FH",
+      "final_answer": null,
+      "input_key": "diff_size_policy",
+      "mission_id": "01M774QFV4PFK8Y0AXFQV30EEE",
+      "mission_slug": "review-context-wp-diff-01M774QF",
+      "opened_by": "claude",
+      "options": [
+        "A (rec): always inline stat + commit list; inline full patch up to a cap (~400 changed lines / 32 KB), else truncate per file with a marker and print the exact git diff command for the remainder",
+        "B: never inline patch text; stat + commit list + one exact command only",
+        "C: write the full diff to a file beside the review prompt and reference it"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Q1: How is the inlined WP diff bounded in the review prompt?",
+      "rationale": null,
+      "resolved_at": null,
+      "resolved_by": null,
+      "slot_key": null,
+      "status": "open",
+      "step_id": "diff_size_policy",
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-12T05:49:47.862665Z",
+      "decision_id": "01M774W6YP70F5TBH724S8YF5E",
+      "final_answer": null,
+      "input_key": "range_tip",
+      "mission_id": "01M774QFV4PFK8Y0AXFQV30EEE",
+      "mission_slug": "review-context-wp-diff-01M774QF",
+      "opened_by": "claude",
+      "options": [
+        "A (rec): newest for_review lane_head stamp (the snapshot submitted for review); fall back to the commit that introduced that for_review event; note when the live branch has moved past it",
+        "B: live branch tip (current behaviour; leaks later commits)"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Q2: What is the upper bound (tip) of the WP review range?",
+      "rationale": null,
+      "resolved_at": null,
+      "resolved_by": null,
+      "slot_key": null,
+      "status": "open",
+      "step_id": "range_tip",
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-12T05:49:49.756987Z",
+      "decision_id": "01M774W8SW9GE4VN8QAR59MJ9S",
+      "final_answer": null,
+      "input_key": "commit_to_target_anchor",
+      "mission_id": "01M774QFV4PFK8Y0AXFQV30EEE",
+      "mission_slug": "review-context-wp-diff-01M774QF",
+      "opened_by": "claude",
+      "options": [
+        "A (rec): read-side only: base = commit that introduced the FR-021 opener event (fallback wp-base ref), tip = commit that introduced the for_review event; no writer change",
+        "B: add a new stamp on the write checkout HEAD at claim/for_review (writer change touching ADR 2026-11-08-2 W-1)"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Q3: On commit-to-target single_branch (no wp_window / lane_head recorded), how is the range anchored?",
+      "rationale": null,
+      "resolved_at": null,
+      "resolved_by": null,
+      "slot_key": null,
+      "status": "open",
+      "step_id": "commit_to_target_anchor",
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-12T05:49:51.759899Z",
+      "decision_id": "01M774WARF9YWAD4MW4P35W8HC",
+      "final_answer": null,
+      "input_key": "lane_pathspec_scope",
+      "mission_id": "01M774QFV4PFK8Y0AXFQV30EEE",
+      "mission_slug": "review-context-wp-diff-01M774QF",
+      "opened_by": "claude",
+      "options": [
+        "A (rec): yes for the inlined patch and stat on every topology (lane-mates and parallel claims otherwise leak in), but list out-of-map paths touched in the window as a separate warning line so nothing is hidden",
+        "B: owned_files scope on repo root only (current behaviour); lane diff unscoped"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Q4: Scope the review diff to the WP owned_files on lane topologies too?",
+      "rationale": null,
+      "resolved_at": null,
+      "resolved_by": null,
+      "slot_key": null,
+      "status": "open",
+      "step_id": "lane_pathspec_scope",
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-12T05:49:53.832729Z",
+      "decision_id": "01M774WCS84H8Y7NTGZBHW6Q2Z",
+      "final_answer": null,
+      "input_key": "window_selector_home",
+      "mission_id": "01M774QFV4PFK8Y0AXFQV30EEE",
+      "mission_slug": "review-context-wp-diff-01M774QF",
+      "opened_by": "claude",
+      "options": [
+        "A (rec): tidy-first move of the pure selector (window_opener_events, window_open_of, WindowOpen/WindowGap) to status/wp_window.py, re-exported from consolidation/wp_attribution; behaviour-preserving",
+        "B: leave it in consolidation and add a second, review-side selector"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Q5: Where does the FR-021 window-opener selector live so the review prompt (src/runtime, which may not import consolidation) can reuse it?",
+      "rationale": null,
+      "resolved_at": null,
+      "resolved_by": null,
+      "slot_key": null,
+      "status": "open",
+      "step_id": "window_selector_home",
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-12T05:49:55.877761Z",
+      "decision_id": "01M774WES5PS3171R3VYCM31DR",
+      "final_answer": null,
+      "input_key": "fold_set",
+      "mission_id": "01M774QFV4PFK8Y0AXFQV30EEE",
+      "mission_slug": "review-context-wp-diff-01M774QF",
+      "opened_by": "claude",
+      "options": [
+        "A (rec): no folds; REFS #3481 #3925 #7120 #7345 #5721; Related (excluded, gate policy / sub-epic E) #6851 #5675 #5331",
+        "B: fold #6851 or #5675 (gate-policy change; out of #7578 non-goals)"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Q6: Fold set for this Mission?",
+      "rationale": null,
+      "resolved_at": null,
+      "resolved_by": null,
+      "slot_key": null,
+      "status": "open",
+      "step_id": "fold_set",
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M774QFV4PFK8Y0AXFQV30EEE",
+  "version": 1
+}
