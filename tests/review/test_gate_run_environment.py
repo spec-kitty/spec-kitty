@@ -179,6 +179,30 @@ def test_override_tier_fallback_without_run_env_inherits_the_environment(monkeyp
     assert seen[0]["PWHEADLESS"] == "1"
 
 
+def test_override_tier_uv_path_strips_redirects_from_the_given_run_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """On the ``uv run --project <lane>`` path the redirect variables never reach the run, run_env or not."""
+    _inherit_redirect_keys(monkeypatch)
+    seen = _capture_launch_env(monkeypatch)
+    monkeypatch.setattr(_interpreter.shutil, "which", lambda _name: "/usr/bin/uv")
+    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'x'\n", encoding="utf-8")
+    (tmp_path / "uv.lock").write_text("", encoding="utf-8")
+    run_env = _lane_run_env()
+    run_env["PYTHONPATH"] = str(tmp_path / "src")
+
+    evaluate_with_scope(
+        ScopeResult.from_override(("tests/test_x.py",)),
+        repo_root=tmp_path,
+        baseline=None,
+        scope_source=None,
+        run_env=run_env,
+    )
+
+    assert len(seen) == 1
+    assert seen[0]["MARK"] == "1"
+    assert seen[0]["PWHEADLESS"] == "1"
+    assert not set(INTERPRETER_REDIRECT_KEYS) & set(seen[0])
+
+
 def test_redirect_strip_list_has_one_home() -> None:
     """The uv-path strip reads WP01's list; the gate keeps no copy of its own."""
     assert not hasattr(pre_review_gate, "_UV_ENV_LEAK_KEYS")
