@@ -1,0 +1,149 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-12T07:53:01.478462Z",
+      "decision_id": "01M77BXV96HE12H00W0WB1Z952",
+      "final_answer": "fold #5929+#7565",
+      "input_key": "fold_set",
+      "mission_id": "01M77BWPZ3E805PYVPYS8A49MZ",
+      "mission_slug": "next-lifecycle-integrity-01M77BWP",
+      "opened_by": "claude",
+      "options": [
+        "fold #5929+#7565",
+        "#7553 only",
+        "fold + #4898"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Fold #5929 and #7565 (same root cause as #7553: the front phase never advances the run, so fall-throughs land on the DAG at discovery)?",
+      "rationale": "Operator ruling 2026-11-12: one root-cause fix closes #7553, #5929, #7565. #5797/#4898/#5670/#3932/#5112 Refs only.",
+      "resolved_at": "2026-11-12T07:53:03.546064Z",
+      "resolved_by": "operator",
+      "slot_key": "fold_set",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-12T07:53:05.607803Z",
+      "decision_id": "01M77BXZA7F8Q49DN32REMB58D",
+      "final_answer": "blocked with remedy",
+      "input_key": "finished_board_envelope",
+      "mission_id": "01M77BWPZ3E805PYVPYS8A49MZ",
+      "mission_slug": "next-lifecycle-integrity-01M77BWP",
+      "opened_by": "claude",
+      "options": [
+        "accept step then terminal",
+        "terminal once finished",
+        "blocked with remedy"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Envelope of an advancing next once the WP board is finished (all approved/done)?",
+      "rationale": "Operator ruling 2026-11-12: kind=blocked with an error_code and remediation naming the next CLI command; records no step row and does not advance the run.",
+      "resolved_at": "2026-11-12T07:53:07.693120Z",
+      "resolved_by": "operator",
+      "slot_key": "finished_board_envelope",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-12T07:53:09.664535Z",
+      "decision_id": "01M77BY390TQSX2SG236W584M0",
+      "final_answer": "recorded reset + narrowing",
+      "input_key": "subtask_reset_policy",
+      "mission_id": "01M77BWPZ3E805PYVPYS8A49MZ",
+      "mission_slug": "next-lifecycle-integrity-01M77BWP",
+      "opened_by": "claude",
+      "options": [
+        "recorded reset",
+        "recorded reset + narrowing",
+        "keep subtasks"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "#7582: rejection/reopen subtask reset policy?",
+      "rationale": "Operator ruling 2026-11-12: keep full reset as default (#2513 protection), record it with the completed set and reason on the PLANNED transition, add move-task --reset-subtasks narrowing (operator reason required).",
+      "resolved_at": "2026-11-12T07:53:11.674773Z",
+      "resolved_by": "operator",
+      "slot_key": "subtask_reset_policy",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-12T07:53:13.677951Z",
+      "decision_id": "01M77BY76DQ8BP34171F6Y2XZF",
+      "final_answer": "pending research squad",
+      "input_key": "query_question",
+      "mission_id": "01M77BWPZ3E805PYVPYS8A49MZ",
+      "mission_slug": "next-lifecycle-integrity-01M77BWP",
+      "opened_by": "claude",
+      "options": [
+        "fix the dropped question only",
+        "make question mandatory"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "#7553: must a kind=query envelope always carry a question?",
+      "rationale": "Operator leans 'must ask a question'; a research squad is dispatched to corroborate or disprove before the ruling is final.",
+      "resolved_at": "2026-11-12T07:53:15.827336Z",
+      "resolved_by": "operator",
+      "slot_key": "query_question",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-12T08:26:21.413271Z",
+      "decision_id": "01M77DTWB5CQRSZE388XFNY7E0",
+      "final_answer": "additive next_command",
+      "input_key": "specify.next.query_question_final",
+      "mission_id": "01M77BWPZ3E805PYVPYS8A49MZ",
+      "mission_slug": "next-lifecycle-integrity-01M77BWP",
+      "opened_by": "claude",
+      "options": [
+        "additive next_command",
+        "fix the drop only",
+        "mandatory question"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Final: query envelope question contract (supersedes the 'pending research squad' entry for query_question)",
+      "rationale": "Operator ruling 2026-11-12 after a two-lens research squad (consumer + history) DISPROVED 'query always carries a question'. Keep question nullable; pin invariant question!=null iff decision_id and options present; fix the drop for a first decision_required; add an additive defaulted next_command to every non-decision query envelope; amend #7553 wording in the PR.",
+      "resolved_at": "2026-11-12T08:26:23.598943Z",
+      "resolved_by": "operator",
+      "slot_key": "specify.next.query_question_final",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-12T08:26:25.491818Z",
+      "decision_id": "01M77DV0AK1STV5G61VJXPJ599",
+      "final_answer": "accepted -> terminal",
+      "input_key": "specify.next.finished_board_state_map",
+      "mission_id": "01M77BWPZ3E805PYVPYS8A49MZ",
+      "mission_slug": "next-lifecycle-integrity-01M77BWP",
+      "opened_by": "claude",
+      "options": [
+        "as mapped",
+        "accepted -> terminal",
+        "single code"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Per-state mapping of the blocked-with-remedy ruling",
+      "rationale": "Operator ruling 2026-11-12: board finished and not accepted -> kind=blocked, new error_code MISSION_AWAITING_ACCEPTANCE, remediation spec-kitty accept; accepted (board still finished) or landed -> existing kind=terminal. No step row recorded, run not advanced. No-WP and research/custom missions unchanged.",
+      "resolved_at": "2026-11-12T08:26:27.600228Z",
+      "resolved_by": "operator",
+      "slot_key": "specify.next.finished_board_state_map",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M77BWPZ3E805PYVPYS8A49MZ",
+  "version": 1
+}
