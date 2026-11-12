@@ -14,6 +14,9 @@ requirement_refs:
 planning_base_branch: fix/7598-coord-closeout-leftovers
 merge_target_branch: fix/7598-coord-closeout-leftovers
 branch_strategy: Planning artifacts for this mission were generated on fix/7598-coord-closeout-leftovers. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/7598-coord-closeout-leftovers unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-coord-closeout-leftovers-01M78FRR
+base_commit: ad526ebb6f0934401766b67ff9b90d8df49e5fda
+created_at: '2026-11-12T19:17:52.289889+00:00'
 subtasks:
 - T004
 - T005
