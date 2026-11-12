@@ -100,6 +100,25 @@ def write_branch_from_meta(meta: Mapping[str, Any], target_branch: str) -> str:
     return single_branch_write_ref(stored_topology(meta), meta.get("mission_branch"), target_branch)
 
 
+def single_branch_branches(meta: Mapping[str, Any]) -> tuple[str, str] | None:
+    """``(write branch, target branch)`` of a STORED ``single_branch`` Mission, read from ``meta.json`` alone.
+
+    ``None`` for any other topology and for a Mission with no recorded ``target_branch``. The
+    write branch is the minted Mission branch when there is one, else the target itself (a
+    commit-to-target Mission, :func:`is_commit_to_target_meta`).
+    """
+    target = meta.get("target_branch")
+    if not (isinstance(target, str) and target) or not is_single_branch_meta(meta):
+        return None
+    return write_branch_from_meta(meta, target), target
+
+
+def is_commit_to_target_meta(meta: Mapping[str, Any]) -> bool:
+    """True when *meta* declares a STORED ``single_branch`` topology whose write branch is its recorded target."""
+    branches = single_branch_branches(meta)
+    return branches is not None and branches[0] == branches[1]
+
+
 def write_branch_for(manifest: LanesManifest, meta: Mapping[str, Any]) -> str:
     """The Mission write branch: :func:`write_branch_from_meta` against the manifest's target.
 

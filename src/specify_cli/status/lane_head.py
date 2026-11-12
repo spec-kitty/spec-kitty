@@ -273,13 +273,12 @@ def _single_branch_write_branch(repo_root: Path, mission_slug: str, owned: Owned
     recorded ``target_branch``, which keep the lane-map reading. *role* names the branch in a
     no-stamp detail.
     """
-    from specify_cli.lanes.single_branch_landing import is_single_branch_meta, stored_mission_meta, write_branch_from_meta
+    from specify_cli.lanes.single_branch_landing import single_branch_branches, stored_mission_meta
 
-    meta = stored_mission_meta(repo_root, mission_slug, owned=owned)
-    target = meta.get("target_branch")
-    if not (isinstance(target, str) and target) or not is_single_branch_meta(meta):
+    branches = single_branch_branches(stored_mission_meta(repo_root, mission_slug, owned=owned))
+    if branches is None:
         return None
-    branch = write_branch_from_meta(meta, target)
+    branch, target = branches
     return (branch, _TARGET_BRANCH_ROLE) if branch == target else (branch, _MISSION_BRANCH_ROLE)
 
 
