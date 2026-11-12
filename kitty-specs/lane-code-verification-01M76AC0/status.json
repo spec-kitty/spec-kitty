@@ -52,7 +52,7 @@
     },
     "WP02": {
       "actor": "claude-reviewer",
-      "agent": "claude-reviewer",
+      "agent": null,
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 1,
@@ -65,6 +65,7 @@
         "lane_test_invocation in implement --json (null for planning-artifact work) + banner block; implement/review prompts re-derive and re-probe it via review/lane_test_invocation.py (fail-open); goldens gain only the new key; red-first c2da8428, green 9ea5cdb5"
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/lane-code-verification-01M76AC0-coord/kitty-specs/lane-code-verification-01M76AC0/tasks/WP02-implement-and-prompts-carry-the-invocation/review-cycle-1.md",
         "reference": "review-cycle://lane-code-verification-01M76AC0/WP02-implement-and-prompts-carry-the-invocation/review-cycle-1.md",
@@ -72,13 +73,13 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 21476,
-      "shell_pid_created_at": "1794466076.89",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T006": "done",
-        "T007": "done",
-        "T008": "done",
-        "T009": "done"
+        "T006": "planned",
+        "T007": "planned",
+        "T008": "planned",
+        "T009": "planned"
       }
     },
     "WP03": {
