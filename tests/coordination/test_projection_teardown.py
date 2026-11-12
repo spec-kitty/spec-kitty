@@ -19,7 +19,7 @@ Two coupled guarantees, proven with REAL git fixtures (no git-layer mocking):
    one coupled decision), with a structured, non-zero refusal.
 
 The projection also exposes the squash-content-proof artifact
-(:func:`projected_content_matches_target`) the WP06 reconciliation gate defers to
+(:func:`unlanded_projected_paths`) the WP06 reconciliation gate defers to
 for squash strategies (it drops ``verify_reachability`` because squash loses lane
 SHAs/patch-ids); a follow-up wires that proof to flip squash back to full
 verification.
@@ -243,11 +243,11 @@ def test_status_projection_call_site_signature_is_backward_compatible(tmp_path: 
 # ---------------------------------------------------------------------------
 
 
-def test_projected_content_matches_target_after_projection(tmp_path: Path) -> None:
+def test_projected_content_lands_after_projection(tmp_path: Path) -> None:
     """The content proof holds once the projected paths are committed onto the target."""
     from specify_cli.consolidation.bookkeeping_projection import (
         project_post_checkpoint_commits_to_target,
-        projected_content_matches_target,
+        unlanded_projected_paths,
     )
 
     repo = _init_repo(tmp_path)
@@ -263,19 +263,22 @@ def test_projected_content_matches_target_after_projection(tmp_path: Path) -> No
     _git(repo, "add", "-A")
     _git(repo, "commit", "-q", "-m", "project bookkeeping")
 
-    assert projected_content_matches_target(
-        main_repo=repo,
-        coord_ref=coord,
-        target_ref="main",
-        projected_paths=result.projected_paths,
-        checkpoint_sha=checkpoint,
-        pre_squash_target_ref=pre_squash_target_sha,
+    assert (
+        unlanded_projected_paths(
+            main_repo=repo,
+            coord_ref=coord,
+            target_ref="main",
+            projected_paths=result.projected_paths,
+            checkpoint_sha=checkpoint,
+            pre_squash_target_ref=pre_squash_target_sha,
+        )
+        == []
     )
 
 
 def test_projected_content_proof_fails_when_target_diverges(tmp_path: Path) -> None:
     """The proof is non-vacuous: a target that never received the content fails it."""
-    from specify_cli.consolidation.bookkeeping_projection import projected_content_matches_target
+    from specify_cli.consolidation.bookkeeping_projection import ProjectedPathReason, unlanded_projected_paths
 
     repo = _init_repo(tmp_path)
     coord = _make_coord_branch(repo)
@@ -284,14 +287,14 @@ def test_projected_content_proof_fails_when_target_diverges(tmp_path: Path) -> N
     _append_coord_commit(repo, coord, verdict_rel, "verdict: approved\n", "verdict")
 
     # Never projected onto main → the content proof must report divergence.
-    assert not projected_content_matches_target(
+    assert unlanded_projected_paths(
         main_repo=repo,
         coord_ref=coord,
         target_ref="main",
         projected_paths=(verdict_rel,),
         checkpoint_sha=checkpoint,
         pre_squash_target_ref="main",
-    )
+    ) == [(verdict_rel, ProjectedPathReason.CONTENT_DIFFERS)]
 
 
 # ---------------------------------------------------------------------------

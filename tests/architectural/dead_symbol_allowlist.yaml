@@ -1162,13 +1162,6 @@ entries:
     today, external consumer deferred to the Epic #5001 follow-ups.'
   issue: '#5001'
 - module: specify_cli.consolidation.bookkeeping_projection
-  name: projected_content_matches_target
-  category: category_c_terminus_reconciliation_5001
-  rationale: 'The #5038 squash content proof as a bool. Since #5867 the gate calls unlanded_projected_paths
-    (which names each path and reason); this thin `not unlanded_projected_paths(...)` wrapper is kept for
-    the #5038 reproductions (tests/terminus/test_repro_5038.py) and the projection seam tests.'
-  issue: '#5867'
-- module: specify_cli.consolidation.bookkeeping_projection
   name: project_post_checkpoint_commits_to_target
   category: category_c_terminus_reconciliation_5001
   rationale: Same S-B/FR-004 projection helper as ProjectionResult; called only from within its own module

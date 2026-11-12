@@ -33,7 +33,7 @@ driver's own reproducible output. The PRE-fix proof demanded raw
 (previously-unreproducible-as-filed) #5038.
 
 **Fix disposition (this WP): driver-replay attribution.**
-``bookkeeping_projection.projected_content_matches_target`` now proves, for a
+``bookkeeping_projection.unlanded_projected_paths`` now proves, for a
 path that diverged from the shared checkpoint baseline, that the landed target
 blob equals the path's registered driver replayed on
 ``(checkpoint, pre-squash-target, coord)`` -- the SAME deterministic
@@ -73,7 +73,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.consolidation.bookkeeping_projection import projected_content_matches_target
+from specify_cli.consolidation.bookkeeping_projection import ProjectedPathReason, unlanded_projected_paths
 from tests.terminus.conftest import (
     CoordMission,
     build_coord_mission,
@@ -157,7 +157,7 @@ def test_5038_p2_genuine_projection_failure_still_refuses(tmp_path: Path) -> Non
     entirely -- content the deterministic union driver would ALWAYS have
     preserved -- so it can never equal the driver's replayed output. Real,
     on-disk git blobs throughout (no git-layer mocking); driven directly
-    against :func:`projected_content_matches_target` (the exact seam the
+    against :func:`unlanded_projected_paths` (the exact seam the
     real-CLI-driven ``_assert_squash_projected_content_landed`` delegates to)
     since a real single ``spec-kitty merge`` squash of a driver-governed path
     can, by construction, only ever land the driver's own real output --
@@ -204,11 +204,13 @@ def test_5038_p2_genuine_projection_failure_still_refuses(tmp_path: Path) -> Non
     git(repo, "add", "-A")
     git(repo, "commit", "-q", "-m", "genuinely-lossy landing (simulated #4981-class bug)")
 
-    assert not projected_content_matches_target(
+    assert unlanded_projected_paths(
         main_repo=repo,
         coord_ref="coord",
         target_ref="main",
         projected_paths=(trace_rel,),
         checkpoint_sha=checkpoint_sha,
         pre_squash_target_ref=pre_squash_target_sha,
-    ), "P2 guard: a landed blob the registered driver replay does not reproduce must REFUSE, never silently PASS (C-001)."
+    ) == [(trace_rel, ProjectedPathReason.MERGE_DRIVER_MISMATCH)], (
+        "P2 guard: a landed blob the registered driver replay does not reproduce must REFUSE, never silently PASS (C-001)."
+    )
