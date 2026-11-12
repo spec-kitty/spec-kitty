@@ -193,7 +193,7 @@
       "wp": null
     },
     "#7601": {
-      "evidence_ref": "WP03 protected preflights",
+      "evidence_ref": "WP03 eacbc7db (implement preflight judges claim checkout), 7f84cc6b (move-task holder); red 7b9e4341",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -201,7 +201,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP03"
     },
     "#7602": {
