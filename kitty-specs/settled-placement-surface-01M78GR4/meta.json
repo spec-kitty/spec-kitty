@@ -27,6 +27,7 @@
   "purpose_context": "Operators of default Missions that settle to lanes_with_coord currently hit WRONG_SURFACE on spec-commit, a protected-branch refusal on implement, silently uncommitted baseline files, a wrong target banner and remedies that cannot work, because several call sites still assume the repository root checkout holds the Mission branch. This Mission makes the placement seam the single authority for which checkout a write lands in, so the governed workflow runs without raw git workarounds (sub-epic #7546).",
   "purpose_tldr": "After finalize-tasks settles a default Mission to lanes_with_coord, every commit, guard and remedy resolves the checkout that holds the Mission's branch through the one placement seam.",
   "slug": "settled-placement-surface-01M78GR4",
+  "status_phase": "1",
   "target_branch": "fix/7546-settled-placement-surface",
   "topology": "single_branch",
   "topology_source": "explicit"
