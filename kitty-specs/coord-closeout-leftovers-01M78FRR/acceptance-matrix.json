@@ -2,7 +2,7 @@
   "mission_slug": "coord-closeout-leftovers-01M78FRR",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
@@ -138,10 +138,10 @@
       "criterion_id": "FR-014",
       "description": "Verify FR-014 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "WP03: phase_gate.py comment corrected; test_a_resume_whose_landing_already_passed_refuses_without_claiming_a_rollback",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T23:14:11.960252+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     }
   ],
