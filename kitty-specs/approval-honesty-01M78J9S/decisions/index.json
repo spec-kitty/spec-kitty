@@ -219,6 +219,26 @@
       "status": "resolved",
       "step_id": null,
       "summary_json": null
+    },
+    {
+      "created_at": "2026-11-12T20:52:41.823649Z",
+      "decision_id": "01M78RHF6ZDFN8392Q8Z0XRDHQ",
+      "final_answer": "Refuse (fail closed, nothing written) unless --approval-ref is given; remedy names the damaged log and --force or --approval-ref. FR-012 amended for this case only; feedback-file warnings unchanged.",
+      "input_key": "damaged_slot",
+      "mission_id": "01M78J9SRTXKMQCE2HNDN5TCKS",
+      "mission_slug": "approval-honesty-01M78J9S",
+      "opened_by": "claude",
+      "options": [],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Unforced approval on a damaged review slot (no cycle written, no honest reference)?",
+      "rationale": "Operator ruling 2026-11-12 after WP01 review cycle 1 (finding 2).",
+      "resolved_at": "2026-11-12T20:52:45.525109Z",
+      "resolved_by": "operator",
+      "slot_key": "plan.cycles.damaged-slot",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
     }
   ],
   "mission_id": "01M78J9SRTXKMQCE2HNDN5TCKS",
