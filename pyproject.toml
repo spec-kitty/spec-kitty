@@ -1762,7 +1762,6 @@ exclude = [
     "tests/specify_cli/cli/commands/agent/test_tests_stale_check.py",
     "tests/specify_cli/cli/commands/agent/test_workflow.py",
     "tests/specify_cli/cli/commands/agent/test_workflow_canonical_cleanup.py",
-    "tests/specify_cli/cli/commands/agent/test_workflow_cores.py",
     "tests/specify_cli/cli/commands/agent/test_workflow_event_log_merge.py",
     "tests/specify_cli/cli/commands/agent/test_wp05_mission_coordination_routing.py",
     "tests/specify_cli/cli/commands/agent/test_wp_header_regex_depth.py",
