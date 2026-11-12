@@ -119,7 +119,7 @@ No Charter violations.
   - (2) `reconciliation_closed_world._recorded_lane_heads`, the `--dependency-ref` refusal;
   - (3) `approved_attestation._has_review_approval_stamp:103`.
 
-  Unchanged, and verified: `_bound_write_branch` returns None, `approved_bound._approval_is_bounded` excludes these Missions, and `cutover_eligibility` treats the keys as provenance. Pin today's verdicts for (1)–(3), plus the approved-only consolidation and accept, then record the after-state in the ADR amendment and in `tracer-design-decisions.md`. Escalate if a previously passing Mission now refuses.
+  Verified unchanged: `_bound_write_branch` returns None, and `cutover_eligibility` treats the keys as provenance. **Correction (post-tasks squad):** `tests/integration/test_single_branch_approval_windows.py::test_commit_to_target_unbounded_residual` asserts that a commit-to-target Mission is already refused with `LANE_MOVED_AFTER_APPROVAL`, so some bound reaches these Missions today. WP02's T006 traces and pins that path before the stamp lands. Pin today's verdicts for (1)–(3), plus the approved-only consolidation and accept, then record the after-state in the ADR amendment and in `tracer-design-decisions.md`. Escalate if a previously passing Mission now refuses.
 
 ### IC-03: The review-range resolver (the single owner of a WP's review range and pathspecs)
 

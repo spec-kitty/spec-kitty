@@ -138,6 +138,29 @@
       "status": "resolved",
       "step_id": "fold_set",
       "summary_json": null
+    },
+    {
+      "created_at": "2026-11-12T06:32:23.009105Z",
+      "decision_id": "01M777A6718QF5QSVHNSVFK221",
+      "final_answer": "Narrow: the refusal (code and message unchanged) fires only when the owned checkout's scoped range is unavailable or the WP declares no owned_files; cells pinned on an unresolvable claim commit are re-pinned to genuinely-unavailable fixtures, never deleted.",
+      "input_key": "owned_review_refusal_trigger",
+      "mission_id": "01M774QFV4PFK8Y0AXFQV30EEE",
+      "mission_slug": "review-context-wp-diff-01M774QF",
+      "opened_by": "claude",
+      "options": [
+        "Narrow: only when the scoped range is unavailable or no owned_files (code/message unchanged)",
+        "Keep: whenever the claim commit cannot be found"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Q7: When does OWNED_REVIEW_BASE_UNAVAILABLE fire once the review range resolves from the recorded window?",
+      "rationale": "Operator ruling 2026-11-12: firing less often is the purpose of the friction reduction; reviews should only be blocked on actual lineage problems.",
+      "resolved_at": "2026-11-12T06:32:25.136135Z",
+      "resolved_by": "operator",
+      "slot_key": null,
+      "status": "resolved",
+      "step_id": "owned_review_refusal_trigger",
+      "summary_json": null
     }
   ],
   "mission_id": "01M774QFV4PFK8Y0AXFQV30EEE",
