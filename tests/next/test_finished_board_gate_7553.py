@@ -671,28 +671,34 @@ def test_pairing_still_runs_when_meta_cannot_be_read(monkeypatch: pytest.MonkeyP
 # ---------------------------------------------------------------------------
 
 
-def test_blocked_human_output_prints_the_next_command(capsys: pytest.CaptureFixture[str]) -> None:
+@pytest.mark.parametrize(
+    ("renderer", "fields", "next_line"),
+    [
+        pytest.param(
+            "_print_standard_human",
+            {"reason": "awaits acceptance", "next_command": "spec-kitty accept --mission m"},
+            "  Next: spec-kitty accept --mission m",
+            id="blocked",
+        ),
+        pytest.param(
+            "_print_query_details",
+            {"kind": DecisionKind.query, "reason": "preview", "next_command": "spec-kitty next --agent <agent> --mission m --result success"},
+            "  Next: spec-kitty next --agent <agent> --mission m --result success",
+            id="query",
+        ),
+        pytest.param("_print_standard_human", {"reason": "blocked"}, None, id="no-next-command-prints-no-next-line"),
+    ],
+)
+def test_human_output_prints_the_next_command(renderer: str, fields: dict[str, Any], next_line: str | None, capsys: pytest.CaptureFixture[str]) -> None:
     from specify_cli.cli.commands import next_cmd
 
-    next_cmd._print_standard_human(_decision(reason="awaits acceptance", next_command="spec-kitty accept --mission m"))
+    getattr(next_cmd, renderer)(_decision(**fields))
 
-    assert "  Next: spec-kitty accept --mission m" in capsys.readouterr().out
-
-
-def test_query_human_output_prints_the_next_command(capsys: pytest.CaptureFixture[str]) -> None:
-    from specify_cli.cli.commands import next_cmd
-
-    next_cmd._print_query_details(_decision(kind=DecisionKind.query, reason="preview", next_command="spec-kitty next --agent <agent> --mission m --result success"))
-
-    assert "  Next: spec-kitty next --agent <agent> --mission m --result success" in capsys.readouterr().out
-
-
-def test_human_output_without_a_next_command_prints_no_next_line(capsys: pytest.CaptureFixture[str]) -> None:
-    from specify_cli.cli.commands import next_cmd
-
-    next_cmd._print_standard_human(_decision(reason="blocked"))
-
-    assert "Next:" not in capsys.readouterr().out
+    out = capsys.readouterr().out
+    if next_line is None:
+        assert "Next:" not in out
+    else:
+        assert next_line in out
 
 
 # ---------------------------------------------------------------------------

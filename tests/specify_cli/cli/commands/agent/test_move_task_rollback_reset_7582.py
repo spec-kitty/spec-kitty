@@ -28,6 +28,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from collections.abc import Callable
 from typing import Any
 
 import pytest
@@ -355,71 +356,47 @@ def test_accepted_narrowing_with_auto_commit_moves_head(tmp_path: Path, monkeypa
     assert _write_surface(repo, feature_dir, sub)[0] != before[0], "an accepted move with auto-commit must move HEAD"
 
 
-def test_unknown_id_is_refused_before_any_write(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    repo, feature_dir, sub = _build_repo(tmp_path)
+@pytest.mark.parametrize(
+    ("to", "subtasks", "make_args", "expected"),
+    [
+        pytest.param("planned", None, lambda r: _narrowed_args(r, ids="T009"), ("T009", "not on WP01's subtask roster"), id="unknown-id"),
+        pytest.param("planned", None, lambda r: _narrowed_args(r, note=None), ("--reset-subtasks requires --note/--reason",), id="missing-reason"),
+        pytest.param(
+            "for_review",
+            None,
+            lambda _r: ("--reset-subtasks", "T001", "--note", "x"),
+            ("--reset-subtasks applies only to --to planned", "for_review"),
+            id="wrong-target-lane",
+        ),
+        # Operator input is escaped before Rich renders it: a stray closing tag never crashes the refusal.
+        pytest.param(
+            "planned",
+            None,
+            lambda r: _narrowed_args(r, ids="[/x]"),
+            ("[/x] is not on WP01's subtask roster", "RESET_SUBTASKS_UNKNOWN_IDS"),
+            id="markup-closing-tag-echoed-literally",
+        ),
+        pytest.param(
+            "planned",
+            None,
+            lambda r: _narrowed_args(r, ids="[bold]T1"),
+            ("[bold]T1 is not on WP01's subtask roster", "RESET_SUBTASKS_UNKNOWN_IDS"),
+            id="markup-open-tag-echoed-literally",
+        ),
+        pytest.param("planned", {"T001": Lane.DONE, "T002": SubtaskStatus.SKIPPED}, lambda r: _narrowed_args(r), ("T002", "is skipped"), id="skipped-id"),
+    ],
+)
+def test_narrowing_is_refused_before_any_write(
+    to: str,
+    subtasks: dict[str, Any] | None,
+    make_args: Callable[[Path], tuple[str, ...]],
+    expected: tuple[str, ...],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, feature_dir, sub = _build_repo(tmp_path, subtasks=subtasks) if subtasks else _build_repo(tmp_path)
     monkeypatch.chdir(repo)
-    _assert_refused_before_any_write(
-        repo,
-        feature_dir,
-        sub,
-        to="planned",
-        extra_args=_narrowed_args(repo, ids="T009"),
-        expected=("T009", "not on WP01's subtask roster"),
-    )
-
-
-def test_missing_reason_is_refused_before_any_write(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    repo, feature_dir, sub = _build_repo(tmp_path)
-    monkeypatch.chdir(repo)
-    _assert_refused_before_any_write(
-        repo,
-        feature_dir,
-        sub,
-        to="planned",
-        extra_args=_narrowed_args(repo, note=None),
-        expected=("--reset-subtasks requires --note/--reason",),
-    )
-
-
-def test_wrong_target_lane_is_refused_before_any_write(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    repo, feature_dir, sub = _build_repo(tmp_path)
-    monkeypatch.chdir(repo)
-    _assert_refused_before_any_write(
-        repo,
-        feature_dir,
-        sub,
-        to="for_review",
-        extra_args=("--reset-subtasks", "T001", "--note", "x"),
-        expected=("--reset-subtasks applies only to --to planned", "for_review"),
-    )
-
-
-@pytest.mark.parametrize("ids", ["[/x]", "[bold]T1"])
-def test_markup_in_reset_ids_is_echoed_literally_and_refused(ids: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Operator input is escaped before Rich renders it: a stray closing tag never crashes the refusal."""
-    repo, feature_dir, sub = _build_repo(tmp_path)
-    monkeypatch.chdir(repo)
-    _assert_refused_before_any_write(
-        repo,
-        feature_dir,
-        sub,
-        to="planned",
-        extra_args=_narrowed_args(repo, ids=ids),
-        expected=(f"{ids} is not on WP01's subtask roster", "RESET_SUBTASKS_UNKNOWN_IDS"),
-    )
-
-
-def test_skipped_id_is_refused_before_any_write(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    repo, feature_dir, sub = _build_repo(tmp_path, subtasks={"T001": Lane.DONE, "T002": SubtaskStatus.SKIPPED})
-    monkeypatch.chdir(repo)
-    _assert_refused_before_any_write(
-        repo,
-        feature_dir,
-        sub,
-        to="planned",
-        extra_args=_narrowed_args(repo),
-        expected=("T002", "is skipped"),
-    )
+    _assert_refused_before_any_write(repo, feature_dir, sub, to=to, extra_args=make_args(repo), expected=expected)
 
 
 # --------------------------------------------------------------------------- #
