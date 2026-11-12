@@ -1,6 +1,6 @@
 """Generate the docsite's legacy redirect map (#6933; ADR 2026-10-31-1 D-5, amended 2026-11-10).
 
-Every route the DocFX site published (``site/url-baseline.txt``) must keep resolving on the
+Every route the legacy site published before the cutover (``site/url-baseline.txt``) must keep resolving on the
 doc-kitty site. All of them end in ``.html``. Astro refuses ``.html`` redirect keys on static
 output (doc-kitty #253), so the map feeds doc-kitty's ``legacyHtmlRedirects`` option, which
 writes one flat redirect stub per key. This module derives that map from three authorities
@@ -20,11 +20,12 @@ The rules, applied to each baseline route:
 3. A ``dir/index.html`` that is the built file of the live, unmoved page ``dir/`` gets no
    key: the page serves it.
 4. A route whose page is unpublished (draft folder, draft status, excluded or archived
-   folder) redirects to its nearest published ancestor, normally the section hub. This
-   lives here, not in ``moves.yaml``, while DocFX still publishes drafts (its ``validate``
-   refuses a move away from a page it publishes).
+   folder) redirects to its nearest published ancestor, normally the section hub. It
+   was put here, not in ``moves.yaml``, while the legacy site still published drafts
+   (its map check refused a move away from a page it published); that site is retired
+   (#6943), so a ``moves.yaml`` row may now carry the rule instead.
 5. A route backed by a file under ``docs/`` that is not a page (a standalone HTML resource
-   DocFX copied, such as ``assets/spec-kitty-backlog.html``) redirects to its nearest
+   the legacy site copied, such as ``assets/spec-kitty-backlog.html``) redirects to its nearest
    published ancestor (operator ruling 2026-11-10). Any other route with no page and no
    move is refused.
 

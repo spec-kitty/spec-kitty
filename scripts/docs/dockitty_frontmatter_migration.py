@@ -35,8 +35,8 @@ Usage::
     python -m scripts.docs.dockitty_frontmatter_migration --validate
 
 Kept for the migration and its re-runs (a later conflict with another docs PR is
-resolved by re-running ``--apply``); dropped with the other migration-era tools at
-DocFX retirement (ADR D-6).
+resolved by re-running ``--apply``); dropped with the other migration-era tools once no
+docs pull request needs a re-run (ADR D-6).
 """
 
 from __future__ import annotations

@@ -1,5 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /toc.html
-Disallow: /*/toc.html
-Sitemap: https://docs.spec-kitty.ai/sitemap.xml

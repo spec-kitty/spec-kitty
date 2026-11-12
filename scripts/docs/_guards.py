@@ -11,10 +11,9 @@ immediately rather than silently reporting "0 findings" over 0 examined.
 call sites were mirrors of one another. This module is the single source for
 that guard so the two modules stop drifting independently.
 
-This is a distinct contract from ``redirect_stub_generator.assert_non_vacuous``
-(raises ``ValueError``) and the ``_published_pages`` census floor (also
-``ValueError`` / ``CoverageError``) — those are a different exception family
-and are intentionally left alone.
+This is a distinct contract from the published-set floors of the docsite tests
+(``tests/docs/test_docs_seo.py``), which are plain assertions, not a raising
+guard.
 
 This module also carries :func:`resolve_changed_files`, the shared diff-scope
 resolver used by the related-edge, relative-link, audience, and description

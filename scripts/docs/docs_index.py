@@ -10,8 +10,10 @@ build-tooling/CI needs: walking ``docs/**/*.md``, parsing frontmatter,
 scanning headings, and the ``--write``/``--strict`` CLI.
 
 Mirrors the proven ``inventory_lockfile.py`` generate/render/compare/CLI
-shape (C-004): the generator never re-implements ``parse_frontmatter`` or the
-canonical ``slugify`` — both are imported, not forked (DIRECTIVE_044). This
+shape (C-004): the generator never re-implements ``parse_frontmatter`` — it is
+imported, not forked (DIRECTIVE_044). The canonical heading :func:`slugify` lives
+here since its former home, the retired kitty-specs dashboard generator, went
+with the legacy site build (#6943). This
 module never widens or imports ``scripts.docs._inventory.PageInventoryEntry``
 (C-001) — the retrieval index is a sibling artifact with its own schema.
 """
@@ -28,7 +30,6 @@ from typing import Any, Final
 
 from scripts.docs._inventory import parse_frontmatter
 from scripts.docs.bulk_ref_rewrite import split_frontmatter
-from scripts.docs.generate_kitty_specs_docs import slugify
 
 from specify_cli.docs.index_model import (
     DEFAULT_INDEX_PATH,
@@ -64,6 +65,9 @@ DEFAULT_DOCS_ROOT: Final[str] = "docs/"
 _HEADING_RE: Final[re.Pattern[str]] = re.compile(r"^(#{2,3})\s+(\S.*)$")
 _H1_RE: Final[re.Pattern[str]] = re.compile(r"^#\s+(\S.*)$")
 _FENCE_RE: Final[re.Pattern[str]] = re.compile(r"^\s*```")
+#: A markup tag and a run of characters a slug may not hold (:func:`slugify`).
+_TAG: Final[re.Pattern[str]] = re.compile(r"<[^>]+>")
+_NON_SLUG: Final[re.Pattern[str]] = re.compile(r"[^a-z0-9]+")
 
 _FM_TITLE: Final[str] = "title"
 _FM_DESCRIPTION: Final[str] = "description"
@@ -121,9 +125,7 @@ def resolve_abstract(frontmatter: Mapping[str, Any], body: str) -> str:
 
     "First paragraph" is the first run of non-blank, non-heading lines,
     joined with a single space. ADR/changelog pages with neither a
-    ``description`` nor a leading prose paragraph resolve to ``""`` (the
-    exemption ``description_length_check.py`` already carves out for
-    ``docs/adr/``).
+    ``description`` nor a leading prose paragraph resolve to ``""``.
     """
     description = frontmatter.get(_FM_DESCRIPTION)
     if isinstance(description, str) and description.strip():
@@ -140,13 +142,22 @@ def resolve_abstract(frontmatter: Mapping[str, Any], body: str) -> str:
     return " ".join(paragraph)
 
 
+def slugify(value: str, fallback: str = "section") -> str:
+    """The canonical heading slug: tags stripped, lower case, ``[a-z0-9]`` runs joined by ``-``.
+
+    *fallback* is returned when nothing of *value* survives.
+    """
+    slug = _TAG.sub("", value).lower()
+    slug = _NON_SLUG.sub("-", slug).strip("-")
+    return slug or fallback
+
+
 def slug_for_headings(texts: list[str]) -> list[str]:
     """Slugify each heading text, disambiguating duplicates with an ordinal suffix.
 
-    Mirrors the ``assign_anchor_ids`` pattern (``generate_kitty_specs_docs.py``):
-    first occurrence keeps the bare slug, the 2nd/3rd/... duplicate gets a
+    The first occurrence keeps the bare slug, the 2nd/3rd/... duplicate gets a
     ``-2``/``-3``/... suffix, in the order the headings appear on the page.
-    Uses the canonical ``slugify`` — never a re-implementation (DIRECTIVE_044).
+    Uses the canonical :func:`slugify` — never a re-implementation (DIRECTIVE_044).
     """
     seen: dict[str, int] = {}
     slugs: list[str] = []

@@ -1,8 +1,0 @@
-{
-  "plantuml_version": "1.2025.4",
-  "plantuml_jar_sha256": "26518e14a3a04100cd76c0d96cab2d1171f36152215edd9790a28d20268200c1",
-  "plantuml_jar_url": "https://github.com/plantuml/plantuml/releases/download/v1.2025.4/plantuml-1.2025.4.jar",
-  "jre_image": "eclipse-temurin:21-jre-jammy",
-  "jre_image_digest": "eclipse-temurin@sha256:3097cbbebb7d490494a98aed2301f284b38f79eba158eef098c6fc8c8af11c23",
-  "notes": "The JRE image is font-bearing (fontconfig + DejaVu) so PlantUML @startyaml text renders with real metrics under docker --network=none; verified locally rendering a real @startyaml to a valid, error-free SVG by digest. The jar is downloaded in CI and sha256-verified before every use; only `java -jar` runs inside the network-isolated container. Bump both pins together and re-run the egress spike."
-}

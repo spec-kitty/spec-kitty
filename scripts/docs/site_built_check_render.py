@@ -1,7 +1,7 @@
 """The ``render`` surface of the built-site check (#6935; ADR 2026-10-31-1 D-6, D-11).
 
-Every built HTML page must carry the head tags DocFX's ``seo_postprocess.py`` and
-``seo_verify.py`` guarantee today, and render GitHub alerts as callouts:
+Every built HTML page must carry the head tags the legacy site's SEO post-processor and
+verifier guaranteed, and render GitHub alerts as callouts:
 
 * a non-empty ``<meta name="description">``;
 * a ``<link rel="canonical">`` equal to the page's own URL on the site's origin
@@ -11,8 +11,8 @@ Every built HTML page must carry the head tags DocFX's ``seo_postprocess.py`` an
   ``[!CAUTION]``, any letter case) in the page text outside ``code``/``pre`` (an
   unrendered alert; ``githubAlerts`` in ``site/astro.config.mjs`` turns them into asides).
 
-Starlight and doc-kitty emit these tags; this proves them on the built output so the
-DocFX scripts can retire at #6943. A redirect stub (#6933,
+Starlight and doc-kitty emit these tags; this proves them on the built output, which let
+the legacy SEO scripts retire (#6943). A redirect stub (#6933,
 :func:`~scripts.docs._dockitty_contract.redirect_stub_target`) is not a page and is skipped.
 Standard library only (``html.parser``).
 """
