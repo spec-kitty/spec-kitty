@@ -1255,7 +1255,8 @@ def _mt_review_code(st: _MoveTaskState) -> str:
     """``REVIEW_NOT_INDEPENDENT``, or its ``SINGLE_BRANCH_*`` alias on a single_branch Mission."""
     from specify_cli.consolidation import wp_evidence
 
-    return wp_evidence.SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT if _mt_is_single_branch(st) else wp_evidence.REVIEW_NOT_INDEPENDENT
+    code: str = wp_evidence.SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT if _mt_is_single_branch(st) else wp_evidence.REVIEW_NOT_INDEPENDENT
+    return code
 
 
 def _mt_require_independent_approval(st: _MoveTaskState) -> None:
