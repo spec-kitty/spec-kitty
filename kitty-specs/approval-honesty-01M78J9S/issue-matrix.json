@@ -97,16 +97,16 @@
       "wp": null
     },
     "#7571": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Mission approval-honesty-01M78J9S WP03",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "move-task --to approved writes a second review render",
+      "verdict": "in-mission",
+      "wp": "WP03"
     },
     "#7573": {
       "evidence_ref": "Mission approval-honesty-01M78J9S WP02",
