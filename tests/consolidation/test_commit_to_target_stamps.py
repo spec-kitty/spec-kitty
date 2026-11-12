@@ -1,6 +1,7 @@
 """#7578 ruling Q8: consolidation reads no window stamp of a commit-to-target ``single_branch`` Mission.
 
-Pins the one predicate (:func:`is_commit_to_target_meta`), the event filter, and the guarded seams:
+Pins the predicate's ``meta.json`` reading (:func:`is_commit_to_target_mission`; the pure predicate is
+pinned in ``tests/lanes/test_single_branch_meta_predicates.py``), the event filter, and the guarded seams:
 the claim's event log (``_ClaimEventLog``, which feeds the canceled-work attribution), the
 ``--dependency-ref`` guard (``_recorded_lane_heads``) and the ``--attest-approved-reviewed`` validation
 (``plan_approved_attestations``). Every other Mission's events pass through unchanged.
@@ -18,7 +19,6 @@ from specify_cli.consolidation import approved_attestation
 from specify_cli.consolidation.commit_to_target_stamps import (
     WINDOW_STAMP_KEYS,
     consolidation_events,
-    is_commit_to_target_meta,
     is_commit_to_target_mission,
     without_window_stamps,
 )
@@ -35,7 +35,6 @@ _SHA = "3f1c0d9e8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e"
 _SLUG = "ctt-01CTTFIX"
 _CTT_META: dict[str, Any] = {"topology": "single_branch", "target_branch": _TARGET}
 _MINTED_META: dict[str, Any] = {"topology": "single_branch", "target_branch": _TARGET, "mission_branch": "kitty/mission-x"}
-_LANES_META: dict[str, Any] = {"topology": "lanes", "target_branch": _TARGET}
 
 
 def _event(event_id: str, to_lane: Lane, from_lane: Lane, metadata: dict[str, Any] | None) -> StatusEvent:
@@ -66,24 +65,7 @@ def _mission_dir(tmp_path: Path, meta: dict[str, Any] | None, events: list[Statu
     return feature_dir
 
 
-# --------------------------------------------------------------------------- the predicate
-
-
-@pytest.mark.parametrize(
-    ("meta", "expected"),
-    [
-        pytest.param(_CTT_META, True, id="commit-to-target"),
-        pytest.param({**_CTT_META, "commit_to_target": True}, True, id="commit-to-target-flagged"),
-        pytest.param(_MINTED_META, False, id="minted-mission-branch"),
-        pytest.param(_LANES_META, False, id="lanes"),
-        pytest.param({"target_branch": _TARGET}, False, id="no-stored-topology"),
-        pytest.param({"topology": "single_branch"}, False, id="no-target"),
-        pytest.param({"topology": "single_branch", "target_branch": ""}, False, id="empty-target"),
-        pytest.param({"topology": "single_branch", "target_branch": 7}, False, id="non-string-target"),
-    ],
-)
-def test_is_commit_to_target_meta(meta: dict[str, Any], expected: bool) -> None:
-    assert is_commit_to_target_meta(meta) is expected
+# --------------------------------------------------------------------------- the predicate over meta.json
 
 
 def test_is_commit_to_target_mission_reads_meta_json(tmp_path: Path) -> None:

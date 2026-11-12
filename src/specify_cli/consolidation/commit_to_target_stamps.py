@@ -9,18 +9,18 @@ canceled-work attribution, the ``--dependency-ref`` "names Mission work" guard a
 :func:`consolidation_events`, which drops both keys for such a Mission and passes every other Mission's
 events through unchanged.
 
-The one predicate is :func:`is_commit_to_target_meta`, over ``meta.json`` and the ``single_branch_landing``
-rules (:func:`~specify_cli.lanes.single_branch_landing.is_single_branch_meta`,
-:func:`~specify_cli.lanes.single_branch_landing.write_branch_from_meta`). A status directory with no readable
+The one predicate is :func:`~specify_cli.lanes.single_branch_landing.is_commit_to_target_meta`, over
+``meta.json`` and the ``single_branch_landing`` rules (the same
+:func:`~specify_cli.lanes.single_branch_landing.single_branch_branches` reading the lane-head stamp uses). A status directory with no readable
 ``meta.json`` is not a commit-to-target Mission, so its events pass through unchanged.
 """
 
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Final
+from typing import Final
 
 from specify_cli.status import LANE_HEAD_KEY, WP_WINDOW_KEY, StatusEvent
 
@@ -28,19 +28,9 @@ from specify_cli.status import LANE_HEAD_KEY, WP_WINDOW_KEY, StatusEvent
 WINDOW_STAMP_KEYS: Final = frozenset({LANE_HEAD_KEY, WP_WINDOW_KEY})
 
 
-def is_commit_to_target_meta(meta: Mapping[str, Any]) -> bool:
-    """True when *meta* declares a STORED ``single_branch`` topology whose write branch is its recorded target."""
-    from specify_cli.lanes.single_branch_landing import is_single_branch_meta, write_branch_from_meta
-
-    target = meta.get("target_branch")
-    if not (isinstance(target, str) and target) or not is_single_branch_meta(meta):
-        return False
-    branch: str = write_branch_from_meta(meta, target)
-    return branch == target
-
-
 def is_commit_to_target_mission(feature_dir: Path) -> bool:
-    """:func:`is_commit_to_target_meta` over the ``meta.json`` in *feature_dir* (``False`` when absent or malformed)."""
+    """:func:`~specify_cli.lanes.single_branch_landing.is_commit_to_target_meta` over the ``meta.json`` in *feature_dir* (``False`` when absent or malformed)."""
+    from specify_cli.lanes.single_branch_landing import is_commit_to_target_meta
     from specify_cli.mission_metadata import load_meta_or_empty
 
     return is_commit_to_target_meta(load_meta_or_empty(feature_dir))
