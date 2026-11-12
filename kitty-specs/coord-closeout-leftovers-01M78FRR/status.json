@@ -1,20 +1,20 @@
 {
-  "event_count": 35,
-  "last_event_id": "01M78Q799Y0A7VRTAEA4VB94F2",
-  "materialized_at": "2026-11-12T20:29:38.445144+00:00",
+  "event_count": 36,
+  "last_event_id": "01M78RBNANCK9HKWW9PSXYZED5",
+  "materialized_at": "2026-11-12T20:49:31.477086+00:00",
   "mission_number": "",
   "mission_slug": "coord-closeout-leftovers-01M78FRR",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 2,
+    "approved": 3,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 2,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 2
   },
   "work_packages": {
@@ -69,7 +69,9 @@
         "- 2026-11-12T19:35:31Z – claude – shell_pid=18456 – Leeway: consolidation/rollback.py - F4 site only: deletes refs/spec-kitty/landed-coordination/<coord branch> when the rollback restores the target (logger + import added); no text/render changes.",
         "- 2026-11-12T19:35:36Z – claude – shell_pid=18456 – Leeway: git/ref_advance.py - keyword-only expected_old on bookkeeping_ref_write_args/write_bookkeeping_ref (CAS write for the landed-coordination ref; raw update-ref stays in its owner).",
         "- 2026-11-12T19:35:40Z – claude – shell_pid=18456 – Leeway: tests/consolidation/test_executor_rollback_wiring.py - spy signature accepts coord_tip_before (no assertion changes).",
-        "Ready for review: #7491 resume base (persisted tip behind verified landing + ancestry), landed-coordination ref module, #4380 item 2 text"
+        "Ready for review: #7491 resume base (persisted tip behind verified landing + ancestry), landed-coordination ref module, #4380 item 2 text",
+        "- 2026-11-12T20:41:56Z – unknown – N2 (review cycle 1): the #4380 item 2 text reads its holders through git.ref_advance.worktrees_with_branch_checked_out, which parses the real 'git worktree list' (no name-guessing). Chosen over coordination/surface_resolver.read_worktree_registry because that returns registered paths only, not which branch each has checked out, and worktrees_with_branch_checked_out is the same authority delete_branch_ref uses for its own checked-out refusal, so the message and the delete cannot disagree.",
+        "- 2026-11-12T20:42:00Z – unknown – Review cycle 1 rework: dead-symbol gate fixed by removing the landed-coordination read side from __all__ (no allowlist growth). Gate: PYTHONPATH=src pytest tests/architectural/test_no_dead_symbols.py -> included in a 422-passed targeted run. N1: refusal text quoted in the kept-branch message. N3: rollback ref clear skips empty refs and catches ValueError."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -123,15 +125,21 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_review",
-      "last_event_id": "01M78PCFFDY46P7C4M3A12T2RH",
-      "last_transition_at": "2026-11-12T20:15:01.101457+00:00",
+      "lane": "approved",
+      "last_event_id": "01M78RBNANCK9HKWW9PSXYZED5",
+      "last_transition_at": "2026-11-12T20:49:31.477086+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-12T19:42:36Z – claude – shell_pid=27786 – T020 caller inventory (RefAdvanceDirtyWorktreeError / RefAdvanceError renderers in src/): (1) consolidation/rollback.py _restore_one -> NOT_RESTORED reason + per-follow-up next step (ABORT: re-run --abort; RESUME: resume); _resync_kept_coord_checkout -> coord note + mode-aware remedy at render. (2) cli/commands/consolidate.py --abort renders follow_up=ABORT, kept-record line by outcome. (3) consolidation/executor.py rollback door: render() default RESUME (unchanged effect). (4) cli/commands/agent/workflow.py review fast-forward: already appends 'Then re-run the review.' - now accurate, no edit. (5) lanes/consolidation.py lane->mission and mission->target merge errors[str(e)]: LEEWAY edit, lane_merge_error_text appends the --resume hint for a dirty error (consolidate fresh/resume + orchestrator-api keep today's advice). (6) consolidation/mission_number/bake.py advance: error propagates through the rollback door unrendered by a catcher; text still names the checkout and the commit/stash/revert action. (7) git/commit_helpers.py safe_commit (advance_branch_ref_for_commit raises RefAdvanceError only, not the dirty class), git/destructive_guard.py, git/origin_gate.py, charter_packs git_source.py, consolidation/resume_recovery.py, run_state.py: catch RefAdvanceError for enumeration/CAS failures, never the dirty error - unaffected. (8) restore_branch_ref callers without resync (topology_settlement, finalize_status_surface, mission_create, mission_creation_rollback) cannot raise the dirty error. Tests pinning the old sentence: none (grep 'resume the consolidation' in tests: 0 hits).",
         "Ready for review: neutral RefAdvanceDirtyWorktreeError text; RollbackReport.render(follow_up=ABORT|RESUME); --abort kept-record line by outcome; lane merge keeps --resume hint (leeway lanes/consolidation.py)"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/coord-closeout-leftovers-01M78FRR-coord/kitty-specs/coord-closeout-leftovers-01M78FRR/tasks/WP05-abort-remedies/review-cycle-1.md",
+        "reference": "review-cycle://coord-closeout-leftovers-01M78FRR/WP05-abort-remedies/review-cycle-1.md",
+        "reviewer": "claude-reviewer",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 10190,
       "shell_pid_created_at": "1794514489.67",
