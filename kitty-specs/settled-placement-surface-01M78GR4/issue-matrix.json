@@ -73,7 +73,7 @@
       "wp": null
     },
     "#7546": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Sub-epic: closes when WP01-WP05 land; WP01 = seam checkout authority",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -81,8 +81,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP01"
     },
     "#7551": {
       "evidence_ref": "WP02 (commit router holder) + WP04 (baseline commit)",
