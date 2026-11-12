@@ -217,7 +217,7 @@
       "wp": "WP05"
     },
     "#7607": {
-      "evidence_ref": "WP02 T008 status lock on the holder checkout",
+      "evidence_ref": "WP02 be3344ae (status lock on holder checkout); red f5b591b7",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -225,7 +225,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP02"
     }
   },
