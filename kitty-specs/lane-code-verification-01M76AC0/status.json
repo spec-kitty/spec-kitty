@@ -152,7 +152,7 @@
     },
     "WP05": {
       "actor": "claude-reviewer",
-      "agent": "claude-reviewer",
+      "agent": "claude-reviewer::reviewer-renata",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 0,
@@ -162,7 +162,8 @@
       "last_transition_at": "2026-11-12T08:49:05.002730+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "ADR 2026-08-13-6 amended (2026-11-12): foreign_tree outcome refuses with EVIDENCE_TREE_MISMATCH, exit 1, regardless of fail_on_pre_review_regression; --force bypass recorded; C-003 carve-out (only proven foreign refuses; unverified proceeds); probe only on run tiers; skip switch still skips. Changelog 7554.fixed.md: two Fixed entries (#7554/#7547; #7577 lane packs)."
+        "ADR 2026-08-13-6 amended (2026-11-12): foreign_tree outcome refuses with EVIDENCE_TREE_MISMATCH, exit 1, regardless of fail_on_pre_review_regression; --force bypass recorded; C-003 carve-out (only proven foreign refuses; unverified proceeds); probe only on run tiers; skip switch still skips. Changelog 7554.fixed.md: two Fixed entries (#7554/#7547; #7577 lane packs).",
+        "Review passed: ADR amendment and changelog match shipped WP02/WP04/WP06 behavior; docs tests 825 passed; style and spelling checks clean. Low notes: table severity column carries a refusal rather than a Severity value (intentional per amendment text); a fault while building the invocation records no evidence tree rather than unverified."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
