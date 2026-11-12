@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Literal
 
 from specify_cli.git.merge_conclusion import MergeConclusionRefused, conclude_in_progress_op, mint_fresh_worktree, run_committing_op
-from specify_cli.git.ref_advance import advance_branch_ref
+from specify_cli.git.ref_advance import RefAdvanceDirtyWorktreeError, advance_branch_ref
 from specify_cli.lanes._git import branch_exists as _shared_branch_exists
 from specify_cli.lanes.branch_naming import lane_branch_name, worktree_path as _worktree_path
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
@@ -246,6 +246,21 @@ def _try_auto_rebase_if_stale(
     return stale
 
 
+_RESUME_HINT = "  Then resume the consolidation (`spec-kitty consolidate --resume`)."
+
+
+def lane_merge_error_text(exc: RuntimeError) -> str:
+    """A lane or Mission merge failure as the consolidation reports it.
+
+    :class:`RefAdvanceDirtyWorktreeError` names only the blocker (#7600, its text is shared with
+    non-consolidate commands), so the consolidation appends its own next step: resume it once
+    the named checkout is clean. Every other failure is reported as raised.
+    """
+    if isinstance(exc, RefAdvanceDirtyWorktreeError):
+        return f"{exc}\n{_RESUME_HINT}"
+    return str(exc)
+
+
 def consolidate_lane_into_mission(
     repo_root: Path,
     mission_slug: str,
@@ -334,7 +349,7 @@ def consolidate_lane_into_mission(
             success=False,
             lane_id=lane_id,
             merged_into=mission_branch,
-            errors=[str(e)],
+            errors=[lane_merge_error_text(e)],
         )
 
     return LaneConsolidationResult(
@@ -433,7 +448,7 @@ def integrate_mission_into_target(
             success=False,
             mission_branch=mission_branch,
             target_branch=target_branch,
-            errors=[str(e)],
+            errors=[lane_merge_error_text(e)],
         )
 
     # Get the merge commit.

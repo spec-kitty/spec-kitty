@@ -103,6 +103,7 @@ logger = logging.getLogger(__name__)
 # but are implementation surface of these entry points, not a separate export.
 __all__ = [
     "OwnMove",
+    "RollbackFollowUp",
     "begin_attempt",
     "branch_tips",
     "capture_pre_mutation_snapshot",
@@ -135,12 +136,38 @@ _UNRECORDED_MOVE_REASON = "moved since the snapshot but no post-mutation tip was
 _KEPT_WARNING = "may contain this consolidation's unverified changes"
 _ADOPTED_NOTE = "adopted interrupted advance"
 _COORD_CHECKOUT_NOT_RESYNCED = "coordination checkout left as found (its status files may differ from the branch tip)"
-#: Operator remedy for a refused resync: the refusal means a NON-residue edit is present, which is never discarded.
-_COORD_RESYNC_REMEDY = (
-    "Remedy: commit or stash the listed change in the coordination worktree "
-    "(`git -C <coordination worktree> stash`), then re-run `spec-kitty consolidate --resume` "
-    "or `--abort`; the rollback then resyncs its status files to the branch tip."
-)
+_ABORT_COMMAND = "spec-kitty consolidate --abort"
+_RESUME_COMMAND = "spec-kitty consolidate --resume"
+_NEXT_STEPS_HEADER = "Next steps:"
+
+
+class RollbackFollowUp(StrEnum):
+    """The command that ran the rollback, so its report names a next step that command can take (#7600).
+
+    ``RESUME`` is the fresh-run / ``--resume`` rollback door: re-running the consolidation is the
+    way forward. ``ABORT`` is ``consolidate --abort``: re-running ``--abort`` (or releasing a branch
+    another actor moved) completes the abort.
+    """
+
+    ABORT = "abort"
+    RESUME = "resume"
+
+
+class NotRestoredCause(StrEnum):
+    """Why a run-movable branch was left NOT_RESTORED; picks the next step the report offers."""
+
+    DIRTY_CHECKOUT = "dirty_checkout"
+    MOVED = "moved"
+
+
+def _coord_resync_remedy(follow_up: RollbackFollowUp) -> str:
+    """Operator remedy for a refused coordination resync: a NON-residue edit is present, which is never discarded."""
+    rerun = f"`{_ABORT_COMMAND}`" if follow_up is RollbackFollowUp.ABORT else f"`{_RESUME_COMMAND}` or `--abort`"
+    return (
+        "Remedy: commit or stash the listed change in the coordination worktree "
+        f"(`git -C <coordination worktree> stash`), then re-run {rerun}; "
+        "the rollback then resyncs its status files to the branch tip."
+    )
 
 
 class BranchOutcomeKind(StrEnum):
@@ -174,6 +201,10 @@ class BranchOutcome:
     # For RESTORED only: the CAS expectation came from a persisted advance intent
     # (a kill-left advance of this run), not from a recorded post tip (FR-006).
     adopted_intent: bool = False
+    # For NOT_RESTORED only: why, when the report can name a next step for it (#7600).
+    cause: NotRestoredCause | None = None
+    # For a DIRTY_CHECKOUT cause: the checkout whose local changes blocked the restore.
+    blocked_checkout: str | None = None
 
 
 _OK_KINDS = frozenset(
@@ -245,10 +276,18 @@ class RollbackReport:
             return _RESTORE_TARGETS_HEADER
         return _SEEDED_HEADER if any(o.resume_seeded for o in self.outcomes) else _SNAPSHOT_HEADER
 
-    def render(self) -> str:
-        """Operator-facing rollback text (never claims nothing was mutated)."""
+    def render(self, follow_up: RollbackFollowUp = RollbackFollowUp.RESUME) -> str:
+        """Operator-facing rollback text (never claims nothing was mutated).
+
+        ``follow_up`` names the command that ran the rollback, so every next step it prints is
+        one that command can take (#7600): ``--abort`` never sends the operator to ``--resume``
+        except to finish the teardown of a verified landing, which ``--abort`` cannot roll back.
+        """
         if self.refused_verified_landing:
-            return f"Kept the landing verified by an earlier reconciliation; nothing was rolled back. {self.reason or ''}".rstrip()
+            kept = f"Kept the landing verified by an earlier reconciliation; nothing was rolled back. {self.reason or ''}".rstrip()
+            if follow_up is RollbackFollowUp.ABORT:
+                return f"{kept}\n{_NEXT_STEPS_HEADER}\n  {_VERIFIED_LANDING_STEP}"
+            return kept
         if self.reason is not None and not self.outcomes:
             return f"Nothing was rolled back: {self.reason}."
         lines = [self._header()]
@@ -256,11 +295,40 @@ class RollbackReport:
         lines.extend(_render_outcome(o, width) for o in self.outcomes)
         if self.coord_checkout_note:
             lines.append(f"  {_COORD_CHECKOUT_NOT_RESYNCED}: {self.coord_checkout_note}")
+            lines.append(f"  {_coord_resync_remedy(follow_up)}")
+        steps = [step for o in self.outcomes if (step := _next_step(o, follow_up)) is not None]
+        if steps:
+            lines.append(_NEXT_STEPS_HEADER)
+            lines.extend(f"  {step}" for step in steps)
         return "\n".join(lines)
 
 
 def _short(sha: str | None) -> str:
     return (sha or "")[:_SHORT]
+
+
+_VERIFIED_LANDING_STEP = (
+    "A verified landing is never rolled back, so `--abort` cannot finish here. "
+    f"To finish the teardown of this landing instead, run `{_RESUME_COMMAND}` (it completes the consolidation)."
+)
+
+
+def _next_step(outcome: BranchOutcome, follow_up: RollbackFollowUp) -> str | None:
+    """The next step for one NOT_RESTORED outcome, in terms of the command that ran the rollback; ``None`` when none applies."""
+    if outcome.kind is not BranchOutcomeKind.NOT_RESTORED:
+        return None
+    if outcome.cause is NotRestoredCause.DIRTY_CHECKOUT:
+        checkout = outcome.blocked_checkout or "the checkout named above"
+        if follow_up is RollbackFollowUp.ABORT:
+            return f"{outcome.branch}: commit or stash the changes in {checkout}, then re-run `{_ABORT_COMMAND}`."
+        return f"{outcome.branch}: commit, stash, or revert the changes in {checkout}, then resume the consolidation (`{_RESUME_COMMAND}`)."
+    if outcome.cause is NotRestoredCause.MOVED and follow_up is RollbackFollowUp.ABORT:
+        base = outcome.expected_sha or outcome.snapshot_sha
+        return (
+            f"{outcome.branch}: inspect the commits on it (`git log {_short(base)}..{_short(outcome.observed_sha)}`); "
+            f'to keep them and finish the abort, run `{_ABORT_COMMAND} --release-branch {outcome.branch} --release-reason "<why>"`.'
+        )
+    return None
 
 
 def _render_outcome(outcome: BranchOutcome, width: int) -> str:
@@ -775,7 +843,18 @@ def _restore_one(
             resync_checkouts=True,
             context=context,
         )
-    except (RefRestoreError, RefAdvanceDirtyWorktreeError, RefAdvanceError) as exc:
+    except RefAdvanceDirtyWorktreeError as exc:
+        return BranchOutcome(
+            branch,
+            BranchOutcomeKind.NOT_RESTORED,
+            snapshot,
+            live,
+            expected,
+            str(exc),
+            cause=NotRestoredCause.DIRTY_CHECKOUT,
+            blocked_checkout=str(exc.worktree_path),
+        )
+    except (RefRestoreError, RefAdvanceError) as exc:
         return BranchOutcome(branch, BranchOutcomeKind.NOT_RESTORED, snapshot, live, expected, str(exc))
     return BranchOutcome(branch, BranchOutcomeKind.RESTORED, snapshot, live, expected, restored_to_sha=restore_to, adopted_intent=adopted)
 
@@ -800,7 +879,8 @@ def _rollback_branch(repo_root: Path, state: ConsolidationState, branch: str, sn
     post = _effective_post(state, branch, live)
     if not rollback_would_restore(state, branch, live) or post is None:  # ``post is None`` only narrows the type
         reason = _UNRECORDED_MOVE_REASON if post is None else _MOVED_BY_OTHER_REASON
-        return _kept_if_released(state, BranchOutcome(branch, BranchOutcomeKind.NOT_RESTORED, snapshot, live, post, reason))
+        moved = BranchOutcome(branch, BranchOutcomeKind.NOT_RESTORED, snapshot, live, post, reason, cause=NotRestoredCause.MOVED)
+        return _kept_if_released(state, moved)
     adopted = post != state.post_mutation_refs.get(branch)
     return _restore_one(repo_root, branch, snapshot, restore_to, live, post, adopted=adopted, context=context)
 
@@ -948,7 +1028,7 @@ def _resync_kept_coord_checkout(repo_root: Path, state: ConsolidationState, outc
     try:
         resync_checkouts_to_tip(repo_root, coord_ref, context=context)
     except (RefAdvanceDirtyWorktreeError, RefAdvanceError) as exc:
-        return f"{exc}\n  {_COORD_RESYNC_REMEDY}"
+        return str(exc)
     return None
 
 

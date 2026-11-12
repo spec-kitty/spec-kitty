@@ -243,6 +243,7 @@ from specify_cli.consolidation.push_preflight import (
 )
 from specify_cli.consolidation.rollback import (
     BranchOutcomeKind,
+    RollbackFollowUp,
     RollbackReport,
     movable_branch_tips,
     release_branch,
@@ -444,9 +445,10 @@ _ABORT_COMMAND = "spec-kitty consolidate --abort"
 _ABORT_NO_SNAPSHOT_NOTICE = (
     "[yellow]Notice:[/yellow] no pre-mutation snapshot was recorded for this consolidation (older record); aborting without restoring branches."
 )
-_ABORT_KEPT_RECORD_MESSAGE = (
-    "[red]Kept the consolidation record[/red] so nothing is lost; resolve the branches named above, then re-run `spec-kitty consolidate --abort`."
-)
+_ABORT_KEPT_RECORD = "[red]Kept the consolidation record[/red]"
+_ABORT_KEPT_RECORD_MESSAGE = f"{_ABORT_KEPT_RECORD} so nothing is lost; resolve the branches named above, then re-run `{_ABORT_COMMAND}`."
+_ABORT_KEPT_RECORD_NEXT_STEPS = f"{_ABORT_KEPT_RECORD} so nothing is lost; complete the next steps above to finish the abort."
+_ABORT_KEPT_VERIFIED_LANDING = f"{_ABORT_KEPT_RECORD} and the verified landing; nothing was rolled back (see the next step above)."
 
 
 def _abort_may_mutate_topology(state: ConsolidationState) -> bool:
@@ -585,7 +587,7 @@ def _abort_restore_or_keep_record(repo_root: Path, state: ConsolidationState) ->
         _print_interrupted_cleanup(repo_root, state)
         return True, None
     report = rollback_to_snapshot(repo_root, state, target_branch=state.target_branch)
-    console.print(report.render(), markup=False, highlight=False)
+    console.print(report.render(follow_up=RollbackFollowUp.ABORT), markup=False, highlight=False)
     return bool(report.fully_restored), report
 
 
@@ -611,10 +613,26 @@ def _print_interrupted_cleanup(repo_root: Path, state: ConsolidationState) -> No
             console.print(f"  deleted lane branch {branch}; recreate with: git branch {branch} {sha}", markup=False)
 
 
-def _abort_exit_keeping_record(repo_root: Path, state: ConsolidationState) -> None:
+def _abort_kept_record_message(report: RollbackReport | None) -> str:
+    """The closing line of an ``--abort`` that kept the record, matched to what the report left (#7600).
+
+    A kept verified landing points at the labelled ``--resume`` step the report printed; a report
+    that printed next steps (a dirty checkout, a branch another actor moved, a coordination
+    checkout left as found) points at them; anything else keeps the generic remedy.
+    """
+    if report is None:
+        return _ABORT_KEPT_RECORD_MESSAGE
+    if report.refused_verified_landing:
+        return _ABORT_KEPT_VERIFIED_LANDING
+    if report.coord_checkout_note or any(o.cause is not None and o.kind is BranchOutcomeKind.NOT_RESTORED for o in report.outcomes):
+        return _ABORT_KEPT_RECORD_NEXT_STEPS
+    return _ABORT_KEPT_RECORD_MESSAGE
+
+
+def _abort_exit_keeping_record(repo_root: Path, state: ConsolidationState, report: RollbackReport | None = None) -> None:
     """Release the lock this abort took, tell the operator the record was kept, and exit 1."""
     release_merge_lock_if_owned(_GLOBAL_MERGE_LOCK, repo_root, owner_token=state.mission_id)
-    console.print(_ABORT_KEPT_RECORD_MESSAGE)
+    console.print(_abort_kept_record_message(report))
     raise typer.Exit(1)
 
 
@@ -691,7 +709,7 @@ def _abort_lock_restore_clear(
         _cleanup_merge_workspaces_for_state(repo_root, mission_slug=resolved, state_entry=state_entry)
         proceed, report = _abort_restore_or_keep_record(repo_root, active_state)
         if not proceed:
-            _abort_exit_keeping_record(repo_root, active_state)
+            _abort_exit_keeping_record(repo_root, active_state, report)
         # Teardown BEFORE the record is cleared (#5965): a refusal (the coordination worktree holds the
         # only copy of operator files) keeps the record, so ``--abort`` can simply be re-run once they are saved.
         _teardown_coordination_for_abort(repo_root, resolved, state_entry)
