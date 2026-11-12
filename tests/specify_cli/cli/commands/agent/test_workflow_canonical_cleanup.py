@@ -11,6 +11,8 @@ Verifies:
 
 from __future__ import annotations
 
+import json
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -45,6 +47,49 @@ def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str, *, actor: str = "tes
         execution_mode="worktree",
     )
     seed_status_event(feature_dir, event)
+
+
+def _git_run(repo: Path, *args: str) -> str:
+    return subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True).stdout.strip()
+
+
+def _git_init(repo: Path) -> None:
+    _git_run(repo, "init", "-qb", "main")
+    for key, value in (("user.email", "t@t.com"), ("user.name", "T"), ("commit.gpgsign", "false")):
+        _git_run(repo, "config", key, value)
+
+
+def _commit_all(repo: Path, message: str) -> str:
+    _git_run(repo, "add", "-A")
+    _git_run(repo, "commit", "-qm", message)
+    return _git_run(repo, "rev-parse", "HEAD")
+
+
+#: Increasing timestamps: the reducer orders events by ``at``, then ``event_id``.
+_SEQUENCED_AT = {
+    Lane.CLAIMED: "2026-01-01T00:00:01+00:00",
+    Lane.IN_PROGRESS: "2026-01-01T00:00:02+00:00",
+    Lane.FOR_REVIEW: "2026-01-01T00:00:03+00:00",
+}
+
+
+def _seed_and_commit(feature_dir: Path, wp_id: str, from_lane: Lane, to_lane: Lane) -> str:
+    """Append one unstamped transition to the status log and commit it alone (as ``move-task`` does)."""
+    seed_status_event(
+        feature_dir,
+        StatusEvent(
+            event_id=f"test-{wp_id}-{from_lane.value}-{to_lane.value}",
+            mission_slug=feature_dir.name,
+            wp_id=wp_id,
+            from_lane=from_lane,
+            to_lane=to_lane,
+            at=_SEQUENCED_AT[to_lane],
+            actor="test",
+            force=True,
+            execution_mode="direct_repo",
+        ),
+    )
+    return _commit_all(feature_dir.parents[1], f"chore(spec-kitty): {wp_id} {to_lane.value}")
 
 
 def _write_wp_file(path: Path, wp_id: str, lane: str) -> None:
@@ -532,12 +577,23 @@ class TestPlanningArtifactWorkflowPrompt:
         latest = [event for event in read_events(feature_dir) if event.wp_id == "WP02"][-1]
         assert latest.execution_mode == "direct_repo"
 
-    def test_review_prompt_reports_unavailable_diff_without_claim_commit_for_planning_artifact(self, workflow_repo: Path) -> None:
+    @pytest.mark.git_repo
+    def test_review_prompt_prints_the_derived_range_for_a_planning_artifact(self, workflow_repo: Path) -> None:
+        """Re-pin (#7578, IC-05, DIRECTIVE_041; operator ruling Q10): a planning-artifact WP of a lanes Mission gets the derived range.
+
+        Formerly pinned the claim-commit "Review commands unavailable" text, then the range's
+        unavailable notice. A planning-lane WP is never stamped (C-009), so its range is derived
+        from its committed claim and submission events (spec edge case: "it uses the derived
+        range"); the review still proceeds (exit 0, FR-013).
+        """
         mission_slug = "077-test-feature"
         feature_dir = workflow_repo / "kitty-specs" / mission_slug
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
+        _git_init(workflow_repo)
         write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
+        meta_path = feature_dir / "meta.json"
+        meta_path.write_text(json.dumps({**json.loads(meta_path.read_text(encoding="utf-8")), "topology": "lanes", "target_branch": "main"}), encoding="utf-8")
         (feature_dir / "tasks.md").write_text(
             "## WP02 Planning\n\n- [x] T002 Placeholder task\n",
             encoding="utf-8",
@@ -549,13 +605,19 @@ class TestPlanningArtifactWorkflowPrompt:
             "dependencies: []\n"
             "execution_mode: planning_artifact\n"
             "owned_files:\n"
-            f"  - kitty-specs/{mission_slug}/**\n"
+            f"  - kitty-specs/{mission_slug}/research/**\n"
             f"authoritative_surface: kitty-specs/{mission_slug}/\n"
             "---\n"
             "# WP02 Planning Prompt\n",
             encoding="utf-8",
         )
-        _seed_wp_lane(feature_dir, "WP02", "for_review")
+        _commit_all(workflow_repo, "chore: planning artifacts")
+        claim = _seed_and_commit(feature_dir, "WP02", Lane.PLANNED, Lane.CLAIMED)
+        (feature_dir / "research").mkdir()
+        (feature_dir / "research" / "WP02.md").write_text("# research\n", encoding="utf-8")
+        work = _commit_all(workflow_repo, "docs: WP02 research")
+        _seed_and_commit(feature_dir, "WP02", Lane.CLAIMED, Lane.IN_PROGRESS)
+        tip = _seed_and_commit(feature_dir, "WP02", Lane.IN_PROGRESS, Lane.FOR_REVIEW)
 
         result = CliRunner().invoke(
             workflow.app,
@@ -564,14 +626,12 @@ class TestPlanningArtifactWorkflowPrompt:
 
         assert result.exit_code == 0, result.stdout
         prompt_path = Path(next(line.split("cat ", 1)[1].strip() for line in result.stdout.splitlines() if line.strip().startswith("cat ")))
-        prompt = prompt_path.read_text(encoding="utf-8")
-
-        # Re-pin (#7578, IC-05, DIRECTIVE_041): the claim-commit notice is replaced by the shared
-        # renderer's unavailable notice; the review still proceeds (exit 0, FR-013).
-        lines = prompt.splitlines()
-        assert [line for line in lines if line.startswith("REVIEW RANGE (WP02): unavailable — ")], prompt
-        assert "  (no deterministic range; inspect `spec-kitty agent tasks status` and the WP's commits)" in lines
-        assert [line for line in result.stdout.splitlines() if line.startswith("Review range unavailable — ")], result.stdout
+        lines = prompt_path.read_text(encoding="utf-8").splitlines()
+        assert f"REVIEW RANGE (WP02): {claim[:12]}..{tip[:12]}  [derived]" in lines
+        assert f"  base: {claim[:12]} (claim event commit)" in lines
+        assert f"  tip:  {tip[:12]} (for_review event commit)" in lines
+        assert f"  {work[:12]} docs: WP02 research" in lines
+        assert not [line for line in lines if line.startswith("REVIEW RANGE (WP02): unavailable")]
 
 
 # ---------------------------------------------------------------------------

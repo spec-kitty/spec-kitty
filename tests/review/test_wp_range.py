@@ -29,6 +29,9 @@ from specify_cli.review.wp_range import FileChange, RangeCommit, RangeSource, Ra
 from tests.consolidation import characterization_support as cs
 from tests.integration import single_branch_window_support as sb
 from tests.integration.review.review_range_fixtures import strip_single_branch_stamps
+from tests._support.status_seed import seed_status_event
+from tests.terminus.lanes_fixture import build_lanes_mission
+from specify_cli.status.models import Lane, StatusEvent
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -716,3 +719,63 @@ def test_bookkeeping_excludes_follow_the_mission_directory_not_the_handle(
     assert by_handle.out_of_map == (), "status files are bookkeeping, never out of the owned map"
     assert by_handle.moved_past == 0
     assert by_handle == _resolve_sb(m)
+
+
+# --------------------------------------------------------------------------- planning lane (operator ruling Q10)
+
+
+_PLANNING_WP = "WP02"
+
+
+def _seed_and_commit(mission: Any, event_id: str, from_lane: Lane, to_lane: Lane) -> str:
+    """Append one unstamped *wp* event to the repository root log and commit it alone (as ``move-task`` does)."""
+    seed_status_event(
+        mission.feature_dir,
+        StatusEvent(
+            event_id=event_id,
+            mission_slug=mission.slug,
+            wp_id=_PLANNING_WP,
+            from_lane=from_lane,
+            to_lane=to_lane,
+            at="2026-11-12T00:00:00+00:00",
+            actor="tester",
+            force=True,
+            execution_mode="direct_repo",
+        ),
+    )
+    cs._git(mission.repo, "add", "-A", "kitty-specs")
+    cs._git(mission.repo, "commit", "-qm", f"chore(spec-kitty): status {event_id}")
+    return cs._git(mission.repo, "rev-parse", "HEAD")
+
+
+def _submitted_planning_wp(tmp_path: Path) -> tuple[Any, str, str, str]:
+    """A ``lanes`` Mission whose planning-lane WP02 is claimed, commits its research on the target and is submitted.
+
+    Returns the Mission, the claim event commit, the work commit and the submission event commit.
+    The planning lane is never stamped (C-009), so none of WP02's events carries a stamp.
+    """
+    mission = build_lanes_mission(tmp_path, wps=("WP01",), with_planning_lane_wp=True, approve_planning_wp=False, mid8="01M77Q10")
+    claim = _seed_and_commit(mission, "01M77Q10CLAIMAAAAAAAAAAAAA", Lane.PLANNED, Lane.CLAIMED)
+    research = mission.feature_dir / "research" / f"{_PLANNING_WP}.md"
+    research.parent.mkdir(parents=True, exist_ok=True)
+    research.write_text("# WP02 research\n", encoding="utf-8")
+    cs._git(mission.repo, "add", "-A", "kitty-specs")
+    cs._git(mission.repo, "commit", "-qm", "docs: WP02 research")
+    work = cs._git(mission.repo, "rev-parse", "HEAD")
+    _seed_and_commit(mission, "01M77Q10PROGAAAAAAAAAAAAAA", Lane.CLAIMED, Lane.IN_PROGRESS)
+    tip = _seed_and_commit(mission, "01M77Q10REVWAAAAAAAAAAAAAA", Lane.IN_PROGRESS, Lane.FOR_REVIEW)
+    return mission, claim, work, tip
+
+
+def test_planning_lane_wp_on_a_lanes_mission_gets_the_derived_event_commit_range(tmp_path: Path, lane_env: None) -> None:
+    """Operator ruling Q10 (spec edge case): a never-stamped planning-lane WP uses the derived range, not UNAVAILABLE."""
+    mission, claim, work, tip = _submitted_planning_wp(tmp_path)
+
+    found = resolve_wp_review_range(mission.repo, mission.slug, _PLANNING_WP, owned_files=(f"kitty-specs/{mission.slug}/research/**",))
+
+    assert found.status is RangeStatus.DERIVED
+    assert (found.base, found.base_source) == (claim, RangeSource.EVENT_COMMIT)
+    assert (found.tip, found.tip_source) == (tip, RangeSource.EVENT_COMMIT)
+    assert found.gap == "not_recorded"
+    assert [commit.sha for commit in found.commits] == [work]
+    assert [change.path for change in found.files] == [f"kitty-specs/{mission.slug}/research/{_PLANNING_WP}.md"]
