@@ -75,9 +75,21 @@ that invocation imports. This amendment records how the gate treats the probe's 
   to `RECOVERABLE`.
 - **Probed only where tests run.** The probe runs, and the evidence tree is recorded in the
   transition's `pre_review_gate.evidence_tree` (lane path, head, dirty flag, probe result),
-  only when the gate is about to run tests: a declared test command or an override scope,
-  for the head run and the baseline run alike. A gate arm that runs no test (an undeclared
-  gate stays `skipped`, an empty diff, no active binding) neither probes nor refuses.
+  only when the gate is about to run the head's tests: a declared test command or an override
+  scope. The baseline run is not probed or recorded. A gate arm that runs no test (an
+  undeclared gate stays `skipped`, an empty diff, no active binding) neither probes nor refuses.
+- **The run environment changes for everyone.** The head run (declared command and the
+  override tier's interpreter fallback) and the baseline run no longer inherit `PYTHONPATH`,
+  `VIRTUAL_ENV` or `UV_PROJECT_ENVIRONMENT` from the caller whenever the gate builds a lane
+  test invocation (every lane and write checkout; a planning-lane work package, or a build
+  that failed open, keeps the inherited environment). A tree with a
+  `.venv` of its own runs with that venv's script directory first on `PATH`; a tree without
+  one gets `PYTHONPATH=<tree>/src` when it has tracked `src/` packages. The head run also gets
+  the lane's test database name; the baseline, which has no lane identity, does not. A project
+  whose tests relied on an inherited `PYTHONPATH` must declare it in its test command. On the
+  override tier's `uv run --project <lane>` path the run uses the environment uv resolves for
+  the lane rather than the probed one, so there the evidence describes the lane's invocation,
+  not that exact process.
 - **The skip switch still skips everything.** The pre-review gate's skip flag and environment
   variable bypass the gate entirely, the probe and this refusal included. The amendment makes
   no stronger guarantee than that.
