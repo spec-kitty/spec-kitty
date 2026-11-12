@@ -1,6 +1,6 @@
 """The window gap report (Mission consolidation-window-provenance-01M6Y84D, WP20, FR-010, FR-011).
 
-A work package whose window-open SHA is not usable (a :class:`~specify_cli.consolidation.wp_attribution.WindowGap`)
+A work package whose window-open SHA is not usable (a :class:`~specify_cli.status.WindowGap`)
 is still judged, by its approval-stamp bound: a weaker check. The claim names every such work package
 (``ApprovedWpCommitSet.window_gaps``, a sorted tuple of :class:`~specify_cli.consolidation.wp_attribution.GapEntry`),
 and the fresh run, the resume and the forecast make it visible through this one renderer: the human
@@ -16,7 +16,9 @@ from collections.abc import Sequence
 from rich.console import Console
 from rich.markup import escape
 
-from .wp_attribution import GapEntry, WindowGapReason
+from specify_cli.status import WindowGapReason
+
+from .wp_attribution import GapEntry
 
 _GAP_REPORT_HEADING = "Window gaps (judged by the approval-stamp bound)"
 WINDOW_GAPS_KEY = "window_gaps"

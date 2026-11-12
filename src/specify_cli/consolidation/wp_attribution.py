@@ -29,15 +29,11 @@ from pathlib import Path
 from typing import NamedTuple
 
 from specify_cli.status import (
-    LANE_HEAD_KEY,
     WINDOW_OPENING_LANES,
-    OpenerSelection as OpenerSelection,  # #7578: the moved selector type stays importable here
     StatusEvent,
     WindowGap,
-    WindowGapReason,
-    WindowOpen,
     is_migration_event,
-    window_open_of,
+    stamp_of,
     window_opener_events,
 )
 
@@ -249,15 +245,6 @@ def _detail_for(
 
 def _contested_detail(lane_id: str, wp_id: str, contested: frozenset[str]) -> str:
     return _detail_for(UnattributableReason.CONTESTED_COMMIT, lane_id, wp_id, commits=sorted(contested))
-
-
-def stamp_of(event: StatusEvent) -> str | None:
-    """The ``lane_head`` stamp of one event, or ``None`` when it carries none."""
-    metadata = event.policy_metadata
-    if not metadata:
-        return None
-    value = metadata.get(LANE_HEAD_KEY)
-    return value if isinstance(value, str) and value else None
 
 
 def _classify(lane: str) -> WindowKind | None:
@@ -1050,16 +1037,10 @@ __all__ = [
     "approval_window_open_stamp",
     "first_governed_open_stamp",
     "GapEntry",
-    "is_migration_event",
     "lacks_lane_head_stamps",
     "lane_dependency_merges",
     "lane_exempt_commits",
     "lane_never_started",
     "lane_own_commits",
     "resolve_canceled_wp",
-    "stamp_of",
-    "WindowGap",
-    "WindowGapReason",
-    "WindowOpen",
-    "window_open_of",
 ]

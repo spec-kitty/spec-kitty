@@ -4,7 +4,7 @@
 window, and :func:`window_open_of` binds them to a :class:`WindowOpen` or a typed
 :class:`WindowGap`. Mission ``review-context-wp-diff-01M774QF`` moved this block verbatim
 from ``consolidation/wp_attribution.py`` so that ``runtime`` and ``review`` share the one
-definition with consolidation; ``wp_attribution`` re-exports every name.
+definition with consolidation; ``wp_attribution`` no longer re-exports them.
 
 Pure: no git and no I/O. The caller passes the events in log order plus predicates bound
 to the lane tip it resolved. It sits beside the ``wp_window`` codec rather than inside it,
@@ -19,6 +19,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
+from .lane_head import LANE_HEAD_KEY
 from .models import StatusEvent, is_migration_actor
 from .wp_window import WINDOW_OPENING_LANES, WP_WINDOW_KEY, ParsedWpWindow, RecordedGapReason, parse_wp_window
 
@@ -28,6 +29,7 @@ __all__ = [
     "WindowGapReason",
     "WindowOpen",
     "is_migration_event",
+    "stamp_of",
     "window_open_of",
     "window_opener_events",
 ]
@@ -40,6 +42,15 @@ _ENTERED_IMPLEMENTATION_LANES: frozenset[str] = WINDOW_OPENING_LANES
 def is_migration_event(event: StatusEvent) -> bool:
     """True for a migration-synthesized event (:func:`specify_cli.status.is_migration_actor`, FR-011)."""
     return bool(is_migration_actor(event.actor))
+
+
+def stamp_of(event: StatusEvent) -> str | None:
+    """The ``lane_head`` stamp of one event, or ``None`` when it carries none."""
+    metadata = event.policy_metadata
+    if not metadata:
+        return None
+    value = metadata.get(LANE_HEAD_KEY)
+    return value if isinstance(value, str) and value else None
 
 
 # --------------------------------------------------------------------------- #

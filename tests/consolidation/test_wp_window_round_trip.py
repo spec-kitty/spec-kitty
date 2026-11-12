@@ -12,8 +12,17 @@ from typing import Any
 
 import pytest
 
-from specify_cli.consolidation.wp_attribution import WindowGap, WindowGapReason, WindowOpen, window_open_of
-from specify_cli.status import WP_WINDOW_KEY, Lane, RecordedGapReason, StatusEvent, parse_wp_window
+from specify_cli.status import (
+    WP_WINDOW_KEY,
+    Lane,
+    RecordedGapReason,
+    StatusEvent,
+    WindowGap,
+    WindowGapReason,
+    WindowOpen,
+    parse_wp_window,
+    window_open_of,
+)
 from specify_cli.status.lane_head import LaneHeadReading
 from specify_cli.status.models import TransitionRequest
 from specify_cli.status.transition_pipeline import _wp_window_value

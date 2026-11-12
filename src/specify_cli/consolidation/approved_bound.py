@@ -35,11 +35,11 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from specify_cli.status import StatusEvent
+from specify_cli.status import StatusEvent, is_migration_event, stamp_of
 
 from .canceled_attestation import ATTESTATION_KEY
 from .git_probes import GitProbeError, changed_paths_of, commits_in_range, is_merge_commit, resolve_commit, sha_reachable_from
-from .wp_attribution import is_migration_event, lane_exempt_commits, stamp_of
+from .wp_attribution import lane_exempt_commits
 
 logger = logging.getLogger(__name__)
 

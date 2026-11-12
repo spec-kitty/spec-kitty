@@ -65,7 +65,7 @@ from specify_cli.consolidation.git_probes import GitProbeError, changed_paths_in
 from specify_cli.lanes.compute import is_planning_lane, lane_created_branch, lane_fully_canceled
 from specify_cli.lanes.for_review_gate import status_only_excluded_prefixes
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
-from specify_cli.ownership.matching import matches_owned as matches_owned, owned_patterns as owned_patterns
+from specify_cli.ownership.matching import matches_owned, owned_patterns
 from specify_cli.status import is_migration_actor
 
 if TYPE_CHECKING:
@@ -991,8 +991,6 @@ __all__ = [
     "has_owned_change",
     "in_force_no_implementation_attestation",
     "lane_evidence_window",
-    "matches_owned",
     "mission_evidence_report",
-    "owned_patterns",
     "widened_lane_paths",
 ]

@@ -1072,8 +1072,8 @@ def _drop_lane_coord_residue(worktree_path: Path, paths: tuple[Path, ...]) -> tu
 
 
 def _mt_owned_file_patterns(st: _MoveTaskState) -> tuple[str, ...]:
-    """Return normalized authored ownership patterns for the selected WP (``wp_evidence``'s normalisation)."""
-    from specify_cli.consolidation import wp_evidence
+    """Return normalized authored ownership patterns for the selected WP (``ownership.matching``'s normalisation)."""
+    from specify_cli.ownership.matching import owned_patterns
 
     from specify_cli.frontmatter import FrontmatterError
 
@@ -1088,15 +1088,15 @@ def _mt_owned_file_patterns(st: _MoveTaskState) -> tuple[str, ...]:
             "are unknown and no committed change can be matched to it. Fix the file, then retry: restore the file, or remove "
             "the frontmatter key the validation error names.",
         ) from exc
-    patterns: tuple[str, ...] = wp_evidence.owned_patterns(metadata.owned_files)
+    patterns: tuple[str, ...] = owned_patterns(metadata.owned_files)
     return patterns
 
 
 def _mt_matches_owned_file(path: str, patterns: tuple[str, ...]) -> bool:
-    """Match a repository-relative path with commit-guard-compatible globs (the one ``wp_evidence`` matcher)."""
-    from specify_cli.consolidation import wp_evidence
+    """Match a repository-relative path with commit-guard-compatible globs (the one ``ownership.matching`` matcher)."""
+    from specify_cli.ownership.matching import matches_owned
 
-    matched: bool = wp_evidence.matches_owned(path, patterns)
+    matched: bool = matches_owned(path, patterns)
     return matched
 
 

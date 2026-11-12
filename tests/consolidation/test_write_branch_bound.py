@@ -17,7 +17,7 @@ import pytest
 
 from specify_cli.consolidation import write_branch_bound
 from specify_cli.consolidation.approved_bound import BoundRefusal, BoundRefusalCode, check_lane, refusal_codes
-from specify_cli.consolidation.wp_attribution import GapEntry, WindowGap, WindowGapReason, WindowOpen, lane_exempt_commits
+from specify_cli.consolidation.wp_attribution import GapEntry, lane_exempt_commits
 from specify_cli.consolidation.write_branch_bound import (
     ApprovalWindow,
     bind_lane_predicates,
@@ -28,7 +28,7 @@ from specify_cli.consolidation.write_branch_bound import (
     render_lane_window_refusals,
     render_write_branch_refusals,
 )
-from specify_cli.status import LANE_HEAD_KEY, WP_WINDOW_KEY, Lane, StatusEvent
+from specify_cli.status import LANE_HEAD_KEY, WP_WINDOW_KEY, Lane, StatusEvent, WindowGap, WindowGapReason, WindowOpen
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
