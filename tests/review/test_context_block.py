@@ -310,9 +310,12 @@ def test_requirement_text_is_held_to_the_contract_cap() -> None:
     assert kept == f"  {already_capped}"
 
 
+_MANY_SPECS = tuple(f"src/package_{index:03d}/module_with_a_long_name.py" for index in range(120))
+
+
 def test_many_owned_pathspecs_never_print_a_zero_more_tail() -> None:
-    """NFR-001 regression (#7578): with 120 owned files the command lines alone pass the budget; an empty list prints no tail."""
-    specs = tuple(f"src/package_{index:03d}/module_with_a_long_name.py" for index in range(120))
+    """NFR-001 regression (#7578): with 120 owned files the command lines alone pass 4,096 bytes; an empty list prints no tail."""
+    specs = _MANY_SPECS
     many = _range(owned_pathspecs=specs, commits=(), files=(), out_of_map=(), out_of_map_only_commits=0)
 
     lines = render_review_context(many, ())
@@ -324,8 +327,22 @@ def test_many_owned_pathspecs_never_print_a_zero_more_tail() -> None:
 
 
 def test_a_hidden_list_names_how_many_it_hides_never_zero() -> None:
-    specs = tuple(f"src/package_{index:03d}/module_with_a_long_name.py" for index in range(120))
-    lines = render_review_context(_range(owned_pathspecs=specs), ())
+    """Ruling Q11: long command lines take no budget, so only a list that does not fit is hidden, by a non-zero count."""
+    lines = render_review_context(replace(_many(500, 500), owned_pathspecs=_MANY_SPECS), ())
 
     tails = [line for line in lines if line.startswith("  … ")]
-    assert tails and all(" 0 more" not in line for line in tails), tails
+    assert len(tails) == 2 and all(" 0 more" not in line for line in tails), tails
+
+
+def test_many_owned_files_still_list_a_single_commit() -> None:
+    """Ruling Q11: the command lines are exempt from the 4,096-byte budget, so a 1-commit list is shown, never hidden."""
+    one = _range(owned_pathspecs=_MANY_SPECS, commits=(RangeCommit(C1, "feat(WP02): first"),))
+
+    lines = render_review_context(one, ())
+
+    assert "  111111111111 feat(WP02): first" in lines
+    assert [line for line in lines if line.startswith("  +")] == ["  +3 -1  src/m2/extra.py", "  +2 -0  src/m2/real.py"]
+    assert not [line for line in lines if line.startswith("  … ")], lines
+    assert next(line for line in lines if "OUTSIDE OWNED FILES" in line).endswith("): docs/notes.md")
+    command = next(line for line in lines if line.startswith("  git log "))
+    assert shlex.split(command)[shlex.split(command).index("--") + 1 :] == list(_MANY_SPECS)
