@@ -42,7 +42,7 @@ def _stub_write_seam(monkeypatch: pytest.MonkeyPatch, write_dir: Path) -> list[o
 
     def _write_dir(kind: object) -> SimpleNamespace:
         writes.append(kind)
-        return SimpleNamespace(path=write_dir)
+        return SimpleNamespace(path=write_dir, surface_root=write_dir.parent, surface=None)
 
     seam = SimpleNamespace(write_dir=_write_dir, read_dir=lambda _kind: pytest.fail("the row reads no PRIMARY dir"))
     monkeypatch.setattr(lifecycle, "placement_seam", lambda *_args, **_kwargs: seam)
@@ -55,7 +55,7 @@ def test_a_consolidated_target_surface_names_the_rows_directory(tmp_path: Path, 
     writes = _stub_write_seam(monkeypatch, tmp_path / "coord")
     monkeypatch.setattr(status_package, "resolve_status_read", lambda *_a, **_k: _surface(StatusReadSource.CONSOLIDATED_TARGET, target_dir))
 
-    assert lifecycle._mission_next_invoked_dir(tmp_path, SLUG, None, may_be_landed=True) == target_dir
+    assert lifecycle._mission_next_invoked_dir(tmp_path, SLUG, None, may_be_landed=True)[0] == target_dir
     assert writes == []
 
 
@@ -66,7 +66,7 @@ def test_any_other_surface_goes_through_the_write_seam(tmp_path: Path, monkeypat
     writes = _stub_write_seam(monkeypatch, write_dir)
     monkeypatch.setattr(status_package, "resolve_status_read", lambda *_a, **_k: _surface(StatusReadSource.COORD_WORKTREE, coord_dir))
 
-    assert lifecycle._mission_next_invoked_dir(tmp_path, SLUG, None, may_be_landed=True) == write_dir
+    assert lifecycle._mission_next_invoked_dir(tmp_path, SLUG, None, may_be_landed=True)[0] == write_dir
     assert len(writes) == 1
 
 
@@ -80,7 +80,7 @@ def test_a_door_that_cannot_answer_goes_through_the_write_seam(tmp_path: Path, m
     writes = _stub_write_seam(monkeypatch, write_dir)
     monkeypatch.setattr(status_package, "resolve_status_read", _not_found)
 
-    assert lifecycle._mission_next_invoked_dir(tmp_path, SLUG, None, may_be_landed=True) == write_dir
+    assert lifecycle._mission_next_invoked_dir(tmp_path, SLUG, None, may_be_landed=True)[0] == write_dir
     assert len(writes) == 1
 
 
@@ -89,7 +89,7 @@ def test_a_non_terminal_decision_never_asks_the_door(tmp_path: Path, monkeypatch
     writes = _stub_write_seam(monkeypatch, write_dir)
     monkeypatch.setattr(status_package, "resolve_status_read", lambda *_a, **_k: pytest.fail("a non-terminal row reads no door"))
 
-    assert lifecycle._mission_next_invoked_dir(tmp_path, SLUG, None, may_be_landed=False) == write_dir
+    assert lifecycle._mission_next_invoked_dir(tmp_path, SLUG, None, may_be_landed=False)[0] == write_dir
     assert len(writes) == 1
 
 
