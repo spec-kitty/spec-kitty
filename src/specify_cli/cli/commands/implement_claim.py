@@ -67,10 +67,25 @@ class DispatchedClaimIdentity:
 _DISPATCHED_CLAIM_IDENTITY: ContextVar[DispatchedClaimIdentity | None] = ContextVar("dispatched_claim_identity", default=None)
 
 
-#: ``False`` only inside :func:`dispatched_claim_identity`: ``agent action implement`` has no
+#: ``False`` only inside :func:`no_auto_commit_not_offered`: ``agent action implement`` has no
 #: ``--no-auto-commit``, so a refusal printed through it must not name that option (#7601,
 #: SC-003). The top-level ``spec-kitty implement`` keeps the default and its remedy text.
 _NO_AUTO_COMMIT_OFFERED: ContextVar[bool] = ContextVar("no_auto_commit_offered", default=True)
+
+
+@contextmanager
+def no_auto_commit_not_offered() -> Iterator[None]:
+    """Withhold ``--no-auto-commit`` from every claim refusal printed inside this block (#7601).
+
+    Entered by ``agent action implement`` around its call of the top-level ``implement``
+    command: that entry point has no ``--no-auto-commit``, so its remedies name only ways
+    out it can follow. The previous value is restored on exit, also on an exception.
+    """
+    token = _NO_AUTO_COMMIT_OFFERED.set(False)
+    try:
+        yield
+    finally:
+        _NO_AUTO_COMMIT_OFFERED.reset(token)
 
 
 @contextmanager
@@ -84,11 +99,9 @@ def dispatched_claim_identity(identity: DispatchedClaimIdentity | None) -> Itera
     keeps the command's own actor.
     """
     token = _DISPATCHED_CLAIM_IDENTITY.set(identity)
-    offered_token = _NO_AUTO_COMMIT_OFFERED.set(False)
     try:
         yield
     finally:
-        _NO_AUTO_COMMIT_OFFERED.reset(offered_token)
         _DISPATCHED_CLAIM_IDENTITY.reset(token)
 
 
