@@ -100,7 +100,7 @@ from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
 from specify_cli.core.paths import load_meta_fail_closed
 from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous, StatusReadPathNotFound
 from specify_cli.status import CanonicalStatusNotFoundError, Lane, get_wp_lane
-from specify_cli.status.actor import MERGE_ACTOR
+from specify_cli.status import MERGE_ACTOR
 
 if TYPE_CHECKING:
     from charter.activation.invocation_context import OperationalContext as OperationalContextT

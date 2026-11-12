@@ -26,8 +26,7 @@ from specify_cli.consolidation._constants import _STATUS_EVENTS_FILENAME, logger
 from specify_cli.consolidation.git_probes import path_is_under_worktrees
 from specify_cli.consolidation.state import ConsolidationState, save_state
 from specify_cli.lanes.single_branch_landing import is_single_branch_meta, stored_mission_meta
-from specify_cli.status import build_system_actor
-from specify_cli.status.actor import MERGE_ACTOR
+from specify_cli.status import MERGE_ACTOR, build_system_actor
 from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
 from mission_runtime import MissionArtifactKind, placement_seam
 
