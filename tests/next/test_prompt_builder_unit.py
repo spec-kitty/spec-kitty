@@ -300,11 +300,8 @@ class TestBuildPromptWPPlanningArtifact:
             mission_type="software-dev",
         )
         assert "REVIEW COMMANDS:" in text
-        scope = (
-            "-- kitty-specs/042-test-feature/spec.md kitty-specs/042-test-feature/plan.md "
-            "':(exclude)kitty-specs/042-test-feature/tasks/**' ':(exclude)kitty-specs/042-test-feature/tasks.md' "
-            "':(exclude)kitty-specs/042-test-feature/status.events.jsonl' ':(exclude)kitty-specs/042-test-feature/status.json'"
-        )
+        # re-pin (#7578, DIRECTIVE_041): owned files that reach no bookkeeping path carry no exclude.
+        scope = "-- kitty-specs/042-test-feature/spec.md kitty-specs/042-test-feature/plan.md"
         assert f"  git log --oneline {claim}..{tip} {scope}" in text
         assert "  CHANGED FILES (owned files, +added -removed):" not in text
         assert "  +1 -0  kitty-specs/042-test-feature/spec.md" in text

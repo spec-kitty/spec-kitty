@@ -153,25 +153,31 @@ def test_lane_less_root_checkout_without_owned_files_keeps_the_legacy_unscoped_d
     lines = _lines(mission_dir, _workspace(lane_id=None), _meta())
 
     assert "  scope: unscoped (no owned_files declared)" in lines
-    assert f"  git diff {claim}..{tip}" in lines
+    # re-pin (#7578, DIRECTIVE_041): the unscoped commands carry the commit list's own pathspecs.
+    diff = next(line for line in lines if line.startswith("  git diff "))
+    assert diff.startswith(f"  git diff {claim}..{tip} -- . ")
+    assert ":(exclude).kittify/*" in shlex.split(diff)
 
 
 def test_review_commands_exclude_mission_bookkeeping_only_when_the_mission_dir_is_owned(mission_dir: Path) -> None:
-    """re-pin (IC-05): the retired ``_review_pathspecs`` builder's rule now holds on the printed commands (``owned_pathspecs``)."""
+    """re-pin (IC-05; #7578, DIRECTIVE_041): an owned glob gets an exclude for each Mission bookkeeping prefix it can reach.
+
+    A single owned Mission file reaches none, so it carries no exclude; a Mission-directory glob reaches them all.
+    """
     mission_root = f"kitty-specs/{_SLUG}/"
     _claim(mission_dir)
     _work_and_submit(mission_dir, "src/app.py", f"{mission_root}research.md")
 
     plain = _commands(_lines(mission_dir, _workspace(lane_id=None), _meta("src/app.py")))
-    planning = _commands(_lines(mission_dir, _workspace(lane_id=None), _meta(f"{mission_root}research.md")))
+    research = _commands(_lines(mission_dir, _workspace(lane_id=None), _meta(f"{mission_root}research.md")))
+    planning = _commands(_lines(mission_dir, _workspace(lane_id=None), _meta(f"{mission_root}**")))
 
     assert shlex.split(plain[1]).count("--") == 1 and shlex.split(plain[1])[-1] == "src/app.py"
+    assert shlex.split(research[1])[shlex.split(research[1]).index("--") + 1 :] == [f"{mission_root}research.md"]
     specs = shlex.split(planning[1])[shlex.split(planning[1]).index("--") + 1 :]
-    assert specs[0] == f"{mission_root}research.md"
-    assert {f":(exclude){mission_root}tasks/**", f":(exclude){mission_root}tasks.md"} <= set(specs)
-    assert f":(exclude){mission_root}status.events.jsonl" in specs
-    assert f":(exclude){mission_root}status.json" in specs
-    assert f"':(exclude){mission_root}tasks/**'" in planning[1], "a pathspec with glob magic is quoted for the shell"
+    assert specs[0] == f"{mission_root}**"
+    assert {f":(exclude){mission_root}tasks/*", f":(exclude){mission_root}tasks.md*", f":(exclude){mission_root}status.*"} <= set(specs)
+    assert f"':(exclude){mission_root}tasks/*'" in planning[1], "a pathspec with glob magic is quoted for the shell"
 
 
 def test_completion_lines_carry_no_owned_checkout_flag_without_a_fact() -> None:
