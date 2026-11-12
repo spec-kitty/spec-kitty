@@ -851,42 +851,25 @@ def get_feature_target_branch(repo_root: Path, mission_slug: str) -> str:
     Returns:
         Target branch name (e.g., ``"main"`` or ``"2.x"``).
     """
-    # Anchor the meta.json read on the PRIMARY surface — NOT the topology-aware
-    # candidate. Under coordination topology that candidate resolves to the
-    # coordination worktree, whose mission dir has no meta.json; reading it found
-    # nothing and silently fell back to the repo default (main), so the resolved
-    # commit/branch surface was the protected primary instead of the mission's
-    # ``target_branch`` (the finalize-tasks / implement-loop refusal-to-main bug,
-    # WP00 / FR-004). This mirrors ``resolve_merge_target_branch`` below exactly.
+    # Read ``meta.json`` where the placement seam finds it (#7595): the one PRIMARY-metadata reader
+    # ``mission_runtime.resolution.read_dir_for`` -- the repository root checkout's Mission dir, or,
+    # for a default Mission settled before its landing, the copy the coordination worktree holds on
+    # the topic branch (``default_mission_topic_dir``). Reading only the root's literal Mission dir
+    # found no ``meta.json`` after settlement and fell back to the checked-out primary branch.
     #
-    # read-side-seam-primary-primitive-closure-01KYKMMT WP07/WP08 (T034/T035,
-    # FR-005 / NFR-009): RECORDED FOUNDATION SITE 1/4, deliberately UNROUTED.
-    # This read feeds the write-side composition root
-    # (``resolve_placement_only``). ``PlacementSeam.read_dir`` never reaches this
-    # target-branch resolution -- it routes to ``resolve_retrospective_home`` or
-    # ``resolve_artifact_surface``, neither of which calls
-    # ``get_feature_target_branch`` -- so routing here would NOT close the
-    # literal cycle a naive reading suggests. The real constraints are (a)
-    # import-layering: ``core/paths.py`` is imported very early, so this pulls
-    # the missions layer in via a deferred import to dodge the missions<->core
-    # import cycle, and (b) behaviour-preservation: this leaf call is
-    # byte-identical to the deleted wrapper's pre-delegation body. WP08 deleted
-    # the public wrapper (``primary_feature_dir_for_mission``) this site used to
-    # import, so this now calls the module-private ``_compose_primary_feature_dir``
-    # leaf directly -- see ``tests/architectural/test_no_read_side_bypass.py``'s
-    # ``_FOUNDATION_SANCTION_SEED`` entry for ``get_feature_target_branch``
-    # (token re-pointed in the same commit).
+    # Not ``PlacementSeam.read_dir``: that reader resolves the lifecycle phase
+    # (``read_dir`` -> ``resolve_artifact_surface`` -> ``resolve_lifecycle_phase``), and the phase of
+    # a consolidated Mission (``baseline_merge_commit`` set) reads the target branch through THIS
+    # function -- it would re-enter itself without end. ``read_dir_for`` never resolves the phase.
+    #
+    # Deferred imports: ``core/paths.py`` is imported very early; the missions/runtime layers import
+    # back into core, so module-level imports would form a circular import.
+    from mission_runtime import MissionArtifactKind
+    from mission_runtime.resolution import read_dir_for
     from specify_cli.core.git_ops import resolve_primary_branch
-    from specify_cli.missions._read_path_resolver import (
-        _canonicalize_primary_read_handle,
-        _compose_primary_feature_dir,
-    )
 
     main_root = get_main_repo_root(repo_root)
-    feature_dir = _compose_primary_feature_dir(
-        main_root,
-        _canonicalize_primary_read_handle(main_root, mission_slug),
-    )
+    feature_dir = read_dir_for(main_root, mission_slug, kind=MissionArtifactKind.PRIMARY_METADATA)
     fallback = str(resolve_primary_branch(main_root))
     branch = read_target_branch_from_meta(feature_dir)
     return branch if branch is not None else fallback

@@ -125,12 +125,14 @@ membership/uniqueness checks below key on the resulting
 
 Foundation-site sanctions (WP02 T011, E3) — per-site, never a module blanket
 ------------------------------------------------------------------------------
-``core/paths.py`` (×2) and ``core/git_ops.py`` (×1) call
-``primary_feature_dir_for_mission`` from beneath the seam's own composition
-root (NFR-009: routing them risks a resolution cycle). Neither module is
-otherwise a sanctioned-infra module — both carry substantial unrelated logic
-— so whole-module sanctioning would be exactly the path-scoped blanket C-003
-forbids. ``_FOUNDATION_SANCTION_SEED`` sanctions these THREE sites
+``core/paths.py::resolve_merge_target_branch`` calls the leaf from beneath
+the seam's own composition root (NFR-009: routing it risks a resolution
+cycle); ``core/paths.py::get_feature_target_branch`` and
+``core/git_ops.py::resolve_target_branch`` did too until #7595 moved them onto
+the seam's ``read_dir_for`` reader. Neither module is otherwise a
+sanctioned-infra module — both carry substantial unrelated logic — so
+whole-module sanctioning would be exactly the path-scoped blanket C-003
+forbids. ``_FOUNDATION_SANCTION_SEED`` sanctions each remaining site
 individually (the same content-descriptor mechanism as the allow-list, a
 separate ledger-reconciled table so foundation-infra counts never blend into
 the stay-lenient business-logic counts). The fourth named FR-005 foundation
@@ -694,25 +696,11 @@ _ALLOW_LIST: frozenset[CompositeKey] = frozenset(_ALLOW_LIST_KEYS)
 # ---------------------------------------------------------------------------
 
 _FOUNDATION_SANCTION_SEED: tuple[ContentDescriptor, ...] = (
-    ContentDescriptor(
-        rel_path="src/specify_cli/core/paths.py",
-        qualname="get_feature_target_branch",
-        token_substring="_compose_primary_feature_dir (",
-        occurrence=None,
-        rationale=(
-            "FR-005 foundation site 1/4: resolves the PRIMARY anchor to read "
-            "the target-branch field feeding the write-side composition root "
-            "-- routing through the seam here would recurse into the "
-            "resolver the seam itself depends on (NFR-009). Recorded by name, "
-            "deliberately unrouted. WP08 (T035): re-pointed at the "
-            "module-private leaf _compose_primary_feature_dir (was "
-            "primary_feature_dir_for_mission) in the same commit as the "
-            "public wrapper's deletion -- the M1 build-break fix WP07 "
-            "deferred (this token was pinned to the wrapper's literal name; "
-            "re-pointing the call without moving this token would "
-            "DescriptorResolutionError at collection)."
-        ),
-    ),
+    # #7595 (settled-placement-surface-01M78GR4 WP04): the former foundation sites 1/4
+    # (``core/paths.py::get_feature_target_branch``) and 3/4
+    # (``core/git_ops.py::resolve_target_branch``) now read ``meta.json`` through the seam's
+    # PRIMARY-metadata reader ``mission_runtime.resolution.read_dir_for`` and no longer call the
+    # leaf; their rows are removed (shrink-only), never re-pointed.
     ContentDescriptor(
         rel_path="src/specify_cli/core/paths.py",
         qualname="resolve_merge_target_branch",
@@ -724,19 +712,6 @@ _FOUNDATION_SANCTION_SEED: tuple[ContentDescriptor, ...] = (
             "distinct site in the same file (two entries, not a module "
             "blanket, per C-003). WP08 (T035): token re-pointed to the leaf "
             "in the same commit as the wrapper deletion, same M1 rationale."
-        ),
-    ),
-    ContentDescriptor(
-        rel_path="src/specify_cli/core/git_ops.py",
-        qualname="resolve_target_branch",
-        token_substring="_compose_primary_feature_dir (",
-        occurrence=None,
-        rationale=(
-            "FR-005 foundation site 3/4: mirrors core/paths.py's target-branch "
-            "resolution one layer up the git-ops composition root; the same "
-            "recursion rationale applies (NFR-009). WP08 (T035): token "
-            "re-pointed to the leaf in the same commit as the wrapper "
-            "deletion, same M1 rationale."
         ),
     ),
     # ---- Post-merge aggregate-squad closeout (fix/read-side-seam-primary-

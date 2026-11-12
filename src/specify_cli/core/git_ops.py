@@ -440,36 +440,21 @@ def resolve_target_branch(
 
     # Delegate the meta read to the canonical primitive so the absent-vs-failed
     # decision lives in exactly one place (FR-005 / #2139).
-    # Read from the PRIMARY surface — NOT the topology-aware candidate, which
-    # under coordination topology resolves to the coordination worktree (no
-    # meta.json) and silently fell back to the protected repo primary ``main``
-    # (WP00 / FR-004 — the implement-loop refusal-to-main bug).
     #
-    # read-side-seam-primary-primitive-closure-01KYKMMT WP07/WP08 (T034/T035,
-    # FR-005 / NFR-009): RECORDED FOUNDATION SITE 3/4, deliberately UNROUTED —
-    # mirrors ``core/paths.py``'s target-branch resolution one layer up the
-    # git-ops composition root; same import-layering + behaviour-preservation
-    # rationale (``PlacementSeam.read_dir`` never reaches this target-branch
-    # resolution -- it routes to ``resolve_retrospective_home`` or
-    # ``resolve_artifact_surface``, neither of which calls
-    # ``resolve_target_branch`` -- so no literal cycle is at stake here either;
-    # the constraints are early-import layering for ``core/git_ops.py`` and
-    # behaviour-preservation with the deleted wrapper's pre-delegation body).
-    # WP08 deleted the public wrapper this site imported; calls the
-    # module-private ``_compose_primary_feature_dir`` leaf directly
-    # (``_FOUNDATION_SANCTION_SEED`` token in
-    # ``tests/architectural/test_no_read_side_bypass.py`` re-pointed in the
-    # same commit — see that file's entry for ``resolve_target_branch``).
+    # Read ``meta.json`` where the placement seam finds it (#7595), through the one
+    # PRIMARY-metadata reader ``mission_runtime.resolution.read_dir_for``, exactly like
+    # ``core/paths.get_feature_target_branch``: for a default Mission settled before its landing
+    # that is the coordination worktree's copy on the topic branch, so the banner names the
+    # declared target instead of falling back to the checked-out primary branch. Not
+    # ``PlacementSeam.read_dir``: it resolves the lifecycle phase, which reads a consolidated
+    # Mission's target branch through ``get_feature_target_branch`` (``read_dir`` ->
+    # ``resolve_artifact_surface`` -> ``resolve_lifecycle_phase``) -- a re-entrant read.
+    # Deferred imports keep ``core/git_ops.py`` free of an early-import cycle.
+    from mission_runtime import MissionArtifactKind
+    from mission_runtime.resolution import read_dir_for
     from specify_cli.core.paths import read_target_branch_from_meta
-    from specify_cli.missions._read_path_resolver import (
-        _canonicalize_primary_read_handle,
-        _compose_primary_feature_dir,
-    )
 
-    feature_dir = _compose_primary_feature_dir(
-        repo_path,
-        _canonicalize_primary_read_handle(repo_path, mission_slug),
-    )
+    feature_dir = read_dir_for(repo_path, mission_slug, kind=MissionArtifactKind.PRIMARY_METADATA)
     fallback = resolve_primary_branch(repo_path)
     branch = read_target_branch_from_meta(feature_dir)
     target = branch if branch is not None else fallback
