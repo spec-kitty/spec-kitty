@@ -85,7 +85,7 @@
     },
     "WP03": {
       "actor": "claude-reviewer",
-      "agent": "claude-reviewer",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -98,6 +98,7 @@
         "Ready for review: resolve_wp_review_range + WpReviewRange (recorded/derived/unavailable with provenance and gap), commit_introducing_status_event (+StatusRef) generalised in mission_runtime with claim_commit_for_wp as wrapper; constant git cost (6 recorded, 9 derived); dead-code gates red for exactly resolve_wp_review_range / specify_cli.review.wp_range until WP05 wires the caller."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/review-context-wp-diff-01M774QF-coord/kitty-specs/review-context-wp-diff-01M774QF/tasks/WP03-review-range-resolver/review-cycle-1.md",
         "reference": "review-cycle://review-context-wp-diff-01M774QF/WP03-review-range-resolver/review-cycle-1.md",
@@ -105,16 +106,16 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 13116,
-      "shell_pid_created_at": "1794471736.68",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T011": "done",
-        "T012": "done",
-        "T013": "done",
-        "T014": "done",
-        "T015": "done",
-        "T016": "done",
-        "T017": "done"
+        "T011": "planned",
+        "T012": "planned",
+        "T013": "planned",
+        "T014": "planned",
+        "T015": "planned",
+        "T016": "planned",
+        "T017": "planned"
       }
     },
     "WP04": {
