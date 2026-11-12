@@ -1845,8 +1845,8 @@ def _in_span_parent(worktree_root: Path, destination_ref: str) -> str | None:
     pre-commit hook that rewrites a requested path refuses instead of being committed,
     and a failed real-index sync after the compare-and-swap is a diagnostic on the
     result. No consolidate caller hits these today (its scratch worktrees are detached).
-    ``index_deletions`` commits (migration-only) still take their own path and report
-    no intent; they never run inside a consolidate span.
+    ``index_deletions`` commits (migration-only) report no intent, so ``safe_commit``
+    refuses them inside a span before any index mutation.
     """
     if not advance_intents_reported():
         return None
@@ -2049,6 +2049,10 @@ def safe_commit(
 
     if index_deletions and expected_parent_sha is not None:
         raise ValueError("index_deletions cannot be combined with expected_parent_sha")
+    if index_deletions and advance_intents_reported():
+        # #5931: an index_deletions commit moves the ref through porcelain and reports no advance
+        # intent, so inside a consolidation rollback span a kill would leave it unexplained.
+        raise ValueError("index_deletions cannot be used inside an advance-intent span: that commit reports no advance intent")
     removals = _validate_runtime_lock_removal(worktree_root, paths, expected_parent_sha, expected_path_bytes, index_only_removals, runtime_lock_path, owned)
 
     normalized_files = preflight_commit(

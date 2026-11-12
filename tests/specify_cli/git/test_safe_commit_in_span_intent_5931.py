@@ -19,6 +19,7 @@ import pytest
 from specify_cli.git import commit_helpers
 from specify_cli.git.commit_helpers import (
     SafeCommitDestinationNotFound,
+    SafeCommitPathPolicyError,
     SafeCommitStagedTreeUnchanged,
     safe_commit,
 )
@@ -166,3 +167,20 @@ def test_expected_path_bytes_without_a_parent_still_refuses_inside_a_span(repo: 
             paths=(repo / "status.json",),
             expected_path_bytes={repo / "status.json": b"x\n"},
         )
+
+
+def test_index_deletions_refuse_inside_a_span_before_any_index_change(repo: Path) -> None:
+    before, index_before = _tip(repo), _git(repo, "ls-files", "--stage")
+    with reporting_advance_intents(lambda *_: None), pytest.raises(ValueError, match="advance-intent span"):
+        safe_commit(repo_root=repo, worktree_root=repo, destination_ref=_BRANCH, message=_MESSAGE, paths=(), index_deletions=(repo / "other.txt",))
+    assert (_tip(repo), _git(repo, "ls-files", "--stage")) == (before, index_before)
+
+
+def test_in_span_decisions_runtime_lock_still_refuses_before_any_index_change(repo: Path) -> None:
+    lock = repo / "kitty-specs" / "m" / "decisions" / "index.json.lock"
+    lock.parent.mkdir(parents=True)
+    lock.write_text("", encoding="utf-8")
+    before, index_before = _tip(repo), _git(repo, "ls-files", "--stage")
+    with reporting_advance_intents(lambda *_: None), pytest.raises(SafeCommitPathPolicyError):
+        safe_commit(repo_root=repo, worktree_root=repo, destination_ref=_BRANCH, message=_MESSAGE, paths=(lock,))
+    assert (_tip(repo), _git(repo, "ls-files", "--stage")) == (before, index_before)
