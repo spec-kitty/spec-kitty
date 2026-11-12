@@ -205,7 +205,7 @@
       "wp": null
     },
     "#7361": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Context reference (REFS/EXCLUDE per research/foldable-issues.md); no work owed by this Mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -213,7 +213,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7407": {
