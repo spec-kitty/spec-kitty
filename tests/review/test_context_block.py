@@ -205,7 +205,10 @@ def _many(n_commits: int, n_files: int, n_outside: int = 0) -> WpReviewRange:
 
 
 def _budgeted(lines: list[str]) -> int:
-    return len("".join(f"{line}\n" for line in lines[: lines.index(REQS)]).encode("utf-8"))
+    """The bytes NFR-001 budgets: the block before CITED REQUIREMENTS, without the REVIEW COMMANDS lines (ruling Q11)."""
+    commands = lines.index("REVIEW COMMANDS:")
+    budgeted = lines[:commands] + lines[commands + 3 : lines.index(REQS)]
+    return len("".join(f"{line}\n" for line in budgeted).encode("utf-8"))
 
 
 def test_large_range_stays_within_the_budget_with_exact_more_counts() -> None:

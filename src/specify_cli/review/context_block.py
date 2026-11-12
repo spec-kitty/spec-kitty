@@ -28,11 +28,13 @@ Shape (``?`` lines are optional; an optional line renders with the two-space ite
 Rules: commands carry full SHAs and ``shlex``-quoted pathspecs (they run as printed in ``bash``),
 the same pathspecs the commit list was listed with (``WpReviewRange.listing_pathspecs``: the owned
 pathspecs, or ``.`` plus the bookkeeping excludes when unscoped);
-labels carry 12-character SHAs. The block without CITED REQUIREMENTS stays within
-:data:`BYTE_BUDGET` bytes (NFR-001): the header, provenance and command lines are always kept, and
-the commit list, the file list and the out-of-map paths are filled in that order until the budget
-is reached, the rest of each replaced by one ``… <k> more`` line. No patch text is ever rendered
-(C-001): only command strings, commit subjects and numstat counts.
+labels carry 12-character SHAs. The block without CITED REQUIREMENTS and without the REVIEW
+COMMANDS lines stays within :data:`BYTE_BUDGET` bytes (NFR-001, ruling Q11): the header and
+provenance lines are always kept, and the commit list, the file list and the out-of-map paths are
+filled in that order until the budget is reached, the rest of each replaced by one ``… <k> more``
+line. The command lines are printed in full on top of the budget, so they run verbatim over the
+listing pathspecs; a work package that owns many files can exceed 4,096 bytes in total. No patch
+text is ever rendered (C-001): only command strings, commit subjects and numstat counts.
 """
 
 from __future__ import annotations
@@ -45,7 +47,7 @@ from specify_cli.review.wp_range import FileChange, RangeSource, RangeStatus, Wp
 
 __all__ = ["describe_gap", "render_review_context"]
 
-#: The block without CITED REQUIREMENTS is at most this many UTF-8 bytes, newlines included (NFR-001).
+#: The block without CITED REQUIREMENTS and the REVIEW COMMANDS lines is at most this many UTF-8 bytes, newlines included (NFR-001, Q11).
 BYTE_BUDGET = 4096
 #: SHA length in labels; commands carry full SHAs.
 LABEL_LEN = 12
@@ -266,7 +268,8 @@ def render_review_context(
     header = _header_lines(review_range, branch)
     commands = _command_lines(review_range)
     commits_heading = f"IMPLEMENTATION COMMITS ({len(review_range.commits)}; = output of the git log command below):"
-    fixed = [*header, commits_heading, _FILES_HEADING, *commands]
+    # Ruling Q11: the command lines are exempt from the budget (always printed in full), so only these count.
+    fixed = [*header, commits_heading, _FILES_HEADING]
     remaining = BYTE_BUDGET - sum(_size(line) for line in fixed)
 
     # Each later section's shortest form is reserved before an earlier list fills, so all three always fit.
