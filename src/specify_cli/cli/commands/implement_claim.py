@@ -67,6 +67,12 @@ class DispatchedClaimIdentity:
 _DISPATCHED_CLAIM_IDENTITY: ContextVar[DispatchedClaimIdentity | None] = ContextVar("dispatched_claim_identity", default=None)
 
 
+#: ``False`` only inside :func:`dispatched_claim_identity`: ``agent action implement`` has no
+#: ``--no-auto-commit``, so a refusal printed through it must not name that option (#7601,
+#: SC-003). The top-level ``spec-kitty implement`` keeps the default and its remedy text.
+_NO_AUTO_COMMIT_OFFERED: ContextVar[bool] = ContextVar("no_auto_commit_offered", default=True)
+
+
 @contextmanager
 def dispatched_claim_identity(identity: DispatchedClaimIdentity | None) -> Iterator[None]:
     """Record *identity* on any implement claim emitted inside this block (#7159).
@@ -78,9 +84,11 @@ def dispatched_claim_identity(identity: DispatchedClaimIdentity | None) -> Itera
     keeps the command's own actor.
     """
     token = _DISPATCHED_CLAIM_IDENTITY.set(identity)
+    offered_token = _NO_AUTO_COMMIT_OFFERED.set(False)
     try:
         yield
     finally:
+        _NO_AUTO_COMMIT_OFFERED.reset(offered_token)
         _DISPATCHED_CLAIM_IDENTITY.reset(token)
 
 
@@ -100,12 +108,34 @@ _WP_DIRTY_BEFORE_CLAIM_WARNING = (
 )
 
 
-def _protected_branch_status_commit_error(branch: str, repo_root: Path, mission_slug: str | None = None) -> str | None:
+def _protected_branch_status_commit_error(
+    branch: str,
+    repo_root: Path,
+    mission_slug: str | None = None,
+    *,
+    accepts_no_auto_commit: bool = True,
+    checkout: Path | None = None,
+) -> str | None:
+    """The refusal for a claim status commit onto protected *branch*, else ``None``.
+
+    *accepts_no_auto_commit* is ``False`` for ``agent action implement``, which has no
+    ``--no-auto-commit``: its remedy then names the branch judged, the *checkout* it is
+    checked out in, and only ways out that command can follow (#7601, SC-003). The
+    top-level ``spec-kitty implement`` text is unchanged.
+    """
     # ProtectionPolicy.resolve_for_mission is the sole I/O boundary (FR-007/NFR-003):
     # config+hatch+meta reads happen once; is_protected() is I/O-free. A mission-scoped
     # write also honours that mission's ``commit_to_target`` for its own target (#5100 FR-008).
     if not ProtectionPolicy.resolve_for_mission(repo_root, mission_slug).is_protected(branch):
         return None
+    if not accepts_no_auto_commit:
+        where = f" (checked out in {checkout})" if checkout is not None else ""
+        return (
+            f"Refusing to start implementation status on protected branch '{branch}'{where} "
+            "before mutating status files. Check out an allowed coordination/lane branch in "
+            "that checkout and rerun, or claim the work package with the top-level "
+            "`spec-kitty implement` command, which can leave the status commit to you."
+        )
     return (
         f"Refusing to start implementation status on protected branch '{branch}' "
         "before mutating status files. Run this status commit from an allowed "
@@ -114,30 +144,76 @@ def _protected_branch_status_commit_error(branch: str, repo_root: Path, mission_
     )
 
 
-def _status_commit_destination_branch(repo_root: Path, fallback_branch: str) -> str:
-    """Return the branch that the pre-lane status commit would target."""
-    return get_current_branch(repo_root) or fallback_branch
+def checkout_branch_or_fallback(checkout: Path, fallback_branch: str) -> str:
+    """The branch *checkout* has checked out, or *fallback_branch* when it is detached or unreadable.
+
+    The one current-checkout HEAD read the protected-branch preflights share: the claim
+    preflight (:func:`_claim_checkout_branch`) and move-task's WP-file holder
+    (``tasks_shared._wp_file_commit_branch``) both judge the branch of the checkout the
+    commit runs in (#7601, decision ``01M78JFMRQS6GE04BENPXGQX8J``). Tracked by #2453.
+    """
+    return get_current_branch(checkout) or fallback_branch
 
 
-def _raise_if_status_commit_protected(repo_root: Path, planning_branch: str, auto_commit: bool | None, mission_slug: str | None = None) -> None:
-    """Raise ``ValueError`` when auto-commit is on and the pre-lane status
-    commit would target a protected branch."""
+def _claim_checkout_branch(repo_root: Path, feature_dir: Path | None, mission_slug: str | None, fallback_branch: str) -> tuple[Path, str]:
+    """The checkout the claim commit runs in and the branch it has checked out (#7601).
+
+    The checkout is :func:`_claim_commit_checkout`'s answer -- the one the #5738 check
+    (:func:`_raise_if_claim_commit_head_mismatch`) judges too: a default Mission's topic
+    holder before its landing, else the repository root checkout. With no *feature_dir* or
+    *mission_slug*, or when the placement does not resolve, it is *repo_root* (the check is
+    never skipped).
+    """
+    checkout = repo_root
+    if feature_dir is not None and mission_slug is not None:
+        try:
+            checkout = _claim_commit_checkout(repo_root, feature_dir, mission_slug)
+        except (ActionContextError, StatusReadPathNotFound):
+            checkout = repo_root
+    return checkout, checkout_branch_or_fallback(checkout, fallback_branch)
+
+
+def _raise_if_status_commit_protected(
+    repo_root: Path,
+    planning_branch: str,
+    auto_commit: bool | None,
+    mission_slug: str | None = None,
+    feature_dir: Path | None = None,
+) -> None:
+    """Raise ``ValueError`` when auto-commit is on and the claim status commit would land on a protected branch.
+
+    The branch judged is the one checked out in the checkout the claim commit runs in
+    (:func:`_claim_checkout_branch`), *planning_branch* when that checkout is detached.
+    """
     if not auto_commit:
         return
-    status_destination = _status_commit_destination_branch(repo_root, fallback_branch=planning_branch)
-    protected_error = _protected_branch_status_commit_error(status_destination, repo_root, mission_slug)
+    checkout, status_destination = _claim_checkout_branch(repo_root, feature_dir, mission_slug, planning_branch)
+    protected_error = _protected_branch_status_commit_error(
+        status_destination,
+        repo_root,
+        mission_slug,
+        accepts_no_auto_commit=_NO_AUTO_COMMIT_OFFERED.get(),
+        checkout=checkout,
+    )
     if protected_error is not None:
         raise ValueError(protected_error)
 
 
-def _protected_destination_hint(destination_ref: str) -> str:
+def _protected_destination_hint(destination_ref: str, *, accepts_no_auto_commit: bool = True) -> str:
     """The way out of a #5738 refusal whose destination is a protected branch.
 
     The mismatch message tells the operator to check out the destination; for a
     protected destination that only leads to the protected-branch refusal of
     :func:`_raise_if_status_commit_protected`, so the refusal names the remedy that
-    works.
+    works. ``agent action implement`` (*accepts_no_auto_commit* ``False``) has no
+    ``--no-auto-commit``, so its remedy names the command that has it (#7601).
     """
+    if not accepts_no_auto_commit:
+        return (
+            f" '{destination_ref}' is a protected branch, so the claim's status commit cannot "
+            "land there either: claim the work package with the top-level `spec-kitty implement` "
+            "command, which can stage the claim's changes for you to commit."
+        )
     return (
         f" '{destination_ref}' is a protected branch, so the claim's status commit cannot "
         "land there either: rerun with --no-auto-commit to stage the claim's changes and "
@@ -216,7 +292,7 @@ def _raise_if_claim_commit_head_mismatch(
     )
     if ProtectionPolicy.resolve_for_mission(repo_root, mission_slug).is_protected(destination_ref):
         # Same type and ``error_code``; only the message gains the working remedy.
-        mismatch.message += _protected_destination_hint(destination_ref)
+        mismatch.message += _protected_destination_hint(destination_ref, accepts_no_auto_commit=_NO_AUTO_COMMIT_OFFERED.get())
         mismatch.args = (mismatch.message,)
     raise mismatch
 
