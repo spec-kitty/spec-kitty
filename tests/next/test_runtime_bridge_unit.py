@@ -97,6 +97,40 @@ def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
     seed_status_event(feature_dir, event)
 
 
+def _finalize_board_and_finish_work(feature_dir: Path, decision: Any) -> None:
+    """Finalize the board when the tasks step is issued; finish WP01 when implement dispatches it (#7553).
+
+    A real run finalizes the board (WP01 ``planned``, its lanes manifest) in the tasks step and finishes the work in
+    implement; the later ``done`` event sorts after the ``planned`` one by its timestamp.
+    """
+    from specify_cli.status.models import Lane, StatusEvent
+    from tests._support.status_seed import seed_status_event
+    from tests.lane_test_utils import write_single_lane_manifest
+
+    def _seed(lane: Lane, at: str) -> None:
+        seed_status_event(
+            feature_dir,
+            StatusEvent(
+                event_id=f"loop-WP01-{lane}",
+                mission_slug=feature_dir.name,
+                wp_id="WP01",
+                from_lane=Lane.PLANNED,
+                to_lane=lane,
+                at=at,
+                actor="test",
+                force=True,
+                execution_mode="worktree",
+            ),
+        )
+
+    if decision.step_id == "tasks" and not (feature_dir / "tasks.md").exists():
+        (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+        write_single_lane_manifest(feature_dir, wp_ids=("WP01",))
+        _seed(Lane.PLANNED, "2026-01-01T00:00:00+00:00")
+    if decision.action == "implement" and decision.wp_id == "WP01":
+        _seed(Lane.DONE, "2026-01-02T00:00:00+00:00")
+
+
 def _add_wp_files(feature_dir: Path, wps: dict[str, str]) -> None:
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(exist_ok=True)
@@ -915,19 +949,19 @@ class TestFullLoop:
             encoding="utf-8",
         )
         (feature_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
-        (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
         # Create WP files with explicit dependencies for tasks_finalize guard
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(exist_ok=True)
         (tasks_dir / "WP01.md").write_text(
-            "---\nwork_package_id: WP01\nlane: done\ndependencies: []\nrequirement_refs: [FR-001]\ntitle: WP01\n---\n# WP01\n",
+            "---\nwork_package_id: WP01\ndependencies: []\nrequirement_refs: [FR-001]\ntitle: WP01\n---\n# WP01\n",
             encoding="utf-8",
         )
-        # Seed event log so runtime bridge reads WP01 as done
-        _seed_wp_lane(feature_dir, "WP01", "done")
 
         from runtime.next.runtime_bridge import decide_next_via_runtime
 
+        # #7553: the board is finalized during the tasks step and WP01 is finished during
+        # implement, as in a real run; a board finished before the run walks the DAG is answered
+        # by the never-rewind gate instead (tests/next/test_finished_board_gate_7553.py).
         seen_steps = []
         for _i in range(40):  # 9 steps need more iterations
             decision = decide_next_via_runtime("test", "042-test-feature", "success", repo_root, analysis_currency=analysis_is_current)
@@ -935,6 +969,7 @@ class TestFullLoop:
                 break
             if decision.step_id:
                 seen_steps.append(decision.step_id)
+            _finalize_board_and_finish_work(feature_dir, decision)
 
         assert decision.kind == DecisionKind.terminal
         # Should have visited at least discovery and specify, and the analyze gate (WP07)

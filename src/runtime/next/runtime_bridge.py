@@ -114,9 +114,10 @@ from runtime.next import runtime_bridge_retrospective as _retrospective_seam
 # call site below, and a test patches it there.
 
 from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
+from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, is_execution_wedged
 from specify_cli.mission import get_mission_type
 from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
-from specify_cli.status import CanonicalStatusNotFoundError
+from specify_cli.status import CanonicalStatusNotFoundError, Lane
 from runtime.next.decision import (
     AnalysisCurrency,
     Decision,
@@ -133,6 +134,7 @@ from mission_runtime import ActionContextError, OwnedCheckout, OwnedRefusalCode,
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from runtime.next.board_status import BoardStatus
     from specify_cli.status import StatusReadSurface
 
 logger = logging.getLogger(__name__)
@@ -516,6 +518,288 @@ def _owned_status_dir(surface: StatusReadSurface, identity_dir: Path) -> Path:
     return path if path is not None and path.is_dir() else identity_dir
 
 
+# ---------------------------------------------------------------------------
+# next-lifecycle-integrity IC-02 — advancing ``next`` never rewinds a finalized
+# software-dev board (FR-001..FR-007, FR-016; #7553, #5929, #7565).
+# ---------------------------------------------------------------------------
+
+#: ``Decision.error_code`` of a board step that names a WP the board cannot dispatch (FR-016).
+BOARD_STEP_NOT_DISPATCHABLE_ERROR_CODE = "BOARD_STEP_NOT_DISPATCHABLE"
+#: ``Decision.error_code`` of a finalized board whose WP dispatch needs a ``lanes.json`` that is
+#: absent (``MissingLanesError``; operator ruling plan.next.missing_lanes_fold).
+LANES_MANIFEST_MISSING_ERROR_CODE = "LANES_MANIFEST_MISSING"
+
+#: The DAG's ``tasks`` and ``accept`` step ids (software-dev ``mission-runtime.yaml``).
+_TASKS_STEP_ID = "tasks"
+_ACCEPT_STEP_ID = "accept"
+
+
+@dataclasses.dataclass(frozen=True)
+class _RewindScope:
+    """Which persisted runs a board answer may pre-empt (operator ruling plan.next.authoritative_run_scope).
+
+    A run issued at analyze, implement, review or accept is authoritative for every scope.
+    ``includes_tasks`` says whether a run issued at ``tasks`` is still pre-empted: the
+    blocked/terminal gate pre-empts it (completing ``tasks`` would record a false analyze row),
+    the board dispatch does not (``tasks -> analyze`` is a forward step the engine owns).
+    """
+
+    includes_tasks: bool
+
+
+#: The never-rewind gate's scope: absent, untouched, or issued at a planning step through tasks.
+_GATE_SCOPE = _RewindScope(includes_tasks=True)
+#: The widened front phase's board-dispatch scope: as the gate, but a run at ``tasks`` goes to the engine.
+_BOARD_DISPATCH_SCOPE = _RewindScope(includes_tasks=False)
+
+
+def _issued_step_is_rewindable(step_id: str | None, scope: _RewindScope) -> bool:
+    """True when a touched run issued at ``step_id`` is not authoritative for ``scope``."""
+    if step_id is None or _mapping._is_wp_iteration_step(step_id) or step_id in (_cores.ANALYZE_STEP_ID, _ACCEPT_STEP_ID):
+        return False
+    return scope.includes_tasks or step_id != _TASKS_STEP_ID
+
+
+def _run_dir_is_rewindable(run_dir: Path, scope: _RewindScope) -> bool:
+    """True when the persisted run is not authoritative: untouched, or issued at a pre-empted planning step.
+
+    An unreadable or malformed snapshot is authoritative (False), so the caller keeps its existing path.
+    """
+    try:
+        snapshot = _engine_adapter._read_snapshot(run_dir)
+        if not snapshot.completed_steps and not snapshot.pending_decisions and not snapshot.decisions:
+            return True
+        return _issued_step_is_rewindable(snapshot.issued_step_id, scope)
+    except Exception as exc:
+        logger.debug("never-rewind gate: run snapshot %s unreadable, treating the run as authoritative: %s", run_dir, exc)
+        return False
+
+
+def _gate_run_lookup(mission_slug: str, config_root: Path, mission_type: str, owned: OwnedCheckout | None) -> tuple[bool, str | None]:
+    """``(gate applies, run_id)`` from a read-only run lookup (never starts a run).
+
+    No run in the index, an untouched run, or one issued at a planning step through ``tasks``
+    lets the gate answer. A ``RunStateMissing`` or any other run-read error does not: the
+    bootstrap's run start then reports it ("Failed to start/load runtime run").
+    """
+    try:
+        run_ref = _io_seam._existing_run_ref(mission_slug, config_root, mission_type, owned=owned)
+    except Exception as exc:
+        logger.debug("never-rewind gate: run lookup failed for %s, falling through: %s", mission_slug, exc)
+        return False, None
+    if run_ref is None:
+        return True, None
+    return _run_dir_is_rewindable(Path(run_ref.run_dir), _GATE_SCOPE), run_ref.run_id
+
+
+@dataclasses.dataclass(frozen=True)
+class _GateInputs:
+    """What the never-rewind gate's answers carry (all from the bootstrap; no extra read)."""
+
+    agent: str
+    mission_slug: str
+    mission_type: str
+    now: str
+    progress: dict[str, int | float] | None
+    origin: dict[str, Any]
+    run_id: str | None
+
+
+def _gate_envelope(inputs: _GateInputs, *, kind: str, mission_state: str, reason: str, **fields: Any) -> Decision:
+    """A gate answer: never a step, and never pairs a stale ``started`` record (FR-003)."""
+    return _mapping._materialize_decision(
+        _cores.DecisionEnvelope(
+            kind=kind,
+            agent=inputs.agent,
+            mission_slug=inputs.mission_slug,
+            mission=inputs.mission_type,
+            mission_state=mission_state,
+            timestamp=inputs.now,
+            reason=reason,
+            progress=inputs.progress,
+            origin=inputs.origin,
+            run_id=inputs.run_id,
+            suppress_step_pairing=True,
+            **fields,
+        )
+    )
+
+
+def _finished_board_answer(inputs: _GateInputs, resolved: _mapping._FinalizedBoardStep, primary_metadata_dir: Path | None) -> Decision:
+    """FR-001/FR-002/FR-007: blocked awaiting acceptance, or terminal once acceptance is fresh."""
+    accepted_at = _io_seam.mission_accepted_at(primary_metadata_dir) if primary_metadata_dir is not None else None
+    verdict = _cores.finished_board_verdict(
+        resolved.board_step,
+        accepted_at=accepted_at,
+        latest_transition_at=_io_seam.board_latest_transition_at(resolved.board),
+    )
+    if verdict is _cores.FinishedBoardVerdict.ACCEPTED:
+        return _gate_envelope(
+            inputs,
+            kind=DecisionKind.terminal,
+            mission_state="done",
+            reason="Every work package has reached an acceptable ending and the Mission is accepted.",
+        )
+    accept_command = _cores.ACCEPT_COMMAND.format(mission_slug=inputs.mission_slug)
+    return _gate_envelope(
+        inputs,
+        kind=DecisionKind.blocked,
+        mission_state=_ACCEPT_STEP_ID,
+        reason=(
+            "Every work package has reached an acceptable ending; the Mission awaits acceptance "
+            f"(no acceptance newer than the board's latest transition). Run `{accept_command}`."
+        ),
+        error_code=_cores.MISSION_AWAITING_ACCEPTANCE_ERROR_CODE,
+        next_command=accept_command,
+    )
+
+
+def _not_dispatchable_answer(inputs: _GateInputs, resolved: _mapping._FinalizedBoardStep, board_action: _mapping._WpBoardAction) -> Decision:
+    """FR-016: the board names implement/review but cannot dispatch it (a WP claimed or in progress)."""
+    busy = _mapping._board_step_busy_wp(resolved.board_step, resolved.task_board_dir, resolved.board)
+    if busy is None:
+        command = _mapping._inspect_board_recovery_command(inputs.mission_slug)
+        detail = board_action.blocked_reason or "no work package can be dispatched"
+        reason = f"The board's next step is {resolved.board_step}, but it cannot be dispatched: {detail}"
+    else:
+        wp_id, lane = busy
+        command = _cores.RESUME_COMMAND.format(action=resolved.board_step, wp_id=wp_id, agent=inputs.agent, mission_slug=inputs.mission_slug)
+        reason = f"The board's next step is {resolved.board_step}, but {wp_id} is {lane} and cannot be dispatched again. Resume it: `{command}`."
+    return _gate_envelope(
+        inputs,
+        kind=DecisionKind.blocked,
+        mission_state=resolved.board_step,
+        reason=reason,
+        error_code=BOARD_STEP_NOT_DISPATCHABLE_ERROR_CODE,
+        next_command=command,
+    )
+
+
+def _board_execution_has_begun(board: BoardStatus | None) -> bool:
+    """True when any WP on the board has left ``planned`` (the finalize gate's own rule, #3311)."""
+    if board is None:
+        return False
+    return any(lane not in (Lane.GENESIS, Lane.PLANNED) for lane in board.lanes.values())
+
+
+def _lanes_missing_answer(inputs: _GateInputs, board_step: str | None, board: BoardStatus | None, exc: MissingLanesError) -> Decision:
+    """Ruling plan.next.missing_lanes_fold: the board's WP dispatch needs a ``lanes.json`` that is absent.
+
+    The reason is the error's own message (it names both remedies); ``next_command`` is the one
+    that applies: ``finalize-tasks`` before execution has begun, ``doctor mission-state --fix``
+    after (finalize refuses then, #4758: :func:`~specify_cli.lanes.persistence.is_execution_wedged`).
+    """
+    wedged = is_execution_wedged(execution_has_begun=_board_execution_has_begun(board), lanes_present=False)
+    template = _cores.REBUILD_LANES_COMMAND if wedged else _cores.FINALIZE_TASKS_COMMAND
+    return _gate_envelope(
+        inputs,
+        kind=DecisionKind.blocked,
+        mission_state=board_step or "blocked",
+        reason=str(exc),
+        error_code=LANES_MANIFEST_MISSING_ERROR_CODE,
+        next_command=template.format(mission_slug=inputs.mission_slug),
+    )
+
+
+def _board_blocked_floor_decision(inputs: _GateInputs, reason: str, *, suppress_step_pairing: bool) -> Decision:
+    """The board's named ``blocked:*`` verdict (#5310), as the front phase and the gate return it."""
+    return _mapping._materialize_decision(
+        _cores.DecisionEnvelope(
+            kind=DecisionKind.blocked,
+            agent=inputs.agent,
+            mission_slug=inputs.mission_slug,
+            mission=inputs.mission_type,
+            mission_state="blocked",
+            timestamp=inputs.now,
+            reason=reason,
+            progress=inputs.progress,
+            origin=inputs.origin,
+            run_id=inputs.run_id,
+            suppress_step_pairing=suppress_step_pairing,
+        )
+    )
+
+
+#: The errors a WP workspace resolution raises besides ``MissingLanesError`` (which the gate
+#: answers itself): a corrupt manifest, an unassigned/unknown WP, an unreadable file, no context.
+_UNRESOLVABLE_DISPATCH_ERRORS: tuple[type[Exception], ...] = (CorruptLanesError, ValueError, OSError, ActionContextError)
+
+
+def _gate_board_action(
+    resolved: _mapping._FinalizedBoardStep,
+    mission_slug: str,
+    repo_root: Path,
+    owned: OwnedCheckout | None,
+) -> _mapping._WpBoardAction | None:
+    """The board step's action (:func:`_board_step_action`, unchanged), or ``None`` when it cannot be resolved.
+
+    A dispatch the gate cannot resolve (a corrupt ``lanes.json``, a WP no lane holds, an
+    unreadable task file, an unresolvable Mission context) is not the gate's to judge: it falls
+    through to the path that owns it (the front phase, which answers it with a named ``blocked``
+    reason, or the engine for a run at ``tasks``). ``MissingLanesError`` propagates: the gate answers it
+    (``LANES_MANIFEST_MISSING``). Any other error is a defect and propagates too.
+    """
+    try:
+        return _mapping._board_step_action(
+            resolved.board_step,
+            mission_slug=mission_slug,
+            repo_root=repo_root,
+            task_board_dir=resolved.task_board_dir,
+            board=resolved.board,
+            owned=owned,
+        )
+    except _UNRESOLVABLE_DISPATCH_ERRORS as exc:
+        logger.debug("never-rewind gate: board dispatch for %s not resolvable, falling through: %s", mission_slug, exc)
+        return None
+
+
+def _dn_never_rewind_gate(
+    inputs: _GateInputs,
+    *,
+    repo_root: Path,
+    config_root: Path,
+    owned: OwnedCheckout | None,
+    status_read: _mapping.StatusBoardRead | None,
+    primary_metadata_dir: Path | None,
+) -> Decision | None:
+    """Bootstrap's never-rewind gate (IC-02): answer a finalized software-dev board before any run start.
+
+    Applies only to ``software-dev`` (the #3407 precedent), with a finalized board, and a run
+    that is not authoritative (:data:`_GATE_SCOPE`). Answers:
+
+    * a finished board -> ``blocked`` ``MISSION_AWAITING_ACCEPTANCE`` or ``terminal``;
+    * a ``blocked:*`` board -> the board's own blocked decision;
+    * implement/review the board cannot dispatch -> ``blocked`` ``BOARD_STEP_NOT_DISPATCHABLE``;
+    * implement/review with no ``lanes.json`` -> ``blocked`` ``LANES_MANIFEST_MISSING``;
+    * a dispatchable board step -> ``None`` (the widened front phase dispatches it).
+
+    Every answer leaves the run unstarted and unadvanced and sets ``suppress_step_pairing``.
+    It reads the board from the bootstrap's one door read (``status_read``) and the run index
+    read-only. ``orchestrator-api`` shares ``decide_next`` and reports a ``blocked`` gate answer
+    as ``RUNTIME_NEXT_FAILED`` (its existing mapping, spec Assumptions).
+    """
+    if inputs.mission_type != MISSION_TYPE_SOFTWARE_DEV:
+        return None
+    resolved = _mapping._resolve_finalized_board_step(mission_slug=inputs.mission_slug, repo_root=repo_root, owned=owned, status_read=status_read)
+    if not isinstance(resolved, _mapping._FinalizedBoardStep) or resolved.board_step is None:
+        return None
+    applies, run_id = _gate_run_lookup(inputs.mission_slug, config_root, inputs.mission_type, owned)
+    if not applies:
+        return None
+    inputs = dataclasses.replace(inputs, run_id=run_id)
+    if resolved.board_step in _cores.FINISHED_BOARD_STEPS:
+        return _finished_board_answer(inputs, resolved, primary_metadata_dir)
+    try:
+        board_action = _gate_board_action(resolved, inputs.mission_slug, repo_root, owned)
+    except MissingLanesError as exc:
+        return _lanes_missing_answer(inputs, resolved.board_step, resolved.board, exc)
+    if board_action is None or board_action.action is not None:
+        return None
+    if resolved.board_step.startswith("blocked:") and board_action.blocked_reason is not None:
+        return _board_blocked_floor_decision(inputs, board_action.blocked_reason, suppress_step_pairing=True)
+    return _not_dispatchable_answer(inputs, resolved, board_action)
+
+
 def _dn_bootstrap(
     agent: str,
     mission_slug: str,
@@ -662,26 +946,95 @@ def _dn_bootstrap(
             return None, _with_remediation(_door_unreadable_decision(agent, mission_slug, mission_type, now, exc.cause), remediation)
         return None, _with_remediation(_owned_coordination_unavailable_decision(agent, mission_slug, mission_type, now, exc.cause), remediation)
 
+    gate_decision = _dn_never_rewind_gate(
+        _GateInputs(agent=agent, mission_slug=mission_slug, mission_type=mission_type, now=now, progress=progress, origin=origin, run_id=None),
+        repo_root=repo_root,
+        config_root=config_root,
+        owned=owned,
+        status_read=status_read,
+        primary_metadata_dir=primary_metadata_dir,
+    )
+    if gate_decision is not None:
+        return None, _with_remediation(gate_decision, remediation)
+
+    started = _dn_start_run_and_snapshot(
+        agent,
+        mission_slug,
+        mission_type=mission_type,
+        config_root=config_root,
+        feature_dir=feature_dir,
+        sync_emitter=sync_emitter,
+        emitter_for_engine=emitter_for_engine,
+        owned=owned,
+        now=now,
+        progress=progress,
+        origin=origin,
+    )
+    if isinstance(started, Decision):
+        return None, _with_remediation(started, remediation)
+    run_ref, run_dir, current_step_id = started
+
+    return (
+        DecideNextContext(
+            agent=agent,
+            mission_slug=mission_slug,
+            result=result,
+            repo_root=repo_root,
+            feature_dir=feature_dir,
+            now=now,
+            mission_type=mission_type,
+            sync_emitter=sync_emitter,
+            emitter_for_engine=emitter_for_engine,
+            origin=origin,
+            progress=progress,
+            run_ref=run_ref,
+            run_dir=run_dir,
+            current_step_id=current_step_id,
+            owned=owned,
+            remediation=remediation,
+            status_read=status_read,
+        ),
+        None,
+    )
+
+
+def _dn_start_run_and_snapshot(
+    agent: str,
+    mission_slug: str,
+    *,
+    mission_type: str,
+    config_root: Path,
+    feature_dir: Path,
+    sync_emitter: RuntimeEventEmitter,
+    emitter_for_engine: Any,
+    owned: OwnedCheckout | None,
+    now: str,
+    progress: dict[str, int | float] | None,
+    origin: dict[str, Any],
+) -> tuple[MissionRunRef, Path, str | None] | Decision:
+    """Bootstrap's run segment: get or start the run, read its snapshot, seed the emitter.
+
+    Returns ``(run_ref, run_dir, current_step_id)``, or the ``blocked`` Decision of a run
+    that cannot be started or loaded (the caller attaches the bootstrap's remediation).
+    Also builds the read-only ``OperationalContext`` at the decision boundary (FR-017).
+    """
     # Get or start runtime run (before result handling so failed/blocked
     # decisions include canonical run_id, step_id, and mission_state)
     try:
         run_ref = _io_seam.get_or_start_run(mission_slug, config_root, mission_type, emitter=emitter_for_engine, owned=owned)
     except Exception as exc:
-        return None, _with_remediation(
-            _mapping._materialize_decision(
-                _cores.DecisionEnvelope(
-                    kind=DecisionKind.blocked,
-                    agent=agent,
-                    mission_slug=mission_slug,
-                    mission=mission_type,
-                    mission_state="unknown",
-                    timestamp=now,
-                    reason=f"Failed to start/load runtime run: {exc}",
-                    progress=progress,
-                    origin=origin,
-                )
-            ),
-            remediation,
+        return _mapping._materialize_decision(
+            _cores.DecisionEnvelope(
+                kind=DecisionKind.blocked,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state="unknown",
+                timestamp=now,
+                reason=f"Failed to start/load runtime run: {exc}",
+                progress=progress,
+                origin=origin,
+            )
         )
 
     run_dir = Path(run_ref.run_dir)
@@ -715,28 +1068,7 @@ def _dn_bootstrap(
         operational_context.current_activity,
     )
 
-    return (
-        DecideNextContext(
-            agent=agent,
-            mission_slug=mission_slug,
-            result=result,
-            repo_root=repo_root,
-            feature_dir=feature_dir,
-            now=now,
-            mission_type=mission_type,
-            sync_emitter=sync_emitter,
-            emitter_for_engine=emitter_for_engine,
-            origin=origin,
-            progress=progress,
-            run_ref=run_ref,
-            run_dir=run_dir,
-            current_step_id=current_step_id,
-            owned=owned,
-            remediation=remediation,
-            status_read=status_read,
-        ),
-        None,
-    )
+    return run_ref, run_dir, current_step_id
 
 
 def _run_is_untouched(run_dir: Path) -> bool:
@@ -748,6 +1080,19 @@ def _run_is_untouched(run_dir: Path) -> bool:
         return not snapshot.completed_steps and not snapshot.pending_decisions and not snapshot.decisions
     except Exception:
         return False
+
+
+def _front_phase_applies(ctx: DecideNextContext) -> bool:
+    """Whether the finalized-board front phase may pre-empt this run (T022, ruling plan.next.authoritative_run_scope).
+
+    Software-dev: any ``--result`` against a run that is not authoritative for the board
+    dispatch (:data:`_BOARD_DISPATCH_SCOPE`: untouched, or issued at a planning step before
+    ``tasks``; a run at ``tasks`` advances to ``analyze`` through the engine). Every other
+    family keeps the #5310 first-contact rule byte-identical: ``success`` against an untouched run.
+    """
+    if ctx.mission_type == MISSION_TYPE_SOFTWARE_DEV:
+        return _run_dir_is_rewindable(ctx.run_dir, _BOARD_DISPATCH_SCOPE)
+    return ctx.result == "success" and _run_is_untouched(ctx.run_dir)
 
 
 def _dn_finalized_board_override(ctx: DecideNextContext) -> Decision | None:
@@ -771,10 +1116,24 @@ def _dn_finalized_board_override(ctx: DecideNextContext) -> Decision | None:
     is materialized the way the WP-iteration path does; every other board answer
     (decline for accept/done/no finalized board, coord/task-surface errors) falls
     through unchanged so pre-finalize and terminal behaviour stay byte-identical.
+
+    next-lifecycle-integrity T022 (FR-016): for a software-dev Mission the phase applies to
+    any run that is not authoritative for the board dispatch (:func:`_front_phase_applies`),
+    for any ``--result``. With ``--result failed|blocked`` against a board-dispatched WP step
+    the board re-dispatches, and the result is not applied to the non-authoritative run
+    (#4898-adjacent). Other families keep the first-contact rule (untouched run, ``success``).
     """
-    if ctx.result != "success" or not _run_is_untouched(ctx.run_dir):
+    if not _front_phase_applies(ctx):
         return None
-    board = _mapping._resolve_wp_board_action(mission_slug=ctx.mission_slug, repo_root=ctx.repo_root, owned=ctx.owned, status_read=ctx.status_read)
+    try:
+        board = _mapping._resolve_wp_board_action(mission_slug=ctx.mission_slug, repo_root=ctx.repo_root, owned=ctx.owned, status_read=ctx.status_read)
+    except MissingLanesError as exc:
+        return _front_phase_lanes_missing(ctx, exc)
+    except _UNRESOLVABLE_DISPATCH_ERRORS as exc:
+        # The gate fell through on these (:func:`_gate_board_action`); this phase owns them: a
+        # named blocked reason, never a traceback out of ``decide_next``.
+        reason = f"The board's next work package cannot be dispatched: {exc}. Inspect the board: `{_mapping._inspect_board_recovery_command(ctx.mission_slug)}`."
+        return _board_blocked_floor_decision(_front_phase_inputs(ctx), reason, suppress_step_pairing=False)
     if board.action is not None and board.board_step is not None:
         # B3: the board hands out implement as if the DAG had walked through
         # analyze; check the analysis report first, like the analyze step does.
@@ -797,21 +1156,36 @@ def _dn_finalized_board_override(ctx: DecideNextContext) -> Decision | None:
             status_read=ctx.status_read,
         )
     if board.blocked_reason is not None and board.board_step is not None and board.board_step.startswith("blocked:"):
-        return _mapping._materialize_decision(
-            _cores.DecisionEnvelope(
-                kind=DecisionKind.blocked,
-                agent=ctx.agent,
-                mission_slug=ctx.mission_slug,
-                mission=ctx.mission_type,
-                mission_state="blocked",
-                timestamp=ctx.now,
-                reason=board.blocked_reason,
-                progress=ctx.progress,
-                origin=ctx.origin,
-                run_id=ctx.run_ref.run_id,
-            )
-        )
+        return _board_blocked_floor_decision(_front_phase_inputs(ctx), board.blocked_reason, suppress_step_pairing=False)
     return None
+
+
+def _front_phase_inputs(ctx: DecideNextContext) -> _GateInputs:
+    """The envelope inputs of a front-phase answer (the run the bootstrap started or loaded)."""
+    return _GateInputs(
+        agent=ctx.agent,
+        mission_slug=ctx.mission_slug,
+        mission_type=ctx.mission_type,
+        now=ctx.now,
+        progress=ctx.progress,
+        origin=ctx.origin,
+        run_id=ctx.run_ref.run_id,
+    )
+
+
+def _front_phase_lanes_missing(ctx: DecideNextContext, exc: MissingLanesError) -> Decision:
+    """The front phase's ``LANES_MANIFEST_MISSING`` answer (when the gate fell through to it).
+
+    Re-reads the board step from the bootstrap's door read (no second door read when carried).
+    """
+    resolved = _mapping._resolve_finalized_board_step(mission_slug=ctx.mission_slug, repo_root=ctx.repo_root, owned=ctx.owned, status_read=ctx.status_read)
+    finalized = resolved if isinstance(resolved, _mapping._FinalizedBoardStep) else None
+    return _lanes_missing_answer(
+        _front_phase_inputs(ctx),
+        finalized.board_step if finalized is not None else None,
+        finalized.board if finalized is not None else None,
+        exc,
+    )
 
 
 def _dn_reissue_step_decision(ctx: DecideNextContext, step_id: str, guard_failures: list[str]) -> Decision:

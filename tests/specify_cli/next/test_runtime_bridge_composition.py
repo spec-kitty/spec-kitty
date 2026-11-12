@@ -963,6 +963,28 @@ def _scaffold_software_dev_project(tmp_path: Path) -> tuple[Path, Path, str]:
     return repo_root, feature_dir, mission_slug
 
 
+#: Planning steps a run sits at before the task board is finalized (it is finalized in ``tasks``).
+_PRE_FINALIZE_STEPS = frozenset({None, "discovery", "specify", "plan"})
+
+
+def _align_board_with_step(feature_dir: Path, step_id: str | None) -> None:
+    """Give the composed fixture the board a real run has at ``step_id`` (#7553).
+
+    The fixture's WP01 is ``done`` so implement/review reach composition. A run at a planning
+    step with a *finished* board is the stale replay the never-rewind gate now answers, so a
+    planning-step run gets the board it really has: none before ``tasks`` (no ``tasks.md``),
+    and a just-finalized one (WP01 ``planned``, a lanes manifest) at ``tasks``.
+    """
+    if step_id in _PRE_FINALIZE_STEPS:
+        (feature_dir / "tasks.md").unlink(missing_ok=True)
+    elif step_id == "tasks":
+        from tests.lane_test_utils import write_single_lane_manifest
+
+        (feature_dir / "status.events.jsonl").unlink(missing_ok=True)
+        _seed_wp_event_for_lane(feature_dir, "WP01", "planned")
+        write_single_lane_manifest(feature_dir, wp_ids=("WP01",))
+
+
 def _advance_runtime_to_step(repo_root: Path, mission_slug: str, target_step: str) -> None:
     """Drive the runtime engine until ``issued_step_id == target_step``."""
     from runtime.next._internal_runtime.engine import (
@@ -974,6 +996,7 @@ def _advance_runtime_to_step(repo_root: Path, mission_slug: str, target_step: st
     from runtime.next._internal_runtime.events import NullEmitter
     from runtime.next.runtime_bridge import get_or_start_run
 
+    _align_board_with_step(repo_root / "kitty-specs" / mission_slug, target_step)
     run_ref = get_or_start_run(mission_slug, repo_root, "software-dev")
     for _ in range(20):
         snapshot = _read_snapshot(Path(run_ref.run_dir))
@@ -1494,6 +1517,12 @@ def test_decision_shape_unchanged_for_composed_action(
         # ``None`` when nothing was changed; ``to_dict`` then emits nothing
         # and the envelope stays byte-identical.
         "remediation",
+        # next-lifecycle-integrity WP01 (NFR-002): the command the caller runs
+        # next. Additive and defaulted (None); ``to_dict`` emits it only when set.
+        "next_command",
+        # next-lifecycle-integrity WP01 (FR-003): internal-only flag a
+        # never-rewind gate answer sets; ``to_dict`` never emits it.
+        "suppress_step_pairing",
     }
     actual_fields = set(vars(decision).keys())
     assert actual_fields == expected_fields, (
@@ -1512,7 +1541,8 @@ def test_non_composed_action_uses_legacy_runtime_next_step(
     pins the non-composed regression: composition-side helpers must not run,
     and the legacy DAG handler is the one and only entry point exercised.
     """
-    repo_root, _feature_dir, mission_slug = composed_software_dev_project
+    repo_root, feature_dir, mission_slug = composed_software_dev_project
+    _align_board_with_step(feature_dir, None)  # first contact: the board is not finalized yet (#7553)
 
     # The first ``decide_next_via_runtime`` call has no prior issued step
     # (current_step_id == None), so the composition predicate is False

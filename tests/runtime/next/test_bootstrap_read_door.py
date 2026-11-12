@@ -56,8 +56,12 @@ def test_owned_advance_on_an_unmaterialized_coordination_worktree_proceeds(tmp_p
 
     decision = decide_next_via_runtime("pedro", fact.mission_slug, "success", repo, owned=fact)
 
-    assert str(decision.kind) == "step", decision.reason
-    assert decision.error_code is None
+    # The wrap proceeds to the board. WP01 is in_progress, so the never-rewind gate answers with
+    # the board's state instead of the DAG's ``discovery`` (#5929, #7565; FR-016).
+    assert decision.error_code != OwnedRefusalCode.OWNED_COORDINATION_WORKSPACE_UNAVAILABLE.value
+    assert str(decision.kind) == "blocked", decision.reason
+    assert decision.error_code == "BOARD_STEP_NOT_DISPATCHABLE", decision.reason
+    assert decision.next_command == f"spec-kitty agent action implement WP01 --agent pedro --mission {fact.mission_slug}"
 
 
 # ---------------------------------------------------------------------------

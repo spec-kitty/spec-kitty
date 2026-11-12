@@ -4,8 +4,9 @@ An advancing ``next --result success`` with no persisted run against a
 *finalized* board used to boot a fresh ``discovery`` run and walk the DAG from
 its first step, while query mode (which applies the finalized-board override)
 selected the board WP. Advance must consult the same board authority and agree
-with query; a mission with no finalized board still starts at discovery, and a
-board the authority declines (all approved/done) keeps its pre-existing path.
+with query; a mission with no finalized board still starts at discovery. A
+finished board (all approved/done) is answered by the never-rewind gate
+(#7553, #5929): ``blocked`` awaiting acceptance, never a DAG step.
 """
 
 from __future__ import annotations
@@ -104,8 +105,12 @@ def test_advance_without_finalized_board_still_starts_at_discovery(tmp_path: Pat
 
 
 def test_advance_declines_front_phase_on_all_approved_board(tmp_path: Path) -> None:
-    """Accept/done stay owned by the pre-existing path: the board authority
-    declines, so the new front phase must not dispatch implement/review."""
+    """A finished board is never walked back onto the DAG (#7553, #5929).
+
+    The front phase still dispatches no implement/review; the never-rewind gate
+    answers instead: ``blocked`` ``MISSION_AWAITING_ACCEPTANCE`` naming the
+    accept command, with no run started.
+    """
     repo = tmp_path / "repo"
     _, mission_slug = _finalized_board(repo, {"WP01": Lane.APPROVED, "WP02": Lane.DONE})
 
@@ -115,6 +120,11 @@ def test_advance_declines_front_phase_on_all_approved_board(tmp_path: Path) -> N
 
     assert advance.action not in _BOARD_DISPATCH_STEPS
     assert advance.wp_id is None
+    assert advance.kind == DecisionKind.blocked, advance.reason
+    assert advance.error_code == "MISSION_AWAITING_ACCEPTANCE"
+    assert advance.mission_state == "accept"
+    assert advance.next_command == f"spec-kitty accept --mission {mission_slug}"
+    assert advance.run_id is None
 
 
 def test_advance_of_an_already_walked_run_keeps_dag_progression(tmp_path: Path) -> None:

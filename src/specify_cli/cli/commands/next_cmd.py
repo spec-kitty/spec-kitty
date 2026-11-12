@@ -444,6 +444,48 @@ def _dispatch_query_mode(
         raise typer.Exit(1) from _exc
 
 
+def _decide_and_pair(
+    agent: str,
+    mission_slug: str,
+    result: str,
+    repo_root: object,
+    json_output: bool,
+    *,
+    owned: OwnedCheckout | None,
+) -> Decision:
+    """Decide the next action, then pair the previous issuance's ``started`` record (WP05, #843).
+
+    The pairing runs AFTER ``decide_next`` so a never-rewind gate answer can skip it
+    (``decision.suppress_step_pairing``, #7553): a gate answer leaves a stale planning-step
+    ``started`` record unpaired, which is truthful; pairing it would record a completion for a
+    step that never ran. A board-dispatched WP step (``implement`` / ``review``) did run, so a
+    gate answer still pairs it with the reported result. ``decide_next`` neither reads nor writes lifecycle records, so the move is
+    otherwise behaviour-preserving, and when ``decide_next`` raises the pairing still runs
+    before the error propagates, so the pair stays observable on the raise path.
+    """
+    try:
+        decision = decide_next(agent, mission_slug, result, repo_root, owned=owned)
+    except MissionMetaReadError as _exc:
+        # #4642 / WP03: same escape site as the query-mode dispatch above,
+        # this time reached via the advancing (``--result``) path.
+        _pair_previous_lifecycle_record(agent, mission_slug, result, repo_root, owned=owned)
+        _emit_meta_read_error(_exc, json_output)
+        raise typer.Exit(1) from _exc
+    except BaseException:
+        _pair_previous_lifecycle_record(agent, mission_slug, result, repo_root, owned=owned)
+        raise
+    if not getattr(decision, "suppress_step_pairing", False) or _latest_issuance_is_board_action(agent, mission_slug, repo_root, owned=owned):
+        _pair_previous_lifecycle_record(agent, mission_slug, result, repo_root, owned=owned)
+    return decision
+
+
+def _latest_issuance_is_board_action(agent: str, mission_slug: str, repo_root: object, *, owned: OwnedCheckout | None) -> bool:
+    """Whether a gate answer must still pair: the open ``started`` is a board-dispatched WP step (#7553)."""
+    from runtime.next.next_invocation_lifecycle import latest_unpaired_started_is_board_action
+
+    return latest_unpaired_started_is_board_action(agent, mission_slug, repo_root, owned=owned)
+
+
 def _dispatch_advancing_mode(
     agent: str,
     mission_slug: str,
@@ -459,22 +501,11 @@ def _dispatch_advancing_mode(
     """Advance the runtime and emit the resulting decision.
 
     Extracted from ``next_step`` (C901 regression fix, #4642 follow-up):
-    holds the ``--result``-provided path (lifecycle pairing, ``decide_next``
-    plus its fail-closed catch, lifecycle write, owned-checkout commit, and
-    decision printing) so ``next_step`` stays a thin router.
+    holds the ``--result``-provided path (``decide_next`` plus its fail-closed
+    catch and the lifecycle pairing, :func:`_decide_and_pair`; lifecycle write,
+    owned-checkout commit, and decision printing) so ``next_step`` stays a thin router.
     """
-    # WP05 (#843): pair the previous issuance's `started` lifecycle record
-    # BEFORE we advance the runtime. This must run before decide_next so the
-    # pair is observable even if decide_next raises.
-    _pair_previous_lifecycle_record(agent, mission_slug, result, repo_root, owned=owned)
-
-    try:
-        decision = decide_next(agent, mission_slug, result, repo_root, owned=owned)
-    except MissionMetaReadError as _exc:
-        # #4642 / WP03: same escape site as the query-mode dispatch above,
-        # this time reached via the advancing (``--result``) path.
-        _emit_meta_read_error(_exc, json_output)
-        raise typer.Exit(1) from _exc
+    decision = _decide_and_pair(agent, mission_slug, result, repo_root, json_output, owned=owned)
     event_row = _emit_mission_next_invoked(
         agent,
         result,
@@ -1479,6 +1510,14 @@ def _print_query_details(decision) -> None:
             print(f"  Decision ID: {decision.decision_id}")
     elif getattr(decision, "reason", None):
         print(f"  Reason: {decision.reason}")
+    _print_next_command(decision)
+
+
+def _print_next_command(decision) -> None:
+    """Print the ``Next:`` line whenever the decision names the command to run next (NFR-002)."""
+    next_command = getattr(decision, "next_command", None)
+    if next_command:
+        print(f"  Next: {next_command}")
 
 
 def _print_standard_human(decision) -> None:
@@ -1492,6 +1531,7 @@ def _print_standard_human(decision) -> None:
     _print_guard_failures(decision)
     if decision.reason:
         print(f"  Reason: {decision.reason}")
+    _print_next_command(decision)
     _print_question_and_decision_id(decision)
     _print_progress(decision)
     if decision.run_id:
