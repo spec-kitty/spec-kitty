@@ -169,16 +169,16 @@
       "wp": null
     },
     "#5985": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Item 2 folded in WP03; item 1 stays open",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Pre-review gate no-uv fallback / no_coverage policy",
+      "verdict": "in-mission",
+      "wp": "WP03"
     },
     "#6851": {
       "evidence_ref": "<link or commit>",
