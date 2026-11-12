@@ -31,6 +31,7 @@ is fault-injected via a constructor-supplied stand-in, mirroring the
 
 from __future__ import annotations
 
+import inspect
 import json
 import subprocess
 import threading
@@ -183,7 +184,19 @@ def _seed_event_at(seq: int) -> str:
     return f"2026-01-01T00:{seq:02d}:00+00:00"
 
 
+def _assert_same_parameters(wrapper: Callable[..., object], real: Callable[..., object]) -> None:
+    """Fail at setup, on the test thread, when a wrapper drifts from the seam it replaces.
+
+    A wrapper with a stale signature raises ``TypeError`` inside a worker thread, where the
+    two-thread choreography then waits on events that never fire; checking here fails fast.
+    """
+    assert list(inspect.signature(wrapper).parameters) == list(inspect.signature(real).parameters)
+
+
 def _seed_wp_event(feature_dir: Path, wp_id: str, to_lane: str, *, seq: int) -> None:
+    # The seeded ``in_review`` entry is the review claim. ``agent action review`` records that
+    # claim unforced, and only an unforced entry names a claimant (approval-honesty WP01), so
+    # the seed is unforced too.
     seed_status_event(
         feature_dir,
         StatusEvent(
@@ -194,7 +207,7 @@ def _seed_wp_event(feature_dir: Path, wp_id: str, to_lane: str, *, seq: int) -> 
             to_lane=Lane(to_lane),
             at=_seed_event_at(seq),
             actor="test",
-            force=True,
+            force=False,
             execution_mode="worktree",
         ),
     )
@@ -799,13 +812,13 @@ def test_two_queued_rejections_preserve_each_exact_cycle_and_event(
             event: StatusEvent | None,
             current_event_lane: str,
             target: str,
-            hop_actor: str,
         ) -> ReviewResult | None:
-            result = real_hop_result(st, event, current_event_lane, target, hop_actor)
+            result = real_hop_result(st, event, current_event_lane, target)
             if event is None and current_event_lane == Lane.PLANNED and target == Lane.PLANNED:
                 return None
             return result
 
+        _assert_same_parameters(_drop_second_hop_result, real_hop_result)
         monkeypatch.setattr(_tmt_executor, "_mt_hop_review_result", _drop_second_hop_result)
 
     failures: list[BaseException] = []
@@ -933,13 +946,13 @@ def test_two_queued_rejections_completes_within_budget(
             event: StatusEvent | None,
             current_event_lane: str,
             target: str,
-            hop_actor: str,
         ) -> ReviewResult | None:
-            result = real_hop_result(st, event, current_event_lane, target, hop_actor)
+            result = real_hop_result(st, event, current_event_lane, target)
             if event is None and current_event_lane == Lane.PLANNED and target == Lane.PLANNED:
                 return None
             return result
 
+        _assert_same_parameters(_drop_second_hop_result, real_hop_result)
         monkeypatch.setattr(_tmt_executor, "_mt_hop_review_result", _drop_second_hop_result)
 
     def _worker(args: _MoveTaskArgs, ports: TasksPorts) -> None:
@@ -2273,8 +2286,17 @@ def test_json_output_surfaces_skip_reason_end_to_end_for_no_auto_commit(
     approved_events = _approved_verdict_events(feature_dir)
     assert len(approved_events) == 1
     assert approved_events[0].review_result is not None
-    assert approved_events[0].review_result.reference == approval_ref
-    assert approved_events[0].review_result.feedback_path is None
+    # approval-honesty WP01 (#7569): ``--no-auto-commit`` records the written cycle's
+    # ``review-cycle://`` pointer, not the caller's ``--approval-ref``, so a local-only
+    # approval is as honest as a durable one. The caller's ref is not lost: it stays in
+    # the cycle body the pointer names.
+    wp_dir = feature_dir / "tasks" / f"{_WP_ID}-test"
+    assert approved_events[0].review_result.reference == (
+        f"review-cycle://{feature_dir.name}/{_WP_ID}-test/review-cycle-2.md"
+    )
+    assert approval_ref in (wp_dir / "review-cycle-2.md").read_text(encoding="utf-8")
+    # The result names its own cycle, so its feedback path is that (local-only) cycle file.
+    assert approved_events[0].review_result.feedback_path == str(wp_dir / "review-cycle-2.md")
 
 
 def test_json_ownership_refusal_is_typed_and_writes_no_verdict_authority(
