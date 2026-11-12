@@ -77,3 +77,30 @@ def test_operator_code_is_never_committed_by_a_status_move(mission) -> None:
 
     assert "src/eta/scratch.py" in dirty(mission.repo)
     assert _status_dirt(mission) == []
+
+
+def test_protected_write_target_with_config_auto_commit_off_refuses_without_a_half_record(mission) -> None:
+    """Control (#3933): config ``auto_commit: false`` plus a protected write branch records nothing at all.
+
+    The move reaches the status door as a commit, and the door refuses it on the
+    protected branch: the transition, its note and the snapshot all stay out, so
+    the tree is clean and no event is appended -- never a transition recorded
+    without its note and snapshot.
+    """
+    mission.run("agent", "tasks", "mark-status", "T001", "--status", "done", "--mission", mission.slug, check=True)
+    config = mission.repo / ".kittify" / "config.yaml"
+    protected = f"[dev, {git(mission.repo, 'branch', '--show-current')}]"
+    config.write_text(config.read_text(encoding="utf-8") + f"\nprotection:\n  protected_branches: {protected}\n", encoding="utf-8")
+    git(mission.repo, "add", "-A")
+    git(mission.repo, "commit", "-qm", "protect the write branch")
+    head = git(mission.repo, "rev-parse", "HEAD")
+    events = mission.feature_dir / "status.events.jsonl"
+    before = events.read_text(encoding="utf-8")
+
+    proc = mission.run("agent", "tasks", "move-task", "WP01", "--to", "for_review", "--agent", "claude", "--note", "ready", "--mission", mission.slug)
+
+    assert proc.returncode != 0
+    assert "PROTECTED_BRANCH_REFUSED" in flat(proc)
+    assert git(mission.repo, "rev-parse", "HEAD") == head
+    assert _status_dirt(mission) == []
+    assert events.read_text(encoding="utf-8") == before
