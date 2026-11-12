@@ -1,7 +1,7 @@
 {
-  "event_count": 28,
-  "last_event_id": "01M78P55GC24S9YCV9PHWNKCWM",
-  "materialized_at": "2026-11-12T20:11:01.516376+00:00",
+  "event_count": 29,
+  "last_event_id": "01M78P8J5JJ2C3MTXS99JSVBW1",
+  "materialized_at": "2026-11-12T20:12:52.786746+00:00",
   "mission_number": "",
   "mission_slug": "coord-closeout-leftovers-01M78FRR",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 2,
-    "in_review": 1,
+    "in_review": 2,
     "planned": 2
   },
   "work_packages": {
@@ -51,15 +51,15 @@
       }
     },
     "WP02": {
-      "actor": "claude",
-      "agent": "claude",
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "for_review",
-      "last_event_id": "01M78P55GC24S9YCV9PHWNKCWM",
-      "last_transition_at": "2026-11-12T20:11:01.516376+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M78P8J5JJ2C3MTXS99JSVBW1",
+      "last_transition_at": "2026-11-12T20:12:52.786746+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-12T19:35:12Z – claude – shell_pid=18456 – Leeway: consolidation/state.py (WP01-owned) - added coord_tip_after_projection field, reconciliation_pass_pair(), restore_reconciliation_pass(anchor, coord_tip=None) pairs the tip with the anchor (#7491).",
@@ -72,9 +72,9 @@
         "Ready for review: #7491 resume base (persisted tip behind verified landing + ancestry), landed-coordination ref module, #4380 item 2 text"
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 18456,
-      "shell_pid_created_at": "1794511049.35",
+      "role": "reviewer",
+      "shell_pid": 29418,
+      "shell_pid_created_at": "1794514361.87",
       "subtasks": {
         "T004": "done",
         "T005": "done",
