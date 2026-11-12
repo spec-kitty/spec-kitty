@@ -339,3 +339,15 @@ def test_primary_commit_paths_looks_up_checkout_with_a_primary_kind(tmp_path: Pa
 
     assert result == (tmp_path, (status,), False)
     assert asked == [MissionArtifactKind.SPEC]
+
+
+def test_refuse_copy_outside_holder_passes_when_both_copies_are_directories(tmp_path: Path) -> None:
+    """Two directories cannot be compared byte-wise; the helper keeps the pre-fold behaviour and lets the holder copy stand."""
+    from specify_cli.coordination.commit_router import _refuse_copy_outside_holder
+
+    outside = tmp_path / "root" / "kitty-specs" / "m" / "traces"
+    holder = tmp_path / "holder" / "kitty-specs" / "m" / "traces"
+    outside.mkdir(parents=True)
+    holder.mkdir(parents=True)
+
+    _refuse_copy_outside_holder(outside, holder, rel=Path("kitty-specs/m/traces"), worktree_root=tmp_path / "holder")
