@@ -20,7 +20,7 @@ IMPLEMENTATION COMMITS (<n>; = output of the git log command below):
 CHANGED FILES (owned files, +added -removed):
   +<a> -<r>  <path>
 ? … <k> more files
-? OUTSIDE OWNED FILES (<p> path(s) in <q> commit(s) touching only those paths; review rationale required): <path>, <path>, …
+? OUTSIDE OWNED FILES (<p> path(s) changed in the range; <q> commit(s) touch no owned file; review rationale required): <path>, <path>, …
 REVIEW COMMANDS:
   git log --oneline <base>..<tip> [-- <owned pathspecs>]
   git diff <base>..<tip> [-- <owned pathspecs>]
@@ -44,7 +44,7 @@ REVIEW COMMANDS:
 - A full SHA is used inside commands. Labels may abbreviate to 12 characters.
 - Byte budget: the block, without CITED REQUIREMENTS, is at most 4,096 bytes (NFR-001). Lists are filled in order (commits, files, out-of-map) until the budget is reached. The rest of each list is replaced by one `… <k> more` line. The header, provenance and command lines are always kept.
 - Requirement text: 600 characters each (NFR-003).
-- The commit list equals the printed `git log` command's output (owned-file glob pathspecs). Commits that touch only bookkeeping paths never appear. Commits that touch only out-of-map paths are counted on the OUTSIDE OWNED FILES line.
+- The commit list equals the printed `git log` command's output (owned-file glob pathspecs). Commits that touch only bookkeeping paths never appear. The OUTSIDE OWNED FILES line counts two different things: `<p>` is the number of out-of-map paths the range's tree diff (`base..tip`) changed, whichever commits changed them; `<q>` is the number of non-bookkeeping commits that touch no owned file (the range's commits missing from the commit list). A path changed by a commit that also touches an owned file counts in `<p>`, and its commit does not count in `<q>`.
 - The moved-past note counts non-bookkeeping commits only.
 - The order is deterministic: commits oldest first, files and paths sorted.
 - `OWNED_REVIEW_BASE_UNAVAILABLE` (owned checkouts) is unchanged, and so is the anti-pattern checklist that follows the block.

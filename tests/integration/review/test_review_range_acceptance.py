@@ -160,8 +160,8 @@ def test_changed_files_lines_are_exact(rendered: _Rendered, name: str) -> None:
     files = [line for line in _section(block, "CHANGED FILES (owned files, +added -removed):") if not line.startswith("  OUTSIDE OWNED FILES")]
     assert files == [f"  {line}" for line in fixture.changed_files]
     outside = (
-        f"  OUTSIDE OWNED FILES ({len(fixture.out_of_map_paths)} path(s) in {fixture.out_of_map_only_commits} commit(s) "
-        f"touching only those paths; review rationale required): {', '.join(fixture.out_of_map_paths)}"
+        f"  OUTSIDE OWNED FILES ({len(fixture.out_of_map_paths)} path(s) changed in the range; {fixture.out_of_map_only_commits} commit(s) "
+        f"touch no owned file; review rationale required): {', '.join(fixture.out_of_map_paths)}"
     )
     assert outside in block.splitlines(), block
     for path in fixture.excluded_paths:

@@ -71,7 +71,7 @@ def test_recorded_range_golden() -> None:
         "CHANGED FILES (owned files, +added -removed):",
         "  +3 -1  src/m2/extra.py",
         "  +2 -0  src/m2/real.py",
-        "  OUTSIDE OWNED FILES (1 path(s) in 1 commit(s) touching only those paths; review rationale required): docs/notes.md",
+        "  OUTSIDE OWNED FILES (1 path(s) changed in the range; 1 commit(s) touch no owned file; review rationale required): docs/notes.md",
         "REVIEW COMMANDS:",
         f"  git log --oneline {BASE}..{TIP} -- 'src/m2/**'",
         f"  git diff {BASE}..{TIP} -- 'src/m2/**'",
@@ -192,8 +192,12 @@ def test_large_range_stays_within_the_budget_with_exact_more_counts() -> None:
     shown = len(commit_items) - 1
     assert commit_items[-1] == f"  … {500 - shown} more (see git log command)"
     files = lines[lines.index("CHANGED FILES (owned files, +added -removed):") + 1 : lines.index("REVIEW COMMANDS:")]
+    shown_files = len([line for line in files if line.startswith("  +")])
     file_more = [line for line in files if line.startswith("  … ")]
-    assert file_more == ["  … 500 more files"], "the commit list used the whole budget first"
+    # The commit list fills first: what it leaves is less than one more commit line, so at most a
+    # file line fits after it (the exact count depends on the fixed lines' byte lengths).
+    assert shown_files <= 1, "the commit list used the whole budget first"
+    assert file_more == [f"  … {500 - shown_files} more files"]
     outside = [line for line in files if "OUTSIDE OWNED FILES" in line]
     assert outside and outside[0].endswith("… 50 more")
 
@@ -215,6 +219,15 @@ def test_outside_paths_are_cut_with_a_count_when_the_list_is_long() -> None:
     outside = next(line for line in lines if "OUTSIDE OWNED FILES" in line)
     shown = outside.split("): ", 1)[1].split(", ")
     assert shown[-1] == f"… {400 - (len(shown) - 1)} more"
+
+
+def test_outside_line_counts_paths_and_owned_free_commits_separately() -> None:
+    """Out-of-map paths changed by mixed commits count as paths, not as commits that touch no owned file."""
+    mixed = _range(out_of_map=("docs/a.md", "docs/b.md"), out_of_map_only_commits=0)
+
+    outside = next(line for line in render_review_context(mixed, ()) if "OUTSIDE OWNED FILES" in line)
+
+    assert outside == "  OUTSIDE OWNED FILES (2 path(s) changed in the range; 0 commit(s) touch no owned file; review rationale required): docs/a.md, docs/b.md"
 
 
 def test_commits_keep_input_order_and_files_and_paths_are_sorted() -> None:
