@@ -63,7 +63,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "lane_test_invocation in implement --json (null for planning-artifact work) + banner block; implement/review prompts re-derive and re-probe it via review/lane_test_invocation.py (fail-open); goldens gain only the new key; red-first c2da8428, green 9ea5cdb5",
-        "- 2026-11-12T07:12:18Z – unknown – Review cycle 1 addressed: (1) LANE_TEST_INVOCATION_HEADER dropped from __all__, dead-symbols gate now lists only the 5 WP01/WP04-pending names; (2) implement fails open on an adapter error (banner shows unverified probe, --json null), red ced55f23 -> green 410b89bf; (3) foreign advice says 'this workspace'. Item 4 left as designed."
+        "- 2026-11-12T07:12:18Z – unknown – Review cycle 1 addressed: (1) LANE_TEST_INVOCATION_HEADER dropped from __all__, dead-symbols gate now lists only the 5 WP01/WP04-pending names; (2) implement fails open on an adapter error (banner shows unverified probe, --json null), red ced55f23 -> green 410b89bf; (3) foreign advice says 'this workspace'. Item 4 left as designed.",
+        "Review cycle 1 fixed: __all__ trimmed; implement fail-open on adapter error (red ced55f23, green 410b89bf); workspace-neutral foreign advice"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
