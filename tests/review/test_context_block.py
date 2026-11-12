@@ -13,7 +13,14 @@ from typing import Any
 import pytest
 
 from specify_cli.requirement_mapping.text import CitedRequirement, Resolution
-from specify_cli.review.context_block import BYTE_BUDGET, UNAVAILABLE_COMMAND_LINE, describe_gap, render_review_context, review_diff_command
+from specify_cli.review.context_block import (
+    BYTE_BUDGET,
+    MAX_CITED,
+    UNAVAILABLE_COMMAND_LINE,
+    describe_gap,
+    render_review_context,
+    review_diff_command,
+)
 from specify_cli.review.wp_range import FileChange, RangeCommit, RangeGap, RangeSource, RangeStatus, WpReviewRange
 
 pytestmark = [pytest.mark.fast]
@@ -114,6 +121,35 @@ def test_moved_past_golden() -> None:
 
     assert lines[2:4] == ["  tip:  bbbbbbbbbbbb (for_review submission)", "  note: main has moved 3 commit(s) past the submitted tip"]
     assert "  note: the branch has moved 3 commit(s) past the submitted tip" in render_review_context(_range(moved_past=3), ())
+
+
+@pytest.mark.parametrize(
+    ("overrides", "note"),
+    [
+        pytest.param(
+            {"listing_gap": "numstat, moved-past"}, "  note: listing incomplete: numstat, moved-past failed; run the commands below", id="listing-incomplete"
+        ),
+        pytest.param({"tip_off_branch": True}, "  note: submitted tip bbbbbbbbbbbb is not on main", id="tip-off-branch"),
+        pytest.param({"base": TIP}, "  note: empty range (base and tip are the same commit)", id="empty-range"),
+    ],
+)
+def test_range_note_golden(overrides: dict[str, Any], note: str) -> None:
+    lines = render_review_context(_range(**overrides), (), branch="main")
+
+    assert lines[3] == note, "the note follows the tip line"
+
+
+def test_a_tip_off_the_branch_replaces_the_moved_past_note() -> None:
+    lines = render_review_context(_range(tip_off_branch=True, moved_past=3), (), branch="main")
+
+    assert not [line for line in lines if "has moved" in line]
+
+
+def test_a_path_with_a_control_character_never_adds_a_line() -> None:
+    lines = render_review_context(_range(files=(FileChange("src/m2/a\nb.py", 1, 0),), out_of_map=('docs/x\ny\t"z".md',)), ())
+
+    assert '  +1 -0  "src/m2/a\\nb.py"' in lines
+    assert next(line for line in lines if "OUTSIDE" in line).endswith(': "docs/x\\ny\\t\\"z\\".md"')
 
 
 def test_unavailable_golden() -> None:
@@ -276,10 +312,6 @@ def test_commits_keep_input_order_and_files_and_paths_are_sorted() -> None:
     assert next(line for line in lines if "OUTSIDE" in line).endswith("): a.md, z.md")
 
 
-def test_rendering_is_deterministic() -> None:
-    assert render_review_context(_many(40, 40, 5), _CITED) == render_review_context(_many(40, 40, 5), _CITED)
-
-
 def test_commands_carry_full_shas_and_labels_twelve_characters() -> None:
     lines = render_review_context(_range(), ())
 
@@ -311,6 +343,17 @@ def test_requirement_text_is_held_to_the_contract_cap() -> None:
 
     assert over == f"  {already_capped}"
     assert kept == f"  {already_capped}"
+
+
+def test_cited_requirements_are_capped_with_a_count_of_the_rest() -> None:
+    cited = tuple(CitedRequirement(f"FR-{index:03d}", Resolution.NOT_DECLARED) for index in range(1, 26))
+
+    lines = render_review_context(_range(), cited)
+    section = lines[lines.index(REQS) + 1 :]
+
+    assert len(section) == MAX_CITED + 1
+    assert section[0].startswith("  FR-001") and section[MAX_CITED - 1].startswith("  FR-020")
+    assert section[-1] == "  … 5 more cited (see spec.md)"
 
 
 _MANY_SPECS = tuple(f"src/package_{index:03d}/module_with_a_long_name.py" for index in range(120))

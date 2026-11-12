@@ -43,12 +43,19 @@ follow the resolved Mission directory name, never the caller's handle (a mid8 or
   ``IMPLEMENTATION_MISSING`` agree).
 * ``out_of_map_only_commits``: the non-bookkeeping commits of the range that are not in ``commits``.
 * ``moved_past``: non-bookkeeping commits on the write branch after the tip
-  (``status.read_lane_head``), so the work package's own status commits never count.
+  (``status.read_lane_head``), so the work package's own status commits never count. A tip that
+  is not an ancestor of the live head (a rewritten lane) sets ``tip_off_branch`` instead and
+  leaves ``moved_past`` at 0.
 
 Bookkeeping is ``lanes.for_review_gate.status_only_excluded_prefixes`` (``.kittify/`` included).
 ``owned_pathspecs`` also excludes every bookkeeping prefix (plus the Mission's ``tasks.md``, as one
 exact path) that an owned glob can reach, judged by the glob's literal lead (the text before its first wildcard), so a
 commit that touches only bookkeeping paths is never listed, whatever the owned files are.
+
+Known residuals: work packages running in parallel on one lane with unscoped or overlapping
+``owned_files`` see each other's commits in their ranges (strict ``xfail``
+``test_parallel_claims_window_is_not_over_wide``); and a range whose base equals its tip is
+valid but empty (the block says so; it is not unavailable).
 
 Fail-soft (FR-013, NFR-004): nothing here raises. A status surface that cannot be read is an
 ``UNAVAILABLE`` range with gap ``status_unreadable``; a failed listing keeps the range, leaves that
@@ -75,20 +82,23 @@ from mission_runtime import (
     routes_through_coordination,
 )
 from specify_cli.lanes.claim_base import read_claim_base
-from specify_cli.lanes.for_review_gate import status_only_excluded_prefixes
+from specify_cli.lanes.for_review_gate import mission_tasks_index_path, status_only_excluded_prefixes
 from specify_cli.mission_metadata import load_meta_or_empty
 from specify_cli.ownership.matching import matches_owned, owned_patterns
 from specify_cli.status import (
+    EVENTS_FILENAME,
     Lane,
     OpenerSelection,
     StatusEvent,
     StatusReadSource,
     StatusReadSurface,
+    WindowGapReason,
     WindowOpen,
     is_migration_event,
     read_lane_head,
     read_status_events,
     resolve_status_read,
+    stamp_of,
     window_open_of,
     window_opener_events,
 )
@@ -99,13 +109,9 @@ __all__ = ["FileChange", "RangeSource", "RangeStatus", "WpReviewRange", "resolve
 
 logger = logging.getLogger(__name__)
 
-_LANE_HEAD = "lane_head"
-_EVENTS_FILENAME = "status.events.jsonl"
 _EXCLUDE = ":(exclude)"
 _ALL_PATHS = "."
 _WILDCARDS = frozenset("*?[")
-#: The Mission's task index, excluded from an owned scope that reaches it (as the retired review pathspec builders did).
-_TASKS_INDEX = "tasks.md"
 
 
 class RangeSource(StrEnum):
@@ -139,6 +145,15 @@ class RangeGap(StrEnum):
     STATUS_UNREADABLE = "status_unreadable"
 
 
+#: Each window gap reason as the range's own gap (an explicit map, so a new reason fails the check in the tests, never a resolution).
+_WINDOW_GAPS: dict[WindowGapReason, RangeGap] = {
+    WindowGapReason.NOT_RECORDED: RangeGap.NOT_RECORDED,
+    WindowGapReason.CAPTURE_FAILED: RangeGap.CAPTURE_FAILED,
+    WindowGapReason.LANE_BRANCH_MISSING: RangeGap.LANE_BRANCH_MISSING,
+    WindowGapReason.NOT_ON_LANE: RangeGap.NOT_ON_LANE,
+}
+
+
 @dataclass(frozen=True, slots=True)
 class RangeCommit:
     """One implementation commit of the range (full SHA)."""
@@ -161,7 +176,9 @@ class WpReviewRange:
     """A work package's review range with provenance (data-model ``WpReviewRange``).
 
     Invariant: ``status is UNAVAILABLE`` iff ``base is None or tip is None`` (and then both are ``None``). Beyond the data
-    model, ``listing_gap`` names a listing step that failed (the range itself still holds).
+    model, ``listing_gap`` names a listing step that failed (the range itself still holds), and ``tip_off_branch`` is
+    set when the submitted tip is not an ancestor of the write branch's live head (a rewritten lane): ``moved_past`` is
+    then ``0``, because a count from a tip the branch no longer holds would mean nothing.
     """
 
     wp_id: str
@@ -179,6 +196,7 @@ class WpReviewRange:
     owned_pathspecs: tuple[str, ...] = ()
     listing_gap: str | None = None
     bookkeeping_pathspecs: tuple[str, ...] = ()
+    tip_off_branch: bool = False
 
     def __post_init__(self) -> None:
         unavailable = self.status is RangeStatus.UNAVAILABLE
@@ -226,7 +244,7 @@ def _owned_pathspecs(owned_files: Sequence[str], mission_dir_name: str) -> tuple
     patterns: tuple[str, ...] = owned_patterns(owned_files)
     # The gate's bookkeeping entries are prefixes (``status.`` means ``status.*``), so they keep the
     # wildcard; the task index is one exact file, so an owned ``tasks.md.bak`` is never excluded.
-    tasks_index = f"kitty-specs/{mission_dir_name}/{_TASKS_INDEX}"
+    tasks_index = mission_tasks_index_path(mission_dir_name)
     candidates = (*((prefix, f"{prefix}*") for prefix in status_only_excluded_prefixes(mission_dir_name)), (tasks_index, tasks_index))
     leads = [_literal_lead(pattern) for pattern in patterns]
     reached = [spec for prefix, spec in candidates if any(prefix.startswith(lead) or lead.startswith(prefix) for lead in leads)]
@@ -234,8 +252,9 @@ def _owned_pathspecs(owned_files: Sequence[str], mission_dir_name: str) -> tuple
 
 
 def _bookkeeping_excludes(mission_slug: str) -> tuple[str, ...]:
-    """``:(exclude)`` pathspecs for the status-only prefixes (git's default, non-literal matching)."""
-    return tuple(f"{_EXCLUDE}{prefix}*" for prefix in status_only_excluded_prefixes(mission_slug))
+    """``:(exclude)`` pathspecs for the status-only prefixes and the task index (git's default, non-literal matching)."""
+    prefixes = tuple(f"{_EXCLUDE}{prefix}*" for prefix in status_only_excluded_prefixes(mission_slug))
+    return (*prefixes, f"{_EXCLUDE}{mission_tasks_index_path(mission_slug)}")
 
 
 def _listing_scope(owned_pathspecs: tuple[str, ...], bookkeeping: tuple[str, ...]) -> tuple[str, ...]:
@@ -302,7 +321,7 @@ class _Context:
         path: Path | None = self.surface.path
         if path is not None:
             return path
-        relpath = f"kitty-specs/{self.surface.mission_dir_name}/{_EVENTS_FILENAME}"
+        relpath = (self.surface.parser_dir / EVENTS_FILENAME).relative_to(self.surface.repo_root).as_posix()
         return StatusRef(repo_root=self.surface.repo_root, ref=str(self.surface.ref), events_relpath=relpath)
 
     def event_commit(self, event: StatusEvent, *, rev: str | None = None) -> str | None:
@@ -312,12 +331,6 @@ class _Context:
         except ClaimCommitUnresolved as exc:
             logger.debug("no event commit for %s: %s", event.event_id, exc)
             return None
-
-
-def _lane_head_of(event: StatusEvent) -> str | None:
-    metadata = event.policy_metadata or {}
-    value = metadata.get(_LANE_HEAD)
-    return value if isinstance(value, str) and value else None
 
 
 def _submission(ctx: _Context) -> StatusEvent | None:
@@ -334,7 +347,7 @@ def _select_tip(ctx: _Context) -> tuple[str | None, RangeSource, RangeGap | None
     submission = _submission(ctx)
     if submission is None:
         return None, RangeSource.NONE, RangeGap.NO_SUBMISSION
-    stamped = _lane_head_of(submission)
+    stamped = stamp_of(submission)
     if stamped is not None:
         return stamped, RangeSource.RECORDED_SUBMISSION, None
     if not ctx.uses_event_commits:
@@ -358,7 +371,7 @@ def _claim_base(ctx: _Context) -> str | None:
 def _derived_bases(ctx: _Context, tip: str) -> Iterator[tuple[str, RangeSource]]:
     """The derived base candidates, in order, each already ancestry-guarded against *tip*."""
     opener = ctx.base_opener
-    stamped = _lane_head_of(opener) if opener is not None else None
+    stamped = stamp_of(opener) if opener is not None else None
     if stamped is not None and ctx.is_ancestor(stamped, tip):
         yield stamped, RangeSource.OPENER_LANE_HEAD
     if not ctx.uses_event_commits:
@@ -377,7 +390,7 @@ def _select_base(ctx: _Context, tip: str) -> tuple[str | None, RangeSource, Rang
     outcome = window_open_of(ctx.events, ctx.wp_id, on_lane=lambda sha: ctx.is_ancestor(sha, tip), is_ancestor=ctx.is_ancestor)
     if isinstance(outcome, WindowOpen):
         return outcome.sha, RangeSource.RECORDED_WINDOW, None
-    gap = RangeGap(outcome.reason.value)
+    gap = _WINDOW_GAPS[outcome.reason]
     for sha, source in _derived_bases(ctx, tip):
         return sha, source, gap
     return None, RangeSource.NONE, gap
@@ -547,7 +560,8 @@ def resolve_wp_review_range(
     """
     ctx = _read_context(repo_root, mission_slug, wp_id, owned)
     if ctx is None:
-        return WpReviewRange.unavailable(wp_id, RangeGap.STATUS_UNREADABLE, _owned_pathspecs(owned_files, mission_slug))
+        # The Mission directory is unknown here (the handle may be a mid8 or ULID), so no bookkeeping exclude is built from it.
+        return WpReviewRange.unavailable(wp_id, RangeGap.STATUS_UNREADABLE, owned_patterns(owned_files))
     owned_pathspecs = _owned_pathspecs(owned_files, ctx.surface.mission_dir_name)
     tip, tip_source, tip_gap = _select_tip(ctx)
     if tip is None:
@@ -556,6 +570,8 @@ def resolve_wp_review_range(
     if base is None:
         return WpReviewRange.unavailable(wp_id, base_gap or RangeGap.UNRESOLVABLE_SHA, owned_pathspecs)
     bookkeeping = _bookkeeping_excludes(ctx.surface.mission_dir_name)
+    head = ctx.live_head
+    tip_off_branch = head is not None and not ctx.is_ancestor(tip, head)
     listing = _listing(
         _ListingRequest(
             repo_root=repo_root,
@@ -564,7 +580,7 @@ def resolve_wp_review_range(
             owned_pathspecs=owned_pathspecs,
             patterns=owned_patterns(owned_files),
             bookkeeping=bookkeeping,
-            head=ctx.live_head,
+            head=None if tip_off_branch else head,
         )
     )
     return WpReviewRange(
@@ -583,4 +599,5 @@ def resolve_wp_review_range(
         owned_pathspecs=owned_pathspecs,
         listing_gap=", ".join(listing.failed) or None,
         bookkeeping_pathspecs=bookkeeping,
+        tip_off_branch=tip_off_branch,
     )

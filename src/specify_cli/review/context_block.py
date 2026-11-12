@@ -12,6 +12,9 @@ Shape (``?`` lines are optional; an optional line renders with the two-space ite
     ? scope: unscoped (no owned_files declared)
       tip:  <tip12> (<provenance>)
     ? note: <branch> has moved <N> commit(s) past the submitted tip
+    ? note: submitted tip <tip12> is not on <branch>
+    ? note: listing incomplete: <steps> failed; run the commands below
+    ? note: empty range (base and tip are the same commit)
     IMPLEMENTATION COMMITS (<n>; = output of the git log command below):
       <sha12> <subject>
     ? … <k> more (see git log command)
@@ -24,11 +27,14 @@ Shape (``?`` lines are optional; an optional line renders with the two-space ite
       git diff <base>..<tip> -- <listing pathspecs>
     CITED REQUIREMENTS:
       <ref> — <text>
+    ? … <k> more cited (see spec.md)
 
 Rules: commands carry full SHAs and ``shlex``-quoted pathspecs (they run as printed in ``bash``),
 the same pathspecs the commit list was listed with (``WpReviewRange.listing_pathspecs``: the owned
 pathspecs, or ``.`` plus the bookkeeping excludes when unscoped);
-labels carry 12-character SHAs. The block without CITED REQUIREMENTS and without the REVIEW
+labels carry 12-character SHAs. Rendered paths are escaped like git's ``core.quotePath`` (a path with a
+control character is double-quoted with C-style escapes), so a file name never adds a line to the block.
+At most :data:`MAX_CITED` cited requirements print, then one ``… <k> more cited`` line. The block without CITED REQUIREMENTS and without the REVIEW
 COMMANDS lines stays within :data:`BYTE_BUDGET` bytes (NFR-001, ruling Q11): the header and
 provenance lines are always kept, and the commit list, the file list and the out-of-map paths are
 filled in that order until the budget is reached, the rest of each replaced by one ``… <k> more``
@@ -40,17 +46,20 @@ text is ever rendered (C-001): only command strings, commit subjects and numstat
 from __future__ import annotations
 
 import shlex
+import unicodedata
 from collections.abc import Callable, Sequence
 
 from specify_cli.requirement_mapping.text import TEXT_LIMIT, TRUNCATION_MARKER, CitedRequirement, Resolution
 from specify_cli.review.wp_range import FileChange, RangeSource, RangeStatus, WpReviewRange
 
-__all__ = ["describe_gap", "render_review_context", "review_diff_command"]
+__all__ = ["describe_gap", "render_review_context", "review_diff_command", "review_header_line", "review_log_command"]
 
 #: The block without CITED REQUIREMENTS and the REVIEW COMMANDS lines is at most this many UTF-8 bytes, newlines included (NFR-001, Q11).
 BYTE_BUDGET = 4096
 #: SHA length in labels; commands carry full SHAs.
 LABEL_LEN = 12
+#: Cited requirements printed in full (NFR-003); the rest are counted in one closing line.
+MAX_CITED = 20
 
 _INDENT = "  "
 _ELLIPSIS = "…"
@@ -121,20 +130,51 @@ def _more_files(hidden: int) -> str:
     return f"{_INDENT}{_ELLIPSIS} {hidden} more files"
 
 
+_PATH_ESCAPES = {"\n": "\\n", "\r": "\\r", "\t": "\\t", "\a": "\\a", "\b": "\\b", "\f": "\\f", "\v": "\\v", "\\": "\\\\", '"': '\\"'}
+
+
+def _escape_char(char: str) -> str:
+    if char in _PATH_ESCAPES:
+        return _PATH_ESCAPES[char]
+    code = ord(char)
+    return f"\\{code:03o}" if code < 0x100 else f"\\u{code:04x}"
+
+
+def _printable_path(path: str) -> str:
+    """*path* as the block prints it: unchanged, or (any control character or line separator) double-quoted with C-style escapes."""
+    if not any(unicodedata.category(char) in {"Cc", "Zl", "Zp"} for char in path):
+        return path
+    return '"' + "".join(_escape_char(char) if char in _PATH_ESCAPES or unicodedata.category(char) in {"Cc", "Zl", "Zp"} else char for char in path) + '"'
+
+
 def _file_line(change: FileChange) -> str:
     added = "-" if change.added is None else str(change.added)
     removed = "-" if change.removed is None else str(change.removed)
-    return f"{_INDENT}+{added} -{removed}  {change.path}"
+    return f"{_INDENT}+{added} -{removed}  {_printable_path(change.path)}"
 
 
 # --------------------------------------------------------------------------- sections
 
 
+def review_header_line(review_range: WpReviewRange) -> str:
+    """The block's first line: the range header, or the unavailable header (what ``agent action review`` prints as its summary)."""
+    if review_range.status is RangeStatus.UNAVAILABLE:
+        return f"REVIEW RANGE ({review_range.wp_id}): unavailable{_REQUIREMENT_SEPARATOR}{describe_gap(review_range.gap)}"
+    return f"REVIEW RANGE ({review_range.wp_id}): {_label(review_range.base)}..{_label(review_range.tip)}  [{review_range.status.value}]"
+
+
+def review_log_command(review_range: WpReviewRange) -> str | None:
+    """The block's ``git log`` command (without the item indent), ``None`` for an unavailable range."""
+    if review_range.status is RangeStatus.UNAVAILABLE:
+        return None
+    return f"git log --oneline {_range_and_scope(review_range)}"
+
+
 def _header_lines(review_range: WpReviewRange, branch: str | None) -> list[str]:
-    """The REVIEW RANGE header, provenance, optional gap / scope notes and the optional moved-past note."""
+    """The REVIEW RANGE header, provenance, and the optional gap, scope, moved-past, off-branch, listing and empty-range notes."""
     base, tip = _label(review_range.base), _label(review_range.tip)
     lines = [
-        f"REVIEW RANGE ({review_range.wp_id}): {base}..{tip}  [{review_range.status.value}]",
+        review_header_line(review_range),
         f"{_INDENT}base: {base} ({_BASE_LABELS.get(review_range.base_source, review_range.base_source.value)})",
     ]
     if review_range.gap is not None:
@@ -142,8 +182,14 @@ def _header_lines(review_range: WpReviewRange, branch: str | None) -> list[str]:
     if not review_range.owned_pathspecs:
         lines.append(UNSCOPED_LINE)
     lines.append(f"{_INDENT}tip:  {tip} ({_TIP_LABELS.get(review_range.tip_source, review_range.tip_source.value)})")
-    if review_range.moved_past > 0:
+    if review_range.tip_off_branch:
+        lines.append(f"{_INDENT}note: submitted tip {tip} is not on {branch or _DEFAULT_BRANCH_LABEL}")
+    elif review_range.moved_past > 0:
         lines.append(f"{_INDENT}note: {branch or _DEFAULT_BRANCH_LABEL} has moved {review_range.moved_past} commit(s) past the submitted tip")
+    if review_range.listing_gap:
+        lines.append(f"{_INDENT}note: listing incomplete: {review_range.listing_gap} failed; run the commands below")
+    if review_range.base == review_range.tip:
+        lines.append(f"{_INDENT}note: empty range (base and tip are the same commit)")
     return lines
 
 
@@ -169,7 +215,7 @@ def _command_lines(review_range: WpReviewRange) -> list[str]:
     """``git log`` / ``git diff`` over the full-SHA range, scoped to the quoted listing pathspecs (the commit list's own)."""
     return [
         _COMMANDS_HEADING,
-        f"{_INDENT}git log --oneline {_range_and_scope(review_range)}",
+        f"{_INDENT}{review_log_command(review_range)}",
         f"{_INDENT}{review_diff_command(review_range)}",
     ]
 
@@ -218,7 +264,7 @@ def _out_of_map_floor(review_range: WpReviewRange) -> int:
 
 def _out_of_map_line(review_range: WpReviewRange, remaining: int) -> list[str]:
     """The OUTSIDE OWNED FILES line (omitted when nothing is out of map), its path list cut to *remaining* bytes."""
-    paths = sorted(review_range.out_of_map)
+    paths = [_printable_path(path) for path in sorted(review_range.out_of_map)]
     if not paths:
         return []
     prefix = _out_of_map_prefix(review_range)
@@ -253,14 +299,16 @@ def _requirement_line(cited: CitedRequirement) -> str:
 
 
 def _requirement_lines(cited: Sequence[CitedRequirement]) -> list[str]:
-    """The CITED REQUIREMENTS section, one line per cited ID, never dropping one (outside the byte budget)."""
-    items = [_requirement_line(item) for item in cited] or [f"{_INDENT}(none cited)"]
+    """The CITED REQUIREMENTS section (outside the byte budget): the first :data:`MAX_CITED` citations, then a count of the rest."""
+    items = [_requirement_line(item) for item in cited[:MAX_CITED]] or [f"{_INDENT}(none cited)"]
+    if len(cited) > MAX_CITED:
+        items.append(f"{_INDENT}{_ELLIPSIS} {len(cited) - MAX_CITED} more cited (see spec.md)")
     return [_REQUIREMENTS_HEADING, *items]
 
 
 def _unavailable_lines(review_range: WpReviewRange) -> list[str]:
     return [
-        f"REVIEW RANGE ({review_range.wp_id}): unavailable{_REQUIREMENT_SEPARATOR}{describe_gap(review_range.gap)}",
+        review_header_line(review_range),
         _COMMANDS_HEADING,
         UNAVAILABLE_COMMAND_LINE,
     ]

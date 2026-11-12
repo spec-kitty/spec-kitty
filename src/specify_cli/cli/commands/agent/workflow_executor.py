@@ -65,9 +65,9 @@ from specify_cli.core.constants import MISSION_TYPE_RESEARCH
 from specify_cli.core.subtask_recipe import mark_status_recipe
 from specify_cli.missions._read_path_resolver import mission_write_lock_dir
 from specify_cli.requirement_mapping.text import CitedRequirement
-from specify_cli.review.context_block import render_review_context, review_diff_command
+from specify_cli.review.context_block import describe_gap, render_review_context, review_diff_command, review_header_line, review_log_command
 from specify_cli.review.context_inputs import cited_requirements
-from specify_cli.review.wp_range import RangeStatus, WpReviewRange, resolve_wp_review_range
+from specify_cli.review.wp_range import WpReviewRange, resolve_wp_review_range
 from specify_cli.review.lane_test_invocation import (
     render_lane_test_invocation_failure_lines,
     render_lane_test_invocation_lines,
@@ -2148,8 +2148,6 @@ def review_compute_dependents_warning(repo_root: Path, mission_slug: str, normal
 _REVIEW_CONTEXT_HEADING = "─── GIT REVIEW CONTEXT " + "─" * 57
 _REVIEW_CONTEXT_RULE = "─" * 80
 _DEFAULT_MISSION_TYPE = "software-dev"
-_GIT_LOG_PREFIX = "  git log "
-_UNAVAILABLE_MARK = "unavailable — "
 _NO_REVIEW_RANGE_DIFF_COMMAND = "unavailable: no review range was resolved for this review"
 
 
@@ -2204,19 +2202,18 @@ def _review_context_line(
     ]
 
 
-def _review_range_summary_lines(review_ctx: dict[str, object], branch: str | None) -> list[str]:
-    """Render site 3: the block's header line and its ``git log`` command line, verbatim from the renderer.
+def _review_range_summary_lines(review_ctx: dict[str, object]) -> list[str]:
+    """Render site 3: the block's header line and its ``git log`` command, from the renderer's own structured helpers.
 
-    An unavailable range prints ``Review range unavailable — <reason>`` from that same header line.
+    An unavailable range prints ``Review range unavailable — <reason>``.
     """
     review_range = _review_range_of(review_ctx)
     if review_range is None:
         return []
-    block = render_review_context(review_range, (), branch=branch)
-    header = block[0]
-    if review_range.status is RangeStatus.UNAVAILABLE:
-        return [f"Review range {_UNAVAILABLE_MARK}{header.partition(_UNAVAILABLE_MARK)[2]}"]
-    return ["🔀 Review range (run in the workspace):", header, *(line for line in block if line.startswith(_GIT_LOG_PREFIX))]
+    log_command = review_log_command(review_range)
+    if log_command is None:
+        return [f"Review range unavailable — {describe_gap(review_range.gap)}"]
+    return ["🔀 Review range (run in the workspace):", review_header_line(review_range), f"  {log_command}"]
 
 
 def _review_baseline_context_lines(*, main_repo_root: Path, mission_slug: str, wp_slug: str) -> list[str]:
@@ -2567,7 +2564,7 @@ def _review_print_finalize_summary(
         print(f"   Lane workspace: {workspace.lane_id} (shared by {shared})")
     else:
         print("   Repository-root planning workspace")
-    for line in _review_range_summary_lines(review_ctx, workspace.branch_name):
+    for line in _review_range_summary_lines(review_ctx):
         print(line)
     print()
     print("▶▶▶ NEXT STEP: Read the full prompt file now:")
