@@ -185,6 +185,30 @@
       "status": "resolved",
       "step_id": "commit_to_target_stamp_consolidation",
       "summary_json": null
+    },
+    {
+      "created_at": "2026-11-12T11:05:58.787175Z",
+      "decision_id": "01M77PZ5833WWQB5J457GXNWYW",
+      "final_answer": "Split budget: recorded <=10, derived <=12 (Recommended)",
+      "input_key": "nfr002_derived_budget",
+      "mission_id": "01M774QFV4PFK8Y0AXFQV30EEE",
+      "mission_slug": "review-context-wp-diff-01M774QF",
+      "opened_by": "orchestrator",
+      "options": [
+        "Split budget: recorded <=10, derived <=12 (Recommended)",
+        "Drop moved-past note on derived ranges",
+        "Merge a race-guard probe"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "NFR-002 caps the review range at 10 git calls. Since WP02's stamps, a commit-to-target Mission whose events predate the stamps (the DERIVED path) costs a constant 11: read_lane_head now returns the target head, so the moved-past rev-parse + rev-list run. Split the budget (recorded <=10, derived <=12, both constant), or cut a production call (drop the moved-past note on derived ranges / merge a race-guard probe)?",
+      "rationale": "The derived path now serves only commit-to-target Missions whose events predate the #7578 stamps; its cost stays constant (11, independent of range size), which is NFR-002's intent. Cutting the moved-past note would hide a real fact from the reviewer; merging a race-guard probe weakens a correctness guard. No refusal, exit code, gate severity or ADR behaviour changes, so this is not an operator escalation; flagged in the PR.",
+      "resolved_at": "2026-11-12T11:06:10.401806Z",
+      "resolved_by": "orchestrator",
+      "slot_key": "nfr002_derived_budget",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
     }
   ],
   "mission_id": "01M774QFV4PFK8Y0AXFQV30EEE",

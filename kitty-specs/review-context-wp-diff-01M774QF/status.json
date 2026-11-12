@@ -161,6 +161,9 @@
       "last_event_id": "01M77NCSWVZ379S96391S22WR7",
       "last_transition_at": "2026-11-12T10:38:28.764032+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: context_block.render_review_context (contract golden tests, 4096-byte budget, quoted pathspecs, NFR-003 cap) and site 1 (next review step) rendering the WP review range via resolve_wp_review_range + resolve_requirement_texts; _review_pathspecs/_claim_commit_or_none/_lane_review_base retired; OWNED_REVIEW_BASE_UNAVAILABLE unchanged, fires only per operator ruling Q7. ATDD red commit 7ce8da2d first. Site-1 tests re-pinned (no deletions). TestFr025RepositoryRootReviewBase (site 2) left untouched for WP07. Residual reds not from WP05: dead-symbol gate on WP02's commit_to_target_stamps (4 symbols); 4 WP03 wp_range cells pin commit-to-target as derived, recorded since WP02."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 30511,
