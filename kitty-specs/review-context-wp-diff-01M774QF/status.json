@@ -1,7 +1,7 @@
 {
-  "event_count": 26,
-  "last_event_id": "01M77DKPP0BSF180CRY7SZJEVH",
-  "materialized_at": "2026-11-12T08:22:26.240042+00:00",
+  "event_count": 29,
+  "last_event_id": "01M77F583N5G71RDCGMGB3D7DY",
+  "materialized_at": "2026-11-12T08:49:29.053199+00:00",
   "mission_number": "",
   "mission_slug": "review-context-wp-diff-01M774QF",
   "mission_type": "software-dev",
@@ -13,8 +13,8 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
-    "in_review": 1,
+    "in_progress": 1,
+    "in_review": 0,
     "planned": 3
   },
   "work_packages": {
@@ -84,31 +84,38 @@
       }
     },
     "WP03": {
-      "actor": "claude-reviewer",
-      "agent": "claude-reviewer",
+      "actor": "claude",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 0,
+      "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "in_review",
-      "last_event_id": "01M77DKPP0BSF180CRY7SZJEVH",
-      "last_transition_at": "2026-11-12T08:22:26.240042+00:00",
+      "lane": "in_progress",
+      "last_event_id": "01M77F583N5G71RDCGMGB3D7DY",
+      "last_transition_at": "2026-11-12T08:49:29.053199+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: resolve_wp_review_range + WpReviewRange (recorded/derived/unavailable with provenance and gap), commit_introducing_status_event (+StatusRef) generalised in mission_runtime with claim_commit_for_wp as wrapper; constant git cost (6 recorded, 9 derived); dead-code gates red for exactly resolve_wp_review_range / specify_cli.review.wp_range until WP05 wires the caller."
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "reviewer",
-      "shell_pid": 13116,
-      "shell_pid_created_at": "1794471736.68",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/review-context-wp-diff-01M774QF-coord/kitty-specs/review-context-wp-diff-01M774QF/tasks/WP03-review-range-resolver/review-cycle-1.md",
+        "reference": "review-cycle://review-context-wp-diff-01M774QF/WP03-review-range-resolver/review-cycle-1.md",
+        "reviewer": "claude-reviewer",
+        "verdict": "changes_requested"
+      },
+      "role": "implementer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T011": "done",
-        "T012": "done",
-        "T013": "done",
-        "T014": "done",
-        "T015": "done",
-        "T016": "done",
-        "T017": "done"
+        "T011": "planned",
+        "T012": "planned",
+        "T013": "planned",
+        "T014": "planned",
+        "T015": "planned",
+        "T016": "planned",
+        "T017": "planned"
       }
     },
     "WP04": {
