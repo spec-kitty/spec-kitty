@@ -70,7 +70,7 @@ def test_uv_present_and_pyproject_present_resolves_to_uv_run(
     project, requesting the declared test extra/group (if any) so pytest exists."""
     (tmp_path / "pyproject.toml").write_text(pyproject, encoding="utf-8")
     (tmp_path / "uv.lock").touch()
-    monkeypatch.setattr(_interpreter.shutil, "which", lambda name: "/usr/bin/uv" if name == "uv" else None)
+    monkeypatch.setattr(_interpreter.shutil, "which", lambda name, path=None: "/usr/bin/uv" if name == "uv" else None)
 
     command = resolve_pytest_command(["--junitxml=out.xml", "-q"], repo_root=tmp_path)
 
@@ -96,7 +96,7 @@ def test_uv_present_but_no_pyproject_falls_back_to_sys_executable(
 ) -> None:
     """Branch (ii) — G2, the AND's second leg: no ``pyproject.toml`` at
     ``repo_root`` even though ``uv`` is on PATH -> fall back."""
-    monkeypatch.setattr(_interpreter.shutil, "which", lambda name: "/usr/bin/uv" if name == "uv" else None)
+    monkeypatch.setattr(_interpreter.shutil, "which", lambda name, path=None: "/usr/bin/uv" if name == "uv" else None)
     assert not (tmp_path / "pyproject.toml").exists()
 
     command = resolve_pytest_command(["--junitxml=out.xml", "-q"], repo_root=tmp_path)
@@ -114,7 +114,7 @@ def test_uv_present_pyproject_without_uv_lock_falls_back_to_sys_executable(
     to ``sys.executable`` like any non-uv project."""
     (tmp_path / "pyproject.toml").write_text("[project]\nname = 'x'\n", encoding="utf-8")
     assert not (tmp_path / "uv.lock").exists()
-    monkeypatch.setattr(_interpreter.shutil, "which", lambda name: "/usr/bin/uv" if name == "uv" else None)
+    monkeypatch.setattr(_interpreter.shutil, "which", lambda name, path=None: "/usr/bin/uv" if name == "uv" else None)
 
     command = resolve_pytest_command(["--junitxml=out.xml", "-q"], repo_root=tmp_path)
 
@@ -125,7 +125,7 @@ def test_uv_present_pyproject_without_uv_lock_falls_back_to_sys_executable(
 def test_uv_absent_falls_back_to_sys_executable(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Branch (iii): no ``uv`` on PATH at all -> fall back regardless of pyproject.toml."""
     (tmp_path / "pyproject.toml").write_text("[project]\nname = 'x'\n", encoding="utf-8")
-    monkeypatch.setattr(_interpreter.shutil, "which", lambda _name: None)
+    monkeypatch.setattr(_interpreter.shutil, "which", lambda _name, path=None: None)
 
     command = resolve_pytest_command(["--junitxml=out.xml", "-q"], repo_root=tmp_path)
 

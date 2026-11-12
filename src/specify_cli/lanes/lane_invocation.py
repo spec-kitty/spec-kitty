@@ -45,6 +45,7 @@ __all__ = [
     "ProbeStatus",
     "build_lane_test_invocation",
     "capture_evidence_tree",
+    "lane_interpreter",
     "origin_inside",
     "probe_lane_imports",
     "run_environment",
@@ -176,7 +177,7 @@ def _source_packages(root: Path) -> tuple[str, ...]:
     return tuple(sorted(names))
 
 
-def _lane_interpreter(root: Path) -> Path | None:
+def lane_interpreter(root: Path) -> Path | None:
     """The interpreter of the lane's own ``.venv``, when it has one."""
     venv = root / ".venv"
     python = venv / "Scripts" / "python.exe" if is_windows() else venv / "bin" / "python"
@@ -216,7 +217,7 @@ def build_lane_test_invocation(
     source packages.
     """
     env_set = _lane_identity_env(mission_slug, lane_id)
-    interpreter = _lane_interpreter(root)
+    interpreter = lane_interpreter(root)
     path_prepend: tuple[str, ...] = ()
     if interpreter is not None:
         path_prepend = (str(interpreter.parent),)
@@ -335,7 +336,7 @@ def probe_lane_imports(
     packages = _source_packages(invocation.cwd)
     if not packages:
         return _unverified(_NO_PACKAGES_REASON, None)
-    interpreter = str(_lane_interpreter(invocation.cwd) or Path(sys.executable))
+    interpreter = str(lane_interpreter(invocation.cwd) or Path(sys.executable))
     env = run_environment(invocation, base_env if base_env is not None else os.environ)
     argv = [interpreter, "-c", _PROBE_SCRIPT, *packages]
     payload, failure = _run_probe_child(argv, invocation, env, timeout, runner)

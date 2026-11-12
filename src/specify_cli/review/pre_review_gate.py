@@ -50,7 +50,7 @@ from typing import Protocol
 
 from kernel.locks import LockAcquireTimeout, LockNotAcquired, machine_file_lock
 from kernel.paths import is_windows, to_posix
-from specify_cli.lanes.lane_invocation import INTERPRETER_REDIRECT_KEYS
+from specify_cli.lanes.lane_invocation import INTERPRETER_REDIRECT_KEYS, lane_interpreter
 from specify_cli.paths import get_runtime_root
 from specify_cli.review._interpreter import resolve_pytest_command
 from specify_cli.review.test_timeout import resolve_review_test_timeout
@@ -459,8 +459,12 @@ def run_scoped_tests_at_head(
 
     ``run_env`` (#7547): the environment to run in (``PWHEADLESS`` still
     forced); ``None`` inherits this process's environment. Either way the uv
-    path drops the interpreter-redirect variables, and the ``sys.executable``
-    fallback runs in exactly that environment (#5985 item 2).
+    path drops the interpreter-redirect variables, and the fallback runs in
+    exactly that environment (#5985 item 2). With a ``run_env`` the fallback
+    interpreter is the lane's own ``.venv`` one when it has one (the interpreter
+    the lane probe checked), else ``sys.executable``, and ``uv`` is looked up on
+    ``run_env``'s ``PATH``. The uv path resolves its own project environment,
+    which the probe covers only when the lane has a ``.venv`` of its own.
     """
     if not test_targets:
         return HeadRunResult(
@@ -474,9 +478,12 @@ def run_scoped_tests_at_head(
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         junit_path = Path(tmp_dir) / _JUNIT_ARTIFACT_FILENAME
+        lane_python = lane_interpreter(repo_root) if run_env is not None else None
         command = resolve_pytest_command(
             [*test_targets, f"--junitxml={junit_path}", "-q"],
             repo_root=repo_root,
+            interpreter=str(lane_python) if lane_python is not None else None,
+            path=env.get("PATH"),
         )
         if command[0] == "uv":
             # Scoped to the uv path: the sys.executable fallback may rely on

@@ -61,7 +61,13 @@ def _test_dependency_flags(pyproject: Path) -> list[str]:
     return []
 
 
-def resolve_pytest_command(pytest_args: Sequence[str], *, repo_root: Path) -> list[str]:
+def resolve_pytest_command(
+    pytest_args: Sequence[str],
+    *,
+    repo_root: Path,
+    interpreter: str | None = None,
+    path: str | None = None,
+) -> list[str]:
     """Build the ``python -m pytest`` invocation for an interpreter that has pytest.
 
     Resolution order:
@@ -80,8 +86,13 @@ def resolve_pytest_command(pytest_args: Sequence[str], *, repo_root: Path) -> li
        second leg). This path runs in spec-kitty's own interpreter, so it is
        not isolated to the lane's environment (the #2803 residual when
        ``uv`` is unavailable).
+
+    ``interpreter`` (#7547) replaces ``sys.executable`` in the fallback: a caller
+    that probed a specific interpreter (the lane's own ``.venv``) passes it so
+    the run uses the interpreter that was probed. ``path`` is the ``PATH`` the
+    run will have; ``uv`` is looked up there, not in this process's ``PATH``.
     """
-    if shutil.which("uv") is not None and (repo_root / "pyproject.toml").is_file() and (repo_root / "uv.lock").is_file():
+    if shutil.which("uv", path=path) is not None and (repo_root / "pyproject.toml").is_file() and (repo_root / "uv.lock").is_file():
         extra = _test_dependency_flags(repo_root / "pyproject.toml")
         return [
             "uv",
@@ -95,4 +106,4 @@ def resolve_pytest_command(pytest_args: Sequence[str], *, repo_root: Path) -> li
             "pytest",
             *pytest_args,
         ]
-    return [sys.executable, "-m", "pytest", *pytest_args]
+    return [interpreter or sys.executable, "-m", "pytest", *pytest_args]
