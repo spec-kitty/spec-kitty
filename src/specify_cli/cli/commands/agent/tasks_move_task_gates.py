@@ -758,7 +758,8 @@ def _mt_foreign_tree_refusal_message(verdict: pre_review_gate.GateVerdict) -> st
     detail = (verdict.reason or _FOREIGN_TREE_FALLBACK_REASON).removesuffix(_FOREIGN_TREE_NO_RUN_SUFFIX)
     return (
         f"Pre-review gate refused ({_EVIDENCE_TREE_MISMATCH}): {detail}. "
-        "Fix the lane's environment (its .venv's install points elsewhere) or re-run with --force to record a bypass."
+        "Make this workspace's environment load its own source (an install of another checkout, "
+        "or a non-editable copy of this one, does not count), or re-run with --force to record a bypass."
     )
 
 
@@ -826,7 +827,7 @@ class _TransitionGateInputs:
     gate_repo_root: Path
     scope_source_root: Path
     #: #7547: the lane test evidence, built lazily by a run tier (see :class:`_LaneEvidence`).
-    lane_evidence: _LaneEvidence = field(default_factory=_LaneEvidence)
+    lane_evidence: _LaneEvidence = field(default_factory=_LaneEvidence, compare=False, hash=False)
 
     @property
     def invocation(self) -> LaneTestInvocation | None:

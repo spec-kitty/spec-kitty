@@ -596,7 +596,10 @@ def _run_command_for_baseline(
     Environment symmetry (#7547): the run uses the same lane test invocation
     recipe as the head, rooted at the baseline worktree (interpreter-redirect
     variables removed; ``PYTHONPATH=<cwd>/src`` when the worktree has tracked
-    source packages and no ``.venv``), so head and baseline differ only in code.
+    source packages and no ``.venv``), so each run loads its own tree's code.
+    Two differences remain: the baseline gets no lane test database name (it
+    has no lane identity), and the ``PYTHONPATH`` rule follows each tree's own
+    ``.venv``, so the two runs differ in interpreter when only one tree has one.
     The baseline's source identity is not affected.
     """
     from specify_cli.lanes.lane_invocation import build_lane_test_invocation, run_environment
