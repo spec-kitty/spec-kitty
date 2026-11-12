@@ -4,8 +4,10 @@
 - **Origin flow:** `specify`
 - **Step id:** `window_selector_home`
 - **Input key:** `window_selector_home`
-- **Status:** `open`
+- **Status:** `resolved`
 - **Created:** `2026-11-12T05:49:53.832729+00:00`
+- **Resolved:** `2026-11-12T05:56:48.792455+00:00`
+- **Resolved by:** `operator`
 - **Opened by:** `claude`
 - **Other answer:** `false`
 
@@ -20,12 +22,13 @@ Q5: Where does the FR-021 window-opener selector live so the review prompt (src/
 
 ## Final answer
 
-_(none)_
+A: tidy-first move of the pure FR-021 selector to status/wp_window.py, re-exported from consolidation/wp_attribution
 
 ## Rationale
 
-_(none)_
+Operator ruling 2026-11-12 (accepted recommendation); runtime may not import consolidation.
 
 ## Change log
 
 - `2026-11-12T05:49:53.832729+00:00` - opened
+- `2026-11-12T05:56:48.792455+00:00` - resolved (final_answer="A: tidy-first move of the pure FR-021 selector to status/wp_window.py, re-exported from consolidation/wp_attribution")
