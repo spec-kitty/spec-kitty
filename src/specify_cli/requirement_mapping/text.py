@@ -184,7 +184,7 @@ def _after_lead_id(line: str, patterns: Sequence[re.Pattern[str]]) -> str:
         if match is not None:
             rest = _LEAD_RESIDUE.sub("", line[match.end(1) :], count=1)
             return _EMPHASIS.sub("", rest).strip()
-    return ""
+    return ""  # unreachable in practice: the index recorded this line because one of *patterns* matched it
 
 
 def _skip_blank(lines: Sequence[str], index: int) -> int:
