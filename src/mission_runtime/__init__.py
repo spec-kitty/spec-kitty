@@ -62,7 +62,14 @@ from mission_runtime.artifacts import (
 # owned-checkout-lifecycle-authority WP12 (FR-025): the one claim-commit authority
 # every review path shares; on the package root because MR-1/MR-2 forbid
 # submodule imports from outside the package.
-from mission_runtime.claim_commit import ClaimCommitUnresolved, claim_commit_for_wp
+from mission_runtime.claim_commit import (
+    ClaimCommitUnresolved,
+    StatusRef,
+    claim_commit_for_wp,
+    # review-context-wp-diff-01M774QF (#7578, IC-03): the general event-commit lookup the
+    # review range shares with the claim-commit wrapper (one ``-S`` authority).
+    commit_introducing_status_event,
+)
 from mission_runtime.checkout_identity import (
     CheckoutIdentityError,
     enforce_checkout_identity,
@@ -145,6 +152,8 @@ __all__ = [
     # coord-artifact-single-home-01M3V4BE WP03: the seed-operation result value
     # object (``write_location.py``) -- referenced by ``WriteLocation.seed``.
     "SeedReport",
+    # #7578 (IC-03): the ref-sourced status surface of ``commit_introducing_status_event``.
+    "StatusRef",
     "TopologyManifestMismatch",
     "TopologySurface",
     # coord-artifact-single-home-01M3V4BE WP03: the write-location accessor's
@@ -158,6 +167,8 @@ __all__ = [
     # validated fact" predicate -- see its own docstring in owned_checkout.py.
     "claim_commit_for_wp",
     "classify_topology",
+    # #7578 (IC-03): the general event-commit lookup (``claim_commit.py``).
+    "commit_introducing_status_event",
     "coord_read_dir_for",
     "declared_read_surface",
     "enforce_checkout_identity",

@@ -179,10 +179,12 @@ class _ClaimEventLog:
         """The events in append order, or ``None`` when the log cannot be read (then use :meth:`unreadable`)."""
         if self._events is None and self._error is None:
             # Lazy import: keeps this module import-light, as in ``build_approved_wp_set``.
+            from specify_cli.consolidation.commit_to_target_stamps import consolidation_events
             from specify_cli.status import StoreError, read_events
 
             try:
-                self._events = read_events(self._feature_dir)
+                # #7578 (ruling Q8): a commit-to-target Mission's window stamps are not consolidation input.
+                self._events = consolidation_events(self._feature_dir, read_events(self._feature_dir))
             except StoreError as exc:
                 self._error = exc
         return self._events
