@@ -1,14 +1,21 @@
 ---
 work_package_id: WP05
 title: Path-convention message frame (#7602)
-dependencies: []
+dependencies:
+- WP01
 requirement_refs:
 - FR-010
 - NFR-002
 - NFR-003
 - C-006
-subtasks: [T017, T018, T019]
-agent: claude
+planning_base_branch: fix/7546-settled-placement-surface
+merge_target_branch: fix/7546-settled-placement-surface
+branch_strategy: Planning artifacts for this mission were generated on fix/7546-settled-placement-surface. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/7546-settled-placement-surface unless the human explicitly redirects the landing branch.
+subtasks:
+- T017
+- T018
+- T019
+history: []
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/validators/
 create_intent:
@@ -19,6 +26,8 @@ owned_files:
 - src/specify_cli/validators/paths.py
 - tests/specify_cli/acceptance/test_path_convention_frame_settled.py
 role: implementer
+tags: []
+tracker_refs: []
 ---
 
 # WP05 — Path-convention message frame (#7602)
@@ -62,15 +71,19 @@ linked worktree (real `git worktree add`) whose `kitty-specs/<slug>/` lacks `con
 `validate_mission_paths(feature_dir=<worktree mission dir>, project_root=<root>, …)` with the
 path-convention config the existing tests use (see `tests/specify_cli/acceptance/test_missing_artifacts_from_config.py`
 and `tests/agent/test_validators_unit.py` for the call shape) and assert the message names
-`kitty-specs/<slug>/contracts/` and does not contain `.worktrees`. If cheap, add one end-to-end case on
-the settled fixture through `evaluate_path_conventions`. Commit red:
+`kitty-specs/<slug>/contracts/` and does not contain `.worktrees`. Also add one end-to-end case on the settled fixture that drives
+`spec-kitty accept` (C-007: the pre-existing entry point), not only `validate_mission_paths`. Commit red:
 `test(acceptance): pin the path-convention message frame on a coordination Mission (#7602)`.
 
 ### Subtask T018: Render relative to the holding checkout
 
 In `validate_mission_paths`, for artifact-tagged candidates render `full_path` relative to the checkout
-containing `feature_dir` (fall back to `project_root` when the walk returns nothing or `full_path` is
-not under it). Leave build-path rendering untouched. Keep it a small helper (≤ 15 complexity) with a
+containing `feature_dir` — use WP01's `kernel.git_anchor.checkout_root_containing` (do not write
+another walk) — and fall back to `project_root` when the walk returns nothing or `full_path` is not
+under it. #3085a (`validators/paths.py:≈466-468`) requires the remediation to name the location
+actually tested, and a bare `kitty-specs/<slug>/contracts/` is ambiguous from the repository root
+checkout: so when the holding checkout is not the project root, name it too, e.g.
+"`kitty-specs/<slug>/contracts/` (in `<holding checkout path>`)". Leave build-path rendering untouched. Keep it a small helper (≤ 15 complexity) with a
 unit test.
 
 ### Subtask T019: Regression

@@ -8,22 +8,32 @@ requirement_refs:
 - C-004
 - C-005
 - NFR-001
-subtasks: [T001, T002, T003, T004]
-agent: claude
+planning_base_branch: fix/7546-settled-placement-surface
+merge_target_branch: fix/7546-settled-placement-surface
+branch_strategy: Planning artifacts for this mission were generated on fix/7546-settled-placement-surface. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/7546-settled-placement-surface unless the human explicitly redirects the landing branch.
+subtasks:
+- T001
+- T002
+- T003
+- T004
+history: []
 agent_profile: python-pedro
 authoritative_surface: src/mission_runtime/
 create_intent:
-- tests/kernel/test_git_topology_checkout_root.py
+- tests/kernel/test_git_anchor_checkout_root.py
 - tests/mission_runtime/test_write_dir_settled_surface_root.py
 execution_mode: code_change
 model: ''
 owned_files:
-- src/kernel/git_topology.py
+- src/kernel/git_anchor.py
 - src/mission_runtime/resolution.py
 - src/specify_cli/coordination/planning_commit.py
-- tests/kernel/test_git_topology_checkout_root.py
+- tests/kernel/test_git_anchor_checkout_root.py
 - tests/mission_runtime/test_write_dir_settled_surface_root.py
+- tests/specify_cli/coordination/test_planning_commit.py
 role: implementer
+tags: []
+tracker_refs: []
 ---
 
 # WP01 — One checkout authority in the seam (enabler)
@@ -86,22 +96,25 @@ Planning/base branch and final merge target: `fix/7546-settled-placement-surface
 
 **Validation**: `pytest tests/mission_runtime/test_write_dir_settled_surface_root.py -q` → A red, B green.
 
-### Subtask T002: Hoist the checkout walk into `kernel.git_topology`
+### Subtask T002: One checkout-root primitive in `kernel.git_anchor`, on the one ancestor walk
 
 **Purpose**: one pure primitive, usable by every layer (tidy-first, behaviour-preserving).
 
 **Steps**:
-1. In `src/kernel/git_topology.py` add a public `checkout_root_containing(path: Path) -> Path | None`
-   with the exact semantics of `planning_commit._checkout_root_of` (walk `path` and its parents, return
-   the first directory with a `.git` entry — file or dir — else `None`). No subprocess. Add it to
-   `__all__` (charter C-007 convention for `src/kernel/`). Docstring: a linked worktree has a `.git`
-   *file*, the repository root checkout a `.git` *directory*; both count.
+1. In `src/kernel/git_anchor.py` (beside the `.git` classifier; stdlib + ancestor walk only) add a
+   public `checkout_root_containing(path: Path) -> Path | None` built on the ONE ancestor walk:
+   `find_ancestor(path, lambda c: (c / ".git").exists())` from `kernel.ancestor_walk` (#7056: no
+   hand-rolled `[p, *p.parents]` loop). Same semantics as `planning_commit._checkout_root_of`, except
+   that `find_ancestor` resolves symlinks and honours `GIT_CEILING_DIRECTORIES`; document both. No
+   subprocess. Add it to `__all__` (charter C-007). A linked worktree has a `.git` *file*, the
+   repository root checkout a `.git` *directory*; both count. The result is resolved: callers must
+   compare resolved forms (macOS `/var` → `/private/var`).
 2. Replace `planning_commit._checkout_root_of` with the kernel function (delete the private copy;
    update its call site(s)). Grep for other copies: `grep -rn "\.git\").exists()" src/ | head`
    — only converge exact duplicates you find inside files this WP owns; list others in the PR notes.
-3. Create `tests/kernel/test_git_topology_checkout_root.py`: repository root checkout (real `git init`),
+3. Create `tests/kernel/test_git_anchor_checkout_root.py`: repository root checkout (real `git init`),
    a linked worktree (`git worktree add`), a nested subdirectory, and a path outside any checkout
-   (`None`).
+   (`None`), plus a symlinked start path (the result is the resolved checkout).
 
 **Validation**: new kernel tests green; `pytest tests/coordination -q -k planning` green;
 `tests/architectural/test_no_dead_symbols.py` (the `__all__` caller gate) green.
@@ -115,7 +128,10 @@ Planning/base branch and final merge target: `fix/7546-settled-placement-surface
    (C-008: byte-identical to `read_dir`). Owned checkout: keep `surface_root = self.owned.owned_root`.
    Otherwise: `surface_root = checkout_root_containing(<nearest existing ancestor of path>)`, falling
    back to `get_main_repo_root(self.repo_root)` when the walk returns `None` (path not yet created and
-   no ancestor is a checkout — keep today's answer).
+   no ancestor is a checkout — keep today's answer). Anchor consistently: keep `path` exactly as
+   `read_dir` returns it, and make `path.is_relative_to(surface_root)` hold — compare and test with
+   resolved forms, and when `path` is unresolved re-express the resolved walk result under `path`'s
+   own prefix rather than mixing forms.
    - `path` may not exist yet (a fresh Mission dir): walk from the nearest existing ancestor.
 2. Update the docstring: `surface_root` is the checkout that contains `path` — the repository root
    checkout, an owned checkout, or (for a default Mission before its landing) the checkout holding its
@@ -132,7 +148,11 @@ Planning/base branch and final merge target: `fix/7546-settled-placement-surface
 **Steps**:
 1. `planning_commit.primary_partition_checkout(repo_root, slug)` becomes: `holder =
    placement_seam(repo_root, slug).write_dir(MissionArtifactKind.PRIMARY_METADATA).surface_root`;
-   return `None` when it resolves to `repo_root` (same contract as today). `planning_checkout_root`
+   return `None` when it resolves to `get_main_repo_root(repo_root)` (compare resolved forms; NOT the
+   caller's raw `repo_root`, which may be a lane or coordination path — such a caller gets `None`
+   today; keep that). Update `tests/specify_cli/coordination/test_planning_commit.py`
+   `TestPrimaryPartitionCheckout._stub` (≈ lines 400-420), which stubs only `read_dir`, to stub the
+   seam's `write_dir` instead — same scenarios, same expectations. `planning_checkout_root`
    keeps its "artifact dir must lie in the holder" rule.
 2. Keep the docstring's contract (FR-061 / #7372) and say it now reads the seam's `surface_root`.
 

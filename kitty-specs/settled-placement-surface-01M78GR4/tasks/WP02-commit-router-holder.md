@@ -1,7 +1,8 @@
 ---
 work_package_id: WP02
 title: 'Commit router resolves the holder through the seam (#7551, #7607)'
-dependencies: [WP01]
+dependencies:
+- WP01
 requirement_refs:
 - FR-002
 - FR-003
@@ -11,22 +12,35 @@ requirement_refs:
 - SC-001
 - SC-003
 - C-007
-subtasks: [T005, T006, T007, T008, T009]
-agent: claude
+planning_base_branch: fix/7546-settled-placement-surface
+merge_target_branch: fix/7546-settled-placement-surface
+branch_strategy: Planning artifacts for this mission were generated on fix/7546-settled-placement-surface. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/7546-settled-placement-surface unless the human explicitly redirects the landing branch.
+subtasks:
+- T005
+- T006
+- T007
+- T008
+- T009
+history: []
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/coordination/
 create_intent:
-- tests/coordination/test_commit_router_settled_holder.py
+- tests/specify_cli/coordination/test_commit_router_settled_holder.py
 - tests/specify_cli/cli/commands/test_spec_commit_settled.py
+- tests/specify_cli/cli/commands/test_safe_commit_settled.py
 execution_mode: code_change
 model: ''
 owned_files:
 - src/specify_cli/coordination/commit_router.py
 - src/specify_cli/git/commit_helpers.py
 - src/specify_cli/cli/commands/spec_commit_cmd.py
-- tests/coordination/test_commit_router_settled_holder.py
+- tests/specify_cli/coordination/test_commit_router_settled_holder.py
 - tests/specify_cli/cli/commands/test_spec_commit_settled.py
+- tests/specify_cli/cli/commands/test_safe_commit_settled.py
+- tests/specify_cli/coordination/test_commit_router*.py
 role: implementer
+tags: []
+tracker_refs: []
 ---
 
 # WP02 — Commit router resolves the holder through the seam (#7551, #7607)
@@ -93,30 +107,49 @@ Base and merge target: `fix/7546-settled-placement-surface`; `single_branch`, se
    - (a) coord-worktree cwd, relative `kitty-specs/<slug>/traces/tooling-friction.md` (TRACER_FILE);
    - (b) coord-worktree cwd, relative `kitty-specs/<slug>/tasks/WP01-work/baseline-tests.json` (or the
      WP task dir the fixture uses; WORK_PACKAGE_TASK);
-   - (c) coord-worktree cwd, a decision record under `kitty-specs/<slug>/decisions/` (DECISION_LOG);
+   - (c) coord-worktree cwd, a decision record `kitty-specs/<slug>/decisions/DM-*.md` (classifies as
+     `DECISION_LEDGER`, a PRIMARY kind — verified with `kind_for_mission_file`), plus one COORD-kind
+     decision-log path if the fixture produces one (`DECISION_LOG`);
    - (d) root cwd, same relative path for a file that exists only in the coordination worktree;
    - (e) root-only copy: file written at `<root>/kitty-specs/<slug>/traces/stray.md` and absent in the
      coordination worktree → non-zero exit, `WRONG_SURFACE` reason unchanged, message names the
      coordination worktree path, and the file was NOT copied into the coordination worktree;
    - (f) control: absolute coord path from the root (works today — keep green).
+   - (g) remedy is followable (SC-003): for (e), do exactly what the printed remedy says (move the file
+     into the named holder path) and re-run the same command → exit 0, committed on the topic.
+   - (h) landed/PUBLISHED control: if a cheap landed or PUBLISHED default-Mission fixture exists in
+     `tests/coordination` / `tests/specify_cli/coordination` (grep `PUBLISHED`), assert TRACER_FILE and
+     STATUS_STATE commits still land at the repository root checkout (`_published_e2_write_dir`
+     short-circuit) — unchanged behaviour.
    - Also #5501 re-check: the decision/trace/status paths of a mixed batch are each reported committed.
-2. Create `tests/coordination/test_commit_router_settled_holder.py` (in-process `commit_for_mission`):
+2. Create `tests/specify_cli/coordination/test_commit_router_settled_holder.py` (beside the existing router tests; in-process `commit_for_mission`):
    - status lock: spy `_hold_coord_status_dir` (or `coord_status_lock`) and commit the coordination
      `status.json` with `kind=STATUS_STATE`; assert the lock was taken (#7607). Control: a
      `single_branch` Mission's status commit at the root does NOT take it (unchanged behaviour).
-3. Run: (a)–(e) and the lock test must fail now; (f) and controls pass. Commit the tests alone:
+3. Create `tests/specify_cli/cli/commands/test_safe_commit_settled.py` (FR-004 entry point): from the
+   root on `main`, `safe-commit kitty-specs/<slug>/traces/x.md --to-branch <topic>` → same exit code and
+   refusal code as today, but the message names the coordination worktree and does not say
+   `git -C <root> checkout`; then follow the printed remedy (run from the named worktree) → exit 0,
+   committed on the topic. Control: from the coord worktree it commits (works today).
+4. Run: (a)–(e), (g) and the lock test must fail now; (f) and controls pass. Commit the tests alone:
    `test(coordination): pin spec-commit and status lock on a settled default Mission (#7551, #7607)`.
 
 ### Subtask T006: `_primary_commit_root` delegates to the seam
 
 **Steps**:
-1. Replace the body: the checkout is `placement_seam(repo_root, mission_slug).write_dir(kind).surface_root`
-   for the group's `kind` (thread `mission_slug` and `kind` from `_commit_partition_group`, which has
-   both). Keep the owned arm (`owned.owned_root`) as is. Remove the raw `checkout_holding_branch`
-   import if unused.
-2. Guard: if `write_dir` raises a typed seam error, let it propagate exactly like the COORD arm's
-   `_OwningSurfaceRefused` path does (look at how the COORD arm builds a refused `SurfaceOutcome`) —
-   do not swallow.
+1. Replace the body: the checkout is the seam's `surface_root` for the group's `kind`, resolved
+   through the router's EXISTING `_resolve_owning_write_dir` (≈ line 1517), which already translates
+   seam errors into `_OwningSurfaceRefused`. IMPORTANT: after settlement `use_coord` is False for every
+   kind, so COORD-partition kinds (TRACER_FILE, STATUS_STATE) reach this PRIMARY arm, and `write_dir`
+   for them goes through `establish_coord_write_location` (may materialize/seed; raises
+   `CoordinationBranchDeleted`, `CoordSeedForkRefused`, `FeatureStatusLockTimeoutError`). Map an
+   `_OwningSurfaceRefused` to a refused `SurfaceOutcome` exactly as the COORD arm does (≈ lines
+   676-697). Thread `mission_slug` and `kind` from `_commit_partition_group`; keep the owned arm
+   (`owned.owned_root`) as is; share one `write_dirs` memo per batch with T007. Remove the raw
+   `checkout_holding_branch` import if unused.
+2. Compare against `get_main_repo_root(repo_root)` (resolved), not the raw `repo_root`; note in the
+   docstring that the function now returns the main root where it used to return the caller's raw
+   `repo_root` for flat Missions, and check the callers.
 
 ### Subtask T007: Re-anchor absent root paths; refuse a root-only copy
 
@@ -137,17 +170,20 @@ Base and merge target: `fix/7546-settled-placement-surface`; `single_branch`, se
 ### Subtask T008: Status lock on the holder checkout (#7607)
 
 **Steps**: `_coord_status_locks` engages when `use_coord` **or** (`owned is None` and
-`worktree_root.resolve() != repo_root.resolve()`). Pass `owned` (or a precomputed bool) from
+`worktree_root.resolve() != get_main_repo_root(repo_root).resolve()`) — compare with the main root so a
+caller that passes a worktree path as `repo_root` never takes the lock for a flat Mission. Pass `owned` (or a precomputed bool) from
 `_safe_commit_group`. Update the docstring (settled default Missions commit coordination status in the
 holder with `use_coord` False). Do not change `use_coord`.
 
 ### Subtask T009: `SafeCommitHeadMismatch` remedy names the holder
 
 **Steps**: in `src/specify_cli/git/commit_helpers.py` (≈ line 188) where the HEAD-mismatch message says
-"Run `git -C <root> checkout <ref>` first": when another worktree already holds `<ref>` (use the
-existing `specify_cli.status.checkout_holding_branch(repo_root, ref)` read helper, or `git worktree list
---porcelain` through the module's existing git runner), say instead "'<ref>' is checked out in <holder>;
-run the command from there (or pass a path inside it)". Message text only — same exception type, same
+"Run `git -C <root> checkout <ref>` first": do the lookup at the RAISE SITE inside `safe_commit` (which
+has `repo_root`), not in the exception's `__init__`. When another non-lane worktree already holds
+`<ref>` — use `non_lane_checkout_holding_branch` exactly as `coordination/transaction.py:≈227` does, so
+a lane worktree is never named — say instead "'<ref>' is checked out in <holder>; run the command from
+there (or pass a path inside it)". Record in the docstring why this ref-scoped lookup is a remedy-text
+lookup, not a "which checkout holds this Mission write" decision (C-001). Message text only — same exception type, same
 code (decision `01M78GS9KQZAMG3Y0YC53ER1KE`). Add a unit test in `test_commit_router_settled_holder.py`
 (or the existing commit_helpers test module if one covers this message — check `grep -rl SafeCommitHeadMismatch tests`; if it is outside this WP's owned files, record a one-line rationale for the out-of-map edit).
 

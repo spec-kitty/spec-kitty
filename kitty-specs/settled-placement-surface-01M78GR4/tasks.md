@@ -14,7 +14,7 @@ own commit, then the fix.
 | ID | Description | WP | Parallel |
 |----|-------------|----|----------|
 | T001 | Red: seam reports the repository root checkout as `surface_root` for a settled Mission's PRIMARY kinds | WP01 | |
-| T002 | Hoist the pure "checkout containing a path" walk into `kernel.git_topology` | WP01 | |
+| T002 | One "checkout containing a path" primitive in `kernel.git_anchor`, built on `find_ancestor` | WP01 | |
 | T003 | `_declared_primary_write_dir` returns the checkout containing its `path` | WP01 | |
 | T004 | `primary_partition_checkout` delegates to `write_dir(PRIMARY_METADATA).surface_root` | WP01 | |
 | T005 | Red: spec-commit of tracer / decision / baseline after settlement (both cwds) + root-only copy + status lock | WP02 | |
@@ -42,7 +42,7 @@ Independent test: on the settled fixture, `write_dir(SPEC).surface_root` is the 
 on a `single_branch` Mission it is the repository root checkout.
 
 T001 Red: seam surface_root for settled PRIMARY kinds (WP01)
-T002 Hoist checkout walk into kernel (WP01)
+T002 Checkout-root primitive on the one ancestor walk (WP01)
 T003 Fix `_declared_primary_write_dir` surface_root (WP01)
 T004 `primary_partition_checkout` delegates to the seam (WP01)
 
@@ -89,7 +89,7 @@ Risks: 24 helper callers; import layering in `core/paths.py`.
 
 ## WP05 — Path-convention message frame (#7602)
 
-**Prompt**: [tasks/WP05-path-convention-frame.md](tasks/WP05-path-convention-frame.md) · **Priority**: P2 · **Depends on**: none
+**Prompt**: [tasks/WP05-path-convention-frame.md](tasks/WP05-path-convention-frame.md) · **Priority**: P2 · **Depends on**: WP01
 
 T017 Red: coord path in the message (WP05)
 T018 Render relative to the holding checkout (WP05)

@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "mission_slug": "settled-placement-surface-01M78GR4",
+  "mission_id": "01M78GR4VQ0DD9ASHV9KCP0CRP",
+  "mission_branch": "fix/7546-settled-placement-surface",
+  "target_branch": "fix/7546-settled-placement-surface",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05"
+      ],
+      "write_scope": [
+        "src/kernel/git_anchor.py",
+        "src/mission_runtime/resolution.py",
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "src/specify_cli/cli/commands/agent/tasks_shared.py",
+        "src/specify_cli/cli/commands/agent/tasks_transition_core.py",
+        "src/specify_cli/cli/commands/agent/workflow_executor.py",
+        "src/specify_cli/cli/commands/implement_claim.py",
+        "src/specify_cli/cli/commands/spec_commit_cmd.py",
+        "src/specify_cli/coordination/commit_router.py",
+        "src/specify_cli/coordination/planning_commit.py",
+        "src/specify_cli/core/git_ops.py",
+        "src/specify_cli/core/paths.py",
+        "src/specify_cli/git/commit_helpers.py",
+        "src/specify_cli/validators/paths.py",
+        "tests/architectural/test_no_read_side_bypass.py",
+        "tests/architectural/test_no_write_side_rederivation.py",
+        "tests/kernel/test_git_anchor_checkout_root.py",
+        "tests/mission_runtime/test_write_dir_settled_surface_root.py",
+        "tests/specify_cli/acceptance/test_path_convention_frame_settled.py",
+        "tests/specify_cli/cli/commands/agent/test_baseline_and_banner_settled.py",
+        "tests/specify_cli/cli/commands/test_implement_settled_protected_root.py",
+        "tests/specify_cli/cli/commands/test_safe_commit_settled.py",
+        "tests/specify_cli/cli/commands/test_spec_commit_settled.py",
+        "tests/specify_cli/coordination/test_commit_router*.py",
+        "tests/specify_cli/coordination/test_commit_router_settled_holder.py",
+        "tests/specify_cli/coordination/test_planning_commit.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-12T18:56:46.361459+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "7d1ebdcfb1a8387b21cb6af83ea03d302e17612f"
+}

@@ -10,8 +10,15 @@ requirement_refs:
 - SC-002
 - C-002
 - C-003
-subtasks: [T010, T011, T012, T013]
-agent: claude
+planning_base_branch: fix/7546-settled-placement-surface
+merge_target_branch: fix/7546-settled-placement-surface
+branch_strategy: Planning artifacts for this mission were generated on fix/7546-settled-placement-surface. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/7546-settled-placement-surface unless the human explicitly redirects the landing branch.
+subtasks:
+- T010
+- T011
+- T012
+- T013
+history: []
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/cli/commands/
 create_intent:
@@ -26,6 +33,8 @@ owned_files:
 - tests/architectural/test_no_write_side_rederivation.py
 - tests/specify_cli/cli/commands/test_implement_settled_protected_root.py
 role: implementer
+tags: []
+tracker_refs: []
 ---
 
 # WP03 — Protected-branch preflights judge the write surface (#7601)
