@@ -19,3 +19,5 @@ One entry per finding: `YYYY-MM-DD · actor · <text>`.
 2026-11-12 · wp06-implementer · **[2026-11-12][implement] Erratic pytest wall-clock in the lane.** The same 12-test selection ran in 5.5 s once and 100+ s (mostly CPU, outside test calls) on other runs, likely contention with the concurrent lane-a implementer; the test calls themselves take ~1.5 s each.
 
 2026-11-12 · claude-orchestrator · **[2026-11-12][implement] Correction: the 'CLI left writes uncommitted' entries above are this repository's own setting, not CLI bugs.** .kittify/config.yaml sets auto_commit: false, so claims, finalize, approvals and review cycles stay uncommitted by design; the orchestrator commits the coordination worktree after each step. The spec-commit placement refusal after settlement stands as a separate candidate gap.
+
+2026-11-12 · wp06-implementer · **[2026-11-12][implement] make sync-packs venv lacks test extras.** The lane .venv that make sync-packs creates (uv run --frozen) has no build extra, so tests/cross_cutting/packaging/test_packaging_safety.py errored at setup (16 errors) until uv sync --frozen --all-extras; baseline category 4, not a code red.
