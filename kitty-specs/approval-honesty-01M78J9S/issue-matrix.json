@@ -109,16 +109,16 @@
       "wp": null
     },
     "#7573": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Mission approval-honesty-01M78J9S WP02",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Supervisor-authored review renders accepted as reviewer_agent",
+      "verdict": "in-mission",
+      "wp": "WP02"
     },
     "#7596": {
       "evidence_ref": "<auto-classified: no action required>",
