@@ -20,7 +20,7 @@
   "work_packages": {
     "WP01": {
       "actor": "claude-reviewer",
-      "agent": "claude-reviewer",
+      "agent": "claude-reviewer::reviewer-renata",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 0,
@@ -30,7 +30,8 @@
       "last_transition_at": "2026-11-12T06:14:45.435080+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ready for review: new leaf module specify_cli.lanes.lane_invocation (builder, run_environment, probe verified/foreign/unverified, origin_inside, evidence tree). Red test commit 964dbf62 precedes impl cb9e2de3. 54 passed (lane_invocation + lane_db_isolation), arch gates os_detection_ban + git_path_listing_owner 61 passed, ruff/format/mypy clean."
+        "Ready for review: new leaf module specify_cli.lanes.lane_invocation (builder, run_environment, probe verified/foreign/unverified, origin_inside, evidence tree). Red test commit 964dbf62 precedes impl cb9e2de3. 54 passed (lane_invocation + lane_db_isolation), arch gates os_detection_ban + git_path_listing_owner 61 passed, ruff/format/mypy clean.",
+        "Review passed: red (ModuleNotFoundError at 964dbf62) -> green (54 passed incl. lane_db_isolation); ruff/format/mypy --strict clean; arch gates 61 passed; 6 of 7 mutants killed. Follow-ups (LOW): (1) no test pins -P (lane_invocation.py:309), add a lane-root decoy package test; (2) lane .venv on Python <3.11 rejects -P so the probe is always unverified there (fails open, #1907 undetected); strip sys.path[0] in the probe script instead. Dead-symbol flags expected until WP02-WP04."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
