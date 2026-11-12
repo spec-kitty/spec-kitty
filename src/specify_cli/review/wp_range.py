@@ -19,7 +19,10 @@ Resolution (each derived anchor must be an ancestor of the tip, or it is skipped
   used on lane topologies: there the status log lives on the status branch, not the code branch.
 * ``gap`` names why the recorded value was not used (the first reason seen).
 
-Listing (a constant number of git calls, NFR-002; every pathspec is a git glob, never literal):
+Listing (a constant number of git calls, NFR-002). Pathspecs use git's default wildcard matching
+(``*`` crosses ``/``, like ``fnmatch``): never ``--literal-pathspecs`` and never the ``:(glob)``
+magic, so the printed review command matches the same paths. The Mission's bookkeeping prefixes
+follow the resolved Mission directory name, never the caller's handle (a mid8 or ULID works):
 
 * ``commits``: ``git log --reverse base..tip -- <owned pathspecs>``, which is exactly what the
   printed review command lists. Merge commits follow git's default walk (no ``-m``, default
@@ -45,6 +48,7 @@ list empty and names the step in ``listing_gap``.
 from __future__ import annotations
 
 import logging
+import subprocess
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -207,7 +211,6 @@ class _Context:
     """What one resolution reads: the events, the opener selection and a memoized ancestry probe."""
 
     repo_root: Path
-    mission_slug: str
     wp_id: str
     surface: StatusReadSurface
     events: list[StatusEvent]
@@ -292,6 +295,16 @@ def _select_tip(ctx: _Context) -> tuple[str | None, RangeSource, RangeGap | None
     return commit, RangeSource.EVENT_COMMIT, None
 
 
+def _claim_base(ctx: _Context) -> str | None:
+    """The ``wp-base`` claim-base ref, or ``None`` (also when git cannot be started: NFR-004, never a raise)."""
+    try:
+        sha: str | None = read_claim_base(ctx.repo_root, ctx.surface.mission_dir_name, ctx.wp_id)
+    except (OSError, subprocess.SubprocessError):
+        logger.debug("review range: claim-base ref of %s unreadable", ctx.wp_id, exc_info=True)
+        return None
+    return sha
+
+
 def _derived_bases(ctx: _Context, tip: str) -> Iterator[tuple[str, RangeSource]]:
     """The derived base candidates, in order, each already ancestry-guarded against *tip*."""
     opener = ctx.base_opener
@@ -300,7 +313,7 @@ def _derived_bases(ctx: _Context, tip: str) -> Iterator[tuple[str, RangeSource]]
         yield stamped, RangeSource.OPENER_LANE_HEAD
     if not ctx.single_branch:
         return
-    claim_base = read_claim_base(ctx.repo_root, ctx.mission_slug, ctx.wp_id)
+    claim_base = _claim_base(ctx)
     if claim_base is not None and ctx.is_ancestor(claim_base, tip):
         yield claim_base, RangeSource.CLAIM_BASE_REF
     if opener is not None:
@@ -433,7 +446,7 @@ def _read_context(repo_root: Path, mission_slug: str, wp_id: str, owned: OwnedCh
         logger.debug("review range: status surface of %s unreadable", mission_slug, exc_info=True)
         return None
     selection = window_opener_events(events, wp_id, cycle=True)
-    return _Context(repo_root=repo_root, mission_slug=mission_slug, wp_id=wp_id, surface=surface, events=events, selection=selection)
+    return _Context(repo_root=repo_root, wp_id=wp_id, surface=surface, events=events, selection=selection)
 
 
 def _status_of(base_source: RangeSource, tip_source: RangeSource) -> RangeStatus:
@@ -470,8 +483,8 @@ def resolve_wp_review_range(
             tip=tip,
             owned_pathspecs=owned_pathspecs,
             patterns=owned_patterns(owned_files),
-            bookkeeping=_bookkeeping_excludes(mission_slug),
-            head=_live_head(repo_root, mission_slug, wp_id, owned),
+            bookkeeping=_bookkeeping_excludes(ctx.surface.mission_dir_name),
+            head=_live_head(repo_root, ctx.surface.mission_dir_name, wp_id, owned),
         )
     )
     return WpReviewRange(
