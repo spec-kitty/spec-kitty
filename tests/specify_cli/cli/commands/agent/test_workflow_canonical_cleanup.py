@@ -566,7 +566,12 @@ class TestPlanningArtifactWorkflowPrompt:
         prompt_path = Path(next(line.split("cat ", 1)[1].strip() for line in result.stdout.splitlines() if line.strip().startswith("cat ")))
         prompt = prompt_path.read_text(encoding="utf-8")
 
-        assert "Review commands unavailable: no deterministic implementation claim commit found for this WP." in prompt
+        # Re-pin (#7578, IC-05, DIRECTIVE_041): the claim-commit notice is replaced by the shared
+        # renderer's unavailable notice; the review still proceeds (exit 0, FR-013).
+        lines = prompt.splitlines()
+        assert [line for line in lines if line.startswith("REVIEW RANGE (WP02): unavailable — ")], prompt
+        assert "  (no deterministic range; inspect `spec-kitty agent tasks status` and the WP's commits)" in lines
+        assert [line for line in result.stdout.splitlines() if line.startswith("Review range unavailable — ")], result.stdout
 
 
 # ---------------------------------------------------------------------------

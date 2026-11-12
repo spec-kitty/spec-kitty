@@ -39,15 +39,21 @@ from charter.activation.mission_type_profiles import (
 )
 from charter.activation.resolver import GovernanceResolutionError, resolve_project_governance
 from charter.drg import ArtifactKind
-from mission_runtime import ActionContextError, ClaimCommitUnresolved, OwnedRefusalCode, claim_commit_for_wp
+from mission_runtime import ActionContextError, OwnedRefusalCode
 from runtime.next._tmp_namespace import prompt_tmp_dir, write_prompt_file
 from specify_cli.core.commit_recipe import implementation_commit_step
-from specify_cli.core.paths import get_feature_target_branch
 from specify_cli.core.subtask_recipe import mark_status_recipe
 from specify_cli.runtime.resolver import resolve_command
+from specify_cli.requirement_mapping.text import resolve_requirement_texts
 from specify_cli.review.antipattern_checklist import render_wp_review_antipattern_checklist
+from specify_cli.review.context_block import describe_gap, render_review_context
+from specify_cli.review.wp_range import RangeStatus, resolve_wp_review_range
 from specify_cli.status import FrontmatterError, read_authored_wp_frontmatter
 from specify_cli.workspace.context import resolve_workspace_for_wp
+
+
+_SPEC_FILENAME = "spec.md"
+_DEFAULT_MISSION_TYPE = "software-dev"
 
 
 # ---------------------------------------------------------------------------
@@ -253,7 +259,7 @@ def _build_wp_prompt(
     lines.append("")
 
     if action == "review":
-        lines.extend(_review_command_lines(repo_root, feature_dir, mission_slug, wp_id, wp_meta, workspace, owned))
+        lines.extend(_review_command_lines(repo_root, mission_slug, wp_id, wp_meta, workspace, owned, mission_type=mission_type))
 
     # WP content
     lines.append("=" * 78)
@@ -322,87 +328,57 @@ def _isolation_rule_lines(wp_id: str, action: str) -> list[str]:
     ]
 
 
-def _review_pathspecs(mission_slug: str, wp_meta: WPMetadata) -> list[str]:
-    """The WP's ``owned_files`` as git pathspecs (mission-dir bookkeeping excluded)."""
-    pathspecs = list(wp_meta.owned_files)
-    mission_root = f"kitty-specs/{mission_slug}/"
-    if any(path.startswith(mission_root) for path in pathspecs):
-        pathspecs.extend(
-            [
-                f":(exclude){mission_root}tasks/**",
-                f":(exclude){mission_root}tasks.md",
-                f":(exclude){mission_root}status.events.jsonl",
-                f":(exclude){mission_root}status.json",
-            ]
-        )
-    return pathspecs
-
-
 def _review_base_unavailable(wp_id: str, why: str) -> ActionContextError:
-    """The typed refusal for an owned review whose base cannot be proven (US3-AS5)."""
+    """The typed refusal for an owned review whose scoped range cannot be determined (US3-AS5)."""
     return ActionContextError(
         OwnedRefusalCode.OWNED_REVIEW_BASE_UNAVAILABLE.value,
         f"cannot build a scoped review diff for {wp_id} in the owned checkout: {why}",
     )
 
 
-def _claim_commit_or_none(status_dir: Path, wp_id: str) -> str | None:
-    """The WP's claim commit, or ``None`` when it cannot be proven (fail closed)."""
+def _spec_text(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None) -> str:
+    """The Mission's ``spec.md`` read through the placement seam, or ``""`` when it cannot be read (NFR-004)."""
     try:
-        return claim_commit_for_wp(status_dir, wp_id)
-    except ClaimCommitUnresolved:
-        return None
+        if owned is not None:
+            spec_dir = owned.mission_dir
+        else:
+            from mission_runtime import MissionArtifactKind, mission_context_for
 
-
-def _lane_review_base(repo_root: Path, mission_slug: str, workspace: ResolvedWorkspace, owned: OwnedCheckout | None) -> str:
-    """Base ref of a lane workspace review: the lane's own base, else the mission's target branch.
-
-    An owned mission takes the target from the validated fact, never from the
-    repository root checkout's ``meta.json``.
-    """
-    lane_base: str | None = workspace.context.base_branch if workspace.context else None
-    if lane_base:
-        return lane_base
-    if owned is not None:
-        return owned.write_branch
-    return get_feature_target_branch(repo_root, mission_slug)
+            spec_dir = mission_context_for(repo_root, mission_slug).artifact(MissionArtifactKind.SPEC).read_dir
+        return (spec_dir / _SPEC_FILENAME).read_text(encoding="utf-8")
+    except (OSError, UnicodeError, ValueError):
+        return ""
 
 
 def _review_command_lines(
     repo_root: Path,
-    feature_dir: Path,
     mission_slug: str,
     wp_id: str,
     wp_meta: WPMetadata,
     workspace: ResolvedWorkspace,
     owned: OwnedCheckout | None,
+    *,
+    mission_type: str = _DEFAULT_MISSION_TYPE,
 ) -> list[str]:
-    """REVIEW COMMANDS block plus the anti-pattern checklist (review action only).
+    """The review-context block plus the anti-pattern checklist (review action only).
 
-    Three cases: a lane workspace diffs against its lane base; an owned checkout
-    and the repository root checkout both diff against the WP's claim commit
-    (:func:`mission_runtime.claim_commit_for_wp`, FR-025). The owned case scopes
-    the diff to the WP's ``owned_files`` and refuses (typed error) rather than
-    ever emitting an unscoped whole-checkout diff (FR-010).
+    One range authority on every topology: :func:`resolve_wp_review_range` gives the work
+    package's range from its window open to its ``for_review`` submission, scoped to its
+    ``owned_files``, and :func:`render_review_context` prints it with the cited requirements. A
+    range that cannot be determined is printed as a notice and the review proceeds (FR-013). An
+    owned checkout alone refuses with ``OWNED_REVIEW_BASE_UNAVAILABLE`` when its scoped range is
+    unavailable or the work package declares no ``owned_files`` (operator ruling Q7): it never
+    prints an unscoped whole-checkout diff (FR-010).
     """
-    lines = ["REVIEW COMMANDS:"]
-    if workspace.lane_id:
-        base = _lane_review_base(repo_root, mission_slug, workspace, owned)
-        lines.append(f"  git log {base}..HEAD --oneline")
-        lines.append(f"  git diff {base}..HEAD --stat")
-    else:
-        pathspecs = _review_pathspecs(mission_slug, wp_meta)
-        if owned is not None and not pathspecs:
-            raise _review_base_unavailable(wp_id, "the work package declares no owned_files")
-        claim = _claim_commit_or_none(owned.mission_dir if owned is not None else feature_dir, wp_id)
-        if claim is None and owned is not None:
-            raise _review_base_unavailable(wp_id, "no single claim commit was found on HEAD")
-        review_paths = " -- " + " ".join(pathspecs) if pathspecs else ""
-        if claim is None:
-            lines.append("  unavailable: no deterministic implementation claim commit found for this WP")
-        else:
-            lines.append(f"  git log {claim}..HEAD --oneline{review_paths}")
-            lines.append(f"  git diff {claim}..HEAD --stat{review_paths}")
+    owned_files = list(wp_meta.owned_files or [])
+    if owned is not None and not owned_files:
+        raise _review_base_unavailable(wp_id, "the work package declares no owned_files")
+    review_range = resolve_wp_review_range(repo_root, mission_slug, wp_id, owned_files=owned_files, owned=owned)
+    if owned is not None and review_range.status is RangeStatus.UNAVAILABLE:
+        raise _review_base_unavailable(wp_id, f"the review range is unavailable: {describe_gap(review_range.gap)}")
+    cited = resolve_requirement_texts(_spec_text(repo_root, mission_slug, owned), list(wp_meta.requirement_refs or []), mission_type=mission_type)
+    branch = owned.write_branch if owned is not None else workspace.branch_name
+    lines: list[str] = render_review_context(review_range, cited, branch=branch)
     lines.append("")
     lines.append(render_wp_review_antipattern_checklist())
     lines.append("")

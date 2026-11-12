@@ -129,6 +129,7 @@ from specify_cli.cli.commands.agent.workflow_cores import (
     ReviewRequest,
     auto_claim_failure_message as _auto_claim_failure_message,
     normalize_wp_id as _normalize_wp_id,
+    wp_owned_files,
 )
 from specify_cli.cli.commands.agent.workflow_executor import (
     commit_workflow_change as _commit_workflow_change,  # noqa: F401 -- late-bound via workflow_executor._wf() / patched by tests
@@ -1986,16 +1987,7 @@ def _resolve_review_context(
         return ctx
 
     workspace = resolve_workspace_for_wp(repo_root, mission_slug, wp_id)
-    # WP04 / T017 / FR-002: lanes.json (LANE_STATE — PRIMARY-partition) and
-    # tasks/ (WORK_PACKAGE_TASK — PRIMARY-partition) both route to the primary
-    # checkout.  Under coord topology, candidate_feature_dir_for_mission returned
-    # the STATUS-only coord husk (no lanes.json, no tasks/) — a wrong-leg read.
-    feature_dir = _resolve_workflow_read_dir(
-        repo_root=repo_root,
-        mission_slug=mission_slug,
-        kind=MissionArtifactKind.WORK_PACKAGE_TASK,
-    )
-    # lanes.json is LANE_STATE (PRIMARY-partition) — use its truthful kind so a
+    # WP04 / T017 / FR-002: lanes.json is LANE_STATE (PRIMARY-partition) — use its truthful kind so a
     # future LANE_STATE re-partition does not silently misroute.
     _lanes_dir = _resolve_workflow_read_dir(
         repo_root=repo_root,
@@ -2017,18 +2009,20 @@ def _resolve_review_context(
         mission_branch = workspace.context.base_branch
     ctx["mission_branch"] = mission_branch
 
+    # No owned checkout to pass: review() refuses --owned-checkout up front (_refuse_owned_action).
+    owned_files = wp_owned_files(wp_frontmatter)
     if workspace.resolution_kind == "repo_root":
         return _executor.review_context_for_repo_root_workspace(
-            repo_root=repo_root, feature_dir=feature_dir, wp_id=wp_id, ctx=ctx
+            repo_root=repo_root, mission_slug=mission_slug, wp_id=wp_id, owned_files=owned_files, owned=None, ctx=ctx
         )
 
     return _executor.review_context_for_worktree_branch(
         repo_root=repo_root,
         mission_slug=mission_slug,
-        workspace=workspace,
+        wp_id=wp_id,
         workspace_path=workspace_path,
-        mission_branch=mission_branch,
-        wp_frontmatter=wp_frontmatter,
+        owned_files=owned_files,
+        owned=None,
         ctx=ctx,
     )
 
@@ -2638,7 +2632,6 @@ def review(
             target_branch=target_branch,
             dependents_warning=dependents_warning,
             review_feedback_path=review_feedback_path,
-            wp=wp,
         )
 
     except typer.Exit:

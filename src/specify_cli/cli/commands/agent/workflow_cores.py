@@ -26,7 +26,6 @@ phase extractions.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -501,69 +500,27 @@ def has_prior_rejection(
 # ---------------------------------------------------------------------------
 
 
-def pick_best_base_branch(scored_candidates: list[tuple[str, int]]) -> tuple[str | None, int]:
-    """Pick the base-branch candidate with the FEWEST unique commits.
+def wp_owned_files(wp_frontmatter: str) -> list[str]:
+    """The ``owned_files`` a work package's raw frontmatter text declares (``[]`` when absent or unreadable).
 
-    Pure selection logic extracted from ``_resolve_review_context``'s
-    unknown-base-ref fallback: given a list of ``(candidate, commit_count)``
-    pairs already computed via ``git merge-base`` + ``git rev-list --count``,
-    return the first candidate with the lowest count (ties keep the
-    EARLIEST-scored candidate, matching the original ``count < best_count``
-    strict-less-than comparison -- byte-identical selection behaviour).
+    *wp_frontmatter* is the YAML between the ``---`` fences; a whole file with its fences also
+    reads. The review range (``review.wp_range.resolve_wp_review_range``) turns the list into the
+    one set of review pathspecs (#7578); this only reads the declaration.
     """
-    best_base: str | None = None
-    best_count = -1
-    for candidate, count in scored_candidates:
-        if best_count == -1 or count < best_count:
-            best_count = count
-            best_base = candidate
-    return best_base, best_count
+    from ruamel.yaml import YAML
+    from ruamel.yaml.error import YAMLError
 
-
-def parse_dependency_wp_ids(wp_frontmatter: str) -> list[str]:
-    """Extract ``WPnn`` dependency ids from a WP's raw frontmatter text.
-
-    Pure regex extraction lifted out of ``_resolve_review_context``'s
-    unknown-base-ref fallback -- the frontmatter's ``dependencies: [...]``
-    scalar is parsed here; resolving each id to an actual dependency
-    workspace (I/O) stays with the caller.
-    """
-    dep_match = re.search(r"dependencies:\s*\[([^\]]*)\]", wp_frontmatter)
-    if not dep_match:
+    text = wp_frontmatter.replace("\r\n", "\n")
+    if text.startswith("---\n"):
+        text = text[4:].split("\n---", 1)[0]
+    try:
+        data = YAML(typ="safe").load(text)
+    except YAMLError:
         return []
-    dep_content = dep_match.group(1).strip()
-    if not dep_content:
-        return []
-    return re.findall(r'"?(WP\d+)"?', dep_content)
-
-
-def build_owned_files_review_pathspecs(owned_files: list[str], mission_slug: str) -> list[str]:
-    """Build the ``git diff``/``git log`` pathspec list for a repo-root review.
-
-    Extracted from ``review()``'s two byte-identical inline blocks (S1192):
-    when a WP's ``owned_files`` includes anything under the mission's own
-    ``kitty-specs/<slug>/`` tree, the mission's ``tasks/``, ``tasks.md``,
-    and status-artifact files are excluded from the reviewer's diff/log
-    commands (they are lifecycle bookkeeping, not implementation content).
-    Returns ``[]`` when *owned_files* is empty (matches both call sites'
-    guard).
-    """
-    if not owned_files:
-        return []
-    from specify_cli.cli.commands.agent.workflow import _STATUS_EVENTS_FILENAME, _STATUS_FILENAME
-
-    pathspecs = list(owned_files)
-    mission_root = f"kitty-specs/{mission_slug}/"
-    if any(path.startswith(mission_root) for path in pathspecs):
-        pathspecs.extend(
-            [
-                f":(exclude){mission_root}tasks/**",
-                f":(exclude){mission_root}tasks.md",
-                f":(exclude){mission_root}{_STATUS_EVENTS_FILENAME}",
-                f":(exclude){mission_root}{_STATUS_FILENAME}",
-            ]
-        )
-    return pathspecs
+    owned = data.get("owned_files") if isinstance(data, dict) else None
+    if isinstance(owned, str):
+        return [owned]
+    return [str(item) for item in owned] if isinstance(owned, list) else []
 
 
 def event_is_review_claim(event: StatusEvent) -> bool:

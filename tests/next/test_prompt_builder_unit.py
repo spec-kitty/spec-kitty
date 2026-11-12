@@ -238,24 +238,57 @@ class TestBuildPromptWPPlanningArtifact:
         )
         assert "Workspace contract: lane lane-planning" in text
         assert "REVIEW COMMANDS:" in text
-        assert "..HEAD --oneline" in text
+        # re-pin (IC-05): no recorded or derivable range is a notice, never a <target>..HEAD guess.
+        assert "REVIEW RANGE (WP02): unavailable — " in text
+        assert "  (no deterministic range; inspect `spec-kitty agent tasks status` and the WP's commits)" in text
+        assert "..HEAD --oneline" not in text
         path.unlink()
 
     @pytest.mark.git_repo
     def test_review_prompt_with_claim_commit_emits_pathspec_review_commands(self, feature_with_planning_artifact_wp: Path) -> None:
-        """planning_artifact WPs now use lane-planning (FR-103/FR-105).
-        Review commands use the target branch as the diff base (no pathspec scoping)."""
+        """re-pin (IC-05): the claim and submission event commits bound the range, scoped to the owned files."""
+        import json
         import subprocess
 
+        from specify_cli.status.models import Lane, StatusEvent
+        from tests._support.status_seed import seed_status_event
+
         repo_root = feature_with_planning_artifact_wp.parent.parent
-        for cmd in (
-            ["git", "init", "--quiet"],
-            ["git", "config", "user.email", "test@example.com"],
-            ["git", "config", "user.name", "Test"],
-            ["git", "add", "kitty-specs/042-test-feature/tasks/WP02-planning.md"],
-            ["git", "-c", "commit.gpgsign=false", "commit", "-m", "chore: WP02 claimed for implementation"],
-        ):
-            subprocess.run(cmd, cwd=repo_root, capture_output=True, check=True)
+        meta = {"mission_slug": "042-test-feature", "mission_id": "01M3M2ZB000000000000000042", "topology": "single_branch", "target_branch": "main"}
+        (feature_with_planning_artifact_wp / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+        write_single_lane_manifest(feature_with_planning_artifact_wp, wp_ids=("WP02",))
+
+        def _git(*args: str) -> str:
+            return subprocess.run(["git", "-c", "commit.gpgsign=false", *args], cwd=repo_root, capture_output=True, check=True, text=True).stdout.strip()
+
+        def _event(event_id: str, from_lane: Lane, to_lane: Lane) -> str:
+            event = StatusEvent(
+                event_id=event_id,
+                mission_slug="042-test-feature",
+                wp_id="WP02",
+                from_lane=from_lane,
+                to_lane=to_lane,
+                at="2026-09-29T00:00:00+00:00",
+                actor="tester",
+                force=True,
+                execution_mode="direct_repo",
+            )
+            seed_status_event(feature_with_planning_artifact_wp, event)
+            _git("add", "-A")
+            _git("commit", "-qm", f"status: {to_lane}")
+            return _git("rev-parse", "HEAD")
+
+        _git("init", "--quiet", "-b", "main")
+        _git("config", "user.email", "test@example.com")
+        _git("config", "user.name", "Test")
+        _git("add", "-A")
+        _git("commit", "-qm", "chore: planning")
+        claim = _event("01CLAIMAAAAAAAAAAAAAAAAA42", Lane.PLANNED, Lane.CLAIMED)
+        _event("01PROGAAAAAAAAAAAAAAAAAA42", Lane.CLAIMED, Lane.IN_PROGRESS)
+        (feature_with_planning_artifact_wp / "spec.md").write_text("# Spec\n", encoding="utf-8")
+        _git("add", "-A")
+        _git("commit", "-qm", "docs: spec")
+        tip = _event("01REVWAAAAAAAAAAAAAAAAAA42", Lane.IN_PROGRESS, Lane.FOR_REVIEW)
 
         text, path = build_prompt(
             action="review",
@@ -267,7 +300,15 @@ class TestBuildPromptWPPlanningArtifact:
             mission_type="software-dev",
         )
         assert "REVIEW COMMANDS:" in text
-        assert "..HEAD --oneline" in text
+        scope = (
+            "-- kitty-specs/042-test-feature/spec.md kitty-specs/042-test-feature/plan.md "
+            "':(exclude)kitty-specs/042-test-feature/tasks/**' ':(exclude)kitty-specs/042-test-feature/tasks.md' "
+            "':(exclude)kitty-specs/042-test-feature/status.events.jsonl' ':(exclude)kitty-specs/042-test-feature/status.json'"
+        )
+        assert f"  git log --oneline {claim}..{tip} {scope}" in text
+        assert "  CHANGED FILES (owned files, +added -removed):" not in text
+        assert "  +1 -0  kitty-specs/042-test-feature/spec.md" in text
+        assert "..HEAD --oneline" not in text
         assert "Workspace contract: lane lane-planning" in text
         path.unlink()
 
