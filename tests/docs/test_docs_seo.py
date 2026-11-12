@@ -1,4 +1,13 @@
-"""SEO/GEO checks for the published DocFX documentation site."""
+"""Search metadata for the published docsite pages (#6943; ADR 2026-10-31-1 D-7, D-8).
+
+The published set is the doc-kitty site's: :func:`published_pages` in
+``scripts/docs/_dockitty_contract.py``, the one authority the built-site check and
+the redirect generator read too. It replaced a second answer, the legacy site
+configuration, which was retired with that site (#6943). Every published page
+carries a ``title`` and a ``description`` within the contract's band: at most
+:data:`DESCRIPTION_MAX` characters (an error in doc-kitty's frontmatter gate) and,
+held stricter here, at least :data:`DESCRIPTION_SOFT_MIN` (a warning there).
+"""
 
 from __future__ import annotations
 
@@ -7,16 +16,15 @@ from pathlib import Path
 
 import pytest
 
-from scripts.docs import seo_postprocess
+from scripts.docs._dockitty_contract import DESCRIPTION_MAX, DESCRIPTION_SOFT_MIN, published_pages
 from scripts.docs._inventory import parse_frontmatter
-from scripts.docs._published_pages import resolve_published_pages
-from scripts.docs.description_length_check import (
-    MAX_DESCRIPTION_LENGTH,
-    MIN_DESCRIPTION_LENGTH,
-)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DOCS_DIR = REPO_ROOT / "docs"
+SITE_PUBLIC = REPO_ROOT / "site" / "public"
+
+#: Non-vacuity floor: 631 pages were published when the set moved to the contract (#6943).
+MINIMUM_PUBLISHED_PAGES = 500
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -25,139 +33,74 @@ FRONTMATTER_RE = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
 
 
 def _published_markdown_files() -> list[Path]:
-    """Every published source page, per ``docs/docfx.json``.
-
-    This used to be a hardcoded ten-pattern glob list maintained here. It
-    predated the ``how-to/`` → ``guides/`` and ``reference/slash-commands`` →
-    ``api/`` moves: the DocFX build followed those moves and this list did not,
-    so the SEO gate silently shrank to 16 of 674 pages while reporting green.
-    The list is gone rather than updated — an updated second list is the same
-    bug with fresh paint. The build's own declaration is now the only authority,
-    and it fails closed if it ever resolves a collapsed set.
-    """
-    resolved = resolve_published_pages(docs_root=DOCS_DIR)
-    return sorted(REPO_ROOT / page for page in resolved.pages)
+    """Every published source page, per the doc-kitty contract."""
+    return sorted(DOCS_DIR / rel for rel in published_pages(DOCS_DIR))
 
 
 def _frontmatter(path: Path) -> dict[str, str]:
     """Parse ``path``'s front matter with the repository's canonical YAML reader.
 
-    This used to be a hand-rolled ``split(":", 1)`` loop — a *second* front
-    matter parser that disagreed with the one every other docs tool uses. It
-    kept the surrounding quotes on ``description: '…'`` (two phantom characters,
-    enough to push a valid 180-char description over the ceiling) and read past
-    the ``#`` that starts a YAML comment in an unquoted scalar. Both disagreements
-    are the same class of defect this module's page-set fix repairs: two answers
-    to one question. DocFX parses real YAML, so the gate must too.
+    A hand-rolled ``split(":", 1)`` loop once kept the quotes on ``description: '…'``
+    (two phantom characters) and read past a ``#`` comment in an unquoted scalar. The
+    site parses real YAML, so the check must too.
     """
     text = path.read_text(encoding="utf-8")
     assert FRONTMATTER_RE.match(text), f"{path.relative_to(REPO_ROOT)} must start with YAML front matter"
     return {key: value for key, value in parse_frontmatter(text).items() if isinstance(key, str) and isinstance(value, str)}
 
 
+def metadata_problem(metadata: dict[str, str]) -> str | None:
+    """Why *metadata* fails the published-page rule, or ``None`` when it passes."""
+    if not metadata.get("title"):
+        return "missing title"
+    description = metadata.get("description")
+    if not description:
+        return "missing description"
+    if not DESCRIPTION_SOFT_MIN <= len(description) <= DESCRIPTION_MAX:
+        return f"description length is off: {len(description)} (band {DESCRIPTION_SOFT_MIN}-{DESCRIPTION_MAX})"
+    return None
+
+
+def test_the_published_set_is_not_vacuous() -> None:
+    assert len(_published_markdown_files()) >= MINIMUM_PUBLISHED_PAGES
+
+
 @pytest.mark.parametrize("path", _published_markdown_files(), ids=lambda p: str(p.relative_to(REPO_ROOT)))
 def test_published_pages_have_title_and_description(path: Path) -> None:
-    metadata = _frontmatter(path)
-    assert metadata.get("title"), f"{path.relative_to(REPO_ROOT)} missing title"
-    description = metadata.get("description")
-    assert description, f"{path.relative_to(REPO_ROOT)} missing description"
-    assert MIN_DESCRIPTION_LENGTH <= len(description) <= MAX_DESCRIPTION_LENGTH, (
-        f"{path.relative_to(REPO_ROOT)} description length is off: {len(description)} (band {MIN_DESCRIPTION_LENGTH}-{MAX_DESCRIPTION_LENGTH})"
-    )
+    problem = metadata_problem(_frontmatter(path))
+    assert problem is None, f"{path.relative_to(REPO_ROOT)}: {problem}"
 
 
-def test_static_seo_files_exist() -> None:
-    for relative_path in ["robots.txt", "CNAME", ".nojekyll"]:
-        assert (DOCS_DIR / relative_path).is_file(), f"Missing docs/{relative_path}"
+@pytest.mark.parametrize(
+    ("metadata", "problem"),
+    [
+        ({"description": "d" * 100}, "missing title"),
+        ({"title": "T"}, "missing description"),
+        ({"title": "T", "description": "d" * (DESCRIPTION_SOFT_MIN - 1)}, "description length is off"),
+        ({"title": "T", "description": "d" * (DESCRIPTION_MAX + 1)}, "description length is off"),
+    ],
+)
+def test_the_rule_rejects_each_defect(metadata: dict[str, str], problem: str) -> None:
+    found = metadata_problem(metadata)
+    assert found is not None and found.startswith(problem)
 
 
-def test_seo_postprocess_injects_static_metadata(tmp_path: Path) -> None:
-    site = tmp_path / "_site"
-    site.mkdir()
-    html = """<!doctype html>
-<html>
-<head>
-  <title>Getting Started | Spec Kitty Documentation </title>
-  <meta name="description" content="Install Spec Kitty 3.2 and run a first mission.">
-</head>
-<body><h1>Getting Started</h1></body>
-</html>
-"""
-    (site / "index.html").write_text(html, encoding="utf-8")
-    nested = site / "how-to"
-    nested.mkdir()
-    (nested / "toc.html").write_text("<html><head><title>TOC</title></head><body></body></html>", encoding="utf-8")
-    # kitty-specs are dogfooded mission artifacts — internal, kept out of search
-    # indexing and the sitemap (should_index returns False for them).
-    spec_dir = site / "kitty-specs" / "065-x"
-    spec_dir.mkdir(parents=True)
-    (spec_dir / "spec.html").write_text(
-        "<html><head><title>Feature 065 | Spec Kitty Documentation</title>"
-        '<meta name="description" content="Mission 065 spec."></head>'
-        "<body><h1>Spec</h1></body></html>",
-        encoding="utf-8",
-    )
-
-    pages = seo_postprocess.process_html(site, "https://docs.spec-kitty.ai/", "assets/images/logo_small.webp")
-    seo_postprocess.write_sitemap(site, pages)
-    seo_postprocess.write_robots(site, "https://docs.spec-kitty.ai/")
-
-    rendered = (site / "index.html").read_text(encoding="utf-8")
-    assert '<link rel="canonical" href="https://docs.spec-kitty.ai/">' in rendered
-    assert 'property="og:title"' in rendered
-    assert 'name="twitter:card"' in rendered
-    assert "application/ld+json" in rendered
-
-    toc_rendered = (nested / "toc.html").read_text(encoding="utf-8")
-    assert 'name="robots" content="noindex, follow"' in toc_rendered
-
-    spec_rendered = (spec_dir / "spec.html").read_text(encoding="utf-8")
-    assert 'name="robots" content="noindex, follow"' in spec_rendered
-
-    sitemap = (site / "sitemap.xml").read_text(encoding="utf-8")
-    assert "https://docs.spec-kitty.ai/" in sitemap
-    assert "toc.html" not in sitemap
-    assert "kitty-specs" not in sitemap
-
-    robots = (site / "robots.txt").read_text(encoding="utf-8")
-    assert "Sitemap: https://docs.spec-kitty.ai/sitemap.xml" in robots
+def test_the_rule_accepts_a_described_page() -> None:
+    """Positive control on the same rule: in-band at both ends."""
+    assert metadata_problem({"title": "T", "description": "d" * DESCRIPTION_SOFT_MIN}) is None
+    assert metadata_problem({"title": "T", "description": "d" * DESCRIPTION_MAX}) is None
 
 
-def test_sitemap_lastmod_uses_utc_date_not_local(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """FR-011 (kernel-clock-single-door, WP14): ``write_sitemap``'s
-    ``lastmod`` date is the door's aware-UTC ``now_utc().date()``, not a
-    naive local ``date.today()``.
+def test_a_draft_page_without_a_description_is_not_in_the_published_set(tmp_path: Path) -> None:
+    """The set is the contract's: a draft is not published, an active page is."""
+    (tmp_path / "guides").mkdir()
+    (tmp_path / "guides" / "wip.md").write_text("---\ntitle: WIP\ndoc_status: draft\n---\n", encoding="utf-8")
+    (tmp_path / "guides" / "live.md").write_text("---\ntitle: Live\ndoc_status: active\n---\n", encoding="utf-8")
+    assert published_pages(tmp_path) == frozenset({"guides/live.md"})
 
-    Byte-changing: the pre-migration site called stdlib ``date.today()``
-    (the host's local calendar date); it now reads
-    ``now_utc().date().isoformat()``. Pinned under a frozen clock straddling
-    a UTC day boundary that is NOT the local day boundary (23:30 UTC on
-    2026-03-04): a host in a timezone west of UTC would still be on
-    2026-03-04 locally at this instant, but any host at UTC+1 or later has
-    already rolled to 2026-03-05 locally -- proving the date comes from the
-    frozen UTC clock, not ``date.today()``.
 
-    C-009 mutation verified: reverting the site to ``date.today().isoformat()``
-    would read the real host-local date instead of the frozen
-    ``2026-03-04`` and this assertion would fail.
-    """
-    import kernel.clock as clock_module
-    from kernel.clock import UTC, FrozenClock, datetime
-
-    frozen_instant = datetime(2026, 3, 4, 23, 30, 0, tzinfo=UTC)
-    monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=frozen_instant))
-
-    site = tmp_path / "_site"
-    site.mkdir()
-    page = seo_postprocess.Page(
-        path=site / "index.html",
-        relative_path="index.html",
-        title="Home",
-        description="Home page",
-        url="https://docs.spec-kitty.ai/",
-    )
-
-    seo_postprocess.write_sitemap(site, [page])
-
-    sitemap = (site / "sitemap.xml").read_text(encoding="utf-8")
-    assert "<lastmod>2026-03-04</lastmod>" in sitemap
+def test_static_site_files_exist() -> None:
+    """The custom domain and robots file ship from the site's ``public/`` folder."""
+    for name in ("robots.txt", "CNAME"):
+        assert (SITE_PUBLIC / name).is_file(), f"Missing site/public/{name}"
+    assert (SITE_PUBLIC / "CNAME").read_text(encoding="utf-8").strip() == "docs.spec-kitty.ai"

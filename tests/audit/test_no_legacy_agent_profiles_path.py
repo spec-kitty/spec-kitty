@@ -7,14 +7,14 @@ from pathlib import Path
 
 import pytest
 
-from tests._support.docfx_reports_guard import assert_docfx_does_not_publish_reports
+from tests._support.reports_unpublished_guard import assert_reports_unpublished
 
 pytestmark = [pytest.mark.integration]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGACY_DIRNAME = "agent" + "-" + "profiles"
 LEGACY_PATH = REPO_ROOT / "src" / "charter" / "offering" / LEGACY_DIRNAME
-DOCFX_CONFIG_PATH = REPO_ROOT / "docs" / "docfx.json"
+DOCS_ROOT = REPO_ROOT / "docs"
 
 # Scan roots and exclusions are all relative to the repository root, so the
 # scan can be pointed at a synthetic tmp_path tree as well as the real repo.
@@ -65,9 +65,9 @@ _EXCLUDED_FILES: frozenset[Path] = _GENERATED_EXCLUSIONS | _LEGITIMATE_LABEL_REF
 # the immutable-historical-snapshot classification in ARCHIVE_PATH_PREFIXES
 # (tests/architectural/test_no_dead_src_path_literals.py), pinned below by
 # test_snapshot_exclusions_stay_archive_classified. The exemption is only safe
-# while docfx never publishes docs/reports/ as live docs; that is asserted by
+# while the docsite never publishes docs/reports/ as live docs; that is asserted by
 # test_docs_reports_exemption_is_not_published_as_live_docs below through the
-# shared tests/_support/docfx_reports_guard.py implementation. Matching is a path-segment prefix anchored at the
+# shared tests/_support/reports_unpublished_guard.py implementation. Matching is a path-segment prefix anchored at the
 # repo root (Path.is_relative_to), never a substring match.
 # (This comment intentionally avoids the contiguous hyphenated literal so the
 # guard does not flag itself.)
@@ -188,11 +188,12 @@ def test_snapshot_exclusions_stay_archive_classified() -> None:
 
 
 def test_docs_reports_exemption_is_not_published_as_live_docs() -> None:
-    """The docs/reports/ exemption is only safe while docfx never publishes it.
+    """The docs/reports/ exemption is only safe while the docsite never publishes it.
 
     Mirrors the equivalent guards in tests/contract/test_terminology_guards.py
     and tests/specify_cli/cli/test_decision_command_shape_consistency.py; all
     of them call the single shared implementation in
-    tests/_support/docfx_reports_guard.py.
+    tests/_support/reports_unpublished_guard.py, which reads the docsite
+    contract (scripts/docs/_dockitty_contract.py).
     """
-    assert_docfx_does_not_publish_reports(DOCFX_CONFIG_PATH)
+    assert_reports_unpublished(DOCS_ROOT)

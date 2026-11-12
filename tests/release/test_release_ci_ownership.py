@@ -445,7 +445,8 @@ def test_docs_pages_probes_pages_before_it_builds_and_fails_transient_setup_erro
 # live site (#2361). These tests run the REAL `if:` conditions through a model of GitHub's job
 # scheduling (a job with no status function in its `if:` runs only when every job it needs
 # succeeded), so the deploy and the smoketest are judged on behaviour, not YAML text (#7484).
-# Rollback is reverting the cutover pull request (D-13 step 4), which restores the DocFX jobs.
+# The legacy generator is retired (#6943): rolling back to it means reverting that pull request
+# and the cutover (#7558); rolling forward is preferred (ADR 2026-10-31-1, Amendment 2026-11-12).
 
 _STATUS_CALL = re.compile(r"\b(?:always|cancelled|success|failure)\(\)")
 _DEPLOY_PAGES_PIN = "actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346"

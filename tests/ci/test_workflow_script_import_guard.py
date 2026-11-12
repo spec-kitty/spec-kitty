@@ -56,8 +56,8 @@ sys.path.insert(...)`` immediately followed by ``from scripts.x import y``) is
 still scanned: it is a sibling MODULE-level statement that runs unconditionally
 at import time, same as every guarded import in this repository's own fixed
 scripts (``fleet_verdict.py``, ``stale_running_sweep.py``,
-``wait_for_artifacts.py``, ``glossary_linker.py``, ``plantuml_render.py``,
-``seo_verify.py`` at the time this scoping was added).
+``wait_for_artifacts.py``, and three legacy docsite scripts retired since, #6943,
+at the time this scoping was added).
 
 The workflow-invoked candidate list is derived by parsing each workflow's YAML
 (``jobs.<job>.steps[].run``) with ``yaml.safe_load`` and scanning only those
@@ -109,8 +109,7 @@ write into.
 Every script in the ``scripts.*``-import-filtered set was individually audited
 for side effects under ``<abs path> --help`` with ``cwd=tmp_path`` (writes outside
 ``tmp_path``, including ``__file__``-anchored paths, and network access):
-- ``fleet_verdict.py``, ``stale_running_sweep.py``, ``glossary_linker.py``, and
-  ``seo_verify.py`` are all argparse-based; ``--help`` is handled by argparse's
+- ``fleet_verdict.py`` and ``stale_running_sweep.py`` are argparse-based; ``--help`` is handled by argparse's
   own built-in action, which prints usage and exits via ``SystemExit(0)`` before
   any of the script's real logic (file I/O, network) runs.
 - ``wait_for_artifacts.py`` has no argument parsing at all -- ``main()`` reads
@@ -120,17 +119,12 @@ for side effects under ``<abs path> --help`` with ``cwd=tmp_path`` (writes outsi
   own documented always-exit-0 handler (``except Exception`` -> prints one
   ``::error::`` line -> ``return 0``), before either of the module's later env
   reads or its ``GitHub`` API client is ever constructed.
-- ``plantuml_render.py`` also has no argparse handling: ``main()`` takes
-  ``args[0]`` (here the literal string ``"--help"``) as a relative ``site_dir``.
-  ``Path("--help").rglob("*.html")`` under ``cwd=tmp_path`` resolves to a
-  non-existent directory and yields zero matches (``pathlib`` does not raise for
-  a missing ``rglob`` root), so ``process_site`` writes nothing and never invokes
-  its PlantUML/network seam, which only runs per matched page.
-Every one of the six was additionally verified empirically (no new files outside
-its own ``tmp_path``, no non-empty stderr, exit 0) when this scoping was added --
+The legacy docsite scripts audited here when this scoping was added were retired
+with that site (#6943). Every audited script was additionally verified empirically
+(no new files outside its own ``tmp_path``, no non-empty stderr, exit 0) --
 observed under CI's installed venv. Under a *non-installed* interpreter a script
-may instead exit non-zero on a different transitive import (e.g. ``seo_verify.py``
--> ``kernel``); that is unrelated to this guard, whose sole assertion is the
+may instead exit non-zero on a different transitive import (e.g. one that imports
+``kernel``); that is unrelated to this guard, whose sole assertion is the
 absence of ``No module named 'scripts'``, so such a run neither passes nor fails
 it spuriously.
 """

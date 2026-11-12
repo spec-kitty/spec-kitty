@@ -98,4 +98,7 @@ def test_tooling_defaults_point_at_the_standing_ledger(monkeypatch: pytest.Monke
     monkeypatch.delenv("SPEC_KITTY_OCCURRENCE_MAP", raising=False)
     importlib.reload(bulk_ref_rewrite)
     assert rename_reconcile.DEFAULT_MOVES_LEDGER == "site/moves.yaml"
+    # The cross-check reads the docsite's own redirect map since the legacy map retired (#6943).
+    assert rename_reconcile.DEFAULT_REDIRECT_MAP == "site/legacy-redirects.json"
+    assert (Path(__file__).resolve().parents[2] / rename_reconcile.DEFAULT_REDIRECT_MAP).is_file()
     assert bulk_ref_rewrite.DEFAULT_OCCURRENCE_MAP == "site/moves.yaml"

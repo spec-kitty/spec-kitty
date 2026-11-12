@@ -452,8 +452,8 @@ def test_run_reconcile_end_to_end_with_fixtures(tmp_path: Path) -> None:
     )
     baseline = repo / "url-baseline.txt"
     baseline.write_text("/architecture/rogue.html\n/reference/cli.html\n", encoding="utf-8")
-    red = repo / "red.yaml"
-    red.write_text("reference/cli.html: api/cli.html\n", encoding="utf-8")
+    red = repo / "red.json"
+    red.write_text('{"/reference/cli.html": "/api/cli/"}\n', encoding="utf-8")
 
     report = rr.run_reconcile(
         base=base,

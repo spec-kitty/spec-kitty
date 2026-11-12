@@ -16,7 +16,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_docs_base_is_the_owned_docs_site() -> None:
-    cname = (_REPO_ROOT / "docs" / "CNAME").read_text(encoding="utf-8").strip()
+    cname = (_REPO_ROOT / "site" / "public" / "CNAME").read_text(encoding="utf-8").strip()
     assert urlsplit(DOCS_BASE_URL) == ("https", cname, "", "", "")
     assert cname.endswith("." + OWNED_DOMAIN)
 

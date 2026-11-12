@@ -4,47 +4,47 @@ The closed Common Docs Missions (``common-docs-structural-move-01KW3SBK``, then
 ``common-docs-convergence-01KZMTR9``) kept their redirects in Mission-scoped
 ``occurrence_map.yaml`` spines, re-collapsed by hand each time. Mission
 ``docsite-url-ledgers-01M6BRMR`` (#6927, absorbs #2358) moved that history into
-the standing, append-only ledger ``site/moves.yaml``; ``regenerate-map`` now
-derives ``redirect_map.yaml`` from it and collapses chains itself.
+the standing, append-only ledger ``site/moves.yaml``, and :func:`collapse` follows
+its chains. The doc-kitty generator ``scripts/docs/site_redirects.py`` writes the
+committed map ``site/legacy-redirects.json`` from it (#6933).
 
 These tests keep the historical guarantees, derived from the ledger:
 
 * :data:`FROZEN_PRIOR_REDIRECT_KEYS` is a frozen snapshot of the structural-move
-  Mission's 149 redirect keys. Every one must still be derived.
+  Mission's 149 redirect keys. Every one must still be derived, and still be a key
+  of the committed doc-kitty map.
 * The ``docs/archive`` -> ``docs/changelog`` twice-move stays composed: the
   ``1x``/``2x`` shadow URLs point at ``changelog/``, never at a dead ``archive/``.
 * :func:`test_empty_ledger_regresses_coverage` proves the reproduce-all assertion
   has teeth.
-* :func:`test_tool_default_is_the_standing_ledger` pins the closure of #2358: the
-  default input is ``site/moves.yaml``, not a Mission's occurrence map.
+* :func:`test_generator_default_is_the_standing_ledger` pins the closure of #2358:
+  the generator's input is ``site/moves.yaml``, not a Mission's occurrence map.
+
+Keys and values are in the ledger's legacy ``.html`` form without the leading slash,
+as the closed Missions recorded them.
 """
 
 from __future__ import annotations
 
+import json
+from collections.abc import Iterable
 from pathlib import Path
 
 import pytest
 
-import scripts.docs.redirect_stub_generator as generator
+import scripts.docs.site_redirects as generator
 from scripts.docs.moves_ledger import (
     DEFAULT_MOVES_LEDGER,
     Move,
-    derive_redirect_map,
+    collapse,
     load_moves,
 )
-from scripts.docs.redirect_stub_generator import (
-    DEFAULT_BASELINE,
-    check_coverage,
-    generate,
-    load_baseline,
-    load_redirect_map,
-)
 
-# Pure derivation + tmp_path staging — no git/subprocess. Fast developer shard.
+# Pure derivation, no git/subprocess. Fast developer shard.
 pytestmark = pytest.mark.fast
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_COMMITTED_REDIRECT_MAP = _REPO_ROOT / "scripts" / "docs" / "redirect_map.yaml"
+_COMMITTED_SITE_MAP = _REPO_ROOT / "site" / "legacy-redirects.json"
 
 
 # The 14 currently-live ``archive/*`` baseline pages the ``docs/archive`` ->
@@ -87,10 +87,10 @@ COMPOSED_SHADOW_KEYS = (
 )
 
 # Frozen snapshot of the closed common-docs-structural-move-01KW3SBK mission's 149
-# redirect_map.yaml keys. This is the historical coverage guarantee: every one of
-# these baseline URLs must keep resolving to a LIVE final destination after this
-# mission's moves. Frozen (not read from the committed map) so the guard stays
-# non-vacuous even after WP13 regenerates redirect_map.yaml to the 163-entry shape.
+# redirect keys (the legacy site's map, retired in #6943). This is the historical
+# coverage guarantee: every one of these baseline URLs must keep resolving to a LIVE
+# final destination. Frozen (not read from a committed map) so the guard stays
+# non-vacuous whatever the map's later shape.
 FROZEN_PRIOR_REDIRECT_KEYS: tuple[str, ...] = (
     "1x/artifacts-and-commands.html",
     "1x/branches-and-workspaces.html",
@@ -244,31 +244,12 @@ FROZEN_PRIOR_REDIRECT_KEYS: tuple[str, ...] = (
 )
 
 
-def _baseline() -> list[str]:
-    _, paths = load_baseline(DEFAULT_BASELINE)
-    return paths
-
-
-def _ledger_moves() -> list[Move]:
-    return load_moves(DEFAULT_MOVES_LEDGER)
+def _derive(moves: Iterable[Move]) -> dict[str, str]:
+    return {source.lstrip("/"): target.lstrip("/") for source, target in collapse(moves).items()}
 
 
 def _derived() -> dict[str, str]:
-    """Regenerate the redirect map from the standing moves ledger."""
-    return derive_redirect_map(_ledger_moves())
-
-
-def _stage_full_site(tmp_path: Path, baseline: list[str], derived: dict[str, str]) -> Path:
-    """Stage a ``_site`` where every redirect target and every un-redirected
-    baseline page is a live file — the post-move published tree."""
-    site = tmp_path / "_site"
-    targets = set(derived.values())
-    direct = set(baseline) - set(derived)
-    for rel in targets | direct:
-        page = site / rel
-        page.parent.mkdir(parents=True, exist_ok=True)
-        page.write_text("<html></html>", encoding="utf-8")
-    return site
+    return _derive(load_moves(DEFAULT_MOVES_LEDGER))
 
 
 # --- Frozen-snapshot integrity (anchors the non-vacuity of everything below) ---
@@ -277,11 +258,13 @@ def _stage_full_site(tmp_path: Path, baseline: list[str], derived: dict[str, str
 def test_frozen_snapshot_is_the_closed_mission_149_key_census() -> None:
     assert len(FROZEN_PRIOR_REDIRECT_KEYS) == 149
     assert len(set(FROZEN_PRIOR_REDIRECT_KEYS)) == 149  # (no duplicates)
-    # The frozen snapshot must match the closed mission's committed keys AT LEAST
-    # as a subset of what is committed today (WP13 only ever grows the map).
-    committed = load_redirect_map(_COMMITTED_REDIRECT_MAP)
-    assert committed, "committed redirect_map.yaml is empty — coverage denominator missing"
-    assert set(FROZEN_PRIOR_REDIRECT_KEYS) <= set(committed)
+
+
+def test_every_prior_redirect_is_a_key_of_the_committed_site_map() -> None:
+    committed = {key.lstrip("/") for key in json.loads(_COMMITTED_SITE_MAP.read_text(encoding="utf-8"))}
+    assert committed, "site/legacy-redirects.json is empty — coverage denominator missing"
+    missing = sorted(set(FROZEN_PRIOR_REDIRECT_KEYS) - committed)
+    assert missing == [], f"prior redirects with no stub on the doc-kitty site: {missing[:10]}"
 
 
 # --- The core guarantee: regen reproduces every prior baseline redirect ---
@@ -290,21 +273,16 @@ def test_frozen_snapshot_is_the_closed_mission_149_key_census() -> None:
 def test_regen_reproduces_every_prior_baseline_redirect() -> None:
     derived = _derived()
     missing = sorted(set(FROZEN_PRIOR_REDIRECT_KEYS) - set(derived))
-    assert missing == [], (
-        f"{len(missing)} prior baseline redirect(s) dropped by the collapsed spine "
-        f"(coverage regression, NFR-010): {missing[:10]}"
-    )
+    assert missing == [], f"{len(missing)} prior baseline redirect(s) dropped by the collapsed spine (coverage regression, NFR-010): {missing[:10]}"
 
 
 def test_regen_is_a_strict_superset_adding_new_archive_entries() -> None:
     derived = _derived()
-    # Strictly larger than the frozen prior set — this mission adds entries.
+    # Strictly larger than the frozen prior set — later Missions added entries.
     assert len(derived) > len(FROZEN_PRIOR_REDIRECT_KEYS)
     for key in NEW_ARCHIVE_TO_CHANGELOG_KEYS:
         assert key in derived, f"new archive->changelog redirect missing: {key}"
-        assert derived[key].startswith("changelog/"), (
-            f"{key} should redirect into changelog/, got {derived[key]}"
-        )
+        assert derived[key].startswith("changelog/"), f"{key} should redirect into changelog/, got {derived[key]}"
 
 
 def test_archive_twice_move_is_composed_to_changelog() -> None:
@@ -313,42 +291,8 @@ def test_archive_twice_move_is_composed_to_changelog() -> None:
     derived = _derived()
     for key in COMPOSED_SHADOW_KEYS:
         assert key in derived
-        assert derived[key].startswith("changelog/"), (
-            f"{key} still points at a dead archive/ target: {derived[key]}"
-        )
+        assert derived[key].startswith("changelog/"), f"{key} still points at a dead archive/ target: {derived[key]}"
         assert not derived[key].startswith("archive/")
-
-
-def test_non_archive_prior_values_are_stable() -> None:
-    """Every carried prior redirect whose target this mission does NOT relocate
-    keeps its exact destination (only the archive twice-move shifts values)."""
-    derived = _derived()
-    committed = load_redirect_map(_COMMITTED_REDIRECT_MAP)
-    for key in FROZEN_PRIOR_REDIRECT_KEYS:
-        expected = committed.get(key)
-        if expected is None or expected.startswith("archive/"):
-            continue  # archive-origin keys are intentionally composed to changelog/
-        assert derived[key] == expected, (
-            f"carried redirect {key} drifted: expected {expected}, got {derived[key]}"
-        )
-
-
-# --- NFR-010: no dead redirect targets on the built site ---
-
-
-def test_coverage_reports_zero_dead_targets(tmp_path: Path) -> None:
-    baseline = _baseline()
-    derived = _derived()
-    site = _stage_full_site(tmp_path, baseline, derived)
-
-    result = generate(derived, site)
-    assert result.dead_targets == [], (
-        f"redirect stubs point at missing targets (no-404 invariant): "
-        f"{result.dead_targets[:10]}"
-    )
-
-    uncovered = check_coverage(baseline, derived, site)
-    assert uncovered == [], f"uncovered baseline URLs (NFR-010): {uncovered[:10]}"
 
 
 # --- Teeth: the reproduce-all assertion is not vacuous ---
@@ -357,18 +301,15 @@ def test_coverage_reports_zero_dead_targets(tmp_path: Path) -> None:
 def test_empty_ledger_regresses_coverage() -> None:
     """With no ledger entries, the frozen prior redirects are NOT reproduced — proving
     :func:`test_regen_reproduces_every_prior_baseline_redirect` can actually fail."""
-    empty = derive_redirect_map([])
-    assert not set(FROZEN_PRIOR_REDIRECT_KEYS) <= set(empty)
+    assert not set(FROZEN_PRIOR_REDIRECT_KEYS) <= set(_derive([]))
 
 
-# --- #2358: the default input is the standing ledger, not a Mission's map ---
+# --- #2358: the generator's input is the standing ledger, not a Mission's map ---
 
 
-def test_tool_default_is_the_standing_ledger() -> None:
+def test_generator_default_is_the_standing_ledger() -> None:
     assert DEFAULT_MOVES_LEDGER.parts[-2:] == ("site", "moves.yaml")
-    module_strings = [
-        str(value) for value in vars(generator).values() if isinstance(value, (str, Path))
-    ]
-    assert not [value for value in module_strings if "kitty-specs" in value]
-    assert not hasattr(generator, "MISSION_SLUG")
+    module_paths = [value for value in vars(generator).values() if isinstance(value, Path)]
+    assert DEFAULT_MOVES_LEDGER in module_paths
+    assert not [value for value in module_paths if "kitty-specs" in value.parts]
     assert not hasattr(generator, "DEFAULT_OCCURRENCE_MAP")

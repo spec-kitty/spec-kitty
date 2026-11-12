@@ -3,8 +3,8 @@
 ``scripts/docs/site_built_check_render.py`` is a surface of the built-site check
 (``site_built_check.py``): every built HTML page carries a non-empty meta
 description, a canonical link equal to its own URL on https://docs.spec-kitty.ai,
-and ``og:title``, ``og:description`` and ``og:url`` (the tags DocFX's
-``seo_postprocess.py`` / ``seo_verify.py`` guarantee today), and no page shows a
+and ``og:title``, ``og:description`` and ``og:url`` (the tags the legacy site's SEO
+scripts guaranteed before they retired, #6943), and no page shows a
 literal GitHub alert marker (``[!NOTE]`` ...) outside code. A clean fixture build
 passes; each mutant fails, naming the page and the defect.
 """

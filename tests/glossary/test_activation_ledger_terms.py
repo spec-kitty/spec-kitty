@@ -3,9 +3,9 @@
 Regression guard for spec-kitty/spec-kitty#6562. `.kittify/charter/activation.yaml`
 became the single activation authority in #6496 (ADR `2026-10-19-1`), but the
 glossary seed and the built-in pack still described the pre-ledger location for
-`active charter` and carried no `activation ledger` term. The seed drives the
-published glossary page (``scripts/docs/generate_kitty_specs_docs.py``), so this
-test reads it directly.
+`active charter` and carried no `activation ledger` term. The seed is the
+glossary's source (it drove the legacy site's glossary page, retired in #6943;
+#6940 publishes it on the docsite), so this test reads it directly.
 
 The standing seed<->pack parity gate
 (``tests/architectural/test_glossary_pack_parity.py``) is the other half of the

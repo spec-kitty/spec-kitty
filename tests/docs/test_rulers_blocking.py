@@ -18,8 +18,8 @@ The non-uniform flip:
   ``ci/regen-docs-index`` bot pull request, so a branch is expected to lag it
   (the content check is ``test_docs_index_regenerates_cleanly.py``). The
   ``severity == "warning"`` + ``rc == 0`` assertions pin that demotion.
-* **Description gate** (NFR-003) and the **body-link gate** (WP18) are wired
-  blocking too; each reds on its seeded violation.
+* The **body-link gate** (WP18) is wired blocking too; it reds on its seeded
+  violation. (The description gate retired with the legacy site build, #6943.)
 
 Each clean-tree counterpart asserts the gate is **green** on a correct tree, so
 the RED is attributable to the seeded violation and not a perpetually-red gate.
@@ -27,9 +27,9 @@ the RED is attributable to the seeded violation and not a perpetually-red gate.
 **Diff-scope proof (#3147, WP02 T012).** The bottom section preserves the
 original diff-scoped ``--changed-from`` proof for R2 (related-validator) and
 the body-link gate through the SAME CLI path ``docs-freshness.yml`` invokes on
-``pull_request``, over real (throwaway) git repos. The sibling audience and
-description gates added to that wiring by #3316 carry the same four-case proof
-in ``test_audience_resolves.py`` and ``test_description_length_gate.py``.
+``pull_request``, over real (throwaway) git repos. The sibling audience gate
+added to that wiring by #3316 carries the same four-case proof in
+``test_audience_resolves.py``.
 Per B-WP02 in
 ``kitty-specs/ci-scoping-gate-reliability-01KZP80D/investigate-squad-findings.md``
 this is a **four**-case proof, not three — the fourth (resolved-zero-docs) is
@@ -53,12 +53,8 @@ from typing import Final
 import pytest
 
 from scripts.docs import check_docs_freshness as orchestrator
-from scripts.docs import description_length_check as desc_gate
 from scripts.docs import related_validator
 from scripts.docs import relative_link_fixer
-from scripts.docs._published_pages import (
-    MINIMUM_EXPECTED_PAGES as _MINIMUM_EXPECTED_PAGES,
-)
 from tests.docs.conftest import (
     commit_all_changes,
     init_git_repo_with_base,
@@ -67,9 +63,6 @@ from tests.docs.conftest import (
 _REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 
 pytestmark = pytest.mark.architectural
-
-_GOOD_ADR: Final[str] = "---\ntitle: Example Decision\nstatus: Accepted\ndate: 2026-06-27\n---\n\n# Example Decision\n\nBody.\n"
-_GOOD_DESC: Final[str] = "x" * 100
 
 
 def _write(path: Path, text: str = "# stub\n") -> None:
@@ -206,77 +199,10 @@ def test_r3_lockfile_drift_is_reported_as_a_warning(tmp_path: Path, monkeypatch:
 
 
 # --------------------------------------------------------------------------- #
-# Description gate (NFR-003) + body-link gate (WP18): blocking on their classes
+# Body-link gate (WP18): blocking on its class. (The description gate retired
+# with the legacy site build, #6943: doc-kitty's frontmatter validation enforces
+# the description band in the docsite build.)
 # --------------------------------------------------------------------------- #
-
-
-def _stage_published_docs(root: Path, pages: dict[str, str]) -> Path:
-    """Stage a ``docs`` tree the description gate will accept as published.
-
-    The gate resolves its page set from ``docfx.json`` and refuses any set below
-    the non-vacuity floor — a gate validating a handful of pages is exactly the
-    silent under-collection it exists to prevent, so there is deliberately no
-    override. Filler pages carry distinct in-band descriptions so the only
-    violation is the seeded one, keeping each RED attributable.
-    """
-    docs = root / "docs"
-    docs.mkdir(parents=True, exist_ok=True)
-    (docs / "docfx.json").write_text(
-        json.dumps({"build": {"content": [{"files": ["**.md"], "exclude": ["**/_*.md"]}]}}),
-        encoding="utf-8",
-    )
-    for index in range(_MINIMUM_EXPECTED_PAGES + 20):
-        _write(
-            docs / "filler" / f"page_{index:05d}.md",
-            f'---\ndescription: "Filler page {index:05d} {"y" * 60}"\n---\n# Filler\n',
-        )
-    for relative, text in pages.items():
-        _write(docs / relative, text)
-    return docs
-
-
-def test_description_gate_reds_on_out_of_band(tmp_path: Path) -> None:
-    root = tmp_path / "repo"
-    docs = _stage_published_docs(root, {"short.md": f'---\ndescription: "{"x" * 49}"\n---\n# Short\n'})
-    assert desc_gate.main(["--docs-root", str(docs), "--repo-root", str(root), "--strict"]) == 1
-
-
-def test_description_gate_green_on_in_band(tmp_path: Path) -> None:
-    root = tmp_path / "repo"
-    docs = _stage_published_docs(root, {"ok.md": f'---\ndescription: "{_GOOD_DESC}"\n---\n# OK\n'})
-    assert desc_gate.main(["--docs-root", str(docs), "--repo-root", str(root), "--strict"]) == 0
-
-
-def test_description_gate_covers_adrs(tmp_path: Path) -> None:
-    """ADRs are in scope: a bare-``status`` ADR body now reds the gate.
-
-    This assertion is the exact inverse of the one it replaces. The gate used to
-    exclude ``docs/adr/`` wholesale, justified by a byte-identity
-    content-invariance proof (C-002) that was itself retired upstream on
-    2026-06-29 (``ccd278061``). With that rationale expired and descriptions
-    backfilled across the ADR tree, an ADR *without* one is a violation like any
-    other published page.
-    """
-    root = tmp_path / "repo"
-    docs = _stage_published_docs(root, {"adr/3.x/2026-06-27-1-x.md": _GOOD_ADR})
-    assert desc_gate.main(["--docs-root", str(docs), "--repo-root", str(root), "--strict"]) == 1
-
-
-def test_description_gate_green_when_adrs_are_described(tmp_path: Path) -> None:
-    """The counterpart green: a described ADR does not red the gate."""
-    root = tmp_path / "repo"
-    described = _GOOD_ADR.replace("status: Accepted", f'status: Accepted\ndescription: "{_GOOD_DESC}"')
-    docs = _stage_published_docs(root, {"adr/3.x/2026-06-27-1-x.md": described})
-    assert desc_gate.main(["--docs-root", str(docs), "--repo-root", str(root), "--strict"]) == 0
-
-
-def test_description_gate_reds_on_an_empty_page_set(tmp_path: Path) -> None:
-    """A gate that resolves no pages fails — it never reports a vacuous green."""
-    root = tmp_path / "repo"
-    docs = root / "docs"
-    docs.mkdir(parents=True)
-    (docs / "docfx.json").write_text(json.dumps({"build": {"content": [{"files": ["nowhere/**.md"]}]}}), encoding="utf-8")
-    assert desc_gate.main(["--docs-root", str(docs), "--repo-root", str(root)]) != 0
 
 
 def test_body_link_gate_reds_on_dead_link(tmp_path: Path) -> None:

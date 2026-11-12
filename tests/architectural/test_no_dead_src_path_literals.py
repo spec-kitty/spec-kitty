@@ -22,10 +22,10 @@ contain what it names.
 
 Scope decisions (read before "why doesn't this catch X")
 --------------------------------------------------------
-* **Markdown only** (``docs/**/*.md``). The derived/generated non-prose
-  artifacts — ``toc.yml``, ``docs/api/toc.yml``, ``llms.txt``, the docfx config
-  — are regenerated, never hand-edited, and are out of scope for the same
-  reason Gate D excludes the generated retrieval index.
+* **Markdown only** (``docs/**/*.md``). Non-prose artifacts (once the
+  navigation files and the legacy site configuration, retired with that site in
+  #6943) are out of scope for the same reason Gate D excludes the generated
+  retrieval index.
 * **Archived/frozen subtrees are excluded wholesale**, each for the same
   reason Gate D excludes ``docs/adr`` and ``docs/plans``: an ADR, a plan, a
   changelog entry, a test-sanitation report, a migration note, or a convergence
