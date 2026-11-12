@@ -137,21 +137,21 @@ def test_unchanged_record_creates_no_commit(tmp_path: Path, monkeypatch: pytest.
     assert _route(meta_path) == ("p0", None, False)
 
 
-def test_primary_ref_reaches_both_router_commits(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(("kwarg", "value"), [("primary_ref", "topic"), ("owned", object())], ids=["primary_ref", "owned_fact"])
+def test_placement_inputs_reach_both_router_commits(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, kwarg: str, value: Any) -> None:
+    """The acceptance commit and the stamp commit both resolve placement against the same ref / owned fact."""
     meta_path = _meta(tmp_path)
-    seen: list[dict[str, Any]] = []
+    seen: list[Any] = []
 
     def _record(*_a: object, **kwargs: Any) -> CommitRouterResult:
-        seen.append(kwargs)
+        seen.append(kwargs[kwarg])
         return CommitRouterResult(status="committed", placement_ref="topic", commit_hash="abc1234")
 
     monkeypatch.setattr(_ROUTER, _record)
-    result = _commit_acceptance_meta_via_router(
-        repo_root=tmp_path, mission_slug="m", meta_path=meta_path, policy=_Policy(), parent_commit="p0", primary_ref="topic"
-    )
+    result = _commit_acceptance_meta_via_router(repo_root=tmp_path, mission_slug="m", meta_path=meta_path, policy=_Policy(), parent_commit="p0", **{kwarg: value})
 
     assert result == ("p0", "abc1234", True)
-    assert [call["primary_ref"] for call in seen] == ["topic", "topic"]
+    assert seen == [value, value]
     assert json.loads(meta_path.read_text(encoding="utf-8"))["accept_commit"] == "abc1234"
 
 
@@ -254,22 +254,6 @@ def test_accept_command_renders_the_refusal(tmp_path: Path, monkeypatch: pytest.
 # ---------------------------------------------------------------------------
 # Review folds: owned fact reaches the router; the second commit is best-effort
 # ---------------------------------------------------------------------------
-
-
-def test_owned_fact_reaches_both_router_commits(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The commit resolves its placement against the owned fact the record was written with."""
-    meta_path = _meta(tmp_path)
-    owned = object()
-    seen: list[Any] = []
-
-    def _record(*_a: object, **kwargs: Any) -> CommitRouterResult:
-        seen.append(kwargs["owned"])
-        return CommitRouterResult(status="committed", placement_ref="topic", commit_hash="abc1234")
-
-    monkeypatch.setattr(_ROUTER, _record)
-    _commit_acceptance_meta_via_router(repo_root=tmp_path, mission_slug="m", meta_path=meta_path, policy=_Policy(), parent_commit="p0", owned=cast("Any", owned))
-
-    assert seen == [owned, owned]
 
 
 def test_failed_accept_commit_stamp_only_warns(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
