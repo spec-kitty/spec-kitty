@@ -141,6 +141,16 @@ class TestMissFrame:
 
         assert _miss_frame(root / "src", root, "src/", None) == ("src/", None)
 
+    def test_nested_project_root_keeps_its_project_frame(self, tmp_path: Path) -> None:
+        """A project root nested in a checkout, Mission under it: rendered exactly as before (no reframe)."""
+        checkout = tmp_path / "monorepo"
+        (checkout / ".git").mkdir(parents=True)
+        project_root = checkout / "service"
+        feature_dir = project_root / "kitty-specs" / _SLUG
+        feature_dir.mkdir(parents=True)
+
+        assert _miss_frame(feature_dir / "contracts", project_root, "contracts/", feature_dir) == (f"kitty-specs/{_SLUG}/contracts/", None)
+
     def test_outside_every_checkout_falls_back_to_the_absolute_path(self, tmp_path: Path) -> None:
         root, _holder = _repo_with_linked_holder(tmp_path)
         loose = tmp_path / "elsewhere" / "kitty-specs" / _SLUG
