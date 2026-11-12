@@ -558,11 +558,11 @@ def _is_other_mission_path(path: str, context: ResidueContext) -> bool:
     ``--untracked-files=all`` and never see that shape; keeping the answer
     ``False`` keeps their behaviour unchanged.
     """
-    after = mission_dir_segments(path)
-    if after is not None and len(after) < 2 and derived_view_mission_dir(path) is None:
+    after = mission_dir_segments(path, anywhere=True)
+    if after is not None and len(after) < 2 and derived_view_mission_dir(path, anywhere=True) is None:
         return False
     own = context.mission_dir_names or {context.mission_slug}
-    return classify_dirt(path, own_dir_names=own) is DirtScope.OTHER_MISSION
+    return classify_dirt(path, own_dir_names=own, anywhere=True) is DirtScope.OTHER_MISSION
 
 
 def _is_disposable_residue(path: str | Path, context: ResidueContext) -> bool:
