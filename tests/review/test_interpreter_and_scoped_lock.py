@@ -70,9 +70,17 @@ def test_uv_present_and_pyproject_present_resolves_to_uv_run(
     project, requesting the declared test extra/group (if any) so pytest exists."""
     (tmp_path / "pyproject.toml").write_text(pyproject, encoding="utf-8")
     (tmp_path / "uv.lock").touch()
-    monkeypatch.setattr(_interpreter.shutil, "which", lambda name, path=None: "/usr/bin/uv" if name == "uv" else None)
+    run_path = "/sentinel/run/path"
+    monkeypatch.setattr(
+        _interpreter.shutil,
+        "which",
+        lambda name, path=None: "/usr/bin/uv" if name == "uv" and path == run_path else None,
+    )
+    # uv is looked up on the run's PATH, not this process's: another PATH falls back.
+    other = resolve_pytest_command(["-q"], repo_root=tmp_path, path="/elsewhere")
+    assert other == [sys.executable, "-m", "pytest", "-q"]
 
-    command = resolve_pytest_command(["--junitxml=out.xml", "-q"], repo_root=tmp_path)
+    command = resolve_pytest_command(["--junitxml=out.xml", "-q"], repo_root=tmp_path, path=run_path)
 
     assert command == [
         "uv",

@@ -576,3 +576,10 @@ def test_recorded_foreign_probe_carries_no_machine_paths(scratch_project: Scratc
     assert str(tmp_path) not in json.dumps(outside.to_dict())
     assert outside.interpreter is not None
     assert outside.interpreter.startswith("<external>/")
+    # A reason is redacted in text: an out-of-repo absolute path is reduced, a relative one is untouched.
+    noisy = dataclasses.replace(probe, reason="foreign at /opt/someone/home/pkg and a/b kept")
+    redacted = capture_evidence_tree(scratch_project.lane, noisy, repo_root=tmp_path).probe.reason
+    assert redacted is not None
+    assert "/opt/someone" not in redacted
+    assert "<external>/home/pkg" in redacted
+    assert "a/b kept" in redacted
