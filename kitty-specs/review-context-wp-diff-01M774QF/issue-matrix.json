@@ -157,7 +157,7 @@
       "wp": null
     },
     "#7578": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Delivered by this Mission (WP01-WP07); see PR",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -165,7 +165,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "in-mission",
       "wp": null
     }
   },
