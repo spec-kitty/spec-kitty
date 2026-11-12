@@ -2112,8 +2112,10 @@ def _build_acceptance_instructions(
         if is_integration_branch and lands_by_consolidation:
             # #6450 (6): a coordination-bearing Mission is landed by consolidate; the
             # coordination branch is internal, so there is no pull request to open.
+            # #7599 fold: name the branch the record was committed to, or none.
+            recorded = "Acceptance passed." if record_branch is None else f"Acceptance recorded on `{record_branch}`."
             instructions.append(
-                f"Acceptance recorded on `{branch}`. This Mission lands through "
+                f"{recorded} This Mission lands through "
                 f"`spec-kitty consolidate --mission {summary.feature}`; its coordination "
                 f"branch is internal and that command lands it."
             )
