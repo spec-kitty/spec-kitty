@@ -169,7 +169,7 @@
       "wp": null
     },
     "#7595": {
-      "evidence_ref": "WP04 target helpers through the seam (folded, operator ruling)",
+      "evidence_ref": "WP04 efd28e18 (target helpers via read_dir_for); red fecab414",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -177,7 +177,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP04"
     },
     "#7598": {
