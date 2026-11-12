@@ -137,7 +137,9 @@ def test_unknown_gap_renders_its_value() -> None:
 
 
 def test_no_owned_files_is_unscoped_and_has_no_outside_line_golden() -> None:
-    unscoped = _range(owned_pathspecs=(), out_of_map=(), out_of_map_only_commits=0)
+    """Re-pin (#7578, DIRECTIVE_041): the unscoped commands now carry the commit list's own pathspecs (``.`` plus the bookkeeping excludes)."""
+    bookkeeping = (":(exclude)kitty-specs/m/status.*", ":(exclude).kittify/*")
+    unscoped = _range(owned_pathspecs=(), out_of_map=(), out_of_map_only_commits=0, bookkeeping_pathspecs=bookkeeping)
 
     lines = render_review_context(unscoped, ())
 
@@ -148,8 +150,9 @@ def test_no_owned_files_is_unscoped_and_has_no_outside_line_golden() -> None:
         "  tip:  bbbbbbbbbbbb (for_review submission)",
     ]
     assert not [line for line in lines if "OUTSIDE OWNED FILES" in line]
-    assert f"  git log --oneline {BASE}..{TIP}" in lines
-    assert f"  git diff {BASE}..{TIP}" in lines
+    scope = "-- . ':(exclude)kitty-specs/m/status.*' ':(exclude).kittify/*'"
+    assert f"  git log --oneline {BASE}..{TIP} {scope}" in lines
+    assert f"  git diff {BASE}..{TIP} {scope}" in lines
 
 
 def test_binary_file_golden() -> None:

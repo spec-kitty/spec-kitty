@@ -24,6 +24,7 @@ import pytest
 
 from kernel.git import GitCommandError
 from specify_cli.lanes.claim_base import record_claim_base
+from specify_cli.lanes.for_review_gate import status_only_excluded_prefixes
 from specify_cli.review import wp_range
 from specify_cli.review.wp_range import FileChange, RangeCommit, RangeSource, RangeStatus, WpReviewRange, resolve_wp_review_range
 from tests.consolidation import characterization_support as cs
@@ -572,14 +573,16 @@ def test_no_owned_files_leaves_the_range_unscoped(sb_templates: _SingleBranchTem
 
 def test_mission_dir_ownership_excludes_mission_bookkeeping(sb_templates: _SingleBranchTemplates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     m = _checkout(sb_templates.get("minted+submitted"), tmp_path, monkeypatch)
+    """Re-pin (#7578, DIRECTIVE_041): an owned glob gets an exclude for each bookkeeping prefix it can reach, and only those."""
     root = f"kitty-specs/{m.slug}/"
-    excludes = (f":(exclude){root}tasks/**", f":(exclude){root}tasks.md", f":(exclude){root}{_EVENTS}", f":(exclude){root}status.json")
+    mission_bookkeeping = (*(prefix for prefix in status_only_excluded_prefixes(m.slug) if prefix.startswith(root)), f"{root}tasks.md")
+    excludes = tuple(f":(exclude){prefix}*" for prefix in mission_bookkeeping)
 
     research = _resolve_sb(m, owned=(f"{root}research/**",))
     whole_dir = _resolve_sb(m, owned=(f"{root}**",))
     code_only = _resolve_sb(m)
 
-    assert research.owned_pathspecs == (f"{root}research/**", *excludes)
+    assert research.owned_pathspecs == (f"{root}research/**",)
     assert whole_dir.owned_pathspecs == (f"{root}**", *excludes)
     assert not [subject for subject in _subjects(whole_dir) if subject.startswith(_BOOKKEEPING_PREFIX)]
     assert code_only.owned_pathspecs == _M1
