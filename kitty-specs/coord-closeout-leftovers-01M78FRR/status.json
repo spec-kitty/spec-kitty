@@ -1,7 +1,7 @@
 {
-  "event_count": 39,
-  "last_event_id": "01M78S76ANBJ4EW21DJ7R0M49P",
-  "materialized_at": "2026-11-12T21:04:33.621416+00:00",
+  "event_count": 41,
+  "last_event_id": "01M78S8PMNQ7H4KQNHH6N8B4VZ",
+  "materialized_at": "2026-11-12T21:05:22.167873+00:00",
   "mission_number": "",
   "mission_slug": "coord-closeout-leftovers-01M78FRR",
   "mission_type": "software-dev",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 2,
     "in_review": 0,
-    "planned": 2
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
@@ -95,11 +95,20 @@
       }
     },
     "WP03": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M78GQC1XFJ9RB5GDGE0723TA",
-      "last_transition_at": "2026-11-12T18:36:06.589922+00:00"
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M78S8PMNQ7H4KQNHH6N8B4VZ",
+      "last_transition_at": "2026-11-12T21:05:22.167873+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 16343,
+      "shell_pid_created_at": "1794517497.48"
     },
     "WP04": {
       "actor": "claude",
