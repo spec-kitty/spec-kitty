@@ -260,7 +260,7 @@ def test_primary_commit_root_returns_callers_root_when_seam_names_main_root(tmp_
 
     for _ in range(2):
         checkout = commit_router._primary_commit_root(tmp_path, "m", kind=MissionArtifactKind.SPEC, write_dirs=memo, label=Path("x"))
-        assert checkout is tmp_path
+        assert checkout == (tmp_path, False)
     assert calls == [MissionArtifactKind.SPEC], "one seam lookup per kind per batch"
 
 
@@ -271,7 +271,7 @@ def test_primary_commit_root_returns_holder_away_from_main_root(tmp_path: Path, 
 
     checkout = commit_router._primary_commit_root(tmp_path, "m", kind=MissionArtifactKind.TRACER_FILE, write_dirs={}, label=Path("x"))
 
-    assert checkout == holder
+    assert checkout == (holder, True)
 
 
 def test_primary_commit_paths_without_files_stays_at_root(tmp_path: Path) -> None:
