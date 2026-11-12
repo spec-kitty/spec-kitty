@@ -379,12 +379,17 @@ def _miss_frame(full_path: Path, project_root: Path, relative_path: str, holding
     project root -- e.g. the coordination worktree of a settled Mission -- the path
     is shown relative to that checkout, and the checkout is returned so the
     message can name the location actually tested (#3085a). Otherwise the path
-    keeps its project-relative frame.
+    keeps its project-relative frame, including a project root nested inside a
+    checkout whose Mission sits under it: there the holding checkout is the one
+    that contains the project root, so nothing is reframed.
     """
+    # The validator has no Mission slug or placement seam, so it asks the kernel primitive directly.
     checkout = checkout_root_containing(holding_from) if holding_from is not None else None
-    if checkout is not None and checkout != project_root.resolve() and full_path.resolve().is_relative_to(checkout):
-        return _display_path(full_path.resolve(), checkout, relative_path), checkout
-    return _display_path(full_path, project_root, relative_path), None
+    if checkout is None or not full_path.resolve().is_relative_to(checkout):
+        return _display_path(full_path, project_root, relative_path), None
+    if checkout in (project_root.resolve(), checkout_root_containing(project_root)):
+        return _display_path(full_path, project_root, relative_path), None
+    return _display_path(full_path.resolve(), checkout, relative_path), checkout
 
 
 def validate_mission_paths(
