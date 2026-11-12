@@ -46,7 +46,9 @@ import pytest
 from specify_cli.lanes.persistence import read_lanes_json, write_lanes_json
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
+from specify_cli.status.models import Lane, StatusEvent
 from tests._factories import provision_test_charter
+from tests._support.status_seed import seed_status_event
 from tests.consolidation import characterization_support as cs
 from tests.integration import single_branch_window_support as sb
 from tests.terminus.canceled_dependency_support import ACTOR, _approve, _commit_in
@@ -59,6 +61,7 @@ from tests.terminus.conftest import (
     _write_meta,
     pin_planning_commit,
 )
+from tests.terminus.lanes_fixture import build_lanes_mission
 from tests.terminus.mixed_lane_support import transition
 
 __all__ = [
@@ -78,6 +81,7 @@ __all__ = [
     "run_printed_command",
     "snapshot_tree",
     "strip_single_branch_stamps",
+    "submitted_planning_lane_wp",
     "strip_stamps",
 ]
 
@@ -327,6 +331,80 @@ def recorded_window_ends(events_log: Path, wp_id: str = REVIEWED_WP) -> tuple[st
 
 def _write_rows(log: Path, rows: list[dict[str, Any]]) -> None:
     log.write_text("".join(json.dumps(row, sort_keys=True) + "\n" for row in rows), encoding="utf-8")
+
+
+# --------------------------------------------------------------------------- planning lane (operator ruling Q10)
+
+
+_PLANNING_WP = "WP02"
+_PLANNING_AT = {
+    Lane.CLAIMED: "2026-11-12T00:00:01+00:00",
+    Lane.IN_PROGRESS: "2026-11-12T00:00:02+00:00",
+    Lane.FOR_REVIEW: "2026-11-12T00:00:03+00:00",
+}
+
+
+@dataclass(frozen=True)
+class PlanningLaneSubmission:
+    """A submitted planning-lane work package of a ``lanes`` Mission and the commits its derived range reads."""
+
+    repo: Path
+    slug: str
+    wp_id: str
+    owned_files: tuple[str, ...]
+    claim: str
+    work: str
+    work_path: str
+    tip: str
+
+
+def _seed_planning_event(repo: Path, feature_dir: Path, slug: str, from_lane: Lane, to_lane: Lane) -> str:
+    """Append one unstamped planning-WP transition to the repository root log and commit it alone (as ``move-task`` does)."""
+    seed_status_event(
+        feature_dir,
+        StatusEvent(
+            event_id=f"01M77Q10{to_lane.value.upper().replace('_', '')}".ljust(26, "A")[:26],
+            mission_slug=slug,
+            wp_id=_PLANNING_WP,
+            from_lane=from_lane,
+            to_lane=to_lane,
+            at=_PLANNING_AT[to_lane],
+            actor="tester",
+            force=True,
+            execution_mode="direct_repo",
+        ),
+    )
+    cs._git(repo, "add", "-A", "kitty-specs")
+    cs._git(repo, "commit", "-qm", f"chore(spec-kitty): {_PLANNING_WP} {to_lane.value}")
+    return cs._git(repo, "rev-parse", "HEAD")
+
+
+def submitted_planning_lane_wp(tmp_path: Path) -> PlanningLaneSubmission:
+    """A ``lanes`` Mission whose planning-lane WP02 is claimed, commits its research on the target and is submitted.
+
+    The planning lane is never stamped (C-009), so none of WP02's events carries a stamp; each
+    transition is committed alone on the target branch, where the planning work lands too.
+    """
+    mission = build_lanes_mission(tmp_path, wps=("WP01",), with_planning_lane_wp=True, approve_planning_wp=False, mid8="01M77Q10")
+    claim = _seed_planning_event(mission.repo, mission.feature_dir, mission.slug, Lane.PLANNED, Lane.CLAIMED)
+    work_path = f"kitty-specs/{mission.slug}/research/{_PLANNING_WP}.md"
+    (mission.repo / work_path).parent.mkdir(parents=True, exist_ok=True)
+    (mission.repo / work_path).write_text(f"# {_PLANNING_WP} research\n", encoding="utf-8")
+    cs._git(mission.repo, "add", "-A", "kitty-specs")
+    cs._git(mission.repo, "commit", "-qm", f"docs: {_PLANNING_WP} research")
+    work = cs._git(mission.repo, "rev-parse", "HEAD")
+    _seed_planning_event(mission.repo, mission.feature_dir, mission.slug, Lane.CLAIMED, Lane.IN_PROGRESS)
+    tip = _seed_planning_event(mission.repo, mission.feature_dir, mission.slug, Lane.IN_PROGRESS, Lane.FOR_REVIEW)
+    return PlanningLaneSubmission(
+        repo=mission.repo,
+        slug=mission.slug,
+        wp_id=_PLANNING_WP,
+        owned_files=(f"kitty-specs/{mission.slug}/research/**",),
+        claim=claim,
+        work=work,
+        work_path=work_path,
+        tip=tip,
+    )
 
 
 # --------------------------------------------------------------------------- single_branch builders
