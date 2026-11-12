@@ -24,6 +24,18 @@
       "verdict": "in-mission",
       "wp": "WP03"
     },
+    "#5668": {
+      "evidence_ref": "Context only: cited in WP prompts as existing behaviour; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Approval stamp bounds the approved claim (ADR context)",
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#5721": {
       "evidence_ref": "Refs only: consolidation side is out of scope (C-004); the --force route stays a documented residual",
       "fr": null,
