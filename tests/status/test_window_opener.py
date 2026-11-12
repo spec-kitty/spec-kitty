@@ -1,4 +1,4 @@
-"""The window opener reader (Mission consolidation-window-provenance-01M6Y84D, WP08).
+"""The window opener reader.
 
 ``window_opener_events`` picks the events that may open a work package's window;
 ``window_open_of`` binds one of them to ``WindowOpen`` or a typed ``WindowGap``
@@ -15,7 +15,6 @@ from typing import Any
 
 import pytest
 
-from specify_cli.consolidation.wp_attribution import approval_window_open_stamp
 from specify_cli.status import (
     Lane,
     OpenerSelection,
@@ -433,32 +432,3 @@ def test_forced_approval_without_opener_is_not_recorded(ids: _Counter) -> None:
     ]
     assert _open(events) == WindowGap(WindowGapReason.NOT_RECORDED)
     assert window_opener_events(events, "WP01", cycle=True) == OpenerSelection(candidates=(), skipped=())
-
-
-def _stamped(ids: _Counter, from_lane: Lane, to_lane: Lane, stamp: str | None, **kwargs: Any) -> StatusEvent:
-    event = _event(ids, "WP01", from_lane, to_lane, **kwargs)
-    metadata = dict(event.policy_metadata or {})
-    if stamp is not None:
-        metadata["lane_head"] = stamp
-    return replace(event, policy_metadata=metadata or None)
-
-
-def test_approval_window_open_stamp_unchanged_first_claim_rule(ids: _Counter) -> None:
-    rewound = [
-        _stamped(ids, Lane.PLANNED, Lane.BLOCKED, SHA_X),
-        _stamped(ids, Lane.BLOCKED, Lane.CLAIMED, SHA_A, window=branch_missing()),
-        _stamped(ids, Lane.CLAIMED, Lane.PLANNED, SHA_A),
-        _stamped(ids, Lane.PLANNED, Lane.CLAIMED, SHA_C),
-    ]
-    # cycle=False: the first claim ever, even after a rewind, and no lane_branch_missing skip
-    assert approval_window_open_stamp(rewound, "WP01") == SHA_A
-    selection = window_opener_events(rewound, "WP01", cycle=False)
-    assert selection.skipped_branch_missing == 0
-    assert [event.to_lane for event in selection.candidates] == [Lane.CLAIMED, Lane.CLAIMED]
-    # an unstamped first claim is never stood in for by a later stamped one
-    unstamped_first = [_stamped(ids, Lane.PLANNED, Lane.CLAIMED, None), _stamped(ids, Lane.CLAIMED, Lane.IN_PROGRESS, SHA_B)]
-    assert approval_window_open_stamp(unstamped_first, "WP01") is None
-    # migration seeds and other work packages never count; no entry at all is None
-    migrated = [_stamped(ids, Lane.PLANNED, Lane.CLAIMED, SHA_X, actor="migration:seed"), _stamped(ids, Lane.CLAIMED, Lane.IN_PROGRESS, SHA_B)]
-    assert approval_window_open_stamp(migrated, "WP01") == SHA_B
-    assert approval_window_open_stamp(migrated, "WP02") is None

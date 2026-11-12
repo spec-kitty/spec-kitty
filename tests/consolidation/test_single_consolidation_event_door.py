@@ -47,9 +47,19 @@ def _raw_calls(source: str) -> list[str]:
     return names
 
 
+def _raw_imports(source: str) -> list[str]:
+    """The ``read_events*`` names *source* imports (covers aliasing and passing the function as a value)."""
+    return [alias.name for node in ast.walk(ast.parse(source)) if isinstance(node, ast.ImportFrom) for alias in node.names if alias.name in _RAW_READERS]
+
+
 def _files_with_raw_calls() -> dict[str, list[str]]:
-    found = {path.name: _raw_calls(path.read_text(encoding="utf-8")) for path in sorted(_CONSOLIDATION.glob("*.py"))}
-    return {name: calls for name, calls in found.items() if calls}
+    found: dict[str, list[str]] = {}
+    for path in sorted(_CONSOLIDATION.rglob("*.py")):
+        source = path.read_text(encoding="utf-8")
+        uses = _raw_calls(source) + _raw_imports(source)
+        if uses:
+            found[path.name] = uses
+    return found
 
 
 def test_raw_event_readers_are_the_door_or_allowlisted() -> None:
@@ -70,3 +80,18 @@ def test_the_scanner_sees_a_raw_call() -> None:
     assert _raw_calls("def f(d):\n    return read_events(d)\n") == ["read_events"]
     assert _raw_calls("def f(d):\n    return store.read_events_lenient(d)\n") == ["read_events_lenient"]
     assert _raw_calls("def f(d):\n    return consolidation_events(d)\n") == []
+
+
+def test_the_scanner_sees_an_aliased_import() -> None:
+    assert _raw_imports("from specify_cli.status import read_events as load\n") == ["read_events"]
+    assert _raw_imports("from specify_cli.status import reduce\n") == []
+
+
+_STAMP_TOKENS = ("LANE_HEAD_KEY", "WP_WINDOW_KEY", "stamp_of", "window_open_of", "lane_head", "wp_window")
+
+
+@pytest.mark.parametrize("name", sorted(_RAW_ALLOWLIST))
+def test_allowlisted_modules_read_no_window_stamp(name: str) -> None:
+    source = (_CONSOLIDATION / name).read_text(encoding="utf-8")
+
+    assert not [token for token in _STAMP_TOKENS if token in source], f"{name} touches a window stamp but reads the raw log"
