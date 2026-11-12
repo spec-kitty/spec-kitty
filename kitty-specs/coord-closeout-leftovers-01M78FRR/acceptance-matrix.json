@@ -98,10 +98,10 @@
       "criterion_id": "FR-010",
       "description": "Verify FR-010 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "WP06 lane-f: tests/specify_cli/test_acceptance_next_steps.py (red b7375b95/6c4d3a3d); reviewer F1 reproduction on explicit topology",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T23:13:39.365155+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
