@@ -52,7 +52,7 @@
     },
     "WP02": {
       "actor": "claude-reviewer",
-      "agent": "claude-reviewer",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -72,6 +72,7 @@
         "Ready for review: #7491 resume base (persisted tip behind verified landing + ancestry), landed-coordination ref module, #4380 item 2 text"
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/coord-closeout-leftovers-01M78FRR-coord/kitty-specs/coord-closeout-leftovers-01M78FRR/tasks/WP02-resume-late-window-base/review-cycle-1.md",
         "reference": "review-cycle://coord-closeout-leftovers-01M78FRR/WP02-resume-late-window-base/review-cycle-1.md",
@@ -79,14 +80,14 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 29418,
-      "shell_pid_created_at": "1794514361.87",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T004": "done",
-        "T005": "done",
-        "T006": "done",
-        "T007": "done",
-        "T008": "done"
+        "T004": "planned",
+        "T005": "planned",
+        "T006": "planned",
+        "T007": "planned",
+        "T008": "planned"
       }
     },
     "WP03": {
