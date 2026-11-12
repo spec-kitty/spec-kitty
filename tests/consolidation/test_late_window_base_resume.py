@@ -17,14 +17,8 @@ from typing import Any
 import pytest
 
 from specify_cli.consolidation import phase_gate, phase_teardown, rollback
-from specify_cli.consolidation.landed_coordination import (
-    LANDED_COORDINATION_REF_PREFIX,
-    LandedCoordinationRefError,
-    clear_landed_coordination_tip,
-    landed_coordination_ref,
-    landed_coordination_tip,
-    record_landed_coordination_tip,
-)
+from specify_cli.consolidation import landed_coordination
+from specify_cli.consolidation.landed_coordination import LandedCoordinationRefError, clear_landed_coordination_tip, record_landed_coordination_tip
 from specify_cli.consolidation.run_state import CoordinationTeardownError, _CoordCheckpoint
 from specify_cli.consolidation.state import ConsolidationState, load_state
 from specify_cli.git.ref_advance import RefAdvanceError
@@ -196,7 +190,7 @@ def test_the_pass_record_persists_the_tip_and_the_ref_in_one_go(repo: _Repo) -> 
 
     saved = load_state(repo.root, state.mission_id)
     assert saved is not None and saved.reconciliation_pass_pair() == (repo.landing, repo.projected)
-    assert landed_coordination_tip(repo.root, _COORD) == repo.projected
+    assert landed_coordination.landed_coordination_tip(repo.root, _COORD) == repo.projected
 
 
 def test_a_proven_late_window_advances_the_persisted_tip_and_the_ref(repo: _Repo) -> None:
@@ -209,7 +203,7 @@ def test_a_proven_late_window_advances_the_persisted_tip_and_the_ref(repo: _Repo
     assert run.coord_tip_after_projection == repo.late
     saved = load_state(repo.root, state.mission_id)
     assert saved is not None and saved.coord_tip_after_projection == repo.late
-    assert landed_coordination_tip(repo.root, _COORD) == repo.late
+    assert landed_coordination.landed_coordination_tip(repo.root, _COORD) == repo.late
 
 
 def test_an_advance_without_a_pass_anchor_persists_nothing(repo: _Repo) -> None:
@@ -220,7 +214,7 @@ def test_an_advance_without_a_pass_anchor_persists_nothing(repo: _Repo) -> None:
 
     assert run.coord_tip_after_projection == repo.late
     assert state.coord_tip_after_projection is None
-    assert landed_coordination_tip(repo.root, _COORD) is None
+    assert landed_coordination.landed_coordination_tip(repo.root, _COORD) is None
 
 
 def test_no_ref_is_written_when_the_checkpoint_names_the_target(repo: _Repo) -> None:
@@ -229,8 +223,8 @@ def test_no_ref_is_written_when_the_checkpoint_names_the_target(repo: _Repo) -> 
 
     phase_teardown.record_landed_coordination_ref(run, repo.projected)
 
-    assert landed_coordination_tip(repo.root, _COORD) is None
-    assert landed_coordination_tip(repo.root, _TARGET) is None
+    assert landed_coordination.landed_coordination_tip(repo.root, _COORD) is None
+    assert landed_coordination.landed_coordination_tip(repo.root, _TARGET) is None
 
 
 def test_a_ref_write_failure_never_fails_the_landing(repo: _Repo, caplog: pytest.LogCaptureFixture) -> None:
@@ -239,7 +233,7 @@ def test_a_ref_write_failure_never_fails_the_landing(repo: _Repo, caplog: pytest
 
     phase_teardown.record_landed_coordination_ref(run, repo.projected)  # an ancestor: refused, logged
 
-    assert landed_coordination_tip(repo.root, _COORD) == repo.late
+    assert landed_coordination.landed_coordination_tip(repo.root, _COORD) == repo.late
     assert "Could not record the landed coordination tip" in caplog.text
 
 
@@ -247,15 +241,15 @@ def test_a_ref_write_failure_never_fails_the_landing(repo: _Repo, caplog: pytest
 
 
 def test_the_ref_is_created_read_and_advanced(repo: _Repo) -> None:
-    assert landed_coordination_tip(repo.root, _COORD) is None
+    assert landed_coordination.landed_coordination_tip(repo.root, _COORD) is None
 
     record_landed_coordination_tip(repo.root, _COORD, repo.projected)
     record_landed_coordination_tip(repo.root, _COORD, repo.projected)  # same tip: a no-op
-    assert landed_coordination_tip(repo.root, _COORD) == repo.projected
+    assert landed_coordination.landed_coordination_tip(repo.root, _COORD) == repo.projected
 
     record_landed_coordination_tip(repo.root, _COORD, repo.late)
-    assert landed_coordination_tip(repo.root, _COORD) == repo.late
-    assert landed_coordination_ref(f"refs/heads/{_COORD}") == f"{LANDED_COORDINATION_REF_PREFIX}{_COORD}"
+    assert landed_coordination.landed_coordination_tip(repo.root, _COORD) == repo.late
+    assert landed_coordination.landed_coordination_ref(f"refs/heads/{_COORD}") == f"{landed_coordination.LANDED_COORDINATION_REF_PREFIX}{_COORD}"
 
 
 def test_the_ref_never_moves_to_a_tip_that_does_not_descend_from_it(repo: _Repo) -> None:
@@ -265,14 +259,14 @@ def test_the_ref_never_moves_to_a_tip_that_does_not_descend_from_it(repo: _Repo)
         record_landed_coordination_tip(repo.root, _COORD, repo.landing)
     with pytest.raises(LandedCoordinationRefError):
         record_landed_coordination_tip(repo.root, _COORD, repo.projected)
-    assert landed_coordination_tip(repo.root, _COORD) == repo.late
+    assert landed_coordination.landed_coordination_tip(repo.root, _COORD) == repo.late
 
 
 def test_the_ref_rejects_empty_input(repo: _Repo) -> None:
     with pytest.raises(ValueError, match="must name a commit"):
         record_landed_coordination_tip(repo.root, _COORD, "")
     with pytest.raises(ValueError, match="needs a coordination branch"):
-        landed_coordination_ref("refs/heads/")
+        landed_coordination.landed_coordination_ref("refs/heads/")
 
 
 def test_clearing_the_ref_is_idempotent(repo: _Repo) -> None:
@@ -280,7 +274,7 @@ def test_clearing_the_ref_is_idempotent(repo: _Repo) -> None:
 
     assert clear_landed_coordination_tip(repo.root, _COORD) is True
     assert clear_landed_coordination_tip(repo.root, _COORD) is True
-    assert landed_coordination_tip(repo.root, _COORD) is None
+    assert landed_coordination.landed_coordination_tip(repo.root, _COORD) is None
 
 
 def test_a_rollback_that_restores_the_target_deletes_the_ref(repo: _Repo) -> None:
@@ -293,7 +287,7 @@ def test_a_rollback_that_restores_the_target_deletes_the_ref(repo: _Repo) -> Non
     report = rollback.rollback_to_snapshot(repo.root, state, target_branch=_TARGET)
 
     assert _git(repo.root, "rev-parse", _TARGET) == repo.base, report.render()
-    assert landed_coordination_tip(repo.root, _COORD) is None
+    assert landed_coordination.landed_coordination_tip(repo.root, _COORD) is None
 
 
 def test_the_rollback_helper_leaves_a_target_anchored_record_alone(repo: _Repo) -> None:
@@ -303,10 +297,27 @@ def test_the_rollback_helper_leaves_a_target_anchored_record_alone(repo: _Repo) 
 
     rollback._clear_landed_coordination_ref(repo.root, state)
 
-    assert landed_coordination_tip(repo.root, _COORD) == repo.projected
+    assert landed_coordination.landed_coordination_tip(repo.root, _COORD) == repo.projected
+
+
+@pytest.mark.parametrize("coord_ref", ["", "refs/heads/"], ids=("empty", "heads-prefix-only"))
+def test_the_rollback_helper_never_raises_on_an_unusable_coordination_ref(repo: _Repo, coord_ref: str, caplog: pytest.LogCaptureFixture) -> None:
+    """Best effort: a record whose coordination ref names no branch neither raises nor touches any ref."""
+    record_landed_coordination_tip(repo.root, _COORD, repo.projected)
+    state = _state(repo, anchor=None, coord_tip=None)
+    state.pre_mutation_coord_ref = coord_ref
+
+    rollback._clear_landed_coordination_ref(repo.root, state)
+
+    assert landed_coordination.landed_coordination_tip(repo.root, _COORD) == repo.projected
+    if coord_ref:
+        assert "Could not delete the landed-coordination ref" in caplog.text
 
 
 # -- #4380 item 2: the kept-branch refusal says what is true ------------------------------------------------
+
+
+_DELETE_REFUSAL = "cannot lock ref 'refs/heads/kitty/mission-demo-01M7491B': File exists"
 
 
 def _teardown_run(repo: _Repo, monkeypatch: pytest.MonkeyPatch) -> Any:
@@ -314,7 +325,7 @@ def _teardown_run(repo: _Repo, monkeypatch: pytest.MonkeyPatch) -> Any:
     for name in ("_refuse_unlanded_topic_primary", "_land_late_coordination_commits", "_fold_coord_status_before_flatten"):
         monkeypatch.setattr(phase_teardown, name, lambda _run: None)
     monkeypatch.setattr(phase_teardown, "_teardown_coord_worktree", lambda _run: None)
-    monkeypatch.setattr(phase_teardown, "_delete_mission_branch", lambda _run, _tip: False)
+    monkeypatch.setattr(phase_teardown, "_refused_mission_branch_delete", lambda _run, _tip: _DELETE_REFUSAL)
     return run
 
 
@@ -327,6 +338,7 @@ def test_kept_branch_text_with_the_worktree_gone_names_the_refused_delete(repo: 
     message = str(refused.value)
     assert "still exists after teardown" in message and "No worktree has it checked out" in message, message
     assert "compare-and-swap delete" in message and "consolidate --resume" in message, message
+    assert _DELETE_REFUSAL in message and "see the warning above" not in message, message
     assert "stay consistent" not in message and "git worktree list" not in message, message
 
 
@@ -350,6 +362,6 @@ def test_kept_branch_text_when_worktrees_cannot_be_listed(repo: _Repo, monkeypat
 
     monkeypatch.setattr(phase_teardown, "worktrees_with_branch_checked_out", _unlistable)
 
-    message = phase_teardown._branch_kept_after_teardown_message(run)
+    message = phase_teardown._branch_kept_after_teardown_message(run, _DELETE_REFUSAL)
 
     assert "could not be listed" in message and "worktree list failed" in message, message
