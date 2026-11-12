@@ -1,0 +1,45 @@
+{
+  "base_commit": null,
+  "block_enabled": false,
+  "expected": {
+    "blocked": false,
+    "console": "[red]Pre-review regression gate: foreign_tree \u2014 pkg loads from /repo/src/pkg/__init__.py, outside /repo/.worktrees/lane-a/src \u2014 no test run happened[/red]",
+    "exit_code": null,
+    "force_bypassed": true,
+    "metadata": {
+      "affected_shard_count": 0,
+      "block_enabled": false,
+      "blocked": false,
+      "bypassed_refusal": "EVIDENCE_TREE_MISMATCH",
+      "force_bypassed": true,
+      "matched_composite_dirs": [],
+      "matched_shard_groups": [],
+      "new_failure_count": 0,
+      "new_failure_nodeids": [],
+      "outcome": "foreign_tree",
+      "pre_existing_failure_count": 0,
+      "reason": "pkg loads from /repo/src/pkg/__init__.py, outside /repo/.worktrees/lane-a/src \u2014 no test run happened",
+      "run_state": "not_started",
+      "test_targets": []
+    },
+    "outcome": "foreign_tree",
+    "terminal": false,
+    "transition_applied": true
+  },
+  "force": true,
+  "oracle_provenance": "hand-authored from contracts/pre-review-evidence-tree.md and ADR 2026-08-13-6 Amendment 2026-11-12 (mission lane-code-verification-01M76AC0, #7547; aggregate-review fold): --force past a foreign tree applies the move and records the bypass whatever the block toggle says; the block toggle never turns the refusal into a block",
+  "verdict": {
+    "new_failures": [],
+    "outcome": "foreign_tree",
+    "pre_existing_failures": [],
+    "reason": "pkg loads from /repo/src/pkg/__init__.py, outside /repo/.worktrees/lane-a/src \u2014 no test run happened",
+    "run_state": "not_started",
+    "scope": {
+      "empty_cone_composite_dirs": [],
+      "excluded_scope_files": [],
+      "matched_composite_dirs": [],
+      "matched_shard_groups": [],
+      "test_targets": []
+    }
+  }
+}
