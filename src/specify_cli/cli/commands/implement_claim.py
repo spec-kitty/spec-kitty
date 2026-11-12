@@ -133,8 +133,9 @@ def _protected_branch_status_commit_error(
 
     *accepts_no_auto_commit* is ``False`` for ``agent action implement``, which has no
     ``--no-auto-commit``: its remedy then names the branch judged, the *checkout* it is
-    checked out in, and only ways out that command can follow (#7601, SC-003). The
-    top-level ``spec-kitty implement`` text is unchanged.
+    checked out in, and only ways out that command can follow (#7601, SC-003). Checking
+    out another branch in that checkout is not offered: git refuses it while another
+    worktree holds the branch. The top-level ``spec-kitty implement`` text is unchanged.
     """
     # ProtectionPolicy.resolve_for_mission is the sole I/O boundary (FR-007/NFR-003):
     # config+hatch+meta reads happen once; is_protected() is I/O-free. A mission-scoped
@@ -145,9 +146,8 @@ def _protected_branch_status_commit_error(
         where = f" (checked out in {checkout})" if checkout is not None else ""
         return (
             f"Refusing to start implementation status on protected branch '{branch}'{where} "
-            "before mutating status files. Check out an allowed coordination/lane branch in "
-            "that checkout and rerun, or claim the work package with the top-level "
-            "`spec-kitty implement` command, which can leave the status commit to you."
+            "before mutating status files. Claim the work package with the top-level "
+            "`spec-kitty implement` command instead, which can leave the status commit to you."
         )
     return (
         f"Refusing to start implementation status on protected branch '{branch}' "

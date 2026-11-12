@@ -133,11 +133,11 @@ def test_dispatched_protected_branch_error_names_the_checkout_and_no_unaccepted_
 
     assert message == (
         f"Refusing to start implementation status on protected branch 'main' (checked out in {tmp_path / 'root'}) "
-        "before mutating status files. Check out an allowed coordination/lane branch in "
-        "that checkout and rerun, or claim the work package with the top-level "
-        "`spec-kitty implement` command, which can leave the status commit to you."
+        "before mutating status files. Claim the work package with the top-level "
+        "`spec-kitty implement` command instead, which can leave the status commit to you."
     )
     assert "--no-auto-commit" not in message
+    assert "Check out" not in message, "checking out another branch there can be refused while a worktree holds it"
 
 
 @_FAST
