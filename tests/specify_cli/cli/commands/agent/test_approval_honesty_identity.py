@@ -20,7 +20,8 @@ from unittest.mock import patch
 
 import pytest
 
-from specify_cli.status import Lane
+from specify_cli.cli.commands.agent.tasks_move_task import ReviewerOfRecord, resolve_reviewer_of_record
+from specify_cli.status import Lane, ReviewResult
 from specify_cli.status.reducer import ReviewResultLookup
 from specify_cli.status.models import StatusEvent, actor_full_identity
 from tests._support.status_seed import seed_status_event
@@ -316,3 +317,68 @@ def test_unforced_approval_on_damaged_writer_slot_takes_the_approval_ref(tmp_pat
     assert record["force"] is False
     assert "force-override" not in line
     assert _references(record) == ["pr-1234", "pr-1234"]
+
+
+# ---------------------------------------------------------------------------
+# resolve_reviewer_of_record: the pure combiner, table-driven (T003)
+# ---------------------------------------------------------------------------
+
+_RECORDED = ReviewResult(reviewer="claude:sonnet:reviewer-renata", verdict="approved", reference="review-cycle://m/WP01-core/review-cycle-1.md")
+_NO_FACTS: dict[str, Any] = {
+    "agent": None,
+    "reviewer": None,
+    "claimant": None,
+    "forced": False,
+    "carrying": False,
+    "recorded_approval": None,
+    "arbiter_ref": None,
+    "approval_ref": None,
+}
+
+
+@pytest.mark.parametrize(
+    ("facts", "expected"),
+    [
+        # carried (approved -> done)
+        pytest.param(
+            {"carrying": True, "recorded_approval": _RECORDED, "agent": "codex"},
+            ReviewerOfRecord(_RECORDED.reviewer, _RECORDED.reference, "carried"),
+            id="carried-verbatim",
+        ),
+        pytest.param({"carrying": True, "agent": "codex"}, ReviewerOfRecord("codex", "force-override", "carried"), id="carried-no-approval-agent"),
+        pytest.param(
+            {"carrying": True, "reviewer": " claude:opus "}, ReviewerOfRecord("claude:opus", "force-override", "carried"), id="carried-no-approval-reviewer"
+        ),
+        pytest.param({"carrying": True}, None, id="carried-no-identity"),
+        pytest.param({"carrying": True, "agent": "  ", "reviewer": "", "claimant": "codex"}, None, id="carried-blank-identity-ignores-claimant"),
+        # forced
+        pytest.param(
+            {"forced": True, "agent": "operator", "arbiter_ref": "arbiter://WP01/1"},
+            ReviewerOfRecord("operator", "arbiter://WP01/1", "forced"),
+            id="forced-arbiter-ref",
+        ),
+        pytest.param(
+            {"forced": True, "agent": "operator", "arbiter_ref": "  "}, ReviewerOfRecord("operator", "force-override", "forced"), id="forced-blank-arbiter-ref"
+        ),
+        pytest.param({"forced": True, "claimant": "codex"}, ReviewerOfRecord("codex", "force-override", "forced"), id="forced-claimant"),
+        pytest.param({"forced": True}, ReviewerOfRecord("user", "force-override", "forced"), id="forced-no-identity"),
+        pytest.param({"forced": True, "agent": " ", "reviewer": "\t"}, ReviewerOfRecord("user", "force-override", "forced"), id="forced-whitespace-identity"),
+        pytest.param(
+            {"forced": True, "carrying": True, "recorded_approval": _RECORDED, "agent": "operator"},
+            ReviewerOfRecord("operator", "force-override", "forced"),
+            id="forced-wins-over-carried",
+        ),
+        # review (precedence --agent > --reviewer > claimant; --approval-ref kept)
+        pytest.param({"agent": "a", "reviewer": "r", "claimant": "c"}, ReviewerOfRecord("a", None, "review"), id="review-agent-first"),
+        pytest.param({"reviewer": "r", "claimant": "c"}, ReviewerOfRecord("r", None, "review"), id="review-reviewer-second"),
+        pytest.param({"claimant": "c"}, ReviewerOfRecord("c", None, "review"), id="review-claimant-third"),
+        pytest.param({"agent": "  ", "reviewer": " ", "claimant": " c "}, ReviewerOfRecord("c", None, "review"), id="review-blank-flags-skipped"),
+        pytest.param({"claimant": "c", "approval_ref": " pr-12 "}, ReviewerOfRecord("c", "pr-12", "review"), id="review-keeps-approval-ref"),
+        pytest.param({"claimant": "c", "approval_ref": "   "}, ReviewerOfRecord("c", None, "review"), id="review-blank-approval-ref"),
+        pytest.param({"recorded_approval": _RECORDED}, None, id="review-ignores-recorded-approval"),
+        pytest.param({}, None, id="review-no-identity"),
+    ],
+)
+def test_resolve_reviewer_of_record(facts: dict[str, Any], expected: ReviewerOfRecord | None) -> None:
+    """Each rule of the combiner (forced -> carried -> review), and the ``carrying`` flag that selects the carried rule."""
+    assert resolve_reviewer_of_record(**{**_NO_FACTS, **facts}) == expected
