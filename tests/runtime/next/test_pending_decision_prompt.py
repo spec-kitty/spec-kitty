@@ -77,16 +77,20 @@ def test_prompt_accepts_an_answerable_prompt(fields: dict[str, Any]) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("kind", [DecisionKind.query, DecisionKind.decision_required])
-def test_question_without_decision_id_raises(kind: str) -> None:
-    with pytest.raises(InvalidDecisionPrompt, match="half-built prompt"):
-        _decision(kind, question="q", decision_id=None, options=["a"])
+_PROMPT_KINDS = [DecisionKind.query, DecisionKind.decision_required]
 
 
-@pytest.mark.parametrize("kind", [DecisionKind.query, DecisionKind.decision_required])
-def test_decision_id_without_question_raises(kind: str) -> None:
-    with pytest.raises(InvalidDecisionPrompt, match="half-built prompt"):
-        _decision(kind, question=None, decision_id="d", input_key="k")
+@pytest.mark.parametrize("kind", _PROMPT_KINDS)
+@pytest.mark.parametrize(
+    ("fields", "message"),
+    [
+        pytest.param({"question": "q", "decision_id": None, "options": ["a"]}, "half-built prompt", id="question-without-decision-id"),
+        pytest.param({"question": None, "decision_id": "d", "input_key": "k"}, "half-built prompt", id="decision-id-without-question"),
+    ],
+)
+def test_half_built_prompt_raises(kind: str, fields: dict[str, Any], message: str) -> None:
+    with pytest.raises(InvalidDecisionPrompt, match=message):
+        _decision(kind, **fields)
 
 
 @pytest.mark.parametrize("fields", [{}, {"options": []}, {"input_key": ""}])
@@ -135,34 +139,29 @@ def test_step_or_blocked_refuses_a_half_built_envelope() -> None:
 _EXTRA = {"next_command": "spec-kitty accept --mission demo-mission", "suppress_step_pairing": True}
 
 
-@pytest.mark.parametrize("kind", [DecisionKind.blocked, DecisionKind.terminal, DecisionKind.query])
-def test_non_step_branch_threads_new_fields(kind: str) -> None:
-    decision = step_or_blocked(_envelope(kind, **_EXTRA), None, prompt_exists=lambda _p: False)
-    assert decision.next_command == _EXTRA["next_command"]
-    assert decision.suppress_step_pairing is True
-
-
-def test_step_branch_threads_new_fields(tmp_path: Path) -> None:
-    prompt = tmp_path / "prompt.md"
-    prompt.write_text("x", encoding="utf-8")
-    decision = step_or_blocked(_envelope(DecisionKind.step, prompt_file=str(prompt), **_EXTRA), None, prompt_exists=lambda _p: True)
-    assert decision.kind == DecisionKind.step
-    assert decision.next_command == _EXTRA["next_command"]
-    assert decision.suppress_step_pairing is True
-
-
-def test_step_without_prompt_degrades_to_blocked_and_keeps_new_fields() -> None:
-    decision = step_or_blocked(_envelope(DecisionKind.step, reason="no_prompt_template", **_EXTRA), None, prompt_exists=lambda _p: False)
-    assert decision.kind == DecisionKind.blocked
-    assert decision.next_command == _EXTRA["next_command"]
-    assert decision.suppress_step_pairing is True
-
-
-def test_step_whose_prompt_vanished_degrades_to_blocked_and_keeps_new_fields(tmp_path: Path) -> None:
-    missing = tmp_path / "gone.md"
-    decision = step_or_blocked(_envelope(DecisionKind.step, prompt_file=str(missing), **_EXTRA), None, prompt_exists=lambda _p: True)
-    assert decision.kind == DecisionKind.blocked
-    assert decision.reason == "prompt_file_not_resolvable"
+@pytest.mark.parametrize(
+    ("kind", "prompt", "prompt_exists", "fields", "expected_kind", "expected_reason"),
+    [
+        pytest.param(DecisionKind.blocked, None, False, {}, DecisionKind.blocked, None, id="blocked"),
+        pytest.param(DecisionKind.terminal, None, False, {}, DecisionKind.terminal, None, id="terminal"),
+        pytest.param(DecisionKind.query, None, False, {}, DecisionKind.query, None, id="query"),
+        pytest.param(DecisionKind.step, "present", True, {}, DecisionKind.step, None, id="step"),
+        pytest.param(DecisionKind.step, None, False, {"reason": "no_prompt_template"}, DecisionKind.blocked, None, id="step-without-prompt-degrades-to-blocked"),
+        pytest.param(DecisionKind.step, "gone", True, {}, DecisionKind.blocked, "prompt_file_not_resolvable", id="step-whose-prompt-vanished-degrades-to-blocked"),
+    ],
+)
+def test_every_branch_threads_new_fields(
+    kind: str, prompt: str | None, prompt_exists: bool, fields: dict[str, Any], expected_kind: str, expected_reason: str | None, tmp_path: Path
+) -> None:
+    if prompt is not None:
+        prompt_file = tmp_path / f"{prompt}.md"
+        if prompt == "present":
+            prompt_file.write_text("x", encoding="utf-8")
+        fields = {**fields, "prompt_file": str(prompt_file)}
+    decision = step_or_blocked(_envelope(kind, **fields, **_EXTRA), None, prompt_exists=lambda _p: prompt_exists)
+    assert decision.kind == expected_kind
+    if expected_reason is not None:
+        assert decision.reason == expected_reason
     assert decision.next_command == _EXTRA["next_command"]
     assert decision.suppress_step_pairing is True
 

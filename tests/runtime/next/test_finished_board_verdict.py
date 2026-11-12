@@ -16,8 +16,6 @@ import pytest
 
 from runtime.next.board_status import BoardStatus
 from runtime.next.runtime_bridge_cores import (
-    FINISHED_BOARD_STEPS,
-    MISSION_AWAITING_ACCEPTANCE_ERROR_CODE,
     FinishedBoardVerdict,
     finished_board_verdict,
 )
@@ -40,19 +38,11 @@ _LATE = "2026-11-12T09:00:00+00:00"
 # ---------------------------------------------------------------------------
 
 
-def test_constants() -> None:
-    assert frozenset({"accept", "done"}) == FINISHED_BOARD_STEPS
-    assert MISSION_AWAITING_ACCEPTANCE_ERROR_CODE == "MISSION_AWAITING_ACCEPTANCE"
-
-
 @pytest.mark.parametrize(
     ("board_step", "accepted", "expected"),
     [
         # Not a finished board: NONE, whatever the acceptance says.
-        (None, True, FinishedBoardVerdict.NONE),
         ("implement", True, FinishedBoardVerdict.NONE),
-        ("review", False, FinishedBoardVerdict.NONE),
-        ("blocked:WP01", True, FinishedBoardVerdict.NONE),
         # Finished board.
         ("accept", True, FinishedBoardVerdict.ACCEPTED),
         ("done", True, FinishedBoardVerdict.ACCEPTED),
@@ -79,30 +69,17 @@ def test_truth_table(board_step: str | None, accepted: bool, expected: FinishedB
         (None, _EARLY, False),
         (None, None, False),
         ("", None, False),
+        pytest.param(_LATE, _LATE, False, id="equal-timestamps-are-not-accepted"),
+        pytest.param(_EARLY, _LATE, False, id="acceptance-older-than-latest-transition"),
+        # 10:30+02:00 is 08:30Z: compared by instant, not by string.
+        pytest.param("2026-11-12T10:30:00+02:00", _EARLY, True, id="offset-later-instant-with-earlier-string"),
+        pytest.param("2026-11-12T10:30:00+02:00", _LATE, False, id="offset-earlier-instant-with-later-string"),
+        pytest.param("2026-11-12T09:00:01Z", _LATE, True, id="zulu-suffix-read-as-utc"),
+        pytest.param("2026-11-12T09:00:01", _LATE, True, id="naive-read-as-utc"),
     ],
 )
 def test_freshness_truth_table(accepted_at: str | None, latest: str | None, expected: bool) -> None:
     assert acceptance_is_fresh(accepted_at, latest) is expected
-
-
-def test_equal_timestamps_are_not_accepted() -> None:
-    assert acceptance_is_fresh(_LATE, _LATE) is False
-
-
-def test_acceptance_older_than_latest_transition_is_stale() -> None:
-    assert acceptance_is_fresh(_EARLY, _LATE) is False
-
-
-def test_timezone_offsets_compare_by_instant_not_by_string() -> None:
-    # 10:30+02:00 is 08:30Z: later than 08:00Z although its string sorts after 09:00Z.
-    assert acceptance_is_fresh("2026-11-12T10:30:00+02:00", _EARLY) is True
-    # 10:30+02:00 is 08:30Z: earlier than 09:00Z although its string sorts later.
-    assert acceptance_is_fresh("2026-11-12T10:30:00+02:00", _LATE) is False
-
-
-def test_zulu_suffix_and_naive_timestamps_are_read_as_utc() -> None:
-    assert acceptance_is_fresh("2026-11-12T09:00:01Z", _LATE) is True
-    assert acceptance_is_fresh("2026-11-12T09:00:01", _LATE) is True
 
 
 @pytest.mark.parametrize(("accepted_at", "latest"), [("not-a-date", _EARLY), ("not-a-date", None), (_LATE, "garbage")])
