@@ -18,10 +18,10 @@
       "criterion_id": "FR-002",
       "description": "Verify FR-002 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/lanes/test_lane_invocation.py (child-process probe; lane-venv foreign/verified pair on one fixture; mutation run 6/7 killed) \u2014 WP01 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T08:51:29.471689+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
