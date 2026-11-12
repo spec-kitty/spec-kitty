@@ -55,7 +55,7 @@
     },
     "WP02": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": "claude::reviewer-renata",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 0,
@@ -65,7 +65,8 @@
       "last_transition_at": "2026-11-12T20:57:32.439298+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ready for review"
+        "Ready for review",
+        "Review passed (reviewer-renata): red->green verified (17 red on f5b591b7 for the #7551/#7607 reasons, controls green; 21/21 on HEAD); seam delegation sound (PRIMARY-kind checkout lookup has no side effects; reanchor translates with own kind; seed re-entry bounded since seed paths lie in the holder); use_coord unchanged, no copy, no path composition, lock only for holder checkouts; mypy annotation fix behaviour-preserving. Note for PR: root-only stray on a settled default Mission now reports WRONG_SURFACE/no_op_wrong_surface instead of a generic error HEAD-mismatch (exit code 1 unchanged; mandated by FR-003/T007; no test or reachable consumer depended on the old code). Shared lane: commit_router.py/commit_helpers.py touched only by WP02."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
