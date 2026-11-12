@@ -120,7 +120,7 @@
     },
     "WP04": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": "claude::reviewer-renata",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 0,
@@ -130,7 +130,8 @@
       "last_transition_at": "2026-11-12T21:56:06.945728+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ready for review"
+        "Ready for review",
+        "Independent review passed (reviewer-renata). Red->green verified in scratch worktrees: 988e7d68 e2e baseline red (git show topic:.../baseline-tests.json missing), green at HEAD; fecab414 banner+write-side red ('main'!='dev'), green after efd28e18. Re-entry ratchet non-vacuous: swapping read_dir_for for PlacementSeam.read_dir in get_feature_target_branch -> RecursionError. Sanction rows for the two helpers removed (not re-pointed); resolve_merge_target_branch row untouched; absent meta.json fallback intact; owned arm unchanged (write_dir owned surface_root == owned_root). Non-blocking follow-ups: (1) resolve_merge_target_branch comment (paths.py ~930) and its sanction-row rationale still say 'same rationale as get_feature_target_branch above' -- now stale; (2) --json mode warning is logger-only (WP permits logger); (3) read_dir_for docstring 'byte-identical to the prior inline compose' predates and is now inexact given default_mission_topic_dir. Tests: 1600+156+911+217+754+797 passed, 0 failed; ruff/format/mypy/C901<=15 clean."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
