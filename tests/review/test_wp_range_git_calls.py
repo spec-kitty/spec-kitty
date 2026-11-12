@@ -28,6 +28,9 @@ from tests.terminus.mixed_lane_support import transition
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _BUDGET = 10
+#: NFR-002 for a derived range (decision DM-01M77PZ5833WWQB5J457GXNWYW): the event-commit lookups and their race
+#: guards, plus the moved-past probe now that a commit-to-target Mission has a live head. Still constant.
+_DERIVED_BUDGET = 12
 _OWNED_FILES = 60
 _OUT_OF_MAP = ("docs/a.md", "docs/b.md", "tools/c.cfg")
 _HARNESS_VARIABLES = ("SPEC_KITTY_NO_NAG", "SPEC_KITTY_NON_INTERACTIVE", "SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS")
@@ -131,4 +134,4 @@ def test_derived_pre_stamp_commit_to_target_range_stays_within_budget(tmp_path: 
 
     assert found.status is RangeStatus.DERIVED, "precondition: a pre-stamp commit-to-target range is derived"
     assert _has(calls, "log", "--format=%H", "--no-show-signature"), calls
-    assert len(calls) <= _BUDGET, calls
+    assert len(calls) <= _DERIVED_BUDGET, calls
