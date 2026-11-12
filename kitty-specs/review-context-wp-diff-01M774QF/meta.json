@@ -27,6 +27,7 @@
   "purpose_context": "Reviewers today get empty or Mission-wide REVIEW COMMANDS on single_branch and only bare requirement IDs, so they spend ~100 git commands hunting the implementation commit and ~100 reads of spec.md. This Mission computes each work package's review range from its recorded window and inlines a bounded diff plus the cited requirement text (issue #7578).",
   "purpose_tldr": "The review prompt shows each work package's own diff and the text of the requirements it cites.",
   "slug": "review-context-wp-diff-01M774QF",
+  "status_phase": "1",
   "target_branch": "feat/7578-review-context",
   "topology": "lanes_with_coord",
   "topology_decision": {
