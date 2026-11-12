@@ -213,7 +213,7 @@ def _head_mismatch_holder(repo_root: Path, worktree_root: Path, destination_ref:
     ``non_lane_checkout_holding_branch`` probe ``coordination/transaction.py``
     uses), and *worktree_root* itself is never named as its own remedy.
     """
-    from specify_cli.status.read_surface import non_lane_checkout_holding_branch
+    from specify_cli.status import non_lane_checkout_holding_branch
 
     holder: Path | None = non_lane_checkout_holding_branch(repo_root, destination_ref)
     if holder is None or holder.resolve() == worktree_root.resolve():
