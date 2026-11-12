@@ -250,6 +250,7 @@ INTERPRETER_SHARDS: tuple[InterpreterShard, ...] = (
             "tests/specify_cli/test_no_manual_ffmerge.py",
             "tests/specify_cli/test_repair_lane_mismatch.py",
             "tests/specify_cli/test_requirement_mapping_coord_surface.py",
+            "tests/specify_cli/test_requirement_mapping_text.py",
             "tests/specify_cli/test_wp_frontmatter_fold.py",
             "tests/specify_cli/upgrade",
             "tests/test_test_venv_bootstrap.py",
