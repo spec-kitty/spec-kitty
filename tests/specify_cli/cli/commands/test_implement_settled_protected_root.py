@@ -99,8 +99,11 @@ def _last_json(text: str) -> dict[str, object]:
     return payload
 
 
-def _wp_file_at(root: Path, ref: str, slug: str, wp_id: str) -> str:
-    return git(root, "show", f"{ref}:kitty-specs/{slug}/tasks/{wp_id}-work.md")
+def _topic_annotation_deltas(mission: DefaultMission, wp_id: str) -> list[dict[str, object]]:
+    """The inner-state annotation deltas committed for *wp_id* on the topic branch (the WP's metadata home)."""
+    events = git(mission.root, "show", f"{mission.topic}:kitty-specs/{mission.slug}/status.events.jsonl")
+    rows = [json.loads(line) for line in events.splitlines() if line.strip()]
+    return [dict(row["delta"]) for row in rows if row.get("kind") == "annotation" and row.get("wp_id") == wp_id]
 
 
 @pytest.fixture(autouse=True)
@@ -139,7 +142,7 @@ def test_implement_from_a_protected_root_claims_on_the_topic_branch(settled: Def
 
 
 def test_move_task_with_a_note_commits_it_on_the_topic_branch(settled: DefaultMission) -> None:
-    """(b): ``--note`` is no longer refused; the activity entry is committed on the topic branch."""
+    """(b): ``--note`` is no longer refused; the note is committed on the topic branch, never on ``main``."""
     main_tip = _tip(settled.root, "main")
 
     result = _spec_kitty(
@@ -163,13 +166,12 @@ def test_move_task_with_a_note_commits_it_on_the_topic_branch(settled: DefaultMi
     assert result.returncode == 0, output
     assert "WP_METADATA_UNSUPPORTED_ON_PROTECTED_COORD_BRANCH" not in output
     assert _tip(settled.root, "main") == main_tip
-    assert "Claimed for #7601" in _wp_file_at(settled.root, settled.topic, settled.slug, "WP02")
+    assert any(delta.get("note") == "Claimed for #7601" for delta in _topic_annotation_deltas(settled, "WP02"))
 
 
-def test_move_task_without_a_note_commits_the_wp_file_instead_of_skipping_it(settled: DefaultMission) -> None:
-    """(c) silent-skip regression: the WP frontmatter change is committed, never reported ``skipped``."""
+def test_move_task_without_a_note_commits_the_wp_metadata_instead_of_skipping_it(settled: DefaultMission) -> None:
+    """(c) silent-skip regression: the WP metadata (``agent``) is committed, never reported ``skipped``."""
     main_tip = _tip(settled.root, "main")
-    before = _wp_file_at(settled.root, settled.topic, settled.slug, "WP03")
 
     result = _spec_kitty(settled.root, "agent", "tasks", "move-task", "WP03", "--to", "claimed", "--mission", settled.slug, "--agent", "claude", "--json")
 
@@ -177,9 +179,10 @@ def test_move_task_without_a_note_commits_the_wp_file_instead_of_skipping_it(set
     assert result.returncode == 0, output
     payload = _last_json(result.stdout)
     assert payload.get("wp_file_update") != "skipped", payload
+    assert "frontmatter_fields_skipped" not in payload, payload
     assert _tip(settled.root, "main") == main_tip
-    assert _wp_file_at(settled.root, settled.topic, settled.slug, "WP03") != before
-    assert git(settled.coord_mission_dir.parents[1], "status", "--porcelain", "--", f"kitty-specs/{settled.slug}/tasks") == ""
+    assert any(delta.get("agent") == "claude" for delta in _topic_annotation_deltas(settled, "WP03"))
+    assert git(settled.coord_mission_dir.parents[1], "status", "--porcelain") == ""
 
 
 def test_explicit_coordination_mission_on_a_protected_root_keeps_todays_behaviour(tmp_path: Path) -> None:
@@ -198,3 +201,51 @@ def test_explicit_coordination_mission_on_a_protected_root_keeps_todays_behaviou
     assert move.returncode == 0, move.stdout + move.stderr
     assert _last_json(move.stdout).get("wp_file_update") == "skipped"
     assert _tip(mission.root, "main") == main_tip
+
+
+# ---------------------------------------------------------------------------
+# The move-task helper and remedy, directly (#7601)
+# ---------------------------------------------------------------------------
+
+
+class _Seam:
+    def __init__(self, surface_root: Path | Exception) -> None:
+        self._surface_root = surface_root
+
+    def write_dir(self, kind: object) -> object:
+        if isinstance(self._surface_root, Exception):
+            raise self._surface_root
+        return type("Location", (), {"surface_root": self._surface_root})()
+
+
+@pytest.mark.git_repo
+def test_wp_file_commit_branch_reads_only_a_topic_holder(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from mission_runtime import ActionContextError
+    from specify_cli.cli.commands.agent import tasks_shared
+
+    root, holder = tmp_path / "root", tmp_path / "holder"
+    root.mkdir()
+    holder.mkdir()
+    git(holder, "init", "-qb", "kitty/mission-topic")
+
+    monkeypatch.setattr(tasks_shared, "placement_seam", lambda repo_root, slug: _Seam(holder))
+    assert tasks_shared._wp_file_commit_branch(root, "probe", "main") == "kitty/mission-topic"
+    # The repository root checkout is the holder: the branch already read there is the answer.
+    monkeypatch.setattr(tasks_shared, "placement_seam", lambda repo_root, slug: _Seam(root))
+    assert tasks_shared._wp_file_commit_branch(root, "probe", "main") == "main"
+    # A placement that does not resolve keeps the root checkout's branch.
+    monkeypatch.setattr(tasks_shared, "placement_seam", lambda repo_root, slug: _Seam(ActionContextError("PLACEMENT_UNRESOLVED", "no placement")))
+    assert tasks_shared._wp_file_commit_branch(root, "probe", "main") == "main"
+
+
+@pytest.mark.fast
+def test_skip_metadata_refusal_names_the_branch_judged() -> None:
+    from specify_cli.cli.commands.agent.tasks_transition_core import _guard_unsupported_skip_metadata
+    from tests._support.tasks_transition_request import base_request
+
+    judged = _guard_unsupported_skip_metadata(base_request(skip_target_branch_commit=True, note="n", target_branch="main", commit_branch="release"))
+    default = _guard_unsupported_skip_metadata(base_request(skip_target_branch_commit=True, note="n", target_branch="main"))
+
+    assert judged is not None and "protected branch 'release'" in judged.error
+    assert default is not None and "protected branch 'main'" in default.error
+    assert "--no-auto-commit" in judged.error  # move-task accepts it
