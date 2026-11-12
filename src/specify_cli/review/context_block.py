@@ -18,7 +18,7 @@ Shape (``?`` lines are optional; an optional line renders with the two-space ite
     CHANGED FILES (owned files, +added -removed):
       +<a> -<r>  <path>
     ? … <k> more files
-    ? OUTSIDE OWNED FILES (<p> path(s) in <q> commit(s) touching only those paths; review rationale required): <path>, …
+    ? OUTSIDE OWNED FILES (<p> path(s) changed in the range; <q> commit(s) touch no owned file; review rationale required): <path>, …
     REVIEW COMMANDS:
       git log --oneline <base>..<tip> [-- <owned pathspecs>]
       git diff <base>..<tip> [-- <owned pathspecs>]
@@ -175,9 +175,14 @@ def _fill_list(items: Sequence[str], more: Callable[[int], str], remaining: int)
 
 
 def _out_of_map_prefix(review_range: WpReviewRange) -> str:
+    """The OUTSIDE OWNED FILES lead: the out-of-map paths the range's tree diff changed, and the commits that touch no owned file.
+
+    The two numbers count different things: a path changed by a commit that also touches an owned
+    file is counted in the first and its commit is not counted in the second.
+    """
     return (
-        f"{_INDENT}OUTSIDE OWNED FILES ({len(review_range.out_of_map)} path(s) in {review_range.out_of_map_only_commits} commit(s) "
-        "touching only those paths; review rationale required): "
+        f"{_INDENT}OUTSIDE OWNED FILES ({len(review_range.out_of_map)} path(s) changed in the range; "
+        f"{review_range.out_of_map_only_commits} commit(s) touch no owned file; review rationale required): "
     )
 
 

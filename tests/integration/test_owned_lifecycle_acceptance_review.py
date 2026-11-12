@@ -236,7 +236,7 @@ class TestUs3As4OwnedReviewBase:
         block = prompt.split("REVIEW RANGE (WP01)")[1].split("CITED REQUIREMENTS:")[0].splitlines()
         # The sibling WP's file is never listed or diffed; the contract flags it as outside the owned files.
         assert [line for line in block if "wp02.py" in line] == [
-            "  OUTSIDE OWNED FILES (1 path(s) in 1 commit(s) touching only those paths; review rationale required): wp02.py"
+            "  OUTSIDE OWNED FILES (1 path(s) changed in the range; 1 commit(s) touch no owned file; review rationale required): wp02.py"
         ]
         printed = run_printed_command(owned_checkouts.owned_root, diff_line)
         assert "wp01.py" in printed and "wp02.py" not in printed
