@@ -1,7 +1,7 @@
 {
-  "event_count": 29,
-  "last_event_id": "01M77F583N5G71RDCGMGB3D7DY",
-  "materialized_at": "2026-11-12T08:49:29.053199+00:00",
+  "event_count": 30,
+  "last_event_id": "01M77FYV760Q9DDGWRD9KYFE4C",
+  "materialized_at": "2026-11-12T09:03:28.486298+00:00",
   "mission_number": "",
   "mission_slug": "review-context-wp-diff-01M774QF",
   "mission_type": "software-dev",
@@ -12,8 +12,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 3
   },
@@ -84,15 +84,15 @@
       }
     },
     "WP03": {
-      "actor": "claude",
+      "actor": "user",
       "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M77F583N5G71RDCGMGB3D7DY",
-      "last_transition_at": "2026-11-12T08:49:29.053199+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M77FYV760Q9DDGWRD9KYFE4C",
+      "last_transition_at": "2026-11-12T09:03:28.486298+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: resolve_wp_review_range + WpReviewRange (recorded/derived/unavailable with provenance and gap), commit_introducing_status_event (+StatusRef) generalised in mission_runtime with claim_commit_for_wp as wrapper; constant git cost (6 recorded, 9 derived); dead-code gates red for exactly resolve_wp_review_range / specify_cli.review.wp_range until WP05 wires the caller."
@@ -109,13 +109,13 @@
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
-        "T011": "planned",
-        "T012": "planned",
-        "T013": "planned",
-        "T014": "planned",
-        "T015": "planned",
-        "T016": "planned",
-        "T017": "planned"
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
       }
     },
     "WP04": {
