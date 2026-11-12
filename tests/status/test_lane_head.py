@@ -93,7 +93,8 @@ def test_read_lane_head_returns_lane_branch_sha(flat_mission: FlatTopologyContex
     assert result == sha
 
 
-def test_read_lane_head_none_when_lanes_json_absent(tmp_path: Path) -> None:
+def test_read_lane_head_commit_to_target_needs_no_lanes_json(tmp_path: Path) -> None:
+    """#7578: a stored ``single_branch`` commit-to-target Mission stamps the target head from ``meta.json`` alone (was ``None``)."""
     slug = "no-lanes-fixture"
     repo = _make_git_repo(tmp_path / "flat")
     feature_dir = repo / "kitty-specs" / slug
@@ -102,7 +103,7 @@ def test_read_lane_head_none_when_lanes_json_absent(tmp_path: Path) -> None:
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", "feat: no lanes.json")
 
-    assert read_lane_head(repo_root=repo, mission_slug=slug, wp_id="WP01").sha is None
+    assert read_lane_head(repo_root=repo, mission_slug=slug, wp_id="WP01").sha == _git(repo, "rev-parse", "refs/heads/main")
 
 
 def test_read_lane_head_none_when_lanes_json_corrupt(flat_mission: FlatTopologyContext) -> None:
