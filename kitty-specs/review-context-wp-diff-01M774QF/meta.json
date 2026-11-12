@@ -1,0 +1,48 @@
+{
+  "accept_commit": "ca8280ff14d9d7994e5e869d59641ef78ccff9aa",
+  "acceptance_history": [
+    {
+      "accept_commit": "ca8280ff14d9d7994e5e869d59641ef78ccff9aa",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-11-12T13:35:13.081387+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "1816785a1354d08033b955d9d16452598c5f926f"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-11-12T13:35:13.081387+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "1816785a1354d08033b955d9d16452598c5f926f",
+  "baseline_merge_commit": "73a18543c33b8a26a541dee3f59aff9bc4eff872",
+  "coordination_branch": "kitty/mission-review-context-wp-diff-01M774QF",
+  "create_return_branch": "feat/7578-review-context",
+  "created_at": "2026-11-12T05:47:17.031930+00:00",
+  "flattened": false,
+  "friendly_name": "Review context carries the WP diff and cited requirement text",
+  "merged_at": "2026-11-12T13:44:06.988286+00:00",
+  "merged_commit": "6f3e37d97e682cd57ca1920964febc6489c74667",
+  "mid8": "01M774QF",
+  "mission_branch": "kitty/mission-review-context-wp-diff-01M774QF",
+  "mission_id": "01M774QFV4PFK8Y0AXFQV30EEE",
+  "mission_number": 257,
+  "mission_slug": "review-context-wp-diff-01M774QF",
+  "mission_type": "software-dev",
+  "purpose_context": "Reviewers today get empty or Mission-wide REVIEW COMMANDS on single_branch and only bare requirement IDs, so they spend ~100 git commands hunting the implementation commit and ~100 reads of spec.md. This Mission computes each work package's review range from its recorded window and inlines a bounded diff plus the cited requirement text (issue #7578).",
+  "purpose_tldr": "The review prompt shows each work package's own diff and the text of the requirements it cites.",
+  "slug": "review-context-wp-diff-01M774QF",
+  "status_phase": "1",
+  "target_branch": "feat/7578-review-context",
+  "topology": "lanes_with_coord",
+  "topology_decision": {
+    "code_lane_count": 7,
+    "from": "single_branch",
+    "rule": "lanes_with_coord",
+    "target_protected": false,
+    "to": "lanes_with_coord",
+    "wp_count": 7
+  },
+  "topology_settled": true,
+  "topology_source": "default",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-12T06:41:35.818808+00:00"
+}
