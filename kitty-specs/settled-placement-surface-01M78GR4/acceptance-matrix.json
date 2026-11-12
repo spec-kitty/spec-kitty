@@ -66,13 +66,13 @@
     },
     {
       "criterion_id": "FR-007",
-      "description": "Verify FR-007 is satisfied",
+      "description": "move-task with and without --note commits its annotation on the topic branch; no silent wp_file_update skip",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/cli/commands/test_implement_settled_protected_root.py cases b,c",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T22:01:57.320516+00:00",
+      "notes": "Verified at HEAD: 462 passed (all Mission tests + named gates), 2026-11-12"
     },
     {
       "criterion_id": "FR-008",
