@@ -49,7 +49,7 @@
       "wp": null
     },
     "#5721": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "REFS - window residuals cited as known caveats",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -57,7 +57,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6851": {
