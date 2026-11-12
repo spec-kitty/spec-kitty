@@ -63,7 +63,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-12T07:07:16Z – claude – shell_pid=22715 – Blocked (STOP rule, T009): stamping commit-to-target flips cell (d) --attest-approved-reviewed PASS->REFUSE and cell (b) mixed planning lane REFUSE(no_stamp)->PASS; src change not committed, escalated to orchestrator",
-        "Commit-to-target single_branch stamps lane_head/wp_window at the target head; ruling Q8 guard (consolidation/commit_to_target_stamps.py) keeps all consolidation verdicts identical (characterization STAMPED=True, 0 diffs); ADR 2026-11-08-2 amended"
+        "Commit-to-target single_branch stamps lane_head/wp_window at the target head; ruling Q8 guard (consolidation/commit_to_target_stamps.py) keeps all consolidation verdicts identical (characterization STAMPED=True, 0 diffs); ADR 2026-11-08-2 amended",
+        "Review passed: commit-to-target single_branch stamps target head (lane_head/wp_window); Q8 guard at 3 consolidation seams verified. Reader census: no unguarded stamp reader changes a verdict/warning (approval warnings gated by _approval_is_bounded, cutover provenance-only, write-branch bound unreached, wp_evidence/no-impl read attestations only). Order e8dcc732 red (5F/4P) -> 1ec6a2ec green on base (5P) -> src. Mutation: guard removed -> b,c,d red; T008 reverted -> a,b,c,d red. Targeted: 256 passed, 1 xfailed. LOW notes: duplicated commit-to-target predicate in lane_head._single_branch_write_branch vs commit_to_target_stamps.is_commit_to_target_meta; landed minted Mission (meta.mission_branch cleared) reclassifies as commit-to-target. Shared-file note: consolidation files out of map per ruling Q8 leeway."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
