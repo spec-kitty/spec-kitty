@@ -77,6 +77,7 @@ __all__ = [
     "review_block",
     "run_printed_command",
     "snapshot_tree",
+    "strip_single_branch_stamps",
     "strip_stamps",
 ]
 
@@ -263,10 +264,18 @@ def strip_stamps(fixture: ReviewFixture, wp_id: str = REVIEWED_WP) -> None:
 
         cs.rewrite_events(fixture.lane_mission, _edit, f"test: strip {wp_id}'s stamps")
         return
-    log = fixture.feature_dir / _EVENTS
-    log.write_text("".join(json.dumps(row, sort_keys=True) + "\n" for row in _strip_rows(_read_rows(log), wp_id)), encoding="utf-8")
-    sb.git(fixture.repo, "add", "-A", "kitty-specs")
-    sb.git(fixture.repo, "commit", "-qm", f"test: strip {wp_id}'s stamps")
+    strip_single_branch_stamps(fixture.repo, fixture.feature_dir, wp_id)
+
+
+def strip_single_branch_stamps(repo: Path, feature_dir: Path, wp_id: str) -> None:
+    """Remove every ``lane_head`` / ``wp_window`` key from *wp_id*'s events in a ``single_branch`` Mission's log, committed.
+
+    The result is a log as it was before the stamps existed, e.g. a commit-to-target Mission recorded before #7578.
+    """
+    log = feature_dir / _EVENTS
+    _write_rows(log, _strip_rows(_read_rows(log), wp_id))
+    sb.git(repo, "add", "-A", "kitty-specs")
+    sb.git(repo, "commit", "-qm", f"test: strip {wp_id}'s stamps")
 
 
 def _read_rows(log: Path) -> list[dict[str, Any]]:
