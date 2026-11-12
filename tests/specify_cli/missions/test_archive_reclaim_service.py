@@ -457,3 +457,33 @@ def test_cli_renders_nothing_left_and_a_refusal_as_text(cli: CliRunner, monkeypa
 
     assert result.exit_code == 1
     assert "not archived [yet]" in result.output and f"Error code: {reclaim.RECLAIM_NOT_ARCHIVED}." in result.output
+
+
+def test_preflight_validates_the_bookkeeping_destination(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.core.commit_guard import GuardCapability
+
+    feature_dir = _coord_meta(tmp_path)
+    seen: dict[str, Any] = {}
+    monkeypatch.setattr(reclaim, "resolve_write_target_or_degrade", lambda _root, _slug, *, kind, degrade_ref: seen.setdefault("degrade", degrade_ref) or "target")
+    monkeypatch.setattr(reclaim, "preflight_commit", lambda **kwargs: seen.update(kwargs))
+
+    reclaim._preflight_marker_commit(tmp_path, feature_dir, _SLUG)
+
+    assert seen["degrade"] == "main"
+    assert seen["capability"] is GuardCapability.MERGE_BOOKKEEPING and seen["paths"] == (feature_dir / "meta.json",)
+
+
+def test_any_other_commit_precondition_refuses_before_any_change(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.git.commit_helpers import SafeCommitError
+
+    feature_dir = _coord_meta(tmp_path)
+
+    def protected(*_args: object, **_kwargs: object) -> None:
+        raise SafeCommitError("protected branch")
+
+    monkeypatch.setattr(reclaim, "_preflight_marker_commit", protected)
+
+    with pytest.raises(ReclaimRefused) as excinfo:
+        reclaim._require_committable(tmp_path, feature_dir, _SLUG)
+
+    assert excinfo.value.error_code == reclaim.RECLAIM_NOT_ON_TARGET and "nothing was changed" in str(excinfo.value)
