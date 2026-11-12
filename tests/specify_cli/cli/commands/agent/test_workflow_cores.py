@@ -11,11 +11,13 @@ cases are re-pinned to their successors: the review range fills the review
 context (``workflow_executor._fill_review_range``) and is the one pathspec
 authority (``WpReviewRange.owned_pathspecs``).
 
-Marker: unit only -- no filesystem, no subprocess, no git (per the ``unit``
-marker's contract in ``pytest.ini``); every function under test here takes
-plain values in and returns a plain value/string out. The one exception is
-``TestWpReviewRangeOwnedPathspecs`` (marked ``git_repo``): it reads the
-pathspecs off a range resolved in an empty temporary directory.
+Marker: unit only -- no subprocess, no git (per the ``unit`` marker's
+contract in ``pytest.ini``); every function under test here takes plain
+values in and returns a plain value/string out, save two exceptions:
+``TestWpOwnedFiles`` reads a WP file it writes to ``tmp_path`` (the canonical
+frontmatter reader takes a path), and ``TestWpReviewRangeOwnedPathspecs``
+(marked ``git_repo``) reads the pathspecs off a range resolved in an empty
+temporary directory.
 """
 
 from __future__ import annotations
@@ -92,34 +94,47 @@ class TestFillReviewRange:
 
 # ---------------------------------------------------------------------------
 # wp_owned_files (re-pinned, #7578): the review range reads the WP's
-# ``owned_files`` from its raw frontmatter; ``parse_dependency_wp_ids`` is
-# retired with the dependency-branch candidate search it fed.
+# ``owned_files`` through the canonical authored-frontmatter reader
+# (``read_authored_wp_frontmatter``); ``parse_dependency_wp_ids`` is retired
+# with the dependency-branch candidate search it fed.
 # ---------------------------------------------------------------------------
+
+_WP_HEAD = "---\nwork_package_id: WP01\ntitle: Some WP\n"
+
+
+def _wp_file(tmp_path: Path, frontmatter: str) -> Path:
+    path = tmp_path / "WP01-some-wp.md"
+    path.write_text(f"{_WP_HEAD}{frontmatter}---\n# WP01\n", encoding="utf-8")
+    return path
 
 
 class TestWpOwnedFiles:
-    def test_no_owned_files_key_returns_empty(self) -> None:
-        assert cores.wp_owned_files("work_package_id: WP01\n") == []
+    def test_no_owned_files_key_returns_empty(self, tmp_path: Path) -> None:
+        assert cores.wp_owned_files(_wp_file(tmp_path, "")) == []
 
-    def test_empty_owned_files_list_returns_empty(self) -> None:
-        assert cores.wp_owned_files("owned_files: []\n") == []
+    def test_empty_owned_files_list_returns_empty(self, tmp_path: Path) -> None:
+        assert cores.wp_owned_files(_wp_file(tmp_path, "owned_files: []\n")) == []
 
-    def test_single_owned_file_quoted(self) -> None:
-        assert cores.wp_owned_files('owned_files: ["src/a.py"]\n') == ["src/a.py"]
+    def test_single_owned_file_quoted(self, tmp_path: Path) -> None:
+        assert cores.wp_owned_files(_wp_file(tmp_path, 'owned_files: ["src/a.py"]\n')) == ["src/a.py"]
 
-    def test_multiple_owned_files_quoted(self) -> None:
-        assert cores.wp_owned_files('owned_files: ["src/a.py", "src/b/**"]\n') == ["src/a.py", "src/b/**"]
+    def test_multiple_owned_files_quoted(self, tmp_path: Path) -> None:
+        assert cores.wp_owned_files(_wp_file(tmp_path, 'owned_files: ["src/a.py", "src/b/**"]\n')) == ["src/a.py", "src/b/**"]
 
-    def test_multiple_owned_files_block_list(self) -> None:
-        assert cores.wp_owned_files("owned_files:\n- src/a.py\n- src/b/**\n") == ["src/a.py", "src/b/**"]
+    def test_multiple_owned_files_block_list(self, tmp_path: Path) -> None:
+        assert cores.wp_owned_files(_wp_file(tmp_path, "owned_files:\n- src/a.py\n- src/b/**\n")) == ["src/a.py", "src/b/**"]
 
-    def test_ignores_unrelated_frontmatter(self) -> None:
-        frontmatter = '---\nwork_package_id: "WP03"\ntitle: "Some WP"\nowned_files: [src/a.py]\nagent: "claude"\n---\n# WP03\n'
-        assert cores.wp_owned_files(frontmatter) == ["src/a.py"]
+    def test_ignores_unrelated_frontmatter(self, tmp_path: Path) -> None:
+        assert cores.wp_owned_files(_wp_file(tmp_path, 'agent: "claude"\nowned_files: [src/a.py]\n')) == ["src/a.py"]
 
-    def test_unreadable_frontmatter_declares_nothing(self) -> None:
-        assert cores.wp_owned_files("owned_files: [unclosed\n") == []
-        assert cores.wp_owned_files("owned_files: src/only.py\n") == ["src/only.py"]
+    def test_declaration_the_canonical_reader_rejects_declares_nothing(self, tmp_path: Path) -> None:
+        """Bad YAML, a scalar where the schema wants a list, and an unknown key are the canonical reader's refusals."""
+        assert cores.wp_owned_files(_wp_file(tmp_path, "owned_files: [unclosed\n")) == []
+        assert cores.wp_owned_files(_wp_file(tmp_path, "owned_files: src/only.py\n")) == []
+        assert cores.wp_owned_files(_wp_file(tmp_path, "bogus_field: 1\nowned_files: [src/a.py]\n")) == []
+
+    def test_missing_file_declares_nothing(self, tmp_path: Path) -> None:
+        assert cores.wp_owned_files(tmp_path / "WP09-absent.md") == []
 
 
 # ---------------------------------------------------------------------------

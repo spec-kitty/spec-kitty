@@ -500,27 +500,24 @@ def has_prior_rejection(
 # ---------------------------------------------------------------------------
 
 
-def wp_owned_files(wp_frontmatter: str) -> list[str]:
-    """The ``owned_files`` a work package's raw frontmatter text declares (``[]`` when absent or unreadable).
+def wp_owned_files(wp_file: Path) -> list[str]:
+    """The ``owned_files`` the work package file *wp_file* declares (``[]`` when absent or unreadable).
 
-    *wp_frontmatter* is the YAML between the ``---`` fences; a whole file with its fences also
-    reads. The review range (``review.wp_range.resolve_wp_review_range``) turns the list into the
-    one set of review pathspecs (#7578); this only reads the declaration.
+    Reads through the canonical authored-frontmatter reader
+    (:func:`~specify_cli.status.read_authored_wp_frontmatter`, the one ``owned_files`` reader the
+    prompt builder and the evidence axis use), so a declaration it rejects declares nothing here
+    too. The review range (``review.wp_range.resolve_wp_review_range``) turns the list into the one
+    set of review pathspecs (#7578); this only reads the declaration.
     """
-    from ruamel.yaml import YAML
-    from ruamel.yaml.error import YAMLError
+    from pydantic import ValidationError
 
-    text = wp_frontmatter.replace("\r\n", "\n")
-    if text.startswith("---\n"):
-        text = text[4:].split("\n---", 1)[0]
+    from specify_cli.status import FrontmatterError, read_authored_wp_frontmatter
+
     try:
-        data = YAML(typ="safe").load(text)
-    except YAMLError:
+        wp_meta, _body = read_authored_wp_frontmatter(wp_file)
+    except (FrontmatterError, OSError, UnicodeError, ValidationError):
         return []
-    owned = data.get("owned_files") if isinstance(data, dict) else None
-    if isinstance(owned, str):
-        return [owned]
-    return [str(item) for item in owned] if isinstance(owned, list) else []
+    return list(wp_meta.owned_files)
 
 
 def event_is_review_claim(event: StatusEvent) -> bool:
