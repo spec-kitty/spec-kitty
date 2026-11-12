@@ -23,7 +23,7 @@ import pytest
 
 from specify_cli.consolidation import wp_attribution as wpa
 from specify_cli.consolidation.git_probes import GitProbeError
-from specify_cli.status import LANE_HEAD_KEY, MIGRATION_ACTOR_PREFIX, Lane, StatusEvent
+from specify_cli.status import LANE_HEAD_KEY, MIGRATION_ACTOR_PREFIX, Lane, StatusEvent, window_opener_events
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -1353,3 +1353,59 @@ def test_target_tip_anchor_exempts_fast_forwarded_target_commits(tmp_path: Path)
 def test_git_probe_error_type_still_available() -> None:
     """Sanity: the module re-uses the shared GitProbeError type (no shadow class)."""
     assert issubclass(GitProbeError, RuntimeError)
+
+
+# ---------------------------------------------------------------------------
+# approval_window_open_stamp: first-claim rule (pure; no git needed)
+# ---------------------------------------------------------------------------
+
+_OPEN_SHA_X = "0" * 40
+_OPEN_SHA_A = "a" * 40
+_OPEN_SHA_B = "b" * 40
+_OPEN_SHA_C = "c" * 40
+
+
+def _stamped(
+    counter: list[int], from_lane: Lane, to_lane: Lane, stamp: str | None, *, window: dict[str, object] | None = None, actor: str = "claude"
+) -> StatusEvent:
+    counter[0] += 1
+    metadata: dict[str, object] = {}
+    if stamp is not None:
+        metadata[LANE_HEAD_KEY] = stamp
+    if window is not None:
+        metadata["wp_window"] = window
+    return StatusEvent(
+        event_id=f"01M6Y84D{counter[0]:018d}",
+        mission_slug=_MISSION_SLUG,
+        wp_id="WP01",
+        from_lane=from_lane,
+        to_lane=to_lane,
+        at="2026-11-09T10:00:00+00:00",
+        actor=actor,
+        force=False,
+        execution_mode="worktree",
+        policy_metadata=metadata or None,
+    )
+
+
+def test_approval_window_open_stamp_unchanged_first_claim_rule() -> None:
+    ids = [0]
+    branch_missing = {"schema_version": 1, "gap": {"reason": "lane_branch_missing", "detail": "refs/heads/x not found"}}
+    rewound = [
+        _stamped(ids, Lane.PLANNED, Lane.BLOCKED, _OPEN_SHA_X),
+        _stamped(ids, Lane.BLOCKED, Lane.CLAIMED, _OPEN_SHA_A, window=branch_missing),
+        _stamped(ids, Lane.CLAIMED, Lane.PLANNED, _OPEN_SHA_A),
+        _stamped(ids, Lane.PLANNED, Lane.CLAIMED, _OPEN_SHA_C),
+    ]
+    # cycle=False: the first claim ever, even after a rewind, and no lane_branch_missing skip
+    assert wpa.approval_window_open_stamp(rewound, "WP01") == _OPEN_SHA_A
+    selection = window_opener_events(rewound, "WP01", cycle=False)
+    assert selection.skipped_branch_missing == 0
+    assert [event.to_lane for event in selection.candidates] == [Lane.CLAIMED, Lane.CLAIMED]
+    # an unstamped first claim is never stood in for by a later stamped one
+    unstamped_first = [_stamped(ids, Lane.PLANNED, Lane.CLAIMED, None), _stamped(ids, Lane.CLAIMED, Lane.IN_PROGRESS, _OPEN_SHA_B)]
+    assert wpa.approval_window_open_stamp(unstamped_first, "WP01") is None
+    # migration seeds and other work packages never count; no entry at all is None
+    migrated = [_stamped(ids, Lane.PLANNED, Lane.CLAIMED, _OPEN_SHA_X, actor="migration:seed"), _stamped(ids, Lane.CLAIMED, Lane.IN_PROGRESS, _OPEN_SHA_B)]
+    assert wpa.approval_window_open_stamp(migrated, "WP01") == _OPEN_SHA_B
+    assert wpa.approval_window_open_stamp(migrated, "WP02") is None

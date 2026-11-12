@@ -152,6 +152,14 @@ def test_a_path_with_a_control_character_never_adds_a_line() -> None:
     assert next(line for line in lines if "OUTSIDE" in line).endswith(': "docs/x\\ny\\t\\"z\\".md"')
 
 
+def test_a_line_separator_path_stays_one_line_and_a_printable_non_ascii_path_is_unquoted() -> None:
+    lines = render_review_context(_range(files=(FileChange("src/m2/a\u2028b.py", 1, 0), FileChange("src/m2/\u00e9.py", 2, 0))), ())
+
+    assert not [line for line in lines if "\u2028" in line]
+    assert any(line.startswith("  +1 -0  ") and "\\u2028" in line for line in lines)
+    assert "  +2 -0  src/m2/\u00e9.py" in lines
+
+
 def test_unavailable_golden() -> None:
     unavailable = WpReviewRange.unavailable("WP02", "no_submission", ("src/m2/**",))
 
@@ -354,6 +362,15 @@ def test_cited_requirements_are_capped_with_a_count_of_the_rest() -> None:
     assert len(section) == MAX_CITED + 1
     assert section[0].startswith("  FR-001") and section[MAX_CITED - 1].startswith("  FR-020")
     assert section[-1] == "  … 5 more cited (see spec.md)"
+
+
+def test_exactly_the_cap_of_citations_has_no_more_cited_line() -> None:
+    cited = tuple(CitedRequirement(f"FR-{index:03d}", Resolution.NOT_DECLARED) for index in range(1, MAX_CITED + 1))
+
+    lines = render_review_context(_range(), cited)
+
+    assert len(lines[lines.index(REQS) + 1 :]) == MAX_CITED
+    assert not [line for line in lines if "more cited" in line]
 
 
 _MANY_SPECS = tuple(f"src/package_{index:03d}/module_with_a_long_name.py" for index in range(120))
