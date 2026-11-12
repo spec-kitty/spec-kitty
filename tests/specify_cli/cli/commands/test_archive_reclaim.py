@@ -24,6 +24,7 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.coordination.teardown import COORD_TEARDOWN_KEPT_ONLY_COPY
 from specify_cli.status.models import Lane, StatusEvent
 from tests._support.status_seed import seed_status_event
 from tests.terminus.conftest import CoordMission, _init_fixture_repo, build_coord_mission, run_terminus
@@ -178,7 +179,45 @@ def test_reclaim_refuses_a_dirty_coordination_worktree(archived_mission: CoordMi
     result = _reclaim(mission)
 
     assert result.returncode == 1, _output(result)
+    assert f"Error code: {COORD_TEARDOWN_KEPT_ONLY_COPY}." in result.stdout + result.stderr, _output(result)
     _assert_triple_kept(mission, meta_before)
+
+
+def test_reclaim_off_the_target_branch_refuses_before_changing_anything(archived_mission: CoordMission) -> None:
+    """Review cycle 1, F1: the flatten commit can only land on the target, so check that first."""
+    mission = archived_mission
+    _git(mission.repo, "checkout", "-q", "-b", "side")
+    meta_before = _meta_bytes(mission)
+    landed_before = _landed_ref_tip(mission)
+
+    result = _reclaim(mission)
+
+    combined = result.stdout + result.stderr
+    assert result.returncode == 1, _output(result)
+    assert "RECLAIM_NOT_ON_TARGET" in combined, _output(result)
+    assert f"git checkout {mission.target_branch}" in combined, _output(result)
+    _assert_triple_kept(mission, meta_before)
+    assert _landed_ref_tip(mission) == landed_before
+    assert _git(mission.repo, "status", "--porcelain", "--", f"kitty-specs/{mission.slug}") == ""
+
+    _git(mission.repo, "checkout", "-q", mission.target_branch)
+    followed = _reclaim(mission)
+    assert followed.returncode == 0, _output(followed)
+
+
+def test_reclaim_names_the_keep_record_the_guard_actually_wrote(archived_mission: CoordMission) -> None:
+    """Review cycle 1, F2: a stale earlier keep-record makes the guard write ``<branch>@<sha12>``."""
+    mission = archived_mission
+    coord_tip = mission.rev(mission.coord_branch)
+    plain = f"refs/spec-kitty/discarded/{mission.coord_branch}"
+    _git(mission.repo, "update-ref", plain, mission.rev(mission.target_branch))
+
+    result = _reclaim(mission)
+
+    assert result.returncode == 0, _output(result)
+    expected = f"{plain}@{coord_tip[:12]}"
+    assert expected in result.stdout, _output(result)
+    assert mission.rev(expected) == coord_tip
 
 
 def test_reclaim_refuses_coordination_content_that_is_not_on_the_target(archived_mission: CoordMission) -> None:
