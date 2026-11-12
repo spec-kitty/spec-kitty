@@ -167,3 +167,46 @@ no test pins the "resume the consolidation" wording.
 `test_doctor_cli_surface_golden.py` (if a doctor flag changes), `test_json_contract_enumeration.py`
 (if `archive` arguments change), `tests/coordination/test_flatten_primitive_single_source.py`,
 `tests/architectural/dead_symbol_allowlist.yaml` consumers (`test_no_dead_symbols.py`).
+
+## 7. Second opinion (fresh-context challenger) — corrections that supersede the sections above
+
+- **#7491, fix (A) refined.** The persisted post-projection tip is UNSOUND as a resume base
+  unless the landing was verified: a resume that re-runs the phases checkpoints the LIVE
+  coordination tip (`run_state.py:446`, `phase_claim.py:489`), so a tip from a rolled-back
+  attempt would skip `pre_mutation..live`. Therefore:
+  - write the tip in `_record_reconciliation_pass` (`phase_gate.py:138-153`), in the same
+    `save_state` as `reconciliation_passed_target_sha`, not at bookkeeping capture;
+  - use it only when `landing_verified_for_resume` (`run_state.py:540-560`) is true (exactly
+    when the phases are skipped);
+  - clear it wherever the PASS anchor is cleared (`rollback.py` `_clear_bookkeeping` ~830,
+    `rebaseline_after_full_restore` ~904, the F4 restore, ~969) and restore it together with
+    `anchor_before` (`executor.py:801-802`);
+  - legacy records load `None` (`state.py:335` filters fields) and fall back to today's base.
+  - Alternative (D): keep the wide base for coordination records, events and deletions, and use
+    the narrow tip only for the primary-artifact disposition.
+  - No existing test pins the resume base as `pre_mutation_coord_sha`; three docstrings must be
+    updated.
+- **#5867.** The refusal's `typer.Exit(1)` runs INSIDE the single rollback door
+  (`executor.py:696-702`), so the target IS rolled back; the "does NOT roll the target back"
+  comment at `phase_gate.py:347-355` is stale. Only a `GitProbeError` is transient; a
+  deterministic cause repeats on `--resume`. `tests/consolidation/test_executor_coverage.py:585-597`
+  patches `projected_content_matches_target` and must follow the gate's new call. A new code
+  needs a `docs/api/cli-commands.md` row and a `tests/consolidation/test_constants_seam.py` pin;
+  keep the phrase "projected coordination bookkeeping content did not land".
+- **#7599.** Keying on `_lands_by_consolidation` misses a flat `lanes` Mission accepted on its
+  target; key the text on "has lanes still to consolidate", with the coordination case naming
+  where the record went.
+- **#7600 is wider.** `RefAdvanceDirtyWorktreeError` is raised by `advance_branch_ref` /
+  `restore_branch_ref`, imported by ~30 modules; its "resume the consolidation" text leaks into
+  non-consolidate commands (live: `cli/commands/agent/workflow.py:2255-2256`, review fast-forward).
+  Better fix: neutral exception text, each catcher appends its own next step. `ref_advance.py`
+  is guard-internal to `test_destructive_op_routing.py` and beside safe-commit: merge-conflict
+  risk with sub-epic C.
+- **#4041.** Non-discard `mission close` removes only the worktree; `--discard` on a merged
+  Mission is wrong provenance. **Blocker for any reclaim:** `guarded_branch_delete` without
+  `operator_intent` refuses `BRANCH_HAS_UNIQUE_COMMITS` (`destructive_guard.py:612-616`), and
+  after the default squash the coordination branch's bookkeeping commits are on no other ref.
+  A tip-bound, absorption-proved delete (`LANDED_INTENT` with `expected_tip`, or a new intent)
+  means editing the named-intent pin in `test_destructive_op_routing.py`. `doctor coordination
+  --fix` already flattens a marker whose branch is gone. Challenger recommends extending
+  non-discard `mission close` over a new `archive reclaim`.
