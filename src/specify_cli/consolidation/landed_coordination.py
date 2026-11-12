@@ -27,12 +27,11 @@ from pathlib import Path
 from specify_cli.consolidation.git_probes import commit_in_clone, is_ancestor_strict, resolve_commit
 from specify_cli.git.ref_advance import delete_bookkeeping_ref, write_bookkeeping_ref
 
+# The read side (LANDED_COORDINATION_REF_PREFIX, landed_coordination_ref, landed_coordination_tip) is exported by WP04 (#4041),
+# which adds it to __all__ with its first caller.
 __all__ = [
-    "LANDED_COORDINATION_REF_PREFIX",
     "LandedCoordinationRefError",
     "clear_landed_coordination_tip",
-    "landed_coordination_ref",
-    "landed_coordination_tip",
     "record_landed_coordination_tip",
 ]
 
