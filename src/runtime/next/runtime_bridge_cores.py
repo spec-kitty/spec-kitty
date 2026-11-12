@@ -73,7 +73,6 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field, replace
-from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any, Protocol, runtime_checkable
 
@@ -1164,8 +1163,10 @@ def step_or_blocked(
 # ---------------------------------------------------------------------------
 # next-lifecycle-integrity IC-01 — the finished-board verdict (FR-002, FR-007)
 #
-# Pure: the caller gathers ``accepted_at`` (``meta.json``) and the board's newest WP
-# transition timestamp; this module only parses and compares them (stdlib ``datetime``).
+# Pure: the caller (``runtime_bridge_io.acceptance_is_fresh``) decides whether the
+# Mission's acceptance is newer than the board's newest WP transition; this leaf only maps
+# the finished board step and that fact to a verdict. Timestamp parsing stays out of the
+# leaf: it goes through ``kernel.clock`` (the clock-import ban), which this leaf may not import.
 # ---------------------------------------------------------------------------
 
 
@@ -1200,43 +1201,17 @@ REBUILD_LANES_COMMAND = "spec-kitty doctor mission-state --fix --mission {missio
 AGENT_PLACEHOLDER = "<agent>"
 
 
-def parse_iso_timestamp(value: str | None) -> datetime | None:
-    """Parse an ISO-8601 timestamp to an aware datetime, or ``None`` when absent or unparsable.
-
-    A naive timestamp is read as UTC, so naive and offset-bearing values compare safely.
-    """
-    if not value:
-        return None
-    try:
-        parsed = datetime.fromisoformat(value)
-    except ValueError:
-        return None
-    return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
-
-
-def finished_board_verdict(
-    board_step: str | None,
-    *,
-    accepted_at: str | None,
-    latest_transition_at: str | None,
-) -> FinishedBoardVerdict:
+def finished_board_verdict(board_step: str | None, *, accepted: bool) -> FinishedBoardVerdict:
     """Judge a finished board's acceptance (FR-002 freshness, FR-007).
 
     - ``NONE`` when ``board_step`` is not a finished-board step.
-    - ``ACCEPTED`` iff ``accepted_at`` parses and is strictly later than
-      ``latest_transition_at``. A missing ``latest_transition_at`` counts as fresh.
-    - Otherwise ``AWAITING_ACCEPTANCE``: a missing or unparsable ``accepted_at``, an
-      acceptance at or before the newest transition, or an unparsable
-      ``latest_transition_at`` (fails toward blocked).
+    - ``ACCEPTED`` when the board is finished and ``accepted`` holds: the Mission's
+      acceptance is newer than the board's latest WP transition (the caller decides this
+      with ``runtime_bridge_io.acceptance_is_fresh``, which fails toward ``False``).
+    - Otherwise ``AWAITING_ACCEPTANCE``.
+
+    Acceptance never counts unless the board is finished (``accepted_at`` is sticky).
     """
     if board_step not in FINISHED_BOARD_STEPS:
         return FinishedBoardVerdict.NONE
-    accepted = parse_iso_timestamp(accepted_at)
-    if accepted is None:
-        return FinishedBoardVerdict.AWAITING_ACCEPTANCE
-    if latest_transition_at is None:
-        return FinishedBoardVerdict.ACCEPTED
-    latest = parse_iso_timestamp(latest_transition_at)
-    if latest is not None and accepted > latest:
-        return FinishedBoardVerdict.ACCEPTED
-    return FinishedBoardVerdict.AWAITING_ACCEPTANCE
+    return FinishedBoardVerdict.ACCEPTED if accepted else FinishedBoardVerdict.AWAITING_ACCEPTANCE

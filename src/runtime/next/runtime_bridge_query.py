@@ -102,8 +102,10 @@ def _query_lifecycle_facts(
     finalized_override = _mapping._finalized_task_board_override_step(task_board_dir, progress, board=board)
     acceptance = _cores.finished_board_verdict(
         _ACCEPT_STEP,
-        accepted_at=_io_seam.mission_accepted_at(primary_metadata_dir),
-        latest_transition_at=_io_seam.board_latest_transition_at(board),
+        accepted=_io_seam.acceptance_is_fresh(
+            _io_seam.mission_accepted_at(primary_metadata_dir),
+            _io_seam.board_latest_transition_at(board),
+        ),
     )
     finished = finalized_override in _cores.FINISHED_BOARD_STEPS
     return _QueryLifecycleFacts(

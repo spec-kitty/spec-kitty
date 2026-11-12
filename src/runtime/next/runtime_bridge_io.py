@@ -56,11 +56,11 @@ import re
 import tempfile
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypedDict
 
 import yaml
+from kernel.clock import UTC, datetime, parse_iso
 from kernel.tree_removal import remove_tool_owned_tree
 from charter.activation.mission_type_profile_repository import builtin_missions_root
 from charter.pack_paths import PackRootNotFound
@@ -92,7 +92,6 @@ from runtime.next.runtime_bridge_cores import (
     ANALYZE_STEP_ID,
     TASKS_ARTIFACT,
     TASKS_INDEX_ARTIFACT,
-    parse_iso_timestamp,
 )
 from runtime.next.run_index import FEATURE_RUNS_FILENAME
 from runtime.next.run_index import RunDirOutsideRepoError as RunDirOutsideRepoError  # re-export
@@ -987,6 +986,38 @@ def mission_accepted_at(primary_metadata_dir: Path) -> str | None:
 
     accepted_at = load_meta_or_empty(primary_metadata_dir).get("accepted_at")
     return accepted_at if isinstance(accepted_at, str) and accepted_at else None
+
+
+def parse_iso_timestamp(value: str | None) -> datetime | None:
+    """Parse an ISO-8601 timestamp to an aware datetime, or ``None`` when absent or unparsable.
+
+    Goes through ``kernel.clock.parse_iso`` (the clock door). A naive timestamp is read as
+    UTC, so naive and offset-bearing values compare safely.
+    """
+    if not value:
+        return None
+    try:
+        parsed = parse_iso(value)
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
+
+
+def acceptance_is_fresh(accepted_at: str | None, latest_transition_at: str | None) -> bool:
+    """True iff the acceptance is newer than the board's latest WP transition (FR-002).
+
+    - A missing or unparsable ``accepted_at`` is not an acceptance.
+    - A missing ``latest_transition_at`` (a board with no recorded transition) counts as fresh.
+    - An unparsable ``latest_transition_at``, or an acceptance at or before it, is not fresh:
+      the verdict fails toward ``AWAITING_ACCEPTANCE``, never toward a wrong ``terminal``.
+    """
+    accepted = parse_iso_timestamp(accepted_at)
+    if accepted is None:
+        return False
+    if latest_transition_at is None:
+        return True
+    latest = parse_iso_timestamp(latest_transition_at)
+    return latest is not None and accepted > latest
 
 
 def board_latest_transition_at(board: BoardStatus | None) -> str | None:
