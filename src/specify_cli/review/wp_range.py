@@ -10,13 +10,16 @@ Resolution (each derived anchor must be an ancestor of the tip, or it is skipped
 
 * **Tip**: the newest non-migration ``for_review`` event of the work package after its window
   opener (never the live head). Its ``policy_metadata.lane_head`` stamp
-  (``RECORDED_SUBMISSION``); else, on ``single_branch`` only, the commit that introduced the event
-  (``EVENT_COMMIT``); else unavailable.
+  (``RECORDED_SUBMISSION``); else, where event commits are used (below), the commit that
+  introduced the event (``EVENT_COMMIT``); else unavailable.
 * **Base**: the recorded window open (``status.window_open_of``, ``RECORDED_WINDOW``); else the
-  opener event's own ``lane_head`` (``OPENER_LANE_HEAD``, lane Missions before #7403); else, on
-  ``single_branch`` only, the ``wp-base`` claim-base ref (``CLAIM_BASE_REF``) and then the commit
-  that introduced the opener event (``EVENT_COMMIT``); else unavailable. Event commits are never
-  used on lane topologies: there the status log lives on the status branch, not the code branch.
+  opener event's own ``lane_head`` (``OPENER_LANE_HEAD``, lane Missions before #7403); else, where
+  event commits are used, the ``wp-base`` claim-base ref (``CLAIM_BASE_REF``) and then the commit
+  that introduced the opener event (``EVENT_COMMIT``); else unavailable.
+* **Event commits are used** on ``single_branch`` and for a work package no lane branch stamps
+  (``status.read_lane_head`` reads it as not applicable: the planning lane of a ``lanes`` or
+  ``lanes_with_coord`` Mission, C-009, operator ruling Q10). A code-lane work package never uses
+  them: its status log lives on the status branch, not its lane branch.
 * ``gap`` names why the recorded value was not used (the first reason seen).
 
 Listing (a constant number of git calls, NFR-002). Pathspecs use git's default wildcard matching
@@ -213,11 +216,16 @@ class _Context:
     surface: StatusReadSurface
     events: list[StatusEvent]
     selection: OpenerSelection
+    #: The write branch's live head (``status.read_lane_head``), ``None`` when it has none.
+    live_head: str | None
+    #: Whether a lane branch stamps this work package (``False`` for the planning lane, C-009).
+    lane_stamped: bool
     ancestry: dict[tuple[str, str], bool] = field(default_factory=dict)
 
     @property
-    def single_branch(self) -> bool:
-        return bool(is_single_branch(self.surface.topology))
+    def uses_event_commits(self) -> bool:
+        """Event commits are derived ends on ``single_branch`` and for a work package no lane branch stamps (Q10)."""
+        return bool(is_single_branch(self.surface.topology)) or not self.lane_stamped
 
     @property
     def first_opener(self) -> StatusEvent | None:
@@ -285,7 +293,7 @@ def _select_tip(ctx: _Context) -> tuple[str | None, RangeSource, RangeGap | None
     stamped = _lane_head_of(submission)
     if stamped is not None:
         return stamped, RangeSource.RECORDED_SUBMISSION, None
-    if not ctx.single_branch:
+    if not ctx.uses_event_commits:
         return None, RangeSource.NONE, RangeGap.NOT_RECORDED
     commit = ctx.event_commit(submission)
     if commit is None:
@@ -309,7 +317,7 @@ def _derived_bases(ctx: _Context, tip: str) -> Iterator[tuple[str, RangeSource]]
     stamped = _lane_head_of(opener) if opener is not None else None
     if stamped is not None and ctx.is_ancestor(stamped, tip):
         yield stamped, RangeSource.OPENER_LANE_HEAD
-    if not ctx.single_branch:
+    if not ctx.uses_event_commits:
         return
     claim_base = _claim_base(ctx)
     if claim_base is not None and ctx.is_ancestor(claim_base, tip):
@@ -383,12 +391,6 @@ def _count(repo_root: Path, rev_range: str, excludes: Sequence[str]) -> int:
     return int(result.stdout.decode("ascii", "replace").strip() or "0")
 
 
-def _live_head(repo_root: Path, mission_slug: str, wp_id: str, owned: OwnedCheckout | None) -> str | None:
-    reading = read_lane_head(repo_root=repo_root, mission_slug=mission_slug, wp_id=wp_id, owned=owned)
-    sha: str | None = reading.sha
-    return sha
-
-
 @dataclass(frozen=True)
 class _ListingRequest:
     repo_root: Path
@@ -444,7 +446,16 @@ def _read_context(repo_root: Path, mission_slug: str, wp_id: str, owned: OwnedCh
         logger.debug("review range: status surface of %s unreadable", mission_slug, exc_info=True)
         return None
     selection = window_opener_events(events, wp_id, cycle=True)
-    return _Context(repo_root=repo_root, wp_id=wp_id, surface=surface, events=events, selection=selection)
+    reading = read_lane_head(repo_root=repo_root, mission_slug=surface.mission_dir_name, wp_id=wp_id, owned=owned)
+    return _Context(
+        repo_root=repo_root,
+        wp_id=wp_id,
+        surface=surface,
+        events=events,
+        selection=selection,
+        live_head=reading.sha,
+        lane_stamped=bool(reading.applicable),
+    )
 
 
 def _status_of(base_source: RangeSource, tip_source: RangeSource) -> RangeStatus:
@@ -482,7 +493,7 @@ def resolve_wp_review_range(
             owned_pathspecs=owned_pathspecs,
             patterns=owned_patterns(owned_files),
             bookkeeping=_bookkeeping_excludes(ctx.surface.mission_dir_name),
-            head=_live_head(repo_root, ctx.surface.mission_dir_name, wp_id, owned),
+            head=ctx.live_head,
         )
     )
     return WpReviewRange(
