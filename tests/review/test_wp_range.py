@@ -26,7 +26,8 @@ from kernel.git import GitCommandError
 from specify_cli.lanes.claim_base import record_claim_base
 from specify_cli.lanes.for_review_gate import status_only_excluded_prefixes
 from specify_cli.review import wp_range
-from specify_cli.review.wp_range import FileChange, RangeCommit, RangeSource, RangeStatus, WpReviewRange, resolve_wp_review_range
+from specify_cli.status import WindowGapReason
+from specify_cli.review.wp_range import FileChange, RangeSource, RangeStatus, WpReviewRange, resolve_wp_review_range
 from tests.consolidation import characterization_support as cs
 from tests.integration import single_branch_window_support as sb
 from specify_cli.review.context_block import render_review_context
@@ -509,6 +510,27 @@ def test_an_implementation_commit_after_the_tip_counts_as_moved_past(sb_template
     assert found.moved_past == 1
 
 
+@pytest.mark.parametrize("rewritten", [False, True])
+def test_a_rewritten_lane_names_the_tip_off_the_branch_and_counts_nothing_past_it(
+    sb_templates: _SingleBranchTemplates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, rewritten: bool
+) -> None:
+    m = _checkout(sb_templates.get("minted+submitted"), tmp_path, monkeypatch)
+    if rewritten:  # the same tree on a history that no longer holds the submitted tip
+        root = sb.git(m.repo, "rev-list", "--max-parents=0", "HEAD")
+        sb.git(m.repo, "update-ref", "HEAD", sb.git(m.repo, "commit-tree", "HEAD^{tree}", "-p", root, "-m", "rewrite the lane"))
+
+    found = _resolve_sb(m)
+
+    assert found.status is RangeStatus.RECORDED
+    assert found.tip_off_branch is rewritten
+    assert found.moved_past == 0
+
+
+@pytest.mark.parametrize("reason", list(WindowGapReason))
+def test_every_window_gap_reason_maps_to_the_range_gap_of_the_same_value(reason: WindowGapReason) -> None:
+    assert wp_range._WINDOW_GAPS[reason].value == reason.value
+
+
 def test_out_of_map_paths_are_flagged_and_out_of_map_only_commits_counted(
     sb_templates: _SingleBranchTemplates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -647,11 +669,8 @@ def test_a_failed_listing_keeps_the_range_and_names_the_failure(sb_templates: _S
     assert found.status is RangeStatus.RECORDED
     assert found.files == () and found.out_of_map == ()
     assert _subjects(found) == [_IMPL_SUBJECT]
-    assert found.listing_gap is not None and "numstat" in found.listing_gap
-
-
-def test_range_commit_is_a_plain_value() -> None:
-    assert RangeCommit("a" * 40, "subject") == RangeCommit("a" * 40, "subject")
+    assert found.listing_gap == "numstat"
+    assert "  note: listing incomplete: numstat failed; run the commands below" in render_review_context(found, ())
 
 
 # --------------------------------------------------------------------------- review cycle 1

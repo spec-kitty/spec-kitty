@@ -164,6 +164,15 @@ _STATUS_ONLY_PREFIX_TEMPLATES = (
 _KITTIFY_PREFIX = ".kittify/"
 
 
+def mission_tasks_index_path(mission_slug: str) -> str:
+    """The Mission's task index (``kitty-specs/<slug>/tasks.md``), one exact path.
+
+    Not in :func:`status_only_excluded_prefixes` (a prefix would also swallow ``tasks.md.bak``, and the
+    evidence axis keeps author-written Mission content), but the review range treats it as bookkeeping.
+    """
+    return f"kitty-specs/{mission_slug}/tasks.md"
+
+
 def status_only_excluded_prefixes(mission_slug: str) -> tuple[str, ...]:
     """The path prefixes that never count as implementation work: the one evidence / for_review exclusion list (#6715).
 
