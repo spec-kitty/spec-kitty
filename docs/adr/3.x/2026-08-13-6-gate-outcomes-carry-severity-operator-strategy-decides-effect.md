@@ -89,7 +89,11 @@ that invocation imports. This amendment records how the gate treats the probe's 
   whose tests relied on an inherited `PYTHONPATH` must declare it in its test command. On the
   override tier's `uv run --project <lane>` path the run uses the environment uv resolves for
   the lane rather than the probed one, so there the evidence describes the lane's invocation,
-  not that exact process.
+  not that exact process; the probe covers uv's interpreter only when the lane has a `.venv`
+  of its own. When `uv` is not on the run's `PATH` (looked up on the lane's environment, not
+  the caller's) or the lane has no `uv.lock`, the fallback runs the lane's own `.venv`
+  interpreter when it has one, the interpreter the probe checked, and otherwise the CLI's
+  interpreter with `PYTHONPATH=<tree>/src`, which the probe also used.
 - **The skip switch still skips everything.** The pre-review gate's skip flag and environment
   variable bypass the gate entirely, the probe and this refusal included. The amendment makes
   no stronger guarantee than that.
