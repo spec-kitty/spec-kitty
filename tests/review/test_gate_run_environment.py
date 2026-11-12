@@ -163,9 +163,20 @@ def test_override_tier_fallback_runs_in_the_given_run_env(monkeypatch: pytest.Mo
 
 
 def test_override_tier_fallback_without_run_env_inherits_the_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """Positive control: the fallback keeps today's inherited ``PYTHONPATH``."""
+    """Positive control: the fallback keeps today's inherited ``PYTHONPATH`` and interpreter (a lane ``.venv`` is not consulted)."""
     _inherit_redirect_keys(monkeypatch)
     seen = _capture_launch_env(monkeypatch)
+    commands: list[Sequence[str]] = []
+    launch_spy = pre_review_gate._launch_scoped_process
+
+    def _record(command: Sequence[str], **kwargs: object) -> object:
+        commands.append(list(command))
+        return launch_spy(command, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(pre_review_gate, "_launch_scoped_process", _record)
+    lane_python = tmp_path / ".venv" / ("Scripts" if os.name == "nt" else "bin") / ("python.exe" if os.name == "nt" else "python")
+    lane_python.parent.mkdir(parents=True)
+    lane_python.write_text("", encoding="utf-8")
 
     evaluate_with_scope(
         ScopeResult.from_override(("tests/test_x.py",)),
@@ -174,6 +185,7 @@ def test_override_tier_fallback_without_run_env_inherits_the_environment(monkeyp
         scope_source=None,
     )
 
+    assert [command[0] for command in commands] == [sys.executable]
     assert len(seen) == 1
     assert {key: seen[0].get(key) for key in INTERPRETER_REDIRECT_KEYS} == dict.fromkeys(INTERPRETER_REDIRECT_KEYS, _INHERITED)
     assert seen[0]["PWHEADLESS"] == "1"
