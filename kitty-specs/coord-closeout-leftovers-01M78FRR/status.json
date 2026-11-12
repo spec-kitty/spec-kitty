@@ -1,7 +1,7 @@
 {
-  "event_count": 25,
-  "last_event_id": "01M78KE04F2RRW1MCXXRTH5063",
-  "materialized_at": "2026-11-12T19:23:24.288541+00:00",
+  "event_count": 26,
+  "last_event_id": "01M78MX53W2ETX1TZHB2BKP0YJ",
+  "materialized_at": "2026-11-12T19:49:10.396996+00:00",
   "mission_number": "",
   "mission_slug": "coord-closeout-leftovers-01M78FRR",
   "mission_type": "software-dev",
@@ -12,8 +12,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 4,
+    "for_review": 1,
+    "in_progress": 3,
     "in_review": 0,
     "planned": 2
   },
@@ -121,15 +121,15 @@
       "shell_pid_created_at": "1794511114.59"
     },
     "WP06": {
-      "actor": "claude",
+      "actor": "user",
       "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M78KE04F2RRW1MCXXRTH5063",
-      "last_transition_at": "2026-11-12T19:23:24.288541+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M78MX53W2ETX1TZHB2BKP0YJ",
+      "last_transition_at": "2026-11-12T19:49:10.396996+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: local accept Next steps name consolidate + record branch while lanes remain; No merge needed only when nothing remains (#7599). E2E cells use the test_acceptance_regressions fixture.",
