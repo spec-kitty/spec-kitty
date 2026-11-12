@@ -17,12 +17,12 @@
     {
       "criterion_id": "FR-002",
       "description": "Verify FR-002 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "proof_type": "automated-test",
+      "evidence": "tests/status/test_lane_head_commit_to_target.py; tests/consolidation/test_commit_to_target_stamps.py; tests/review/test_wp_range_git_calls.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T13:31:25.485370+00:00",
+      "notes": "Mission-touched test files on integrated lane-f (936b9ded+WP06): 530 passed"
     },
     {
       "criterion_id": "FR-003",
