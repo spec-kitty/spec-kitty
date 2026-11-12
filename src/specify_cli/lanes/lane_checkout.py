@@ -22,7 +22,10 @@ checkout. On every route it:
    locally modified status file on disk (with a warning) rather than discard
    it, so no local status row is ever lost. A genuinely-legacy Mission is
    exempt: it writes status into its lane checkout and ``safe_commit`` cannot
-   stage a sparse-excluded path.
+   stage a sparse-excluded path;
+6. places the pinned packs trees the checkout lacks from the local cache,
+   offline and best effort (``lanes/lane_packs.py``, #7577): a cold cache
+   prints a remedy line and never fails the checkout.
 
 The architectural gate ``tests/architectural/test_lane_checkout_single_seam.py``
 fails on any lane ``git worktree add`` outside this module.
@@ -32,6 +35,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
@@ -173,7 +177,24 @@ def open_lane_checkout(request: LaneCheckoutRequest) -> Path:
     exclude_from_git_index(request.repo_root, [_SPEC_KITTY_STATE_EXCLUDE])
     if not _mission_is_genuinely_legacy(request.repo_root, request.mission_slug):
         exclude_lane_status_files(request.worktree_path, request.mission_dir_name)
+    _place_pinned_packs(request.worktree_path)
     return request.worktree_path
+
+
+def _place_pinned_packs(checkout: Path) -> None:
+    """Best effort: give the new checkout the pinned packs trees from the local cache (#7577).
+
+    Never fails the checkout. Each pack left out, and any unexpected error, becomes one
+    remedy line on stderr, the channel lane allocation already warns on.
+    """
+    from specify_cli.lanes.lane_packs import place_pinned_packs
+
+    try:
+        lines = place_pinned_packs(checkout).remedy_lines(checkout)
+    except Exception as exc:  # best effort by design: a pack problem must never fail `implement`
+        lines = (f"packs not placed in the lane (unexpected {type(exc).__name__}); run `make sync-packs` in {checkout}",)
+    for line in lines:
+        print(line, file=sys.stderr)
 
 
 def _mission_is_genuinely_legacy(repo_root: Path, mission_slug: str) -> bool:
