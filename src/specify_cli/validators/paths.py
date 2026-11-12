@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from collections.abc import Iterable, Sequence
 
+from kernel.git_anchor import checkout_root_containing
 from specify_cli.config.path_conventions import ARTIFACT_ROUTED_KEYS
 from specify_cli.mission import Mission
 
@@ -322,6 +323,7 @@ def _record_missing_path(
     relative_path: str,
     is_artifact_tagged: bool,
     prefixed: bool = False,
+    checkout: Path | None = None,
 ) -> None:
     """Record one missing required path on ``result`` (#6633: split out of
     ``validate_mission_paths`` to keep its cyclomatic complexity under the C901
@@ -334,14 +336,20 @@ def _record_missing_path(
     In ``path_prefix`` mode (research Missions, ``prefixed``) every path sits in
     the Mission's own deliverables directory: it is Mission output, not build
     layout, so it keeps its ``mkdir -p`` hint and is not offered a remap.
+
+    #7602: ``checkout`` is the linked checkout holding an artifact-tagged miss
+    when that is not the project root (``resolved`` is then relative to it).
+    The warning names both, and the ``mkdir -p`` remedy takes the absolute
+    path, so neither names a different, untested directory (#3085a).
     """
     result.missing_paths.append(resolved)
-    result.warnings.append(f"{mission_name} expects {key} path: {resolved} (not found)")
+    located = resolved if checkout is None else f"{resolved} in checkout {checkout.as_posix()}"
+    result.warnings.append(f"{mission_name} expects {key} path: {located} (not found)")
     if key not in ARTIFACT_ROUTED_KEYS and not prefixed:
         result.remappable_missing_keys.append(key)
     else:
         # #7512: only a non-remappable path is offered a ``mkdir -p`` remedy.
-        result.creatable_missing_paths.append(resolved)
+        result.creatable_missing_paths.append(resolved if checkout is None else f"{checkout.as_posix()}/{resolved}")
     if is_artifact_tagged:
         # Real feature_dir-relative token, straight from the declared path —
         # `resolved` above is project_root-relative and can't recover this.
@@ -350,6 +358,33 @@ def _record_missing_path(
         # membership filter could never let it through (see the field's
         # docstring above).
         result.missing_artifact_tokens.append(normalize_path_token(relative_path))
+
+
+def _display_path(full_path: Path, base: Path, relative_path: str) -> str:
+    """``full_path`` relative to ``base`` (absolute when outside it), keeping the declared ``/`` hint."""
+    try:
+        shown = full_path.relative_to(base).as_posix()
+    except ValueError:
+        shown = str(full_path)
+    if relative_path.endswith("/") and not shown.endswith("/"):
+        shown += "/"
+    return shown
+
+
+def _miss_frame(full_path: Path, project_root: Path, relative_path: str, holding_from: Path | None) -> tuple[str, Path | None]:
+    """How a missing path is named: ``(shown path, holding checkout or None)`` (#7602).
+
+    ``holding_from`` is the Mission directory an artifact-tagged path was resolved
+    under (``None`` for a build path). When the checkout containing it is not the
+    project root -- e.g. the coordination worktree of a settled Mission -- the path
+    is shown relative to that checkout, and the checkout is returned so the
+    message can name the location actually tested (#3085a). Otherwise the path
+    keeps its project-relative frame.
+    """
+    checkout = checkout_root_containing(holding_from) if holding_from is not None else None
+    if checkout is not None and checkout != project_root.resolve() and full_path.resolve().is_relative_to(checkout):
+        return _display_path(full_path.resolve(), checkout, relative_path), checkout
+    return _display_path(full_path, project_root, relative_path), None
 
 
 def validate_mission_paths(
@@ -467,13 +502,9 @@ def validate_mission_paths(
 
         # Report the resolved location actually tested above, not the bare
         # declared token (#3085a) — otherwise remediation names a different,
-        # untested directory (e.g. the repo root instead of feature_dir).
-        try:
-            resolved = full_path.relative_to(project_root).as_posix()
-        except ValueError:
-            resolved = str(full_path)
-        if relative_path.endswith("/") and not resolved.endswith("/"):
-            resolved += "/"
+        # untested directory (e.g. the repo root instead of feature_dir). An
+        # artifact held by another checkout is framed by that checkout (#7602).
+        resolved, checkout = _miss_frame(full_path, project_root, relative_path, feature_dir if is_artifact_tagged else None)
 
         _record_missing_path(
             result,
@@ -483,6 +514,7 @@ def validate_mission_paths(
             relative_path=relative_path,
             is_artifact_tagged=is_artifact_tagged,
             prefixed=bool(path_prefix),
+            checkout=checkout,
         )
 
     if result.missing_paths:
