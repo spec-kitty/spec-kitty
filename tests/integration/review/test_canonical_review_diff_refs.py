@@ -9,6 +9,7 @@ from specify_cli.cli.commands.agent.workflow import _resolve_review_context
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
+from specify_cli.review.wp_range import RangeStatus, WpReviewRange
 
 pytestmark = pytest.mark.git_repo
 
@@ -84,8 +85,16 @@ def test_review_diff_refs_use_canonical_manifest_for_mission_prefixed_slug(tmp_p
 
     reconstructed_wrong_ref = f"kitty/mission-{mission_slug}"
     assert reconstructed_wrong_ref == "kitty/mission-mission-canonical-refs"
+    # Re-pin (#7578, IC-05, DIRECTIVE_041): the review base is the WP review range's, not the mission
+    # branch. The canonical manifest still names the mission and lane branches; the range is resolved
+    # for this WP and scoped to its owned_files. No status event is recorded here, so the range is
+    # unavailable and the base stays unknown -- never a slug-reconstructed ref.
+    review_range = ctx["review_range"]
+    assert isinstance(review_range, WpReviewRange)
+    assert review_range.wp_id == "WP03" and review_range.owned_pathspecs == ("src/review_target.py",)
+    assert review_range.status is RangeStatus.UNAVAILABLE
     assert ctx["mission_branch"] == mission_branch
-    assert ctx["base_ref"] == mission_branch
-    assert ctx["base_branch"] == mission_branch
+    assert ctx["base_ref"] == "unknown"
+    assert ctx["base_branch"] == "unknown"
     assert ctx["lane_branch"] == lane_branch
-    assert reconstructed_wrong_ref not in f"git diff {ctx['base_ref']}..{ctx['lane_branch']}"
+    assert reconstructed_wrong_ref not in {ctx["base_ref"], ctx["lane_branch"], ctx["mission_branch"]}
