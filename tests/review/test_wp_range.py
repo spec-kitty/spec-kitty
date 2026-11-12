@@ -613,3 +613,83 @@ def test_a_failed_listing_keeps_the_range_and_names_the_failure(sb_templates: _S
 
 def test_range_commit_is_a_plain_value() -> None:
     assert RangeCommit("a" * 40, "subject") == RangeCommit("a" * 40, "subject")
+
+
+# --------------------------------------------------------------------------- review cycle 1
+
+
+def _set_opener_lane_head(mission: cs.ShapeMission, wp_id: str, sha: str) -> None:
+    """Rewrite the ``lane_head`` stamp of *wp_id*'s first opening event (in every event-log copy)."""
+    seen: dict[Path, bool] = {}
+
+    def _edit(event: dict[str, Any]) -> dict[str, Any] | None:
+        if not cs._is_opening(event, wp_id) or seen.get(Path("first")):
+            return None
+        seen[Path("first")] = True
+        return {**event, "policy_metadata": {**(event.get("policy_metadata") or {}), "lane_head": sha}}
+
+    with cs.deterministic_commit_dates(mission.repo):
+        for log in cs._event_logs(mission.repo):
+            seen.clear()
+            cs._rewrite_one(log, _edit, f"test: {wp_id}'s opener lane_head off the lane")
+
+
+def test_opener_lane_head_off_the_lane_is_never_a_base(lane_templates: _LaneTemplates, tmp_path: Path, lane_env: None) -> None:
+    mission = lane_templates.copy("lanes_with_coord", tmp_path)
+    cs.set_window_state(mission, "WP02", "not_recorded")
+    off_lane = cs._not_on_lane_sha(mission, "WP02")
+    _set_opener_lane_head(mission, "WP02", off_lane)
+    rows = [row for row in cs._events(mission) if row.get("wp_id") == "WP02"]
+    assert _meta(_of(rows, "claimed")[0])["lane_head"] == off_lane, "precondition: the opener stamp is off the lane"
+
+    found = _resolve_lane(mission, "WP02")
+
+    assert found.base != off_lane
+    assert found.status is RangeStatus.UNAVAILABLE
+    assert found.gap == "not_recorded"
+
+
+def test_stale_claim_base_ref_off_the_tip_is_skipped(sb_templates: _SingleBranchTemplates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    m = _checkout(sb_templates.get("ctt"), tmp_path, monkeypatch)
+    stale = sb.git(m.repo, "commit-tree", "HEAD^{tree}", "-p", "HEAD", "-m", "test: a commit that never lands on the target")
+    sb.git(m.repo, "update-ref", f"refs/spec-kitty/wp-base/{m.slug}/WP01", stale)
+    _submit_wp01(m)
+    rows = _sb_events(m)
+
+    found = _resolve_sb(m)
+
+    assert found.base != stale
+    assert found.base_source is RangeSource.EVENT_COMMIT
+    assert found.base == _event_commit(m, _of(rows, "claimed")[0]["event_id"])
+    assert _subjects(found) == [_IMPL_SUBJECT]
+
+
+def test_claim_base_read_that_cannot_start_git_falls_through(sb_templates: _SingleBranchTemplates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    m = _checkout(sb_templates.get("minted+submitted"), tmp_path, monkeypatch)
+    rows = _sb_events(m)
+    _strip_stamps_sb(m)
+
+    def _no_git(*_args: object, **_kwargs: object) -> object:
+        raise OSError("git cannot be started")
+
+    monkeypatch.setattr(wp_range, "read_claim_base", _no_git)
+
+    found = _resolve_sb(m)
+
+    assert found.base_source is RangeSource.EVENT_COMMIT
+    assert found.base == _event_commit(m, _of(rows, "claimed")[0]["event_id"])
+
+
+def test_bookkeeping_excludes_follow_the_mission_directory_not_the_handle(
+    sb_templates: _SingleBranchTemplates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    m = _checkout(sb_templates.get("minted+submitted"), tmp_path, monkeypatch)
+    mid8 = json.loads((m.repo / "kitty-specs" / m.slug / "meta.json").read_text(encoding="utf-8"))["mission_id"][:8]
+    assert mid8 != m.slug
+
+    by_handle = resolve_wp_review_range(m.repo, mid8, "WP01", owned_files=_M1)
+
+    assert by_handle.status is RangeStatus.RECORDED, by_handle
+    assert by_handle.out_of_map == (), "status files are bookkeeping, never out of the owned map"
+    assert by_handle.moved_past == 0
+    assert by_handle == _resolve_sb(m)
