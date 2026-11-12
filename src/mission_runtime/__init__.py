@@ -80,6 +80,7 @@ from mission_runtime.resolution import (
     declared_read_surface,
     mission_context_for,
     placement_seam,
+    read_dir_for,
     resolve_action_context,
     resolve_artifact_surface,
     resolve_create_time_write_target,
@@ -175,6 +176,10 @@ __all__ = [
     "mission_file_basenames_for_kind",
     "mission_has_landed",
     "placement_seam",
+    # settled-placement-surface (#7595): the PRIMARY-metadata reader the core
+    # target-branch helpers use (not PlacementSeam.read_dir, which recurses via
+    # resolve_lifecycle_phase); they may only import it from the package root.
+    "read_dir_for",
     "resolve_action_context",
     "resolve_artifact_surface",
     "resolve_create_time_write_target",

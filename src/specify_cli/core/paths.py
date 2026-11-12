@@ -865,7 +865,7 @@ def get_feature_target_branch(repo_root: Path, mission_slug: str) -> str:
     # Deferred imports: ``core/paths.py`` is imported very early; the missions/runtime layers import
     # back into core, so module-level imports would form a circular import.
     from mission_runtime import MissionArtifactKind
-    from mission_runtime.resolution import read_dir_for
+    from mission_runtime import read_dir_for
     from specify_cli.core.git_ops import resolve_primary_branch
 
     main_root = get_main_repo_root(repo_root)
