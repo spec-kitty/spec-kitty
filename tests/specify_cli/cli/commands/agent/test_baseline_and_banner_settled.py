@@ -9,10 +9,15 @@ that holds it. Probed from the repository root checkout, ``git status`` saw a pa
 
 The end-to-end case drives the real CLI in a subprocess from an unprotected root (``dev``) on a
 Mission built by the real ``agent mission create`` core and ``finalize-tasks``.
+
+The same settled Mission also pins #7595: the target-branch helpers behind the ``implement`` /
+``move-task`` banner read the declared ``target_branch`` from the coordination copy of ``meta.json``
+instead of falling back to the checked-out primary branch.
 """
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -227,3 +232,75 @@ def test_capture_skips_and_warns_when_the_artifact_is_outside_its_commit_checkou
 
     assert f"Baseline artifact {artifact}" in caplog.text
     assert "Baseline capture error" not in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# #7595: the target-branch helpers read the Mission's meta.json through the seam's reader.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def settled_root_on_main(settled_on_dev: DefaultMission) -> DefaultMission:
+    """The settled Mission (declared target ``dev``) with the repository root checkout moved to ``main``.
+
+    The primary-branch fallback follows the checked-out branch, so standing on ``main`` makes a
+    fallback distinguishable from the declared ``dev`` target.
+    """
+    git(settled_on_dev.root, "checkout", "-q", "main")
+    meta = (settled_on_dev.coord_mission_dir / "meta.json").read_text(encoding="utf-8")
+    assert '"target_branch": "dev"' in meta
+    assert not (settled_on_dev.root / "kitty-specs" / settled_on_dev.slug / "meta.json").exists()
+    return settled_on_dev
+
+
+def test_the_target_banner_reads_the_declared_target_after_settlement(settled_root_on_main: DefaultMission) -> None:
+    """#7595: both helpers return the declared ``dev``, never the ``main`` fallback."""
+    from specify_cli.core.git_ops import resolve_target_branch
+    from specify_cli.core.paths import get_feature_target_branch
+
+    mission = settled_root_on_main
+
+    assert get_feature_target_branch(mission.root, mission.slug) == "dev"
+    resolution = resolve_target_branch(mission.slug, mission.root, current_branch="main")
+    assert resolution.target == "dev"
+    assert resolution.should_notify is True
+
+
+def test_the_write_side_reads_the_declared_target_after_settlement(settled_root_on_main: DefaultMission) -> None:
+    """Blast radius: the composition root's target is ``dev``; writes still commit on the topic branch."""
+    from mission_runtime import MissionArtifactKind, placement_seam
+    from mission_runtime.resolution import resolve_action_context
+
+    mission = settled_root_on_main
+    seam = placement_seam(mission.root, mission.slug)
+
+    assert seam.write_target(MissionArtifactKind.TRACER_FILE).ref == mission.topic
+    assert seam.write_target(MissionArtifactKind.WORK_PACKAGE_TASK).ref == mission.topic
+    assert resolve_action_context(mission.root, action="tasks", feature=mission.slug).target_branch == "dev"
+
+
+def test_the_target_read_of_a_consolidated_mission_does_not_re_enter_itself(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Regression: with ``baseline_merge_commit`` set, the meta read must not recurse back into the helper.
+
+    ``PlacementSeam.read_dir`` resolves the lifecycle phase, which reads the target branch of a
+    consolidated Mission; reading ``meta.json`` through it would re-enter this helper without end.
+    """
+    import specify_cli.core.paths as paths_module
+
+    mission = make_default_mission(tmp_path, THREE_LANES)
+    meta_path = mission.root_mission_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["baseline_merge_commit"] = git(mission.root, "rev-parse", "HEAD")
+    meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+
+    real = paths_module.get_feature_target_branch
+    entries: list[str] = []
+
+    def _spy(repo_root: Path, mission_slug: str) -> str:
+        entries.append(mission_slug)
+        return real(repo_root, mission_slug)
+
+    monkeypatch.setattr(paths_module, "get_feature_target_branch", _spy)
+
+    assert paths_module.get_feature_target_branch(mission.root, mission.slug) == meta["target_branch"]
+    assert entries == [mission.slug]
