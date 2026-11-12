@@ -94,6 +94,11 @@ that invocation imports. This amendment records how the gate treats the probe's 
   the caller's) or the lane has no `uv.lock`, the fallback runs the lane's own `.venv`
   interpreter when it has one, the interpreter the probe checked, and otherwise the CLI's
   interpreter with `PYTHONPATH=<tree>/src`, which the probe also used.
+- **What the probe covers.** It checks the git-tracked `src/<package>/__init__.py`
+  packages of the tree. A flat or namespace-package layout has nothing to check, so the
+  result is `unverified` and the gate does not refuse. It reports where packages load from;
+  it does not prove the code there is the lane's reviewed code. The interpreter still starts
+  normally, so `.pth` files and `sitecustomize` in its environment run.
 - **The skip switch still skips everything.** The pre-review gate's skip flag and environment
   variable bypass the gate entirely, the probe and this refusal included. The amendment makes
   no stronger guarantee than that.
