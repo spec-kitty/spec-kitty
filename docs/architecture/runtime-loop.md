@@ -3,7 +3,7 @@ title: The Runtime Loop Explained
 description: "How spec-kitty next inverts control so the runtime picks the next action: query versus advancing mode and the four decisions, step, decision_required, blocked, and terminal."
 doc_status: active
 kind: Explanation
-updated: '2026-10-08T00:00:00Z'
+updated: '2026-11-12T00:00:00Z'
 audience:
 - profile: internal/lead-developer
   guidance_text: Written for the Lead Developer reader.
@@ -78,6 +78,26 @@ When several agents advance the same mission run in parallel (or one agent retri
 - **Advancing mode** is the runtime loop form: `spec-kitty next --agent <name> --mission <slug> ...`
 
 Use query mode when you want to inspect the current run state without changing it. On a fresh run, the canonical query JSON returns `mission_state: "not_started"` and a non-null `preview_step` telling you which step would be issued first. `unknown` is a legacy transitional value and is no longer the primary contract to teach or consume.
+
+### What a query envelope tells you
+
+Every query envelope keeps `kind: "query"`, and `mission_state` keeps its values. Two fields tell you how to proceed:
+
+- **`next_command`** names the command to run next. It is additive: it appears only when set. A query sets it on every envelope except two:
+  - a pending decision on a run that has already started, which you answer with `--answer` (see `decision_required` below);
+  - a landed Mission, which has nothing left to run.
+
+  | What the query sees | `next_command` |
+  |---|---|
+  | A fresh Mission (`not_started`), a first decision, an in-flight or blocked run, a board previewing `implement` or `review`, a `blocked:*` board, an unreadable WP task file | `spec-kitty next --agent <agent> --mission <slug> --result success` |
+  | A finished software-dev board, not accepted, or accepted before the board's latest WP transition | `spec-kitty accept --mission <slug>` |
+  | A finished software-dev board, accepted after the board's latest WP transition | `spec-kitty consolidate --mission <slug>` |
+  | A run that completed (`mission_state: "done"`) with no finished board, for example a Mission with no work packages | `accept`, or `consolidate` once accepted |
+
+  A query without `--agent` never invents an identity: the command carries the literal placeholder `<agent>`. A finished board of another Mission type (documentation, research, plan, custom) names the advance command, because its runtime still has steps after the work packages.
+- **`question` and `decision_id`** come together or not at all. When they are set, `options` or `input_key` is set too, so the decision can be answered. This holds by construction: an envelope that breaks it cannot be built.
+
+**The start handshake.** A fresh Mission has no run yet. Its query previews the first step (`mission_state: "not_started"`, `preview_step`) and names the advance command. When the first step needs input, the query also shows that decision's `decision_id`, `question` and `input_key`. The decision is not pending yet, so `--answer` would be refused: run the advance command (`--result success`) first. It starts the run and returns the decision as `decision_required`, which you can then answer.
 
 Use advancing mode when an agent is actively executing the loop. In this mode, `--result` reports the outcome of the previous issued step and the runtime may advance mission state.
 
@@ -178,11 +198,76 @@ Something is preventing the mission from advancing. The `reason` field explains 
 
 ### `terminal` -- Mission complete
 
-All work is done. There are no more steps to execute.
+There are no more steps to execute. What `terminal` means depends on the Mission:
 
-**What to do:** Run `/spec-kitty.accept` for final validation. If it passes,
-run `/spec-kitty.merge`, then run `/spec-kitty-mission-review` and the
-retrospective workflow.
+- **A software-dev Mission with a finalized work-package board, whose run is not authoritative**
+  (see the next section): the Mission is accepted, with an acceptance newer than the board's latest
+  work-package transition, or it has landed. An unaccepted finished board returns `blocked` with
+  `MISSION_AWAITING_ACCEPTANCE` instead.
+- **Every other Mission** (documentation, research, plan and custom Missions, a software-dev
+  Mission with no work packages, or a run that reached the end of its runtime path): the run
+  completed. Nothing has checked acceptance.
+
+**What to do:** If the Mission is not accepted yet, run `spec-kitty accept --mission <slug>`. Then,
+if it has not landed, run `spec-kitty consolidate --mission <slug>`. `consolidate` does not check
+acceptance itself, so do not skip `accept`. Then run `/spec-kitty-mission-review` and the
+retrospective workflow. A read-only query (`spec-kitty next --mission <slug> --json`) names the
+command to run next in `next_command` (`accept`, then `consolidate` once accepted). Treat that field
+as the authoritative hint.
+
+## A Finalized Board Is Never Rewound
+
+These rules apply to **software-dev Missions with a finalized work-package board** only.
+Documentation, research, plan and custom Missions keep their runtime path unchanged, because their
+runtime has steps after the work packages.
+
+They also depend on whether the run is **authoritative**. A run at `analyze`, `implement`, `review`
+or `accept` is authoritative and keeps the runtime path unchanged. For example, a run at `review`
+whose last work package is approved gets the runtime `accept` step. A run that is absent, untouched,
+or issued at a planning step (`discovery`, `research`, `specify`, `plan` or `tasks`) is not
+authoritative, because the board is further along than the run. For such a run, an advancing
+`next` never sends the Mission back to an earlier step such as `discovery`. Two rules apply:
+
+- **The board's own answers.** These apply for every `--result` value (`success`, `failed` and
+  `blocked`), when the run is absent, untouched, or issued at `discovery`, `research`, `specify`,
+  `plan` or `tasks`:
+  - **A finished board** (every work package approved, done or canceled) that is not accepted
+    returns `kind: "blocked"` with `error_code: "MISSION_AWAITING_ACCEPTANCE"` and a
+    `next_command` of `spec-kitty accept --mission <slug>`. Once you accept, the next advance
+    returns `kind: "terminal"`.
+  - **Acceptance must be newer than the board.** The acceptance recorded in `meta.json`
+    (`accepted_at`) counts only when it is later than the board's latest work-package transition.
+    If a work package is reopened and approved again after acceptance, the Mission is blocked on
+    acceptance again.
+  - **A board step that cannot be dispatched** (for example a work package that is claimed or in
+    progress) returns `kind: "blocked"` with `error_code: "BOARD_STEP_NOT_DISPATCHABLE"`, naming
+    the work package, and a `next_command` that resumes it:
+    `spec-kitty agent action <implement|review> <WP> --agent <agent> --mission <slug>`. When no
+    work package can be named, `next_command` is `spec-kitty agent tasks status --mission <slug>`,
+    so you can inspect the board.
+  - **A board step whose work package needs `lanes.json`, when `lanes.json` is missing**, returns
+    `kind: "blocked"` with `error_code: "LANES_MANIFEST_MISSING"`. The `reason` is the error's own
+    message. `next_command` is `spec-kitty agent mission finalize-tasks --mission <slug>` while
+    every work package is still `planned`, and
+    `spec-kitty doctor mission-state --fix --mission <slug>` once any work package has left
+    `planned` (finalize-tasks refuses then; the doctor rebuilds `lanes.json` from the event log).
+    The same answer is returned when the board dispatch below meets a missing `lanes.json`.
+  - These answers start no run and record no step as completed. A `terminal` answer carries no
+    `next_command` in advancing mode; a read-only query names `consolidate` for it.
+- **Board dispatch.** A claimable work package is dispatched from the board when the run is absent,
+  untouched, or issued at `discovery`, `research`, `specify` or `plan`. A run at `tasks` is not
+  overridden: it advances through the runtime to `analyze`, its next step.
+
+Read-only `next` uses the same finished-board verdict, so the two modes agree on a finished board: a
+query names `accept`, and names `consolidate` once the acceptance is fresh.
+
+**Residuals.**
+
+- `MissionRunCompleted` and the retrospective gate are not reached through `next` for a
+  software-dev Mission whose run is not authoritative (its work packages were driven from the
+  board or outside `next`).
+- A run that an earlier release already replayed to `analyze` or beyond cannot be told apart
+  from a legitimate run, so it keeps the runtime path.
 
 ## The Agent Loop Pattern
 
@@ -193,7 +278,7 @@ At a conceptual level, an agent running the runtime loop follows this pattern:
 3. If **step**: read the prompt file, do the work, report the result
 4. If **decision_required**: answer the question (or escalate to the user)
 5. If **blocked**: diagnose the blocker, attempt to resolve it
-6. If **terminal**: run acceptance and exit
+6. If **terminal**: run `accept` if the Mission is not accepted, then `consolidate` if it has not landed, and exit
 7. Report the result of the previous step with `--result success` (or `failed` or `blocked`)
 8. Go back to step 1
 
@@ -235,16 +320,17 @@ If `--result` is omitted, the command stays in read-only query mode. Query mode 
 
 **Fixed (#2947).** `spec-kitty next` now resolves mission state from the
 **committed status authority** before it selects a coordination workspace. When a
-mission has merged — its committed `meta.json.mission_number` is assigned and its
-committed status shows every WP in an acceptable ending — the loop recognizes it
+Mission has landed — its PRIMARY `meta.json` records `merged_at`, which
+`mission_has_landed` (`src/mission_runtime/landing.py`) reads — the loop recognizes it
 from that committed record instead of a stale coordination worktree checkout:
 advancing mode (`--result success`) returns `kind: "terminal"` and creates **no**
 runtime run; read-only query mode returns `kind: "query"` with
 `mission_state: "done"` (query mode is structurally `kind: query`). If the
-committed record is assigned a `mission_number` but its status is not all-accepted
+committed record has landed but its status is not all-accepted
 (a merge/status conflict), or an actionable step needs a coordination workspace
 whose checkout is missing the mission's artifacts, the loop fails closed with a
-structured `kind: "blocked"` — never a fabricated "unstarted" step. The former
+structured `kind: "blocked"` — never a fabricated "unstarted" step. A landed
+Mission's query envelope carries no `next_command`. The former
 `progress`-field workaround is no longer required.
 
 Historically this class was tracked as #335; the committed-authority resolution
