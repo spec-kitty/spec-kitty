@@ -370,6 +370,11 @@ def declared_shape_patterns(mission_type: str = "software-dev") -> tuple[Pattern
     )
 
 
+def table_row_pattern(mission_type: str = "software-dev") -> Pattern[str]:
+    """The declared table-row shape of *mission_type* (the first of :func:`declared_shape_patterns`)."""
+    return declared_shape_patterns(mission_type)[0]
+
+
 def malformed_declared_lead(mission_type: str = "software-dev") -> Pattern[str]:
     if mission_type != "research":
         return MALFORMED_DECLARED_LEAD

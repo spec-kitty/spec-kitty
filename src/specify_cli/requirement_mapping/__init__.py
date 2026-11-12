@@ -130,7 +130,7 @@ _SHAPE_HEADING = "heading"
 _SHAPE_OTHER = "other"
 
 
-def _declaration_occurrences(spec_content: str, *, mission_type: str = "software-dev") -> list[tuple[str, int, str, int]]:
+def declaration_occurrences(spec_content: str, *, mission_type: str = "software-dev") -> list[tuple[str, int, str, int]]:
     """Every first-id-per-line declaration: ``(id, line_no, shape, table_block)``.
 
     ``shape`` is ``table`` (the lead cell of a table row), ``heading`` (an
@@ -145,7 +145,7 @@ def _declaration_occurrences(spec_content: str, *, mission_type: str = "software
     """
     occurrences: list[tuple[str, int, str, int]] = []
     patterns = grammar.declared_shape_patterns(mission_type)
-    table_row, heading = patterns[0], patterns[1]
+    table_row, heading = grammar.table_row_pattern(mission_type), patterns[1]
     blanked = grammar.blank_html_comments(spec_content)
     block = 0
     in_table = False
@@ -192,7 +192,7 @@ def duplicate_declared_ids(spec_content: str, *, mission_type: str = "software-d
     """
     first_site: dict[str, tuple[str, int]] = {}
     lines_at_site: dict[str, list[int]] = {}
-    for req_id, line_no, shape, block in _declaration_occurrences(spec_content, mission_type=mission_type):
+    for req_id, line_no, shape, block in declaration_occurrences(spec_content, mission_type=mission_type):
         site = first_site.setdefault(req_id, (shape, block))
         if site[0] != _SHAPE_OTHER and (shape, block) == site:
             lines_at_site.setdefault(req_id, []).append(line_no)
@@ -220,7 +220,7 @@ def _declared_ids(spec_content: str, *, mission_type: str = "software-dev") -> s
     -- removing it would let a table row's description-cell citations leak back
     in as declarations, reintroducing #3394.
     """
-    return {req_id for req_id, _line, _shape, _block in _declaration_occurrences(spec_content, mission_type=mission_type)}
+    return {req_id for req_id, _line, _shape, _block in declaration_occurrences(spec_content, mission_type=mission_type)}
 
 
 _BARE_PROSE_KINDS: frozenset[str] = frozenset({"FR", "NFR", "C"})

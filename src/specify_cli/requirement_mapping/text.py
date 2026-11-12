@@ -9,7 +9,7 @@ of another Mission and an ambiguous declaration each get an explicit
 This module adds no declaration parser (#3481: the repository already has
 two definitions of "declares", and a third is rejected). Where an ID is
 declared, and in which shape, comes only from
-:func:`specify_cli.requirement_mapping._declaration_occurrences`; ambiguity
+:func:`specify_cli.requirement_mapping.declaration_occurrences`; ambiguity
 comes only from :func:`specify_cli.requirement_mapping.duplicate_declared_ids`.
 The code below reads the line it is pointed at and cleans its text up
 (escaped pipes, markup, the success-criterion trailer); it never decides
@@ -23,7 +23,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
-from specify_cli.requirement_mapping import _declaration_occurrences, duplicate_declared_ids, grammar
+from specify_cli.requirement_mapping import declaration_occurrences, duplicate_declared_ids, grammar
 
 __all__ = [
     "TEXT_LIMIT",
@@ -43,7 +43,7 @@ TRUNCATION_MARKER = "…"
 _SEPARATOR = " — "
 _TITLE_SEPARATOR = ": "
 
-#: Shape tags as ``_declaration_occurrences`` reports them.
+#: Shape tags as ``declaration_occurrences`` reports them.
 _SHAPE_TABLE = "table"
 _SHAPE_HEADING = "heading"
 
@@ -116,7 +116,7 @@ def resolve_requirement_texts(
 
 def _index_spec(spec_text: str, *, mission_type: str) -> _SpecIndex:
     first_site: dict[str, tuple[int, str]] = {}
-    for req_id, line_no, shape, _block in _declaration_occurrences(spec_text, mission_type=mission_type):
+    for req_id, line_no, shape, _block in declaration_occurrences(spec_text, mission_type=mission_type):
         first_site.setdefault(req_id, (line_no, shape))
     return _SpecIndex(
         first_site=first_site,
@@ -140,7 +140,7 @@ def _resolve_one(token: str, index: _SpecIndex, *, mission_type: str) -> CitedRe
         return CitedRequirement(ref=ref, resolution=Resolution.NOT_DECLARED)
     line_no, shape = site
     if shape == _SHAPE_TABLE:
-        raw = _table_row_text(ref, index.lines[line_no - 1], index.patterns[0])
+        raw = _table_row_text(ref, index.lines[line_no - 1], grammar.table_row_pattern(mission_type))
     else:
         raw = _block_text(ref, index.lines, line_no - 1, index.patterns, heading=shape == _SHAPE_HEADING)
     return CitedRequirement(ref=ref, resolution=Resolution.DECLARED, text=_truncate(" ".join(raw.split())))

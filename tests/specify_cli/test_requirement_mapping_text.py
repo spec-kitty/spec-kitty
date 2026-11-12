@@ -2,7 +2,7 @@
 
 ``resolve_requirement_texts`` turns the requirement IDs a work package cites
 into their declared text from the Mission's ``spec.md``. It reads the
-declaring site ``_declaration_occurrences`` reports and takes ambiguity only
+declaring site ``declaration_occurrences`` reports and takes ambiguity only
 from ``duplicate_declared_ids`` (#3481: no third declaration parser).
 """
 
