@@ -88,7 +88,7 @@ class Anchor:
     ``slug`` is the canonical ``slugify`` output of ``text``, disambiguated
     with an ordinal suffix for duplicate headings within the same page (see
     ``scripts/docs/docs_index.py::slug_for_headings``). Anchors are source-
-    heading slugs, not DocFX-exact rendered fragments (C-005).
+    heading slugs, not the rendered site's exact fragments (C-005).
     """
 
     slug: str

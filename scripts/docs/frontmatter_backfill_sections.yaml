@@ -50,7 +50,7 @@ mechanical_pass:  # T071 — title/doc_status/updated/related landed tree-wide
   related_dangling: 0
 
 # OVERALL: all 13 live docs/ sections (19 top-level dirs) description-complete.
-# description_length_check --strict: 0 violations / 415 checked.
+# description length gate --strict (since retired, #6943): 0 violations / 415 checked.
 # related_validator --strict: 0 dangling / 562 edges checked.
 # doc_status distribution: active 244, draft 155 (plans), deprecated 16 (archive+closeout).
 overall_status: complete

@@ -12,7 +12,8 @@ their tests all need the same answers to the same questions:
   ``isDraftStatus`` (an absent ``doc_status`` is a draft);
 * which routes the site must not publish (:func:`unpublished_routes`): excluded
   folders, the working-note folders that are drafts only (:data:`DRAFT_FOLDERS`)
-  and every page that is not published (#6932);
+  and every page that is not published (#6932), and its complement, the pages it
+  publishes (:func:`published_pages`, #6943);
 * which persona page an ``audience`` profile names (:func:`persona_page`),
   mirroring doc-kitty's ``resolveProfile`` (``context/audience/<profile>``);
 * which files are immutable history whose body may never change
@@ -49,7 +50,7 @@ pass the mapping in, so ``site_contract.py`` keeps running on a bare ``python3``
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from kernel.clock import UTC, date, datetime, timedelta
 from pathlib import Path
@@ -82,6 +83,7 @@ __all__ = [
     "is_published",
     "page_for_slug",
     "parse_instant",
+    "published_pages",
     "persona_page",
     "profile_of_persona_path",
     "redirect_stub_target",
@@ -96,7 +98,7 @@ __all__ = [
 #: ``changelog/unreleased`` holds per-PR changelog fragments, which are not pages.
 EXCLUDED_FOLDERS: Final[tuple[str, ...]] = ("archive", "reports", "convergence", "changelog/unreleased")
 
-#: Section index basenames during the DocFX parallel run (ADR D-1: ``['README', 'index']``).
+#: Section index basenames until the README rename (#6939; ADR D-1: ``['README', 'index']``).
 INDEX_BASENAMES: Final[tuple[str, ...]] = ("README", "index")
 
 #: Personas live under ``docs/context/audience/``; a profile is a path below it.
@@ -105,9 +107,9 @@ PERSONA_ROOT: Final[str] = "context/audience"
 #: doc-kitty's draft status; an absent ``doc_status`` counts as a draft.
 DRAFT_STATUS: Final[str] = "draft"
 
-#: Working-note folders whose pages are all drafts (#6932, FR-001): never published, and still
-#: built by DocFX until its retirement. doc-kitty's ``exclude`` would also drop them from the
-#: frontmatter and link gates, so they stay in the tree as drafts instead of an excluded folder.
+#: Working-note folders whose pages are all drafts (#6932, FR-001): never published.
+#: doc-kitty's ``exclude`` would also drop them from the frontmatter and link gates, so they
+#: stay in the tree as drafts instead of an excluded folder.
 DRAFT_FOLDERS: Final[tuple[str, ...]] = ("plans/engineering-notes", "plans/investigations", "plans/research")
 
 #: The version stance the generated ``llms.txt`` carries (ADR 2026-10-31-1 D-9). Projected to
@@ -243,16 +245,28 @@ def unpublished_routes(docs_root: Path) -> frozenset[str]:
     :func:`is_published`. This is the one derivation the built-site check and the
     redirect generator (#6933) read; routes are in :func:`route_of` form.
     """
-    routes: set[str] = set()
+    return frozenset(route_of(rel) for rel, published in _page_publication(docs_root) if not published)
+
+
+def published_pages(docs_root: Path) -> frozenset[str]:
+    """The pages under *docs_root* the site publishes, as paths relative to it (#6943).
+
+    The complement of :func:`unpublished_routes` over the tree's pages, from the same
+    per-page predicate, so the two never disagree. It is the published set the docs tests
+    read (titles, descriptions).
+    """
+    return frozenset(rel for rel, published in _page_publication(docs_root) if published)
+
+
+def _page_publication(docs_root: Path) -> Iterator[tuple[str, bool]]:
+    """Each page under *docs_root*, relative to it, with whether the site publishes it."""
     for path in docs_root.rglob(f"*{_MD_SUFFIX}"):
         rel = path.relative_to(docs_root).as_posix()
         if is_excluded(rel) or is_in_draft_folder(rel):
-            routes.add(route_of(rel))
+            yield rel, False
             continue
         status = _doc_status_of(path.read_text(encoding="utf-8"))
-        if not is_published(rel, {} if status is None else {"doc_status": status}):
-            routes.add(route_of(rel))
-    return frozenset(routes)
+        yield rel, is_published(rel, {} if status is None else {"doc_status": status})
 
 
 def redirect_stub_target(html: str) -> str | None:

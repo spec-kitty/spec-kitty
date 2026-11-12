@@ -14,17 +14,17 @@ Two committed, repository-level files under ``site/`` (ADR ``2026-10-31-1`` D-5)
     moves again, a new entry is appended from its previous route, and
     :func:`collapse` follows the chain to the final route.
 
-A **route** is a site-relative published path in its legacy DocFX form, such as
-``/guides/x.html`` or ``/adr/1.x/index.html``. DocFX's
-``scripts/docs/redirect_map.yaml`` uses the same paths without the leading ``/``
-(:func:`derive_redirect_map`). A later doc-kitty generator maps ``X.html`` to the
-directory URL ``X/`` (ADR D-5 rule 1).
+A **route** is a site-relative published path in its legacy ``.html`` form, such
+as ``/guides/x.html`` or ``/adr/1.x/index.html``: the form the legacy site
+published before the doc-kitty cutover (#6938). The doc-kitty redirect generator
+(``scripts/docs/site_redirects.py``) maps ``X.html`` to the directory URL ``X/``
+(ADR D-5 rule 1).
 
 This module is the single reader and validator of both files. It has no CLI.
-``scripts/docs/redirect_stub_generator.py`` derives the DocFX map from it, and
-the rename gate and link rewriters read the moves through :func:`source_pairs`.
-Standard library plus PyYAML only, because the DocFX deploy job runs it with the
-system ``python3``.
+``scripts/docs/site_redirects.py`` and the live-site probe read the collapsed
+ledger (:func:`collapse`), and the rename gate and link rewriters read the moves
+through :func:`source_pairs`. Standard library plus PyYAML only, because the
+docsite jobs run it with the system ``python3``.
 """
 
 from __future__ import annotations
@@ -44,13 +44,11 @@ __all__ = [
     "Move",
     "MovesLedgerError",
     "collapse",
-    "derive_redirect_map",
     "load_baseline",
     "load_moves",
     "route_to_source",
     "source_pairs",
     "source_to_route",
-    "validate",
 ]
 
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
@@ -144,29 +142,6 @@ def collapse(moves: Iterable[Move]) -> dict[str, str]:
     """Map every ``from`` route to the end of its chain (ADR D-5 rule 2)."""
     direct = {move.from_route: move.to_route for move in moves}
     return {source: _final_route(source, direct) for source in direct}
-
-
-def derive_redirect_map(moves: Iterable[Move]) -> dict[str, str]:
-    """The DocFX redirect map: the collapsed ledger, without leading slashes, sorted."""
-    collapsed = collapse(moves)
-    return {source.lstrip(_SLASH): target.lstrip(_SLASH) for source, target in sorted(collapsed.items())}
-
-
-def validate(mapping: Mapping[str, str], published: set[str]) -> list[str]:
-    """Problems with a derived map against the published routes.
-
-    ``mapping`` is in DocFX form (no leading slash); ``published`` holds routes
-    (with the slash). A key that is a published page would have its page
-    overwritten by a stub; a target that is not published would be a stub
-    pointing at a 404.
-    """
-    problems: list[str] = []
-    for source, target in sorted(mapping.items()):
-        if f"{_SLASH}{source}" in published:
-            problems.append(f"{source}: source is a published page")
-        if f"{_SLASH}{target}" not in published:
-            problems.append(f"{source} -> {target}: target is not published")
-    return problems
 
 
 # --- URL baseline --------------------------------------------------------------

@@ -66,10 +66,6 @@ sections:
     purpose: Roadmaps and plans.
     # Restricted feeds (ADR D-8): no llms, no agent, no rss.
     feeds: [sitemap]
-  - id: templates
-    label: Templates
-    order: 150
-    purpose: Templates used by the documentation site.
   - id: assets
     label: Assets
     order: 160

@@ -22,8 +22,9 @@ This module is the **tooling** half of that work (IC-05e-1):
   for WP12 authoring.
 
 The tool **never invents a ``description``** — per-page ``description`` (and the
-non-derivable ``related`` remainder) are authored in WP12; the 50-180 length
-gate lives in :mod:`scripts.docs.description_length_check`. Running this module
+non-derivable ``related`` remainder) are authored in WP12; the length band is
+the docsite contract's (``scripts/docs/_dockitty_contract.py``, enforced by
+doc-kitty's frontmatter gate). Running this module
 over the ~580-page tree at scale is WP12's job; WP11 only builds and tests it.
 
 Depends only on the standard library plus ``ruamel.yaml`` (already a project

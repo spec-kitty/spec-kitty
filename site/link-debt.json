@@ -885,6 +885,18 @@
     },
     {
       "gate": "relative-links",
+      "source": "archive/plans/3-2-doc-publication/3-2-publication-checklist.md",
+      "target": "../../../api/toc.yml",
+      "reason": "the legacy site's navigation files were deleted when it retired (#6943); the archived body is never rewritten"
+    },
+    {
+      "gate": "relative-links",
+      "source": "archive/plans/3-2-doc-publication/3-2-publication-checklist.md",
+      "target": "../../../toc.yml",
+      "reason": "the legacy site's navigation files were deleted when it retired (#6943); the archived body is never rewritten"
+    },
+    {
+      "gate": "relative-links",
       "source": "changelog/CHANGELOG.md",
       "target": "../architecture/team-kitty-saas.md",
       "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"

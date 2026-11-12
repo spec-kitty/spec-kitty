@@ -24,8 +24,8 @@ Design contract
   ``docs/adr/`` (immutable ADR decision bodies — C-002 content-invariance), the
   historical ``CHANGELOG.md`` / ``docs/changelog/`` release record, the serialized
   inventory lockfile, and the golden charter-synthesis fixtures are skipped.  The
-  ``serialized_keys`` surfaces (``toc.yml`` href values, ``docfx.json`` globs,
-  ``llms.txt`` entries — WP09) and YAML *frontmatter fields* (WP12) are likewise
+  ``serialized_keys`` surfaces (navigation ``toc.yml`` href values, the legacy
+  site configuration's globs, ``llms.txt`` entries — WP09; all retired since) and YAML *frontmatter fields* (WP12) are likewise
   left untouched (frontmatter is split off and never rewritten).  The
   ``code_symbols`` / ``import_paths`` / ``cli_commands`` / ``logs_telemetry``
   ``do_not_change`` categories are respected structurally: those literals use
@@ -99,7 +99,7 @@ EXCLUDE_DIR_PREFIXES: tuple[str, ...] = ("tests/charter/fixtures/synthesizer/",)
 # Serialized-key files (WP09) + the historical/tooling artifacts that own their
 # path references outside this category.
 EXCLUDE_BASENAMES: frozenset[str] = frozenset(
-    {"toc.yml", "docfx.json", "llms.txt", "CHANGELOG.md"}
+    {"toc.yml", "llms.txt", "CHANGELOG.md"}
 )
 
 # Exact relative paths never rewritten: the serialized inventory lockfile (a
@@ -115,10 +115,10 @@ EXCLUDE_PATHS: frozenset[str] = frozenset(
 )
 
 # Move ``from`` entries that are NOT simple path-rewrites: shadow-tree redirect
-# bases (delete+redirect, do_not_change), the in-place serialized DocFX config,
-# and the relocate-with-alias CHANGELOG (root copy persists by contract).
+# bases (delete+redirect, do_not_change), the retired ``docs/llms.txt``, and the
+# relocate-with-alias CHANGELOG (root copy persists by contract).
 SKIP_MOVE_FROMS: frozenset[str] = frozenset(
-    {"docs/1x", "docs/2x", "docs/docfx.json", "docs/llms.txt", "CHANGELOG.md"}
+    {"docs/1x", "docs/2x", "docs/llms.txt", "CHANGELOG.md"}
 )
 
 # Landing disambiguations the coarse ``to:`` cannot express (verified against the
