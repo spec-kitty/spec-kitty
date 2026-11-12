@@ -1,34 +1,39 @@
 ---
-work_package_id: "WP06"
-subtasks:
-  - "T021"
-  - "T022"
-  - "T023"
-title: "New lanes get the pinned packs trees"
-task_type: "implement"
-phase: "Phase 2 - Surfaces"
-execution_mode: "code_change"
-owned_files:
-  - "src/specify_cli/lanes/lane_packs.py"
-  - "src/specify_cli/lanes/lane_checkout.py"
-  - "tests/lanes/test_lane_packs.py"
-  - "tests/agent/test_implement_lane_packs.py"
-authoritative_surface: "src/specify_cli/lanes/lane_packs.py"
-create_intent:
-  - "src/specify_cli/lanes/lane_packs.py"
-  - "tests/lanes/test_lane_packs.py"
-  - "tests/agent/test_implement_lane_packs.py"
+work_package_id: WP06
+title: New lanes get the pinned packs trees
 dependencies: []
-agent_profile: "python-pedro"
-role: "implementer"
-agent: "claude"
-model: ""
-assignee: ""
-shell_pid: ""
+requirement_refs:
+- FR-012
+- SC-006
+planning_base_branch: fix/7547-lane-code-verification
+merge_target_branch: fix/7547-lane-code-verification
+branch_strategy: Planning artifacts for this mission were generated on fix/7547-lane-code-verification. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/7547-lane-code-verification unless the human explicitly redirects the landing branch.
+subtasks:
+- T021
+- T022
+- T023
+phase: Phase 2 - Surfaces
 history:
-  - at: "2026-11-12T06:00:00Z"
-    actor: "system"
-    action: "Prompt generated via /spec-kitty.tasks (fold of #7577, decision 01M774QJP2HZ0A2A8KQ05MQCRS)"
+- at: '2026-11-12T06:00:00Z'
+  actor: system
+  action: 'Prompt generated via /spec-kitty.tasks (fold of #7577, decision 01M774QJP2HZ0A2A8KQ05MQCRS)'
+agent_profile: python-pedro
+authoritative_surface: src/specify_cli/lanes/lane_packs.py
+create_intent:
+- src/specify_cli/lanes/lane_packs.py
+- tests/lanes/test_lane_packs.py
+- tests/agent/test_implement_lane_packs.py
+execution_mode: code_change
+model: ''
+owned_files:
+- src/specify_cli/lanes/lane_packs.py
+- src/specify_cli/lanes/lane_checkout.py
+- tests/lanes/test_lane_packs.py
+- tests/agent/test_implement_lane_packs.py
+role: implementer
+tags: []
+task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP06 – New lanes get the pinned packs trees

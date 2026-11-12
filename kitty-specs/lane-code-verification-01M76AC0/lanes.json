@@ -23,6 +23,25 @@
       "parallel_group": 0
     },
     {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/lanes/lane_checkout.py",
+        "src/specify_cli/lanes/lane_packs.py",
+        "tests/agent/test_implement_lane_packs.py",
+        "tests/lanes/test_lane_packs.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
       "lane_id": "lane-b",
       "wp_ids": [
         "WP02"
@@ -106,12 +125,13 @@
         "planning"
       ],
       "depends_on_lanes": [
-        "lane-d"
+        "lane-d",
+        "lane-e"
       ],
       "parallel_group": 3
     }
   ],
-  "computed_at": "2026-11-12T05:41:23.563233+00:00",
+  "computed_at": "2026-11-12T05:49:58.549260+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [
     "WP05"
