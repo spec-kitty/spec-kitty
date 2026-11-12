@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast, get_args
 
 from kernel.git import GitCommandError, tree_entry
 from kernel.git_anchor import checkout_root_containing
+from kernel.resolution import resolve_rejecting_loops
 
 if TYPE_CHECKING:
     # Import-cycle note (owned-checkout-lifecycle-authority WP04): this module
@@ -2457,8 +2458,8 @@ def _containing_checkout(path: Path, repo_root: Path) -> Path:
     if path.is_relative_to(holder):
         return holder
     try:
-        depth = len(path.resolve().relative_to(holder).parts)
-    except (OSError, RuntimeError, ValueError):
+        depth = len(resolve_rejecting_loops(path).relative_to(holder).parts)
+    except (OSError, ValueError):
         # *path* cannot be resolved (a symbolic-link loop): the walk answered for its lexical
         # form already, so the resolved answer is the only one there is.
         return holder

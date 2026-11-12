@@ -205,6 +205,9 @@ _PUBLIC_SURFACE = sorted(
         "mission_context_for",
         "mission_has_landed",
         "placement_seam",
+        # settled-placement-surface (#7595): core/paths.py and core/git_ops.py read a
+        # Mission's target branch through it from the package root.
+        "read_dir_for",
         "resolve_action_context",
         # WP02: the affirmative, stamped surface→filesystem seam (the true schema
         # root) + its total member→path translation.

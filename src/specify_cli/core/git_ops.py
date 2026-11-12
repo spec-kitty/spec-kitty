@@ -451,7 +451,7 @@ def resolve_target_branch(
     # ``resolve_artifact_surface`` -> ``resolve_lifecycle_phase``) -- a re-entrant read.
     # Deferred imports keep ``core/git_ops.py`` free of an early-import cycle.
     from mission_runtime import MissionArtifactKind
-    from mission_runtime.resolution import read_dir_for
+    from mission_runtime import read_dir_for
     from specify_cli.core.paths import read_target_branch_from_meta
 
     feature_dir = read_dir_for(repo_path, mission_slug, kind=MissionArtifactKind.PRIMARY_METADATA)
