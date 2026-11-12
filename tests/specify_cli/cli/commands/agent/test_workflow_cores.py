@@ -3,15 +3,19 @@
 coord-authority-trio-degod-01KX7094: focused branch-coverage tests for the
 pure(ish) helpers extracted from ``workflow.py`` during the ``implement``
 (CC78)/``review`` (CC72)/``_resolve_review_context`` (CC37) decomposition —
-in particular the four genuinely NEW pure helpers that did not exist as
-named functions before this split (``pick_best_base_branch``,
-``parse_dependency_wp_ids``, ``build_owned_files_review_pathspecs``,
-``event_is_review_claim``), plus light direct coverage of the moved
-renderers/classifiers/request dataclasses.
+in particular the genuinely NEW pure helpers that did not exist as
+named functions before this split (``event_is_review_claim`` and, since
+#7578, ``wp_owned_files``), plus light direct coverage of the moved
+renderers/classifiers/request dataclasses. The retired review-base helpers'
+cases are re-pinned to their successors: the review range fills the review
+context (``workflow_executor._fill_review_range``) and is the one pathspec
+authority (``WpReviewRange.owned_pathspecs``).
 
 Marker: unit only -- no filesystem, no subprocess, no git (per the ``unit``
 marker's contract in ``pytest.ini``); every function under test here takes
-plain values in and returns a plain value/string out.
+plain values in and returns a plain value/string out. The one exception is
+``TestBuildOwnedFilesReviewPathspecs`` (marked ``git_repo``): it reads the
+pathspecs off a range resolved in an empty temporary directory.
 """
 
 from __future__ import annotations
@@ -21,118 +25,135 @@ from pathlib import Path
 import pytest
 
 from specify_cli.cli.commands.agent import workflow_cores as cores
+from specify_cli.cli.commands.agent import workflow_executor as executor
+from specify_cli.review.wp_range import RangeCommit, RangeSource, RangeStatus, WpReviewRange, resolve_wp_review_range
 from specify_cli.status import AgentAssignment, Lane, StatusEvent
 
 pytestmark = [pytest.mark.unit]
 
 
 # ---------------------------------------------------------------------------
-# pick_best_base_branch (new, extracted from _resolve_review_context)
+# The review base (re-pinned, #7578): the WP review range fills the review
+# context; the pure scored base-branch pick (``pick_best_base_branch``) is
+# retired with the candidate search that fed it.
 # ---------------------------------------------------------------------------
+
+
+def _range(*, base: str | None, commits: int = 0) -> WpReviewRange:
+    if base is None:
+        return WpReviewRange.unavailable("WP01", "not_recorded")
+    return WpReviewRange(
+        wp_id="WP01",
+        base=base,
+        tip="f" * 40,
+        base_source=RangeSource.RECORDED_WINDOW,
+        tip_source=RangeSource.RECORDED_SUBMISSION,
+        gap=None,
+        status=RangeStatus.RECORDED,
+        commits=tuple(RangeCommit(sha=f"{index:040d}", subject=f"c{index}") for index in range(commits)),
+    )
+
+
+def _unknown_ctx() -> dict[str, object]:
+    return {"branch_name": "unknown", "base_branch": "unknown", "lane_branch": "unknown", "base_ref": "unknown", "commit_count": 0}
 
 
 class TestPickBestBaseBranch:
+    """Re-pinned: ``_fill_review_range`` takes the base from the review range, never a scored branch pick."""
+
     def test_empty_input_returns_none_and_sentinel_count(self) -> None:
-        best, count = cores.pick_best_base_branch([])
-        assert best is None
-        assert count == -1
+        ctx = executor._fill_review_range(_unknown_ctx(), _range(base=None), None)
+        assert ctx["base_branch"] == "unknown" and ctx["base_ref"] == "unknown"
+        assert ctx["commit_count"] == 0
 
     def test_single_candidate_wins(self) -> None:
-        best, count = cores.pick_best_base_branch([("main", 5)])
-        assert best == "main"
-        assert count == 5
+        ctx = executor._fill_review_range(_unknown_ctx(), _range(base="a" * 40, commits=5), "main")
+        assert ctx["base_branch"] == "a" * 40 and ctx["base_ref"] == "a" * 40
+        assert ctx["commit_count"] == 5
 
     def test_fewest_commits_wins(self) -> None:
-        best, count = cores.pick_best_base_branch(
-            [("main", 10), ("2.x", 3), ("develop", 7)]
-        )
-        assert best == "2.x"
-        assert count == 3
+        """The count is the range's listed implementation commits, not a branch's unique-commit score."""
+        review_range = _range(base="b" * 40, commits=3)
+        ctx = executor._fill_review_range(_unknown_ctx(), review_range, "kitty/mission-x-lane-a")
+        assert ctx["commit_count"] == len(review_range.commits) == 3
+        assert ctx["review_range"] is review_range
 
     def test_strict_less_than_keeps_first_scored_candidate_on_tie(self) -> None:
-        """Matches the original ``count < best_count`` comparison: a TIE keeps
-        the earliest-scored candidate, it does not overwrite on ``<=``."""
-        best, count = cores.pick_best_base_branch(
-            [("main", 4), ("develop", 4), ("2.x", 4)]
-        )
-        assert best == "main"
-        assert count == 4
+        """The branch is display only: a missing branch keeps ``unknown`` while the base still comes from the range."""
+        ctx = executor._fill_review_range(_unknown_ctx(), _range(base="c" * 40, commits=4), None)
+        assert ctx["branch_name"] == "unknown" and ctx["lane_branch"] == "unknown"
+        assert ctx["base_branch"] == "c" * 40
 
     def test_zero_count_candidate_is_picked_over_positive_counts(self) -> None:
-        best, count = cores.pick_best_base_branch([("main", 0), ("develop", 9)])
-        assert best == "main"
-        assert count == 0
+        ctx = executor._fill_review_range(_unknown_ctx(), _range(base="d" * 40, commits=0), "main")
+        assert ctx["base_branch"] == "d" * 40
+        assert ctx["commit_count"] == 0
 
 
 # ---------------------------------------------------------------------------
-# parse_dependency_wp_ids (new, extracted from _resolve_review_context)
+# wp_owned_files (re-pinned, #7578): the review range reads the WP's
+# ``owned_files`` from its raw frontmatter; ``parse_dependency_wp_ids`` is
+# retired with the dependency-branch candidate search it fed.
 # ---------------------------------------------------------------------------
 
 
 class TestParseDependencyWpIds:
     def test_no_dependencies_key_returns_empty(self) -> None:
-        assert cores.parse_dependency_wp_ids("work_package_id: WP01\n") == []
+        assert cores.wp_owned_files("work_package_id: WP01\n") == []
 
     def test_empty_dependencies_list_returns_empty(self) -> None:
-        assert cores.parse_dependency_wp_ids("dependencies: []\n") == []
+        assert cores.wp_owned_files("owned_files: []\n") == []
 
     def test_single_dependency_quoted(self) -> None:
-        assert cores.parse_dependency_wp_ids('dependencies: ["WP01"]\n') == ["WP01"]
+        assert cores.wp_owned_files('owned_files: ["src/a.py"]\n') == ["src/a.py"]
 
     def test_multiple_dependencies_quoted(self) -> None:
-        assert cores.parse_dependency_wp_ids('dependencies: ["WP01", "WP02"]\n') == [
-            "WP01",
-            "WP02",
-        ]
+        assert cores.wp_owned_files('owned_files: ["src/a.py", "src/b/**"]\n') == ["src/a.py", "src/b/**"]
 
     def test_multiple_dependencies_unquoted(self) -> None:
-        assert cores.parse_dependency_wp_ids("dependencies: [WP01, WP02]\n") == [
-            "WP01",
-            "WP02",
-        ]
+        assert cores.wp_owned_files("owned_files:\n- src/a.py\n- src/b/**\n") == ["src/a.py", "src/b/**"]
 
     def test_ignores_unrelated_frontmatter(self) -> None:
-        frontmatter = (
-            'work_package_id: "WP03"\n'
-            'title: "Some WP"\n'
-            'dependencies: ["WP01"]\n'
-            'agent: "claude"\n'
-        )
-        assert cores.parse_dependency_wp_ids(frontmatter) == ["WP01"]
+        frontmatter = '---\nwork_package_id: "WP03"\ntitle: "Some WP"\nowned_files: [src/a.py]\nagent: "claude"\n---\n# WP03\n'
+        assert cores.wp_owned_files(frontmatter) == ["src/a.py"]
+
+    def test_unreadable_frontmatter_declares_nothing(self) -> None:
+        assert cores.wp_owned_files("owned_files: [unclosed\n") == []
+        assert cores.wp_owned_files("owned_files: src/only.py\n") == ["src/only.py"]
 
 
 # ---------------------------------------------------------------------------
-# build_owned_files_review_pathspecs (new, dedupes review()'s two inline
-# blocks -- S1192)
+# WpReviewRange.owned_pathspecs (re-pinned, #7578): the one pathspec authority;
+# ``build_owned_files_review_pathspecs`` is retired. A directory with no
+# Mission resolves an UNAVAILABLE range that still carries the pathspecs.
 # ---------------------------------------------------------------------------
 
 
+def _pathspecs(owned: list[str], tmp_path: Path) -> list[str]:
+    return list(resolve_wp_review_range(tmp_path, "my-mission", "WP01", owned_files=owned).owned_pathspecs)
+
+
+@pytest.mark.git_repo
 class TestBuildOwnedFilesReviewPathspecs:
-    def test_empty_owned_files_returns_empty(self) -> None:
-        assert cores.build_owned_files_review_pathspecs([], "my-mission") == []
+    def test_empty_owned_files_returns_empty(self, tmp_path: Path) -> None:
+        assert _pathspecs([], tmp_path) == []
 
-    def test_files_outside_mission_root_pass_through_unmodified(self) -> None:
+    def test_files_outside_mission_root_pass_through_unmodified(self, tmp_path: Path) -> None:
         owned = ["src/specify_cli/foo.py", "tests/test_foo.py"]
-        result = cores.build_owned_files_review_pathspecs(owned, "my-mission")
-        assert result == owned
+        assert _pathspecs(owned, tmp_path) == owned
 
-    def test_mission_root_files_get_status_and_tasks_excludes(self) -> None:
+    def test_mission_root_files_get_status_and_tasks_excludes(self, tmp_path: Path) -> None:
         owned = ["kitty-specs/my-mission/spec.md", "src/foo.py"]
-        result = cores.build_owned_files_review_pathspecs(owned, "my-mission")
+        result = _pathspecs(owned, tmp_path)
         assert result[:2] == owned
         assert ":(exclude)kitty-specs/my-mission/tasks/**" in result
         assert ":(exclude)kitty-specs/my-mission/tasks.md" in result
         assert ":(exclude)kitty-specs/my-mission/status.events.jsonl" in result
         assert ":(exclude)kitty-specs/my-mission/status.json" in result
 
-    def test_excludes_only_added_once_even_with_multiple_mission_root_files(
-        self,
-    ) -> None:
-        owned = [
-            "kitty-specs/my-mission/spec.md",
-            "kitty-specs/my-mission/plan.md",
-        ]
-        result = cores.build_owned_files_review_pathspecs(owned, "my-mission")
+    def test_excludes_only_added_once_even_with_multiple_mission_root_files(self, tmp_path: Path) -> None:
+        owned = ["kitty-specs/my-mission/spec.md", "kitty-specs/my-mission/plan.md"]
+        result = _pathspecs(owned, tmp_path)
         assert result.count(":(exclude)kitty-specs/my-mission/tasks/**") == 1
 
 
