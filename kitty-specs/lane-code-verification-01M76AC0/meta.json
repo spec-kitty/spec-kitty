@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-12T08:53:32.672036+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "086e8cb2f79d782c8ca7dea87537f7448c4d85c0"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-12T08:53:32.672036+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "086e8cb2f79d782c8ca7dea87537f7448c4d85c0",
   "coordination_branch": "kitty/mission-lane-code-verification-01M76AC0",
   "create_return_branch": "fix/7547-lane-code-verification",
   "created_at": "2026-11-11T22:06:35.269251+00:00",
@@ -13,6 +25,7 @@
   "purpose_context": "Tests and CLI calls inside a lane worktree import the repository root checkout's src through the editable install, so review evidence can pass against unfixed code (#7547, #7554). This mission gives each lane a verified test invocation at implement time, carries it into the work package prompts, and makes the pre-review gate record and check which tree its evidence came from.",
   "purpose_tldr": "A lane's test command provably imports the lane's own code, and the pre-review gate refuses evidence from another tree.",
   "slug": "lane-code-verification-01M76AC0",
+  "status_phase": "1",
   "target_branch": "fix/7547-lane-code-verification",
   "topology": "lanes_with_coord",
   "topology_decision": {
