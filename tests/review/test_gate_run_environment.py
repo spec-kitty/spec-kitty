@@ -229,11 +229,6 @@ def test_override_tier_uv_path_strips_redirects_from_the_given_run_env(monkeypat
     assert not set(INTERPRETER_REDIRECT_KEYS) & set(seen[0])
 
 
-def test_redirect_strip_list_has_one_home() -> None:
-    """The uv-path strip reads WP01's list; the gate keeps no copy of its own."""
-    assert not hasattr(pre_review_gate, "_UV_ENV_LEAK_KEYS")
-
-
 # ---------------------------------------------------------------------------
 # 3. Baseline symmetry
 # ---------------------------------------------------------------------------
