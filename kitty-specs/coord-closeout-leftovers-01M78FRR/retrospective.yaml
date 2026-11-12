@@ -1,0 +1,507 @@
+schema_version: 1
+mission_id: 01M78FRR35PEG47XS52SS8SMV9
+mission_slug: coord-closeout-leftovers-01M78FRR
+mission_number: 258
+friendly_name: Coordination closeout leftovers
+mission_type: software-dev
+target_branch: fix/7598-coord-closeout-leftovers
+created_at: '2026-11-12T23:31:15.242231+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-11-12T23:31:15.242231+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-002
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-003
+  category: implementation
+  summary: WP07 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-007
+  category: tooling
+  summary: 'Tracer: [2026-11-12][accept] Lane cleanup after accept kept every lane with `LANDING_REF_UNNAMED`'
+  evidence_refs:
+  - e-019
+  details: '- **[2026-11-12][accept] Lane cleanup after accept kept every lane with `LANDING_REF_UNNAMED`** because `refs/remotes/origin/fix/7598-coord-closeout-leftovers`
+    does not exist before the PR branch is pushed. Expected; the remedy text (`git fetch origin`) does not help before a first
+    push.'
+- id: h-005
+  category: tooling
+  summary: 'Tracer: [2026-11-12][implement WP02] `write_bookkeeping_ref` had no compare-and-swap form'
+  evidence_refs:
+  - e-019
+  details: "- **[2026-11-12][implement WP02] `write_bookkeeping_ref` had no compare-and-swap form**, so the landed-coordination
+    ref's advance could not be a CAS through the owner. Workaround: added a keyword-only `expected_old` to `bookkeeping_ref_write_args`
+    / `write_bookkeeping_ref` in `git/ref_advance.py` (the raw `update-ref` stays in its owner, AC-B3). Follow-up: none."
+- id: h-006
+  category: tooling
+  summary: "Tracer: [2026-11-12][implement WP03] The driver replay's \"no registered merge driver\" was only distinguishable
+    from a transient probe failure by message text"
+  evidence_refs:
+  - e-019
+  details: "- **[2026-11-12][implement WP03] The driver replay's \"no registered merge driver\" was only distinguishable from
+    a transient probe failure by message text** (`driver_replay_expected_bytes` raised a bare `GitProbeError` for no driver,
+    a missing blob and a driver error alike), so the #5867 per-reason remedy needed a typed subclass. Workaround: added `MergeDriverNotRegisteredError(GitProbeError)`
+    in `consolidation/git_probes.py` (leeway, outside WP03's owned files; every existing `GitProbeError` catcher still catches
+    it). Also: keeping `projected_content_matches_target` as a bool wrapper for its test callers trips `test_no_dead_symbols.py`
+    once the gate calls `unlanded_projected_paths`; allow-listed (leeway: `tests/architectural/dead_symbol_allowlist.yaml`).
+    A plain `#` in an unquoted YAML rationale silently starts a comment and breaks the allowlist parse; quote rationales that
+    cite issues. Collection of a single `tests/consolidation` file still costs ~90 s (same as WP01's entry)."
+- id: h-004
+  category: tooling
+  summary: 'Tracer: [2026-11-12][specify] `agent mission create` without `--topology` switched the root checkout to the minted
+    Mission branch'
+  evidence_refs:
+  - e-019
+  details: '- **[2026-11-12][specify] `agent mission create` without `--topology` switched the root checkout to the minted
+    Mission branch** while the target stays `fix/7598-coord-closeout-leftovers`; expected per ADR `2026-11-06-3`, noted because
+    the operator brief assumed work on the fix branch.'
+not_helpful:
+- id: n-005
+  category: doc
+  summary: analysis-report.md records 5 finding(s)
+  evidence_refs:
+  - e-017
+  details: The analysis-report.md artifact for this mission records 5 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-001
+  category: review_loop
+  summary: WP02 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-013
+  details: WP WP02 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP03 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-014
+  details: WP WP03 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-003
+  category: review_loop
+  summary: WP04 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-015
+  details: WP WP04 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-004
+  category: review_loop
+  summary: WP06 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-016
+  details: WP WP06 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-014
+  category: tooling
+  summary: 'Tracer: [2026-11-12] Accepted'
+  evidence_refs:
+  - e-018
+  details: '- **[2026-11-12] Accepted** (all 7 WPs approved; 14 FR verdicts recorded with test evidence). Fold queue: pr-arm
+    record branch in accept Next steps (#7599).'
+- id: n-010
+  category: tooling
+  summary: 'Tracer: [2026-11-12] Baseline reds.'
+  evidence_refs:
+  - e-018
+  details: '- **[2026-11-12] Baseline reds.** `test_unmigrated_cli_still_runs::test_cascade_include_deactivated_activation_writes_no_deny_key`
+    and `test_persistent_deactivation::test_a_deactivation_with_no_allow_list_survives_every_promotion_and_upgrade` time out
+    (240 s) under `-n 8` on unmodified main 89217ac8; recorded on #5981.'
+- id: n-007
+  category: tooling
+  summary: 'Tracer: [2026-11-12] Escalation before specify.'
+  evidence_refs:
+  - e-018
+  details: '- **[2026-11-12] Escalation before specify.** Four operator rulings recorded as Decision Moments (see `decisions/`).'
+- id: n-006
+  category: tooling
+  summary: 'Tracer: [2026-11-12] Grounding first.'
+  evidence_refs:
+  - e-018
+  details: '- **[2026-11-12] Grounding first.** Three read-only agents (late projection + squash refusal; archive reclaim;
+    accept text + abort remedies + folds) and one fresh-context challenger. The challenger overturned two first-pass proposals:
+    the #7491 tip is sound only after a verified landing, and a reclaim branch delete refuses on unique commits without a
+    tip-bound intent.'
+- id: n-009
+  category: tooling
+  summary: 'Tracer: [2026-11-12] Review outcomes so far.'
+  evidence_refs:
+  - e-018
+  details: '- **[2026-11-12] Review outcomes so far.** WP01 approved (cycle 1). WP06 rejected once (named the coordination
+    branch for an explicit-topology Mission whose record lands on the target; done-but-unconsolidated lanes) then approved.
+    WP02 rejected once (dead-symbol gate on the read side of the new ref; fix: keep the names out of `__all__` until WP04
+    calls them) — in rework. WP05 approved with non-blocking findings; fold queue for closeout: (1) `mission_number/bake.py:687`
+    dirty checkout on a fresh run lost its `--resume` hint; (4) NOT_RESTORED missing-branch / CAS-race outcomes have no next
+    step line.'
+- id: n-013
+  category: tooling
+  summary: 'Tracer: [2026-11-12] WP03 approved (cycle 2), WP04 approved (cycle 2).'
+  evidence_refs:
+  - e-018
+  details: '- **[2026-11-12] WP03 approved (cycle 2), WP04 approved (cycle 2).** Fold queue addition: `consolidation/_constants.py`
+    comment above `SQUASH_PROJECTION_NOT_LANDED` still says "so the landing is rolled back" (code comment only; same overclaim
+    fixed in the refusal text).'
+- id: n-037
+  category: tooling
+  summary: "Tracer: [2026-11-12][accept] Dogfood (base CLI, without WP06): accept's pr/default \"Next steps\" said \"Acceptance
+    recorded on `fix/7598-coord-closeout-leftovers`\" while the record was committed on the "
+  evidence_refs:
+  - e-019
+  details: "- **[2026-11-12][accept] Dogfood (base CLI, without WP06): accept's pr/default \"Next steps\" said \"Acceptance
+    recorded on `fix/7598-coord-closeout-leftovers`\" while the record was committed on the Mission branch (`kitty/mission-coord-closeout-leftovers-01M78FRR`,
+    aaec4da).** WP06 fixed only the local arm; the pr arm (`acceptance/__init__.py:2116`) still names the checkout's branch.
+    Fold at closeout (red first)."
+- id: n-038
+  category: tooling
+  summary: 'Tracer: [2026-11-12][accept] I ran `agent mission accept` twice by mistake; the second run recorded a second acceptance
+    commit (267927e) instead of reporting the Mission already accepted.'
+  evidence_refs:
+  - e-019
+  details: '- **[2026-11-12][accept] I ran `agent mission accept` twice by mistake; the second run recorded a second acceptance
+    commit (267927e) instead of reporting the Mission already accepted.** Harmless here; a no-op on an unchanged accepted
+    Mission would be friendlier.'
+- id: n-021
+  category: tooling
+  summary: 'Tracer: [2026-11-12][implement WP01] A single small test file pays ~100 s of fixture setup'
+  evidence_refs:
+  - e-019
+  details: '- **[2026-11-12][implement WP01] A single small test file pays ~100 s of fixture setup** (`pytest tests/consolidation/test_reconciliation_pass_pair.py`:
+    7 pure unit cells, 100.8 s setup on the first cell, 194 s total), so even a red-first check of a pure dataclass method
+    exceeds the 2-minute foreground budget. Workaround: ran in the background. Follow-up: find which autouse/session fixture
+    `tests/consolidation/` pulls in for pure unit cells.'
+- id: n-023
+  category: tooling
+  summary: "Tracer: [2026-11-12][implement WP01] `git add -A kitty-specs` in the coordination worktree would sweep other WPs'
+    concurrent bookkeeping"
+  evidence_refs:
+  - e-019
+  details: "- **[2026-11-12][implement WP01] `git add -A kitty-specs` in the coordination worktree would sweep other WPs'
+    concurrent bookkeeping** (WP06 task file, `meta.json`, a new decision were staged/untracked by other agents while WP01
+    finished). Workaround: committed only WP01's paths and this file. Follow-up: bookkeeping commits per WP path (auto_commit
+    false, #5763 / #7545 class)."
+- id: n-022
+  category: tooling
+  summary: 'Tracer: [2026-11-12][implement WP01] `mypy` on `consolidation/state.py` + `executor.py` reports 3 pre-existing
+    `no-any-return` errors on the base'
+  evidence_refs:
+  - e-019
+  details: '- **[2026-11-12][implement WP01] `mypy` on `consolidation/state.py` + `executor.py` reports 3 pre-existing `no-any-return`
+    errors on the base** (`state.py` `get_state_path`-area and line ~767, `executor.py:432`), so "mypy clean on changed files"
+    can only mean "no new errors". Workaround: compared against the base (same 3 errors, shifted lines). Follow-up: none in
+    this Mission.'
+- id: n-030
+  category: tooling
+  summary: "Tracer: [2026-11-12][implement WP02 rework] A rejection resets the WP's subtask checkboxes"
+  evidence_refs:
+  - e-019
+  details: "- **[2026-11-12][implement WP02 rework] A rejection resets the WP's subtask checkboxes**, so the rework's first
+    `move-task --to for_review` refused on \"unchecked subtasks\" until `mark-status T004..T008` ran again. Workaround: re-marked.
+    Follow-up: the rejection prompt could say so."
+- id: n-026
+  category: tooling
+  summary: "Tracer: [2026-11-12][implement WP02] Renaming `_report_rollback`'s `anchor_before` keyword would break the spy
+    in `tests/consolidation/test_executor_rollback_wiring.py`."
+  evidence_refs:
+  - e-019
+  details: "- **[2026-11-12][implement WP02] Renaming `_report_rollback`'s `anchor_before` keyword would break the spy in
+    `tests/consolidation/test_executor_rollback_wiring.py`.** Workaround: kept `anchor_before` and added `coord_tip_before`;
+    updated the spy's signature only. Follow-up: none."
+- id: n-025
+  category: tooling
+  summary: 'Tracer: [2026-11-12][implement WP02] The #7491 e2e cells cost about 180 s for two cases on the first run'
+  evidence_refs:
+  - e-019
+  details: "- **[2026-11-12][implement WP02] The #7491 e2e cells cost about 180 s for two cases on the first run** (68 s session
+    setup building the test venv in the lane checkout, then ~12 s fixture setup and ~3 s CLI per case), and a 7-cell pure
+    unit file costs ~160 s for the same setup. Workaround: ran the e2e module in the background. Follow-up: same as WP01's
+    setup-cost entry."
+- id: n-031
+  category: tooling
+  summary: "Tracer: [2026-11-12][implement WP02] `tests/architectural/test_no_dead_symbols.py` was not in the WP's named gate
+    list"
+  evidence_refs:
+  - e-019
+  details: "- **[2026-11-12][implement WP02] `tests/architectural/test_no_dead_symbols.py` was not in the WP's named gate
+    list**, and a new module whose read side only a later WP calls trips it. Workaround: keep the read side out of `__all__`
+    until WP04 imports it. Follow-up: name the dead-symbol gate in WP prompts that create modules."
+- id: n-036
+  category: tooling
+  summary: 'Tracer: [2026-11-12][implement WP03 rework] A parametrized cell naming a new enum member turns the whole red file
+    into one collection error'
+  evidence_refs:
+  - e-019
+  details: '- **[2026-11-12][implement WP03 rework] A parametrized cell naming a new enum member turns the whole red file
+    into one collection error** (`AttributeError: MERGE_DRIVER_FAILED`), which hides the per-cell red reasons of the other
+    new cells; each re-run costs ~90 s of collection. Workaround: recorded the collection error as the red evidence. Also:
+    `-n 8 --dist loadfile tests/consolidation tests/terminus tests/coordination` takes ~21 min in this container. Follow-up:
+    none.'
+- id: n-012
+  category: tooling
+  summary: 'Tracer: [2026-11-12][implement WP04 rework, review cycle 1]'
+  evidence_refs:
+  - e-018
+  details: "- **[2026-11-12][implement WP04 rework, review cycle 1]** F1: reclaim now preflights the flattened-marker commit
+    (same placement resolution and capability as `commit_merge_bookkeeping`, through `preflight_commit`) after the landing
+    proof and before the first mutation; off the target it refuses `RECLAIM_NOT_ON_TARGET` naming `git checkout <target>`,
+    and a re-run on the target completes (CLI cell). F2: the keep-record is named through `destructive_guard.discarded_ref`.
+    N1: the teardown seam always runs, so its ledger guard precedes the branch delete. N2: a flatten failure is `RECLAIM_MARKER_NOT_COMMITTED`.
+    N3: the dirty cell asserts the seam's code."
+- id: n-034
+  category: tooling
+  summary: 'Tracer: [2026-11-12][implement WP04 rework] `commit_merge_bookkeeping` has no preflight of its own'
+  evidence_refs:
+  - e-019
+  details: '- **[2026-11-12][implement WP04 rework] `commit_merge_bookkeeping` has no preflight of its own**, so a caller
+    that must prove a bookkeeping commit can land before mutating (reclaim, review F1) composes `resolve_write_target_or_degrade(...,
+    PRIMARY_METADATA, degrade_ref=target_branch)` plus `preflight_commit(..., MERGE_BOOKKEEPING)` itself, mirroring `_commit_bookkeeping`.
+    Follow-up: a `preflight_merge_bookkeeping` beside `commit_merge_bookkeeping` would keep the pair in one module.'
+- id: n-035
+  category: tooling
+  summary: 'Tracer: [2026-11-12][implement WP04 rework] `destructive_guard` returns the kept tip, not the keep-record ref'
+  evidence_refs:
+  - e-019
+  details: '- **[2026-11-12][implement WP04 rework] `destructive_guard` returns the kept tip, not the keep-record ref**, so
+    a caller that prints where the tip went must call `discarded_ref(...)` afterwards (review F2). Workaround applied. Follow-up:
+    return the ref from `guarded_branch_delete`.'
+- id: n-008
+  category: tooling
+  summary: 'Tracer: [2026-11-12][implement WP04] R1 measured: `is_absorbed` REFUSES the canonical squash case; WP04 stopped
+    before the reclaim service (escalated).'
+  evidence_refs:
+  - e-018
+  details: '- **[2026-11-12][implement WP04] R1 measured: `is_absorbed` REFUSES the canonical squash case; WP04 stopped before
+    the reclaim service (escalated).** Fixture: terminus `build_coord_mission` (2 WPs), real `spec-kitty consolidate` (default
+    squash). Case A: `--keep-branch --keep-worktree` (exit 0, triple retained). Case B: the #7491/#6791 refused teardown (exit
+    76), measured both with the untracked review cycle present and removed. Every case: `is_absorbed(repo, coord_tip, main,
+    None) == False` (leg 2: not an ancestor; leg 3: `git merge-tree --write-tree main <coord_tip>` exits 1 with conflicts).
+    Differing paths (merged tree vs `main^{tree}`): `kitty-specs/<slug>/status.events.jsonl` (CONFLICT content) and `kitty-specs/<slug>/status.json`
+    (CONFLICT add/add). `meta.json` auto-merges; no code path differs (`src/pkg/wp0*.py` already on main). Cause: the coordination
+    log and the target log hold the same done/backfill events in a different byte order (coord: `merge` done events then `migration'
+- id: n-011
+  category: tooling
+  summary: 'Tracer: [2026-11-12][implement WP04] Reclaim implemented on the recorded-landing proof'
+  evidence_refs:
+  - e-018
+  details: '- **[2026-11-12][implement WP04] Reclaim implemented on the recorded-landing proof** (rulings `01M78HNKEQPPZMY24JZVJG2MNF`,
+    `01M78JC7ZBJM0CY442BKDGBP7V`). Measured first: `consolidate --keep-branch --keep-worktree` (default squash) writes `refs/spec-kitty/landed-coordination/<branch>`
+    at the live coordination tip, so the canonical case is provable. The service reads meta from the PRIMARY partition through
+    `placement_seam(...).read_dir(PRIMARY_METADATA)`: `candidate_feature_dir_for_mission` resolves the coordination worktree
+    copy of a coordination Mission, whose `meta.json` has no `merged_at` (first green run refused every cell `RECLAIM_UNABSORBED`
+    for that reason).'
+- id: n-033
+  category: tooling
+  summary: 'Tracer: [2026-11-12][implement WP04] The CLI cells sit in `tests/specify_cli/cli/commands` (out of matrix, nightly
+    only)'
+  evidence_refs:
+  - e-019
+  details: '- **[2026-11-12][implement WP04] The CLI cells sit in `tests/specify_cli/cli/commands` (out of matrix, nightly
+    only)**, so they give a PR no diff coverage; a matrixed unit file was added beside them. Each pytest session in this lane
+    also spends ~90 s building a pytest-local test venv before the first test.'
+- id: n-018
+  category: tooling
+  summary: 'Tracer: [2026-11-12][implement WP04] The terminus harness has no cheap "archived coordination Mission" builder'
+  evidence_refs:
+  - e-019
+  details: '- **[2026-11-12][implement WP04] The terminus harness has no cheap "archived coordination Mission" builder**:
+    each CLI cell runs a real `consolidate` (tens of seconds), so a 9-cell CLI file costs minutes. Workaround: accepted. Follow-up:
+    a cached, copyable fixture would need worktree path rewriting.'
+- id: n-032
+  category: tooling
+  summary: "Tracer: [2026-11-12][implement WP04] `candidate_feature_dir_for_mission` returns the coordination worktree's copy
+    for a coordination Mission"
+  evidence_refs:
+  - e-019
+  details: "- **[2026-11-12][implement WP04] `candidate_feature_dir_for_mission` returns the coordination worktree's copy
+    for a coordination Mission**, so `archive create`'s resolved directory carries no `merged_at` and a reader of landing
+    facts must re-resolve through the placement seam (PRIMARY_METADATA). Workaround: the reclaim service resolves its own
+    PRIMARY dir. Follow-up: worth a note on the resolver; `archive create` itself reads status from the coordination copy
+    (fine for terminal state)."
+- id: n-017
+  category: tooling
+  summary: 'Tracer: [2026-11-12][implement WP04] `lanes/lane_tip.py::is_absorbed` cannot prove a squash-landed coordination
+    branch absorbed'
+  evidence_refs:
+  - e-019
+  details: '- **[2026-11-12][implement WP04] `lanes/lane_tip.py::is_absorbed` cannot prove a squash-landed coordination branch
+    absorbed** (plan risk R1 confirmed): `status.events.jsonl` differs by event order and target-only events, `status.json`
+    is an add/add conflict, so `merge-tree --write-tree` conflicts. Workaround: none; WP04 stopped at the red test and escalated
+    with two proof options (see `approach.md`). Follow-up: operator ruling on the proof.'
+- id: n-028
+  category: tooling
+  summary: 'Tracer: [2026-11-12][implement WP05] A red-first check cannot use a base source export through `PYTHONPATH`'
+  evidence_refs:
+  - e-019
+  details: "- **[2026-11-12][implement WP05] A red-first check cannot use a base source export through `PYTHONPATH`**: running
+    `tests/consolidation/test_abort_remedies.py` with `PYTHONPATH=<git archive HEAD src>` still imported the lane's edited
+    `src/` (12 passed, not red), and the first in-place run built the per-session test venv (`.pytest_cache/spec-kitty-test-venv.build-*`,
+    `pip install -e`) for ~4 min while the source was being edited, so its verdict was mixed. Workaround: `git stash push
+    -- src`, run the file (12 failed, 3 s), `git stash pop`. Follow-up: document a supported \"run tests against the base\"\
+    \ recipe for lane workspaces."
+- id: n-029
+  category: tooling
+  summary: 'Tracer: [2026-11-12][implement WP05] `RefAdvanceDirtyWorktreeError` reaches the consolidation as a plain string'
+  evidence_refs:
+  - e-019
+  details: "- **[2026-11-12][implement WP05] `RefAdvanceDirtyWorktreeError` reaches the consolidation as a plain string**
+    (`lanes/consolidation.py` folds `str(e)` into `errors`), so a caller-specific next step had to be added at that fold,
+    outside WP05's owned files (leeway: `lane_merge_error_text`). Follow-up: none in this Mission."
+- id: n-027
+  category: tooling
+  summary: 'Tracer: [2026-11-12][implement WP06 rework] `tests/acceptance/test_unmigrated_cli_still_runs.py::test_cascade_include_deactivated_activation_writes_no_deny_key`
+    failed once under `-n 8` load and passe'
+  evidence_refs:
+  - e-019
+  details: "- **[2026-11-12][implement WP06 rework] `tests/acceptance/test_unmigrated_cli_still_runs.py::test_cascade_include_deactivated_activation_writes_no_deny_key`
+    failed once under `-n 8` load and passed alone** (charter activation, not accept; base check pending in review). Also:
+    per-WP bookkeeping cannot `git commit -- <file>` a trace file shared with other actors' uncommitted entries; the orchestrator
+    commits the traces."
+- id: n-020
+  category: tooling
+  summary: 'Tracer: [2026-11-12][implement WP06] Each `_create_test_feature` + `_seed_lane_gate` accept cell costs about 10-25
+    s'
+  evidence_refs:
+  - e-019
+  details: '- **[2026-11-12][implement WP06] Each `_create_test_feature` + `_seed_lane_gate` accept cell costs about 10-25
+    s** (git init, commits, status materialize) under a contended container; a 9-cell file runs ~95 s serial. Workaround:
+    helper logic covered by direct calls; only five cells go end to end.'
+- id: n-019
+  category: tooling
+  summary: 'Tracer: [2026-11-12][implement WP06] Writing a coordination `topology` into `meta.json` before `collect_feature_summary`
+    makes the summary fail with `StatusReadPathNotFound`'
+  evidence_refs:
+  - e-019
+  details: '- **[2026-11-12][implement WP06] Writing a coordination `topology` into `meta.json` before `collect_feature_summary`
+    makes the summary fail with `StatusReadPathNotFound`**: the read door then looks for a coordination worktree the acceptance-regressions
+    fixture never builds. Workaround: patch `meta.json` after the summary is collected (as the #6450 pr-arm regression does).
+    Follow-up: a cheap coordination-Mission accept fixture would let an e2e cell exercise the real read path.'
+- id: n-024
+  category: tooling
+  summary: 'Tracer: [2026-11-12][implement] `spec-commit` of amended planning files after settlement refuses'
+  evidence_refs:
+  - e-019
+  details: '- **[2026-11-12][implement] `spec-commit` of amended planning files after settlement refuses** ("commit would
+    no-op against the wrong surface"): the primary surface resolves to the repository root checkout (on the target branch)
+    while the Mission branch is checked out in the coordination worktree. Workaround: plain `git commit` of the named paths
+    in the coordination worktree. Follow-up: #7551 / sub-epic C (#7546).'
+- id: n-015
+  category: tooling
+  summary: 'Tracer: [2026-11-12][research] The clone is shallow (50 commits)'
+  evidence_refs:
+  - e-019
+  details: '- **[2026-11-12][research] The clone is shallow (50 commits)**, so the 90-day churn the grounding brief asks for
+    cannot be measured. Workaround: noted as unmeasured. Follow-up: none (environment).'
+- id: n-016
+  category: tooling
+  summary: 'Tracer: [2026-11-12][specify] With `auto_commit: false`, `agent decision open/resolve` leave `decisions/` and
+    `status.events.jsonl` uncommitted.'
+  evidence_refs:
+  - e-019
+  details: '- **[2026-11-12][specify] With `auto_commit: false`, `agent decision open/resolve` leave `decisions/` and `status.events.jsonl`
+    uncommitted.** Workaround: commit them by hand (#5763 / #7545 class).'
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/coord-closeout-leftovers-01M78FRR/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/coord-closeout-leftovers-01M78FRR/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/coord-closeout-leftovers-01M78FRR/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/coord-closeout-leftovers-01M78FRR/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/coord-closeout-leftovers-01M78FRR/tasks/WP01-pass-anchor-pairing.md
+- id: e-006
+  kind: file
+  path: kitty-specs/coord-closeout-leftovers-01M78FRR/tasks/WP02-resume-late-window-base.md
+- id: e-007
+  kind: file
+  path: kitty-specs/coord-closeout-leftovers-01M78FRR/tasks/WP03-squash-projection-refusal-paths.md
+- id: e-008
+  kind: file
+  path: kitty-specs/coord-closeout-leftovers-01M78FRR/tasks/WP04-archive-reclaim.md
+- id: e-009
+  kind: file
+  path: kitty-specs/coord-closeout-leftovers-01M78FRR/tasks/WP05-abort-remedies.md
+- id: e-010
+  kind: file
+  path: kitty-specs/coord-closeout-leftovers-01M78FRR/tasks/WP06-accept-next-steps.md
+- id: e-011
+  kind: file
+  path: kitty-specs/coord-closeout-leftovers-01M78FRR/tasks/WP07-docs-and-changelog.md
+- id: e-012
+  kind: file
+  path: kitty-specs/coord-closeout-leftovers-01M78FRR/status.events.jsonl
+- id: e-013
+  kind: event_range
+  path: kitty-specs/coord-closeout-leftovers-01M78FRR/status.events.jsonl
+  range: 01M78Q2CQC4YTTZBMVHS1V8WK8
+- id: e-014
+  kind: event_range
+  path: kitty-specs/coord-closeout-leftovers-01M78FRR/status.events.jsonl
+  range: 01M78WWYPWGWSG2XV2N1T83WT3
+- id: e-015
+  kind: event_range
+  path: kitty-specs/coord-closeout-leftovers-01M78FRR/status.events.jsonl
+  range: 01M78X611EHXS87APYZY538NE9
+- id: e-016
+  kind: event_range
+  path: kitty-specs/coord-closeout-leftovers-01M78FRR/status.events.jsonl
+  range: 01M78KCHRFFJ3MATEH7CRWXJW7
+- id: e-017
+  kind: file
+  path: kitty-specs/coord-closeout-leftovers-01M78FRR/analysis-report.md
+- id: e-018
+  kind: file
+  path: kitty-specs/coord-closeout-leftovers-01M78FRR/traces/approach.md
+- id: e-019
+  kind: file
+  path: kitty-specs/coord-closeout-leftovers-01M78FRR/traces/tooling-friction.md
+generator_version: '1.0'
+provenance_history: []

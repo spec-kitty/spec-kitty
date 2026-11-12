@@ -1,0 +1,53 @@
+{
+  "accept_commit": "267927e0da56318f22d2a61a68d0f36aef24425f",
+  "acceptance_history": [
+    {
+      "accept_commit": "390a58c1515a9feccbc9709936d15ad62359c4c5",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-12T23:14:31.973391+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "9c2a7b712ff70959b6392ebb52c2af80779cea2f"
+    },
+    {
+      "accept_commit": "267927e0da56318f22d2a61a68d0f36aef24425f",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-12T23:15:02.753956+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "aaec4da2c30eddcd15b50f67e46ad7ecc3a05f61"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-12T23:15:02.753956+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "aaec4da2c30eddcd15b50f67e46ad7ecc3a05f61",
+  "baseline_merge_commit": "993de6b0c1d62eff78a32cc37b1010a6c61d87c7",
+  "create_return_branch": "fix/7598-coord-closeout-leftovers",
+  "created_at": "2026-11-12T18:19:24.762424+00:00",
+  "flattened": true,
+  "friendly_name": "Coordination closeout leftovers",
+  "merged_at": "2026-11-12T23:30:28.945649+00:00",
+  "merged_commit": "f728ce4184407a95cc8f101abb24a6166f20c775",
+  "mid8": "01M78FRR",
+  "mission_branch": "kitty/mission-coord-closeout-leftovers-01M78FRR",
+  "mission_id": "01M78FRR35PEG47XS52SS8SMV9",
+  "mission_number": 258,
+  "mission_slug": "coord-closeout-leftovers-01M78FRR",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Coordination closeout leftovers on fix/7598-coord-closeout-leftovers so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Every coordination closeout refusal names its blocker and a remedy that works; archived Missions can reclaim their coordination triple",
+  "slug": "coord-closeout-leftovers-01M78FRR",
+  "status_phase": "1",
+  "target_branch": "fix/7598-coord-closeout-leftovers",
+  "topology_decision": {
+    "code_lane_count": 6,
+    "from": "single_branch",
+    "rule": "lanes_with_coord",
+    "target_protected": false,
+    "to": "lanes_with_coord",
+    "wp_count": 7
+  },
+  "topology_settled": true,
+  "topology_source": "default",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-12T18:38:21.019557+00:00"
+}

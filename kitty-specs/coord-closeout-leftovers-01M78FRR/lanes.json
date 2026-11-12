@@ -1,0 +1,159 @@
+{
+  "version": 1,
+  "mission_slug": "coord-closeout-leftovers-01M78FRR",
+  "mission_id": "01M78FRR35PEG47XS52SS8SMV9",
+  "mission_branch": "kitty/mission-coord-closeout-leftovers-01M78FRR",
+  "target_branch": "fix/7598-coord-closeout-leftovers",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/executor.py",
+        "src/specify_cli/consolidation/state.py",
+        "tests/consolidation/test_reconciliation_pass_pair.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/acceptance/__init__.py",
+        "tests/specify_cli/test_acceptance_next_steps.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/landed_coordination.py",
+        "src/specify_cli/consolidation/phase_teardown.py",
+        "tests/consolidation/test_late_teardown_projection.py",
+        "tests/consolidation/test_late_window_base_resume.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/cli/commands/consolidate.py",
+        "src/specify_cli/consolidation/rollback.py",
+        "src/specify_cli/git/ref_advance.py",
+        "tests/consolidation/test_abort_remedies.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/_constants.py",
+        "src/specify_cli/consolidation/bookkeeping_projection.py",
+        "src/specify_cli/consolidation/phase_gate.py",
+        "tests/consolidation/test_constants_seam.py",
+        "tests/consolidation/test_executor_coverage.py",
+        "tests/consolidation/test_squash_projection_refusal_paths.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/archive.py",
+        "src/specify_cli/missions/archive_reclaim.py",
+        "tests/architectural/test_destructive_op_routing.py",
+        "tests/architectural/test_json_contract_enumeration.py",
+        "tests/specify_cli/cli/commands/test_archive_reclaim.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "docs/api/cli-commands.md",
+        "docs/changelog/unreleased/**"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-e",
+        "lane-f"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-11-12T21:06:48.252599+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP07"
+  ],
+  "planning_commit_sha": "89217ac8317548c102a3659b1aabe26c3983d6cc"
+}
