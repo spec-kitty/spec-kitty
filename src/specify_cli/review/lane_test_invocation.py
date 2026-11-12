@@ -27,6 +27,7 @@ from specify_cli.lanes.lane_invocation import (
 )
 from specify_cli.ownership.models import WorkProductKind
 from specify_cli.review.baseline import _get_test_command
+from specify_cli.workspace.context import LANE_WORKSPACE_KIND
 
 __all__ = [
     "lane_test_invocation_for",
@@ -39,7 +40,6 @@ LANE_TEST_INVOCATION_HEADER: Final[str] = "🧪 LANE TEST INVOCATION (run tests 
 
 _INDENT: Final[str] = "   "
 _NO_COMMAND: Final[str] = "(no review.test_command configured)"
-_LANE_WORKSPACE: Final[str] = "lane_workspace"
 # Worded for any workspace: a lane worktree or a write checkout (single_branch, owned checkout).
 _FOREIGN_ADVICE: Final[str] = "outside this workspace. Fix its environment before trusting any test result."
 
@@ -79,12 +79,17 @@ def workspace_lane_test_invocation(
 ) -> LaneTestInvocation | None:
     """The probed invocation for a resolved workspace, or ``None`` for planning-artifact work.
 
+    The one place that decides which workspace gets an invocation: the implement
+    banner, the prompts and the pre-review gate all call it. A caller whose
+    planning-artifact decision needs more than the declared mode (the gate also
+    reads ``lanes.json``) passes its verdict as *execution_mode*.
+
     Code work in a lane worktree carries the lane's test database; code work in a
     write checkout (``single_branch``, owned checkout) is rooted there without one.
     """
     if execution_mode == WorkProductKind.PLANNING_ARTIFACT.value:
         return None
-    identity_lane = lane_id if resolution_kind == _LANE_WORKSPACE else None
+    identity_lane = lane_id if resolution_kind == LANE_WORKSPACE_KIND else None
     return lane_test_invocation_for(root, config_root=config_root, mission_slug=mission_slug, lane_id=identity_lane)
 
 

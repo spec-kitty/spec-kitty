@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
@@ -325,6 +326,25 @@ def test_planning_artifact_falls_back_to_the_lanes_manifest_kind_view(tmp_path: 
     assert gate["outcome"] == "no_coverage"
     assert gate["reason"].startswith("planning-lane WP — committed diff not inspected")
     assert payload["transition_applied"] is True
+
+    # The same manifest verdict keeps the lane test invocation away from the planning WP (#7547),
+    # while a code WP in the same mission still gets one.
+    def evidence_for(wp_id: str) -> tuple[Any, Any]:
+        state = SimpleNamespace(
+            wp=None,
+            main_repo_root=tmp_path,
+            mission_slug=_MISSION,
+            task_id=wp_id,
+            owned=None,
+            pre_review_lane_id=None,
+            pre_review_resolution_kind=None,
+        )
+        return tasks_move_task_gates._mt_lane_test_evidence(state, tmp_path)
+
+    assert evidence_for(_PLANNING_WP) == (None, None)
+    invocation, evidence_tree = evidence_for(_CODE_WP)
+    assert invocation is not None
+    assert evidence_tree is not None
 
 
 def test_code_change_wp_with_empty_diff_keeps_the_incumbent_reason(tmp_path: Path) -> None:

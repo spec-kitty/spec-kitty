@@ -86,7 +86,7 @@ from specify_cli.review.gate_registry import (
     TransitionGateContext,
     get_gate_handler,
 )
-from specify_cli.review.lane_test_invocation import lane_test_invocation_for
+from specify_cli.review.lane_test_invocation import workspace_lane_test_invocation
 from specify_cli.review.scope_source import ScopeSource, exposes_scope_breakdown, resolve_scope_source
 from specify_cli.review.verdict_aggregation import (
     AggregateDecision,
@@ -127,9 +127,6 @@ _PRE_REVIEW_CONFIG_KEY_BLOCK = "fail_on_pre_review_regression"
 _PRE_REVIEW_CONFIG_KEY_TEST_COMMAND = "pre_review_test_command"
 _PRE_REVIEW_CONFIG_KEY_TEST_COMMAND_REPLACEMENT = "test_command"
 _PRE_REVIEW_FRONTMATTER_KEY = "pre_review_test_scope"
-#: The workspace resolution kind of a lane worktree (``workspace.context``); only
-#: a lane worktree carries a lane identity for the lane test database (#7547).
-_LANE_WORKSPACE_KIND = "lane_workspace"
 #: The refusal code of a foreign evidence tree (#7547, decision 01M7733YYK1615ERKAY41C2M7C).
 _EVIDENCE_TREE_MISMATCH = "EVIDENCE_TREE_MISMATCH"
 #: Appended to a ``FOREIGN_TREE`` verdict's reason: the metadata notes no test evidence exists.
@@ -305,6 +302,7 @@ def _mt_resolve_pre_review_workspace(st: _MoveTaskState) -> Path | None:
     # #7547: the lane identity of THIS resolution, read back by
     # :func:`_mt_lane_test_evidence` so the workspace is never resolved twice.
     st.pre_review_lane_id = None
+    st.pre_review_resolution_kind = None
     if st.owned is not None:
         # ``st.owned.owned_root`` surfaces as ``Any`` under this quarantined module's
         # ``follow_imports = "skip"``; pin it to the concrete ``Path`` via an
@@ -324,8 +322,8 @@ def _mt_resolve_pre_review_workspace(st: _MoveTaskState) -> Path | None:
     # suppression (mirrors ``RealFsReader``'s own idiom in
     # ``agent_tasks_ports.py``, which pins against a non-quarantined type).
     resolved_worktree_path: Path = workspace.worktree_path
-    resolved_lane_id: str | None = workspace.lane_id if workspace.resolution_kind == _LANE_WORKSPACE_KIND else None
-    st.pre_review_lane_id = resolved_lane_id
+    st.pre_review_lane_id = workspace.lane_id
+    st.pre_review_resolution_kind = workspace.resolution_kind
     return resolved_worktree_path
 
 
@@ -1378,7 +1376,9 @@ def _mt_lane_test_evidence(
 
     Called by :func:`_mt_probe_lane_before_run` only, just before a test run. ``(None, None)`` for no workspace and for a
     planning-lane WP (its workspace is the repository root checkout, which has
-    no lane environment to verify). Fail-open (C-003): any ``Exception`` while
+    no lane environment to verify); which workspaces get an invocation is
+    decided by :func:`workspace_lane_test_invocation`, given this module's
+    planning verdict. Fail-open (C-003): any ``Exception`` while
     building, probing or capturing degrades to ``(None, None)`` -- the gate then
     behaves as it did before the probe existed and never refuses.
     ``KeyboardInterrupt`` is left to the resolution phase's terminal
@@ -1389,17 +1389,21 @@ def _mt_lane_test_evidence(
     cannot change it. The lane identity is the one the workspace resolution
     just recorded on ``st`` (``None`` for an owned checkout).
     """
-    if worktree_path is None or _mt_pre_review_planning_lane_wp(st):
+    if worktree_path is None:
         return None, None
-    lane_id: str | None = getattr(st, "pre_review_lane_id", None)
+    # Annotated local: ``WorkProductKind`` surfaces as ``Any`` under ``follow_imports = "skip"``.
+    planning_artifact_mode: str = WorkProductKind.PLANNING_ARTIFACT.value
     try:
-        invocation: LaneTestInvocation = lane_test_invocation_for(
+        invocation: LaneTestInvocation | None = workspace_lane_test_invocation(
             worktree_path,
             config_root=_mt_config_authority_root(st),
             mission_slug=st.mission_slug,
-            lane_id=lane_id,
-            probe=True,
+            lane_id=getattr(st, "pre_review_lane_id", None),
+            resolution_kind=getattr(st, "pre_review_resolution_kind", None),
+            execution_mode=planning_artifact_mode if _mt_pre_review_planning_lane_wp(st) else None,
         )
+        if invocation is None:
+            return None, None
         if invocation.probe is None:  # probe=True always attaches one; no probe means no evidence (fail-open)
             return invocation, None
         evidence: EvidenceTree = capture_evidence_tree(worktree_path, invocation.probe, repo_root=st.main_repo_root)

@@ -349,8 +349,9 @@ class _MoveTaskState:
     # --- phase C.5: pre-review regression gate (WP02 T004/T005) ---
     pre_review_gate_metadata: dict[str, Any] | None = None
     review_base_ref: str | None = None
-    # Lane id of the gate's workspace resolution (#7547), set by ``_mt_resolve_pre_review_workspace``.
+    # Lane id and resolution kind of the gate's workspace resolution (#7547), set by ``_mt_resolve_pre_review_workspace``.
     pre_review_lane_id: str | None = None
+    pre_review_resolution_kind: str | None = None
     # --- phase D: emit plan ---
     emit_plan: TransitionPlan | None = None
     evidence_dict: dict[str, Any] | None = None
