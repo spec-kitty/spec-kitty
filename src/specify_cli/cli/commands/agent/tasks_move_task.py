@@ -209,6 +209,8 @@ from specify_cli.cli.commands.agent.tasks_move_task_gates import (
     _PRE_REVIEW_BLOCK_UNENFORCEABLE_HINT as _PRE_REVIEW_BLOCK_UNENFORCEABLE_HINT,
     _mt_pre_review_gate_console_warning as _mt_pre_review_gate_console_warning,
     _mt_pre_review_gate_block_message as _mt_pre_review_gate_block_message,
+    _mt_foreign_tree_refusal_message as _mt_foreign_tree_refusal_message,
+    _mt_foreign_tree_verdict as _mt_foreign_tree_verdict,
     _TransitionGateInputs as _TransitionGateInputs,
     _TransitionGateEffect as _TransitionGateEffect,
     _mt_warn_pre_review_test_command_deprecated as _mt_warn_pre_review_test_command_deprecated,
@@ -229,6 +231,7 @@ from specify_cli.cli.commands.agent.tasks_move_task_gates import (
     _mt_human_gate_status_observer as _mt_human_gate_status_observer,
     _mt_collect_transition_gate_verdicts as _mt_collect_transition_gate_verdicts,
     _mt_resolve_transition_gate_inputs as _mt_resolve_transition_gate_inputs,
+    _mt_lane_test_evidence as _mt_lane_test_evidence,
     _mt_resolve_transition_gate_verdicts as _mt_resolve_transition_gate_verdicts,
     _mt_gate_representative as _mt_gate_representative,
     _mt_translate_gate_verdicts as _mt_translate_gate_verdicts,
@@ -344,6 +347,8 @@ class _MoveTaskState:
     # --- phase C.5: pre-review regression gate (WP02 T004/T005) ---
     pre_review_gate_metadata: dict[str, Any] | None = None
     review_base_ref: str | None = None
+    # Lane id of the gate's workspace resolution (#7547), set by ``_mt_resolve_pre_review_workspace``.
+    pre_review_lane_id: str | None = None
     # --- phase D: emit plan ---
     emit_plan: TransitionPlan | None = None
     evidence_dict: dict[str, Any] | None = None
