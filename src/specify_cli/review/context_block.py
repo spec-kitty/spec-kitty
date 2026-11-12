@@ -41,7 +41,7 @@ from collections.abc import Callable, Sequence
 from specify_cli.requirement_mapping.text import TEXT_LIMIT, TRUNCATION_MARKER, CitedRequirement, Resolution
 from specify_cli.review.wp_range import FileChange, RangeSource, RangeStatus, WpReviewRange
 
-__all__ = ["render_review_context"]
+__all__ = ["describe_gap", "render_review_context"]
 
 #: The block without CITED REQUIREMENTS is at most this many UTF-8 bytes, newlines included (NFR-001).
 BYTE_BUDGET = 4096
@@ -98,8 +98,12 @@ def _label(sha: str | None) -> str:
     return (sha or "")[:LABEL_LEN]
 
 
-def _gap_reason(gap: str | None) -> str:
-    """A reader-facing reason for *gap*, ending with the gap's own value in parentheses."""
+def describe_gap(gap: str | None) -> str:
+    """A reader-facing reason for *gap*, ending with the gap's own value in parentheses.
+
+    The one wording of a range gap: the block's notes and unavailable header, and the owned
+    ``OWNED_REVIEW_BASE_UNAVAILABLE`` refusal reason, all print it.
+    """
     value = gap or "unknown"
     description = _GAP_DESCRIPTIONS.get(value)
     return f"{description} ({value})" if description else value
@@ -130,7 +134,7 @@ def _header_lines(review_range: WpReviewRange, branch: str | None) -> list[str]:
         f"{_INDENT}base: {base} ({_BASE_LABELS.get(review_range.base_source, review_range.base_source.value)})",
     ]
     if review_range.gap is not None:
-        lines.append(f"{_INDENT}note: recorded window not used: {_gap_reason(review_range.gap)}")
+        lines.append(f"{_INDENT}note: recorded window not used: {describe_gap(review_range.gap)}")
     if not review_range.owned_pathspecs:
         lines.append(UNSCOPED_LINE)
     lines.append(f"{_INDENT}tip:  {tip} ({_TIP_LABELS.get(review_range.tip_source, review_range.tip_source.value)})")
@@ -228,7 +232,7 @@ def _requirement_lines(cited: Sequence[CitedRequirement]) -> list[str]:
 
 def _unavailable_lines(review_range: WpReviewRange) -> list[str]:
     return [
-        f"REVIEW RANGE ({review_range.wp_id}): unavailable{_REQUIREMENT_SEPARATOR}{_gap_reason(review_range.gap)}",
+        f"REVIEW RANGE ({review_range.wp_id}): unavailable{_REQUIREMENT_SEPARATOR}{describe_gap(review_range.gap)}",
         _COMMANDS_HEADING,
         UNAVAILABLE_COMMAND_LINE,
     ]
