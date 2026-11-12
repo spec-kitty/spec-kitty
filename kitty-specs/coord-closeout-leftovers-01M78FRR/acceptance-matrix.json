@@ -128,10 +128,10 @@
       "criterion_id": "FR-013",
       "description": "Verify FR-013 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "WP02: kept-branch text cells in test_late_window_base_resume.py (red d57e27e0)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T23:14:03.601463+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
