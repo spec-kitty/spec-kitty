@@ -94,6 +94,9 @@
       "last_event_id": "01M78JHZYCGNGTZKT2YBVVMTC0",
       "last_transition_at": "2026-11-12T19:08:07.500868+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: local accept Next steps name consolidate + record branch while lanes remain; No merge needed only when nothing remains (#7599). E2E cells use the test_acceptance_regressions fixture."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 29088,
