@@ -20,6 +20,7 @@ raises; every failure becomes an ``unverified`` result with a bounded reason.
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import json
 import os
@@ -56,6 +57,7 @@ __all__ = [
 INTERPRETER_REDIRECT_KEYS: Final[tuple[str, ...]] = ("PYTHONPATH", "UV_PROJECT_ENVIRONMENT", "VIRTUAL_ENV")
 
 _PYTHONPATH: Final[str] = "PYTHONPATH"
+_PATH: Final[str] = "PATH"
 _SOURCE_DIR: Final[str] = "src"
 _PACKAGE_PATHSPEC: Final[str] = "src/*/__init__.py"
 _PACKAGE_PATH_SEGMENTS: Final[int] = 3
@@ -122,14 +124,16 @@ class ProbeResult:
 class LaneTestInvocation:
     """How a lane's tests are run: working directory, command, environment changes.
 
-    ``environ(base)`` is *base* minus :attr:`env_unset`, then plus :attr:`env_set`
-    (see :func:`run_environment`). Never persisted: each surface re-derives it.
+    ``environ(base)`` is *base* minus :attr:`env_unset`, then plus :attr:`env_set`,
+    with :attr:`path_prepend` put in front of ``PATH`` (see :func:`run_environment`).
+    Never persisted: each surface re-derives it.
     """
 
     cwd: Path
     command: str | None
     env_set: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
     env_unset: tuple[str, ...] = INTERPRETER_REDIRECT_KEYS
+    path_prepend: tuple[str, ...] = ()
     probe: ProbeResult | None = None
 
     def with_probe(self, probe: ProbeResult) -> LaneTestInvocation:
@@ -143,6 +147,7 @@ class LaneTestInvocation:
             "command": self.command,
             "env_set": dict(self.env_set),
             "env_unset": list(self.env_unset),
+            "path_prepend": list(self.path_prepend),
             "probe": self.probe.to_dict() if self.probe is not None else None,
         }
 
@@ -204,24 +209,39 @@ def build_lane_test_invocation(
         mission_slug: With *lane_id*, adds the lane test database name.
         lane_id: See *mission_slug*.
 
-    ``PYTHONPATH=<root>/src`` is added when the root has tracked source packages
-    and no ``.venv`` of its own (a lane venv decides its own import path).
+    A root with a ``.venv`` of its own gets that venv's script directory in
+    front of ``PATH``, so a declared bare ``python`` or ``pytest`` runs the
+    interpreter the probe checks, not one the caller's ``PATH`` points at.
+    Otherwise ``PYTHONPATH=<root>/src`` is added when the root has tracked
+    source packages.
     """
     env_set = _lane_identity_env(mission_slug, lane_id)
-    if _source_packages(root) and _lane_interpreter(root) is None:
+    interpreter = _lane_interpreter(root)
+    path_prepend: tuple[str, ...] = ()
+    if interpreter is not None:
+        path_prepend = (str(interpreter.parent),)
+    elif _source_packages(root):
         env_set[_PYTHONPATH] = str(root / _SOURCE_DIR)
     return LaneTestInvocation(
         cwd=root,
         command=command,
         env_set=MappingProxyType(dict(sorted(env_set.items()))),
         env_unset=INTERPRETER_REDIRECT_KEYS,
+        path_prepend=path_prepend,
     )
 
 
 def run_environment(invocation: LaneTestInvocation, base: Mapping[str, str]) -> dict[str, str]:
-    """The environment to run *invocation* with: *base* minus ``env_unset``, plus ``env_set``."""
+    """The environment to run *invocation* with.
+
+    *base* minus ``env_unset``, plus ``env_set``, with ``path_prepend`` in front
+    of *base*'s ``PATH``. *base* is not mutated.
+    """
     env = {key: value for key, value in base.items() if key not in invocation.env_unset}
     env.update(invocation.env_set)
+    if invocation.path_prepend:
+        inherited = env.get(_PATH)
+        env[_PATH] = os.pathsep.join([*invocation.path_prepend, *([inherited] if inherited else [])])
     return env
 
 
@@ -275,7 +295,10 @@ def _verdict(
     origins: tuple[tuple[str, str | None], ...] = tuple(
         (name, value if isinstance(value, str) else None) for name, value in ((name, payload.get(name)) for name in packages)
     )
-    foreign = tuple(name for name, origin in origins if origin is not None and not origin_inside(origin, source_root))
+    # Only a file path proves where code loads from; "frozen", "built-in" or a
+    # namespace marker says nothing about a tree, so it is unverified, never foreign.
+    located_files = {name: origin for name, origin in origins if origin is not None and os.path.isabs(origin)}
+    foreign = tuple(name for name, origin in located_files.items() if not origin_inside(origin, source_root))
     if foreign:
         located = dict(origins)
         detail = ", ".join(f"{name} loads from {located[name]}" for name in foreign)
@@ -289,6 +312,9 @@ def _verdict(
     missing = [name for name, origin in origins if origin is None]
     if missing:
         return _unverified(f"{', '.join(missing)} not importable from the lane environment", interpreter, origins)
+    no_file = [name for name, _origin in origins if name not in located_files]
+    if no_file:
+        return _unverified(f"{', '.join(no_file)} has no file origin to check", interpreter, origins)
     return ProbeResult(status=ProbeStatus.VERIFIED, origins=origins, foreign=(), reason=None, interpreter=interpreter)
 
 
@@ -357,13 +383,42 @@ def _dirty(root: Path) -> bool | None:
         return None
 
 
+def _relative_posix(path: Path, base: Path) -> str | None:
+    try:
+        return PurePosixPath(*path.relative_to(base).parts).as_posix()
+    except ValueError:
+        return None
+
+
 def _display_path(root: Path, repo_root: Path | None) -> str:
+    """*root* relative to *repo_root* (posix), lexically first, then through symlinks; else unchanged.
+
+    Lexical first, so a venv interpreter that symlinks out of the tree keeps its
+    in-tree name.
+    """
     if repo_root is not None:
+        lexical = _relative_posix(Path(os.path.abspath(root)), Path(os.path.abspath(repo_root)))
+        if lexical is not None:
+            return lexical
         try:
-            return PurePosixPath(*root.resolve().relative_to(repo_root.resolve()).parts).as_posix()
-        except (OSError, ValueError):
-            pass
+            resolved = _relative_posix(root.resolve(), repo_root.resolve())
+        except OSError:
+            resolved = None
+        if resolved is not None:
+            return resolved
     return str(root)
+
+
+def _relative_reason(reason: str | None, repo_root: Path) -> str | None:
+    """*reason* with the absolute *repo_root* prefix removed from every path in it."""
+    if reason is None:
+        return None
+    prefixes = {os.path.abspath(repo_root)}
+    with contextlib.suppress(OSError):
+        prefixes.add(str(repo_root.resolve()))
+    for prefix in sorted(prefixes, key=len, reverse=True):
+        reason = reason.replace(prefix.rstrip(os.sep) + os.sep, "")
+    return reason
 
 
 def _display_optional(path: str | None, repo_root: Path | None) -> str | None:
@@ -375,13 +430,18 @@ def _recorded_probe(probe: ProbeResult, repo_root: Path | None) -> ProbeResult:
     if repo_root is None:
         return probe
     origins = tuple((name, _display_optional(origin, repo_root)) for name, origin in probe.origins)
-    return dataclasses.replace(probe, origins=origins, interpreter=_display_optional(probe.interpreter, repo_root))
+    return dataclasses.replace(
+        probe,
+        origins=origins,
+        interpreter=_display_optional(probe.interpreter, repo_root),
+        reason=_relative_reason(probe.reason, repo_root),
+    )
 
 
 def capture_evidence_tree(root: Path, probe: ProbeResult, *, repo_root: Path | None = None) -> EvidenceTree:
     """Record the tree a verdict was produced in. Never raises.
 
-    ``path``, and the probe's origins and interpreter, are relative to *repo_root*
+    ``path``, and the probe's origins, interpreter and reason, are relative to *repo_root*
     (posix form) when they lie under it, else unchanged, so the tracked status log
     carries no machine paths it does not need; ``head`` and ``dirty`` are ``None``
     when git cannot say.

@@ -118,6 +118,9 @@ def render_lane_test_invocation_lines(invocation: LaneTestInvocation) -> list[st
     if invocation.env_unset:
         lines.append(f"{_INDENT}unset {' '.join(invocation.env_unset)}")
     lines.extend(f"{_INDENT}export {key}={shlex.quote(value)}" for key, value in sorted(invocation.env_set.items()))
+    if invocation.path_prepend:
+        front = os.pathsep.join(shlex.quote(entry) for entry in invocation.path_prepend)
+        lines.append(f'{_INDENT}export PATH={front}{os.pathsep}"$PATH"')
     lines.append(f"{_INDENT}{invocation.command or _NO_COMMAND}")
     lines.append(f"{_INDENT}{_probe_line(invocation.probe, invocation.cwd)}")
     return lines
