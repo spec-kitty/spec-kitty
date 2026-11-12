@@ -1399,6 +1399,8 @@ def _mt_lane_test_evidence(
             lane_id=lane_id,
             probe=True,
         )
+        if invocation.probe is None:  # probe=True always attaches one; no probe means no evidence (fail-open)
+            return invocation, None
         evidence: EvidenceTree = capture_evidence_tree(worktree_path, invocation.probe, repo_root=st.main_repo_root)
     except Exception as exc:  # noqa: BLE001 — C-003 fail-open: evidence is advisory unless it proves a foreign tree
         logger.warning("Lane test invocation for %s could not be built (%s); recording no evidence tree.", st.task_id, exc)

@@ -405,7 +405,8 @@ def test_capture_evidence_tree(scratch_project: ScratchProject, tmp_path: Path) 
     assert tree.head == _git(lane, "rev-parse", "HEAD")
     assert tree.dirty is True
     assert tree.path == "lane"
-    assert tree.probe == probe
+    assert tree.probe.status is probe.status
+    assert dict(tree.probe.origins)[_PKG] == f"lane/src/{_PKG}/__init__.py"
 
     # Not under repo_root: absolute path.
     outside = capture_evidence_tree(lane, probe, repo_root=scratch_project.root)
