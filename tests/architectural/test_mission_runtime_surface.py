@@ -90,6 +90,9 @@ _PUBLIC_SURFACE = sorted(
         # MR-1/MR-2 forbid submodule imports, so both live on the package root.
         "ClaimCommitUnresolved",
         "claim_commit_for_wp",
+        # review-context-wp-diff-01M774QF (#7578, IC-03): the general event-commit lookup and its ref surface.
+        "StatusRef",
+        "commit_introducing_status_event",
         # #5100 WP04 (T020b): the SINGLE_BRANCH-manifest fail-closed writer
         # guard, promoted off module-private status onto the root once the
         # review path (``agent/workflow.py``) became its first real src/
