@@ -61,11 +61,16 @@ _PACKAGE_PATHSPEC: Final[str] = "src/*/__init__.py"
 _PACKAGE_PATH_SEGMENTS: Final[int] = 3
 _REASON_MAX_CHARS: Final[int] = 200
 _DEFAULT_TIMEOUT_S: Final[float] = 5.0
+_GIT_TIMEOUT_S: Final[float] = 10.0
 _NO_PACKAGES_REASON: Final[str] = "no tracked source-layout packages to probe"
 
-# Runs in the child: resolve each named package without executing it.
+# Runs in the child: resolve each named package without executing it. ``-c``
+# puts the working directory first on ``sys.path``; drop it so a package in the
+# lane root never shadows ``<lane>/src`` (what ``-P`` does, on every Python).
 _PROBE_SCRIPT: Final[str] = """\
 import importlib.util, json, sys
+if sys.path and sys.path[0] == "":
+    del sys.path[0]
 out = {}
 for name in sys.argv[1:]:
     try:
@@ -159,7 +164,7 @@ class EvidenceTree:
 def _source_packages(root: Path) -> tuple[str, ...]:
     """Names of the git-tracked regular packages directly under ``<root>/src``."""
     try:
-        paths = tracked_paths(root, pathspecs=[_PACKAGE_PATHSPEC], glob=True)
+        paths = tracked_paths(root, pathspecs=[_PACKAGE_PATHSPEC], glob=True, timeout=_GIT_TIMEOUT_S)
     except GitCommandError:
         return ()
     names = {path.parts[1] for path in paths if len(path.parts) == _PACKAGE_PATH_SEGMENTS}
@@ -297,8 +302,8 @@ def probe_lane_imports(
     """Report where the lane's tracked source packages load from under *invocation*.
 
     The child runs the lane's own venv interpreter when it has one, else this
-    process's interpreter, with ``-P`` (no working directory on ``sys.path``,
-    like a console-script pytest) and ``importlib.util.find_spec`` (no package
+    process's interpreter, with the working directory removed from ``sys.path``
+    (like a console-script pytest) and ``importlib.util.find_spec`` (no package
     code executes). Never raises.
     """
     packages = _source_packages(invocation.cwd)
@@ -306,7 +311,7 @@ def probe_lane_imports(
         return _unverified(_NO_PACKAGES_REASON, None)
     interpreter = str(_lane_interpreter(invocation.cwd) or Path(sys.executable))
     env = run_environment(invocation, base_env if base_env is not None else os.environ)
-    argv = [interpreter, "-P", "-c", _PROBE_SCRIPT, *packages]
+    argv = [interpreter, "-c", _PROBE_SCRIPT, *packages]
     payload, failure = _run_probe_child(argv, invocation, env, timeout, runner)
     if payload is None:
         return _unverified(failure or "probe failed", interpreter)
@@ -337,7 +342,7 @@ def origin_inside(
 
 def _head(root: Path) -> str | None:
     try:
-        result = run_git(root, "rev-parse", "HEAD", check=False)
+        result = run_git(root, "rev-parse", "HEAD", check=False, timeout=_GIT_TIMEOUT_S)
     except GitCommandError:
         return None
     if result.returncode != 0:
@@ -347,7 +352,7 @@ def _head(root: Path) -> str | None:
 
 def _dirty(root: Path) -> bool | None:
     try:
-        return bool(status_entries(root, untracked="normal", optional_locks=False))
+        return bool(status_entries(root, untracked="normal", optional_locks=False, timeout=_GIT_TIMEOUT_S))
     except GitCommandError:
         return None
 
@@ -361,10 +366,25 @@ def _display_path(root: Path, repo_root: Path | None) -> str:
     return str(root)
 
 
+def _display_optional(path: str | None, repo_root: Path | None) -> str | None:
+    return None if path is None else _display_path(Path(path), repo_root)
+
+
+def _recorded_probe(probe: ProbeResult, repo_root: Path | None) -> ProbeResult:
+    """*probe* with paths under *repo_root* made relative, for the tracked status log."""
+    if repo_root is None:
+        return probe
+    origins = tuple((name, _display_optional(origin, repo_root)) for name, origin in probe.origins)
+    return dataclasses.replace(probe, origins=origins, interpreter=_display_optional(probe.interpreter, repo_root))
+
+
 def capture_evidence_tree(root: Path, probe: ProbeResult, *, repo_root: Path | None = None) -> EvidenceTree:
     """Record the tree a verdict was produced in. Never raises.
 
-    ``path`` is relative to *repo_root* (posix form) when *root* lies under it,
-    else ``str(root)``; ``head`` and ``dirty`` are ``None`` when git cannot say.
+    ``path``, and the probe's origins and interpreter, are relative to *repo_root*
+    (posix form) when they lie under it, else unchanged, so the tracked status log
+    carries no machine paths it does not need; ``head`` and ``dirty`` are ``None``
+    when git cannot say.
     """
-    return EvidenceTree(path=_display_path(root, repo_root), head=_head(root), dirty=_dirty(root), probe=probe)
+    recorded = _recorded_probe(probe, repo_root)
+    return EvidenceTree(path=_display_path(root, repo_root), head=_head(root), dirty=_dirty(root), probe=recorded)
