@@ -3,7 +3,7 @@ title: CLI Command Reference
 description: Complete Spec Kitty 3.2 CLI command reference with subcommands, options, mission workflow commands, and generated help output.
 doc_status: active
 kind: Reference
-updated: '2026-11-11T00:00:00Z'
+updated: '2026-11-12T00:00:00Z'
 related:
 - api/bulk-edit-gate
 - api/finalize-tasks-internals
@@ -124,7 +124,7 @@ Stable codes that appear in the output. Match on the code, not on the surroundin
 | `APPROVED_CONTENT_MISSING` | The reconciliation gate found that an approved code lane's own net change to a path is not on the target, while the target left that path alone since the lane was cut and no later approved lane superseded it. The run FAILs and rolls back. Typical cause: the staged deletions of a lagging worktree were committed before a `--resume`. | Restore the change on the mission branch (for example revert the commit that recorded the deletions), then re-run. Not overridable. |
 | `CANCELED_REACHABLE_VIA_DEPENDENCY` | Content of a fully-canceled dependency lane reached an approved lane, is still live there and is on the target. The run FAILs and rolls back. Content that every carrying lane fully superseded is not counted. | Undo the change on the carrying lane through a surviving WP's governed work, then re-run. Not overridable: `--attest-canceled-superseded` never lifts it. |
 | `COORD_MOVED_AFTER_LANDING` | Exit code `75`, see above. The message ends with `Error code: COORD_MOVED_AFTER_LANDING.` | Coordination branch: review the late commit(s) with the `git log` command in the message, then run `spec-kitty consolidate --resume`, which lands them on the target and finishes the teardown. Mission branch without a coordination topology: land the commit(s) and delete the branch yourself. |
-| `COORD_LATE_PROJECTION_REFUSED` | A `--resume` (anything the coordination branch changed since the merge began), or a first run (anything committed after the coordination tip that run verified), found a change it cannot prove landed on the target: a status event, a coordination record (a gate matrix verdict, a trace), a primary artifact such as `meta.json`, or a deletion. Exit code `1`. The coordination branch, worktree and marker are kept and the verified landing is not rolled back. | Follow the repair the message names for the kind of refusal, then run `spec-kitty consolidate --resume` again. `spec-kitty consolidate --abort` does not clear it. |
+| `COORD_LATE_PROJECTION_REFUSED` | The teardown found a change on the coordination branch it cannot prove landed on the target: a status event, a coordination record (a gate matrix verdict, a trace), a primary artifact such as `meta.json`, or a deletion. A first run judges what was committed after the coordination tip it verified. A `--resume` whose landing an earlier run verified judges the same window: what was committed after the coordination tip recorded with that verified landing (while that tip is still on the coordination branch), so the Mission's own merges of primary artifacts that the target changed later are not judged again (#7491). Any other `--resume` judges everything the coordination branch changed since the merge began. A real late change that did not land still refuses. Exit code `1`. The coordination branch, worktree and marker are kept and the verified landing is not rolled back. | Follow the repair the message names for the kind of refusal, then run `spec-kitty consolidate --resume` again. `spec-kitty consolidate --abort` does not clear it. |
 | `DEPENDENCY_REF_COVERS_MISSION_WORK` | A `--dependency-ref` would exempt Mission-authored work: the ref is named inside the Mission's branch namespace, or its window holds a commit on a lane or the mission branch spine, a `lane_head` stamp a work package recorded, or a recorded lane work tip. Exit code `1`, before any branch moves. | Declare only an external dependency branch. Mission work that left a recorded lane head, lane-tip ref or namespaced branch is refused even after its branch is deleted; work that left none of these cannot be detected. |
 | `DEPENDENCY_REF_MOVED` | A declared ref was pinned to a commit when the claim was built and now resolves elsewhere (checked at the reconciliation gate and on `--resume`). The message names both SHAs. The run rolls back. | Restore the ref to the pinned SHA, or `spec-kitty consolidate --abort` and re-run with the new ref. |
 | `DEPENDENCY_REF_SET_CHANGED` | `--dependency-ref` names a different set than the interrupted run recorded. Exit code `1`; the record is kept. | Re-run with the recorded set (or none), or `spec-kitty consolidate --abort` and start again. |
@@ -133,6 +133,7 @@ Stable codes that appear in the output. Match on the code, not on the surroundin
 | `DEPENDENCY_REF_UNVERIFIABLE` | A declaration could not be checked: a git probe failed, a lane spine could not be read, the status log was unreadable, or the target's pre-run commit could not be resolved. Nothing is exempted. Exit code `1`. | Fix the repository state the message names and re-run. |
 | `LANE_MOVED_AFTER_APPROVAL` | A code lane holds a content commit made after review approved it (or after an `--attest-approved-reviewed` attestation). Exit code `1`, before any branch moves; also checked again at the reconciliation gate. | Move the work package back for review so the new content is reviewed, approve it again, re-run. The message names the late commits and the command to move each work package of the lane back; see a commit with `git show <sha>`. No attestation lifts it: `--attest-approved-reviewed` and `--attest-canceled-superseded` never do. On a lane that mixes an approved and a canceled work package, `--attest-canceled-superseded` still exempts lane commits up to its own lane head from the closed-world refusal, but the commit still needs its work package approved again. Nothing a canceled work package does covers a commit: no commit of its own, no status move of a work package that stays canceled, no attestation. Forcing a canceled work package into `approved` is a forced approval, which stamps the lane at its current tip; the bound is as strong as the review model (issue #5721). If a canceled work package committed on the lane after the approval, also when that work was reverted, the approved work package needs a new approval. When both refusals apply, the first message names both under `This Mission also has:`. |
 | `RELEASE_BRANCH_INVALID` | `--release-branch` without `--abort` or without `--release-reason`, naming a branch that is not the record's target, mission or coordination branch (a lane branch or an unknown name), or naming a branch that does not resolve to a commit. Exit code `2`; nothing changed. | Correct the flags and re-run `spec-kitty consolidate --abort`. |
+| `SQUASH_PROJECTION_NOT_LANDED` | Under the default `squash` strategy, coordination bookkeeping content the run projected did not land on the target. The message keeps the phrase `projected coordination bookkeeping content did not land`, lists up to 20 paths as `<path> — <reason>` (then `... and N more`), and gives one remedy per reason. The reasons: the target's copy differs from the coordination branch; the coordination branch has no copy (deleted or renamed there); both sides changed the path and it has no merge driver; both sides changed it and the target's copy is not what its merge driver produces; its merge driver refused the two copies (for example malformed content); a git probe failed. Exit code `1`. Nothing was torn down; the run goes through the rollback, and the rollback report printed below the refusal says what it restored (a `--resume` at a landing an earlier run verified keeps that landing). The message ends with `Error code: SQUASH_PROJECTION_NOT_LANDED.` | Follow the remedy printed for each reason: make the target's copy match the coordination branch, or revert the coordination change; restore a path the coordination branch deleted or renamed; or fix content the merge driver refused. Then re-run `spec-kitty consolidate`. Only a failed git probe can clear on its own: re-run `spec-kitty consolidate --resume`, and if it repeats check that both branches resolve (`git rev-parse`) and that the repository is readable (`git fsck`). |
 | `UNEXPLAINED_BRANCH_MOVE` | A re-run or `--resume` found a target, mission or coordination branch of an unfinished record at a commit the record cannot explain: neither its restore target nor a commit this run recorded or saved as its next move (for example a run killed right after it moved the branch). Refused before anything moves; the record is kept. Exit code `1`. Not raised while the target still sits at a verified landing. | Inspect `git log <restore-target>..<live>`. If the commits should not stay, move the branch yourself. To keep them, `spec-kitty consolidate --abort --release-branch <branch> --release-reason "<why>"`; a release keeps every listed commit. See [troubleshooting](../guides/how-to/recovery/troubleshoot-merge.md#a-branch-moved-without-a-record). |
 | `PROJECTION_TEARDOWN_ABORTED` | The same race caught earlier: the coordination branch moved before anything was torn down, so the coordination worktree, branch and marker all survive. Exit code `1`. | Re-run `spec-kitty consolidate --resume`. |
 
@@ -160,6 +161,16 @@ Stable codes that appear in the output. Match on the code, not on the surroundin
   release saved by an `--abort` that then fails on another branch stays in the record and is
   still honoured by a later plain `--abort` while the branch sits at that commit. See
   [Keep a branch that cannot be restored](../guides/how-to/recovery/troubleshoot-merge.md#keep-a-branch-that-cannot-be-restored).
+- **`--abort` that keeps the record** exits `1`, prints the rollback report, and under
+  `Next steps:` names one step per branch it left `NOT restored`, each one a step `--abort` can
+  take (#7600): a checkout with local changes blocked the restore, so commit or stash them in the
+  named checkout and re-run `spec-kitty consolidate --abort`; another actor moved the branch, so
+  inspect the commits with the `git log` range it prints and, to keep them, run
+  `spec-kitty consolidate --abort --release-branch <branch> --release-reason "<why>"`. A landing an
+  earlier run verified is never rolled back, so `--abort` cannot finish there: the report says so
+  and names `spec-kitty consolidate --resume` as the way to finish the teardown of that landing.
+  The closing line points at those next steps instead of the generic "resolve the branches named
+  above".
 - **`--resume`** refreshes in place a repository root checkout, coordination worktree,
   mission worktree or lane worktree that only lags its own HEAD, and refuses with the exact
   recovery commands when such a worktree also holds an edit of your own. See
@@ -170,6 +181,43 @@ Stable codes that appear in the output. Match on the code, not on the surroundin
 - A status write that follows a rolled-back consolidation can be refused with
   `COORD_STATUS_SURFACE_DIVERGED`; see the
   [status model](../architecture/status-model.md#coordination-status-write-guard).
+
+## `spec-kitty archive reclaim`: reclaim an archived Mission's coordination triple
+
+`spec-kitty archive create` only records the archive. A coordination Mission whose consolidation
+kept its coordination worktree, branch and `meta.json` marker (a retention policy, or a teardown
+that refused) still holds them after it is archived; `archive create` then prints
+`Reclaim its coordination worktree and branch with: spec-kitty archive reclaim <mission>`.
+`archive reclaim` (#4041) releases them in this order: it removes the coordination worktree
+through the shared teardown, deletes the coordination branch at the tip it proved landed (a tip no
+other branch holds is kept under `refs/spec-kitty/discarded/`), then flattens the marker and
+commits it to the target branch. It deletes the branch only when the Mission records its landing
+(`merged_at`) and the branch tip is the coordination tip that verified landing recorded, or behind
+it. Every step already done is skipped, so a run after a partial one finishes the rest, and a run
+with nothing left prints `Nothing left to reclaim for <mission>.` and exits `0`.
+
+```bash
+spec-kitty archive reclaim my-mission-01ABCDEF
+```
+
+Add `--json` for `{"ok": true, "mission_slug": ..., "nothing_left": ..., "steps": [...]}`; a
+refusal under `--json` is `{"ok": false, "error": {"code": ..., "message": ...}, "remedy": ...}`. A refusal prints
+`Reclaim refused:`, the reason, the remedy and `Error code: <CODE>.`:
+
+| Code | When | What to do |
+|---|---|---|
+| `RECLAIM_NOT_ARCHIVED` | The Mission is not archived. Exit code `1`; nothing changed. | Archive it first: `spec-kitty archive create <mission> --by <operator> --reason <why>`. |
+| `RECLAIM_NO_COORDINATION` | The Mission has no coordination topology, so there is no coordination worktree or branch to reclaim. Also raised when `meta.json` cannot be read, or names a coordination branch but no mid8. Exit code `1`; nothing changed. | Nothing to do for a Mission without a coordination topology. Otherwise repair `meta.json` (`spec-kitty doctor identity` for a missing mid8), then re-run. |
+| `RECLAIM_UNABSORBED` | The coordination branch is not proved landed: the Mission records no landing (`merged_at`); no landed coordination tip is recorded (the Mission landed before spec-kitty recorded one, or its landing was rolled back); the branch holds commits made after its landing, which the target never received (listed, up to 20); or git could not answer. Exit code `1`; the branch is kept and nothing changed. | Inspect a listed commit with `git show <sha>`; land or move the commits, or keep the branch. A canceled Mission is abandoned with `spec-kitty mission close --discard --mission <mission>`. After a git failure, check the repository and re-run. |
+| `RECLAIM_NOT_ON_TARGET` | The flattened marker could not be committed, checked before any change: the repository root checkout is not on the branch the marker commits to, or the commit is refused for another reason the message names. Exit code `1`; nothing changed. | Run `git checkout <target branch>` (the message names it), or clear the cause it names, then re-run `spec-kitty archive reclaim <mission>`. |
+| `RECLAIM_WORKTREE_KEPT` | The coordination worktree is still registered after the teardown ran. Exit code `1`; the branch and marker are kept. | Check `git worktree list`, then re-run `spec-kitty archive reclaim <mission>`. |
+| `RECLAIM_MARKER_NOT_COMMITTED` | The coordination worktree and branch are gone, but the marker could not be flattened, or it was flattened and its commit failed. Exit code `1`. | Clear the cause the message names (on a branch mismatch, check out the branch it names), then re-run `spec-kitty archive reclaim <mission>`; the re-run flattens and commits the marker. |
+
+A coordination worktree that holds the only copy of files, or a coordination branch that moved
+while the worktree was removed, is refused with the teardown's own code
+(`COORD_TEARDOWN_KEPT_ONLY_COPY`, `PROJECTION_TEARDOWN_ABORTED`), and the worktree, branch and
+marker are kept. A branch delete the destructive-operation guard refuses is reported with that
+guard's code; re-run `spec-kitty archive reclaim <mission>`.
 
 ## Schema references
 
@@ -362,8 +410,10 @@ _Archive a terminal mission (operator-invoked only)._
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ create  Archive a terminal mission (AM-1..AM-5).                             │
-│ list    Enumerate archived missions (AM-3).                                  │
+│ create   Archive a terminal mission (AM-1..AM-5).                            │
+│ list     Enumerate archived missions (AM-3).                                 │
+│ reclaim  Remove the coordination worktree, branch and marker an archived     │
+│          Mission still holds.                                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -397,6 +447,31 @@ _Archive a terminal mission (operator-invoked only)._
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Emit the archive registry as JSON.                         │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty archive reclaim
+
+```
+ Usage: spec-kitty archive reclaim [OPTIONS] {mission}
+
+ Remove the coordination worktree, branch and marker an archived Mission still
+ holds.
+
+ The branch is deleted only when the Mission records its landing (merged_at)
+ and the
+ coordination tip is the one that landing recorded (or behind it). A second run
+ reports
+ that nothing is left.
+
+ Example: spec-kitty archive reclaim my-mission-01ABCDEF
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    mission      <str>  Slug of an archived Mission. [required]             │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit the result as JSON.                                   │
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
