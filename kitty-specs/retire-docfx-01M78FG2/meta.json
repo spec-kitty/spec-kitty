@@ -1,0 +1,47 @@
+{
+  "accept_commit": "4813466b5098db035620c54acac027e0cfdbfa04",
+  "acceptance_history": [
+    {
+      "accept_commit": "4813466b5098db035620c54acac027e0cfdbfa04",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-12T19:29:43.297900+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "b9eb3dafcf6910ea1365cb07da6cd2494d9fdac5"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-12T19:29:43.297900+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "b9eb3dafcf6910ea1365cb07da6cd2494d9fdac5",
+  "baseline_merge_commit": "89217ac8317548c102a3659b1aabe26c3983d6cc",
+  "contracts": "none",
+  "contracts_rationale": "No API or schema is published; the mission removes the legacy docsite toolchain, and its interfaces are the tests and workflow steps it changes.",
+  "create_return_branch": "issue-6943-retire-docfx",
+  "created_at": "2026-11-12T18:14:46.654728+00:00",
+  "flattened": false,
+  "friendly_name": "Retire DocFX",
+  "merged_at": "2026-11-12T19:30:32.479768+00:00",
+  "merged_commit": "806cd68d171852278d15be2b3ec5caba2e472869",
+  "mid8": "01M78FG2",
+  "mission_id": "01M78FG20SYR6NPAC6QYZY7KJT",
+  "mission_number": 258,
+  "mission_slug": "retire-docfx-01M78FG2",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The docsite cutover (#6938) moved the deploy to the doc-kitty build; no CI job builds DocFX any more. This mission removes docs/docfx.json, every toc.yml, the DocFX template, the scripts ADR D-6 marks drop (and port scripts whose job doc-kitty now does), and the redirect map and manifest the ledgers superseded. Tests that guard a still-live invariant, such as which pages are published or that docs/reports is never published, are rebased on scripts/docs/_dockitty_contract.py. The operator waived the one-release gate; rollback becomes reverting this PR and #7558.",
+  "purpose_tldr": "Remove DocFX, its config, template and DocFX-only scripts, and rebase the tests that guard live invariants on the doc-kitty contract (#6943)",
+  "slug": "retire-docfx-01M78FG2",
+  "status_phase": "1",
+  "target_branch": "issue-6943-retire-docfx",
+  "topology": "single_branch",
+  "topology_decision": {
+    "code_lane_count": 1,
+    "from": "single_branch",
+    "rule": "wp_count_le_2",
+    "target_protected": false,
+    "to": "single_branch",
+    "wp_count": 2
+  },
+  "topology_settled": true,
+  "topology_source": "default"
+}

@@ -1,0 +1,98 @@
+{
+  "event_count": 19,
+  "last_event_id": "01M78KTEWC5G0G1NK75B61B16A",
+  "materialized_at": "2026-11-12T19:30:13.516993+00:00",
+  "mission_number": "258",
+  "mission_slug": "retire-docfx-01M78FG2",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude-reviewer::reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M78KTCTJ98YECDRBQ0WWDFJF",
+      "last_transition_at": "2026-11-12T19:30:11.410315+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: legacy sources, DocFX-only scripts and their tests removed; published-set and reports guards rebased on _dockitty_contract.py",
+        "Review passed (reviewer-renata). No Blocking/High. Checklist: dead code PASS, synthetic fixture PASS, silent empty return PASS, FR-001..006 coverage PASS, frozen surface PASS, locked decision PASS, shared-file ownership PASS (lane-planning shared with WP02; WP01 touched no WP02-owned file), production fragility N/A. Mutants verified red: reports dropped from EXCLUDED_FOLDERS, published_pages ignoring doc_status, lower description bound removed. CNAME/robots ship from site/public (in site/dist; pinned by test_static_site_files_exist). Port-marked deletions have doc-kitty successors (render surface, validate-frontmatter + test_docs_seo, contract published_pages, site_redirects + coverage gate, seeded baseline). WP02 MUST: remove the PlantUML-jar steps at ci-router.yml:1452-1477 (tests (docs) job imports deleted plantuml_invoke: red until then); record the early glossary_linker deletion (D-6 port after #3024; #3024/#6940 open) in the ADR amendment and on #6940; reword stale mentions in docs-pages.yml:13, src/kernel/site_urls.py:26, tests/kernel/test_paths.py:189, tests/ci/test_workflow_script_import_guard.py, docs/architecture/mission-gates.md, docs/development/**; create tests/architectural/test_legacy_docsite_named_nowhere.py named in the test_legacy_docsite_retired.py docstring."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/kitty-specs/retire-docfx-01M78FG2/tasks/WP01-remove-docfx-and-rebase-tests/review-cycle-1.md",
+        "reference": "review-cycle://retire-docfx-01M78FG2/WP01-remove-docfx-and-rebase-tests/review-cycle-1.md",
+        "reviewer": "claude-reviewer::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 17382,
+      "shell_pid_created_at": "1794509094.47",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      },
+      "tracker_refs": [
+        "#6943"
+      ]
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude-reviewer::reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M78KTEWC5G0G1NK75B61B16A",
+      "last_transition_at": "2026-11-12T19:30:13.516993+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: router jar steps removed, living docs describe doc-kitty, living-files gate, ADR Amendment 2026-11-12, changelog fragment",
+        "Rework of review-cycle-1: B1 gate docstring, L1 DRAFT_FOLDERS, L2 completed runs, baseline header wrap",
+        "Review passed (cycle 2): B1 fixed with no new exclusion; gate green on committed head; L1/L2/Nit fixed; 447 passed/1 skipped CI+arch set, 3554 passed/8 skipped docs+_support+kernel; git grep -il docfx = 13 accepted files. WP02 shares lane-planning with WP01 (approved); no shared-file overlap."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/kitty-specs/retire-docfx-01M78FG2/tasks/WP02-plumbing-docs-and-record/review-cycle-2.md",
+        "reference": "review-cycle://retire-docfx-01M78FG2/WP02-plumbing-docs-and-record/review-cycle-2.md",
+        "reviewer": "claude-reviewer::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 21129,
+      "shell_pid_created_at": "1794511546.88",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      },
+      "tracker_refs": [
+        "#6943"
+      ]
+    }
+  }
+}

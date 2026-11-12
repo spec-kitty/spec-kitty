@@ -1,0 +1,109 @@
+{
+  "mission_slug": "retire-docfx-01M78FG2",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_legacy_docsite_retired.py::test_a_legacy_source_is_absent, ::test_no_toc_yml_remains_under_docs (WP01 cede25d49)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T19:28:35.857984+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_legacy_docsite_retired.py::test_a_retired_docs_script_is_absent (WP01)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T19:28:39.990744+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_legacy_docsite_retired.py::test_a_retired_docs_script_is_absent[redirect_map.yaml|redirect_baseline_urls.json]; rename_reconcile reads site/legacy-redirects.json (tests/docs/test_docs_tooling_defaults.py)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T19:28:43.774965+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_legacy_docsite_retired.py::test_no_script_or_test_imports_a_retired_module with planted-import self-tests",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T19:28:47.643838+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_docs_seo.py reads _dockitty_contract.published_pages (631 pages, floor 500) with mutant cases; tests/docs/test_dockitty_contract.py::test_published_pages_are_the_pages_not_in_unpublished_routes",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T19:28:51.617615+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/_support/test_reports_unpublished_guard.py (mutant: contract without reports fails); used by the three terminology tests",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T19:28:55.608303+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_nightly_tooling_cache.py::test_router_docs_tests_provision_no_plantuml_jar, ::test_every_hashed_cache_key_input_exists (WP02)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T19:28:59.642054+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "docs/api/configuration.md, file-structure.md, mission-gates.md, docs/development pages updated (WP02 67f8d73f9, 9a88e9abd); tests/architectural/test_legacy_docsite_named_nowhere.py green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T19:29:03.540767+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_legacy_docsite_named_nowhere.py (planted-mention self-test); git grep -il docfx gives only the 13 accepted immutable/generated files",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T19:29:07.532858+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "ADR 2026-10-31-1 Amendment 2026-11-12 (DocFX retired); docs/changelog/unreleased/6943-retire-docfx.changed.md passes check_changelog_style and check_spelling --pass unreleased",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T19:29:11.481928+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
