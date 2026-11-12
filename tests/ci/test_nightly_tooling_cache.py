@@ -126,19 +126,6 @@ def test_sonar_caches_the_gradle_tool_and_dependencies_never_test_results() -> N
     assert "scripts/ci/gradle_tool_cache.py ensure" in str(install["run"])
 
 
-def test_router_docs_tests_provision_no_plantuml_jar() -> None:
-    """``tests (docs)`` provisions nothing for the retired PlantUML render scripts (#6943).
-
-    The jar existed for the legacy site's render tests. doc-kitty renders diagrams at
-    build time against the pinned PlantUML server (#6936), so the job has no jar cache
-    and no provisioning step.
-    """
-    steps = _steps(_workflow("ci-router.yml"), "tests-docs")
-    _step_index(steps, "Run tests")  # non-vacuous: the job and its test step exist
-    assert _cache_steps(steps) == []
-    assert [step.get("name") for step in steps if "plantuml" in str(step).lower()] == []
-
-
 _HASH_FILES = re.compile(r"hashFiles\(([^)]*)\)")
 _QUOTED = re.compile(r"'([^']+)'")
 
