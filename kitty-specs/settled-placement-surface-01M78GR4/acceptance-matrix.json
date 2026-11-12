@@ -6,13 +6,13 @@
   "criteria": [
     {
       "criterion_id": "FR-001",
-      "description": "Verify FR-001 is satisfied",
+      "description": "write_dir(kind).surface_root contains write_dir(kind).path for every kind on a settled default Mission; root checkout for single_branch",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/mission_runtime/test_write_dir_settled_surface_root.py; tests/kernel/test_git_anchor_checkout_root.py (red 467f0cb9)",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T22:01:35.152363+00:00",
+      "notes": "Verified at HEAD: 462 passed (all Mission tests + named gates), 2026-11-12"
     },
     {
       "criterion_id": "FR-002",
