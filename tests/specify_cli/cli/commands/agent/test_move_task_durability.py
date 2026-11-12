@@ -193,10 +193,11 @@ def _assert_same_parameters(wrapper: Callable[..., object], real: Callable[..., 
     assert list(inspect.signature(wrapper).parameters) == list(inspect.signature(real).parameters)
 
 
-def _seed_wp_event(feature_dir: Path, wp_id: str, to_lane: str, *, seq: int) -> None:
-    # The seeded ``in_review`` entry is the review claim. ``agent action review`` records that
-    # claim unforced, and only an unforced entry names a claimant (approval-honesty WP01), so
-    # the seed is unforced too.
+def _seed_wp_event(feature_dir: Path, wp_id: str, to_lane: str, *, seq: int, force: bool = True) -> None:
+    # ``force=False`` seeds an ``in_review`` entry as the review claim ``agent action review``
+    # records: only an unforced entry names a claimant (approval-honesty WP01), so an approval
+    # with no ``--agent`` needs it. The default stays a forced jump from ``planned`` for the
+    # modules that import this helper (the review durability matrix among them).
     seed_status_event(
         feature_dir,
         StatusEvent(
@@ -207,7 +208,7 @@ def _seed_wp_event(feature_dir: Path, wp_id: str, to_lane: str, *, seq: int) -> 
             to_lane=Lane(to_lane),
             at=_seed_event_at(seq),
             actor="test",
-            force=False,
+            force=force,
             execution_mode="worktree",
         ),
     )
@@ -469,7 +470,7 @@ def _setup_fixture(repo: Path) -> Path:
     subprocess.run(["git", "commit", "-m", "seed"], cwd=repo, check=True, capture_output=True)
     _unprotect_main(repo)
 
-    _seed_wp_event(feature_dir, _WP_ID, "in_review", seq=0)
+    _seed_wp_event(feature_dir, _WP_ID, "in_review", seq=0, force=False)
 
     # Seed cycle 1 (rejected) via the real writer + real commit, exactly like
     # production would have left it after an earlier rejection.
@@ -491,7 +492,7 @@ def _setup_fixture(repo: Path) -> Path:
     # ``changes_requested`` verdict while restoring the "currently in_review"
     # precondition every test in this module relies on.
     _seed_rejection_result_event(feature_dir, _WP_ID, seq=1)
-    _seed_wp_event(feature_dir, _WP_ID, "in_review", seq=2)
+    _seed_wp_event(feature_dir, _WP_ID, "in_review", seq=2, force=False)
     return feature_dir
 
 
@@ -520,7 +521,7 @@ def test_lanes_automatic_approval_commits_transition_and_trailing_note(
         capture_output=True,
     )
     _unprotect_main(repo)
-    _seed_wp_event(feature_dir, _WP_ID, "in_review", seq=0)
+    _seed_wp_event(feature_dir, _WP_ID, "in_review", seq=0, force=False)
     create_rejected_review_cycle(
         main_repo_root=repo,
         mission_slug=mission_slug,
@@ -532,7 +533,7 @@ def test_lanes_automatic_approval_commits_transition_and_trailing_note(
         commit_router=RealCoordCommitRouter(),
     )
     _seed_rejection_result_event(feature_dir, _WP_ID, seq=1)
-    _seed_wp_event(feature_dir, _WP_ID, "in_review", seq=2)
+    _seed_wp_event(feature_dir, _WP_ID, "in_review", seq=2, force=False)
 
     coord = _FaultInjectableCoordRouter(write_dir=feature_dir)
     _run_move(
