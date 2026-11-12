@@ -316,8 +316,7 @@ class RefAdvanceDirtyWorktreeError(RuntimeError):
             f"changes that a resync (`git reset --hard`) would destroy "
             f"(#1826 / NFR-002).\n"
             f"  Dirty entries:\n{entries}\n"
-            f"  Commit, stash, or revert these changes in {worktree_path}, "
-            f"then resume the consolidation (`spec-kitty consolidate --resume`)."
+            f"  Commit, stash, or revert these changes in {worktree_path}."
         )
 
 
