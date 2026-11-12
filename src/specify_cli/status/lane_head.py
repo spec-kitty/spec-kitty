@@ -13,9 +13,11 @@ has moved on.
 distinct from the target) stamps every work package's transitions with that branch's head,
 whatever lane ``lanes.json`` assigns. The decision reads ``meta.json`` only, never
 ``is_planning_lane`` or ``execution_mode: direct_repo``, and never ``lane_created_branch``
-of ``lane-planning`` (which resolves to the target). The planning lane of a ``lanes`` Mission
-stays unstamped; a commit-to-target ``single_branch`` Mission keeps the lane-map behaviour
-(unbounded residual, FR-078).
+of ``lane-planning`` (which resolves to the target). A commit-to-target ``single_branch``
+Mission (write branch == target) stamps the target branch head (#7578): the review range reads a
+recorded window on every topology. Consolidation still leaves such a Mission unbounded (FR-078):
+the write-branch and approval-stamp bounds read only a minted Mission branch. The planning lane of
+a ``lanes`` Mission stays unstamped.
 
 **Best-effort, never blocking (C-1):** :func:`read_lane_head` never raises.
 Any absence (no ``lanes.json``, unknown WP, planning lane, missing branch) or
@@ -117,8 +119,9 @@ class LaneHeadReader(Protocol):
 def read_lane_head(*, repo_root: Path, mission_slug: str, wp_id: str, owned: OwnedCheckout | None = None) -> LaneHeadReading:
     """Return the lane-head reading of *wp_id*; never raises (C-1).
 
-    For a ``single_branch`` Mission with a minted write branch the sha is that branch's
-    head instead (S8, FR-070), for every work package.
+    For a ``single_branch`` Mission the sha is its write branch's head instead, for every work
+    package: the minted Mission branch (S8, FR-070) or, for a commit-to-target Mission, the
+    target branch (#7578).
 
     ``sha`` is ``None`` for every non-exceptional "no stamp" case (no ``lanes.json``,
     corrupt ``lanes.json``, *wp_id* unassigned, the planning lane, or the lane branch not
@@ -191,6 +194,11 @@ _NO_STAMP_WARNING = (
 _WRITE_BRANCH_LANE = "the Mission write branch"
 
 
+#: How a no-stamp detail names a commit-to-target Mission's write branch (it is the target, never a Mission branch).
+_TARGET_BRANCH_ROLE: Final = "target branch"
+_MISSION_BRANCH_ROLE: Final = "Mission branch"
+
+
 #: ``git rev-parse --verify --quiet`` exits 1 when the ref does not exist; any other
 #: non-zero exit is a git failure (FR-003), never "branch missing".
 _REF_ABSENT_EXIT: Final = 1
@@ -237,8 +245,8 @@ def _warn_no_stamp(mission_slug: str, wp_id: str, lane_id: str, why: str) -> Non
     logger.warning(_NO_STAMP_WARNING, mission_slug, wp_id, lane_id, why)
 
 
-def _write_branch_head(repo_root: Path, mission_slug: str, wp_id: str, write_branch: str) -> LaneHeadReading:
-    """S8 (#7283, FR-070): the reading of a ``single_branch`` Mission's minted write branch.
+def _write_branch_head(repo_root: Path, mission_slug: str, wp_id: str, write_branch: str, *, branch_role: str = _MISSION_BRANCH_ROLE) -> LaneHeadReading:
+    """S8 (#7283, FR-070; #7578): the reading of a ``single_branch`` Mission's write branch (minted, or the target).
 
     Every work package of such a Mission is stamped with this one branch's head, whatever
     lane ``lanes.json`` puts it in. A missing branch is logged at WARNING and reads as
@@ -251,10 +259,28 @@ def _write_branch_head(repo_root: Path, mission_slug: str, wp_id: str, write_bra
         _warn_no_stamp(mission_slug, wp_id, _WRITE_BRANCH_LANE, f"git error: {exc}")
         return LaneHeadReading.failed(CaptureCause.GIT_ERROR, _redacted(str(exc), repo_root))
     if sha is None:
-        why = f"Mission branch {write_branch} does not exist"
+        why = f"{branch_role} {write_branch} does not exist"
         _warn_no_stamp(mission_slug, wp_id, _WRITE_BRANCH_LANE, why)
         return LaneHeadReading.failed(CaptureCause.LANE_BRANCH_MISSING, why)
     return LaneHeadReading.of_sha(sha)
+
+
+def _single_branch_write_branch(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None) -> tuple[str, str] | None:
+    """``(write branch, role)`` a STORED ``single_branch`` Mission stamps, read from ``meta.json`` alone, else ``None``.
+
+    The minted Mission branch when there is one (S8, FR-070); the target branch itself for a
+    commit-to-target Mission (#7578). ``None`` for any other topology and for a Mission with no
+    recorded ``target_branch``, which keep the lane-map reading. *role* names the branch in a
+    no-stamp detail.
+    """
+    from specify_cli.lanes.single_branch_landing import is_single_branch_meta, stored_mission_meta, write_branch_from_meta
+
+    meta = stored_mission_meta(repo_root, mission_slug, owned=owned)
+    target = meta.get("target_branch")
+    if not (isinstance(target, str) and target) or not is_single_branch_meta(meta):
+        return None
+    branch = write_branch_from_meta(meta, target)
+    return (branch, _TARGET_BRANCH_ROLE) if branch == target else (branch, _MISSION_BRANCH_ROLE)
 
 
 def _read_lane_head(*, repo_root: Path, mission_slug: str, wp_id: str, owned: OwnedCheckout | None = None) -> LaneHeadReading:
@@ -269,11 +295,10 @@ def _read_lane_head(*, repo_root: Path, mission_slug: str, wp_id: str, owned: Ow
 
     from specify_cli.lanes.compute import is_planning_lane, lane_created_branch
     from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
-    from specify_cli.lanes.single_branch_landing import minted_write_branch
 
-    write_branch = minted_write_branch(repo_root, mission_slug, owned=owned)
+    write_branch = _single_branch_write_branch(repo_root, mission_slug, owned)
     if write_branch is not None:
-        return _write_branch_head(repo_root, mission_slug, wp_id, write_branch)
+        return _write_branch_head(repo_root, mission_slug, wp_id, write_branch[0], branch_role=write_branch[1])
     planning_dir = owned.mission_dir if owned is not None else placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
     try:
         manifest = read_lanes_json(planning_dir)
