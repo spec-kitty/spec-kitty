@@ -1,0 +1,1 @@
+- **A rollback to `planned` records which subtasks it reset** (#7582). **Before:** `move-task --to planned` reset every subtask to `planned` and recorded nothing about it, so a rejection left no trace of which subtasks it concerned. **After:** the `planned` transition carries a `rollback_reset` record (scope, reset ids, previously completed ids, reason) beside `lane_head`.

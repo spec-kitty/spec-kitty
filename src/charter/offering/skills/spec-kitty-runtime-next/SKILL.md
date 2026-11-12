@@ -108,10 +108,10 @@ Every call to `spec-kitty next` returns exactly one decision kind:
 | Kind | Meaning | Agent Action |
 |---|---|---|
 | `step` | Normal action available | Read `prompt_file` and execute |
-| `query` | Read-only current-state preview | Inspect state; do not execute a prompt or mark a result |
+| `query` | Read-only current-state preview | Inspect state; run `next_command` when it is set; do not execute a prompt or mark a result |
 | `decision_required` | Runtime needs input | Answer with `--answer` and `--decision-id` |
-| `blocked` | Guards failing, cannot proceed | Read `reason` + `guard_failures`, resolve blockers |
-| `terminal` | Mission complete | Run `/spec-kitty.accept`; if it passes, merge, then: mission review → author or verify retrospective (`retrospect create`) → surface findings (`summary` aggregates; `synthesize` reviews proposals) |
+| `blocked` | Guards failing, cannot proceed | Read `reason` + `guard_failures`; when `next_command` is set, run it (for example `MISSION_AWAITING_ACCEPTANCE` names `spec-kitty accept`) |
+| `terminal` | No more steps. Software-dev Mission with a finalized board and a run that is not authoritative: accepted or landed. Any other Mission: the run completed, with no acceptance check | If not accepted, run `spec-kitty accept --mission <handle>`; if not landed, run `spec-kitty consolidate --mission <handle>` (a query's `next_command` names which); then: mission review → author or verify retrospective (`retrospect create`) → surface findings (`summary` aggregates; `synthesize` reviews proposals) |
 
 ### Decision Output Fields
 
@@ -143,6 +143,21 @@ Every call to `spec-kitty next` returns exactly one decision kind:
   "options": null
 }
 ```
+
+**Additive fields and codes (next-lifecycle-integrity).** These appear only when set, so
+other envelopes are unchanged:
+
+| Field or code | Where | Meaning |
+|---|---|---|
+| `next_command` | every `query` envelope, except a pending decision on a started run and a landed Mission | The command to run next: the advance command (`spec-kitty next --agent <agent> --mission <handle> --result success`), `spec-kitty accept --mission <handle>`, or `spec-kitty consolidate --mission <handle>` |
+| `next_command` | `blocked` with one of the three codes below | The command that unblocks the Mission |
+| `error_code: MISSION_AWAITING_ACCEPTANCE` | advancing `next`, software-dev Mission with a finalized board and a run that is not authoritative | Every WP is approved, done or canceled, and the Mission is not accepted, or was accepted before the board's latest WP transition. Run `next_command` (`accept`) |
+| `error_code: BOARD_STEP_NOT_DISPATCHABLE` | advancing `next`, software-dev Mission with a finalized board and a run that is not authoritative | The finalized board's step cannot be dispatched (for example a WP claimed or in progress). The reason names the WP; `next_command` resumes it (`spec-kitty agent action <implement\|review> <WP> --agent <agent> --mission <handle>`), or is `spec-kitty agent tasks status --mission <handle>` when no WP can be named |
+| `error_code: LANES_MANIFEST_MISSING` | advancing `next`, software-dev Mission with a finalized board and a run that is not authoritative | The board's WP step needs `lanes.json`, which is missing. `reason` is the error's own message. `next_command` is `spec-kitty agent mission finalize-tasks --mission <handle>` while every WP is `planned`, else `spec-kitty doctor mission-state --fix --mission <handle>` |
+
+A query without `--agent` puts the literal `<agent>` placeholder in the advance command;
+substitute your agent name. `question` is set exactly when `decision_id` is set, and then
+`options` or `input_key` is set too.
 
 ### 6 Guard Primitives
 
@@ -365,9 +380,10 @@ See `references/runtime-result-taxonomy.md` for the complete taxonomy.
 | Kind | Next Action |
 |------|-------------|
 | `step` | Read and execute `prompt_file` (always non-empty and resolvable on disk) |
+| `query` | Read-only: run `next_command` when it is set |
 | `decision_required` | Answer with `--answer` and `--decision-id` |
-| `blocked` | Read `reason` + `guard_failures`, resolve blockers |
-| `terminal` | Run `/spec-kitty.accept` for final validation, then merge if acceptance passes |
+| `blocked` | Run `next_command` when it is set; otherwise read `reason` + `guard_failures` and resolve blockers |
+| `terminal` | Accept if not accepted, then consolidate if not landed (a query's `next_command` names which), then mission review and retrospective |
 
 **Always check `guard_failures`** — this field may appear on any decision kind,
 not just `blocked`.
@@ -381,12 +397,36 @@ failure, blocked dependency, prompt build error, etc.), it returns
 code such as `no_prompt_template`). There is no third state: an agent loop
 should never observe a `kind="step"` decision with `prompt_file == null`.
 
-**Always check `progress` for completion.** If `progress.done_wps` equals
-`progress.total_wps` but `kind` is not `terminal`, the mission is actually
-complete (known issue #335). The runtime may not detect completion when no
-prior run state exists. Treat this as terminal and run `/spec-kitty.accept`;
-if acceptance passes, run `/spec-kitty.merge`, then run mission review and the
-retrospective workflow.
+**A finalized software-dev board is never rewound when the run is not
+authoritative.** This applies only to software-dev Missions with a finalized
+board. Other Mission types are unchanged.
+- **Authoritative runs keep the runtime path.** A run at `analyze`,
+  `implement`, `review` or `accept` keeps it. For example, a run at `review`
+  whose last WP is approved gets the runtime `accept` step.
+- **The board's own answers**, for any `--result`, when the run is absent,
+  untouched, or issued at `discovery`, `research`, `specify`, `plan` or `tasks`:
+  - Every WP approved, done or canceled: `kind: blocked` with
+    `MISSION_AWAITING_ACCEPTANCE` and a `next_command` naming `spec-kitty accept`.
+    After an acceptance newer than the board's latest WP transition, the answer
+    is `kind: terminal`; then consolidate. A reopened and re-approved WP needs a
+    new acceptance.
+  - A board step that cannot be dispatched (a WP claimed or in progress):
+    `kind: blocked` with `BOARD_STEP_NOT_DISPATCHABLE` and a resume `next_command`
+    (`spec-kitty agent action <implement|review> <WP> --agent <agent> --mission <handle>`;
+    `spec-kitty agent tasks status --mission <handle>` when no WP can be named).
+  - A board step whose WP needs a missing `lanes.json`: `kind: blocked` with
+    `LANES_MANIFEST_MISSING`; `next_command` is `finalize-tasks` while every WP
+    is `planned`, else `spec-kitty doctor mission-state --fix --mission <handle>`.
+  - These answers start no run. An advancing `terminal` carries no `next_command`.
+- **Board dispatch of a claimable WP** takes over only a run that is absent,
+  untouched, or at `discovery`, `research`, `specify` or `plan`. A run at
+  `tasks` advances through the runtime to `analyze`.
+
+**Starting a Mission.** A fresh Mission's query previews the first step
+(`mission_state: "not_started"`) and names the advance command. When that first
+step needs input, the query shows its `decision_id` and `question`, but the
+decision is not pending until the run starts: run the advance command first,
+then answer the `decision_required` it returns.
 
 ---
 
@@ -444,13 +484,6 @@ KIND=$(echo "$DECISION" | jq -r '.kind')
 # 2. Loop until terminal or unresolvable block
 while [ "$KIND" = "step" ] || [ "$KIND" = "decision_required" ]; do
 
-  # Workaround #335: check progress for completion even if kind != terminal
-  DONE=$(echo "$DECISION" | jq -r '.progress.done_wps // 0')
-  TOTAL=$(echo "$DECISION" | jq -r '.progress.total_wps // 0')
-  if [ "$TOTAL" -gt 0 ] && [ "$DONE" -eq "$TOTAL" ]; then
-    break  # Mission is actually complete
-  fi
-
   if [ "$KIND" = "step" ]; then
     PROMPT=$(echo "$DECISION" | jq -r '.prompt_file')
 
@@ -469,11 +502,22 @@ while [ "$KIND" = "step" ] || [ "$KIND" = "decision_required" ]; do
   KIND=$(echo "$DECISION" | jq -r '.kind')
 done
 
-# 3. Handle terminal state — canonical post-merge sequence
-if [ "$KIND" = "terminal" ] || [ "$DONE" -eq "$TOTAL" ]; then
-  # Run /spec-kitty.accept.
-  # If acceptance passes, run /spec-kitty.merge.
-  # After merge, follow the canonical post-merge sequence:
+# 3. A finished board blocks on acceptance: run the command it names, then ask again
+if [ "$KIND" = "blocked" ] && [ "$(echo "$DECISION" | jq -r '.error_code')" = "MISSION_AWAITING_ACCEPTANCE" ]; then
+  # next_command is "spec-kitty accept --mission 042-mission"; run it, then call next again
+  # (it returns kind=terminal once the acceptance is newer than the board).
+  :
+fi
+
+# 4. Handle terminal state — accept, consolidate, then the post-consolidation sequence
+if [ "$KIND" = "terminal" ]; then
+  # terminal does not always mean accepted: documentation/research/plan/custom Missions and
+  # software-dev Missions without WPs reach it when the run completes, without acceptance.
+  # A read-only query names the next command:
+  #   spec-kitty next --mission 042-mission --json | jq -r '.next_command'
+  # If not accepted: spec-kitty accept --mission 042-mission
+  # If not landed:   spec-kitty consolidate --mission 042-mission
+  # Then follow the canonical post-consolidation sequence:
   #   a. Mission review: /spec-kitty-mission-review
   #   b. Author or verify retrospective:
   #      spec-kitty retrospect create --mission 042-mission  # if record absent
@@ -509,11 +553,17 @@ fi
 
 ## Known Issues
 
-**#335 — Completed missions return `step` instead of `terminal`.** When
-`spec-kitty next` is called on a mission with all WPs done but no prior
-runtime run state, it creates a new run starting at `discovery` instead of
-recognizing the mission is complete. **Workaround:** Check
-`progress.done_wps == progress.total_wps` as a secondary completion signal.
+**#335 — fixed for software-dev Missions whose run is not authoritative.** A
+software-dev Mission with a finished board and a run that is absent, untouched,
+or issued at `discovery`, `research`, `specify`, `plan` or `tasks` is no longer
+sent back to `discovery`. Instead, an advancing `next` returns `blocked` with
+`MISSION_AWAITING_ACCEPTANCE` until the Mission is accepted, then `terminal`. A
+run at `analyze`, `implement`, `review` or `accept` keeps the runtime path; for
+example, the runtime issues its `accept` step. The
+`progress.done_wps == progress.total_wps` workaround is no longer needed. Residuals: `MissionRunCompleted` and the retrospective
+gate are not reached through `next` when the run is not authoritative, and a
+run that an earlier release already replayed to `analyze` or beyond keeps the
+runtime path.
 
 **#336 — fixed.** `prompt_file` is always non-empty and resolvable on disk
 on `kind: step` decisions. When no prompt is available, the runtime now emits

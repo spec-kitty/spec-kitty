@@ -1,0 +1,1 @@
+- **`move-task --to planned --reset-subtasks <ids> --note "<why>"` resets only the named subtasks** (#7582). The others keep their state, and the `rollback_reset` record says the reset was narrowed. It is refused before any write when the move is not to `planned`, when no `--note`/`--reason` is given, or when an id is empty, not on the work package's roster, or `skipped`.
