@@ -1,5 +1,4 @@
 {
-  "accept_commit": "390a58c1515a9feccbc9709936d15ad62359c4c5",
   "acceptance_history": [
     {
       "accept_commit": "390a58c1515a9feccbc9709936d15ad62359c4c5",
@@ -7,12 +6,18 @@
       "accepted_at": "2026-11-12T23:14:31.973391+00:00",
       "accepted_by": "system",
       "accepted_from_commit": "9c2a7b712ff70959b6392ebb52c2af80779cea2f"
+    },
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-12T23:15:02.753956+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "aaec4da2c30eddcd15b50f67e46ad7ecc3a05f61"
     }
   ],
   "acceptance_mode": "pr",
-  "accepted_at": "2026-11-12T23:14:31.973391+00:00",
+  "accepted_at": "2026-11-12T23:15:02.753956+00:00",
   "accepted_by": "system",
-  "accepted_from_commit": "9c2a7b712ff70959b6392ebb52c2af80779cea2f",
+  "accepted_from_commit": "aaec4da2c30eddcd15b50f67e46ad7ecc3a05f61",
   "coordination_branch": "kitty/mission-coord-closeout-leftovers-01M78FRR",
   "create_return_branch": "fix/7598-coord-closeout-leftovers",
   "created_at": "2026-11-12T18:19:24.762424+00:00",
