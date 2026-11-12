@@ -253,3 +253,16 @@ def test_pathspecs_are_quoted_so_the_printed_command_survives_a_shell() -> None:
     command = next(line for line in lines if line.startswith("  git diff "))
     argv = shlex.split(command)
     assert argv[argv.index("--") + 1 :] == list(specs)
+
+
+def test_requirement_text_is_held_to_the_contract_cap() -> None:
+    from specify_cli.requirement_mapping.text import TEXT_LIMIT, TRUNCATION_MARKER
+
+    long_text = "FR-009 — " + "x" * 2000
+    already_capped = long_text[:TEXT_LIMIT] + TRUNCATION_MARKER
+
+    over = render_review_context(_range(), (CitedRequirement("FR-009", Resolution.DECLARED, long_text),))[-1]
+    kept = render_review_context(_range(), (CitedRequirement("FR-009", Resolution.DECLARED, already_capped),))[-1]
+
+    assert over == f"  {already_capped}"
+    assert kept == f"  {already_capped}"
