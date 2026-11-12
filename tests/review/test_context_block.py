@@ -308,3 +308,24 @@ def test_requirement_text_is_held_to_the_contract_cap() -> None:
 
     assert over == f"  {already_capped}"
     assert kept == f"  {already_capped}"
+
+
+def test_many_owned_pathspecs_never_print_a_zero_more_tail() -> None:
+    """NFR-001 regression (#7578): with 120 owned files the command lines alone pass the budget; an empty list prints no tail."""
+    specs = tuple(f"src/package_{index:03d}/module_with_a_long_name.py" for index in range(120))
+    many = _range(owned_pathspecs=specs, commits=(), files=(), out_of_map=(), out_of_map_only_commits=0)
+
+    lines = render_review_context(many, ())
+
+    assert not [line for line in lines if "… 0 more" in line], lines
+    assert "IMPLEMENTATION COMMITS (0; = output of the git log command below):" in lines
+    command = next(line for line in lines if line.startswith("  git log "))
+    assert shlex.split(command)[shlex.split(command).index("--") + 1 :] == list(specs)
+
+
+def test_a_hidden_list_names_how_many_it_hides_never_zero() -> None:
+    specs = tuple(f"src/package_{index:03d}/module_with_a_long_name.py" for index in range(120))
+    lines = render_review_context(_range(owned_pathspecs=specs), ())
+
+    tails = [line for line in lines if line.startswith("  … ")]
+    assert tails and all(" 0 more" not in line for line in tails), tails
