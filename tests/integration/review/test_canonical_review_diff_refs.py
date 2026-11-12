@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.cli.commands.agent.workflow import _resolve_review_context
+from specify_cli.cli.commands.agent.workflow_cores import wp_owned_files
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
@@ -80,8 +81,8 @@ def test_review_diff_refs_use_canonical_manifest_for_mission_prefixed_slug(tmp_p
     _git(worktree, "add", "src/review_target.py")
     _git(worktree, "commit", "-m", "feat(WP03): add review target")
 
-    wp_frontmatter = (tasks_dir / "WP03-review-prompt-isolation.md").read_text(encoding="utf-8")
-    ctx = _resolve_review_context(worktree, repo, mission_slug, "WP03", wp_frontmatter)
+    owned_files = wp_owned_files(tasks_dir / "WP03-review-prompt-isolation.md")
+    ctx = _resolve_review_context(worktree, repo, mission_slug, "WP03", owned_files)
 
     reconstructed_wrong_ref = f"kitty/mission-{mission_slug}"
     assert reconstructed_wrong_ref == "kitty/mission-mission-canonical-refs"

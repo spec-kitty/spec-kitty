@@ -430,7 +430,7 @@ class TestResolveReviewContextRoutesLanesToPrimary:
                 ctx.repo,
                 ctx.slug,
                 "WP01",
-                "",
+                [],
             )
 
         # Post-fix: lanes.json read from PRIMARY → mission_branch resolved.

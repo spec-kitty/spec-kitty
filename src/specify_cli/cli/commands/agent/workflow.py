@@ -1959,7 +1959,7 @@ def _resolve_review_context(
     repo_root: Path,
     mission_slug: str,
     wp_id: str,
-    wp_frontmatter: str,
+    owned_files: list[str],
 ) -> dict:
     """Resolve git branch and base context for review prompts.
 
@@ -1973,6 +1973,9 @@ def _resolve_review_context(
        lanes.json.
     3. Use that state directly for review diffs; do not reconstruct branch
        names from slug strings.
+
+    *owned_files* is the work package's declaration, read by the caller through
+    :func:`wp_owned_files` (the canonical frontmatter reader).
     """
     ctx: dict = {
         "branch_name": "unknown",
@@ -2010,7 +2013,6 @@ def _resolve_review_context(
     ctx["mission_branch"] = mission_branch
 
     # No owned checkout to pass: review() refuses --owned-checkout up front (_refuse_owned_action).
-    owned_files = wp_owned_files(wp_frontmatter)
     if workspace.resolution_kind == "repo_root":
         return _executor.review_context_for_repo_root_workspace(
             repo_root=repo_root, mission_slug=mission_slug, wp_id=wp_id, owned_files=owned_files, owned=None, ctx=ctx
@@ -2544,7 +2546,7 @@ def review(
         _executor.warn_shared_workspace_writers(main_repo_root, mission_slug, normalized_wp_id, workspace, agent)
 
         # Resolve git context (branch name, base branch, commit count)
-        review_ctx = _resolve_review_context(workspace_path, main_repo_root, mission_slug, normalized_wp_id, wp.frontmatter)
+        review_ctx = _resolve_review_context(workspace_path, main_repo_root, mission_slug, normalized_wp_id, wp_owned_files(wp.path))
 
         dependents_warning = _executor.review_compute_dependents_warning(repo_root, mission_slug, normalized_wp_id)
 

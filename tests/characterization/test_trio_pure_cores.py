@@ -603,7 +603,7 @@ class TestResolveReviewContext:
     def test_nonexistent_workspace_returns_default_context(self, tmp_path: Path) -> None:
         missing = tmp_path / "nope"
 
-        ctx = _resolve_review_context(missing, tmp_path, "trio-mission", "WP01", "")
+        ctx = _resolve_review_context(missing, tmp_path, "trio-mission", "WP01", [])
 
         assert ctx == {
             "branch_name": "unknown",
@@ -624,7 +624,7 @@ class TestResolveReviewContext:
         calls = _patch_range(monkeypatch, _review_range(base=_BASE, commits=3))
         monkeypatch.setattr(workflow_module.subprocess, "run", _no_git)
 
-        ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP01", "owned_files: [src/a.py]\n")
+        ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP01", ["src/a.py"])
 
         assert ctx["branch_name"] == "HEAD"
         assert ctx["base_branch"] == _BASE
@@ -643,7 +643,7 @@ class TestResolveReviewContext:
         review_range = _review_range(base=None)
         _patch_range(monkeypatch, review_range)
 
-        ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP01", "")
+        ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP01", [])
 
         assert ctx["base_branch"] == "unknown" and ctx["base_ref"] == "unknown"
         assert ctx["commit_count"] == 0
@@ -659,7 +659,7 @@ class TestResolveReviewContext:
         _patch_range(monkeypatch, _review_range(base=_BASE, commits=0))
         monkeypatch.setattr(workflow_module.subprocess, "run", _no_git)
 
-        ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP01", "")
+        ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP01", [])
 
         assert ctx["commit_count"] == 0
 
@@ -672,7 +672,7 @@ class TestResolveReviewContext:
         monkeypatch.setattr("specify_cli.core.git_ops.get_current_branch", lambda _wp: None)
         _patch_range(monkeypatch, _review_range(base=None))
 
-        ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP02", "")
+        ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP02", [])
 
         assert ctx["branch_name"] == "unknown"
         assert ctx["mission_branch"] == "unknown"
@@ -691,7 +691,7 @@ class TestResolveReviewContext:
         _patch_range(monkeypatch, _review_range(base=_BASE, commits=5))
         monkeypatch.setattr(workflow_module.subprocess, "run", _no_git)
 
-        ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP02", "")
+        ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP02", [])
 
         assert ctx["mission_branch"] == "kitty/mission-x"
         assert ctx["base_branch"] == _BASE
@@ -725,7 +725,7 @@ class TestResolveReviewContext:
         _patch_range(monkeypatch, _review_range(base=_BASE, commits=2))
         monkeypatch.setattr(workflow_module.subprocess, "run", _no_git)
 
-        ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP02", "")
+        ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP02", [])
 
         assert ctx["base_branch"] == _BASE
         assert ctx["mission_branch"] == "main"
@@ -749,7 +749,7 @@ class TestResolveReviewContext:
         _patch_range(monkeypatch, _review_range(base=_BASE, commits=1))
         monkeypatch.setattr(workflow_module.subprocess, "run", _no_git)
 
-        ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP02", 'dependencies: ["WP01"]')
+        ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP02", [])
 
         assert ctx["base_branch"] == _BASE
         assert ctx["commit_count"] == 1
@@ -766,7 +766,7 @@ class TestResolveReviewContext:
         _patch_range(monkeypatch, _review_range(base=_BASE, commits=7))
         monkeypatch.setattr(workflow_module.subprocess, "run", _no_git)
 
-        ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP02", "")
+        ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP02", [])
 
         assert ctx["base_branch"] == _BASE
         assert ctx["commit_count"] == 7
@@ -782,7 +782,7 @@ class TestResolveReviewContext:
         _patch_range(monkeypatch, _review_range(base=None))
         monkeypatch.setattr(workflow_module.subprocess, "run", _no_git)
 
-        ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP02", "")
+        ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP02", [])
 
         assert ctx["base_branch"] == "unknown"
         assert ctx["commit_count"] == 0
@@ -804,7 +804,7 @@ class TestResolveReviewContext:
         _patch_range(monkeypatch, _review_range(base=_BASE, commits=0))
         monkeypatch.setattr(workflow_module.subprocess, "run", _no_git)
 
-        ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP02", "")
+        ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP02", [])
 
         assert ctx["base_branch"] == _BASE
         assert ctx["commit_count"] == 0

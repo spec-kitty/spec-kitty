@@ -109,12 +109,6 @@ class TestMixedDependencyReviewContext:
                 return planning_dependency
             raise ValueError(f"unexpected wp_id {wp_id}")
 
-        wp_frontmatter = (
-            "work_package_id: WP02\n"
-            "title: Feature WP\n"
-            "execution_mode: code_change\n"
-            'dependencies: ["WP01"]\n'
-        )
 
         with patch(
             "specify_cli.cli.commands.agent.workflow.resolve_workspace_for_wp",
@@ -125,7 +119,7 @@ class TestMixedDependencyReviewContext:
                 repo_root=repo,
                 mission_slug="078-feature",
                 wp_id="WP02",
-                wp_frontmatter=wp_frontmatter,
+                owned_files=[],  # the WP declares dependencies but no owned_files
             )
 
         # The contract: no crash, branch is the lane branch, and the base is the
@@ -191,12 +185,6 @@ class TestMixedDependencyReviewContext:
                     assert isinstance(arg, str), f"git merge-base arg is not str: {arg!r} in {args}"
             return original_run(args, *a, **kw)
 
-        wp_frontmatter = (
-            "work_package_id: WP03\n"
-            "title: Code change WP\n"
-            "execution_mode: code_change\n"
-            'dependencies: ["WP01"]\n'
-        )
 
         with (
             patch(
@@ -210,7 +198,7 @@ class TestMixedDependencyReviewContext:
                 repo_root=repo,
                 mission_slug="078-feature",
                 wp_id="WP03",
-                wp_frontmatter=wp_frontmatter,
+                owned_files=[],  # the WP declares dependencies but no owned_files
             )
 
         assert observed_calls == [], "the review base comes from the WP review range, never a git merge-base search"
