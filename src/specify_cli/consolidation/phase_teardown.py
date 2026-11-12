@@ -41,9 +41,11 @@ from specify_cli.git.commit_helpers import (
     SafeCommitRecoveryFailed,
 )
 from specify_cli.git.ref_advance import (
+    RefAdvanceError,
     RefDeleteError,
     RefDeleteMismatchError,
     delete_branch_ref,
+    worktrees_with_branch_checked_out,
 )
 from specify_cli.consolidation.git_probes import GitProbeError, _paths_have_status_changes, is_ancestor_strict
 from specify_cli.consolidation.landed_coordination import LandedCoordinationRefError, record_landed_coordination_tip
@@ -1039,13 +1041,31 @@ def _teardown_coordination_triple(run: _MergeRunState) -> None:
     pre_teardown_tip = _mission_branch_tip(run)
     approved_tip = _teardown_coord_worktree(run) or pre_teardown_tip
     if not _delete_mission_branch(run, approved_tip):
-        raise CoordinationTeardownError(
-            f"coordination branch {run.lanes_manifest.mission_branch!r} still exists after teardown; "
-            "the mission's coordination marker was left intact so the branch, its worktree and the "
-            "marker stay consistent. Remove whatever still references the branch "
-            "(`git worktree list`), then re-run `spec-kitty consolidate --resume`."
-        )
+        raise CoordinationTeardownError(_branch_kept_after_teardown_message(run))
     _flatten_coordination_metadata_after_branch_delete(run)
+
+
+def _branch_kept_after_teardown_message(run: _MergeRunState) -> str:
+    """Describe a coordination branch the teardown could not delete, from what is true now (#4380 item 2).
+
+    The worktree leg ran first, so the coordination worktree is usually gone already. The text names
+    the worktrees that still have the branch checked out (read through the one checkout authority,
+    :func:`~specify_cli.git.ref_advance.worktrees_with_branch_checked_out`), or says that none does
+    and the compare-and-swap delete itself refused.
+    """
+    branch = run.lanes_manifest.mission_branch
+    kept = f"coordination branch {branch!r} still exists after teardown; it and the mission's coordination marker were kept."
+    try:
+        holders = worktrees_with_branch_checked_out(run.main_repo, branch)
+    except RefAdvanceError as exc:
+        return f"{kept} Its worktrees could not be listed ({escape(str(exc))}); check `git worktree list`, then re-run `spec-kitty consolidate --resume`."
+    if holders:
+        where = ", ".join(str(path) for path in holders)
+        return f"{kept} It is still checked out in {where}. Remove that worktree (`git worktree list`), then re-run `spec-kitty consolidate --resume`."
+    return (
+        f"{kept} No worktree has it checked out any more: the compare-and-swap delete of the branch refused "
+        "(see the warning above). Re-run `spec-kitty consolidate --resume`."
+    )
 
 
 def _clear_landed_single_branch_mission_branch(run: _MergeRunState) -> None:
