@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NamedTuple
 
+from kernel.git_anchor import checkout_root_containing
 from kernel.meta_decode import decode_meta
 from mission_runtime import (
     ActionContextError,
@@ -212,14 +213,6 @@ def feature_dir_file_paths(repo_root: Path, feature_dir: Path) -> list[str]:
     return paths
 
 
-def _checkout_root_of(path: Path) -> Path | None:
-    """The git checkout (repository root or linked worktree) that contains *path*, else ``None``."""
-    for candidate in (path, *path.parents):
-        if (candidate / ".git").exists():
-            return candidate
-    return None
-
-
 def primary_partition_checkout(repo_root: Path, mission_slug: str) -> Path | None:
     """The checkout holding a default Mission's PRIMARY partition before its landing, else ``None`` (FR-061).
 
@@ -235,7 +228,7 @@ def primary_partition_checkout(repo_root: Path, mission_slug: str) -> Path | Non
     fail-closed guards downstream report that, e.g. the #4979 demotion refusal).
     """
     primary_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
-    holder = _checkout_root_of(Path(primary_dir))
+    holder = checkout_root_containing(Path(primary_dir))
     if holder is None or holder.resolve() == repo_root.resolve():
         return None
     return holder
