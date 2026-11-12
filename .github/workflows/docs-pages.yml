@@ -9,9 +9,9 @@
 # (scripts/docs/site_live_probe.py), and a mismatch turns the run red. No alert issue is filed: the
 # red run is the signal (operator decision on #2361).
 #
-# Rollback (D-13 step 4): revert the cutover pull request. That restores the DocFX `build` and
-# `deploy` jobs and the dispatch-only canary; the DocFX sources (docs/docfx.json, toc.yml, the
-# template and the DocFX scripts) stay in the tree until #6943 retires them.
+# Rollback: the legacy site generator was retired (#6943), so going back to it means reverting
+# both the retirement pull request and the cutover pull request (#7558). Rolling forward is
+# preferred (ADR Amendment 2026-11-12).
 #
 # Pinned by tests/release/test_release_ci_ownership.py (the job graph, evaluated on the real `if:`
 # conditions) and tests/ci/test_fork_guard.py.

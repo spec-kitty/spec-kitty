@@ -3,7 +3,7 @@ title: 'Landing Contributor PRs: The Maintainer Runbook'
 description: 'The maintainer workflow for landing contributor PRs: claim, worktree isolation, rebase, red classification, folds, red-first checks, push, hand-off and post-merge cleanup.'
 doc_status: active
 kind: How-To
-updated: '2026-11-05T00:00:00Z'
+updated: '2026-11-12T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.
@@ -992,8 +992,9 @@ been fixed, the end-state is stated instead of the trap.
   `tests/architectural/test_ruff_format_exclude_ratchet.py` after the reformat, not
   only before. A whole-repo `ruff format --check .` skips excluded files, so it does
   not catch the stale entry.
-- **Docs checks that fail only in CI.** The frontmatter `description` must be 50 to
-  180 characters (`uv run python -m scripts.docs.description_length_check`), and a
+- **Docs checks that fail only in CI.** The frontmatter `description` of a published page
+  must be 50 to 180 characters (`tests/docs/test_docs_seo.py`; the docsite build's
+  frontmatter gate refuses one over 180), and a
   changelog entry over 1,200 characters fails `tests/docs/test_changelog_style.py`.
   The retrieval index stores the description, but the bot regenerates it after merge,
   so do not regenerate it in the PR. A new ADR for a governance or process decision goes in
@@ -1067,9 +1068,9 @@ python packs/internal/assets/validate-pr-body.py body.md --verify-discovery --ex
 ```
 
 Exit 0 means valid; exit 1 prints one `section: problem` line per violation; exit 2 is a
-usage error. Note the description-length SEO gate
-(50–180 chars) is **CI-only** — run `scripts/docs/description_length_check.py` (or the
-docs SEO tests) as part of any docs blast radius.
+usage error. Note the description-length SEO check
+(50–180 chars) is **CI-only** — run `tests/docs/test_docs_seo.py` as part of any docs
+blast radius.
 
 ## See also
 

@@ -3,7 +3,7 @@ title: File Structure Reference
 description: Reference for Spec Kitty file and directory structure. Learn the roles of .kittify/, kitty-specs/, .worktrees/, and agent directories.
 doc_status: active
 kind: Reference
-updated: '2026-06-09T00:00:00Z'
+updated: '2026-11-12T00:00:00Z'
 related:
 - api/configuration
 - api/supported-agents
@@ -199,8 +199,7 @@ Documentation organized by the Divio 4-type system.
 ```
 docs/
 ├── index.md                      # Landing page
-├── toc.yml                       # Navigation structure
-├── docfx.json                    # Build configuration
+├── _meta/sections.yaml           # Section registry (the site/ build reads it)
 ├── tutorials/                    # Learning-oriented
 │   ├── getting-started.md
 │   └── your-first-mission.md

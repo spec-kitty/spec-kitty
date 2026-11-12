@@ -4,19 +4,18 @@
 # baseline format). ADR docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md D-5.
 #
 # Seeded once (2026-11-01, main 7e2ca9fdc, Mission docsite-url-ledgers-01M6BRMR) from:
-#   - a site walk of a DocFX 2.81.0 build of that commit
-#     (scripts/docs/capture_baseline_urls.py --site-dir docs/_site): 672 pages;
+#   - a site walk of the legacy generator's 2.81.0 build of that commit (by a capture
+#     script retired with that generator, #6943): 672 pages;
 #   - every key of the redirect map derived from site/moves.yaml: 298 routes.
-#   Union: 970 routes. It contains every URL of the old 180-URL manifest
-#   scripts/docs/redirect_baseline_urls.json; that manifest's amendments are recorded in
-#   the header of site/moves.yaml.
+#   Union: 970 routes. It contains every URL of the old 180-URL manifest (retired in
+#   #6943); that manifest's amendments are recorded in the header of site/moves.yaml.
 #
 # Excluded: /kitty-specs/** (generated Mission dashboards, dropped by ADR D-5 and
-# ruling 3) and /toc.html (DocFX's navigation fragment, not a page).
+# ruling 3) and /toc.html (the legacy site's navigation fragment, not a page).
 #
 # Rules: the file GROWS when a page is published (append its route in the PR that
-# publishes it; the DocFX deploy job warns about any it finds missing). A route is
-# removed only by an amendment recorded here: date, PR, ground and ruling.
+# publishes it). A route is removed only by an amendment recorded here: date, PR,
+# ground and ruling.
 #
 # Amendments: none yet.
 /1x/artifacts-and-commands.html

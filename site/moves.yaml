@@ -2,9 +2,10 @@
 #
 # Every published route that moved, as `from -> to`. ADR
 # docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md D-5.
-# DocFX's scripts/docs/redirect_map.yaml is DERIVED from this file:
-#   python3 scripts/docs/redirect_stub_generator.py regenerate-map
-# A later doc-kitty generator (#6933) reads the same entries.
+# The docsite's redirect map site/legacy-redirects.json is DERIVED from this file
+# (with site/url-baseline.txt and the published set) by the doc-kitty generator (#6933):
+#   python -m scripts.docs.site_redirects
+# The legacy site's own map, derived from it until then, was retired in #6943.
 #
 # Route form: site-relative legacy published path with a leading slash
 # (`/guides/x.html`, `/adr/1.x/index.html`). Chains are allowed and collapse to
@@ -15,7 +16,8 @@
 # again gets a NEW entry from its previous route. Each `from` appears once, and no
 # `from` is a published page. Each entry carries a `ref` (PR, issue or Mission).
 # To record a move: append `- {from: /old.html, to: /new.html, ref: "#<issue>"}`, add the old
-# route to site/url-baseline.txt if missing, run `regenerate-map`, then `check-map`.
+# route to site/url-baseline.txt if missing, run `python -m scripts.docs.site_redirects`,
+# then the same with `--check`.
 #
 # Provenance (seeded 2026-11-01 on main 7e2ca9fdc, Mission docsite-url-ledgers-01M6BRMR):
 #   (a) the 163 entries of scripts/docs/redirect_map.yaml, derived until now from the

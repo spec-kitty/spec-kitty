@@ -1449,32 +1449,6 @@ jobs:
       - name: Sync packs
         uses: ./.github/actions/sync-packs
       - uses: ./.github/actions/policy-scan-cache
-      # The PlantUML render tests need the pinned jar. Restore it from the shared
-      # cache entry (one key per pin set), provision it once before the tests run
-      # (plantuml_invoke.ensure_jar re-verifies the sha256 and re-downloads a
-      # stale or corrupt entry), and save it even when a test later fails, so a
-      # GitHub release-asset outage no longer reds this job.
-      - name: Restore the checksum-verified PlantUML jar cache
-        id: plantuml-jar
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: plantuml.jar
-          key: plantuml-jar-${{ runner.os }}-${{ hashFiles('scripts/docs/plantuml_pins.json') }}
-      - name: Provision the checksum-verified PlantUML jar
-        run: |
-          python3 - <<'PY'
-          import pathlib
-
-          from scripts.docs import plantuml_invoke
-
-          plantuml_invoke.ensure_jar(plantuml_invoke.load_pins(), pathlib.Path("plantuml.jar"))
-          PY
-      - name: Save the checksum-verified PlantUML jar cache
-        if: ${{ steps.plantuml-jar.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: plantuml.jar
-          key: plantuml-jar-${{ runner.os }}-${{ hashFiles('scripts/docs/plantuml_pins.json') }}
       - name: Run tests
         run: |
           uv run --frozen --no-sync pytest tests/docs -q

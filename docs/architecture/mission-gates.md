@@ -3,7 +3,7 @@ title: Mission transition gates — declarative, asset-backed, trust-gated
 description: 'The declarative model for transition gates: a gate artefact whose check ships as an asset, trust-checked before it runs, with severity-typed outcomes.'
 doc_status: active
 kind: Explanation
-updated: '2026-09-30T00:00:00Z'
+updated: '2026-11-12T00:00:00Z'
 audience:
 - profile: internal/lead-developer
   guidance_text: Written for the Lead Developer reader.
@@ -50,9 +50,9 @@ named-Python-handler registry.
 
 ## Diagrams
 
-> Rendered locally by the no-egress PlantUML pipeline (`scripts/docs/plantuml_render.py`,
-> `--network=none`, SANDBOX profile). The distribution view uses PlantUML's **native ArchiMate**
-> (bundled in the pinned jar — no `!include`, no egress).
+> Rendered at build time by the doc-kitty site against the pinned PlantUML server in the
+> SANDBOX profile (#6936). The distribution view uses PlantUML's **native ArchiMate** (bundled
+> with PlantUML — no `!include`, no egress).
 
 ### Distribution & consumer value (ArchiMate)
 

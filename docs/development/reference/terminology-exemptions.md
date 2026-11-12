@@ -3,7 +3,7 @@ title: Terminology Guard Exemption Policy
 description: "Policy for the six surfaces exempt from spec-kitty terminology guards: ADRs, migrations, archived pages, archival plans, dated reports and the Unreleased-only CHANGELOG scan."
 doc_status: active
 kind: Reference
-updated: '2026-10-08T00:00:00Z'
+updated: '2026-11-12T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.
@@ -207,10 +207,10 @@ Because a "point-in-time snapshot" exemption is only safe as long as those
 snapshots are never *published* as live docs, every guard file listed under
 "What is excluded" also carries a
 `test_docs_reports_exemption_is_not_published_as_live_docs` guard. Each one
-calls the shared `assert_docfx_does_not_publish_reports` in
-`tests/_support/docfx_reports_guard.py`, which fails when any
-`docs/docfx.json` `build.content` or `build.resource` entry would publish a
-`docs/reports/` path. If that guard ever fails, `docs/reports/` has started being
+calls the shared `assert_reports_unpublished` in
+`tests/_support/reports_unpublished_guard.py`, which fails when the docsite
+contract (`scripts/docs/_dockitty_contract.py`) stops excluding `reports/` or
+would publish any `docs/reports/` page. If that guard ever fails, `docs/reports/` has started being
 published as live documentation and this exemption must be reconsidered, not
 silently kept.
 
@@ -288,7 +288,7 @@ narrowness checks:
   pattern in the guards directly targets any `FORBIDDEN_SCAN_ROOTS` root.
 - `test_docs_reports_exemption_is_not_published_as_live_docs` (in both the
   live-doc guard and the decision-command-shape guard) confirms
-  `docs/docfx.json` never publishes `docs/reports/` as live docs, so the
+  the docsite never publishes `docs/reports/` as live docs, so the
   point-in-time-snapshot rationale for that exemption stays true.
 
 If a future change widens an exemption beyond its stated boundary — for example,
