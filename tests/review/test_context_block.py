@@ -13,8 +13,8 @@ from typing import Any
 import pytest
 
 from specify_cli.requirement_mapping.text import CitedRequirement, Resolution
-from specify_cli.review.context_block import BYTE_BUDGET, UNAVAILABLE_COMMAND_LINE, render_review_context
-from specify_cli.review.wp_range import FileChange, RangeCommit, RangeSource, RangeStatus, WpReviewRange
+from specify_cli.review.context_block import BYTE_BUDGET, UNAVAILABLE_COMMAND_LINE, describe_gap, render_review_context
+from specify_cli.review.wp_range import FileChange, RangeCommit, RangeGap, RangeSource, RangeStatus, WpReviewRange
 
 pytestmark = [pytest.mark.fast]
 
@@ -162,6 +162,32 @@ def test_declared_text_without_its_id_prefix_gets_one() -> None:
     lines = render_review_context(_range(), (CitedRequirement("FR-003", Resolution.DECLARED, "bare text"),))
 
     assert lines[-1] == "  FR-003 — bare text"
+
+
+# --------------------------------------------------------------------------- describe_gap
+
+
+@pytest.mark.parametrize(
+    ("gap", "expected"),
+    [
+        (RangeGap.NOT_RECORDED, "no window or submission stamp was recorded (not_recorded)"),
+        (RangeGap.LANE_BRANCH_MISSING, "the lane branch was missing when the window opened (lane_branch_missing)"),
+        (RangeGap.CAPTURE_FAILED, "the window capture failed (capture_failed)"),
+        (RangeGap.NOT_ON_LANE, "the recorded commit is not on the branch (not_on_lane)"),
+        (RangeGap.NO_SUBMISSION, "the work package has no for_review submission (no_submission)"),
+        (RangeGap.UNRESOLVABLE_SHA, "no commit could be resolved for an end of the range (unresolvable_sha)"),
+        (RangeGap.STATUS_UNREADABLE, "the status surface could not be read (status_unreadable)"),
+    ],
+)
+def test_describe_gap_words_every_range_gap_and_keeps_its_value(gap: RangeGap, expected: str) -> None:
+    assert describe_gap(gap) == expected
+    assert describe_gap(gap.value) == expected
+
+
+def test_describe_gap_passes_an_unknown_value_through_and_names_a_missing_one() -> None:
+    assert describe_gap("some_future_gap") == "some_future_gap"
+    assert describe_gap(None) == "unknown"
+    assert describe_gap("") == "unknown"
 
 
 # --------------------------------------------------------------------------- budget, order, determinism
