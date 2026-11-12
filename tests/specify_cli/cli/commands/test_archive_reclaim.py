@@ -8,9 +8,12 @@ coordination topology, a dirty coordination worktree, and a coordination branch 
 is not on the target. A second run says nothing is left and exits 0.
 
 Every cell drives the REAL CLI (``python -m specify_cli``) against a real git repository built by
-the terminus harness: a coordination Mission consolidated with its triple retained
-(``--keep-branch --keep-worktree``), whose coordination branch the target then merged with a real
-merge, so the branch's content is on the target.
+the terminus harness: a coordination Mission consolidated by a real ``spec-kitty consolidate`` (the
+default squash) with its triple retained (``--keep-branch --keep-worktree``). That is the canonical
+case: the coordination branch is NOT an ancestor of the target and ``merge-tree`` conflicts on the
+status files, so the proof is the recorded landing (operator rulings ``01M78HNKEQPPZMY24JZVJG2MNF``
+and ``01M78JC7ZBJM0CY442BKDGBP7V``): ``merged_at`` plus the landed-coordination ref the verified
+landing wrote, which the live coordination tip must equal or precede.
 """
 
 from __future__ import annotations
@@ -63,6 +66,20 @@ def _meta_bytes(mission: CoordMission) -> bytes:
     return (mission.feature_dir / "meta.json").read_bytes()
 
 
+def _landed_ref(mission: CoordMission) -> str:
+    return f"refs/spec-kitty/landed-coordination/{mission.coord_branch}"
+
+
+def _landed_ref_tip(mission: CoordMission) -> str | None:
+    probe = subprocess.run(
+        ["git", "-C", str(mission.repo), "rev-parse", "--verify", "--quiet", _landed_ref(mission)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return probe.stdout.strip() if probe.returncode == 0 else None
+
+
 def _output(result: subprocess.CompletedProcess[str]) -> str:
     return f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
 
@@ -78,17 +95,13 @@ def _archive(mission: CoordMission, slug: str | None = None) -> subprocess.Compl
 
 
 def _landed_coord_mission(tmp_path: Path, mid8: str) -> CoordMission:
-    """A coordination Mission whose consolidation landed and retained the coordination triple.
-
-    The target then merges the coordination branch with a real merge (``-s ours``: the content is
-    already on the target), so the coordination tip is an ancestor of the target.
-    """
+    """A coordination Mission whose default (squash) consolidation landed and retained the coordination triple."""
     mission = build_coord_mission(tmp_path, wps=("WP01", "WP02"), mid8=mid8)
     landed = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--yes", "--keep-branch", "--keep-worktree"])
     assert landed.returncode == 0, f"fixture invalid: consolidate failed.\n{_output(landed)}"
     assert _branch_exists(mission, mission.coord_branch), "fixture invalid: the retained coordination branch must exist"
     assert _worktree_registered(mission), "fixture invalid: the retained coordination worktree must be registered"
-    _git(mission.repo, "merge", "-q", "-s", "ours", "--no-edit", mission.coord_branch)
+    assert _landed_ref_tip(mission) == mission.rev(mission.coord_branch), "fixture invalid: the landing must record the coordination tip"
     return mission
 
 
@@ -120,6 +133,7 @@ def test_reclaim_removes_the_coordination_triple_of_an_archived_landed_mission(a
     assert mission.rev(mission.target_branch) != target_before, "the flattened marker must be committed"
     committed = json.loads(_git(mission.repo, "show", f"{mission.target_branch}:kitty-specs/{mission.slug}/meta.json"))
     assert "coordination_branch" not in committed
+    assert _landed_ref_tip(mission) is None, "the landed-coordination ref must go with the branch"
     for step in ("worktree", "branch", "marker"):
         assert step in result.stdout.lower(), _output(result)
 
@@ -174,6 +188,7 @@ def test_reclaim_refuses_coordination_content_that_is_not_on_the_target(archived
     late.write_text("recorded after the landing\n", encoding="utf-8")
     _git(worktree, "add", str(late.relative_to(worktree)))
     _git(worktree, "commit", "-qm", "chore: a record the target never received")
+    late_sha = mission.rev(mission.coord_branch)
     meta_before = _meta_bytes(mission)
 
     result = _reclaim(mission)
@@ -182,6 +197,22 @@ def test_reclaim_refuses_coordination_content_that_is_not_on_the_target(archived
     assert result.returncode == 1, _output(result)
     assert "RECLAIM_UNABSORBED" in combined, _output(result)
     assert mission.coord_branch in combined, _output(result)
+    assert late_sha[:12] in combined, "the refusal must name the commit made after the landing"
+    _assert_triple_kept(mission, meta_before)
+
+
+def test_reclaim_refuses_a_landing_without_a_recorded_coordination_tip(archived_mission: CoordMission) -> None:
+    """A Mission landed before the landed-coordination ref existed cannot prove its branch landed."""
+    mission = archived_mission
+    _git(mission.repo, "update-ref", "-d", _landed_ref(mission))
+    meta_before = _meta_bytes(mission)
+
+    result = _reclaim(mission)
+
+    combined = result.stdout + result.stderr
+    assert result.returncode == 1, _output(result)
+    assert "RECLAIM_UNABSORBED" in combined, _output(result)
+    assert "no recorded" in combined.lower(), _output(result)
     _assert_triple_kept(mission, meta_before)
 
 
