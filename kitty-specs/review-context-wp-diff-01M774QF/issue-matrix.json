@@ -168,6 +168,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#7562": {
+      "evidence_ref": "Context - open PR overlap note",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#7564": {
       "evidence_ref": "Context - PR reference (status read door, merged)",
       "fr": null,
