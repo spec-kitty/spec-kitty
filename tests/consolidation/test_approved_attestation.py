@@ -149,7 +149,7 @@ def test_the_planner_refuses_when_the_status_log_cannot_be_read(unstamped_missio
     def _unreadable(*_args: object, **_kwargs: object) -> object:
         raise StoreError("status.events.jsonl is unreadable")
 
-    monkeypatch.setattr(aa, "read_events", _unreadable)
+    monkeypatch.setattr("specify_cli.status.read_events", _unreadable)
 
     with pytest.raises(AttestationError, match=r"could not read the status log: .*unreadable\. Nothing was recorded\."):
         _plan(unstamped_mission, ["WP01"])

@@ -246,10 +246,10 @@ def _mission_work_reaches(
 def _recorded_lane_heads(feature_dir: Path) -> frozenset[str] | None:
     """Every ``lane_head`` stamp ANY work package of the Mission recorded (canceled and removed ones included), or ``None`` when the log is unreadable."""
     from specify_cli.consolidation.commit_to_target_stamps import consolidation_events
-    from specify_cli.status import StoreError, read_events
+    from specify_cli.status import StoreError
 
     try:
-        events = consolidation_events(feature_dir, read_events(feature_dir))
+        events = consolidation_events(feature_dir)
     except StoreError:
         return None
     return frozenset(stamp for event in events if (stamp := stamp_of(event)))
