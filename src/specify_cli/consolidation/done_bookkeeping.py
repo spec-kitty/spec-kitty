@@ -27,6 +27,7 @@ from specify_cli.consolidation.git_probes import path_is_under_worktrees
 from specify_cli.consolidation.state import ConsolidationState, save_state
 from specify_cli.lanes.single_branch_landing import is_single_branch_meta, stored_mission_meta
 from specify_cli.status import build_system_actor
+from specify_cli.status.actor import MERGE_ACTOR
 from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
 from mission_runtime import MissionArtifactKind, placement_seam
 
@@ -99,11 +100,9 @@ def acceptably_canceled_wp_ids(repo_root: Path, mission_slug: str, *, owned: Own
     return excluded
 
 
-#: The identity every merge-time bookkeeping write records (#6722). It stays a plain
-#: string -- the readers project the structured actor back to it -- and both emits and the
-#: done-write refusal probe build their actor from this one value, so the probe can never
-#: drift from the write.
-MERGE_ACTOR = "merge"
+#: ``MERGE_ACTOR`` (the identity every merge-time bookkeeping write records, #6722) is
+#: defined in ``specify_cli.status.actor`` and re-exported here; the write and the
+#: done-write refusal probe build their actor from that one value.
 
 
 def _resolve_merge_actor(repo_root: Path) -> str:

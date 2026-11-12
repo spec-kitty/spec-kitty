@@ -99,7 +99,8 @@ from kernel.mission_runtime_shape import step_ids_declare_wp_iteration
 from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
 from specify_cli.core.paths import load_meta_fail_closed
 from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous, StatusReadPathNotFound
-from specify_cli.status import CanonicalStatusNotFoundError, get_wp_lane
+from specify_cli.status import CanonicalStatusNotFoundError, Lane, get_wp_lane
+from specify_cli.status.actor import MERGE_ACTOR
 
 if TYPE_CHECKING:
     from charter.activation.invocation_context import OperationalContext as OperationalContextT
@@ -1027,6 +1028,11 @@ def board_latest_transition_at(board: BoardStatus | None) -> str | None:
     already returned (no second read). Timestamps are compared as parsed datetimes, never as
     strings, so offset-bearing values order correctly. An unparsable timestamp is returned
     as-is, so the freshness verdict fails closed on it instead of ignoring the transition.
+
+    A WP whose latest transition is consolidation's own ``done`` bookkeeping (system actor
+    :data:`~specify_cli.status.actor.MERGE_ACTOR`) is skipped: that write lands after
+    ``accepted_at`` and before the landing is recorded, and is no new work to accept. The
+    snapshot keeps only the latest transition per WP, so that WP's earlier one is not read.
     """
     if board is None:
         return None
@@ -1034,6 +1040,8 @@ def board_latest_transition_at(board: BoardStatus | None) -> str | None:
     for state in board.wp_states.values():
         raw = state.get("last_transition_at")
         if not isinstance(raw, str) or not raw:
+            continue
+        if state.get("lane") == str(Lane.DONE) and state.get("actor") == MERGE_ACTOR:
             continue
         parsed = parse_iso_timestamp(raw)
         if parsed is None:
