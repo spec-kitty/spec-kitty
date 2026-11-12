@@ -85,6 +85,7 @@ from mission_runtime.resolution import (
     PlacementSeam,
     coord_read_dir_for,
     declared_read_surface,
+    default_mission_primary_ref,
     mission_context_for,
     placement_seam,
     resolve_action_context,
@@ -171,6 +172,8 @@ __all__ = [
     "commit_introducing_status_event",
     "coord_read_dir_for",
     "declared_read_surface",
+    # #7578 (H1): the pure PRIMARY write-ref rule of a default Mission (FR-061), read by the review range.
+    "default_mission_primary_ref",
     "enforce_checkout_identity",
     "handle_names_mission",
     "is_primary_artifact_kind",

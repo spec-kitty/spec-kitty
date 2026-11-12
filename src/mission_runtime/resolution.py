@@ -1080,14 +1080,15 @@ def single_branch_write_ref(
     return target_branch
 
 
-def _default_mission_primary_ref(topology_source: object, mission_branch: object, landed: bool, fallback_ref: str) -> str:
+def default_mission_primary_ref(topology_source: object, mission_branch: object, landed: bool, fallback_ref: str) -> str:
     """The PRIMARY write ref of a ``topology_source: default`` Mission (FR-061) -- pure.
 
     Before the Mission lands, a default Mission's PRIMARY partition writes to its
     topic branch (``meta.mission_branch``) whatever its settled topology; after the
     landing (the one "landed" signal, analyze-3 H1) and for every other Mission it is
     *fallback_ref* unchanged. Kept separate from :func:`single_branch_write_ref`, whose
-    callers also use it for status and code writes.
+    callers also use it for status and code writes. The review range (#7578) reads it to tell
+    whether a coordination Mission's planning work shares the coordination branch.
     """
     if topology_source != "default" or landed:
         return fallback_ref
@@ -2073,7 +2074,7 @@ def resolve_placement_only(
         # FR-061 / analyze-3 H1 (Mission lane-worktree-model-hardening WP14): a default
         # Mission's PRIMARY partition stays on its topic branch until it lands, also
         # after a ``lanes_with_coord`` settlement.
-        primary_kind_ref = _default_mission_primary_ref(*_default_mission_facts(get_main_repo_root(repo_root), mission_slug, resolver=resolver), primary_kind_ref)
+        primary_kind_ref = default_mission_primary_ref(*_default_mission_facts(get_main_repo_root(repo_root), mission_slug, resolver=resolver), primary_kind_ref)
         return CommitTarget(ref=primary_kind_ref)
     return branch_ref.destination_ref
 
