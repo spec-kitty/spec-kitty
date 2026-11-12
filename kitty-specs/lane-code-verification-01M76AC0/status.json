@@ -111,7 +111,7 @@
     },
     "WP06": {
       "actor": "claude-reviewer",
-      "agent": "claude-reviewer",
+      "agent": "claude-reviewer::reviewer-renata",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 0,
@@ -121,7 +121,8 @@
       "last_transition_at": "2026-11-12T06:45:36.526654+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "New lanes get the pinned packs trees: open_lane_checkout places each pinned tree the lane lacks via fetch_to_cache(offline=True)+place_pack through charter.packs; cold cache prints one stderr remedy line, never fails implement; no pins = no-op. Red 29e2a15b, green c635cd54, dead-symbol fix 1cb7d329. Placement on this repo's pins: 0.16s (built-in+internal, 574 files), check_pack OK."
+        "New lanes get the pinned packs trees: open_lane_checkout places each pinned tree the lane lacks via fetch_to_cache(offline=True)+place_pack through charter.packs; cold cache prints one stderr remedy line, never fails implement; no pins = no-op. Red 29e2a15b, green c635cd54, dead-symbol fix 1cb7d329. Placement on this repo's pins: 0.16s (built-in+internal, 574 files), check_pack OK.",
+        "Review passed (independent, reviewer-renata): red->green verified at 29e2a15b (unit: ModuleNotFoundError; CLI: MISSING tree + no remedy line) -> green at tip. 82 targeted + tests/lanes 1139 passed/1 skipped + tests/specify_cli/lanes 213 passed/1 skipped; ruff/format/mypy clean. offline=True on the only fetch path; real-repo placement 0.17s, both pins check_pack OK, lane git status clean. Non-blocking: unrelated packs/*.source.yaml in a consumer repo would get a make sync-packs remedy line; pre-existing non-atomic cache write in _fetch_into_cache can race a concurrent offline reader (fail-open here)."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
