@@ -176,7 +176,7 @@ def test_review_commands_exclude_mission_bookkeeping_only_when_the_mission_dir_i
     assert shlex.split(research[1])[shlex.split(research[1]).index("--") + 1 :] == [f"{mission_root}research.md"]
     specs = shlex.split(planning[1])[shlex.split(planning[1]).index("--") + 1 :]
     assert specs[0] == f"{mission_root}**"
-    assert {f":(exclude){mission_root}tasks/*", f":(exclude){mission_root}tasks.md*", f":(exclude){mission_root}status.*"} <= set(specs)
+    assert {f":(exclude){mission_root}tasks/*", f":(exclude){mission_root}tasks.md", f":(exclude){mission_root}status.*"} <= set(specs)
     assert f"':(exclude){mission_root}tasks/*'" in planning[1], "a pathspec with glob magic is quoted for the shell"
 
 
