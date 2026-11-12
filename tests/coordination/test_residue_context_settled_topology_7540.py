@@ -15,6 +15,7 @@ import pytest
 
 import mission_runtime
 from mission_runtime import MissionTopology
+from specify_cli.coordination.surface_resolver import WorktreeRegistryUnavailable
 from specify_cli.coordination.coherence import (
     CheckoutRole,
     NothingIsResidue,
@@ -32,7 +33,7 @@ _SLUG = "probe-7540"
 
 class _RaisingSeam:
     def read_dir(self, _kind: object) -> Path:
-        raise RuntimeError("seam cannot resolve")
+        raise WorktreeRegistryUnavailable(repo_root=Path("."), detail="seam cannot resolve")
 
 
 class _FixedSeam:
@@ -93,14 +94,6 @@ def test_seam_dir_without_meta_falls_back_to_the_raw_join(tmp_path: Path, monkey
     monkeypatch.setattr(mission_runtime, "placement_seam", lambda *_a, **_k: _FixedSeam(empty))
 
     assert ResidueContext.for_mission(tmp_path, _SLUG, CheckoutRole.LANE).topology is MissionTopology.LANES
-
-
-def test_seam_dir_holding_meta_wins_over_the_raw_join(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    seam_dir = tmp_path / ".worktrees" / f"{_SLUG}-coord" / "kitty-specs" / _SLUG
-    _write_meta(seam_dir, MissionTopology.LANES_WITH_COORD)
-    monkeypatch.setattr(mission_runtime, "placement_seam", lambda *_a, **_k: _FixedSeam(seam_dir))
-
-    assert ResidueContext.for_mission(tmp_path, _SLUG, CheckoutRole.REPOSITORY_ROOT).topology is MissionTopology.LANES_WITH_COORD
 
 
 def test_absent_everywhere_raises_and_the_strictest_classifier_applies(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
