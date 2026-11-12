@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "mission_slug": "lane-code-verification-01M76AC0",
+  "mission_id": "01M76AC0C79GVMYF5740T7B84H",
+  "mission_branch": "kitty/mission-lane-code-verification-01M76AC0",
+  "target_branch": "fix/7547-lane-code-verification",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/lanes/lane_invocation.py",
+        "tests/lanes/test_lane_invocation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/workflow_executor.py",
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/review/lane_test_invocation.py",
+        "tests/agent/test_build_implement_prompt_lines.py",
+        "tests/agent/test_implement_lane_invocation.py",
+        "tests/review/test_lane_test_invocation_adapter.py",
+        "tests/specify_cli/cli/commands/test_implement_characterization.py",
+        "tests/specify_cli/cli/commands/test_implement_phases.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/review/baseline.py",
+        "src/specify_cli/review/gate_registry.py",
+        "src/specify_cli/review/pre_review_gate.py",
+        "src/specify_cli/review/verdict_aggregation.py",
+        "tests/review/test_gate_registry.py",
+        "tests/review/test_gate_run_environment.py",
+        "tests/review/test_verdict_aggregation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_move_task_gates.py",
+        "tests/review/fixtures/parity/foreign_tree__block0__force0.json",
+        "tests/review/test_transition_gate_parity.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_move_task_evidence_tree.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/2026-08-13-6-gate-outcomes-carry-severity-operator-strategy-decides-effect.md",
+        "docs/changelog/unreleased/7554.fixed.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-11-12T05:41:23.563233+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP05"
+  ],
+  "planning_commit_sha": "ba45c46c2dce651c3e89edbab034fcf643918181"
+}
