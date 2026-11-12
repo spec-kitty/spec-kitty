@@ -46,13 +46,13 @@
     },
     {
       "criterion_id": "FR-005",
-      "description": "Verify FR-005 is satisfied",
+      "description": "for_review baseline-tests.json is committed on the topic branch after settlement; warning arm unit-tested",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/cli/commands/agent/test_baseline_and_banner_settled.py (baseline e2e, red 988e7d68)",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T22:01:49.961303+00:00",
+      "notes": "Verified at HEAD: 462 passed (all Mission tests + named gates), 2026-11-12"
     },
     {
       "criterion_id": "FR-006",
