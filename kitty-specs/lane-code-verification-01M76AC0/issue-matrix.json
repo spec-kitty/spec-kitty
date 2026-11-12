@@ -253,16 +253,16 @@
       "wp": null
     },
     "#7554": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Delivered across WP01-WP04",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Lane test runs import the repository root src",
+      "verdict": "in-mission",
+      "wp": "WP04"
     },
     "#7577": {
       "evidence_ref": "<link or commit>",
