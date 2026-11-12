@@ -1,7 +1,7 @@
 {
-  "event_count": 29,
-  "last_event_id": "01M77F583N5G71RDCGMGB3D7DY",
-  "materialized_at": "2026-11-12T08:49:29.053199+00:00",
+  "event_count": 31,
+  "last_event_id": "01M77FZZGT897KCBZM6WHJKX03",
+  "materialized_at": "2026-11-12T09:04:05.658719+00:00",
   "mission_number": "",
   "mission_slug": "review-context-wp-diff-01M774QF",
   "mission_type": "software-dev",
@@ -13,8 +13,8 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
-    "in_review": 0,
+    "in_progress": 0,
+    "in_review": 1,
     "planned": 3
   },
   "work_packages": {
@@ -84,18 +84,19 @@
       }
     },
     "WP03": {
-      "actor": "claude",
-      "agent": null,
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M77F583N5G71RDCGMGB3D7DY",
-      "last_transition_at": "2026-11-12T08:49:29.053199+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M77FZZGT897KCBZM6WHJKX03",
+      "last_transition_at": "2026-11-12T09:04:05.658719+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ready for review: resolve_wp_review_range + WpReviewRange (recorded/derived/unavailable with provenance and gap), commit_introducing_status_event (+StatusRef) generalised in mission_runtime with claim_commit_for_wp as wrapper; constant git cost (6 recorded, 9 derived); dead-code gates red for exactly resolve_wp_review_range / specify_cli.review.wp_range until WP05 wires the caller."
+        "Ready for review: resolve_wp_review_range + WpReviewRange (recorded/derived/unavailable with provenance and gap), commit_introducing_status_event (+StatusRef) generalised in mission_runtime with claim_commit_for_wp as wrapper; constant git cost (6 recorded, 9 derived); dead-code gates red for exactly resolve_wp_review_range / specify_cli.review.wp_range until WP05 wires the caller.",
+        "Cycle 1 fixes: derived-anchor ancestry guards pinned (mutation-verified red), claim-base OSError degrades to next fallback, bookkeeping/claim-base/live head keyed on the resolved Mission dir name, docstring names git default wildcard matching."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -105,17 +106,17 @@
         "reviewer": "claude-reviewer",
         "verdict": "changes_requested"
       },
-      "role": "implementer",
-      "shell_pid": null,
-      "shell_pid_created_at": null,
+      "role": "reviewer",
+      "shell_pid": 6454,
+      "shell_pid_created_at": "1794474237.3",
       "subtasks": {
-        "T011": "planned",
-        "T012": "planned",
-        "T013": "planned",
-        "T014": "planned",
-        "T015": "planned",
-        "T016": "planned",
-        "T017": "planned"
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
       }
     },
     "WP04": {
