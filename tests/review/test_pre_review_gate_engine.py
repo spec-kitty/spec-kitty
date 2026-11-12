@@ -22,6 +22,7 @@ import tempfile
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -705,9 +706,9 @@ def _spy_on_resolve_pytest_command(
     calls: list[tuple[tuple[str, ...], Path]] = []
     real_resolve = pre_review_gate.resolve_pytest_command
 
-    def _spy(pytest_args: list[str], *, repo_root: Path) -> list[str]:
+    def _spy(pytest_args: list[str], *, repo_root: Path, **kwargs: Any) -> list[str]:
         calls.append((tuple(pytest_args), repo_root))
-        return real_resolve(pytest_args, repo_root=repo_root)
+        return real_resolve(pytest_args, repo_root=repo_root, **kwargs)
 
     monkeypatch.setattr(pre_review_gate, "resolve_pytest_command", _spy)
     return calls
