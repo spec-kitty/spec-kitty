@@ -191,7 +191,6 @@ _RELEASED_CHANGELOG_FILES: tuple[str, ...] = (
     "docs/changelog/1x/branches-and-workspaces.md",
     "docs/changelog/1x/index.md",
     "docs/changelog/1x/orchestration-and-api.md",
-    "docs/changelog/1x/toc.yml",
     "docs/changelog/1x/workflow.md",
     "docs/changelog/2x/adr-coverage.md",
     "docs/changelog/3.2.x.md",

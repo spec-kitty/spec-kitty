@@ -186,8 +186,8 @@ class TestGetPackageAssetRoot:
         """A checkout root env var resolves to src/charter/offering/missions.
 
         The fixture carries a realistic decoy at the checkout root itself
-        (``docs/templates/index.md``, mirroring this real repository's own
-        ``docs/templates/index.md``) that satisfies
+        (``docs/templates/index.md``, mirroring a page this repository carried
+        until the legacy docsite template was retired in #6943) that satisfies
         ``_looks_like_missions_root``'s loose ``*/templates/*.md`` content
         sniff just as well as the real missions directory does. Without the
         decoy this test cannot distinguish a correct implementation from one

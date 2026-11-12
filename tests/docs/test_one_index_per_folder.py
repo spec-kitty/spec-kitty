@@ -2,9 +2,9 @@
 
 doc-kitty refuses a build where a folder holds both ``index.md`` and
 ``README.md`` (both resolve to the same route). The four folders that had both
-(``adr/1.x``, ``adr/2.x``, ``adr/3.x``, ``architecture``) keep ``index.md`` while
-DocFX deploys, and their old ``README.html`` URLs redirect to that index through
-the standing moves ledger ``site/moves.yaml``.
+(``adr/1.x``, ``adr/2.x``, ``adr/3.x``, ``architecture``) keep ``index.md`` until
+the README rename (#6939), and their old ``README.html`` URLs redirect to that index
+through the standing moves ledger ``site/moves.yaml``.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ import pytest
 from scripts.docs.moves_ledger import (
     DEFAULT_MOVES_LEDGER,
     DEFAULT_URL_BASELINE,
-    derive_redirect_map,
+    collapse,
     load_baseline,
     load_moves,
 )
@@ -50,8 +50,8 @@ def test_helper_reports_a_folder_with_both_files(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("folder", _RESOLVED_FOLDERS)
 def test_readme_route_redirects_to_its_index(folder: str) -> None:
-    mapping = derive_redirect_map(load_moves(DEFAULT_MOVES_LEDGER))
-    assert mapping.get(f"{folder}/README.html") == f"{folder}/index.html"
+    mapping = collapse(load_moves(DEFAULT_MOVES_LEDGER))
+    assert mapping.get(f"/{folder}/README.html") == f"/{folder}/index.html"
     assert f"/{folder}/README.html" in load_baseline(DEFAULT_URL_BASELINE)
     assert not (_DOCS / folder / "README.md").exists()
 

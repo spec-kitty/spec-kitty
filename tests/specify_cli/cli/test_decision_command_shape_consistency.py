@@ -40,7 +40,7 @@ from typer.main import get_command
 
 from specify_cli import app as _typer_app
 from tests import _click_universe as typer_click
-from tests._support.docfx_reports_guard import assert_docfx_does_not_publish_reports
+from tests._support.reports_unpublished_guard import assert_reports_unpublished
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -94,11 +94,11 @@ def test_report_snapshot_prefix_stays_an_archive_classified_prefix() -> None:
 
     assert REPORT_SNAPSHOT_PREFIX in ARCHIVE_PATH_PREFIXES
 
-# docs/docfx.json's ``build.content`` globs are what actually gets published
-# as live docs. The exemption above is only safe as long as ``reports`` is
-# never one of those globs -- otherwise a "point-in-time snapshot" would be
+# The docsite contract (scripts/docs/_dockitty_contract.py) decides what gets
+# published as live docs. The exemption above is only safe as long as it never
+# publishes ``reports`` -- otherwise a "point-in-time snapshot" would be
 # published as a live doc while still being allowed to quote retired shapes.
-DOCFX_CONFIG_PATH = REPO_ROOT / "docs" / "docfx.json"
+DOCS_ROOT = REPO_ROOT / "docs"
 
 
 def _visible_subcommand_names(group: typer_click.Group) -> set[str]:
@@ -178,19 +178,17 @@ def test_no_non_canonical_decision_command_shape_in_repo_text() -> None:
 
 
 def test_docs_reports_exemption_is_not_published_as_live_docs() -> None:
-    """The docs/reports/ exemption is only safe while docfx never publishes it.
+    """The docs/reports/ exemption is only safe while the docsite never publishes it.
 
     ``docs/reports/`` snapshots (see ``REPORT_SNAPSHOT_PREFIX`` above) are
     exempted from the non-canonical-shape scan because they are dated,
-    immutable point-in-time records. That is only safe as long as
-    ``docs/docfx.json`` never turns those snapshots into published, live
-    documentation — otherwise a reader would see a "live" page that is
-    deliberately allowed to quote retired command shapes. This guard fails
-    loudly the moment docfx's build.content actually resolves a
-    docs/reports/ path (a **-aware glob match against a probe path, not a
-    bare 'reports' substring test -- see
-    tests/_support/docfx_reports_guard.py). Shares its implementation with
-    the equivalent guard in tests/contract/test_terminology_guards.py via
+    immutable point-in-time records. That is only safe as long as the docsite
+    never turns those snapshots into published, live documentation — otherwise
+    a reader would see a "live" page that is deliberately allowed to quote
+    retired command shapes. This guard fails loudly the moment the docsite
+    contract stops excluding reports/ or would publish one of its pages (see
+    tests/_support/reports_unpublished_guard.py). Shares its implementation
+    with the equivalent guard in tests/contract/test_terminology_guards.py via
     that module -- do not re-add a second copy here.
     """
-    assert_docfx_does_not_publish_reports(DOCFX_CONFIG_PATH)
+    assert_reports_unpublished(DOCS_ROOT)

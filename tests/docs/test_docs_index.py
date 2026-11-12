@@ -13,7 +13,7 @@ Covers WP01 subtasks T001-T006 (mission ``common-docs-query``):
 * T005 — sanity checks on the committed, generated
   ``docs/development/docs-retrieval-index.yaml``.
 * T006 — C-001 (no ``PageInventoryEntry``) and packaging-layering regressions,
-  plus the positive "``slugify`` is imported, not forked" assertion.
+  plus the "one canonical ``slugify``" assertion.
 
 The fixture docs tree is built **locally** (module-level helper, not a shared
 ``conftest.py``) per the WP01 prompt: WP02/WP03 build their own fixtures, and
@@ -31,7 +31,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.docs import docs_index, generate_kitty_specs_docs
+from scripts.docs import docs_index
 from specify_cli.docs import index_model
 from specify_cli.docs.index_model import (
     DEFAULT_INDEX_PATH,
@@ -249,8 +249,21 @@ def test_slug_for_headings_preserves_order_with_interleaved_duplicates() -> None
 
 def test_slug_for_headings_uses_canonical_slugify_for_unicode_and_punctuation() -> None:
     text = "Café, Déjà Vu!"
-    expected = generate_kitty_specs_docs.slugify(text, fallback="section")
+    expected = docs_index.slugify(text, fallback="section")
+    assert expected == "caf-d-j-vu"
     assert docs_index.slug_for_headings([text]) == [expected]
+
+
+@pytest.mark.parametrize(
+    ("value", "slug"),
+    [
+        ("Run <code>next</code> now", "run-next-now"),
+        ("  --Leading and trailing--  ", "leading-and-trailing"),
+        ("!!!", "section"),
+    ],
+)
+def test_slugify_strips_tags_and_collapses_separators(value: str, slug: str) -> None:
+    assert docs_index.slugify(value) == slug
 
 
 # ---------------------------------------------------------------------------
@@ -274,8 +287,8 @@ def test_resolve_abstract_prefers_frontmatter_then_paragraph_then_empty() -> Non
     assert docs_index.resolve_abstract({"description": "  From FM.  "}, "# H\n\nBody.\n") == "From FM."
     assert docs_index.resolve_abstract({}, "# H\n\nFirst line.\nSecond line.\n\n## More\n") == "First line. Second line."
     # No description and no leading prose paragraph -> "". This used to be
-    # described as the "ADR/changelog exemption", pointing at
-    # description_length_check.py's docs/adr/ carve-out; that carve-out was
+    # described as the "ADR/changelog exemption", pointing at the retired
+    # description gate's docs/adr/ carve-out; that carve-out was
     # retired once ADR descriptions were backfilled, and this assertion is
     # about resolve_abstract's own fallback, not about any exemption.
     assert docs_index.resolve_abstract({}, "## Only a heading\n") == ""
@@ -407,10 +420,11 @@ def test_committed_live_index_is_sorted_headed_and_nonempty() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_docs_index_imports_canonical_slugify_not_a_fork() -> None:
-    """Positive import assertion (C-005/DIRECTIVE_044): no re-implemented slugger."""
+def test_docs_index_owns_the_one_canonical_slugify() -> None:
+    """C-005/DIRECTIVE_044: one slugger. Its former home went with the legacy site build (#6943); ``docs_index`` defines it and imports none."""
     imports = _import_from_map(docs_index)
-    assert imports.get("slugify") == "scripts.docs.generate_kitty_specs_docs"
+    assert "slugify" not in imports
+    assert docs_index.slug_for_headings.__module__ == docs_index.slugify.__module__ == docs_index.__name__
 
 
 def test_neither_new_module_imports_page_inventory_entry() -> None:

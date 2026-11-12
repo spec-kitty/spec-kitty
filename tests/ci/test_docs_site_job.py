@@ -7,7 +7,8 @@ parsed by ``scripts/ci/gate_selection.py``. The job calls the ONE shared build d
 lockfile and no token, builds it, and uploads ``site/dist`` (or, for the Pages deploy at
 #6938, the Pages artifact). The step checks below read that called job, the steps that
 actually run. Since #6937 the gate is **required**: ``router-gate``'s ``needs:`` names it
-and it carries no ``continue-on-error``. DocFX keeps deploying (D-13).
+and it carries no ``continue-on-error``. Since #6938 the Pages deploy publishes this build,
+and #6943 retired the legacy generator it replaced (D-13).
 
 Every routing assertion reads the parsed router (``gate_selection.load_router``), the one
 routing authority. Each structural checker has a mutant fed through the same checker

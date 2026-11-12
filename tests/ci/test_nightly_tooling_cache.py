@@ -4,15 +4,17 @@ These are static workflow assertions: the cache paths and keys are the
 guardrail that keeps a JVM or docs build from either paying a cold download
 every night or, worse, restoring test results or an unpinned tool. The
 checksum-verification behaviour itself is tested in
-``tests/ci/test_gradle_tool_cache.py`` and ``tests/docs/test_plantuml_invoke.py``.
+``tests/ci/test_gradle_tool_cache.py``.
 
-The DocFX version and tool-cache pins left with the DocFX build job at the docsite cutover
-(#6938): ``docs-pages.yml`` deploys the doc-kitty build now, and reverting the cutover pull
-request restores that job and its tests together.
+The legacy docsite build's tool-cache pins left with its deploy job at the cutover (#6938),
+and the PlantUML jar cache of the router's ``tests (docs)`` job left with the legacy render
+scripts at its retirement (#6943): doc-kitty renders diagrams against the pinned PlantUML
+server, so no workflow caches a jar.
 """
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -24,9 +26,6 @@ pytestmark = [pytest.mark.fast]
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _WORKFLOWS = _REPO_ROOT / ".github" / "workflows"
 _CACHE_ACTION_PREFIX = "actions/cache@"
-#: The PlantUML jar cache key, one entry per pin set. Before the cutover (#6938) the DocFX deploy
-#: job shared it; the router's ``tests (docs)`` job now restores and saves it on its own.
-_PLANTUML_JAR_KEY = "plantuml-jar-${{ runner.os }}-${{ hashFiles('scripts/docs/plantuml_pins.json') }}"
 
 
 def _workflow(name: str) -> dict[str, Any]:
@@ -127,27 +126,44 @@ def test_sonar_caches_the_gradle_tool_and_dependencies_never_test_results() -> N
     assert "scripts/ci/gradle_tool_cache.py ensure" in str(install["run"])
 
 
-def test_router_docs_tests_restore_and_save_the_plantuml_jar_before_running() -> None:
-    """``tests (docs)`` must not depend on the release-asset download each run.
+def test_router_docs_tests_provision_no_plantuml_jar() -> None:
+    """``tests (docs)`` provisions nothing for the retired PlantUML render scripts (#6943).
 
-    The PlantUML render tests provision ``plantuml.jar`` at the repository root.
-    A GitHub release-asset 504 redded every docs PR until the job restored the
-    jar from the shared cache entry, provisioned it before the tests and saved it
-    independently of the test outcome.
+    The jar existed for the legacy site's render tests. doc-kitty renders diagrams at
+    build time against the pinned PlantUML server (#6936), so the job has no jar cache
+    and no provisioning step.
     """
     steps = _steps(_workflow("ci-router.yml"), "tests-docs")
-    restore = _step_index(steps, "Restore the checksum-verified PlantUML jar cache")
-    provision = _step_index(steps, "Provision the checksum-verified PlantUML jar")
-    save = _step_index(steps, "Save the checksum-verified PlantUML jar cache")
-    run_tests = _step_index(steps, "Run tests")
-    assert restore < provision < save < run_tests
+    _step_index(steps, "Run tests")  # non-vacuous: the job and its test step exist
+    assert _cache_steps(steps) == []
+    assert [step.get("name") for step in steps if "plantuml" in str(step).lower()] == []
 
-    for index in (restore, save):
-        assert _cache_paths(steps[index]) == "plantuml.jar"
-        assert _cache_key(steps[index]) == _PLANTUML_JAR_KEY, "one cache entry per PlantUML pin set"
-    assert str(steps[restore]["uses"]).startswith("actions/cache/restore@")
-    assert str(steps[save]["uses"]).startswith("actions/cache/save@")
-    assert "plantuml_invoke.ensure_jar" in str(steps[provision]["run"]), "provision through the sha256-verifying helper"
+
+_HASH_FILES = re.compile(r"hashFiles\(([^)]*)\)")
+_QUOTED = re.compile(r"'([^']+)'")
+
+
+def hashed_paths(text: str) -> list[str]:
+    """Every literal path argument of a ``hashFiles(...)`` call in *text*."""
+    return [path for call in _HASH_FILES.findall(text) for path in _QUOTED.findall(call)]
+
+
+def test_every_hashed_cache_key_input_exists() -> None:
+    """A cache key that hashes a deleted file hashes nothing, so the key never changes (#6943)."""
+    examined = 0
+    missing: list[str] = []
+    for workflow in sorted(_WORKFLOWS.glob("*.yml")):
+        for path in hashed_paths(workflow.read_text(encoding="utf-8")):
+            examined += 1
+            if not any(_REPO_ROOT.glob(path)):
+                missing.append(f"{workflow.name}: {path}")
+    assert examined >= 3, "no hashFiles() input found; the scan is broken"
+    assert missing == []
+
+
+def test_hashed_paths_reads_each_literal_argument() -> None:
+    text = "key: x-${{ hashFiles('a/pins.json', 'b/*.lock') }}-${{ hashFiles('c.txt') }}"
+    assert hashed_paths(text) == ["a/pins.json", "b/*.lock", "c.txt"]
 
 
 def test_docs_pages_push_trigger_is_main_only_where_the_deploy_runs() -> None:

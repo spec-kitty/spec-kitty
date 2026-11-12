@@ -21,12 +21,12 @@ from pathlib import Path
 
 import pytest
 
-from tests._support.docfx_reports_guard import assert_docfx_does_not_publish_reports
+from tests._support.reports_unpublished_guard import assert_reports_unpublished
 from tests._support.terminology_scope import FORBIDDEN_SCAN_ROOTS
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast]
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DOCFX_CONFIG_PATH = REPO_ROOT / "docs" / "docfx.json"
+DOCS_ROOT = REPO_ROOT / "docs"
 
 # ---------------------------------------------------------------------------
 # T013 in-scope cluster: the 10 internal command files from which the
@@ -502,23 +502,21 @@ def test_docs_adr_exemption_is_narrow() -> None:
 
 
 def test_docs_reports_exemption_is_not_published_as_live_docs() -> None:
-    """The docs/reports/ exemption is only safe while docfx never publishes it.
+    """The docs/reports/ exemption is only safe while the docsite never publishes it.
 
     docs/reports/ snapshots are exempted from the live-doc terminology scan
     (see FORBIDDEN_SCAN_ROOTS / _live_doc_scan_targets above) because they are
-    dated, immutable point-in-time records. That is only safe as long as
-    docs/docfx.json never turns those snapshots into published, live
-    documentation -- otherwise a reader would see a "live" page that is
-    deliberately allowed to carry retired vocabulary. This guard fails loudly
-    the moment docfx's build.content actually resolves a docs/reports/ path
-    (a **-aware glob match against a probe path, not a bare 'reports'
-    substring test -- see tests/_support/docfx_reports_guard.py for why that
-    was vacuous-prone). Mirrors the equivalent guard in
+    dated, immutable point-in-time records. That is only safe as long as the
+    docsite never turns those snapshots into published, live documentation --
+    otherwise a reader would see a "live" page that is deliberately allowed to
+    carry retired vocabulary. This guard fails loudly the moment the docsite
+    contract (scripts/docs/_dockitty_contract.py) stops excluding reports/ or
+    would publish one of its pages. Mirrors the equivalent guard in
     tests/specify_cli/cli/test_decision_command_shape_consistency.py; both
     call the single shared implementation in
-    tests/_support/docfx_reports_guard.py.
+    tests/_support/reports_unpublished_guard.py.
     """
-    assert_docfx_does_not_publish_reports(DOCFX_CONFIG_PATH)
+    assert_reports_unpublished(DOCS_ROOT)
 
 
 def test_no_feature_alias_in_internal_command_cluster() -> None:

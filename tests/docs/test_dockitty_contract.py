@@ -365,6 +365,17 @@ def test_unpublished_routes_name_drafts_excluded_folders_and_draft_folders(docs_
     )
 
 
+def test_published_pages_are_the_pages_not_in_unpublished_routes(docs_tree: Path) -> None:
+    """``published_pages`` is the complement of ``unpublished_routes`` over the tree's pages (#6943)."""
+    published = contract.published_pages(docs_tree)
+
+    assert published == frozenset({"index.md", "guides/live.md", "guides/old.md", "plans/roadmap.md"})
+    every_route = {contract.route_of(path.relative_to(docs_tree).as_posix()) for path in docs_tree.rglob("*.md")}
+    published_routes = {contract.route_of(rel) for rel in published}
+    assert published_routes.isdisjoint(contract.unpublished_routes(docs_tree))
+    assert published_routes | contract.unpublished_routes(docs_tree) == every_route
+
+
 def test_a_status_key_nested_under_another_key_does_not_publish_a_page(docs_tree: Path) -> None:
     _page_at(docs_tree, "guides/nested-key.md", "meta:\n  doc_status: active\n")
 
