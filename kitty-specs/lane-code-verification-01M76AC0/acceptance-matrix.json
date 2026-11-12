@@ -28,10 +28,10 @@
       "criterion_id": "FR-003",
       "description": "Verify FR-003 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/lanes/test_lane_invocation.py + tests/agent/test_implement_lane_invocation.py (planted change visible to child and grandchild with PYTHONPATH=<lane>/src when no lane venv) \u2014 WP01/WP02 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T08:51:39.942287+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
