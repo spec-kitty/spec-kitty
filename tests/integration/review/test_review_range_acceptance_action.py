@@ -372,8 +372,10 @@ def test_unavailable_range_is_a_notice_on_sites_2_and_3(templates: ReviewTemplat
     assert lines[0].startswith(f"REVIEW RANGE ({REVIEWED_WP}): unavailable — ") and lines[0].endswith(reason_suffix), review.prompt
     assert lines[1:3] == ["REVIEW COMMANDS:", _UNAVAILABLE_COMMAND]
     assert "..HEAD" not in _review_context_frame(review.prompt)
-    assert review.metadata["base_ref"] == "unknown"
     reason = lines[0].split("unavailable — ", 1)[1]
+    # Q13 (#7590): the topology payload names the same gap and points at the notice, never a ``<base>..HEAD`` diff.
+    assert _topology_diff_command(review.prompt) == f"unavailable: {reason}; see REVIEW RANGE"
+    assert review.metadata["base_ref"] == "unknown"
     assert f"Review range unavailable — {reason}" in review.stdout.splitlines(), review.stdout
     assert not _RANGE_TOKEN.findall(review.stdout), review.stdout
 
@@ -423,3 +425,29 @@ def test_owned_available_range_is_never_blocked(owned_checkouts: OwnedCheckouts,
     payload = _owned_next(owned_checkouts, monkeypatch)
 
     assert payload["kind"] == "step" and payload.get("error_code") is None, json.dumps(payload)[:2000]
+
+
+# --------------------------------------------------------------------------- operator ruling Q13 (#7590): one review range in the prompt
+
+_TOPOLOGY_START = "<!-- WORKTREE_TOPOLOGY -->"
+_TOPOLOGY_END = "<!-- /WORKTREE_TOPOLOGY -->"
+
+
+def _topology_diff_command(prompt: str) -> str | None:
+    """The ``diff_command`` of the prompt's WORKTREE_TOPOLOGY payload (``None`` when the prompt carries no topology)."""
+    if _TOPOLOGY_START not in prompt:
+        return None
+    payload = prompt.split(_TOPOLOGY_START, 1)[1].split(_TOPOLOGY_END, 1)[0]
+    return str(json.loads(payload)["diff_command"])
+
+
+@pytest.mark.parametrize("name", REVIEW_READY)
+def test_site2_topology_diff_command_is_the_review_range_diff(reviews: _Reviews, name: str) -> None:
+    """Q13: the topology payload's ``diff_command`` is the block's own ``git diff`` line, never a ``<base>..HEAD`` diff."""
+    review = reviews.get(name)
+    diff_line = _command(_site2_block(review), "  git diff ")
+    diff_command = _topology_diff_command(review.prompt)
+
+    assert diff_command is not None, f"precondition: {name}'s review prompt carries the worktree topology"
+    assert diff_command == diff_line.strip()
+    assert "..HEAD" not in diff_command
