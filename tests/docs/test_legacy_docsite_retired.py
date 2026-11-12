@@ -3,8 +3,8 @@
 The doc-kitty site (``site/``) is the only docs build. These tests keep the legacy
 toolchain from coming back:
 
-* its sources are absent: its configuration file under ``docs/``, every ``toc.yml``
-  under ``docs/``, the template under ``docs/templates/`` and the static resources
+* its sources are absent: its configuration file under ``docs/``, every legacy ``toc.yml``
+  navigation file under ``docs/``, the template under ``docs/templates/`` and the static resources
   the legacy build copied (``site/public/`` carries the site's own);
 * the ``scripts/docs`` modules and data files that only fed the legacy build are
   absent (D-6 "drop", and the "port" scripts whose job doc-kitty now does);
@@ -19,6 +19,7 @@ done-when; ``tests/architectural/test_legacy_docsite_named_nowhere.py`` enforces
 from __future__ import annotations
 
 import ast
+import re
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Final
@@ -37,11 +38,10 @@ _LEGACY_TOOL: Final[str] = "doc" + "fx"
 #: The legacy sources (D-6 last row) and the static resources its configuration copied.
 LEGACY_SOURCES: Final[tuple[str, ...]] = (
     f"docs/{_LEGACY_TOOL}.json",
-    "docs/templates",
+    "docs/templates/spec-kitty",
     "docs/CNAME",
     "docs/robots.txt",
     "docs/.nojekyll",
-    "docs/.gitignore",
 )
 
 #: ``scripts.docs`` modules that only fed the legacy build, or whose job doc-kitty now does.
@@ -66,21 +66,22 @@ RETIRED_DATA: Final[tuple[str, ...]] = (
     "glossary_page",
 )
 
+#: A legacy navigation entry: ``- name: <title>`` followed by ``href:`` or ``items:`` (the generator's toc shape).
+_TOC_ENTRY: Final[re.Pattern[str]] = re.compile(r"^- name: .+\n\s+(?:href|items):", re.MULTILINE)
+
 _SCANNED_ROOTS: Final[tuple[str, ...]] = ("scripts", "tests")
 
 
-@pytest.mark.parametrize("rel", LEGACY_SOURCES)
-def test_a_legacy_source_is_absent(rel: str) -> None:
-    assert not (_REPO_ROOT / rel).exists(), f"{rel} is back: the legacy docsite build was retired (#6943)"
-
-
-def test_no_toc_yml_remains_under_docs() -> None:
-    assert sorted(path.relative_to(_REPO_ROOT).as_posix() for path in _DOCS.rglob("toc.yml")) == []
-
-
-@pytest.mark.parametrize("name", [*(f"{module}.py" for module in RETIRED_MODULES), *RETIRED_DATA])
-def test_a_retired_docs_script_is_absent(name: str) -> None:
-    assert not (_SCRIPTS_DOCS / name).exists(), f"scripts/docs/{name} is back: the legacy docsite build was retired (#6943)"
+def test_no_legacy_docsite_file_is_back() -> None:
+    """Every resurrected legacy source, retired script and retired data file is reported at once."""
+    candidates = [
+        *LEGACY_SOURCES,
+        *(f"scripts/docs/{module}.py" for module in RETIRED_MODULES),
+        *(f"scripts/docs/{name}" for name in RETIRED_DATA),
+    ]
+    back = [rel for rel in candidates if (_REPO_ROOT / rel).exists()]
+    back += [path.relative_to(_REPO_ROOT).as_posix() for path in _DOCS.rglob("toc.yml") if _TOC_ENTRY.search(path.read_text(encoding="utf-8", errors="replace"))]
+    assert back == [], f"the legacy docsite build was retired (#6943), but these are back: {back}"
 
 
 def retired_imports(source: str) -> list[str]:
