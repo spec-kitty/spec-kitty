@@ -1,7 +1,7 @@
 {
   "rows": {
     "#3481": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "REFS - requirement text reuses the canonical declaration parser; the disagreement itself is not fixed here",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,11 +9,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#3925": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "REFS - window range enables delta narrowing later; skill/template wording is upstream",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,11 +21,23 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#470": {
+      "evidence_ref": "Context - dead-symbol gate reference in WP prompts",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
       "wp": null
     },
     "#5331": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Related, excluded - for_review gate policy",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -33,11 +45,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#5675": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Related, excluded - for_review gate predicate (C-004)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,11 +57,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#5721": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "REFS - window residuals cited as known caveats",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -57,11 +69,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6851": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Related, excluded - pre-review gate policy (sub-epic E)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -69,11 +81,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7120": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "REFS - lane_branch_missing gap degrades in the review range",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -81,11 +93,23 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7283": {
+      "evidence_ref": "Context - write-branch bound reference",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7345": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "REFS - owned-checkout review flag, not prompt content",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -93,11 +117,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7403": {
-      "evidence_ref": "<auto-classified: no action required>",
+      "evidence_ref": "Context - window recording this Mission builds on",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -109,7 +133,7 @@
       "wp": null
     },
     "#7490": {
-      "evidence_ref": "<auto-classified: no action required>",
+      "evidence_ref": "Context - PR reference",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -121,7 +145,7 @@
       "wp": null
     },
     "#7543": {
-      "evidence_ref": "<auto-classified: no action required>",
+      "evidence_ref": "Context - parent epic",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -133,7 +157,7 @@
       "wp": null
     },
     "#7547": {
-      "evidence_ref": "<auto-classified: no action required>",
+      "evidence_ref": "Context - sibling sub-epic E, not touched",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -144,8 +168,20 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#7562": {
+      "evidence_ref": "Context - open PR overlap note",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#7564": {
-      "evidence_ref": "<auto-classified: no action required>",
+      "evidence_ref": "Context - PR reference (status read door, merged)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -157,7 +193,7 @@
       "wp": null
     },
     "#7578": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Delivered by this Mission (WP01-WP07); see PR",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -165,7 +201,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "in-mission",
       "wp": null
     }
   },

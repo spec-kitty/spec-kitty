@@ -161,6 +161,30 @@
       "status": "resolved",
       "step_id": "owned_review_refusal_trigger",
       "summary_json": null
+    },
+    {
+      "created_at": "2026-11-12T07:11:00.539808Z",
+      "decision_id": "01M779GXDVBMA90HF8FTYT14DT",
+      "final_answer": "Keep the commit-to-target stamp; add consolidation guards so consolidation readers ignore commit-to-target single_branch stamps: (b) canceled-content attribution keeps refusing, (d) --attest-approved-reviewed keeps passing, (c) the dependency-ref closed-world check is unchanged. Consolidation verdicts stay identical (characterization: 0 differences).",
+      "input_key": "commit_to_target_stamp_consolidation",
+      "mission_id": "01M774QFV4PFK8Y0AXFQV30EEE",
+      "mission_slug": "review-context-wp-diff-01M774QF",
+      "opened_by": "claude",
+      "options": [
+        "Drop the stamp, derive read-side",
+        "Keep stamp + consolidation guards (verdicts identical)",
+        "Accept both changes"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Q8: The commit-to-target stamp flips two consolidation verdicts: (b) canceled-content attribution REFUSE to PASS with an empty attribution, (d) --attest-approved-reviewed PASS to REFUSE. How should the Mission proceed?",
+      "rationale": "Operator ruling 2026-11-12: one recorded window authority on every topology, without weakening #5046 or changing attestation behaviour.",
+      "resolved_at": "2026-11-12T07:11:04.032201Z",
+      "resolved_by": "operator",
+      "slot_key": null,
+      "status": "resolved",
+      "step_id": "commit_to_target_stamp_consolidation",
+      "summary_json": null
     }
   ],
   "mission_id": "01M774QFV4PFK8Y0AXFQV30EEE",
