@@ -161,7 +161,10 @@ def _fill_list(items: Sequence[str], more: Callable[[int], str], remaining: int)
 
     Returns the lines and the bytes they use. Room for the closing *more* line is reserved before
     each item is taken, so the result never exceeds *remaining* unless even that line cannot fit.
+    An empty list renders nothing: there is nothing to hide, so never a ``… 0 more`` line.
     """
+    if not items:
+        return [], 0
     total = sum(_size(item) for item in items)
     if total <= remaining:
         return list(items), total
