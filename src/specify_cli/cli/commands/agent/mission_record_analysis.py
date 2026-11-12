@@ -263,11 +263,12 @@ def _material_input_paths(repo_root: Path, mission_slug: str) -> frozenset[str] 
     ``None`` (the closure could not be collected) makes every outside path refuse:
     the gate fails closed, as it did before #7556.
     """
+    from mission_runtime import placement_seam
     from specify_cli.analysis_inputs import collect_material_inputs
-    from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 
     try:
-        inputs = collect_material_inputs(candidate_feature_dir_for_mission(repo_root, mission_slug), repo_root)
+        mission_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+        inputs = collect_material_inputs(mission_dir, repo_root)
     except (ValueError, OSError):
         return None
     return frozenset(path for key, entry in inputs.items() if key.startswith("material:") and isinstance(path := entry.get("path"), str))
