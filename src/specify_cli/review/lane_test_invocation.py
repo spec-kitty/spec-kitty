@@ -30,7 +30,6 @@ from specify_cli.review.baseline import _get_test_command
 from specify_cli.workspace.context import LANE_WORKSPACE_KIND
 
 __all__ = [
-    "lane_test_invocation_for",
     "render_lane_test_invocation_failure_lines",
     "render_lane_test_invocation_lines",
     "workspace_lane_test_invocation",
