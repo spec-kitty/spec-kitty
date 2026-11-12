@@ -106,7 +106,8 @@
       "last_transition_at": "2026-11-12T22:10:03.926359+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ready for review: squash projection refusal names paths, reasons, per-reason remedy and SQUASH_PROJECTION_NOT_LANDED; exit 1 + rollback door unchanged; stale comment fixed"
+        "Ready for review: squash projection refusal names paths, reasons, per-reason remedy and SQUASH_PROJECTION_NOT_LANDED; exit 1 + rollback door unchanged; stale comment fixed",
+        "- 2026-11-12T22:18:37Z – unknown – Rework cycle 1 leeway (outside owned_files): deleted projected_content_matches_target and re-pinned its test callers to unlanded_projected_paths (tests/terminus/test_repro_5038.py, tests/coordination/test_projection_teardown.py, tests/consolidation/test_projection_excludes_plan_outputs.py, tests/consolidation/test_bookkeeping_projection_seam.py); removed the dead_symbol_allowlist.yaml entry (no allowlist growth); git_probes.py: failed git check-attr raises GitProbeError, driver/registry failures raise new MergeDriverFailedError (GitProbeError subclass). Residual: an unreadable ours blob in the driver replay stays PROBE_FAILED (_read_git_blob_bytes cannot tell absent from unreadable)."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
