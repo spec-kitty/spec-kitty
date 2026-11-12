@@ -39,7 +39,7 @@ An agent finishes every WP of a Mission without driving each step through `next`
 
 **Acceptance Scenarios**:
 
-1. **Given** a software-dev Mission with every WP approved, not accepted and no run started, **When** `next --result success` is called, **Then** the envelope is `kind=blocked` with `error_code=MISSION_AWAITING_ACCEPTANCE` and a remediation naming `spec-kitty accept` for that Mission, and no step row is recorded.
+1. **Given** a software-dev Mission with every WP approved, not accepted and no run started, **When** `next --result success` is called, **Then** the envelope is `kind=blocked` with `error_code=MISSION_AWAITING_ACCEPTANCE` and `next_command` naming `spec-kitty accept` for that Mission, and no step row is recorded.
 2. **Given** the same Mission after `accept` (the board is still finished), **When** `next --result success` is called repeatedly, **Then** every call returns `kind=terminal`, and no run is started or advanced.
 3. **Given** a Mission whose persisted run has already been walked onto the DAG by the old behaviour (an issued `discovery`), **When** `next --result success` is called on its finished board, **Then** the same blocked or terminal answer is returned and the stale run is not advanced further.
 4. **Given** a finished board, **When** `next --result failed` or `--result blocked` is called, **Then** no DAG step is issued (no fall-through to `discovery`).

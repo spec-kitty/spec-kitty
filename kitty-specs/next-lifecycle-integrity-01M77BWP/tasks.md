@@ -39,7 +39,7 @@
 
 T001 Add the pure `finished_board_verdict` + `FinishedBoardVerdict` to the cores leaf, with unit tests (WP01)
 T002 Add additive `next_command` to `Decision` / `DecisionEnvelope` and thread it through `step_or_blocked` (WP01)
-T003 Add the I/O helper `mission_is_accepted(primary_metadata_dir)` (WP01)
+T003 Add I/O helpers `mission_accepted_at` and `board_latest_transition_at` (WP01)
 T004 Byte-identity regression: envelopes without `next_command` are unchanged (WP01)
 T020 `PendingDecisionPrompt` value object + construction-time invariant (WP01)
 
