@@ -62,3 +62,61 @@ def test_single_branch_mission_writes_in_the_repository_root_checkout(tmp_path: 
     assert isinstance(decision, dict) and decision["settled_topology"] == "single_branch"
 
     _assert_write_checkout(mission.root, mission.slug, mission.root)
+
+
+# ---------------------------------------------------------------------------
+# ``_containing_checkout``: the spelling of ``surface_root`` (anchored under ``path``)
+# ---------------------------------------------------------------------------
+
+
+def _checkout(root: Path) -> Path:
+    root.mkdir(parents=True)
+    (root / ".git").mkdir()
+    return root
+
+
+@pytest.mark.unit
+def test_containing_checkout_answers_the_nearest_checkout(tmp_path: Path) -> None:
+    from mission_runtime.resolution import _containing_checkout
+
+    root = _checkout(tmp_path / "repo")
+    worktree = root / ".worktrees" / "probe-coord"
+    worktree.mkdir(parents=True)
+    (worktree / ".git").write_text("gitdir: elsewhere\n", encoding="utf-8")
+    assert _containing_checkout(root / "kitty-specs" / "probe", root) == root.resolve()
+    assert _containing_checkout(worktree / "kitty-specs" / "probe", root) == worktree.resolve()
+
+
+@pytest.mark.unit
+def test_containing_checkout_keeps_a_symlinked_spelling_of_path(tmp_path: Path) -> None:
+    from mission_runtime.resolution import _containing_checkout
+
+    real = _checkout(tmp_path / "real" / "repo")
+    alias = tmp_path / "alias"
+    alias.symlink_to(real.parent, target_is_directory=True)
+    path = alias / "repo" / "kitty-specs" / "probe"
+    surface_root = _containing_checkout(path, real)
+    assert surface_root == alias / "repo"
+    assert path.is_relative_to(surface_root)
+
+
+@pytest.mark.unit
+def test_containing_checkout_answers_resolved_when_the_link_hides_the_checkout(tmp_path: Path) -> None:
+    from mission_runtime.resolution import _containing_checkout
+
+    real = _checkout(tmp_path / "real" / "repo")
+    (real / "kitty-specs").mkdir()
+    link = tmp_path / "specs-link"
+    link.symlink_to(real / "kitty-specs", target_is_directory=True)
+    assert _containing_checkout(link / "probe", real) == real.resolve()
+    assert _containing_checkout(link, real) == real.resolve()
+
+
+@pytest.mark.unit
+def test_containing_checkout_falls_back_to_the_main_repo_root_outside_every_checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from mission_runtime import resolution
+
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.resolve()))
+    fallback = tmp_path / "main-root"
+    monkeypatch.setattr("specify_cli.core.paths.get_main_repo_root", lambda _root: fallback)
+    assert resolution._containing_checkout(tmp_path / "elsewhere" / "kitty-specs", tmp_path) == fallback
