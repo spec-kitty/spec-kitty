@@ -60,3 +60,9 @@ def test_coordination_worktree_branch_mismatch_code_is_the_error_codes_of_the_mi
     assert _constants.COORDINATION_WORKTREE_BRANCH_MISMATCH == "COORDINATION_WORKTREE_BRANCH_MISMATCH"
     assert CoordinationWorkspaceBranchMismatch.error_code == _constants.COORDINATION_WORKTREE_BRANCH_MISMATCH
     assert _constants.COORDINATION_WORKTREE_BRANCH_MISMATCH_SUFFIX == " Error code: COORDINATION_WORKTREE_BRANCH_MISMATCH."
+
+
+def test_squash_projection_not_landed_code_is_an_operator_visible_contract() -> None:
+    """#5867: the code of the squash projection refusal is pinned, and it renders as the message suffix."""
+    assert _constants.SQUASH_PROJECTION_NOT_LANDED == "SQUASH_PROJECTION_NOT_LANDED"
+    assert _constants.error_code_suffix(_constants.SQUASH_PROJECTION_NOT_LANDED) == " Error code: SQUASH_PROJECTION_NOT_LANDED."
