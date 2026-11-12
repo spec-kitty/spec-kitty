@@ -241,7 +241,7 @@
       "wp": null
     },
     "#7547": {
-      "evidence_ref": "Closes when all slices land",
+      "evidence_ref": "All slices landed: WP01-WP06",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -249,7 +249,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "Sub-epic E: lane worktrees run and verify lane code",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": null
     },
     "#7554": {
