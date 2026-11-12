@@ -125,6 +125,8 @@ def test_baseline_command_runs_whole_declared_command_without_narrowing(tmp_path
     with (
         patch("subprocess.run", side_effect=fake_run),
         patch.object(pre_review_gate.subprocess, "Popen", side_effect=fake_popen),
+        # The global subprocess doubles would also catch the baseline recipe's git ls-files (#7547).
+        patch("specify_cli.lanes.lane_invocation.tracked_paths", return_value=[]),
     ):
         result = capture_baseline(
             worktree_path=repo,

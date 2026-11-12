@@ -592,8 +592,15 @@ def _run_command_for_baseline(
     Lazy import: ``pre_review_gate.py`` imports FROM this module at its own
     top level (``CAPTURE_BASELINE_TIMEOUT_SECONDS``, ``_parse_junit_xml``,
     ...), so a module-level import here would be a two-way cycle.
+
+    Environment symmetry (#7547): the run uses the same lane test invocation
+    recipe as the head, rooted at the baseline worktree (interpreter-redirect
+    variables removed; ``PYTHONPATH=<cwd>/src`` when the worktree has tracked
+    source packages and no ``.venv``), so head and baseline differ only in code.
+    The baseline's source identity is not affected.
     """
-    from specify_cli.review.pre_review_gate import HeadRunState, _default_process_wait, _run_raw_command
+    from specify_cli.lanes.lane_invocation import build_lane_test_invocation, run_environment
+    from specify_cli.review.pre_review_gate import HeadRunState, _default_process_wait, _gate_run_env, _run_raw_command
 
     junit_path = _extract_junit_output_path(command)
     if junit_path is not None and not junit_path.is_absolute():
@@ -614,6 +621,7 @@ def _run_command_for_baseline(
         monotonic=time.monotonic,
         wait=_default_process_wait,
         serialize=False,
+        env=run_environment(build_lane_test_invocation(cwd, command=None), _gate_run_env()),
     )
     if state is HeadRunState.TIMED_OUT:
         return RawRunResult(
