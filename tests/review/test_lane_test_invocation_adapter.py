@@ -216,7 +216,8 @@ def test_render_flags_a_foreign_probe_as_untrustworthy(tmp_path: Path) -> None:
 
     lines = render_lane_test_invocation_lines(invocation)
 
-    assert lines[-1] == f"   probe: FOREIGN — pkg loads from {origin}, outside this lane. Fix the lane's environment before trusting any test result."
+    # Worded for any workspace: a single_branch write checkout is not a lane (review cycle 1, item 3).
+    assert lines[-1] == f"   probe: FOREIGN — pkg loads from {origin}, outside this workspace. Fix its environment before trusting any test result."
 
 
 def test_render_keeps_an_origin_outside_the_lane_absolute(tmp_path: Path) -> None:
