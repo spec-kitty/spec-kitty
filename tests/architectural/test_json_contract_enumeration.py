@@ -110,6 +110,7 @@ ADOPTED: dict[str, tuple[tuple[str, ...], int, str]] = {
     "agent tasks status": ((), 1, "outside"),
     "archive create": (("missing", "--by", "missing", "--reason", "missing"), 2, "outside"),
     "archive list": ((), 2, "outside"),
+    "archive reclaim": (("missing",), 2, "outside"),
     "charter activate": (("--preset", "missing"), 1, "outside"),
     "charter deactivate": (("nonsense", "x"), 1, "outside"),
     "charter status": ((), 1, "outside"),

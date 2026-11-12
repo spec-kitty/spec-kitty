@@ -619,6 +619,10 @@ _OPERATOR_INTENT_CALLERS: frozenset[tuple[str, str]] = frozenset(
     {
         ("src/specify_cli/missions/_create.py", "_delete_branch"),
         ("src/specify_cli/cli/commands/mission_type.py", "_discard_own_mission_branch"),
+        # #4041 (operator ruling 01M78G5TMBJWFRE1ZPVSS2ATKN): ``archive reclaim`` deletes a coordination
+        # branch under LANDED_INTENT, bound to the tip its recorded landing proved (rulings
+        # 01M78HNKEQPPZMY24JZVJG2MNF, 01M78JC7ZBJM0CY442BKDGBP7V).
+        ("src/specify_cli/missions/archive_reclaim.py", "_delete_branch"),
     }
 )
 _GUARDED_BRANCH_DELETE = "guarded_branch_delete"
