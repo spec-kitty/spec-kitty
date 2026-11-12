@@ -1309,8 +1309,12 @@ def _refuse_copy_outside_holder(path: Path, translated: Path, *, rel: Path, work
     An absent *path* is fine (the holder copy is committed), and so is a *path*
     whose bytes equal the holder copy's. A *path* with no holder copy, or one whose
     bytes differ from it, is refused: the edit would otherwise be silently dropped.
+    Two copies that are not both regular files (for example two directories) are not
+    compared byte-wise: the holder copy stands, as it did before this check existed.
     """
     if not path.exists():
+        return
+    if translated.exists() and not (path.is_file() and translated.is_file()):
         return
     if not translated.exists():
         diagnostic = (
