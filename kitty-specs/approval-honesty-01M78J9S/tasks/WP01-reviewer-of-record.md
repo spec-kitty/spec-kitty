@@ -19,6 +19,9 @@ requirement_refs:
 planning_base_branch: fix/3044-approval-honesty
 merge_target_branch: fix/3044-approval-honesty
 branch_strategy: Planning artifacts for this mission were generated on fix/3044-approval-honesty. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/3044-approval-honesty unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-approval-honesty-01M78J9S
+base_commit: ba75556425d7420e35ab4e79cafedb064329f43c
+created_at: '2026-11-12T19:42:13.048713+00:00'
 subtasks:
 - T001
 - T002
