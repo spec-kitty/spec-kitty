@@ -28,7 +28,8 @@ from specify_cli.review import wp_range
 from specify_cli.review.wp_range import FileChange, RangeCommit, RangeSource, RangeStatus, WpReviewRange, resolve_wp_review_range
 from tests.consolidation import characterization_support as cs
 from tests.integration import single_branch_window_support as sb
-from tests.integration.review.review_range_fixtures import strip_single_branch_stamps, submitted_planning_lane_wp
+from specify_cli.review.context_block import render_review_context
+from tests.integration.review.review_range_fixtures import run_printed_command, strip_single_branch_stamps, submitted_planning_lane_wp
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -733,3 +734,46 @@ def test_planning_lane_wp_on_a_lanes_mission_gets_the_derived_event_commit_range
     assert found.gap == "not_recorded"
     assert [commit.sha for commit in found.commits] == [submitted.work]
     assert [change.path for change in found.files] == [submitted.work_path]
+
+
+# --------------------------------------------------------------------------- list == printed command (contract)
+
+
+def _printed_log_subjects(m: sb.Mission, found: WpReviewRange) -> list[str]:
+    """The subjects the block's printed ``git log`` command lists, oldest first, run as written."""
+    line = next(line for line in render_review_context(found, ()) if line.startswith("  git log "))
+    output = run_printed_command(m.repo, line)
+    return [entry.partition(" ")[2] for entry in reversed(output.splitlines()) if entry]
+
+
+def test_unscoped_printed_git_log_lists_exactly_the_listed_commits(sb_templates: _SingleBranchTemplates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Contract: ``IMPLEMENTATION COMMITS (<n>; = output of the git log command below)`` also holds when unscoped."""
+    m = _checkout(sb_templates.get("minted"), tmp_path, monkeypatch)
+    sb.claim(m, "WP01")
+    sb.implement(m, "WP01")
+    sb.commit_file(m, "docs/other.md", "other\n", "docs: outside the owned files")
+    sb.submit(m, "WP01")
+
+    found = _resolve_sb(m, owned=())
+
+    assert found.status is RangeStatus.DERIVED or found.status is RangeStatus.RECORDED
+    assert _printed_log_subjects(m, found) == _subjects(found)
+
+
+def test_whole_mission_dir_ownership_never_lists_a_bookkeeping_only_commit(
+    sb_templates: _SingleBranchTemplates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Contract: commits that touch only bookkeeping paths never appear, and the list equals the printed command."""
+    m = _checkout(sb_templates.get("minted"), tmp_path, monkeypatch)
+    root = f"kitty-specs/{m.slug}/"
+    sb.claim(m, "WP01")
+    sb.commit_file(m, f"{root}research/notes.md", "notes\n", "docs(WP01): research notes")
+    meta = m.repo / root / "meta.json"
+    meta.write_text(meta.read_text(encoding="utf-8").rstrip("\n") + "\n\n", encoding="utf-8")
+    sb.git(m.repo, "commit", "-qam", "chore: touch meta.json only")
+    sb.submit(m, "WP01")
+
+    found = _resolve_sb(m, owned=(f"{root}**",))
+
+    assert _subjects(found) == ["docs(WP01): research notes"]
+    assert _printed_log_subjects(m, found) == _subjects(found)
