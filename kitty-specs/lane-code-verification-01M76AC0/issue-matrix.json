@@ -8,7 +8,7 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
+      "title": "Capture test evidence in the CLI",
       "verdict": "not-applicable",
       "wp": null
     },
@@ -32,7 +32,7 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
+      "title": "software-dev mission workflow assumes Python/pytest layout — friction for Go (and other non-Python) consumer repos",
       "verdict": "not-applicable",
       "wp": null
     },
@@ -44,7 +44,7 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
+      "title": "Root & worktree-path detection — resolution mechanism, lane routing, and containment-boundary discipline",
       "verdict": "not-applicable",
       "wp": null
     },
@@ -56,7 +56,7 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
+      "title": "Lane .venv missing pytest → `uv run pytest` silently tests PRIMARY src (gate false reds/greens) + pre-review `no_coverage`",
       "verdict": "not-applicable",
       "wp": null
     },
@@ -68,7 +68,7 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
+      "title": "_make_merge_env derives venv bin from sys.executable — wrong spec-kitty under `uv run`",
       "verdict": "not-applicable",
       "wp": null
     },
@@ -80,7 +80,7 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
+      "title": "CLI environment-skew warning is not self-repairing: reports ambient PATH version and offers no non-mutating verification",
       "verdict": "not-applicable",
       "wp": null
     },
@@ -92,7 +92,7 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
+      "title": "Regression & pre-review gate reliability — a red gate must mean a real regression",
       "verdict": "not-applicable",
       "wp": null
     },
@@ -104,7 +104,7 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
+      "title": "Share the pytest test-venv across lane worktrees instead of rebuilding per lane",
       "verdict": "not-applicable",
       "wp": null
     },
@@ -116,7 +116,7 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
+      "title": "Dev environment: make one documented sync command yield every tool the test suite and WP gates invoke (test+lint extras, radon) and skip-with-reason when absent (Epic #5059 follow-up)",
       "verdict": "not-applicable",
       "wp": null
     },
@@ -128,7 +128,7 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
+      "title": "implement-review dispatch template: required fields (sub-delegation policy, lane-consolidation state, env/venv constraints) (Epic #5059 follow-up)",
       "verdict": "not-applicable",
       "wp": null
     },
@@ -140,7 +140,7 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
+      "title": "Lane worktrees: provision a lane-scoped interpreter (or fail loud on foreign-src import) and stop hard-coding /.venv in prompts and fixtures (Epic #5059 follow-up)",
       "verdict": "not-applicable",
       "wp": null
     },
@@ -152,7 +152,7 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
+      "title": "EPIC: Test suite friction — CI topology & lanes",
       "verdict": "not-applicable",
       "wp": null
     },
@@ -164,7 +164,7 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
+      "title": "test_synthetic_mission_type_is_picked_up_by_both_rosters fails in linked worktrees: `uv run` picks an interpreter without project deps",
       "verdict": "not-applicable",
       "wp": null
     },
@@ -188,7 +188,7 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
+      "title": "Pre-review gate never inspects a WP whose work landed on the target branch (planning-lane and single_branch shapes)",
       "verdict": "not-applicable",
       "wp": null
     },
@@ -200,7 +200,7 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
+      "title": "lane_checkout_containing fails open on a git failure; three inside-a-repository predicates",
       "verdict": "not-applicable",
       "wp": null
     },
@@ -212,7 +212,7 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
+      "title": "Sub-epic: Entry-point and environment parity — orchestrator-api, self-hosting runs and the merge driver run the same guarded pipeline as spec-kitty consolidate",
       "verdict": "not-applicable",
       "wp": null
     },
@@ -224,7 +224,7 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
+      "title": "[S4] Route orchestrator-API transitions through the CLI's service functions",
       "verdict": "not-applicable",
       "wp": null
     },
@@ -236,13 +236,13 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
+      "title": "Epic: Core workflow friction from closeout and benchmark runs (#7540, rc7 step register, mission tracers)",
       "verdict": "not-applicable",
       "wp": null
     },
     "#7547": {
       "evidence_ref": "All slices landed: WP01-WP06",
-      "fr": null,
+      "fr": "FR-001..FR-011",
       "nfr": null,
       "repo": null,
       "sc": null,
@@ -254,7 +254,7 @@
     },
     "#7554": {
       "evidence_ref": "WP01-WP04: lane test invocation + probe, implement/prompts carry it, gate records evidence_tree and refuses EVIDENCE_TREE_MISMATCH",
-      "fr": null,
+      "fr": "FR-001..FR-011",
       "nfr": null,
       "repo": null,
       "sc": null,
@@ -266,7 +266,7 @@
     },
     "#7577": {
       "evidence_ref": "WP06: new lanes get the pinned, verified packs trees offline",
-      "fr": null,
+      "fr": "FR-012",
       "nfr": null,
       "repo": null,
       "sc": null,

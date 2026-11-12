@@ -102,8 +102,8 @@ flowchart LR
   gate to substitute); `None` when unset.
 - Probe interpreter: the lane's own venv interpreter (`.venv/bin/python`, or
   `.venv\Scripts\python.exe` chosen through `kernel.paths.is_windows`) when present, else
-  `sys.executable`. The child runs `-P -c` (no cwd on `sys.path`, matching a console-script
-  pytest) with `importlib.util.find_spec(name)` for each probed package (no package code
+  `sys.executable`. The child runs `-c` and drops the working directory from `sys.path` itself (matching a
+  console-script pytest, and working on interpreters without `-P`) with `importlib.util.find_spec(name)` for each probed package (no package code
   executes) and prints JSON `{name: origin}`; timeout 5 s. Probed packages: regular packages
   (`src/<name>/__init__.py`) tracked by git in the lane, listed through `kernel.git`. None →
   `unverified` ("no tracked source-layout packages to probe"); `find_spec` returning `None`

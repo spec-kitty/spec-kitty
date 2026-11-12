@@ -2,11 +2,14 @@
 
 ## Recorded evidence
 `status.events.jsonl` → transition `policy_metadata.pre_review_gate.evidence_tree`, present
-whenever the gate built an invocation (absent on the skip path, on planning lanes and on
-verdicts synthesized before inputs resolved):
+whenever the gate reached a test-running tier (a declared test command or an override
+scope) and built and probed an invocation; absent on the skip path, on an undeclared gate,
+an empty diff, planning lanes and verdicts synthesized before inputs resolved. Paths under
+the repository root (`path`, probe `origins`, `interpreter`, `reason`) are recorded
+repository-relative in posix form:
 
 ```json
-{"path": "/abs/lane", "head": "<40-hex>", "dirty": false,
+{"path": ".worktrees/<slug>-lane-a", "head": "<40-hex>", "dirty": false,
  "probe": {"status": "verified", "origins": {...}, "foreign": [], "reason": null, "interpreter": "..."}}
 ```
 
