@@ -193,6 +193,9 @@
       "last_event_id": "01M77YRF2C06GQSZ3XG2Z2CSNS",
       "last_transition_at": "2026-11-12T13:22:08.076343+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: changelog fragments 7578.added.md/7578.changed.md; CLAUDE.md (symlink -> AGENTS.md) work-package windows paragraph extended; T031 sweep green (ruff check 46 files, ruff format --force-exclude 40 files, mypy --strict 19 src files, C901 clean, no new noqa/type:ignore, no packs/ or CHANGELOG.md change, terminology guard 98 passed). Open-packs follow-up drafted for orchestrator to file (review prompt checklist items 4-6 use review-context block range/commands and cited requirement text)."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 25383,
