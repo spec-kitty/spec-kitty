@@ -31,6 +31,7 @@ from typer.testing import CliRunner
 
 from runtime.next.prompt_builder import build_prompt
 from specify_cli.cli.commands import next_cmd
+from specify_cli.review.context_block import render_review_context
 from specify_cli.review.wp_range import RangeStatus, resolve_wp_review_range
 from tests.integration.review.review_range_fixtures import (
     CITED_REFS,
@@ -44,6 +45,7 @@ from tests.integration.review.review_range_fixtures import (
     review_block,
     run_printed_command,
     snapshot_tree,
+    submitted_coord_planning_lane_wp,
 )
 from tests.runtime._next_mission_scaffold import advance_to_step, analysis_is_current
 
@@ -326,3 +328,22 @@ def test_unavailable_range_is_a_notice_through_next_never_a_refusal(templates: R
     assert lines[1:3] == ["REVIEW COMMANDS:", _UNAVAILABLE_COMMAND], block
     assert "..HEAD" not in block
     assert _section(block, _REQUIREMENTS_HEADING)[2] == "  C-009 — not declared in this Mission's spec"
+
+
+def test_coord_planning_lane_wp_is_never_an_empty_derived_range(templates: ReviewTemplates, tmp_path: Path) -> None:
+    """H1 (operator ruling Q10): on ``lanes_with_coord`` the planning WP's events live on the coordination branch.
+
+    Its work is committed on the planning lane's write branch, so two event commits on the
+    coordination branch cannot bound it: the range is unavailable with a notice, never a
+    ``[derived]`` range that lists 0 commits.
+    """
+    fx = templates.checkout("lanes_with_coord", tmp_path)
+    with fx.environment():
+        submitted = submitted_coord_planning_lane_wp(fx)
+        found = resolve_wp_review_range(fx.repo, fx.mission_slug, submitted.wp_id, owned_files=submitted.owned_files)
+
+    assert found.status is RangeStatus.UNAVAILABLE, (found.status, found.base, found.tip, found.commits)
+    assert found.gap == "not_recorded"
+    lines = render_review_context(found, ())
+    assert lines[0] == f"REVIEW RANGE ({submitted.wp_id}): unavailable — no window or submission stamp was recorded (not_recorded)"
+    assert lines[1:3] == ["REVIEW COMMANDS:", _UNAVAILABLE_COMMAND]

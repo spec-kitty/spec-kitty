@@ -81,6 +81,7 @@ __all__ = [
     "run_printed_command",
     "snapshot_tree",
     "strip_single_branch_stamps",
+    "submitted_coord_planning_lane_wp",
     "submitted_planning_lane_wp",
     "strip_stamps",
 ]
@@ -405,6 +406,46 @@ def submitted_planning_lane_wp(tmp_path: Path) -> PlanningLaneSubmission:
         work_path=work_path,
         tip=tip,
     )
+
+
+def submitted_coord_planning_lane_wp(fixture: ReviewFixture) -> PlanningLaneSubmission:
+    """Add a planning-lane WP03 to the ``lanes_with_coord`` *fixture* and submit it (H1, operator ruling Q10).
+
+    WP03's transitions go through the production coordination shell, so they are committed on the
+    coordination branch; its research is committed on the planning lane's write branch (the target,
+    checked out in the repository root checkout). Call it inside ``fixture.environment()``.
+    """
+    assert fixture.lane_mission is not None, "a lane topology fixture"
+    repo, slug, feature_dir = fixture.repo, fixture.mission_slug, fixture.feature_dir
+    manifest = read_lanes_json(feature_dir)
+    assert manifest is not None
+    planning = ExecutionLane(
+        lane_id="lane-planning",
+        wp_ids=("WP03",),
+        write_scope=(f"kitty-specs/{slug}/research",),
+        predicted_surfaces=("planning",),
+        depends_on_lanes=(),
+        parallel_group=0,
+    )
+    write_lanes_json(feature_dir, replace(manifest, lanes=[*manifest.lanes, planning]))
+    owned = f"kitty-specs/{slug}/research/**"
+    (feature_dir / "tasks" / "WP03-plan.md").write_text(
+        f"---\nwork_package_id: WP03\ntitle: WP03\ndependencies: []\nsubtasks: []\nowned_files:\n- {owned}\n---\n# WP03\n",
+        encoding="utf-8",
+    )
+    cs._git(repo, "add", "-A", "kitty-specs")
+    cs._git(repo, "commit", "-qm", "test: add planning-lane WP03")
+    coord = fixture.lane_mission.coord_mission()
+    for lane in ("planned", "claimed", "in_progress"):
+        transition(coord, "WP03", lane, actor=ACTOR)
+    work_path = f"kitty-specs/{slug}/research/WP03.md"
+    (repo / work_path).parent.mkdir(parents=True, exist_ok=True)
+    (repo / work_path).write_text("# WP03 research\n", encoding="utf-8")
+    cs._git(repo, "add", "-A", "kitty-specs")
+    cs._git(repo, "commit", "-qm", "docs: WP03 research")
+    work = cs._git(repo, "rev-parse", "HEAD")
+    transition(coord, "WP03", "for_review", actor=ACTOR, force=True, reason="planning-lane submission")
+    return PlanningLaneSubmission(repo=repo, slug=slug, wp_id="WP03", owned_files=(owned,), claim="", work=work, work_path=work_path, tip="")
 
 
 # --------------------------------------------------------------------------- single_branch builders
