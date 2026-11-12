@@ -26,7 +26,7 @@ import posixpath
 import shutil
 import subprocess
 import sys
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
@@ -461,3 +461,76 @@ def test_to_dict_shapes_match_the_contract(scratch_project: ScratchProject) -> N
     tree_dict = tree.to_dict()
     assert set(tree_dict) == {"path", "head", "dirty", "probe"}
     assert tree_dict["probe"] == probe_dict
+
+
+# --- Close-out folds (aggregate review of mission lane-code-verification) ----
+
+
+def _wrap_venv_python_rejecting_dash_p(python: Path) -> None:
+    """Make *python* behave like a pre-3.11 interpreter: ``-P`` is an unknown option."""
+    real = python.with_name("python-real")
+    python.rename(real)
+    python.write_text(
+        f'#!/bin/sh\nfor a in "$@"; do [ "$a" = "-P" ] && {{ echo "Unknown option: -P" >&2; exit 2; }}; done\nexec "{real}" "$@"\n',
+        encoding="utf-8",
+    )
+    python.chmod(0o755)
+
+
+@posix_only
+@pytest.mark.git_repo
+def test_probe_works_on_an_interpreter_without_dash_p(scratch_project: ScratchProject) -> None:
+    lane = scratch_project.lane
+    python = _make_venv(lane / ".venv", lane / "src")
+    inv = build_lane_test_invocation(lane, command=None)
+    # Positive control on the same fixture: the real venv interpreter verifies.
+    assert probe_lane_imports(inv, base_env=_clean_env()).status is ProbeStatus.VERIFIED
+    _wrap_venv_python_rejecting_dash_p(python)
+    probe = probe_lane_imports(inv, base_env=_clean_env())
+    assert probe.status is ProbeStatus.VERIFIED, probe.reason
+
+
+@pytest.mark.git_repo
+def test_probe_ignores_a_decoy_package_in_the_working_directory(scratch_project: ScratchProject) -> None:
+    lane = scratch_project.lane
+    decoy = lane / _PKG
+    decoy.mkdir()
+    (decoy / "__init__.py").write_text("V = 99\n", encoding="utf-8")
+    probe = probe_lane_imports(build_lane_test_invocation(lane, command=None), base_env=_clean_env())
+    assert probe.status is ProbeStatus.VERIFIED, probe.reason
+    origin = _origins(probe)[_PKG]
+    assert origin is not None
+    assert origin_inside(origin, lane / "src")
+
+
+@pytest.mark.git_repo
+def test_capture_evidence_tree_records_repository_relative_origins(scratch_project: ScratchProject, tmp_path: Path) -> None:
+    lane = scratch_project.lane
+    probe = probe_lane_imports(build_lane_test_invocation(lane, command=None), base_env=_clean_env())
+    recorded = capture_evidence_tree(lane, probe, repo_root=tmp_path).probe
+    assert dict(recorded.origins)[_PKG] == f"lane/src/{_PKG}/__init__.py"
+    assert recorded.status is probe.status
+    # Positive control: without a repository root nothing is rewritten.
+    assert capture_evidence_tree(lane, probe).probe == probe
+
+
+@pytest.mark.fast
+def test_git_reads_carry_a_timeout(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    import specify_cli.lanes.lane_invocation as module
+
+    seen: dict[str, object] = {}
+
+    def _spy(name: str) -> Callable[..., tuple[()]]:
+        def _record(*args: object, **kwargs: object) -> tuple[()]:
+            seen[name] = kwargs.get("timeout")
+            raise module.GitCommandError(argv=("x",), cwd=tmp_path, returncode=1, stderr="")
+
+        return _record
+
+    monkeypatch.setattr(module, "tracked_paths", _spy("tracked_paths"))
+    monkeypatch.setattr(module, "run_git", _spy("run_git"))
+    monkeypatch.setattr(module, "status_entries", _spy("status_entries"))
+    probe = module.probe_lane_imports(build_lane_test_invocation(tmp_path, command=None))
+    module.capture_evidence_tree(tmp_path, probe)
+    assert set(seen) == {"tracked_paths", "run_git", "status_entries"}
+    assert all(isinstance(value, (int, float)) and value > 0 for value in seen.values()), seen
