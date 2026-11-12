@@ -46,7 +46,7 @@ from specify_cli.core.subtask_recipe import mark_status_recipe
 from specify_cli.runtime.resolver import resolve_command
 from specify_cli.requirement_mapping.text import resolve_requirement_texts
 from specify_cli.review.antipattern_checklist import render_wp_review_antipattern_checklist
-from specify_cli.review.context_block import render_review_context
+from specify_cli.review.context_block import describe_gap, render_review_context
 from specify_cli.review.wp_range import RangeStatus, resolve_wp_review_range
 from specify_cli.status import FrontmatterError, read_authored_wp_frontmatter
 from specify_cli.workspace.context import resolve_workspace_for_wp
@@ -375,10 +375,10 @@ def _review_command_lines(
         raise _review_base_unavailable(wp_id, "the work package declares no owned_files")
     review_range = resolve_wp_review_range(repo_root, mission_slug, wp_id, owned_files=owned_files, owned=owned)
     if owned is not None and review_range.status is RangeStatus.UNAVAILABLE:
-        raise _review_base_unavailable(wp_id, f"the review range is unavailable: {review_range.gap}")
+        raise _review_base_unavailable(wp_id, f"the review range is unavailable: {describe_gap(review_range.gap)}")
     cited = resolve_requirement_texts(_spec_text(repo_root, mission_slug, owned), list(wp_meta.requirement_refs or []), mission_type=mission_type)
     branch = owned.write_branch if owned is not None else workspace.branch_name
-    lines = render_review_context(review_range, cited, branch=branch)
+    lines: list[str] = render_review_context(review_range, cited, branch=branch)
     lines.append("")
     lines.append(render_wp_review_antipattern_checklist())
     lines.append("")

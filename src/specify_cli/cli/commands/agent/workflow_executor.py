@@ -51,7 +51,6 @@ from specify_cli.cli.commands._commit_recipes import safe_commit_recipe
 from specify_cli.core.commit_recipe import implementation_commit_step
 from specify_cli.cli.commands.implement_claim import DispatchedClaimIdentity, claim_status_pair_paths
 from specify_cli.cli.commands.agent.workflow_cores import (
-    build_owned_files_review_pathspecs,
     has_prior_rejection,
     is_missing_canonical_status_error,
     missing_canonical_status_message,
@@ -65,6 +64,9 @@ from specify_cli.cli.commands.agent.workflow_cores import (
 from specify_cli.core.constants import MISSION_TYPE_RESEARCH
 from specify_cli.core.subtask_recipe import mark_status_recipe
 from specify_cli.missions._read_path_resolver import mission_write_lock_dir
+from specify_cli.requirement_mapping.text import CitedRequirement, resolve_requirement_texts
+from specify_cli.review.context_block import render_review_context
+from specify_cli.review.wp_range import RangeStatus, WpReviewRange, resolve_wp_review_range
 from specify_cli.review.lane_test_invocation import (
     render_lane_test_invocation_failure_lines,
     render_lane_test_invocation_lines,
@@ -2142,38 +2144,75 @@ def review_compute_dependents_warning(repo_root: Path, mission_slug: str, normal
     return dependents_warning
 
 
+_REVIEW_CONTEXT_HEADING = "─── GIT REVIEW CONTEXT " + "─" * 57
+_REVIEW_CONTEXT_RULE = "─" * 80
+_SPEC_FILENAME = "spec.md"
+_DEFAULT_MISSION_TYPE = "software-dev"
+_GIT_LOG_PREFIX = "  git log "
+_UNAVAILABLE_MARK = "unavailable — "
+
+
+def _review_range_of(review_ctx: dict[str, object]) -> WpReviewRange | None:
+    """The WP review range ``_resolve_review_context`` resolved once for this review, if any."""
+    found = review_ctx.get("review_range")
+    return found if isinstance(found, WpReviewRange) else None
+
+
+def _review_spec_text(repo_root: Path, mission_slug: str) -> str:
+    """The Mission's ``spec.md`` read through the placement seam, or ``""`` when it cannot be read (NFR-004)."""
+    try:
+        spec_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.SPEC)
+        return (spec_dir / _SPEC_FILENAME).read_text(encoding="utf-8")
+    except (OSError, UnicodeError, ValueError):
+        return ""
+
+
+def review_cited_requirements(*, repo_root: Path, mission_slug: str, wp: WorkPackage, mission_type: str | None) -> tuple[CitedRequirement, ...]:
+    """The work package's cited requirements with their texts from the Mission's spec (unreadable spec: none declared)."""
+    wp_meta, _ = read_wp_frontmatter(wp.path)
+    refs = list(wp_meta.requirement_refs or [])
+    cited: tuple[CitedRequirement, ...] = resolve_requirement_texts(
+        _review_spec_text(repo_root, mission_slug), refs, mission_type=mission_type or _DEFAULT_MISSION_TYPE
+    )
+    return cited
+
+
 def _review_context_line(
-    *, workspace: ResolvedWorkspace, workspace_path: Path, review_ctx: dict[str, object], mission_slug: str, wp: WorkPackage
+    *, workspace_path: Path, review_ctx: dict[str, object], cited: tuple[CitedRequirement, ...], branch: str | None
 ) -> list[str]:
-    """Render the "GIT REVIEW CONTEXT" block, or the unavailable-diff notice."""
-    lines: list[str] = []
-    if review_ctx["base_branch"] != "unknown":
-        base = review_ctx["base_branch"]
-        branch_ref = review_ctx["branch_name"]
-        review_paths = ""
-        if workspace.resolution_kind == "repo_root":
-            wp_meta, _ = read_wp_frontmatter(wp.path)
-            pathspecs = build_owned_files_review_pathspecs(list(wp_meta.owned_files or []), mission_slug)
-            if pathspecs:
-                review_paths = " -- " + " ".join(pathspecs)
-        lines.append("─── GIT REVIEW CONTEXT " + "─" * 57)
-        lines.append(f"Branch:      {branch_ref}")
-        lines.append(f"Base branch: {base} ({review_ctx['commit_count']} commits ahead)")
-        lines.append("")
-        lines.append("Review commands (run in the workspace):")
-        lines.append(f"  cd {workspace_path}")
-        lines.append(f"  git log {base}..{branch_ref} --oneline{review_paths}           # WP commits only")
-        lines.append(f"  git diff {base}..{branch_ref} --stat{review_paths}             # Changed files")
-        lines.append(f"  git diff {base}..{branch_ref}{review_paths}                    # Full diff")
-        lines.append("─" * 80)
-        lines.append("")
-    elif workspace.resolution_kind == "repo_root":
-        lines.append("─── GIT REVIEW CONTEXT " + "─" * 57)
-        lines.append("Review commands unavailable: no deterministic implementation claim commit found for this WP.")
-        lines.append("Re-run review after the WP has a committed implementation claim on this mission.")
-        lines.append("─" * 80)
-        lines.append("")
-    return lines
+    """The "GIT REVIEW CONTEXT" frame around the shared review-context block (render site 2, FR-012).
+
+    The block is :func:`render_review_context` of the range resolved once for this review, the
+    same text ``spec-kitty next`` prints (SC-003); an unavailable range renders as its notice and
+    the review proceeds (FR-013).
+    """
+    review_range = _review_range_of(review_ctx)
+    if review_range is None:
+        return []
+    return [
+        _REVIEW_CONTEXT_HEADING,
+        f"cd {workspace_path}",
+        "",
+        *render_review_context(review_range, cited, branch=branch),
+        "",
+        _REVIEW_CONTEXT_RULE,
+        "",
+    ]
+
+
+def _review_range_summary_lines(review_ctx: dict[str, object], branch: str | None) -> list[str]:
+    """Render site 3: the block's header line and its ``git log`` command line, verbatim from the renderer.
+
+    An unavailable range prints ``Review range unavailable — <reason>`` from that same header line.
+    """
+    review_range = _review_range_of(review_ctx)
+    if review_range is None:
+        return []
+    block = render_review_context(review_range, (), branch=branch)
+    header = block[0]
+    if review_range.status is RangeStatus.UNAVAILABLE:
+        return [f"Review range {_UNAVAILABLE_MARK}{header.partition(_UNAVAILABLE_MARK)[2]}"]
+    return ["🔀 Review range (run in the workspace):", header, *(line for line in block if line.startswith(_GIT_LOG_PREFIX))]
 
 
 def _review_baseline_context_lines(*, main_repo_root: Path, mission_slug: str, wp_slug: str) -> list[str]:
@@ -2351,7 +2390,8 @@ def build_review_prompt_lines(
         lines.append(f"[Topology unavailable: {exc}]")
         lines.append("")
 
-    lines.extend(_review_context_line(workspace=workspace, workspace_path=workspace_path, review_ctx=review_ctx, mission_slug=mission_slug, wp=wp))
+    cited = review_cited_requirements(repo_root=main_repo_root, mission_slug=mission_slug, wp=wp, mission_type=review_mission_type)
+    lines.extend(_review_context_line(workspace_path=workspace_path, review_ctx=review_ctx, cited=cited, branch=workspace.branch_name))
 
     wp_slug = wp.path.stem
     lines.extend(_review_baseline_context_lines(main_repo_root=main_repo_root, mission_slug=mission_slug, wp_slug=wp_slug))
@@ -2452,7 +2492,6 @@ def review_finalize_and_print(
     target_branch: str,
     dependents_warning: list[str],
     review_feedback_path: Path,
-    wp: WorkPackage,
 ) -> None:
     """Write the review prompt (with metadata), validate it, and print the
     concise stdout summary."""
@@ -2497,7 +2536,6 @@ def review_finalize_and_print(
         review_ctx=review_ctx,
         dependents_warning=dependents_warning,
         review_feedback_path=review_feedback_path,
-        wp=wp,
     )
 
 
@@ -2512,7 +2550,6 @@ def _review_print_finalize_summary(
     review_ctx: dict[str, object],
     dependents_warning: list[str],
     review_feedback_path: Path,
-    wp: WorkPackage,
 ) -> None:
     """The concise stdout summary printed after the review prompt is written."""
     print()
@@ -2526,18 +2563,8 @@ def _review_print_finalize_summary(
         print(f"   Lane workspace: {workspace.lane_id} (shared by {shared})")
     else:
         print("   Repository-root planning workspace")
-    if review_ctx["base_branch"] != "unknown":
-        base = review_ctx["base_branch"]
-        print(f"🔀 Branch: {review_ctx['branch_name']} (based on {base}, {review_ctx['commit_count']} commits)")
-        if workspace.resolution_kind == "repo_root":
-            wp_meta, _ = read_wp_frontmatter(wp.path)
-            pathspecs = build_owned_files_review_pathspecs(list(wp_meta.owned_files or []), mission_slug)
-            review_paths = " -- " + " ".join(pathspecs) if pathspecs else ""
-            print(f"   Review diff: git log {base}..{review_ctx['branch_name']} --oneline{review_paths}")
-        else:
-            print(f"   Review diff: git log {base}..{review_ctx['branch_name']} --oneline")
-    elif workspace.resolution_kind == "repo_root":
-        print("🔀 Review diff unavailable: no deterministic implementation claim commit found for this WP")
+    for line in _review_range_summary_lines(review_ctx, workspace.branch_name):
+        print(line)
     print()
     print("▶▶▶ NEXT STEP: Read the full prompt file now:")
     print(f"    cat {prompt_file}")
@@ -2562,120 +2589,50 @@ def _review_print_finalize_summary(
 # ---------------------------------------------------------------------------
 
 
-def review_context_for_repo_root_workspace(
-    *, repo_root: Path, feature_dir: Path, wp_id: str, ctx: dict[str, object]
-) -> dict[str, object]:
-    """The ``resolution_kind == "repo_root"`` branch of ``_resolve_review_context``:
-    a flat/single-branch mission has no lane worktree, so the "branch" IS
-    ``HEAD`` and the "base" is the WP's own claim commit."""
-    import subprocess
+def _fill_review_range(ctx: dict[str, object], review_range: WpReviewRange, branch_name: str | None) -> dict[str, object]:
+    """Carry *review_range* in *ctx* and fill the legacy keys from it (one range per review, FR-012).
 
-    from mission_runtime import ClaimCommitUnresolved, claim_commit_for_wp
-
-    # FR-025: the claim commit is the unique commit that introduced the WP's last
-    # ``claimed`` event id -- never a commit-subject match. Unresolvable => no base.
-    try:
-        claim_commit = claim_commit_for_wp(feature_dir, wp_id)
-    except ClaimCommitUnresolved:
-        return ctx
-    count = subprocess.run(
-        ["git", "rev-list", "--count", f"{claim_commit}..HEAD"],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    commit_count = int(count.stdout.strip()) if count.returncode == 0 and count.stdout.strip().isdigit() else 1
-    ctx["branch_name"] = "HEAD"
-    ctx["base_branch"] = claim_commit
-    ctx["lane_branch"] = "HEAD"
-    ctx["base_ref"] = claim_commit
-    ctx["commit_count"] = commit_count
+    ``base_branch`` / ``base_ref`` become the range base (a full SHA) and ``commit_count`` the
+    number of listed implementation commits; an unavailable range leaves them ``"unknown"`` / ``0``.
+    ``branch_name`` / ``lane_branch`` name the branch for display only: the review commands use the
+    range's tip SHA.
+    """
+    ctx["review_range"] = review_range
+    if branch_name:
+        ctx["branch_name"] = branch_name
+        ctx["lane_branch"] = branch_name
+    if review_range.base is not None:
+        ctx["base_branch"] = review_range.base
+        ctx["base_ref"] = review_range.base
+        ctx["commit_count"] = len(review_range.commits)
     return ctx
 
 
-def review_context_search_unknown_base(
-    *, repo_root: Path, mission_slug: str, branch: str, wp_frontmatter: str
-) -> tuple[str | None, int]:
-    """Search a fixed candidate list (dependency branches + common integration
-    branches) for the base with the FEWEST commits unique to *branch*."""
-    import subprocess
+def review_context_for_repo_root_workspace(
+    *, repo_root: Path, mission_slug: str, wp_id: str, owned_files: list[str], owned: OwnedCheckout | None, ctx: dict[str, object]
+) -> dict[str, object]:
+    """The ``resolution_kind == "repo_root"`` branch of ``_resolve_review_context``.
 
-    from specify_cli.cli.commands.agent.workflow_cores import parse_dependency_wp_ids, pick_best_base_branch
-
-    w = _wf()
-    candidates: list[str] = []
-    for dep_id in parse_dependency_wp_ids(wp_frontmatter):
-        try:
-            dep_workspace = w.resolve_workspace_for_wp(repo_root, mission_slug, dep_id)
-        except (ValueError, FileNotFoundError):
-            continue
-        dep_branch = dep_workspace.branch_name
-        if dep_branch and dep_branch != branch:
-            candidates.append(dep_branch)
-
-    candidates.extend(["main", "2.x", "master", "develop"])
-    scored: list[tuple[str, int]] = []
-    for candidate in candidates:
-        mb = subprocess.run(
-            ["git", "merge-base", branch, candidate],
-            cwd=repo_root, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
-        )
-        if mb.returncode != 0:
-            continue
-        count_r = subprocess.run(
-            ["git", "rev-list", "--count", f"{mb.stdout.strip()}..{branch}"],
-            cwd=repo_root, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
-        )
-        if count_r.returncode != 0:
-            continue
-        count = int(count_r.stdout.strip()) if count_r.stdout.strip().isdigit() else 0
-        scored.append((candidate, count))
-
-    result: tuple[str | None, int] = pick_best_base_branch(scored)
-    return result
+    A repository-root workspace has no lane worktree, so the branch shown is ``HEAD``; the base is
+    the work package's review range base (its window open), never a claim commit (#7578).
+    """
+    review_range = resolve_wp_review_range(repo_root, mission_slug, wp_id, owned_files=owned_files, owned=owned)
+    return _fill_review_range(ctx, review_range, "HEAD")
 
 
 def review_context_for_worktree_branch(
-    *, repo_root: Path, mission_slug: str, workspace: ResolvedWorkspace, workspace_path: Path, mission_branch: str, wp_frontmatter: str, ctx: dict[str, object]
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+    workspace_path: Path,
+    owned_files: list[str],
+    owned: OwnedCheckout | None,
+    ctx: dict[str, object],
 ) -> dict[str, object]:
-    """The lane-worktree branch of ``_resolve_review_context``: resolve the
-    actual checked-out branch name, then its base ref (explicit context,
-    the mission branch, or a scored candidate search), then the commit count."""
-    import subprocess
-
+    """The lane-worktree branch of ``_resolve_review_context``: the checked-out branch for display, the
+    work package's review range for the base and commits (never a lane base or a scored branch search, #7578)."""
     from specify_cli.core.git_ops import get_current_branch
 
-    branch = get_current_branch(workspace_path)
-    if not branch:
-        return ctx
-    ctx["branch_name"] = branch
-    ctx["lane_branch"] = branch
-
-    base_ref = "unknown"
-    if workspace.context is not None and workspace.context.base_branch:
-        base_ref = workspace.context.base_branch
-    elif mission_branch != "unknown":
-        base_ref = mission_branch
-
-    if base_ref == "unknown":
-        best_base, best_count = review_context_search_unknown_base(
-            repo_root=repo_root, mission_slug=mission_slug, branch=branch, wp_frontmatter=wp_frontmatter
-        )
-        if best_base is not None:
-            ctx["base_branch"] = best_base
-            ctx["base_ref"] = best_base
-            ctx["commit_count"] = best_count
-        return ctx
-
-    count_r = subprocess.run(
-        ["git", "rev-list", "--count", f"{base_ref}..{branch}"],
-        cwd=repo_root, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
-    )
-    commit_count = int(count_r.stdout.strip()) if count_r.returncode == 0 and count_r.stdout.strip().isdigit() else 0
-    ctx["base_branch"] = base_ref
-    ctx["base_ref"] = base_ref
-    ctx["commit_count"] = commit_count
-    return ctx
+    review_range = resolve_wp_review_range(repo_root, mission_slug, wp_id, owned_files=owned_files, owned=owned)
+    return _fill_review_range(ctx, review_range, get_current_branch(workspace_path))
