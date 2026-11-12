@@ -23,27 +23,6 @@
       "parallel_group": 0
     },
     {
-      "lane_id": "lane-d",
-      "wp_ids": [
-        "WP04"
-      ],
-      "write_scope": [
-        "src/specify_cli/cli/commands/archive.py",
-        "src/specify_cli/missions/archive_reclaim.py",
-        "tests/architectural/test_destructive_op_routing.py",
-        "tests/architectural/test_json_contract_enumeration.py",
-        "tests/specify_cli/cli/commands/test_archive_reclaim.py"
-      ],
-      "predicted_surfaces": [
-        "api",
-        "artifact-rendering",
-        "legacy-cleanup",
-        "workspace"
-      ],
-      "depends_on_lanes": [],
-      "parallel_group": 0
-    },
-    {
       "lane_id": "lane-f",
       "wp_ids": [
         "WP06"
@@ -65,6 +44,7 @@
         "WP02"
       ],
       "write_scope": [
+        "src/specify_cli/consolidation/landed_coordination.py",
         "src/specify_cli/consolidation/phase_teardown.py",
         "tests/consolidation/test_late_teardown_projection.py",
         "tests/consolidation/test_late_window_base_resume.py"
@@ -125,6 +105,30 @@
       "parallel_group": 2
     },
     {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/archive.py",
+        "src/specify_cli/missions/archive_reclaim.py",
+        "tests/architectural/test_destructive_op_routing.py",
+        "tests/architectural/test_json_contract_enumeration.py",
+        "tests/specify_cli/cli/commands/test_archive_reclaim.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
       "lane_id": "lane-planning",
       "wp_ids": [
         "WP07"
@@ -146,7 +150,7 @@
       "parallel_group": 3
     }
   ],
-  "computed_at": "2026-11-12T18:36:27.928234+00:00",
+  "computed_at": "2026-11-12T21:06:48.252599+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [
     "WP07"
