@@ -39,7 +39,6 @@ IMMUTABLE_HISTORY: Final[tuple[str, ...]] = (
     "kitty-specs/",
     "kitty-ops/",
     ".kittify/evidence/",
-    ".kittify/migrations/",
     # The #4562 bulk-edit record at the repository root.
     "occurrence_map.yaml",
     # A dated timeline of the project's history.
