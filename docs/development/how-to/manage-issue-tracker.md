@@ -140,7 +140,7 @@ Three concerns no longer live in this repository. File an issue about any of the
 in the repository that owns it, not here:
 
 | Concern | Repository |
-|---|---|
+| --- | --- |
 | Doctrine content: directives, tactics, styleguides, toolguides, procedures, paradigms, agent profiles as content, mission-step prompts and templates, pack manifests and DRG fragments | `spec-kitty/spec-kitty-open-packs` |
 | The charter service: pack registration and composition, the DRG model and its relations, artifact kinds and schemas, profile resolution and the mission-type API | `spec-kitty/spec-kitty-charter` |
 | The events domain: the envelope and payload schemas, the `spec_kitty_events` reducers and conformance fixtures, the `mission-status` and `mission-write` contracts and the Java read and write services | `spec-kitty/spec-kitty-events` |
@@ -519,7 +519,7 @@ they are not free-floating classification labels and carry structural obligation
 The issue-side `status:*` labels and `taken-by-human` are human workflow state:
 
 | Label | Meaning |
-|---|---|
+| --- | --- |
 | `status:triage` | New, untriaged work |
 | `status:ready` | Triaged, de-duplicated, and resolvable without a pending decision; ready to pick up |
 | `status:claimed` | Someone is actively working the issue. A lease: valid only with a live claim comment naming who is working it. Remove it when you stop |
@@ -590,7 +590,7 @@ PRs moved through their own label set, driven by the same dispatcher (see also t
 `ready-for-squad` handshake under [PR-workflow labels](#pr-workflow-labels--for-pull-requests-not-issues)):
 
 | Label | Meaning |
-|---|---|
+| --- | --- |
 | `ready-for-squad` | PR is ready for adversarial review; dispatcher boots a squad VM (one iteration) |
 | `squad:running` | Squad VM active (lease; stale-claim recovery requires confirming the VM is actually dead, never elapsed time alone) |
 | `squad:passed` / `squad:majors` | Squad verdict. Two `squad:majors` rounds is the cap — the merge agent then decides merge-with-findings or sends it back; never a third squad |
