@@ -200,11 +200,13 @@ def checkout_root_containing(path: Path) -> Path | None:
     reads the entry, so residue is not walked past. It runs on the one ancestor walk
     (:func:`kernel.ancestor_walk.find_ancestor`, #7056), so it honours
     ``GIT_CEILING_DIRECTORIES`` and returns the **resolved** checkout (symbolic links
-    followed, e.g. macOS ``/var`` -> ``/private/var``): compare it with resolved forms. No
+    followed, e.g. macOS ``/var`` -> ``/private/var``): compare it with resolved forms. The
+    one exception is a *path* that cannot be resolved (e.g. a symbolic-link loop): the walk
+    then runs over its lexical form and the answer is an unresolved ancestor. No
     subprocess. *path* need not exist; the walk starts at it either way.
 
     Returns:
-        The resolved checkout root, or ``None`` when no ancestor up to the ceiling holds a
-        ``.git`` entry.
+        The checkout root (resolved, unless *path* could not be resolved), or ``None`` when
+        no ancestor up to the ceiling holds a ``.git`` entry.
     """
     return find_ancestor(path, lambda candidate: (candidate / _GIT_DIR_NAME).exists())

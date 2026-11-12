@@ -319,11 +319,14 @@ def read_dir_for(
 
     * The default (``owned is None``) arm delegates to
       :func:`resolve_planning_read_dir` for the PRIMARY-partition ``kind`` these
-      sites read (``PRIMARY_METADATA``). That is byte-identical to the prior
-      inline ``_compose_primary_feature_dir(_canonicalize_primary_read_handle(
-      primary_root, mission_slug, resolver=resolver))`` -- because
-      :func:`resolve_planning_read_dir`'s PRIMARY leg IS exactly that composition
-      (the ``resolver`` is threaded to the same single injected walk, no bypass).
+      sites read (``PRIMARY_METADATA``). Its PRIMARY leg is the inline
+      ``_compose_primary_feature_dir(_canonicalize_primary_read_handle(
+      primary_root, mission_slug, resolver=resolver))`` composition (the
+      ``resolver`` is threaded to the same single injected walk, no bypass),
+      except for a default Mission before its landing whose topic branch a
+      checkout holds: then it is that checkout's copy
+      (``default_mission_topic_dir``, #7546). Every other Mission reads the
+      composed repository root checkout directory, as before.
     * The owned arm returns the fact's own ``mission_dir`` -- no compose, no
       walk, no ``get_main_repo_root`` fold (#3328 / C-002).
 
@@ -2444,7 +2447,7 @@ def _containing_checkout(path: Path, repo_root: Path) -> Path:
     is spelled through a symbolic link the answer is re-expressed as *path*'s own ancestor so
     ``path.is_relative_to(surface_root)`` holds without mixing forms. When no ancestor of
     *path* is a checkout (a path outside every checkout), today's answer stands: the
-    re-anchored main repo root of *repo_root*.
+    repository root checkout of *repo_root*.
     """
     from specify_cli.core.paths import get_main_repo_root
 
@@ -2679,7 +2682,7 @@ class PlacementSeam:
         ``self.repo_root`` verbatim, which would disagree with ``path`` when called from a lane
         worktree. No topology is read here: the containing checkout is found by walking up from
         ``path`` (:func:`kernel.git_anchor.checkout_root_containing`), falling back to the
-        re-anchored main repo root when no ancestor of ``path`` is a checkout.
+        repository root checkout when no ancestor of ``path`` is a checkout.
         """
         path = self.read_dir(kind)
         checkout_root = self.owned.owned_root if self.owned is not None else _containing_checkout(path, self.repo_root)
