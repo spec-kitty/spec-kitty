@@ -13,6 +13,7 @@ This Mission fixes two run-record integrity defects in the `next` loop and the w
    - It returns `terminal` when the Mission is accepted.
    - Either way, it starts, advances and records nothing.
    - A single pure predicate in `runtime_bridge_cores` gives the verdict for advance and query alike.
+   - (Squad revision) The gate is scoped to software-dev and widened to **never rewind**. It applies whenever a finalized board exists and the run is not authoritative. A board step that cannot be dispatched (a WP in progress or claimed) returns `blocked` with a resume command (FR-016), and acceptance must be newer than the board's latest WP transition. See IC-02.
 2. **Query envelopes say what to run next.**
    - Every read-only envelope that has no pending decision gains `next_command`.
    - The bug that dropped `question`/`decision_id`/`options` on an untouched run's first `decision_required` is fixed.
@@ -43,7 +44,7 @@ This Mission fixes two run-record integrity defects in the `next` loop and the w
 - complexity ≤ 15 (`_dn_bootstrap` is at 15, so the run-start segment is extracted first);
 - additive envelope fields only.
 
-**Scale/Scope**: 4 work packages, about 10 source files, about 12 test files.
+**Scale/Scope**: 4 work packages, about 10 source files, about 12 test files. The gate is scoped to the software-dev family (research, documentation, plan and custom Missions are unchanged).
 
 ## Charter Check
 
@@ -80,8 +81,8 @@ kitty-specs/next-lifecycle-integrity-01M77BWP/
 src/runtime/next/
 ├── decision.py                         # + Decision.next_command (additive)
 ├── runtime_bridge_cores.py             # + DecisionEnvelope.next_command, + finished_board_verdict (pure)
-├── runtime_bridge.py                   # bootstrap: extract run-start helper; finished-board gate before run start
-├── runtime_bridge_decision_mapping.py  # expose finished board_step from the selector (no decline-collapse loss)
+├── runtime_bridge.py                   # bootstrap: extract run-start helper; never-rewind gate before run start; widened front phase
+├── runtime_bridge_decision_mapping.py  # board-step accessor sharing the selector prefix
 └── runtime_bridge_query.py             # next_command on non-decision query envelopes; first decision_required fix
 src/specify_cli/cli/commands/
 ├── next_cmd.py                         # human renderer prints next_command
@@ -98,58 +99,62 @@ None.
 
 ## Implementation Concern Map
 
+> Revised after the post-tasks adversarial squad (architecture and test lenses) and three more operator rulings (2026-11-12): widen to never-rewind, the question invariant enforced by construction, and acceptance freshness. Findings and their dispositions are in `research.md` §Squad dispositions.
+
 ### IC-01 — Tidy-first enablers (behaviour-preserving)
 
-- **Purpose**: Make room for the gate and the new field without behaviour change. Extract the run-start/snapshot segment of `_dn_bootstrap` (complexity 15) into a helper, add `next_command: str | None = None` to `Decision` and `DecisionEnvelope` (emitted in `to_dict` only when set), and add the pure `finished_board_verdict(board_step, accepted) -> FinishedBoardVerdict` (NONE / AWAITING_ACCEPTANCE / ACCEPTED) to the cores leaf.
-- **Relevant requirements**: FR-007 (predicate), NFR-002, NFR-003.
-- **Affected surfaces**: `runtime_bridge.py`, `runtime_bridge_cores.py`, `decision.py`.
+- **Purpose**: Additive scaffolding only. Nothing calls it yet, except where a validation is added at construction.
+  - Pure `finished_board_verdict(board_step, accepted_at, latest_transition_at)` in the cores leaf.
+  - Additive `Decision.next_command` (serialized only when set).
+  - An internal, non-serialized `Decision.suppress_step_pairing` flag. A gate answer sets it so `next_cmd` does not pair a stale `started` record as completed.
+  - A validated `PendingDecisionPrompt` value object (`decision_id`, `question`, `input_key`, `options`), plus a `Decision.__post_init__` check for kinds `query`/`decision_required`:
+    - `question` set ⇔ `decision_id` set;
+    - when set, `options` or `input_key` is present.
+  - I/O helpers `mission_accepted_at(primary_dir)` (via `load_meta_or_empty`, which never raises) and `board_latest_transition_at(board)`.
+- **Relevant requirements**: FR-002 (freshness), FR-007, FR-010, NFR-002, NFR-003.
+- **Affected surfaces**: `runtime_bridge_cores.py`, `decision.py`, `runtime_bridge_io.py`.
 - **Sequencing/depends-on**: none.
 - **Risks**:
-  - `test_bridge_cores_import_boundary.py` (cores must stay a leaf);
-  - byte-identical envelopes when `next_command` is None (`tests/specify_cli/next/test_next_output_preservation.py`).
+  - existing builders that violate the new invariant: grep and fix within the owned files, or hand off;
+  - the cores leaf import gate.
 
-### IC-02 — Finished-board gate in advancing `next`
+### IC-02 — Advancing `next` never rewinds a finalized software-dev board
 
-- **Purpose**: Stop advancing `next` from falling through to the DAG on a finished board. Answer `blocked` (MISSION_AWAITING_ACCEPTANCE, `next_command` = accept) or `terminal` (accepted), before any run start or advance.
-- **Relevant requirements**: FR-001 to FR-007, FR-003 and C-005 (keep the blocked/terminal `MissionNextInvoked` audit row).
-- **Affected surfaces**: `runtime_bridge.py` (`_dn_bootstrap`, new `_dn_finished_board_gate`), `runtime_bridge_decision_mapping.py` (the selector reports `accept`/`done` instead of collapsing into a bare decline, or a sibling accessor does), and a read-only run lookup through `_io_seam._existing_run_ref`.
-- **Gate rule**: fire iff the board step is `accept`/`done` AND (no persisted run, OR the run's `issued_step_id` ∉ {implement, review, accept}). A run legitimately at a WP-iteration or accept step keeps the engine path, so `MissionRunCompleted` and the retrospective gate stay reachable for Missions driven through `next`.
+- **Purpose**: FR-001 to FR-007 and FR-016.
+- **Gate placement**: in `_dn_bootstrap`, after `_dn_progress` and before the run start. The gate applies only to `mission_type == software-dev` (the #3407 precedent) with a finalized board, and only when the persisted run is **not authoritative**: there is no run, the run is untouched, or its issued step is a planning step before analyze (`RunStateMissing` falls through to the existing loader error).
+- **Gate answers**:
+  - finished board: `blocked` MISSION_AWAITING_ACCEPTANCE, or `terminal` when the acceptance is fresh;
+  - board step implement/review that cannot be dispatched: `blocked`, a named code, the WP named, and a resume `next_command`;
+  - dispatchable board step: falls through to `_dn_finalized_board_override`, now widened from "untouched and success" to "not authoritative, any result";
+  - `blocked:*`: the existing board blocked decision.
+- **Board accessor**: the gate reads the board through a NEW accessor that shares `_resolve_wp_board_action`'s prefix (surface, context, task error, progress, override step). It does not change `_board_step_action` (`_WP_BOARD_DECLINE` identity is unchanged), and it reuses the bootstrap's single `status_read`.
+- **Pairing**: `next_cmd._dispatch_advancing_mode` skips `pair_previous_lifecycle_record` for a decision with `suppress_step_pairing`. The renderer prints `Next:` for every decision that carries `next_command` (query and blocked).
+- **Affected surfaces**: `runtime_bridge.py`, `runtime_bridge_decision_mapping.py`, `next_cmd.py`.
 - **Sequencing/depends-on**: IC-01.
 - **Risks**:
-  - re-pin `test_advance_declines_front_phase_on_all_approved_board` (5310) on purpose;
-  - owned-checkout path (`primary_metadata_dir` from the mission context);
-  - the frozen run-journal and run-index single-reader gates (read-only lookup only);
-  - an unreadable `meta.json` reads as not accepted (fail toward blocked, never terminal).
+  - the blocked/terminal `MissionNextInvoked` row adds a second door read (`_consolidated_target_dir`); pin it with a count test;
+  - `_dn_bootstrap` complexity;
+  - no new writer.
 
 ### IC-03 — Query envelopes name the next command
 
-- **Purpose**:
-  - Every read-only envelope with no pending decision carries `next_command`:
-    - the advance command for not_started or an in-flight run;
-    - the accept command for a finished, unaccepted board;
-    - the consolidate command for an accepted, unlanded Mission;
-    - none once landed.
-  - An untouched run's first `decision_required` keeps question, decision_id and options.
-- **Relevant requirements**: FR-008, FR-009, FR-010, FR-007 (same predicate).
-- **Affected surfaces**: `runtime_bridge_query.py`, `next_cmd.py` (human renderer), `docs/architecture/runtime-loop.md`, runtime-next SKILL.md.
+- **Purpose**: FR-007 to FR-010 on the query side.
+- **Steps**:
+  - `_query_resolve_primary` also returns the PRIMARY metadata dir.
+  - `query_current_state` computes the override step and the verdict once, and passes them into dispatch.
+  - A first `decision_required` on an untouched run keeps its decision fields (via `PendingDecisionPrompt`) **and** sets `next_command` to the advance command, because the decision is not yet pending and cannot be answered.
+  - `next_command` is applied to every non-decision envelope, including the `task_error` early return and the no-WP runtime-terminal row (accept, or consolidate when accepted). It is not applied after landing.
+  - Docs: runtime-loop.md and the runtime-next SKILL.md.
+- **Affected surfaces**: `runtime_bridge_query.py`, the docs.
 - **Sequencing/depends-on**: IC-01.
-- **Risks**:
-  - the merged short-circuit query (`terminal_kind=query`) stays without `next_command`;
-  - the specify prompt's replay guard (packs) keys on `kind`/`mission_state`/`preview_step`, all of which stay unchanged;
-  - `test_json_contract_enumeration.py` triage for the new key.
 
 ### IC-04 — Recorded and narrowable rollback reset
 
-- **Purpose**:
-  - Compute the reset map and summary before the PLANNED hop.
-  - Record `policy_metadata.rollback_reset` on that hop.
-  - Add `--reset-subtasks` (comma-separated ids, needs `--note`/`--reason`, roster-validated, refused before any write).
-  - Extend the human line and JSON with scope and reason.
-- **Relevant requirements**: FR-011 to FR-015.
-- **Affected surfaces**: `agent/tasks.py` (option), `tasks_move_task.py` (state, validation, output), `tasks_move_task_executor.py` (`_mt_rollback_subtasks_reset`, `_RollbackResetSummary`), `tasks_move_task_hops.py` (`_mt_hop_policy_metadata`, `_build_claim_review_override`).
-- **Sequencing/depends-on**: none (independent of IC-01 to IC-03).
-- **Risks**:
-  - `_do_move_task` is at complexity 15, so validation goes into a helper;
-  - `cutover_eligibility._policy_metadata_carries_runtime_evidence` counts the new key (harmless, pinned by a test);
-  - `test_status_events_writes_gate.py`;
-  - `tests/specify_cli/cli/commands` is out of the per-PR CI matrix, so run it explicitly.
+- **Purpose**: FR-011 to FR-015.
+- **Steps**:
+  - Validation runs right after `_mt_resolve_targets`, before `_mt_finalize_plan` commits the review-cycle artifact.
+  - One `(reset_map, summary)` is computed onto the state before the transitions. Both `_mt_hop_policy_metadata` (the PLANNED hop) and `_build_claim_review_override` read it (single authority).
+  - The pipeline merge `{**request, **added}` keeps `lane_head`/`wp_window`.
+  - A skipped id in `--reset-subtasks` is refused.
+- **Affected surfaces**: the move-task modules.
+- **Sequencing/depends-on**: none.

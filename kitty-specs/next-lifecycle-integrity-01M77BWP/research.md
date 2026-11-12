@@ -60,3 +60,29 @@ updated: 2026-11-12. The detailed grounding is in `research/code-grounding.md`; 
   - artifact-only Missions;
   - duplication with the existing `reason`/`review_ref`.
 - No dependency is added, removed or upgraded, so the supply-chain checks (DIRECTIVE_051) do not apply.
+
+## Squad dispositions (post-tasks, 2026-11-12)
+
+Two lenses ran: architecture (`architect-alphonso`) and test/fakeability (`reviewer-renata`). Every finding is listed below with its disposition.
+
+| Finding | Disposition |
+|---|---|
+| Mid-implementation replay (`in_progress`/`claimed` → discovery); the FR-006 control was false | **Escalated.** Ruling: widen, never rewind (FR-016). Controls fixed: a `planned` WP dispatches. |
+| Gate ignored mission family; documentation/research tails starved | **Folded.** The gate applies to software-dev only (decision `plan.next.gate_scope_family`). |
+| The FR-010 invariant cannot hold for input decisions (`options=None`) | **Escalated.** Ruling: question ⇔ decision_id, plus options or input_key, enforced by construction (`PendingDecisionPrompt`). |
+| Sticky `accepted_at` after reopen and re-approval | **Escalated.** Ruling: acceptance must be newer than the board's latest WP transition. |
+| Lifecycle pairing writes `completed` for a stale issued step on a gated call | **Folded.** `suppress_step_pairing`; `next_cmd.py` moves to WP02. |
+| No-row probes blind (no `mission_id` in the fixture; Op and glossary records not covered) | **Folded.** Mint a ULID `mission_id`; snapshot the tree before and after; the blocked/terminal row is required as the positive control. |
+| Replayed run at `implement`/`analyze` slips through the exemption | **Residual.** Indistinguishable from a legitimate run; stale cells are pinned and documented. |
+| Cell-4 seeding unbuildable at the WP head | **Folded.** Seed engine-direct (`_advance_runtime_to_step` / `advance_to_step`) and through the CLI for the lifecycle cell. |
+| Canceled WPs count as finished | **Folded.** Definition aligned; cells added. |
+| T008 option A breaks `test_runtime_bridge_read_path_branches.py:209` and costs a dispatch resolution | **Folded.** A separate accessor sharing the selector prefix; those tests are added to WP02's runs. |
+| WP04 validation placed after the review-cycle commit; two authorities for the reset map | **Folded.** Validate after `_mt_resolve_targets`; compute once onto the state. |
+| WP04 refusal cells green on the base; lane_head and subtask-gate cells blind | **Folded.** Each refusal asserts its own message, passes `--review-feedback-file`, and is paired with the positive cell. The lane branch is created; the gate message must name T002. |
+| First `decision_required` preview unanswerable | **Folded.** It also carries the advance `next_command`. |
+| Query premises (no metadata dir; override not returned; task_error early return) | **Folded** into WP03. |
+| `RunStateMissing` must surface | **Folded.** The gate falls through. |
+| Second door read on the blocked/terminal row | **Accepted.** Pinned by a count test; NFR-001 is still met. |
+| Ruling said "remediation" | **Folded.** Amendment decision `plan.next.command_field_amendment`. |
+| orchestrator-api maps blocked to `RUNTIME_NEXT_FAILED` | **Accepted.** Existing mapping; documented in spec Assumptions. |
+| SC-001 5 vs 10 calls; SC-005 had no control | **Folded.** |

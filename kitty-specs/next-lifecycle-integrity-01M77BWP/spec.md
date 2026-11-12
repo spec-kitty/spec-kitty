@@ -45,6 +45,7 @@ An agent finishes every WP of a Mission without driving each step through `next`
 4. **Given** a finished board, **When** `next --result failed` or `--result blocked` is called, **Then** no DAG step is issued (no fall-through to `discovery`).
 5. **Given** a Mission still in implementation (some WPs not approved or done), **When** `next --result success` is called, **Then** behaviour is unchanged: the board-derived implement or review dispatch.
 6. **Given** a Mission with no WPs (artifact-only) or a research/custom Mission type, **When** `next` is called, **Then** behaviour is byte-identical to today.
+7. **Given** a software-dev Mission with WP01 approved and WP02 in progress and no authoritative run, **When** `next --result success` is called, **Then** the envelope is `kind=blocked` naming WP02 with a resume `next_command`, and no DAG step is issued or recorded.
 
 ---
 
@@ -82,7 +83,9 @@ A reviewer rejects a WP back to `planned`. Today every subtask resets to `planne
 
 ### Edge Cases
 
-- **Acceptance recorded but a WP reopened afterwards** (the board is no longer finished): `next` follows the board (implement or review), not `terminal`. `accepted_at` is sticky and is never read alone.
+- **Acceptance recorded but a WP reopened afterwards** (the board is no longer finished): `next` follows the board, not `terminal`. After re-approval the acceptance is older than the board's latest transition, so `next` blocks on acceptance again.
+- **Canceled WPs:** an all-canceled or approved+canceled board is finished (acceptable endings).
+- **A stale run already replayed to analyze or beyond:** indistinguishable from a legitimate run; it keeps the engine path (residual, see Assumptions).
 - **Board finished, but the run already reached `accept` or completed through `next`:** the engine's own terminal path is unchanged.
 - **A rejection from a lane other than `in_review`** (unclaim, reopen from approved or done): the same recording applies; narrowing is accepted on the same terms.
 - **A subtask already `skipped`:** never reset (unchanged). The record lists it as neither reset nor completed.
@@ -94,20 +97,21 @@ A reviewer rejects a WP back to `planned`. Today every subtask resets to `planne
 
 | ID | Title | User Story | Priority | Status | Delivery | No-op passable? |
 |----|-------|------------|----------|--------|----------|-----------------|
-| FR-001 | Finished board blocks on acceptance | As an agent, I want an advancing `next` on a finished, unaccepted board to return `kind=blocked`, `error_code=MISSION_AWAITING_ACCEPTANCE`, and a remediation naming `spec-kitty accept --mission <handle>`, so that I am told what to do instead of being sent back to discovery. | High | Open | [build] | no — today the same fixture issues `discovery` |
-| FR-002 | Accepted or landed Mission is terminal | As an agent, I want an advancing `next` on an accepted Mission with a still-finished board, or on a landed Mission, to return `kind=terminal`, so that the loop ends. | High | Open | [build] | no — today an accepted, unlanded fixture issues `discovery` |
-| FR-003 | No step row without a run step | As an operator, I want a finished-board or terminal answer to start or advance no run and record no step completion (run journal, lifecycle `completed`, `MissionNextInvoked` with `decision_kind: step`), so that the run record stays evidence. | High | Open | [build] | no — today five false rows are written (tracer `upgrade-seeded-list-hint-01M6BV1A`) |
+| FR-001 | Finished board blocks on acceptance | As an agent, I want an advancing `next` on a software-dev Mission whose board is finished and not (freshly) accepted to return `kind=blocked`, `error_code=MISSION_AWAITING_ACCEPTANCE` and `next_command` naming `spec-kitty accept --mission <handle>`, so that I am told what to do instead of being sent back to discovery. | High | Open | [build] | no — today the same fixture issues `discovery` |
+| FR-002 | Accepted or landed Mission is terminal | As an agent, I want an advancing `next` on a Mission whose board is finished and whose acceptance is newer than the board's latest WP transition, or on a landed Mission, to return `kind=terminal`, so that the loop ends; an acceptance older than a later reopen/re-approval does not count. | High | Open | [build] | no — today an accepted, unlanded fixture issues `discovery` |
+| FR-003 | No step row without a run step | As an operator, I want a finished-board, mid-implementation or terminal gate answer to start or advance no run and record no step completion (run journal, invocation lifecycle `completed` for a previously issued step that did not run, Op/profile-invocation records, `MissionNextInvoked` with `decision_kind: step`); the one `MissionNextInvoked` row with `decision_kind` blocked/terminal is still written (C-005), so that the run record stays evidence. | High | Open | [build] | no — today five false rows are written (tracer `upgrade-seeded-list-hint-01M6BV1A`) |
 | FR-004 | Stale walked runs are not advanced | As an operator, I want a run that the old behaviour already pushed onto the DAG to be answered by FR-001/FR-002 when the board is finished, so that wedged Missions recover with no manual edit. | High | Open | [build] | no — a fixture with an issued `discovery` advances today |
 | FR-005 | Failed or blocked results do not fall through | As an agent, I want `--result failed` and `--result blocked` on a finished board to issue no DAG step, so that no result value replays the lifecycle (#5929). | Medium | Open | [build] | no — paired with FR-001 on the same fixture |
-| FR-006 | Unchanged outside the finished board | As a maintainer, I want implementation-phase dispatch, no-WP (artifact-only) Missions, and research/custom Mission types to behave exactly as before, so that the fix is local. | High | Open | [ratchet] | yes — positive control: FR-001's fixture with one WP still in progress must dispatch that WP |
+| FR-006 | Unchanged where the run is authoritative | As a maintainer, I want board dispatch of a claimable WP, a run legitimately at analyze/implement/review/accept, no-WP (artifact-only) Missions and every non-software-dev Mission type (documentation, research, plan, custom) to behave exactly as before, so that the fix is local. | High | Open | [ratchet] | yes — positive controls on the same fixture: one `planned` WP dispatches implement; a run at `review` with the last WP approved issues the `accept` step; a documentation Mission with a finished board is byte-identical |
 | FR-007 | One finished-board predicate | As a maintainer, I want read-only and advancing `next` to ask the same predicate whether the board is finished and accepted, so that the two modes cannot disagree again. | Medium | Open | [build] | no — today query returns `accept`/`done` while advance returns `discovery` |
 | FR-008 | Read-only envelope names the next command | As an agent, I want every read-only `next` envelope that carries no pending decision (except for a landed Mission, which has nothing left to run) to include an additive `next_command` field naming the command to run next, so that I know how to proceed. | Medium | Open | [build] | no — the field is absent today |
 | FR-009 | Pending first decision is not dropped | As an agent, I want read-only `next` to keep `question`, `decision_id` and `options` when an untouched run's first decision is `decision_required`, so that I can answer it. | Medium | Open | [build] | no — today they are dropped |
-| FR-010 | Question iff decision pending | As a consumer of the `next` contract, I want `question` to be non-null on a read-only envelope exactly when `decision_id` and `options` are present, so that the field keeps one meaning. | Medium | Open | [ratchet] | yes — paired with FR-009 on the same fixture |
+| FR-010 | Question iff decision pending, by construction | As a consumer of the `next` contract, I want `question` to be non-null exactly when `decision_id` is non-null, and then `options` or `input_key` to be present, enforced when the envelope is constructed so an invalid one cannot exist. | Medium | Open | [build] | no — the constructor refuses an invalid combination (unit test) |
 | FR-011 | Reset recorded on the transition | As an operator, I want a rejection or reopen to `planned` to record, on the PLANNED transition event, the subtasks reset, those previously completed and the reason, so that the record shows what the rejection concerned. | High | Open | [build] | no — today the transition carries no such record |
 | FR-012 | Narrowed reset | As a reviewer, I want `move-task --to planned --reset-subtasks <ids> --reason "<why>"` to reset only the named subtasks and keep the rest, so that rework re-verifies only what was questioned. | Medium | Open | [build] | no — today every subtask resets |
 | FR-013 | Narrowing is validated | As a maintainer, I want `--reset-subtasks` refused before any write when an id is not on the WP roster or no reason is given, so that a narrowed reset is always deliberate and well-formed. | Medium | Open | [build] | no — paired with FR-012 |
 | FR-014 | Full reset stays the default | As a maintainer, I want a rejection without `--reset-subtasks` to keep resetting every non-skipped subtask (#2513), and the subtask gate to keep blocking `for_review` on a reset subtask, so that rework cannot pass the gate untouched. | High | Open | [ratchet] | yes — positive control: the narrowed case leaves T001 done on the same fixture |
+| FR-016 | Never rewind a finalized board | As an agent, I want an advancing `next` on a software-dev Mission with a finalized WP board whose run is not authoritative (no run, untouched, or issued at a planning step before analyze) never to issue a DAG step before the board's step: a claimable WP is dispatched from the board, a board step that cannot be dispatched (e.g. a WP in progress or claimed) returns `kind=blocked` naming the WP and a resume `next_command`, for any `--result`, and nothing is recorded as run (#5929 mid-implementation). | High | Open | [build] | no — today `{WP01: approved, WP02: in_progress}` issues `discovery` |
 | FR-015 | Announcement names the scope | As an operator, I want the human line and the JSON fields of the reset announcement to state whether the reset was full or narrowed, and its reason, so that the output matches the record. | Low | Open | [build] | no — today there is no narrowed or reason field |
 
 ### Non-Functional Requirements
@@ -131,8 +135,10 @@ A reviewer rejects a WP back to `planned`. Today every subtask resets to `planne
 
 ### Key Entities
 
-- **Finished board:** a software-dev Mission with at least one WP, every WP in `approved` or `done`, read through the status read door.
-- **Acceptance:** the Mission's recorded acceptance (`accepted_at`). It counts only while the board is still finished.
+- **Finalized board:** a software-dev Mission with `tasks.md`, finalized WP files and canonical lane state (the board step authority `_finalized_task_board_override_step`), read through the status read door.
+- **Finished board:** a finalized board whose every WP has an acceptable ending (approved, done or canceled; board step `accept` or `done`).
+- **Authoritative run:** a persisted run whose issued step is analyze, a WP-iteration step (implement/review) or accept; any other run (none, untouched, or issued at discovery/specify/plan/tasks) is not authoritative while a finalized board exists.
+- **Acceptance:** the Mission's recorded acceptance (`accepted_at`). It counts only while the board is finished and only when it is later than the board's latest WP transition (operator ruling 2026-11-12).
 - **Run record:** the run journal (`NextStepIssued` / `NextStepAutoCompleted`), invocation lifecycle records, and `MissionNextInvoked` rows.
 - **Reset record:** `policy_metadata.rollback_reset` on the PLANNED transition. It holds the scope (full or narrowed), the reset subtask ids, the previously completed ids and the reason.
 
@@ -141,16 +147,18 @@ A reviewer rejects a WP back to `planned`. Today every subtask resets to `planne
 ### Measurable Outcomes
 
 - **SC-001**: On a finished-board fixture, 0 step rows are recorded across 10 consecutive `next --result success` calls (today: one per call). — [build] · no-op passable: no
-- **SC-002**: The reproductions of #5929, #7565 and #7553 return a blocked or terminal answer on 100% of calls. — [build] · no-op passable: no
+- **SC-002**: The reproductions of #5929 (finished board and mid-implementation), #7565 and #7553 issue no DAG step before the board's step on 100% of calls. — [build] · no-op passable: no
 - **SC-003**: 100% of read-only envelopes for a Mission that has not landed either carry a pending decision (question + decision_id + options) or a `next_command`. — [build] · no-op passable: no
 - **SC-004**: A narrowed rejection of 1 of N subtasks leaves N−1 subtasks done, and the event records which subtask was reset and why. — [build] · no-op passable: no
-- **SC-005**: Every existing test in the targeted `next`, runtime, status and move-task suites passes unchanged, except the test that pinned the replay (`test_advance_declines_front_phase_on_all_approved_board`), which is re-pinned on purpose. — [ratchet] · no-op passable: yes
+- **SC-005**: Every existing test in the targeted `next`, runtime, status and move-task suites passes unchanged, except deliberate re-pins of tests that pinned the replay (`test_advance_declines_front_phase_on_all_approved_board`; the finished-board `_WP_BOARD_DECLINE` read-path cell if the accessor cannot avoid it), each re-pin being the positive control that the change is real. — [ratchet] · no-op passable: yes
 
 ## Assumptions
 
 - The `MissionNextInvoked` audit row for a blocked or terminal invocation is not a "step row" (C-005). #7553's "records nothing" is read as "records no step as run".
 - #7553's sub-point "a `query` envelope always carries a question" is amended, not delivered literally. A two-lens research squad disproved it, and the operator ruled on 2026-11-12. The PR records the amendment.
-- `MissionRunCompleted` and the retrospective gate are not reached through `next` for a Mission whose WPs finished outside the DAG. This is a residual, and a follow-up issue is filed.
+- `MissionRunCompleted` and the retrospective gate are not reached through `next` for a software-dev Mission whose run is not authoritative (WPs driven from the board or outside `next`). This is a residual, and a follow-up issue is filed.
+- A run already replayed (by the old behaviour) to analyze or beyond is indistinguishable from a legitimate run and keeps the engine path. Residual.
+- The orchestrator-api reports any `kind=blocked` (including the new answers) as `RUNTIME_NEXT_FAILED` because blocked exits 1; unchanged mapping.
 - The assignee rebind on `move-task --to planned --agent <reviewer>` (tracer `startup-assess-cold-concurrency-01M3EQ9S`, F-3) is a separate defect, filed separately and not folded.
 
 ## Out of Scope / References
