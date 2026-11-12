@@ -73,7 +73,7 @@
       "wp": null
     },
     "#7120": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "REFS - lane_branch_missing gap degrades in the review range",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -81,7 +81,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7345": {
