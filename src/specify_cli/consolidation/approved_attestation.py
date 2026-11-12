@@ -47,6 +47,7 @@ from specify_cli.status import Lane, StatusEvent, StoreError, TransitionRequest,
 from specify_cli.status_lanes import OPERATOR_REASON_SOURCE
 
 from .approved_bound import APPROVED_REVIEWED, ATTEST_APPROVED_FLAG, approval_is_attested, approval_stamp, check_lane, move_back_command
+from .commit_to_target_stamps import consolidation_events
 from .canceled_attestation import ATTEST_REASON_FLAG, ATTESTATION_KEY, AttestationError
 from .git_probes import GitProbeError, resolve_commit
 from .reconciliation import (
@@ -144,7 +145,7 @@ def plan_approved_attestations(
     if not requested:
         return {}
     try:
-        events = read_events(feature_dir)
+        events = consolidation_events(feature_dir, read_events(feature_dir))
         work_packages = materialize_snapshot(feature_dir).work_packages or {}
     except StoreError as exc:
         raise AttestationError(f"{ATTEST_APPROVED_FLAG} could not read the status log: {exc}. {_NOTHING_RECORDED}") from exc
