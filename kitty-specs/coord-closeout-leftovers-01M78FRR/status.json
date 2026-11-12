@@ -105,6 +105,9 @@
       "last_event_id": "01M78V69ZM6P26DTCARP5D9FDK",
       "last_transition_at": "2026-11-12T21:39:01.748361+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: squash projection refusal names paths, reasons, per-reason remedy and SQUASH_PROJECTION_NOT_LANDED; exit 1 + rollback door unchanged; stale comment fixed"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 16343,
