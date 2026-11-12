@@ -22,9 +22,10 @@ import pytest
 import typer
 
 from specify_cli.consolidation import bookkeeping_projection as bp
+from specify_cli.consolidation import git_probes
 from specify_cli.consolidation import phase_gate
 from specify_cli.consolidation.config import MergeStrategy
-from specify_cli.consolidation.git_probes import GitProbeError, driver_replay_expected_bytes
+from specify_cli.consolidation.git_probes import GitProbeError, MergeDriverNotRegisteredError, driver_replay_expected_bytes
 from specify_cli.consolidation.run_state import _CoordCheckpoint
 
 pytestmark = pytest.mark.fast
@@ -152,7 +153,39 @@ def test_a_probe_error_during_driver_replay_is_probe_failed(tmp_path: Path) -> N
 
 
 @pytest.mark.git_repo
-def test_every_failing_path_is_reported_in_order_and_the_bool_wrapper_agrees(tmp_path: Path) -> None:
+def test_a_failed_attribute_probe_is_probe_failed_not_no_merge_driver(tmp_path: Path) -> None:
+    """A non-zero ``git check-attr`` (here: an unresolvable pre-squash ref) is a probe failure, never a missing driver."""
+    repo, checkpoint, _pre_squash = _diverged_repo(tmp_path, _TRACE)
+    assert _unlanded(repo, (_TRACE,), checkpoint, "refs/heads/no-such-branch") == [(_TRACE, bp.ProjectedPathReason.PROBE_FAILED)]
+
+
+@pytest.mark.git_repo
+def test_the_attribute_probe_raises_on_a_git_failure(tmp_path: Path) -> None:
+    repo, _checkpoint, _pre_squash = _diverged_repo(tmp_path, _TRACE)
+    with pytest.raises(GitProbeError) as excinfo:
+        git_probes._resolve_merge_driver_config_key(repo, "refs/heads/no-such-branch", _TRACE)
+    assert not isinstance(excinfo.value, MergeDriverNotRegisteredError)
+
+
+@pytest.mark.git_repo
+def test_a_driver_that_raises_is_merge_driver_failed(tmp_path: Path) -> None:
+    """A driver refusing the content (e.g. malformed rows) is deterministic: a re-run repeats it."""
+    repo, checkpoint, pre_squash = _diverged_repo(tmp_path, _TRACE)
+
+    def _refusing_driver(_base: str, _ours: str, _theirs: str) -> None:
+        raise ValueError("malformed content")
+
+    with patch.object(git_probes, "_resolve_registered_driver_callable", return_value=_refusing_driver):
+        assert _unlanded(repo, (_TRACE,), checkpoint, pre_squash) == [(_TRACE, bp.ProjectedPathReason.MERGE_DRIVER_FAILED)]
+
+
+def test_a_config_key_with_no_registry_entry_is_a_driver_failure() -> None:
+    with pytest.raises(git_probes.MergeDriverFailedError):
+        git_probes._resolve_registered_driver_callable("spec-kitty-does-not-exist")
+
+
+@pytest.mark.git_repo
+def test_every_failing_path_is_reported_in_order(tmp_path: Path) -> None:
     repo = _init_repo(tmp_path)
     _commit(repo, _NOTE, "n\n", "note")
     checkpoint = _commit(repo, _MATRIX, "{}\n", "checkpoint")
@@ -166,14 +199,6 @@ def test_every_failing_path_is_reported_in_order_and_the_bool_wrapper_agrees(tmp
         (_NOTE, bp.ProjectedPathReason.COORDINATION_BLOB_MISSING),
         (_MATRIX, bp.ProjectedPathReason.CONTENT_DIFFERS),
     ]
-    assert not bp.projected_content_matches_target(
-        main_repo=repo,
-        coord_ref="coord",
-        target_ref="main",
-        projected_paths=paths,
-        checkpoint_sha=checkpoint,
-        pre_squash_target_ref=checkpoint,
-    )
 
 
 # --- the gate's refusal -------------------------------------------------------
@@ -208,7 +233,8 @@ def test_the_refusal_names_the_code_the_phrase_the_path_and_the_remedy(tmp_path:
     assert _CODE_LINE in out
     assert _MATRIX in out
     assert "kitty/mission-m-01ABCDEF" in out
-    assert "rolled back" in out
+    assert "Nothing was torn down" in out
+    assert "rolled back" not in out  # the rollback door reports its own outcome (#5867 review)
     assert "make the target's copy match the coordination branch" in out
 
 
@@ -225,7 +251,8 @@ def test_a_clean_proof_does_not_refuse(tmp_path: Path) -> None:
     [
         (bp.ProjectedPathReason.CONTENT_DIFFERS, "make the target's copy match the coordination branch"),
         (bp.ProjectedPathReason.MERGE_DRIVER_MISMATCH, "make the target's copy match the coordination branch"),
-        (bp.ProjectedPathReason.NO_MERGE_DRIVER, "spec-kitty upgrade"),
+        (bp.ProjectedPathReason.NO_MERGE_DRIVER, "has no merge driver"),
+        (bp.ProjectedPathReason.MERGE_DRIVER_FAILED, "merge driver refused"),
         (bp.ProjectedPathReason.COORDINATION_BLOB_MISSING, "restore it on the coordination branch"),
         (bp.ProjectedPathReason.PROBE_FAILED, "may succeed"),
     ],
@@ -242,6 +269,7 @@ def test_each_reason_has_its_own_remedy(tmp_path: Path, capsys: pytest.CaptureFi
         bp.ProjectedPathReason.CONTENT_DIFFERS,
         bp.ProjectedPathReason.MERGE_DRIVER_MISMATCH,
         bp.ProjectedPathReason.NO_MERGE_DRIVER,
+        bp.ProjectedPathReason.MERGE_DRIVER_FAILED,
         bp.ProjectedPathReason.COORDINATION_BLOB_MISSING,
     ],
 )
@@ -279,3 +307,36 @@ def test_the_rendered_text_lists_each_path_with_its_reason() -> None:
     assert any(_MATRIX in line and "differs from coord" in line for line in lines)
     assert any(_NOTE in line and "coord" in line for line in lines)
     assert lines[-1].strip() == _CODE_LINE
+
+
+def test_no_merge_driver_never_suggests_upgrade(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """The replay activates every registered driver itself, so ``spec-kitty upgrade`` cannot add one (#5867 review)."""
+    out = _refuse(tmp_path, capsys, [(_NOTE, bp.ProjectedPathReason.NO_MERGE_DRIVER)])
+    assert "spec-kitty upgrade" not in out
+    assert "make the target's copy match the coordination branch" in out
+
+
+def test_a_probe_failure_says_what_to_do_if_it_repeats(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    out = _refuse(tmp_path, capsys, [(_MATRIX, bp.ProjectedPathReason.PROBE_FAILED)])
+    assert "if the failure was transient" in out
+    assert "if it repeats" in out
+
+
+def test_a_resume_whose_landing_already_passed_refuses_without_claiming_a_rollback(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """On a resume at a verified PASS anchor the rollback door keeps the landing, so the refusal must not say it rolled back."""
+    run = _stub_run(tmp_path)
+    run.is_resume = True
+    run.reconciliation_result = None
+    with (
+        patch.object(phase_gate, "_resume_reconciliation_already_passed", return_value=True),
+        patch.object(phase_gate, "_post_checkpoint_mission_paths", return_value=[_MATRIX]),
+        patch.object(phase_gate, "unlanded_projected_paths", return_value=[(_MATRIX, bp.ProjectedPathReason.CONTENT_DIFFERS)]),
+        pytest.raises(typer.Exit) as excinfo,
+    ):
+        phase_gate._phase_reconcile_before_teardown(run)  # type: ignore[arg-type]  # a stub run carries only the fields the gate reads
+    assert excinfo.value.exit_code == 1
+    out = " ".join(capsys.readouterr().out.split())
+    assert _CODE_LINE in out
+    assert _MATRIX in out
+    assert "rolled back" not in out
+    assert "Reconciliation verified" not in out
