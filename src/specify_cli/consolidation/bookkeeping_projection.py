@@ -42,6 +42,7 @@ from specify_cli.consolidation._constants import (
 )
 from specify_cli.consolidation.git_probes import (
     GitProbeError,
+    MergeDriverNotRegisteredError,
     _read_git_blob_bytes,
     driver_replay_expected_bytes,
 )
@@ -1483,6 +1484,25 @@ def _raise_unlanded_late_window(*, status_events: list[str], records: list[str],
         )
 
 
+class ProjectedPathReason(StrEnum):
+    """Why one projected bookkeeping path did not land on the target (#5867).
+
+    Only :attr:`PROBE_FAILED` can clear on a re-run; every other reason repeats until the
+    operator changes the target or the coordination branch.
+    """
+
+    COORDINATION_BLOB_MISSING = "coordination_blob_missing"
+    """The coordination branch has no blob at the path (deleted or renamed there)."""
+    CONTENT_DIFFERS = "content_differs"
+    """The target left the path alone since the checkpoint, yet its bytes differ from the coordination copy."""
+    NO_MERGE_DRIVER = "no_merge_driver"
+    """Both sides changed the path and it has no registered merge driver to reconcile them."""
+    MERGE_DRIVER_MISMATCH = "merge_driver_mismatch"
+    """Both sides changed the path and the landed blob is not what its merge driver produces."""
+    PROBE_FAILED = "probe_failed"
+    """A git probe (or the driver replay) failed, so the proof could not be evaluated."""
+
+
 def _projected_path_content_matches(
     *,
     main_repo: Path,
@@ -1491,9 +1511,10 @@ def _projected_path_content_matches(
     checkpoint_sha: str,
     pre_squash_target_ref: str,
     repo_rel: str,
-) -> bool:
-    """Single-path proof body for :func:`projected_content_matches_target` (#5038).
+) -> ProjectedPathReason | None:
+    """Single-path proof body for :func:`unlanded_projected_paths` (#5038, #5867).
 
+    Returns ``None`` when the path landed, else the :class:`ProjectedPathReason` it did not.
     Two verdicts, chosen by whether the TARGET diverged from the shared
     checkpoint baseline for this path (``ours != base``):
 
@@ -1513,16 +1534,15 @@ def _projected_path_content_matches(
     # Explicit annotations pin the concrete `bytes | None` return of
     # `_read_git_blob_bytes` for this narrow-file `mypy --strict` check: the
     # `specify_cli.*` follow_imports=skip override (pyproject.toml) otherwise
-    # resolves a cross-module import's return type as `Any`, and `Any == Any`
-    # below would then trip `no-any-return` on this function's `-> bool`.
+    # resolves a cross-module import's return type as `Any`.
     coord_bytes: bytes | None = _read_git_blob_bytes(main_repo, coord_ref, repo_rel)
     if coord_bytes is None:
-        return False
+        return ProjectedPathReason.COORDINATION_BLOB_MISSING
     target_bytes: bytes | None = _read_git_blob_bytes(main_repo, target_ref, repo_rel)
     base_bytes: bytes | None = _read_git_blob_bytes(main_repo, checkpoint_sha, repo_rel)
     pre_squash_target_bytes: bytes | None = _read_git_blob_bytes(main_repo, pre_squash_target_ref, repo_rel)
     if pre_squash_target_bytes == base_bytes:
-        return target_bytes == coord_bytes
+        return None if target_bytes == coord_bytes else ProjectedPathReason.CONTENT_DIFFERS
     try:
         expected_bytes = driver_replay_expected_bytes(
             main_repo,
@@ -1531,14 +1551,16 @@ def _projected_path_content_matches(
             ours_ref=pre_squash_target_ref,
             theirs_ref=coord_ref,
         )
+    except MergeDriverNotRegisteredError:
+        return ProjectedPathReason.NO_MERGE_DRIVER
     except GitProbeError:
-        return False
+        return ProjectedPathReason.PROBE_FAILED
     # Typed local: the probe's return is ``Any`` under ``follow_imports = skip``.
     matches: bool = target_bytes == expected_bytes
-    return matches
+    return None if matches else ProjectedPathReason.MERGE_DRIVER_MISMATCH
 
 
-def projected_content_matches_target(
+def unlanded_projected_paths(
     *,
     main_repo: Path,
     coord_ref: str,
@@ -1546,8 +1568,8 @@ def projected_content_matches_target(
     projected_paths: tuple[str, ...],
     checkpoint_sha: str,
     pre_squash_target_ref: str,
-) -> bool:
-    """Squash content proof (WP06 handoff, driver-replay attribution — #5038).
+) -> list[tuple[str, ProjectedPathReason]]:
+    """Squash content proof (WP06 handoff, driver-replay attribution — #5038), per path (#5867).
 
     WP06's reconciliation gate drops content reachability for squash
     (``verify_reachability=False``) because a squash merge preserves neither
@@ -1560,11 +1582,14 @@ def projected_content_matches_target(
     against ``pre_squash_target_ref`` (the target's tip BEFORE the squash
     landed) when it did (see :func:`_projected_path_content_matches`). A
     diverged path with no registered driver, a missing blob, or a driver error
-    REFUSEs fail-closed rather than passing vacuously (FR-003). Vacuously
-    ``True`` for an empty set — nothing projected, nothing to diverge.
+    REFUSEs fail-closed rather than passing vacuously (FR-003).
+
+    Returns every path that did not land, in *projected_paths* order, with its reason;
+    empty when all landed (vacuously for an empty set).
     """
-    return all(
-        _projected_path_content_matches(
+    unlanded: list[tuple[str, ProjectedPathReason]] = []
+    for repo_rel in projected_paths:
+        reason = _projected_path_content_matches(
             main_repo=main_repo,
             coord_ref=coord_ref,
             target_ref=target_ref,
@@ -1572,7 +1597,28 @@ def projected_content_matches_target(
             pre_squash_target_ref=pre_squash_target_ref,
             repo_rel=repo_rel,
         )
-        for repo_rel in projected_paths
+        if reason is not None:
+            unlanded.append((repo_rel, reason))
+    return unlanded
+
+
+def projected_content_matches_target(
+    *,
+    main_repo: Path,
+    coord_ref: str,
+    target_ref: str,
+    projected_paths: tuple[str, ...],
+    checkpoint_sha: str,
+    pre_squash_target_ref: str,
+) -> bool:
+    """``True`` iff every projected path landed: :func:`unlanded_projected_paths` found none."""
+    return not unlanded_projected_paths(
+        main_repo=main_repo,
+        coord_ref=coord_ref,
+        target_ref=target_ref,
+        projected_paths=projected_paths,
+        checkpoint_sha=checkpoint_sha,
+        pre_squash_target_ref=pre_squash_target_ref,
     )
 
 
@@ -1601,4 +1647,6 @@ __all__ = [
     "project_late_gate_matrix_commits",
     "project_post_checkpoint_commits_to_target",
     "projected_content_matches_target",
+    "ProjectedPathReason",
+    "unlanded_projected_paths",
 ]
