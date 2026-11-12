@@ -120,3 +120,41 @@ def test_containing_checkout_falls_back_to_the_main_repo_root_outside_every_chec
     fallback = tmp_path / "main-root"
     monkeypatch.setattr("specify_cli.core.paths.get_main_repo_root", lambda _root: fallback)
     assert resolution._containing_checkout(tmp_path / "elsewhere" / "kitty-specs", tmp_path) == fallback
+
+
+@pytest.mark.unit
+def test_containing_checkout_answers_the_walk_when_path_cannot_be_resolved(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A symbolic-link loop cannot be resolved: the walk's own answer stands."""
+    from mission_runtime import resolution
+
+    loop = tmp_path / "loop"
+    loop.symlink_to(loop)
+    holder = tmp_path / "elsewhere"
+    monkeypatch.setattr(resolution, "checkout_root_containing", lambda _path: holder)
+
+    assert resolution._containing_checkout(loop / "kitty-specs", tmp_path) == holder
+
+
+@pytest.mark.unit
+def test_containing_checkout_answers_resolved_when_path_is_shallower_than_its_depth(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A relative spelling with fewer parts than its depth under the checkout has no lexical ancestor to name."""
+    from mission_runtime.resolution import _containing_checkout
+
+    real = _checkout(tmp_path / "real" / "repo")
+    (real / "kitty-specs" / "probe").mkdir(parents=True)
+    (tmp_path / "probe-link").symlink_to(real / "kitty-specs" / "probe", target_is_directory=True)
+    monkeypatch.chdir(tmp_path)
+
+    assert _containing_checkout(Path("probe-link"), real) == real.resolve()
+
+
+@pytest.mark.unit
+def test_containing_checkout_keeps_a_link_that_names_the_checkout_itself(tmp_path: Path) -> None:
+    """A link spelling the checkout itself (depth 0) is its own surface root."""
+    from mission_runtime.resolution import _containing_checkout
+
+    real = _checkout(tmp_path / "real" / "repo")
+    alias = tmp_path / "repo-alias"
+    alias.symlink_to(real, target_is_directory=True)
+
+    assert _containing_checkout(alias, real) == alias

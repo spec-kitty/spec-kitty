@@ -687,8 +687,9 @@ def _commit_partition_group(
         elif owned is not None:
             worktree_root, commit_paths = owned.owned_root, files
         else:
-            # Flattened or unprotected primary, or a settled default Mission whose
-            # partitions share one ref (#7551): commit in the checkout the seam names.
+            # A PRIMARY-partition commit of a flattened or unprotected Mission, or of a
+            # settled default Mission whose PRIMARY and coordination partitions share one
+            # ref (#7551): commit in the checkout the seam names.
             worktree_root, commit_paths, holder_checkout = _primary_commit_paths(repo_root, mission_slug, files, kind=kind)
     except _OwningSurfaceRefused as exc:
         # T029: a named write_dir refusal (PROTECTED_BRANCH_REFUSED /
@@ -821,7 +822,7 @@ def _coord_status_locks(
     so both sides hold the identical lock; it is re-entrant, so a caller that
     already holds it is not deadlocked.
 
-    The lock engages for a coordination-routed commit (``use_coord``) and for a
+    The lock engages for a commit on the coordination partition's own branch (``use_coord``) and for a
     commit in a holder checkout away from the repository root checkout
     (``holder_checkout``, #7607): a settled default Mission's coordination branch
     IS its topic branch, so ``use_coord`` is False for every kind while its status

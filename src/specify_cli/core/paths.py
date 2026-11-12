@@ -930,12 +930,11 @@ def resolve_merge_target_branch(
     #
     # read-side-seam-primary-primitive-closure-01KYKMMT WP07/WP08 (T034/T035,
     # FR-005 / NFR-009): RECORDED FOUNDATION SITE 2/4, deliberately UNROUTED —
-    # same import-layering + behaviour-preservation rationale as
-    # ``get_feature_target_branch`` above (``PlacementSeam.read_dir`` never
-    # reaches this target-branch resolution, so no literal cycle is at stake;
-    # the constraints are the early-import deferred-import layering noted above
-    # and behaviour-preservation with the deleted wrapper's pre-delegation
-    # body). WP08 deleted the public wrapper this site imported; calls the
+    # it keeps reading the repository root checkout's literal Mission directory.
+    # The constraints are the early-import deferred-import layering noted above
+    # and behaviour preservation with the deleted wrapper's pre-delegation body;
+    # unlike ``get_feature_target_branch`` above (#7595) it was not moved onto
+    # ``read_dir_for``. WP08 deleted the public wrapper this site imported; calls the
     # module-private ``_compose_primary_feature_dir`` leaf directly
     # (``_FOUNDATION_SANCTION_SEED`` token re-pointed in the same commit).
     from specify_cli.core.git_ops import resolve_primary_branch
