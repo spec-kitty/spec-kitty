@@ -23,8 +23,8 @@ own commit, then the fix.
 | T008 | Coordination status lock engages when a non-owned group commits in the holder checkout (#7607) | WP02 | |
 | T009 | `SafeCommitHeadMismatch` remedy names the worktree that holds the branch | WP02 | |
 | T010 | Red: `implement WP01` and `move-task --note` from a protected root on a settled Mission; explicit-topology positive control | WP03 | |
-| T011 | Protected status preflight judges `write_target(WORK_PACKAGE_TASK).ref`; drain allow-list entry #2453 | WP03 | |
-| T012 | `move-task` feeds the WP file's commit ref to `_skip_target_branch_commit` | WP03 | |
+| T011 | Protected status preflight judges the claim checkout's HEAD (one shared helper; #2453 entry re-pointed) | WP03 | |
+| T012 | `move-task` judges the WP file's holder in the skip gate and the protected refusal | WP03 | |
 | T013 | Remedy text: no `--no-auto-commit` advice where the command lacks it; name the surface | WP03 | |
 | T014 | Red: baseline left untracked after settlement; banner prints `main` (#7595) | WP04 | |
 | T015 | Baseline needs-commit probe and commit run in the seam's holder checkout | WP04 | |
@@ -71,11 +71,11 @@ Goal: `agent action implement` and `move-task --note` run from a root checkout o
 a settled Mission; an explicit `lanes_with_coord` Mission targeting protected `main` still refuses.
 
 T010 Red: protected-root implement / move-task --note + positive control (WP03)
-T011 Preflight judges `write_target(WORK_PACKAGE_TASK).ref`; drain #2453 (WP03)
-T012 move-task skip gate fed the WP file's ref (WP03)
+T011 Preflight judges the claim checkout's HEAD; #2453 entry re-pointed (WP03)
+T012 move-task judges the WP file's holder (WP03)
 T013 Remedy text (WP03)
 
-Risks: accepted message change for flat Missions (decision `01M78GS4H8AAJW5Y4ATZ3TES6B`).
+Risks: non-settled Missions must stay byte-identical (option B ruling, escalation 2).
 
 ## WP04 — Baseline commit and target banner read through the seam (#7551 baseline, #7595)
 
