@@ -253,7 +253,7 @@
       "wp": null
     },
     "#7554": {
-      "evidence_ref": "Delivered across WP01-WP04",
+      "evidence_ref": "WP01-WP04: lane test invocation + probe, implement/prompts carry it, gate records evidence_tree and refuses EVIDENCE_TREE_MISMATCH",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -261,7 +261,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "Lane test runs import the repository root src",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP04"
     },
     "#7577": {
