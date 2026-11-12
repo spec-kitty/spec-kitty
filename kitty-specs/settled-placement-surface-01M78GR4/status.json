@@ -20,9 +20,9 @@
   "work_packages": {
     "WP01": {
       "actor": "claude",
-      "agent": null,
-      "agent_profile": "python-pedro",
-      "agent_profile_version": "1.0",
+      "agent": "claude::python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude",
       "lane": "for_review",
@@ -31,7 +31,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: seam write_dir surface_root names the containing checkout; kernel checkout_root_containing; primary_partition_checkout delegates to the seam",
-        "No code finding (code verdict: approve). Returned only so the implementer can re-claim with --profile python-pedro recorded; the claim was recorded as claude:: and the approval was refused with SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT. Non-blocking low/nit findings are in the feedback file."
+        "No code finding (code verdict: approve). Returned only so the implementer can re-claim with --profile python-pedro recorded; the claim was recorded as claude:: and the approval was refused with SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT. Non-blocking low/nit findings are in the feedback file.",
+        "Re-claimed with profile recorded (no code change since review cycle 1, whose code verdict was approve); ready for review"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
