@@ -60,7 +60,7 @@ kitty-specs/lane-code-verification-01M76AC0/
 
 ```
 src/specify_cli/lanes/lane_invocation.py           NEW  builder, probe, evidence tree, path containment
-src/specify_cli/lanes/implement_support.py         EDIT LaneWorkspaceResult.lane_test_invocation (default None), built at return
+src/specify_cli/review/lane_test_invocation.py     NEW  adapter: reads review.test_command (config authority), builds + probes, renders lines
 src/specify_cli/cli/commands/implement.py          EDIT --json key + banner block
 src/specify_cli/cli/commands/agent/workflow_executor.py  EDIT prompt blocks (implement + review), rebuilt from ResolvedWorkspace
 src/specify_cli/review/pre_review_gate.py          EDIT GateOutcome.FOREIGN_TREE; plain run_env parameter down to both runners; strip list moves out
@@ -189,7 +189,7 @@ No charter violations.
 
 - **Purpose**: `implement` prints, returns and persists the invocation with its probe result, and the implement/review prompts state it.
 - **Relevant requirements**: FR-001, FR-005, NFR-002
-- **Affected surfaces**: `lanes/implement_support.py` (result field only, away from `_claim_dirty_paths`), `cli/commands/implement.py`, `cli/commands/agent/workflow_executor.py`
+- **Affected surfaces**: `review/lane_test_invocation.py` (new adapter, reused by the gate hook), `cli/commands/implement.py`, `cli/commands/agent/workflow_executor.py`; `implement_support.py` and `workspace/context.py` are not touched (avoids PR #7562)
 - **Sequencing/depends-on**: IC-01
 - **Risks**: open PR #7562 touches `implement_support.py` (`_claim_dirty_paths`); keep hunks away from it. `build_implement_prompt_lines` is at complexity 9: add via an extracted renderer. Implement CLI tests live in a nightly-only directory; run them explicitly.
 
