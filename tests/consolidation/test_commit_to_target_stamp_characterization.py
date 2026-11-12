@@ -50,7 +50,11 @@ from tests.integration.single_branch_window_support import (
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 #: Whether the status events of a commit-to-target Mission carry ``lane_head`` / ``wp_window`` (#7578).
-STAMPED = False
+#: BEFORE (#7578 base): False, every cell pinned as below. AFTER: True, every verdict and text unchanged, because
+#: ``consolidation/commit_to_target_stamps.py`` (ruling Q8) drops the stamps at the three consolidation seams.
+#: Measured raw effect of the stamps with no guard (ADR 2026-11-08-2 Amendment 2026-11-12): (b) refuse -> pass with
+#: an empty attribution, (c) 12 recorded stamps but still pass, (d) pass -> refuse "already has one".
+STAMPED = True
 
 _BANNER = "Reconciliation verified"
 _OPENING_LANES = frozenset({"claimed", "in_progress"})
