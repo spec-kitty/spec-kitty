@@ -20,12 +20,14 @@ Shape (``?`` lines are optional; an optional line renders with the two-space ite
     ? … <k> more files
     ? OUTSIDE OWNED FILES (<p> path(s) changed in the range; <q> commit(s) touch no owned file; review rationale required): <path>, …
     REVIEW COMMANDS:
-      git log --oneline <base>..<tip> [-- <owned pathspecs>]
-      git diff <base>..<tip> [-- <owned pathspecs>]
+      git log --oneline <base>..<tip> -- <listing pathspecs>
+      git diff <base>..<tip> -- <listing pathspecs>
     CITED REQUIREMENTS:
       <ref> — <text>
 
-Rules: commands carry full SHAs and ``shlex``-quoted pathspecs (they run as printed in ``bash``);
+Rules: commands carry full SHAs and ``shlex``-quoted pathspecs (they run as printed in ``bash``),
+the same pathspecs the commit list was listed with (``WpReviewRange.listing_pathspecs``: the owned
+pathspecs, or ``.`` plus the bookkeeping excludes when unscoped);
 labels carry 12-character SHAs. The block without CITED REQUIREMENTS stays within
 :data:`BYTE_BUDGET` bytes (NFR-001): the header, provenance and command lines are always kept, and
 the commit list, the file list and the out-of-map paths are filled in that order until the budget
@@ -144,9 +146,9 @@ def _header_lines(review_range: WpReviewRange, branch: str | None) -> list[str]:
 
 
 def _command_lines(review_range: WpReviewRange) -> list[str]:
-    """``git log`` / ``git diff`` over the full-SHA range, scoped to the quoted owned pathspecs when there are any."""
+    """``git log`` / ``git diff`` over the full-SHA range, scoped to the quoted listing pathspecs (the commit list's own)."""
     rev_range = f"{review_range.base}..{review_range.tip}"
-    scope = " -- " + " ".join(shlex.quote(spec) for spec in review_range.owned_pathspecs) if review_range.owned_pathspecs else ""
+    scope = " -- " + " ".join(shlex.quote(spec) for spec in review_range.listing_pathspecs)
     return [
         _COMMANDS_HEADING,
         f"{_INDENT}git log --oneline {rev_range}{scope}",

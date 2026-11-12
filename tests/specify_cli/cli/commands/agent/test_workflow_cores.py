@@ -157,19 +157,24 @@ class TestWpReviewRangeOwnedPathspecs:
         owned = ["src/specify_cli/foo.py", "tests/test_foo.py"]
         assert _pathspecs(owned, tmp_path) == owned
 
-    def test_mission_root_files_get_status_and_tasks_excludes(self, tmp_path: Path) -> None:
+    def test_mission_root_files_that_reach_no_bookkeeping_get_no_excludes(self, tmp_path: Path) -> None:
+        """Re-pin (#7578, DIRECTIVE_041): an exclude is added only for a bookkeeping prefix an owned glob can reach."""
         owned = ["kitty-specs/my-mission/spec.md", "src/foo.py"]
-        result = _pathspecs(owned, tmp_path)
-        assert result[:2] == owned
-        assert ":(exclude)kitty-specs/my-mission/tasks/**" in result
-        assert ":(exclude)kitty-specs/my-mission/tasks.md" in result
-        assert ":(exclude)kitty-specs/my-mission/status.events.jsonl" in result
-        assert ":(exclude)kitty-specs/my-mission/status.json" in result
+        assert _pathspecs(owned, tmp_path) == owned
 
-    def test_excludes_only_added_once_even_with_multiple_mission_root_files(self, tmp_path: Path) -> None:
-        owned = ["kitty-specs/my-mission/spec.md", "kitty-specs/my-mission/plan.md"]
+    def test_mission_dir_glob_gets_every_mission_bookkeeping_exclude(self, tmp_path: Path) -> None:
+        result = _pathspecs(["kitty-specs/my-mission/**", "src/foo.py"], tmp_path)
+        assert result[:2] == ["kitty-specs/my-mission/**", "src/foo.py"]
+        assert ":(exclude)kitty-specs/my-mission/tasks/*" in result
+        assert ":(exclude)kitty-specs/my-mission/tasks.md*" in result
+        assert ":(exclude)kitty-specs/my-mission/status.*" in result
+        assert ":(exclude)kitty-specs/my-mission/meta.json*" in result
+        assert ":(exclude).kittify/*" not in result
+
+    def test_excludes_only_added_once_even_with_multiple_mission_root_globs(self, tmp_path: Path) -> None:
+        owned = ["kitty-specs/my-mission/**", "kitty-specs/my-mission/research/**", "kitty-specs/*/tasks/**"]
         result = _pathspecs(owned, tmp_path)
-        assert result.count(":(exclude)kitty-specs/my-mission/tasks/**") == 1
+        assert result.count(":(exclude)kitty-specs/my-mission/tasks/*") == 1
 
 
 # ---------------------------------------------------------------------------

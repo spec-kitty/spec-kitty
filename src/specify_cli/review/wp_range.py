@@ -27,8 +27,9 @@ Listing (a constant number of git calls, NFR-002). Pathspecs use git's default w
 magic, so the printed review command matches the same paths. The Mission's bookkeeping prefixes
 follow the resolved Mission directory name, never the caller's handle (a mid8 or ULID works):
 
-* ``commits``: ``git log --reverse base..tip -- <owned pathspecs>``, which is exactly what the
-  printed review command lists. Merge commits follow git's default walk (no ``-m``, default
+* ``commits``: ``git log --reverse base..tip -- <listing pathspecs>``, which is exactly what the
+  printed review command lists: both read :attr:`WpReviewRange.listing_pathspecs` (the owned
+  pathspecs, or ``.`` plus the bookkeeping excludes when no ``owned_files`` are declared). Merge commits follow git's default walk (no ``-m``, default
   history simplification): a merge is listed when its combined diff touches the owned files, so
   the list keeps equal to the printed command; ``files`` is the tree diff ``base..tip``, which
   includes merged-in content.
@@ -40,8 +41,9 @@ follow the resolved Mission directory name, never the caller's handle (a mid8 or
   (``status.read_lane_head``), so the work package's own status commits never count.
 
 Bookkeeping is ``lanes.for_review_gate.status_only_excluded_prefixes`` (``.kittify/`` included).
-When an owned file lies under the Mission's own directory, ``owned_pathspecs`` also excludes the
-Mission's ``tasks/``, ``tasks.md`` and status files, as the two retired review pathspec builders did.
+``owned_pathspecs`` also excludes every bookkeeping prefix (plus the Mission's ``tasks.md``) that an
+owned glob can reach, judged by the glob's literal lead (the text before its first wildcard), so a
+commit that touches only bookkeeping paths is never listed, whatever the owned files are.
 
 Fail-soft (FR-013, NFR-004): nothing here raises. A status surface that cannot be read is an
 ``UNAVAILABLE`` range with gap ``status_unreadable``; a failed listing keeps the range, leaves that
@@ -92,6 +94,9 @@ _LANE_HEAD = "lane_head"
 _EVENTS_FILENAME = "status.events.jsonl"
 _EXCLUDE = ":(exclude)"
 _ALL_PATHS = "."
+_WILDCARDS = frozenset("*?[")
+#: The Mission's task index, excluded from an owned scope that reaches it (as the retired review pathspec builders did).
+_TASKS_INDEX = "tasks.md"
 
 
 class RangeSource(StrEnum):
@@ -164,12 +169,18 @@ class WpReviewRange:
     out_of_map: tuple[str, ...] = ()
     owned_pathspecs: tuple[str, ...] = ()
     listing_gap: str | None = None
+    bookkeeping_pathspecs: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         unavailable = self.status is RangeStatus.UNAVAILABLE
         ends = (self.base, self.tip)
         if (unavailable and ends != (None, None)) or (not unavailable and None in ends):
             raise ValueError(f"an UNAVAILABLE review range has neither end, any other has both: {self.status}, base={self.base}, tip={self.tip}")
+
+    @property
+    def listing_pathspecs(self) -> tuple[str, ...]:
+        """The pathspecs the commit list was listed with and the printed review commands carry (one value)."""
+        return _listing_scope(self.owned_pathspecs, self.bookkeeping_pathspecs)
 
     @classmethod
     def unavailable(cls, wp_id: str, gap: str, owned_pathspecs: tuple[str, ...] = ()) -> WpReviewRange:
@@ -189,19 +200,35 @@ class WpReviewRange:
 # --------------------------------------------------------------------------- pathspecs
 
 
+def _literal_lead(pattern: str) -> str:
+    """*pattern* up to its first wildcard character (all of it when it has none)."""
+    for index, char in enumerate(pattern):
+        if char in _WILDCARDS:
+            return pattern[:index]
+    return pattern
+
+
 def _owned_pathspecs(owned_files: Sequence[str], mission_dir_name: str) -> tuple[str, ...]:
-    """The owned globs, plus the Mission-dir bookkeeping excludes when an owned path lies under the Mission dir."""
+    """The owned globs, plus an ``:(exclude)`` for every bookkeeping prefix an owned glob can reach.
+
+    A glob can reach a prefix when one of the two is a prefix of the other's literal lead, so the
+    test errs towards excluding; a glob that cannot reach any bookkeeping path gets no exclude.
+    """
     patterns: tuple[str, ...] = owned_patterns(owned_files)
-    root = f"kitty-specs/{mission_dir_name}/"
-    if not any(pattern.startswith(root) for pattern in patterns):
-        return patterns
-    excludes = (f"{root}tasks/**", f"{root}tasks.md", f"{root}{_EVENTS_FILENAME}", f"{root}status.json")
-    return (*patterns, *(f"{_EXCLUDE}{path}" for path in excludes))
+    candidates = (*status_only_excluded_prefixes(mission_dir_name), f"kitty-specs/{mission_dir_name}/{_TASKS_INDEX}")
+    leads = [_literal_lead(pattern) for pattern in patterns]
+    reached = [prefix for prefix in candidates if any(prefix.startswith(lead) or lead.startswith(prefix) for lead in leads)]
+    return (*patterns, *(f"{_EXCLUDE}{prefix}*" for prefix in reached))
 
 
 def _bookkeeping_excludes(mission_slug: str) -> tuple[str, ...]:
     """``:(exclude)`` pathspecs for the status-only prefixes (git's default, non-literal matching)."""
     return tuple(f"{_EXCLUDE}{prefix}*" for prefix in status_only_excluded_prefixes(mission_slug))
+
+
+def _listing_scope(owned_pathspecs: tuple[str, ...], bookkeeping: tuple[str, ...]) -> tuple[str, ...]:
+    """The commit list's pathspecs: the owned ones, or every path but bookkeeping when none are declared."""
+    return owned_pathspecs or (_ALL_PATHS, *bookkeeping)
 
 
 # --------------------------------------------------------------------------- resolution
@@ -407,7 +434,7 @@ def _listing(request: _ListingRequest) -> _Listing:
     listing = _Listing()
     rev_range = f"{request.base}..{request.tip}"
     owned_excludes = tuple(spec for spec in request.owned_pathspecs if spec.startswith(_EXCLUDE))
-    scope = request.owned_pathspecs or (_ALL_PATHS, *request.bookkeeping)
+    scope = _listing_scope(request.owned_pathspecs, request.bookkeeping)
 
     def _commits() -> None:
         listing.commits = _list_commits(request.repo_root, rev_range, scope)
@@ -485,6 +512,7 @@ def resolve_wp_review_range(
     base, base_source, base_gap = _select_base(ctx, tip)
     if base is None:
         return WpReviewRange.unavailable(wp_id, base_gap or RangeGap.UNRESOLVABLE_SHA, owned_pathspecs)
+    bookkeeping = _bookkeeping_excludes(ctx.surface.mission_dir_name)
     listing = _listing(
         _ListingRequest(
             repo_root=repo_root,
@@ -492,7 +520,7 @@ def resolve_wp_review_range(
             tip=tip,
             owned_pathspecs=owned_pathspecs,
             patterns=owned_patterns(owned_files),
-            bookkeeping=_bookkeeping_excludes(ctx.surface.mission_dir_name),
+            bookkeeping=bookkeeping,
             head=ctx.live_head,
         )
     )
@@ -511,4 +539,5 @@ def resolve_wp_review_range(
         out_of_map=listing.out_of_map,
         owned_pathspecs=owned_pathspecs,
         listing_gap=", ".join(listing.failed) or None,
+        bookkeeping_pathspecs=bookkeeping,
     )
