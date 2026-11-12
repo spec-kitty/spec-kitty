@@ -3,6 +3,7 @@ work_package_id: WP05
 title: ADR amendment and changelog
 dependencies:
 - WP04
+- WP06
 requirement_refs:
 - C-004
 - C-005

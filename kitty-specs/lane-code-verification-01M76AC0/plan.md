@@ -201,6 +201,14 @@ No charter violations.
 - **Sequencing/depends-on**: IC-01
 - **Risks**: existing gate fixtures write `src/specify_cli/...` without `__init__.py` (namespace) — not probed, so they stay unverified and never refuse; `test_transition_gate_parity.py` dispatches with a `SimpleNamespace` context, so read `run_env` with a default; `test_verdict_candidate_exit.py:240` pins the metadata key set when no invocation exists (keep `evidence_tree` conditional); in a lane without a venv `make test-fast` falls back to `uv run`, which syncs a lane venv inside the gate budget (true today when `UV_PROJECT_ENVIRONMENT` is unset; stripping it only removes the root-venv redirect).
 
+### IC-05 — New lanes get the pinned packs trees (#7577)
+
+- **Purpose**: A lane created in a repository that pins its packs gets the pinned, digest-verified trees from the local cache, so the lane's own CLI and pack tests run.
+- **Relevant requirements**: FR-012, SC-006, C-001
+- **Affected surfaces**: `src/specify_cli/lanes/lane_packs.py` (new), `src/specify_cli/lanes/lane_checkout.py` (one best-effort call after `git worktree add` in `open_lane_checkout`, the single lane-creation seam), pack functions through the `charter.packs` facade (lazy import)
+- **Sequencing/depends-on**: none
+- **Risks**: cold cache (offline only, print remedy, never fail implement); placed trees are untracked but gitignored (`/packs/built-in/`, `/packs/internal/`), so the lane stays clean; a pin that differs between lane and repository root checkout uses the lane's own pin; decision `01M774QJP2HZ0A2A8KQ05MQCRS`.
+
 ### IC-04 — Close-out: docs, changelog, follow-up issues
 
 - **Purpose**: Changelog fragment, ADR amendment cross-links, and the two follow-up issues (orchestrator-api gate gap; lane packs).

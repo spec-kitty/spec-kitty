@@ -30,6 +30,9 @@ Subtask completion is event-sourced: record it with
 | T018 | Metadata: conditional `evidence_tree`, `force_bypassed` for foreign, `bypassed_refusal`; hand-authored parity cell | WP04 | |
 | T019 | ADR `2026-08-13-6` amendment (provenance refusal, `--force`, fault carve-out) | WP05 | |
 | T020 | Changelog fragment `7554.fixed.md` | WP05 | [P] |
+| T021 | Red tests: a lane created by `spec-kitty implement` in a pinning repo gets verified packs trees (warm cache) / remedy and no tree (cold cache) | WP06 | |
+| T022 | `lane_packs.place_pinned_packs(lane)`: read lane pins, offline `fetch_to_cache`, `place_pack`, report | WP06 | |
+| T023 | Call it from `open_lane_checkout` after the worktree is added; surface the remedy on a cold cache | WP06 | |
 
 ## Phase 1 — Foundation
 
@@ -79,7 +82,7 @@ T014 Aggregation REFUSE tier (WP03)
 ### WP04 — The for_review hook records evidence and refuses a foreign tree (IC-03, hook half)
 Prompt: [tasks/WP04-for-review-hook-evidence-and-refusal.md](tasks/WP04-for-review-hook-evidence-and-refusal.md)
 - **Goal**: `move-task --to for_review` records the evidence tree and refuses `EVIDENCE_TREE_MISMATCH` unless `--force`.
-- **Priority**: P1 · **Dependencies**: WP01, WP03
+- **Priority**: P1 · **Dependencies**: WP01, WP02, WP03
 - **Independent test**: CLI move-task tests with the lane-venv fixture pair (SC-002, SC-004).
 
 T015 Red tests through move-task (WP04)
@@ -87,12 +90,22 @@ T016 Hook builds invocation/probe/evidence (WP04)
 T017 Refusal effect (WP04)
 T018 Metadata + parity cell (WP04)
 
+### WP06 — New lanes get the pinned packs trees (#7577)
+Prompt: [tasks/WP06-new-lanes-get-pinned-packs.md](tasks/WP06-new-lanes-get-pinned-packs.md)
+- **Goal**: `spec-kitty implement` places the pinned, verified packs trees into a new lane.
+- **Priority**: P1 · **Dependencies**: none
+- **Independent test**: `spec-kitty implement` in a pinning fixture repo with a warm / cold cache.
+
+T021 Red tests (WP06)
+T022 Placement helper (WP06)
+T023 Wire into lane creation (WP06)
+
 ## Phase 4 — Close-out
 
 ### WP05 — ADR amendment and changelog (IC-04)
 Prompt: [tasks/WP05-adr-amendment-and-changelog.md](tasks/WP05-adr-amendment-and-changelog.md)
 - **Goal**: governance record for the new refusal; user-facing changelog entry.
-- **Priority**: P2 · **Dependencies**: WP04
+- **Priority**: P2 · **Dependencies**: WP04, WP06
 
 T019 ADR amendment (WP05)
 T020 Changelog fragment (WP05)

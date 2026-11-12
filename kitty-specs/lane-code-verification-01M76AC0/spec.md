@@ -152,8 +152,10 @@ refuses with `EVIDENCE_TREE_MISMATCH`).
   correctly when deciding whether an origin is inside the lane.
 - The baseline is captured in another tree on purpose; recording the evidence tree must
   not turn existing baselines into source mismatches.
-- A lane checkout without the fetched packs tree in this repository: out of scope; filed
-  as a follow-up issue.
+- A lane checkout of a repository that pins its packs (`packs/*.source.yaml`) but does not
+  commit the trees: the lane gets the pinned, digest-verified trees when it is created
+  (#7577); a cold cache leaves the lane without them and prints the remedy instead of
+  failing.
 
 ## Domain Language
 
@@ -180,6 +182,7 @@ refuses with `EVIDENCE_TREE_MISMATCH`).
 | FR-008 | The gate refuses foreign evidence | As the operator, I want the pre-review gate to refuse the move to `for_review` with exit code 1 and refusal code `EVIDENCE_TREE_MISMATCH` when the probe shows the run loaded code from outside the lane, regardless of `review.fail_on_pre_review_regression`, so that evidence from another tree cannot pass review unnoticed (an explicit skip of the gate, which checks nothing, stays as it is). | High | Open | [build] | no — paired with the verified-lane scenario that proceeds on the same fixture |
 | FR-009 | `--force` bypasses the refusal and is recorded | As the operator, I want `--force` to let the transition proceed past `EVIDENCE_TREE_MISMATCH` and the recorded evidence to say so (force bypassed, which refusal, and that no test evidence was produced), even when the regression block is not enabled, so that a probe false positive cannot stall work invisibly. | Medium | Open | [build] | no |
 | FR-010 | Unprobe-able projects are recorded, never refused | As a consumer with a non-Python project, I want the invocation and the gate to record an unverified probe with git facts and never refuse on provenance grounds, so that the check does not break projects it cannot judge. | High | Open | [build] | no — paired with FR-008 on a probe-able fixture |
+| FR-012 | New lanes get the pinned packs trees | As an implementing agent in a repository that pins its pack trees instead of committing them, I want `spec-kitty implement` to place the pinned, digest-verified trees into a new lane from the local cache (the same verification `make sync-packs` applies), and to print the remedy when the cache cannot supply them, so that the lane's own CLI and pack tests run instead of failing with `BuiltInPackMissing` (#7577). | High | Open | [build] | no — paired with a lane created from a cold cache on the same fixture, which gets no tree and the remedy line |
 | FR-011 | Existing gate behaviour stays as it is | As the operator, I want existing gate outcomes, their severities, the skip flag and environment variable, and baseline source identity to behave exactly as today, so that this change adds a check without weakening or reshaping the gate. | High | Open | [ratchet] | yes — pinned by the existing gate test suites, which must stay green unchanged |
 
 ### Non-Functional Requirements
@@ -222,18 +225,19 @@ refuses with `EVIDENCE_TREE_MISMATCH`).
 - **SC-002**: A pre-review gate run that loads another tree's code is refused in 100% of attempts without `--force`, and the same fixture with a correct environment proceeds — [build] · no-op passable: no
 - **SC-003**: 100% of implement and review prompts generated for lane-backed work packages state the lane test invocation and its probe result — [build] · no-op passable: no
 - **SC-004**: Every pre-review gate verdict that ran tests carries an evidence tree with all four facts (path, commit, dirty flag, probe result) — [build] · no-op passable: no
+- **SC-006**: In a repository that pins its packs, 100% of lanes created by `spec-kitty implement` from a warm cache contain trees that pass the pin's verification check, and 0% of pack files are edited — [build] · no-op passable: no
 - **SC-005**: The existing pre-review gate, lane, workspace and implement test suites pass unchanged, except the two exact-shape `implement --json` goldens, which each gain only the new `lane_test_invocation` key — [ratchet] · no-op passable: yes (pinned regression suite)
 
 ## Tracker
 
-- Closes #7554; closes #7547 when every slice lands.
+- Closes #7554; closes #7547 when every slice lands; closes #7577 (folded by operator
+  ruling `01M774QJP2HZ0A2A8KQ05MQCRS`).
 - Folds #5985 item 2 (Refs #5985; item 1 stays open) and the detection half of #1907
   (Refs #1907).
 - Refs #3959, #3123, #3074, #5140, #5071, #6851, #3260, #1224, #5064, #7361, #2624,
   #7336, #2330, #5096, #2803, and the epics #7543, #5103.
 - Follow-ups: the orchestrator-api `for_review` transition does not run the pre-review
-  gate (owned by #7407, not re-filed); lane worktrees of this repository lack the fetched
-  packs tree (#7577).
+  gate (owned by #7407, not re-filed); lane packs (#7577) are folded into this Mission.
 
 ## Assumptions
 

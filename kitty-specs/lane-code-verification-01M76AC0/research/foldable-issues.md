@@ -107,3 +107,11 @@ Open PRs in total: 6 (#7567, #7564, #7562, #7561, #7472 from a fork, #7425 draft
 - Only **#7562** overlaps directly: `lanes/implement_support.py` and `implement_cores.py` (slice 2, implement prints and records the command), and the `tasks_move_task*.py` family that calls the pre-review gate (slice 3). The hunks are small and local (`_claim_dirty_paths`, `_is_coord_legacy_mission_event_log`), so the conflict risk is low to moderate. Rebase slices 2 and 3 after #7562 merges.
 - Slice 1 (new seam, likely `lanes/` or `review/_interpreter.py`) is collision-free today.
 - Slice 3's natural home (`review/pre_review_gate.py`, `review/_interpreter.py`, `agent/tasks_move_task_gates.py`) is untouched by every open PR.
+
+## 4. Operator rulings after the first pass (2026-11-12)
+
+| Issue | Class | Ruling |
+|---|---|---|
+| #7577 | **FOLD** | Decision `01M774QJP2HZ0A2A8KQ05MQCRS`: `implement` places the pinned, digest-verified packs trees into a new lane from the local cache (same `fetch_to_cache` + `place_pack` path as `make sync-packs`); a cold cache prints the remedy. Own slice (WP06), red-first through `spec-kitty implement`. |
+| #7407 | REFS | Owns the orchestrator-api `for_review` gate gap; not re-filed. |
+| #7578 | Shared file | Sub-epic R owns review-prompt assembly; this Mission adds one renderer call to `build_review_prompt_lines` (decision `01M774QW5964BZ2JKZMY95X2S9`); `cli/commands/agent/workflow_executor.py` is named as shared in the PR. |

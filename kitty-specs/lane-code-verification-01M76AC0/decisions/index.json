@@ -118,6 +118,54 @@
       "status": "resolved",
       "step_id": null,
       "summary_json": null
+    },
+    {
+      "created_at": "2026-11-12T05:47:16.034123Z",
+      "decision_id": "01M774QJP2HZ0A2A8KQ05MQCRS",
+      "final_answer": "implement places the pinned tree",
+      "input_key": "fold_7577",
+      "mission_id": "01M76AC0C79GVMYF5740T7B84H",
+      "mission_slug": "lane-code-verification-01M76AC0",
+      "opened_by": "claude-orchestrator",
+      "options": [
+        "implement places the pinned tree",
+        "lane-aware resolver",
+        "warn only",
+        "do not fold"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Fold #7577 (lane worktrees lack the fetched packs tree) and by which mechanism?",
+      "rationale": "Operator ruling 2026-11-12 (relayed by the dispatching session, confirmed directly by the operator in this session). When implement allocates a lane in a checkout that pins packs (packs/*.source.yaml) and the lane lacks the tree, it places the pinned, digest-verified tree with the same fetch_to_cache + place_pack path make sync-packs uses, offline cache first; a cold cache prints the remedy instead of failing implement. Pack content is never edited. Delivered as its own red-first slice through spec-kitty implement; Closes #7577 when fully delivered.",
+      "resolved_at": "2026-11-12T05:47:20.771154Z",
+      "resolved_by": "operator",
+      "slot_key": "plan.scope.fold_7577",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-12T05:47:25.737260Z",
+      "decision_id": "01M774QW5964BZ2JKZMY95X2S9",
+      "final_answer": "keep one renderer call, name the shared file",
+      "input_key": "review_prompt_overlap_7578",
+      "mission_id": "01M76AC0C79GVMYF5740T7B84H",
+      "mission_slug": "lane-code-verification-01M76AC0",
+      "opened_by": "claude-orchestrator",
+      "options": [
+        "keep one renderer call, name the shared file",
+        "drop the review prompt part"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "How does this Mission share build_review_prompt_lines with sub-epic R (#7578, owns review-prompt assembly)?",
+      "rationale": "Operator ruling 2026-11-12. One renderer call in build_review_prompt_lines; the renderer lives in this Mission's review/lane_test_invocation.py; the PR names cli/commands/agent/workflow_executor.py as a file shared with #7578.",
+      "resolved_at": "2026-11-12T05:47:30.461531Z",
+      "resolved_by": "operator",
+      "slot_key": "plan.scope.review_prompt_overlap_7578",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
     }
   ],
   "mission_id": "01M76AC0C79GVMYF5740T7B84H",
