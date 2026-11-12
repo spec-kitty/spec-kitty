@@ -707,11 +707,12 @@ _FOUNDATION_SANCTION_SEED: tuple[ContentDescriptor, ...] = (
         token_substring="_compose_primary_feature_dir (",
         occurrence=None,
         rationale=(
-            "FR-005 foundation site 2/4: same core/paths.py recursion "
-            "rationale as get_feature_target_branch above -- a second, "
-            "distinct site in the same file (two entries, not a module "
-            "blanket, per C-003). WP08 (T035): token re-pointed to the leaf "
-            "in the same commit as the wrapper deletion, same M1 rationale."
+            "FR-005 foundation site 2/4: reads the repository root checkout's "
+            "literal Mission dir; constrained by core/paths.py's early-import "
+            "deferred-import layering and behaviour preservation with the "
+            "deleted wrapper (one entry, not a module blanket, per C-003). "
+            "WP08 (T035): token re-pointed to the leaf in the same commit as "
+            "the wrapper deletion, same M1 rationale."
         ),
     ),
     # ---- Post-merge aggregate-squad closeout (fix/read-side-seam-primary-

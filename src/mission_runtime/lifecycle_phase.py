@@ -92,13 +92,21 @@ def _primary_feature_dir(
 ) -> Path:
     """The canonical PRIMARY mission dir every field this module reads anchors on.
 
-    Mirrors :func:`specify_cli.core.paths.get_feature_target_branch`'s own
-    canonicalization exactly -- the sibling ``target_branch`` reader this
-    module's E1/E2 disambiguation directly depends on -- so every field read
-    here (``baseline_merge_commit``, ``mission_number``, the status event
-    log) comes from the SAME ``meta.json`` as the target-branch read the
-    write path already trusts. This is the existing canonicalization
-    primitive applied to sibling fields, never a second resolver (C-006).
+    It reads the repository root checkout's literal Mission directory
+    (``_compose_primary_feature_dir`` after handle canonicalization), the
+    existing canonicalization primitive applied to the fields read here
+    (``baseline_merge_commit``, ``mission_number``, the status event log),
+    never a second resolver (C-006). It no longer reads the same ``meta.json``
+    as :func:`specify_cli.core.paths.get_feature_target_branch`, which now
+    reads through ``mission_runtime.resolution.read_dir_for`` and so finds a
+    settled default Mission's copy in the coordination worktree (#7595).
+
+    That is safe before the landing: ``baseline_merge_commit`` is recorded only
+    by the landing, so a copy in the root checkout that lacks it, or a root
+    checkout with no copy at all, gives the same PRE_CONSOLIDATION verdict the
+    holder's copy would. It cannot be routed through the placement seam's
+    reader: ``PlacementSeam.read_dir`` -> ``resolve_lifecycle_phase`` ->
+    ``get_feature_target_branch`` would make this probe re-enter itself.
     """
     from specify_cli.core.paths import get_main_repo_root
     from specify_cli.missions._read_path_resolver import (
