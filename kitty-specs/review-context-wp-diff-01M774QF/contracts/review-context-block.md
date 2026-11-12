@@ -9,17 +9,17 @@ This is the text block both review entry points print. Agents parse it by eye, s
 
 ```
 REVIEW RANGE (WP02): <base12>..<tip12>  [recorded | derived | unavailable]
-  base: <base12> (<window open | claim base ref | claim event commit>)
+  base: <base12> (<window open | opener lane_head stamp | claim base ref | claim event commit>)
 ? note: recorded window not used: <gap reason>
   tip:  <tip12> (<for_review submission | for_review event commit>)
 ? note: <branch> has moved <N> commit(s) past the submitted tip
-IMPLEMENTATION COMMITS (<n>, <m> bookkeeping-only omitted):
+IMPLEMENTATION COMMITS (<n>; = output of the git log command below):
   <sha12> <subject>
 ? … <k> more (see git log command)
 CHANGED FILES (owned files, +added -removed):
   +<a> -<r>  <path>
 ? … <k> more files
-? OUTSIDE OWNED FILES (review rationale required): <path>, <path>, …
+? OUTSIDE OWNED FILES (<p> path(s) in <q> commit(s) touching only those paths; review rationale required): <path>, <path>, …
 REVIEW COMMANDS:
   git log --oneline <base>..<tip> [-- <owned pathspecs>]
   git diff <base>..<tip> [-- <owned pathspecs>]
@@ -41,10 +41,9 @@ REVIEW COMMANDS:
 ## Rules
 
 - A full SHA is used inside commands. Labels may abbreviate to 12 characters.
-- Truncation bounds:
-  - commits: 20 shown;
-  - files: 40 shown;
-  - out-of-map paths: 20 shown;
-  - requirement text: 600 characters each.
+- Byte budget: the block, without CITED REQUIREMENTS, is at most 4,096 bytes (NFR-001). Lists are filled in order (commits, files, out-of-map) until the budget is reached. The rest of each list is replaced by one `… <k> more` line. The header, provenance and command lines are always kept.
+- Requirement text: 600 characters each (NFR-003).
+- The commit list equals the printed `git log` command's output (owned-file glob pathspecs). Commits that touch only bookkeeping paths never appear. Commits that touch only out-of-map paths are counted on the OUTSIDE OWNED FILES line.
+- The moved-past note counts non-bookkeeping commits only.
 - The order is deterministic: commits oldest first, files and paths sorted.
 - `OWNED_REVIEW_BASE_UNAVAILABLE` (owned checkouts) is unchanged, and so is the anti-pattern checklist that follows the block.

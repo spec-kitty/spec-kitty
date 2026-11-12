@@ -25,3 +25,29 @@ No dependency is added, upgraded or removed. DIRECTIVE_051 does not apply.
 ## Adversarial evidence
 
 The pre-spec squad (code grounding, evidence, issue discovery, plus a fresh-context second opinion) has its verdicts folded into `research/code-grounding.md`. The post-plan squad's findings and their dispositions are appended below once it reports.
+
+## Post-plan squad (2026-11-12): architect-alphonso + researcher-robbie, both PROCEED-WITH-FOLDS
+
+Disposition of every finding (A = architect, R = researcher):
+
+| # | Finding | Severity | Disposition |
+|---|---|---|---|
+| P1 | A third render site, `_review_print_finalize_summary` (A) | MAJOR | **Folded**: IC-05 lists three render sites, and the parity test pins all three. |
+| P2 | Two pathspec builders, and the out-of-map matcher disagrees with the evidence axis (A, R) | MAJOR | **Folded**: `WpReviewRange.owned_pathspecs` is the one owner. `matches_owned` moves to `ownership/` (IC-01b). Both builders are retired (IC-05). |
+| P3 | Event-commit fallback is unusable on lane topologies (A, R) | MAJOR | **Folded**: event commits only on `single_branch`. Lanes fall back to the opener's rc5 `lane_head`. Every derived anchor is ancestry-guarded (IC-03). |
+| P4 | A second `-S` authority (A) | MAJOR | **Folded**: generalise `claim_commit_for_wp` in `mission_runtime` (IC-03). |
+| P5 | Foreign commits on a commit-to-target range, and the commit list disagreeing with the command (A, R) | MAJOR | **Folded**: the list is the command's result (scoped). Out-of-map-only commits are counted. Foreign commits that touch owned paths are a named residual (spec edge case). |
+| P6 | Moved-past fires on every single_branch review (R) | MAJOR | **Folded**: count non-bookkeeping commits only (FR-009 amended). |
+| P7 | NFR-002: one subprocess per commit (A, R) | MAJOR | **Folded**: a constant number of git calls. NFR-002 is restated as a call-count bound with a call-count test. |
+| P8 | Caps exceed 4 KB (R) | MAJOR | **Folded**: truncation by byte budget (NFR-001, contract). |
+| P9 | `wp_window.py` purity docstring (A) | MINOR | **Folded**: a sibling `status/wp_window_selector.py`. |
+| P10 | Incomplete IC-01 move list (A, R) | MINOR | **Folded**: full list, plus `is_migration_event`. |
+| P11 | Missed readers `_recorded_lane_heads` and `_has_review_approval_stamp` (A, R) | MINOR | **Folded**: added to the IC-02 risk list and the IC-06a characterization. |
+| P12 | The Q3 ruling text names `check_write_branch_windows`, which commit-to-target never reaches; C-008 says "expected: none" (A, R) | MINOR | **Folded**: C-008 restated. The ADR amendment corrects the mechanism. Reported to the operator. The substance of the ruling stands. |
+| P13 | The gate's claim-base anchor and the review's window rule diverge after a rewind (A) | MINOR | **Folded**: spec edge case and provenance line. The gate is not changed (C-004). |
+| P14 | Tip must come after the window opener (R) | MINOR | **Folded** (IC-03). |
+| P15 | `glob=True` for kernel listing calls (R) | MINOR | **Folded** (IC-03). |
+| P16 | IC-04: ambiguity semantics, SC trailer, escaped pipes (R) | MINOR | **Folded** (IC-04). |
+| P17 | `.kittify/` already in the prefixes; one term for "write checkout head" (A) | NIT | **Folded**. |
+| P18 | "First claim often records lane_branch_missing" is not supported for production verbs (R) | NIT | **Accepted** as a correction. It happens only for hand-made move-task claims, and the gap fixture still covers that shape. |
+| P19 | SC-005 is a benchmark (R) | NIT | **Kept** as `[build]`, already marked "tracked, not gating". |

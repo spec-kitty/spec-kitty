@@ -67,8 +67,11 @@ kitty-specs/review-context-wp-diff-01M774QF/
 ### Source Code (repository root)
 
 ```
-src/specify_cli/status/wp_window.py             # + window_opener_events, window_open_of, WindowOpen/WindowGap/WindowGapReason (moved, IC-01)
-src/specify_cli/consolidation/wp_attribution.py # re-exports the moved names (IC-01)
+src/specify_cli/status/wp_window_selector.py    # NEW: FR-021 selector moved from wp_attribution (IC-01)
+src/specify_cli/ownership/                      # + owned_patterns, matches_owned moved from wp_evidence (IC-01)
+src/specify_cli/consolidation/wp_attribution.py, wp_evidence.py  # re-export the moved names (IC-01)
+src/mission_runtime/claim_commit.py             # generalised event-commit lookup (IC-03)
+src/specify_cli/cli/commands/agent/workflow_cores.py      # retire build_owned_files_review_pathspecs (IC-05)
 src/specify_cli/status/lane_head.py             # commit-to-target single_branch reading (IC-02)
 src/specify_cli/review/wp_range.py              # NEW: resolve_wp_review_range → WpReviewRange (IC-03)
 src/specify_cli/requirement_mapping/text.py     # NEW: resolve_requirement_texts (IC-04)
@@ -87,105 +90,122 @@ No Charter violations.
 
 ## Implementation Concern Map
 
-### IC-01: A shared home for the window-opener rule (tidy-first)
+### IC-01: Shared homes for the window-opener rule and owned-file matching (tidy-first)
 
-- **Purpose**: let `src/runtime` and `specify_cli/review` use the FR-021 window-opener rule without importing `consolidation`, keeping one definition.
-- **Relevant requirements**: FR-003, C-005, C-007
+- **Purpose**: let `src/runtime` and `specify_cli/review` use the FR-021 window-opener rule and the owned-file matcher without importing `consolidation`, keeping one definition of each.
+- **Relevant requirements**: FR-003, FR-006, FR-007, C-005, C-007
 - **Affected surfaces**:
-  - Move the pure `window_opener_events`, `window_open_of`, `_cycle_start_index`, `WindowOpen`, `WindowGap` and `WindowGapReason` from `consolidation/wp_attribution.py` to `status/wp_window.py`.
-  - `wp_attribution` re-exports them, so every consolidation import site is unchanged.
-  - Export from `specify_cli.status` only if a caller needs it (`test_no_dead_symbols`).
+  - (a) Move the self-contained selector block, `consolidation/wp_attribution.py:715-933`, to a NEW sibling `status/wp_window_selector.py`. `status/wp_window.py` stays the git-free codec, which keeps its "no specify_cli imports" docstring true.
+    - The block: `window_opener_events`, `window_open_of`, `OpenerSelection`, `WindowOpen`, `WindowGap`, `WindowGapReason`, and the private helpers `_cycle_start_index`, `_candidates`, `_skip_leading_branch_missing`, `_bind`, `_topological_first`, `_window_value`, `_branch_missing_detail`, `_REWORK_FROM_LANES`, `_ENTERED_IMPLEMENTATION_LANES`, `_PLANNED`.
+    - Also `is_migration_event`, which `approved_bound.py:42` and `canceled_attestation.py:46` use.
+    - `wp_attribution` re-exports the public names. `GapEntry` stays in consolidation.
+  - (b) Move `owned_patterns` and `matches_owned` from `consolidation/wp_evidence.py:133-150` into `specify_cli/ownership/`, re-exported from `wp_evidence`. move-task and the evidence axis keep their call sites.
 - **Sequencing/depends-on**: none (first).
 - **Risks**:
-  - `wp_window.py` must stay git-free (predicates are injected).
-  - Check `test_no_dead_symbols`, `test_layer_rules` and the consolidation suite.
-  - Behaviour-preserving: no test changes except new import paths, if any.
+  - Behaviour-preserving. `tests/consolidation/test_window_opener.py` imports `OpenerSelection`, so keep it importable from the old path.
+  - Check `test_no_dead_symbols` and `test_layer_rules`.
 
 ### IC-02: Commit-to-target `single_branch` records window points (writer stamp)
 
 - **Purpose**: make the window recorded on every topology.
 - **Relevant requirements**: FR-002, C-008, C-009, SC-004
 - **Affected surfaces**:
-  - `status/lane_head.py::_read_lane_head`: when the stored topology is `single_branch` and the write branch equals the target (commit-to-target, both read from `meta.json` via `single_branch_landing`), read the target branch head as the WP's reading. It is labelled like the minted case and keeps C-1 best-effort semantics.
+  - `status/lane_head.py::_read_lane_head`: when the stored topology is `single_branch` and the write branch equals the target (commit-to-target, read from `meta.json` through `single_branch_landing`), return the head of the write branch, which is the target. It reuses `_write_branch_head`'s best-effort semantics.
   - Planning lanes of lane topologies stay `not_applicable` (C-009).
-  - The ADR `2026-11-08-2` amendment.
-- **Sequencing/depends-on**: none for the code. The characterization tests (IC-06a) must land **before** this concern changes behaviour.
-- **Risks (the operator-accepted verdict change)**:
-  - Consolidation readers keep commit-to-target unbounded: `_write_branch_scope` returns None (`reconciliation_bound.py:340`), and `approved_bound` excludes it (348-429).
-  - **But** `_mixed_lanes` (`reconciliation_canceled.py:55`) does not skip planning lanes. A commit-to-target Mission with an approved and a canceled WP on its planning lane runs canceled-content attribution, which reads per-transition `lane_head`. Today those stamps are missing, so it reads as unattributable. After the change it attributes.
-  - Pin the current verdict for (a) approved-only, (b) approved + canceled and (c) the move-task / `agent status emit` warnings, then record the after-state in the ADR amendment and in `tracer-design-decisions.md`.
-  - If the after-state emits a refusal code the before-state did not, escalate. The operator accepted a verdict change, but a new code on a previously passing Mission is reported, not assumed.
+  - The ADR `2026-11-08-2` amendment. It also corrects the Q3 ruling's mechanism note: `check_write_branch_windows` is never reached for commit-to-target, because `_bound_write_branch` returns None.
+- **Sequencing/depends-on**: the characterization tests (IC-06a) land first.
+- **Risks (the operator-accepted verdict change, measured, not assumed)**: the stamps newly reach
+  - (1) `reconciliation_canceled._mixed_lanes` and the canceled attribution with `lacks_lane_head_stamps`, on a mixed planning lane;
+  - (2) `reconciliation_closed_world._recorded_lane_heads`, the `--dependency-ref` refusal;
+  - (3) `approved_attestation._has_review_approval_stamp:103`.
 
-### IC-03: The review-range resolver
+  Unchanged, and verified: `_bound_write_branch` returns None, `approved_bound._approval_is_bounded` excludes these Missions, and `cutover_eligibility` treats the keys as provenance. Pin today's verdicts for (1)–(3), plus the approved-only consolidation and accept, then record the after-state in the ADR amendment and in `tracer-design-decisions.md`. Escalate if a previously passing Mission now refuses.
 
-- **Purpose**: one function that yields a WP's review range on every topology, with provenance.
-- **Relevant requirements**: FR-001, FR-004, FR-005, FR-006, FR-007, FR-009, FR-013, NFR-002, NFR-004, NFR-005
-- **Affected surfaces**: NEW `specify_cli/review/wp_range.py`.
+### IC-03: The review-range resolver (the single owner of a WP's review range and pathspecs)
+
+- **Purpose**: one function that yields a WP's review range on every topology, with provenance, and that owns the WP's owned-file pathspecs and its owned/out-of-map split.
+- **Relevant requirements**: FR-001, FR-004 to FR-009, FR-013, NFR-001, NFR-002, NFR-004, NFR-005
+- **Affected surfaces**: NEW `specify_cli/review/wp_range.py`, and `mission_runtime/claim_commit.py`, which is generalised.
   - **Signature.** `resolve_wp_review_range(repo_root, mission_slug, wp_id, *, owned_files, owned=None) -> WpReviewRange`.
-  - **Events.** Read through `resolve_status_read` + `read_status_events`, and opt into `DOOR_ONLY_MODULES`.
-  - **Base resolution order.**
-    1. Recorded: `window_open_of(...)` over the events, with predicates bound to the tip through `kernel.git`.
-    2. Derived: the `refs/spec-kitty/wp-base/<slug>/<WP>` claim-base ref.
-    3. Derived: the commit that introduced the window-opener event (the `claim_commit_for_wp` technique, generalised to an event id).
-    4. Unavailable, with a reason.
-  - **Tip resolution order.**
-    1. Recorded: the newest non-migration `for_review` event's `policy_metadata.lane_head`.
-    2. Derived: the commit that introduced that event.
-    3. Unavailable.
-  - **Moved-past count.** `rev-list --count tip..<write/lane branch>`.
-  - **Commits.** `git log --format=%H%x00%s base..tip` (no listing flag), minus bookkeeping-only commits. A commit counts as bookkeeping when every path in `kernel.git.listing.commit_paths` is under `for_review_gate.status_only_excluded_prefixes` or `.kittify/`.
-  - **Stat.** `numstat_entries(base, tip, pathspecs=owned)`, plus `changed_paths(base, tip)` minus owned for the out-of-map list.
-- **Sequencing/depends-on**: IC-01 (window rule home). It reads IC-02's stamps when present, but does not depend on IC-02 landing first.
+  - **Events.** Read through `resolve_status_read` and `read_status_events`. The module opts into `DOOR_ONLY_MODULES`.
+  - **Tip.** The newest non-migration `for_review` event **after the window opener**:
+    1. its `policy_metadata.lane_head`;
+    2. else, on `single_branch` only, the commit that introduced that event;
+    3. else unavailable.
+  - **Base.**
+    1. Recorded: `window_open_of(...)`, with `on_lane` and `is_ancestor` bound to the tip through `kernel.git`.
+    2. Else the opener event's own `lane_head` stamp, if it is an ancestor of the tip (lane Missions created before #7403, stamped since rc5).
+    3. Else, on `single_branch` only: the `wp-base` claim-base ref, then the commit that introduced the opener event.
+    4. Else unavailable.
+
+    Every derived anchor must be an ancestor of the tip, or it is skipped. Event commits are never used on lane topologies: they sit on the status branch, not the code branch.
+  - **Generalised event lookup.** Generalise `claim_commit_for_wp` in place to `commit_introducing_status_event(status_dir_or_ref, wp_id, event_id, *, rev)`. It supports a path surface and a ref surface, and keeps its ambiguity handling and race guard. `claim_commit_for_wp` becomes a thin wrapper or is folded; no second `-S` authority.
+  - **Pathspecs.** `owned_pathspecs` are glob pathspecs from the owned files. Every `kernel.git` call passes `glob=True`, since the default is literal pathspecs. The two existing builders, `prompt_builder._review_pathspecs:325` and `workflow_cores.build_owned_files_review_pathspecs:540`, are retired in IC-05 in favour of this field.
+  - **Commit list.** One call: `git log --format=%H%x00%s base..tip -- <owned globs>`, which is the printed command's own result. A second single call, unscoped with `:(exclude)` of the bookkeeping prefixes (`for_review_gate.status_only_excluded_prefixes`, which already covers `.kittify/`), counts the commits that touch only out-of-map paths. Merge handling is documented and tested.
+  - **Stat and out-of-map.**
+    - Stat: one `numstat_entries(base, tip, pathspecs=owned, glob=True)`.
+    - Out-of-map: one `changed_paths(base, tip)`, classified with `ownership.matches_owned`, the same matcher the evidence axis uses, so review and `IMPLEMENTATION_MISSING` agree.
+  - **Moved-past.** Non-bookkeeping commits only (excluded with the same pathspec), so the WP's own status commits never trigger the note.
+  - **Budget.** A constant number of git calls (NFR-002), and byte-budget truncation of the block (NFR-001).
+- **Sequencing/depends-on**: IC-01. It reads IC-02's stamps when present.
 - **Risks**:
-  - `open_sha` may not resolve after a rebase (`not_on_lane`): fall back.
-  - Coord topologies: the status log lives on the coordination branch, so derived event-commit lookup searches that branch, via the door's resolved surface.
-  - Cap list lengths (NFR-001).
-  - Keep each function ≤ 15 complexity.
+  - Foreign commits on a shared commit-to-target range that touch owned paths: a named residual.
+  - Keep each function's complexity ≤ 15.
 
 ### IC-04: Requirement-text resolver
 
 - **Purpose**: turn the cited IDs into their declared text.
 - **Relevant requirements**: FR-010, FR-011, NFR-003
-- **Affected surfaces**: NEW `requirement_mapping/text.py`.
-  - **Signature.** `resolve_requirement_texts(spec_text, refs, *, mission_type) -> tuple[CitedRequirement, ...]`.
-  - Built on `_declaration_occurrences`. A table row becomes `ID — Title: statement` from the cells. A heading, list item or bold lead becomes that block's first paragraph.
-  - Grammar comes from `grammar.parse`/`tokenize_refs`. A cross-Mission `slug#ID` is labelled. An undeclared ID is marked. A duplicate declaration is reported as ambiguous.
-  - The WP's `requirement_refs` come from `WPMetadata` (frontmatter, the canonical source).
-  - `spec.md` is read through the placement seam.
-- **Sequencing/depends-on**: none (it can run in parallel with IC-01 to IC-03).
-- **Risks**:
-  - #3481: two "declares" definitions disagree, so use only `_declaration_occurrences`.
-  - Truncate at 600 characters.
+- **Affected surfaces**: NEW `requirement_mapping/text.py::resolve_requirement_texts(spec_text, refs, *, mission_type)`.
+  - Built on `_declaration_occurrences`. The probe on this Mission's spec found all 34 IDs with usable line numbers.
+  - A table row becomes `ID — Title: statement`, with escaped `\|` handled. A heading, list item or bold lead becomes its block's first paragraph, with the SC trailer (`— [build] · …`) stripped.
+  - AMBIGUOUS uses only `duplicate_declared_ids` semantics, so a bullet that merely restates an ID is not ambiguous.
+  - A cross-Mission `slug#ID` is labelled, and an undeclared ID is marked.
+  - The WP's `requirement_refs` come from the frontmatter. `spec.md` is read through the placement seam.
+- **Sequencing/depends-on**: none (it can run in parallel).
+- **Risks**: #3481. Use only the canonical declaration parser.
 
-### IC-05: One renderer for both review entry points
+### IC-05: One renderer for every review render site
 
-- **Purpose**: both paths show the same block.
+- **Purpose**: every review surface shows the same range.
 - **Relevant requirements**: FR-008, FR-012, NFR-001, NFR-005
 - **Affected surfaces**:
   - NEW `review/context_block.py::render_review_context(range, cited) -> list[str]`, per `contracts/review-context-block.md`.
-  - `prompt_builder._review_command_lines` calls it. The old `_lane_review_base` and the claim-commit arm go away for the range lines. `OWNED_REVIEW_BASE_UNAVAILABLE` stays unchanged (C-002); the anti-pattern checklist stays.
-  - `workflow_executor._review_context_line`, `review_context_for_repo_root_workspace` and `review_context_for_worktree_branch` take the base and tip from the range. Their dict keys stay for `ReviewPromptMetadata`, with `base_ref` = range base.
-  - `workflow.py` changes stay inside the review helpers.
+  - **Three render sites** move onto it:
+    1. `prompt_builder._review_command_lines`. The `_lane_review_base`, claim-commit arm and `_review_pathspecs` go.
+    2. `workflow_executor._review_context_line`, `review_context_for_repo_root_workspace` and `review_context_for_worktree_branch`, which take base and tip from the range. Their dict keys stay, and `ReviewPromptMetadata.base_ref` is the range base.
+    3. **`workflow_executor._review_print_finalize_summary:2498-2507`**, whose stdout line prints the same range.
+  - `workflow_cores.build_owned_files_review_pathspecs` is retired.
+  - `OWNED_REVIEW_BASE_UNAVAILABLE` keeps its code and its condition: an owned checkout whose scoped base cannot be proven, which now means range unavailable or no owned files.
 - **Sequencing/depends-on**: IC-03, IC-04.
 - **Risks**:
-  - Hot files (25 and 48 commits in 90 days): keep the edits minimal.
-  - `workflow.py` and `workflow_executor.py` are on the format ratchet, so check with `--force-exclude`.
-  - `test_execution_context_parity.py` must stay green.
-  - Existing tests that pin the old `<base>..HEAD` text: re-pin them where stale (DIRECTIVE_041), never delete a valid one.
+  - Hot files. Check the format ratchet with `--force-exclude`.
+  - Keep `test_execution_context_parity.py` green.
+  - Re-pin stale old-range text tests (DIRECTIVE_041).
 
 ### IC-06: Acceptance and characterization tests (ATDD-first)
 
 - **Purpose**: the executable contract.
 - **Relevant requirements**: C-010, SC-001 to SC-004, User Stories 1 to 5
 - **Affected surfaces**:
-  - (a) Characterization of the consolidation and accept verdicts for commit-to-target `single_branch`, before IC-02.
-  - (b) Red-first acceptance tests that drive both production review entry points on four fixtures: `single_branch` commit-to-target, `single_branch` minted, `lanes`, and `lanes_with_coord`. They assert that the range holds only the WP's commits, that commands are non-empty, that out-of-map paths are flagged, that requirement text is present, and that both paths are identical.
-  - (c) Gap fixtures: pre-window, `lane_branch_missing` opener, unresolvable.
-  - Location: `tests/review/` and `tests/next/`, plus `tests/integration/review/`. Do **not** edit `tests/integration/test_single_branch_write_checkout_e2e.py`, which overlaps PR #7562.
+  - **(a) Characterization, before IC-02.** For commit-to-target `single_branch`, pin the consolidation and accept verdicts of approved-only, of mixed approved+canceled on the planning lane, of `--dependency-ref`, and of `--attest-approved-reviewed`. Reuse `tests/integration/single_branch_window_support.py`.
+  - **(b) Red-first acceptance**, driving all three render sites on four fixtures:
+    - `single_branch` commit-to-target and minted, through `single_branch_window_support.build_template(commit_to_target=...)` and `claim`/`implement`/`submit`;
+    - `lanes` and `lanes_with_coord`, through `tests/consolidation/characterization_support.build_two_wp_lane`, adapted with a `topology` meta key.
+
+    Assert:
+    - the range holds only this WP's commits (a lane-mate is excluded), and the commands are non-empty;
+    - out-of-map paths are flagged;
+    - requirement text is present;
+    - every render site is identical;
+    - a plain submission shows no moved-past note.
+  - **(c) Gap fixtures**: pre-window lanes (opener `lane_head` only), a `lane_branch_missing` opener, unresolvable.
+  - **(d) Git-call-count test** (NFR-002), following `tests/consolidation/test_lane_window_query_count.py`.
+  - Do **not** edit `tests/integration/test_single_branch_write_checkout_e2e.py` (PR #7562 overlap).
 - **Sequencing/depends-on**: (a) before IC-02; (b) committed red before IC-03 to IC-05 land.
 - **Risks**:
-  - Fixture cost: build each Mission once per module with real git.
-  - Use `monkeypatch.delenv` for the harness's `SPEC_KITTY_*` variables.
+  - Fixture cost: build templates once and copy them per cell.
+  - Use `monkeypatch.delenv` for the harness `SPEC_KITTY_*` variables.
 
 ### IC-07: Documentation and close-out
 
