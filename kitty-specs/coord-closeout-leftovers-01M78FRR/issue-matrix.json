@@ -1,7 +1,7 @@
 {
   "rows": {
     "#4041": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "tasks.md WP04",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,8 +9,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP04"
     },
     "#4380": {
       "evidence_ref": "tasks.md T008 (item 2); item 1 out of scope per spec.md",
