@@ -441,7 +441,8 @@ def test_capture_evidence_tree_outside_git_never_raises(tmp_path: Path) -> None:
 def test_to_dict_shapes_match_the_contract(scratch_project: ScratchProject) -> None:
     inv = build_lane_test_invocation(scratch_project.lane, command="make test", mission_slug=_MISSION, lane_id=_LANE)
     bare = inv.to_dict()
-    assert set(bare) == {"cwd", "command", "env_set", "env_unset", "probe"}
+    assert set(bare) == {"cwd", "command", "env_set", "env_unset", "path_prepend", "probe"}
+    assert bare["path_prepend"] == []
     assert bare["probe"] is None
     assert bare["cwd"] == str(scratch_project.lane)
     assert bare["env_unset"] == ["PYTHONPATH", "UV_PROJECT_ENVIRONMENT", "VIRTUAL_ENV"]
@@ -535,3 +536,67 @@ def test_git_reads_carry_a_timeout(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     module.capture_evidence_tree(tmp_path, probe)
     assert set(seen) == {"tracked_paths", "run_git", "status_entries"}
     assert all(isinstance(value, (int, float)) and value > 0 for value in seen.values()), seen
+
+
+# --- Close-out folds, round 2 (aggregate review) ------------------------------
+
+
+@pytest.mark.git_repo
+def test_lane_venv_wins_over_a_root_venv_first_on_path(scratch_project: ScratchProject) -> None:
+    """A declared bare ``python`` resolves to the lane venv the probe checked, not the caller's venv."""
+    lane_python = _make_venv(scratch_project.lane / ".venv", scratch_project.lane / "src")
+    inv = build_lane_test_invocation(scratch_project.lane, command="python -m pytest")
+    base = _clean_env(PATH=f"{scratch_project.root_python.parent}{os.pathsep}{os.environ.get('PATH', '')}")
+    env = run_environment(inv, base)
+    script = f"import {_PKG}, sys; print({_PKG}.__file__); print(sys.executable)"
+    out = subprocess.run(["python", "-c", script], cwd=scratch_project.lane, env=env, check=True, capture_output=True, text=True)
+    loaded, executable = out.stdout.strip().splitlines()
+    assert origin_inside(loaded, scratch_project.lane / "src")
+    assert Path(executable).parent == lane_python.parent
+    probe = probe_lane_imports(inv, base_env=base)
+    assert probe.status is ProbeStatus.VERIFIED
+    assert probe.interpreter == str(lane_python)
+
+    # Positive control, same fixture: without the PATH prepend the root venv answers.
+    bare = dataclasses.replace(inv, path_prepend=())
+    out = subprocess.run(["python", "-c", script], cwd=scratch_project.lane, env=run_environment(bare, base), check=True, capture_output=True, text=True)
+    assert origin_inside(out.stdout.splitlines()[0], scratch_project.root / "src")
+
+
+@pytest.mark.git_repo
+def test_lane_without_venv_prepends_nothing_to_path(scratch_project: ScratchProject) -> None:
+    inv = build_lane_test_invocation(scratch_project.lane, command=None)
+    assert inv.path_prepend == ()
+    base = _clean_env(PATH="/a/bin")
+    assert run_environment(inv, base)["PATH"] == "/a/bin"
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize("origin", ["frozen", "built-in", "namespace"])
+def test_non_file_origin_is_unverified_not_foreign(tmp_path: Path, origin: str) -> None:
+    import specify_cli.lanes.lane_invocation as module
+
+    payload = {"json": origin, "pkg": str(tmp_path / "src" / "pkg" / "__init__.py")}
+    result = module._verdict(("json", "pkg"), payload, tmp_path / "src", "py")
+    assert result.status is ProbeStatus.UNVERIFIED
+    assert result.foreign == ()
+    # Positive control: an absolute origin elsewhere is still foreign.
+    payload["json"] = str(tmp_path / "elsewhere" / "json" / "__init__.py")
+    assert module._verdict(("json", "pkg"), payload, tmp_path / "src", "py").status is ProbeStatus.FOREIGN
+
+
+@pytest.mark.git_repo
+def test_recorded_foreign_probe_carries_no_machine_paths(scratch_project: ScratchProject, tmp_path: Path) -> None:
+    lane_python = _make_venv(scratch_project.lane / ".venv", scratch_project.root / "src")
+    inv = build_lane_test_invocation(scratch_project.lane, command=None)
+    probe = probe_lane_imports(inv, base_env=_clean_env())
+    assert probe.status is ProbeStatus.FOREIGN
+    assert probe.reason is not None
+    assert str(tmp_path) in probe.reason, "positive control: the live reason is absolute"
+    recorded = capture_evidence_tree(scratch_project.lane, probe, repo_root=tmp_path).probe
+    assert recorded.reason is not None
+    assert str(tmp_path) not in recorded.reason
+    assert str(tmp_path.resolve()) not in recorded.reason
+    assert f"root/src/{_PKG}" in recorded.reason
+    # The venv python is a symlink out of the tree; the recorded interpreter stays lexical.
+    assert recorded.interpreter == "lane/.venv/" + lane_python.relative_to(scratch_project.lane / ".venv").as_posix()

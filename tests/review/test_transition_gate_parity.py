@@ -101,6 +101,7 @@ def _actual_tuple(aggregate: AggregateVerdict, verdict: GateVerdict, *, block_en
         block_enabled=block_enabled,
         blocked=blocked,
         force_bypassed=force_bypassed,
+        bypassed_refusal="EVIDENCE_TREE_MISMATCH" if force and aggregate.refusing_verdicts else None,
     )
     if terminal or refused:
         metadata["transition_applied"] = False

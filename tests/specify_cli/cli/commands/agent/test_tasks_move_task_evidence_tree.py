@@ -310,6 +310,7 @@ def test_verified_tree_records_evidence_and_applies(tmp_path: Path) -> None:
     assert tree["probe"]["status"] == "verified"
     assert metadata["outcome"] != "foreign_tree"
     assert "bypassed_refusal" not in metadata
+    assert fx.marker.exists(), "a verified tree runs the declared test command"
 
 
 # ---------------------------------------------------------------------------
@@ -420,7 +421,10 @@ def test_run_env_reaches_the_dispatched_handler(tmp_path: Path, monkeypatch: pyt
     run_env = seen[0]["run_env"]
     assert run_env is not None
     assert "VIRTUAL_ENV" not in run_env
-    assert run_env.get("PATH") == os.environ.get("PATH")
+    lane_scripts = (fx.lane / ".venv" / ("Scripts" if os.name == "nt" else "bin")).resolve()
+    first, _, rest = run_env["PATH"].partition(os.pathsep)
+    assert Path(first).resolve() == lane_scripts, "the lane venv runs first"
+    assert rest == os.environ.get("PATH"), "the inherited PATH follows unchanged"
     assert _metadata(fx.router)["evidence_tree"]["probe"]["status"] == "verified"
 
 

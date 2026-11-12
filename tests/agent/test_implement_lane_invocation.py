@@ -94,9 +94,10 @@ def _invoke_json() -> dict[str, Any]:
 
 
 def _environ(invocation: dict[str, Any]) -> dict[str, str]:
-    """``base env - env_unset + env_set``, exactly as the contract states."""
+    """``base env - env_unset + env_set``, ``path_prepend`` before ``PATH``, as the contract states."""
     env = {key: value for key, value in os.environ.items() if key not in invocation["env_unset"]}
     env.update(invocation["env_set"])
+    env["PATH"] = os.pathsep.join([*invocation["path_prepend"], *([env["PATH"]] if env.get("PATH") else [])])
     return env
 
 

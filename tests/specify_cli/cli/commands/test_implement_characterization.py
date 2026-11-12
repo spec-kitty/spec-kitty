@@ -1053,6 +1053,7 @@ def test_json_success_payload_is_the_only_stdout_document(repo: Path) -> None:
             "command": None,
             "env_set": {"SPEC_KITTY_TEST_DB_NAME": "test_demo_mission_lane_a"},
             "env_unset": ["PYTHONPATH", "UV_PROJECT_ENVIRONMENT", "VIRTUAL_ENV"],
+            "path_prepend": [],
             "probe": {
                 "status": "unverified",
                 "origins": {},

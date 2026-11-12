@@ -8,6 +8,7 @@ implement and review prompts share. These tests drive it over real git checkouts
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -237,6 +238,16 @@ def test_render_quotes_an_export_value_for_the_shell(tmp_path: Path) -> None:
     invocation = LaneTestInvocation(cwd=tmp_path, command=None, env_set={"NAME": "has space"})
 
     assert "   export NAME='has space'" in render_lane_test_invocation_lines(invocation)
+
+
+def test_render_puts_the_lane_venv_in_front_of_path(tmp_path: Path) -> None:
+    bin_dir = tmp_path / "lane" / ".venv" / "bin"
+    with_venv = LaneTestInvocation(cwd=tmp_path / "lane", command=None, path_prepend=(str(bin_dir),))
+
+    assert f'   export PATH={bin_dir}{os.pathsep}"$PATH"' in render_lane_test_invocation_lines(with_venv)
+    # Positive control: no lane venv, no PATH line.
+    bare = LaneTestInvocation(cwd=tmp_path / "lane", command=None)
+    assert not any("export PATH=" in line for line in render_lane_test_invocation_lines(bare))
 
 
 def test_failure_lines_report_an_unverified_probe_with_the_error() -> None:
