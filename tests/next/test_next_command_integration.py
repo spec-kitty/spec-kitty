@@ -547,6 +547,9 @@ class TestNextCommandKnownBlockedMissions:
 
         class Snapshot:
             issued_step_id = "implement"
+            completed_steps = ("implement",)  # a run that has advanced: authoritative for the never-rewind gate
+            pending_decisions = ()
+            decisions = ()
 
         with (
             patch("runtime.next.runtime_bridge_io.get_or_start_run", return_value=RunRef()) as get_run,
