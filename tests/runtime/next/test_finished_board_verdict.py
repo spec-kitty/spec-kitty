@@ -43,6 +43,7 @@ _LATE = "2026-11-12T09:00:00+00:00"
     [
         # Not a finished board: NONE, whatever the acceptance says.
         ("implement", True, FinishedBoardVerdict.NONE),
+        ("review", False, FinishedBoardVerdict.NONE),
         # Finished board.
         ("accept", True, FinishedBoardVerdict.ACCEPTED),
         ("done", True, FinishedBoardVerdict.ACCEPTED),

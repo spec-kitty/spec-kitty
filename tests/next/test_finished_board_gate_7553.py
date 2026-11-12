@@ -278,9 +278,16 @@ def test_cell4_canceled_endings_count_as_finished(wps: dict[str, Lane], tmp_path
             True,
             id="consolidation-done-bookkeeping-is-not-a-fresh-transition",
         ),
+        pytest.param(
+            [("WP01", Lane.APPROVED, Lane.DONE, "2026-03-01T00:00:00+00:00", "operator")],
+            False,
+            id="non-merge-done-after-acceptance-is-fresh-work",
+        ),
     ],
 )
-def test_cell6_acceptance_freshness_against_later_board_transitions(extra: list[tuple[str, Lane, Lane, str]], expect_terminal: bool, tmp_path: Path) -> None:
+def test_cell6_acceptance_freshness_against_later_board_transitions(
+    extra: list[tuple[str, Lane, Lane, str] | tuple[str, Lane, Lane, str, str]], expect_terminal: bool, tmp_path: Path
+) -> None:
     """FR-002 freshness: ``accepted_at`` is sticky, so a re-approval needs acceptance again.
 
     Consolidation's system ``approved -> done`` (actor ``merge``) lands after ``accepted_at``
