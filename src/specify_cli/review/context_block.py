@@ -38,7 +38,7 @@ from __future__ import annotations
 import shlex
 from collections.abc import Callable, Sequence
 
-from specify_cli.requirement_mapping.text import CitedRequirement, Resolution
+from specify_cli.requirement_mapping.text import TEXT_LIMIT, TRUNCATION_MARKER, CitedRequirement, Resolution
 from specify_cli.review.wp_range import FileChange, RangeSource, RangeStatus, WpReviewRange
 
 __all__ = ["render_review_context"]
@@ -200,10 +200,22 @@ def _out_of_map_line(review_range: WpReviewRange, remaining: int) -> list[str]:
     return [f"{prefix}{_ELLIPSIS} {len(paths)} more"]
 
 
+def _capped(text: str) -> str:
+    """*text* held to the contract's per-requirement cap (NFR-003): :data:`TEXT_LIMIT` characters plus the marker.
+
+    ``resolve_requirement_texts`` already caps what it resolves; this keeps the rule for any
+    ``CitedRequirement`` the renderer is handed, so the block's requirement section stays bounded.
+    """
+    if len(text) <= TEXT_LIMIT + len(TRUNCATION_MARKER):
+        return text
+    capped: str = text[:TEXT_LIMIT] + TRUNCATION_MARKER
+    return capped
+
+
 def _requirement_line(cited: CitedRequirement) -> str:
     if cited.resolution is Resolution.DECLARED and cited.text:
         text = cited.text if cited.text.startswith(cited.ref) else f"{cited.ref}{_REQUIREMENT_SEPARATOR}{cited.text}"
-        return f"{_INDENT}{text}"
+        return f"{_INDENT}{_capped(text)}"
     note = _REQUIREMENT_NOTES.get(cited.resolution, cited.resolution.value)
     return f"{_INDENT}{cited.ref}{_REQUIREMENT_SEPARATOR}{note}"
 
