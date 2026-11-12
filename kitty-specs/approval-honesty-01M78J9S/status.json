@@ -37,7 +37,8 @@
         "- 2026-11-12T21:21:06Z – claude – Hand-off to WP02 (owner of test_move_task_structured_actor_6400.py): test_recorded_migration_reviewer_identity_stays_a_reconstruction_seed is red on WP01 by design. A migration: seed claim is seeded force=True, so under the WP01 claimant rule (latest_review_claim_identity: unforced, non-migration, non-placeholder) it is not a claimant, and an unforced approval with no --agent refuses REVIEW_NOT_INDEPENDENT. Intended re-pin: either pass --agent and assert the recorded actor, or assert the refusal; keep the #6754 seed-replay intent (a recorded migration: identity replayed through the lenient recorded path keeps its seed status, never parsed as tool 'migration').",
         "- 2026-11-12T21:21:09Z – claude – Unowned red caused by the WP01 claimant rule (cycle 1, still present): tests/specify_cli/cli/commands/agent/test_tasks.py::TestVerdictGuardInMoveTask::test_approve_after_rejected_verdict_without_force_persists_approval. It seeds the in_review entry force=True with actor 'test' (_seed_wp_event) and approves with no --agent; on the base the forced entry counted as the claimant, now it is no claim, so REVIEW_NOT_INDEPENDENT fires. Green on the base (ba755564), red on WP01. The file is in no WP's owned_files; intended re-pin: pass --agent <reviewer> on that move (the test is about the verdict write, not identity). Needs an owner (orchestrator decision).",
         "- 2026-11-12T21:21:13Z – claude – For the WP04 ADR amendment: new refusal code REVIEW_SLOT_DAMAGED (tasks_move_task._mt_refuse_damaged_review_slot, ruling damaged_slot 2026-11-12). An unforced review approval whose event-log review slot is damaged and with no --approval-ref refuses before any write; the remedy names the event log, --approval-ref and --force. With --approval-ref that reference is recorded. The existing decision guard (_guard_rejected_verdict, 'no parseable review verdict') still refuses first whenever its own read sees the damage, forced or not, with or without --approval-ref (unchanged, C-007); REVIEW_SLOT_DAMAGED covers the case where only the approval writer's read sees it. A carried approved -> done keeps FR-007 (no readable approval: the asserted mover with force-override).",
-        "Cycle 2: approved->done records the asserted mover (--agent, else --reviewer) as actor and policy_metadata.tool, carried approval only in evidence.review; no mover refuses REVIEW_NOT_INDEPENDENT as on base. Unforced approval on a damaged review slot without --approval-ref refuses REVIEW_SLOT_DAMAGED before any write. Table-driven unit tests for resolve_reviewer_of_record. Hand-off notes recorded (6400 test for WP02; unowned test_tasks.py red)."
+        "Cycle 2: approved->done records the asserted mover (--agent, else --reviewer) as actor and policy_metadata.tool, carried approval only in evidence.review; no mover refuses REVIEW_NOT_INDEPENDENT as on base. Unforced approval on a damaged review slot without --approval-ref refuses REVIEW_SLOT_DAMAGED before any write. Table-driven unit tests for resolve_reviewer_of_record. Hand-off notes recorded (6400 test for WP02; unowned test_tasks.py red).",
+        "- 2026-11-12T22:38:57Z – claude – Ownership-map leeway (cycle 3): re-pinned tests/specify_cli/cli/commands/agent/test_move_task_durability.py and test_tasks.py, which no WP owns and WP01's claimant rule broke (stale forced review-claim seeds, the dropped hop_actor parameter, the review-cycle:// pointer replacing a caller --approval-ref under --no-auto-commit). Fixture/assertion re-pins only; seed helpers keep their forced default for other importers."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -51,13 +52,13 @@
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
-        "T001": "planned",
-        "T002": "planned",
-        "T003": "planned",
-        "T004": "planned",
-        "T005": "planned",
-        "T006": "planned",
-        "T007": "planned"
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
       }
     },
     "WP02": {
