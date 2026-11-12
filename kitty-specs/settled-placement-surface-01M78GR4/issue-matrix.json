@@ -133,7 +133,7 @@
       "wp": null
     },
     "#7546": {
-      "evidence_ref": "Sub-epic: closes when WP01-WP05 land; WP01 = seam checkout authority",
+      "evidence_ref": "Sub-epic delivered by WP01 8e48897d (seam surface_root authority) + WP02-WP05",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -141,11 +141,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP01"
     },
     "#7551": {
-      "evidence_ref": "WP02 (commit router holder) + WP04 (baseline commit)",
+      "evidence_ref": "WP02 be3344ae (router holder via seam), fd9ceca7 (HEAD-mismatch remedy); WP04 c17a3865 (baseline commit); red f5b591b7, 988e7d68",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -153,7 +153,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP02"
     },
     "#7594": {
@@ -169,7 +169,7 @@
       "wp": null
     },
     "#7595": {
-      "evidence_ref": "WP04 target helpers through the seam (folded, operator ruling)",
+      "evidence_ref": "WP04 efd28e18 (target helpers via read_dir_for); red fecab414",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -177,7 +177,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP04"
     },
     "#7598": {
@@ -193,7 +193,7 @@
       "wp": null
     },
     "#7601": {
-      "evidence_ref": "WP03 protected preflights",
+      "evidence_ref": "WP03 eacbc7db (implement preflight judges claim checkout), 7f84cc6b (move-task holder); red 7b9e4341",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -201,11 +201,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP03"
     },
     "#7602": {
-      "evidence_ref": "WP05 path-convention frame",
+      "evidence_ref": "WP05 e75ca49b (path-convention frame); red e42e807c",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -213,11 +213,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP05"
     },
     "#7607": {
-      "evidence_ref": "WP02 T008 status lock on the holder checkout",
+      "evidence_ref": "WP02 be3344ae (status lock on holder checkout); red f5b591b7",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -225,7 +225,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP02"
     }
   },
