@@ -88,7 +88,7 @@
     },
     "WP03": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": "claude::reviewer-renata",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 0,
@@ -98,7 +98,8 @@
       "last_transition_at": "2026-11-12T21:06:54.409565+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ready for review"
+        "Ready for review",
+        "Review passed (reviewer-renata): option B honoured - implement preflight judges _claim_commit_checkout HEAD via one shared helper checkout_branch_or_fallback; move-task feeds the WP-file holder branch to both _skip_target_branch_commit and _mt_refuse_protected_status_commit; non-settled Missions byte-identical (holder==root short-circuit, pinned tests unchanged and green); #2453 entry re-pointed, count unchanged; no refusal/exit code or ProtectionPolicy change. Red at 7b9e4341 for the right reasons; final tests still red against 1992084 src. 256+989 passed. Coordination: implement_claim.py/tasks_shared.py also in WP01 map (sequential, WP01 done); out-of-map one-line implement_phases.py thread of feature_dir sanctioned by T011.1. Non-blocking: pre-existing mypy no-any-return tasks_shared.py:823 and test_implement_claim.py:124 (campsite); stale _status_commit_destination_branch name in pinned test_implement_phases.py:492 docstring; 'check out an allowed coordination/lane branch in that checkout' option may not be followable while another worktree holds that branch (second option is)."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
