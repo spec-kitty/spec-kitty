@@ -19,10 +19,12 @@ from rich.markup import escape
 
 from specify_cli.cli.console import console
 from kernel.git import GitCommandError
+from specify_cli.consolidation._constants import SQUASH_PROJECTION_NOT_LANDED, error_code_suffix
 from specify_cli.consolidation.bookkeeping_projection import (
+    ProjectedPathReason,
     _post_checkpoint_mission_paths,
     _resolve_ref_sha,
-    projected_content_matches_target,
+    unlanded_projected_paths,
 )
 from specify_cli.consolidation.claim_inputs import ClaimInputContext, ClaimInputs, ClaimInputSource, build_claim, claim_inputs
 from specify_cli.consolidation.config import MergeStrategy
@@ -305,6 +307,58 @@ def _squash_projected_paths_or_refuse(run: _MergeRunState, checkpoint_sha: str, 
         raise typer.Exit(1) from exc
 
 
+# #5867: the squash projection refusal lists at most this many paths, then a count.
+_UNLANDED_PATHS_SHOWN = 20
+_RERUN_CONSOLIDATE = "then re-run `spec-kitty consolidate`"
+_MATCH_COORDINATION_COPY = f"make the target's copy match the coordination branch, or revert the coordination change, {_RERUN_CONSOLIDATE}"
+_PROJECTION_REMEDIES: dict[ProjectedPathReason, str] = {
+    ProjectedPathReason.CONTENT_DIFFERS: _MATCH_COORDINATION_COPY,
+    ProjectedPathReason.MERGE_DRIVER_MISMATCH: _MATCH_COORDINATION_COPY,
+    ProjectedPathReason.NO_MERGE_DRIVER: (
+        "a path both sides changed has no registered merge driver; run `spec-kitty upgrade` "
+        "(its migrations install the merge drivers and their `.gitattributes` entries), or make the "
+        f"target's copy match the coordination branch, {_RERUN_CONSOLIDATE}"
+    ),
+    ProjectedPathReason.COORDINATION_BLOB_MISSING: (
+        f"the coordination branch deleted or renamed the path; restore it on the coordination branch, {_RERUN_CONSOLIDATE}"
+    ),
+    ProjectedPathReason.PROBE_FAILED: "a git probe failed; re-running `spec-kitty consolidate --resume` may succeed",
+}
+
+
+def _unlanded_reason_text(reason: ProjectedPathReason, coord_branch: str, target_branch: str) -> str:
+    """The per-path clause of the #5867 refusal: why *reason* means the path did not land."""
+    texts = {
+        ProjectedPathReason.CONTENT_DIFFERS: f"the {target_branch} copy differs from {coord_branch}",
+        ProjectedPathReason.COORDINATION_BLOB_MISSING: f"{coord_branch} has no copy of it (deleted or renamed there)",
+        ProjectedPathReason.NO_MERGE_DRIVER: f"both {target_branch} and {coord_branch} changed it, and it has no registered merge driver",
+        ProjectedPathReason.MERGE_DRIVER_MISMATCH: (
+            f"both {target_branch} and {coord_branch} changed it, and the {target_branch} copy is not what its merge driver produces"
+        ),
+        ProjectedPathReason.PROBE_FAILED: "a git probe failed while checking it",
+    }
+    return texts[reason]
+
+
+def _render_unlanded_projection(
+    unlanded: list[tuple[str, ProjectedPathReason]],
+    coord_branch: str,
+    target_branch: str,
+) -> str:
+    """Plain-text #5867 refusal: the paths that did not land (at most 20), why, the remedies and the code."""
+    coord_name = coord_branch.removeprefix("refs/heads/")
+    lines = ["SQUASH reconciliation refused: projected coordination bookkeeping content did not land on the target."]
+    lines.extend(f"  {path} — {_unlanded_reason_text(reason, coord_name, target_branch)}" for path, reason in unlanded[:_UNLANDED_PATHS_SHOWN])
+    if len(unlanded) > _UNLANDED_PATHS_SHOWN:
+        lines.append(f"  ... and {len(unlanded) - _UNLANDED_PATHS_SHOWN} more")
+    lines.append(f"The landing was rolled back; {_NOTHING_TORN_DOWN.lower()}.")
+    remedies = list(dict.fromkeys(_PROJECTION_REMEDIES[reason] for _, reason in unlanded))
+    lines.append("Remedy:")
+    lines.extend(f"  - {remedy}" for remedy in remedies)
+    lines.append(error_code_suffix(SQUASH_PROJECTION_NOT_LANDED).strip())
+    return "\n".join(lines)
+
+
 def _assert_squash_projected_content_landed(run: _MergeRunState) -> None:
     """SQUASH content proof (WP10 integration / S-D + WP07 handoff).
 
@@ -318,7 +372,7 @@ def _assert_squash_projected_content_landed(run: _MergeRunState) -> None:
     when the target never diverged from the shared checkpoint baseline for that
     path, or driver-replay attribution against the target's PRE-squash tip
     (``run.target_expected_old_sha``) when it did (#5038 —
-    :func:`projected_content_matches_target`). A legitimate squash merge already
+    :func:`unlanded_projected_paths`). A legitimate squash merge already
     copied that content forward (or a registered driver losslessly reconciled a
     genuine divergence), so this PASSES (NFR-004: never false-fail a genuine
     squash); it refuses fail-closed only if a projected path's content did not
@@ -346,27 +400,22 @@ def _assert_squash_projected_content_landed(run: _MergeRunState) -> None:
             f"{_NOTHING_TORN_DOWN}; re-run `spec-kitty consolidate --resume`."
         )
         raise typer.Exit(1)
-    if projected_content_matches_target(
+    unlanded = unlanded_projected_paths(
         main_repo=run.main_repo,
         coord_ref=checkpoint.ref,
         target_ref=run.lanes_manifest.target_branch,
         projected_paths=projected_paths,
         checkpoint_sha=checkpoint.sha,
         pre_squash_target_ref=pre_squash_target_ref,
-    ):
-        return
-    # #5001 pre-merge FOLD-5 (asymmetry rationale): unlike the reconciliation-FAIL
-    # path, this does NOT roll the target back. A FAIL means the tree diverged from
-    # the approved-WP claim (the whole advance is untrustworthy → revert). Here the
-    # squash content itself DID land; only the projected bookkeeping diverged, so
-    # reverting the target would discard legitimately-landed approved code. The
-    # merge is resumable — ``--resume`` re-projects the bookkeeping — so we exit
-    # non-zero WITHOUT a rollback and retain everything for inspection. A
-    # squash-sound revert of only the bookkeeping projection is deferred (FU-4
-    # squash-content-soundness).
-    console.print(
-        "\n[red]Error:[/red] SQUASH reconciliation refused: projected coordination "
-        f"bookkeeping content did not land on the target. {_NOTHING_TORN_DOWN}; "
-        "re-run `spec-kitty consolidate --resume`."
     )
+    if not unlanded:
+        return
+    # #5867 / FR-014: this ``Exit(1)`` is raised inside the executor's single rollback door
+    # (the one ``try`` in ``_run_lane_based_consolidation_locked``), so the door restores the
+    # target to its pre-run snapshot like any other post-mutation failure, and a rollback that
+    # restored every branch re-baselines the record (``rollback.rebaseline_after_full_restore``).
+    # Only a probe failure can clear on a re-run; every other reason repeats until the operator
+    # changes the target or the coordination branch, so the remedy is given per reason.
+    text = _render_unlanded_projection(unlanded, checkpoint.ref, run.lanes_manifest.target_branch)
+    console.print(f"\n[red]Error:[/red] {escape(text)}")
     raise typer.Exit(1)

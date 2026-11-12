@@ -24,6 +24,7 @@ import typer
 from kernel.git import GitCommandError, GitPath, StatusEntry
 from specify_cli.consolidation import executor as ex
 from specify_cli.consolidation.state import ConsolidationState
+from specify_cli.consolidation.bookkeeping_projection import ProjectedPathReason
 from specify_cli.post_merge.stale_assertions import (
     Confidence,
     StaleAssertionFinding,
@@ -590,12 +591,18 @@ def test_squash_projection_proof_refuses_when_projected_bookkeeping_did_not_land
     run.target_expected_old_sha = "d" * 40
     with (
         patch.object(phase_gate, "_post_checkpoint_mission_paths", return_value=["kitty-specs/m/status.events.jsonl"]),
-        patch.object(phase_gate, "projected_content_matches_target", return_value=False),
+        patch.object(
+            phase_gate,
+            "unlanded_projected_paths",
+            return_value=[("kitty-specs/m/status.events.jsonl", ProjectedPathReason.CONTENT_DIFFERS)],
+        ),
         pytest.raises(typer.Exit) as excinfo,
     ):
         phase_gate._assert_squash_projected_content_landed(run)
     assert excinfo.value.exit_code == 1
-    assert "projected coordination bookkeeping content did not land" in " ".join(capsys.readouterr().out.split())
+    out = " ".join(capsys.readouterr().out.split())
+    assert "projected coordination bookkeeping content did not land" in out
+    assert "Error code: SQUASH_PROJECTION_NOT_LANDED." in out
 
 
 # Landing reconciliation (#5444): ``_phase_record_done_and_project_or_roll_back``

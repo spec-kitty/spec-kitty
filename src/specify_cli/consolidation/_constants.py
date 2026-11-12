@@ -115,6 +115,12 @@ DEPENDENCY_REF_MOVED = "DEPENDENCY_REF_MOVED"
 DEPENDENCY_REF_SET_CHANGED = "DEPENDENCY_REF_SET_CHANGED"
 DEPENDENCY_REF_UNVERIFIABLE = "DEPENDENCY_REF_UNVERIFIABLE"
 
+# Stable code of the #5867 refusal: under a SQUASH strategy, projected coordination bookkeeping
+# content did not land on the target (the refusal names each path and why). The gate's exit 1 runs
+# inside the executor's single rollback door, so the landing is rolled back. Rendered as a SUFFIX
+# through :func:`error_code_suffix`.
+SQUASH_PROJECTION_NOT_LANDED = "SQUASH_PROJECTION_NOT_LANDED"
+
 
 def error_code_suffix(code: str) -> str:
     """The `` Error code: X.`` suffix every stable refusal code is rendered with."""
