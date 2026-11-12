@@ -90,13 +90,22 @@ from specify_cli.status import (
     GENERIC_IMPLEMENTATION_ACTORS,
     GuardContext,
     Lane,
+    ResolvedBinding,
+    actor_compact_identity,
+    build_status_actor,
     requires_review_ref,
     resolve_lane_alias,
     validate_transition,
     wp_state_for,
 )
 from specify_cli.status import _actor_key, is_latest_implementer
+from specify_cli.status.review_roles import same_review_identity
 from specify_cli.review.cycle import OPERATOR_REWIND_SENTINEL, is_operator_rewind_sentinel
+
+#: #7573: an unforced verdict out of ``in_review`` recorded by an identity other than the review
+#: claimant, or ``--agent`` and ``--reviewer`` naming two identities. Lives here, beside the
+#: ownership guard, not in ``consolidation/wp_evidence`` (C-004); no ``SINGLE_BRANCH_*`` alias.
+APPROVER_NOT_CLAIMANT = "APPROVER_NOT_CLAIMANT"
 
 # Terminal lanes that build approval evidence + run the rejected-verdict guard.
 _APPROVAL_LANES: tuple[str, ...] = (Lane.APPROVED, Lane.DONE)
@@ -204,6 +213,32 @@ class MoveTaskRequest:
     # #5196: the WP's latest implementer (``status.latest_implementer_actor``),
     # resolved by the shell. ``None`` (default) grants no role allowance.
     latest_implementer: str | None = None
+    # #7573: the review claimant (``status.review_roles.latest_review_claim_identity``) of a move out
+    # of ``in_review`` into an approval lane, else ``None``; and the identities ``--agent`` and
+    # ``--reviewer`` assert, as the approval would record them (:func:`asserted_review_identity`).
+    # All resolved by the shell in pass 1, so :func:`_guard_review_claimant` refuses before any write.
+    review_claimant: str | None = None
+    asserted_agent: str | None = None
+    asserted_reviewer: str | None = None
+
+
+def asserted_review_identity(flag: str | None, binding: ResolvedBinding | None) -> str | None:
+    """The compact identity a ``--agent`` / ``--reviewer`` value records on a verdict hop, or ``None``.
+
+    Built as the hop actor is (``build_status_actor``): the dispatch binding (``--profile``,
+    ``--model``, ``--invocation-id``) fills or wins for the profile and model, so the identity
+    compared with the review claimant is the one the approval would record. Pure. A value the
+    strict parser rejects (refused upfront by the shell) is compared as given.
+    """
+    text = (flag or "").strip()
+    if not text:
+        return None
+    try:
+        actor = build_status_actor(role="reviewer", agent=text, fallback_tool=None, binding=binding)
+    except ValueError:
+        return text
+    identity: str | None = actor_compact_identity(actor)
+    return identity
 
 
 @dataclass(frozen=True)
@@ -605,6 +640,70 @@ def _guard_agent_ownership(req: MoveTaskRequest) -> RefuseExit1 | None:
     )
 
 
+def _claimant_mismatch(req: MoveTaskRequest) -> tuple[str, str | None] | None:
+    """``(approver, claimant)`` when the asserted approver is not the reviewer of the verdict, else ``None``.
+
+    ``--agent`` and ``--reviewer`` naming two identities is a mismatch on any approval lane; out of
+    ``in_review``, an asserted approver who is not the review claimant is one. With no assertion the
+    claimant is the approver (WP01), and with no claimant (none, forced or placeholder) this rule
+    does not apply. Equality is :func:`same_review_identity` (tool, model and profile).
+    """
+    agent, reviewer = req.asserted_agent, req.asserted_reviewer
+    if agent and reviewer and not same_review_identity(agent, reviewer):
+        return reviewer, req.review_claimant
+    approver = agent or reviewer
+    from_review = resolve_lane_alias(req.old_lane) == Lane.IN_REVIEW
+    if not from_review or req.review_claimant is None or approver is None:
+        return None
+    return None if same_review_identity(approver, req.review_claimant) else (approver, req.review_claimant)
+
+
+def _claimant_refusal_text(req: MoveTaskRequest, approver: str, claimant: str | None) -> str:
+    if claimant is None:
+        return (
+            f"{APPROVER_NOT_CLAIMANT}: --agent '{req.asserted_agent}' and --reviewer '{approver}' name different "
+            f"identities; {req.task_id}'s verdict has one reviewer. Pass one identity, or, as an operator override, "
+            "use --force (recorded as a forced move, not a review)."
+        )
+    return (
+        f"{APPROVER_NOT_CLAIMANT}: {req.task_id} is under review by {claimant}; {approver} cannot record its verdict. "
+        f"Have the claimant record it (--agent {claimant}), or, as an operator override, use --force "
+        "(recorded as a forced move, not a review)."
+    )
+
+
+def _guard_review_claimant(req: MoveTaskRequest) -> RefuseExit1 | None:
+    """#7573: an unforced verdict into ``approved``/``done`` must be recorded by the review claimant.
+
+    Pure sibling of :func:`_guard_agent_ownership` (which compares the bare tool only, so a same-tool
+    supervisor passed it). ``--force`` bypasses it: the move is then recorded as forced, not as a
+    review (decision ``claimant_remedy``). Re-claiming is no remedy: another identity's review claim
+    collides, and ``in_review -> for_review`` does not exist.
+    """
+    if req.force or resolve_lane_alias(req.target_lane) not in _APPROVAL_LANES:
+        return None
+    mismatch = _claimant_mismatch(req)
+    if mismatch is None:
+        return None
+    approver, claimant = mismatch
+    error = _claimant_refusal_text(req, approver, claimant)
+    diagnostic = {
+        "result": "error",
+        "code": APPROVER_NOT_CLAIMANT,
+        "error": error,
+        "current_lane": resolve_lane_alias(req.old_lane),
+        "requested_lane": resolve_lane_alias(req.target_lane),
+        "review_claimant": claimant,
+        "requesting_agent": approver,
+        "asserted_agent": req.asserted_agent,
+        "asserted_reviewer": req.asserted_reviewer,
+        "verdict_durably_persisted": False,
+        "evidence_ref": None,
+        "destination_ref": None,
+    }
+    return RefuseExit1(error, diagnostic=diagnostic)
+
+
 def _guard_rejected_verdict(req: MoveTaskRequest) -> RefuseExit1 | None:
     """Refuse arms of the rejected-verdict guard (APPROVAL_LANES only).
 
@@ -935,6 +1034,7 @@ _GUARDS = (
     _guard_unsupported_skip_metadata,
     _guard_protected_branch,
     _guard_agent_ownership,
+    _guard_review_claimant,
     _guard_done_exit,
     _guard_rejected_verdict,
     _guard_feedback_file,

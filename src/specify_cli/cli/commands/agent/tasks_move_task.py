@@ -102,6 +102,7 @@ from specify_cli.cli.commands.agent.tasks_transition_core import (
     _effective_note_text,
     _is_approved_reopen,
     arbiter_persist_signal,
+    asserted_review_identity,
     is_review_rejection_edge,
 )
 from specify_cli.cli.commands.agent.tasks_verdict_persistence import (
@@ -918,6 +919,10 @@ def _mt_build_request(
         effective_approval_ref=None,
         mission_slug=st.mission_slug,
         latest_implementer=latest_implementer,
+        # #7573 (WP02 wiring): the claimant guard's pass-1 facts.
+        review_claimant=_mt_resolve_active_reviewer_identity(st) if st.old_lane == Lane.IN_REVIEW and st.target_lane in _APPROVAL_LANES else None,
+        asserted_agent=asserted_review_identity(st.agent, st.resolved_binding),
+        asserted_reviewer=asserted_review_identity(st.reviewer, st.resolved_binding),
     )
 
 
