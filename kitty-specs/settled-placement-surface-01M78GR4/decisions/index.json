@@ -141,6 +141,30 @@
       "status": "resolved",
       "step_id": null,
       "summary_json": null
+    },
+    {
+      "created_at": "2026-11-12T19:06:50.519737Z",
+      "decision_id": "01M78JFMRQS6GE04BENPXGQX8J",
+      "final_answer": "(B), operator ruling 2026-11-12 relayed via the dispatching session; SUPERSEDES decision 01M78GS4H8AAJW5Y4ATZ3TES6B. implement: the protected preflight judges the HEAD of _claim_commit_checkout(...), the same checkout the #5738 check judges. move-task: the WP file's holder via placement_seam.write_dir(WORK_PACKAGE_TASK).surface_root, fed to both _skip_target_branch_commit and _mt_refuse_protected_status_commit. Non-settled Missions byte-identical; a settled Mission passes and its WP frontmatter is committed (regression test for the former silent skip); protected targets never written. #2453 not drained: its single allow-list entry is re-pointed to the one shared holder-HEAD helper (count unchanged); #2453 stays open. #7595 blast radius acknowledged: get_feature_target_branch callers read the declared target; tested on a settled fixture with target != main.",
+      "input_key": "protected_check_input_amended",
+      "mission_id": "01M78GR4VQ0DD9ASHV9KCP0CRP",
+      "mission_slug": "settled-placement-surface-01M78GR4",
+      "opened_by": "cli",
+      "options": [
+        "(A) write_target(WPT).ref everywhere",
+        "(B) branch of the checkout the commit runs in",
+        "(C) A for implement, B for move-task"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Amend: what do the implement and move-task protected-branch checks judge, given the post-tasks review evidence (new refusals for flat-Mission resumes and the lanes coordination-branch test; move-task skip flag gates more than --note)?",
+      "rationale": null,
+      "resolved_at": "2026-11-12T19:06:53.381895Z",
+      "resolved_by": null,
+      "slot_key": "plan.guards.protected-check-input-amended",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
     }
   ],
   "mission_id": "01M78GR4VQ0DD9ASHV9KCP0CRP",
