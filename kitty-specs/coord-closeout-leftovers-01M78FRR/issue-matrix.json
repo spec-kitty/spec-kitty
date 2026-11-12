@@ -72,6 +72,18 @@
       "verdict": "in-mission",
       "wp": "WP03"
     },
+    "#6450": {
+      "evidence_ref": "context citation in WP06 / research; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#7121": {
       "evidence_ref": "spec.md Out of Scope (research/foldable-issues.md); no work owed in this mission",
       "fr": null,
