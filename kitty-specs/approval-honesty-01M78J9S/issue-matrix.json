@@ -85,16 +85,16 @@
       "wp": "WP01"
     },
     "#7570": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Mission approval-honesty-01M78J9S WP03",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Approval citing cycle N accepted without review-cycle-N.md",
+      "verdict": "in-mission",
+      "wp": "WP03"
     },
     "#7571": {
       "evidence_ref": "Mission approval-honesty-01M78J9S WP03",
