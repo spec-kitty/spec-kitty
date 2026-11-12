@@ -173,6 +173,20 @@ def _command(block: str, prefix: str) -> str:
     return matches[0]
 
 
+_FRAME_START = "─── GIT REVIEW CONTEXT "
+_FRAME_END = "─" * 80
+
+
+def _review_context_frame(prompt: str) -> str:
+    """Site 2's ``GIT REVIEW CONTEXT`` frame: the review commands the prompt gives (other sections, such as the
+    charter doctrine or the worktree topology's ``diff_command``, are not review-range commands)."""
+    lines = prompt.splitlines()
+    start = next((index for index, line in enumerate(lines) if line.startswith(_FRAME_START)), None)
+    assert start is not None, f"no GIT REVIEW CONTEXT frame in:\n{prompt}"
+    end = next(index for index in range(start + 1, len(lines)) if lines[index] == _FRAME_END)
+    return "\n".join(lines[start : end + 1])
+
+
 def _site2_block(review: _Review) -> str:
     assert review.exit_code == 0, review.stdout
     block = review_block(review.prompt)
@@ -195,7 +209,7 @@ def test_site2_header_carries_exact_recorded_provenance(reviews: _Reviews, name:
     assert lines[0] == f"REVIEW RANGE ({REVIEWED_WP}): {base12}..{tip12}  [recorded]", block
     assert f"  base: {base12} ({fx.base_label})" in lines
     assert f"  tip:  {tip12} ({fx.tip_label})" in lines
-    assert "..HEAD" not in review.prompt
+    assert "..HEAD" not in _review_context_frame(review.prompt)
 
 
 @pytest.mark.parametrize("name", REVIEW_READY)
@@ -357,7 +371,7 @@ def test_unavailable_range_is_a_notice_on_sites_2_and_3(templates: ReviewTemplat
     assert lines, f"site 2 printed no REVIEW RANGE notice:\n{review.prompt}"
     assert lines[0].startswith(f"REVIEW RANGE ({REVIEWED_WP}): unavailable — ") and lines[0].endswith(reason_suffix), review.prompt
     assert lines[1:3] == ["REVIEW COMMANDS:", _UNAVAILABLE_COMMAND]
-    assert "..HEAD" not in review.prompt
+    assert "..HEAD" not in _review_context_frame(review.prompt)
     assert review.metadata["base_ref"] == "unknown"
     reason = lines[0].split("unavailable — ", 1)[1]
     assert f"Review range unavailable — {reason}" in review.stdout.splitlines(), review.stdout
