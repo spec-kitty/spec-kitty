@@ -307,3 +307,67 @@ def test_agent_block_covers_the_shared_skills_probe(tmp_path):
     check = next(s for s in report.surfaces if s.surface.name == "shared_skills_projection")
     assert check.gitignore_covered
     assert check.warning is None
+
+
+def _git_repo_with_ignored_migrations(root: Path) -> None:
+    import subprocess
+
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    (root / ".gitignore").write_text(".kittify/migrations/\n")
+    scratch = root / ".kittify" / "migrations" / "mission-state"
+    scratch.mkdir(parents=True)
+    (scratch / "legacy.json").write_text("{}")
+
+
+def _scratch_check(root: Path):
+    report = check_state_roots(root)
+    return report, next(s for s in report.surfaces if s.surface.name == "legacy_migration_scratch")
+
+
+@pytest.mark.git_repo
+def test_tracked_files_under_an_ignored_root_are_named_as_such(tmp_path):
+    """#7597: an ignored root holding tracked files is not reported as "not gitignored"."""
+    import subprocess
+
+    _git_repo_with_ignored_migrations(tmp_path)
+    subprocess.run(["git", "add", "-f", ".kittify/migrations/mission-state/legacy.json"], cwd=tmp_path, check=True)
+
+    report, check = _scratch_check(tmp_path)
+
+    assert check.gitignore_covered
+    assert check.tracked_paths == (".kittify/migrations/mission-state/legacy.json",)
+    assert check.warning is not None
+    assert "not gitignored" not in check.warning
+    assert "1 tracked file under an ignored root" in check.warning
+    assert "git rm -r --cached -- .kittify/migrations/" in check.warning
+    assert check.warning in report.warnings
+    assert report.to_dict()["surfaces"][[s.surface.name for s in report.surfaces].index("legacy_migration_scratch")][
+        "tracked_paths"
+    ] == [".kittify/migrations/mission-state/legacy.json"]
+
+
+@pytest.mark.git_repo
+def test_ignored_root_with_no_tracked_files_is_healthy(tmp_path):
+    """The remedy works: once untracked, the ignored root raises no warning."""
+    _git_repo_with_ignored_migrations(tmp_path)
+
+    _report, check = _scratch_check(tmp_path)
+
+    assert check.gitignore_covered
+    assert check.tracked_paths == ()
+    assert check.warning is None
+
+
+@pytest.mark.git_repo
+def test_root_without_an_ignore_rule_keeps_the_not_gitignored_warning(tmp_path):
+    """A root no rule covers still gets the original finding."""
+    import subprocess
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    (tmp_path / ".kittify" / "migrations").mkdir(parents=True)
+
+    _report, check = _scratch_check(tmp_path)
+
+    assert not check.gitignore_covered
+    assert check.warning is not None
+    assert "is present but not gitignored" in check.warning
