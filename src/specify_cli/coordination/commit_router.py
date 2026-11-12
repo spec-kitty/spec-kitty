@@ -31,7 +31,7 @@ from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, replace
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Final, Literal, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Final, Literal, NamedTuple, Protocol, runtime_checkable
 
 from kernel.git import status_entries
 from kernel.resolution import resolve_commit_path
@@ -1217,11 +1217,18 @@ def _primary_commit_paths(
     write_dirs: dict[MissionArtifactKind, WriteLocation] = {}
     label = Path(_relpath(repo_root, files[0]))
     checkout_kind = kind if is_primary_artifact_kind(kind) else _FALLBACK_PRIMARY_KIND
-    worktree_root = _primary_commit_root(repo_root, mission_slug, kind=checkout_kind, write_dirs=write_dirs, label=label)
-    if worktree_root is repo_root:
-        return repo_root, files, False
-    commit_paths = _reanchor_primary_paths(repo_root, worktree_root, files, mission_slug=mission_slug, write_dirs=write_dirs)
-    return worktree_root, commit_paths, True
+    checkout = _primary_commit_root(repo_root, mission_slug, kind=checkout_kind, write_dirs=write_dirs, label=label)
+    if not checkout.is_holder:
+        return checkout.root, files, False
+    commit_paths = _reanchor_primary_paths(repo_root, checkout.root, files, mission_slug=mission_slug, write_dirs=write_dirs)
+    return checkout.root, commit_paths, True
+
+
+class _PrimaryCheckout(NamedTuple):
+    """The checkout a PRIMARY-arm commit runs in, and whether it is a holder away from the root checkout."""
+
+    root: Path
+    is_holder: bool
 
 
 def _primary_commit_root(
@@ -1231,7 +1238,7 @@ def _primary_commit_root(
     kind: MissionArtifactKind,
     write_dirs: dict[MissionArtifactKind, WriteLocation],
     label: Path,
-) -> Path:
+) -> _PrimaryCheckout:
     """The checkout a non-owned PRIMARY-arm commit of *kind* runs in (FR-061; #7551, FR-002).
 
     Delegates to the placement seam: ``write_dir(kind).surface_root``, the checkout
@@ -1242,9 +1249,10 @@ def _primary_commit_root(
     arm too and resolve the coordination worktree, which holds that branch.
 
     When the seam names the repository root checkout (``get_main_repo_root`` of
-    *repo_root*, resolved) the caller's own *repo_root* is returned unchanged, the
-    very object, so a caller that passed a worktree path for a flat Mission keeps
-    committing where it did; any other checkout is returned as the holder. No raw
+    *repo_root*, resolved) the caller's own *repo_root* is returned unchanged with
+    ``is_holder`` False, so a caller that passed a worktree path for a flat Mission
+    keeps committing where it did; any other checkout is returned with
+    ``is_holder`` True. No raw
     "which checkout holds this ref" probe is consulted (C-001). *label* names the
     path a seam refusal is reported against.
     """
@@ -1254,8 +1262,8 @@ def _primary_commit_root(
         write_dirs[kind] = _resolve_owning_write_dir(repo_root, kind, mission_slug=mission_slug, owned=None, rel=label)
     holder = write_dirs[kind].surface_root
     if holder.resolve() == get_main_repo_root(repo_root).resolve():
-        return repo_root
-    return holder
+        return _PrimaryCheckout(root=repo_root, is_holder=False)
+    return _PrimaryCheckout(root=holder, is_holder=True)
 
 
 def _reanchor_primary_paths(

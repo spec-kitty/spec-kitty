@@ -660,11 +660,6 @@ def _topic_holder_mission_dir(repo_root: Path, topic: str, mission_dir_name: str
     return held_dir if held_dir.is_dir() else None
 
 
-def checkout_holding_branch(repo_root: Path, branch: str) -> Path | None:
-    """Public face of the one "which checkout holds *branch*" probe (FR-061)."""
-    return _checkout_holding_branch(repo_root, branch)
-
-
 def non_lane_checkout_holding_branch(repo_root: Path, branch: str) -> Path | None:
     """The checkout holding *branch*, or ``None`` when none does or a registered lane worktree does (FR-061, N2)."""
     from specify_cli.coordination.surface_resolver import WorktreeTopology, classify_worktree_topology

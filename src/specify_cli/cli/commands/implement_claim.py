@@ -67,10 +67,25 @@ class DispatchedClaimIdentity:
 _DISPATCHED_CLAIM_IDENTITY: ContextVar[DispatchedClaimIdentity | None] = ContextVar("dispatched_claim_identity", default=None)
 
 
-#: ``False`` only inside :func:`dispatched_claim_identity`: ``agent action implement`` has no
+#: ``False`` only inside :func:`no_auto_commit_not_offered`: ``agent action implement`` has no
 #: ``--no-auto-commit``, so a refusal printed through it must not name that option (#7601,
 #: SC-003). The top-level ``spec-kitty implement`` keeps the default and its remedy text.
 _NO_AUTO_COMMIT_OFFERED: ContextVar[bool] = ContextVar("no_auto_commit_offered", default=True)
+
+
+@contextmanager
+def no_auto_commit_not_offered() -> Iterator[None]:
+    """Withhold ``--no-auto-commit`` from every claim refusal printed inside this block (#7601).
+
+    Entered by ``agent action implement`` around its call of the top-level ``implement``
+    command: that entry point has no ``--no-auto-commit``, so its remedies name only ways
+    out it can follow. The previous value is restored on exit, also on an exception.
+    """
+    token = _NO_AUTO_COMMIT_OFFERED.set(False)
+    try:
+        yield
+    finally:
+        _NO_AUTO_COMMIT_OFFERED.reset(token)
 
 
 @contextmanager
@@ -84,11 +99,9 @@ def dispatched_claim_identity(identity: DispatchedClaimIdentity | None) -> Itera
     keeps the command's own actor.
     """
     token = _DISPATCHED_CLAIM_IDENTITY.set(identity)
-    offered_token = _NO_AUTO_COMMIT_OFFERED.set(False)
     try:
         yield
     finally:
-        _NO_AUTO_COMMIT_OFFERED.reset(offered_token)
         _DISPATCHED_CLAIM_IDENTITY.reset(token)
 
 
@@ -120,8 +133,9 @@ def _protected_branch_status_commit_error(
 
     *accepts_no_auto_commit* is ``False`` for ``agent action implement``, which has no
     ``--no-auto-commit``: its remedy then names the branch judged, the *checkout* it is
-    checked out in, and only ways out that command can follow (#7601, SC-003). The
-    top-level ``spec-kitty implement`` text is unchanged.
+    checked out in, and only ways out that command can follow (#7601, SC-003). Checking
+    out another branch in that checkout is not offered: git refuses it while another
+    worktree holds the branch. The top-level ``spec-kitty implement`` text is unchanged.
     """
     # ProtectionPolicy.resolve_for_mission is the sole I/O boundary (FR-007/NFR-003):
     # config+hatch+meta reads happen once; is_protected() is I/O-free. A mission-scoped
@@ -132,9 +146,8 @@ def _protected_branch_status_commit_error(
         where = f" (checked out in {checkout})" if checkout is not None else ""
         return (
             f"Refusing to start implementation status on protected branch '{branch}'{where} "
-            "before mutating status files. Check out an allowed coordination/lane branch in "
-            "that checkout and rerun, or claim the work package with the top-level "
-            "`spec-kitty implement` command, which can leave the status commit to you."
+            "before mutating status files. Claim the work package with the top-level "
+            "`spec-kitty implement` command instead, which can leave the status commit to you."
         )
     return (
         f"Refusing to start implementation status on protected branch '{branch}' "
