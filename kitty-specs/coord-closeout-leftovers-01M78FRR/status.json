@@ -31,7 +31,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-12T18:49:09Z – claude – shell_pid=21517 – Ownership-map leeway: three one-line edits in src/specify_cli/consolidation/rollback.py (owned by WP05) route the PASS-anchor clears in _clear_bookkeeping, rebaseline_after_full_restore and rollback_to_snapshot F4 through ConsolidationState.clear_reconciliation_pass(); tidy-first enabler for WP02, behaviour-preserving, WP05 depends on WP01 so no parallel edit (commit 0d647796).",
-        "Ready for review: ConsolidationState.clear_reconciliation_pass/restore_reconciliation_pass added; three rollback.py clears and executor restore routed through them (behaviour-preserving). 141+330 targeted tests pass."
+        "Ready for review: ConsolidationState.clear_reconciliation_pass/restore_reconciliation_pass added; three rollback.py clears and executor restore routed through them (behaviour-preserving). 141+330 targeted tests pass.",
+        "Review passed: red 3519fb3b 7/7 fail AttributeError (methods absent); lane tip 141/141 pass (pass_pair, single_rollback_authority, rollback_authority, terminus rollback_record_rebaseline, rollback_door). Four call sites semantically identical (executor still saves only on change; rebaseline changed-flag preserved). Only set sites remain in phase_gate/phase_teardown. ruff check/format clean, C901 clean, mypy 3 pre-existing errors = base, none new. Leeway rollback.py edit recorded in history. Anti-pattern checklist all PASS/N/A."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
