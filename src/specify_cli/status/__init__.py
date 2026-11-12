@@ -488,7 +488,6 @@ from .write_service_protocol import (
 from specify_cli.status.read_surface import (
     StatusReadSource,
     StatusReadSurface,
-    checkout_holding_branch,
     decide_status_read,
     materialize_status,
     non_lane_checkout_holding_branch,
@@ -533,7 +532,6 @@ __all__ = [
     "read_landing_evidence",
     "StatusReadSource",
     "StatusReadSurface",
-    "checkout_holding_branch",
     "decide_status_read",
     "materialize_status",
     "non_lane_checkout_holding_branch",
