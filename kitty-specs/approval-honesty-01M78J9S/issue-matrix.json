@@ -48,6 +48,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#6652": {
+      "evidence_ref": "Context only: cited in WP prompts as existing behaviour; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Approval-with-feedback leg (context)",
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#6696": {
       "evidence_ref": "Context only: the PR whose open questions #6709 records",
       "fr": null,
