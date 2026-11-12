@@ -40,7 +40,7 @@ import logging
 import os
 import warnings
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from kernel.git import GitCommandError, status_entries
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -777,6 +777,21 @@ def _mt_foreign_tree_verdict(evidence: EvidenceTree) -> pre_review_gate.GateVerd
     )
 
 
+@dataclass
+class _LaneEvidence:
+    """The probed lane test invocation and its evidence tree, filled only when a run tier is reached (#7547).
+
+    Mutable on purpose: the arms that run no test (empty diff, no active
+    binding, undeclared gate) never probe, so the hook builds this lazily from
+    :func:`_mt_collect_transition_gate_verdicts` instead of up front. Both
+    fields stay ``None`` when no run tier was reached, there is no workspace,
+    the WP is a planning-lane WP, or the build failed open.
+    """
+
+    invocation: LaneTestInvocation | None = None
+    evidence_tree: EvidenceTree | None = None
+
+
 @dataclass(frozen=True)
 class _TransitionGateInputs:
     """The shared, per-transition I/O the gate resolves once before dispatch.
@@ -810,11 +825,18 @@ class _TransitionGateInputs:
     changed_files: tuple[str, ...]
     gate_repo_root: Path
     scope_source_root: Path
-    #: #7547: the probed lane test invocation and the evidence tree captured
-    #: before any test run; both ``None`` when no invocation was built (no
-    #: workspace, a planning-lane WP, or a fail-open build error).
-    invocation: LaneTestInvocation | None = None
-    evidence_tree: EvidenceTree | None = None
+    #: #7547: the lane test evidence, built lazily by a run tier (see :class:`_LaneEvidence`).
+    lane_evidence: _LaneEvidence = field(default_factory=_LaneEvidence)
+
+    @property
+    def invocation(self) -> LaneTestInvocation | None:
+        """The probed lane test invocation, once a run tier built it."""
+        return self.lane_evidence.invocation
+
+    @property
+    def evidence_tree(self) -> EvidenceTree | None:
+        """The evidence tree captured before the run, once a run tier built it."""
+        return self.lane_evidence.evidence_tree
 
     @property
     def probe_is_foreign(self) -> bool:
@@ -1256,6 +1278,11 @@ def _mt_collect_transition_gate_verdicts(
     committed on the very branch the gate diffs against (the one checked out in
     the repository root checkout), so the gate genuinely has no workspace diff to
     inspect and must SAY that (#6792) rather than claim no files changed.
+    #7547: only the two run tiers (the override tier, and dispatch after the
+    declared check) build and probe the lane test invocation, just before they
+    run; a foreign tree there yields one ``FOREIGN_TREE`` verdict and nothing
+    runs. Every arm that runs no test returns exactly what it did before, with
+    no probe and no evidence tree.
     A resolution with no active binding (no contract / no binding / not activated)
     returns the resolver's **distinguishable** ``NO_COVERAGE`` reason
     (FR-008/012), never a silent vanish. A resolution WITH active bindings but
@@ -1264,14 +1291,13 @@ def _mt_collect_transition_gate_verdicts(
     the built-in binding ships with the ``software-dev`` review contract, so
     binding resolution alone cannot tell a declared gate from an undeclared one.
     """
-    if inputs.probe_is_foreign:
-        # #7547: the run would load another tree's code -- no handler, no test run.
-        assert inputs.evidence_tree is not None
-        return [_mt_foreign_tree_verdict(inputs.evidence_tree)]
     wp = getattr(st, "wp", None)
     status_observer = None if st.json_output else _mt_human_gate_status_observer(_tasks)
     override_targets = _mt_pre_review_scope_override(wp.frontmatter, st.repo_root) if wp is not None else None
     if override_targets is not None:
+        foreign = _mt_probe_lane_before_run(st, inputs)
+        if foreign is not None:
+            return [foreign]
         if not st.json_output:
             _tasks.console.print(_PRE_REVIEW_GATE_RUNNING_NOTICE)
         return [
@@ -1297,6 +1323,9 @@ def _mt_collect_transition_gate_verdicts(
         # ``software-dev`` review contract), but this repo has declared no
         # command for any handler to run — the gate does not fire here.
         return [_mt_not_declared_skip_verdict()]
+    foreign = _mt_probe_lane_before_run(st, inputs)
+    if foreign is not None:
+        return [foreign]
     if not st.json_output:
         _tasks.console.print(_PRE_REVIEW_GATE_RUNNING_NOTICE)
     ctx = _mt_build_transition_gate_context(st, inputs, status_observer=status_observer)
@@ -1316,16 +1345,28 @@ def _mt_resolve_transition_gate_inputs(
     worktree_path = _mt_resolve_pre_review_workspace(st)
     dirty_before = _mt_pre_review_dirty_paths(worktree_path) if worktree_path is not None else ()
     changed_files = _mt_pre_review_changed_files(worktree_path, st.review_base_ref or st.target_branch) if worktree_path is not None else ()
-    invocation, evidence_tree = _mt_lane_test_evidence(st, worktree_path)
     inputs = _TransitionGateInputs(
         worktree_path=worktree_path,
         changed_files=changed_files,
         gate_repo_root=worktree_path or st.main_repo_root,
         scope_source_root=_mt_config_authority_root(st),
-        invocation=invocation,
-        evidence_tree=evidence_tree,
     )
     return inputs, dirty_before
+
+
+def _mt_probe_lane_before_run(st: _MoveTaskState, inputs: _TransitionGateInputs) -> pre_review_gate.GateVerdict | None:
+    """Build, probe and record the lane test evidence just before a run tier runs (#7547).
+
+    Returns the ``FOREIGN_TREE`` verdict when the probe proved the run would
+    load another tree's code (nothing runs then), else ``None`` and the run
+    proceeds with the invocation's environment.
+    """
+    invocation, evidence_tree = _mt_lane_test_evidence(st, inputs.worktree_path)
+    inputs.lane_evidence.invocation = invocation
+    inputs.lane_evidence.evidence_tree = evidence_tree
+    if evidence_tree is None or not inputs.probe_is_foreign:
+        return None
+    return _mt_foreign_tree_verdict(evidence_tree)
 
 
 def _mt_lane_test_evidence(
@@ -1334,7 +1375,7 @@ def _mt_lane_test_evidence(
 ) -> tuple[LaneTestInvocation | None, EvidenceTree | None]:
     """Build and probe the lane test invocation, then capture the evidence tree (#7547).
 
-    Runs before any test run. ``(None, None)`` for no workspace and for a
+    Called by :func:`_mt_probe_lane_before_run` only, just before a test run. ``(None, None)`` for no workspace and for a
     planning-lane WP (its workspace is the repository root checkout, which has
     no lane environment to verify). Fail-open (C-003): any ``Exception`` while
     building, probing or capturing degrades to ``(None, None)`` -- the gate then
