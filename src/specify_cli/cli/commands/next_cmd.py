@@ -474,7 +474,7 @@ def _decide_and_pair(
     except BaseException:
         _pair_previous_lifecycle_record(agent, mission_slug, result, repo_root, owned=owned)
         raise
-    if not getattr(decision, "suppress_step_pairing", False) or _latest_issuance_is_board_action(agent, mission_slug, repo_root, owned=owned):
+    if not decision.suppress_step_pairing or _latest_issuance_is_board_action(agent, mission_slug, repo_root, owned=owned):
         _pair_previous_lifecycle_record(agent, mission_slug, result, repo_root, owned=owned)
     return decision
 
