@@ -107,6 +107,9 @@
       "last_event_id": "01M7772RV0WSY4NQK3P34TA846",
       "last_transition_at": "2026-11-12T06:28:19.936747+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "New lanes get the pinned packs trees: open_lane_checkout places each pinned tree the lane lacks via fetch_to_cache(offline=True)+place_pack through charter.packs; cold cache prints one stderr remedy line, never fails implement; no pins = no-op. Red 29e2a15b, green c635cd54, dead-symbol fix 1cb7d329. Placement on this repo's pins: 0.16s (built-in+internal, 574 files), check_pack OK."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 30012,
