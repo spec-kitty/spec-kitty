@@ -1,7 +1,7 @@
 {
-  "event_count": 12,
-  "last_event_id": "01M78T6H747BYDP3P4BR8JNBVY",
-  "materialized_at": "2026-11-12T21:21:40.580182+00:00",
+  "event_count": 13,
+  "last_event_id": "01M78T7YF9YYAPJ4D5AX9Q8WDB",
+  "materialized_at": "2026-11-12T21:22:26.921279+00:00",
   "mission_number": "",
   "mission_slug": "approval-honesty-01M78J9S",
   "mission_type": "software-dev",
@@ -12,22 +12,22 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 3
   },
   "work_packages": {
     "WP01": {
       "actor": "claude",
       "agent": "claude",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "for_review",
-      "last_event_id": "01M78T6H747BYDP3P4BR8JNBVY",
-      "last_transition_at": "2026-11-12T21:21:40.580182+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M78T7YF9YYAPJ4D5AX9Q8WDB",
+      "last_transition_at": "2026-11-12T21:22:26.921279+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-12T19:51:09Z – claude – shell_pid=26896 – T001 red-first committed 52e54856: 5 failed on base (git user in policy_metadata.tool / evidence / review_result; auto-approval: token under --no-auto-commit; done without --agent refused REVIEW_NOT_INDEPENDENT; forced approval reference was a review-cycle pointer; --reviewer alone refused).",
@@ -47,9 +47,9 @@
         "reviewer": "claude::reviewer-renata",
         "verdict": "changes_requested"
       },
-      "role": "implementer",
-      "shell_pid": null,
-      "shell_pid_created_at": null,
+      "role": "reviewer",
+      "shell_pid": 24019,
+      "shell_pid_created_at": "1794518538.72",
       "subtasks": {
         "T001": "done",
         "T002": "done",
