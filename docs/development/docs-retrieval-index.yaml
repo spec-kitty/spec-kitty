@@ -12046,6 +12046,7 @@ pages:
     - {slug: "epic-bodies-describe-work-not-children", text: "Epic bodies describe work, not children", level: 2}
     - {slug: "meta-tracker-lifecycle", text: "Meta-tracker lifecycle", level: 2}
     - {slug: "filing-children-from-an-epic", text: "Filing children from an epic", level: 2}
+    - {slug: "file-an-issue-in-the-repository-that-owns-the-concern", text: "File an issue in the repository that owns the concern", level: 2}
     - {slug: "triaging-issues-type-severity-and-release-blocking-bugs", text: "Triaging issues: type, severity, and release-blocking bugs", level: 2}
     - {slug: "native-type-is-the-kind-carrier", text: "Native type is the kind carrier", level: 3}
     - {slug: "priority-and-what-makes-a-p0", text: "Priority, and what makes a P0", level: 3}
