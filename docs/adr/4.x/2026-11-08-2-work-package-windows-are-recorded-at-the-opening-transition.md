@@ -583,14 +583,19 @@ dedicated tests listed.
 
 **Status:** Accepted (operator rulings Q3 and Q8, 2026-11-12).
 
-**What changes.** A `single_branch` Mission created with `--commit-to-target` writes straight to its
-target branch: its write branch *is* the target. Until now such a Mission recorded nothing: its
-transitions carried no `lane_head` and its opening moves no `wp_window`. It now records both, taken at
+**What changes.** A commit-to-target `single_branch` Mission is one whose write branch *is* its target
+branch: a Mission created with `--commit-to-target`, or created `single_branch` on an unprotected
+target, where no Mission branch is minted. A Mission whose minted branch has landed reads as one too:
+the landing's teardown (`consolidation/phase_teardown.py::_clear_landed_single_branch_mission_branch`)
+clears `meta.mission_branch`, so its later transitions are stamped at the target head; consolidation
+has finished by then. Until now such a Mission recorded nothing: its transitions carried no
+`lane_head` and its opening moves no `wp_window`. It now records both, taken at
 the head of the target branch (`status/lane_head.py::_single_branch_write_branch`). The opening move
 (`claimed` / `in_progress`) records `wp_window.open_sha`; every lifecycle move records `lane_head`. A
 missing target branch or a git failure is a typed gap, never a refused move. The planning lane of a
-`lanes` or `lanes_with_coord` Mission still records nothing, and a Mission with a minted Mission branch
-is unchanged.
+`lanes` or `lanes_with_coord` Mission still records nothing (its work package's review range is derived
+from its committed status events, operator ruling Q10), and a Mission with an unlanded minted Mission
+branch is unchanged.
 
 **Why.** The review range of a work package (#7578) reads a recorded window on every topology instead of
 guessing one from branch history (ruling Q3).
@@ -610,9 +615,11 @@ without a guard:
 | A commit after the last approval | exit 0, not refused | unchanged |
 
 The operator ruled to keep the stamps and keep every verdict as it was. One predicate decides
-whether a Mission is commit-to-target: `consolidation/commit_to_target_stamps.py::is_commit_to_target_meta`,
-which checks a stored `single_branch` topology whose write branch equals the recorded target, using the
-`single_branch_landing` rules. For such a Mission, `consolidation_events` removes `lane_head` and
+whether a Mission is commit-to-target: `lanes/single_branch_landing.py::is_commit_to_target_meta`,
+which checks a stored `single_branch` topology whose write branch equals the recorded target
+(`single_branch_branches`, the reading the lane-head stamp also uses);
+`consolidation/commit_to_target_stamps.py::is_commit_to_target_mission` calls it over a Mission's
+`meta.json`. For such a Mission, `consolidation_events` removes `lane_head` and
 `wp_window` from the status events that three seams read:
 
 - the claim's event log, `reconciliation_kernel._ClaimEventLog.read` (canceled-work attribution, the
