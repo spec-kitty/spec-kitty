@@ -227,3 +227,119 @@ def test_public_surface_carries_the_helper_and_its_error() -> None:
     import mission_runtime
 
     assert {"claim_commit_for_wp", "ClaimCommitUnresolved"} <= set(mission_runtime.__all__)
+
+
+# --------------------------------------------------------------------------- #
+# review-context-wp-diff-01M774QF (#7578, IC-03): the general event-commit lookup
+# --------------------------------------------------------------------------- #
+
+
+def test_lookup_of_any_event_on_a_path_surface(mission_dir: Path) -> None:
+    from mission_runtime import commit_introducing_status_event
+
+    _record(mission_dir, _event("01CLAIMAAAAAAAAAAAAAAAAAA1", "WP01", Lane.CLAIMED))
+    submitted = _record(mission_dir, _event("01REVIEWAAAAAAAAAAAAAAAAA1", "WP01", Lane.FOR_REVIEW, Lane.IN_PROGRESS))
+    _record(mission_dir, _event("01INREVIEWAAAAAAAAAAAAAAA1", "WP01", Lane.IN_REVIEW, Lane.FOR_REVIEW))
+
+    assert commit_introducing_status_event(mission_dir, "WP01", "01REVIEWAAAAAAAAAAAAAAAAA1") == submitted
+
+
+def test_lookup_on_a_ref_surface_reads_a_branch_that_is_not_checked_out(mission_dir: Path) -> None:
+    from mission_runtime import StatusRef, commit_introducing_status_event
+
+    repo = mission_dir.parents[1]
+    _git(repo, "switch", "-q", "-c", "status-branch")
+    submitted = _record(mission_dir, _event("01REVIEWAAAAAAAAAAAAAAAAA1", "WP01", Lane.FOR_REVIEW, Lane.IN_PROGRESS))
+    _git(repo, "switch", "-q", "main")
+    assert not (mission_dir / _EVENTS).exists(), "precondition: the event log is not in the checked-out tree"
+
+    surface = StatusRef(repo_root=repo, ref="refs/heads/status-branch", events_relpath=f"kitty-specs/{_SLUG}/{_EVENTS}")
+
+    assert commit_introducing_status_event(surface, "WP01", "01REVIEWAAAAAAAAAAAAAAAAA1") == submitted
+
+
+def test_lookup_bounded_by_an_explicit_rev_skips_later_commits(mission_dir: Path) -> None:
+    from mission_runtime import commit_introducing_status_event
+
+    early = _record(mission_dir, _event("01CLAIMAAAAAAAAAAAAAAAAAA1", "WP01", Lane.CLAIMED))
+    _record(mission_dir, _event("01REVIEWAAAAAAAAAAAAAAAAA1", "WP01", Lane.FOR_REVIEW, Lane.IN_PROGRESS))
+    assert early is not None
+
+    with pytest.raises(ClaimCommitUnresolved) as raised:
+        commit_introducing_status_event(mission_dir, "WP01", "01REVIEWAAAAAAAAAAAAAAAAA1", rev=early)
+
+    assert raised.value.reason == "no_commit"
+    assert commit_introducing_status_event(mission_dir, "WP01", "01CLAIMAAAAAAAAAAAAAAAAAA1", rev=early) == early
+
+
+def test_general_lookup_of_an_event_on_no_commit_is_no_commit(mission_dir: Path) -> None:
+    from mission_runtime import commit_introducing_status_event
+
+    _record(mission_dir, _event("01CLAIMAAAAAAAAAAAAAAAAAA1", "WP01", Lane.CLAIMED))
+
+    with pytest.raises(ClaimCommitUnresolved) as raised:
+        commit_introducing_status_event(mission_dir, "WP01", "01NEVERWRITTENAAAAAAAAAAA1")
+
+    assert raised.value.reason == "no_commit"
+
+
+def test_general_lookup_of_an_event_introduced_twice_is_ambiguous(mission_dir: Path) -> None:
+    from mission_runtime import commit_introducing_status_event
+
+    _record(mission_dir, _event("01REVIEWAAAAAAAAAAAAAAAAA1", "WP01", Lane.FOR_REVIEW, Lane.IN_PROGRESS))
+    events = mission_dir / _EVENTS
+    original = events.read_text(encoding="utf-8")
+    events.write_text("", encoding="utf-8")
+    _git(mission_dir.parents[1], "commit", "-qam", "remove the line")
+    events.write_text(original, encoding="utf-8")
+    _git(mission_dir.parents[1], "commit", "-qam", "re-add the line")
+
+    with pytest.raises(ClaimCommitUnresolved) as raised:
+        commit_introducing_status_event(mission_dir, "WP01", "01REVIEWAAAAAAAAAAAAAAAAA1")
+
+    assert raised.value.reason == "ambiguous"
+
+
+def test_general_lookup_race_guard_runs_against_the_given_rev(mission_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from mission_runtime import commit_introducing_status_event
+
+    sha = _record(mission_dir, _event("01REVIEWAAAAAAAAAAAAAAAAA1", "WP01", Lane.FOR_REVIEW, Lane.IN_PROGRESS))
+    assert sha is not None
+    seen: list[list[str]] = []
+    real_run: Any = subprocess.run
+
+    def _run(command: list[str], *args: object, **kwargs: object) -> object:
+        if command[:2] == ["git", "merge-base"]:
+            seen.append(command)
+            return subprocess.CompletedProcess(command, 1, "", "")
+        return real_run(command, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", _run)
+
+    with pytest.raises(ClaimCommitUnresolved) as raised:
+        commit_introducing_status_event(mission_dir, "WP01", "01REVIEWAAAAAAAAAAAAAAAAA1", rev=sha)
+
+    assert raised.value.reason == "no_commit"
+    assert seen == [["git", "merge-base", "--is-ancestor", sha, sha]]
+
+
+def test_general_lookup_without_git_is_git_unavailable(mission_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from mission_runtime import commit_introducing_status_event
+
+    _record(mission_dir, _event("01REVIEWAAAAAAAAAAAAAAAAA1", "WP01", Lane.FOR_REVIEW, Lane.IN_PROGRESS))
+
+    def _absent(*args: object, **kwargs: object) -> object:
+        raise OSError("git")
+
+    monkeypatch.setattr(subprocess, "run", _absent)
+
+    with pytest.raises(ClaimCommitUnresolved) as raised:
+        commit_introducing_status_event(mission_dir, "WP01", "01REVIEWAAAAAAAAAAAAAAAAA1")
+
+    assert raised.value.reason == "git_unavailable"
+
+
+def test_public_surface_carries_the_general_lookup() -> None:
+    import mission_runtime
+
+    assert {"commit_introducing_status_event", "StatusRef"} <= set(mission_runtime.__all__)
