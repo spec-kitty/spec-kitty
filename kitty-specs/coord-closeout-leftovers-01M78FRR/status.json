@@ -1,7 +1,7 @@
 {
-  "event_count": 44,
-  "last_event_id": "01M78WHZ2FD95E5PR66AXJ5KV8",
-  "materialized_at": "2026-11-12T22:02:52.367373+00:00",
+  "event_count": 45,
+  "last_event_id": "01M78WN0BJPTPWENJ2T8VFYBRE",
+  "materialized_at": "2026-11-12T22:04:31.986814+00:00",
   "mission_number": "",
   "mission_slug": "coord-closeout-leftovers-01M78FRR",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 2,
     "planned": 1
   },
   "work_packages": {
@@ -120,15 +120,15 @@
       }
     },
     "WP04": {
-      "actor": "claude",
-      "agent": "claude",
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "for_review",
-      "last_event_id": "01M78WHZ2FD95E5PR66AXJ5KV8",
-      "last_transition_at": "2026-11-12T22:02:52.367373+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M78WN0BJPTPWENJ2T8VFYBRE",
+      "last_transition_at": "2026-11-12T22:04:31.986814+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-12T18:49:08Z – claude – shell_pid=25327 – Blocked (R1 escalation): is_absorbed refuses the canonical squash-landed coordination branch (status.events.jsonl content conflict, status.json add/add). Red test committed e3073e6f; service not written; awaiting operator ruling on the proof (see traces/approach.md).",
@@ -136,9 +136,9 @@
         "Ready for review: archive reclaim on the recorded-landing proof (#4041); 9 CLI cells + 35 unit cells green"
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 23729,
-      "shell_pid_created_at": "1794517618.96",
+      "role": "reviewer",
+      "shell_pid": 8750,
+      "shell_pid_created_at": "1794521060.89",
       "subtasks": {
         "T013": "done",
         "T014": "done",
