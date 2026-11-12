@@ -118,7 +118,7 @@
     },
     "WP04": {
       "actor": "claude-reviewer",
-      "agent": "claude-reviewer",
+      "agent": "claude-reviewer::reviewer-renata",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 1,
@@ -130,7 +130,8 @@
       "notes": [
         "for_review hook builds the lane test invocation (WP02 adapter), probes and captures the evidence tree before any run; a foreign tree refuses with EVIDENCE_TREE_MISMATCH (exit 1, no transition) regardless of the block toggle; --force records force_bypassed + bypassed_refusal; run_env reaches the handler and override tier; evidence_tree in policy_metadata. T015 red first (95274c9d), green 15c1fa84.",
         "- 2026-11-12T08:26:36Z – unknown – Cycle 1 fix: lane probe/evidence/foreign short-circuit moved onto the run tiers only (override tier; dispatch after the declared check). Undeclared -> quiet skipped, empty diff -> no_coverage, no probe, no evidence_tree. Red e0120d89, green e458e22c.",
-        "Cycle 1: the lane probe, evidence tree and foreign-tree refusal now run only on the run tiers (override tier; dispatch after the declared check). Undeclared gate stays a quiet skip, an empty diff stays no_coverage, with no probe and no evidence_tree. Red e0120d89, green e458e22c."
+        "Cycle 1: the lane probe, evidence tree and foreign-tree refusal now run only on the run tiers (override tier; dispatch after the declared check). Undeclared gate stays a quiet skip, an empty diff stays no_coverage, with no probe and no evidence_tree. Red e0120d89, green e458e22c.",
+        "Review passed (cycle 2): cycle-1 blocker resolved. Probe runs only on the override tier and post-declared dispatch; undeclared gate -> skipped and declared+empty diff -> no_coverage, both with no probe and no evidence_tree (red e0120d89 -> green e458e22c). Same-fixture positive control. Tip: 3392 passed, 5 skipped, 2 xfailed (full agent dir + WP04 set). Minor: the override-tier refusal test asserts only exit 1 and no status call, not error_code."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
