@@ -1,7 +1,7 @@
 {
-  "event_count": 5,
-  "last_event_id": "01M78HX5DZD5NPV0PF93R19N2X",
-  "materialized_at": "2026-11-12T18:56:44.991890+00:00",
+  "event_count": 7,
+  "last_event_id": "01M78HYJKVDAGZREXC7B52MC5N",
+  "materialized_at": "2026-11-12T18:57:31.253087+00:00",
   "mission_number": "",
   "mission_slug": "settled-placement-surface-01M78GR4",
   "mission_type": "software-dev",
@@ -13,17 +13,26 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 5
+    "planned": 4
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M78HWXZBY966SY9GZGXEX0Z6",
-      "last_transition_at": "2026-11-12T18:56:37.355121+00:00"
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M78HYJKVDAGZREXC7B52MC5N",
+      "last_transition_at": "2026-11-12T18:57:31.253087+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 17949,
+      "shell_pid_created_at": "1794509845.9"
     },
     "WP02": {
       "actor": "finalize-tasks",
