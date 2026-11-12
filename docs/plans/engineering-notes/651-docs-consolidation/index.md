@@ -12,8 +12,6 @@ related:
 external_references:
 - url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/development/page-inventory.yaml
   title: docs/development/page-inventory.yaml
-- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/docfx.json
-  title: docs/docfx.json
 - url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/llms.txt
   title: docs/llms.txt
 ---
