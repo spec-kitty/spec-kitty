@@ -16,7 +16,7 @@ Fixtures (:data:`REVIEW_READY` lists the four review-ready ones):
 * ``lanes_with_coord``: WP01 and WP02 on one lane (the terminus builders); the review is opened
   from the repository root checkout. ``lanes``: the same Mission re-declared ``lanes``.
 * ``lanes_stamp_stripped``: ``lanes`` with every ``lane_head`` / ``wp_window`` key removed from
-  WP02's events, so its range is genuinely unavailable (lanes never use event commits).
+  WP02's events, so its range is genuinely unavailable (a code-lane work package never uses event commits).
 
 :func:`make_owned_range_unavailable` is the owned-checkout variant for the operator ruling Q7
 cells: it strips an owned WP's stamps, drops its claim-base ref and makes its event commits

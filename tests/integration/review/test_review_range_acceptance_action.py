@@ -14,8 +14,8 @@ rendered on the same fixture copy for comparison. Per review-ready fixture:
 * C-001: no patch text and no diff file; NFR-005: byte-identical under two hash seeds.
 
 FR-013 / NFR-004: an unavailable range is a notice on sites 2 and 3, exit 0, never a refusal.
-Operator ruling Q7: ``OWNED_REVIEW_BASE_UNAVAILABLE`` keeps its code and message prefix and fires
-only for an owned checkout whose scoped range is unavailable (its reason in words, not the raw
+Operator rulings Q7 and Q9: ``OWNED_REVIEW_BASE_UNAVAILABLE`` keeps its code and message prefix and fires
+only for an owned single_branch checkout whose scoped range is unavailable (its reason in words, not the raw
 gap value) or whose work package declares no ``owned_files``.
 """
 
