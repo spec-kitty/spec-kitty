@@ -570,7 +570,7 @@ def _run_dir_is_rewindable(run_dir: Path, scope: _RewindScope) -> bool:
         if not snapshot.completed_steps and not snapshot.pending_decisions and not snapshot.decisions:
             return True
         return _issued_step_is_rewindable(snapshot.issued_step_id, scope)
-    except Exception as exc:
+    except (OSError, ValueError) as exc:  # missing/unreadable file, malformed JSON, or schema-invalid snapshot (pydantic ValidationError is a ValueError)
         logger.debug("never-rewind gate: run snapshot %s unreadable, treating the run as authoritative: %s", run_dir, exc)
         return False
 
