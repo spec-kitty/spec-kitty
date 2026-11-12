@@ -575,8 +575,9 @@ def test_mission_dir_ownership_excludes_mission_bookkeeping(sb_templates: _Singl
     m = _checkout(sb_templates.get("minted+submitted"), tmp_path, monkeypatch)
     """Re-pin (#7578, DIRECTIVE_041): an owned glob gets an exclude for each bookkeeping prefix it can reach, and only those."""
     root = f"kitty-specs/{m.slug}/"
-    mission_bookkeeping = (*(prefix for prefix in status_only_excluded_prefixes(m.slug) if prefix.startswith(root)), f"{root}tasks.md")
-    excludes = tuple(f":(exclude){prefix}*" for prefix in mission_bookkeeping)
+    mission_bookkeeping = tuple(prefix for prefix in status_only_excluded_prefixes(m.slug) if prefix.startswith(root))
+    # The task index is one exact path (L1), every gate prefix keeps its trailing wildcard.
+    excludes = (*(f":(exclude){prefix}*" for prefix in mission_bookkeeping), f":(exclude){root}tasks.md")
 
     research = _resolve_sb(m, owned=(f"{root}research/**",))
     whole_dir = _resolve_sb(m, owned=(f"{root}**",))
@@ -587,6 +588,22 @@ def test_mission_dir_ownership_excludes_mission_bookkeeping(sb_templates: _Singl
     assert not [subject for subject in _subjects(whole_dir) if subject.startswith(_BOOKKEEPING_PREFIX)]
     assert code_only.owned_pathspecs == _M1
     assert not [subject for subject in _subjects(code_only) if subject.startswith(_BOOKKEEPING_PREFIX)]
+
+
+def test_an_owned_file_beside_the_task_index_is_not_excluded(sb_templates: _SingleBranchTemplates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """L1: the task index exclude names ``tasks.md`` exactly, so an owned ``tasks.md.bak`` is still listed."""
+    m = _checkout(sb_templates.get("minted"), tmp_path, monkeypatch)
+    root = f"kitty-specs/{m.slug}/"
+    sb.claim(m, "WP01")
+    backup = sb.commit_file(m, f"{root}tasks.md.bak", "old index\n", "docs(WP01): keep the old task index")
+    sb.submit(m, "WP01")
+
+    found = _resolve_sb(m, owned=(f"{root}tasks.md.bak",))
+
+    assert found.owned_pathspecs == (f"{root}tasks.md.bak", f":(exclude){root}tasks.md")
+    assert [commit.sha for commit in found.commits] == [backup]
+    assert [change.path for change in found.files] == [f"{root}tasks.md.bak"]
+    assert _printed_log_subjects(m, found) == _subjects(found)
 
 
 def test_merge_commit_inside_the_range_lists_what_git_log_lists(sb_templates: _SingleBranchTemplates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
