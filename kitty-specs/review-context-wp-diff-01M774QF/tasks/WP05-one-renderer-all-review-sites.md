@@ -1,21 +1,50 @@
 ---
-work_package_id: "WP05"
-title: "One renderer, and the `next` review step (site 1) on it, driven by acceptance tests"
-dependencies: ["WP02", "WP03", "WP04"]
-requirement_refs: ["FR-008", "NFR-001", "C-001", "C-010", "SC-001", "SC-002"]
-subtasks: ["T022", "T023", "T024", "T025", "T026"]
-owned_files: ["src/specify_cli/review/context_block.py", "src/runtime/next/prompt_builder.py", "tests/review/test_context_block.py", "tests/integration/review/test_review_range_acceptance.py", "tests/integration/review/review_range_fixtures.py", "tests/next/test_prompt_builder_review_base.py", "tests/next/test_prompt_builder_unit.py", "tests/integration/test_prompt_builder_owned_arms.py", "tests/integration/test_owned_lifecycle_acceptance_review.py", "tests/integration/test_owned_lifecycle_acceptance_e2e.py"]
-authoritative_surface: "src/specify_cli/review/"
-execution_mode: "code_change"
-agent_profile: "python-pedro"  # filled in Step 4a — profile identifier (e.g., implementer-ivan)
-role: "implementer"           # filled in Step 4a — role within the profile (e.g., "implementer")
-agent: "claude"          # filled in Step 4a — CLI agent identifier (claude, codex, copilot, etc.)
-model: ""          # filled in Step 4a — model identifier (e.g., claude-sonnet-4-6), optional
+work_package_id: WP05
+title: One renderer, and the `next` review step (site 1) on it, driven by acceptance tests
+dependencies:
+- WP02
+- WP03
+- WP04
+requirement_refs:
+- FR-008
+- NFR-001
+- C-001
+- C-010
+- SC-001
+- SC-002
+planning_base_branch: feat/7578-review-context
+merge_target_branch: feat/7578-review-context
+branch_strategy: Planning artifacts for this mission were generated on feat/7578-review-context. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/7578-review-context unless the human explicitly redirects the landing branch.
+subtasks:
+- T022
+- T023
+- T024
+- T025
+- T026
+history: []
+agent_profile: python-pedro
+authoritative_surface: src/specify_cli/review/
 create_intent:
-  - "src/specify_cli/review/context_block.py"
-  - "tests/integration/review/test_review_range_acceptance.py"
-  - "tests/integration/review/review_range_fixtures.py"
-  - "tests/review/test_context_block.py"
+- src/specify_cli/review/context_block.py
+- tests/integration/review/test_review_range_acceptance.py
+- tests/integration/review/review_range_fixtures.py
+- tests/review/test_context_block.py
+execution_mode: code_change
+model: ''
+owned_files:
+- src/specify_cli/review/context_block.py
+- src/runtime/next/prompt_builder.py
+- tests/review/test_context_block.py
+- tests/integration/review/test_review_range_acceptance.py
+- tests/integration/review/review_range_fixtures.py
+- tests/next/test_prompt_builder_review_base.py
+- tests/next/test_prompt_builder_unit.py
+- tests/integration/test_prompt_builder_owned_arms.py
+- tests/integration/test_owned_lifecycle_acceptance_review.py
+- tests/integration/test_owned_lifecycle_acceptance_e2e.py
+role: implementer
+tags: []
+tracker_refs: []
 ---
 
 # WP05: One renderer, and the `next` review step (site 1) on it, driven by acceptance tests

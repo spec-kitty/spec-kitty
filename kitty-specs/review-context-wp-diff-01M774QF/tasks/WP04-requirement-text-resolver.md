@@ -1,19 +1,33 @@
 ---
-work_package_id: "WP04"
-title: "Requirement-text resolver for cited IDs"
+work_package_id: WP04
+title: Requirement-text resolver for cited IDs
 dependencies: []
-requirement_refs: ["FR-010", "FR-011", "NFR-003"]
-subtasks: ["T018", "T019", "T020", "T021"]
-owned_files: ["src/specify_cli/requirement_mapping/text.py", "tests/specify_cli/test_requirement_mapping_text.py"]
-authoritative_surface: "src/specify_cli/requirement_mapping/"
-execution_mode: "code_change"
-agent_profile: "python-pedro"
-role: "implementer"
-agent: "claude"
-model: ""
+requirement_refs:
+- FR-010
+- FR-011
+- NFR-003
+planning_base_branch: feat/7578-review-context
+merge_target_branch: feat/7578-review-context
+branch_strategy: Planning artifacts for this mission were generated on feat/7578-review-context. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/7578-review-context unless the human explicitly redirects the landing branch.
+subtasks:
+- T018
+- T019
+- T020
+- T021
+history: []
+agent_profile: python-pedro
+authoritative_surface: src/specify_cli/requirement_mapping/
 create_intent:
-  - "src/specify_cli/requirement_mapping/text.py"
-  - "tests/specify_cli/test_requirement_mapping_text.py"
+- src/specify_cli/requirement_mapping/text.py
+- tests/specify_cli/test_requirement_mapping_text.py
+execution_mode: code_change
+model: ''
+owned_files:
+- src/specify_cli/requirement_mapping/text.py
+- tests/specify_cli/test_requirement_mapping_text.py
+role: implementer
+tags: []
+tracker_refs: []
 ---
 
 # WP04: Requirement-text resolver for cited IDs

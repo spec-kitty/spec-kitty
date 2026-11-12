@@ -1,16 +1,30 @@
 ---
-work_package_id: "WP06"
-title: "Documentation close-out: changelog fragment and CLAUDE.md"
-dependencies: ["WP07"]
-requirement_refs: ["C-003", "NFR-006"]
-subtasks: ["T029", "T030", "T031"]
-owned_files: ["docs/changelog/unreleased/7578.*.md", "CLAUDE.md"]
-authoritative_surface: "docs/changelog/unreleased/"
-execution_mode: "code_change"
-agent_profile: "scribe-sally"
-role: "documentarian"
-agent: "claude"
-model: ""
+work_package_id: WP06
+title: 'Documentation close-out: changelog fragment and CLAUDE.md'
+dependencies:
+- WP07
+requirement_refs:
+- C-003
+- NFR-006
+planning_base_branch: feat/7578-review-context
+merge_target_branch: feat/7578-review-context
+branch_strategy: Planning artifacts for this mission were generated on feat/7578-review-context. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/7578-review-context unless the human explicitly redirects the landing branch.
+subtasks:
+- T029
+- T030
+- T031
+history: []
+agent_profile: scribe-sally
+authoritative_surface: docs/changelog/unreleased/
+create_intent: []
+execution_mode: code_change
+model: ''
+owned_files:
+- docs/changelog/unreleased/7578.*.md
+- CLAUDE.md
+role: documentarian
+tags: []
+tracker_refs: []
 ---
 
 # WP06: Documentation close-out: changelog fragment and CLAUDE.md

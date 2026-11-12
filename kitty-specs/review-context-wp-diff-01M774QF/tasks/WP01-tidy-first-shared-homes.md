@@ -1,29 +1,42 @@
 ---
-work_package_id: "WP01"
-title: "Tidy-first: shared homes for the window-opener rule and owned-file matching"
+work_package_id: WP01
+title: 'Tidy-first: shared homes for the window-opener rule and owned-file matching'
 dependencies: []
-requirement_refs: ["FR-003", "C-005", "C-007"]
-subtasks: ["T001", "T002", "T003", "T004", "T005"]
-owned_files:
-  - "src/specify_cli/status/wp_window_selector.py"
-  - "src/specify_cli/consolidation/wp_attribution.py"
-  - "src/specify_cli/consolidation/wp_evidence.py"
-  - "src/specify_cli/ownership/matching.py"
-  - "src/specify_cli/ownership/__init__.py"
-  - "tests/status/test_wp_window_selector.py"
-  - "tests/specify_cli/ownership/test_matching.py"
-  - "src/specify_cli/status/__init__.py"
-authoritative_surface: "src/specify_cli/"
-execution_mode: "code_change"
-agent_profile: "python-pedro"
-role: "implementer"
-agent: "claude"
-model: ""
+requirement_refs:
+- FR-003
+- C-005
+- C-007
+planning_base_branch: feat/7578-review-context
+merge_target_branch: feat/7578-review-context
+branch_strategy: Planning artifacts for this mission were generated on feat/7578-review-context. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/7578-review-context unless the human explicitly redirects the landing branch.
+subtasks:
+- T001
+- T002
+- T003
+- T004
+- T005
+history: []
+agent_profile: python-pedro
+authoritative_surface: src/specify_cli/
 create_intent:
-  - "src/specify_cli/status/wp_window_selector.py"
-  - "src/specify_cli/ownership/matching.py"
-  - "tests/status/test_wp_window_selector.py"
-  - "tests/specify_cli/ownership/test_matching.py"
+- src/specify_cli/status/wp_window_selector.py
+- src/specify_cli/ownership/matching.py
+- tests/status/test_wp_window_selector.py
+- tests/specify_cli/ownership/test_matching.py
+execution_mode: code_change
+model: ''
+owned_files:
+- src/specify_cli/status/wp_window_selector.py
+- src/specify_cli/consolidation/wp_attribution.py
+- src/specify_cli/consolidation/wp_evidence.py
+- src/specify_cli/ownership/matching.py
+- src/specify_cli/ownership/__init__.py
+- tests/status/test_wp_window_selector.py
+- tests/specify_cli/ownership/test_matching.py
+- src/specify_cli/status/__init__.py
+role: implementer
+tags: []
+tracker_refs: []
 ---
 
 # WP01: Tidy-first: shared homes for the window-opener rule and owned-file matching

@@ -1,18 +1,46 @@
 ---
-work_package_id: "WP07"
-title: "Agent action review render sites (2 and 3) on the shared renderer"
-dependencies: ["WP05"]
-requirement_refs: ["FR-012", "FR-013", "NFR-004", "C-002", "C-004", "C-010", "SC-003"]
-subtasks: ["T032", "T033", "T034", "T035", "T036", "T037"]
-owned_files: ["src/specify_cli/cli/commands/agent/workflow_executor.py", "src/specify_cli/cli/commands/agent/workflow_cores.py", "src/specify_cli/cli/commands/agent/workflow.py", "src/specify_cli/review/prompt_metadata.py", "tests/integration/review/test_review_range_acceptance_action.py", "tests/specify_cli/cli/commands/agent/test_workflow_cores.py", "tests/agent/test_workflow_mixed_dependency_review_context.py", "tests/integration/review/test_canonical_review_diff_refs.py", "tests/characterization/test_trio_pure_cores.py"]
-authoritative_surface: "src/specify_cli/cli/commands/agent/"
-execution_mode: "code_change"
-agent_profile: "python-pedro"
-role: "implementer"
-agent: "claude"
-model: ""
+work_package_id: WP07
+title: Agent action review render sites (2 and 3) on the shared renderer
+dependencies:
+- WP05
+requirement_refs:
+- FR-012
+- FR-013
+- NFR-004
+- C-002
+- C-004
+- C-010
+- SC-003
+planning_base_branch: feat/7578-review-context
+merge_target_branch: feat/7578-review-context
+branch_strategy: Planning artifacts for this mission were generated on feat/7578-review-context. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/7578-review-context unless the human explicitly redirects the landing branch.
+subtasks:
+- T032
+- T033
+- T034
+- T035
+- T036
+- T037
+history: []
+agent_profile: python-pedro
+authoritative_surface: src/specify_cli/cli/commands/agent/
 create_intent:
-  - "tests/integration/review/test_review_range_acceptance_action.py"
+- tests/integration/review/test_review_range_acceptance_action.py
+execution_mode: code_change
+model: ''
+owned_files:
+- src/specify_cli/cli/commands/agent/workflow_executor.py
+- src/specify_cli/cli/commands/agent/workflow_cores.py
+- src/specify_cli/cli/commands/agent/workflow.py
+- src/specify_cli/review/prompt_metadata.py
+- tests/integration/review/test_review_range_acceptance_action.py
+- tests/specify_cli/cli/commands/agent/test_workflow_cores.py
+- tests/agent/test_workflow_mixed_dependency_review_context.py
+- tests/integration/review/test_canonical_review_diff_refs.py
+- tests/characterization/test_trio_pure_cores.py
+role: implementer
+tags: []
+tracker_refs: []
 ---
 
 # WP07: Agent action review render sites (2 and 3) on the shared renderer

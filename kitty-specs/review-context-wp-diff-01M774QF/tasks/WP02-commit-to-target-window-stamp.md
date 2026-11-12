@@ -1,19 +1,39 @@
 ---
-work_package_id: "WP02"
-title: "Commit-to-target single_branch records window points (characterize first, then stamp)"
+work_package_id: WP02
+title: Commit-to-target single_branch records window points (characterize first, then stamp)
 dependencies: []
-requirement_refs: ["FR-002", "C-008", "C-009", "SC-004"]
-subtasks: ["T006", "T007", "T008", "T009", "T010"]
-owned_files: ["src/specify_cli/status/lane_head.py", "tests/consolidation/test_commit_to_target_stamp_characterization.py", "tests/status/test_lane_head_commit_to_target.py", "docs/adr/4.x/2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition.md", "tests/status/test_lane_head_single_branch.py", "tests/integration/test_single_branch_approval_windows.py"]
-authoritative_surface: "src/specify_cli/status/"
-execution_mode: "code_change"
-agent_profile: "python-pedro"
-role: "implementer"
-agent: "claude"
-model: ""
+requirement_refs:
+- FR-002
+- C-008
+- C-009
+- SC-004
+planning_base_branch: feat/7578-review-context
+merge_target_branch: feat/7578-review-context
+branch_strategy: Planning artifacts for this mission were generated on feat/7578-review-context. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/7578-review-context unless the human explicitly redirects the landing branch.
+subtasks:
+- T006
+- T007
+- T008
+- T009
+- T010
+history: []
+agent_profile: python-pedro
+authoritative_surface: src/specify_cli/status/
 create_intent:
-  - "tests/consolidation/test_commit_to_target_stamp_characterization.py"
-  - "tests/status/test_lane_head_commit_to_target.py"
+- tests/consolidation/test_commit_to_target_stamp_characterization.py
+- tests/status/test_lane_head_commit_to_target.py
+execution_mode: code_change
+model: ''
+owned_files:
+- src/specify_cli/status/lane_head.py
+- tests/consolidation/test_commit_to_target_stamp_characterization.py
+- tests/status/test_lane_head_commit_to_target.py
+- docs/adr/4.x/2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition.md
+- tests/status/test_lane_head_single_branch.py
+- tests/integration/test_single_branch_approval_windows.py
+role: implementer
+tags: []
+tracker_refs: []
 ---
 
 # WP02: Commit-to-target single_branch records window points (characterize first, then stamp)

@@ -1,20 +1,52 @@
 ---
-work_package_id: "WP03"
+work_package_id: WP03
 title: "Review-range resolver: one owner of a WP's review range and pathspecs"
-dependencies: ["WP01"]
-requirement_refs: ["FR-001", "FR-004", "FR-005", "FR-006", "FR-007", "FR-009", "FR-013", "NFR-002", "NFR-004", "NFR-005", "C-006"]
-subtasks: ["T011", "T012", "T013", "T014", "T015", "T016", "T017"]
-owned_files: ["src/specify_cli/review/wp_range.py", "src/mission_runtime/claim_commit.py", "tests/review/test_wp_range.py", "tests/review/test_wp_range_git_calls.py", "tests/mission_runtime/test_claim_commit.py", "tests/architectural/test_mission_runtime_surface.py", "tests/architectural/test_status_read_single_door.py", "src/mission_runtime/__init__.py"]
-authoritative_surface: "src/specify_cli/review/"
-execution_mode: "code_change"
-agent_profile: "python-pedro"
-role: "implementer"
-agent: "claude"
-model: ""
+dependencies:
+- WP01
+requirement_refs:
+- FR-001
+- FR-004
+- FR-005
+- FR-006
+- FR-007
+- FR-009
+- FR-013
+- NFR-002
+- NFR-004
+- NFR-005
+- C-006
+planning_base_branch: feat/7578-review-context
+merge_target_branch: feat/7578-review-context
+branch_strategy: Planning artifacts for this mission were generated on feat/7578-review-context. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/7578-review-context unless the human explicitly redirects the landing branch.
+subtasks:
+- T011
+- T012
+- T013
+- T014
+- T015
+- T016
+- T017
+history: []
+agent_profile: python-pedro
+authoritative_surface: src/specify_cli/review/
 create_intent:
-  - "src/specify_cli/review/wp_range.py"
-  - "tests/review/test_wp_range.py"
-  - "tests/review/test_wp_range_git_calls.py"
+- src/specify_cli/review/wp_range.py
+- tests/review/test_wp_range.py
+- tests/review/test_wp_range_git_calls.py
+execution_mode: code_change
+model: ''
+owned_files:
+- src/specify_cli/review/wp_range.py
+- src/mission_runtime/claim_commit.py
+- tests/review/test_wp_range.py
+- tests/review/test_wp_range_git_calls.py
+- tests/mission_runtime/test_claim_commit.py
+- tests/architectural/test_mission_runtime_surface.py
+- tests/architectural/test_status_read_single_door.py
+- src/mission_runtime/__init__.py
+role: implementer
+tags: []
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP03 - Review-range resolver: one owner of a WP's review range and pathspecs
