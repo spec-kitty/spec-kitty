@@ -463,7 +463,9 @@ def _wp_file_commit_branch(main_repo_root: Path, mission_slug: str, target_branc
         return target_branch
     if holder.resolve() == main_repo_root.resolve():
         return target_branch
-    return checkout_branch_or_fallback(holder, target_branch)
+    # Typed bind: the ``specify_cli.*`` follow_imports=skip boundary widens the deferred import's return to Any.
+    commit_branch: str = checkout_branch_or_fallback(holder, target_branch)
+    return commit_branch
 
 
 def _skip_target_branch_commit(repo_root: Path, mission_slug: str, commit_branch: str) -> bool:
@@ -820,7 +822,9 @@ def _list_wp_branch_mission_specs_changes(worktree_path: Path, base_branch: str)
     # *merge-base* — the asymmetry IS the #2274 content-vs-history fix, not
     # duplication to simplify away; collapsing both passes onto one base
     # reintroduces #2274.
-    return _tasks._filter_by_planning_tip_content(worktree_path, candidates, base_branch)
+    # Typed bind: ``_tasks`` is reached through a module object, so mypy reads its attribute as Any.
+    tip_changes: list[str] = _tasks._filter_by_planning_tip_content(worktree_path, candidates, base_branch)
+    return tip_changes
 
 
 def _list_wp_branch_specs_changes_for_guard(worktree_path: Path, base_branch: str) -> list[str]:
