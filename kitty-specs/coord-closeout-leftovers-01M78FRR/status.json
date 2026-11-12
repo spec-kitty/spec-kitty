@@ -149,7 +149,8 @@
       "notes": [
         "Ready for review: local accept Next steps name consolidate + record branch while lanes remain; No merge needed only when nothing remains (#7599). E2E cells use the test_acceptance_regressions fixture.",
         "- 2026-11-12T19:43:06Z – unknown – Rework for review cycle 1 (6c4d3a3d red, 8588a789 fix): F1 the Next steps line now names the branch commit_for_mission committed the record on (placement ref threaded out via _AcceptanceRecordCommit; tuple-returning wrappers kept), and names no branch when no commit was made; F2 consolidate is pending until mission_has_landed for any code lane or coordination topology (done is not proof); F3 is_planning_lane. merge_pending_wps no longer used (the predicate no longer reads WP lanes).",
-        "Rework for review cycle 1: F1 names the branch the record commit landed on (router placement ref), none without a commit; F2 pending until the landing is recorded for any code lane; F3 is_planning_lane"
+        "Rework for review cycle 1: F1 names the branch the record commit landed on (router placement ref), none without a commit; F2 pending until the landing is recorded for any code lane; F3 is_planning_lane",
+        "Review passed (cycle 2): F1 record branch from commit placement_ref (repro: explicit lanes_with_coord on unprotected devel -> record_branch=devel, commit on devel); F2 pending until landed; F3 is_planning_lane. Red 4 cells at 6c4d3a3d, green at tip; 97 targeted incl. wrapper callers; 855/856 acceptance suites (1 load flake unrelated, passes alone)."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
