@@ -97,7 +97,7 @@
       "wp": "WP02"
     },
     "#7594": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Operator ruling: queued as a later slice. Follow-up: #7594",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -105,7 +105,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "deferred-with-followup",
       "wp": null
     },
     "#7595": {
