@@ -119,8 +119,7 @@ def _spec_kitty_pre_review_handler(ctx: TransitionGateContext) -> GateVerdict:
         scope_source=ctx.scope_source,
         status_observer=ctx.status_observer,
         timeout=ctx.test_timeout_seconds,
-        # getattr: parity tests dispatch with a SimpleNamespace context.
-        run_env=getattr(ctx, "run_env", None),
+        run_env=ctx.run_env,
     )
 
 

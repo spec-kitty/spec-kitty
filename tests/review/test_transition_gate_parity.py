@@ -204,7 +204,7 @@ def _drive_through_hook(case: dict[str, Any]) -> dict[str, Any]:
     def _handler_lookup(name: str) -> Any:
         return SimpleNamespace(name=name, run=lambda _ctx: verdict)
 
-    ctx = SimpleNamespace(changed_files=("src/example.py",))
+    ctx = SimpleNamespace(changed_files=("src/example.py",), run_env=None)
     bindings: list[Any] = [_FixtureBinding()]
     verdicts = tmt._mt_dispatch_transition_gates(bindings, ctx, handler_lookup=_handler_lookup)
     effect = tmt._mt_translate_gate_verdicts(verdicts, block_enabled=block_enabled, force=force)
