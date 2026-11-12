@@ -20,7 +20,7 @@
   "work_packages": {
     "WP01": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": "claude::reviewer-renata",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 1,
@@ -32,7 +32,8 @@
       "notes": [
         "Ready for review: seam write_dir surface_root names the containing checkout; kernel checkout_root_containing; primary_partition_checkout delegates to the seam",
         "No code finding (code verdict: approve). Returned only so the implementer can re-claim with --profile python-pedro recorded; the claim was recorded as claude:: and the approval was refused with SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT. Non-blocking low/nit findings are in the feedback file.",
-        "Re-claimed with profile recorded (no code change since review cycle 1, whose code verdict was approve); ready for review"
+        "Re-claimed with profile recorded (no code change since review cycle 1, whose code verdict was approve); ready for review",
+        "Review passed (cycle 2; source unchanged since cycle 1, git diff 885cd234..HEAD -- src tests empty). Seam write_dir surface_root now names the containing checkout (kernel.git_anchor.checkout_root_containing on find_ancestor); path unchanged, owned arm unchanged, no topology read, no new mission_runtime->specify_cli edge. Red 467f0cb9 verified failing on the pre-fix tree, green on HEAD (3049 passed/5 skipped targeted; 236 arch gates passed; ruff/format/mypy clean). Lane-path change of primary_partition_checkout audited: every production caller passes the main repo root, so no behaviour change for non-settled Missions. Non-blocking: (low) test_primary_dir_outside_any_checkout_has_no_holder duplicates the root-checkout case; (low) is_relative_to assertion at test_write_dir_settled_surface_root.py:43 passes on old code, line 44 equality carries the red; (nit) checkout_root_containing docstring says always resolved, but the walk can return an unresolved path when the start path cannot be resolved; (nit) __all__ fixture re-export vs the repo's noqa F401 pattern. Owned files not shared with WP02-05."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
