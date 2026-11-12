@@ -13,5 +13,7 @@
   "slug": "settled-placement-surface-01M78GR4",
   "target_branch": "fix/7546-settled-placement-surface",
   "topology": "single_branch",
-  "topology_source": "explicit"
+  "topology_source": "explicit",
+  "contracts": "none",
+  "contracts_rationale": "Defect fix inside existing CLI commands: no new command, option, payload or API; refusal and exit codes are unchanged (decision 01M78GS9KQZAMG3Y0YC53ER1KE), only remedy text changes."
 }
