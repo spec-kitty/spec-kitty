@@ -58,7 +58,7 @@
       "criterion_id": "FR-006",
       "description": "Verify FR-006 is satisfied",
       "proof_type": "automated_test",
-      "evidence": "tests/integration/test_consolidate_kill_done_commit_5931.py; tests/specify_cli/git/test_safe_commit_in_span_intent_5931.py; tests/consolidation/test_rollback_anchor_kill_window.py",
+      "evidence": "tests/integration/test_coord_closeout_recovery_7544.py::test_closeout_after_kill_in_done_commits; tests/specify_cli/git/test_safe_commit_in_span_intent_5931.py; tests/consolidation/test_rollback_anchor_kill_window.py",
       "pass_fail": "pass",
       "verified_by": "claude",
       "verified_at": "2026-11-11T19:36:01.033643+00:00",
