@@ -162,14 +162,24 @@ def test_landed_mission_keeps_no_merge_needed(tmp_path: Path, monkeypatch: pytes
     assert result.instructions == [_NO_MERGE_NEEDED]
 
 
-def test_pr_accept_on_target_of_coordination_mission_is_unchanged(tmp_path: Path) -> None:
+_PR_COORD_LANDS = f"This Mission lands through `{_CONSOLIDATE}`; its coordination branch is internal and that command lands it."
+
+
+def test_pr_accept_on_target_of_coordination_mission_without_record_commit_names_no_branch(tmp_path: Path) -> None:
+    """#7599 fold: with no record committed, the pr arm names no branch (it used to name the checkout's)."""
     summary = _summary_on_main(tmp_path, topology="coord", coordination_branch=_COORD_BRANCH)
 
     result = perform_acceptance(summary, mode="pr", actor="tester", auto_commit=False)
 
-    assert result.instructions == [
-        f"Acceptance recorded on `main`. This Mission lands through `{_CONSOLIDATE}`; its coordination branch is internal and that command lands it."
-    ]
+    assert result.instructions == [f"Acceptance passed. {_PR_COORD_LANDS}"]
+
+
+def test_pr_arm_of_coordination_mission_names_record_branch(tmp_path: Path) -> None:
+    """#7599 fold: the pr arm names the branch the record was committed to, not the checkout's branch."""
+    instructions, _cleanup = _build_acceptance_instructions(
+        _bare_summary(tmp_path), "pr", "fix/some-checkout", True, lands_by_consolidation=True, record_branch=_COORD_BRANCH
+    )
+    assert instructions == [f"Acceptance recorded on `{_COORD_BRANCH}`. {_PR_COORD_LANDS}"]
 
 
 def _bare_summary(tmp_path: Path) -> Any:
