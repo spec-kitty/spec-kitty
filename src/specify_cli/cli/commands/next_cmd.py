@@ -487,7 +487,7 @@ def _dispatch_advancing_mode(
         # #5938: commit the row where it was written; the owned path commits its own changeset below.
         from specify_cli.mission_v1.events import commit_mission_event_log
 
-        commit_warning = commit_mission_event_log(Path(str(repo_root)), mission_slug, event_row.log_path, event_row.checkout_root)
+        commit_warning = commit_mission_event_log(Path(str(repo_root)), mission_slug, event_row.log_path, event_row.surface_root)
         # Only the coordination worktree's copy blocks consolidate; a refused commit in the
         # repository root checkout (e.g. a protected target) stays quiet: the claim gate
         # already exempts this Mission's log there.

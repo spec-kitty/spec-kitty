@@ -36,7 +36,7 @@ from mission_runtime import (
     routes_through_coordination,
 )
 from specify_cli.coordination.coherence import is_coord_residue_churn, is_self_bookkeeping_churn
-from specify_cli.coordination.mission_dirt import partition_mission_dirt
+from specify_cli.coordination.mission_dirt import MissionDirt, partition_mission_dirt
 from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.core.git_ops import is_git_repo
 from specify_cli.review.dirty_classifier import status_entry_paths
@@ -219,7 +219,7 @@ def _enforce_analysis_report_write_preflight(
     if mission_slug is not None:
         from specify_cli.missions._read_path_resolver import mission_dir_aliases
 
-        dirt = partition_mission_dirt(dirty_paths, own_dir_names=mission_dir_aliases(repo_root, mission_slug))
+        dirt: MissionDirt = partition_mission_dirt(dirty_paths, own_dir_names=mission_dir_aliases(repo_root, mission_slug))
         material = _material_input_paths(repo_root, mission_slug) if dirt.outside else frozenset()
         blocking_outside = [path for path in dirt.outside if _is_material_input(path, material)]
         dirty_paths = [*dirt.own, *blocking_outside]
@@ -264,10 +264,10 @@ def _material_input_paths(repo_root: Path, mission_slug: str) -> frozenset[str] 
     the gate fails closed, as it did before #7556.
     """
     from specify_cli.analysis_inputs import collect_material_inputs
-    from specify_cli.core.constants import KITTY_SPECS_DIR
+    from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 
     try:
-        inputs = collect_material_inputs(repo_root / KITTY_SPECS_DIR / mission_slug, repo_root)
+        inputs = collect_material_inputs(candidate_feature_dir_for_mission(repo_root, mission_slug), repo_root)
     except (ValueError, OSError):
         return None
     return frozenset(path for key, entry in inputs.items() if key.startswith("material:") and isinstance(path := entry.get("path"), str))

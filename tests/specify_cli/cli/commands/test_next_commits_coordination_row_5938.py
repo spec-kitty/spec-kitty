@@ -145,7 +145,7 @@ def test_answer_decision_commits_the_row_and_surfaces_a_refusal(tmp_path: Path, 
     def _emit_in_coordination(*args, **kwargs):
         write = real_emit(*args, **kwargs)
         assert write is not None
-        return MissionNextInvokedWrite(write.log_path, write.checkout_root, in_coordination_worktree=True)
+        return MissionNextInvokedWrite(write.log_path, write.surface_root, in_coordination_worktree=True)
 
     def _refusing_commit(_repo_root: Path, slug: str, log_path: Path, _checkout_root: Path) -> str:
         committed.append((slug, log_path))
