@@ -126,8 +126,8 @@
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
-      "shell_pid": 25327,
-      "shell_pid_created_at": "1794508745.67"
+      "shell_pid": 20169,
+      "shell_pid_created_at": "1794517553.71"
     },
     "WP05": {
       "actor": "claude-reviewer",
