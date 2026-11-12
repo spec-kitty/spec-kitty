@@ -296,6 +296,7 @@ def test_json_payload_golden(repo: Path) -> None:
         "execution_mode": "worktree",
         "status": "created",
         "lane_test_env": {"DB_NAME": "test_demo_lane_a"},
+        "lane_test_invocation": None,
     }
 
 
