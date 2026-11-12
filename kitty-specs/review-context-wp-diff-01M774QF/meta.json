@@ -1,0 +1,19 @@
+{
+  "create_return_branch": "feat/7578-review-context",
+  "created_at": "2026-11-12T05:47:17.031930+00:00",
+  "flattened": false,
+  "friendly_name": "Review context carries the WP diff and cited requirement text",
+  "mid8": "01M774QF",
+  "mission_branch": "kitty/mission-review-context-wp-diff-01M774QF",
+  "mission_id": "01M774QFV4PFK8Y0AXFQV30EEE",
+  "mission_number": null,
+  "mission_slug": "review-context-wp-diff-01M774QF",
+  "mission_type": "software-dev",
+  "purpose_context": "Reviewers today get empty or Mission-wide REVIEW COMMANDS on single_branch and only bare requirement IDs, so they spend ~100 git commands hunting the implementation commit and ~100 reads of spec.md. This Mission computes each work package's review range from its recorded window and inlines a bounded diff plus the cited requirement text (issue #7578).",
+  "purpose_tldr": "The review prompt shows each work package's own diff and the text of the requirements it cites.",
+  "slug": "review-context-wp-diff-01M774QF",
+  "target_branch": "feat/7578-review-context",
+  "topology": "single_branch",
+  "topology_settled": false,
+  "topology_source": "default"
+}
