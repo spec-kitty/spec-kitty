@@ -416,12 +416,6 @@ class TestPrimaryPartitionCheckout:
         self._stub(monkeypatch, repo)
         assert planning_commit.primary_partition_checkout(repo, _SLUG) is None
 
-    def test_primary_dir_outside_any_checkout_has_no_holder(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Outside every checkout the seam falls back to the main repo root: no holder."""
-        repo, _holder = self._repo_with_topic_worktree(tmp_path)
-        self._stub(monkeypatch, repo)
-        assert planning_commit.primary_partition_checkout(repo, _SLUG) is None
-
     def test_a_lane_or_coordination_caller_compares_against_the_main_repo_root(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """The comparison is the main repo root of *repo_root*, never the caller's raw checkout."""
         repo, holder = self._repo_with_topic_worktree(tmp_path)
