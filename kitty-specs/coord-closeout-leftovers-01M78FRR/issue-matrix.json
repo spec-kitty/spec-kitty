@@ -24,6 +24,18 @@
       "verdict": "in-mission",
       "wp": "WP02"
     },
+    "#5021": {
+      "evidence_ref": "context citation: origin of the PASS anchor field (WP01 docstrings)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
     "#5784": {
       "evidence_ref": "spec.md Out of Scope (research/foldable-issues.md); no work owed in this mission",
       "fr": null,
