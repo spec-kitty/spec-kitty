@@ -1,0 +1,1 @@
+- **A coordination branch the teardown could not delete is explained in the refusal** (#4380). **Before:** the message always said to remove whatever still references the branch, even after the coordination worktree was gone. **After:** it names the worktrees that still have the branch checked out, or, when none does, quotes git's own reason for refusing the delete.
