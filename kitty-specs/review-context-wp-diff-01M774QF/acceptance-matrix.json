@@ -2,7 +2,7 @@
   "mission_slug": "review-context-wp-diff-01M774QF",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
@@ -127,12 +127,12 @@
     {
       "criterion_id": "FR-013",
       "description": "Verify FR-013 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "proof_type": "automated-test",
+      "evidence": "tests/integration/review/test_review_range_acceptance.py; tests/integration/review/test_review_range_acceptance_action.py; tests/next/test_prompt_builder_review_base.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-12T13:33:40.499028+00:00",
+      "notes": "Mission-touched test files on integrated lane-f (936b9ded+WP06): 530 passed"
     }
   ],
   "negative_invariants": []
