@@ -8,7 +8,8 @@ tree the lane lacks with the same two functions ``make sync-packs`` runs
 **offline only** (operator ruling, decision ``01M774QJP2HZ0A2A8KQ05MQCRS``): a cold
 cache leaves the lane without the tree and yields a remedy line, never a fetch and
 never an error. The pack set is the pin files the lane carries, so a repository with
-none (every consumer project) is untouched.
+none (every consumer project) is untouched. A tree already present in the lane is left
+alone: it is not re-hashed against the pin.
 
 The pack functions are imported lazily through the ``charter.packs`` facade, keeping
 the ``specify_cli -> charter`` direction and the facade seam.

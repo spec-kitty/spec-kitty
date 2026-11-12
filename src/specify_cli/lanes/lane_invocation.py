@@ -1,6 +1,6 @@
 """Lane test invocation and probe: where a lane's tests load their code from.
 
-The single authority (mission lane-code-verification, #7547) that:
+The authority (mission lane-code-verification, #7547) that:
 
 1. builds the **lane test invocation** -- the working directory, the declared
    test command template (passed in by callers, never read here), and the
@@ -8,7 +8,9 @@ The single authority (mission lane-code-verification, #7547) that:
 2. **probes** it: a child process started with exactly that working directory
    and environment reports where each git-tracked regular package under
    ``<root>/src`` would load from, giving ``verified`` (inside ``<root>/src``),
-   ``foreign`` (elsewhere: the #1907 case) or ``unverified`` (cannot tell);
+   ``foreign`` (elsewhere: the #1907 case) or ``unverified`` (cannot tell). Only
+   ``src/<package>/__init__.py`` layouts are probed: a flat or namespace-package
+   layout has nothing to probe, is ``unverified``, and the gate fails open;
 3. captures an **evidence tree** (path, HEAD, dirty flag, probe) through
    :mod:`kernel.git`;
 4. decides path containment portably (:func:`origin_inside`).
@@ -16,6 +18,11 @@ The single authority (mission lane-code-verification, #7547) that:
 This is a leaf module: it imports only the standard library, :mod:`kernel.git`,
 :mod:`kernel.paths` and :mod:`specify_cli.lanes.lane_env`. The probe never
 raises; every failure becomes an ``unverified`` result with a bounded reason.
+It is a path check, not a trust check: it says where packages would load from,
+not that the code there is the lane's reviewed code. One exception to "single
+authority": the pre-review gate's override tier may run under a
+``uv run --project <lane>`` environment of uv's own, which this probe does not
+describe (see :mod:`specify_cli.review._interpreter`).
 """
 
 from __future__ import annotations
@@ -335,8 +342,10 @@ def probe_lane_imports(
 
     The child runs the lane's own venv interpreter when it has one, else this
     process's interpreter, with the working directory removed from ``sys.path``
-    (like a console-script pytest) and ``importlib.util.find_spec`` (no package
-    code executes). Never raises.
+    (like a console-script pytest) and ``importlib.util.find_spec``, so no probed
+    package is imported. The interpreter still starts normally, so ``.pth`` files
+    and ``sitecustomize`` in its environment run, as they do for the tests
+    themselves. Never raises.
     """
     packages = _source_packages(invocation.cwd)
     if not packages:
