@@ -18,8 +18,13 @@ Resolution (each derived anchor must be an ancestor of the tip, or it is skipped
   that introduced the opener event (``EVENT_COMMIT``); else unavailable.
 * **Event commits are used** on ``single_branch`` and for a work package no lane branch stamps
   (``status.read_lane_head`` reads it as not applicable: the planning lane of a ``lanes`` or
-  ``lanes_with_coord`` Mission, C-009, operator ruling Q10). A code-lane work package never uses
-  them: its status log lives on the status branch, not its lane branch.
+  ``lanes_with_coord`` Mission, C-009, operator ruling Q10, or a work package missing from
+  ``lanes.json``, Q12), but only where its status events are committed on the branch its work is
+  written to. On a coordination topology that holds only when the coordination branch is the
+  planning lane's write branch (a default-settled Mission before its landing); otherwise the events
+  sit on the coordination branch, apart from the work, and the range is unavailable
+  (``not_recorded``) rather than an empty derived one. A code-lane work package never uses them:
+  its status log lives on the status branch, not its lane branch.
 * ``gap`` names why the recorded value was not used (the first reason seen).
 
 Listing (a constant number of git calls, NFR-002). Pathspecs use git's default wildcard matching
@@ -65,15 +70,19 @@ from mission_runtime import (
     OwnedCheckout,
     StatusRef,
     commit_introducing_status_event,
+    default_mission_primary_ref,
     is_single_branch,
+    routes_through_coordination,
 )
 from specify_cli.lanes.claim_base import read_claim_base
 from specify_cli.lanes.for_review_gate import status_only_excluded_prefixes
+from specify_cli.mission_metadata import load_meta_or_empty
 from specify_cli.ownership.matching import matches_owned, owned_patterns
 from specify_cli.status import (
     Lane,
     OpenerSelection,
     StatusEvent,
+    StatusReadSource,
     StatusReadSurface,
     WindowOpen,
     is_migration_event,
@@ -247,12 +256,17 @@ class _Context:
     live_head: str | None
     #: Whether a lane branch stamps this work package (``False`` for the planning lane, C-009).
     lane_stamped: bool
+    #: Whether this Mission's status events are committed on the branch an unstamped work package's work is written to.
+    events_on_work_branch: bool = True
     ancestry: dict[tuple[str, str], bool] = field(default_factory=dict)
 
     @property
     def uses_event_commits(self) -> bool:
-        """Event commits are derived ends on ``single_branch`` and for a work package no lane branch stamps (Q10)."""
-        return bool(is_single_branch(self.surface.topology)) or not self.lane_stamped
+        """Event commits are derived ends on ``single_branch``, and for a work package no lane branch stamps (Q10, Q12)
+        where its status events share a branch with its work."""
+        if is_single_branch(self.surface.topology):
+            return True
+        return not self.lane_stamped and self.events_on_work_branch
 
     @property
     def first_opener(self) -> StatusEvent | None:
@@ -464,6 +478,29 @@ def _listing(request: _ListingRequest) -> _Listing:
 # --------------------------------------------------------------------------- entry point
 
 
+#: The door's sources of a coordination Mission whose events are read from the coordination branch.
+_COORD_SOURCES = frozenset({StatusReadSource.COORD_WORKTREE, StatusReadSource.COORD_BRANCH_REF})
+
+
+def _status_shares_planning_branch(surface: StatusReadSurface) -> bool:
+    """Whether a coordination Mission's status events are committed on the branch its planning work is written to.
+
+    The events are on the coordination branch (``meta.coordination_branch``); the planning lane
+    writes the PRIMARY partition, whose branch is :func:`mission_runtime.default_mission_primary_ref`
+    (a default Mission's topic branch before its landing, else the target). Only a default-settled
+    Mission makes them one branch. Any other source (a landed Mission, the pre-seed fallback) or a
+    ``meta.json`` that does not name both branches reads as "not shared": no git call, never a raise.
+    """
+    if surface.source not in _COORD_SOURCES:
+        return False
+    meta = load_meta_or_empty(surface.parser_dir)
+    coordination, target = meta.get("coordination_branch"), meta.get("target_branch")
+    if not (isinstance(coordination, str) and coordination and isinstance(target, str) and target):
+        return False
+    planning: str = default_mission_primary_ref(meta.get("topology_source"), meta.get("mission_branch"), False, target)
+    return coordination == planning
+
+
 def _read_context(repo_root: Path, mission_slug: str, wp_id: str, owned: OwnedCheckout | None) -> _Context | None:
     """The door's events for *wp_id* (C-006), or ``None`` when the status surface cannot be read."""
     try:
@@ -474,6 +511,8 @@ def _read_context(repo_root: Path, mission_slug: str, wp_id: str, owned: OwnedCh
         return None
     selection = window_opener_events(events, wp_id, cycle=True)
     reading = read_lane_head(repo_root=repo_root, mission_slug=surface.mission_dir_name, wp_id=wp_id, owned=owned)
+    lane_stamped = bool(reading.applicable)
+    shared = lane_stamped or not routes_through_coordination(surface.topology) or _status_shares_planning_branch(surface)
     return _Context(
         repo_root=repo_root,
         wp_id=wp_id,
@@ -481,7 +520,8 @@ def _read_context(repo_root: Path, mission_slug: str, wp_id: str, owned: OwnedCh
         events=events,
         selection=selection,
         live_head=reading.sha,
-        lane_stamped=bool(reading.applicable),
+        lane_stamped=lane_stamped,
+        events_on_work_branch=shared,
     )
 
 

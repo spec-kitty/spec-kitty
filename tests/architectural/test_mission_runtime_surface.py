@@ -153,6 +153,9 @@ _PUBLIC_SURFACE = sorted(
         # independently reimplementing it inline — a package-root public
         # symbol, so it is pinned here.
         "declared_read_surface",
+        # #7578 (H1): the pure PRIMARY write-ref rule of a default Mission (FR-061);
+        # the review range compares it with the coordination branch.
+        "default_mission_primary_ref",
         # owned-checkout-lifecycle-authority WP04 (review cycle 2, F4): the ONE
         # canonical handle-canonicalisation authority (slug / mid8 / full
         # mission-id forms) resolution.py and specify_cli.task_utils.support
