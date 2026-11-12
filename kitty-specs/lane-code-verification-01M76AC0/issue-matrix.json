@@ -13,7 +13,7 @@
       "wp": null
     },
     "#1907": {
-      "evidence_ref": "Detection half folded (probe foreign); prevention and stale-ancestor halves stay open",
+      "evidence_ref": "Detection half delivered (probe reports foreign for a repointed lane venv); Follow-up: #1907 keeps prevention and stale-ancestor halves",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,7 +21,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "Stale ancestors and editable-install repoint hazard",
-      "verdict": "in-mission",
+      "verdict": "deferred-with-followup",
       "wp": "WP01"
     },
     "#2330": {
