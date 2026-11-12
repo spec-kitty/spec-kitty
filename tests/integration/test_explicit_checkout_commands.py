@@ -275,7 +275,7 @@ def test_wp_cache_is_scoped_to_selected_checkout(checkouts):
 
 
 def test_owned_composition_policy_reaches_executor_before_advancing(checkouts, monkeypatch):
-    from types import SimpleNamespace
+    from typing import Any, cast
 
     from runtime.next import runtime_bridge as rb
     from tests._factories import provision_test_charter
@@ -311,7 +311,10 @@ def test_owned_composition_policy_reaches_executor_before_advancing(checkouts, m
     # The plan step (post-WP11) needs a live run; the composition-policy contract under test is the
     # root handed to the executor and the fact handed to the advance, so stub the pure planner.
     monkeypatch.setattr(rb, "_dn_plan_composition_advance", lambda _ctx, _action: (None, None))
-    context = SimpleNamespace(
+    # Build the real context type (#7586) so a field the bridge starts reading cannot fall out of
+    # step with a hand-rolled stub. ``status_read`` keeps its default ``None`` (the door did not
+    # answer at bootstrap); the run ref and emitters are never read past the stubbed advance.
+    context = rb.DecideNextContext(
         agent="codex",
         mission_slug=SLUG,
         mission_type="software-dev",
@@ -321,10 +324,11 @@ def test_owned_composition_policy_reaches_executor_before_advancing(checkouts, m
         now="2026-09-24T00:00:00Z",
         progress=None,
         origin={},
-        run_ref=None,
+        run_ref=cast(Any, None),
         run_dir=run_dir,
         current_step_id="tasks",
         result="success",
+        sync_emitter=cast(Any, None),
         emitter_for_engine=None,
     )
     assert rb._dn_composition_dispatch(context) == "advanced"
