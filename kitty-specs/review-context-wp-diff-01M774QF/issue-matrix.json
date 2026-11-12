@@ -96,6 +96,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#7283": {
+      "evidence_ref": "Context - write-branch bound reference",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#7345": {
       "evidence_ref": "REFS - owned-checkout review flag, not prompt content",
       "fr": null,
