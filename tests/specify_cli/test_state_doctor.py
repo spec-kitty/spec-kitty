@@ -371,3 +371,17 @@ def test_root_without_an_ignore_rule_keeps_the_not_gitignored_warning(tmp_path):
     assert not check.gitignore_covered
     assert check.warning is not None
     assert "is present but not gitignored" in check.warning
+
+
+def test_tracked_probe_skips_placeholder_and_agent_block_surfaces(tmp_path, monkeypatch):
+    """Only a concrete root is listed: no fake probe name reaches git ls-files."""
+    from specify_cli.state import doctor as doctor_mod
+    from specify_cli.state.contract import STATE_SURFACES
+
+    listed: list[str] = []
+    monkeypatch.setattr(doctor_mod, "tracked_paths", lambda _root, *, pathspecs, timeout: listed.extend(pathspecs) or ())
+    for surface in STATE_SURFACES:
+        doctor_mod._tracked_paths_under(tmp_path, surface)
+
+    assert ".kittify/migrations/" in listed
+    assert not any("<" in p or "spec-kitty-doctor-probe" in p for p in listed)

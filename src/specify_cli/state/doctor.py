@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from kernel.git import GitCommandError, tracked_paths
 from specify_cli.paths import get_runtime_root
 from specify_cli.state.contract import (
     STATE_SURFACES,
@@ -131,26 +132,21 @@ def _is_gitignore_covered(repo_root: Path, path: str) -> bool | None:
         return None
 
 
-def _tracked_paths_under(repo_root: Path, path: str) -> tuple[str, ...]:
-    """Return the paths git tracks at or under *path* (empty when unknown).
+def _tracked_paths_under(repo_root: Path, surface: StateSurface) -> tuple[str, ...]:
+    """Return the paths git tracks at or under *surface*'s root (#7597).
 
-    A placeholder pattern (``<name>``) names no concrete path, so it is not
-    probed; neither is a repository git cannot read.
+    Paths are relative to the git top level (``ls-files --full-name``). A
+    placeholder pattern (``<name>``) names no concrete path, and an agent-block
+    surface is ignored only for Spec Kitty's own names, so neither is probed.
+    A git failure reads as "cannot verify", like :func:`_check_gitignore`.
     """
-    if "<" in path or "*" in path:
+    path = surface.path_pattern
+    if surface.ignored_via_agent_block or "<" in path or "*" in path:
         return ()
     try:
-        result = subprocess.run(
-            ["git", "ls-files", "-z", "--", path],
-            cwd=str(repo_root),
-            capture_output=True,
-            timeout=5,
-        )
-    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        return tuple(sorted(str(p) for p in tracked_paths(repo_root, pathspecs=[path], timeout=5)))
+    except (GitCommandError, OSError):
         return ()
-    if result.returncode != 0:
-        return ()
-    return tuple(sorted(p for p in result.stdout.decode("utf-8", "replace").split("\0") if p))
 
 
 def _check_surface_present(repo_root: Path, surface: StateSurface) -> bool:
@@ -267,11 +263,11 @@ def _needs_ignore(surface: StateSurface) -> bool:
     return surface.authority in (AuthorityClass.LOCAL_RUNTIME, AuthorityClass.DERIVED)
 
 
-def _tracked_under_ignored_root_warning(surface: StateSurface, tracked_paths: tuple[str, ...]) -> str:
+def _tracked_under_ignored_root_warning(surface: StateSurface, tracked: tuple[str, ...]) -> str:
     """Name the real cause when an ignored root still holds tracked files (#7597)."""
-    count = len(tracked_paths)
+    count = len(tracked)
     noun = "file" if count == 1 else "files"
-    path = _gitignore_probe_path(surface)
+    path = surface.path_pattern
     return (
         f"{surface.name} ({surface.path_pattern}) has {count} tracked {noun} under an ignored root; "
         f"an ignore rule does not apply to files git already tracks. "
@@ -285,7 +281,8 @@ def _generate_warning(
     surface: StateSurface,
     present: bool,
     gitignore_covered: bool,
-    tracked_paths: tuple[str, ...] = (),
+    *,
+    tracked: tuple[str, ...],
 ) -> str | None:
     """Generate a warning if a runtime surface is present but not ignored.
 
@@ -295,7 +292,7 @@ def _generate_warning(
     if not _needs_ignore(surface) or not present:
         return None
     if gitignore_covered:
-        return _tracked_under_ignored_root_warning(surface, tracked_paths) if tracked_paths else None
+        return _tracked_under_ignored_root_warning(surface, tracked) if tracked else None
 
     return (
         f"{surface.name} ({surface.path_pattern}) is present but not gitignored. "
@@ -351,19 +348,19 @@ def check_state_roots(repo_root: Path) -> StateRootsReport:
     for surface in STATE_SURFACES:
         present = _check_surface_present(repo_root, surface)
         gitignore_covered = _check_gitignore(repo_root, surface)
-        tracked_paths = (
-            _tracked_paths_under(repo_root, _gitignore_probe_path(surface))
+        tracked = (
+            _tracked_paths_under(repo_root, surface)
             if present and gitignore_covered and _needs_ignore(surface)
             else ()
         )
-        warning = _generate_warning(surface, present, gitignore_covered, tracked_paths)
+        warning = _generate_warning(surface, present, gitignore_covered, tracked=tracked)
 
         result = SurfaceCheckResult(
             surface=surface,
             present=present,
             gitignore_covered=gitignore_covered,
             warning=warning,
-            tracked_paths=tracked_paths,
+            tracked_paths=tracked,
         )
         report.surfaces.append(result)
 
