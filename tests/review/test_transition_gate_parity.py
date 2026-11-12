@@ -92,14 +92,17 @@ def _actual_tuple(aggregate: AggregateVerdict, verdict: GateVerdict, *, block_en
     """
     terminal = aggregate.decision is AggregateDecision.TERMINAL
     blocked = aggregate.decision is AggregateDecision.BLOCK
-    force_bypassed = block_enabled and force and bool(aggregate.blocking_verdicts)
+    refused = aggregate.decision is AggregateDecision.REFUSE
+    # #7547: ``--force`` past a refusing (FOREIGN_TREE) verdict is a bypass too,
+    # independent of the opt-in block toggle.
+    force_bypassed = (block_enabled and force and bool(aggregate.blocking_verdicts)) or (force and bool(aggregate.refusing_verdicts))
     metadata = tmt._mt_pre_review_gate_metadata(
         verdict,
         block_enabled=block_enabled,
         blocked=blocked,
         force_bypassed=force_bypassed,
     )
-    if terminal:
+    if terminal or refused:
         metadata["transition_applied"] = False
     console = tmt._mt_pre_review_gate_console_warning(verdict, block_enabled=block_enabled)
     return {
