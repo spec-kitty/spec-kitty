@@ -96,7 +96,7 @@
     },
     "WP03": {
       "actor": "claude-reviewer",
-      "agent": "claude-reviewer",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -109,6 +109,7 @@
         "Ready for review: squash projection refusal names paths, reasons, per-reason remedy and SQUASH_PROJECTION_NOT_LANDED; exit 1 + rollback door unchanged; stale comment fixed"
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/coord-closeout-leftovers-01M78FRR-coord/kitty-specs/coord-closeout-leftovers-01M78FRR/tasks/WP03-squash-projection-refusal-paths/review-cycle-1.md",
         "reference": "review-cycle://coord-closeout-leftovers-01M78FRR/WP03-squash-projection-refusal-paths/review-cycle-1.md",
@@ -116,13 +117,13 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 2519,
-      "shell_pid_created_at": "1794519631.04",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T009": "done",
-        "T010": "done",
-        "T011": "done",
-        "T012": "done"
+        "T009": "planned",
+        "T010": "planned",
+        "T011": "planned",
+        "T012": "planned"
       }
     },
     "WP04": {
