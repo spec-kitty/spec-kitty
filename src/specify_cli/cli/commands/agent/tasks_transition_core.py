@@ -648,22 +648,29 @@ def _claimant_mismatch(req: MoveTaskRequest) -> tuple[str, str | None] | None:
     claimant is the approver (WP01), and with no claimant (none, forced or placeholder) this rule
     does not apply. Equality is :func:`same_review_identity` (tool, model and profile).
     """
-    agent, reviewer = req.asserted_agent, req.asserted_reviewer
-    if agent and reviewer and not same_review_identity(agent, reviewer):
-        return reviewer, req.review_claimant
-    approver = agent or reviewer
+    if _flags_disagree(req):
+        return req.asserted_reviewer or "", req.review_claimant
+    approver = req.asserted_agent or req.asserted_reviewer
     from_review = resolve_lane_alias(req.old_lane) == Lane.IN_REVIEW
     if not from_review or req.review_claimant is None or approver is None:
         return None
     return None if same_review_identity(approver, req.review_claimant) else (approver, req.review_claimant)
 
 
+def _flags_disagree(req: MoveTaskRequest) -> bool:
+    """``--agent`` and ``--reviewer`` both asserted and naming two identities."""
+    agent, reviewer = req.asserted_agent, req.asserted_reviewer
+    return bool(agent and reviewer and not same_review_identity(agent, reviewer))
+
+
 def _claimant_refusal_text(req: MoveTaskRequest, approver: str, claimant: str | None) -> str:
-    if claimant is None:
+    if _flags_disagree(req):
+        under_review = f" {req.task_id} is under review by {claimant}." if claimant else ""
+        remedy = f"Have the claimant record it (--agent {claimant})" if claimant else "Pass one identity"
         return (
-            f"{APPROVER_NOT_CLAIMANT}: --agent '{req.asserted_agent}' and --reviewer '{approver}' name different "
-            f"identities; {req.task_id}'s verdict has one reviewer. Pass one identity, or, as an operator override, "
-            "use --force (recorded as a forced move, not a review)."
+            f"{APPROVER_NOT_CLAIMANT}: --agent {req.asserted_agent} and --reviewer {approver} name different "
+            f"identities; {req.task_id}'s verdict has one reviewer.{under_review} {remedy}, or, as an operator "
+            "override, use --force (recorded as a forced move, not a review)."
         )
     return (
         f"{APPROVER_NOT_CLAIMANT}: {req.task_id} is under review by {claimant}; {approver} cannot record its verdict. "

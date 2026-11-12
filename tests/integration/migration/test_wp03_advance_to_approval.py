@@ -180,7 +180,9 @@ def test_repaired_wedge_advances_to_approval_on_default_lane_cli(tmp_path: Path,
     _move("doing")
     _move("for_review")
     _move("in_review", "--reviewer", "reviewer", agent=_REVIEWER)
-    _move("approved", "--reviewer", "reviewer", "--approval-ref", "local-review", agent=_REVIEWER)
+    # #7573: --reviewer is an identity assertion that must equal --agent and the claimant; the
+    # former free-text "reviewer" would refuse APPROVER_NOT_CLAIMANT, so the approval asserts --agent only.
+    _move("approved", "--approval-ref", "local-review", agent=_REVIEWER)
 
     events = [json.loads(line) for line in (feature_dir / "status.events.jsonl").read_text(encoding="utf-8").splitlines()]
     transitions = [row["to_lane"] for row in events if row.get("wp_id") == "WP01" and "to_lane" in row]

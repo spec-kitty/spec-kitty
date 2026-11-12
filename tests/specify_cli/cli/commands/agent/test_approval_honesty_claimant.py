@@ -245,3 +245,62 @@ def test_skip_review_artifact_check_over_a_rejection_by_a_non_claimant(tmp_path:
     assert _CODE in " ".join(result.output.split())
     assert (m.feature_dir / "status.events.jsonl").read_bytes() == before_log
     assert h.review_cycle_files(m) == before_cycles
+
+
+# ---------------------------------------------------------------------------
+# _guard_review_claimant: the pure guard, table-driven
+# ---------------------------------------------------------------------------
+
+_IN_REVIEW_APPROVAL: dict[str, Any] = {"old_lane": "in_review", "target_lane": "approved", "review_claimant": _CLAIMANT}
+
+
+@pytest.mark.parametrize(
+    ("overrides", "refused"),
+    [
+        pytest.param({"asserted_agent": _SUPERVISOR}, True, id="same-tool-other-profile"),
+        pytest.param({"asserted_agent": "claude"}, True, id="bare-tool-vs-profiled-claimant"),
+        pytest.param({"asserted_reviewer": _ORCHESTRATOR}, True, id="reviewer-flag-only"),
+        pytest.param({"asserted_agent": _CLAIMANT}, False, id="agent-is-claimant"),
+        pytest.param({}, False, id="no-assertion-resolves-to-claimant"),
+        pytest.param({"asserted_agent": _SUPERVISOR, "force": True}, False, id="forced"),
+        pytest.param({"asserted_agent": _SUPERVISOR, "review_claimant": None}, False, id="no-claimant"),
+        pytest.param({"asserted_agent": _SUPERVISOR, "target_lane": "planned"}, False, id="not-an-approval-lane"),
+        pytest.param({"asserted_agent": _SUPERVISOR, "old_lane": "for_review"}, False, id="direct-approval-keeps-todays-rules"),
+        pytest.param({"asserted_agent": "a", "asserted_reviewer": "b", "old_lane": "approved", "review_claimant": None}, True, id="flags-disagree-anywhere"),
+        pytest.param({"asserted_agent": _CLAIMANT, "asserted_reviewer": _CLAIMANT + ":reviewer"}, False, id="flags-agree-role-ignored"),
+    ],
+)
+def test_guard_review_claimant_table(overrides: dict[str, Any], refused: bool) -> None:
+    from specify_cli.cli.commands.agent.tasks_transition_core import APPROVER_NOT_CLAIMANT, _guard_review_claimant
+    from tests._support.tasks_transition_request import base_request
+
+    refusal = _guard_review_claimant(base_request(**{**_IN_REVIEW_APPROVAL, **overrides}))
+
+    assert (refusal is not None) is refused
+    if refusal is not None:
+        assert refusal.diagnostic is not None and refusal.diagnostic["code"] == APPROVER_NOT_CLAIMANT
+        assert refusal.error.startswith(f"{APPROVER_NOT_CLAIMANT}:")
+        assert "--force" in refusal.error and "action review" not in refusal.error
+
+
+def test_flag_conflict_without_claimant_asks_for_one_identity() -> None:
+    from specify_cli.cli.commands.agent.tasks_transition_core import _guard_review_claimant
+    from tests._support.tasks_transition_request import base_request
+
+    refusal = _guard_review_claimant(
+        base_request(old_lane="approved", target_lane="done", asserted_agent="claude:sonnet:mover", asserted_reviewer="codex", review_claimant=None)
+    )
+
+    assert refusal is not None
+    assert "--agent claude:sonnet:mover and --reviewer codex name different identities" in refusal.error
+    assert "Pass one identity" in refusal.error
+
+
+def test_asserted_review_identity_is_the_recorded_compact_form() -> None:
+    from specify_cli.cli.commands.agent.tasks_transition_core import asserted_review_identity
+
+    assert asserted_review_identity(None, None) is None
+    assert asserted_review_identity("  ", None) is None
+    assert asserted_review_identity("claude:sonnet:reviewer-renata:reviewer", None) == _CLAIMANT
+    assert asserted_review_identity("codex", None) == "codex"
+    assert asserted_review_identity(":bad", None) == ":bad"
