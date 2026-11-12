@@ -1048,6 +1048,19 @@ def test_json_success_payload_is_the_only_stdout_document(repo: Path) -> None:
         "execution_mode": "code_change",
         "status": "created",
         "lane_test_env": {"SPEC_KITTY_TEST_DB_NAME": "test_demo_mission_lane_a"},
+        "lane_test_invocation": {
+            "cwd": str(repo / LANE_WORKTREE),
+            "command": None,
+            "env_set": {"SPEC_KITTY_TEST_DB_NAME": "test_demo_mission_lane_a"},
+            "env_unset": ["PYTHONPATH", "UV_PROJECT_ENVIRONMENT", "VIRTUAL_ENV"],
+            "probe": {
+                "status": "unverified",
+                "origins": {},
+                "foreign": [],
+                "reason": "no tracked source-layout packages to probe",
+                "interpreter": None,
+            },
+        },
     }
 
 
