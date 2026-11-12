@@ -20,6 +20,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -62,11 +63,8 @@ def _ready_mission(tmp_path: Path, *, explicit: str | None = None) -> DefaultMis
     """
     if explicit is None:
         return _finalized(make_default_mission(tmp_path, THREE_LANES))
-    os.environ[_HATCH] = "1"
-    try:
+    with patch.dict(os.environ, {_HATCH: "1"}):
         return _finalized(make_default_mission(tmp_path, THREE_LANES, explicit=explicit))
-    finally:
-        del os.environ[_HATCH]
 
 
 def _finalized(mission: DefaultMission) -> DefaultMission:
