@@ -211,6 +211,42 @@ def test_render_defaults_to_the_rollback_door_follow_up(repo: Path) -> None:
     assert _flat(report.render()) == _render(report, "resume")
 
 
+def test_a_missing_branch_names_the_recreate_command_and_the_follow_up(repo: Path) -> None:
+    """#7600 fold: a NOT_RESTORED missing branch had no next step under "complete the next steps above"."""
+    state = _advanced_state(repo)
+    snapshot = state.pre_mutation_refs[_MISSION_BRANCH]
+    _git(repo, "branch", "-D", _MISSION_BRANCH)
+
+    report = rollback_to_snapshot(repo, state, target_branch="main")
+
+    assert any(o.branch == _MISSION_BRANCH and o.kind is BranchOutcomeKind.NOT_RESTORED for o in report.outcomes)
+    abort_text = _render(report, "abort")
+    assert f"{_MISSION_BRANCH}: recreate it (`git branch {_MISSION_BRANCH} {snapshot}`), then {_ABORT_RERUN}." in abort_text
+    assert "--resume" not in abort_text
+    assert f"{_MISSION_BRANCH}: recreate it (`git branch {_MISSION_BRANCH} {snapshot}`), then resume the consolidation (`{_RESUME}`)." in _render(report, "resume")
+
+
+def test_a_refused_compare_and_swap_names_an_inspect_step_and_the_follow_up(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7600 fold: a restore whose compare-and-swap was refused (a race) had no next step."""
+    from specify_cli.consolidation import rollback
+    from specify_cli.git.ref_advance import RefRestoreError
+
+    state = _advanced_state(repo)
+
+    def _race(*_args: object, **_kwargs: object) -> None:
+        raise RefRestoreError("cannot lock ref: is at another sha but expected the recorded one")
+
+    monkeypatch.setattr(rollback, "restore_branch_ref", _race)
+
+    report = rollback_to_snapshot(repo, state, target_branch="main")
+
+    assert any(o.branch == "main" and o.kind is BranchOutcomeKind.NOT_RESTORED for o in report.outcomes)
+    abort_text = _render(report, "abort")
+    assert f"main: inspect it (`git log -3 main`), then {_ABORT_RERUN}." in abort_text
+    assert "--resume" not in abort_text
+    assert f"main: inspect it (`git log -3 main`), then resume the consolidation (`{_RESUME}`)." in _render(report, "resume")
+
+
 # --------------------------------------------------------------------------- the --abort command
 
 
