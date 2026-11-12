@@ -617,8 +617,9 @@ def _abort_kept_record_message(report: RollbackReport | None) -> str:
     """The closing line of an ``--abort`` that kept the record, matched to what the report left (#7600).
 
     A kept verified landing points at the labelled ``--resume`` step the report printed; a report
-    that printed next steps (a dirty checkout, a branch another actor moved, a coordination
-    checkout left as found) points at them; anything else keeps the generic remedy.
+    that printed next steps (a dirty checkout, a branch another actor moved, a missing branch, a
+    refused compare-and-swap restore, a coordination checkout left as found) points at them;
+    anything else keeps the generic remedy.
     """
     if report is None:
         return _ABORT_KEPT_RECORD_MESSAGE

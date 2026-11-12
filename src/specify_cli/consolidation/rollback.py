@@ -158,6 +158,10 @@ class NotRestoredCause(StrEnum):
 
     DIRTY_CHECKOUT = "dirty_checkout"
     MOVED = "moved"
+    # The branch no longer exists; its snapshot SHA is the recreate point.
+    MISSING = "missing"
+    # The compare-and-swap restore was refused (the branch moved under it) or git failed.
+    RESTORE_REFUSED = "restore_refused"
 
 
 def _coord_resync_remedy(follow_up: RollbackFollowUp) -> str:
@@ -313,10 +317,21 @@ _VERIFIED_LANDING_STEP = (
 )
 
 
+def _then_follow_up(follow_up: RollbackFollowUp) -> str:
+    """The closing clause of a next step: re-run the command that ran the rollback."""
+    if follow_up is RollbackFollowUp.ABORT:
+        return f"re-run `{_ABORT_COMMAND}`"
+    return f"resume the consolidation (`{_RESUME_COMMAND}`)"
+
+
 def _next_step(outcome: BranchOutcome, follow_up: RollbackFollowUp) -> str | None:
     """The next step for one NOT_RESTORED outcome, in terms of the command that ran the rollback; ``None`` when none applies."""
     if outcome.kind is not BranchOutcomeKind.NOT_RESTORED:
         return None
+    if outcome.cause is NotRestoredCause.MISSING:
+        return f"{outcome.branch}: recreate it (`git branch {outcome.branch} {outcome.snapshot_sha}`), then {_then_follow_up(follow_up)}."
+    if outcome.cause is NotRestoredCause.RESTORE_REFUSED:
+        return f"{outcome.branch}: inspect it (`git log -3 {outcome.branch}`), then {_then_follow_up(follow_up)}."
     if outcome.cause is NotRestoredCause.DIRTY_CHECKOUT:
         checkout = outcome.blocked_checkout or "the checkout named above"
         if follow_up is RollbackFollowUp.ABORT:
@@ -783,7 +798,7 @@ def _missing_branch_outcome(state: ConsolidationState, branch: str, snapshot: st
     hint = f"no longer exists; snapshot {snapshot}; recreate with `git branch {branch} {snapshot}` if you still need it"
     if branch in state.snapshot_lane_branches:
         return BranchOutcome(branch, BranchOutcomeKind.LANE_MISSING, snapshot, "", reason=f"lane branch {branch} {hint}")
-    return BranchOutcome(branch, BranchOutcomeKind.NOT_RESTORED, snapshot, "", reason=f"branch {branch} {hint}")
+    return BranchOutcome(branch, BranchOutcomeKind.NOT_RESTORED, snapshot, "", reason=f"branch {branch} {hint}", cause=NotRestoredCause.MISSING)
 
 
 @dataclass(frozen=True)
@@ -855,7 +870,7 @@ def _restore_one(
             blocked_checkout=str(exc.worktree_path),
         )
     except (RefRestoreError, RefAdvanceError) as exc:
-        return BranchOutcome(branch, BranchOutcomeKind.NOT_RESTORED, snapshot, live, expected, str(exc))
+        return BranchOutcome(branch, BranchOutcomeKind.NOT_RESTORED, snapshot, live, expected, str(exc), cause=NotRestoredCause.RESTORE_REFUSED)
     return BranchOutcome(branch, BranchOutcomeKind.RESTORED, snapshot, live, expected, restored_to_sha=restore_to, adopted_intent=adopted)
 
 
