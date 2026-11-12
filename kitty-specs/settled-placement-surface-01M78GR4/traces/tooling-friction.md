@@ -23,3 +23,5 @@ One entry per finding: `YYYY-MM-DD · actor · <text>`.
 2026-11-12 · claude-orchestrator · agent decision open accepts --flow charter|specify|plan only, so an implement-phase ruling has to be recorded under the plan flow.
 
 2026-11-12 · python-pedro · WP04: the WP prompt prescribed PlacementSeam.read_dir for the #7595 fold, but read_dir -> resolve_artifact_surface -> resolve_lifecycle_phase -> get_feature_target_branch re-enters on any consolidated Mission (stale 'read_dir never reaches this' comments). Escalated; operator ruled read_dir_for. Also: make_default_mission leaves the root on the topic branch until finalize, so repo config committed before finalize lands on the topic branch, not the return branch.
+
+2026-11-12 · python-pedro · WP05: the WP asked the #7602 message to both omit '.worktrees' and name the holding checkout; the coordination checkout itself lives under .worktrees/, so the test pins the absence of the project-relative '.worktrees/<slug>-coord/kitty-specs' frame instead. A full accept e2e on the settled fixture was affordable (~10s via accept --json --diagnose).
