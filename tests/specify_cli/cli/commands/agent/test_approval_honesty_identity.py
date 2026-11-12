@@ -16,9 +16,12 @@ import json
 from pathlib import Path
 from typing import Any
 
+from unittest.mock import patch
+
 import pytest
 
 from specify_cli.status import Lane
+from specify_cli.status.reducer import ReviewResultLookup
 from specify_cli.status.models import StatusEvent, actor_full_identity
 from tests._support.status_seed import seed_status_event
 from tests.specify_cli.cli.commands.agent.test_verdict_attribution_4670 import (
@@ -138,23 +141,71 @@ def test_approval_records_the_claimant_never_the_git_user(tmp_path: Path, monkey
     _assert_pointer_to_existing_cycle(repo, mission_slug, references[0])
 
 
-def test_done_carries_the_approval_reviewer_and_reference(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Case 3: ``approved -> done`` carries the recorded approval's reviewer and reference verbatim."""
-    _repo, feature_dir, mission_slug = _claimed_mission(tmp_path, monkeypatch, "done")
+def _approved_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, suffix: str) -> tuple[Path, str, dict[str, Any]]:
+    """WP01 approved by the claimant; returns the feature dir, the slug and the approval record."""
+    _repo, feature_dir, mission_slug = _claimed_mission(tmp_path, monkeypatch, suffix)
     approved = _move(["WP01", "--to", "approved", "--mission", mission_slug, "--note", "Review passed"])
     assert approved.exit_code == 0, approved.output
     _approval_line, approval = _event_line(feature_dir, "approved")
+    return feature_dir, mission_slug, approval
 
-    done = _move(["WP01", "--to", "done", "--mission", mission_slug, *_DONE_OVERRIDE])
+
+def test_done_carries_the_approval_reviewer_and_reference(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Case 3: ``approved -> done`` carries the approval's reviewer and reference into the review fields only.
+
+    The done event's actor is the asserted mover (``--agent``), never the carried reviewer: the
+    reviewer did not perform this move. ``policy_metadata.tool`` names the same performer, because
+    it describes this hop's decision tool (its profile/model come from the mover's binding).
+    """
+    feature_dir, mission_slug, approval = _approved_mission(tmp_path, monkeypatch, "done")
+
+    done = _move(["WP01", "--to", "done", "--mission", mission_slug, "--agent", _OPERATOR, *_DONE_OVERRIDE])
     assert done.exit_code == 0, done.output
 
     line, record = _event_line(feature_dir, "done")
     _assert_no_fabrication(line)
     assert "reviewer-renata" in line, "positive control: the carried reviewer must be in the very line searched"
+    operator = actor_full_identity(_OPERATOR)
+    assert actor_full_identity(record["actor"]) == operator
+    assert record["force"] is False
     done_review = record["evidence"]["review"]
     assert done_review["reviewer"] == approval["review_result"]["reviewer"]
     assert done_review["reference"] == approval["review_result"]["reference"]
-    assert actor_full_identity(record["policy_metadata"]["tool"]) == actor_full_identity(_CLAIMANT)
+    assert actor_full_identity(done_review["reviewer"]) == actor_full_identity(_CLAIMANT)
+    if record.get("review_result") is not None:
+        assert record["review_result"]["reviewer"] == approval["review_result"]["reviewer"]
+        assert record["review_result"]["reference"] == approval["review_result"]["reference"]
+    assert actor_full_identity(record["policy_metadata"]["tool"]) == operator
+
+
+def test_done_without_an_asserted_mover_is_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """C-007: ``approved -> done`` with neither ``--agent`` nor ``--reviewer`` keeps the base refusal.
+
+    The carried approval names who reviewed, not who moves the work package to done; with no asserted
+    mover the move would record the placeholder, so ``REVIEW_NOT_INDEPENDENT`` fires and nothing is written.
+    """
+    feature_dir, mission_slug, _approval = _approved_mission(tmp_path, monkeypatch, "done-unasserted")
+    log = feature_dir / "status.events.jsonl"
+    before = log.read_bytes()
+
+    done = _move(["WP01", "--to", "done", "--mission", mission_slug, *_DONE_OVERRIDE])
+
+    assert done.exit_code != 0, done.output
+    assert "REVIEW_NOT_INDEPENDENT" in done.output
+    assert log.read_bytes() == before
+
+
+def test_done_with_reviewer_flag_records_it_as_the_mover(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``--reviewer`` alone is the asserted mover of a done move; the review fields stay the carried approval's."""
+    feature_dir, mission_slug, approval = _approved_mission(tmp_path, monkeypatch, "done-reviewer")
+
+    done = _move(["WP01", "--to", "done", "--mission", mission_slug, "--reviewer", _OPERATOR, *_DONE_OVERRIDE])
+    assert done.exit_code == 0, done.output
+
+    _line, record = _event_line(feature_dir, "done")
+    assert actor_full_identity(record["actor"]) == actor_full_identity(_OPERATOR)
+    assert record["evidence"]["review"]["reviewer"] == approval["review_result"]["reviewer"]
+    assert record["evidence"]["review"]["reference"] == approval["review_result"]["reference"]
 
 
 def test_forced_approval_records_the_forcing_actor_and_force_override(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -186,3 +237,82 @@ def test_reviewer_flag_alone_sets_the_approving_actor(tmp_path: Path, monkeypatc
     _assert_no_fabrication(line)
     assert "reviewer-renata" in line, "positive control"
     assert _identity_fields(record)["actor"] == actor_full_identity(_CLAIMANT)
+
+
+# ---------------------------------------------------------------------------
+# Damaged review slot (operator ruling ``damaged_slot``, 2026-11-12)
+# ---------------------------------------------------------------------------
+
+_DAMAGED = ReviewResultLookup(slot_present=True, result=None)
+_MOVE_TASK = "specify_cli.cli.commands.agent.tasks_move_task"
+_VERDICT_SEAM = "specify_cli.cli.commands.agent.tasks_verdict_persistence"
+
+
+def _damaged_slot_patches(*, guard_sees_damage: bool) -> list[Any]:
+    """Inject a damaged event-log review slot (the real store refuses to append one).
+
+    ``guard_sees_damage=False`` keeps the decision guard's own read clean, so only the approval
+    writer's read (the cycle writer skips with "the recorded review verdict could not be read") and
+    the reviewer-of-record read see the damage: the two reads disagree.
+    """
+    patches = [
+        patch("specify_cli.status.event_sourced_review_result", return_value=_DAMAGED),
+        patch(f"{_VERDICT_SEAM}.event_sourced_review_result", return_value=_DAMAGED),
+    ]
+    if not guard_sees_damage:
+        patches.append(patch(f"{_MOVE_TASK}.resolve_review_verdict_facts", return_value=(None, None, None)))
+    return patches
+
+
+def _move_with(patches: list[Any], args: list[str]) -> Any:
+    for active in patches:
+        active.start()
+    try:
+        return _move(args)
+    finally:
+        for active in reversed(patches):
+            active.stop()
+
+
+def test_damaged_slot_refuses_every_approval_and_writes_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A damaged review slot the decision guard reads refuses the approval; the log is byte-identical."""
+    _repo, feature_dir, mission_slug = _claimed_mission(tmp_path, monkeypatch, "damaged")
+    log = feature_dir / "status.events.jsonl"
+    before = log.read_bytes()
+
+    result = _move_with(_damaged_slot_patches(guard_sees_damage=True), ["WP01", "--to", "approved", "--mission", mission_slug, "--note", "ok"])
+
+    assert result.exit_code == 1, result.output
+    assert "no parseable review verdict" in result.output
+    assert log.read_bytes() == before
+
+
+def test_unforced_approval_on_damaged_writer_slot_is_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ruling ``damaged_slot``: an unforced approval the cycle writer cannot record is refused, never ``force-override``."""
+    _repo, feature_dir, mission_slug = _claimed_mission(tmp_path, monkeypatch, "damaged-writer")
+    log = feature_dir / "status.events.jsonl"
+    before = log.read_bytes()
+
+    result = _move_with(_damaged_slot_patches(guard_sees_damage=False), ["WP01", "--to", "approved", "--mission", mission_slug, "--note", "ok"])
+
+    assert result.exit_code == 1, result.output
+    assert "REVIEW_SLOT_DAMAGED" in result.output
+    assert "status.events.jsonl" in result.output
+    assert "--approval-ref" in result.output and "--force" in result.output
+    assert log.read_bytes() == before
+
+
+def test_unforced_approval_on_damaged_writer_slot_takes_the_approval_ref(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Positive control: with ``--approval-ref`` the approval proceeds and records that reference, unforced."""
+    _repo, feature_dir, mission_slug = _claimed_mission(tmp_path, monkeypatch, "damaged-ref")
+
+    result = _move_with(
+        _damaged_slot_patches(guard_sees_damage=False),
+        ["WP01", "--to", "approved", "--mission", mission_slug, "--note", "ok", "--approval-ref", "pr-1234"],
+    )
+
+    assert result.exit_code == 0, result.output
+    line, record = _event_line(feature_dir, "approved")
+    assert record["force"] is False
+    assert "force-override" not in line
+    assert _references(record) == ["pr-1234", "pr-1234"]
