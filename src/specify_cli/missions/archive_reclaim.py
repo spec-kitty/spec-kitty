@@ -44,6 +44,7 @@ __all__ = [
     "ReclaimRefused",
     "ReclaimReport",
     "holds_coordination_marker",
+    "primary_mission_dir",
     "reclaim_archived_mission",
     "reclaim_command",
 ]
@@ -103,7 +104,7 @@ class _Coordination:
     branch: str
 
 
-def _primary_mission_dir(repo_root: Path, mission_slug: str) -> Path:
+def primary_mission_dir(repo_root: Path, mission_slug: str) -> Path:
     """The Mission's PRIMARY-partition directory, where ``meta.json`` (and its marker) live."""
     primary: Path = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     return primary
@@ -111,7 +112,7 @@ def _primary_mission_dir(repo_root: Path, mission_slug: str) -> Path:
 
 def holds_coordination_marker(repo_root: Path, mission_slug: str) -> bool:
     """True while *mission_slug*'s ``meta.json`` still names a coordination branch (``archive create`` points at reclaim then)."""
-    meta = load_meta(_primary_mission_dir(repo_root, mission_slug), allow_missing=True, on_malformed="none")
+    meta = load_meta(primary_mission_dir(repo_root, mission_slug), allow_missing=True, on_malformed="none")
     return isinstance(meta, dict) and bool(meta.get(_COORDINATION_BRANCH_KEY))
 
 
@@ -124,7 +125,7 @@ def reclaim_archived_mission(repo_root: Path, mission_slug: str) -> ReclaimRepor
             of files, or the branch moved while it was being deleted. Nothing is changed by a
             refusal raised before the first step; a later one keeps what it did not reach.
     """
-    feature_dir = _primary_mission_dir(repo_root, mission_slug)
+    feature_dir = primary_mission_dir(repo_root, mission_slug)
     meta = load_meta(feature_dir)
     if not isinstance(meta, dict):
         raise ReclaimRefused(RECLAIM_NO_COORDINATION, f"{feature_dir / _META_FILE} could not be read.", "Repair meta.json, then re-run.")

@@ -18,6 +18,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands import archive as archive_cli
 from specify_cli.consolidation.git_probes import GitProbeError
 from specify_cli.coordination.teardown import CoordTeardownKeptOnlyCopy
+from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.git.destructive_guard import DestructiveOpRefused
 from specify_cli.missions import archive_reclaim as reclaim
 from specify_cli.missions.archive_reclaim import ReclaimRefused, ReclaimReport
@@ -58,15 +59,15 @@ def seams(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> dict[str, Any]:
     def commit(**_kwargs: object) -> None:
         calls["committed"] += 1
 
-    monkeypatch.setattr(reclaim, "_primary_mission_dir", lambda _root, _slug: tmp_path / "kitty-specs" / _SLUG)
+    monkeypatch.setattr(reclaim, "primary_mission_dir", lambda _root, _slug: tmp_path / "kitty-specs" / _SLUG)
     monkeypatch.setattr(reclaim, "is_mission_archived", lambda _root, _mission_id: True)
     monkeypatch.setattr(reclaim, "is_mission_merged", lambda _dir: True)
     monkeypatch.setattr(reclaim, "commit_in_clone", lambda _root, _ref: True)
     monkeypatch.setattr(reclaim, "resolve_commit", lambda _root, _ref: _LIVE)
     monkeypatch.setattr(reclaim, "landed_coordination_tip", lambda _root, _branch: _LIVE)
     monkeypatch.setattr(reclaim, "is_ancestor_strict", lambda _root, _a, _b: False)
-    monkeypatch.setattr(reclaim.CoordinationWorkspace, "branch_name", staticmethod(lambda _slug, _mid8: _BRANCH))
-    monkeypatch.setattr(reclaim.CoordinationWorkspace, "is_present", staticmethod(lambda *_a: present["value"]))
+    monkeypatch.setattr(CoordinationWorkspace, "branch_name", staticmethod(lambda _slug, _mid8: _BRANCH))
+    monkeypatch.setattr(CoordinationWorkspace, "is_present", staticmethod(lambda *_a: present["value"]))
     monkeypatch.setattr(reclaim, "teardown_coordination_topology", teardown)
     monkeypatch.setattr(reclaim, "guarded_branch_delete", delete)
     monkeypatch.setattr(reclaim, "clear_landed_coordination_tip", lambda _root, branch: calls["cleared"].append(branch) or True)
@@ -297,6 +298,7 @@ def cli(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> CliRunner:
     feature_dir = _feature_dir(tmp_path)
     monkeypatch.setattr(archive_cli, "locate_project_root", lambda: tmp_path)
     monkeypatch.setattr(archive_cli, "candidate_feature_dir_for_mission", lambda _root, _mission: feature_dir)
+    monkeypatch.setattr(archive_cli, "primary_mission_dir", lambda _root, _mission: feature_dir)
     return CliRunner()
 
 
@@ -356,7 +358,7 @@ def test_cli_outside_a_project_exits_2_with_json(monkeypatch: pytest.MonkeyPatch
 @pytest.mark.parametrize("json_flag", [[], ["--json"]])
 def test_cli_reports_an_unknown_mission(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, json_flag: list[str]) -> None:
     monkeypatch.setattr(archive_cli, "locate_project_root", lambda: tmp_path)
-    monkeypatch.setattr(archive_cli, "candidate_feature_dir_for_mission", lambda _root, _mission: tmp_path / "absent")
+    monkeypatch.setattr(archive_cli, "primary_mission_dir", lambda _root, _mission: tmp_path / "absent")
 
     result = CliRunner().invoke(archive_cli.app, ["reclaim", _SLUG, *json_flag])
 
@@ -371,7 +373,7 @@ def test_cli_reports_an_ambiguous_selector(monkeypatch: pytest.MonkeyPatch, tmp_
         raise MissionSelectorAmbiguous(handle=mission, candidates=["a", "b"])
 
     monkeypatch.setattr(archive_cli, "locate_project_root", lambda: tmp_path)
-    monkeypatch.setattr(archive_cli, "candidate_feature_dir_for_mission", ambiguous)
+    monkeypatch.setattr(archive_cli, "primary_mission_dir", ambiguous)
 
     result = CliRunner().invoke(archive_cli.app, ["reclaim", "demo", *json_flag])
 

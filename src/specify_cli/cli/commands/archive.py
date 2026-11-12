@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, NoReturn
 
 import typer
 from rich.markup import escape
@@ -33,7 +33,14 @@ from specify_cli.missions._archive import (
     list_archived_missions,
 )
 from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous, candidate_feature_dir_for_mission
-from specify_cli.missions.archive_reclaim import ReclaimRefused, ReclaimReport, holds_coordination_marker, reclaim_archived_mission, reclaim_command
+from specify_cli.missions.archive_reclaim import (
+    ReclaimRefused,
+    ReclaimReport,
+    holds_coordination_marker,
+    primary_mission_dir,
+    reclaim_archived_mission,
+    reclaim_command,
+)
 
 app = typer.Typer(
     name="archive",
@@ -59,23 +66,20 @@ def _project_root_or_exit(json_output: bool) -> Path:
     return root
 
 
-def _feature_dir_or_exit(root: Path, mission: str, json_output: bool) -> Path:
-    try:
-        feature_dir = candidate_feature_dir_for_mission(root, mission)
-    except MissionSelectorAmbiguous as exc:
-        if json_output:
-            console.emit_json({**json_error(exc.error_code, str(exc)), "handle": exc.handle, "candidates": exc.candidates})
-        else:
-            console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(_EXIT_REFUSED) from exc
-    if not feature_dir.exists():
-        if json_output:
-            console.emit_json(json_error("mission_not_found", f"Mission not found: {mission}"))
-        else:
-            console.print(f"[red]Mission not found: {mission}[/red]")
-        raise typer.Exit(_EXIT_ERROR)
-    resolved: Path = feature_dir
-    return resolved
+def _exit_ambiguous(exc: MissionSelectorAmbiguous, json_output: bool) -> NoReturn:
+    if json_output:
+        console.emit_json({**json_error(exc.error_code, str(exc)), "handle": exc.handle, "candidates": exc.candidates})
+    else:
+        console.print(f"[red]Error:[/red] {exc}")
+    raise typer.Exit(_EXIT_REFUSED) from exc
+
+
+def _exit_not_found(mission: str, json_output: bool) -> NoReturn:
+    if json_output:
+        console.emit_json(json_error("mission_not_found", f"Mission not found: {mission}"))
+    else:
+        console.print(f"[red]Mission not found: {mission}[/red]")
+    raise typer.Exit(_EXIT_ERROR)
 
 
 @app.command("create")
@@ -97,7 +101,12 @@ def create(
 ) -> None:
     """Archive a terminal mission (AM-1..AM-5)."""
     root = _project_root_or_exit(json_output)
-    feature_dir = _feature_dir_or_exit(root, mission, json_output)
+    try:
+        feature_dir = candidate_feature_dir_for_mission(root, mission)
+    except MissionSelectorAmbiguous as exc:
+        _exit_ambiguous(exc, json_output)
+    if not feature_dir.exists():
+        _exit_not_found(mission, json_output)
 
     try:
         outcome = archive_mission(
@@ -166,7 +175,7 @@ def list_archives(
 
 @app.command("reclaim")
 def reclaim(
-    mission: Annotated[str, typer.Argument(help="Mission selector (slug or mission_id) of an archived Mission.")],
+    mission: Annotated[str, typer.Argument(help="Slug of an archived Mission.")],
     json_output: Annotated[bool, typer.Option("--json", help=_JSON_HELP)] = False,
 ) -> None:
     """Remove the coordination worktree, branch and marker an archived Mission still holds.
@@ -178,9 +187,14 @@ def reclaim(
     Example: spec-kitty archive reclaim my-mission-01ABCDEF
     """
     root = _project_root_or_exit(json_output)
-    feature_dir = _feature_dir_or_exit(root, mission, json_output)
     try:
-        report = reclaim_archived_mission(root, feature_dir.name)
+        mission_dir = primary_mission_dir(root, mission)
+    except MissionSelectorAmbiguous as exc:
+        _exit_ambiguous(exc, json_output)
+    if not (mission_dir / "meta.json").is_file():
+        _exit_not_found(mission, json_output)
+    try:
+        report = reclaim_archived_mission(root, mission_dir.name)
     except ReclaimRefused as refused:
         if json_output:
             console.emit_json({**json_error(refused.error_code, str(refused)), "remedy": refused.remedy})
