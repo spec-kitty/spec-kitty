@@ -106,13 +106,13 @@
     },
     {
       "criterion_id": "FR-011",
-      "description": "Verify FR-011 is satisfied",
+      "description": "the coordination status lock is taken for a settled Mission's status commit; not for single_branch",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/coordination/test_commit_router_settled_holder.py status-lock test",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T22:02:12.009206+00:00",
+      "notes": "Verified at HEAD: 462 passed (all Mission tests + named gates), 2026-11-12"
     },
     {
       "criterion_id": "FR-012",
