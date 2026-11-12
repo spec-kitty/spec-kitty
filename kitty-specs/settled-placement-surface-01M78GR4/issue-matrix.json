@@ -133,7 +133,7 @@
       "wp": null
     },
     "#7546": {
-      "evidence_ref": "Sub-epic: closes when WP01-WP05 land; WP01 = seam checkout authority",
+      "evidence_ref": "Sub-epic delivered by WP01 8e48897d (seam surface_root authority) + WP02-WP05",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -141,7 +141,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP01"
     },
     "#7551": {
