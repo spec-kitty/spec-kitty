@@ -20,6 +20,7 @@ it never uses this repository's own environment for the code under test.
 from __future__ import annotations
 
 import dataclasses
+import json
 import ntpath
 import os
 import posixpath
@@ -408,9 +409,9 @@ def test_capture_evidence_tree(scratch_project: ScratchProject, tmp_path: Path) 
     assert tree.probe.status is probe.status
     assert dict(tree.probe.origins)[_PKG] == f"lane/src/{_PKG}/__init__.py"
 
-    # Not under repo_root: absolute path.
-    outside = capture_evidence_tree(lane, probe, repo_root=scratch_project.root)
-    assert outside.path == str(lane)
+    # Not under repo_root: redacted to its last segments, never the machine path.
+    outside = capture_evidence_tree(lane, probe, repo_root=scratch_project.root / "src")
+    assert outside.path == f"<external>/{lane.parent.name}/{lane.name}"
     assert capture_evidence_tree(lane, probe).path == str(lane)
 
     # Positive control for dirty: commit the planted change.
@@ -600,3 +601,8 @@ def test_recorded_foreign_probe_carries_no_machine_paths(scratch_project: Scratc
     assert f"root/src/{_PKG}" in recorded.reason
     # The venv python is a symlink out of the tree; the recorded interpreter stays lexical.
     assert recorded.interpreter == "lane/.venv/" + lane_python.relative_to(scratch_project.lane / ".venv").as_posix()
+    # Paths outside the repository (here: the venv interpreter and the lane's src) are reduced, not recorded verbatim.
+    outside = capture_evidence_tree(scratch_project.lane, probe, repo_root=scratch_project.root / "src").probe
+    assert str(tmp_path) not in json.dumps(outside.to_dict())
+    assert outside.interpreter is not None
+    assert outside.interpreter.startswith("<external>/")
