@@ -245,7 +245,8 @@
       "last_transition_at": "2026-11-12T23:11:51.815334+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ready for review"
+        "Ready for review",
+        "Reviewed by orchestrator (not the WP07 implementer): cli-commands rows and archive reclaim section match lane code (RECLAIM_* codes, SQUASH_PROJECTION_NOT_LANDED reasons, COORD_LATE_PROJECTION_REFUSED window rule, --abort next steps); six fragments in before/after style; changelog style 0 errors, spelling 0, terminology 98 passed. CLI-reference REF-EXTRA for archive reclaim clears once lane-d consolidates."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
