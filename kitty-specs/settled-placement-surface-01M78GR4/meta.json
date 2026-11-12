@@ -1,0 +1,19 @@
+{
+  "created_at": "2026-11-12T18:36:33.609088+00:00",
+  "flattened": false,
+  "friendly_name": "One placement surface after topology settlement",
+  "mid8": "01M78GR4",
+  "mission_id": "01M78GR4VQ0DD9ASHV9KCP0CRP",
+  "mission_number": null,
+  "mission_slug": "settled-placement-surface-01M78GR4",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Operators of default Missions that settle to lanes_with_coord currently hit WRONG_SURFACE on spec-commit, a protected-branch refusal on implement, silently uncommitted baseline files, a wrong target banner and remedies that cannot work, because several call sites still assume the repository root checkout holds the Mission branch. This Mission makes the placement seam the single authority for which checkout a write lands in, so the governed workflow runs without raw git workarounds (sub-epic #7546).",
+  "purpose_tldr": "After finalize-tasks settles a default Mission to lanes_with_coord, every commit, guard and remedy resolves the checkout that holds the Mission's branch through the one placement seam.",
+  "slug": "settled-placement-surface-01M78GR4",
+  "target_branch": "fix/7546-settled-placement-surface",
+  "topology": "single_branch",
+  "topology_source": "explicit",
+  "contracts": "none",
+  "contracts_rationale": "Defect fix inside existing CLI commands: no new command, option, payload or API; refusal and exit codes are unchanged (decision 01M78GS9KQZAMG3Y0YC53ER1KE), only remedy text changes."
+}
