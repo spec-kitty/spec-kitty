@@ -30,7 +30,8 @@
       "last_transition_at": "2026-11-12T07:31:03.778963+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ready for review: pure tidy-first move. FR-021 selector -> status/wp_window_selector.py (facade re-export + read_lane_head alias); owned_patterns/matches_owned -> ownership/matching.py. Old paths re-export; __all__ unchanged; no existing test edited. Red-first commit 1bd89362. Targeted+arch gates 593 passed/2 xfailed; tests/consolidation 3124 passed; tests/status+ownership 2298 passed; make test-fast 3017 passed."
+        "Ready for review: pure tidy-first move. FR-021 selector -> status/wp_window_selector.py (facade re-export + read_lane_head alias); owned_patterns/matches_owned -> ownership/matching.py. Old paths re-export; __all__ unchanged; no existing test edited. Red-first commit 1bd89362. Targeted+arch gates 593 passed/2 xfailed; tests/consolidation 3124 passed; tests/status+ownership 2298 passed; make test-fast 3017 passed.",
+        "Review passed: pure move verified (AST-identical defs; only deviations are the window_open_of GitProbeError docstring reword, the fresh _ENTERED_IMPLEMENTATION_LANES comment, module docstrings/__all__/imports). Single definitions, identity re-exports on wp_attribution/wp_evidence/status facade, wp_window.py untouched, __all__ unchanged. Red-first 1bd89362 fails on import only. Tests: new+move-task 68 passed; consolidation 15 files 394 passed 2 xfailed; 4 arch gates 131 passed; ruff/C901/format/mypy --strict clean. Shared-file note: WP06 only references these paths in docs."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
