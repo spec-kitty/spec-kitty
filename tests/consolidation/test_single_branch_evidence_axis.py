@@ -220,17 +220,10 @@ def test_unreadable_window_fails_closed(tmp_path: Path) -> None:
     assert wp_evidence._SINGLE_BRANCH_EVIDENCE_UNREADABLE in refusal
 
 
-def test_owned_pattern_helpers_normalize_and_match() -> None:
-    patterns = wp_evidence.owned_patterns(["./src/m1/**", "  ", "a\\b/*"])
-    assert patterns == ("src/m1/**", "a/b/*")
-    assert wp_evidence.matches_owned("src/m1/deep/x.py", ("src/m1/**",))
-    assert wp_evidence.matches_owned("src/m1/x.py", ("src/m1/**",))
-    assert not wp_evidence.matches_owned("src/m2/x.py", ("src/m1/**",))
-
-
 def test_mirrored_owned_match_stays_in_lockstep_with_cli_layer() -> None:
     """N3: the mirrored owned-files match must agree with the CLI-layer original so they can't drift."""
     from specify_cli.cli.commands.agent import tasks_move_task as mt
+    from specify_cli.ownership.matching import matches_owned
 
     cases = [
         ("src/m1/deep/x.py", ("src/m1/**",)),
@@ -240,7 +233,7 @@ def test_mirrored_owned_match_stays_in_lockstep_with_cli_layer() -> None:
         ("./src/m1/y.py", ("src/m1/**",)),
     ]
     for path, patterns in cases:
-        assert wp_evidence.matches_owned(path, patterns) == mt._mt_matches_owned_file(path, patterns)
+        assert matches_owned(path, patterns) == mt._mt_matches_owned_file(path, patterns)
 
 
 def test_refusal_codes_reads_each_distinct_leading_code() -> None:

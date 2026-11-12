@@ -26,7 +26,7 @@ from specify_cli.consolidation.approved_bound import (
     resolves_commit,
 )
 from specify_cli.consolidation.git_probes import GitProbeError, resolve_commit
-from specify_cli.consolidation.wp_attribution import GapEntry, WindowGap, WindowOpen
+from specify_cli.consolidation.wp_attribution import GapEntry
 from specify_cli.consolidation.write_branch_bound import (
     bind_lane_predicates,
     check_lane_windows,
@@ -45,6 +45,7 @@ from specify_cli.consolidation.reconciliation_kernel import (
 from specify_cli.lanes._git import branch_exists
 from specify_cli.lanes.compute import is_planning_lane, lane_fully_canceled
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.status import WindowGap, WindowOpen
 
 
 @dataclass(frozen=True)

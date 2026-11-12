@@ -444,6 +444,7 @@ from .wp_window_selector import (
     WindowGapReason,
     WindowOpen,
     is_migration_event,
+    stamp_of,
     window_open_of,
     window_opener_events,
 )
@@ -577,6 +578,7 @@ __all__ = [
     "WindowGapReason",
     "WindowOpen",
     "is_migration_event",
+    "stamp_of",
     "window_open_of",
     "window_opener_events",
     "API_PREFIX",

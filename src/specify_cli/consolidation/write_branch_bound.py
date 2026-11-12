@@ -22,7 +22,7 @@ Pure over a status event list and git probes; the claim builder calls it before 
 
 Lane missions use the same two tiers (Mission consolidation-window-provenance-01M6Y84D, WP19,
 FR-007): :func:`check_lane_windows` judges one code lane whose windows open at the SHA the
-status pipeline recorded (:func:`~specify_cli.consolidation.wp_attribution.window_open_of`,
+status pipeline recorded (:func:`~specify_cli.status.window_open_of`,
 bound to the one lane tip by :func:`bind_lane_predicates`); a work package with a window gap
 opens at the claim base, exactly like a degraded ``single_branch`` window.
 """
@@ -34,7 +34,7 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from specify_cli.status import StatusEvent
+from specify_cli.status import StatusEvent, WindowGap, WindowOpen, window_open_of
 
 from .approved_bound import (
     BoundRefusal,
@@ -46,7 +46,7 @@ from .approved_bound import (
     render_refusals,
 )
 from .git_probes import commit_in_clone, commits_in_range, is_ancestor_strict
-from .wp_attribution import GapEntry, WindowGap, WindowOpen, approval_window_open_stamp, lane_exempt_commits, window_open_of
+from .wp_attribution import GapEntry, approval_window_open_stamp, lane_exempt_commits
 
 logger = logging.getLogger(__name__)
 

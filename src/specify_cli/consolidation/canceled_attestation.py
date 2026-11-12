@@ -40,10 +40,10 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from pathlib import Path
 
-from specify_cli.status import Lane, StatusEvent, TransitionRequest
+from specify_cli.status import Lane, StatusEvent, TransitionRequest, is_migration_event, stamp_of
 from specify_cli.status_lanes import OPERATOR_REASON_SOURCE
 
-from .wp_attribution import UnattributableReason, is_migration_event, stamp_of
+from .wp_attribution import UnattributableReason
 
 #: ``policy_metadata`` key of the attestation marker.
 ATTESTATION_KEY = "attestation"

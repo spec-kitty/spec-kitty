@@ -184,7 +184,7 @@ The same selector (`consolidation/wp_attribution.py`: `window_opener_events`, `w
 serves the `single_branch` derivation when no window is recorded, with its legacy first-claim rule
 (`cycle=False`). The opener rule lives once. The review-rejection reading above stays an
 interpretation the operator may overturn; the shipped selector implements it and
-`tests/consolidation/test_window_opener.py` pins it.
+`tests/status/test_window_opener.py` pins it.
 
 ### 4. The window and its exemption anchors
 
@@ -453,7 +453,7 @@ stayed unchanged across the split. Each behaviour change in this Mission is a na
 - (h): the forecast excludes the fresh run's canceled work packages (verdict-visible) and resolves
   the coordination base to a SHA (field-level only) (WP17).
 
-The evidence: `tests/status/test_wp_window_capture.py`, `tests/consolidation/test_window_opener.py`,
+The evidence: `tests/status/test_wp_window_capture.py`, `tests/status/test_window_opener.py`,
 `test_claim_inputs_parity.py`, `test_forecast_fresh_run_parity.py`, `test_lane_approval_windows.py`,
 `test_refusal_precedence_matrix_windows.py`, `test_lane_window_query_count.py`,
 `test_window_gap_report.py`, `test_window_gap_report_entry_points.py`,

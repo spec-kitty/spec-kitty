@@ -23,6 +23,7 @@ from specify_cli.consolidation import wp_evidence
 from specify_cli.consolidation.git_probes import GitProbeError
 from specify_cli.lanes import single_branch_landing
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.ownership.matching import matches_owned
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.resolved_binding import ResolvedBinding
 
@@ -272,7 +273,7 @@ def test_single_branch_keeps_its_codes(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_the_owned_matcher_is_the_evidence_matcher() -> None:
     patterns = ("src/m1/**", "tools/check.sh")
     for path in ("src/m1/a.py", "./tools/check.sh", "src\\m1\\b.py", "src/m2/a.py"):
-        assert move_task_module._mt_matches_owned_file(path, patterns) is wp_evidence.matches_owned(path, patterns)
+        assert move_task_module._mt_matches_owned_file(path, patterns) is matches_owned(path, patterns)
 
 
 # ---------------------------------------------------------------- independence

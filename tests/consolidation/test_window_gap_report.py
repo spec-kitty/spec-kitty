@@ -13,7 +13,8 @@ import pytest
 from rich.console import Console
 
 from specify_cli.consolidation.window_gap_report import WINDOW_GAPS_KEY, gap_report_json, gap_report_lines, print_gap_report
-from specify_cli.consolidation.wp_attribution import GapEntry, WindowGap, WindowGapReason
+from specify_cli.consolidation.wp_attribution import GapEntry
+from specify_cli.status import WindowGap, WindowGapReason
 
 pytestmark = [pytest.mark.unit]
 

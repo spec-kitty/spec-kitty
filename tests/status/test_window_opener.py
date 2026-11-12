@@ -15,16 +15,17 @@ from typing import Any
 
 import pytest
 
-from specify_cli.consolidation.wp_attribution import (
+from specify_cli.consolidation.wp_attribution import approval_window_open_stamp
+from specify_cli.status import (
+    Lane,
     OpenerSelection,
+    StatusEvent,
     WindowGap,
     WindowGapReason,
     WindowOpen,
-    approval_window_open_stamp,
     window_open_of,
     window_opener_events,
 )
-from specify_cli.status import Lane, StatusEvent
 
 pytestmark = [pytest.mark.fast]
 

@@ -29,10 +29,10 @@ from specify_cli.consolidation.git_probes import (
 )
 from specify_cli.consolidation.reconciliation_authorship import _final_authored_walk
 from specify_cli.consolidation.reconciliation_kernel import _lane_branch_for, _lane_tip_commits
-from specify_cli.consolidation.wp_attribution import stamp_of
 from specify_cli.lanes._git import branch_exists
 from specify_cli.lanes.lane_tip import LaneTipListingError, read_tip, recorded_tip_branches
 from specify_cli.lanes.models import LanesManifest
+from specify_cli.status import stamp_of
 
 
 # Declared external dependency refs (#6771). A lane that merges a dependency branch's
