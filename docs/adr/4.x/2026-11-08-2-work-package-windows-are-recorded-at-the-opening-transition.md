@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-11-08'
-updated: '2026-11-10T00:00:00Z'
+updated: '2026-11-12T00:00:00Z'
 ---
 
 # Work-package windows are recorded at the opening transition
@@ -578,6 +578,59 @@ dedicated tests listed.
 **Pros:**
 
 - No new package, and module ownership by directory glob stays unchanged.
+
+## Amendment 2026-11-12 (#7578): commit-to-target single_branch Missions record their window points
+
+**Status:** Accepted (operator rulings Q3 and Q8, 2026-11-12).
+
+**What changes.** A `single_branch` Mission created with `--commit-to-target` writes straight to its
+target branch: its write branch *is* the target. Until now such a Mission recorded nothing: its
+transitions carried no `lane_head` and its opening moves no `wp_window`. It now records both, taken at
+the head of the target branch (`status/lane_head.py::_single_branch_write_branch`). The opening move
+(`claimed` / `in_progress`) records `wp_window.open_sha`; every lifecycle move records `lane_head`. A
+missing target branch or a git failure is a typed gap, never a refused move. The planning lane of a
+`lanes` or `lanes_with_coord` Mission still records nothing, and a Mission with a minted Mission branch
+is unchanged.
+
+**Why.** The review range of a work package (#7578) reads a recorded window on every topology instead of
+guessing one from branch history (ruling Q3).
+
+**Consolidation verdicts do not change (ruling Q8).** Such a Mission stays unbounded in consolidation:
+`reconciliation_bound._bound_write_branch` returns `None` for it (it reads `minted_mission_branch`), and
+`approved_bound._approval_is_bounded` excludes it. The new stamps would still have reached three other
+readers. We measured each one on a real commit-to-target Mission, before and with the stamps, and
+without a guard:
+
+| Reader | Before the stamps | With the stamps, no guard |
+|---|---|---|
+| Canceled-work attribution on the planning lane (`reconciliation_canceled._mixed_lanes`, `resolve_canceled_wp`): WP01 approved, WP02 implemented then canceled | refused at claim time, exit 1: "canceled WP02 cannot be attributed ... carry no commit attribution" | exit 0: the attribution came back empty and WP02's committed content stayed on the target |
+| `--dependency-ref` guard (`_recorded_lane_heads`) | exit 0, no recorded stamps | exit 0, 12 recorded stamps |
+| `--attest-approved-reviewed` (`_has_review_approval_stamp`) | exit 0, attestation recorded | exit 1: "WP01 already has one. Move it back for review instead." |
+| Approved-only `consolidate` / `accept` | exit 0 PASS / accept blocked by path conventions | unchanged |
+| A commit after the last approval | exit 0, not refused | unchanged |
+
+The operator ruled to keep the stamps and keep every verdict as it was. One predicate decides
+whether a Mission is commit-to-target: `consolidation/commit_to_target_stamps.py::is_commit_to_target_meta`,
+which checks a stored `single_branch` topology whose write branch equals the recorded target, using the
+`single_branch_landing` rules. For such a Mission, `consolidation_events` removes `lane_head` and
+`wp_window` from the status events that three seams read:
+
+- the claim's event log, `reconciliation_kernel._ClaimEventLog.read` (canceled-work attribution, the
+  canceled-dependency checks and the compound refusal);
+- the `--dependency-ref` guard, `reconciliation_closed_world._recorded_lane_heads`;
+- the attestation validation, `approved_attestation.plan_approved_attestations`.
+
+With the guard, all five rows above give the same verdict and the same text as before the stamps
+(`tests/consolidation/test_commit_to_target_stamp_characterization.py`, `STAMPED = True`). The status
+log keeps the stamps; only consolidation ignores them.
+
+**Corrections.**
+- Ruling Q3 named `write_branch_bound.check_write_branch_windows` as the consolidation mechanism these
+  stamps feed. For a commit-to-target Mission that check is never reached (`_bound_write_branch`
+  returns `None`). The rest of the ruling stands.
+- Nothing refuses a commit-to-target Mission's late commit today. The test that records this,
+  `test_commit_to_target_unbounded_residual`, is a strict `xfail`: its `exit 1` assertion fails, so the
+  residual (FR-078) stays open, and the stamps do not close it.
 
 ## References
 
