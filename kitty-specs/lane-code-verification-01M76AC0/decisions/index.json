@@ -1,0 +1,102 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-12T05:19:04.659150Z",
+      "decision_id": "01M7733YYK1615ERKAY41C2M7C",
+      "final_answer": "block, --force bypasses",
+      "input_key": "gate_foreign_tree_severity",
+      "mission_id": "01M76AC0C79GVMYF5740T7B84H",
+      "mission_slug": "lane-code-verification-01M76AC0",
+      "opened_by": "claude-orchestrator",
+      "options": [
+        "block, --force bypasses",
+        "terminal, no bypass",
+        "record only"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Pre-review gate: what happens when the import probe proves the gate's run loaded code from another tree?",
+      "rationale": "Operator ruling 2026-11-12 (block-and-escalate before specify). New outcome foreign_tree with refusal code EVIDENCE_TREE_MISMATCH refuses move-task to for_review with exit 1 regardless of review.fail_on_pre_review_regression; --force proceeds and records force_bypassed. Requires an ADR 2026-08-13-6 amendment and a C-003 carve-out. Non-Python projects record git provenance only, never refused.",
+      "resolved_at": "2026-11-12T05:19:21.012379Z",
+      "resolved_by": "operator",
+      "slot_key": "gate_foreign_tree_severity",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-12T05:19:23.526448Z",
+      "decision_id": "01M7734HC608E8NG5FE016CSP9",
+      "final_answer": "hybrid builder + probe",
+      "input_key": "invocation_mechanism",
+      "mission_id": "01M76AC0C79GVMYF5740T7B84H",
+      "mission_slug": "lane-code-verification-01M76AC0",
+      "opened_by": "claude-orchestrator",
+      "options": [
+        "hybrid builder + probe",
+        "per-lane venv",
+        "probe only"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How does implement give a lane a test command that provably imports the lane's code?",
+      "rationale": "Operator ruling 2026-11-12. One leaf builder used by implement and the gate: cwd = lane, review.test_command, strip PYTHONPATH/UV_PROJECT_ENVIRONMENT/VIRTUAL_ENV, apply lane_test_env, add PYTHONPATH=<lane>/src only for a Python src-layout lane without its own .venv; a child-process probe with that exact env checks <pkg>.__file__ (verified / foreign / unverified).",
+      "resolved_at": "2026-11-12T05:19:25.989839Z",
+      "resolved_by": "operator",
+      "slot_key": "invocation_mechanism",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-12T05:19:28.244136Z",
+      "decision_id": "01M7734NZMVP792H8786FN1GB4",
+      "final_answer": "as proposed",
+      "input_key": "fold_set",
+      "mission_id": "01M76AC0C79GVMYF5740T7B84H",
+      "mission_slug": "lane-code-verification-01M76AC0",
+      "opened_by": "claude-orchestrator",
+      "options": [
+        "as proposed",
+        "proposed + #3123",
+        "core only"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which issues does this Mission fold?",
+      "rationale": "Operator ruling 2026-11-12. Closes #7554 (and #7547 when all slices land). Folds #5985 item 2, the gate applying lane_test_env, stripping interpreter-redirect env on the declared-command path, and the detection half of #1907 (Refs). Refs #3959, #3123, #5985 item 1 and the adjacent issues in research/foldable-issues.md. File a new issue for the orchestrator-api for_review transition not running the pre-review gate.",
+      "resolved_at": "2026-11-12T05:19:30.532634Z",
+      "resolved_by": "operator",
+      "slot_key": "fold_set",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-12T05:19:32.760864Z",
+      "decision_id": "01M7734TCRQ2K3N0RCKVY065WP",
+      "final_answer": "out of scope, file issue",
+      "input_key": "lane_packs",
+      "mission_id": "01M76AC0C79GVMYF5740T7B84H",
+      "mission_slug": "lane-code-verification-01M76AC0",
+      "opened_by": "claude-orchestrator",
+      "options": [
+        "out of scope, file issue",
+        "warn in implement",
+        "redirect to root packs"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How does this Mission treat BuiltInPackMissing in this repo's lane worktrees?",
+      "rationale": "Operator ruling 2026-11-12. Dogfooding-only (consumers get packs in the wheel); file a follow-up issue.",
+      "resolved_at": "2026-11-12T05:19:34.991751Z",
+      "resolved_by": "operator",
+      "slot_key": "lane_packs",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M76AC0C79GVMYF5740T7B84H",
+  "version": 1
+}
