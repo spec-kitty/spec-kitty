@@ -4,37 +4,37 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: coord-closeout-leftovers-01M78FRR
 mission_id: 01M78FRR35PEG47XS52SS8SMV9
-generated_at: '2026-11-12T18:37:20.477504+00:00'
+generated_at: '2026-11-12T19:07:07.250888+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
     path: .worktrees/coord-closeout-leftovers-01M78FRR-coord/kitty-specs/coord-closeout-leftovers-01M78FRR/spec.md
-    sha256: 58a63161ca194bdd6bba4bd8f34c4b30b9ffd65d2781126fd8c0c62f9a69b326
+    sha256: f88b5d3aed305047d833d27cc0eea0d688cbf405a4e3b65fcf87bea30702d89c
   plan.md:
     path: .worktrees/coord-closeout-leftovers-01M78FRR-coord/kitty-specs/coord-closeout-leftovers-01M78FRR/plan.md
-    sha256: 1c7d42e8f45c917809ac2aaa69e5abe967c27ff949a123d3762f6896b607e6ce
+    sha256: bc3c37755156bd0e8f207f3c3c9622c0ad66a3f0aea14544edb4f2971bf12aef
   tasks.md:
     path: .worktrees/coord-closeout-leftovers-01M78FRR-coord/kitty-specs/coord-closeout-leftovers-01M78FRR/tasks.md
-    sha256: 060733a712018cf02efdc8fa5eef1e8a2d2ea068c084b1b7212d67aae26c4c72
+    sha256: 16589c112a2f9272ead2060ce374f65ef5930d5e150154000b014ea398bff514
   charter:
     path: .kittify/charter/charter.yaml
     sha256: 83874f7451d21cf0615682164d7bb883844ee032e7622bb1359a343fd0e6fb03
 verdict: ready
 issue_counts:
-  medium: 3
-  low: 2
   critical: 0
   high: 0
+  medium: 2
+  low: 3
   info: 0
 findings:
 - id: I1
   severity: medium
   category: inconsistency
-  summary: WP02 edits files owned by WP01 (state.py, executor.py) and WP03 (phase_gate.py, bookkeeping_projection.py) under ownership-map leeway; safe only because the dependency chain WP01 -> WP02 -> WP03 serialises them.
+  summary: WP02 edits files owned by WP01 (state.py, executor.py), WP03 (phase_gate.py, bookkeeping_projection.py) and WP05 (rollback.py, ref deletion on F4) under ownership-map leeway; WP03 depends on WP02, but WP05 does not, so rollback.py edits from WP02 and WP05 must be reconciled at consolidation.
 - id: U1
-  severity: medium
+  severity: low
   category: underspecification
-  summary: "WP04 risk R1: if the absorption proof refuses the canonical squash-landed case, FR-006's 'content not on the target' rule needs an operator ruling mid-implementation."
+  summary: 'R1 resolved by operator ruling: reclaim uses the recorded landing (merged_at + landed-coordination ref written by WP02); WP04 now depends on WP02 and legacy Missions refuse.'
 - id: U2
   severity: medium
   category: underspecification
@@ -53,8 +53,8 @@ findings:
 
 | ID | Category | Severity | Location(s) | Summary | Recommendation |
 |----|----------|----------|-------------|---------|----------------|
-| I1 | Inconsistency | MEDIUM | tasks/WP02, WP01, WP03 frontmatter | WP02 edits files owned by WP01/WP03 under leeway | Keep the dependency chain; record each leeway edit in WP history (already instructed) |
-| U1 | Underspecification | MEDIUM | spec FR-006, plan R1, WP04 T014 | Absorption proof may refuse realistic Missions | T014 measures first and escalates; do not code an alternative proof unasked |
+| I1 | Inconsistency | MEDIUM | tasks/WP02, WP01, WP03, WP05 | WP02 edits files owned by WP01/WP03/WP05 under leeway | Record each leeway edit; WP02's rollback.py edit is a few lines in different functions from WP05's text changes, reconciled by lane auto-rebase at consolidation |
+| U1 | Underspecification | LOW | spec Assumptions, plan R1, WP04 addendum | R1 resolved: recorded-landing proof | WP04 depends on WP02; legacy Missions refuse (accepted) |
 | U2 | Underspecification | MEDIUM | spec FR-012, WP05 T019 | Tests pinning the old dirty-checkout sentence are outside owned_files | Grep `resume the consolidation` in tests during T019; record edits as leeway |
 | C1 | Coverage | LOW | spec NFR-001..003 | No dedicated subtask | Accept: enforced per WP test strategy and review |
 | C2 | Coverage | LOW | tasks.md WP06 refs | SC-003 cross-cutting | Accept: verified at mission review |
