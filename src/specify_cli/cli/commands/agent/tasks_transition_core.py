@@ -204,6 +204,9 @@ class MoveTaskRequest:
     # #5196: the WP's latest implementer (``status.latest_implementer_actor``),
     # resolved by the shell. ``None`` (default) grants no role allowance.
     latest_implementer: str | None = None
+    # #7601: the branch the WP-file commit runs on (the branch the protected-branch
+    # checks judged). ``None`` (default) means ``target_branch``, as before.
+    commit_branch: str | None = None
 
 
 @dataclass(frozen=True)
@@ -461,7 +464,7 @@ def _guard_unsupported_skip_metadata(req: MoveTaskRequest) -> RefuseExit1 | None
     mission_hint = f" --mission {req.mission_slug}" if req.mission_slug else " --mission <slug>"
     return RefuseExit1(
         "Cannot persist WP frontmatter/activity metadata on protected "
-        f"branch '{req.target_branch}' while coordination topology is active: "
+        f"branch '{req.commit_branch or req.target_branch}' while coordination topology is active: "
         f"{', '.join(unsupported)}. Rerun from an allowed "
         "branch, omit those metadata flags, use --no-auto-commit, or run "
         f"`spec-kitty doctor mission-state --fix{mission_hint}` if canonical "

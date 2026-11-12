@@ -124,6 +124,88 @@ def test_raise_if_status_commit_protected_is_inert_without_auto_commit(monkeypat
     assert implement_claim._raise_if_status_commit_protected(tmp_path, "main", False, _SLUG) is None
 
 
+@_FAST
+def test_dispatched_protected_branch_error_names_the_checkout_and_no_unaccepted_option(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """#7601 / SC-003: ``agent action implement`` has no ``--no-auto-commit``; its remedy never names it."""
+    _stub_policy(monkeypatch, True)
+
+    message = implement_claim._protected_branch_status_commit_error("main", tmp_path, _SLUG, accepts_no_auto_commit=False, checkout=tmp_path / "root")
+
+    assert message == (
+        f"Refusing to start implementation status on protected branch 'main' (checked out in {tmp_path / 'root'}) "
+        "before mutating status files. Check out an allowed coordination/lane branch in "
+        "that checkout and rerun, or claim the work package with the top-level "
+        "`spec-kitty implement` command, which can leave the status commit to you."
+    )
+    assert "--no-auto-commit" not in message
+
+
+@_FAST
+def test_protected_destination_hint_per_entry_point() -> None:
+    """The top-level ``implement`` keeps ``--no-auto-commit``; ``agent action implement`` never sees it (#7601)."""
+    assert "--no-auto-commit" in implement_claim._protected_destination_hint("main")
+    dispatched = implement_claim._protected_destination_hint("main", accepts_no_auto_commit=False)
+    assert "--no-auto-commit" not in dispatched
+    assert "'main' is a protected branch" in dispatched and "`spec-kitty implement`" in dispatched
+
+
+@_FAST
+def test_dispatched_claim_identity_withdraws_the_no_auto_commit_remedy() -> None:
+    """Only inside ``dispatched_claim_identity`` (``agent action implement``) is the option withheld."""
+    assert implement_claim._NO_AUTO_COMMIT_OFFERED.get() is True
+    with implement_claim.dispatched_claim_identity(None):
+        assert implement_claim._NO_AUTO_COMMIT_OFFERED.get() is False
+    assert implement_claim._NO_AUTO_COMMIT_OFFERED.get() is True
+
+
+@_GIT
+def test_dispatched_status_preflight_refusal_omits_no_auto_commit(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    _stub_policy(monkeypatch, True)
+    git_out(tmp_path, "init", "-qb", "main")
+
+    with implement_claim.dispatched_claim_identity(None), pytest.raises(ValueError, match="Refusing to start implementation status") as refusal:
+        implement_claim._raise_if_status_commit_protected(tmp_path, "fallback", True, _SLUG)
+
+    assert f"protected branch 'main' (checked out in {tmp_path})" in str(refusal.value)
+    assert "--no-auto-commit" not in str(refusal.value)
+
+
+@_GIT
+def test_checkout_branch_or_fallback_reads_head_or_falls_back(tmp_path: Path) -> None:
+    assert implement_claim.checkout_branch_or_fallback(tmp_path, "fallback") == "fallback"
+    git_out(tmp_path, "init", "-qb", "head-branch")
+    assert implement_claim.checkout_branch_or_fallback(tmp_path, "fallback") == "head-branch"
+
+
+@_GIT
+def test_claim_checkout_branch_judges_the_claim_commit_checkout(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """#7601: the preflight judges the HEAD of the checkout the claim commit runs in (the topic holder)."""
+    root, holder = tmp_path / "root", tmp_path / "holder"
+    root.mkdir()
+    holder.mkdir()
+    git_out(root, "init", "-qb", "main")
+    git_out(holder, "init", "-qb", "kitty/mission-topic")
+    monkeypatch.setattr(implement_claim, "_claim_commit_checkout", lambda repo_root, feature_dir, slug: holder)
+
+    assert implement_claim._claim_checkout_branch(root, holder / "kitty-specs" / _SLUG, _SLUG, "fallback") == (holder, "kitty/mission-topic")
+    # Without a Mission directory the repository root checkout is judged, as before.
+    assert implement_claim._claim_checkout_branch(root, None, _SLUG, "fallback") == (root, "main")
+
+
+@_GIT
+def test_claim_checkout_branch_falls_back_to_the_root_when_the_placement_does_not_resolve(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from mission_runtime import ActionContextError
+
+    git_out(tmp_path, "init", "-qb", "main")
+
+    def unresolved(repo_root: Path, feature_dir: Path, slug: str) -> Path:
+        raise ActionContextError("PLACEMENT_UNRESOLVED", "no placement")
+
+    monkeypatch.setattr(implement_claim, "_claim_commit_checkout", unresolved)
+
+    assert implement_claim._claim_checkout_branch(tmp_path, tmp_path / "kitty-specs" / _SLUG, _SLUG, "fallback") == (tmp_path, "main")
+
+
 _BRANCH = "feat/claim-seam"
 
 

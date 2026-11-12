@@ -95,6 +95,7 @@ from specify_cli.cli.commands.agent.tasks_parsing_validation import (
     _issue_matrix_approval_blocker,
     _self_review_fallback_option_error,
 )
+from specify_cli.cli.commands.agent.tasks_shared import _wp_file_commit_branch
 from specify_cli.cli.commands.agent.tasks_transition_core import (
     Emit,
     MoveTaskRequest,
@@ -329,6 +330,9 @@ class _MoveTaskState:
     repo_root: Path = field(default_factory=Path)
     main_repo_root: Path = field(default_factory=Path)
     target_branch: str = ""
+    #: The branch the WP-file commit runs on (``_wp_file_commit_branch``, #7601): what the
+    #: protected-branch checks judge. ``target_branch`` stays for banners and display.
+    commit_branch: str = ""
     mission_slug: str = ""
     tracker_ref_values: tuple[str, ...] = ()
     skip_target_branch_commit: bool = False
@@ -645,7 +649,10 @@ def _mt_refuse_protected_status_commit(st: _MoveTaskState) -> None:
     # (never half of it), as before.
     if not st.resolved_auto_commit or st.skip_target_branch_commit:
         return
-    protected_error = _tasks._protected_branch_status_commit_error(st.target_branch, st.main_repo_root, "spec-kitty agent tasks move-task", st.mission_slug)
+    # #7601: judge the branch the WP-file commit runs on (``st.commit_branch``, empty only
+    # before ``_mt_resolve_targets`` filled it), not the root checkout's display branch.
+    judged_branch = st.commit_branch or st.target_branch
+    protected_error = _tasks._protected_branch_status_commit_error(judged_branch, st.main_repo_root, "spec-kitty agent tasks move-task", st.mission_slug)
     if protected_error is None:
         return
     self_review_error = _self_review_fallback_option_error(
@@ -710,8 +717,9 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
         st.mission_slug = _tasks._find_mission_slug(explicit_mission=st.mission, json_output=st.json_output, repo_root=repo_root)
         st.main_repo_root, st.target_branch = _tasks._ensure_target_branch_checked_out(repo_root, st.mission_slug, st.json_output)
     st.resolved_binding = _mt_resolve_binding(st)
+    st.commit_branch = st.target_branch if owned is not None else _wp_file_commit_branch(st.main_repo_root, st.mission_slug, st.target_branch)
     st.skip_target_branch_commit = (
-        _tasks._skip_target_branch_commit(st.main_repo_root, st.mission_slug, st.target_branch) if commits_status_record(st) and st.owned is None else False
+        _tasks._skip_target_branch_commit(st.main_repo_root, st.mission_slug, st.commit_branch) if commits_status_record(st) and st.owned is None else False
     )
     # Protected-branch status-commit refusal — a hard early exit that MUST fire
     # before the authoritative event-log read below (``_read_transactional_wp_lane``),
@@ -882,6 +890,7 @@ def _mt_build_request(
         note=st.note,
         auto_commit=commits_status_record(st),
         target_branch=st.target_branch,
+        commit_branch=st.commit_branch or None,
         skip_target_branch_commit=st.skip_target_branch_commit,
         tracker_ref_values=tuple(st.tracker_ref_values),
         assignee=st.assignee,

@@ -36,7 +36,7 @@ from typing import Any, NoReturn
 import typer
 
 from kernel.git import StatusEntry
-from mission_runtime import MissionArtifactKind, MissionTopology, OwnedCheckout, placement_seam
+from mission_runtime import ActionContextError, MissionArtifactKind, MissionTopology, OwnedCheckout, placement_seam
 from specify_cli.agent_tasks_ports import Render
 from specify_cli.coordination.surface_authority import (
     Refuse,
@@ -441,8 +441,37 @@ def _coord_topology_active(repo_root: Path, mission_slug: str) -> bool:
         return False
 
 
-def _skip_target_branch_commit(repo_root: Path, mission_slug: str, target_branch: str) -> bool:
+def _wp_file_commit_branch(main_repo_root: Path, mission_slug: str, target_branch: str) -> str:
+    """The branch the WP-file commit runs on: the one checked out in the WP file's holder (#7601).
+
+    The holder is the placement seam's ``WORK_PACKAGE_TASK`` write location
+    (``surface_root``): a default Mission's topic holder until it lands, else the
+    repository root checkout. For the repository root checkout -- every non-settled
+    Mission -- the answer is *target_branch*, the branch
+    ``_ensure_target_branch_checked_out`` already read there, so nothing is read again.
+    A topic holder's branch is read through the one shared checkout-HEAD helper
+    (``implement_claim.checkout_branch_or_fallback``, tracked #2453). A placement that
+    does not resolve keeps *target_branch* (operator ruling, decision
+    ``01M78JFMRQS6GE04BENPXGQX8J``, option B).
+    """
+    from specify_cli.cli.commands.implement_claim import checkout_branch_or_fallback
+    from specify_cli.coordination.surface_resolver import StatusReadPathNotFound
+
+    try:
+        holder = placement_seam(main_repo_root, mission_slug).write_dir(MissionArtifactKind.WORK_PACKAGE_TASK).surface_root
+    except (ActionContextError, StatusReadPathNotFound):
+        return target_branch
+    if holder.resolve() == main_repo_root.resolve():
+        return target_branch
+    return checkout_branch_or_fallback(holder, target_branch)
+
+
+def _skip_target_branch_commit(repo_root: Path, mission_slug: str, commit_branch: str) -> bool:
     """Return True when the direct WP-file commit to a protected primary must be skipped.
+
+    *commit_branch* is the branch the WP-file commit runs on
+    (:func:`_wp_file_commit_branch`): the repository root checkout's branch for every
+    non-settled Mission, a default Mission's topic branch until it lands (#7601).
 
     NOT a routing authority (write-surface-coherence WP02 / T032 / G-1): the
     commit DESTINATION for the WP file is owned solely by the kind authority
@@ -471,12 +500,12 @@ def _skip_target_branch_commit(repo_root: Path, mission_slug: str, target_branch
         return False
     # ProtectionPolicy.resolve_for_mission is the sole I/O boundary (FR-007/NFR-003):
     # config+hatch+meta reads happen once; is_protected() is I/O-free.
-    primary_protected = _tasks.ProtectionPolicy.resolve_for_mission(repo_root, mission_slug).is_protected(target_branch)
+    primary_protected = _tasks.ProtectionPolicy.resolve_for_mission(repo_root, mission_slug).is_protected(commit_branch)
     verdict = resolve_surface_authority(
         topology=MissionTopology.COORD,
-        primary_target=target_branch,
+        primary_target=commit_branch,
         primary_protected=primary_protected,
-        current_branch=target_branch,
+        current_branch=commit_branch,
         artifact_kind=MissionArtifactKind.STATUS_STATE,
     )
     return isinstance(verdict.non_committable, RouteToCoord)
