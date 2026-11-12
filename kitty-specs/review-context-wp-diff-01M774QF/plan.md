@@ -3,7 +3,7 @@
 **Branch**: `kitty/mission-review-context-wp-diff-01M774QF` (lands on `feat/7578-review-context`) | **Date**: 2026-11-12 | **Spec**: [spec.md](spec.md)
 **Input**: Mission specification from `kitty-specs/review-context-wp-diff-01M774QF/spec.md`
 
-Planning questions were answered by the six operator rulings, recorded as Decision Moments in `decisions/`, and by the grounding in `research/`. The Engineering Alignment below is built from them.
+Planning questions were answered by the operator rulings Q1 to Q6, extended later by Q7 (narrowed owned refusal) and Q8 (stamps kept, consolidation guarded), recorded as Decision Moments in `decisions/`, and by the grounding in `research/`. The Engineering Alignment below is built from them.
 
 ## Summary
 
@@ -11,7 +11,7 @@ A reviewer gets each work package's own **review range** on every topology: from
 
 Commit-to-target `single_branch` Missions start recording the window points, which today read as `not_applicable`, so the range is recorded on every topology. The pure window-opener rule moves, behaviour-preserving, from `consolidation/` into `status/`, so `src/runtime` can use it. Both review entry points render from one function.
 
-## Engineering Alignment (from rulings Q1 to Q6)
+## Engineering Alignment (from rulings Q1 to Q8)
 
 | Topic | Decision |
 |---|---|
@@ -19,7 +19,7 @@ Commit-to-target `single_branch` Missions start recording the window points, whi
 | Range tip | The newest `for_review` `lane_head`. A note gives the commit count when the live tip has moved past it (Q2). |
 | Commit-to-target | A writer stamp (the write checkout's target head) on every transition. The consolidation-verdict change is accepted and must be characterized and recorded (Q3, C-008). |
 | Pathspec | Owned files on every topology, plus an out-of-map warning line (Q4). |
-| Window rule home | `status/wp_window.py`, re-exported from `consolidation/wp_attribution.py` (Q5, C-005). |
+| Window rule home | `status/wp_window_selector.py` (a sibling of the `status/wp_window.py` codec), re-exported from `consolidation/wp_attribution.py` (Q5, C-005). |
 | Folds | None (Q6). |
 
 **Invariant.** For a work package with implementation commits, the range is never empty and never open above. Each end is either recorded or derived with a named reason. When neither is possible the prompt prints an `unavailable` notice and the review still proceeds (FR-013, NFR-004).
@@ -32,7 +32,7 @@ Commit-to-target `single_branch` Missions start recording the window points, whi
 **Testing**: pytest with real-git fixtures (`git_repo` marker). ATDD acceptance tests drive the production review entry points (`spec-kitty agent action review` via `workflow.review` and `prompt_builder.build_prompt`) on `single_branch` (commit-to-target and minted), `lanes` and `lanes_with_coord` fixtures. Unit tests cover the range resolver, requirement-text resolver and renderer. Characterization tests pin consolidation verdicts before the writer stamp lands.
 **Target Platform**: Linux, macOS, Windows 10+ (CLI)
 **Project Type**: single (existing CLI package)
-**Performance Goals**: at most 1.0 s added to review-prompt generation (p95, ≤ 200 commits and ≤ 500 files in range; NFR-002); a review-context block of at most 4 KB at 40 files and 20 commits (NFR-001)
+**Performance Goals**: a constant number of git invocations per range, at most 10 recorded and 12 derived (NFR-002); a review-context block of at most 4,096 bytes for any range size (NFR-001)
 **Constraints**: no new gate, refusal code or exit code (C-002); no `packs/built-in` edit (C-003); the pre-review and for_review gates untouched (C-004); one window rule (C-005); the status read door (C-006); the runtime outbound ledger not widened and no path listings outside `kernel.git` (C-007)
 **Scale/Scope**: about 6 source modules touched and 3 new; Missions with up to about 30 WPs
 
@@ -59,7 +59,7 @@ kitty-specs/review-context-wp-diff-01M774QF/
 ├── spec.md, plan.md, research.md, data-model.md, quickstart.md
 ├── contracts/review-context-block.md     # the prompt block agents read (format contract)
 ├── research/code-grounding.md, research/foldable-issues.md
-├── decisions/                            # Q1–Q6 Decision Moments
+├── decisions/                            # Q1–Q8 Decision Moments and DM-01M77PZ5833WWQB5J457GXNWYW
 ├── tracer-tooling-friction.md, tracer-approach.md, tracer-design-decisions.md
 └── tasks.md, tasks/                      # /spec-kitty.tasks
 ```
@@ -176,7 +176,7 @@ No Charter violations.
     2. `workflow_executor._review_context_line`, `review_context_for_repo_root_workspace` and `review_context_for_worktree_branch`, which take base and tip from the range. Their dict keys stay, and `ReviewPromptMetadata.base_ref` is the range base.
     3. **`workflow_executor._review_print_finalize_summary:2498-2507`**, whose stdout line prints the same range.
   - `workflow_cores.build_owned_files_review_pathspecs` is retired.
-  - `OWNED_REVIEW_BASE_UNAVAILABLE` keeps its code and its condition: an owned checkout whose scoped base cannot be proven, which now means range unavailable or no owned files.
+  - `OWNED_REVIEW_BASE_UNAVAILABLE` keeps its code and message; per ruling Q7 its condition narrows to: the scoped review range is unavailable, or the work package declares no `owned_files`.
 - **Sequencing/depends-on**: IC-03, IC-04.
 - **Risks**:
   - Hot files. Check the format ratchet with `--force-exclude`.
