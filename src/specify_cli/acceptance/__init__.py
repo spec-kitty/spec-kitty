@@ -2035,6 +2035,8 @@ def _build_acceptance_instructions(
     *,
     landed_by_consolidate: bool = False,
     lands_by_consolidation: bool = False,
+    lanes_to_consolidate: bool = False,
+    record_branch: str | None = None,
 ) -> tuple[list[str], list[str]]:
     """Build human-readable next-step and cleanup instruction lists.
 
@@ -2045,6 +2047,12 @@ def _build_acceptance_instructions(
     `spec-kitty consolidate` is how it lands and no pull request is opened for it
     (#6450 item 6: the integration-branch arm used to say "Push and open a pull
     request if needed" on a topology where that instruction cannot be followed).
+
+    ``lanes_to_consolidate`` / ``record_branch`` (#7599): the Mission still has lanes
+    to consolidate, and the branch its acceptance record was committed to. The local
+    integration-branch arm says "No merge needed" only when nothing remains to
+    consolidate; otherwise it names *record_branch* (falling back to *branch*) and
+    ``spec-kitty consolidate``.
     """
     instructions: list[str] = []
     cleanup_instructions: list[str] = []
@@ -2069,15 +2077,7 @@ def _build_acceptance_instructions(
                 ]
             )
     elif mode == "local":
-        if is_integration_branch:
-            instructions.append(f"Acceptance recorded directly on `{branch}`. No merge needed.")
-        else:
-            instructions.extend(
-                [
-                    f"Acceptance passed. Run the mission consolidation: `spec-kitty consolidate --mission {summary.feature}`",
-                    "After merge, run /spec-kitty-mission-review and the retrospective workflow.",
-                ]
-            )
+        instructions.extend(_local_mode_lines(summary, branch, is_integration_branch, lanes_to_consolidate=lanes_to_consolidate, record_branch=record_branch))
     else:  # checklist
         instructions.append(f"All checks passed. Recommended next step: `spec-kitty consolidate --mission {summary.feature}`.")
 
@@ -2104,6 +2104,27 @@ def _build_acceptance_instructions(
 
 
 _PRUNE_BACKSTOP = "spec-kitty doctor workspaces --prune"
+
+
+def _local_mode_lines(
+    summary: AcceptanceSummary,
+    branch: str,
+    is_integration_branch: bool,
+    *,
+    lanes_to_consolidate: bool,
+    record_branch: str | None,
+) -> list[str]:
+    """The local-mode "Next steps" (#7599: "No merge needed" only when nothing remains to consolidate)."""
+    if not is_integration_branch:
+        return [
+            f"Acceptance passed. Run the mission consolidation: `spec-kitty consolidate --mission {summary.feature}`",
+            "After merge, run /spec-kitty-mission-review and the retrospective workflow.",
+        ]
+    if lanes_to_consolidate:
+        return [
+            f"Acceptance recorded on `{record_branch or branch}`. This Mission lands through `spec-kitty consolidate --mission {summary.feature}`; run it next."
+        ]
+    return [f"Acceptance recorded directly on `{branch}`. No merge needed."]
 
 
 def _pr_head_remote(repo_root: Path, branch: str) -> str:
@@ -2175,6 +2196,42 @@ def _lands_by_consolidation(feature_dir: Path) -> bool:
     }
 
 
+def _has_lanes_to_consolidate(summary: AcceptanceSummary, *, lands_by_consolidation: bool) -> bool:
+    """Whether the Mission still has lanes for ``spec-kitty consolidate`` to land (#7599).
+
+    Read from data already on disk, with no git read: a Mission whose landing is
+    recorded has nothing left; a coordination-bearing Mission lands only through
+    ``consolidate``; a flat Mission has lanes left while a work package of a code lane
+    in ``lanes.json`` is still ``approved`` (``done`` comes with its consolidation).
+    An unreadable ``lanes.json`` answers ``False``: the acceptance gates own that refusal.
+    """
+    from mission_runtime.landing import mission_has_landed
+    from specify_cli.lanes.branch_naming import PLANNING_LANE_ID
+    from specify_cli.lanes.persistence import read_lanes_json
+
+    if mission_has_landed(summary.feature_dir):
+        return False
+    if lands_by_consolidation:
+        return True
+    try:
+        manifest = read_lanes_json(summary.feature_dir)
+    except CorruptLanesError:
+        return False
+    if manifest is None:
+        return False
+    merge_pending = set(summary.lanes.get("approved", []))
+    return any(lane.lane_id != PLANNING_LANE_ID and merge_pending.intersection(lane.wp_ids) for lane in manifest.lanes)
+
+
+def _acceptance_record_branch(feature_dir: Path, branch: str) -> str:
+    """The branch the acceptance record is committed to: the Mission/coordination branch in ``meta.json``, else *branch*."""
+    from specify_cli.mission_metadata import load_meta_or_empty
+
+    meta = load_meta_or_empty(feature_dir)
+    recorded = meta.get("coordination_branch") or meta.get("mission_branch")
+    return str(recorded) if recorded else branch
+
+
 def _consolidate_lands_branch(summary: AcceptanceSummary, branch: str, target_branch: str | None) -> bool:
     """True when *branch* is the minted branch of a protected single_branch Mission."""
     if not target_branch or branch == target_branch:
@@ -2230,6 +2287,8 @@ def perform_acceptance(
         is_integration_branch,
         landed_by_consolidate=landed_by_consolidate,
         lands_by_consolidation=lands_by_consolidation,
+        lanes_to_consolidate=_has_lanes_to_consolidate(summary, lands_by_consolidation=lands_by_consolidation),
+        record_branch=_acceptance_record_branch(summary.feature_dir, branch),
     )
 
     if mode == "pr" and commit_created:
