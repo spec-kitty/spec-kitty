@@ -21,11 +21,11 @@ Design rulings: decisions `01M7733YYK1615ERKAY41C2M7C` (block, `--force` bypasse
 
 **Language/Version**: Python 3.11+
 **Primary Dependencies**: typer, rich, ruamel.yaml (existing); `kernel.git` for git facts; no new dependency
-**Storage**: files: the lane workspace context JSON (`.kittify/workspaces/…`) gains one optional key; `status.events.jsonl` `policy_metadata.pre_review_gate` gains `evidence_tree`
+**Storage**: none new for the invocation (re-derived per step, never persisted); `status.events.jsonl` `policy_metadata.pre_review_gate` gains `evidence_tree` (repository-relative paths where possible)
 **Testing**: pytest; red-first tests through `spec-kitty implement` (CliRunner), `move-task --to for_review`, and the prompt builders; unit tests for the builder, probe and path containment; real `git worktree` fixtures plus a `python -m venv --without-pip` fixture for the repointed-install case
 **Target Platform**: Linux, macOS, Windows 10+ (POSIX shell needed only where the gate already needs it)
 **Project Type**: single (CLI)
-**Performance Goals**: probe adds ≤ 2 s to `implement` on a typical project; probe timeout 15 s (NFR-001)
+**Performance Goals**: probe adds ≤ 2 s to `implement` on a typical project; probe timeout 5 s (NFR-001)
 **Constraints**: no new config key (C-002); no `packs/` edit (C-001); git reads via `kernel.git`, no raw OS-detection idioms (C-007); evidence tree kept out of `scope_source_identity` (C-008); complexity ≤ 15 (NFR-003)
 **Scale/Scope**: ~1 new module (~250 lines), edits in 7 existing modules, 1 ADR amendment, 1 changelog fragment
 
@@ -60,14 +60,14 @@ kitty-specs/lane-code-verification-01M76AC0/
 
 ```
 src/specify_cli/lanes/lane_invocation.py           NEW  builder, probe, evidence tree, path containment
-src/specify_cli/lanes/implement_support.py         EDIT build + probe at allocation; result + context field
-src/specify_cli/workspace/context.py               EDIT WorkspaceContext.lane_test_invocation (optional)
+src/specify_cli/lanes/implement_support.py         EDIT LaneWorkspaceResult.lane_test_invocation (default None), built at return
 src/specify_cli/cli/commands/implement.py          EDIT --json key + banner block
-src/specify_cli/cli/commands/agent/workflow_executor.py  EDIT prompt blocks (implement + review)
-src/specify_cli/review/pre_review_gate.py          EDIT env parameter, probe before run, FOREIGN_TREE, evidence on verdict
-src/specify_cli/review/verdict_aggregation.py      EDIT REFUSE tier (provenance), force-bypassable
-src/specify_cli/review/gate_registry.py            EDIT TransitionGateContext.lane_invocation → handler
-src/specify_cli/cli/commands/agent/tasks_move_task_gates.py  EDIT build invocation, metadata, refusal effect
+src/specify_cli/cli/commands/agent/workflow_executor.py  EDIT prompt blocks (implement + review), rebuilt from ResolvedWorkspace
+src/specify_cli/review/pre_review_gate.py          EDIT GateOutcome.FOREIGN_TREE; plain run_env parameter down to both runners; strip list moves out
+src/specify_cli/review/baseline.py                 EDIT baseline run uses the same environment recipe rooted at the baseline worktree
+src/specify_cli/review/verdict_aggregation.py      EDIT REFUSE tier (foreign_tree, unless --force); should_exit; refusing_verdicts
+src/specify_cli/review/gate_registry.py            EDIT TransitionGateContext.run_env (default None) → handler
+src/specify_cli/cli/commands/agent/tasks_move_task_gates.py  EDIT build invocation + probe + evidence in the hook (inside fail-open); refusal effect, metadata, console line
 docs/adr/3.x/2026-08-13-6-gate-outcomes-carry-severity-operator-strategy-decides-effect.md  EDIT amendment
 docs/changelog/unreleased/<id>.fixed.md            NEW
 tests/lanes/test_lane_invocation.py                NEW
@@ -100,13 +100,21 @@ flowchart LR
 - `command` = the declared `review.test_command` template read through
   `review.baseline._get_test_command(config_root)` (verbatim, `{output_file}` left for the
   gate to substitute); `None` when unset.
-- Probe interpreter: `<lane>/.venv` interpreter when present, else the first `python3` /
-  `python` on the invocation's `PATH`, else `sys.executable`. The child runs
-  `-c` with `importlib.util.find_spec(name)` for each probed package (no module code
-  executes), prints JSON `{name: origin}`, timeout 15 s. Packages probed: the top-level
-  packages under `<lane>/src`. None → `unverified` ("no source-layout packages to probe").
-- Containment: `origin_inside(origin, root)` compares `os.path.normcase(os.path.realpath(…))`
-  forms with a path-segment boundary (NFR-004).
+- Probe interpreter: the lane's own venv interpreter (`.venv/bin/python`, or
+  `.venv\Scripts\python.exe` chosen through `kernel.paths.is_windows`) when present, else
+  `sys.executable`. The child runs `-P -c` (no cwd on `sys.path`, matching a console-script
+  pytest) with `importlib.util.find_spec(name)` for each probed package (no package code
+  executes) and prints JSON `{name: origin}`; timeout 5 s. Probed packages: regular packages
+  (`src/<name>/__init__.py`) tracked by git in the lane, listed through `kernel.git`. None →
+  `unverified` ("no tracked source-layout packages to probe"); `find_spec` returning `None`
+  → `unverified` for that package.
+- Containment is measured against `<lane>/src`, not the lane root, so a lane venv holding a
+  copy of the project is foreign. `origin_inside(origin, root, *, pathmod=os.path)` compares
+  `normcase(realpath(…))` forms with a segment boundary; tests inject `ntpath` and
+  `posixpath` (NFR-004).
+- The probe result is a statement about the environment the invocation sets up for that
+  interpreter; the interpreter is recorded with it. A declared command that picks another
+  interpreter (for example `uv run`) is not observed directly (research D2).
 
 ### Gate wiring (IC-03)
 
@@ -131,18 +139,37 @@ sequenceDiagram
   G-->>MT: Exit(1) EVIDENCE_TREE_MISMATCH | proceed (force_bypassed)
 ```
 
-- `_run_raw_command(…, env=None)`: `None` keeps today's `_gate_run_env()` (baseline capture
-  unchanged); the gate's head run passes `invocation.environ(_gate_run_env())`.
-- `run_scoped_tests_at_head(…, env_override)` (override tier): same environment; the
-  `sys.executable` fallback now inherits the lane `PYTHONPATH` and no redirect variables
+- The hook (`tasks_move_task_gates`, CLI layer) builds the invocation, probes it and
+  captures the evidence tree inside the existing fail-open, before dispatch. A foreign
+  probe yields a `FOREIGN_TREE` verdict without dispatching any handler or running tests.
+  Otherwise only a plain `run_env: Mapping[str, str] | None` travels down: context →
+  handler → `evaluate_pre_review_gate` → `evaluate_with_scope` → `_run_raw_command` and
+  `run_scoped_tests_at_head`. The override tier is reached directly from the hook
+  (`_mt_pre_review_gate_with_override_scope`) and gets the same `run_env`. The review
+  engine never imports the probe.
+- `run_env=None` keeps today's `_gate_run_env()` everywhere (back-compat for direct
+  callers); the production hook always passes one. The override tier's
+  `sys.executable` fallback then sees the lane `PYTHONPATH` and no redirect variables
   (#5985 item 2).
-- `GateVerdict.evidence_tree: EvidenceTree | None`; recorded as
-  `policy_metadata.pre_review_gate.evidence_tree`.
-- `aggregate_verdicts`: new `AggregateDecision.REFUSE` for `FOREIGN_TREE` when not `force`;
-  with `force` it proceeds and the effect records `force_bypassed: true`. Refusal renders
-  "`EVIDENCE_TREE_MISMATCH`: the pre-review gate's run would load <pkg> from <origin>, outside
-  <lane>" with the remedy, exit 1, `transition_applied: false`.
-- Fail-open preserved: a probe that raises or times out is `unverified`, never `foreign`.
+- Baseline symmetry: the baseline run applies the same recipe (strip + `<base>/src` when
+  the base worktree has no venv) rooted at its own detached worktree, so head and baseline
+  differ only in code, never in environment (prevents spurious `new_failures`). The
+  baseline source identity is untouched (C-008).
+- The lane's identity for `lane_test_env` comes from the resolved workspace; owned
+  checkouts and planning lanes get no lane test env, only the strip and source rule.
+- Evidence tree: `path` (repository-relative when under the repository root checkout),
+  `head` and `dirty` read through `kernel.git` before the run, `probe`. Recorded as
+  `policy_metadata.pre_review_gate.evidence_tree` only when an invocation was built.
+- Aggregation (all consumers): `AggregateDecision.REFUSE` between TERMINAL and BLOCK;
+  `AggregateVerdict.refusing_verdicts`; `should_exit` includes REFUSE;
+  `_mt_gate_representative` prefers the refusing verdict; `_TransitionGateEffect.refused`;
+  a third branch in `_mt_emit_transition_gate_effect` with `error_code:
+  EVIDENCE_TREE_MISMATCH`; a `FOREIGN_TREE` console line; `force_bypassed` is also true
+  for `--force` past a foreign verdict (independent of `block_enabled`) and
+  `bypassed_refusal: "EVIDENCE_TREE_MISMATCH"` records which; the metadata notes no test
+  evidence was produced.
+- Fail-open preserved: a probe that raises or times out is `unverified`, never `foreign`;
+  `--skip-pre-review-gate` skips the probe too (unchanged skip semantics).
 
 ## Complexity Tracking
 
@@ -162,7 +189,7 @@ No charter violations.
 
 - **Purpose**: `implement` prints, returns and persists the invocation with its probe result, and the implement/review prompts state it.
 - **Relevant requirements**: FR-001, FR-005, NFR-002
-- **Affected surfaces**: `lanes/implement_support.py`, `workspace/context.py`, `cli/commands/implement.py`, `cli/commands/agent/workflow_executor.py`
+- **Affected surfaces**: `lanes/implement_support.py` (result field only, away from `_claim_dirty_paths`), `cli/commands/implement.py`, `cli/commands/agent/workflow_executor.py`
 - **Sequencing/depends-on**: IC-01
 - **Risks**: open PR #7562 touches `implement_support.py` (`_claim_dirty_paths`); keep hunks away from it. `build_implement_prompt_lines` is at complexity 9: add via an extracted renderer. Implement CLI tests live in a nightly-only directory; run them explicitly.
 
@@ -170,9 +197,9 @@ No charter violations.
 
 - **Purpose**: The pre-review gate uses the same invocation on both paths, records the evidence tree, and refuses a proven foreign tree.
 - **Relevant requirements**: FR-006, FR-007, FR-008, FR-009, FR-010, FR-011, C-003, C-004, C-008
-- **Affected surfaces**: `review/pre_review_gate.py`, `review/verdict_aggregation.py`, `review/gate_registry.py`, `cli/commands/agent/tasks_move_task_gates.py`, ADR `2026-08-13-6`, `tests/review/test_verdict_aggregation.py`
+- **Affected surfaces**: `review/pre_review_gate.py`, `review/baseline.py`, `review/verdict_aggregation.py`, `review/gate_registry.py`, `cli/commands/agent/tasks_move_task_gates.py`, ADR `2026-08-13-6`, `tests/review/test_verdict_aggregation.py`, `tests/review/fixtures/parity/` (hand-authored `foreign_tree` cell)
 - **Sequencing/depends-on**: IC-01
-- **Risks**: existing gate tests that relied on inherited `PYTHONPATH` in the declared path; the new aggregation tier must keep TERMINAL precedence; JSON envelope of the refusal must keep `pre_review_gate` metadata shape plus the new key.
+- **Risks**: existing gate fixtures write `src/specify_cli/...` without `__init__.py` (namespace) — not probed, so they stay unverified and never refuse; `test_transition_gate_parity.py` dispatches with a `SimpleNamespace` context, so read `run_env` with a default; `test_verdict_candidate_exit.py:240` pins the metadata key set when no invocation exists (keep `evidence_tree` conditional); in a lane without a venv `make test-fast` falls back to `uv run`, which syncs a lane venv inside the gate budget (true today when `UV_PROJECT_ENVIRONMENT` is unset; stripping it only removes the root-venv redirect).
 
 ### IC-04 — Close-out: docs, changelog, follow-up issues
 
