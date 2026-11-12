@@ -1,7 +1,7 @@
 {
-  "event_count": 14,
-  "last_event_id": "01M779A9AQZE2P6X7CWANRWZA4",
-  "materialized_at": "2026-11-12T07:07:23.351826+00:00",
+  "event_count": 15,
+  "last_event_id": "01M779JAZMPZXQA89S3F74V5X9",
+  "materialized_at": "2026-11-12T07:11:47.188519+00:00",
   "mission_number": "",
   "mission_slug": "review-context-wp-diff-01M774QF",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 2,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 4
   },
   "work_packages": {
@@ -32,7 +32,14 @@
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 18920,
-      "shell_pid_created_at": "1794465686.0"
+      "shell_pid_created_at": "1794465686.0",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     },
     "WP02": {
       "actor": "claude",
@@ -61,20 +68,23 @@
       "last_transition_at": "2026-11-12T06:37:44.586400+00:00"
     },
     "WP04": {
-      "actor": "claude",
-      "agent": "claude",
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "for_review",
-      "last_event_id": "01M779A9AQZE2P6X7CWANRWZA4",
-      "last_transition_at": "2026-11-12T07:07:23.351826+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M779JAZMPZXQA89S3F74V5X9",
+      "last_transition_at": "2026-11-12T07:11:47.188519+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "resolve_requirement_texts in requirement_mapping/text.py on _declaration_occurrences + duplicate_declared_ids (no third parser). 45/45 new tests; red-first commit 495bb95b. Expected red until WP05 wires review/context_block.py: test_no_dead_symbols (text::CitedRequirement, Resolution, TEXT_LIMIT, TRUNCATION_MARKER, resolve_requirement_texts) and test_no_dead_modules (specify_cli.requirement_mapping.text). TRUNCATION_MARKER is a single U+2026 because the suggested ' … [truncated]' cannot meet the NFR-003 12 KiB bound for 20 x 600 chars."
+      ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 22715,
-      "shell_pid_created_at": "1794465731.87",
+      "role": "reviewer",
+      "shell_pid": 9967,
+      "shell_pid_created_at": "1794467498.72",
       "subtasks": {
         "T018": "done",
         "T019": "done",
