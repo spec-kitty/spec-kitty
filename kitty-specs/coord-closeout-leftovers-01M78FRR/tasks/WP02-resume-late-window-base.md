@@ -28,10 +28,12 @@ history:
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/consolidation/phase_teardown.py
 create_intent:
+- src/specify_cli/consolidation/landed_coordination.py
 - tests/consolidation/test_late_window_base_resume.py
 execution_mode: code_change
 model: ''
 owned_files:
+- src/specify_cli/consolidation/landed_coordination.py
 - src/specify_cli/consolidation/phase_teardown.py
 - tests/consolidation/test_late_teardown_projection.py
 - tests/consolidation/test_late_window_base_resume.py
@@ -169,3 +171,28 @@ ruff check / ruff format --check --force-exclude / mypy on changed files
 ## Progress & Status
 
 Event log only: `add-history`, `move-task`, `status`.
+
+## Addendum (2026-11-12, operator rulings 01M78HNKEQPPZMY24JZVJG2MNF / 01M78JC7ZBJM0CY442BKDGBP7V for #4041)
+
+WP04's reclaim needs the coordination tip a verified landing covered, recorded where it survives
+the consolidation record being cleared. This WP now also:
+
+- **Creates `src/specify_cli/consolidation/landed_coordination.py`** (single authority for the ref):
+  `LANDED_COORDINATION_REF_PREFIX = "refs/spec-kitty/landed-coordination/"`,
+  `record_landed_coordination_tip(repo_root, coordination_branch, tip) -> None` (create or advance;
+  advance only when the old value is an ancestor of the new one, compare-and-swap via the existing
+  ref helpers in `git/ref_advance.py` or `kernel.git` — no raw `update-ref` argv outside the owners
+  the architectural gates allow), and `landed_coordination_tip(repo_root, coordination_branch) -> str | None`.
+  Model it on `lanes/lane_tip.py` (`refs/spec-kitty/lane-tip/<branch>`). Add `__all__`.
+- **Writes it** in T005 at the same two points that persist `coord_tip_after_projection`: the PASS
+  record (`phase_gate._record_reconciliation_pass`, leeway) and the proven advance
+  (`phase_teardown._advance_approved_tip`). Only for coordination topologies with a coordination
+  branch; a write failure must not fail the landing (log at warning and continue — the ref only
+  enables a later reclaim, which then refuses).
+- The ref is never deleted by rollback: it is only written after a verified PASS. A later rollback
+  of that landing would make the ref point at a tip whose landing was undone; to stay sound, also
+  delete the ref where `clear_reconciliation_pass()` reports a cleared anchor in
+  `rollback.rebaseline_after_full_restore` / F4 (leeway in `rollback.py`, record it), so a ref exists
+  only while its landing stands.
+- Unit cells in `tests/consolidation/test_late_window_base_resume.py`: write/read/advance, refuse a
+  non-ancestor advance, cleared on F4 rollback.

@@ -98,7 +98,7 @@ docs/api/cli-commands.md, docs/changelog/unreleased/
 
 ## Risks
 
-- **R1 (escalation point): absorption proof may refuse realistic archived Missions.** After a
+- **R1 (RESOLVED, Decisions 01M78HNKEQPPZMY24JZVJG2MNF and 01M78JC7ZBJM0CY442BKDGBP7V): measured, `is_absorbed` refuses every squash-landed case; reclaim uses the recorded landing instead: `merged_at` + live coordination tip at or behind `refs/spec-kitty/landed-coordination/<branch>`, written by consolidate (WP02) at PASS and advanced with proven late commits. Original note:** After a
   squash landing, the coordination branch may carry planning or `meta.json` bytes the target
   later changed, so `is_absorbed` (ancestor or merge-tree no-op) can say "not absorbed". WP04
   first measures this on a realistic fixture (a landed, archived coordination Mission). If the

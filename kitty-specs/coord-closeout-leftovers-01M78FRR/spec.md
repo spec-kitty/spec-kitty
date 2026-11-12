@@ -214,9 +214,10 @@ bookkeeping file differs from the target's copy) and read the output.
 
 ## Assumptions
 
-- "Content landed" for reclaim is proved by absorption of the coordination branch tip into the
-  target (ancestor, or a no-op merge-tree), the same proof the lane cleanup uses; on git older
-  than 2.38 reclaim refuses rather than guessing.
+- "Content landed" for reclaim is proved by the recorded landing (operator ruling after measurement:
+  a tree-absorption proof refuses every squash-landed coordination Mission): the Mission records
+  `merged_at`, and the live coordination tip is at or behind the coordination tip the verified
+  landing recorded in a clone-local ref. A Mission landed before this ref existed refuses.
 - A canceled archived Mission whose coordination branch holds unabsorbed work is refused and
   pointed at `spec-kitty mission close --discard`; reclaim never discards work.
 - Legacy records stuck on #7491 recover on a fresh run, not on `--resume` (no migration).

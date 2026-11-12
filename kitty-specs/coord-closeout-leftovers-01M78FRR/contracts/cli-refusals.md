@@ -8,8 +8,8 @@
 | Mission not archived | 1 | `RECLAIM_NOT_ARCHIVED` |
 | No coordination topology | 1 | `RECLAIM_NO_COORDINATION` |
 | Coordination worktree dirty | 1 | existing teardown code (triple kept) |
-| Coordination content not on the target | 1 | `RECLAIM_UNABSORBED` (names branch + remedy: `mission close --discard` for a canceled Mission) |
-| git < 2.38 (absorption unsupported) | 1 | `RECLAIM_UNABSORBED` (fails closed, says why) |
+| No recorded landing (`merged_at` missing, or no landed-coordination ref) | 1 | `RECLAIM_UNABSORBED` (says why; canceled Mission → `mission close --discard`) |
+| Coordination branch moved past the recorded landing | 1 | `RECLAIM_UNABSORBED` (names the branch and the commits after the landing) |
 
 ## Squash projection refusal
 Exit 1 and rollback unchanged. Adds `Error code: SQUASH_PROJECTION_NOT_LANDED.` and up to 20 `path — reason` lines plus a remaining count. Keeps the phrase "projected coordination bookkeeping content did not land".

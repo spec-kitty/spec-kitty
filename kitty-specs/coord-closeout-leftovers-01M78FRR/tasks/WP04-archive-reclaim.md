@@ -1,7 +1,8 @@
 ---
 work_package_id: WP04
 title: Archive reclaim (#4041)
-dependencies: []
+dependencies:
+- WP02
 requirement_refs:
 - C-003
 - FR-005
@@ -155,3 +156,25 @@ ruff / format --force-exclude / mypy on changed files
 ## Progress & Status
 
 Event log only.
+
+## Addendum (2026-11-12) — R1 resolved; supersedes the absorption-proof guidance above
+
+Measured (T014, `traces/approach.md`): `is_absorbed` refuses every squash-landed coordination
+Mission (status.events.jsonl byte order differs; status.json add/add). Operator rulings
+`01M78HNKEQPPZMY24JZVJG2MNF` and `01M78JC7ZBJM0CY442BKDGBP7V`:
+
+- **Proof = recorded landing.** Reclaim deletes the branch only when (1) `is_mission_merged`
+  (`merged_at` in `meta.json`) and (2) `landed_coordination.landed_coordination_tip(repo, branch)`
+  (module created by WP02) is set and the live coordination tip equals it or is an ancestor of it.
+  Otherwise `RECLAIM_UNABSORBED`: say which condition failed; when the live tip is past the ref, name
+  the commits after it (`git log <ref>..<branch>` via the existing read helpers); a canceled Mission →
+  `spec-kitty mission close --discard`. A Mission landed before the ref existed refuses (accepted).
+- Do not call `is_absorbed`. Keep `guarded_branch_delete(..., LANDED_INTENT, expected_tip=<live tip>)`
+  (CAS + keep-record) for the delete itself. After a successful delete, remove the landed ref.
+- **Dependency: WP02.** WP04 resumes after WP02 is approved; re-run
+  `spec-kitty agent action implement WP04 --agent claude --mission coord-closeout-leftovers-01M78FRR`
+  (the lane sync point) so lane-d carries WP02's module.
+- Tests: rework the happy-path fixture to a real `consolidate` (default squash) with
+  `--keep-branch --keep-worktree`, then `archive create`, then reclaim → exit 0 (the canonical case
+  the old fixture sidestepped). Add refusals: no ref (simulate a legacy landing by deleting it);
+  coordination commit after the landing.

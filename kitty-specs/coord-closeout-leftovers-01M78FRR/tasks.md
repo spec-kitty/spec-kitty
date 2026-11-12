@@ -73,7 +73,7 @@ T003 Route rollback / executor PASS-anchor writes through it (WP01)
 ### Included Subtasks
 
 T004 Red: e2e #7491 reproduction + negative control (WP02)
-T005 Persist `coord_tip_after_projection` with the PASS anchor (WP02)
+T005 Persist `coord_tip_after_projection` with the PASS anchor and write the landed-coordination ref (WP02)
 T006 Resume arm of `_late_window_base` uses the verified tip (WP02)
 T007 Unit cells for the base selection; docstrings (WP02)
 T008 #4380 item 2: truthful marker-kept teardown text (WP02)
@@ -125,11 +125,11 @@ T017 Gate pin + JSON contract enumeration (WP04)
 
 ### Dependencies
 
-- None.
+- Depends on WP02 (reads the landed-coordination ref WP02 writes).
 
 ### Risks & Mitigations
 
-- R1: if the absorption proof refuses the canonical landed case, STOP and escalate before choosing another proof.
+- R1 resolved by operator ruling (Decisions 01M78HNKEQPPZMY24JZVJG2MNF, 01M78JC7ZBJM0CY442BKDGBP7V): the proof is the recorded landing (merged_at + live coordination tip at or behind `refs/spec-kitty/landed-coordination/<branch>`), not `is_absorbed`.
 
 ---
 
