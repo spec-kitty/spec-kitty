@@ -88,10 +88,10 @@
       "criterion_id": "FR-009",
       "description": "Verify FR-009 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/specify_cli/cli/commands/agent/test_tasks_move_task_evidence_tree.py (--force proceeds, force_bypassed true with block off, bypassed_refusal recorded) \u2014 WP04 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T08:52:38.360803+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
