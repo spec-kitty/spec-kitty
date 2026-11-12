@@ -1,7 +1,7 @@
 {
-  "event_count": 5,
-  "last_event_id": "01M78GQNG40V5E89QH90SZNZ97",
-  "materialized_at": "2026-11-12T18:36:16.260382+00:00",
+  "event_count": 6,
+  "last_event_id": "01M78GQTC6RR7HF1J34GYDWKRM",
+  "materialized_at": "2026-11-12T18:36:21.254739+00:00",
   "mission_number": "",
   "mission_slug": "coord-closeout-leftovers-01M78FRR",
   "mission_type": "software-dev",
@@ -15,7 +15,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 5
+    "planned": 6
   },
   "work_packages": {
     "WP01": {
@@ -52,6 +52,13 @@
       "lane": "planned",
       "last_event_id": "01M78GQNG40V5E89QH90SZNZ97",
       "last_transition_at": "2026-11-12T18:36:16.260382+00:00"
+    },
+    "WP06": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M78GQTC6RR7HF1J34GYDWKRM",
+      "last_transition_at": "2026-11-12T18:36:21.254739+00:00"
     }
   }
 }
