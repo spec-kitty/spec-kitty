@@ -272,15 +272,21 @@ def test_declared_gate_with_an_empty_diff_on_a_foreign_tree_stays_no_coverage(tm
 
 
 @pytest.mark.integration
-def test_override_tier_on_a_foreign_tree_is_refused(tmp_path: Path) -> None:
+def test_override_tier_on_a_foreign_tree_is_refused(tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
     fx = _Fixture(tmp_path, changed=True, extra_frontmatter="pre_review_test_scope: tests\n")
     fx.make_foreign()
+    runs: list[object] = []
+    monkeypatch.setattr(tasks_move_task_gates.pre_review_gate, "run_scoped_tests_at_head", lambda *a, **k: runs.append(a))
 
     with pytest.raises(typer.Exit) as exc_info:
         fx.move()
 
     assert exc_info.value.exit_code == 1
     assert fx.router.status_calls == []
+    assert runs == [], "the override scope must not run on a foreign tree"
+    payload = _last_json_document(capsys.readouterr().out)
+    assert payload["error_code"] == _REFUSAL_CODE
+    assert payload["pre_review_gate"]["outcome"] == "foreign_tree"
 
 
 # ---------------------------------------------------------------------------
