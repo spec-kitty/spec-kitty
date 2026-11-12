@@ -131,6 +131,63 @@ class InvalidStepDecision(ValueError):
     """
 
 
+class InvalidDecisionPrompt(ValueError):
+    """Raised when a pending-decision prompt would be constructed in an invalid shape (FR-010).
+
+    A prompt names its decision (``decision_id``) and asks a ``question``; a caller can only
+    answer it when the prompt also offers ``options`` or names the ``input_key`` it fills. A
+    ``query`` or ``decision_required`` :class:`Decision` carries either a whole prompt or none
+    of it, so a half-built prompt (a question with no decision to answer, or a decision with
+    no question) cannot be constructed.
+    """
+
+
+@dataclass(frozen=True)
+class PendingDecisionPrompt:
+    """A validated pending-decision prompt: the four prompt fields of a :class:`Decision` (FR-010).
+
+    Builders set ``decision_id`` / ``question`` / ``input_key`` / ``options`` only through this
+    value object (``DecisionEnvelope.with_prompt``), so an invalid prompt cannot be created.
+    It is answerable only with a non-empty ``options`` list or a non-empty ``input_key``.
+    """
+
+    decision_id: str
+    question: str
+    input_key: str | None = None
+    options: list[str] | None = None
+
+    def __post_init__(self) -> None:
+        if not self.decision_id:
+            raise InvalidDecisionPrompt("a pending-decision prompt requires a non-empty decision_id")
+        if not self.question:
+            raise InvalidDecisionPrompt(f"pending decision {self.decision_id!r} requires a non-empty question")
+        if not self.options and not self.input_key:
+            raise InvalidDecisionPrompt(f"pending decision {self.decision_id!r} is not answerable: it needs options or an input_key")
+
+
+#: The kinds whose envelope may carry a pending-decision prompt; the FR-010 invariant binds them.
+PROMPT_BEARING_KINDS: frozenset[str] = frozenset({DecisionKind.query, DecisionKind.decision_required})
+
+
+def _check_prompt_invariant(kind: str, *, decision_id: str | None, question: str | None, input_key: str | None, options: list[str] | None) -> None:
+    """FR-010: a ``query``/``decision_required`` Decision carries a whole, answerable prompt or none.
+
+    ``question`` is set iff ``decision_id`` is set; when they are set, the fields must form a
+    valid :class:`PendingDecisionPrompt` (non-empty, with non-empty ``options`` or ``input_key``).
+    Other kinds are not judged here.
+    """
+    if kind not in PROMPT_BEARING_KINDS:
+        return
+    if decision_id is None and question is None:
+        return
+    if decision_id is None or question is None:
+        raise InvalidDecisionPrompt(
+            f"kind={kind!r} carries a half-built prompt: question is {'set' if question is not None else 'None'} "
+            f"but decision_id is {'set' if decision_id is not None else 'None'}; both or neither are required"
+        )
+    PendingDecisionPrompt(decision_id=decision_id, question=question, input_key=input_key, options=options)
+
+
 @dataclass
 class Decision:
     kind: str  # one of DecisionKind.*
@@ -174,6 +231,13 @@ class Decision:
     # ``{"kind": "materialized_coordination_worktree", "path": "<worktree>"}``. ``None`` when
     # nothing was changed; the envelope then stays byte-identical (see ``to_dict``).
     remediation: dict[str, str] | None = None
+    # next-lifecycle-integrity (NFR-002, contracts/next-envelope-additions.md): the command the
+    # caller runs next. Additive: emitted by ``to_dict`` only when set, so every other payload
+    # stays byte-identical. Never reuse ``remediation`` for it (that is the materialization report).
+    next_command: str | None = None
+    # INTERNAL ONLY -- never serialized (``to_dict`` does not emit it). A never-rewind gate answer
+    # sets it so ``next_cmd`` does not pair a stale issued step as completed (FR-003).
+    suppress_step_pairing: bool = False
 
     def __post_init__(self) -> None:
         """Enforce the ``kind="step"`` prompt-file contract at construction time.
@@ -189,7 +253,18 @@ class Decision:
         violation so the call site can ``try/except`` and route to a
         ``kind="blocked"`` envelope (Constraint C-005: do NOT weaken the
         ``kind="step"`` contract).
+
+        FR-010: a ``query`` / ``decision_required`` envelope carries a whole, answerable
+        pending-decision prompt or none of it (:func:`_check_prompt_invariant`); a violation
+        raises :class:`InvalidDecisionPrompt` (a :class:`ValueError`).
         """
+        _check_prompt_invariant(
+            self.kind,
+            decision_id=self.decision_id,
+            question=self.question,
+            input_key=self.input_key,
+            options=self.options,
+        )
         if self.kind == DecisionKind.step:
             prompt = self.prompt_file
             if not prompt:
@@ -238,6 +313,9 @@ class Decision:
         # WP06 (FR-003/FR-004): additive-only, like ``error_code``.
         if self.remediation is not None:
             payload["remediation"] = self.remediation
+        # NFR-002: additive-only. ``suppress_step_pairing`` is internal and never emitted.
+        if self.next_command is not None:
+            payload["next_command"] = self.next_command
         return payload
 
 

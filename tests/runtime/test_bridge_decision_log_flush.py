@@ -280,6 +280,9 @@ def test_composition_dispatch_decision_required_reaches_decision_log(monkeypatch
         mission_state="review",
         timestamp=NOW,
         decision_id=DECISION_ID,
+        # FR-010: the prompt matches the fixture's request payload (_requested_payload).
+        question="Proceed?",
+        options=["yes", "no"],
     )
     seen: dict[str, Any] = {}
 
@@ -419,6 +422,10 @@ def test_real_composition_advances_and_logs_despite_optional_seed_failure(
             mission_state="review",
             timestamp=NOW,
             decision_id=DECISION_ID,
+            # FR-010: thread the planned decision's prompt, as the real mapping does.
+            question=decision.question,
+            options=decision.options,
+            input_key=decision.input_key,
         ),
     )
     decision = rb._dn_composition_dispatch(h.ctx)

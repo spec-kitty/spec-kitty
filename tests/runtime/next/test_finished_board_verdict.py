@@ -1,0 +1,210 @@
+"""The finished-board verdict and its acceptance/transition inputs (next-lifecycle-integrity WP01).
+
+Covers T001 (the pure ``finished_board_verdict`` in the cores leaf, FR-002 freshness, FR-007)
+and T003 (the I/O helpers ``mission_accepted_at`` and ``board_latest_transition_at`` that
+gather its inputs).
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from types import MappingProxyType
+from typing import Any
+
+import pytest
+
+from runtime.next.board_status import BoardStatus
+from runtime.next.runtime_bridge_cores import (
+    FINISHED_BOARD_STEPS,
+    MISSION_AWAITING_ACCEPTANCE_ERROR_CODE,
+    FinishedBoardVerdict,
+    finished_board_verdict,
+    parse_iso_timestamp,
+)
+from runtime.next.runtime_bridge_io import board_latest_transition_at, mission_accepted_at
+from tests.runtime.next._board_path import board_status_from_dir
+
+pytestmark = pytest.mark.fast
+
+_EARLY = "2026-11-12T08:00:00+00:00"
+_LATE = "2026-11-12T09:00:00+00:00"
+
+
+# ---------------------------------------------------------------------------
+# T001 -- the pure verdict
+# ---------------------------------------------------------------------------
+
+
+def test_constants() -> None:
+    assert frozenset({"accept", "done"}) == FINISHED_BOARD_STEPS
+    assert MISSION_AWAITING_ACCEPTANCE_ERROR_CODE == "MISSION_AWAITING_ACCEPTANCE"
+
+
+@pytest.mark.parametrize(
+    ("board_step", "accepted_at", "latest", "expected"),
+    [
+        # Not a finished board: NONE, whatever the acceptance says.
+        (None, _LATE, _EARLY, FinishedBoardVerdict.NONE),
+        ("implement", _LATE, _EARLY, FinishedBoardVerdict.NONE),
+        ("review", None, None, FinishedBoardVerdict.NONE),
+        ("blocked:WP01", _LATE, None, FinishedBoardVerdict.NONE),
+        # Finished board, fresh acceptance.
+        ("accept", _LATE, _EARLY, FinishedBoardVerdict.ACCEPTED),
+        ("done", _LATE, _EARLY, FinishedBoardVerdict.ACCEPTED),
+        # A missing latest transition counts as fresh.
+        ("accept", _LATE, None, FinishedBoardVerdict.ACCEPTED),
+        # No acceptance recorded.
+        ("accept", None, _EARLY, FinishedBoardVerdict.AWAITING_ACCEPTANCE),
+        ("done", None, None, FinishedBoardVerdict.AWAITING_ACCEPTANCE),
+        ("accept", "", None, FinishedBoardVerdict.AWAITING_ACCEPTANCE),
+    ],
+)
+def test_truth_table(board_step: str | None, accepted_at: str | None, latest: str | None, expected: FinishedBoardVerdict) -> None:
+    assert finished_board_verdict(board_step, accepted_at=accepted_at, latest_transition_at=latest) is expected
+
+
+def test_equal_timestamps_are_not_accepted() -> None:
+    assert finished_board_verdict("accept", accepted_at=_LATE, latest_transition_at=_LATE) is FinishedBoardVerdict.AWAITING_ACCEPTANCE
+
+
+def test_acceptance_older_than_latest_transition_is_stale() -> None:
+    assert finished_board_verdict("done", accepted_at=_EARLY, latest_transition_at=_LATE) is FinishedBoardVerdict.AWAITING_ACCEPTANCE
+
+
+def test_timezone_offsets_compare_by_instant_not_by_string() -> None:
+    # 10:30+02:00 is 08:30Z: later than 08:00Z although its string sorts after 09:00Z.
+    assert finished_board_verdict("accept", accepted_at="2026-11-12T10:30:00+02:00", latest_transition_at=_EARLY) is FinishedBoardVerdict.ACCEPTED
+    # 10:30+02:00 is 08:30Z: earlier than 09:00Z although its string sorts later.
+    assert finished_board_verdict("accept", accepted_at="2026-11-12T10:30:00+02:00", latest_transition_at=_LATE) is FinishedBoardVerdict.AWAITING_ACCEPTANCE
+
+
+def test_zulu_suffix_and_naive_timestamps_are_read_as_utc() -> None:
+    assert finished_board_verdict("accept", accepted_at="2026-11-12T09:00:01Z", latest_transition_at=_LATE) is FinishedBoardVerdict.ACCEPTED
+    assert finished_board_verdict("accept", accepted_at="2026-11-12T09:00:01", latest_transition_at=_LATE) is FinishedBoardVerdict.ACCEPTED
+
+
+@pytest.mark.parametrize(("accepted_at", "latest"), [("not-a-date", _EARLY), ("not-a-date", None), (_LATE, "garbage")])
+def test_garbage_fails_toward_blocked(accepted_at: str, latest: str | None) -> None:
+    assert finished_board_verdict("accept", accepted_at=accepted_at, latest_transition_at=latest) is FinishedBoardVerdict.AWAITING_ACCEPTANCE
+
+
+def test_parse_iso_timestamp() -> None:
+    assert parse_iso_timestamp(None) is None
+    assert parse_iso_timestamp("") is None
+    assert parse_iso_timestamp("garbage") is None
+    parsed = parse_iso_timestamp("2026-11-12T09:00:00")
+    assert parsed is not None
+    assert parsed.tzinfo is not None
+
+
+# ---------------------------------------------------------------------------
+# T003 -- mission_accepted_at
+# ---------------------------------------------------------------------------
+
+
+def _write_meta(mission_dir: Path, meta: dict[str, Any]) -> Path:
+    mission_dir.mkdir(parents=True, exist_ok=True)
+    (mission_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    return mission_dir
+
+
+def test_accepted_at_is_read_from_meta(tmp_path: Path) -> None:
+    mission_dir = _write_meta(tmp_path / "m", {"mission_slug": "m", "accepted_at": _LATE})
+    assert mission_accepted_at(mission_dir) == _LATE
+
+
+def test_meta_without_accepted_at(tmp_path: Path) -> None:
+    mission_dir = _write_meta(tmp_path / "m", {"mission_slug": "m"})
+    assert mission_accepted_at(mission_dir) is None
+
+
+def test_no_meta_file(tmp_path: Path) -> None:
+    assert mission_accepted_at(tmp_path) is None
+
+
+def test_malformed_meta_reads_as_not_accepted(tmp_path: Path) -> None:
+    (tmp_path / "meta.json").write_text("{not json", encoding="utf-8")
+    assert mission_accepted_at(tmp_path) is None
+
+
+@pytest.mark.parametrize("value", ["", 0, None, ["2026-11-12"]])
+def test_non_string_or_empty_accepted_at_is_not_an_acceptance(tmp_path: Path, value: object) -> None:
+    mission_dir = _write_meta(tmp_path / "m", {"accepted_at": value})
+    assert mission_accepted_at(mission_dir) is None
+
+
+# ---------------------------------------------------------------------------
+# T003 -- board_latest_transition_at
+# ---------------------------------------------------------------------------
+
+
+def _event(wp_id: str, from_lane: str, to_lane: str, n: int, at: str) -> dict[str, Any]:
+    return {
+        "actor": "tester",
+        "at": at,
+        "event_id": f"01KVERDICT{n:016d}",
+        "evidence": None,
+        "execution_mode": "worktree",
+        "feature_slug": "verdict-fixture",
+        "force": False,
+        "from_lane": from_lane,
+        "reason": None,
+        "review_ref": None,
+        "to_lane": to_lane,
+        "wp_id": wp_id,
+    }
+
+
+def _board(states: dict[str, dict[str, Any]]) -> BoardStatus:
+    return BoardStatus(
+        lanes=MappingProxyType({}),
+        wp_states=MappingProxyType({wp: MappingProxyType(state) for wp, state in states.items()}),
+        has_log=True,
+        weighted_percentage=None,
+        source="path",
+    )
+
+
+def test_newest_transition_wins_on_a_reduced_board(tmp_path: Path) -> None:
+    events = [
+        _event("WP01", "planned", "claimed", 1, "2026-11-12T08:00:00+00:00"),
+        _event("WP02", "planned", "claimed", 2, "2026-11-12T08:10:00+00:00"),
+        _event("WP01", "claimed", "in_progress", 3, "2026-11-12T08:20:00+00:00"),
+        _event("WP02", "claimed", "in_progress", 4, "2026-11-12T08:05:00+00:00"),
+    ]
+    tmp_path.mkdir(exist_ok=True)
+    (tmp_path / "status.events.jsonl").write_text("".join(json.dumps(e, sort_keys=True) + "\n" for e in events), encoding="utf-8")
+    board = board_status_from_dir(tmp_path)
+    assert board_latest_transition_at(board) == "2026-11-12T08:20:00+00:00"
+
+
+def test_empty_board_returns_none(tmp_path: Path) -> None:
+    assert board_latest_transition_at(board_status_from_dir(tmp_path)) is None
+    assert board_latest_transition_at(_board({})) is None
+
+
+def test_no_board_returns_none() -> None:
+    assert board_latest_transition_at(None) is None
+
+
+def test_offsets_are_compared_by_instant() -> None:
+    board = _board(
+        {
+            "WP01": {"last_transition_at": "2026-11-12T10:30:00+02:00"},  # 08:30Z
+            "WP02": {"last_transition_at": "2026-11-12T09:00:00+00:00"},
+        }
+    )
+    assert board_latest_transition_at(board) == "2026-11-12T09:00:00+00:00"
+
+
+def test_states_without_a_timestamp_are_skipped() -> None:
+    board = _board({"WP01": {"lane": "planned"}, "WP02": {"last_transition_at": None}, "WP03": {"last_transition_at": _EARLY}})
+    assert board_latest_transition_at(board) == _EARLY
+
+
+def test_an_unparsable_timestamp_is_returned_so_the_verdict_fails_closed() -> None:
+    board = _board({"WP01": {"last_transition_at": _EARLY}, "WP02": {"last_transition_at": "garbage"}})
+    latest = board_latest_transition_at(board)
+    assert latest == "garbage"
+    assert finished_board_verdict("accept", accepted_at=_LATE, latest_transition_at=latest) is FinishedBoardVerdict.AWAITING_ACCEPTANCE
