@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-08-13'
-updated: '2026-08-13T00:00:00Z'
+updated: '2026-11-12T00:00:00Z'
 related:
 - architecture/mission-gates
 - adr/3.x/2026-08-13-2-gates-are-declarative-asset-backed-doctrine-artefacts
@@ -15,9 +15,9 @@ related:
 
 **Filename:** `2026-08-13-6-gate-outcomes-carry-severity-operator-strategy-decides-effect.md`
 
-**Status:** Accepted (2026-09-27, amended in place)
+**Status:** Accepted (2026-09-27, amended in place; amended 2026-11-12)
 
-**Date:** 2026-08-13 (proposed) · 2026-09-27 (amended and accepted)
+**Date:** 2026-08-13 (proposed) · 2026-09-27 (amended and accepted) · 2026-11-12 (amended)
 
 **Deciders:** Operator (ATDD)
 
@@ -46,6 +46,44 @@ Accepted together with ADR -2 and ADR -4 as one set, after the pack-trust ADR re
 - **Scoping (open question 4) resolved:** a minimal kernel ladder ships first; consolidating the
   other Severity enums is follow-on debt (#3416), not a precursor.
 - Stale reference fixed: `status/doctor.py` `Severity` is now at line 33.
+
+## Amendment (2026-11-12): a proven foreign evidence tree refuses `move-task`
+
+Operator ruling 2026-11-12 (decision `01M7733YYK1615ERKAY41C2M7C`, Mission
+`lane-code-verification-01M76AC0`, #7554, #7547). Before this, a test run inside a lane
+worktree could load the repository root checkout's source through its editable install, so
+the pre-review gate could pass a work package on code that was not the lane's. The gate now
+runs its tests through the lane's own test invocation and probes, before it runs, which tree
+that invocation imports. This amendment records how the gate treats the probe's answer.
+
+- **New outcome `foreign_tree`, a provenance refusal.** When the probe proves the run would
+  load code from another tree, the gate returns `foreign_tree` and runs no test.
+  `move-task <WP> --to for_review` refuses with `EVIDENCE_TREE_MISMATCH` and exit 1, and the
+  transition is not applied. This holds **whatever `review.fail_on_pre_review_regression`
+  says**: that setting governs new test failures, and a foreign tree is not a test failure but
+  evidence that no lane test result exists.
+- **`--force` bypasses it, on the record.** A forced move proceeds and records
+  `force_bypassed: true` and `bypassed_refusal: "EVIDENCE_TREE_MISMATCH"`; the outcome stays
+  `foreign_tree`, because no test ran. This is the difference from the trust failures in the
+  table below: pack trust, pin hash mismatch and tamper stay `BLOCKING` with no bypass. A
+  foreign tree says where the code came from, not that executable doctrine is untrusted, so
+  the operator may proceed knowingly.
+- **Carve-out from "gate evaluation never breaks `move-task`" (C-003).** Only a **proven**
+  foreign tree refuses. A probe that faults or times out, or a project the probe cannot
+  inspect (for example one that is not a Python package), records `unverified` and the
+  transition proceeds as before. Every other machinery fault keeps the C-003 promise and maps
+  to `RECOVERABLE`.
+- **Probed only where tests run.** The probe runs, and the evidence tree is recorded in the
+  transition's `pre_review_gate.evidence_tree` (lane path, head, dirty flag, probe result),
+  only when the gate is about to run tests: a declared test command or an override scope,
+  for the head run and the baseline run alike. A gate arm that runs no test (an undeclared
+  gate stays `skipped`, an empty diff, no active binding) neither probes nor refuses.
+- **The skip switch still skips everything.** The pre-review gate's skip flag and environment
+  variable bypass the gate entirely, the probe and this refusal included. The amendment makes
+  no stronger guarantee than that.
+
+The outcome table gains one row (below). The default strategy and the no-demotion guardrail
+are unchanged: `foreign_tree` is not read from the configured threshold at all.
 
 ## Context and Problem Statement
 
@@ -95,6 +133,8 @@ effect.**
   |---|---|---|
   | Untrusted pack, hash mismatch against pin or consent, tamper detected at dispatch (ADR -4) | `BLOCKING` | dispatcher (fixed) |
   | Runner crash, timeout, missing interpreter, unconfinable host (ADR -2 baseline) | `RECOVERABLE` | dispatcher (fixed) |
+  | Pre-review gate: the probe proves the lane's tests would load code from another tree (`foreign_tree`, amendment 2026-11-12) | refusal `EVIDENCE_TREE_MISMATCH`; `--force` bypasses and is recorded | pre-review gate (fixed) |
+  | Pre-review gate: the probe faults, times out or cannot inspect the project (`unverified`) | recorded, never refuses | pre-review gate (fixed) |
   | A detected violation (the check ran and failed) | the gate's declared `severity` | gate |
   | Pass | — | — |
 
