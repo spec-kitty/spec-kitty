@@ -117,8 +117,9 @@ DEPENDENCY_REF_UNVERIFIABLE = "DEPENDENCY_REF_UNVERIFIABLE"
 
 # Stable code of the #5867 refusal: under a SQUASH strategy, projected coordination bookkeeping
 # content did not land on the target (the refusal names each path and why). The gate's exit 1 runs
-# inside the executor's single rollback door, so the landing is rolled back. Rendered as a SUFFIX
-# through :func:`error_code_suffix`.
+# inside the executor's single rollback door, which restores what this attempt moved but keeps a
+# landing an earlier run's reconciliation verified. Rendered as a SUFFIX through
+# :func:`error_code_suffix`.
 SQUASH_PROJECTION_NOT_LANDED = "SQUASH_PROJECTION_NOT_LANDED"
 
 
