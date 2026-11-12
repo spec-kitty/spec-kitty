@@ -56,6 +56,9 @@ class SurfaceCheckResult:
     present: bool
     gitignore_covered: bool
     warning: str | None = None
+    # #7597: files git still tracks under an ignored root. An ignore rule does
+    # not apply to a tracked file, so the root is covered yet not clean.
+    tracked_paths: tuple[str, ...] = ()
 
 
 @dataclass
@@ -94,6 +97,7 @@ class StateRootsReport:
                     "present": s.present,
                     "gitignore_covered": s.gitignore_covered,
                     "warning": s.warning,
+                    "tracked_paths": list(s.tracked_paths),
                 }
                 for s in self.surfaces
             ],
@@ -110,10 +114,14 @@ def _is_gitignore_covered(repo_root: Path, path: str) -> bool | None:
     """Check if a path is covered by .gitignore rules.
 
     Returns True if ignored, False if not ignored, None if git is unavailable.
+    ``--no-index`` asks about the rules alone: without it git answers "not
+    ignored" for a tracked path, which made a covered root that holds tracked
+    files read as uncovered (#7597). Tracked content is reported separately by
+    :func:`_tracked_paths_under`.
     """
     try:
         result = subprocess.run(
-            ["git", "check-ignore", "-q", path],
+            ["git", "check-ignore", "-q", "--no-index", path],
             cwd=str(repo_root),
             capture_output=True,
             timeout=5,
@@ -121,6 +129,28 @@ def _is_gitignore_covered(repo_root: Path, path: str) -> bool | None:
         return result.returncode == 0
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
         return None
+
+
+def _tracked_paths_under(repo_root: Path, path: str) -> tuple[str, ...]:
+    """Return the paths git tracks at or under *path* (empty when unknown).
+
+    A placeholder pattern (``<name>``) names no concrete path, so it is not
+    probed; neither is a repository git cannot read.
+    """
+    if "<" in path or "*" in path:
+        return ()
+    try:
+        result = subprocess.run(
+            ["git", "ls-files", "-z", "--", path],
+            cwd=str(repo_root),
+            capture_output=True,
+            timeout=5,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        return ()
+    if result.returncode != 0:
+        return ()
+    return tuple(sorted(p for p in result.stdout.decode("utf-8", "replace").split("\0") if p))
 
 
 def _check_surface_present(repo_root: Path, surface: StateSurface) -> bool:
@@ -224,24 +254,48 @@ def _gitignore_probe_path(surface: StateSurface) -> str:
     return re.sub(r"<[^>]+>", _AGENT_BLOCK_PROBE_NAME, surface.path_pattern)
 
 
-def _generate_warning(
-    surface: StateSurface, present: bool, gitignore_covered: bool
-) -> str | None:
-    """Generate a warning if a runtime surface is present but not ignored."""
+def _needs_ignore(surface: StateSurface) -> bool:
+    """True for a repo-local runtime or derived surface that must stay ignored."""
     if surface.root != StateRoot.PROJECT:
-        return None
+        return False
     if surface.git_class in (
         GitClass.TRACKED,
         GitClass.OUTSIDE_REPO,
         GitClass.GIT_INTERNAL,
     ):
-        return None
-    if surface.authority not in (AuthorityClass.LOCAL_RUNTIME, AuthorityClass.DERIVED):
-        return None
-    if not present:
+        return False
+    return surface.authority in (AuthorityClass.LOCAL_RUNTIME, AuthorityClass.DERIVED)
+
+
+def _tracked_under_ignored_root_warning(surface: StateSurface, tracked_paths: tuple[str, ...]) -> str:
+    """Name the real cause when an ignored root still holds tracked files (#7597)."""
+    count = len(tracked_paths)
+    noun = "file" if count == 1 else "files"
+    path = _gitignore_probe_path(surface)
+    return (
+        f"{surface.name} ({surface.path_pattern}) has {count} tracked {noun} under an ignored root; "
+        f"an ignore rule does not apply to files git already tracks. "
+        f"Authority: {surface.authority.value}. "
+        f"Remedy: untrack them with `git rm -r --cached -- {path}` and commit (the files stay on disk), "
+        f"or move any you mean to keep to a tracked root."
+    )
+
+
+def _generate_warning(
+    surface: StateSurface,
+    present: bool,
+    gitignore_covered: bool,
+    tracked_paths: tuple[str, ...] = (),
+) -> str | None:
+    """Generate a warning if a runtime surface is present but not ignored.
+
+    A covered root that still holds tracked files gets its own finding, so the
+    message names the real cause rather than a missing ignore rule (#7597).
+    """
+    if not _needs_ignore(surface) or not present:
         return None
     if gitignore_covered:
-        return None
+        return _tracked_under_ignored_root_warning(surface, tracked_paths) if tracked_paths else None
 
     return (
         f"{surface.name} ({surface.path_pattern}) is present but not gitignored. "
@@ -297,13 +351,19 @@ def check_state_roots(repo_root: Path) -> StateRootsReport:
     for surface in STATE_SURFACES:
         present = _check_surface_present(repo_root, surface)
         gitignore_covered = _check_gitignore(repo_root, surface)
-        warning = _generate_warning(surface, present, gitignore_covered)
+        tracked_paths = (
+            _tracked_paths_under(repo_root, _gitignore_probe_path(surface))
+            if present and gitignore_covered and _needs_ignore(surface)
+            else ()
+        )
+        warning = _generate_warning(surface, present, gitignore_covered, tracked_paths)
 
         result = SurfaceCheckResult(
             surface=surface,
             present=present,
             gitignore_covered=gitignore_covered,
             warning=warning,
+            tracked_paths=tracked_paths,
         )
         report.surfaces.append(result)
 
