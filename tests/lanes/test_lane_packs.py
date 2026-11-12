@@ -162,3 +162,53 @@ def test_an_unreadable_pin_is_skipped_with_a_bounded_reason(tmp_path: Path, cach
     (line,) = result.remedy_lines(lane)
     assert line.startswith(f"packs/{BUILT_IN} not placed in the lane (")
     assert len(line) < 400
+
+
+def test_a_placement_os_error_is_skipped_with_a_one_line_bounded_reason(tmp_path: Path, cache_home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import charter.packs
+
+    pin = make_pack_remote(tmp_path).pin()
+    lane = _pinned_lane(tmp_path, pin)
+    _warm(pin)
+
+    def _disk_full(*_args: object, **_kwargs: object) -> None:
+        raise OSError("No space left on device\n" + "x" * 500)
+
+    monkeypatch.setattr(charter.packs, "place_pack", _disk_full)
+
+    result = place_pinned_packs(lane)
+
+    assert result.placed == ()
+    ((name, reason),) = result.skipped
+    assert name == BUILT_IN
+    assert reason.startswith("OSError: No space left on device x")
+    assert reason.endswith("...") and len(reason) == 160
+    assert "\n" not in reason
+
+
+def test_the_lane_checkout_seam_degrades_an_unexpected_error_to_a_remedy_line(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from specify_cli.lanes import lane_checkout, lane_packs
+
+    def _boom(_lane: Path) -> LanePacksResult:
+        raise RuntimeError("unexpected")
+
+    monkeypatch.setattr(lane_packs, "place_pinned_packs", _boom)
+
+    lane_checkout._place_pinned_packs(tmp_path)
+
+    assert capsys.readouterr().err == f"packs not placed in the lane (unexpected RuntimeError); run `make sync-packs` in {tmp_path}\n"
+
+
+def test_the_lane_checkout_seam_prints_each_remedy_line_to_stderr(tmp_path: Path, cache_home: Path, no_network: None, capsys: pytest.CaptureFixture[str]) -> None:
+    from specify_cli.lanes import lane_checkout
+
+    pin = make_pack_remote(tmp_path).pin()
+    lane = _pinned_lane(tmp_path, pin)
+
+    lane_checkout._place_pinned_packs(lane)
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == f"packs/{BUILT_IN} not placed in the lane ({PACK_SYNC_UNAVAILABLE}); run `make sync-packs` in {lane}\n"
