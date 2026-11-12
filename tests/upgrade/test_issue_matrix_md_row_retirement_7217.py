@@ -60,8 +60,9 @@ def _initialized_project(tmp_path: Path) -> Path:
     with contextlib.chdir(project):
         result = _runner.invoke(root_app, ["init", "--non-interactive", "--ai", "claude"], catch_exceptions=False)
     assert result.exit_code == 0, result.output
+    # ``init`` commits its own writes (#7555); anything it left out is committed here.
     _git(project, "add", "-A")
-    _git(project, "commit", "-qm", "init")
+    _git(project, "commit", "--allow-empty", "-qm", "init")
     return project
 
 
