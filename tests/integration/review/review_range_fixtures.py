@@ -73,6 +73,7 @@ __all__ = [
     "ReviewTemplates",
     "assert_no_patch_text",
     "make_owned_range_unavailable",
+    "recorded_window_ends",
     "review_block",
     "run_printed_command",
     "snapshot_tree",
@@ -272,17 +273,22 @@ def _read_rows(log: Path) -> list[dict[str, Any]]:
     return [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
-def make_owned_range_unavailable(owned_root: Path, mission_dir: Path, mission_slug: str, wp_id: str) -> None:
+def make_owned_range_unavailable(owned_root: Path, mission_dir: Path, mission_slug: str, wp_id: str, *, ambiguous: bool = False) -> None:
     """Make an owned (``single_branch``) checkout's scoped review range for *wp_id* genuinely unavailable.
 
-    Strips *wp_id*'s ``lane_head`` / ``wp_window`` stamps (committed), drops its ``wp-base`` claim-base
-    ref, then rewrites the ids of its ``claimed`` and ``for_review`` events to ids no commit introduced
-    (left uncommitted), so neither end of the range has a recorded value, a claim-base ref or an event
-    commit. The work package still reduces to ``for_review``.
+    Strips *wp_id*'s ``lane_head`` / ``wp_window`` stamps (committed) and drops its ``wp-base``
+    claim-base ref, so neither end of the range has a recorded value or a claim-base ref; then its
+    ``claimed`` and ``for_review`` events lose their event commits:
+
+    * default: their ids are rewritten to ids no commit introduced (left uncommitted);
+    * ``ambiguous=True``: their lines are removed and re-added in two commits, so several commits
+      introduced each event.
+
+    The work package still reduces to ``for_review``.
     """
     log = mission_dir / _EVENTS
     rows = _strip_rows(_read_rows(log), wp_id)
-    log.write_text("".join(json.dumps(row, sort_keys=True) + "\n" for row in rows), encoding="utf-8")
+    _write_rows(log, rows)
     sb.git(owned_root, "add", "-A")
     sb.git(owned_root, "commit", "-qm", f"test: strip {wp_id}'s stamps")
     subprocess.run(
@@ -291,11 +297,26 @@ def make_owned_range_unavailable(owned_root: Path, mission_dir: Path, mission_sl
         check=False,
         capture_output=True,
     )
+    ends = [row for row in rows if row.get("wp_id") == wp_id and row.get("to_lane") in ("claimed", "for_review")]
+    if ambiguous:
+        _write_rows(log, [row for row in rows if row not in ends])
+        sb.git(owned_root, "commit", "-qam", f"test: remove {wp_id}'s claim and submission lines")
+        _write_rows(log, rows)
+        sb.git(owned_root, "commit", "-qam", f"test: re-add {wp_id}'s claim and submission lines")
+        return
     fresh = iter(("01KW2E7B0NCMMTC1A1MZZZZZZ1", "01KW2E7B0NCMMTC1A1MZZZZZZ2"))
-    for row in rows:
-        if row.get("wp_id") == wp_id and row.get("to_lane") in ("claimed", "for_review"):
-            row["event_id"] = next(fresh, row["event_id"])
+    for row in ends:
+        row["event_id"] = next(fresh, row["event_id"])
     # Deliberately NOT committed: the fresh ids live only in the working tree.
+    _write_rows(log, rows)
+
+
+def recorded_window_ends(events_log: Path, wp_id: str = REVIEWED_WP) -> tuple[str, str]:
+    """*wp_id*'s recorded window open (first ``claimed``) and submitted tip (last ``for_review`` ``lane_head``), read from *events_log*."""
+    return _window_ends(_read_rows(events_log), wp_id)
+
+
+def _write_rows(log: Path, rows: list[dict[str, Any]]) -> None:
     log.write_text("".join(json.dumps(row, sort_keys=True) + "\n" for row in rows), encoding="utf-8")
 
 

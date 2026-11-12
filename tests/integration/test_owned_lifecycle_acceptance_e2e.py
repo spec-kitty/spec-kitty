@@ -55,6 +55,7 @@ from specify_cli.cli.commands.spec_commit_cmd import spec_commit_command
 from tests._factories import provision_test_charter
 from tests._owned_fixtures import RSnapshotter, mint_test_fact, prompt_cache_prefix
 from tests.integration.conftest import OwnedCheckouts, _git, _init_repo, _write_mission, _write_single_lane_manifest
+from tests.integration.review.review_range_fixtures import recorded_window_ends, run_printed_command
 from tests.runtime._next_mission_scaffold import advance_to_step, analysis_is_current
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -403,18 +404,6 @@ def _step_context_resolve(walk: _Walk) -> dict[str, Any]:
     return payload
 
 
-def _claim_commit(walk: _Walk) -> str:
-    """The unique commit whose diff to ``status.events.jsonl`` introduced WP01's last ``claimed`` event."""
-    events = _mission_dir(walk) / "status.events.jsonl"
-    claimed = [json.loads(line) for line in events.read_text(encoding="utf-8").splitlines() if line.strip()]
-    claimed = [event for event in claimed if event.get("wp_id") == "WP01" and event.get("to_lane") == "claimed"]
-    event_id = claimed[-1]["event_id"]
-    log = _git(walk.site.p, "log", "--format=%H", f"-S{event_id}", "HEAD", "--", f"kitty-specs/{walk.slug}/status.events.jsonl")
-    commits = log.split()
-    assert len(commits) == 1, log
-    return commits[0]
-
-
 def _stale_copy_into_r(walk: _Walk) -> None:
     """R keeps an old copy of the mission (same ``mission_id``, a larger foreign WP set)."""
     import shutil
@@ -466,9 +455,12 @@ def _drive(site: _Site, *, stale: bool, where: str, monkeypatch: pytest.MonkeyPa
     _step_implement_commit(walk)
     check("for_review", _step_move(walk, "for_review"))
     review = _step_next_review(walk)
-    claim = _claim_commit(walk)
+    # re-pin (IC-05, DIRECTIVE_041): the former claim..HEAD text is the WP review range, scoped to demo.py.
+    base, tip = recorded_window_ends(_mission_dir(walk) / "status.events.jsonl", "WP01")
     prompt = Path(review["prompt_file"]).read_text(encoding="utf-8")
-    assert f"git diff {claim}..HEAD --stat -- demo.py" in prompt, f"the review prompt is not based on WP01's claim commit {claim}"
+    diff_line = f"  git diff {base}..{tip} -- demo.py"
+    assert diff_line in prompt.splitlines(), f"the review prompt is not WP01's recorded range {base}..{tip}"
+    assert "demo.py" in run_printed_command(walk.site.p, diff_line)
     check("review", review, ignore_keys=_NEXT_PROVENANCE_KEYS)
     check("context", _step_context_resolve(walk))
     return walk
