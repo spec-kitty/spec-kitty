@@ -1,7 +1,7 @@
 {
-  "event_count": 26,
-  "last_event_id": "01M778Z9CNYW5GASEFBC28TVSY",
-  "materialized_at": "2026-11-12T07:01:22.965714+00:00",
+  "event_count": 28,
+  "last_event_id": "01M7791NXF5RDXVSGP5RPRR4WJ",
+  "materialized_at": "2026-11-12T07:02:40.278900+00:00",
   "mission_number": "",
   "mission_slug": "lane-code-verification-01M76AC0",
   "mission_type": "software-dev",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 3
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
@@ -51,15 +51,15 @@
       }
     },
     "WP02": {
-      "actor": "claude-reviewer",
+      "actor": "claude",
       "agent": null,
-      "agent_profile": "reviewer-renata",
+      "agent_profile": "python-pedro",
       "agent_profile_version": "1.0",
       "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "planned",
-      "last_event_id": "01M778Z9CNYW5GASEFBC28TVSY",
-      "last_transition_at": "2026-11-12T07:01:22.965714+00:00",
+      "lane": "in_progress",
+      "last_event_id": "01M7791NXF5RDXVSGP5RPRR4WJ",
+      "last_transition_at": "2026-11-12T07:02:40.278900+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "lane_test_invocation in implement --json (null for planning-artifact work) + banner block; implement/review prompts re-derive and re-probe it via review/lane_test_invocation.py (fail-open); goldens gain only the new key; red-first c2da8428, green 9ea5cdb5"
@@ -72,7 +72,7 @@
         "reviewer": "claude-reviewer::reviewer-renata",
         "verdict": "changes_requested"
       },
-      "role": "reviewer",
+      "role": "implementer",
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
