@@ -14,7 +14,7 @@ authority (``WpReviewRange.owned_pathspecs``).
 Marker: unit only -- no filesystem, no subprocess, no git (per the ``unit``
 marker's contract in ``pytest.ini``); every function under test here takes
 plain values in and returns a plain value/string out. The one exception is
-``TestBuildOwnedFilesReviewPathspecs`` (marked ``git_repo``): it reads the
+``TestWpReviewRangeOwnedPathspecs`` (marked ``git_repo``): it reads the
 pathspecs off a range resolved in an empty temporary directory.
 """
 
@@ -58,33 +58,33 @@ def _unknown_ctx() -> dict[str, object]:
     return {"branch_name": "unknown", "base_branch": "unknown", "lane_branch": "unknown", "base_ref": "unknown", "commit_count": 0}
 
 
-class TestPickBestBaseBranch:
+class TestFillReviewRange:
     """Re-pinned: ``_fill_review_range`` takes the base from the review range, never a scored branch pick."""
 
-    def test_empty_input_returns_none_and_sentinel_count(self) -> None:
+    def test_unavailable_range_keeps_unknown_base_and_zero_count(self) -> None:
         ctx = executor._fill_review_range(_unknown_ctx(), _range(base=None), None)
         assert ctx["base_branch"] == "unknown" and ctx["base_ref"] == "unknown"
         assert ctx["commit_count"] == 0
 
-    def test_single_candidate_wins(self) -> None:
+    def test_recorded_range_fills_base_and_commit_count(self) -> None:
         ctx = executor._fill_review_range(_unknown_ctx(), _range(base="a" * 40, commits=5), "main")
         assert ctx["base_branch"] == "a" * 40 and ctx["base_ref"] == "a" * 40
         assert ctx["commit_count"] == 5
 
-    def test_fewest_commits_wins(self) -> None:
+    def test_commit_count_is_the_listed_implementation_commits(self) -> None:
         """The count is the range's listed implementation commits, not a branch's unique-commit score."""
         review_range = _range(base="b" * 40, commits=3)
         ctx = executor._fill_review_range(_unknown_ctx(), review_range, "kitty/mission-x-lane-a")
         assert ctx["commit_count"] == len(review_range.commits) == 3
         assert ctx["review_range"] is review_range
 
-    def test_strict_less_than_keeps_first_scored_candidate_on_tie(self) -> None:
+    def test_missing_branch_keeps_unknown_branch_labels(self) -> None:
         """The branch is display only: a missing branch keeps ``unknown`` while the base still comes from the range."""
         ctx = executor._fill_review_range(_unknown_ctx(), _range(base="c" * 40, commits=4), None)
         assert ctx["branch_name"] == "unknown" and ctx["lane_branch"] == "unknown"
         assert ctx["base_branch"] == "c" * 40
 
-    def test_zero_count_candidate_is_picked_over_positive_counts(self) -> None:
+    def test_empty_commit_list_keeps_the_base_with_zero_count(self) -> None:
         ctx = executor._fill_review_range(_unknown_ctx(), _range(base="d" * 40, commits=0), "main")
         assert ctx["base_branch"] == "d" * 40
         assert ctx["commit_count"] == 0
@@ -97,20 +97,20 @@ class TestPickBestBaseBranch:
 # ---------------------------------------------------------------------------
 
 
-class TestParseDependencyWpIds:
-    def test_no_dependencies_key_returns_empty(self) -> None:
+class TestWpOwnedFiles:
+    def test_no_owned_files_key_returns_empty(self) -> None:
         assert cores.wp_owned_files("work_package_id: WP01\n") == []
 
-    def test_empty_dependencies_list_returns_empty(self) -> None:
+    def test_empty_owned_files_list_returns_empty(self) -> None:
         assert cores.wp_owned_files("owned_files: []\n") == []
 
-    def test_single_dependency_quoted(self) -> None:
+    def test_single_owned_file_quoted(self) -> None:
         assert cores.wp_owned_files('owned_files: ["src/a.py"]\n') == ["src/a.py"]
 
-    def test_multiple_dependencies_quoted(self) -> None:
+    def test_multiple_owned_files_quoted(self) -> None:
         assert cores.wp_owned_files('owned_files: ["src/a.py", "src/b/**"]\n') == ["src/a.py", "src/b/**"]
 
-    def test_multiple_dependencies_unquoted(self) -> None:
+    def test_multiple_owned_files_block_list(self) -> None:
         assert cores.wp_owned_files("owned_files:\n- src/a.py\n- src/b/**\n") == ["src/a.py", "src/b/**"]
 
     def test_ignores_unrelated_frontmatter(self) -> None:
@@ -134,7 +134,7 @@ def _pathspecs(owned: list[str], tmp_path: Path) -> list[str]:
 
 
 @pytest.mark.git_repo
-class TestBuildOwnedFilesReviewPathspecs:
+class TestWpReviewRangeOwnedPathspecs:
     def test_empty_owned_files_returns_empty(self, tmp_path: Path) -> None:
         assert _pathspecs([], tmp_path) == []
 
