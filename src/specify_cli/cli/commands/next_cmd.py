@@ -485,14 +485,14 @@ def _dispatch_advancing_mode(
     )
     if owned is None and event_row is not None and event_row.should_commit:
         # #5938: commit the row where it was written; the owned path commits its own changeset below.
-        from specify_cli.mission_v1.events import commit_mission_event_log
+        from specify_cli.mission_v1.events import commit_event_row
 
-        commit_warning = commit_mission_event_log(Path(str(repo_root)), mission_slug, event_row.log_path, event_row.surface_root)
-        # Only the coordination worktree's copy blocks consolidate; a refused commit in the
-        # repository root checkout (e.g. a protected target) stays quiet: the claim gate
-        # already exempts this Mission's log there.
-        if commit_warning is not None and event_row.in_coordination_worktree:
-            print(f"Warning: {commit_warning}", file=sys.stderr)
+        commit_event_row(
+            Path(str(repo_root)),
+            mission_slug,
+            event_row,
+            warn=lambda message: print(f"Warning: {message}", file=sys.stderr),
+        )
 
     # WP05 (#843): write the `started` lifecycle record AFTER the decision is
     # finalised but BEFORE returning to the agent, so the record exists iff
