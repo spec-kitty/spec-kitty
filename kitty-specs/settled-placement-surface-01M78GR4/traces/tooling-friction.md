@@ -19,3 +19,5 @@ One entry per finding: `YYYY-MM-DD · actor · <text>`.
 2026-11-12 · claude-orchestrator · WP03 for_review: the pre-review coverage gate skipped itself ('no_coverage - no changed files detected for this WP') on a single_branch Mission although the WP committed source changes; reviewers run the tests directly. WP03's tests also needed SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS only to build an explicit lanes_with_coord fixture on protected main (finalize refuses otherwise); removed before any assertion.
 
 2026-11-12 · claude-orchestrator · Baseline red, not ours: tests/integration/test_explicit_checkout_commands.py::test_owned_composition_policy_reaches_executor_before_advancing fails on origin/main (stub ctx lacks status_read, runtime_bridge); already tracked as #7586. Also: parallel WPs in one single_branch checkout make local test runs non-attributable while another agent has uncommitted src edits (reviewer saw a transient red that passed on a clean tree).
+
+2026-11-12 · claude-orchestrator · agent decision open accepts --flow charter|specify|plan only, so an implement-phase ruling has to be recorded under the plan flow.
