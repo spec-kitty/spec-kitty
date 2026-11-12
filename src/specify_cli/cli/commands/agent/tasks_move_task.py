@@ -1347,6 +1347,46 @@ def _mt_review_code(st: _MoveTaskState) -> str:
     return code
 
 
+#: The refusal code of an unforced approval whose event-log review slot is damaged (ruling ``damaged_slot``).
+REVIEW_SLOT_DAMAGED = "REVIEW_SLOT_DAMAGED"
+
+
+def _mt_review_slot_damaged(st: _MoveTaskState) -> bool:
+    """True when the event log holds a review slot no verdict can be read from (#7569).
+
+    The same read and the same rule as the approval writer's skip ("the recorded review verdict could
+    not be read", ``tasks_verdict_persistence._approval_write_skip_reason``): a present slot with no
+    readable result that a verdict-less review exit did not clear.
+    """
+    from specify_cli.status import event_sourced_review_result
+
+    lookup = event_sourced_review_result(st.feature_dir, st.task_id)
+    return bool(lookup.slot_present and lookup.result is None and not lookup.cleared_without_verdict)
+
+
+def _mt_refuse_damaged_review_slot(st: _MoveTaskState) -> None:
+    """Refuse an unforced review approval the damaged review slot leaves without a reference (#7569).
+
+    Operator ruling ``damaged_slot`` (2026-11-12): the approval writer records no review cycle on a
+    damaged slot, so the approval has no ``review-cycle://`` pointer to record, and an unforced approval
+    is never labelled ``force-override``. With ``--approval-ref`` that reference is recorded instead.
+    The decision guard (``_guard_rejected_verdict``) already refuses when its own read sees the
+    damage; this closes the case where only the writer's read does. Runs before any write; a carried
+    ``approved -> done`` keeps FR-007's rule (no readable approval: the asserted mover with
+    ``force-override``) and is not judged here.
+    """
+    record = st.reviewer_of_record
+    if record is None or record.kind != "review" or (st.approval_ref or "").strip() or not _mt_review_slot_damaged(st):
+        return
+    raise ActionContextError(
+        REVIEW_SLOT_DAMAGED,
+        f"{REVIEW_SLOT_DAMAGED}: {st.task_id} cannot be approved: the review verdict recorded in the event log "
+        f"({st.feature_dir / EVENTS_FILENAME}) could not be read, so no review cycle can be written for this approval. "
+        "Repair the damaged event log, or pass --approval-ref <ref> to name the review evidence, or --force for an "
+        "operator override. Nothing was written.",
+    )
+
+
 def _mt_require_independent_approval(st: _MoveTaskState) -> None:
     """#6715: refuse an unforced move into ``approved``/``done`` that is not an independent review.
 
@@ -1363,10 +1403,12 @@ def _mt_require_independent_approval(st: _MoveTaskState) -> None:
       recorded on one side only is not. An unknown implementer passes here (accept and
       consolidate stay strict).
 
-    ``--force`` bypasses both (ruling 3).
+    ``--force`` bypasses both (ruling 3). A damaged review slot refuses first
+    (:func:`_mt_refuse_damaged_review_slot`).
     """
     if st.force or st.target_lane not in _APPROVAL_LANES:
         return
+    _mt_refuse_damaged_review_slot(st)
     from specify_cli.status import GENERIC_IMPLEMENTATION_ACTORS, _actor_key, actor_full_identity, actor_identities_independent
 
     actor = _mt_approval_actor(st)

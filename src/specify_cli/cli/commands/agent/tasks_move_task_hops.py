@@ -155,6 +155,23 @@ def _mt_hop_review_result(
     return None
 
 
+def _mt_record_hop_identity(st: _MoveTaskState, target: str) -> str | None:
+    """The identity an approval/done hop records from the reviewer of record (#7569), or ``None``.
+
+    A review or forced approval records the reviewer of record itself. A carried approval
+    (``approved -> done``) feeds only the review fields (``evidence.review``, ``review_result``): the
+    reviewer did not perform this move, so the hop records the asserted mover, ``--reviewer`` here
+    (``--agent`` is read first by every caller). With neither, ``None``: the caller keeps its
+    pre-existing fallback, and the placeholder ``REVIEW_NOT_INDEPENDENT`` refusal fires as on the base.
+    """
+    record = st.reviewer_of_record
+    if record is None or target not in (Lane.APPROVED, Lane.DONE):
+        return None
+    if record.kind == "carried":
+        return (st.reviewer or "").strip() or None
+    return record.identity
+
+
 def _mt_hop_actor(st: _MoveTaskState, event: StatusEvent | None, current_event_lane: str, target: str) -> str:
     """Resolve the actor for one emit hop.
 
@@ -169,19 +186,18 @@ def _mt_hop_actor(st: _MoveTaskState, event: StatusEvent | None, current_event_l
     lane). A WP with no recorded review claim keeps the pre-existing
     ``"user"`` fallback (FR-006: never fabricate an unasserted identity).
 
-    #7569: an approval/done hop records the reviewer of record (``--agent``, else
-    ``--reviewer``, else the claimant; a forced move's placeholder; a carried
-    approval's reviewer on ``approved -> done``), the identity every other field of
-    that approval reads.
+    #7569: an approval/done hop records the identity :func:`_mt_record_hop_identity`
+    gives (the reviewer of record of an approval; the asserted mover of a carried
+    ``approved -> done``).
     """
     from specify_cli.cli.commands.agent.tasks_move_task import _mt_resolve_active_reviewer_identity
 
     from_lane_for_hop = event.to_lane if event is not None else resolve_lane_alias(current_event_lane)
     if st.agent:
         return st.agent
-    record = st.reviewer_of_record
-    if record is not None and target in (Lane.APPROVED, Lane.DONE):
-        return record.identity
+    record_identity = _mt_record_hop_identity(st, target)
+    if record_identity is not None:
+        return record_identity
     if from_lane_for_hop == Lane.IN_PROGRESS and target == Lane.FOR_REVIEW and st.current_agent:
         return st.current_agent
     if from_lane_for_hop == Lane.IN_REVIEW:
@@ -266,7 +282,13 @@ def _mt_approval_policy_metadata(st: _MoveTaskState) -> dict[str, Any]:
     an absent binding still yields explicit ``None`` profile/model fields
     rather than omitting the sidecar entirely.
     """
-    tool = (st.request.effective_reviewer if st.request is not None else None) or st.reviewer or st.agent or st.actor or "unknown"
+    record = st.reviewer_of_record
+    if record is not None and record.kind == "carried":
+        # A carried approval's reviewer goes into the review fields only; this sidecar describes the
+        # hop's own decision (its profile/model are the mover's binding), so it names the mover.
+        tool = st.agent or _mt_record_hop_identity(st, Lane.DONE) or st.actor or "unknown"
+    else:
+        tool = (st.request.effective_reviewer if st.request is not None else None) or st.reviewer or st.agent or st.actor or "unknown"
     binding = st.resolved_binding
     metadata: dict[str, Any] = {
         "tool": tool,

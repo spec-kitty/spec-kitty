@@ -29,6 +29,7 @@ from specify_cli.cli.commands.agent.tasks_move_task_hops import (
     _mt_approval_cycle_result,
     _mt_hop_actor,
     _mt_hop_policy_metadata,
+    _mt_record_hop_identity,
     _mt_hop_reason_source,
     _mt_hop_records_binding,
     _mt_hop_review_ref,
@@ -186,12 +187,9 @@ def _mt_finalize_plan(st: _MoveTaskState, ports: TasksPorts) -> None:
     # from the event log first. A WP with no recorded review claim (or a
     # claim genuinely made by a human) falls through to "user" unchanged
     # (FR-006: never fabricate an agent identity that was never asserted).
-    # #7569: an approval/done move records the reviewer of record instead.
-    record = st.reviewer_of_record
-    if record is not None and st.target_lane in (Lane.APPROVED, Lane.DONE):
-        st.actor = record.identity
-    else:
-        st.actor = st.agent or _mt_resolve_active_reviewer_identity(st) or "user"
+    # #7569: an approval/done move records the reviewer of record; a carried ``approved -> done``
+    # records its asserted mover, never the carried reviewer (``_mt_record_hop_identity``).
+    st.actor = st.agent or _mt_record_hop_identity(st, st.target_lane) or _mt_resolve_active_reviewer_identity(st) or "user"
     st.canonical_lane = decision.plan.canonical_lane
 
     if decision.is_review_rejection and st.resolved_feedback_source is not None:
