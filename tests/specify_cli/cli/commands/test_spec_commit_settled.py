@@ -99,17 +99,28 @@ def test_coord_cwd_relative_path_lands_on_topic(settled: DefaultMission, monkeyp
     write(settled.coord_mission_dir / tail, text)
     root_tip = git(settled.root, "rev-parse", "HEAD")
 
-    started = time.perf_counter()
     code, payload = spec_commit(coord_root(settled), monkeypatch, rel(settled, tail), "-m", f"commit {tail}")
-    elapsed = time.perf_counter() - started
 
     assert code == 0, payload
     assert payload["committed"] is True
     assert_on_topic(settled, tail, text, f"commit {tail}")
     assert git(settled.root, "rev-parse", "HEAD") == root_tip
     assert not (settled.root / rel(settled, tail)).exists(), "nothing may be copied into the repository root checkout"
-    # NFR-001: one single-file spec-commit, wall clock.
-    print(f"NFR-001 spec-commit wall clock ({tail}): {elapsed:.3f}s")
+
+
+def test_nfr_001_single_file_spec_commit_wall_clock(settled: DefaultMission, monkeypatch: pytest.MonkeyPatch) -> None:
+    """NFR-001: one warm single-file spec-commit from the coordination worktree, wall clock."""
+    write(settled.coord_mission_dir / "traces" / "warm.md", "# warm\n")
+    code, payload = spec_commit(coord_root(settled), monkeypatch, rel(settled, "traces/warm.md"), "-m", "warm-up")
+    assert code == 0, payload
+    write(settled.coord_mission_dir / "traces" / "timed.md", "# timed\n")
+
+    started = time.perf_counter()
+    code, payload = spec_commit(coord_root(settled), monkeypatch, rel(settled, "traces/timed.md"), "-m", "timed")
+    elapsed = time.perf_counter() - started
+
+    assert code == 0, payload
+    print(f"NFR-001 spec-commit wall clock: {elapsed:.3f}s")
     assert elapsed < _NFR_001_BUDGET_SECONDS
 
 

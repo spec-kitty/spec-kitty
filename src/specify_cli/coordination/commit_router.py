@@ -656,8 +656,9 @@ def _commit_partition_group(
         )
         return replace(refusal, surfaces=(refused_surface,))
 
-    if use_coord:
-        try:
+    holder_checkout = False
+    try:
+        if use_coord:
             # NOTE (reviewer ruling L1, WP05 cycle 1): ``owned`` is NOT
             # threaded into this call. The real guarantee this arm can never
             # see ``owned is not None`` is ``use_coord = owned is None and
@@ -683,30 +684,19 @@ def _commit_partition_group(
                 kind=kind,
                 primary_paths_created_this_invocation=primary_paths_created_this_invocation,
             )
-        except _OwningSurfaceRefused as exc:
-            # T029: a named write_dir refusal (PROTECTED_BRANCH_REFUSED /
-            # COORDINATION_BRANCH_DELETED / COORDINATION_WORKTREE_UNMATERIALIZED /
-            # COORD_SEED_FORK_REFUSED / its siblings / PATH_UNROUTABLE) translating
-            # a root-path COORD record to its owning surface — never swallowed,
-            # always a named refused surfaces[*] entry.
-            refused = (PathFate(path=exc.path, reason=exc.reason),)
-            refused_surface = SurfaceOutcome(
-                surface=surface_name,
-                branch=placement.ref,
-                status="refused",
-                commit_hash=None,
-                refused=refused,
-                diagnostic=exc.diagnostic,
-            )
-            return CommitRouterResult(
-                status=_STATUS_ERROR,
-                placement_ref=placement.ref,
-                diagnostic=exc.diagnostic,
-                surfaces=(refused_surface,),
-            )
-    else:
-        # Flattened or unprotected primary: commit directly.
-        worktree_root, commit_paths = owned.owned_root if owned is not None else _primary_commit_root(repo_root, placement.ref, files), files
+        elif owned is not None:
+            worktree_root, commit_paths = owned.owned_root, files
+        else:
+            # Flattened or unprotected primary, or a settled default Mission whose
+            # partitions share one ref (#7551): commit in the checkout the seam names.
+            worktree_root, commit_paths, holder_checkout = _primary_commit_paths(repo_root, mission_slug, files, kind=kind)
+    except _OwningSurfaceRefused as exc:
+        # T029: a named write_dir refusal (PROTECTED_BRANCH_REFUSED /
+        # COORDINATION_BRANCH_DELETED / COORDINATION_WORKTREE_UNMATERIALIZED /
+        # COORD_SEED_FORK_REFUSED / its siblings / PATH_UNROUTABLE / WRONG_SURFACE)
+        # resolving a path's owning surface — never swallowed, always a named
+        # refused surfaces[*] entry.
+        return _owning_surface_refusal(exc, surface_name=surface_name, placement=placement)
 
     if not commit_paths:
         return _classify_no_commit_paths(repo_root, files, use_coord=use_coord, placement=placement)
@@ -736,6 +726,7 @@ def _commit_partition_group(
         owned=owned,
         expected_parent_sha=expected_parent_sha,
         expected_path_bytes=expected_path_bytes,
+        holder_checkout=holder_checkout,
     )
     if isinstance(commit_result, CommitRouterResult):
         return _refine_unchanged_for_root_checkout_dirt(commit_result, repo_root, files, use_coord=use_coord, surface_name=surface_name, placement=placement)
@@ -764,6 +755,31 @@ def _commit_partition_group(
     )
 
 
+def _owning_surface_refusal(
+    exc: _OwningSurfaceRefused,
+    *,
+    surface_name: Literal["primary", "coordination"],
+    placement: CommitTarget,
+) -> CommitRouterResult:
+    """The named ``refused`` result for an :class:`_OwningSurfaceRefused` (T029; #7551).
+
+    A ``WRONG_SURFACE`` refusal (a Mission file that exists only in the repository
+    root checkout while the Mission's files live in another checkout) keeps the
+    router's ``no_op_wrong_surface`` status, exactly like the ``_any_path_absent``
+    refusal; every other owning-surface refusal stays an ``error``.
+    """
+    refused_surface = SurfaceOutcome(
+        surface=surface_name,
+        branch=placement.ref,
+        status="refused",
+        commit_hash=None,
+        refused=(PathFate(path=exc.path, reason=exc.reason),),
+        diagnostic=exc.diagnostic,
+    )
+    status = _STATUS_NO_OP_WRONG_SURFACE if exc.reason == commit_outcome.WRONG_SURFACE else _STATUS_ERROR
+    return CommitRouterResult(status=status, placement_ref=placement.ref, diagnostic=exc.diagnostic, surfaces=(refused_surface,))
+
+
 def _coord_status_dirs(worktree_root: Path, commit_paths: tuple[Path, ...]) -> list[Path]:
     """The coord feature dirs of the STATUS_STATE files in a coord commit, sorted (stable lock order)."""
     dirs: set[Path] = set()
@@ -785,7 +801,14 @@ def _hold_coord_status_dir(stack: ExitStack, repo_root: Path, coord_feature_dir:
 
 
 @contextmanager
-def _coord_status_locks(repo_root: Path, worktree_root: Path, commit_paths: tuple[Path, ...], *, use_coord: bool) -> Iterator[None]:
+def _coord_status_locks(
+    repo_root: Path,
+    worktree_root: Path,
+    commit_paths: tuple[Path, ...],
+    *,
+    use_coord: bool,
+    holder_checkout: bool = False,
+) -> Iterator[None]:
     """Hold the status lock (L1) of every coord-resident status log this commit carries.
 
     A coord-resident ``status.events.jsonl`` / ``status.json`` is the log the
@@ -797,8 +820,15 @@ def _coord_status_locks(repo_root: Path, worktree_root: Path, commit_paths: tupl
     shell's own :func:`~specify_cli.coordination.status_transition.coord_status_lock`
     so both sides hold the identical lock; it is re-entrant, so a caller that
     already holds it is not deadlocked.
+
+    The lock engages for a coordination-routed commit (``use_coord``) and for a
+    commit in a holder checkout away from the repository root checkout
+    (``holder_checkout``, #7607): a settled default Mission's coordination branch
+    IS its topic branch, so ``use_coord`` is False for every kind while its status
+    log still lives in, and is committed from, the coordination worktree. A
+    commit in the repository root checkout or in an owned checkout never takes it.
     """
-    if not use_coord:
+    if not (use_coord or holder_checkout):
         yield
         return
 
@@ -854,6 +884,7 @@ def _safe_commit_group(
     owned: OwnedCheckout | None,
     expected_parent_sha: str | None,
     expected_path_bytes: Mapping[Path, bytes] | None,
+    holder_checkout: bool = False,
 ) -> object:
     """Run ``safe_commit`` for one group; a failure or no-op comes back as a :class:`CommitRouterResult`.
 
@@ -864,7 +895,7 @@ def _safe_commit_group(
     """
     surface_name: Literal["primary", "coordination"] = "coordination" if use_coord else "primary"
     try:
-        with _coord_status_locks(repo_root, worktree_root, commit_paths, use_coord=use_coord):
+        with _coord_status_locks(repo_root, worktree_root, commit_paths, use_coord=use_coord, holder_checkout=holder_checkout):
             return safe_commit(
                 repo_root=repo_root,
                 worktree_root=worktree_root,
@@ -938,7 +969,7 @@ def _representative_kind_for_bucket(
     resolved one; each file is classified against all of it.
     """
     for file in files:
-        kind_f = kind_across_mission_dir_names(file, mission_slug=mission_slug, mission_dir_names=mission_dir_names)
+        kind_f: MissionArtifactKind | None = kind_across_mission_dir_names(file, mission_slug=mission_slug, mission_dir_names=mission_dir_names)
         if kind_f is not None and is_primary_artifact_kind(kind_f) == expect_primary:
             return kind_f
     return fallback
@@ -1157,21 +1188,117 @@ def _merge_group_results(
     return replace(results[0], commit_hashes=all_commit_hashes, surfaces=all_surfaces)
 
 
-def _primary_commit_root(repo_root: Path, ref: str, files: tuple[Path, ...]) -> Path:
-    """The checkout a PRIMARY commit on *ref* runs in (FR-061, Mission lane-worktree-model-hardening WP14).
+def _primary_commit_paths(
+    repo_root: Path,
+    mission_slug: str,
+    files: tuple[Path, ...],
+    *,
+    kind: MissionArtifactKind,
+) -> tuple[Path, tuple[Path, ...], bool]:
+    """The checkout, paths and holder flag of a non-owned PRIMARY-arm commit (#7551, #7607).
 
-    The repository root checkout, unless another checkout holds *ref* and every file
-    lies inside it: a settled ``topology_source: default`` Mission's PRIMARY partition
-    is its topic branch, which the coordination worktree holds once the root checkout
-    moved back to ``create_return_branch``.
+    Returns ``(worktree_root, commit_paths, holder_checkout)``: the checkout from
+    :func:`_primary_commit_root`, the *files* re-expressed in it by
+    :func:`_reanchor_primary_paths`, and whether that checkout is a holder away
+    from the repository root checkout (the status-lock input, T008). One
+    ``write_dirs`` memo serves the checkout lookup and every re-anchored path.
+    Raises :class:`_OwningSurfaceRefused` (a seam refusal, or a root-only copy).
+
+    The checkout is looked up with a PRIMARY-partition kind (the group's own kind,
+    else :data:`_FALLBACK_PRIMARY_KIND`): this arm commits on the primary target
+    ref, whose checkout the declared-PRIMARY ``write_dir`` names without side
+    effects. Asking ``write_dir`` for a COORD kind here would run
+    ``establish_coord_write_location``, whose own seed commit re-enters this router
+    (unbounded recursion on an undeclared coordination branch). A re-anchored file
+    is still translated with its OWN kind.
     """
-    from specify_cli.status import checkout_holding_branch
+    if not files:
+        return repo_root, files, False
+    write_dirs: dict[MissionArtifactKind, WriteLocation] = {}
+    label = Path(_relpath(repo_root, files[0]))
+    checkout_kind = kind if is_primary_artifact_kind(kind) else _FALLBACK_PRIMARY_KIND
+    worktree_root = _primary_commit_root(repo_root, mission_slug, kind=checkout_kind, write_dirs=write_dirs, label=label)
+    if worktree_root is repo_root:
+        return repo_root, files, False
+    commit_paths = _reanchor_primary_paths(repo_root, worktree_root, files, mission_slug=mission_slug, write_dirs=write_dirs)
+    return worktree_root, commit_paths, True
 
-    holder = checkout_holding_branch(repo_root, ref) if files else None
-    if holder is None or holder.resolve() == repo_root.resolve():
+
+def _primary_commit_root(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    kind: MissionArtifactKind,
+    write_dirs: dict[MissionArtifactKind, WriteLocation],
+    label: Path,
+) -> Path:
+    """The checkout a non-owned PRIMARY-arm commit of *kind* runs in (FR-061; #7551, FR-002).
+
+    Delegates to the placement seam: ``write_dir(kind).surface_root``, the checkout
+    that contains *kind*'s Mission directory (#7546 WP01), resolved through
+    :func:`_resolve_owning_write_dir` so a seam failure arrives as a named
+    :class:`_OwningSurfaceRefused`. A settled default Mission's partitions share its
+    topic branch (``use_coord`` is False for every kind), so COORD kinds reach this
+    arm too and resolve the coordination worktree, which holds that branch.
+
+    When the seam names the repository root checkout (``get_main_repo_root`` of
+    *repo_root*, resolved) the caller's own *repo_root* is returned unchanged, the
+    very object, so a caller that passed a worktree path for a flat Mission keeps
+    committing where it did; any other checkout is returned as the holder. No raw
+    "which checkout holds this ref" probe is consulted (C-001). *label* names the
+    path a seam refusal is reported against.
+    """
+    from specify_cli.core.paths import get_main_repo_root
+
+    if kind not in write_dirs:
+        write_dirs[kind] = _resolve_owning_write_dir(repo_root, kind, mission_slug=mission_slug, owned=None, rel=label)
+    holder = write_dirs[kind].surface_root
+    if holder.resolve() == get_main_repo_root(repo_root).resolve():
         return repo_root
-    resolved = holder.resolve()
-    return holder if all(path.resolve().is_relative_to(resolved) for path in files) else repo_root
+    return holder
+
+
+def _reanchor_primary_paths(
+    repo_root: Path,
+    worktree_root: Path,
+    files: tuple[Path, ...],
+    *,
+    mission_slug: str,
+    write_dirs: dict[MissionArtifactKind, WriteLocation],
+) -> tuple[Path, ...]:
+    """Re-express repository-root Mission paths in the holder checkout *worktree_root* (#7551, FR-003).
+
+    A path already inside *worktree_root*, or outside the repository root checkout,
+    is kept. A path under the repository root checkout is translated by
+    :func:`_translate_to_owning_surface` (never a composed
+    ``holder / kitty-specs / slug``) and the translation is committed when the
+    root path is absent or the holder copy exists (the root copy is then a stray).
+    A file that exists ONLY at the root path is refused with ``WRONG_SURFACE``: it
+    is never copied, and the diagnostic names the holder path to move it to.
+    """
+    from specify_cli.core.paths import get_main_repo_root
+
+    main_root = get_main_repo_root(repo_root).resolve()
+    holder = worktree_root.resolve()
+    reanchored: list[Path] = []
+    for path in files:
+        resolved = path.resolve()
+        if resolved.is_relative_to(holder) or not resolved.is_relative_to(main_root):
+            reanchored.append(path)
+            continue
+        rel = resolved.relative_to(main_root)
+        translated = _translate_to_owning_surface(repo_root, rel, mission_slug=mission_slug, owned=None, write_dirs=write_dirs)
+        if path.exists() and not translated.exists():
+            raise _OwningSurfaceRefused(
+                path=rel.as_posix(),
+                reason=commit_outcome.WRONG_SURFACE,
+                diagnostic=(
+                    f"{rel.as_posix()} exists only in the repository root checkout; this Mission's files live in "
+                    f"{worktree_root}. Move it to {translated} and re-run. Nothing was copied or committed."
+                ),
+            )
+        reanchored.append(translated)
+    return tuple(reanchored)
 
 
 def _resolve_mission_target_branch(repo_root: Path, mission_slug: str) -> str:
