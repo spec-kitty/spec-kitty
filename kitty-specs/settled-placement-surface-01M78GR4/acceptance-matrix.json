@@ -36,13 +36,13 @@
     },
     {
       "criterion_id": "FR-004",
-      "description": "Verify FR-004 is satisfied",
+      "description": "safe-commit from the coordination worktree commits; from the root the refusal names the holding worktree and the remedy works",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/cli/commands/test_safe_commit_settled.py; tests/specify_cli/git (HEAD-mismatch remedy)",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T22:01:46.320812+00:00",
+      "notes": "Verified at HEAD: 462 passed (all Mission tests + named gates), 2026-11-12"
     },
     {
       "criterion_id": "FR-005",
