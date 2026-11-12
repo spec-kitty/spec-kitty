@@ -89,13 +89,6 @@ def test_lifecycle_log_joins_the_plan_commit_only_on_a_primary_status_partition(
     monkeypatch.setattr("mission_runtime.resolve_topology", lambda *_a, **_k: pytest.fail("owned run re-resolved the topology"))
     owned = SimpleNamespace(topology=MissionTopology[topology])
     assert _lifecycle_log_for_plan_commit(tmp_path, tmp_path, "m", owned) == ((log,) if expected else ())  # type: ignore[arg-type]
-
-
-def test_no_lifecycle_log_means_nothing_extra_to_commit(tmp_path: Path) -> None:
-    from types import SimpleNamespace
-
-    from mission_runtime import MissionTopology
-    from specify_cli.cli.commands.agent.mission_setup_plan import _lifecycle_log_for_plan_commit
-
-    owned = SimpleNamespace(topology=MissionTopology.SINGLE_BRANCH)
+    # No log on disk: nothing extra to commit on any partition.
+    log.unlink()
     assert _lifecycle_log_for_plan_commit(tmp_path, tmp_path, "m", owned) == ()  # type: ignore[arg-type]

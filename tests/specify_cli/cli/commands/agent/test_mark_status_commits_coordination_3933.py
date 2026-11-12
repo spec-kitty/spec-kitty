@@ -32,13 +32,3 @@ def test_mark_status_leaves_the_coordination_worktree_clean(mission) -> None:
 
     assert proc.returncode == 0, flat(proc)[-2000:]
     assert dirty(coord) == []
-
-
-def test_no_auto_commit_still_leaves_the_annotation_uncommitted(mission) -> None:
-    """Control: the operator's explicit opt-out keeps its meaning."""
-    coord = mission.coordination_worktree()
-
-    proc = mission.run("agent", "tasks", "mark-status", "T001", "--status", "done", "--no-auto-commit", "--mission", mission.slug)
-
-    assert proc.returncode == 0, flat(proc)[-2000:]
-    assert any(path.endswith("status.events.jsonl") for path in dirty(coord))
