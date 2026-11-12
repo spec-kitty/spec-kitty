@@ -42,6 +42,7 @@ from specify_cli.consolidation._constants import (
 )
 from specify_cli.consolidation.git_probes import (
     GitProbeError,
+    MergeDriverFailedError,
     MergeDriverNotRegisteredError,
     _read_git_blob_bytes,
     driver_replay_expected_bytes,
@@ -1487,8 +1488,8 @@ def _raise_unlanded_late_window(*, status_events: list[str], records: list[str],
 class ProjectedPathReason(StrEnum):
     """Why one projected bookkeeping path did not land on the target (#5867).
 
-    Only :attr:`PROBE_FAILED` can clear on a re-run; every other reason repeats until the
-    operator changes the target or the coordination branch.
+    Only :attr:`PROBE_FAILED` can clear on a re-run (when its cause was transient); every other
+    reason repeats until the operator changes the target or the coordination branch.
     """
 
     COORDINATION_BLOB_MISSING = "coordination_blob_missing"
@@ -1499,8 +1500,10 @@ class ProjectedPathReason(StrEnum):
     """Both sides changed the path and it has no registered merge driver to reconcile them."""
     MERGE_DRIVER_MISMATCH = "merge_driver_mismatch"
     """Both sides changed the path and the landed blob is not what its merge driver produces."""
+    MERGE_DRIVER_FAILED = "merge_driver_failed"
+    """Both sides changed the path and its merge driver refused to reconcile them (or could not be resolved)."""
     PROBE_FAILED = "probe_failed"
-    """A git probe (or the driver replay) failed, so the proof could not be evaluated."""
+    """A git probe failed (or a blob of the replay could not be read), so the proof could not be evaluated."""
 
 
 def _projected_path_content_matches(
@@ -1553,6 +1556,8 @@ def _projected_path_content_matches(
         )
     except MergeDriverNotRegisteredError:
         return ProjectedPathReason.NO_MERGE_DRIVER
+    except MergeDriverFailedError:
+        return ProjectedPathReason.MERGE_DRIVER_FAILED
     except GitProbeError:
         return ProjectedPathReason.PROBE_FAILED
     # Typed local: the probe's return is ``Any`` under ``follow_imports = skip``.
@@ -1602,26 +1607,6 @@ def unlanded_projected_paths(
     return unlanded
 
 
-def projected_content_matches_target(
-    *,
-    main_repo: Path,
-    coord_ref: str,
-    target_ref: str,
-    projected_paths: tuple[str, ...],
-    checkpoint_sha: str,
-    pre_squash_target_ref: str,
-) -> bool:
-    """``True`` iff every projected path landed: :func:`unlanded_projected_paths` found none."""
-    return not unlanded_projected_paths(
-        main_repo=main_repo,
-        coord_ref=coord_ref,
-        target_ref=target_ref,
-        projected_paths=projected_paths,
-        checkpoint_sha=checkpoint_sha,
-        pre_squash_target_ref=pre_squash_target_ref,
-    )
-
-
 __all__ = [
     "AliasFiles",
     "AliasFileNotPreserved",
@@ -1646,7 +1631,6 @@ __all__ = [
     "assert_late_window_landed",
     "project_late_gate_matrix_commits",
     "project_post_checkpoint_commits_to_target",
-    "projected_content_matches_target",
     "ProjectedPathReason",
     "unlanded_projected_paths",
 ]

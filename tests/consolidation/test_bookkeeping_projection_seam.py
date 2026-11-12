@@ -227,13 +227,16 @@ def test_driver_replay_pass_on_lossless_union(tmp_path: Path) -> None:
     _driver_git(repo, "add", "-A")
     _driver_git(repo, "commit", "-q", "-m", "landed the driver's real output")
 
-    assert bp.projected_content_matches_target(
-        main_repo=repo,
-        coord_ref="coord",
-        target_ref="main",
-        projected_paths=(trace_rel,),
-        checkpoint_sha=checkpoint,
-        pre_squash_target_ref=pre_squash_target,
+    assert (
+        bp.unlanded_projected_paths(
+            main_repo=repo,
+            coord_ref="coord",
+            target_ref="main",
+            projected_paths=(trace_rel,),
+            checkpoint_sha=checkpoint,
+            pre_squash_target_ref=pre_squash_target,
+        )
+        == []
     )
 
 
@@ -258,14 +261,14 @@ def test_driver_replay_refuses_on_dropped_content(tmp_path: Path) -> None:
     # NOT what the union driver would ever produce.
     _commit_trace(repo, trace_rel, "baseline\ncoord edit\n", "genuinely-lossy landing")
 
-    assert not bp.projected_content_matches_target(
+    assert bp.unlanded_projected_paths(
         main_repo=repo,
         coord_ref="coord",
         target_ref="main",
         projected_paths=(trace_rel,),
         checkpoint_sha=checkpoint,
         pre_squash_target_ref=pre_squash_target,
-    )
+    ) == [(trace_rel, bp.ProjectedPathReason.MERGE_DRIVER_MISMATCH)]
 
 
 @pytest.mark.git_repo
@@ -289,14 +292,14 @@ def test_driver_replay_refuses_when_no_registered_driver(tmp_path: Path) -> None
     # evaluate it (no registered driver to replay) -- REFUSE, never PASS.
     _commit_trace(repo, notes_rel, "baseline\ntarget edit\ncoord edit\n", "auto-merged landing")
 
-    assert not bp.projected_content_matches_target(
+    assert bp.unlanded_projected_paths(
         main_repo=repo,
         coord_ref="coord",
         target_ref="main",
         projected_paths=(notes_rel,),
         checkpoint_sha=checkpoint,
         pre_squash_target_ref=pre_squash_target,
-    )
+    ) == [(notes_rel, bp.ProjectedPathReason.NO_MERGE_DRIVER)]
 
 
 @pytest.mark.git_repo
@@ -338,13 +341,16 @@ def test_driver_replay_preserves_non_diverged_pass(tmp_path: Path) -> None:
     # The coord content lands verbatim (no divergence to reconcile).
     _commit_trace(repo, notes_rel, "baseline\ncoord-only addition\n", "project coord content")
 
-    assert bp.projected_content_matches_target(
-        main_repo=repo,
-        coord_ref="coord",
-        target_ref="main",
-        projected_paths=(notes_rel,),
-        checkpoint_sha=checkpoint,
-        pre_squash_target_ref=pre_squash_target,
+    assert (
+        bp.unlanded_projected_paths(
+            main_repo=repo,
+            coord_ref="coord",
+            target_ref="main",
+            projected_paths=(notes_rel,),
+            checkpoint_sha=checkpoint,
+            pre_squash_target_ref=pre_squash_target,
+        )
+        == []
     )
 
 

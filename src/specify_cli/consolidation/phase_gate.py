@@ -314,15 +314,23 @@ _MATCH_COORDINATION_COPY = f"make the target's copy match the coordination branc
 _PROJECTION_REMEDIES: dict[ProjectedPathReason, str] = {
     ProjectedPathReason.CONTENT_DIFFERS: _MATCH_COORDINATION_COPY,
     ProjectedPathReason.MERGE_DRIVER_MISMATCH: _MATCH_COORDINATION_COPY,
+    # The replay activates every registered driver itself, so no install step can add one:
+    # NO_MERGE_DRIVER means the path's kind has no driver in the registry.
     ProjectedPathReason.NO_MERGE_DRIVER: (
-        "a path both sides changed has no registered merge driver; run `spec-kitty upgrade` "
-        "(its migrations install the merge drivers and their `.gitattributes` entries), or make the "
-        f"target's copy match the coordination branch, {_RERUN_CONSOLIDATE}"
+        f"a path both sides changed has no merge driver, so the two copies cannot be reconciled automatically; {_MATCH_COORDINATION_COPY}"
+    ),
+    ProjectedPathReason.MERGE_DRIVER_FAILED: (
+        "the path's merge driver refused the two copies (for example malformed content); fix the "
+        f"content on the target or the coordination branch so they reconcile, {_RERUN_CONSOLIDATE}"
     ),
     ProjectedPathReason.COORDINATION_BLOB_MISSING: (
         f"the coordination branch deleted or renamed the path; restore it on the coordination branch, {_RERUN_CONSOLIDATE}"
     ),
-    ProjectedPathReason.PROBE_FAILED: "a git probe failed; re-running `spec-kitty consolidate --resume` may succeed",
+    ProjectedPathReason.PROBE_FAILED: (
+        "a git probe failed; re-running `spec-kitty consolidate --resume` may succeed if the failure was "
+        "transient; if it repeats, check that the target and coordination branches resolve (`git rev-parse`) "
+        "and that the repository is readable (`git fsck`)"
+    ),
 }
 
 
@@ -335,6 +343,7 @@ def _unlanded_reason_text(reason: ProjectedPathReason, coord_branch: str, target
         ProjectedPathReason.MERGE_DRIVER_MISMATCH: (
             f"both {target_branch} and {coord_branch} changed it, and the {target_branch} copy is not what its merge driver produces"
         ),
+        ProjectedPathReason.MERGE_DRIVER_FAILED: f"both {target_branch} and {coord_branch} changed it, and its merge driver refused them",
         ProjectedPathReason.PROBE_FAILED: "a git probe failed while checking it",
     }
     return texts[reason]
@@ -351,7 +360,9 @@ def _render_unlanded_projection(
     lines.extend(f"  {path} — {_unlanded_reason_text(reason, coord_name, target_branch)}" for path, reason in unlanded[:_UNLANDED_PATHS_SHOWN])
     if len(unlanded) > _UNLANDED_PATHS_SHOWN:
         lines.append(f"  ... and {len(unlanded) - _UNLANDED_PATHS_SHOWN} more")
-    lines.append(f"The landing was rolled back; {_NOTHING_TORN_DOWN.lower()}.")
+    # The outcome of the rollback is not claimed here: the rollback door reports it, and on a
+    # resume whose landing an earlier reconciliation verified it keeps that landing (#5867).
+    lines.append(f"{_NOTHING_TORN_DOWN}; the rollback outcome is reported below.")
     remedies = list(dict.fromkeys(_PROJECTION_REMEDIES[reason] for _, reason in unlanded))
     lines.append("Remedy:")
     lines.extend(f"  - {remedy}" for remedy in remedies)
@@ -411,11 +422,14 @@ def _assert_squash_projected_content_landed(run: _MergeRunState) -> None:
     if not unlanded:
         return
     # #5867 / FR-014: this ``Exit(1)`` is raised inside the executor's single rollback door
-    # (the one ``try`` in ``_run_lane_based_consolidation_locked``), so the door restores the
-    # target to its pre-run snapshot like any other post-mutation failure, and a rollback that
-    # restored every branch re-baselines the record (``rollback.rebaseline_after_full_restore``).
-    # Only a probe failure can clear on a re-run; every other reason repeats until the operator
-    # changes the target or the coordination branch, so the remedy is given per reason.
+    # (the one ``try`` in ``_run_lane_based_consolidation_locked``). The door restores the
+    # run-movable branches to the pre-run snapshot, and a rollback that restored every branch
+    # re-baselines the record (``rollback.rebaseline_after_full_restore``), with one exception:
+    # on a resume at a target tip an earlier reconciliation verified
+    # (``_resume_reconciliation_already_passed``) the door keeps that landing and rolls nothing
+    # back (``rollback._refusal``). So the refusal does not claim the outcome; the door reports it.
+    # Only a transient probe failure can clear on a re-run; every other reason repeats until the
+    # operator changes the target or the coordination branch, so the remedy is given per reason.
     text = _render_unlanded_projection(unlanded, checkpoint.ref, run.lanes_manifest.target_branch)
     console.print(f"\n[red]Error:[/red] {escape(text)}")
     raise typer.Exit(1)

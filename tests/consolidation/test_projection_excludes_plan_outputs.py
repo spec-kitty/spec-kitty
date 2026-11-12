@@ -8,7 +8,7 @@ had no entry for them, so :func:`kind_for_mission_file` returned ``None`` and
 projected set (it excludes only KNOWN primary kinds). When a lane merge brought
 them onto the coordination ref after the checkpoint and the target had
 diverged from the checkpoint for those paths, the squash proof
-(:func:`projected_content_matches_target`) found no merge driver and REFUSEd —
+(:func:`unlanded_projected_paths`) found no merge driver and REFUSEd —
 "projected coordination bookkeeping content did not land on the target" —
 even though the content was byte-identical.
 
@@ -27,8 +27,9 @@ import pytest
 
 from mission_runtime import is_primary_artifact_kind, kind_for_mission_file
 from specify_cli.consolidation.bookkeeping_projection import (
+    ProjectedPathReason,
     _post_checkpoint_mission_paths,
-    projected_content_matches_target,
+    unlanded_projected_paths,
 )
 
 pytestmark = [pytest.mark.git_repo]
@@ -130,13 +131,16 @@ def test_squash_proof_passes_on_the_refused_run_shape(tmp_path: Path) -> None:
     repo, checkpoint, pre_squash = _refused_run_shape(tmp_path)
     projected = tuple(_post_checkpoint_mission_paths(repo, _SLUG, checkpoint, "coord"))
 
-    assert projected_content_matches_target(
-        main_repo=repo,
-        coord_ref="coord",
-        target_ref="main",
-        projected_paths=projected,
-        checkpoint_sha=checkpoint,
-        pre_squash_target_ref=pre_squash,
+    assert (
+        unlanded_projected_paths(
+            main_repo=repo,
+            coord_ref="coord",
+            target_ref="main",
+            projected_paths=projected,
+            checkpoint_sha=checkpoint,
+            pre_squash_target_ref=pre_squash,
+        )
+        == []
     )
 
 
@@ -150,14 +154,14 @@ def test_the_proof_refuses_a_plan_output_handed_to_it_as_projected(tmp_path: Pat
     """
     repo, checkpoint, pre_squash = _refused_run_shape(tmp_path)
 
-    assert not projected_content_matches_target(
+    assert unlanded_projected_paths(
         main_repo=repo,
         coord_ref="coord",
         target_ref="main",
         projected_paths=(_QUICKSTART,),
         checkpoint_sha=checkpoint,
         pre_squash_target_ref=pre_squash,
-    )
+    ) == [(_QUICKSTART, ProjectedPathReason.NO_MERGE_DRIVER)]
 
 
 def test_plan_outputs_commit_to_the_primary_target_not_coordination() -> None:
@@ -223,11 +227,14 @@ def test_unclassified_artifacts_are_not_projected_as_coordination_records_5697(t
     projected = tuple(_post_checkpoint_mission_paths(repo, _SLUG, checkpoint, "coord"))
 
     assert projected == (_TRACE,)
-    assert projected_content_matches_target(
-        main_repo=repo,
-        coord_ref="coord",
-        target_ref="main",
-        projected_paths=projected,
-        checkpoint_sha=checkpoint,
-        pre_squash_target_ref=pre_squash,
+    assert (
+        unlanded_projected_paths(
+            main_repo=repo,
+            coord_ref="coord",
+            target_ref="main",
+            projected_paths=projected,
+            checkpoint_sha=checkpoint,
+            pre_squash_target_ref=pre_squash,
+        )
+        == []
     )
