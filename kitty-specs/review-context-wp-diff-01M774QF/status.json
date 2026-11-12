@@ -1,7 +1,7 @@
 {
-  "event_count": 37,
-  "last_event_id": "01M77R61ARZJ3W105HQMZVFV2P",
-  "materialized_at": "2026-11-12T11:27:12.728279+00:00",
+  "event_count": 39,
+  "last_event_id": "01M77R7VKKJ0NRC18HS5PHPF9Q",
+  "materialized_at": "2026-11-12T11:28:11.573340+00:00",
   "mission_number": "",
   "mission_slug": "review-context-wp-diff-01M774QF",
   "mission_type": "software-dev",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 2
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
@@ -190,11 +190,20 @@
       "last_transition_at": "2026-11-12T06:37:57.736948+00:00"
     },
     "WP07": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M777MH471VA3TVK32B0Y3Q5B",
-      "last_transition_at": "2026-11-12T06:38:01.863725+00:00"
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M77R7VKKJ0NRC18HS5PHPF9Q",
+      "last_transition_at": "2026-11-12T11:28:11.573340+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 10301,
+      "shell_pid_created_at": "1794482867.78"
     }
   }
 }
