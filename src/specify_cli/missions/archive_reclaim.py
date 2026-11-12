@@ -29,13 +29,15 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from kernel.git import GitCommandError, status_entries
-from mission_runtime import MissionArtifactKind, placement_seam
+from mission_runtime import ActionContextError, MissionArtifactKind, placement_seam, resolve_write_target_or_degrade
 from specify_cli.consolidation.git_probes import GitProbeError, commit_in_clone, commits_in_range, is_ancestor_strict, resolve_commit
 from specify_cli.consolidation.landed_coordination import clear_landed_coordination_tip, landed_coordination_tip
 from specify_cli.coordination.teardown import CoordTeardownKeptOnlyCopy, ProjectionTeardownAbort, teardown_coordination_topology
 from specify_cli.coordination.workspace import CoordinationWorkspace
+from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git.bookkeeping_commit import commit_merge_bookkeeping
-from specify_cli.git.destructive_guard import LANDED_INTENT, DestructiveOpRefused, guarded_branch_delete
+from specify_cli.git.commit_helpers import SafeCommitError, SafeCommitHeadMismatch, preflight_commit
+from specify_cli.git.destructive_guard import LANDED_INTENT, DestructiveOpRefused, discarded_ref, guarded_branch_delete
 from specify_cli.mission_metadata import flatten_coordination_metadata, load_meta, recorded_mid8
 from specify_cli.missions._archive import CANCELED, is_mission_archived, resolve_terminal_state
 from specify_cli.status import is_mission_merged
@@ -54,6 +56,7 @@ RECLAIM_NO_COORDINATION = "RECLAIM_NO_COORDINATION"
 RECLAIM_UNABSORBED = "RECLAIM_UNABSORBED"
 RECLAIM_WORKTREE_KEPT = "RECLAIM_WORKTREE_KEPT"
 RECLAIM_MARKER_NOT_COMMITTED = "RECLAIM_MARKER_NOT_COMMITTED"
+RECLAIM_NOT_ON_TARGET = "RECLAIM_NOT_ON_TARGET"
 
 _COORDINATION_BRANCH_KEY = "coordination_branch"
 _FLATTENED_KEY = "flattened"
@@ -148,6 +151,7 @@ def reclaim_archived_mission(repo_root: Path, mission_slug: str) -> ReclaimRepor
     live_tip = _live_tip(coordination)
     if live_tip is not None:
         _prove_landed(coordination, live_tip)
+    _require_committable(repo_root, feature_dir, mission_slug)
     steps = (
         _remove_worktree(coordination),
         _delete_branch(coordination, live_tip),
@@ -166,6 +170,7 @@ def _finish_without_marker(repo_root: Path, feature_dir: Path, mission_slug: str
         )
     steps: tuple[ReclaimStep, ...] = ()
     if _meta_uncommitted(repo_root, feature_dir):
+        _require_committable(repo_root, feature_dir, mission_slug)
         steps = (_commit_marker(repo_root, feature_dir, mission_slug),)
     return ReclaimReport(mission_slug=mission_slug, steps=steps, nothing_left=not steps)
 
@@ -224,8 +229,8 @@ def _unlanded_remedy(coordination: _Coordination) -> str:
 
 
 def _remove_worktree(coordination: _Coordination) -> ReclaimStep:
-    if not CoordinationWorkspace.is_present(coordination.repo_root, coordination.mission_slug, coordination.mid8):
-        return ReclaimStep("coordination worktree", "already gone")
+    """Run the teardown seam even when the worktree is gone: its ledger guard protects the branch deleted next."""
+    was_present = CoordinationWorkspace.is_present(coordination.repo_root, coordination.mission_slug, coordination.mid8)
     try:
         teardown_coordination_topology(
             coordination.repo_root,
@@ -241,7 +246,7 @@ def _remove_worktree(coordination: _Coordination) -> ReclaimStep:
             f"The coordination worktree of {coordination.mission_slug} could not be removed.",
             f"Check git worktree list, then re-run: {reclaim_command(coordination.mission_slug)}.",
         )
-    return ReclaimStep("coordination worktree", "removed")
+    return ReclaimStep("coordination worktree", "removed" if was_present else "already gone")
 
 
 def _delete_branch(coordination: _Coordination, live_tip: str | None) -> ReclaimStep:
@@ -262,36 +267,86 @@ def _delete_branch(coordination: _Coordination, live_tip: str | None) -> Reclaim
             exc.error_code, f"The coordination branch {coordination.branch} was kept: {exc}", f"Re-run: {reclaim_command(coordination.mission_slug)}."
         ) from exc
     clear_landed_coordination_tip(coordination.repo_root, coordination.branch)
-    detail = f"{coordination.branch} (tip kept as refs/spec-kitty/discarded/{coordination.branch})" if kept else coordination.branch
+    detail = f"{coordination.branch} (tip kept as {discarded_ref(coordination.repo_root, coordination.branch, kept)})" if kept else coordination.branch
     return ReclaimStep("coordination branch", "deleted", detail)
 
 
 def _flatten_marker(coordination: _Coordination) -> ReclaimStep:
-    flatten_coordination_metadata(coordination.feature_dir)
+    try:
+        flatten_coordination_metadata(coordination.feature_dir)
+    except Exception as exc:  # noqa: BLE001 — the branch is already gone; any flatten failure (e.g. a held Mission write lock) is a named, re-runnable refusal
+        raise ReclaimRefused(
+            RECLAIM_MARKER_NOT_COMMITTED,
+            f"The coordination worktree and branch are gone, but the marker in {coordination.feature_dir / _META_FILE} could not be flattened: {exc}",
+            f"Re-run once the cause above is cleared; it flattens and commits the marker: {reclaim_command(coordination.mission_slug)}.",
+        ) from exc
     return _commit_marker(coordination.repo_root, coordination.feature_dir, coordination.mission_slug)
 
 
 def _commit_marker(repo_root: Path, feature_dir: Path, mission_slug: str) -> ReclaimStep:
     """Commit the flattened ``meta.json`` through the sanctioned bookkeeping commit (as ``mission close --discard`` does)."""
     meta_path = feature_dir / _META_FILE
-    meta = load_meta(feature_dir, allow_missing=True, on_malformed="none")
-    target_branch = (str(meta.get("target_branch") or "").strip() if isinstance(meta, dict) else "") or None
     try:
         commit_merge_bookkeeping(
             repo_root=repo_root,
             worktree_root=repo_root,
             mission_slug=mission_slug,
-            message=f"chore({mission_slug}): flatten reclaimed coordination metadata",
+            message=_marker_commit_message(mission_slug),
             paths=(meta_path,),
-            branch=target_branch,
+            branch=_target_branch(feature_dir),
         )
     except Exception as exc:  # noqa: BLE001 — any commit failure is rendered as a named refusal the operator can re-run
         raise ReclaimRefused(
             RECLAIM_MARKER_NOT_COMMITTED,
             f"The coordination marker was flattened but {meta_path} could not be committed: {exc}",
-            f"Re-run from the project root to commit it: {reclaim_command(mission_slug)}.",
+            "Clear the cause above (on a branch mismatch, check out the branch it names), then re-run; "
+            f"the re-run commits the flattened marker: {reclaim_command(mission_slug)}.",
         ) from exc
     return ReclaimStep("coordination marker", "flattened and committed", str(meta_path.relative_to(repo_root)))
+
+
+def _target_branch(feature_dir: Path) -> str | None:
+    meta = load_meta(feature_dir, allow_missing=True, on_malformed="none")
+    return (str(meta.get("target_branch") or "").strip() if isinstance(meta, dict) else "") or None
+
+
+def _marker_commit_message(mission_slug: str) -> str:
+    return f"chore({mission_slug}): flatten reclaimed coordination metadata"
+
+
+def _preflight_marker_commit(repo_root: Path, feature_dir: Path, mission_slug: str) -> None:
+    """Validate the marker commit without mutating anything: the destination and capability ``commit_merge_bookkeeping`` uses.
+
+    Raises whatever :func:`preflight_commit` or the placement resolution raises.
+    """
+    target = resolve_write_target_or_degrade(repo_root, mission_slug, kind=MissionArtifactKind.PRIMARY_METADATA, degrade_ref=_target_branch(feature_dir))
+    preflight_commit(
+        repo_root=repo_root,
+        worktree_root=repo_root,
+        target=target,
+        message=_marker_commit_message(mission_slug),
+        paths=(feature_dir / _META_FILE,),
+        capability=GuardCapability.MERGE_BOOKKEEPING,
+    )
+
+
+def _require_committable(repo_root: Path, feature_dir: Path, mission_slug: str) -> None:
+    """Refuse, with nothing changed, unless the flattened marker can be committed (review cycle 1, F1)."""
+    try:
+        _preflight_marker_commit(repo_root, feature_dir, mission_slug)
+    except SafeCommitHeadMismatch as exc:
+        raise ReclaimRefused(
+            RECLAIM_NOT_ON_TARGET,
+            f"The repository root checkout is on {exc.observed_head}, but the flattened marker of {mission_slug} "
+            f"commits to {exc.destination_ref}; nothing was changed.",
+            f"Run git checkout {exc.destination_ref}, then re-run; it then completes: {reclaim_command(mission_slug)}.",
+        ) from exc
+    except (SafeCommitError, ActionContextError) as exc:
+        raise ReclaimRefused(
+            RECLAIM_NOT_ON_TARGET,
+            f"The flattened marker of {mission_slug} could not be committed (checked before any change; nothing was changed): {exc}",
+            f"Clear the cause above, then re-run: {reclaim_command(mission_slug)}.",
+        ) from exc
 
 
 def _meta_uncommitted(repo_root: Path, feature_dir: Path) -> bool:
