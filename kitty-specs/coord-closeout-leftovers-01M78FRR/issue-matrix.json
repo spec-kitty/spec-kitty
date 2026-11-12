@@ -13,7 +13,7 @@
       "wp": null
     },
     "#4380": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "tasks.md T008 (item 2); item 1 out of scope per spec.md",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,8 +21,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP02"
     },
     "#5784": {
       "evidence_ref": "<link or commit>",
