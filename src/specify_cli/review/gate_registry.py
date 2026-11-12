@@ -25,7 +25,7 @@ module; they must never redeclare it.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -74,6 +74,9 @@ class TransitionGateContext:
     to_lane: Lane
     status_observer: GateStatusObserver | None = None
     test_timeout_seconds: int | None = None
+    #: The environment the gate's test run uses (the lane test invocation's,
+    #: #7547); ``None`` inherits this process's environment.
+    run_env: Mapping[str, str] | None = None
 
 
 @dataclass(frozen=True)
@@ -116,6 +119,8 @@ def _spec_kitty_pre_review_handler(ctx: TransitionGateContext) -> GateVerdict:
         scope_source=ctx.scope_source,
         status_observer=ctx.status_observer,
         timeout=ctx.test_timeout_seconds,
+        # getattr: parity tests dispatch with a SimpleNamespace context.
+        run_env=getattr(ctx, "run_env", None),
     )
 
 

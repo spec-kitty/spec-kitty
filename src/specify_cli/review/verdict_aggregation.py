@@ -21,10 +21,15 @@ BEFORE the block):
    ``SCOPE_OVERSIZED``/``TIMED_OUT``/``CANCELLED``: hard-stop,
    ``transition_applied=False`` (hook raises ``Exit(1)``). Checked BEFORE the
    block.
-2. **Opt-in block** -- else block iff
+2. **Refusal** -- else, if ANY verdict is ``FOREIGN_TREE`` (#7547: the run would
+   load another tree's code) and not ``force``: hard-stop,
+   ``transition_applied=False``, regardless of ``block_enabled``. With ``force``
+   the transition proceeds and :attr:`AggregateVerdict.refusing_verdicts` still
+   lists the foreign verdicts, so the hook can record the bypass.
+3. **Opt-in block** -- else block iff
    ``block_enabled AND any(v.outcome == NEW_FAILURES) AND not force`` (hook raises
    ``Exit(1)``).
-3. **Warn / pass** -- else the transition completes; each verdict contributes at
+4. **Warn / pass** -- else the transition completes; each verdict contributes at
    most one console warning line (rendered by the hook).
 
 **Invariants** encoded here and asserted by the tests:
@@ -58,11 +63,15 @@ __all__ = [
 #: Terminal (hard-stop) outcomes, including deterministic pre-launch refusal.
 _TERMINAL_OUTCOMES: frozenset[GateOutcome] = frozenset({GateOutcome.TIMED_OUT, GateOutcome.CANCELLED, GateOutcome.SCOPE_OVERSIZED})
 
+#: Refusing outcomes: hard-stop unless ``--force`` (#7547).
+_REFUSING_OUTCOMES: frozenset[GateOutcome] = frozenset({GateOutcome.FOREIGN_TREE})
+
 
 class AggregateDecision(StrEnum):
-    """The three mutually-exclusive aggregate decisions, in precedence order."""
+    """The four mutually-exclusive aggregate decisions, in precedence order."""
 
     TERMINAL = "terminal"  # a TIMED_OUT/CANCELLED verdict -> hard-stop, no transition
+    REFUSE = "refuse"  # a FOREIGN_TREE verdict, not forced -> hard-stop, no transition
     BLOCK = "block"  # opt-in NEW_FAILURES block engaged -> hard-stop
     WARN_PROCEED = "warn_proceed"  # transition proceeds; each verdict warns at most once
 
@@ -78,7 +87,7 @@ class AggregateVerdict:
     """
 
     decision: AggregateDecision
-    #: ``False`` for both hard-stops (terminal / block); ``True`` for warn-pass.
+    #: ``False`` for the hard-stops (terminal / refuse / block); ``True`` for warn-pass.
     transition_applied: bool
     #: One slot per input verdict, in the given dispatch order (never re-sorted).
     warnings: tuple[GateVerdict, ...]
@@ -88,11 +97,14 @@ class AggregateVerdict:
     blocking_verdicts: tuple[GateVerdict, ...]
     #: The FIRST terminal verdict, or ``None`` when the decision is not terminal.
     terminal_verdict: GateVerdict | None
+    #: The ``FOREIGN_TREE`` verdicts; populated on a refusal and on a forced
+    #: warn-pass alike (so the hook can record the bypass), empty otherwise.
+    refusing_verdicts: tuple[GateVerdict, ...] = ()
 
     @property
     def should_exit(self) -> bool:
-        """True iff the hook must raise ``Exit(1)`` (terminal or engaged block)."""
-        return self.decision in (AggregateDecision.TERMINAL, AggregateDecision.BLOCK)
+        """True iff the hook must raise ``Exit(1)`` (terminal, refusal or engaged block)."""
+        return self.decision in (AggregateDecision.TERMINAL, AggregateDecision.REFUSE, AggregateDecision.BLOCK)
 
 
 def _first_terminal(verdicts: Sequence[GateVerdict]) -> GateVerdict | None:
@@ -116,8 +128,8 @@ def aggregate_verdicts(
 ) -> AggregateVerdict:
     """Aggregate per-handler ``verdicts`` into a single deterministic decision.
 
-    Pure: no I/O, no ``Exit``. The precedence is terminal interruption > opt-in
-    block > warn/pass (see the module docstring). ``verdicts`` MUST already be in
+    Pure: no I/O, no ``Exit``. The precedence is terminal interruption > refusal
+    (unless forced) > opt-in block > warn/pass (see the module docstring). ``verdicts`` MUST already be in
     dispatch order; this function preserves it and never re-sorts.
     """
     ordered = tuple(verdicts)
@@ -133,6 +145,17 @@ def aggregate_verdicts(
         )
 
     blocking = tuple(v for v in ordered if v.outcome is GateOutcome.NEW_FAILURES)
+    refusing = tuple(v for v in ordered if v.outcome in _REFUSING_OUTCOMES)
+    if refusing and not force:
+        return AggregateVerdict(
+            decision=AggregateDecision.REFUSE,
+            transition_applied=False,
+            warnings=ordered,
+            blocking_verdicts=blocking,
+            terminal_verdict=None,
+            refusing_verdicts=refusing,
+        )
+
     if _should_block(block_enabled=block_enabled, force=force, blocking=blocking):
         return AggregateVerdict(
             decision=AggregateDecision.BLOCK,
@@ -148,4 +171,5 @@ def aggregate_verdicts(
         warnings=ordered,
         blocking_verdicts=blocking,
         terminal_verdict=None,
+        refusing_verdicts=refusing,
     )
