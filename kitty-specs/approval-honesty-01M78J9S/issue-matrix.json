@@ -49,16 +49,16 @@
       "wp": null
     },
     "#6709": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Mission approval-honesty-01M78J9S WP03",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Approval-feedback edge semantics left open by #6696",
+      "verdict": "in-mission",
+      "wp": "WP03"
     },
     "#7546": {
       "evidence_ref": "<auto-classified: no action required>",
