@@ -1272,9 +1272,10 @@ def _reanchor_primary_paths(
     is kept. A path under the repository root checkout is translated by
     :func:`_translate_to_owning_surface` (never a composed
     ``holder / kitty-specs / slug``) and the translation is committed when the
-    root path is absent or the holder copy exists (the root copy is then a stray).
-    A file that exists ONLY at the root path is refused with ``WRONG_SURFACE``: it
-    is never copied, and the diagnostic names the holder path to move it to.
+    root path is absent, or when both copies exist with identical bytes (the outside
+    copy is then a stray). Nothing is ever copied, and no copy is picked silently:
+    a file that exists ONLY outside the holder, or whose bytes differ from the
+    holder copy, is refused with ``WRONG_SURFACE`` (:func:`_refuse_copy_outside_holder`).
     """
     from specify_cli.core.paths import get_main_repo_root
 
@@ -1288,17 +1289,33 @@ def _reanchor_primary_paths(
             continue
         rel = resolved.relative_to(main_root)
         translated = _translate_to_owning_surface(repo_root, rel, mission_slug=mission_slug, owned=None, write_dirs=write_dirs)
-        if path.exists() and not translated.exists():
-            raise _OwningSurfaceRefused(
-                path=rel.as_posix(),
-                reason=commit_outcome.WRONG_SURFACE,
-                diagnostic=(
-                    f"{rel.as_posix()} exists only in the repository root checkout; this Mission's files live in "
-                    f"{worktree_root}. Move it to {translated} and re-run. Nothing was copied or committed."
-                ),
-            )
+        _refuse_copy_outside_holder(path, translated, rel=rel, worktree_root=worktree_root)
         reanchored.append(translated)
     return tuple(reanchored)
+
+
+def _refuse_copy_outside_holder(path: Path, translated: Path, *, rel: Path, worktree_root: Path) -> None:
+    """Raise ``WRONG_SURFACE`` when the copy at *path* would be lost by committing *translated*.
+
+    An absent *path* is fine (the holder copy is committed), and so is a *path*
+    whose bytes equal the holder copy's. A *path* with no holder copy, or one whose
+    bytes differ from it, is refused: the edit would otherwise be silently dropped.
+    """
+    if not path.exists():
+        return
+    if not translated.exists():
+        diagnostic = (
+            f"{rel.as_posix()} exists only in the repository root checkout; this Mission's files live in "
+            f"{worktree_root}. Move it to {translated} and re-run. Nothing was copied or committed."
+        )
+    elif path.read_bytes() != translated.read_bytes():
+        diagnostic = (
+            f"{path} differs from the holder copy {translated}; this Mission's files live in {worktree_root}. "
+            f"Make the edit in the holder copy {translated} and re-run. Nothing was copied or committed."
+        )
+    else:
+        return
+    raise _OwningSurfaceRefused(path=rel.as_posix(), reason=commit_outcome.WRONG_SURFACE, diagnostic=diagnostic)
 
 
 def _resolve_mission_target_branch(repo_root: Path, mission_slug: str) -> str:

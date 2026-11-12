@@ -108,6 +108,7 @@ def test_coord_cwd_relative_path_lands_on_topic(settled: DefaultMission, monkeyp
     assert not (settled.root / rel(settled, tail)).exists(), "nothing may be copied into the repository root checkout"
 
 
+@pytest.mark.timing
 def test_nfr_001_single_file_spec_commit_wall_clock(settled: DefaultMission, monkeypatch: pytest.MonkeyPatch) -> None:
     """NFR-001: one warm single-file spec-commit from the coordination worktree, wall clock."""
     write(settled.coord_mission_dir / "traces" / "warm.md", "# warm\n")
