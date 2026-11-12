@@ -73,16 +73,16 @@
       "wp": null
     },
     "#7569": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Mission approval-honesty-01M78J9S WP01",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Review approvals minted with a human reviewer name",
+      "verdict": "in-mission",
+      "wp": "WP01"
     },
     "#7570": {
       "evidence_ref": "<link or commit>",
