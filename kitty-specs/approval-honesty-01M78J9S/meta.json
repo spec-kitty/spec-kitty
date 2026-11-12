@@ -24,5 +24,7 @@
     "wp_count": 4
   },
   "topology_settled": true,
-  "topology_source": "default"
+  "topology_source": "default",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-12T19:42:09.441603+00:00"
 }
