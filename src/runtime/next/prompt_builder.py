@@ -99,9 +99,9 @@ def build_prompt(
     ``owned`` (owned-checkout-lifecycle-authority WP12, FR-008/FR-009/FR-010):
     when set, the WP file, workspace, governance, mission-type context and the
     prompt's own temp file all come from the owned checkout the fact validated,
-    never from the repository root checkout ``repo_root`` names; a review whose
-    base cannot be proven raises ``ActionContextError`` carrying
-    ``OWNED_REVIEW_BASE_UNAVAILABLE``.
+    never from the repository root checkout ``repo_root`` names; on the lane-less
+    owned arm, a review whose base cannot be proven raises ``ActionContextError``
+    carrying ``OWNED_REVIEW_BASE_UNAVAILABLE``.
     """
     governance_root = owned.owned_root if owned is not None else repo_root
     if action in ("implement", "review") and wp_id:
@@ -365,16 +365,19 @@ def _review_command_lines(
     One range authority on every topology: :func:`resolve_wp_review_range` gives the work
     package's range from its window open to its ``for_review`` submission, scoped to its
     ``owned_files``, and :func:`render_review_context` prints it with the cited requirements. A
-    range that cannot be determined is printed as a notice and the review proceeds (FR-013). An
-    owned checkout alone refuses with ``OWNED_REVIEW_BASE_UNAVAILABLE`` when its scoped range is
-    unavailable or the work package declares no ``owned_files`` (operator ruling Q7): it never
-    prints an unscoped whole-checkout diff (FR-010).
+    range that cannot be determined is printed as a notice and the review proceeds (FR-013). The
+    lane-less owned arm (an owned checkout with no lane id, i.e. owned ``single_branch``) alone
+    refuses with ``OWNED_REVIEW_BASE_UNAVAILABLE`` when its scoped range is unavailable or the
+    work package declares no ``owned_files`` (operator rulings Q7 and Q9, the arm origin/main
+    refused on): it never prints an unscoped whole-checkout diff (FR-010). An owned lane arm
+    renders the block, its unavailable notice or unscoped line included, and proceeds.
     """
     owned_files = list(wp_meta.owned_files or [])
-    if owned is not None and not owned_files:
+    refuses = owned is not None and not workspace.lane_id
+    if refuses and not owned_files:
         raise _review_base_unavailable(wp_id, "the work package declares no owned_files")
     review_range = resolve_wp_review_range(repo_root, mission_slug, wp_id, owned_files=owned_files, owned=owned)
-    if owned is not None and review_range.status is RangeStatus.UNAVAILABLE:
+    if refuses and review_range.status is RangeStatus.UNAVAILABLE:
         raise _review_base_unavailable(wp_id, f"the review range is unavailable: {describe_gap(review_range.gap)}")
     cited = resolve_requirement_texts(_spec_text(repo_root, mission_slug, owned), list(wp_meta.requirement_refs or []), mission_type=mission_type)
     branch = owned.write_branch if owned is not None else workspace.branch_name
