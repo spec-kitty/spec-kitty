@@ -79,11 +79,9 @@ from specify_cli.status import (
     window_opener_events,
 )
 
-# The value types (``WpReviewRange``, ``RangeSource``, ``RangeStatus``, ``RangeCommit``,
-# ``FileChange``) are public module-level names the renderer imports; they join ``__all__`` with
-# their first ``src/`` importer (WP05), since the dead-symbol gate counts an ``__all__`` member
-# only through a caller outside this module.
-__all__ = ["resolve_wp_review_range"]
+# ``RangeCommit`` stays a public module-level name outside ``__all__`` until a ``src/`` caller
+# imports it: the dead-symbol gate counts an ``__all__`` member only through a caller outside this module.
+__all__ = ["FileChange", "RangeSource", "RangeStatus", "WpReviewRange", "resolve_wp_review_range"]
 
 logger = logging.getLogger(__name__)
 
