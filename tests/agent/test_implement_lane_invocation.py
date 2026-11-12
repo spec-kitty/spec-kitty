@@ -170,6 +170,40 @@ def test_implement_json_for_planning_artifact_work_has_a_null_invocation(tmp_pat
     assert payload["lane_test_invocation"] is None
 
 
+def _raise_from_the_adapter(monkeypatch: pytest.MonkeyPatch) -> None:
+    def boom(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("probe exploded")
+
+    monkeypatch.setattr("specify_cli.cli.commands.implement.workspace_lane_test_invocation", boom)
+
+
+def test_an_adapter_failure_never_fails_implement_after_the_claim(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review cycle 1, item 2: fail-open like the prompts; the banner states the failure as an unverified probe."""
+    root = init_repo(tmp_path / "repo")
+    activate_repo(root, monkeypatch, tmp_path)
+    build_mission(root, SLUG, MISSION_ID)
+    _raise_from_the_adapter(monkeypatch)
+
+    result = implement_cli(*ARGS)
+
+    assert result.exit_code == 0, result.output
+    assert "✓ Lane worktree ready" in result.output
+    assert LANE_TEST_INVOCATION_HEADER in result.output
+    assert "probe: unverified — could not build the lane test invocation: probe exploded" in result.output
+
+
+def test_an_adapter_failure_yields_a_null_json_invocation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    root = init_repo(tmp_path / "repo")
+    activate_repo(root, monkeypatch, tmp_path)
+    build_mission(root, SLUG, MISSION_ID)
+    _raise_from_the_adapter(monkeypatch)
+
+    payload = _invoke_json()
+
+    assert payload["status"] == "created"
+    assert payload["lane_test_invocation"] is None
+
+
 def test_single_branch_code_work_gets_an_invocation_rooted_at_the_write_checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     root = init_repo(tmp_path / "repo")
     activate_repo(root, monkeypatch, tmp_path)
