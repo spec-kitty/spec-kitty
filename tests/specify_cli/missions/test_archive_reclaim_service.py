@@ -17,8 +17,9 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands import archive as archive_cli
 from specify_cli.consolidation.git_probes import GitProbeError
-from specify_cli.coordination.teardown import CoordTeardownKeptOnlyCopy
+from specify_cli.coordination.teardown import CoordTeardownKeptOnlyCopy, ProjectionTeardownAbort
 from specify_cli.coordination.workspace import CoordinationWorkspace
+from specify_cli.git.commit_helpers import SafeCommitHeadMismatch
 from specify_cli.git.destructive_guard import DestructiveOpRefused
 from specify_cli.missions import archive_reclaim as reclaim
 from specify_cli.missions.archive_reclaim import ReclaimRefused, ReclaimReport
@@ -74,6 +75,7 @@ def seams(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> dict[str, Any]:
     monkeypatch.setattr(reclaim, "flatten_coordination_metadata", flatten)
     monkeypatch.setattr(reclaim, "commit_merge_bookkeeping", commit)
     monkeypatch.setattr(reclaim, "resolve_terminal_state", lambda _dir: "merged")
+    monkeypatch.setattr(reclaim, "_preflight_marker_commit", lambda *_a, **_k: None, raising=False)
     calls["present"] = present
     return calls
 
@@ -118,7 +120,8 @@ def test_partial_state_skips_the_done_steps(tmp_path: Path, seams: dict[str, Any
     report = reclaim.reclaim_archived_mission(tmp_path, _SLUG)
 
     assert [step.outcome for step in report.steps] == ["already gone", "already gone", "flattened and committed"]
-    assert seams["teardown"] == 0 and seams["deleted"] == [] and seams["cleared"] == [_BRANCH]
+    assert seams["teardown"] == 1, "the seam (and its ledger guard) runs even when the worktree is already gone"
+    assert seams["deleted"] == [] and seams["cleared"] == [_BRANCH]
 
 
 def test_not_archived_refuses(tmp_path: Path, seams: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> None:
@@ -263,13 +266,59 @@ def test_a_moved_branch_refuses_and_keeps_the_landed_ref(tmp_path: Path, seams: 
     assert seams["cleared"] == []
 
 
-def test_a_kept_tip_is_reported(tmp_path: Path, seams: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_kept_tip_is_reported_under_the_ref_the_guard_names(tmp_path: Path, seams: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> None:
     _coord_meta(tmp_path)
     monkeypatch.setattr(reclaim, "guarded_branch_delete", lambda *_a, **_k: _LIVE)
+    monkeypatch.setattr(reclaim, "discarded_ref", lambda _root, branch, tip: f"refs/spec-kitty/discarded/{branch}@{tip[:12]}", raising=False)
 
     report = reclaim.reclaim_archived_mission(tmp_path, _SLUG)
 
-    assert "refs/spec-kitty/discarded/" in report.steps[1].detail
+    assert f"refs/spec-kitty/discarded/{_BRANCH}@{_LIVE[:12]}" in report.steps[1].detail
+
+
+def test_an_unrepaired_ledger_refuses_before_the_branch_goes_even_without_a_worktree(
+    tmp_path: Path, seams: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review cycle 1, N1: the seam's ledger guard protects the branch whatever the step order."""
+    _coord_meta(tmp_path)
+    seams["present"]["value"] = False
+
+    def unrepaired(*_args: object, **_kwargs: object) -> bool:
+        raise ProjectionTeardownAbort(reason="ledger only on coordination", coord_ref=_BRANCH, error_code="COORDINATION_LEDGER_UNREPAIRED", remedy="repair")
+
+    monkeypatch.setattr(reclaim, "teardown_coordination_topology", unrepaired)
+
+    assert _refusal(tmp_path).error_code == "COORDINATION_LEDGER_UNREPAIRED"
+    assert seams["deleted"] == []
+
+
+def test_an_unreachable_commit_destination_refuses_before_any_change(tmp_path: Path, seams: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review cycle 1, F1."""
+    _coord_meta(tmp_path)
+
+    def off_target(*_args: object, **_kwargs: object) -> None:
+        raise SafeCommitHeadMismatch(destination_ref="main", observed_head="side", worktree_root=tmp_path)
+
+    monkeypatch.setattr(reclaim, "_preflight_marker_commit", off_target, raising=False)
+
+    refused = _refusal(tmp_path)
+
+    assert refused.error_code == reclaim.RECLAIM_NOT_ON_TARGET and "git checkout main" in refused.remedy
+    assert seams["teardown"] == 0 and seams["deleted"] == [] and seams["flattened"] == 0
+
+
+def test_a_failed_flatten_refuses_with_a_named_code(tmp_path: Path, seams: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review cycle 1, N2."""
+    _coord_meta(tmp_path)
+
+    def locked(_feature_dir: Path) -> dict[str, object]:
+        raise TimeoutError("Mission write lock held")
+
+    monkeypatch.setattr(reclaim, "flatten_coordination_metadata", locked)
+
+    refused = _refusal(tmp_path)
+
+    assert refused.error_code == reclaim.RECLAIM_MARKER_NOT_COMMITTED and "re-run" in refused.remedy.lower()
 
 
 def test_a_failed_marker_commit_refuses(tmp_path: Path, seams: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> None:
