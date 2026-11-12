@@ -8,10 +8,10 @@
       "criterion_id": "FR-001",
       "description": "Verify FR-001 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/agent/test_implement_lane_invocation.py (implement --json lane_test_invocation key; banner; planted change 2/2 vs 1/1 on one fixture) \u2014 WP02, review cycle 2 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T08:51:17.977626+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
