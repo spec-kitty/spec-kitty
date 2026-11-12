@@ -110,7 +110,7 @@
     },
     "WP06": {
       "actor": "claude-reviewer",
-      "agent": "claude-reviewer",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -123,6 +123,7 @@
         "Ready for review: local accept Next steps name consolidate + record branch while lanes remain; No merge needed only when nothing remains (#7599). E2E cells use the test_acceptance_regressions fixture."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/coord-closeout-leftovers-01M78FRR-coord/kitty-specs/coord-closeout-leftovers-01M78FRR/tasks/WP06-accept-next-steps/review-cycle-1.md",
         "reference": "review-cycle://coord-closeout-leftovers-01M78FRR/WP06-accept-next-steps/review-cycle-1.md",
@@ -130,12 +131,12 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 759,
-      "shell_pid_created_at": "1794510554.62",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T022": "done",
-        "T023": "done",
-        "T024": "done"
+        "T022": "planned",
+        "T023": "planned",
+        "T024": "planned"
       }
     },
     "WP07": {
