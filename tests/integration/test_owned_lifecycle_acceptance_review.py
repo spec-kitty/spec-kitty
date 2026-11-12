@@ -33,6 +33,7 @@ on commit-subject wording.
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -63,6 +64,8 @@ _EVENTS = "status.events.jsonl"
 _NON_OWNED_SLUG = "flat-review-01M2D901"
 _NON_OWNED_MISSION_ID = "01M2D901000000000000000001"
 _NON_OWNED_TARGET = "codex/flat"
+#: The cited FR-001 line both review entry points print from the Mission's spec.md (one builder, ``review.context_inputs``).
+_CITED_FR_001 = "  FR-001 — Use owned checkout: Correct path"
 _GOVERNANCE_TAG_R = "R-ONLY-GOVERNANCE-MARKER"
 _GOVERNANCE_TAG_P = "P-ONLY-GOVERNANCE-MARKER"
 
@@ -210,6 +213,9 @@ class TestFr025RepositoryRootReviewBase:
         assert result.exit_code == 0, result.output
         log_line = f"  git log --oneline {base}..{tip} -- wp01.py"
         assert log_line in result.output.splitlines(), result.output
+        prompt_path = re.search(r"cat (\S+\.md)", result.output)
+        assert prompt_path is not None, result.output
+        assert _CITED_FR_001 in Path(prompt_path.group(1)).read_text(encoding="utf-8").splitlines()
         assert "work on wp01.py" in run_printed_command(repo, log_line)
 
 
@@ -233,6 +239,9 @@ class TestUs3As4OwnedReviewBase:
         assert f"REVIEW RANGE (WP01): {base[:12]}..{tip[:12]}  [recorded]" in prompt
         diff_line = f"  git diff {base}..{tip} -- wp01.py"
         assert diff_line in prompt.splitlines()
+        assert _CITED_FR_001 in prompt.splitlines(), (
+            "the owned review cites the requirement text read from the owned checkout's spec.md, as `agent action review` does"
+        )
         block = prompt.split("REVIEW RANGE (WP01)")[1].split("CITED REQUIREMENTS:")[0].splitlines()
         # The sibling WP's file is never listed or diffed; the contract flags it as outside the owned files.
         assert [line for line in block if "wp02.py" in line] == [
