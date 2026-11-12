@@ -20,7 +20,7 @@ import json
 import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Final
 
 from specify_cli.core.atomic import atomic_write
 from kernel.git_topology import GitTopologyError, git_toplevel
@@ -118,6 +118,10 @@ _FEATURE_CONTEXT_INDEX_CACHE: dict[tuple[str, str], dict[str, WorkspaceContext]]
 _FEATURE_WP_METADATA_CACHE: dict[tuple[str, str], dict[str, NormalizedWorkPackage]] = {}
 _FEATURE_WP_METADATA_ERROR_CACHE: dict[tuple[str, str], dict[str, ValueError]] = {}
 _FEATURE_WP_METADATA_SNAPSHOT_CACHE: dict[tuple[str, str], tuple[tuple[str, int], ...]] = {}
+
+
+#: The ``resolution_kind`` of a lane worktree; only that kind carries a lane identity.
+LANE_WORKSPACE_KIND: Final[str] = "lane_workspace"
 
 
 @dataclass(frozen=True)
@@ -286,7 +290,7 @@ class ResolvedWorkspace:
         An owned checkout is never a husk (it is not a git worktree of the
         repository root at all).
         """
-        return self.resolution_kind == "lane_workspace" and self.worktree_path.exists() and not (self.worktree_path / ".git").exists()
+        return self.resolution_kind == LANE_WORKSPACE_KIND and self.worktree_path.exists() and not (self.worktree_path / ".git").exists()
 
 
 @dataclass(frozen=True)
@@ -957,7 +961,7 @@ def _resolve_context_arm(
         wp_id=wp_id,
         execution_mode=execution_mode.value,
         mode_source=normalized_wp.mode_source,
-        resolution_kind="lane_workspace",
+        resolution_kind=LANE_WORKSPACE_KIND,
         workspace_name=worktree_path.name,
         worktree_path=worktree_path,
         branch_name=context.branch_name,
@@ -1104,7 +1108,7 @@ def _resolve_code_lane_arm(
         wp_id=wp_id,
         execution_mode=execution_mode.value,
         mode_source=normalized_wp.mode_source,
-        resolution_kind="lane_workspace",
+        resolution_kind=LANE_WORKSPACE_KIND,
         workspace_name=workspace_name,
         worktree_path=_seam_worktree_path(lane_anchor, mission_slug, lane_id=lane.lane_id),
         branch_name=code_lane_branch_name(mission_slug, lane.lane_id),

@@ -231,13 +231,13 @@ def test_foreign_tree_refusal_human_line(tmp_path: Path, capsys: pytest.CaptureF
 
 def _probe_spy(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
     calls: list[Path] = []
-    real = tasks_move_task_gates.lane_test_invocation_for
+    real = tasks_move_task_gates.workspace_lane_test_invocation
 
     def spy(root: Path, **kwargs: Any) -> Any:
         calls.append(root)
         return real(root, **kwargs)
 
-    monkeypatch.setattr(tasks_move_task_gates, "lane_test_invocation_for", spy)
+    monkeypatch.setattr(tasks_move_task_gates, "workspace_lane_test_invocation", spy)
     return calls
 
 
@@ -368,13 +368,13 @@ def test_skip_paths_never_probe(tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
     fx.write_review_config()
     fx.make_foreign()
     calls: list[Path] = []
-    real = tasks_move_task_gates.lane_test_invocation_for
+    real = tasks_move_task_gates.workspace_lane_test_invocation
 
     def spy(root: Path, **kwargs: Any) -> Any:
         calls.append(root)
         return real(root, **kwargs)
 
-    monkeypatch.setattr(tasks_move_task_gates, "lane_test_invocation_for", spy)
+    monkeypatch.setattr(tasks_move_task_gates, "workspace_lane_test_invocation", spy)
     if route == "env":
         monkeypatch.setenv(_SKIP_ENV, "1")
 
@@ -464,7 +464,7 @@ def test_invocation_failure_fails_open_without_evidence(tmp_path: Path, monkeypa
     def boom(root: Path, **kwargs: Any) -> Any:
         raise RuntimeError("cannot build the invocation")
 
-    monkeypatch.setattr(tasks_move_task_gates, "lane_test_invocation_for", boom)
+    monkeypatch.setattr(tasks_move_task_gates, "workspace_lane_test_invocation", boom)
 
     fx.move()
 
