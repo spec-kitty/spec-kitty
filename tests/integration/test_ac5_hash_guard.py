@@ -230,5 +230,7 @@ def test_ac5_hash_stable_across_driven_lifecycle_with_proof_of_drive(
 
     # 8. review-approve (in_review -> approved): evidence-gated, force-free.
     approval_ref = _write_review_cycle(feature_dir, 2, "approved")
+    # #7573: the approver is the review claimant (codex); --reviewer is an identity assertion,
+    # not free text, so a second identity ("reviewer-renata") would refuse APPROVER_NOT_CLAIMANT.
     drive("review-approve", ["move-task", "WP01", "--to", "approved", "--agent", "codex",
-                             "--reviewer", "reviewer-renata", "--approval-ref", approval_ref, *m])
+                             "--approval-ref", approval_ref, *m])
