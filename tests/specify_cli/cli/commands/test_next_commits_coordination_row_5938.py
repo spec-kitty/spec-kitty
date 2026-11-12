@@ -185,3 +185,38 @@ def test_a_landed_missions_row_is_never_committed(tmp_path: Path, landed: bool, 
     write = MissionNextInvokedWrite(tmp_path / "mission-events.jsonl", tmp_path, in_coordination_worktree=False, mission_landed=landed)
 
     assert write.should_commit is expected
+
+
+@pytest.mark.parametrize(
+    ("raised", "in_coordination", "expected_substrings"),
+    [
+        # A failed staging restore names the orphan stash, in every checkout (the root checkout included).
+        ("recovery", False, ["refs/stash-orphan", "git stash pop --index", "did land"]),
+        ("recovery", True, ["refs/stash-orphan"]),
+        # A plain refusal blocks consolidate only for the coordination worktree's copy.
+        ("refusal", True, ["could not commit the row"]),
+        ("refusal", False, []),
+    ],
+)
+def test_commit_event_row_surfaces_a_recovery_failure_with_its_stash_ref(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, raised: str, in_coordination: bool, expected_substrings: list[str]
+) -> None:
+    from runtime.next.next_invocation_lifecycle import MissionNextInvokedWrite
+    from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
+    from specify_cli.mission_v1 import events
+
+    def _commit(*_args: object) -> str:
+        if raised == "recovery":
+            raise SafeCommitRecoveryFailed("restore failed", orphan_stash_ref="refs/stash-orphan", commit_sha="abc123")
+        return "could not commit the row"
+
+    monkeypatch.setattr(events, "commit_mission_event_log", _commit)
+    write = MissionNextInvokedWrite(tmp_path / "mission-events.jsonl", tmp_path, in_coordination_worktree=in_coordination)
+    warnings: list[str] = []
+
+    events.commit_event_row(tmp_path, "m", write, warn=warnings.append)
+
+    text = "\n".join(warnings)
+    assert bool(warnings) is bool(expected_substrings)
+    for fragment in expected_substrings:
+        assert fragment in text

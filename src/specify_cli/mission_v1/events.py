@@ -14,11 +14,16 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from pathlib import Path, PurePosixPath
+from typing import TYPE_CHECKING
 
 from kernel.event_log_append import append_event_log_lines
 from kernel.clock import now_utc_iso
 from kernel.paths import to_posix
+
+if TYPE_CHECKING:
+    from runtime.next.next_invocation_lifecycle import MissionNextInvokedWrite
 
 logger = logging.getLogger(__name__)
 
@@ -56,13 +61,21 @@ def commit_mission_event_log(repo_root: Path, mission_slug: str, log_path: Path,
 
     Best-effort, like the row itself: an already-committed row is a no-op, and a
     refused or failed commit is returned as a one-line warning for the caller
-    to surface, never raised.
+    to surface, never raised. The one exception is a
+    :class:`~specify_cli.git.commit_helpers.SafeCommitRecoveryFailed` that names an
+    orphan stash: that ref holds the operator's staged changes, so it propagates;
+    callers go through :func:`commit_event_row`, which always surfaces it.
     """
     import subprocess
 
     from mission_runtime import MissionArtifactKind, resolve_placement_only
     from specify_cli.core.commit_guard import GuardCapability
-    from specify_cli.git.commit_helpers import SafeCommitEmptyChangeset, SafeCommitStagedTreeUnchanged, safe_commit
+    from specify_cli.git.commit_helpers import (
+        SafeCommitEmptyChangeset,
+        SafeCommitRecoveryFailed,
+        SafeCommitStagedTreeUnchanged,
+        safe_commit,
+    )
 
     try:
         safe_commit(
@@ -75,9 +88,46 @@ def commit_mission_event_log(repo_root: Path, mission_slug: str, log_path: Path,
         )
     except (SafeCommitEmptyChangeset, SafeCommitStagedTreeUnchanged):
         return None
+    except SafeCommitRecoveryFailed as exc:
+        if exc.orphan_stash_ref:
+            raise
+        return f"could not commit {log_path} ({type(exc).__name__}: {exc}); commit it before consolidate."
     except (RuntimeError, OSError, subprocess.CalledProcessError) as exc:
         return f"could not commit {log_path} ({type(exc).__name__}: {exc}); commit it before consolidate."
     return None
+
+
+def commit_event_row(
+    repo_root: Path,
+    mission_slug: str,
+    event_row: MissionNextInvokedWrite,
+    *,
+    warn: Callable[[str], None],
+) -> None:
+    """Commit the row ``next`` / ``answer-decision`` wrote and hand every message the operator needs to ``warn``.
+
+    A refused commit blocks ``consolidate`` only for the coordination worktree's
+    copy, so it is surfaced only there; a refusal in the repository root checkout
+    (e.g. a protected target) stays quiet because the claim gate already exempts
+    this Mission's log. A failed staging restore is surfaced for every checkout:
+    the operator's staged changes sit in an orphan stash that only this message
+    names (the shape of ``init``'s recovery note).
+    """
+    from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
+
+    try:
+        warning = commit_mission_event_log(repo_root, mission_slug, event_row.log_path, event_row.surface_root)
+    except SafeCommitRecoveryFailed as exc:
+        landed = f"Commit {exc.commit_sha} did land." if exc.commit_sha else "No commit landed."
+        stash = (
+            f" Your staged changes were stashed at {exc.orphan_stash_ref!r}; restore them with `git stash pop --index {exc.orphan_stash_ref}`."
+            if exc.orphan_stash_ref
+            else ""
+        )
+        warn(f"committing {event_row.log_path} could not restore your staging: {exc}. {landed}{stash}")
+        return
+    if warning is not None and event_row.in_coordination_worktree:
+        warn(warning)
 
 
 def emit_event(
