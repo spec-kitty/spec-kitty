@@ -96,7 +96,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: resolve_wp_review_range + WpReviewRange (recorded/derived/unavailable with provenance and gap), commit_introducing_status_event (+StatusRef) generalised in mission_runtime with claim_commit_for_wp as wrapper; constant git cost (6 recorded, 9 derived); dead-code gates red for exactly resolve_wp_review_range / specify_cli.review.wp_range until WP05 wires the caller.",
-        "Cycle 1 fixes: derived-anchor ancestry guards pinned (mutation-verified red), claim-base OSError degrades to next fallback, bookkeeping/claim-base/live head keyed on the resolved Mission dir name, docstring names git default wildcard matching."
+        "Cycle 1 fixes: derived-anchor ancestry guards pinned (mutation-verified red), claim-base OSError degrades to next fallback, bookkeeping/claim-base/live head keyed on the resolved Mission dir name, docstring names git default wildcard matching.",
+        "Review passed (cycle 2): ancestry-guard cells kill both mutants; OSError claim-base read degrades; bookkeeping follows mission_dir_name (mid8 test); docstring accurate; targeted 3843 passed, gates 166 passed; dead-code gates red only for the two expected WP05-cleared names."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
