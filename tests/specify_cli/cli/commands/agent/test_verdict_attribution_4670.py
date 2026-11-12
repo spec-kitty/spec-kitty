@@ -46,8 +46,12 @@ def _git(repo: Path, *args: str) -> None:
     subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True)
 
 
-def _seed_hops(feature_dir: Path, mission_slug: str, hops: list[tuple], at_day: str, actor: str = "fixture") -> None:
-    """Seed canonical lane transitions directly into the event log."""
+def _seed_hops(feature_dir: Path, mission_slug: str, hops: list[tuple], at_day: str, actor: str = "fixture", force: bool = True) -> None:
+    """Seed canonical lane transitions directly into the event log.
+
+    A review claim is seeded with ``force=False``: ``agent action review`` records it unforced, and
+    a forced ``in_review`` entry is an operator override, never a claim (#7569).
+    """
     for idx, (frm, to) in enumerate(hops, start=1):
         seed_status_event(
             feature_dir,
@@ -59,7 +63,7 @@ def _seed_hops(feature_dir: Path, mission_slug: str, hops: list[tuple], at_day: 
                 to_lane=to,
                 at=f"{at_day}T00:00:0{idx}+00:00",
                 actor=actor,
-                force=True,
+                force=force,
                 execution_mode="worktree",
             ),
         )
@@ -154,6 +158,7 @@ def test_approval_without_agent_attributes_claimed_reviewer(tmp_path: Path, monk
         [(Lane.FOR_REVIEW, Lane.IN_REVIEW)],
         at_day="2026-01-02",
         actor=_CLAIMED_REVIEWER,
+        force=False,
     )
 
     # The generated completion command as it is actually printed today --
@@ -210,6 +215,7 @@ def test_rejection_without_agent_attributes_claimed_reviewer(tmp_path: Path, mon
         [(Lane.FOR_REVIEW, Lane.IN_REVIEW)],
         at_day="2026-01-02",
         actor=_CLAIMED_REVIEWER,
+        force=False,
     )
 
     feedback = repo / "review-feedback-1.md"
@@ -270,6 +276,7 @@ def test_resolver_fills_identity_directly(tmp_path: Path, monkeypatch: pytest.Mo
         [(Lane.FOR_REVIEW, Lane.IN_REVIEW)],
         at_day="2026-01-02",
         actor=_CLAIMED_REVIEWER,
+        force=False,
     )
 
     st = _MoveTaskState(
@@ -389,6 +396,7 @@ def test_render_seam_resolves_claimed_reviewer_from_event_log(tmp_path: Path, mo
         [(Lane.FOR_REVIEW, Lane.IN_REVIEW)],
         at_day="2026-01-02",
         actor=_CLAIMED_REVIEWER,
+        force=False,
     )
 
     resolved = resolve_review_completion_reviewer(main_repo_root=repo, mission_slug=mission_slug, normalized_wp_id="WP01")

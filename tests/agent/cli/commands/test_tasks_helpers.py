@@ -18,7 +18,6 @@ from specify_cli.cli.commands.agent.tasks import (
     _behind_commits_touch_only_planning_artifacts,
     _check_unchecked_subtasks,
     _collect_status_artifacts,
-    _detect_reviewer_name,
     _issue_matrix_approval_blocker,
     _is_pipe_table_task_row,
     _output_error,
@@ -254,43 +253,6 @@ def test_output_error_human_mode(capsys) -> None:
     _output_error(False, "something broke")
     captured = capsys.readouterr()
     assert "something broke" in captured.out
-
-
-# ---------------------------------------------------------------------------
-# _detect_reviewer_name
-# ---------------------------------------------------------------------------
-
-
-def test_detect_reviewer_name_success() -> None:
-    """Returns name from git config when successful."""
-    mock_result = MagicMock()
-    mock_result.stdout = "Alice Dev\n"
-    with patch("subprocess.run", return_value=mock_result):
-        name = _detect_reviewer_name()
-    assert name == "Alice Dev"
-
-
-def test_detect_reviewer_name_empty_output() -> None:
-    """Returns 'unknown' when git config returns empty string."""
-    mock_result = MagicMock()
-    mock_result.stdout = "   \n"
-    with patch("subprocess.run", return_value=mock_result):
-        name = _detect_reviewer_name()
-    assert name == "unknown"
-
-
-def test_detect_reviewer_name_subprocess_error() -> None:
-    """Returns 'unknown' when git command fails."""
-    with patch("subprocess.run", side_effect=subprocess.CalledProcessError(1, "git")):
-        name = _detect_reviewer_name()
-    assert name == "unknown"
-
-
-def test_detect_reviewer_name_file_not_found() -> None:
-    """Returns 'unknown' when git is not installed."""
-    with patch("subprocess.run", side_effect=FileNotFoundError):
-        name = _detect_reviewer_name()
-    assert name == "unknown"
 
 
 # ---------------------------------------------------------------------------

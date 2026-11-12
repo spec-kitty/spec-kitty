@@ -70,10 +70,9 @@ import json
 import logging
 from collections.abc import Iterable
 from dataclasses import dataclass, field, replace
-from kernel.clock import format_stamp, now_utc
 from kernel.git import GitCommandError, GitPath, StatusEntry, status_entries
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import typer
 
@@ -123,7 +122,6 @@ from specify_cli.core.vcs.git import git_merge_base, merge_base_changed_files_ch
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.review.cycle import (
     ReviewCycleError,
-    synthetic_auto_approval_ref,
 )
 from specify_cli.status import (
     EVENTS_FILENAME,
@@ -134,11 +132,11 @@ from specify_cli.status import (
     StatusEvent,
     TransitionError,
     WPInnerStateDelta,
-    actor_compact_identity,
     read_authored_wp_frontmatter,
     resolve_lane_alias,
 )
 from specify_cli.status import latest_implementer_actor
+from specify_cli.status.review_roles import latest_review_claim_identity
 from specify_cli.task_utils import (
     WorkPackage,
     ensure_lane,
@@ -281,6 +279,74 @@ class _PostTransitionSideEffectFailure(RuntimeError):
         self.signal = signal
 
 
+@dataclass(frozen=True)
+class ReviewerOfRecord:
+    """The one reviewer an approval or done move records in every identity field (#7569).
+
+    ``identity`` is an asserted identity (``--agent``, ``--reviewer``, the review claimant, a carried
+    approval's reviewer, or the forced-move placeholder ``user``); it is never read from git.
+    ``reference`` is the evidence reference, or ``None`` for a review whose ``review-cycle://`` pointer
+    is known only once the approval's cycle is written. ``kind`` says which rule produced it.
+    """
+
+    identity: str
+    reference: str | None
+    kind: Literal["review", "forced", "carried"]
+
+
+#: The reference a forced approval records when no arbiter decision names one.
+_FORCE_OVERRIDE_REFERENCE = "force-override"
+#: The identity a forced move records when nobody asserted one (the existing placeholder).
+_UNASSERTED_FORCED_IDENTITY = "user"
+
+
+def _first_identity(*candidates: str | None) -> str | None:
+    """The first non-blank candidate, stripped, or ``None``."""
+    for candidate in candidates:
+        if candidate and candidate.strip():
+            return candidate.strip()
+    return None
+
+
+def resolve_reviewer_of_record(
+    *,
+    agent: str | None,
+    reviewer: str | None,
+    claimant: str | None,
+    forced: bool,
+    carrying: bool,
+    recorded_approval: ReviewResult | None,
+    arbiter_ref: str | None,
+    approval_ref: str | None,
+) -> ReviewerOfRecord | None:
+    """Decide the reviewer of record and its reference for one approval or done move (pure, #7569).
+
+    The order (plan.md "Two pieces"):
+
+    1. **forced**: the forcing actor (``--agent``, else ``--reviewer``, else the claimant, else the
+       placeholder ``user``), with the arbiter decision's reference or ``force-override``;
+    2. **carried** (``carrying``: an ``approved -> done`` move): the recorded approval's reviewer and
+       reference, verbatim. With no readable approval, the asserted identity with
+       ``force-override``; with no asserted identity either, ``None`` (the caller's existing
+       ``REVIEW_NOT_INDEPENDENT`` placeholder refusal then fires);
+    3. **review**: ``--agent``, else ``--reviewer``, else the claimant, with ``--approval-ref`` or
+       ``None`` (the ``review-cycle://`` pointer is filled in once the cycle is written). No identity
+       at all gives ``None`` (the same refusal).
+
+    Nothing is minted: no git user, no ``auto-approval:`` / ``approval:`` / ``auto-forward:`` token.
+    """
+    asserted = _first_identity(agent, reviewer)
+    if forced:
+        identity = asserted or _first_identity(claimant) or _UNASSERTED_FORCED_IDENTITY
+        return ReviewerOfRecord(identity, _first_identity(arbiter_ref) or _FORCE_OVERRIDE_REFERENCE, "forced")
+    if carrying:
+        if recorded_approval is not None:
+            return ReviewerOfRecord(recorded_approval.reviewer, recorded_approval.reference, "carried")
+        return ReviewerOfRecord(asserted, _FORCE_OVERRIDE_REFERENCE, "carried") if asserted else None
+    reviewer_identity = asserted or _first_identity(claimant)
+    return ReviewerOfRecord(reviewer_identity, _first_identity(approval_ref), "review") if reviewer_identity else None
+
+
 @dataclass
 class _MoveTaskState:
     """Mutable orchestration state threaded through ``move_task``'s phases.
@@ -343,6 +409,8 @@ class _MoveTaskState:
     verdict_artifact_path: Path | None = None
     resolved_feedback_source: Path | None = None
     request: MoveTaskRequest | None = None
+    #: #7569: the one reviewer an approval/done move records (``_mt_gather_late_facts``), else ``None``.
+    reviewer_of_record: ReviewerOfRecord | None = None
     # --- phase C: decision ---
     decision: Emit | None = None
     arb_review_ref: str | None = None
@@ -669,6 +737,24 @@ def _mt_require_owned_source_lane(st: _MoveTaskState) -> None:
         )
 
 
+def _mt_refuse_unparseable_reviewer(st: _MoveTaskState) -> None:
+    """Refuse a ``--reviewer`` the compact parser rejects, before any write (#7569).
+
+    ``--reviewer`` is an identity assertion: it can be the approving hop's actor, which is then
+    parsed strictly like ``--agent`` (``tasks_move_task_hops._mt_structured_actor``).
+    """
+    from specify_cli.cli.commands.agent import tasks as _tasks
+    from specify_cli.status.models import parse_agent_boundary_string
+
+    if not st.reviewer:
+        return
+    try:
+        parse_agent_boundary_string(st.reviewer)
+    except ValueError as exc:
+        _tasks._output_error(st.json_output, f"Invalid --reviewer value: {exc}")
+        raise typer.Exit(1) from exc
+
+
 def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
     """Resolve roots/branch/feature-dir and load the WP + its canonical lane.
 
@@ -683,6 +769,7 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
     from specify_cli.cli.commands.agent import tasks as _tasks
 
     _tasks._refuse_unparseable_agent(st.json_output, st.agent)
+    _mt_refuse_unparseable_reviewer(st)
     st.target_lane = Lane(ensure_lane(st.to))
     owned = st.owned
     repo_root = _mt_locate_checkout(st)
@@ -1654,21 +1741,55 @@ def _mt_issue_matrix_facts(st: _MoveTaskState) -> str | None:
     return blocker
 
 
-def _mt_approval_facts(st: _MoveTaskState) -> tuple[str | None, str | None]:
-    """Late fact: auto-detected reviewer + defaulted approval reference.
+def _mt_recorded_approval(st: _MoveTaskState) -> ReviewResult | None:
+    """The approval verdict the event log records for the work package, or ``None`` (#7569).
 
-    #4327: ``--note`` never fills the approval reference — the ref slot is
-    pointer-only, so it takes ``--approval-ref`` or the synthetic
-    ``auto-approval:<WP>:<date>`` token, and the operator's prose stays in
-    ``reason`` (the durable local slot the codec keeps off the wire).
+    Read through the one event-sourced authority (``event_sourced_review_result``); a rejection, a
+    cleared or a damaged slot is no recorded approval.
     """
-    from specify_cli.cli.commands.agent import tasks as _tasks
+    from specify_cli.status import emission_event_verdict, event_sourced_review_result
 
-    if st.target_lane not in (Lane.APPROVED, Lane.DONE):
+    result: ReviewResult | None = event_sourced_review_result(st.feature_dir, st.task_id).result
+    if result is None or result.verdict != emission_event_verdict("approved"):
+        return None
+    return result
+
+
+def _mt_reviewer_of_record(st: _MoveTaskState) -> ReviewerOfRecord | None:
+    """Gather the facts and resolve the reviewer of record of an approval/done move (#7569).
+
+    The claimant counts only for a move that starts in ``in_review`` (an auto-walk records its own
+    ``in_review`` hop and never inherits an earlier claim), and the recorded approval only for
+    ``approved -> done``. The arbiter reference is not known yet here (``_mt_fire_arbiter_persist``
+    runs after this pass), so an arbiter override records ``force-override`` as its evidence reference
+    and keeps its link to the rejection on the event's ``review_ref`` (``arb_review_ref`` threading).
+    """
+    if st.target_lane not in _APPROVAL_LANES:
+        return None
+    carrying = st.old_lane == Lane.APPROVED and st.target_lane == Lane.DONE
+    return resolve_reviewer_of_record(
+        agent=st.agent,
+        reviewer=st.reviewer,
+        claimant=_mt_resolve_active_reviewer_identity(st) if st.old_lane == Lane.IN_REVIEW else None,
+        forced=st.force,
+        carrying=carrying,
+        recorded_approval=_mt_recorded_approval(st) if carrying and not st.force else None,
+        arbiter_ref=st.arb_review_ref,
+        approval_ref=st.approval_ref,
+    )
+
+
+def _mt_approval_facts(st: _MoveTaskState) -> tuple[str | None, str | None]:
+    """Late fact: the reviewer of record and its reference, read off ``st.reviewer_of_record``.
+
+    #4327: ``--note`` never fills the approval reference; the operator's prose stays in ``reason``.
+    #7569: nothing is detected or minted. A review whose pointer is not known yet has no reference
+    here; the executor fills in the ``review-cycle://`` pointer once the approval's cycle is written.
+    """
+    record = st.reviewer_of_record
+    if record is None:
         return None, None
-    effective_reviewer = st.reviewer or _tasks._detect_reviewer_name()
-    effective_approval_ref = st.approval_ref or synthetic_auto_approval_ref(st.task_id, format_stamp(now_utc(), "%Y%m%d"))
-    return effective_reviewer, effective_approval_ref
+    return record.identity, record.reference
 
 
 def _mt_gather_late_facts(st: _MoveTaskState) -> None:
@@ -1678,6 +1799,7 @@ def _mt_gather_late_facts(st: _MoveTaskState) -> None:
     assert st.request is not None
     done_execution_mode, done_merged, done_merge_msg = _mt_done_ancestry_facts(st)
     issue_matrix_blocker = _mt_issue_matrix_facts(st)
+    st.reviewer_of_record = _mt_reviewer_of_record(st)
     effective_reviewer, effective_approval_ref = _mt_approval_facts(st)
     is_arbiter_override = _tasks._detect_arbiter_override(st.feature_dir, st.task_id, st.old_lane, resolve_lane_alias(st.target_lane), st.force)
     st.request = replace(
@@ -1747,8 +1869,8 @@ def _mt_run_decision(st: _MoveTaskState) -> None:
 
 
 def _mt_resolve_reviewer_identity(st: _MoveTaskState) -> str:
-    """Resolve the effective reviewer identity: ``--reviewer``, else ``--agent``,
-    else the emit actor, else ``"unknown"``.
+    """Resolve the effective reviewer identity: on an approval/done move the reviewer of record
+    (#7569); otherwise ``--reviewer``, else ``--agent``, else the emit actor, else ``"unknown"``.
 
     Shared by the rejected review-cycle artifact's ``reviewer_agent`` frontmatter
     (:func:`_mt_finalize_plan`) and the structured :class:`ReviewResult` derivation
@@ -1756,6 +1878,9 @@ def _mt_resolve_reviewer_identity(st: _MoveTaskState) -> str:
     ``--reviewer`` identity, when present, is authoritative over the WP *actor*
     driving the CLI invocation).
     """
+    record = st.reviewer_of_record
+    if record is not None and st.target_lane in _APPROVAL_LANES:
+        return record.identity
     return (st.reviewer or st.agent or st.actor or "unknown").strip() or "unknown"
 
 
@@ -1764,13 +1889,11 @@ def _mt_resolve_active_reviewer_identity(st: _MoveTaskState) -> str | None:
     from the event log, for an agent-driven completion that omits ``--agent``
     (#4670, FR-005).
 
-    Reads the WP's transition events and returns the compact full identity
-    (:func:`~specify_cli.status.actor_compact_identity`: ``tool:model:profile``,
-    empty trailing segments dropped, #6715) of the MOST RECENT
-    ``* -> in_review`` hop -- the review claim (``action review --agent
-    <identity>``, or its test-fixture equivalent) that is authoritative for
-    "who is reviewing this WP right now". Returns ``None`` when no such
-    event is on record (an unclaimed/force-bypassed WP), so every caller
+    Delegates to :func:`~specify_cli.status.review_roles.latest_review_claim_identity`
+    (#7569): the compact ``tool:model:profile`` identity of the newest entry into
+    ``in_review`` when it is a review claim (unforced, not a migration seed, not a
+    placeholder such as ``user``), the rule consolidation's ``approved_bound`` reads.
+    Returns ``None`` when that entry is no claim, or there is none, so every caller
     falls through to its own pre-existing default instead of fabricating an
     identity that was never asserted (FR-006).
 
@@ -1791,11 +1914,8 @@ def _mt_resolve_active_reviewer_identity(st: _MoveTaskState) -> str | None:
         repo_root=st.main_repo_root,
         owned=st.owned,
     )
-    for existing_event in reversed(events):
-        if existing_event.wp_id == st.task_id and existing_event.to_lane == Lane.IN_REVIEW:
-            identity: str | None = actor_compact_identity(existing_event.actor)
-            return identity
-    return None
+    identity: str | None = latest_review_claim_identity(events, st.task_id)
+    return identity
 
 
 # --- phase E: emit the lane transition(s) via commit_status ------------------
@@ -2166,8 +2286,8 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
 # remained ``tasks.py``-resident after WP05 — the arbiter override pair
 # (``_detect_arbiter_override`` / ``_run_arbiter_override``), the coord
 # event-path probe (``_coord_status_events_path``), the event-field shaper
-# (``_status_event_result_fields``) and the reviewer detector
-# (``_detect_reviewer_name``). Moved VERBATIM except that patched seam
+# (``_status_event_result_fields``); the former reviewer detector
+# (``_detect_reviewer_name``) was deleted by #7569. Moved VERBATIM except that patched seam
 # symbols (``resolve_topology``, ``subprocess``, ``read_events_transactional``,
 # ``console`` — research.md D7 / the ``__all__`` seam-infra names) are now
 # routed through ``_tasks.<attr>`` (lazy in-function import) so every
@@ -2221,22 +2341,6 @@ def _status_event_result_fields(event: object | None) -> dict[str, str | None]:
         to_lane_value = raw_value if isinstance(raw_value, str) else str(raw_value)
 
     return {"event_id": event_id, "to_lane": to_lane_value}
-
-
-def _detect_reviewer_name() -> str:
-    """Detect reviewer name from git config, with safe fallback."""
-    from specify_cli.cli.commands.agent import tasks as _tasks
-
-    try:
-        result = _tasks.subprocess.run(
-            ["git", "config", "user.name"],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        return result.stdout.strip() or "unknown"
-    except (_tasks.subprocess.CalledProcessError, FileNotFoundError):
-        return "unknown"
 
 
 def _detect_arbiter_override(

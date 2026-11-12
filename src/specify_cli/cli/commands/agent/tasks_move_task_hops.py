@@ -21,7 +21,6 @@ from specify_cli.cli.commands.agent.tasks_transition_core import (
     is_review_rejection_edge,
 )
 from specify_cli.review.cycle import (
-    synthetic_approval_ref,
     synthetic_review_ref,
 )
 from specify_cli.status import (
@@ -69,39 +68,55 @@ def _mt_plan_review_result(st: _MoveTaskState) -> ReviewResult | None:
     A rejection to ``planned`` already minted a structured result via the review
     cycle (:attr:`rejected_review_result`); reuse it so its ``reference`` matches
     the emitted ``review_ref`` (the ``_check_review_result_consistency`` guard).
-    Likewise, an automatic approval that durably verified a review-cycle artifact
-    reuses that cycle's canonical result so the event references the exact evidence
-    bytes. Local-only and no-cycle approval paths retain their historical caller
-    reference because they have no verified durable evidence identity to claim.
+    An approval reads :func:`_mt_approval_review_result`: the reviewer of record and
+    the one evidence reference the executor settled (#7569), so ``review_result`` and
+    ``evidence.review`` are the same record.
     """
-    from specify_cli.cli.commands.agent.tasks_move_task import _mt_resolve_reviewer_identity
-
     if st.old_lane != Lane.IN_REVIEW:
         return None
     if st.rejected_review_result is not None:
         return st.rejected_review_result
-    reviewer = _mt_resolve_reviewer_identity(st)
     if st.target_lane in (Lane.APPROVED, Lane.DONE):
-        durability_signal = st.pending_verdict_write
-        if durability_signal is not None and durability_signal.durably_persisted and durability_signal.review_cycle is not None:
-            return durability_signal.review_cycle.review_result
-        # FR-005: route through the canonical bridge instead of hardcoding
-        # the event-vocabulary literal -- this hop is an approval outcome
-        # (the emission-scoped "approved" artifact verdict), so its event
-        # verdict is derived the same way any other approval is.
-        verdict = emission_event_verdict(APPROVED)
-        reference = (st.approval_ref or synthetic_approval_ref(st.task_id)).strip() or synthetic_approval_ref(st.task_id)
-    else:
-        if not is_review_rejection_edge(st.old_lane, st.target_lane):
-            # #5446: only a rework (``-> planned`` / ``-> in_progress``) is a rejection verdict. Any other
-            # exit (``blocked``, ``canceled``, ...) must not mint a ``changes_requested`` verdict it never recorded.
-            return None
-        verdict = emission_event_verdict(REJECTED)
-        # #4327: pointer-only — the review-feedback pointer or the synthetic
-        # ``review:<WP>`` token, never the operator's ``--note`` prose (which
-        # stays whole in ``reason``).
-        reference = (st.review_feedback_pointer or synthetic_review_ref(st.task_id)).strip() or synthetic_review_ref(st.task_id)
-    return ReviewResult(reviewer=reviewer, verdict=verdict, reference=reference)
+        return _mt_approval_review_result(st)
+    from specify_cli.cli.commands.agent.tasks_move_task import _mt_resolve_reviewer_identity
+
+    if not is_review_rejection_edge(st.old_lane, st.target_lane):
+        # #5446: only a rework (``-> planned`` / ``-> in_progress``) is a rejection verdict. Any other
+        # exit (``blocked``, ``canceled``, ...) must not mint a ``changes_requested`` verdict it never recorded.
+        return None
+    # #4327: pointer-only — the review-feedback pointer or the synthetic
+    # ``review:<WP>`` token, never the operator's ``--note`` prose (which
+    # stays whole in ``reason``).
+    reference = (st.review_feedback_pointer or synthetic_review_ref(st.task_id)).strip() or synthetic_review_ref(st.task_id)
+    return ReviewResult(reviewer=_mt_resolve_reviewer_identity(st), verdict=emission_event_verdict(REJECTED), reference=reference)
+
+
+def _mt_approval_cycle_result(st: _MoveTaskState) -> ReviewResult | None:
+    """The ``review_result`` of the review cycle this approval wrote, durable or local-only (#7569).
+
+    ``getattr`` keeps the frozen seam tests' writer doubles (a bare ``SimpleNamespace``) working.
+    """
+    signal = st.pending_verdict_write
+    cycle = signal.review_cycle if signal is not None else None
+    result: ReviewResult | None = getattr(cycle, "review_result", None)
+    return result
+
+
+def _mt_approval_review_result(st: _MoveTaskState) -> ReviewResult | None:
+    """The approval's ``review_result``: the same reviewer and reference as ``evidence.review`` (#7569).
+
+    Built from the evidence the executor settled (the reviewer of record and the cycle pointer, the
+    caller's ``--approval-ref``, ``force-override`` or a carried reference); ``feedback_path`` names the
+    cycle file when the reference is that cycle's pointer. Without settled evidence (a state built
+    outside the pipeline) it is the written cycle's own result, or ``None``; no token is minted.
+    """
+    cycle_result = _mt_approval_cycle_result(st)
+    review = (st.evidence_dict or {}).get("review") or {}
+    reviewer, reference = review.get("reviewer"), review.get("reference")
+    if not (reviewer and reference):
+        return cycle_result
+    feedback_path = cycle_result.feedback_path if cycle_result is not None and cycle_result.reference == reference else None
+    return ReviewResult(reviewer=reviewer, verdict=emission_event_verdict(APPROVED), reference=reference, feedback_path=feedback_path)
 
 
 def _mt_hop_review_result(
@@ -109,7 +124,6 @@ def _mt_hop_review_result(
     event: StatusEvent | None,
     current_event_lane: str,
     target: str,
-    hop_actor: str,
 ) -> ReviewResult | None:
     """Select the authoritative ``ReviewResult`` when a hop leaves review."""
     rejected = st.rejected_review_result
@@ -127,29 +141,17 @@ def _mt_hop_review_result(
             # preserve that exact verified result on the self-transition rather
             # than dropping it merely because another writer moved the lane.
             return durability_signal.review_cycle.review_result
-    if (
-        in_review
-        and st.plan_review_result is not None
-        and durability_signal is not None
-        and durability_signal.durably_persisted
-        and durability_signal.review_cycle is not None
-    ):
-        # A verified review-cycle is the evidence identity for this approval.
-        # Prefer the canonical plan result over the older DoneEvidence approval
-        # token; local-only and no-cycle paths continue through the legacy arm.
+    if not in_review:
+        return None
+    # SC-007 / #7569: the structured review outcome threaded into the plan -- a force-free rework
+    # exit's rejection, or an approval's result, which is built from the same settled evidence as
+    # ``evidence.review`` (durable or local-only alike, so both records always agree).
+    if st.plan_review_result is not None:
         return st.plan_review_result
-    if in_review and st.evidence_dict is not None:
-        review_section = st.evidence_dict.get("review", {})
-        return ReviewResult(
-            reviewer=review_section.get("reviewer", hop_actor),
-            verdict=review_section.get("verdict", Lane.APPROVED),
-            reference=review_section.get("reference", f"auto-forward:{st.task_id}"),
-        )
-    # SC-007: a force-free ``in_review -> {planned,in_progress}`` exit carries the
-    # same structured review outcome threaded into the plan (WP06) so the
-    # commit-time FSM guard accepts it without a ``force`` flag.
-    if in_review and st.plan_review_result is not None:
-        return st.plan_review_result
+    # An approval hop out of an ``in_review`` this move recorded itself (an auto-walk): the plan
+    # result is per-move, so read the settled evidence directly. Never mint a reference.
+    if target in (Lane.APPROVED, Lane.DONE):
+        return _mt_approval_review_result(st)
     return None
 
 
@@ -166,12 +168,20 @@ def _mt_hop_actor(st: _MoveTaskState, event: StatusEvent | None, current_event_l
     verdict hops alike, since neither carries ``--to rejected`` (no such
     lane). A WP with no recorded review claim keeps the pre-existing
     ``"user"`` fallback (FR-006: never fabricate an unasserted identity).
+
+    #7569: an approval/done hop records the reviewer of record (``--agent``, else
+    ``--reviewer``, else the claimant; a forced move's placeholder; a carried
+    approval's reviewer on ``approved -> done``), the identity every other field of
+    that approval reads.
     """
     from specify_cli.cli.commands.agent.tasks_move_task import _mt_resolve_active_reviewer_identity
 
     from_lane_for_hop = event.to_lane if event is not None else resolve_lane_alias(current_event_lane)
     if st.agent:
         return st.agent
+    record = st.reviewer_of_record
+    if record is not None and target in (Lane.APPROVED, Lane.DONE):
+        return record.identity
     if from_lane_for_hop == Lane.IN_PROGRESS and target == Lane.FOR_REVIEW and st.current_agent:
         return st.current_agent
     if from_lane_for_hop == Lane.IN_REVIEW:
@@ -199,8 +209,11 @@ def _mt_structured_actor(st: _MoveTaskState, role: str, tool_identity: str) -> d
     """
     # Bound explicitly: mypy widens ``specify_cli.*`` returns to ``Any`` through ``follow_imports=skip``.
     actor: dict[str, str | None]
-    if st.agent:
-        actor = build_status_actor(role=role, agent=st.agent, fallback_tool=None, binding=st.resolved_binding)
+    # #7569: ``--reviewer`` is an identity assertion like ``--agent``; when it is the identity this hop
+    # records, it is parsed as strictly (refused upfront when it does not parse).
+    asserted = st.agent or (st.reviewer if st.reviewer and tool_identity == st.reviewer.strip() else None)
+    if asserted:
+        actor = build_status_actor(role=role, agent=asserted, fallback_tool=None, binding=st.resolved_binding)
     else:
         # The identity came out of the log, not from a caller flag: replay it verbatim so a
         # recorded reconstruction seed keeps its seed status (#6754, #6400 review F3).
@@ -241,10 +254,9 @@ def _mt_approval_policy_metadata(st: _MoveTaskState) -> dict[str, Any]:
     """FR-006 (IC-04): the APPROVED/DONE hop's ``policy_metadata`` sidecar.
 
     Gate-side decision evidence — closes the brownfield gap where an approval
-    event carried no ``policy_metadata`` at all. ``tool`` is the effective
-    reviewer identity already resolved onto ``st.request`` by
-    ``_mt_gather_late_facts`` (``_mt_approval_facts``, auto-detected from git
-    when ``--reviewer`` is absent); it falls back through ``st.reviewer`` /
+    event carried no ``policy_metadata`` at all. ``tool`` is the reviewer of
+    record already resolved onto ``st.request`` by ``_mt_gather_late_facts``
+    (``_mt_approval_facts``, #7569: never read from git); it falls back through ``st.reviewer`` /
     ``st.agent`` / ``st.actor`` for callers that construct ``_MoveTaskState``
     directly without running the full pipeline (unit tests). ``profile``/
     ``model`` come from ``st.resolved_binding`` — re-resolved with
