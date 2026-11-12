@@ -84,6 +84,18 @@
       "verdict": "in-mission",
       "wp": "WP03"
     },
+    "#6715": {
+      "evidence_ref": "Context only: cited in WP prompts as existing behaviour; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Owned-file evidence and review independence (context)",
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#7546": {
       "evidence_ref": "<auto-classified: no action required>",
       "fr": null,
