@@ -234,6 +234,61 @@ def test_capture_skips_and_warns_when_the_artifact_is_outside_its_commit_checkou
     assert "Baseline capture error" not in caplog.text
 
 
+@pytest.mark.parametrize("quiet", [True, False])
+def test_capture_warns_when_the_commit_checkout_does_not_resolve(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, quiet: bool
+) -> None:
+    """A seam failure naming the holding checkout reaches the baseline warning, not only the generic logger line."""
+    import specify_cli.cli.console as console_module
+    import specify_cli.review.baseline as baseline_module
+    import specify_cli.review.scope_source as scope_source_module
+    from specify_cli.cli.commands.agent import workflow_executor
+    from specify_cli.review.baseline import BaselineTestResult
+
+    feature_dir = tmp_path / "kitty-specs" / "m"
+    artifact = feature_dir / "tasks" / _WP01_DIR / _BASELINE
+    artifact.parent.mkdir(parents=True)
+    artifact.write_text("{}\n", encoding="utf-8")
+    result = BaselineTestResult(
+        wp_id="WP01",
+        captured_at="2026-11-12T00:00:00+00:00",
+        base_branch="dev",
+        base_commit="abcdef1",
+        test_runner="custom",
+        total=1,
+        passed=1,
+        failed=0,
+        skipped=0,
+    )
+    monkeypatch.setattr(baseline_module, "capture_baseline", lambda **_k: result)
+    monkeypatch.setattr(scope_source_module, "resolve_scope_source", lambda _root: None)
+
+    def _unresolvable(*_a: object) -> Path:
+        raise RuntimeError("coordination worktree missing")
+
+    monkeypatch.setattr(workflow_executor, "_baseline_commit_checkout", _unresolvable)
+    printed: list[str] = []
+    monkeypatch.setattr(console_module.console, "print", lambda text, *a, **k: printed.append(str(text)))
+
+    with caplog.at_level("WARNING", logger="specify_cli.cli.commands.agent.workflow_executor"):
+        workflow_executor.capture_and_commit_baseline(
+            workspace_path=tmp_path,
+            target_branch="dev",
+            normalized_wp_id="WP01",
+            mission_slug="m",
+            feature_dir=feature_dir,
+            wp_slug=_WP01_DIR,
+            main_repo_root=tmp_path,
+            quiet=quiet,
+            test_timeout=60,
+        )
+
+    assert f"Baseline artifact {artifact} was not committed" in caplog.text
+    assert "coordination worktree missing" in caplog.text
+    assert "Baseline capture error" not in caplog.text
+    assert any("was not committed" in line for line in printed) is not quiet
+
+
 # ---------------------------------------------------------------------------
 # #7595: the target-branch helpers read the Mission's meta.json through the seam's reader.
 # ---------------------------------------------------------------------------
