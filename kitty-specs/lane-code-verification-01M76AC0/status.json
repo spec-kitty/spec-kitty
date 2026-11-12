@@ -127,6 +127,9 @@
       "last_event_id": "01M77CHD0ZEWG85WFCDG9FFNEB",
       "last_transition_at": "2026-11-12T08:03:42.239079+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "for_review hook builds the lane test invocation (WP02 adapter), probes and captures the evidence tree before any run; a foreign tree refuses with EVIDENCE_TREE_MISMATCH (exit 1, no transition) regardless of the block toggle; --force records force_bypassed + bypassed_refusal; run_env reaches the handler and override tier; evidence_tree in policy_metadata. T015 red first (95274c9d), green 15c1fa84."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 24505,
