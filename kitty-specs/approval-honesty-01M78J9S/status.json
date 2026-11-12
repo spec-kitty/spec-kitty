@@ -1,7 +1,7 @@
 {
-  "event_count": 11,
-  "last_event_id": "01M78RJEKMEMWVB02DRBXDCE77",
-  "materialized_at": "2026-11-12T20:53:13.401691+00:00",
+  "event_count": 13,
+  "last_event_id": "01M78T7YF9YYAPJ4D5AX9Q8WDB",
+  "materialized_at": "2026-11-12T21:22:26.921279+00:00",
   "mission_number": "",
   "mission_slug": "approval-honesty-01M78J9S",
   "mission_type": "software-dev",
@@ -13,27 +13,31 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
-    "in_review": 0,
+    "in_progress": 0,
+    "in_review": 1,
     "planned": 3
   },
   "work_packages": {
     "WP01": {
       "actor": "claude",
-      "agent": null,
-      "agent_profile": "python-pedro",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M78RJEKMEMWVB02DRBXDCE77",
-      "last_transition_at": "2026-11-12T20:53:13.401691+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M78T7YF9YYAPJ4D5AX9Q8WDB",
+      "last_transition_at": "2026-11-12T21:22:26.921279+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-12T19:51:09Z – claude – shell_pid=26896 – T001 red-first committed 52e54856: 5 failed on base (git user in policy_metadata.tool / evidence / review_result; auto-approval: token under --no-auto-commit; done without --agent refused REVIEW_NOT_INDEPENDENT; forced approval reference was a review-cycle pointer; --reviewer alone refused).",
         "- 2026-11-12T20:08:03Z – claude – shell_pid=26896 – T002-T006 committed (62061d88, 4bdddfcc): claimant fact + same_review_identity; pure resolve_reviewer_of_record routed through all six identity sources; _detect_reviewer_name and auto-approval:/approval:/auto-forward: mints deleted on the approval path; stale tests re-pinned. Arbiter design call: evidence records force-override, rejection link stays on review_ref (arb_review_ref). WP02-owned red: test_move_task_structured_actor_6400::test_recorded_migration_reviewer_identity_stays_a_reconstruction_seed (forced migration claim is no longer a claimant; re-pin via the approved->done carried path).",
         "- 2026-11-12T20:15:34Z – claude – shell_pid=26896 – T007 validation: make test-fast 3037 passed/7 skipped; targeted set 276 run: 270 passed + matrix fixed (43/43), 1 WP02-owned red (6400 migration-seed claim); tests/status tests/review 2884 passed/15 skipped; arch gates 279 passed, 2 failed in test_no_dead_symbols (same_review_identity awaits its WP02 caller; synthetic_auto_approval_ref now callerless, removal belongs to WP03 which owns review/cycle.py); ruff/format/mypy/C901 clean, no new suppressions. Help golden fixture move-task.help updated outside owned_files (traced).",
-        "Ready for review: one reviewer of record (pure combiner) feeds every approval/done identity field; git-user fallback and auto-approval/approval/auto-forward mints deleted; --reviewer is an identity assertion"
+        "Ready for review: one reviewer of record (pure combiner) feeds every approval/done identity field; git-user fallback and auto-approval/approval/auto-forward mints deleted; --reviewer is an identity assertion",
+        "- 2026-11-12T21:21:06Z – claude – Hand-off to WP02 (owner of test_move_task_structured_actor_6400.py): test_recorded_migration_reviewer_identity_stays_a_reconstruction_seed is red on WP01 by design. A migration: seed claim is seeded force=True, so under the WP01 claimant rule (latest_review_claim_identity: unforced, non-migration, non-placeholder) it is not a claimant, and an unforced approval with no --agent refuses REVIEW_NOT_INDEPENDENT. Intended re-pin: either pass --agent and assert the recorded actor, or assert the refusal; keep the #6754 seed-replay intent (a recorded migration: identity replayed through the lenient recorded path keeps its seed status, never parsed as tool 'migration').",
+        "- 2026-11-12T21:21:09Z – claude – Unowned red caused by the WP01 claimant rule (cycle 1, still present): tests/specify_cli/cli/commands/agent/test_tasks.py::TestVerdictGuardInMoveTask::test_approve_after_rejected_verdict_without_force_persists_approval. It seeds the in_review entry force=True with actor 'test' (_seed_wp_event) and approves with no --agent; on the base the forced entry counted as the claimant, now it is no claim, so REVIEW_NOT_INDEPENDENT fires. Green on the base (ba755564), red on WP01. The file is in no WP's owned_files; intended re-pin: pass --agent <reviewer> on that move (the test is about the verdict write, not identity). Needs an owner (orchestrator decision).",
+        "- 2026-11-12T21:21:13Z – claude – For the WP04 ADR amendment: new refusal code REVIEW_SLOT_DAMAGED (tasks_move_task._mt_refuse_damaged_review_slot, ruling damaged_slot 2026-11-12). An unforced review approval whose event-log review slot is damaged and with no --approval-ref refuses before any write; the remedy names the event log, --approval-ref and --force. With --approval-ref that reference is recorded. The existing decision guard (_guard_rejected_verdict, 'no parseable review verdict') still refuses first whenever its own read sees the damage, forced or not, with or without --approval-ref (unchanged, C-007); REVIEW_SLOT_DAMAGED covers the case where only the approval writer's read sees it. A carried approved -> done keeps FR-007 (no readable approval: the asserted mover with force-override).",
+        "Cycle 2: approved->done records the asserted mover (--agent, else --reviewer) as actor and policy_metadata.tool, carried approval only in evidence.review; no mover refuses REVIEW_NOT_INDEPENDENT as on base. Unforced approval on a damaged review slot without --approval-ref refuses REVIEW_SLOT_DAMAGED before any write. Table-driven unit tests for resolve_reviewer_of_record. Hand-off notes recorded (6400 test for WP02; unowned test_tasks.py red)."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -43,17 +47,17 @@
         "reviewer": "claude::reviewer-renata",
         "verdict": "changes_requested"
       },
-      "role": "implementer",
-      "shell_pid": null,
-      "shell_pid_created_at": null,
+      "role": "reviewer",
+      "shell_pid": 24019,
+      "shell_pid_created_at": "1794518538.72",
       "subtasks": {
-        "T001": "planned",
-        "T002": "planned",
-        "T003": "planned",
-        "T004": "planned",
-        "T005": "planned",
-        "T006": "planned",
-        "T007": "planned"
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
       }
     },
     "WP02": {
