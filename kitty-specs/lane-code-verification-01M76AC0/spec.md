@@ -59,10 +59,11 @@ it does not.
    own, **When** the agent runs `spec-kitty implement WP01`, **Then** the output names
    the lane test invocation and reports it as verified, and a planted change in the lane
    is visible to a child process started with that invocation.
-2. **Given** the same lane, **When** the shared install has been repointed at a third
-   tree (the #1907 hazard) so the probe sees code from outside the lane, **Then**
-   implement still prepares the lane but reports the invocation as foreign and names the
-   observed origin.
+2. **Given** the lane has an environment of its own whose installation of the project
+   points outside the lane's source (the #1907 repoint hazard), **When** implement runs,
+   **Then** it still prepares the lane but reports the invocation as foreign and names the
+   observed origin; after the installation is pointed back at the lane, the same fixture
+   reports verified.
 3. **Given** a project with no probe-able package (for example a non-Python project),
    **When** implement runs, **Then** it reports the invocation as unverified with the
    reason, and nothing fails.
@@ -128,7 +129,9 @@ refuses with `EVIDENCE_TREE_MISMATCH`).
    evidence tree is recorded as unverified with git facts and the transition is never
    refused on provenance grounds.
 5. **Given** the gate is skipped with the existing flag or environment variable, **When**
-   the agent moves the work package, **Then** the skip behaves exactly as today.
+   the agent moves the work package, **Then** the skip behaves exactly as today: no probe
+   runs and no evidence tree is recorded (a skipped gate checks nothing, provenance
+   included).
 
 ### Edge Cases
 
@@ -138,6 +141,11 @@ refuses with `EVIDENCE_TREE_MISMATCH`).
   with the cause; implement and the gate proceed as they do today.
 - The project declares no test command: implement reports that there is no invocation;
   the gate keeps today's `no_coverage` behaviour.
+- A source directory without an `__init__.py` (a namespace or loose module directory) is
+  not probed; when no tracked package exists under the source directory the probe is
+  unverified.
+- A lane environment that installs a copy of the project (not the lane's source) is
+  foreign: only an origin inside the lane's source directory counts as verified.
 - A test spawns a subprocess: because the invocation is an environment, not an in-process
   setting, the child loads the lane's code too.
 - Windows path forms (case, separators, drive letters) and symlinked lane paths compare
@@ -162,15 +170,15 @@ refuses with `EVIDENCE_TREE_MISMATCH`).
 
 | ID | Title | User Story | Priority | Status | Delivery | No-op passable? |
 |----|-------|------------|----------|--------|----------|-----------------|
-| FR-001 | Implement reports the lane test invocation | As an implementing agent, I want `spec-kitty implement` to print and return in JSON the lane test invocation (declared test command, lane working directory, environment) and record it in the lane's workspace context so that I do not have to rediscover how to test. | High | Open | [build] | no |
-| FR-002 | Invocation is verified by a child-process probe | As an implementing agent, I want implement to check, in a child process started with exactly the invocation's working directory and environment, where the project's code is loaded from, and to report verified, foreign or unverified with the observed origin, so that I know the command tests the lane. | High | Open | [build] | no — paired with the foreign-origin scenario on the same fixture |
+| FR-001 | Implement reports the lane test invocation | As an implementing agent, I want `spec-kitty implement` to print and return in JSON the lane test invocation (declared test command, lane working directory, environment) with its probe result, and every later step (the prompts and the gate) to re-derive and re-probe it from the lane rather than trust a stored copy, so that I do not have to rediscover how to test and never act on a stale verdict. | High | Open | [build] | no |
+| FR-002 | Invocation is verified by a child-process probe | As an implementing agent, I want implement to check, in a child process started with exactly the invocation's working directory and environment (using the lane's own interpreter when it has one, otherwise the CLI's), where each package tracked under the lane's source directory is loaded from, and to report verified, foreign or unverified with the observed origin, so that I know the command tests the lane. | High | Open | [build] | no — paired with the foreign-origin scenario on the same fixture |
 | FR-003 | Lane source takes precedence when the lane has no environment | As an implementing agent in a Python source-layout lane without its own environment, I want the invocation to make the lane's source win over the shared editable install, so that a planted change in the lane is visible to the command and to processes it spawns. | High | Open | [build] | no — the planted change is absent under the bare root interpreter on the same fixture |
 | FR-004 | Inherited interpreter redirects are dropped and lane test env applied | As an agent, I want the invocation to drop inherited `PYTHONPATH`, `VIRTUAL_ENV` and `UV_PROJECT_ENVIRONMENT` and to include the lane-scoped test environment (the per-lane test database name), so that my shell cannot silently redirect the run. | High | Open | [build] | no |
 | FR-005 | Prompts carry the invocation | As a reviewing agent, I want the implement and review prompts generated by the CLI for a lane-backed work package to state the lane test invocation and its probe result, so that I run the same command in the same tree. | High | Open | [build] | no |
 | FR-006 | The gate runs through the same invocation | As the operator, I want the pre-review gate to run the declared test command, and the work-package override scope, through the same lane invocation, so that redirect stripping and the lane test environment apply on every path and the override tier's interpreter fallback can no longer load another tree (#5985 item 2). | High | Open | [build] | no |
-| FR-007 | The gate records the evidence tree | As a reviewer, I want every pre-review gate verdict that ran tests to record the evidence tree (lane path, lane commit, dirty flag, probe result, observed origin), so that I can see which code the evidence is about. | High | Open | [build] | no |
-| FR-008 | The gate refuses foreign evidence | As the operator, I want the pre-review gate to refuse the move to `for_review` with exit code 1 and refusal code `EVIDENCE_TREE_MISMATCH` when the probe shows the run loaded code from outside the lane, regardless of `review.fail_on_pre_review_regression`, so that evidence from another tree cannot pass review. | High | Open | [build] | no — paired with the verified-lane scenario that proceeds on the same fixture |
-| FR-009 | `--force` bypasses the refusal and is recorded | As the operator, I want `--force` to let the transition proceed past `EVIDENCE_TREE_MISMATCH` and the recorded evidence to say so, so that a probe false positive cannot stall work invisibly. | Medium | Open | [build] | no |
+| FR-007 | The gate records the evidence tree | As a reviewer, I want every pre-review gate verdict for which the gate built a lane invocation to record the evidence tree (lane path, lane commit, dirty flag, probe result, observed origin), so that I can see which code the evidence is about. | High | Open | [build] | no |
+| FR-008 | The gate refuses foreign evidence | As the operator, I want the pre-review gate to refuse the move to `for_review` with exit code 1 and refusal code `EVIDENCE_TREE_MISMATCH` when the probe shows the run loaded code from outside the lane, regardless of `review.fail_on_pre_review_regression`, so that evidence from another tree cannot pass review unnoticed (an explicit skip of the gate, which checks nothing, stays as it is). | High | Open | [build] | no — paired with the verified-lane scenario that proceeds on the same fixture |
+| FR-009 | `--force` bypasses the refusal and is recorded | As the operator, I want `--force` to let the transition proceed past `EVIDENCE_TREE_MISMATCH` and the recorded evidence to say so (force bypassed, which refusal, and that no test evidence was produced), even when the regression block is not enabled, so that a probe false positive cannot stall work invisibly. | Medium | Open | [build] | no |
 | FR-010 | Unprobe-able projects are recorded, never refused | As a consumer with a non-Python project, I want the invocation and the gate to record an unverified probe with git facts and never refuse on provenance grounds, so that the check does not break projects it cannot judge. | High | Open | [build] | no — paired with FR-008 on a probe-able fixture |
 | FR-011 | Existing gate behaviour stays as it is | As the operator, I want existing gate outcomes, their severities, the skip flag and environment variable, and baseline source identity to behave exactly as today, so that this change adds a check without weakening or reshaping the gate. | High | Open | [ratchet] | yes — pinned by the existing gate test suites, which must stay green unchanged |
 
@@ -214,7 +222,7 @@ refuses with `EVIDENCE_TREE_MISMATCH`).
 - **SC-002**: A pre-review gate run that loads another tree's code is refused in 100% of attempts without `--force`, and the same fixture with a correct environment proceeds — [build] · no-op passable: no
 - **SC-003**: 100% of implement and review prompts generated for lane-backed work packages state the lane test invocation and its probe result — [build] · no-op passable: no
 - **SC-004**: Every pre-review gate verdict that ran tests carries an evidence tree with all four facts (path, commit, dirty flag, probe result) — [build] · no-op passable: no
-- **SC-005**: The existing pre-review gate, lane, workspace and implement test suites pass unchanged — [ratchet] · no-op passable: yes (pinned regression suite)
+- **SC-005**: The existing pre-review gate, lane, workspace and implement test suites pass unchanged, except the two exact-shape `implement --json` goldens, which each gain only the new `lane_test_invocation` key — [ratchet] · no-op passable: yes (pinned regression suite)
 
 ## Tracker
 
@@ -223,15 +231,19 @@ refuses with `EVIDENCE_TREE_MISMATCH`).
   (Refs #1907).
 - Refs #3959, #3123, #3074, #5140, #5071, #6851, #3260, #1224, #5064, #7361, #2624,
   #7336, #2330, #5096, #2803, and the epics #7543, #5103.
-- Follow-up issues to file: the orchestrator-api `for_review` transition does not run
-  the pre-review gate; lane worktrees of this repository lack the fetched packs tree.
+- Follow-ups: the orchestrator-api `for_review` transition does not run the pre-review
+  gate (owned by #7407, not re-filed); lane worktrees of this repository lack the fetched
+  packs tree (#7577).
 
 ## Assumptions
 
 - `review.test_command` is the project's test command; when it is unset, there is no
   invocation to report and today's `no_coverage` behaviour stays.
-- For Python projects, the packages to probe are the top-level packages the lane tracks
-  under its source directory; when none can be found, the probe is unverified.
+- For Python projects, the packages to probe are the regular packages (with an
+  `__init__.py`) the lane tracks directly under its `src/` directory; when none exist, the
+  probe is unverified. Workspace member packages outside `src/` are not probed.
+- Recorded paths are relative to the repository root checkout where they lie under it,
+  so the tracked status log does not carry machine-specific absolute paths needlessly.
 - Agents start test runs with the reported invocation; the CLI cannot observe ad-hoc
   runs, so only the gate's own run is checked end to end (agent-reported evidence would
   need a `spec-kitty-events` release and is out of scope).
