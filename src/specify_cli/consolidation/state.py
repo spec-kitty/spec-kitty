@@ -381,6 +381,29 @@ class ConsolidationState:
         self.has_pending_conflicts = has_conflicts
         self.updated_at = now_utc_iso()
 
+    def clear_reconciliation_pass(self) -> bool:
+        """Drop the reconciliation PASS anchor (#5021); return whether anything changed.
+
+        The one clear door for ``reconciliation_passed_target_sha``, so a field
+        that must travel with the anchor (#7491, Mission
+        coord-closeout-leftovers) is cleared in the same place. A pure field
+        mutator: it neither persists the record nor touches git.
+        """
+        return self.restore_reconciliation_pass(None)
+
+    def restore_reconciliation_pass(self, anchor: str | None) -> bool:
+        """Set the reconciliation PASS anchor (#5021) back to ``anchor``; return whether it changed.
+
+        The one restore door for ``reconciliation_passed_target_sha`` (``None``
+        clears it), so a field paired with the anchor (#7491, Mission
+        coord-closeout-leftovers) is restored with it. A pure field mutator: the
+        caller persists the record when this returns ``True``.
+        """
+        if self.reconciliation_passed_target_sha == anchor:
+            return False
+        self.reconciliation_passed_target_sha = anchor
+        return True
+
 
 def get_state_path(repo_root: Path, mission_id: str | None = None) -> Path:
     """Return the path to the merge state file.

@@ -798,8 +798,7 @@ def _report_rollback(run: _MergeRunState, *, anchor_before: str | None) -> None:
     ``raise`` still propagates that original.
     """
     try:
-        if run.state.reconciliation_passed_target_sha != anchor_before:
-            run.state.reconciliation_passed_target_sha = anchor_before
+        if run.state.restore_reconciliation_pass(anchor_before):
             save_state(run.state, run.main_repo)
         report = rollback.rollback_to_snapshot(run.main_repo, run.state, target_branch=run.lanes_manifest.target_branch)
     except BaseException as exc:
