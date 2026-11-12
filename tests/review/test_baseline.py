@@ -465,6 +465,8 @@ class TestRunCommandForBaselineProcessGroupSafety:
             return TestRunCommandForBaselineProcessGroupSafety._FakeProcess()
 
         monkeypatch.setattr(pre_review_gate.subprocess, "Popen", _popen)
+        # The global Popen double would also catch the baseline recipe's git ls-files (#7547).
+        monkeypatch.setattr("specify_cli.lanes.lane_invocation.tracked_paths", lambda *a, **k: [])
 
         raw = _run_command_for_baseline(
             ["sh", "-c", f"export SPEC_KITTY_CMD_OUTPUT_FILE={tmp_path}/x; pytest"],
@@ -506,6 +508,8 @@ class TestRunCommandForBaselineProcessGroupSafety:
             return monotonic_calls["n"] * 10_000_000.0
 
         monkeypatch.setattr(pre_review_gate.subprocess, "Popen", lambda *a, **k: process)
+        # The global Popen double would also catch the baseline recipe's git ls-files (#7547).
+        monkeypatch.setattr("specify_cli.lanes.lane_invocation.tracked_paths", lambda *a, **k: [])
         monkeypatch.setattr(
             pre_review_gate.os, "killpg", lambda pid, sig: killpg_calls.append((pid, sig))
         )

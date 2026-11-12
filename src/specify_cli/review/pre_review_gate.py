@@ -50,6 +50,7 @@ from typing import Protocol
 
 from kernel.locks import LockAcquireTimeout, LockNotAcquired, machine_file_lock
 from kernel.paths import is_windows, to_posix
+from specify_cli.lanes.lane_invocation import INTERPRETER_REDIRECT_KEYS
 from specify_cli.paths import get_runtime_root
 from specify_cli.review._interpreter import resolve_pytest_command
 from specify_cli.review.test_timeout import resolve_review_test_timeout
@@ -94,29 +95,28 @@ _JUNIT_ARTIFACT_FILENAME = "pre-review-junit.xml"
 _STDERR_TAIL_CHARS = 500
 
 
-def _gate_run_env() -> dict[str, str]:
-    """Environment for an automated gate subprocess: inherit + force headless.
+def _gate_run_env(run_env: Mapping[str, str] | None = None) -> dict[str, str]:
+    """Environment for an automated gate subprocess: *run_env* (or inherit) + force headless.
 
     Shared by the pytest/JUnit runner (:func:`run_scoped_tests_at_head`) and
     the raw-command runner (:func:`_run_raw_command`) so the ``PWHEADLESS``
     guard — never pop a browser window during an automated gate run — is set
-    in ONE place rather than copied per call site.
+    in ONE place rather than copied per call site. ``run_env=None`` inherits
+    this process's environment (today's behaviour); a given *run_env* (the
+    lane test invocation's environment, #7547) replaces it.
     """
-    env = dict(os.environ)
+    env = dict(os.environ) if run_env is None else dict(run_env)
     env["PWHEADLESS"] = "1"
     return env
 
 
-# Inherited interpreter-selection variables that make a ``uv run --project
-# <lane>`` gate import another checkout's code (#2803): a PYTHONPATH pointing
-# at the primary checkout's ``src``, or a VIRTUAL_ENV / UV_PROJECT_ENVIRONMENT
-# pointing at its environment.
-_UV_ENV_LEAK_KEYS = ("PYTHONPATH", "UV_PROJECT_ENVIRONMENT", "VIRTUAL_ENV")
-
-
 def _strip_interpreter_path_env(env: dict[str, str]) -> dict[str, str]:
-    """Return ``env`` without the variables that redirect ``uv`` off the lane."""
-    return {key: value for key, value in env.items() if key not in _UV_ENV_LEAK_KEYS}
+    """Return ``env`` without the variables that redirect ``uv`` off the lane (#2803).
+
+    The list is :data:`~specify_cli.lanes.lane_invocation.INTERPRETER_REDIRECT_KEYS`,
+    the one home of the interpreter-redirect variables (#7547).
+    """
+    return {key: value for key, value in env.items() if key not in INTERPRETER_REDIRECT_KEYS}
 
 
 def _launch_failed_error(exc: OSError) -> str:
@@ -443,6 +443,7 @@ def run_scoped_tests_at_head(
     progress_callback: _ProgressCallback | None = None,
     monotonic: Callable[[], float] = time.monotonic,
     wait: _ProcessWait = _default_process_wait,
+    run_env: Mapping[str, str] | None = None,
 ) -> HeadRunResult:
     """Run ``test_targets`` at head and parse JUnit into ``current_failures``.
 
@@ -455,6 +456,11 @@ def run_scoped_tests_at_head(
     (#2570.3) so it runs under whichever interpreter actually has ``pytest``
     installed, and the subprocess itself is serialized against concurrent
     scoped runs via :func:`_scoped_run_lock` (#2493).
+
+    ``run_env`` (#7547): the environment to run in (``PWHEADLESS`` still
+    forced); ``None`` inherits this process's environment. Either way the uv
+    path drops the interpreter-redirect variables, and the ``sys.executable``
+    fallback runs in exactly that environment (#5985 item 2).
     """
     if not test_targets:
         return HeadRunResult(
@@ -463,7 +469,7 @@ def run_scoped_tests_at_head(
             state=HeadRunState.INCOMPLETE_OUTPUT,
         )
 
-    env = _gate_run_env()
+    env = _gate_run_env(run_env)
     observed_elapsed: list[float] = []
 
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -474,7 +480,7 @@ def run_scoped_tests_at_head(
         )
         if command[0] == "uv":
             # Scoped to the uv path: the sys.executable fallback may rely on
-            # an inherited PYTHONPATH to find the code under test.
+            # the PYTHONPATH of its run environment to find the code under test.
             env = _strip_interpreter_path_env(env)
         try:
             with _scoped_run_lock():
@@ -576,6 +582,9 @@ class GateOutcome(StrEnum):
     # console warn.
     SKIPPED = "skipped"
     SCOPE_OVERSIZED = "scope_oversized"
+    # #7554: the hook's probe proved the run would load another tree's code;
+    # refused unless --force (``verdict_aggregation``'s refusal tier).
+    FOREIGN_TREE = "foreign_tree"
 
 
 @dataclass(frozen=True)
@@ -887,6 +896,7 @@ def _run_raw_command(
     wait: _ProcessWait,
     elapsed_observer: _ElapsedObserver | None = None,
     serialize: bool = True,
+    env: Mapping[str, str] | None = None,
 ) -> tuple[HeadRunState, RawRunResult | None, str | None]:
     """Run ``command`` under the SAME process-lifecycle machinery
     :func:`run_scoped_tests_at_head` uses (launch/observe/reap), but
@@ -920,12 +930,15 @@ def _run_raw_command(
     artifact and mislabeling the run's ``scope_source_identity`` parse-mode —
     the exact false-``SOURCE_MISMATCH`` shape T024's parity suite exists to
     catch.
+
+    ``env`` (#7547): the environment to run in (``PWHEADLESS`` still forced);
+    ``None`` inherits this process's environment.
     """
-    env = _gate_run_env()
+    run_env = _gate_run_env(env)
     lock_cm: contextlib.AbstractContextManager[object] = _scoped_run_lock() if serialize else contextlib.nullcontext()
     try:
         with lock_cm:
-            process = _launch_scoped_process(list(command), repo_root=repo_root, env=env)
+            process = _launch_scoped_process(list(command), repo_root=repo_root, env=run_env)
             state, stdout, stderr = _observe_process(
                 process,
                 timeout=timeout,
@@ -963,6 +976,7 @@ def _evaluate_via_scope_source(
     wait: _ProcessWait,
     scope_source: ScopeSource,
     elapsed_observer: _ElapsedObserver | None = None,
+    run_env: Mapping[str, str] | None = None,
 ) -> GateVerdict:
     """T011/FR-010/FR-011/FR-012: drive the head run + parse through the
     injected port instead of the hardcoded pytest/JUnit path
@@ -995,6 +1009,9 @@ def _evaluate_via_scope_source(
     artifact / never captured) -> degrades to the existing
     ``UNVERIFIED_BASELINE`` path via :func:`_classify_current_failures`, never a
     mismatch.
+
+    ``run_env`` (#7547) is the environment the declared command runs in;
+    ``None`` inherits this process's environment.
     """
     if empty_scope_is_coverage_gap(scope_source) and scope.is_empty:
         return GateVerdict(outcome=GateOutcome.NO_COVERAGE, scope=scope, reason=scope.describe_empty_reason())
@@ -1011,6 +1028,7 @@ def _evaluate_via_scope_source(
         monotonic=monotonic,
         wait=wait,
         elapsed_observer=elapsed_observer,
+        env=run_env,
     )
     if state is HeadRunState.TIMED_OUT:
         return GateVerdict(outcome=GateOutcome.TIMED_OUT, scope=scope, reason=error, run_state=state)
@@ -1051,6 +1069,7 @@ def evaluate_with_scope(
     wait: _ProcessWait = _default_process_wait,
     scope_source: ScopeSource | None = None,
     status_observer: GateStatusObserver | None = None,
+    run_env: Mapping[str, str] | None = None,
 ) -> GateVerdict:
     """The shared verdict tail: run ``scope`` at head, diff vs. ``baseline``.
 
@@ -1085,6 +1104,9 @@ def evaluate_with_scope(
     (``tasks_move_task_gates._mt_pre_review_gate_with_override_scope``) — it never
     injects a ``scope_source``, by design, since an override IS the test
     scope.
+
+    ``run_env`` (#7547): the environment both runners use (the hook passes the
+    lane test invocation's environment); ``None`` inherits this process's.
     """
     timeout = resolve_review_test_timeout(repo_root, timeout)
     assessment = assess_scope_budget(scope.test_targets, timeout)
@@ -1125,6 +1147,7 @@ def evaluate_with_scope(
             progress_callback=combined_progress,
             monotonic=monotonic,
             wait=wait,
+            run_env=run_env,
         )
         if run_result.state is HeadRunState.TIMED_OUT:
             return _finalize_budget_evidence(
@@ -1177,6 +1200,7 @@ def evaluate_with_scope(
         wait=wait,
         scope_source=scope_source,
         elapsed_observer=observed_elapsed.append,
+        run_env=run_env,
     )
     return _finalize_budget_evidence(
         verdict,
@@ -1259,6 +1283,7 @@ def evaluate_pre_review_gate(
     wait: _ProcessWait = _default_process_wait,
     scope_source: ScopeSource,
     status_observer: GateStatusObserver | None = None,
+    run_env: Mapping[str, str] | None = None,
 ) -> GateVerdict:
     """Compose scope derivation + the shared head-run/verdict tail.
 
@@ -1274,6 +1299,8 @@ def evaluate_pre_review_gate(
     sourced ENTIRELY from the injected port. The sole production caller
     (``gate_registry._spec_kitty_pre_review_handler``) always supplies a
     concrete, non-``None`` source resolved by activation.
+
+    ``run_env`` (#7547) is forwarded to :func:`evaluate_with_scope`.
     """
     scope = _scope_result_from_source(scope_source, changed_files)
     return evaluate_with_scope(
@@ -1286,4 +1313,5 @@ def evaluate_pre_review_gate(
         wait=wait,
         scope_source=scope_source,
         status_observer=status_observer,
+        run_env=run_env,
     )
