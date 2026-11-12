@@ -136,6 +136,38 @@ def test_head_mismatch_remedy_names_the_holding_worktree(tmp_path: Path) -> None
 
 
 # ---------------------------------------------------------------------------
+# Squad fold: a differing copy outside the holder is refused, never dropped
+# ---------------------------------------------------------------------------
+
+
+def test_edited_other_worktree_copy_beside_holder_copy_is_refused(tmp_path: Path) -> None:
+    mission = _settled(tmp_path)
+    holder_copy = mission.coord_mission_dir / "spec.md"
+    holder_text = holder_copy.read_text(encoding="utf-8")
+    other = mission.root / ".worktrees" / "other-checkout" / "kitty-specs" / mission.slug / "spec.md"
+    other.parent.mkdir(parents=True)
+    other.write_text("# edited in another checkout\n", encoding="utf-8")
+    topic_tip = git(mission.root, "rev-parse", mission.topic)
+
+    result = commit_router.commit_for_mission(
+        mission.root,
+        mission.slug,
+        (other,),
+        "spec: other checkout",
+        ProtectionPolicy.resolve(mission.root),
+        kind=MissionArtifactKind.SPEC,
+    )
+
+    assert result.status == "no_op_wrong_surface", result
+    assert [fate.reason for surface in result.surfaces for fate in surface.refused] == ["WRONG_SURFACE"]
+    assert result.diagnostic is not None
+    assert str(other) in result.diagnostic
+    assert str(holder_copy) in result.diagnostic
+    assert holder_copy.read_text(encoding="utf-8") == holder_text
+    assert git(mission.root, "rev-parse", mission.topic) == topic_tip
+
+
+# ---------------------------------------------------------------------------
 # Focused helper tests (T006/T007/T008/T009)
 # ---------------------------------------------------------------------------
 
