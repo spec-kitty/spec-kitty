@@ -148,8 +148,10 @@ def test_answer_decision_commits_the_row_and_surfaces_a_refusal(tmp_path: Path, 
         return MissionNextInvokedWrite(write.log_path, write.surface_root, in_coordination_worktree=True)
 
     def _refusing_commit(_repo_root: Path, slug: str, log_path: Path, _checkout_root: Path) -> str:
+        from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
+
         committed.append((slug, log_path))
-        return "could not commit the row (test refusal); commit it before consolidate."
+        raise SafeCommitRecoveryFailed("restore failed", orphan_stash_ref="refs/stash-orphan-answer", commit_sha=None)
 
     # ``answer-decision`` imports the seam function-locally, so patch it at its home.
     monkeypatch.setattr(next_invocation_lifecycle, "emit_mission_next_invoked", _emit_in_coordination)
@@ -163,7 +165,8 @@ def test_answer_decision_commits_the_row_and_surfaces_a_refusal(tmp_path: Path, 
     envelope = harness._envelope(result)
     assert envelope["success"] is True, envelope
     assert [slug for slug, _ in committed] == [mission_slug]
-    assert "could not commit the row (test refusal); commit it before consolidate." in envelope["data"]["warnings"]
+    # The recovery failure (not just a plain refusal) reaches ``warnings`` with its orphan stash ref.
+    assert any("refs/stash-orphan-answer" in warning for warning in envelope["data"]["warnings"]), envelope["data"]["warnings"]
 
 
 def test_next_commits_its_row_in_the_repository_root_checkout_too(tmp_path: Path) -> None:
@@ -220,3 +223,33 @@ def test_commit_event_row_surfaces_a_recovery_failure_with_its_stash_ref(
     assert bool(warnings) is bool(expected_substrings)
     for fragment in expected_substrings:
         assert fragment in text
+
+
+def test_next_dispatch_surfaces_a_recovery_failure_with_its_stash_ref_on_stderr(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Wiring: ``next``'s advancing path commits through ``commit_event_row``, so the orphan stash ref reaches stderr."""
+    from types import SimpleNamespace
+
+    from runtime.next.next_invocation_lifecycle import MissionNextInvokedWrite
+    from specify_cli.cli.commands import next_cmd
+    from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
+    from specify_cli.mission_v1 import events
+
+    write = MissionNextInvokedWrite(tmp_path / "mission-events.jsonl", tmp_path, in_coordination_worktree=False)
+
+    def _commit(*_args: object) -> str:
+        raise SafeCommitRecoveryFailed("restore failed", orphan_stash_ref="refs/stash-orphan-next", commit_sha="abc123")
+
+    monkeypatch.setattr(events, "commit_mission_event_log", _commit)
+    monkeypatch.setattr(next_cmd, "_pair_previous_lifecycle_record", lambda *a, **k: None)
+    monkeypatch.setattr(next_cmd, "decide_next", lambda *a, **k: SimpleNamespace(kind="step"))
+    monkeypatch.setattr(next_cmd, "_emit_mission_next_invoked", lambda *a, **k: write)
+    monkeypatch.setattr(next_cmd, "_write_issuance_lifecycle_record", lambda *a, **k: None)
+    monkeypatch.setattr(next_cmd, "_print_decision", lambda *a, **k: None)
+
+    next_cmd._dispatch_advancing_mode("claude", "m", "success", tmp_path, False, None, None, owned=None)
+
+    err = capsys.readouterr().err
+    assert "refs/stash-orphan-next" in err
+    assert "git stash pop --index" in err

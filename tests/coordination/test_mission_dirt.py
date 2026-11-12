@@ -7,6 +7,7 @@ private wrapper (``coherence._is_other_mission_path``) keeps its old answers.
 
 from __future__ import annotations
 
+from pathlib import Path
 
 import pytest
 
@@ -41,6 +42,7 @@ OTHER = "other-01GHJKMN"
         (f"kitty-specs/{OTHER}/decisions/index.json", DirtScope.OTHER_MISSION),
         (f".kittify/derived/{OTHER}/status.json", DirtScope.OTHER_MISSION),
         (f"kitty-specs\\{OTHER}\\notes.md", DirtScope.OTHER_MISSION),
+        (Path("kitty-specs") / OTHER / "a.md", DirtScope.OTHER_MISSION),
         # A gate anchors at the checkout root: a code path that merely contains a
         # ``kitty-specs`` directory (a test fixture) is code dirt.
         (f"tests/audit/fixtures/repo/kitty-specs/{OTHER}/meta.json", DirtScope.OUTSIDE),
@@ -57,7 +59,7 @@ OTHER = "other-01GHJKMN"
         (".kittify/derived/status.json", DirtScope.OUTSIDE),
     ],
 )
-def test_classify_dirt(path: str, expected: DirtScope) -> None:
+def test_classify_dirt(path: str | Path, expected: DirtScope) -> None:
     assert classify_dirt(path, own_dir_names={OWN, ALIAS}) is expected
 
 

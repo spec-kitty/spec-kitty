@@ -524,7 +524,8 @@ def test_operator_code_edit_beside_other_mission_residue_still_refuses(repo: Pat
         _ensure_repo_root_checkout_available(repo, mission_slug, "WP01", ws)
 
     assert "uncommitted-ctl.py" in str(excinfo.value)
-    assert "tests/" in str(excinfo.value)  # git collapses the untracked fixture tree to its top directory
+    # git collapses the untracked fixture tree to its top directory; the refusal lists exactly these two entries.
+    assert "uncommitted changes: tests/, uncommitted-ctl.py." in str(excinfo.value)
     assert "other-01ABCDEF" not in str(excinfo.value)
 
 
