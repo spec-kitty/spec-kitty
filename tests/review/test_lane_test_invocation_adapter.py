@@ -198,56 +198,48 @@ def test_render_states_cd_unset_exports_command_and_verified_probe(tmp_path: Pat
     ]
 
 
-def test_render_without_a_declared_command_says_so(tmp_path: Path) -> None:
-    invocation = LaneTestInvocation(cwd=tmp_path, command=None, probe=_probe(ProbeStatus.UNVERIFIED, reason="no tracked source-layout packages to probe"))
-
-    lines = render_lane_test_invocation_lines(invocation)
-
-    assert "   (no review.test_command configured)" in lines
-    assert lines[-1] == "   probe: unverified — no tracked source-layout packages to probe"
+_ELSEWHERE = "/elsewhere/src/pkg/__init__.py"
 
 
-def test_render_flags_a_foreign_probe_as_untrustworthy(tmp_path: Path) -> None:
-    origin = "/elsewhere/src/pkg/__init__.py"
-    invocation = LaneTestInvocation(
-        cwd=tmp_path,
-        command=None,
-        probe=_probe(ProbeStatus.FOREIGN, origins=(("pkg", origin),), foreign=("pkg",), reason="pkg loads from elsewhere"),
-    )
+@pytest.mark.parametrize(
+    ("probe", "last_line"),
+    [
+        pytest.param(
+            _probe(ProbeStatus.UNVERIFIED, reason="no tracked source-layout packages to probe"),
+            "   probe: unverified — no tracked source-layout packages to probe",
+            id="unverified",
+        ),
+        pytest.param(
+            _probe(ProbeStatus.FOREIGN, origins=(("pkg", _ELSEWHERE),), foreign=("pkg",), reason="pkg loads from elsewhere"),
+            # Worded for any workspace: a single_branch write checkout is not a lane (review cycle 1, item 3).
+            f"   probe: FOREIGN — pkg loads from {_ELSEWHERE}, outside this workspace. Fix its environment before trusting any test result.",
+            id="foreign",
+        ),
+        pytest.param(
+            _probe(ProbeStatus.VERIFIED, origins=(("pkg", _ELSEWHERE),)), f"   probe: verified — pkg → {_ELSEWHERE}", id="origin-outside-the-lane-stays-absolute"
+        ),
+        pytest.param(None, "   probe: not run", id="no-probe"),
+    ],
+)
+def test_render_ends_with_the_probe_line(tmp_path: Path, probe: ProbeResult | None, last_line: str) -> None:
+    lines = render_lane_test_invocation_lines(LaneTestInvocation(cwd=tmp_path / "lane", command=None, probe=probe))
 
-    lines = render_lane_test_invocation_lines(invocation)
-
-    # Worded for any workspace: a single_branch write checkout is not a lane (review cycle 1, item 3).
-    assert lines[-1] == f"   probe: FOREIGN — pkg loads from {origin}, outside this workspace. Fix its environment before trusting any test result."
-
-
-def test_render_keeps_an_origin_outside_the_lane_absolute(tmp_path: Path) -> None:
-    origin = "/elsewhere/src/pkg/__init__.py"
-    invocation = LaneTestInvocation(cwd=tmp_path / "lane", command=None, probe=_probe(ProbeStatus.VERIFIED, origins=(("pkg", origin),)))
-
-    assert render_lane_test_invocation_lines(invocation)[-1] == f"   probe: verified — pkg → {origin}"
-
-
-def test_render_without_a_probe_says_it_was_not_run(tmp_path: Path) -> None:
-    invocation = LaneTestInvocation(cwd=tmp_path, command=None)
-
-    assert render_lane_test_invocation_lines(invocation)[-1] == "   probe: not run"
-
-
-def test_render_quotes_an_export_value_for_the_shell(tmp_path: Path) -> None:
-    invocation = LaneTestInvocation(cwd=tmp_path, command=None, env_set={"NAME": "has space"})
-
-    assert "   export NAME='has space'" in render_lane_test_invocation_lines(invocation)
+    assert lines[-1] == last_line
+    # Without a declared command the block says so, on the line before the probe.
+    assert lines[-2] == "   (no review.test_command configured)"
 
 
-def test_render_puts_the_lane_venv_in_front_of_path(tmp_path: Path) -> None:
-    bin_dir = tmp_path / "lane" / ".venv" / "bin"
-    with_venv = LaneTestInvocation(cwd=tmp_path / "lane", command=None, path_prepend=(str(bin_dir),))
+def test_render_states_the_environment_changes(tmp_path: Path) -> None:
+    lane = tmp_path / "lane"
+    bin_dir = lane / ".venv" / "bin"
 
-    assert f'   export PATH={bin_dir}{os.pathsep}"$PATH"' in render_lane_test_invocation_lines(with_venv)
-    # Positive control: no lane venv, no PATH line.
-    bare = LaneTestInvocation(cwd=tmp_path / "lane", command=None)
-    assert not any("export PATH=" in line for line in render_lane_test_invocation_lines(bare))
+    changed = render_lane_test_invocation_lines(LaneTestInvocation(cwd=lane, command=None, env_set={"NAME": "has space"}, path_prepend=(str(bin_dir),)))
+
+    assert "   export NAME='has space'" in changed
+    assert f'   export PATH={bin_dir}{os.pathsep}"$PATH"' in changed
+    # Positive control: without the changes, neither line is there.
+    bare = render_lane_test_invocation_lines(LaneTestInvocation(cwd=lane, command=None))
+    assert not any(line.startswith(("   export NAME=", "   export PATH=")) for line in bare)
 
 
 def test_failure_lines_report_an_unverified_probe_with_the_error() -> None:

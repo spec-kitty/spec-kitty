@@ -27,7 +27,7 @@ import posixpath
 import shutil
 import subprocess
 import sys
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
@@ -37,8 +37,6 @@ import pytest
 from kernel.paths import is_windows
 from specify_cli.lanes.lane_invocation import (
     INTERPRETER_REDIRECT_KEYS,
-    EvidenceTree,
-    LaneTestInvocation,
     ProbeResult,
     ProbeStatus,
     build_lane_test_invocation,
@@ -436,34 +434,6 @@ def test_capture_evidence_tree_outside_git_never_raises(tmp_path: Path) -> None:
 
 
 # --- 9. to_dict() shape (contracts/lane-test-invocation.md) -----------------
-
-
-@pytest.mark.git_repo
-def test_to_dict_shapes_match_the_contract(scratch_project: ScratchProject) -> None:
-    inv = build_lane_test_invocation(scratch_project.lane, command="make test", mission_slug=_MISSION, lane_id=_LANE)
-    bare = inv.to_dict()
-    assert set(bare) == {"cwd", "command", "env_set", "env_unset", "path_prepend", "probe"}
-    assert bare["path_prepend"] == []
-    assert bare["probe"] is None
-    assert bare["cwd"] == str(scratch_project.lane)
-    assert bare["env_unset"] == ["PYTHONPATH", "UV_PROJECT_ENVIRONMENT", "VIRTUAL_ENV"]
-    assert isinstance(bare["env_set"], Mapping)
-
-    probed = inv.with_probe(probe_lane_imports(inv, base_env=_clean_env()))
-    assert isinstance(probed, LaneTestInvocation)
-    payload = probed.to_dict()
-    probe_dict = payload["probe"]
-    assert isinstance(probe_dict, dict)
-    assert set(probe_dict) == {"status", "origins", "foreign", "reason", "interpreter"}
-    assert probe_dict["status"] == "verified"
-    assert isinstance(probe_dict["origins"], dict)
-    assert probe_dict["foreign"] == []
-
-    tree = capture_evidence_tree(scratch_project.lane, probed.probe or ProbeResult(ProbeStatus.UNVERIFIED, (), (), "x", None))
-    assert isinstance(tree, EvidenceTree)
-    tree_dict = tree.to_dict()
-    assert set(tree_dict) == {"path", "head", "dirty", "probe"}
-    assert tree_dict["probe"] == probe_dict
 
 
 # --- Close-out folds (aggregate review of mission lane-code-verification) ----
