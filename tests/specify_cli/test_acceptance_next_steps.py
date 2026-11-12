@@ -24,7 +24,6 @@ import pytest
 import specify_cli.acceptance as acceptance
 from specify_cli.acceptance import (
     AcceptanceSummary,
-    _acceptance_record_branch,
     _build_acceptance_instructions,
     _has_lanes_to_consolidate,
     collect_feature_summary,
@@ -223,61 +222,41 @@ def _feature_with_lanes(tmp_path: Path, *lanes: ExecutionLane) -> Path:
     return feature_dir
 
 
-def _lanes_summary(feature_dir: Path, *, approved: list[str]) -> Any:
-    return cast(Any, SimpleNamespace(feature_dir=feature_dir, lanes={"approved": approved, "done": []}))
-
-
-def test_code_lane_with_approved_wp_has_lanes_to_consolidate(tmp_path: Path) -> None:
-    feature_dir = _feature_with_lanes(tmp_path, _lane("lane-a", "WP01"), _lane(PLANNING_LANE_ID, "WP02"))
-    assert _has_lanes_to_consolidate(_lanes_summary(feature_dir, approved=["WP01"]), lands_by_consolidation=False)
-
-
 def test_planning_lane_only_has_nothing_to_consolidate(tmp_path: Path) -> None:
     feature_dir = _feature_with_lanes(tmp_path, _lane(PLANNING_LANE_ID, "WP01", "WP02"))
-    assert not _has_lanes_to_consolidate(_lanes_summary(feature_dir, approved=["WP01"]), lands_by_consolidation=False)
+    assert not _has_lanes_to_consolidate(feature_dir, lands_by_consolidation=False)
 
 
-def test_code_lane_with_every_wp_done_still_has_lanes_to_consolidate(tmp_path: Path) -> None:
-    """Review F2: ``done`` is not proof of consolidation; only the recorded landing is."""
+def test_code_lane_has_lanes_to_consolidate_until_landed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review F2: a work package's lane (``approved`` or ``done``) is no proof of consolidation; only the recorded landing is."""
     feature_dir = _feature_with_lanes(tmp_path, _lane("lane-a", "WP01"), _lane(PLANNING_LANE_ID, "WP02"))
-    assert _has_lanes_to_consolidate(_lanes_summary(feature_dir, approved=[]), lands_by_consolidation=False)
+    assert _has_lanes_to_consolidate(feature_dir, lands_by_consolidation=False)
+
+    monkeypatch.setattr("mission_runtime.landing.mission_has_landed", lambda _primary_dir: True)
+    assert not _has_lanes_to_consolidate(feature_dir, lands_by_consolidation=False)
 
 
 def test_no_lanes_manifest_has_nothing_to_consolidate(tmp_path: Path) -> None:
-    assert not _has_lanes_to_consolidate(_lanes_summary(tmp_path, approved=["WP01"]), lands_by_consolidation=False)
+    assert not _has_lanes_to_consolidate(tmp_path, lands_by_consolidation=False)
 
 
 def test_corrupt_lanes_manifest_has_nothing_to_consolidate(tmp_path: Path) -> None:
     feature_dir = _feature_with_lanes(tmp_path, _lane("lane-a", "WP01"))
     for manifest in feature_dir.rglob("lanes.json"):
         manifest.write_text("{not json", encoding="utf-8")
-    assert not _has_lanes_to_consolidate(_lanes_summary(feature_dir, approved=["WP01"]), lands_by_consolidation=False)
+    assert not _has_lanes_to_consolidate(feature_dir, lands_by_consolidation=False)
 
 
 def test_coordination_mission_has_lanes_to_consolidate_until_landed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    summary = _lanes_summary(tmp_path, approved=[])
-    assert _has_lanes_to_consolidate(summary, lands_by_consolidation=True)
+    assert _has_lanes_to_consolidate(tmp_path, lands_by_consolidation=True)
 
     monkeypatch.setattr("mission_runtime.landing.mission_has_landed", lambda _primary_dir: True)
-    assert not _has_lanes_to_consolidate(summary, lands_by_consolidation=True)
+    assert not _has_lanes_to_consolidate(tmp_path, lands_by_consolidation=True)
 
 
-@pytest.mark.parametrize(
-    ("meta", "expected"),
-    [
-        ({"coordination_branch": _COORD_BRANCH, "mission_branch": "kitty/mission-other"}, _COORD_BRANCH),
-        ({"mission_branch": "kitty/mission-other"}, "kitty/mission-other"),
-        ({}, "main"),
-    ],
-)
-def test_acceptance_record_branch(tmp_path: Path, meta: dict[str, str], expected: str) -> None:
-    (tmp_path / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
-    assert _acceptance_record_branch(tmp_path, "main") == expected
-
-
-def test_local_arm_with_lanes_to_consolidate_falls_back_to_checkout_branch(tmp_path: Path) -> None:
+def test_local_arm_without_record_branch_claims_no_branch(tmp_path: Path) -> None:
     instructions, _cleanup = _build_acceptance_instructions(_bare_summary(tmp_path), "local", "main", True, lanes_to_consolidate=True)
-    assert instructions == [f"Acceptance recorded on `main`. This Mission lands through `{_CONSOLIDATE}`; run it next."]
+    assert instructions == [_PASSED_CONSOLIDATE_NEXT]
 
 
 def test_local_arm_names_record_branch(tmp_path: Path) -> None:
