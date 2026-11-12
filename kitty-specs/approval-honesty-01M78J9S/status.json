@@ -1,7 +1,7 @@
 {
-  "event_count": 2,
-  "last_event_id": "01M78MC97QK11D47WF0NNDA7HF",
-  "materialized_at": "2026-11-12T19:39:57.559369+00:00",
+  "event_count": 3,
+  "last_event_id": "01M78MCD9HW3GTQ33D88Y5N2PT",
+  "materialized_at": "2026-11-12T19:40:01.713240+00:00",
   "mission_number": "",
   "mission_slug": "approval-honesty-01M78J9S",
   "mission_type": "software-dev",
@@ -15,7 +15,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 2
+    "planned": 3
   },
   "work_packages": {
     "WP01": {
@@ -31,6 +31,13 @@
       "lane": "planned",
       "last_event_id": "01M78MC97QK11D47WF0NNDA7HF",
       "last_transition_at": "2026-11-12T19:39:57.559369+00:00"
+    },
+    "WP03": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M78MCD9HW3GTQ33D88Y5N2PT",
+      "last_transition_at": "2026-11-12T19:40:01.713240+00:00"
     }
   }
 }
