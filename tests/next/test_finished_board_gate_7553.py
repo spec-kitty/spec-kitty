@@ -75,7 +75,7 @@ def _commit(repo: Path, message: str) -> None:
     subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", message], cwd=repo, check=True, capture_output=True)
 
 
-def _transition(slug: str, wp_id: str, from_lane: Lane, to_lane: Lane, at: str) -> StatusEvent:
+def _transition(slug: str, wp_id: str, from_lane: Lane, to_lane: Lane, at: str, actor: str = "fixture") -> StatusEvent:
     return StatusEvent(
         event_id=f"extra-{wp_id}-{to_lane}-{at}",
         mission_slug=slug,
@@ -83,7 +83,7 @@ def _transition(slug: str, wp_id: str, from_lane: Lane, to_lane: Lane, at: str) 
         from_lane=from_lane,
         to_lane=to_lane,
         at=at,
-        actor="fixture",
+        actor=actor,
         force=True,
         execution_mode="worktree",
         reason="fixture reopen" if to_lane is Lane.IN_PROGRESS else None,
@@ -95,12 +95,12 @@ def _board(
     wps: dict[str, Lane],
     *,
     accepted_at: str | None = None,
-    extra: Iterable[tuple[str, Lane, Lane, str]] = (),
+    extra: Iterable[tuple[str, Lane, Lane, str] | tuple[str, Lane, Lane, str, str]] = (),
 ) -> tuple[Path, str, Path]:
     """A finalized software-dev board with a minted ULID ``mission_id`` (the lifecycle key).
 
     ``accepted_at`` is written the way ``record_acceptance`` writes it; ``extra`` appends
-    ``(wp_id, from, to, at)`` transitions after the ``_SEED_AT`` seed.
+    ``(wp_id, from, to, at[, actor])`` transitions after the ``_SEED_AT`` seed.
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -112,7 +112,7 @@ def _board(
     if accepted_at is not None:
         meta.update({"accepted_at": accepted_at, "accepted_by": "operator", "acceptance_mode": "local"})
     meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
-    events = [_transition(slug, wp_id, from_lane, to_lane, at) for wp_id, from_lane, to_lane, at in extra]
+    events = [_transition(slug, *row) for row in extra]
     if events:
         seed_status_events(feature_dir, events)
     _commit(repo, "finalize board fixture")
@@ -262,30 +262,39 @@ def test_cell4_canceled_endings_count_as_finished(wps: dict[str, Lane], tmp_path
     _assert_awaiting_acceptance(decision.to_dict(), slug)
 
 
-def test_cell6_acceptance_older_than_a_reopen_and_reapproval_is_not_terminal(tmp_path: Path) -> None:
-    """FR-002 freshness: ``accepted_at`` is sticky, so a re-approval needs acceptance again."""
-    repo, slug, _ = _board(
-        tmp_path,
-        {"WP01": Lane.APPROVED, "WP02": Lane.APPROVED},
-        accepted_at=_FRESH_ACCEPTANCE,
-        extra=[
-            ("WP01", Lane.APPROVED, Lane.IN_PROGRESS, "2026-03-01T00:00:00+00:00"),
-            ("WP01", Lane.IN_PROGRESS, Lane.APPROVED, "2026-03-02T00:00:00+00:00"),
-        ],
-    )
+@pytest.mark.parametrize(
+    ("extra", "expect_terminal"),
+    [
+        pytest.param(
+            [
+                ("WP01", Lane.APPROVED, Lane.IN_PROGRESS, "2026-03-01T00:00:00+00:00"),
+                ("WP01", Lane.IN_PROGRESS, Lane.APPROVED, "2026-03-02T00:00:00+00:00"),
+            ],
+            False,
+            id="reopen-and-reapproval-needs-acceptance-again",
+        ),
+        pytest.param(
+            [("WP01", Lane.APPROVED, Lane.DONE, "2026-03-01T00:00:00+00:00", "merge")],
+            True,
+            id="consolidation-done-bookkeeping-is-not-a-fresh-transition",
+        ),
+    ],
+)
+def test_cell6_acceptance_freshness_against_later_board_transitions(extra: list[tuple[str, Lane, Lane, str]], expect_terminal: bool, tmp_path: Path) -> None:
+    """FR-002 freshness: ``accepted_at`` is sticky, so a re-approval needs acceptance again.
+
+    Consolidation's system ``approved -> done`` (actor ``merge``) lands after ``accepted_at``
+    but before the landing is recorded; it must not make an accepted Mission look stale.
+    """
+    repo, slug, _ = _board(tmp_path, {"WP01": Lane.APPROVED, "WP02": Lane.APPROVED}, accepted_at=_FRESH_ACCEPTANCE, extra=extra)
 
     decision = _gated_bridge_call(repo, slug)
 
-    assert decision.kind == DecisionKind.blocked, decision.to_dict()
-    _assert_awaiting_acceptance(decision.to_dict(), slug)
-
-
-def test_cell6_stale_acceptance_before_the_board_is_blocked(tmp_path: Path) -> None:
-    repo, slug, _ = _board(tmp_path, {"WP01": Lane.APPROVED}, accepted_at=_STALE_ACCEPTANCE)
-
-    decision = _gated_bridge_call(repo, slug)
-
-    _assert_awaiting_acceptance(decision.to_dict(), slug)
+    if expect_terminal:
+        assert decision.kind == DecisionKind.terminal, decision.to_dict()
+    else:
+        assert decision.kind == DecisionKind.blocked, decision.to_dict()
+        _assert_awaiting_acceptance(decision.to_dict(), slug)
 
 
 # ---------------------------------------------------------------------------

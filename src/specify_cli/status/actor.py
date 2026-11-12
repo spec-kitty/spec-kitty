@@ -36,10 +36,18 @@ __all__ = [
     "actor_from_option",
     "build_status_actor",
     "build_system_actor",
+    "MERGE_ACTOR",
     "compose_status_actor",
     "role_for_hop",
     "role_for_wp",
 ]
+
+
+#: The identity every merge-time bookkeeping write records (#6722). It stays a plain
+#: string -- the readers project the structured actor back to it -- and both emits and the
+#: done-write refusal probe build their actor from this one value. It lives here, below
+#: ``consolidation``, so ``runtime`` can recognise a system ``done`` write by actor.
+MERGE_ACTOR = "merge"
 
 
 class ActorRole(StrEnum):
