@@ -1,8 +1,9 @@
-"""Owned arms of ``prompt_builder.build_prompt`` (WP12, FR-008/009/010).
+"""Owned arms of ``prompt_builder.build_prompt`` (WP12, FR-008/009/010; #7578 WP05 review range).
 
 The fact is minted by the real validator over the shared R/P/S fixture. The
-claim event is committed the way ``move-task`` commits it (event-only), so the
-claim commit is found by event id, never by subject.
+claim and submission events are committed the way ``move-task`` commits them
+(event-only) and carry no stamps, so the ``single_branch`` review range is
+derived from those event commits, found by event id, never by subject.
 """
 
 from __future__ import annotations
@@ -81,6 +82,40 @@ def _claim(checkouts: OwnedCheckouts, event_id: str = "01CLAIMAAAAAAAAAAAAAAAAAA
     return _git(checkouts.owned_root, "rev-parse", "HEAD")
 
 
+def _seed(checkouts: OwnedCheckouts, event_id: str, from_lane: Lane, to_lane: Lane, policy_metadata: dict[str, Any] | None = None) -> str:
+    seed_status_event(
+        checkouts.mission_dir,
+        StatusEvent(
+            event_id=event_id,
+            mission_slug=checkouts.mission_slug,
+            wp_id=_WP,
+            from_lane=from_lane,
+            to_lane=to_lane,
+            at="2026-09-29T00:00:00+00:00",
+            actor="tester",
+            force=True,
+            execution_mode="direct_repo",
+            policy_metadata=policy_metadata,
+        ),
+    )
+    _git(checkouts.owned_root, "add", "-A")
+    _git(checkouts.owned_root, "commit", "-qm", f"status {event_id}")
+    return _git(checkouts.owned_root, "rev-parse", "HEAD")
+
+
+def _commit_work(checkouts: OwnedCheckouts, name: str) -> str:
+    (checkouts.owned_root / name).write_text(f"# {name}\n", encoding="utf-8")
+    _git(checkouts.owned_root, "add", "-A")
+    _git(checkouts.owned_root, "commit", "-qm", f"work on {name}")
+    return _git(checkouts.owned_root, "rev-parse", "HEAD")
+
+
+def _submit(checkouts: OwnedCheckouts) -> str:
+    """Start and submit the claimed WP (unstamped events); returns the submission event commit."""
+    _seed(checkouts, "01PROGAAAAAAAAAAAAAAAAAAA1", Lane.CLAIMED, Lane.IN_PROGRESS)
+    return _seed(checkouts, "01REVWAAAAAAAAAAAAAAAAAAA1", Lane.IN_PROGRESS, Lane.FOR_REVIEW)
+
+
 def _build(checkouts: OwnedCheckouts, action: str, **overrides: Any) -> tuple[str, Path]:
     provision_test_charter(checkouts.owned_root)
     args: dict[str, Any] = {
@@ -98,16 +133,22 @@ def _build(checkouts: OwnedCheckouts, action: str, **overrides: Any) -> tuple[st
 
 
 def test_owned_review_prompt_diffs_the_claim_commit_scoped_to_owned_files(owned_checkouts: OwnedCheckouts) -> None:
+    """re-pin (IC-05, DIRECTIVE_041): ``claim..HEAD`` text replaced by the WP review range, still scoped to the owned files."""
     _set_wp_frontmatter(owned_checkouts, owned_files="[wp01.py]")
     claim = _claim(owned_checkouts)
-    (owned_checkouts.owned_root / "wp02.py").write_text("# sibling\n", encoding="utf-8")
-    _git(owned_checkouts.owned_root, "add", "-A")
-    _git(owned_checkouts.owned_root, "commit", "-qm", "sibling work")
+    work = _commit_work(owned_checkouts, "wp01.py")
+    _commit_work(owned_checkouts, "wp02.py")
+    tip = _submit(owned_checkouts)
 
     text, path = _build(owned_checkouts, "review")
 
-    assert f"  git log {claim}..HEAD --oneline -- wp01.py" in text
-    assert f"  git diff {claim}..HEAD --stat -- wp01.py" in text
+    assert f"REVIEW RANGE ({_WP}): {claim[:12]}..{tip[:12]}  [derived]" in text
+    assert f"  git log --oneline {claim}..{tip} -- wp01.py" in text
+    diff_line = f"  git diff {claim}..{tip} -- wp01.py"
+    assert diff_line in text
+    printed = subprocess.run(["bash", "-c", diff_line.strip()], cwd=owned_checkouts.owned_root, check=True, capture_output=True, text=True).stdout
+    assert "wp01.py" in printed and "wp02.py" not in printed
+    assert f"  {work[:12]} work on wp01.py" in text
     assert "Workspace contract: owned checkout" in text
     assert "# Work for this WP happens in the owned checkout" in text
     assert f"cd {owned_checkouts.owned_root}" in text
@@ -117,6 +158,7 @@ def test_owned_review_prompt_diffs_the_claim_commit_scoped_to_owned_files(owned_
 def test_owned_prompt_reads_no_resolver_and_no_repository_root_walk(owned_checkouts: OwnedCheckouts, monkeypatch: pytest.MonkeyPatch) -> None:
     _set_wp_frontmatter(owned_checkouts, owned_files="[wp01.py]")
     _claim(owned_checkouts)
+    _submit(owned_checkouts)
     fact = _fact(owned_checkouts)
 
     def _forbidden(*_args: object, **_kwargs: object) -> object:
@@ -137,6 +179,7 @@ def test_owned_review_without_a_provable_base_raises_the_typed_refusal(owned_che
         _claim(owned_checkouts)
     if reason == "ambiguous":
         _claim(owned_checkouts)
+        _submit(owned_checkouts)  # re-pin: only the ambiguous event commits leave the scoped range unavailable
         events = owned_checkouts.mission_dir / "status.events.jsonl"
         original = events.read_text(encoding="utf-8")
         events.write_text("", encoding="utf-8")
@@ -173,6 +216,7 @@ def test_owned_review_completion_commands_carry_the_owned_checkout_flag(owned_ch
     checkouts = _spaced_owned_root(owned_checkouts)
     _set_wp_frontmatter(checkouts, owned_files="[wp01.py]")
     _claim(checkouts)
+    _submit(checkouts)
     text, path = _build(checkouts, "review")
     moves = _completion_argv(text, "move-task")
     assert {argv[argv.index("--to") + 1] for argv in moves} == {"approved", "planned"}
@@ -220,10 +264,20 @@ def test_owned_lane_review_base_is_the_facts_target_branch_not_the_repository_ro
     branch; reading it would silently move the review base off the validated fact.
     """
     checkouts = owned_checkouts_lanes
+    _set_wp_frontmatter(checkouts, owned_files="[wp01.py]")
+    open_sha = _git(checkouts.owned_root, "rev-parse", "HEAD")
+    window = {"lane_head": open_sha, "wp_window": {"schema_version": 1, "open_sha": open_sha}}
+    _seed(checkouts, "01CLAIMAAAAAAAAAAAAAAAAAA1", Lane.PLANNED, Lane.CLAIMED, window)
+    _seed(checkouts, "01PROGAAAAAAAAAAAAAAAAAAA1", Lane.CLAIMED, Lane.IN_PROGRESS, {"lane_head": open_sha})
+    tip = _commit_work(checkouts, "wp01.py")
+    _seed(checkouts, "01REVWAAAAAAAAAAAAAAAAAAA1", Lane.IN_PROGRESS, Lane.FOR_REVIEW, {"lane_head": tip})
     stale_root_copy_for_lanes()
 
     text, path = _build(checkouts, "review")
 
-    assert f"  git diff {checkouts.target_branch}..HEAD --stat" in text
+    # re-pin (IC-05): the base is the WP's recorded window open on the fact's status surface, never a target-branch ref.
+    assert f"REVIEW RANGE ({_WP}): {open_sha[:12]}..{tip[:12]}  [recorded]" in text
+    assert f"  git diff {open_sha}..{tip} -- wp01.py" in text
+    assert f"{checkouts.target_branch}..HEAD" not in text
     assert "wrong-repository-root-target" not in text
     path.unlink()

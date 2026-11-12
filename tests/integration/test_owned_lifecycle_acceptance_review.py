@@ -12,11 +12,13 @@ workflow app) so the defect is reproduced before any fix (C-007):
   context has no base. (The non-owned ``next`` prompt is NOT a row: every
   non-owned workspace carries a lane id, so ``prompt_builder``'s lane-less
   subject-matcher arm was unreachable for non-owned missions; see WP12 hand-back.)
-* US3-AS4, owned: the review prompt diffs ``claim..HEAD -- <WP owned_files>``
-  and never names a sibling WP's files.
-* US3-AS5, owned: no owned_files / no claim event / ambiguous claim commit
-  each end in a ``blocked`` decision carrying ``OWNED_REVIEW_BASE_UNAVAILABLE``
-  and never an unscoped whole-checkout diff.
+* US3-AS4, owned: the review prompt prints the WP review range (window open ..
+  submission) scoped to ``<WP owned_files>`` and never names a sibling WP's
+  files (#7578 re-pin of the former ``claim..HEAD`` text).
+* US3-AS5, owned (operator ruling Q7, FR-013): no owned_files, or a scoped
+  review range that is genuinely unavailable, each end in a ``blocked``
+  decision carrying ``OWNED_REVIEW_BASE_UNAVAILABLE`` and never an unscoped
+  whole-checkout diff.
 * Repository-root ``agent action review``: the printed review context names
   the claim commit as its base.
 * FR-009 prompt governance: a P-only project-local mission-type governance
@@ -47,6 +49,7 @@ from specify_cli.cli.commands.agent.tasks import app as tasks_app
 from tests._factories import provision_test_charter
 from tests._owned_fixtures import RSnapshotter
 from tests.integration.conftest import OwnedCheckouts, _init_repo, _write_mission, _write_single_lane_manifest
+from tests.integration.review.review_range_fixtures import make_owned_range_unavailable, recorded_window_ends, run_printed_command
 from tests.integration.test_owned_next_runtime import _finalize, _provision_charter
 from tests.runtime._next_mission_scaffold import advance_to_step, analysis_is_current
 
@@ -225,8 +228,9 @@ class TestFr025RepositoryRootReviewBase:
 
 class TestUs3As4OwnedReviewBase:
     def test_review_prompt_is_scoped_to_wp_owned_files(self, owned_checkouts: OwnedCheckouts, monkeypatch: pytest.MonkeyPatch) -> None:
+        """re-pin (IC-05, DIRECTIVE_041): ``claim..HEAD`` text replaced by the WP review range."""
         _owned_review_ready(owned_checkouts, monkeypatch)
-        claim = _independent_claim_commit(owned_checkouts.owned_root, owned_checkouts.mission_dir, "WP01")
+        base, tip = recorded_window_ends(owned_checkouts.mission_dir / _EVENTS, "WP01")
         snapshot = RSnapshotter(owned_checkouts.repository_root, owned_checkouts.owned_root, None)
         before = snapshot.take()
 
@@ -234,9 +238,15 @@ class TestUs3As4OwnedReviewBase:
 
         assert payload["action"] == "review" and payload["wp_id"] == "WP01", payload
         prompt = _prompt(payload)
-        assert f"git diff {claim}..HEAD --stat -- wp01.py" in prompt
-        assert "wp02.py" not in prompt.split("REVIEW COMMANDS:")[1].split("WORK PACKAGE PROMPT BEGINS")[0]
-        printed = _git(owned_checkouts.owned_root, "diff", f"{claim}..HEAD", "--stat", "--", "wp01.py")
+        assert f"REVIEW RANGE (WP01): {base[:12]}..{tip[:12]}  [recorded]" in prompt
+        diff_line = f"  git diff {base}..{tip} -- wp01.py"
+        assert diff_line in prompt.splitlines()
+        block = prompt.split("REVIEW RANGE (WP01)")[1].split("CITED REQUIREMENTS:")[0].splitlines()
+        # The sibling WP's file is never listed or diffed; the contract flags it as outside the owned files.
+        assert [line for line in block if "wp02.py" in line] == [
+            "  OUTSIDE OWNED FILES (1 path(s) in 1 commit(s) touching only those paths; review rationale required): wp02.py"
+        ]
+        printed = run_printed_command(owned_checkouts.owned_root, diff_line)
         assert "wp01.py" in printed and "wp02.py" not in printed
         snapshot.assert_unchanged(before, snapshot.take(), tolerate_status_mutex_for=owned_checkouts.mission_slug)
 
@@ -264,46 +274,29 @@ class TestUs3As5OwnedReviewBaseUnavailable:
 
         _assert_review_base_blocked(_owned_next(owned_checkouts, monkeypatch))
 
-    def test_claim_on_no_commit_is_blocked(self, owned_checkouts: OwnedCheckouts, monkeypatch: pytest.MonkeyPatch) -> None:
-        # The claim event must stay a real planned->claimed TRANSITION in the log,
-        # or the contiguity reducer orphans WP01's later events and it reduces to
-        # `planned` (action=implement), never reaching the review-base block.
-        # So keep the transition and instead make its claim COMMIT unresolvable:
-        # rewrite the claim event's id to a value that was NEVER committed and
-        # leave it UNCOMMITTED. WP01 still reduces to `for_review`, but
-        # `claim_commit_for_wp`'s `git log -S<id> HEAD` finds no commit
-        # introducing the id -> `no_commit` -> OWNED_REVIEW_BASE_UNAVAILABLE. This
-        # is the genuine "review base unavailable because the claim is not on any
-        # commit of HEAD" shape (distinct from the ambiguous sibling below), the
-        # same `no_commit` path the claim-commit unit suite exercises.
+    def test_unresolvable_scoped_range_is_blocked(self, owned_checkouts: OwnedCheckouts, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Operator ruling Q7 (FR-013): an owned checkout whose scoped review range is genuinely unavailable is blocked.
+
+        Re-pinned from ``test_claim_on_no_commit_is_blocked`` (the claim commit is no longer the
+        review base): WP01's stamps are stripped and committed, its claim-base ref dropped, and its
+        claim and submission event ids rewritten to ids no commit introduced (left uncommitted), so
+        the range has no recorded end, no claim-base ref and no event commit. The block keeps
+        ``OWNED_REVIEW_BASE_UNAVAILABLE`` and prints no unscoped diff.
+        """
         _owned_review_ready(owned_checkouts, monkeypatch)
-        events = owned_checkouts.mission_dir / _EVENTS
-        fresh_uncommitted_claim_id = "01KW2E7B0NCMMTC1A1MZZZZZZ1"
-        rewritten: list[str] = []
-        for line in events.read_text(encoding="utf-8").splitlines():
-            if not line.strip():
-                continue
-            record = json.loads(line)
-            if record.get("wp_id") == "WP01" and record.get("to_lane") == "claimed":
-                record["event_id"] = fresh_uncommitted_claim_id
-                rewritten.append(json.dumps(record, sort_keys=True))
-            else:
-                rewritten.append(line)
-        # Deliberately NOT committed: the fresh id lives only in the working tree,
-        # so no commit of HEAD introduced it.
-        events.write_text("\n".join(rewritten) + "\n", encoding="utf-8")
+        make_owned_range_unavailable(owned_checkouts.owned_root, owned_checkouts.mission_dir, owned_checkouts.mission_slug, "WP01")
 
         _assert_review_base_blocked(_owned_next(owned_checkouts, monkeypatch))
 
-    def test_ambiguous_claim_commit_is_blocked(self, owned_checkouts: OwnedCheckouts, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_ambiguous_event_commits_without_stamps_are_blocked(self, owned_checkouts: OwnedCheckouts, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Operator ruling Q7 (FR-013): stripped stamps plus ambiguous claim and submission commits leave the scoped range unavailable.
+
+        Re-pinned from ``test_ambiguous_claim_commit_is_blocked``: with the stamps present the range
+        is recorded, so the ambiguity alone no longer blocks; stripped, the event commits are the
+        only fallback and they are ambiguous.
+        """
         _owned_review_ready(owned_checkouts, monkeypatch)
-        events = owned_checkouts.mission_dir / _EVENTS
-        original = events.read_text(encoding="utf-8")
-        claim_id = _last_claim_event_id(owned_checkouts.mission_dir, "WP01")
-        events.write_text("".join(line for line in original.splitlines(keepends=True) if claim_id not in line), encoding="utf-8")
-        _commit_all(owned_checkouts.owned_root, "remove the claim event line")
-        events.write_text(original, encoding="utf-8")
-        _commit_all(owned_checkouts.owned_root, "re-add the claim event line")
+        make_owned_range_unavailable(owned_checkouts.owned_root, owned_checkouts.mission_dir, owned_checkouts.mission_slug, "WP01", ambiguous=True)
 
         _assert_review_base_blocked(_owned_next(owned_checkouts, monkeypatch))
 
