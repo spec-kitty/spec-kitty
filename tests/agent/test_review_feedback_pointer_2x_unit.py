@@ -13,7 +13,6 @@ from typer.testing import CliRunner
 from tests.branch_contract import IS_2X_BRANCH
 from specify_cli.cli.commands.agent import tasks as tasks_module
 from specify_cli.cli.commands.agent.tasks import (
-    _detect_reviewer_name,
     _persist_review_feedback,
     _resolve_git_common_dir,
     app as tasks_app,
@@ -158,18 +157,6 @@ def _patch_move_task_dependencies(monkeypatch: pytest.MonkeyPatch, repo: Path, m
     return emit_mock
 
 
-@pytest.mark.parametrize(
-    "error",
-    [
-        subprocess.CalledProcessError(1, ["git", "config", "user.name"]),
-        FileNotFoundError("git"),
-    ],
-)
-def test_detect_reviewer_name_falls_back_to_unknown(error: Exception):
-    with patch("specify_cli.cli.commands.agent.tasks.subprocess.run", side_effect=error):
-        assert _detect_reviewer_name() == "unknown"
-
-
 def test_resolve_git_common_dir_raises_when_git_returns_empty_path():
     completed = subprocess.CompletedProcess(args=["git"], returncode=0, stdout="\n", stderr="")
     with (
@@ -306,7 +293,6 @@ def test_move_task_planned_sets_pointer_reviewer_and_review_ref(
 ):
     repo, mission_slug, wp_path = task_repo
     emit_mock = _patch_move_task_dependencies(monkeypatch, repo, mission_slug)
-    monkeypatch.setattr(tasks_module, "_detect_reviewer_name", lambda: "Detected Reviewer")
 
     feedback_file = repo / "feedback.md"
     feedback_file.write_text("**Issue**: Handle race condition\n", encoding="utf-8")
@@ -362,13 +348,13 @@ def test_move_task_force_reopen_sets_force_override_review_ref(
     assert any(call.kwargs.get("review_ref") == "force-override" for call in emit_mock.call_args_list)
 
 
-def test_move_task_done_sets_review_metadata_with_detected_reviewer(
+def test_move_task_forced_done_records_the_asserted_reviewer(
     task_repo: tuple[Path, str, Path],
     monkeypatch: pytest.MonkeyPatch,
 ):
+    """#7569: a forced done records the asserted ``--reviewer`` and ``force-override``, never a git name."""
     repo, mission_slug, wp_path = task_repo
     emit_mock = _patch_move_task_dependencies(monkeypatch, repo, mission_slug)
-    monkeypatch.setattr(tasks_module, "_detect_reviewer_name", lambda: "Git Reviewer")
 
     result = runner.invoke(
         tasks_app,
@@ -378,6 +364,8 @@ def test_move_task_done_sets_review_metadata_with_detected_reviewer(
             "--to",
             "done",
             "--force",
+            "--reviewer",
+            "claude:sonnet:reviewer-renata",
             "--json",
             "--no-auto-commit",
         ],
@@ -388,11 +376,11 @@ def test_move_task_done_sets_review_metadata_with_detected_reviewer(
     assert payload["new_lane"] == "done"
 
     # reviewed_by and review_status are tracked in the event log (not frontmatter) post-refactor
-    # Verify the emit was called with evidence including the detected reviewer
-    assert any(
-        (call.kwargs.get("evidence") or {}).get("review", {}).get("reviewer") == "Git Reviewer"
-        for call in emit_mock.call_args_list
-    ), f"Expected reviewer 'Git Reviewer' in emit evidence, calls: {emit_mock.call_args_list}"
+    # Verify the emit was called with evidence naming the asserted reviewer and the forced reference
+    reviews = [(call.kwargs.get("evidence") or {}).get("review", {}) for call in emit_mock.call_args_list]
+    assert {"reviewer": "claude:sonnet:reviewer-renata", "reference": "force-override"} in [
+        {"reviewer": review.get("reviewer"), "reference": review.get("reference")} for review in reviews
+    ], f"Expected the asserted reviewer with force-override in emit evidence, calls: {emit_mock.call_args_list}"
 
 
 def test_move_task_warns_when_auto_commit_raises(

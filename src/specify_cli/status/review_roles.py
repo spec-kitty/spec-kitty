@@ -26,10 +26,25 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from specify_cli.status.models import Lane, StatusEvent, actor_full_identity, actor_identity_str, is_migration_actor, refine_actor_identity
+from specify_cli.status.models import (
+    Lane,
+    StatusEvent,
+    actor_compact_identity,
+    actor_full_identity,
+    actor_identity_str,
+    is_migration_actor,
+    refine_actor_identity,
+)
 from specify_cli.status.work_package_lifecycle import GENERIC_IMPLEMENTATION_ACTORS, _actor_key
 
-__all__ = ["is_latest_implementer", "latest_implementer_actor", "latest_implementer_event", "latest_implementer_identity"]
+__all__ = [
+    "is_latest_implementer",
+    "latest_implementer_actor",
+    "latest_implementer_event",
+    "latest_implementer_identity",
+    "latest_review_claim_identity",
+    "same_review_identity",
+]
 
 _IMPLEMENTING_LANES: frozenset[str] = frozenset({Lane.CLAIMED.value, Lane.IN_PROGRESS.value})
 _REVIEWER_SOURCE_LANES: frozenset[str] = frozenset({Lane.FOR_REVIEW.value, Lane.IN_REVIEW.value, Lane.APPROVED.value})
@@ -160,3 +175,50 @@ def is_latest_implementer(latest: str | None, actor: object) -> bool:
         return False
     requester_key = _actor_key(actor)
     return requester_key is not None and requester_key == latest_key
+
+
+def _is_review_claim(event: StatusEvent) -> bool:
+    """Whether an ``in_review`` entry is a review claim: unforced, by a real, non-generic actor.
+
+    The same rule as consolidation's ``approved_bound._entered_review_by_claim``: ``agent action
+    review --agent <identity>`` records an unforced ``for_review -> in_review``. A forced entry is an
+    operator override, a migration seed restates history, and a placeholder actor (``user``) names
+    nobody, so none of them is a claim.
+    """
+    if event.force or is_migration_actor(event.actor):
+        return False
+    key = _actor_key(event.actor)
+    return key is not None and key not in GENERIC_IMPLEMENTATION_ACTORS
+
+
+def latest_review_claim_identity(events: Sequence[StatusEvent], wp_id: str) -> str | None:
+    """The compact ``tool:model:profile`` identity of ``wp_id``'s current review claimant, or ``None``.
+
+    Reads only the newest entry of ``wp_id`` into ``in_review`` (#7569): it is the claimant when it is
+    a review claim (:func:`_is_review_claim`), otherwise there is no claimant. An older claim is never
+    reached back to, because a later entry (a forced move, an auto-walk recorded as ``user``) replaced
+    it. The identity is :func:`~specify_cli.status.models.actor_compact_identity`, the ``--agent`` form.
+    """
+    for event in reversed(events):
+        if event.wp_id != wp_id or Lane(event.to_lane) != Lane.IN_REVIEW:
+            continue
+        return actor_compact_identity(event.actor) if _is_review_claim(event) else None
+    return None
+
+
+def same_review_identity(left: str | None, right: str | None) -> bool:
+    """Whether two recorded identities name the same reviewer, segment for segment (#7573).
+
+    Both sides are reduced to ``tool:model:profile`` (:func:`actor_full_identity`; the role segment is
+    dropped, since the claim and the verdict stamp different roles). They are the same reviewer only
+    when the tool, the model and the profile are all equal, an absent segment counting as empty. A
+    segment recorded on one side only is therefore a difference: bare ``claude`` is NOT the same as
+    ``claude:sonnet:reviewer-renata``, so a bare tool can never stand in for a profiled claimant. A
+    blank or ``None`` identity is the same as nothing.
+
+    This is deliberately stricter than ``not actor_identities_independent(left, right)``, which treats a
+    one-sided segment as "not provably different" and would let a bare tool impersonate a claimant.
+    """
+    left_identity = actor_full_identity(left) if left else None
+    right_identity = actor_full_identity(right) if right else None
+    return left_identity is not None and left_identity == right_identity

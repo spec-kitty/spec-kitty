@@ -36,7 +36,7 @@ Options
 --note,--reason <str> History note (alias: --reason, matching issue-verdict's vocabulary). If both --note and --reason are given, the one supplied LAST on the command line wins.
 --review-feedback-file <path> Path to review feedback file. Required for review-rejection edges (--to planned, incl. with --force; and in_review->in_progress); omitting it there makes the status event contract-invalid. On --to approved/done its content is recorded when the move writes a new approval review-cycle record; otherwise a warning on stderr says it was not recorded (JSON stdout is unchanged). Refused (exit 1) on every other edge: those edges write no review cycle, so the file would be validated and then dropped.
 --approval-ref <str> Approval reference for approval/done transitions (e.g., PR#42)
---reviewer <str> Reviewer name (auto-detected from git if omitted)
+--reviewer <str> Reviewer identity (tool:model:profile). Sets the approver when --agent is omitted; must match --agent and the review claimant.
 --self-review-fallback Record that approval is a self-review fallback after the intended reviewer failed.
 --intended-reviewer <str> Reviewer that should have reviewed this WP before fallback.
 --reviewer-failure-reason <str> Reason the intended reviewer failed.

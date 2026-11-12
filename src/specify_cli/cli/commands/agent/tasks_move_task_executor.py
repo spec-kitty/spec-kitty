@@ -26,8 +26,10 @@ from specify_cli.cli.commands.agent.tasks_move_task_hops import (
     _binding_role_for_lane,
     _build_claim_review_override,
     _mt_annotation_actor,
+    _mt_approval_cycle_result,
     _mt_hop_actor,
     _mt_hop_policy_metadata,
+    _mt_record_hop_identity,
     _mt_hop_reason_source,
     _mt_hop_records_binding,
     _mt_hop_review_ref,
@@ -57,6 +59,7 @@ from specify_cli.cli.commands.agent.tasks_verdict_persistence import (
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.status import (
     Lane,
+    ReviewResult,
     StatusEvent,
     TransitionRequest,
     WPInnerStateDelta,
@@ -92,6 +95,50 @@ def _mt_persist_rejection_cycle(st: _MoveTaskState, ports: TasksPorts) -> None:
         st.pending_verdict_write = persist_rejected_review_cycle_for_rollback(st, ports)
     finally:
         st.agent = declared_agent
+
+
+def _mt_review_reference(st: _MoveTaskState, cycle_result: ReviewResult | None, current: str | None) -> str | None:
+    """The evidence reference of an unforced review approval (#7569).
+
+    The pointer of the review cycle this approval wrote, durable or local-only (the durability signal
+    still governs commit and revert, never the honesty of the record). With no cycle written (the
+    work package already holds an approval record), the recorded approval's own reference.
+    Otherwise the reference already settled (``--approval-ref``).
+    """
+    if cycle_result is not None:
+        pointer: str = cycle_result.reference
+        return pointer
+    if st.request is not None and st.request.effective_approval_ref:
+        return current
+    from specify_cli.cli.commands.agent.tasks_move_task import _mt_recorded_approval
+
+    recorded = _mt_recorded_approval(st)
+    return recorded.reference if recorded is not None else current
+
+
+def _mt_settle_approval_evidence(st: _MoveTaskState) -> None:
+    """Settle ``evidence.review`` on the reviewer of record and its one reference (#7569).
+
+    The reviewer is always the reviewer of record (never the cycle writer's own fallback chain). An
+    unforced review takes the written cycle's ``review-cycle://`` pointer -- durable OR local-only, so
+    ``--no-auto-commit`` is honest too -- in place of the provisional reference; a forced or carried
+    approval keeps its ``force-override`` / arbiter / carried reference. ``review_result`` is built
+    from this same record (``tasks_move_task_hops._mt_approval_review_result``), so the
+    ``_check_review_result_consistency`` guard always holds. A state built outside the pipeline (no
+    reviewer of record) keeps the pre-#7569 overwrite from the written cycle.
+    """
+    review = (st.evidence_dict or {}).get("review")
+    if review is None:
+        return
+    cycle_result = _mt_approval_cycle_result(st)
+    record = st.reviewer_of_record
+    if record is None:
+        if cycle_result is not None:
+            review.update(reviewer=cycle_result.reviewer, verdict=cycle_result.verdict, reference=cycle_result.reference)
+        return
+    review["reviewer"] = record.identity
+    if record.kind == "review":
+        review["reference"] = _mt_review_reference(st, cycle_result, review.get("reference"))
 
 
 def _mt_finalize_plan(st: _MoveTaskState, ports: TasksPorts) -> None:
@@ -140,25 +187,16 @@ def _mt_finalize_plan(st: _MoveTaskState, ports: TasksPorts) -> None:
     # from the event log first. A WP with no recorded review claim (or a
     # claim genuinely made by a human) falls through to "user" unchanged
     # (FR-006: never fabricate an agent identity that was never asserted).
-    st.actor = st.agent or _mt_resolve_active_reviewer_identity(st) or "user"
+    # #7569: an approval/done move records the reviewer of record; a carried ``approved -> done``
+    # records its asserted mover, never the carried reviewer (``_mt_record_hop_identity``).
+    st.actor = st.agent or _mt_record_hop_identity(st, st.target_lane) or _mt_resolve_active_reviewer_identity(st) or "user"
     st.canonical_lane = decision.plan.canonical_lane
 
     if decision.is_review_rejection and st.resolved_feedback_source is not None:
         _mt_persist_rejection_cycle(st, ports)
     if st.target_lane in (Lane.APPROVED, Lane.DONE):
         st.pending_verdict_write = _persist_approved_review_cycle(st, ports)
-        durability_signal = st.pending_verdict_write
-        if durability_signal is not None and durability_signal.durably_persisted and durability_signal.review_cycle is not None and st.evidence_dict is not None:
-            # DoneEvidence and ReviewResult share one approval identity. Once
-            # Git verification succeeds, replace the earlier caller token with
-            # the canonical review-cycle pointer; the token remains preserved
-            # in the committed artifact body without becoming event authority.
-            canonical_result = durability_signal.review_cycle.review_result
-            st.evidence_dict["review"] = {
-                "reviewer": canonical_result.reviewer,
-                "verdict": canonical_result.verdict,
-                "reference": canonical_result.reference,
-            }
+        _mt_settle_approval_evidence(st)
     if decision.done_override_note and not st.json_output:
         _tasks.console.print("[yellow]⚠️  Proceeding with done override; reason recorded in history/events.[/yellow]")
     # SC-007: WP06 owns the two ``in_review -> *`` edges re-scoped from WP02.
@@ -234,7 +272,7 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
     for target in emit_plan.transition_targets:
         st.authoritative_lane_at_emit = event.to_lane if event is not None else Lane(resolve_lane_alias(current_event_lane))
         hop_actor = _mt_hop_actor(st, event, current_event_lane, target)
-        hop_review_result = _mt_hop_review_result(st, event, current_event_lane, target, hop_actor)
+        hop_review_result = _mt_hop_review_result(st, event, current_event_lane, target)
         hop_policy_metadata = _mt_hop_policy_metadata(st, target)
         binding_role = _binding_role_for_lane(target)
         # #6400 (FR-006/FR-007): every hop records the structured actor; the role

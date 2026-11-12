@@ -396,8 +396,8 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _build_claim_review_override as _build_claim_review_override,
     # WP09 (FR-008, IC-07): the six family stragglers that stayed behind at
     # WP05 — the arbiter override pair, the #2155 mixed-bundle partition, the
-    # coord event-path probe, the event-field shaper and the reviewer detector
-    # — relocated here in the final registration-shim sweep. Explicit ``as``
+    # coord event-path probe and the event-field shaper (the reviewer detector
+    # was deleted by #7569) — relocated here in the final registration-shim sweep. Explicit ``as``
     # re-exports: each is a live ``@patch("...agent.tasks.<name>")`` /
     # direct-import seam (test_tasks_move_task_seam.py,
     # test_coord_status_commit_2155.py, test_move_task_guard.py,
@@ -405,7 +405,6 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _coord_status_events_path as _coord_status_events_path,
     _default_move_task_ports as _default_move_task_ports,
     _detect_arbiter_override as _detect_arbiter_override,
-    _detect_reviewer_name as _detect_reviewer_name,
     _do_move_task as _do_move_task,
     # #2335: the for_review deliverable-recovery pair (lane porcelain parser +
     # pre-guard auto-commit) joins the family surface like every other def.
@@ -787,7 +786,10 @@ def move_task(
         ),
     ] = None,
     approval_ref: Annotated[str | None, typer.Option("--approval-ref", help="Approval reference for approval/done transitions (e.g., PR#42)")] = None,
-    reviewer: Annotated[str | None, typer.Option("--reviewer", help="Reviewer name (auto-detected from git if omitted)")] = None,
+    reviewer: Annotated[str | None, typer.Option(
+            "--reviewer",
+            help="Reviewer identity (tool:model:profile). Sets the approver when --agent is omitted; must match --agent and the review claimant.",
+        )] = None,
     self_review_fallback: Annotated[
         bool,
         typer.Option(
