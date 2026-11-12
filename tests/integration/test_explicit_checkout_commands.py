@@ -334,39 +334,50 @@ def test_owned_composition_policy_reaches_executor_before_advancing(checkouts, m
     assert rb._dn_composition_dispatch(context) == "advanced"
 
 
-def test_owned_review_prompt_uses_owned_target_branch(checkouts):
-    """#5009's review-prompt test, re-expressed for the claim-commit contract (FR-025).
+def test_owned_review_prompt_uses_owned_target_branch(checkouts, monkeypatch):
+    """#5009's review-prompt test, re-expressed for the WP review range (#7578, ruling Q7).
 
-    The review base is the WP's claim commit (the commit that introduced its last
-    ``claimed`` event id), scoped to the WP's ``owned_files`` -- not the mission's
-    target branch, and never anything read from the stale repository-root copy.
+    The review range of a submitted WP comes from its recorded window: the base is the window
+    the claim opened on the owned target branch, the tip the ``lane_head`` its ``for_review``
+    submission stamped there. Both are commits of the owned target branch, the diff is scoped
+    to the WP's ``owned_files``, and nothing is read from the stale repository-root copy.
+    (A never-submitted owned WP has no range and refuses with
+    ``OWNED_REVIEW_BASE_UNAVAILABLE``; that refusal is pinned in
+    ``test_owned_lifecycle_acceptance_review.py``.)
     """
     from runtime.next.prompt_builder import build_prompt
     from tests._factories import provision_test_charter
+    from tests.integration.review.review_range_fixtures import recorded_window_ends
 
     primary, owned, _sibling = checkouts
+    monkeypatch.setenv("SPEC_KITTY_SKIP_PRE_REVIEW_GATE", "1")
     (owned / ".gitignore").write_text(".kittify/derived/\n", encoding="utf-8")
     git(owned, "add", ".gitignore")
     git(owned, "commit", "-qm", "ignore derived views")
     result = invoke("finalize-tasks", owned)
     assert result.exit_code == 0, result.output
     provision_test_charter(owned)
-    claimed = CliRunner().invoke(
-        tasks_app,
-        ["move-task", "WP01", "--to", "claimed", "--mission", SLUG, "--owned-checkout", str(owned), "--agent", "codex", "--json"],
-    )
-    assert claimed.exit_code == 0, claimed.output
+    for lane in ("claimed", "in_progress"):
+        moved = CliRunner().invoke(
+            tasks_app,
+            ["move-task", "WP01", "--to", lane, "--mission", SLUG, "--owned-checkout", str(owned), "--agent", "codex", "--json"],
+        )
+        assert moved.exit_code == 0, moved.output
     (owned / "app.py").write_text("VALUE = 2\n", encoding="utf-8")
     git(owned, "add", "app.py")
     git(owned, "commit", "-qm", "implement app")
+    implemented = git(owned, "rev-parse", "HEAD")
+    submitted = CliRunner().invoke(
+        tasks_app,
+        ["move-task", "WP01", "--to", "for_review", "--mission", SLUG, "--owned-checkout", str(owned), "--agent", "codex", "--json"],
+    )
+    assert submitted.exit_code == 0, submitted.output
     shutil.copytree(owned / "kitty-specs" / SLUG, primary / "kitty-specs" / SLUG)
     meta = primary / "kitty-specs" / SLUG / "meta.json"
     data = json.loads(meta.read_text())
     data["target_branch"] = "wrong-repository-root-base"
     meta.write_text(json.dumps(data))
-    events = (owned / "kitty-specs" / SLUG / "status.events.jsonl").read_text(encoding="utf-8").splitlines()
-    event_id = [json.loads(line)["event_id"] for line in events if json.loads(line).get("to_lane") == "claimed"][-1]
-    claim = git(owned, "log", "--format=%H", f"-S{event_id}", "HEAD", "--", f"kitty-specs/{SLUG}/status.events.jsonl")
+    base, tip = recorded_window_ends(owned / "kitty-specs" / SLUG / "status.events.jsonl", "WP01")
 
     prompt, _ = build_prompt(
         "review",
@@ -379,7 +390,12 @@ def test_owned_review_prompt_uses_owned_target_branch(checkouts):
         owned=mint_fact(primary, owned),
     )
 
-    assert f"git diff {claim}..HEAD --stat -- app.py" in prompt
+    # The recorded ends are commits of the owned target branch, and the submitted tip carries the implementation.
+    git(owned, "merge-base", "--is-ancestor", base, TARGET)
+    git(owned, "merge-base", "--is-ancestor", implemented, tip)
+    git(owned, "merge-base", "--is-ancestor", tip, TARGET)
+    assert f"REVIEW RANGE (WP01): {base[:12]}..{tip[:12]}  [recorded]" in prompt
+    assert f"  git diff {base}..{tip} -- app.py" in prompt.splitlines()
     assert "wrong-repository-root-base" not in prompt
 
 
