@@ -37,6 +37,7 @@ this module, so a re-exported copy would go stale; read and patch it on
 from __future__ import annotations
 
 import logging
+import os
 import warnings
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -65,6 +66,13 @@ from specify_cli.coordination.atomic_write import (
 )
 from specify_cli.core.env import pre_review_gate_skip_reason
 from specify_cli.core.vcs.git import git_merge_base, merge_base_changed_files
+from specify_cli.lanes.lane_invocation import (
+    EvidenceTree,
+    LaneTestInvocation,
+    ProbeStatus,
+    capture_evidence_tree,
+    run_environment,
+)
 from specify_cli.ownership.models import WorkProductKind
 from specify_cli.review import pre_review_gate
 from specify_cli.review.baseline import BaselineTestResult
@@ -78,6 +86,7 @@ from specify_cli.review.gate_registry import (
     TransitionGateContext,
     get_gate_handler,
 )
+from specify_cli.review.lane_test_invocation import lane_test_invocation_for
 from specify_cli.review.scope_source import ScopeSource, exposes_scope_breakdown, resolve_scope_source
 from specify_cli.review.verdict_aggregation import (
     AggregateDecision,
@@ -118,6 +127,15 @@ _PRE_REVIEW_CONFIG_KEY_BLOCK = "fail_on_pre_review_regression"
 _PRE_REVIEW_CONFIG_KEY_TEST_COMMAND = "pre_review_test_command"
 _PRE_REVIEW_CONFIG_KEY_TEST_COMMAND_REPLACEMENT = "test_command"
 _PRE_REVIEW_FRONTMATTER_KEY = "pre_review_test_scope"
+#: The workspace resolution kind of a lane worktree (``workspace.context``); only
+#: a lane worktree carries a lane identity for the lane test database (#7547).
+_LANE_WORKSPACE_KIND = "lane_workspace"
+#: The refusal code of a foreign evidence tree (#7547, decision 01M7733YYK1615ERKAY41C2M7C).
+_EVIDENCE_TREE_MISMATCH = "EVIDENCE_TREE_MISMATCH"
+#: Appended to a ``FOREIGN_TREE`` verdict's reason: the metadata notes no test evidence exists.
+_FOREIGN_TREE_NO_RUN_SUFFIX = " — no test run happened"
+#: Fallback wording when a foreign probe carries no reason of its own.
+_FOREIGN_TREE_FALLBACK_REASON = "the lane's tests would load code from another tree"
 
 #: T043 (FR-011): the legacy ``review.pre_review_test_command`` key is aliased to
 #: the ``ScopeSource`` single test-command authority (``review.test_command``).
@@ -284,6 +302,9 @@ def _mt_resolve_pre_review_workspace(st: _MoveTaskState) -> Path | None:
     from specify_cli.cli.commands.agent import tasks as _tasks
     from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError
 
+    # #7547: the lane identity of THIS resolution, read back by
+    # :func:`_mt_lane_test_evidence` so the workspace is never resolved twice.
+    st.pre_review_lane_id = None
     if st.owned is not None:
         # ``st.owned.owned_root`` surfaces as ``Any`` under this quarantined module's
         # ``follow_imports = "skip"``; pin it to the concrete ``Path`` via an
@@ -303,6 +324,8 @@ def _mt_resolve_pre_review_workspace(st: _MoveTaskState) -> Path | None:
     # suppression (mirrors ``RealFsReader``'s own idiom in
     # ``agent_tasks_ports.py``, which pins against a non-quarantined type).
     resolved_worktree_path: Path = workspace.worktree_path
+    resolved_lane_id: str | None = workspace.lane_id if workspace.resolution_kind == _LANE_WORKSPACE_KIND else None
+    st.pre_review_lane_id = resolved_lane_id
     return resolved_worktree_path
 
 
@@ -355,6 +378,7 @@ def _mt_pre_review_gate_with_override_scope(
     timeout: int | None = None,
     progress_callback: Callable[[float], None] | None = None,
     status_observer: pre_review_gate.GateStatusObserver | None = None,
+    run_env: Mapping[str, str] | None = None,
 ) -> pre_review_gate.GateVerdict:
     """Compose a verdict for an EXPLICIT override scope (FR-004).
 
@@ -377,6 +401,9 @@ def _mt_pre_review_gate_with_override_scope(
     override IS the authoritative scope, so a baseline captured under a
     different source is not a reason to distrust it; the tier fails toward
     ``NEW_FAILURES``/``UNVERIFIED_BASELINE``, never a hard block.
+
+    ``run_env`` (#7547) is the lane test invocation's environment, the same one
+    the bound handler receives; ``None`` inherits this process's environment.
     """
     scope = pre_review_gate.ScopeResult.from_override(test_targets)
     if scope.is_empty:
@@ -392,6 +419,7 @@ def _mt_pre_review_gate_with_override_scope(
         baseline=baseline,
         progress_callback=progress_callback,
         status_observer=status_observer,
+        run_env=run_env,
     )
 
 
@@ -572,8 +600,15 @@ def _mt_pre_review_gate_metadata(
     block_enabled: bool,
     blocked: bool,
     force_bypassed: bool,
+    evidence_tree: EvidenceTree | None = None,
+    bypassed_refusal: str | None = None,
 ) -> dict[str, Any]:
-    """The FR-004 transition-evidence payload recorded via ``policy_metadata``."""
+    """The FR-004 transition-evidence payload recorded via ``policy_metadata``.
+
+    #7547: ``evidence_tree`` (the tree the verdict was produced in) is recorded
+    only when the hook built a lane test invocation, and ``bypassed_refusal`` only
+    when ``--force`` passed a refusal; every other key is unchanged.
+    """
     scope = verdict.scope
     metadata: dict[str, Any] = {
         "outcome": verdict.outcome.value,
@@ -608,6 +643,10 @@ def _mt_pre_review_gate_metadata(
                 "Select a bounded pre_review_test_scope",
                 "Use --skip-pre-review-gate explicitly",
             ]
+    if evidence_tree is not None:
+        metadata["evidence_tree"] = evidence_tree.to_dict()
+    if bypassed_refusal is not None:
+        metadata["bypassed_refusal"] = bypassed_refusal
     return metadata
 
 
@@ -627,6 +666,14 @@ _PRE_REVIEW_BLOCK_UNENFORCEABLE_HINT = (
     "no verified new-failure verdict exists to block on. A baseline must be captured "
     "(on the first for_review move; configure review.test_command in .kittify/config.yaml) before this "
     "block can ever take effect."
+)
+
+
+#: Outcomes rendered as one red line carrying the verdict's reason.
+_RED_REASON_OUTCOMES = (
+    pre_review_gate.GateOutcome.TIMED_OUT,
+    pre_review_gate.GateOutcome.CANCELLED,
+    pre_review_gate.GateOutcome.FOREIGN_TREE,
 )
 
 
@@ -669,7 +716,8 @@ def _mt_pre_review_gate_console_warning(verdict: pre_review_gate.GateVerdict, *,
         # ``verdict_aggregation``'s terminal/block member allowlists) — names
         # both identities so an operator can see WHY the diff is untrustworthy.
         return f"[yellow]Pre-review regression gate: {outcome.value} — {verdict.reason or 'unverified'}[/yellow]"
-    if outcome in (pre_review_gate.GateOutcome.TIMED_OUT, pre_review_gate.GateOutcome.CANCELLED):
+    if outcome in _RED_REASON_OUTCOMES:
+        # Interruptions and (#7547) a foreign evidence tree: the reason says why no verdict exists.
         return f"[red]Pre-review regression gate: {outcome.value} — {verdict.reason or 'interrupted'}[/red]"
     if outcome is pre_review_gate.GateOutcome.SCOPE_OVERSIZED:
         targets = ", ".join(verdict.scope.test_targets) or "(empty)"
@@ -702,6 +750,30 @@ def _mt_pre_review_gate_block_message(verdict: pre_review_gate.GateVerdict) -> s
         "Pre-review regression gate BLOCKED this for_review move: "
         f"{len(verdict.new_failures)} new failure(s) introduced — {nodeids}{more}. "
         "Fix the regression, or re-run with --force to override (recorded in the transition evidence)."
+    )
+
+
+def _mt_foreign_tree_refusal_message(verdict: pre_review_gate.GateVerdict) -> str:
+    """The refusal message for a foreign evidence tree (#7547, ``EVIDENCE_TREE_MISMATCH``)."""
+    detail = (verdict.reason or _FOREIGN_TREE_FALLBACK_REASON).removesuffix(_FOREIGN_TREE_NO_RUN_SUFFIX)
+    return (
+        f"Pre-review gate refused ({_EVIDENCE_TREE_MISMATCH}): {detail}. "
+        "Fix the lane's environment (its .venv's install points elsewhere) or re-run with --force to record a bypass."
+    )
+
+
+def _mt_foreign_tree_verdict(evidence: EvidenceTree) -> pre_review_gate.GateVerdict:
+    """The ``FOREIGN_TREE`` verdict for a probe that proved another tree's code would load (#7547).
+
+    Built without dispatching any handler or running any test, so its scope is
+    empty and its run never started.
+    """
+    probe_reason: str = evidence.probe.reason or _FOREIGN_TREE_FALLBACK_REASON
+    return pre_review_gate.GateVerdict(
+        outcome=pre_review_gate.GateOutcome.FOREIGN_TREE,
+        scope=pre_review_gate.ScopeResult.from_override(()),
+        reason=probe_reason + _FOREIGN_TREE_NO_RUN_SUFFIX,
+        run_state=pre_review_gate.HeadRunState.NOT_STARTED,
     )
 
 
@@ -738,6 +810,28 @@ class _TransitionGateInputs:
     changed_files: tuple[str, ...]
     gate_repo_root: Path
     scope_source_root: Path
+    #: #7547: the probed lane test invocation and the evidence tree captured
+    #: before any test run; both ``None`` when no invocation was built (no
+    #: workspace, a planning-lane WP, or a fail-open build error).
+    invocation: LaneTestInvocation | None = None
+    evidence_tree: EvidenceTree | None = None
+
+    @property
+    def probe_is_foreign(self) -> bool:
+        """True when the probe proved the lane's tests would load another tree's code."""
+        if self.evidence_tree is None:
+            return False
+        # Annotated locals: ``follow_imports = "skip"`` surfaces both sides as ``Any``.
+        status: str = self.evidence_tree.probe.status
+        foreign: str = ProbeStatus.FOREIGN.value
+        return status == foreign
+
+    def run_env(self) -> dict[str, str] | None:
+        """The environment the gate's test run uses: the invocation's, or ``None`` to inherit."""
+        if self.invocation is None:
+            return None
+        env: dict[str, str] = run_environment(self.invocation, os.environ)
+        return env
 
 
 @dataclass(frozen=True)
@@ -748,7 +842,8 @@ class _TransitionGateEffect:
     per-handler warn lines (≤1 per handler, NFR-002 — a ``SKIPPED`` verdict
     renders none, #3821); ``representative`` is the
     single verdict the metadata/block message render from; ``blocked`` /
-    ``terminal`` / ``should_exit`` drive the two hard-stops (T041).
+    ``terminal`` / ``refused`` / ``should_exit`` drive the three hard-stops
+    (T041; ``refused`` is the #7547 foreign evidence tree).
     """
 
     metadata: dict[str, Any]
@@ -757,6 +852,7 @@ class _TransitionGateEffect:
     blocked: bool
     terminal: bool
     should_exit: bool
+    refused: bool = False
 
 
 def _mt_config_authority_root(st: _MoveTaskState) -> Path:
@@ -1040,6 +1136,7 @@ def _mt_build_transition_gate_context(
         to_lane=st.target_lane,
         status_observer=status_observer,
         test_timeout_seconds=_mt_review_test_timeout(st),
+        run_env=inputs.run_env(),
     )
 
 
@@ -1167,6 +1264,10 @@ def _mt_collect_transition_gate_verdicts(
     the built-in binding ships with the ``software-dev`` review contract, so
     binding resolution alone cannot tell a declared gate from an undeclared one.
     """
+    if inputs.probe_is_foreign:
+        # #7547: the run would load another tree's code -- no handler, no test run.
+        assert inputs.evidence_tree is not None
+        return [_mt_foreign_tree_verdict(inputs.evidence_tree)]
     wp = getattr(st, "wp", None)
     status_observer = None if st.json_output else _mt_human_gate_status_observer(_tasks)
     override_targets = _mt_pre_review_scope_override(wp.frontmatter, st.repo_root) if wp is not None else None
@@ -1181,6 +1282,7 @@ def _mt_collect_transition_gate_verdicts(
                     timeout=_mt_review_test_timeout(st),
                     baseline=_mt_resolve_gate_baseline(st),
                     status_observer=status_observer,
+                    run_env=inputs.run_env(),
                 ),
                 changed_files=inputs.changed_files,
             )
@@ -1214,13 +1316,53 @@ def _mt_resolve_transition_gate_inputs(
     worktree_path = _mt_resolve_pre_review_workspace(st)
     dirty_before = _mt_pre_review_dirty_paths(worktree_path) if worktree_path is not None else ()
     changed_files = _mt_pre_review_changed_files(worktree_path, st.review_base_ref or st.target_branch) if worktree_path is not None else ()
+    invocation, evidence_tree = _mt_lane_test_evidence(st, worktree_path)
     inputs = _TransitionGateInputs(
         worktree_path=worktree_path,
         changed_files=changed_files,
         gate_repo_root=worktree_path or st.main_repo_root,
         scope_source_root=_mt_config_authority_root(st),
+        invocation=invocation,
+        evidence_tree=evidence_tree,
     )
     return inputs, dirty_before
+
+
+def _mt_lane_test_evidence(
+    st: _MoveTaskState,
+    worktree_path: Path | None,
+) -> tuple[LaneTestInvocation | None, EvidenceTree | None]:
+    """Build and probe the lane test invocation, then capture the evidence tree (#7547).
+
+    Runs before any test run. ``(None, None)`` for no workspace and for a
+    planning-lane WP (its workspace is the repository root checkout, which has
+    no lane environment to verify). Fail-open (C-003): any ``Exception`` while
+    building, probing or capturing degrades to ``(None, None)`` -- the gate then
+    behaves as it did before the probe existed and never refuses.
+    ``KeyboardInterrupt`` is left to the resolution phase's terminal
+    ``CANCELLED`` envelope.
+
+    The test command comes from the config authority root (the repository root
+    checkout or the owned checkout), never the lane, so a lane's stale config
+    cannot change it. The lane identity is the one the workspace resolution
+    just recorded on ``st`` (``None`` for an owned checkout).
+    """
+    if worktree_path is None or _mt_pre_review_planning_lane_wp(st):
+        return None, None
+    lane_id: str | None = getattr(st, "pre_review_lane_id", None)
+    try:
+        invocation: LaneTestInvocation = lane_test_invocation_for(
+            worktree_path,
+            config_root=_mt_config_authority_root(st),
+            mission_slug=st.mission_slug,
+            lane_id=lane_id,
+            probe=True,
+        )
+        evidence: EvidenceTree = capture_evidence_tree(worktree_path, invocation.probe, repo_root=st.main_repo_root)
+    except Exception as exc:  # noqa: BLE001 — C-003 fail-open: evidence is advisory unless it proves a foreign tree
+        logger.warning("Lane test invocation for %s could not be built (%s); recording no evidence tree.", st.task_id, exc)
+        return None, None
+    return invocation, evidence
 
 
 def _mt_resolve_transition_gate_verdicts(
@@ -1264,10 +1406,13 @@ def _mt_gate_representative(aggregate: Any, verdicts: Sequence[pre_review_gate.G
 
     Deterministic and, for the half-A single-handler reality, always the one
     dispatched verdict: the terminal verdict if the decision is terminal, else
-    the first blocking (``NEW_FAILURES``) verdict, else the last verdict.
+    the first refusing (``FOREIGN_TREE``, #7547) verdict, refused or forced past,
+    else the first blocking (``NEW_FAILURES``) verdict, else the last verdict.
     """
     if aggregate.terminal_verdict is not None:
         return cast(pre_review_gate.GateVerdict, aggregate.terminal_verdict)
+    if aggregate.refusing_verdicts:
+        return cast(pre_review_gate.GateVerdict, aggregate.refusing_verdicts[0])
     if aggregate.blocking_verdicts:
         return cast(pre_review_gate.GateVerdict, aggregate.blocking_verdicts[0])
     if verdicts:
@@ -1280,27 +1425,36 @@ def _mt_translate_gate_verdicts(
     *,
     block_enabled: bool,
     force: bool,
+    evidence_tree: EvidenceTree | None = None,
 ) -> _TransitionGateEffect:
     """Aggregate the per-handler verdicts and render the observable effect (FR-014).
 
-    Precedence (terminal > block > warn) lives in WP08's pure
+    Precedence (terminal > refusal > block > warn) lives in the pure
     :func:`aggregate_verdicts`; this helper only maps the aggregate onto the
-    metadata / console / block-exit surface the incumbent produced, so the
+    metadata / console / exit surface the incumbent produced, so the
     single-verdict path reproduces the base-captured parity tuple field-by-field
     (NFR-001).
+
+    #7547: ``--force`` past a refusing (``FOREIGN_TREE``) verdict is a bypass
+    whatever the block toggle says, and ``bypassed_refusal`` names it;
+    ``evidence_tree`` is recorded when the hook captured one.
     """
     aggregate = aggregate_verdicts(verdicts, block_enabled=block_enabled, force=force)
     representative = _mt_gate_representative(aggregate, verdicts)
     blocked = aggregate.decision is AggregateDecision.BLOCK
     terminal = aggregate.decision is AggregateDecision.TERMINAL
-    force_bypassed = block_enabled and force and bool(aggregate.blocking_verdicts)
+    refused = aggregate.decision is AggregateDecision.REFUSE
+    refusal_bypassed = force and bool(aggregate.refusing_verdicts)
+    force_bypassed = (block_enabled and force and bool(aggregate.blocking_verdicts)) or refusal_bypassed
     metadata = _mt_pre_review_gate_metadata(
         representative,
         block_enabled=block_enabled,
         blocked=blocked,
         force_bypassed=force_bypassed,
+        evidence_tree=evidence_tree,
+        bypassed_refusal=_EVIDENCE_TREE_MISMATCH if refusal_bypassed else None,
     )
-    if terminal:
+    if terminal or refused:
         metadata["transition_applied"] = False
     # #3821: a ``SKIPPED`` verdict renders NO console line, so the per-verdict
     # lines are filtered for ``None`` (the renderer's quiet-skip signal). The
@@ -1321,6 +1475,7 @@ def _mt_translate_gate_verdicts(
         blocked=blocked,
         terminal=terminal,
         should_exit=aggregate.should_exit,
+        refused=refused,
     )
 
 
@@ -1342,7 +1497,7 @@ def _mt_emit_transition_gate_effect(
     effect: _TransitionGateEffect,
     _tasks: Any,
 ) -> None:
-    """Emit console + perform the two hard-stops (T041) from the aggregate effect."""
+    """Emit console + perform the three hard-stops (T041; #7547 refusal) from the aggregate effect."""
     if not st.json_output:
         for line in effect.console_lines:
             _tasks.console.print(line)
@@ -1354,6 +1509,20 @@ def _mt_emit_transition_gate_effect(
             diagnostic={
                 "result": "error",
                 "error": f"pre-review gate {outcome_value}",
+                "transition_applied": False,
+                "pre_review_gate": st.pre_review_gate_metadata,
+            },
+        )
+        raise typer.Exit(1)
+    if effect.refused:
+        refusal_message = _mt_foreign_tree_refusal_message(effect.representative)
+        _tasks._output_error(
+            st.json_output,
+            refusal_message,
+            diagnostic={
+                "result": "error",
+                "error_code": _EVIDENCE_TREE_MISMATCH,
+                "error": refusal_message,
                 "transition_applied": False,
                 "pre_review_gate": st.pre_review_gate_metadata,
             },
@@ -1419,12 +1588,17 @@ def _mt_run_transition_gates(st: _MoveTaskState) -> None:
     worktree_path = inputs.worktree_path if inputs is not None else None
     byproduct_snapshots = _mt_enrol_gate_byproducts(worktree_path, dirty_before)
     block_enabled = _mt_pre_review_block_enabled(st.repo_root)
-    effect = _mt_translate_gate_verdicts(verdicts, block_enabled=block_enabled, force=st.force)
+    effect = _mt_translate_gate_verdicts(
+        verdicts,
+        block_enabled=block_enabled,
+        force=st.force,
+        evidence_tree=inputs.evidence_tree if inputs is not None else None,
+    )
     # IC-07f (WP16): the enrolment above is the compensator's snapshot leg
     # (``{path: None}`` for a subprocess-created path — the pre-transaction
     # state the compensator restores to). Committed on success means simply
-    # NOT restoring: the created bytes stay put. On the two hard-stops
-    # (terminal interruption, opt-in block) the step aborts, so the SAME
+    # NOT restoring: the created bytes stay put. On the hard-stops
+    # (terminal interruption, #7547 refusal, opt-in block) the step aborts, so the SAME
     # single restore path the merge executor and the coordination transaction
     # use (:func:`restore_generated_artifact_snapshots`) unlinks them —
     # genuinely reverted, not merely detected-and-abandoned.
