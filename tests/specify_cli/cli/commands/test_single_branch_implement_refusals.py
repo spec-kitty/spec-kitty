@@ -514,12 +514,17 @@ def test_operator_code_edit_beside_other_mission_residue_still_refuses(repo: Pat
     other.mkdir(parents=True)
     (other / "notes.md").write_text("another Mission's residue\n", encoding="utf-8")
     (repo / "uncommitted-ctl.py").write_text("X = 1\n", encoding="utf-8")
+    # A code fixture that merely contains a ``kitty-specs`` directory is code dirt, not a Mission's.
+    nested = repo / "tests" / "audit" / "fixtures" / "repo" / "kitty-specs" / "001-my-feature"
+    nested.mkdir(parents=True)
+    (nested / "meta.json").write_text("{}\n", encoding="utf-8")
     ws = _resolved_workspace(repo, mission_slug, "WP01", "trunk")
 
     with pytest.raises(WriteCheckoutDirtyError) as excinfo:
         _ensure_repo_root_checkout_available(repo, mission_slug, "WP01", ws)
 
     assert "uncommitted-ctl.py" in str(excinfo.value)
+    assert "tests/" in str(excinfo.value)  # git collapses the untracked fixture tree to its top directory
     assert "other-01ABCDEF" not in str(excinfo.value)
 
 

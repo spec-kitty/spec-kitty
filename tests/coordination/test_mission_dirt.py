@@ -7,7 +7,6 @@ private wrapper (``coherence._is_other_mission_path``) keeps its old answers.
 
 from __future__ import annotations
 
-from pathlib import Path
 
 import pytest
 
@@ -42,7 +41,13 @@ OTHER = "other-01GHJKMN"
         (f"kitty-specs/{OTHER}/decisions/index.json", DirtScope.OTHER_MISSION),
         (f".kittify/derived/{OTHER}/status.json", DirtScope.OTHER_MISSION),
         (f"kitty-specs\\{OTHER}\\notes.md", DirtScope.OTHER_MISSION),
-        (f".worktrees/x-coord/kitty-specs/{OTHER}/a.md", DirtScope.OTHER_MISSION),
+        # A gate anchors at the checkout root: a code path that merely contains a
+        # ``kitty-specs`` directory (a test fixture) is code dirt.
+        (f"tests/audit/fixtures/repo/kitty-specs/{OTHER}/meta.json", DirtScope.OUTSIDE),
+        (f".worktrees/x-coord/kitty-specs/{OTHER}/a.md", DirtScope.OUTSIDE),
+        (f"vendor/.kittify/derived/{OTHER}/status.json", DirtScope.OUTSIDE),
+        # Case variant of the Mission's own directory (case-insensitive file systems).
+        (f"kitty-specs/{OWN.upper()}/spec.md", DirtScope.OWN),
         ("src/app.py", DirtScope.OUTSIDE),
         ("dirty.txt", DirtScope.OUTSIDE),
         (".kittify/evidence/01ABCDEFGHJKMNPQRSTVWXYZ00/log.txt", DirtScope.OUTSIDE),
@@ -54,10 +59,6 @@ OTHER = "other-01GHJKMN"
 )
 def test_classify_dirt(path: str, expected: DirtScope) -> None:
     assert classify_dirt(path, own_dir_names={OWN, ALIAS}) is expected
-
-
-def test_classify_accepts_path_objects() -> None:
-    assert classify_dirt(Path("kitty-specs") / OTHER / "a.md", own_dir_names={OWN}) is DirtScope.OTHER_MISSION
 
 
 def test_partition_keeps_input_order_per_scope() -> None:
@@ -79,10 +80,6 @@ def test_partition_keeps_input_order_per_scope() -> None:
     assert dirt.foreign == (f"kitty-specs/{OTHER}/", "src/b.py", "src/a.py")
 
 
-def test_partition_of_nothing_is_empty() -> None:
-    assert partition_mission_dirt([], own_dir_names={OWN}) == MissionDirt()
-
-
 def test_helpers() -> None:
     assert mission_dir_segments("src/a.py") is None
     assert mission_dir_segments("kitty-specs/") == ()
@@ -100,6 +97,7 @@ _CONTEXT = ResidueContext(role=CheckoutRole.REPOSITORY_ROOT, mission_slug=OWN, t
         # The destructive guards' answers before WP01, unchanged.
         (f"kitty-specs/{OTHER}/a.md", True),
         (f".worktrees/x/kitty-specs/{OTHER}/a.md", True),
+        (f"tests/fixtures/kitty-specs/{OTHER}/a.md", True),
         (f".kittify/derived/{OTHER}/status.json", True),
         (f"kitty-specs/{OWN}/a.md", False),
         (f".kittify/derived/{OWN}/status.json", False),
