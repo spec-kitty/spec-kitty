@@ -64,8 +64,9 @@ from specify_cli.cli.commands.agent.workflow_cores import (
 from specify_cli.core.constants import MISSION_TYPE_RESEARCH
 from specify_cli.core.subtask_recipe import mark_status_recipe
 from specify_cli.missions._read_path_resolver import mission_write_lock_dir
-from specify_cli.requirement_mapping.text import CitedRequirement, resolve_requirement_texts
+from specify_cli.requirement_mapping.text import CitedRequirement
 from specify_cli.review.context_block import render_review_context, review_diff_command
+from specify_cli.review.context_inputs import cited_requirements
 from specify_cli.review.wp_range import RangeStatus, WpReviewRange, resolve_wp_review_range
 from specify_cli.review.lane_test_invocation import (
     render_lane_test_invocation_failure_lines,
@@ -2146,7 +2147,6 @@ def review_compute_dependents_warning(repo_root: Path, mission_slug: str, normal
 
 _REVIEW_CONTEXT_HEADING = "─── GIT REVIEW CONTEXT " + "─" * 57
 _REVIEW_CONTEXT_RULE = "─" * 80
-_SPEC_FILENAME = "spec.md"
 _DEFAULT_MISSION_TYPE = "software-dev"
 _GIT_LOG_PREFIX = "  git log "
 _UNAVAILABLE_MARK = "unavailable — "
@@ -2170,23 +2170,15 @@ def _topology_review_diff_command(review_ctx: dict[str, object]) -> str:
     return review_diff_command(review_range) if review_range is not None else _NO_REVIEW_RANGE_DIFF_COMMAND
 
 
-def _review_spec_text(repo_root: Path, mission_slug: str) -> str:
-    """The Mission's ``spec.md`` read through the placement seam, or ``""`` when it cannot be read (NFR-004)."""
-    try:
-        spec_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.SPEC)
-        return (spec_dir / _SPEC_FILENAME).read_text(encoding="utf-8")
-    except (OSError, UnicodeError, ValueError):
-        return ""
+def review_cited_requirements(
+    *, repo_root: Path, mission_slug: str, wp: WorkPackage, mission_type: str | None, owned: OwnedCheckout | None
+) -> tuple[CitedRequirement, ...]:
+    """The work package's cited requirements with their texts from the Mission's spec (unreadable spec: none declared).
 
-
-def review_cited_requirements(*, repo_root: Path, mission_slug: str, wp: WorkPackage, mission_type: str | None) -> tuple[CitedRequirement, ...]:
-    """The work package's cited requirements with their texts from the Mission's spec (unreadable spec: none declared)."""
+    Read exactly as ``spec-kitty next`` reads them (``review.context_inputs``), the owned checkout included.
+    """
     wp_meta, _ = read_wp_frontmatter(wp.path)
-    refs = list(wp_meta.requirement_refs or [])
-    cited: tuple[CitedRequirement, ...] = resolve_requirement_texts(
-        _review_spec_text(repo_root, mission_slug), refs, mission_type=mission_type or _DEFAULT_MISSION_TYPE
-    )
-    return cited
+    return cited_requirements(repo_root, mission_slug, list(wp_meta.requirement_refs or []), mission_type=mission_type or _DEFAULT_MISSION_TYPE, owned=owned)
 
 
 def _review_context_line(
@@ -2402,7 +2394,7 @@ def build_review_prompt_lines(
         lines.append(f"[Topology unavailable: {exc}]")
         lines.append("")
 
-    cited = review_cited_requirements(repo_root=main_repo_root, mission_slug=mission_slug, wp=wp, mission_type=review_mission_type)
+    cited = review_cited_requirements(repo_root=main_repo_root, mission_slug=mission_slug, wp=wp, mission_type=review_mission_type, owned=owned)
     lines.extend(_review_context_line(workspace_path=workspace_path, review_ctx=review_ctx, cited=cited, branch=workspace.branch_name))
 
     wp_slug = wp.path.stem

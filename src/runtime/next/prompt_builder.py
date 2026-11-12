@@ -44,15 +44,14 @@ from runtime.next._tmp_namespace import prompt_tmp_dir, write_prompt_file
 from specify_cli.core.commit_recipe import implementation_commit_step
 from specify_cli.core.subtask_recipe import mark_status_recipe
 from specify_cli.runtime.resolver import resolve_command
-from specify_cli.requirement_mapping.text import resolve_requirement_texts
 from specify_cli.review.antipattern_checklist import render_wp_review_antipattern_checklist
 from specify_cli.review.context_block import describe_gap, render_review_context
-from specify_cli.review.wp_range import RangeStatus, resolve_wp_review_range
+from specify_cli.review.context_inputs import review_context_inputs
+from specify_cli.review.wp_range import RangeStatus
 from specify_cli.status import FrontmatterError, read_authored_wp_frontmatter
 from specify_cli.workspace.context import resolve_workspace_for_wp
 
 
-_SPEC_FILENAME = "spec.md"
 _DEFAULT_MISSION_TYPE = "software-dev"
 
 
@@ -336,20 +335,6 @@ def _review_base_unavailable(wp_id: str, why: str) -> ActionContextError:
     )
 
 
-def _spec_text(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None) -> str:
-    """The Mission's ``spec.md`` read through the placement seam, or ``""`` when it cannot be read (NFR-004)."""
-    try:
-        if owned is not None:
-            spec_dir = owned.mission_dir
-        else:
-            from mission_runtime import MissionArtifactKind, mission_context_for
-
-            spec_dir = mission_context_for(repo_root, mission_slug).artifact(MissionArtifactKind.SPEC).read_dir
-        return (spec_dir / _SPEC_FILENAME).read_text(encoding="utf-8")
-    except (OSError, UnicodeError, ValueError):
-        return ""
-
-
 def _review_command_lines(
     repo_root: Path,
     mission_slug: str,
@@ -376,10 +361,17 @@ def _review_command_lines(
     refuses = owned is not None and not workspace.lane_id
     if refuses and not owned_files:
         raise _review_base_unavailable(wp_id, "the work package declares no owned_files")
-    review_range = resolve_wp_review_range(repo_root, mission_slug, wp_id, owned_files=owned_files, owned=owned)
+    review_range, cited = review_context_inputs(
+        repo_root,
+        mission_slug,
+        wp_id,
+        owned_files=owned_files,
+        requirement_refs=list(wp_meta.requirement_refs or []),
+        mission_type=mission_type,
+        owned=owned,
+    )
     if refuses and review_range.status is RangeStatus.UNAVAILABLE:
         raise _review_base_unavailable(wp_id, f"the review range is unavailable: {describe_gap(review_range.gap)}")
-    cited = resolve_requirement_texts(_spec_text(repo_root, mission_slug, owned), list(wp_meta.requirement_refs or []), mission_type=mission_type)
     branch = owned.write_branch if owned is not None else workspace.branch_name
     lines: list[str] = render_review_context(review_range, cited, branch=branch)
     lines.append("")
