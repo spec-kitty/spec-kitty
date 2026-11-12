@@ -21,6 +21,7 @@ from typing import Any, cast
 
 import pytest
 
+import specify_cli.acceptance as acceptance
 from specify_cli.acceptance import (
     AcceptanceSummary,
     _acceptance_record_branch,
@@ -29,6 +30,7 @@ from specify_cli.acceptance import (
     collect_feature_summary,
     perform_acceptance,
 )
+from specify_cli.coordination.commit_router import CommitRouterResult
 from specify_cli.lanes.branch_naming import PLANNING_LANE_ID
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
@@ -39,6 +41,8 @@ pytestmark = pytest.mark.fast
 _COORD_BRANCH = "kitty/mission-099-test-feature-01ABCDEF"
 _NO_MERGE_NEEDED = "Acceptance recorded directly on `main`. No merge needed."
 _CONSOLIDATE = f"spec-kitty consolidate --mission {_FEATURE_SLUG}"
+_PASSED_CONSOLIDATE_NEXT = f"Acceptance passed. This Mission lands through `{_CONSOLIDATE}`; run it next."
+_ROUTER = "specify_cli.coordination.commit_router.commit_for_mission"
 
 
 def _summary_on_main(tmp_path: Path, **meta_updates: Any) -> AcceptanceSummary:
@@ -67,19 +71,51 @@ def _with_lanes_still_to_consolidate(summary: AcceptanceSummary) -> AcceptanceSu
 
 
 # ---------------------------------------------------------------------------
-# Red cells: a Mission with lanes still to consolidate
+# The record commit (router stubbed): the branch named is the one it landed on
 # ---------------------------------------------------------------------------
 
 
-def test_local_accept_on_target_of_coordination_mission_names_consolidate(tmp_path: Path) -> None:
+def _stub_record_commit(monkeypatch: pytest.MonkeyPatch, landed_on: str) -> None:
+    """Stub the acceptance-record commit: ``commit_for_mission`` lands it on *landed_on*."""
+    monkeypatch.setattr(
+        _ROUTER,
+        lambda *_a, **_k: CommitRouterResult(status="committed", placement_ref=landed_on, commit_hash="abc1234"),
+    )
+    monkeypatch.setattr(acceptance, "_stamp_acceptance_record", lambda *_a, **_k: None)
+    monkeypatch.setattr(acceptance, "_stamp_accept_commit", lambda *_a, **_k: False)
+
+
+def test_explicit_coordination_mission_names_the_target_the_record_landed_on(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review F1: an explicit coordination Mission on an unprotected target commits its record on the target."""
+    summary = _summary_on_main(tmp_path, topology="lanes_with_coord", topology_source="explicit", coordination_branch=_COORD_BRANCH)
+    _stub_record_commit(monkeypatch, landed_on="main")
+
+    result = perform_acceptance(summary, mode="local", actor="tester", auto_commit=True)
+
+    assert result.instructions == [f"Acceptance recorded on `main`. This Mission lands through `{_CONSOLIDATE}`; run it next."]
+
+
+def test_default_coordination_mission_names_its_mission_branch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Control: a default Mission's record lands on its Mission branch, which is its coordination branch."""
+    summary = _summary_on_main(tmp_path, topology="lanes_with_coord", topology_source="default", mission_branch=_COORD_BRANCH, coordination_branch=_COORD_BRANCH)
+    _stub_record_commit(monkeypatch, landed_on=_COORD_BRANCH)
+
+    result = perform_acceptance(summary, mode="local", actor="tester", auto_commit=True)
+
+    assert result.instructions == [f"Acceptance recorded on `{_COORD_BRANCH}`. This Mission lands through `{_CONSOLIDATE}`; run it next."]
+
+
+# ---------------------------------------------------------------------------
+# No record commit: no branch is claimed
+# ---------------------------------------------------------------------------
+
+
+def test_coordination_mission_without_record_commit_names_no_branch(tmp_path: Path) -> None:
     summary = _summary_on_main(tmp_path, topology="lanes_with_coord", coordination_branch=_COORD_BRANCH)
 
     result = perform_acceptance(summary, mode="local", actor="tester", auto_commit=False)
 
-    text = " ".join(result.instructions)
-    assert "No merge needed" not in text, result.instructions
-    assert _CONSOLIDATE in text, result.instructions
-    assert f"`{_COORD_BRANCH}`" in text, f"must name the branch the record was committed to: {result.instructions}"
+    assert result.instructions == [_PASSED_CONSOLIDATE_NEXT]
 
 
 def test_local_accept_on_target_of_recorded_coordination_branch_names_consolidate(tmp_path: Path) -> None:
@@ -103,14 +139,24 @@ def test_local_accept_on_target_of_flat_lanes_mission_with_lanes_to_consolidate(
     assert _CONSOLIDATE in text, result.instructions
 
 
+def test_flat_lanes_mission_with_done_but_unconsolidated_lanes_names_consolidate(tmp_path: Path) -> None:
+    """Review F2: ``done`` is not only set by consolidate; a code lane that has not landed is still pending."""
+    summary = _summary_on_main(tmp_path, topology="lanes")  # WP01 (code lane ``lane-a``) is ``done``
+
+    result = perform_acceptance(summary, mode="local", actor="tester", auto_commit=False)
+
+    assert result.instructions == [_PASSED_CONSOLIDATE_NEXT]
+
+
 # ---------------------------------------------------------------------------
 # Controls: byte-identical texts
 # ---------------------------------------------------------------------------
 
 
-def test_local_accept_with_nothing_to_consolidate_keeps_no_merge_needed(tmp_path: Path) -> None:
-    """Flat ``lanes`` Mission, every WP ``done``: nothing remains to consolidate."""
+def test_landed_mission_keeps_no_merge_needed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Nothing remains to consolidate once the landing is recorded."""
     summary = _summary_on_main(tmp_path, topology="lanes")
+    monkeypatch.setattr("mission_runtime.landing.mission_has_landed", lambda _primary_dir: True)
 
     result = perform_acceptance(summary, mode="local", actor="tester", auto_commit=False)
 
@@ -186,9 +232,15 @@ def test_code_lane_with_approved_wp_has_lanes_to_consolidate(tmp_path: Path) -> 
     assert _has_lanes_to_consolidate(_lanes_summary(feature_dir, approved=["WP01"]), lands_by_consolidation=False)
 
 
-def test_only_planning_lane_wps_pending_has_nothing_to_consolidate(tmp_path: Path) -> None:
+def test_planning_lane_only_has_nothing_to_consolidate(tmp_path: Path) -> None:
+    feature_dir = _feature_with_lanes(tmp_path, _lane(PLANNING_LANE_ID, "WP01", "WP02"))
+    assert not _has_lanes_to_consolidate(_lanes_summary(feature_dir, approved=["WP01"]), lands_by_consolidation=False)
+
+
+def test_code_lane_with_every_wp_done_still_has_lanes_to_consolidate(tmp_path: Path) -> None:
+    """Review F2: ``done`` is not proof of consolidation; only the recorded landing is."""
     feature_dir = _feature_with_lanes(tmp_path, _lane("lane-a", "WP01"), _lane(PLANNING_LANE_ID, "WP02"))
-    assert not _has_lanes_to_consolidate(_lanes_summary(feature_dir, approved=["WP02"]), lands_by_consolidation=False)
+    assert _has_lanes_to_consolidate(_lanes_summary(feature_dir, approved=[]), lands_by_consolidation=False)
 
 
 def test_no_lanes_manifest_has_nothing_to_consolidate(tmp_path: Path) -> None:
