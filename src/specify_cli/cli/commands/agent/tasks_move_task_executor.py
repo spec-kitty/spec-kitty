@@ -208,6 +208,9 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
     from specify_cli.cli.commands.agent.tasks_move_task import _mt_current_event_lane, _mt_owned_workspace
 
     assert st.emit_plan is not None
+    if st.target_lane == Lane.PLANNED:
+        # #7582: compute the reset map + summary once, before the PLANNED hop records it.
+        _mt_prepare_rollback_reset(st, ports)
     emit_plan = st.emit_plan
     emit_force = emit_plan.emit_force
     emit_reason = emit_plan.emit_reason
@@ -327,6 +330,13 @@ def _mt_warn_approval(st: _MoveTaskState) -> None:
         typer.echo(warning, err=True)
 
 
+#: #7582: the two ``rollback_reset.scope`` values (data-model ``rollback_reset``).
+ROLLBACK_SCOPE_FULL = "full"
+ROLLBACK_SCOPE_NARROWED = "narrowed"
+#: #7582 FR-011: the derived reason's prefix when the operator gave no ``--note``/``--reason``.
+_ROLLBACK_REASON_PREFIX = "rollback to planned: "
+
+
 @dataclass(frozen=True)
 class _RollbackResetSummary:
     """Operator signal for the otherwise-silent rollback-to-``planned`` delta (#3578).
@@ -347,10 +357,26 @@ class _RollbackResetSummary:
     never_completed: tuple[str, ...]
     claim_released: bool
     review_override_cleared: bool
+    #: #7582 (FR-011/FR-015): ``"full"`` (every non-skipped roster id) or ``"narrowed"``
+    #: (only the ``--reset-subtasks`` ids), and why the reset happened: the operator's
+    #: ``--note``/``--reason``, else the derived rollback reason.
+    scope: str = ROLLBACK_SCOPE_FULL
+    reason: str = ""
+    #: How many roster ids a full reset would have reset (the ``N`` of "1 of N").
+    eligible_count: int | None = None
 
     @property
     def reset_count(self) -> int:
         return len(self.reset_ids)
+
+    def record(self) -> dict[str, Any]:
+        """The ``policy_metadata.rollback_reset`` value carried by the PLANNED transition (FR-011)."""
+        return {
+            "scope": self.scope,
+            "reset": list(self.reset_ids),
+            "previously_completed": list(self.previously_completed),
+            "reason": self.reason,
+        }
 
 
 def _mt_build_rollback_summary(st: _MoveTaskState, ports: TasksPorts, reset: Mapping[str, Lane]) -> _RollbackResetSummary:
@@ -383,7 +409,26 @@ def _mt_build_rollback_summary(st: _MoveTaskState, ports: TasksPorts, reset: Map
     )
 
 
-def _mt_rollback_subtasks_reset(st: _MoveTaskState, ports: TasksPorts) -> dict[str, Lane]:
+def _mt_subtask_roster_state(st: _MoveTaskState, ports: TasksPorts) -> tuple[list[str], dict[str, Any]]:
+    """The WP's authored subtask roster and its recorded per-id subtask state (one reader).
+
+    Shared by the reset (:func:`_mt_rollback_subtasks_reset`) and the ``--reset-subtasks``
+    validation (``tasks_move_task._mt_validate_reset_subtasks``), so the ids a narrowing may
+    name are exactly the ids a reset can touch. Read through the TASKS_INDEX (primary) read
+    dir, never ``Path.cwd()`` (SC-008 / #2647).
+    """
+    from specify_cli.core.subtask_rows import authored_subtask_roster
+    from specify_cli.status import wp_snapshot_state
+
+    handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug, owned=getattr(st, "owned", None))
+    feature_dir = ports.fs.planning_read_dir(handle, kind=MissionArtifactKind.TASKS_INDEX)
+    roster = authored_subtask_roster(feature_dir, st.task_id)
+    snapshot = wp_snapshot_state(feature_dir, st.task_id)
+    recorded: dict[str, Any] = dict((snapshot.get("subtasks") or {}) if snapshot is not None else {})
+    return roster, recorded
+
+
+def _mt_rollback_subtasks_reset(st: _MoveTaskState, ports: TasksPorts, only: frozenset[str] | None = None) -> dict[str, Lane]:
     """Subtask-reset delta for a rollback to ``planned`` (#2513, via the log).
 
     A WP rolled back to ``planned`` must be fully re-implemented — leaving its
@@ -402,18 +447,57 @@ def _mt_rollback_subtasks_reset(st: _MoveTaskState, ports: TasksPorts) -> dict[s
     pass without work re-done, so a rollback does not revoke it (reset it
     explicitly with ``mark-status --status pending`` if the decision was wrong).
 
+    #7582 (FR-012): ``only`` narrows the reset to those roster ids (``--reset-subtasks``,
+    validated before any write); a skipped id is excluded either way.
+
     Returns an empty mapping only for an explicitly authored empty roster
     (or a roster whose every subtask is skipped).
     """
-    from specify_cli.core.subtask_rows import authored_subtask_roster
-    from specify_cli.status import SubtaskStatus, wp_snapshot_state
+    from specify_cli.status import SubtaskStatus
 
-    handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug, owned=getattr(st, "owned", None))
-    feature_dir = ports.fs.planning_read_dir(handle, kind=MissionArtifactKind.TASKS_INDEX)
-    roster = authored_subtask_roster(feature_dir, st.task_id)
-    snapshot = wp_snapshot_state(feature_dir, st.task_id)
-    recorded = (snapshot.get("subtasks") or {}) if snapshot is not None else {}
-    return dict.fromkeys((tid for tid in roster if str(recorded.get(tid, "")) != str(SubtaskStatus.SKIPPED)), Lane.PLANNED)
+    roster, recorded = _mt_subtask_roster_state(st, ports)
+    return dict.fromkeys(
+        (tid for tid in roster if str(recorded.get(tid, "")) != str(SubtaskStatus.SKIPPED) and (only is None or tid in only)),
+        Lane.PLANNED,
+    )
+
+
+def _mt_rollback_reason(st: _MoveTaskState) -> str:
+    """The recorded reset reason (FR-011): the operator's ``--note``/``--reason``, else derived.
+
+    ``st.note`` already holds the resolved value (the last of ``--note``/``--reason`` on the
+    command line wins). The derived form names the edge and, when the rollback recorded one,
+    the review-cycle pointer.
+    """
+    note = getattr(st, "note", None)
+    if isinstance(note, str) and note.strip():
+        return note.strip()
+    old_lane = getattr(st, "old_lane", None)
+    reason = f"{_ROLLBACK_REASON_PREFIX}{resolve_lane_alias(str(old_lane)) if old_lane is not None else 'unknown'} -> {Lane.PLANNED}"
+    pointer = getattr(st, "review_feedback_pointer", None)
+    return f"{reason} ({pointer})" if pointer else reason
+
+
+def _mt_prepare_rollback_reset(st: _MoveTaskState, ports: TasksPorts) -> dict[str, Lane]:
+    """Compute the rollback reset map and its summary ONCE, onto *st* (#7582, single authority).
+
+    Runs before the PLANNED hop is emitted, so the hop's ``policy_metadata.rollback_reset``
+    (:func:`_mt_hop_policy_metadata`) and the later ``subtasks`` annotation
+    (:func:`_build_claim_review_override`) read the same map. The completion split reads the
+    PRE-reset snapshot, which is still intact here.
+    """
+    only: frozenset[str] | None = getattr(st, "reset_subtasks_only", None)
+    eligible = _mt_rollback_subtasks_reset(st, ports)
+    reset = eligible if only is None else _mt_rollback_subtasks_reset(st, ports, only=only)
+    summary = replace(
+        _mt_build_rollback_summary(st, ports, reset),
+        scope=ROLLBACK_SCOPE_FULL if only is None else ROLLBACK_SCOPE_NARROWED,
+        reason=_mt_rollback_reason(st),
+        eligible_count=len(eligible),
+    )
+    st.rollback_reset_map = reset
+    st.rollback_reset_summary = summary
+    return reset
 
 
 def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:

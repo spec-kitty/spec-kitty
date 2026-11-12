@@ -132,6 +132,7 @@ from specify_cli.status import (
     ReviewResult,
     ResolvedBinding,
     StatusEvent,
+    SubtaskStatus,
     TransitionError,
     WPInnerStateDelta,
     actor_compact_identity,
@@ -175,6 +176,10 @@ from specify_cli.cli.commands.agent.tasks_move_task_executor import (
     _RollbackResetSummary as _RollbackResetSummary,
     _mt_build_rollback_summary as _mt_build_rollback_summary,
     _mt_rollback_subtasks_reset as _mt_rollback_subtasks_reset,
+    _mt_subtask_roster_state as _mt_subtask_roster_state,
+    _mt_prepare_rollback_reset as _mt_prepare_rollback_reset,
+    _mt_rollback_reason as _mt_rollback_reason,
+    ROLLBACK_SCOPE_NARROWED as ROLLBACK_SCOPE_NARROWED,
 )
 
 from specify_cli.cli.commands.agent.tasks_move_task_gates import (
@@ -315,6 +320,8 @@ class _MoveTaskState:
     profile: str | None = None
     invocation_id: str | None = None
     owned: OwnedCheckout | None = None
+    #: #7582 FR-012: the raw ``--reset-subtasks`` value (comma-separated ids), else ``None``.
+    reset_subtasks: str | None = None
     # Review test budget, resolved once per transition (see ``_mt_review_test_timeout``).
     review_test_timeout: int | None = None
     # --- phase A: resolved targets ---
@@ -395,6 +402,12 @@ class _MoveTaskState:
     # target lane is ``planned``; read by ``_mt_output`` to emit the human line +
     # JSON fields. ``None`` on every non-rollback move.
     rollback_reset_summary: _RollbackResetSummary | None = None
+    #: #7582: the validated ``--reset-subtasks`` ids (``None``: the full reset), set by
+    #: :func:`_mt_validate_reset_subtasks` before any write.
+    reset_subtasks_only: frozenset[str] | None = None
+    #: #7582 (single authority): the rollback reset map, computed once with the summary
+    #: before the PLANNED hop (``_mt_prepare_rollback_reset``); ``None`` until then.
+    rollback_reset_map: dict[str, Lane] | None = None
     # Authoritative from-lane resolved inside the status lock immediately
     # before the current transition attempt.  ``old_lane`` predates verdict
     # queue waiting and can be stale when a concurrent reviewer moves first.
@@ -746,6 +759,78 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
     # ungated snapshot accessor in an extracted helper, not
     # ``extract_scalar(frontmatter, "agent")``.
     st.current_agent = _mt_resolve_current_agent(st)
+
+
+#: #7582 FR-013 refusal codes for ``--reset-subtasks`` (each with its own message).
+_RESET_TARGET_NOT_PLANNED = "RESET_SUBTASKS_TARGET_NOT_PLANNED"
+_RESET_REASON_MISSING = "RESET_SUBTASKS_REASON_MISSING"
+_RESET_NO_IDS = "RESET_SUBTASKS_NO_IDS"
+_RESET_UNKNOWN_IDS = "RESET_SUBTASKS_UNKNOWN_IDS"
+_RESET_SKIPPED_IDS = "RESET_SUBTASKS_SKIPPED_IDS"
+
+
+def _mt_refuse_reset_subtasks(st: _MoveTaskState, code: str, message: str) -> None:
+    """Render a ``--reset-subtasks`` refusal (code first) and exit 1 -- nothing has been written.
+
+    The messages echo operator input (the raw ids, the target lane), so the human rendering
+    escapes it: Rich must print ``[/x]`` or ``[bold]T1`` literally, never parse it as markup.
+    """
+    from rich.markup import escape
+
+    from specify_cli.cli.commands.agent import tasks as _tasks
+
+    _tasks._output_error(st.json_output, f"{code}: {message if st.json_output else escape(message)}")
+    raise typer.Exit(1)
+
+
+def _mt_parse_reset_subtasks(raw: str) -> tuple[str, ...]:
+    """The ``--reset-subtasks`` ids: comma-separated, stripped, de-duplicated in given order."""
+    return tuple(dict.fromkeys(part.strip() for part in raw.split(",") if part.strip()))
+
+
+def _mt_validate_reset_subtasks(st: _MoveTaskState, ports: TasksPorts) -> None:
+    """Validate ``--reset-subtasks`` before any write and record the narrowing on *st* (#7582 FR-013).
+
+    Runs right after :func:`_mt_resolve_targets`, before ``_mt_finalize_plan`` commits the
+    rejection's review-cycle record. Refused, each with its own message: a target lane other
+    than ``planned``; no ``--note``/``--reason`` (``st.note`` holds the last one given); an
+    empty id list; an id not on the WP's roster; a ``skipped`` id (it cannot be reset). The
+    roster and the recorded subtask state come from the same reader the reset uses.
+    """
+    if st.reset_subtasks is None:
+        return
+    if st.target_lane != Lane.PLANNED:
+        _mt_refuse_reset_subtasks(
+            st,
+            _RESET_TARGET_NOT_PLANNED,
+            f"--reset-subtasks applies only to --to planned (a rollback); this move targets {st.target_lane}.",
+        )
+    if not (st.note or "").strip():
+        _mt_refuse_reset_subtasks(
+            st,
+            _RESET_REASON_MISSING,
+            "--reset-subtasks requires --note/--reason: say why the other subtasks keep their state.",
+        )
+    ids = _mt_parse_reset_subtasks(st.reset_subtasks)
+    if not ids:
+        _mt_refuse_reset_subtasks(st, _RESET_NO_IDS, f"--reset-subtasks names no subtask id (got {st.reset_subtasks!r}).")
+    roster, recorded = _mt_subtask_roster_state(st, ports)
+    unknown = [tid for tid in ids if tid not in roster]
+    if unknown:
+        _mt_refuse_reset_subtasks(
+            st,
+            _RESET_UNKNOWN_IDS,
+            f"{', '.join(unknown)} {'is' if len(unknown) == 1 else 'are'} not on {st.task_id}'s subtask roster ({', '.join(roster) or 'empty'}).",
+        )
+    skipped = [tid for tid in ids if str(recorded.get(tid, "")) == str(SubtaskStatus.SKIPPED)]
+    if skipped:
+        _mt_refuse_reset_subtasks(
+            st,
+            _RESET_SKIPPED_IDS,
+            f"{', '.join(skipped)} {'is' if len(skipped) == 1 else 'are'} skipped and cannot be reset; "
+            "re-open it with `mark-status --status pending` first, or leave it out of --reset-subtasks.",
+        )
+    st.reset_subtasks_only = frozenset(ids)
 
 
 # --- phase B: gather decision facts (I/O) -----------------------------------
@@ -1925,8 +2010,22 @@ def _mt_apply_rollback_signal(result: dict[str, object], summary: _RollbackReset
     result["subtasks_reset_ids"] = list(summary.reset_ids)
     result["subtasks_previously_completed"] = list(summary.previously_completed)
     result["subtasks_never_completed"] = list(summary.never_completed)
+    result["subtasks_reset_scope"] = summary.scope
+    result["subtasks_reset_reason"] = summary.reason
     result["runtime_claim_released"] = summary.claim_released
     result["review_override_cleared"] = summary.review_override_cleared
+
+
+def _mt_rollback_reset_headline(summary: _RollbackResetSummary) -> str:
+    """The reset count, scope and reason (#7582 FR-015), Rich-escaped for the human line."""
+    from rich.markup import escape
+
+    reason = escape(summary.reason)
+    if summary.scope == ROLLBACK_SCOPE_NARROWED:
+        eligible = summary.eligible_count if summary.eligible_count is not None else summary.reset_count
+        return f"{summary.reset_count} of {eligible} subtask(s) to planned (narrowed: {reason})"
+    headline = f"{summary.reset_count} subtask(s) to planned"
+    return f"{headline} (full reset: {reason})" if reason else headline
 
 
 def _mt_rollback_signal_lines(summary: _RollbackResetSummary) -> str:
@@ -1935,7 +2034,7 @@ def _mt_rollback_signal_lines(summary: _RollbackResetSummary) -> str:
     # but also a plain ``claimed -> planned`` un-claim or ``blocked -> planned``
     # (adversarial review finding 1b): all three reset the roster, so avoid
     # implying the WP necessarily came from review.
-    lines = [f"[yellow]↺ Reset {summary.reset_count} subtask(s) to planned[/yellow] — re-mark completed work before this WP re-enters review."]
+    lines = [f"[yellow]↺ Reset {_mt_rollback_reset_headline(summary)}[/yellow] — re-mark completed work before this WP re-enters review."]
     if summary.previously_completed:
         lines.append(
             f"  • {len(summary.previously_completed)} completed in an earlier "
@@ -1986,6 +2085,7 @@ class _MoveTaskArgs:
     profile: str | None = None
     invocation_id: str | None = None
     owned: OwnedCheckout | None = None
+    reset_subtasks: str | None = None
 
 
 def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> None:
@@ -2045,9 +2145,13 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
         json_output=args.json_output,
         skip_pre_review_gate=args.skip_pre_review_gate,
         owned=args.owned,
+        reset_subtasks=args.reset_subtasks,
     )
     try:
         _mt_resolve_targets(st, ports)
+        # #7582 FR-013: a narrowed reset is refused before any write (the rejection's
+        # review-cycle record is committed by ``_mt_finalize_plan``).
+        _mt_validate_reset_subtasks(st, ports)
         # Fail on an unbootstrapped event log before review/workspace gates can
         # mask the actionable root cause (for example, a dependency cycle that
         # prevented finalize-tasks from creating lanes.json; #1589).

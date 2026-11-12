@@ -13,6 +13,7 @@ pins assert the fail-loud discipline (epics #3410/#3549) is now honored:
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -26,6 +27,7 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_rollback_signal_lines,
     _mt_rollback_subtasks_reset,
 )
+from specify_cli.cli.commands.agent.tasks_move_task_executor import _mt_prepare_rollback_reset, _mt_rollback_reason
 from specify_cli.status import emit_inner_state_changed
 from specify_cli.status.models import Lane, SubtaskStatus, WPInnerStateDelta
 
@@ -120,6 +122,10 @@ def test_build_claim_review_override_sets_rollback_summary(tmp_path: Path) -> No
     assert summary.reset_ids == ("T001",)
     assert summary.claim_released is True
     assert summary.review_override_cleared is True
+    # #7582: computed once onto the state, with the full scope and a derived reason.
+    assert st.rollback_reset_map == {"T001": Lane.PLANNED}
+    assert summary.scope == "full"
+    assert summary.reason.startswith("rollback to planned: ")
 
 
 def test_build_claim_review_override_summary_survives_empty_roster(tmp_path: Path) -> None:
@@ -164,6 +170,9 @@ def test_rollback_signal_json_fields() -> None:
     assert result["subtasks_never_completed"] == ["T002"]
     assert result["runtime_claim_released"] is True
     assert result["review_override_cleared"] is True
+    # #7582 FR-015: the scope and reason ride beside the unchanged #3578 keys.
+    assert result["subtasks_reset_scope"] == "full"
+    assert result["subtasks_reset_reason"] == ""
 
 
 def test_rollback_signal_human_line_names_count_and_siblings() -> None:
@@ -176,3 +185,80 @@ def test_rollback_signal_human_line_names_count_and_siblings() -> None:
     assert "earlier cycle" in line
     assert "runtime claim released" in line
     assert "review-override cleared" in line
+
+
+# --------------------------------------------------------------------------- #
+# #7582 — narrowing, the single reset authority, and the scope/reason line
+# --------------------------------------------------------------------------- #
+
+
+def test_rollback_subtasks_reset_narrows_to_only_and_never_resets_skipped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``only`` keeps just the named roster ids; a skipped id stays out even when named."""
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
+    feature_dir = _seed_feature(tmp_path, ["T001", "T002", "T003"])
+    emit_inner_state_changed(
+        feature_dir,
+        "WP01",
+        WPInnerStateDelta(subtasks={"T003": SubtaskStatus.SKIPPED}),
+        actor="test",
+        mission_slug=_SLUG,
+        repo_root=tmp_path,
+    )
+
+    reset = _mt_rollback_subtasks_reset(_st(tmp_path), _ports(feature_dir), only=frozenset({"T002", "T003"}))
+
+    assert reset == {"T002": Lane.PLANNED}
+
+
+def test_build_claim_review_override_reads_the_stored_map(tmp_path: Path) -> None:
+    """The override reads the map computed before the PLANNED hop; it never recomputes it."""
+    feature_dir = _seed_feature(tmp_path, ["T001", "T002"])
+    st = _st(tmp_path)
+    st.rollback_reset_map = {"T002": Lane.PLANNED}
+
+    additions = _build_claim_review_override(st, _ports(feature_dir))
+
+    assert additions["subtasks"] == {"T002": Lane.PLANNED}
+
+
+def test_prepare_rollback_reset_records_narrowed_scope_and_operator_reason(tmp_path: Path) -> None:
+    feature_dir = _seed_feature(tmp_path, ["T001", "T002"])
+    st = _st(tmp_path)
+    st.reset_subtasks_only = frozenset({"T002"})
+    st.note = "  T002 regressed  "
+
+    reset = _mt_prepare_rollback_reset(st, _ports(feature_dir))
+
+    assert reset == {"T002": Lane.PLANNED}
+    assert st.rollback_reset_map is reset
+    summary = st.rollback_reset_summary
+    assert summary.scope == "narrowed"
+    assert summary.reason == "T002 regressed"
+    assert summary.eligible_count == 2
+    assert summary.record() == {"scope": "narrowed", "reset": ["T002"], "previously_completed": [], "reason": "T002 regressed"}
+
+
+def test_rollback_reason_derived_from_edge_and_review_pointer(tmp_path: Path) -> None:
+    st = _st(tmp_path)
+    st.note = "   "
+    st.old_lane = Lane.FOR_REVIEW
+    st.review_feedback_pointer = "review-cycle://m/WP01/review-cycle-1.md"
+
+    assert _mt_rollback_reason(st) == "rollback to planned: for_review -> planned (review-cycle://m/WP01/review-cycle-1.md)"
+    st.review_feedback_pointer = None
+    assert _mt_rollback_reason(st) == "rollback to planned: for_review -> planned"
+
+
+def test_rollback_signal_human_line_names_narrowed_scope_and_reason() -> None:
+    summary = replace(_summary(), reset_ids=("T002",), previously_completed=(), scope="narrowed", reason="T002 [regressed]", eligible_count=2)
+
+    line = _mt_rollback_signal_lines(summary)
+
+    # The reason is Rich-escaped so a bracketed reason is printed, not read as markup.
+    assert "↺ Reset 1 of 2 subtask(s) to planned (narrowed: T002 \\[regressed])" in line
+
+
+def test_rollback_signal_human_line_names_full_scope_and_reason() -> None:
+    line = _mt_rollback_signal_lines(replace(_summary(), reason="rollback to planned: in_review -> planned"))
+
+    assert "↺ Reset 2 subtask(s) to planned (full reset: rollback to planned: in_review -> planned)" in line

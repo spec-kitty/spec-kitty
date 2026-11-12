@@ -786,6 +786,17 @@ def move_task(
             ),
         ),
     ] = None,
+    reset_subtasks: Annotated[
+        str | None,
+        typer.Option(
+            "--reset-subtasks",
+            help=(
+                "Comma-separated subtask ids (e.g. T002,T003) to reset on a --to planned "
+                "rollback; the others keep their state. Requires --note/--reason. Without it "
+                "every non-skipped subtask resets."
+            ),
+        ),
+    ] = None,
     approval_ref: Annotated[str | None, typer.Option("--approval-ref", help="Approval reference for approval/done transitions (e.g., PR#42)")] = None,
     reviewer: Annotated[str | None, typer.Option("--reviewer", help="Reviewer name (auto-detected from git if omitted)")] = None,
     self_review_fallback: Annotated[
@@ -889,6 +900,7 @@ def move_task(
         spec-kitty agent tasks move-task WP03 --to approved --reason "Review passed"
         spec-kitty agent tasks move-task WP03 --to done --done-override-reason "Branch deleted after hotfix merge"
         spec-kitty agent tasks move-task WP03 --to planned --review-feedback-file feedback.md
+        spec-kitty agent tasks move-task WP03 --to planned --review-feedback-file feedback.md --reset-subtasks T002 --note "T002 regressed"
     """
     # WP06 (#2116): thin orchestrator. The Typer command declares the CLI surface
     # (WP01 golden byte-identity) and delegates to ``_do_move_task``, which runs the
@@ -922,6 +934,7 @@ def move_task(
             json_output=json_output,
             skip_pre_review_gate=skip_pre_review_gate,
             owned=owned,
+            reset_subtasks=reset_subtasks,
         )
     )
 
