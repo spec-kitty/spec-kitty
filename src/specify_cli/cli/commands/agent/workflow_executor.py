@@ -1440,6 +1440,11 @@ def _baseline_outside_checkout_warning(artifact: Path, checkout: Path) -> str | 
     return None
 
 
+def _baseline_checkout_unresolved_warning(artifact: Path, error: Exception) -> str:
+    """The warning for a baseline whose holding checkout the placement seam could not name."""
+    return f"Baseline artifact {artifact} was not committed: the checkout that holds it could not be resolved ({error})."
+
+
 def _warn_baseline_not_committed(message: str, *, quiet: bool) -> None:
     """Report an uncommitted baseline on the module logger (every mode) and on the console unless *quiet*."""
     logger.warning("%s", message)
@@ -1553,7 +1558,11 @@ def capture_and_commit_baseline(
         # default Mission settles, that is the coordination worktree, not the repository root
         # checkout (whose ``git status`` never sees a path under the ignored ``.worktrees/``).
         # ``authority_root`` stays the command/config authority above.
-        commit_checkout = _baseline_commit_checkout(main_repo_root, mission_slug, owned)
+        try:
+            commit_checkout = _baseline_commit_checkout(main_repo_root, mission_slug, owned)
+        except Exception as checkout_exc:
+            _warn_baseline_not_committed(_baseline_checkout_unresolved_warning(baseline_artifact, checkout_exc), quiet=quiet)
+            return
         outside = _baseline_outside_checkout_warning(baseline_artifact, commit_checkout)
         if outside is not None:
             _warn_baseline_not_committed(outside, quiet=quiet)
