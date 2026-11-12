@@ -75,6 +75,7 @@ from runtime.next.decision import DecisionKind
 from specify_cli.core.paths import MissionMetaReadError
 
 if TYPE_CHECKING:
+    from specify_cli.invocation.record import ProfileInvocationRecord
     from specify_cli.status import StatusReadSurface
 
 logger = logging.getLogger(__name__)
@@ -145,33 +146,15 @@ def _store_root(repo_root_path: Path, owned: OwnedCheckout | None) -> Path:
     return owned.owned_root if owned is not None else repo_root_path
 
 
-def pair_previous_lifecycle_record(
-    agent: str,
-    mission_slug: str,
-    result: str,
-    repo_root: object,
-    *,
-    owned: OwnedCheckout | None = None,
-) -> None:
-    """Write the paired ``completed`` / ``failed`` record for the prior issuance.
+def _latest_unpaired_started(agent: str, mission_slug: str, repo_root_path: Path, owned: OwnedCheckout | None) -> ProfileInvocationRecord | None:
+    """The most recent unpaired ``started`` record of ``(agent, mission_id)``, or ``None``.
 
-    Matches the most recent unpaired ``started`` for ``(agent, mission_id)``
-    in the local lifecycle store and appends a partner record carrying the
-    SAME ``canonical_action_id``. The id is propagated, never re-computed
-    (FR-011 / contract: "no rewriting at completion time").
-
-    Best-effort: a missing meta.json or empty store is silently a no-op so
-    new missions / first issuance behave naturally.
+    Best-effort: a missing meta.json, a Mission with no minted ``mission_id`` or an empty
+    store is ``None``, so new missions / first issuance behave naturally.
     """
-    from specify_cli.invocation.lifecycle import (
-        find_latest_unpaired_started,
-        read_lifecycle_records,
-        write_paired_completion,
-    )
-    from specify_cli.invocation.record import ProfileInvocationPhase
+    from specify_cli.invocation.lifecycle import find_latest_unpaired_started, read_lifecycle_records
     from specify_cli.mission_metadata import resolve_mission_identity
 
-    repo_root_path = Path(str(repo_root)) if not isinstance(repo_root, Path) else repo_root
     # FR-004 (#2186): the lifecycle ``mission_id`` MUST be read from the PRIMARY
     # checkout. ``resolve_feature_dir_for_mission`` is topology-aware and selects
     # the STATUS-only ``-coord`` husk once one exists — which carries no meta.json
@@ -190,7 +173,7 @@ def pair_previous_lifecycle_record(
             owned.mission_dir if owned is not None else mission_context_for(repo_root_path, mission_slug).artifact(MissionArtifactKind.PRIMARY_METADATA).read_dir
         )
     except Exception:
-        return
+        return None
 
     try:
         identity = resolve_mission_identity(feature_dir)
@@ -199,7 +182,7 @@ def pair_previous_lifecycle_record(
         # now routes through load_meta_fail_closed, so a corrupt meta.json
         # raises the typed error here instead of a raw ValueError -- this
         # observability-only lookup must degrade the same way either case.
-        return
+        return None
     # #2278: the lifecycle pairing key is a ``mission_id`` field — it MUST be a
     # canonical ULID, never a slug (same fail-closed contract as #2138/FR-004).
     # A legacy mission without a minted ``mission_id`` skips the observability
@@ -207,14 +190,61 @@ def pair_previous_lifecycle_record(
     # ``started`` write fails closed identically, so the two stay symmetric.
     mission_id = identity.mission_id
     if mission_id is None:
-        return
+        return None
 
     records = read_lifecycle_records(_store_root(repo_root_path, owned))
-    started = find_latest_unpaired_started(
-        records,
-        agent=agent,
-        mission_id=mission_id,
-    )
+    return find_latest_unpaired_started(records, agent=agent, mission_id=mission_id)
+
+
+#: The actions a finalized board hands out (``implement`` / ``review``): a ``started`` record of
+#: one is a real issuance, never a stale planning-step issuance of the runtime's DAG.
+_BOARD_DISPATCHED_ACTIONS: frozenset[str] = frozenset({"implement", "review"})
+
+
+def latest_unpaired_started_is_board_action(
+    agent: str,
+    mission_slug: str,
+    repo_root: object,
+    *,
+    owned: OwnedCheckout | None = None,
+) -> bool:
+    """Whether the record the next pairing would close is a board-dispatched WP action (#7553 G1).
+
+    A never-rewind gate answer (``suppress_step_pairing``) must not pair a stale planning-step
+    ``started`` record (that step never ran), but must still pair a WP step the board handed
+    out: that work did run, and its outcome is what the caller reports. ``False`` when there is
+    no unpaired record.
+    """
+    repo_root_path = Path(str(repo_root)) if not isinstance(repo_root, Path) else repo_root
+    started = _latest_unpaired_started(agent, mission_slug, repo_root_path, owned)
+    if started is None:
+        return False
+    return started.canonical_action_id.rpartition("::")[2] in _BOARD_DISPATCHED_ACTIONS
+
+
+def pair_previous_lifecycle_record(
+    agent: str,
+    mission_slug: str,
+    result: str,
+    repo_root: object,
+    *,
+    owned: OwnedCheckout | None = None,
+) -> None:
+    """Write the paired ``completed`` / ``failed`` record for the prior issuance.
+
+    Matches the most recent unpaired ``started`` for ``(agent, mission_id)``
+    in the local lifecycle store and appends a partner record carrying the
+    SAME ``canonical_action_id``. The id is propagated, never re-computed
+    (FR-011 / contract: "no rewriting at completion time").
+
+    Best-effort: a missing meta.json or empty store is silently a no-op so
+    new missions / first issuance behave naturally.
+    """
+    from specify_cli.invocation.lifecycle import write_paired_completion
+    from specify_cli.invocation.record import ProfileInvocationPhase
+
+    repo_root_path = Path(str(repo_root)) if not isinstance(repo_root, Path) else repo_root
+    started = _latest_unpaired_started(agent, mission_slug, repo_root_path, owned)
     if started is None:
         return
 

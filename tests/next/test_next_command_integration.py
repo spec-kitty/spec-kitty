@@ -1113,21 +1113,20 @@ class TestAtomicTaskTransitions:
             encoding="utf-8",
         )
         (feature_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
-        (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
 
         # Create WP files with dependencies for tasks_finalize guard
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(exist_ok=True)
         (tasks_dir / "WP01.md").write_text(
-            "---\nwork_package_id: WP01\nlane: done\ndependencies: []\n"
-            "requirement_refs: [FR-001]\ntitle: WP01\n---\n# WP01\n",
+            "---\nwork_package_id: WP01\ndependencies: []\nrequirement_refs: [FR-001]\ntitle: WP01\n---\n# WP01\n",
             encoding="utf-8",
         )
-        # Seed event log so runtime bridge reads WP01 as done
-        _seed_wp_lane(feature_dir, "WP01", "done")
 
         from runtime.next.decision import decide_next
+        from tests.next.test_runtime_bridge_unit import _finalize_board_and_finish_work
 
+        # #7553: the board is finalized in the tasks step and WP01 finished in implement, as in a
+        # real run; a board finished before the run walks the DAG is answered by the never-rewind gate.
         seen_steps = []
         for _i in range(40):
             decision = decide_next("test-agent", "042-test-feature", "success", repo_root, analysis_currency=analysis_is_current)
@@ -1135,6 +1134,7 @@ class TestAtomicTaskTransitions:
                 break
             if decision.step_id and decision.step_id not in seen_steps:
                 seen_steps.append(decision.step_id)
+            _finalize_board_and_finish_work(feature_dir, decision)
 
         assert "tasks" in seen_steps, f"tasks not visited; saw: {seen_steps}"
         assert "tasks_outline" not in seen_steps, f"legacy tasks_outline should not be issued; saw: {seen_steps}"

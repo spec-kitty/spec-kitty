@@ -604,6 +604,83 @@ def _board_step_action(
     return _WP_BOARD_DECLINE  # forward-compat: an unrecognized board step declines rather than guesses
 
 
+@dataclasses.dataclass(frozen=True)
+class _FinalizedBoardStep:
+    """The finalized board's step plus the board it was read from (next-lifecycle-integrity T008).
+
+    ``board_step`` is :func:`_finalized_task_board_override_step`'s answer (``None`` before the
+    board is finalized). ``task_board_dir`` and ``board`` let a caller turn the step into an
+    action (:func:`_board_step_action`) without a second door read.
+    """
+
+    board_step: str | None
+    task_board_dir: Path
+    board: BoardStatus
+
+
+def _resolve_finalized_board_step(
+    *,
+    mission_slug: str,
+    repo_root: Path,
+    owned: OwnedCheckout | None = None,
+    status_read: StatusBoardRead | None = None,
+) -> _FinalizedBoardStep | _WpBoardAction:
+    """The board-step accessor: the shared prefix of :func:`_resolve_wp_board_action`.
+
+    Surface -> mission context -> task board dir -> board -> task-surface error -> progress ->
+    :func:`_finalized_task_board_override_step`. Returns the step with its board, or the
+    selector's own block/decline when the board cannot answer. It never resolves a WP's
+    workspace, so a caller that only needs the step pays for no dispatch resolution.
+    ``status_read`` is the advancing bootstrap's one door read (#7539).
+    """
+    from mission_runtime import ActionContextError, MissionArtifactKind, mission_context_for
+
+    surface = _board_surface(mission_slug, repo_root, owned, status_read)
+    if isinstance(surface, _WpBoardAction):
+        return surface
+    try:
+        mission_context = mission_context_for(repo_root, mission_slug, owned=owned)
+    except ActionContextError:
+        # Mission context genuinely cannot be resolved -- decline and let the
+        # caller's FR-006 fallback (_state_to_action) produce whatever it
+        # would have produced pre-fix; bootstrap already succeeded, so this
+        # is not expected on a live advancing call.
+        return _WP_BOARD_DECLINE
+
+    task_board_dir = mission_context.artifact(MissionArtifactKind.WORK_PACKAGE_TASK).read_dir
+    board = status_read.board if status_read is not None else _board_status_or_block(mission_slug, surface)
+    if isinstance(board, _WpBoardAction):
+        return board
+    task_error = _wp_task_surface_error(task_board_dir, None, mission_slug, board=board)
+    if task_error is not None:
+        return _wp_blocked_action(None, task_error)
+
+    progress = _compute_wp_progress(task_board_dir, board=board)
+    board_step = _finalized_task_board_override_step(task_board_dir, progress, board=board)
+    return _FinalizedBoardStep(board_step=board_step, task_board_dir=task_board_dir, board=board)
+
+
+#: The lanes whose WP makes a board step busy (in this order, the board's own order): the
+#: work package the step is waiting on, never a claimable one.
+_BUSY_LANES_BY_BOARD_STEP: dict[str, tuple[str, ...]] = {
+    _STEP_IMPLEMENT: ("claimed", "in_progress"),
+    _STEP_REVIEW: ("for_review",),
+}
+
+
+def _board_step_busy_wp(board_step: str, task_board_dir: Path, board: BoardStatus) -> tuple[str, str] | None:
+    """The ``(wp_id, lane)`` a board step that cannot dispatch is waiting on, or ``None`` (FR-016).
+
+    Reads the lanes through the canonical ``_find_first_wp_by_lane`` reader (C-003: no new
+    lane reader) over the board already read.
+    """
+    for lane in _BUSY_LANES_BY_BOARD_STEP.get(board_step, ()):
+        wp_id = _find_first_wp_by_lane(task_board_dir, lane, board=board)
+        if wp_id is not None:
+            return wp_id, lane
+    return None
+
+
 def _resolve_wp_board_action(
     *,
     mission_slug: str,
@@ -633,36 +710,15 @@ def _resolve_wp_board_action(
     ``status_read`` is the advancing bootstrap's one door read and board (#7539): when given,
     the selector reads neither the door nor the log again.
     """
-    from mission_runtime import ActionContextError, MissionArtifactKind, mission_context_for
-
-    surface = _board_surface(mission_slug, repo_root, owned, status_read)
-    if isinstance(surface, _WpBoardAction):
-        return surface
-    try:
-        mission_context = mission_context_for(repo_root, mission_slug, owned=owned)
-    except ActionContextError:
-        # Mission context genuinely cannot be resolved -- decline and let the
-        # caller's FR-006 fallback (_state_to_action) produce whatever it
-        # would have produced pre-fix; bootstrap already succeeded, so this
-        # is not expected on a live advancing call.
-        return _WP_BOARD_DECLINE
-
-    task_board_dir = mission_context.artifact(MissionArtifactKind.WORK_PACKAGE_TASK).read_dir
-    board = status_read.board if status_read is not None else _board_status_or_block(mission_slug, surface)
-    if isinstance(board, _WpBoardAction):
-        return board
-    task_error = _wp_task_surface_error(task_board_dir, None, mission_slug, board=board)
-    if task_error is not None:
-        return _wp_blocked_action(None, task_error)
-
-    progress = _compute_wp_progress(task_board_dir, board=board)
-    board_step = _finalized_task_board_override_step(task_board_dir, progress, board=board)
+    resolved = _resolve_finalized_board_step(mission_slug=mission_slug, repo_root=repo_root, owned=owned, status_read=status_read)
+    if isinstance(resolved, _WpBoardAction):
+        return resolved
     return _board_step_action(
-        board_step,
+        resolved.board_step,
         mission_slug=mission_slug,
         repo_root=repo_root,
-        task_board_dir=task_board_dir,
-        board=board,
+        task_board_dir=resolved.task_board_dir,
+        board=resolved.board,
         owned=owned,
     )
 

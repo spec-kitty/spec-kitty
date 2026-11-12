@@ -295,14 +295,19 @@ def test_owned_empty_coordination_worktree_refuses_without_a_report(tmp_path: Pa
 
 @pytest.mark.parametrize("topology", COORD_TOPOLOGIES, ids=lambda t: t.value)
 def test_owned_unmaterialized_coordination_worktree_proceeds_and_reports(tmp_path: Path, topology: MissionTopology) -> None:
-    """The wrap materializes the owned Mission's coordination worktree and dispatch proceeds, so it is reported."""
+    """The wrap materializes the owned Mission's coordination worktree and the decision proceeds, so it is reported.
+
+    WP01 is in_progress, so the decision is the never-rewind gate's board answer (#5929, FR-016),
+    not a DAG step; the materialization is reported on it all the same.
+    """
     from tests.status.test_read_surface_owned_coordination import _coord_worktree
 
     repo, fact = _owned_coordination_mission(tmp_path, topology, UNMATERIALIZED)
 
     decision = decide_next_via_runtime("pedro", fact.mission_slug, "success", repo, owned=fact)
 
-    assert str(decision.kind) == "step", decision.reason
+    assert str(decision.kind) == "blocked", decision.reason
+    assert decision.error_code == "BOARD_STEP_NOT_DISPATCHABLE", decision.reason
     remediation = _remediation(decision)
     assert isinstance(remediation, dict), remediation
     assert remediation["kind"] == _REMEDIATION_KIND

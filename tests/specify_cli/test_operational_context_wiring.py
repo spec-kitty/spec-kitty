@@ -282,7 +282,10 @@ class TestWiringIsLive:
         # assertion. The two-hop check preserves the original single-hop
         # guarantee: decide_next_via_runtime -> _dn_bootstrap -> the helper.
         assert "_dn_bootstrap" in _calls_in(runtime_bridge.decide_next_via_runtime)
-        called = _calls_in(runtime_bridge._dn_bootstrap)
+        # next-lifecycle-integrity T006: the run-start segment (with the helper call) moved out
+        # of _dn_bootstrap into _dn_start_run_and_snapshot -- another moved anchor, one more hop.
+        assert "_dn_start_run_and_snapshot" in _calls_in(runtime_bridge._dn_bootstrap)
+        called = _calls_in(runtime_bridge._dn_start_run_and_snapshot)
         assert "_build_operational_context_for_decision" in called
 
     def test_decision_helper_calls_pure_assembler(self) -> None:

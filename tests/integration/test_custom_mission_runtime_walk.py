@@ -422,7 +422,8 @@ def test_software_dev_specify_dispatch_unchanged(tmp_path: Path) -> None:
     # the post-action check passes.
     (feature_dir / "spec.md").write_text("# spec", encoding="utf-8")
     (feature_dir / "plan.md").write_text("# plan", encoding="utf-8")
-    (feature_dir / "tasks.md").write_text("# tasks", encoding="utf-8")
+    # No ``tasks.md`` yet: a run at ``specify`` has no finalized board. A finished board under a
+    # run at a planning step is the #7553 replay the never-rewind gate answers instead.
     tasks = feature_dir / "tasks"
     tasks.mkdir()
     _write_wp_file(tasks, "WP01")
