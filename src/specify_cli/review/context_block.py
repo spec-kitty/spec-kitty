@@ -45,7 +45,7 @@ from collections.abc import Callable, Sequence
 from specify_cli.requirement_mapping.text import TEXT_LIMIT, TRUNCATION_MARKER, CitedRequirement, Resolution
 from specify_cli.review.wp_range import FileChange, RangeSource, RangeStatus, WpReviewRange
 
-__all__ = ["describe_gap", "render_review_context"]
+__all__ = ["describe_gap", "render_review_context", "review_diff_command"]
 
 #: The block without CITED REQUIREMENTS and the REVIEW COMMANDS lines is at most this many UTF-8 bytes, newlines included (NFR-001, Q11).
 BYTE_BUDGET = 4096
@@ -147,14 +147,30 @@ def _header_lines(review_range: WpReviewRange, branch: str | None) -> list[str]:
     return lines
 
 
+def _range_and_scope(review_range: WpReviewRange) -> str:
+    """``<base>..<tip> -- <quoted listing pathspecs>``: the full-SHA range and the commit list's own pathspecs."""
+    scope = " ".join(shlex.quote(spec) for spec in review_range.listing_pathspecs)
+    return f"{review_range.base}..{review_range.tip} -- {scope}"
+
+
+def review_diff_command(review_range: WpReviewRange) -> str:
+    """The range's ``git diff`` command exactly as the block prints it (without the item indent).
+
+    An unavailable range has no command: the value names the gap as the block's notice does and
+    points at it. The review prompt's worktree topology carries this value as its ``diff_command``
+    (operator ruling Q13, #7590), so the prompt names one range.
+    """
+    if review_range.status is RangeStatus.UNAVAILABLE:
+        return f"unavailable: {describe_gap(review_range.gap)}; see REVIEW RANGE"
+    return f"git diff {_range_and_scope(review_range)}"
+
+
 def _command_lines(review_range: WpReviewRange) -> list[str]:
     """``git log`` / ``git diff`` over the full-SHA range, scoped to the quoted listing pathspecs (the commit list's own)."""
-    rev_range = f"{review_range.base}..{review_range.tip}"
-    scope = " -- " + " ".join(shlex.quote(spec) for spec in review_range.listing_pathspecs)
     return [
         _COMMANDS_HEADING,
-        f"{_INDENT}git log --oneline {rev_range}{scope}",
-        f"{_INDENT}git diff {rev_range}{scope}",
+        f"{_INDENT}git log --oneline {_range_and_scope(review_range)}",
+        f"{_INDENT}{review_diff_command(review_range)}",
     ]
 
 

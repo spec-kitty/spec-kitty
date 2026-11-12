@@ -127,6 +127,11 @@ class TestRenderTopologyJson:
         assert payload["shared_lane"] is True
         assert payload["diff_command"] == "git diff kitty/mission-002-feature..HEAD"
 
+        # Q13 (#7590): a caller-supplied command (the review prompt's range) replaces the lane-base diff.
+        reviewed = json.loads("\n".join(render_topology_json(topology, "WP01", diff_command="git diff a..b -- x")[1:-1]))
+        assert reviewed["diff_command"] == "git diff a..b -- x"
+        assert {key: value for key, value in reviewed.items() if key != "diff_command"} == {key: value for key, value in payload.items() if key != "diff_command"}
+
 
 class TestMaterializeWorktreeTopology:
     def test_materialize_from_manifest_and_context(self, tmp_path: Path) -> None:
