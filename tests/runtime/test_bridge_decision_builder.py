@@ -362,6 +362,10 @@ def test_never_stamps_timestamp_run_id_decision_id_when_present(kind: str) -> No
         timestamp="caller-supplied-timestamp",
         run_id="caller-supplied-run-id",
         decision_id="caller-supplied-decision-id",
+        # FR-010: a query/decision_required envelope carrying a decision_id must carry a
+        # whole, answerable prompt (question plus options or input_key).
+        question="caller-supplied-question?",
+        options=["approve", "reject"],
     )
     decision = cores.step_or_blocked(envelope, [], prompt_exists=_RaisingPromptExists())
     assert decision.timestamp == "caller-supplied-timestamp"

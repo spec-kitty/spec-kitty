@@ -72,7 +72,9 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from collections.abc import Set as AbstractSet
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any, Protocol, runtime_checkable
 
 from runtime.next.decision import (
@@ -82,6 +84,7 @@ from runtime.next.decision import (
     Decision,
     DecisionKind,
     InvalidStepDecision,
+    PendingDecisionPrompt,
 )
 
 # ---------------------------------------------------------------------------
@@ -989,6 +992,25 @@ class DecisionEnvelope:
     # for every non-owned envelope, so ``Decision.to_dict()`` stays
     # byte-identical for them.
     error_code: str | None = None
+    # next-lifecycle-integrity (NFR-002): the additive ``next_command`` and the internal,
+    # never-serialized ``suppress_step_pairing`` flag; both pass through to the Decision.
+    next_command: str | None = None
+    suppress_step_pairing: bool = False
+
+    def with_prompt(self, prompt: PendingDecisionPrompt | None) -> DecisionEnvelope:
+        """This envelope with its four prompt fields set from a validated prompt (FR-010).
+
+        ``None`` clears all four, so a builder can never set a half-built prompt.
+        """
+        if prompt is None:
+            return replace(self, decision_id=None, question=None, input_key=None, options=None)
+        return replace(
+            self,
+            decision_id=prompt.decision_id,
+            question=prompt.question,
+            input_key=prompt.input_key,
+            options=prompt.options,
+        )
 
 
 def _non_step_decision(envelope: DecisionEnvelope, guard_failures: list[str]) -> Decision:
@@ -1022,6 +1044,8 @@ def _non_step_decision(envelope: DecisionEnvelope, guard_failures: list[str]) ->
         is_query=envelope.kind == DecisionKind.query,
         preview_step=envelope.preview_step,
         error_code=envelope.error_code,
+        next_command=envelope.next_command,
+        suppress_step_pairing=envelope.suppress_step_pairing,
     )
 
 
@@ -1054,6 +1078,8 @@ def _step_decision(envelope: DecisionEnvelope, guard_failures: list[str]) -> Dec
         step_id=envelope.step_id,
         # WP07: a re-issued ``analyze`` step carries its typed refusal code.
         error_code=envelope.error_code,
+        next_command=envelope.next_command,
+        suppress_step_pairing=envelope.suppress_step_pairing,
     )
 
 
@@ -1076,6 +1102,8 @@ def _blocked_from_step_envelope(envelope: DecisionEnvelope, guard_failures: list
         run_id=envelope.run_id,
         step_id=envelope.step_id,
         error_code=envelope.error_code,
+        next_command=envelope.next_command,
+        suppress_step_pairing=envelope.suppress_step_pairing,
     )
 
 
@@ -1131,3 +1159,84 @@ def step_or_blocked(
 
     blocked_reason = envelope.reason if envelope.prompt_file is None else "prompt_file_not_resolvable"
     return _blocked_from_step_envelope(envelope, resolved_guard_failures, reason=blocked_reason)
+
+
+# ---------------------------------------------------------------------------
+# next-lifecycle-integrity IC-01 — the finished-board verdict (FR-002, FR-007)
+#
+# Pure: the caller gathers ``accepted_at`` (``meta.json``) and the board's newest WP
+# transition timestamp; this module only parses and compares them (stdlib ``datetime``).
+# ---------------------------------------------------------------------------
+
+
+class FinishedBoardVerdict(StrEnum):
+    """What a software-dev Mission's finalized task board says about acceptance."""
+
+    NONE = "none"
+    AWAITING_ACCEPTANCE = "awaiting_acceptance"
+    ACCEPTED = "accepted"
+
+
+#: The board steps a finished board yields (``_finalized_task_board_override_step``): every WP
+#: has an acceptable ending (approved, done or canceled), so an all-canceled board is finished.
+FINISHED_BOARD_STEPS: frozenset[str] = frozenset({"accept", "done"})
+
+#: ``Decision.error_code`` of a finished board whose acceptance is missing or stale.
+MISSION_AWAITING_ACCEPTANCE_ERROR_CODE = "MISSION_AWAITING_ACCEPTANCE"
+
+# next-lifecycle-integrity FR-008 (contracts/next-envelope-additions.md): the command templates an
+# advancing (``runtime_bridge``) or read-only (``runtime_bridge_query``) ``next`` names in
+# ``next_command``. One owner, so query and advance name byte-identical commands. Flags verified
+# against each command's ``--help``.
+ADVANCE_COMMAND = "spec-kitty next --agent {agent} --mission {mission_slug} --result success"
+ACCEPT_COMMAND = "spec-kitty accept --mission {mission_slug}"
+CONSOLIDATE_COMMAND = "spec-kitty consolidate --mission {mission_slug}"
+#: The resume command of a board step that waits on a WP (``agent action implement|review``).
+RESUME_COMMAND = "spec-kitty agent action {action} {wp_id} --agent {agent} --mission {mission_slug}"
+#: The ``LANES_MANIFEST_MISSING`` remedies: compute lanes before execution, rebuild them after.
+FINALIZE_TASKS_COMMAND = "spec-kitty agent mission finalize-tasks --mission {mission_slug}"
+REBUILD_LANES_COMMAND = "spec-kitty doctor mission-state --fix --mission {mission_slug}"
+#: A query without an agent never invents an identity: the command carries this placeholder.
+AGENT_PLACEHOLDER = "<agent>"
+
+
+def parse_iso_timestamp(value: str | None) -> datetime | None:
+    """Parse an ISO-8601 timestamp to an aware datetime, or ``None`` when absent or unparsable.
+
+    A naive timestamp is read as UTC, so naive and offset-bearing values compare safely.
+    """
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
+
+
+def finished_board_verdict(
+    board_step: str | None,
+    *,
+    accepted_at: str | None,
+    latest_transition_at: str | None,
+) -> FinishedBoardVerdict:
+    """Judge a finished board's acceptance (FR-002 freshness, FR-007).
+
+    - ``NONE`` when ``board_step`` is not a finished-board step.
+    - ``ACCEPTED`` iff ``accepted_at`` parses and is strictly later than
+      ``latest_transition_at``. A missing ``latest_transition_at`` counts as fresh.
+    - Otherwise ``AWAITING_ACCEPTANCE``: a missing or unparsable ``accepted_at``, an
+      acceptance at or before the newest transition, or an unparsable
+      ``latest_transition_at`` (fails toward blocked).
+    """
+    if board_step not in FINISHED_BOARD_STEPS:
+        return FinishedBoardVerdict.NONE
+    accepted = parse_iso_timestamp(accepted_at)
+    if accepted is None:
+        return FinishedBoardVerdict.AWAITING_ACCEPTANCE
+    if latest_transition_at is None:
+        return FinishedBoardVerdict.ACCEPTED
+    latest = parse_iso_timestamp(latest_transition_at)
+    if latest is not None and accepted > latest:
+        return FinishedBoardVerdict.ACCEPTED
+    return FinishedBoardVerdict.AWAITING_ACCEPTANCE

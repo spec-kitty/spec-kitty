@@ -56,6 +56,7 @@ import re
 import tempfile
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypedDict
 
@@ -91,6 +92,7 @@ from runtime.next.runtime_bridge_cores import (
     ANALYZE_STEP_ID,
     TASKS_ARTIFACT,
     TASKS_INDEX_ARTIFACT,
+    parse_iso_timestamp,
 )
 from runtime.next.run_index import FEATURE_RUNS_FILENAME
 from runtime.next.run_index import RunDirOutsideRepoError as RunDirOutsideRepoError  # re-export
@@ -102,6 +104,7 @@ from specify_cli.status import CanonicalStatusNotFoundError, get_wp_lane
 
 if TYPE_CHECKING:
     from charter.activation.invocation_context import OperationalContext as OperationalContextT
+    from runtime.next.board_status import BoardStatus
 
 # Local literal duplicates of runtime_bridge's module constants — avoids a
 # circular top-level import back into runtime_bridge for four small string
@@ -972,6 +975,41 @@ def read_runtime_acceptance_facts(repo_root: Path, mission_slug: str) -> Runtime
         blocked_reason=snapshot.blocked_reason,
         pending_decision_ids=tuple(snapshot.pending_decisions),
     )
+
+
+def mission_accepted_at(primary_metadata_dir: Path) -> str | None:
+    """The ``accepted_at`` a Mission's ``meta.json`` records, or ``None`` (FR-002, IC-01).
+
+    Read through ``load_meta_or_empty``, which never raises: a missing or malformed
+    ``meta.json`` reads as not accepted. A non-string or empty value is not an acceptance.
+    """
+    from specify_cli.mission_metadata import load_meta_or_empty
+
+    accepted_at = load_meta_or_empty(primary_metadata_dir).get("accepted_at")
+    return accepted_at if isinstance(accepted_at, str) and accepted_at else None
+
+
+def board_latest_transition_at(board: BoardStatus | None) -> str | None:
+    """The newest WP transition timestamp of a board snapshot, or ``None`` when it has none (FR-002).
+
+    Reads each reduced WP state's ``last_transition_at`` from the board the status door
+    already returned (no second read). Timestamps are compared as parsed datetimes, never as
+    strings, so offset-bearing values order correctly. An unparsable timestamp is returned
+    as-is, so the freshness verdict fails closed on it instead of ignoring the transition.
+    """
+    if board is None:
+        return None
+    newest: tuple[datetime, str] | None = None
+    for state in board.wp_states.values():
+        raw = state.get("last_transition_at")
+        if not isinstance(raw, str) or not raw:
+            continue
+        parsed = parse_iso_timestamp(raw)
+        if parsed is None:
+            return raw
+        if newest is None or parsed > newest[0]:
+            newest = (parsed, raw)
+    return newest[1] if newest is not None else None
 
 
 def _resolve_tech_stack_for_profile(repo_root: Path, profile_id: str | None) -> frozenset[str]:
