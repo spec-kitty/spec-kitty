@@ -200,6 +200,9 @@
       "last_event_id": "01M77WR6NNK8XYJXV4DX4EFF2Y",
       "last_transition_at": "2026-11-12T12:47:02.325644+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: sites 2/3 on the shared renderer; red-first acceptance; executor tests re-pinned; Low-1 fold"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 10301,
