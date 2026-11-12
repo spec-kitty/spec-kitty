@@ -61,6 +61,9 @@
       "last_event_id": "01M77858JXRQWPXKKHVJRMY3D5",
       "last_transition_at": "2026-11-12T06:47:10.173115+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "lane_test_invocation in implement --json (null for planning-artifact work) + banner block; implement/review prompts re-derive and re-probe it via review/lane_test_invocation.py (fail-open); goldens gain only the new key; red-first c2da8428, green 9ea5cdb5"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 12613,
