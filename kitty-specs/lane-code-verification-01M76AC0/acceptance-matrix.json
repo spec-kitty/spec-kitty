@@ -68,10 +68,10 @@
       "criterion_id": "FR-007",
       "description": "Verify FR-007 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/specify_cli/cli/commands/agent/test_tasks_move_task_evidence_tree.py (evidence_tree path/head/dirty/probe recorded on test-running tiers) \u2014 WP04 approved cycle 2",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-12T08:52:18.891138+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
