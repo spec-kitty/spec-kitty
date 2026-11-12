@@ -1848,6 +1848,21 @@ def accept_primary_ref(record_dir: Path, policy: Any) -> str | None:
     return branch
 
 
+@dataclass(frozen=True)
+class _AcceptanceRecordCommit:
+    """The outcome of committing the acceptance record (#7599 adds the branch it landed on)."""
+
+    parent_commit: str | None
+    accept_commit: str | None
+    commit_created: bool
+    #: The branch ``commit_for_mission`` committed the record on (its placement ref);
+    #: ``None`` when no commit was made, so no "Next steps" line claims a branch it did not write.
+    record_branch: str | None = None
+
+    def as_tuple(self) -> tuple[str | None, str | None, bool]:
+        return self.parent_commit, self.accept_commit, self.commit_created
+
+
 def _commit_acceptance_meta(
     summary: AcceptanceSummary,
     actor_name: str,
@@ -1856,7 +1871,19 @@ def _commit_acceptance_meta(
     lenient: bool = False,
     owned: OwnedCheckout | None = None,
 ) -> tuple[str | None, str | None, bool]:
-    """Record acceptance in meta.json and commit; return (parent_commit, accept_commit, commit_created).
+    """Record acceptance in meta.json and commit; return (parent_commit, accept_commit, commit_created)."""
+    return _record_and_commit_acceptance(summary, actor_name, mode, lenient=lenient, owned=owned).as_tuple()
+
+
+def _record_and_commit_acceptance(
+    summary: AcceptanceSummary,
+    actor_name: str,
+    mode: AcceptanceMode,
+    *,
+    lenient: bool = False,
+    owned: OwnedCheckout | None = None,
+) -> _AcceptanceRecordCommit:
+    """Record acceptance in meta.json and commit it; the outcome names the branch the commit landed on.
 
     The record is committed through the one placement-aware commit seam
     (:func:`_commit_acceptance_meta_via_router` → ``commit_for_mission`` with
@@ -1884,7 +1911,7 @@ def _commit_acceptance_meta(
 
     _stamp_acceptance_record(summary, actor_name, mode, parent_commit, lenient=lenient)
 
-    return _commit_acceptance_meta_via_router(
+    return _route_acceptance_record(
         repo_root=summary.repo_root,
         mission_slug=summary.feature,
         meta_path=summary.feature_dir / "meta.json",
@@ -1985,6 +2012,28 @@ def _commit_acceptance_meta_via_router(
     primary_ref: str | None = None,
     owned: OwnedCheckout | None = None,
 ) -> tuple[str | None, str | None, bool]:
+    """Commit the acceptance record through ``commit_for_mission``; return (parent_commit, accept_commit, commit_created)."""
+    return _route_acceptance_record(
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+        meta_path=meta_path,
+        policy=policy,
+        parent_commit=parent_commit,
+        primary_ref=primary_ref,
+        owned=owned,
+    ).as_tuple()
+
+
+def _route_acceptance_record(
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    meta_path: Path,
+    policy: Any,
+    parent_commit: str | None,
+    primary_ref: str | None = None,
+    owned: OwnedCheckout | None = None,
+) -> _AcceptanceRecordCommit:
     """Commit the acceptance record through ``commit_for_mission`` (the only commit path, #7550).
 
     ``commit_for_mission`` resolves the placement and materialises the
@@ -2012,7 +2061,7 @@ def _commit_acceptance_meta_via_router(
         logger.debug("accept: %s", line)
 
     if router_result.status == "unchanged":
-        return parent_commit, None, False
+        return _AcceptanceRecordCommit(parent_commit, None, False)
 
     if router_result.status not in ("committed",):
         raise AcceptanceRecordCommitError(mission_slug, meta_path, f"commit status {router_result.status}: {router_result.diagnostic or 'no diagnostic available'}")
@@ -2024,7 +2073,9 @@ def _commit_acceptance_meta_via_router(
     if accept_commit and _stamp_accept_commit(meta_path.parent, accept_commit):
         _commit_accept_commit_stamp(repo_root=repo_root, mission_slug=mission_slug, meta_path=meta_path, policy=policy, primary_ref=primary_ref, owned=owned)
 
-    return parent_commit, accept_commit, True
+    # #7599: the placement ref is the branch the commit seam committed the record on (the
+    # unprotected checkout's branch via ``primary_ref``, else the seam's own placement).
+    return _AcceptanceRecordCommit(parent_commit, accept_commit, True, record_branch=router_result.placement_ref or None)
 
 
 def _build_acceptance_instructions(
@@ -2121,9 +2172,10 @@ def _local_mode_lines(
             "After merge, run /spec-kitty-mission-review and the retrospective workflow.",
         ]
     if lanes_to_consolidate:
-        return [
-            f"Acceptance recorded on `{record_branch or branch}`. This Mission lands through `spec-kitty consolidate --mission {summary.feature}`; run it next."
-        ]
+        lands_through = f"This Mission lands through `spec-kitty consolidate --mission {summary.feature}`; run it next."
+        if record_branch is None:
+            return [f"Acceptance passed. {lands_through}"]
+        return [f"Acceptance recorded on `{record_branch}`. {lands_through}"]
     return [f"Acceptance recorded directly on `{branch}`. No merge needed."]
 
 
@@ -2196,40 +2248,30 @@ def _lands_by_consolidation(feature_dir: Path) -> bool:
     }
 
 
-def _has_lanes_to_consolidate(summary: AcceptanceSummary, *, lands_by_consolidation: bool) -> bool:
+def _has_lanes_to_consolidate(feature_dir: Path, *, lands_by_consolidation: bool) -> bool:
     """Whether the Mission still has lanes for ``spec-kitty consolidate`` to land (#7599).
 
-    Read from data already on disk, with no git read: a Mission whose landing is
-    recorded has nothing left; a coordination-bearing Mission lands only through
-    ``consolidate``; a flat Mission has lanes left while a work package of a code lane
-    in ``lanes.json`` is still ``approved`` (``done`` comes with its consolidation).
-    An unreadable ``lanes.json`` answers ``False``: the acceptance gates own that refusal.
+    Read from data already on disk, with no git read. The recorded landing
+    (:func:`mission_runtime.landing.mission_has_landed`) is the only proof that nothing
+    is left: a work package's ``done`` lane is not, since ``approved -> done`` and an
+    unforced ``in_review -> done`` happen outside ``consolidate``. Until the landing,
+    a coordination-bearing Mission and a Mission with a code (non-planning) lane in
+    ``lanes.json`` land through ``consolidate``. An unreadable ``lanes.json`` answers
+    ``False``: the acceptance gates own that refusal.
     """
     from mission_runtime.landing import mission_has_landed
-    from specify_cli.lanes.branch_naming import PLANNING_LANE_ID
+    from specify_cli.lanes.compute import is_planning_lane
     from specify_cli.lanes.persistence import read_lanes_json
 
-    if mission_has_landed(summary.feature_dir):
+    if mission_has_landed(feature_dir):
         return False
     if lands_by_consolidation:
         return True
     try:
-        manifest = read_lanes_json(summary.feature_dir)
+        manifest = read_lanes_json(feature_dir)
     except CorruptLanesError:
         return False
-    if manifest is None:
-        return False
-    merge_pending = set(summary.lanes.get("approved", []))
-    return any(lane.lane_id != PLANNING_LANE_ID and merge_pending.intersection(lane.wp_ids) for lane in manifest.lanes)
-
-
-def _acceptance_record_branch(feature_dir: Path, branch: str) -> str:
-    """The branch the acceptance record is committed to: the Mission/coordination branch in ``meta.json``, else *branch*."""
-    from specify_cli.mission_metadata import load_meta_or_empty
-
-    meta = load_meta_or_empty(feature_dir)
-    recorded = meta.get("coordination_branch") or meta.get("mission_branch")
-    return str(recorded) if recorded else branch
+    return manifest is not None and any(not is_planning_lane(lane) for lane in manifest.lanes)
 
 
 def _consolidate_lands_branch(summary: AcceptanceSummary, branch: str, target_branch: str | None) -> bool:
@@ -2264,12 +2306,11 @@ def perform_acceptance(
     actor_name = resolve_acceptance_actor(actor)
     timestamp = now_utc_stamp()
 
-    parent_commit: str | None = None
-    accept_commit: str | None = None
-    commit_created = False
+    record_commit = _AcceptanceRecordCommit(None, None, False)
 
     if auto_commit and mode != "checklist":
-        parent_commit, accept_commit, commit_created = _commit_acceptance_meta(summary, actor_name, mode, lenient=lenient, owned=owned)
+        record_commit = _record_and_commit_acceptance(summary, actor_name, mode, lenient=lenient, owned=owned)
+    parent_commit, accept_commit, commit_created = record_commit.as_tuple()
 
     branch = summary.branch or summary.feature
     # FR-008 / #2139: delegate to the single target_branch read authority
@@ -2287,8 +2328,8 @@ def perform_acceptance(
         is_integration_branch,
         landed_by_consolidate=landed_by_consolidate,
         lands_by_consolidation=lands_by_consolidation,
-        lanes_to_consolidate=_has_lanes_to_consolidate(summary, lands_by_consolidation=lands_by_consolidation),
-        record_branch=_acceptance_record_branch(summary.feature_dir, branch),
+        lanes_to_consolidate=_has_lanes_to_consolidate(summary.feature_dir, lands_by_consolidation=lands_by_consolidation),
+        record_branch=record_commit.record_branch,
     )
 
     if mode == "pr" and commit_created:
