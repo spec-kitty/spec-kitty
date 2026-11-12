@@ -398,26 +398,35 @@ class TestPrimaryPartitionCheckout:
         return repo, holder
 
     @staticmethod
-    def _stub(monkeypatch: pytest.MonkeyPatch, primary_dir: Path) -> None:
-        seam = type("Seam", (), {"read_dir": lambda _self, _kind: primary_dir})()
+    def _stub(monkeypatch: pytest.MonkeyPatch, surface_root: Path) -> None:
+        """Stub the seam's write side: ``write_dir(PRIMARY_METADATA).surface_root`` is *surface_root*."""
+        location = type("Location", (), {"surface_root": surface_root})()
+        seam = type("Seam", (), {"write_dir": lambda _self, _kind: location})()
         monkeypatch.setattr(planning_commit, "placement_seam", lambda *_a: seam)
 
     def test_default_mission_before_landing_is_held_by_the_topic_worktree(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """The seam's PRIMARY dir lies in the topic worktree: that checkout is the holder."""
+        """The seam's PRIMARY write checkout is the topic worktree: that checkout is the holder."""
         repo, holder = self._repo_with_topic_worktree(tmp_path)
-        self._stub(monkeypatch, holder / "kitty-specs" / _SLUG)
+        self._stub(monkeypatch, holder)
         assert planning_commit.primary_partition_checkout(repo, _SLUG) == holder
 
     def test_primary_dir_in_the_root_checkout_has_no_holder(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Explicit-topology, legacy, landed or unreadable-meta Missions read PRIMARY at the root."""
         repo, _holder = self._repo_with_topic_worktree(tmp_path)
-        self._stub(monkeypatch, repo / "kitty-specs" / _SLUG)
+        self._stub(monkeypatch, repo)
         assert planning_commit.primary_partition_checkout(repo, _SLUG) is None
 
     def test_primary_dir_outside_any_checkout_has_no_holder(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Outside every checkout the seam falls back to the main repo root: no holder."""
         repo, _holder = self._repo_with_topic_worktree(tmp_path)
-        self._stub(monkeypatch, tmp_path / "elsewhere" / "kitty-specs" / _SLUG)
+        self._stub(monkeypatch, repo)
         assert planning_commit.primary_partition_checkout(repo, _SLUG) is None
+
+    def test_a_lane_or_coordination_caller_compares_against_the_main_repo_root(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The comparison is the main repo root of *repo_root*, never the caller's raw checkout."""
+        repo, holder = self._repo_with_topic_worktree(tmp_path)
+        self._stub(monkeypatch, repo)
+        assert planning_commit.primary_partition_checkout(holder, _SLUG) is None
 
     def test_real_seam_on_an_explicit_mission_has_no_holder(self, tmp_path: Path) -> None:
         """Unstubbed: a non-default Mission's PRIMARY dir is the repository root's copy."""

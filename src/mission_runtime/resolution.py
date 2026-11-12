@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast, get_args
 
 from kernel.git import GitCommandError, tree_entry
+from kernel.git_anchor import checkout_root_containing
 
 if TYPE_CHECKING:
     # Import-cycle note (owned-checkout-lifecycle-authority WP04): this module
@@ -2435,6 +2436,34 @@ def read_issue_matrix_ref_content(
     return content
 
 
+def _containing_checkout(path: Path, repo_root: Path) -> Path:
+    """The checkout that contains *path*, spelled under *path*'s own prefix (#7546, FR-001).
+
+    :func:`kernel.git_anchor.checkout_root_containing` answers in resolved form; when *path*
+    is spelled through a symbolic link the answer is re-expressed as *path*'s own ancestor so
+    ``path.is_relative_to(surface_root)`` holds without mixing forms. When no ancestor of
+    *path* is a checkout (a path outside every checkout), today's answer stands: the
+    re-anchored main repo root of *repo_root*.
+    """
+    from specify_cli.core.paths import get_main_repo_root
+
+    holder = checkout_root_containing(path)
+    if holder is None:
+        return get_main_repo_root(repo_root)
+    if path.is_relative_to(holder):
+        return holder
+    try:
+        depth = len(path.resolve().relative_to(holder).parts)
+    except (OSError, RuntimeError, ValueError):
+        # *path* cannot be resolved (a symbolic-link loop): the walk answered for its lexical
+        # form already, so the resolved answer is the only one there is.
+        return holder
+    if depth >= len(path.parts):
+        return holder
+    lexical = path.parents[depth - 1] if depth else path
+    return lexical if lexical.resolve() == holder else holder
+
+
 @dataclass(frozen=True)
 class PlacementSeam:
     """The single kind-aware placement authority for one mission operation (T001).
@@ -2640,19 +2669,21 @@ class PlacementSeam:
         return location
 
     def _declared_primary_write_dir(self, kind: MissionArtifactKind) -> WriteLocation:
-        """The declared-PRIMARY :meth:`write_dir` result: identical to :meth:`read_dir` (C-008).
+        """The declared-PRIMARY :meth:`write_dir` result: ``path`` identical to :meth:`read_dir` (C-008).
 
-        ``checkout_root`` is the re-anchored main repo root (never
-        ``self.repo_root`` verbatim, which would disagree with ``path`` when
-        called from a lane worktree), or ``owned.owned_root`` for an owned
-        Mission — the same re-anchor :meth:`read_dir` already performs via
-        ``get_main_repo_root`` (binding correction, round 3).
+        ``surface_root`` is the checkout that contains ``path`` (#7546, FR-001): the repository
+        root checkout, ``owned.owned_root`` for an owned Mission, or -- for a default Mission
+        before its landing -- the checkout holding its topic branch (the coordination worktree
+        once ``finalize-tasks`` settled it to ``lanes_with_coord``). It is never
+        ``self.repo_root`` verbatim, which would disagree with ``path`` when called from a lane
+        worktree. No topology is read here: the containing checkout is found by walking up from
+        ``path`` (:func:`kernel.git_anchor.checkout_root_containing`), falling back to the
+        re-anchored main repo root when no ancestor of ``path`` is a checkout.
         """
-        from specify_cli.core.paths import get_main_repo_root
-
-        checkout_root = self.owned.owned_root if self.owned is not None else get_main_repo_root(self.repo_root)
+        path = self.read_dir(kind)
+        checkout_root = self.owned.owned_root if self.owned is not None else _containing_checkout(path, self.repo_root)
         return WriteLocation(
-            path=self.read_dir(kind),
+            path=path,
             surface_root=checkout_root,
             surface=TopologySurface.PRIMARY,
             coord_state_before=None,

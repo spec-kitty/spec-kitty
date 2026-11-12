@@ -12,7 +12,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NamedTuple
 
-from kernel.git_anchor import checkout_root_containing
 from kernel.meta_decode import decode_meta
 from mission_runtime import (
     ActionContextError,
@@ -25,6 +24,7 @@ from mission_runtime import (
 )
 from specify_cli.coordination.coherence import is_coord_residue_churn, is_self_bookkeeping_churn
 from specify_cli.core.constants import WORKTREES_DIR
+from specify_cli.core.paths import get_main_repo_root
 from specify_cli.git.commit_helpers import SafeCommitPathPolicyError
 
 
@@ -219,17 +219,17 @@ def primary_partition_checkout(repo_root: Path, mission_slug: str) -> Path | Non
     Until a ``topology_source: default`` Mission lands, its PRIMARY partition lives on its topic
     branch, which the coordination worktree holds once the repository root checkout moved back to
     ``create_return_branch``. This is the one answer the planning-artifact commit, the claim commit
-    and the bookkeeping transaction share (#7372). It does not re-derive the holder: it asks the
-    placement seam for the PRIMARY metadata dir, which routes through the one topic-holder locator
+    and the bookkeeping transaction share (#7372). It does not re-derive the holder: it reads the
+    placement seam's ``surface_root`` for the PRIMARY metadata dir -- the checkout that contains
+    that dir (#7546, FR-001), which routes through the one topic-holder locator
     (``default_mission_topic_dir``, including its rule that the holder must carry the Mission
-    directory), and returns the checkout containing that dir. ``None`` when that checkout is
-    *repo_root* itself -- every explicit-topology, legacy or landed Mission, a default Mission
-    whose topic holder carries no Mission directory, and an unreadable ``meta.json`` (the
-    fail-closed guards downstream report that, e.g. the #4979 demotion refusal).
+    directory). ``None`` when that checkout is the repository root checkout (the main repo root
+    of *repo_root*) -- every explicit-topology, legacy or landed Mission, a default Mission whose
+    topic holder carries no Mission directory, and an unreadable ``meta.json`` (the fail-closed
+    guards downstream report that, e.g. the #4979 demotion refusal).
     """
-    primary_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
-    holder = checkout_root_containing(Path(primary_dir))
-    if holder is None or holder.resolve() == repo_root.resolve():
+    holder = placement_seam(repo_root, mission_slug).write_dir(MissionArtifactKind.PRIMARY_METADATA).surface_root
+    if holder.resolve() == get_main_repo_root(repo_root).resolve():
         return None
     return holder
 
