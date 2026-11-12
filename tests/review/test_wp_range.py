@@ -122,7 +122,7 @@ class _LaneTemplates:
     def _build(self, name: str) -> cs.ShapeMission:
         if name == "coord":
             return cs.build_two_wp_lane(self._root / name, mid8="01M77R01")
-        mission = cs.copy_mission(self.copy("coord", self._root / "src"), self._root / name)
+        mission = cs.copy_mission(self.copy("coord", self._root / f"src-{name}"), self._root / name)
         _adapt_topology(mission, name)
         return mission
 
@@ -145,11 +145,11 @@ def lane_env(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 def _sb_events(m: sb.Mission, wp_id: str = "WP01") -> list[dict[str, Any]]:
     log = m.repo / "kitty-specs" / m.slug / _EVENTS
     rows = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines() if line.strip()]
-    return [row for row in rows if row["wp_id"] == wp_id]
+    return [row for row in rows if row.get("wp_id") == wp_id]
 
 
 def _of(rows: list[dict[str, Any]], to_lane: str) -> list[dict[str, Any]]:
-    return [row for row in rows if row["to_lane"] == to_lane]
+    return [row for row in rows if row.get("to_lane") == to_lane]
 
 
 def _meta(row: dict[str, Any]) -> dict[str, Any]:
@@ -181,7 +181,7 @@ def _strip_stamps_sb(m: sb.Mission) -> None:
     log = m.repo / "kitty-specs" / m.slug / _EVENTS
     rows = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines() if line.strip()]
     for row in rows:
-        if row["wp_id"] == "WP01" and row.get("policy_metadata"):
+        if row.get("wp_id") == "WP01" and row.get("policy_metadata"):
             row["policy_metadata"] = {k: v for k, v in row["policy_metadata"].items() if k not in ("lane_head", "wp_window")} or None
     log.write_text("".join(json.dumps(row, sort_keys=True) + "\n" for row in rows), encoding="utf-8")
     sb.git(m.repo, "add", "-A", "kitty-specs")
@@ -274,7 +274,7 @@ def test_minted_single_branch_range_is_recorded_from_window_open_to_submission(
 @pytest.mark.parametrize("topology", ["lanes", "lanes_with_coord"])
 def test_lane_range_is_recorded_from_window_open_to_submission(lane_templates: _LaneTemplates, tmp_path: Path, lane_env: None, topology: str) -> None:
     mission = lane_templates.copy(topology, tmp_path)
-    rows = [row for row in cs._events(mission) if row["wp_id"] == "WP02"]
+    rows = [row for row in cs._events(mission) if row.get("wp_id") == "WP02"]
 
     found = _resolve_lane(mission, "WP02")
 
@@ -362,7 +362,7 @@ def test_rework_after_a_review_rejection_keeps_the_first_opener(sb_templates: _S
     rows = _sb_events(m)
     claims = _of(rows, "claimed")
     assert len(claims) == 2, "precondition: the rework re-claimed the work package"
-    assert _of(rows, "planned")[-1]["from_lane"] == "in_review", "precondition: a review rejection, not a rewind"
+    assert _of(rows, "planned")[-1].get("from_lane") == "in_review", "precondition: a review rejection, not a rewind"
 
     found = _resolve_sb(m)
 
@@ -378,7 +378,7 @@ def test_submission_of_a_rewound_cycle_is_ignored(sb_templates: _SingleBranchTem
     sb.claim(m, "WP01")
     sb.implement(m, "WP01")
     sb.emit(m, "WP01", "for_review", "alice", "--force", "--reason", "handed to review")
-    sb.emit(m, "WP01", "in_progress", "alice", "--force", "--reason", "taken back")
+    sb.emit(m, "WP01", "in_progress", "alice", "--force", "--reason", "taken back", "--review-ref", "taken-back")
     sb.emit(m, "WP01", "planned", "alice", "--force", "--reason", "rewound: start over")
     sb.claim(m, "WP01")
     assert _of(_sb_events(m), "for_review"), "precondition: the previous cycle was submitted"
@@ -392,7 +392,7 @@ def test_submission_of_a_rewound_cycle_is_ignored(sb_templates: _SingleBranchTem
 def test_lane_mission_before_windows_falls_back_to_the_opener_lane_head(lane_templates: _LaneTemplates, tmp_path: Path, lane_env: None) -> None:
     mission = lane_templates.copy("lanes_with_coord", tmp_path)
     cs.set_window_state(mission, "WP02", "not_recorded")
-    rows = [row for row in cs._events(mission) if row["wp_id"] == "WP02"]
+    rows = [row for row in cs._events(mission) if row.get("wp_id") == "WP02"]
 
     found = _resolve_lane(mission, "WP02")
 
@@ -406,7 +406,7 @@ def test_lane_mission_before_windows_falls_back_to_the_opener_lane_head(lane_tem
 def test_leading_lane_branch_missing_opener_is_skipped(lane_templates: _LaneTemplates, tmp_path: Path, lane_env: None) -> None:
     mission = lane_templates.copy("lanes_with_coord", tmp_path)
     cs.set_window_state(mission, "WP02", "lane_branch_missing", openers=[0])
-    rows = [row for row in cs._events(mission) if row["wp_id"] == "WP02"]
+    rows = [row for row in cs._events(mission) if row.get("wp_id") == "WP02"]
 
     found = _resolve_lane(mission, "WP02")
 
@@ -419,7 +419,7 @@ def test_leading_lane_branch_missing_opener_is_skipped(lane_templates: _LaneTemp
 def test_recorded_open_off_the_lane_falls_back_and_names_the_gap(lane_templates: _LaneTemplates, tmp_path: Path, lane_env: None) -> None:
     mission = lane_templates.copy("lanes_with_coord", tmp_path)
     cs.set_window_state(mission, "WP02", "not_on_lane")
-    rows = [row for row in cs._events(mission) if row["wp_id"] == "WP02"]
+    rows = [row for row in cs._events(mission) if row.get("wp_id") == "WP02"]
     off_lane = _open_sha(_of(rows, "claimed")[0])
 
     found = _resolve_lane(mission, "WP02")
