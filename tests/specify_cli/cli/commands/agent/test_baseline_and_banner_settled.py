@@ -131,3 +131,99 @@ def test_for_review_commits_the_baseline_on_the_topic_branch_in_its_holder(settl
     assert committed.returncode == 0, committed.stderr
     holder = mission.coord_mission_dir.parents[1]
     assert git(holder, "status", "--porcelain", "--untracked-files=all", "--", f"kitty-specs/{mission.slug}/tasks/{_WP01_DIR}/{_BASELINE}") == ""
+
+
+def test_the_baseline_commit_checkout_is_the_coordination_worktree_after_settlement(settled_on_dev: DefaultMission) -> None:
+    """The probe/commit checkout is the holder of the topic branch, not the repository root checkout."""
+    from specify_cli.cli.commands.agent.workflow_executor import _baseline_commit_checkout
+
+    holder = _baseline_commit_checkout(settled_on_dev.root, settled_on_dev.slug, None)
+
+    assert holder.resolve() == settled_on_dev.coord_mission_dir.parents[1].resolve()
+    assert git(holder, "branch", "--show-current") == settled_on_dev.topic
+
+
+def test_an_artifact_inside_the_checkout_raises_no_warning(tmp_path: Path) -> None:
+    from specify_cli.cli.commands.agent.workflow_executor import _baseline_outside_checkout_warning
+
+    artifact = tmp_path / "kitty-specs" / "m" / "tasks" / _WP01_DIR / _BASELINE
+
+    assert _baseline_outside_checkout_warning(artifact, tmp_path) is None
+
+
+def test_an_artifact_outside_the_checkout_is_named_with_the_checkout(tmp_path: Path) -> None:
+    from specify_cli.cli.commands.agent.workflow_executor import _baseline_outside_checkout_warning
+
+    checkout = tmp_path / "root"
+    artifact = tmp_path / "elsewhere" / _BASELINE
+
+    warning = _baseline_outside_checkout_warning(artifact, checkout)
+
+    assert warning is not None
+    assert str(artifact) in warning and str(checkout) in warning
+
+
+@pytest.mark.parametrize("quiet", [True, False])
+def test_an_uncommitted_baseline_is_never_silent(quiet: bool, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    """FR-005: the warning reaches the module logger in every mode and the console unless ``--json`` (quiet)."""
+    import specify_cli.cli.console as console_module
+    from specify_cli.cli.commands.agent.workflow_executor import _warn_baseline_not_committed
+
+    printed: list[str] = []
+    monkeypatch.setattr(console_module.console, "print", lambda text, *a, **k: printed.append(str(text)))
+
+    with caplog.at_level("WARNING", logger="specify_cli.cli.commands.agent.workflow_executor"):
+        _warn_baseline_not_committed("Baseline artifact X lies outside the checkout Y.", quiet=quiet)
+
+    assert "Baseline artifact X lies outside the checkout Y." in caplog.text
+    assert (printed == []) is quiet
+
+
+def test_capture_skips_and_warns_when_the_artifact_is_outside_its_commit_checkout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The warning arm of ``capture_and_commit_baseline``: no probe, no commit, a logged warning."""
+    import specify_cli.review.baseline as baseline_module
+    import specify_cli.review.scope_source as scope_source_module
+    from specify_cli.cli.commands.agent import workflow_executor
+    from specify_cli.review.baseline import BaselineTestResult
+
+    feature_dir = tmp_path / "coord" / "kitty-specs" / "m"
+    artifact = feature_dir / "tasks" / _WP01_DIR / _BASELINE
+    artifact.parent.mkdir(parents=True)
+    artifact.write_text("{}\n", encoding="utf-8")
+    result = BaselineTestResult(
+        wp_id="WP01",
+        captured_at="2026-11-12T00:00:00+00:00",
+        base_branch="dev",
+        base_commit="abcdef1",
+        test_runner="custom",
+        total=1,
+        passed=1,
+        failed=0,
+        skipped=0,
+    )
+    monkeypatch.setattr(baseline_module, "capture_baseline", lambda **_k: result)
+    monkeypatch.setattr(scope_source_module, "resolve_scope_source", lambda _root: None)
+    monkeypatch.setattr(workflow_executor, "_baseline_commit_checkout", lambda *_a: tmp_path / "root")
+
+    def _no_probe(*_a: object) -> bool:
+        raise AssertionError("the needs-commit probe must not run outside the holding checkout")
+
+    monkeypatch.setattr(workflow_executor, "_baseline_artifact_needs_commit", _no_probe)
+
+    with caplog.at_level("WARNING", logger="specify_cli.cli.commands.agent.workflow_executor"):
+        workflow_executor.capture_and_commit_baseline(
+            workspace_path=tmp_path,
+            target_branch="dev",
+            normalized_wp_id="WP01",
+            mission_slug="m",
+            feature_dir=feature_dir,
+            wp_slug=_WP01_DIR,
+            main_repo_root=tmp_path / "root",
+            quiet=True,
+            test_timeout=60,
+        )
+
+    assert f"Baseline artifact {artifact}" in caplog.text
+    assert "Baseline capture error" not in caplog.text

@@ -1418,6 +1418,42 @@ def _baseline_artifact_needs_commit(repo_root: Path, artifact: Path) -> bool:
         return True
 
 
+def _baseline_commit_checkout(main_repo_root: Path, mission_slug: str, owned: OwnedCheckout | None) -> Path:
+    """The checkout that holds a WP's baseline artifact, where it is probed and committed (#7551, FR-005).
+
+    The baseline is a ``WORK_PACKAGE_TASK``-kind artifact, so the placement seam's ``write_dir``
+    names the checkout containing it: the repository root checkout, the owned checkout, or -- for a
+    default Mission settled before its landing -- the coordination worktree holding the topic branch.
+    """
+    location = placement_seam(main_repo_root, mission_slug, owned=owned).write_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
+    checkout: Path = location.surface_root
+    return checkout
+
+
+def _baseline_outside_checkout_warning(artifact: Path, checkout: Path) -> str | None:
+    """A warning naming *artifact* and *checkout* when the artifact does not lie inside that checkout, else ``None``.
+
+    Probing or committing a path outside the checkout finds nothing to commit and would drop the
+    artifact silently (#7551); the caller reports this warning instead.
+    """
+    try:
+        artifact.resolve().relative_to(checkout.resolve())
+    except ValueError:
+        return f"Baseline artifact {artifact} lies outside the checkout {checkout} that commits it; it was not committed."
+    return None
+
+
+def _warn_baseline_not_committed(message: str, *, quiet: bool) -> None:
+    """Report an uncommitted baseline on the module logger (every mode) and on the console unless *quiet*."""
+    logger.warning("%s", message)
+    if not quiet:
+        from rich.markup import escape
+
+        from specify_cli.cli.console import console
+
+        console.print(f"[yellow]Warning: {escape(message)} A later move to for_review may block on it.[/yellow]")
+
+
 def capture_and_commit_baseline(
     *,
     workspace_path: Path,
@@ -1514,12 +1550,18 @@ def capture_and_commit_baseline(
         # (The ``failed == -1`` sentinel is never persisted, so it never
         # reaches this commit.)
         baseline_artifact = feature_dir / "tasks" / wp_slug / "baseline-tests.json"
-        if (
-            baseline is not None
-            and baseline.failed != -1
-            and baseline_artifact.exists()
-            and _baseline_artifact_needs_commit(authority_root, baseline_artifact)
-        ):
+        if baseline is None or baseline.failed == -1 or not baseline_artifact.exists():
+            return
+        # #7551 (FR-005): probe and commit in the checkout that HOLDS the artifact. After a
+        # default Mission settles, that is the coordination worktree, not the repository root
+        # checkout (whose ``git status`` never sees a path under the ignored ``.worktrees/``).
+        # ``authority_root`` stays the command/config authority above.
+        commit_checkout = _baseline_commit_checkout(main_repo_root, mission_slug, owned)
+        outside = _baseline_outside_checkout_warning(baseline_artifact, commit_checkout)
+        if outside is not None:
+            _warn_baseline_not_committed(outside, quiet=quiet)
+            return
+        if _baseline_artifact_needs_commit(commit_checkout, baseline_artifact):
             # Mechanical WP06 pre-step migration.
             try:
                 # Baseline artifact (tasks/<wp>/baseline-tests.json) is a
@@ -1542,7 +1584,7 @@ def capture_and_commit_baseline(
                     )
                 w.safe_commit(
                     repo_root=main_repo_root,
-                    worktree_root=authority_root,
+                    worktree_root=commit_checkout,
                     target=baseline_placement,
                     message=f"chore: Capture baseline tests for {normalized_wp_id}",
                     paths=(baseline_artifact,),
