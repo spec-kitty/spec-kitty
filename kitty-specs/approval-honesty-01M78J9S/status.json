@@ -20,7 +20,7 @@
   "work_packages": {
     "WP01": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": "claude::reviewer-renata",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 2,
@@ -39,7 +39,8 @@
         "- 2026-11-12T21:21:13Z – claude – For the WP04 ADR amendment: new refusal code REVIEW_SLOT_DAMAGED (tasks_move_task._mt_refuse_damaged_review_slot, ruling damaged_slot 2026-11-12). An unforced review approval whose event-log review slot is damaged and with no --approval-ref refuses before any write; the remedy names the event log, --approval-ref and --force. With --approval-ref that reference is recorded. The existing decision guard (_guard_rejected_verdict, 'no parseable review verdict') still refuses first whenever its own read sees the damage, forced or not, with or without --approval-ref (unchanged, C-007); REVIEW_SLOT_DAMAGED covers the case where only the approval writer's read sees it. A carried approved -> done keeps FR-007 (no readable approval: the asserted mover with force-override).",
         "Cycle 2: approved->done records the asserted mover (--agent, else --reviewer) as actor and policy_metadata.tool, carried approval only in evidence.review; no mover refuses REVIEW_NOT_INDEPENDENT as on base. Unforced approval on a damaged review slot without --approval-ref refuses REVIEW_SLOT_DAMAGED before any write. Table-driven unit tests for resolve_reviewer_of_record. Hand-off notes recorded (6400 test for WP02; unowned test_tasks.py red).",
         "- 2026-11-12T22:38:57Z – claude – Ownership-map leeway (cycle 3): re-pinned tests/specify_cli/cli/commands/agent/test_move_task_durability.py and test_tasks.py, which no WP owns and WP01's claimant rule broke (stale forced review-claim seeds, the dropped hop_actor parameter, the review-cycle:// pointer replacing a caller --approval-ref under --no-auto-commit). Fixture/assertion re-pins only; seed helpers keep their forced default for other importers.",
-        "Cycle 3: re-exported the five WP01 seam helpers on tasks_move_task (seam gate green); re-pinned test_move_task_durability.py (unforced review-claim seeds via an explicit force kwarg, new _mt_hop_review_result wrapper signature with a fail-fast parameter check, review-cycle:// pointer under --no-auto-commit with the caller ref kept in the cycle body) and test_tasks.py verdict-guard test under leeway. Full tests/specify_cli/cli/commands/agent: 3119 passed, 1 failed (WP02-owned migration seed test)."
+        "Cycle 3: re-exported the five WP01 seam helpers on tasks_move_task (seam gate green); re-pinned test_move_task_durability.py (unforced review-claim seeds via an explicit force kwarg, new _mt_hop_review_result wrapper signature with a fail-fast parameter check, review-cycle:// pointer under --no-auto-commit with the caller ref kept in the cycle body) and test_tasks.py verdict-guard test under leeway. Full tests/specify_cli/cli/commands/agent: 3119 passed, 1 failed (WP02-owned migration seed test).",
+        "Review passed (cycle 3): seam re-exports, durability and verdict-guard re-pins resolved; full agent dir 3119 passed; 6400 hand-off to WP02 accepted as stale fixture"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
