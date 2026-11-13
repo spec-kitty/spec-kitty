@@ -39,7 +39,7 @@ from mission_runtime import (
 )
 
 from specify_cli.core.commit_guard import GuardCapability
-from specify_cli.git.commit_helpers import CommitResult, safe_commit
+from specify_cli.git.commit_helpers import CommitResult, preflight_commit, safe_commit
 
 # The DEFAULT partition selector: the PRIMARY done-transitions bookkeeping the
 # merge executor and retrospective terminus land (status/meta/baseline
@@ -158,6 +158,35 @@ def commit_coord_seed_bookkeeping(
         paths=paths,
         branch=branch,
         kind=MissionArtifactKind.STATUS_STATE,
+    )
+
+
+def preflight_merge_bookkeeping(
+    *,
+    repo_root: Path,
+    worktree_root: Path,
+    mission_slug: str,
+    message: str,
+    paths: tuple[Path, ...],
+    branch: str | None = None,
+) -> None:
+    """Validate a :func:`commit_merge_bookkeeping` call without mutating anything.
+
+    Resolves the destination exactly as :func:`commit_merge_bookkeeping` does (the
+    placement port for ``PRIMARY_METADATA``, ``branch`` only as the degrade path) and
+    runs :func:`preflight_commit` with the same ``MERGE_BOOKKEEPING`` capability, so a
+    caller can refuse BEFORE its first mutation when the later commit would be refused
+    (``spec-kitty archive reclaim``, #4041). Raises whatever the placement resolution or
+    :func:`preflight_commit` raises.
+    """
+    target = _resolve_bookkeeping_commit_target(repo_root, mission_slug, branch, _BOOKKEEPING_COMMIT_KIND)
+    preflight_commit(
+        repo_root=repo_root,
+        worktree_root=worktree_root,
+        target=target,
+        message=message,
+        paths=paths,
+        capability=GuardCapability.MERGE_BOOKKEEPING,
     )
 
 
