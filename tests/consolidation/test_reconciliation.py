@@ -1717,12 +1717,12 @@ def test_collect_excluded_fully_canceled_lane_stays_fully_excluded(tmp_path: Pat
 
 # --------------------------------------------------------------------------- #
 # Merge-resolution-aware Seam A attribution (terminus-merge-resolution-
-# attribution / #5051-adjacent, FR-002/003/009). A path authored by EXACTLY TWO
-# approved lanes at DISJOINT hunks squashes to a legitimate 3-way-merged blob
-# (equal to neither lane's own final blob) — ``path_contributions`` names the two
-# contributing lanes and ``is_legitimate_three_way_resolution`` simulates their
-# deterministic ``git merge-tree`` resolution. Every unsound shape (>2 lanes, a
-# conflicting resolution, binary, an unresolvable lane commit, git<2.38) stays
+# attribution / #5051-adjacent, FR-002/003/009, widened to N lanes by #7626). A path
+# authored by two or more approved lanes at DISJOINT hunks squashes to a legitimate
+# merged blob (equal to no lane's own final blob) — ``path_contributions`` names the
+# contributing lanes and ``is_legitimate_merge_resolution`` simulates their
+# deterministic ``git merge-tree`` fold. Every unsound shape (a conflicting
+# resolution, binary, an unresolvable lane commit, git<2.38) stays
 # fail-closed — see ``test_squash_three_way_merge_resolution_is_unattributable``
 # below for the genuine same-line-conflict residual this recognizer does NOT
 # (and, by design, cannot) close.
@@ -1818,51 +1818,29 @@ def _edit_shared_line(repo: Path, branch: str, shared_path: str, line_index: int
     return sha
 
 
-def test_collect_authored_path_contributions_present_for_exactly_two_lanes(tmp_path: Path) -> None:
-    """FR-009: a path touched by EXACTLY TWO approved lanes' own final blobs is
-    present in ``path_contributions`` with both lane ids and their still-resolvable
-    (raw SHA) lane commits."""
-    lane_wp_pairs = (("lane-a", "WP01"), ("lane-b", "WP02"))
+_SHARED_EDITS = (("lane-a", 0, "A\n"), ("lane-b", 4, "B\n"), ("lane-c", 9, "C\n"))
+
+
+@pytest.mark.parametrize("lane_count", [1, 2, 3])
+def test_collect_authored_path_contributions_record_every_authoring_lane(tmp_path: Path, lane_count: int) -> None:
+    """FR-009, widened by #7626 (was "exactly two", Decision 2 of #5051): a path that one, two or
+    three approved lanes touch records every lane's contribution (lane id, still-resolvable raw
+    SHA, own blob), so the merge derivation can fold them with the target's newer content. The
+    ``authored_blobs`` fast path still attributes each lane's own blob first. Soundness does not
+    depend on the fold order: a clean merge's every line comes from one of its inputs."""
+    edits = _SHARED_EDITS[:lane_count]
+    lane_wp_pairs = tuple((lane_id, f"WP0{index}") for index, (lane_id, _line, _text) in enumerate(edits, start=1))
     repo, feature_dir, manifest, coord_base = _build_shared_file_lanes(tmp_path, lane_wp_pairs=lane_wp_pairs)
-    lane_a = lane_branch_name(_MISSION_SLUG, "lane-a", target_branch=_TARGET)
-    lane_b = lane_branch_name(_MISSION_SLUG, "lane-b", target_branch=_TARGET)
-    a_sha = _edit_shared_line(repo, lane_a, "src/shared.py", 0, "A\n")
-    b_sha = _edit_shared_line(repo, lane_b, "src/shared.py", 9, "B\n")
-    _git(repo, "checkout", "-q", _TARGET)
-
-    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base)
-    assert "src/shared.py" in claim.path_contributions
-    contrib_a, contrib_b = claim.path_contributions["src/shared.py"]
-    assert {contrib_a.lane_id, contrib_b.lane_id} == {"lane-a", "lane-b"}
-    assert {contrib_a.lane_commit, contrib_b.lane_commit} == {a_sha, b_sha}
-
-
-def test_collect_authored_path_contributions_single_lane_path(tmp_path: Path) -> None:
-    """#7626: a path only ONE approved lane touches records that lane's one
-    contribution, so the merge derivation can fold it with the target's own
-    newer content (a lane plus base/target merge). The ``authored_blobs`` fast
-    path still attributes the lane's own blob first."""
-    repo, feature_dir, manifest, coord_base = _build_mission(tmp_path, approved_wps=("WP01",))
-    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base)
-    assert [c.lane_id for c in claim.path_contributions["src/wp01.py"]] == ["lane-a"]
-    assert any(path == "src/wp01.py" for path, _blob in claim.authored_blobs)
-
-
-def test_collect_authored_path_contributions_three_lane_path(tmp_path: Path) -> None:
-    """#7626 (re-pinned; was "absent for three lanes", Decision 2 of #5051): a path
-    touched by THREE approved lanes records all three contributions, so the
-    N-way derivation can fold them. Soundness does not depend on the fold order:
-    a clean merge's every line comes from one of its inputs, so ANY order that
-    reproduces the target blob proves it is approved content."""
-    lane_wp_pairs = (("lane-a", "WP01"), ("lane-b", "WP02"), ("lane-c", "WP03"))
-    repo, feature_dir, manifest, coord_base = _build_shared_file_lanes(tmp_path, lane_wp_pairs=lane_wp_pairs)
-    for lane_id, line_idx, text in (("lane-a", 0, "A\n"), ("lane-b", 4, "B\n"), ("lane-c", 9, "C\n")):
+    shas = {}
+    for lane_id, line_idx, text in edits:
         branch = lane_branch_name(_MISSION_SLUG, lane_id, target_branch=_TARGET)
-        _edit_shared_line(repo, branch, "src/shared.py", line_idx, text)
+        shas[lane_id] = _edit_shared_line(repo, branch, "src/shared.py", line_idx, text)
     _git(repo, "checkout", "-q", _TARGET)
 
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base)
-    assert {c.lane_id for c in claim.path_contributions["src/shared.py"]} == {"lane-a", "lane-b", "lane-c"}
+    contributions = claim.path_contributions["src/shared.py"]
+    assert {c.lane_id: c.lane_commit for c in contributions} == shas
+    assert all(("src/shared.py", c.authored_blob) in claim.authored_blobs for c in contributions)
 
 
 def test_squash_passes_disjoint_hunk_two_lane_merge_resolution(tmp_path: Path) -> None:

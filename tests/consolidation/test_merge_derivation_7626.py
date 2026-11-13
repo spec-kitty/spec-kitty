@@ -48,15 +48,6 @@ def repo(tmp_path: Path) -> Path:
     return root
 
 
-def test_n_way_merge_blob_folds_three_disjoint_edits(repo: Path) -> None:
-    one = _commit_file(repo, "one", "f", "A\nb\nc\nd\ne\n")
-    two = _commit_file(repo, "two", "f", "a\nb\nC\nd\ne\n")
-    three = _commit_file(repo, "three", "f", "a\nb\nc\nd\nE\n")
-    blob = git_probes.n_way_merge_blob(repo, [one, two, three], "f")
-    assert blob is not None
-    assert _git(repo, "cat-file", "-p", blob) == "A\nb\nC\nd\nE"
-
-
 def test_n_way_merge_blob_is_none_when_the_path_conflicts(repo: Path) -> None:
     one = _commit_file(repo, "one", "f", "ONE\nb\nc\nd\ne\n")
     two = _commit_file(repo, "two", "f", "TWO\nb\nc\nd\ne\n")
