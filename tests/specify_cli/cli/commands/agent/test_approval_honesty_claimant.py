@@ -22,6 +22,7 @@ import pytest
 
 from specify_cli.status import Lane
 from specify_cli.status.models import StatusEvent, actor_full_identity
+from specify_cli.status.review_roles import same_review_identity
 from tests._support.status_seed import seed_status_event
 from tests.specify_cli.cli.commands.agent import _rework_loop_harness as h
 from tests.specify_cli.cli.commands.agent.test_verdict_attribution_4670 import (
@@ -197,15 +198,12 @@ def test_forced_approval_by_a_non_claimant_is_recorded_as_forced(tmp_path: Path,
 
 def _assert_one_reviewer_of_record(feature_dir: Path, expected: str) -> None:
     """FR-001: every identity field of the approval names *expected* (segment for segment)."""
-    from specify_cli.status.review_roles import same_review_identity
-
     record = _latest(feature_dir, "approved")
     recorded = {
         "actor": actor_full_identity(record["actor"]),
         "evidence.review.reviewer": record["evidence"]["review"]["reviewer"],
         "review_result.reviewer": record["review_result"]["reviewer"],
         "policy_metadata.tool": record["policy_metadata"]["tool"],
-        "review-cycle reviewer_agent": _latest_cycle_reviewer_agent(feature_dir),
     }
     wrong = {field: value for field, value in recorded.items() if not same_review_identity(value, expected)}
     assert wrong == {}, f"fields not naming {expected}: {wrong}"
@@ -244,6 +242,44 @@ def test_profile_flag_completes_an_asserted_identity(tmp_path: Path, monkeypatch
     _assert_one_reviewer_of_record(feature_dir, "codex::reviewer-renata")
 
 
+def test_profile_flag_alone_records_the_claimant(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """No ``--agent``: the claimant's own ``--profile`` leaves its identity as claimed, in every field."""
+    _repo, feature_dir, mission_slug = _claimed_mission(tmp_path, monkeypatch, "profile-alone", claimant="codex::reviewer-renata")
+
+    result = _move(["WP01", "--to", "approved", "--mission", mission_slug, "--profile", "reviewer-renata", "--note", "ok"])
+
+    assert result.exit_code == 0, result.output
+    _assert_one_reviewer_of_record(feature_dir, "codex::reviewer-renata")
+
+
+def test_profile_flag_alone_cannot_rename_the_claimant(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """No ``--agent``: a ``--profile`` that would record the claimant under another profile is refused."""
+    repo, feature_dir, mission_slug = _claimed_mission(tmp_path, monkeypatch, "profile-alone-other", claimant="codex::reviewer-renata")
+    before = _snapshot(repo, feature_dir)
+
+    result = _move(["WP01", "--to", "approved", "--mission", mission_slug, "--profile", "python-pedro", "--note", "ok"])
+
+    assert result.exit_code == 1, result.output
+    output = " ".join(result.output.split())
+    assert _CODE in output and "codex::reviewer-renata" in output and "codex::python-pedro" in output
+    assert _snapshot(repo, feature_dir) == before
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="WP03 owns the cycle writer: its reviewer_agent still reads the raw st.reviewer/st.agent, "
+    "not st.request.effective_reviewer (the bound reviewer of record WP02 now settles)",
+)
+def test_profile_flag_completes_the_cycle_reviewer_agent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """FR-001 for the review cycle: ``--agent codex --profile reviewer-renata`` writes ``reviewer_agent: codex::reviewer-renata``."""
+    _repo, feature_dir, mission_slug = _claimed_mission(tmp_path, monkeypatch, "binding-cycle", claimant="codex::reviewer-renata")
+
+    result = _move(["WP01", "--to", "approved", "--mission", mission_slug, "--agent", "codex", "--profile", "reviewer-renata", "--note", "ok"])
+
+    assert result.exit_code == 0, result.output
+    assert same_review_identity(_latest_cycle_reviewer_agent(feature_dir), "codex::reviewer-renata")
+
+
 def test_claimant_approval_records_one_reviewer_of_record(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Positive control of FR-001 without a binding: the claimant's own flag lands in every field."""
     _repo, feature_dir, mission_slug = _claimed_mission(tmp_path, monkeypatch, "one-record")
@@ -252,6 +288,7 @@ def test_claimant_approval_records_one_reviewer_of_record(tmp_path: Path, monkey
 
     assert result.exit_code == 0, result.output
     _assert_one_reviewer_of_record(feature_dir, _CLAIMANT)
+    assert same_review_identity(_latest_cycle_reviewer_agent(feature_dir), _CLAIMANT)
 
 
 def test_profile_flag_cannot_rename_a_different_profile_into_the_claimant(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -332,6 +369,8 @@ _IN_REVIEW_APPROVAL: dict[str, Any] = {"old_lane": "in_review", "target_lane": "
         pytest.param({"agent": "claude:sonnet", "asserted_agent": _CLAIMANT}, False, id="binding-completes-agent"),
         pytest.param({"reviewer_flag": "claude", "asserted_reviewer": _CLAIMANT}, False, id="binding-completes-reviewer"),
         pytest.param({"agent": _CLAIMANT + ":reviewer", "asserted_agent": _CLAIMANT}, False, id="role-segment-is-no-override"),
+        pytest.param({"claimant_as_recorded": "claude:sonnet:python-pedro"}, True, id="binding-renames-the-claimant"),
+        pytest.param({"claimant_as_recorded": _CLAIMANT}, False, id="claimant-as-recorded-is-the-claimant"),
     ],
 )
 def test_guard_review_claimant_table(overrides: dict[str, Any], refused: bool) -> None:
