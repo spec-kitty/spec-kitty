@@ -366,7 +366,13 @@ def _require_committable(repo_root: Path, feature_dir: Path, mission_slug: str) 
 
 
 def _meta_uncommitted(repo_root: Path, feature_dir: Path) -> bool:
+    """True when ``meta.json`` has uncommitted changes; a git error refuses (never reads as "nothing uncommitted")."""
+    meta_path = feature_dir / _META_FILE
     try:
-        return bool(status_entries(repo_root, untracked=None, pathspecs=[str((feature_dir / _META_FILE).relative_to(repo_root))]))
-    except (GitCommandError, ValueError):
-        return False
+        return bool(status_entries(repo_root, untracked=None, pathspecs=[str(meta_path.relative_to(repo_root))]))
+    except (GitCommandError, ValueError) as exc:
+        raise ReclaimRefused(
+            RECLAIM_MARKER_NOT_COMMITTED,
+            f"Whether the flattened marker in {meta_path} is committed could not be read: {exc}",
+            f"Check the repository (git status {meta_path}), then re-run spec-kitty archive reclaim for this Mission.",
+        ) from exc
