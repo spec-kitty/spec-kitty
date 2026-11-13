@@ -42,6 +42,7 @@ from specify_cli.status import (
     ReviewResult,
     emission_event_verdict,
     git_operation_in_progress,
+    is_changes_requested,
     mission_write_lock,
 )
 from specify_cli.missions._read_path_resolver import mission_write_lock_dir
@@ -728,7 +729,7 @@ def has_unaccounted_verdict(events: Sequence[StatusEvent], wp_id: str) -> bool:
 def _is_rejection_event(event: StatusEvent) -> bool:
     """A recorded rejection: a ``changes_requested`` result, or a rework move carrying a ``review_ref``."""
     if event.review_result is not None:
-        return str(event.review_result.verdict) == "changes_requested"
+        return bool(is_changes_requested(event.review_result.verdict))
     return bool(event.review_ref) and str(event.to_lane) in _REWORK_LANES
 
 
