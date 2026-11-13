@@ -223,9 +223,17 @@ def _late_commits_message(branch: str, landed: str, late: list[str]) -> str:
 
 
 def _unlanded_remedy(coordination: _Coordination) -> str:
+    """Kept-and-unchanged, plus a next step that works: inspect, and remove by hand only once confirmed (#7598 fold)."""
+    branch = coordination.branch
+    target = _target_branch(coordination.feature_dir) or "<target branch>"
+    remedy = (
+        f"The coordination branch is kept; nothing was changed. See what it holds that {target} lacks: "
+        f"git log {target}..{branch}; remove it by hand (git branch -D {branch}) only after confirming {target} "
+        f"has all of it, then re-run: {reclaim_command(coordination.mission_slug)}."
+    )
     if resolve_terminal_state(coordination.feature_dir) == CANCELED:
-        return f"A canceled Mission is abandoned with: {_DISCARD_COMMAND.format(slug=coordination.mission_slug)}."
-    return "The coordination branch is kept; nothing was changed."
+        return f"{remedy} A canceled Mission is abandoned instead with: {_DISCARD_COMMAND.format(slug=coordination.mission_slug)}."
+    return remedy
 
 
 def _remove_worktree(coordination: _Coordination) -> ReclaimStep:
