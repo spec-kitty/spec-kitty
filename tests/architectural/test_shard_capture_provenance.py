@@ -227,6 +227,15 @@ def test_the_identity_consistency_gate_accepts_a_consistent_synthetic_payload() 
     """Symmetry: the checker is not trivially red."""
     assert _inconsistent_identity_modules(["alpha"], _keyed_payload()) == {}
     assert _half_migrated_modules(["alpha"], _keyed_payload()) == []
+    # A total rounded on the other side of a half-way sum (73.3605 -> 73.36 vs 73.361) is one
+    # rounding unit off plus float noise; the gate must accept it (#7624's recapture tripped it).
+    boundary = copy.deepcopy(_keyed_payload())
+    boundary[MODULE_NODE_DURATIONS_KEY]["alpha"] = {"tests/x/test_a.py::test_one": 73.3605}
+    boundary["module_test_durations"]["alpha"] = [73.3605]
+    boundary["module_test_count"]["alpha"] = 1
+    boundary["module_duration_seconds"]["alpha"] = 73.36
+    boundary["module_capture_provenance"]["alpha"] = {"exit_code": 0, "unique_tests_measured": 1, "node_ids_measured": 1}
+    assert _inconsistent_identity_modules(["alpha"], boundary) == {}
 
 
 @pytest.mark.parametrize(

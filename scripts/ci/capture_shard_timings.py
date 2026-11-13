@@ -136,8 +136,9 @@ _ROUNDING_PLACES = 4
 #: Pytest exit statuses that mean "the suite ran" (0 clean, 1 some measured tests failed).
 _VALID_PYTEST_EXIT_CODES = (0, 1)
 
-#: Slack when re-summing already-rounded durations against the rounded total.
-_SECONDS_TOLERANCE = 1e-3
+#: Slack when re-summing already-rounded durations against the rounded total: one rounding
+#: unit (a half-way sum can round either way) plus float noise, so 73.36 vs 73.361 passes.
+_SECONDS_TOLERANCE = 1e-3 + 1e-9
 
 _BATTERY_DURATIONS_KEY = "battery_file_durations"
 _BATTERY_PROVENANCE_KEY = "battery_capture_provenance"
