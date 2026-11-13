@@ -122,6 +122,7 @@ from specify_cli.consolidation.reconciliation_rendering import (
 )
 from specify_cli.consolidation.reconciliation_closed_world import (
     ExternalDependencyAttribution as ExternalDependencyAttribution,
+    PreMissionHistory as PreMissionHistory,
     _REFUSE_DEPENDENCY_COVERS_MISSION_WORK as _REFUSE_DEPENDENCY_COVERS_MISSION_WORK,
     _REFUSE_DEPENDENCY_MISSION_NAMESPACE as _REFUSE_DEPENDENCY_MISSION_NAMESPACE,
     _REFUSE_DEPENDENCY_MOVED as _REFUSE_DEPENDENCY_MOVED,
@@ -136,11 +137,13 @@ from specify_cli.consolidation.reconciliation_closed_world import (
     _mission_tip_shas as _mission_tip_shas,
     _mission_work_reaches as _mission_work_reaches,
     _namespace_hit as _namespace_hit,
+    _pre_mission_attribution as _pre_mission_attribution,
     _recorded_lane_heads as _recorded_lane_heads,
     _recorded_work_hit as _recorded_work_hit,
     _refused as _refused,
     _verify_declared_ref as _verify_declared_ref,
     dependency_refs_moved_refusal as dependency_refs_moved_refusal,
+    mission_base_note as mission_base_note,
     resolve_external_dependency_refs as resolve_external_dependency_refs,
 )
 from specify_cli.consolidation.reconciliation_bound import (
@@ -244,12 +247,14 @@ from specify_cli.consolidation.reconciliation_claim import (
 __all__ = [
     "ApprovedWpCommitSet",
     "MergeOutcomeVerifier",
+    "PreMissionHistory",
     "TERMINUS_ENTRY_POINTS",
     "UnroutedTerminusPathError",
     "VerifyResult",
     "build_approved_wp_set",
     "claim_integrity_refusal",
     "detect_legacy_in_flight_state",
+    "mission_base_note",
     "route_terminus",
     "write_post_fix_marker",
 ]

@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.consolidation.git_probes import GitProbeError
+from specify_cli.consolidation.mission_base import MissionBase, resolve_mission_base
 from specify_cli.consolidation.reconciliation_authorship import (
     _collect_authored,
     _presence_range_unreadable_refusal,
@@ -39,7 +40,9 @@ from specify_cli.consolidation.reconciliation_canceled import (
 from specify_cli.consolidation.reconciliation_claim_types import ApprovedWpCommitSet
 from specify_cli.consolidation.reconciliation_closed_world import (
     _REFUSE_DEPENDENCY_PROBE,
+    PreMissionHistory,
     _collect_excluded,
+    _pre_mission_attribution,
     _recorded_lane_heads,
     resolve_external_dependency_refs,
 )
@@ -178,7 +181,44 @@ def build_approved_wp_set(
       commits, the mixed-lane closed world and the approved bound -- so a dependency lane that
       gained a commit after the interruption exempts it on none of them. ``None`` (the fresh run,
       the forecast, ``approved_bound_refusal``) reads the live dependency-lane branches.
+    * the Mission base (#7560) is resolved once, here, for every claim route (forecast, fresh
+      run, gate rebuild, resume; ``orchestrator-api`` builds no claim, it calls only
+      ``approved_bound_refusal``), with no new record field: the history the target lacks below
+      it (``excluded_window_base..mission_base``) is pre-Mission, drops out of the #6771 guard
+      walks and rides on the claim (``pre_mission_*``). A pre-Mission range that holds a
+      recorded Mission ``lane_head`` stamp or lane work tip is dropped whole. Every claim, a
+      REFUSE-shaped one included, carries ``mission_base`` so the note line can print.
     """
+    base = resolve_mission_base(repo_root, feature_dir, mission_branch=lanes_manifest.mission_branch, mission_slug=lanes_manifest.mission_slug)
+    pre_mission = _pre_mission_attribution(repo_root, excluded_window_base, base, feature_dir=feature_dir, lanes_manifest=lanes_manifest)
+    return _build_claim(
+        repo_root,
+        feature_dir,
+        lanes_manifest,
+        coord_base_ref=coord_base_ref,
+        excluded_canceled_wp_ids=excluded_canceled_wp_ids,
+        excluded_window_base=excluded_window_base,
+        external_dependency_refs=external_dependency_refs,
+        external_dependency_pins=external_dependency_pins,
+        frozen_dependency_tips=frozen_dependency_tips,
+        pre_mission=pre_mission,
+    )
+
+
+def _build_claim(
+    repo_root: Path,
+    feature_dir: Path,
+    lanes_manifest: LanesManifest,
+    *,
+    coord_base_ref: str,
+    excluded_canceled_wp_ids: Iterable[str],
+    excluded_window_base: str | None,
+    external_dependency_refs: Sequence[str],
+    external_dependency_pins: Mapping[str, str] | None,
+    frozen_dependency_tips: Mapping[str, str] | None,
+    pre_mission: PreMissionHistory,
+) -> ApprovedWpCommitSet:
+    """The body of :func:`build_approved_wp_set`, with the pre-Mission history already resolved."""
     # Imported lazily so this module stays import-light and the status facade is
     # resolved through ``specify_cli.status`` (C-002: the status facade, not a
     # direct ``spec_kitty_events`` import).
@@ -194,15 +234,17 @@ def build_approved_wp_set(
         coord_base_ref=coord_base_ref,
         recorded_lane_heads=lane_heads or frozenset(),
         pins=external_dependency_pins,
+        pre_mission=pre_mission.shas,
     )
 
     manifest_wp_ids = frozenset(wp for lane in lanes_manifest.lanes for wp in lane.wp_ids)
     planning_prefix = _planning_prefix(repo_root, feature_dir)
+    refuse = functools.partial(_refusal_claim, lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, mission_base=pre_mission.base)
     if lane_heads is None:
         unreadable = _REFUSE_DEPENDENCY_PROBE.format(doing="reading the status log for the Mission's recorded lane heads", exc="status log unreadable")
-        return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, unreadable)
+        return refuse(unreadable)
     if external_dependency.refusal is not None:
-        return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, external_dependency.refusal)
+        return refuse(external_dependency.refusal)
     try:
         snapshot = materialize_snapshot(feature_dir)
     except Exception as exc:  # noqa: BLE001 — any unmaterializable surface fails closed
@@ -213,32 +255,21 @@ def build_approved_wp_set(
             refusal=f"coordination surface could not be materialized: {exc}",
             mission_slug=lanes_manifest.mission_slug,
             planning_prefix=planning_prefix,
+            mission_base=pre_mission.base,
         )
 
     work_packages = snapshot.work_packages or {}
     excluded_ids = frozenset(excluded_canceled_wp_ids)
     unresolvable = _unresolvable_approved_lane_branches(repo_root, lanes_manifest, work_packages, excluded_ids)
     if unresolvable:
-        return _refusal_claim(
-            lanes_manifest,
-            manifest_wp_ids,
-            planning_prefix,
-            excluded_window_base,
-            _missing_branch_refusal_text(unresolvable),
-        )
+        return refuse(_missing_branch_refusal_text(unresolvable))
     # One event-log reader for the whole claim (NFR-001): the canceled-dependency
     # branch check below, the canceled-dependency resolution, the mixed-lane
     # resolution and the bound verdict all share it, so the log is read at most once.
     event_log = _ClaimEventLog(feature_dir)
     unreadable_canceled = _unreadable_canceled_dependency_lanes(repo_root, lanes_manifest, excluded_ids, coord_base_ref, event_log)
     if unreadable_canceled:
-        return _refusal_claim(
-            lanes_manifest,
-            manifest_wp_ids,
-            planning_prefix,
-            excluded_window_base,
-            _unreadable_canceled_dependency_refusal_text(unreadable_canceled),
-        )
+        return refuse(_unreadable_canceled_dependency_refusal_text(unreadable_canceled))
     from specify_cli.lanes.single_branch_landing import authorship_window
 
     sb_window = authorship_window(repo_root, lanes_manifest.mission_slug, lanes_manifest.mission_branch, lanes_manifest.target_branch)
@@ -276,7 +307,7 @@ def build_approved_wp_set(
     )
     if dependency.refusal is not None:
         compound = _compound_refusal(dependency.refusal, bound_verdict, event_log)
-        return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, compound)
+        return refuse(compound)
     canceled_lane_commits = dependency.unapproved_commits
     mixed = _resolve_mixed_lanes(
         repo_root,
@@ -297,14 +328,14 @@ def build_approved_wp_set(
     lane_bound = functools.partial(bound_verdict, canceled_commits=mixed.canceled_commits)
     if mixed.refusal is not None:
         compound = _compound_refusal(mixed.refusal, lane_bound, event_log)
-        return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, compound)
+        return refuse(compound)
     canceled_content, attested_wp_ids = mixed.canceled_content, mixed.attested_wp_ids
 
     # Approved-bound check (#5668): after the mixed-lane resolution (its refusals keep
     # precedence, and name this check's refusals too, #5720), before the collectors read the live lane tips.
     bound = lane_bound()
     if bound.refusal is not None:
-        return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, bound.refusal, window_gaps=bound.window_gaps)
+        return refuse(bound.refusal, window_gaps=bound.window_gaps)
 
     # Implementation-evidence + independent-review axis (#5939 single_branch, #6715 every
     # topology): the stamp bound above refuses content a lane gained AFTER its approval; it has
@@ -316,7 +347,7 @@ def build_approved_wp_set(
     # claim reader, only when an attestation could lift a refusal.
     evidence = evaluate_evidence(repo_root, feature_dir, lanes_manifest, work_packages, excluded_ids, events=event_log.read)
     if evidence.refusal is not None:
-        return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, evidence.refusal)
+        return refuse(evidence.refusal)
 
     approved = _collect_approved_shas(repo_root, lanes_manifest, work_packages, coord_base_ref, sb_window)
     presence = _presence_scope(
@@ -329,7 +360,7 @@ def build_approved_wp_set(
     )
     presence_refusal = _presence_range_unreadable_refusal(lanes_manifest, work_packages, presence, coord_base_ref)
     if presence_refusal is not None:
-        return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, presence_refusal)
+        return refuse(presence_refusal)
     # Authored (WP1/WP2 shared prerequisite): computed BEFORE the excluded axis so
     # #5018's commit-level narrowing (below) can subtract it. Collectors stay pure
     # (WP2 note) — no shared mutable state, just a value threaded as a parameter.
@@ -378,6 +409,10 @@ def build_approved_wp_set(
         external_dependency_shas=external_dependency.shas,
         external_dependency_blobs=external_dependency.blobs,
         external_dependency_deletions=external_dependency.deletions,
+        mission_base=pre_mission.base,
+        pre_mission_shas=pre_mission.shas,
+        pre_mission_blobs=pre_mission.blobs,
+        pre_mission_deletions=pre_mission.deletions,
     )
 
 
@@ -420,9 +455,13 @@ def _refusal_claim(
     excluded_window_base: str | None,
     message: str,
     *,
+    mission_base: MissionBase,
     window_gaps: tuple[GapEntry, ...] = (),
 ) -> ApprovedWpCommitSet:
-    """Build a REFUSE-shaped claim, mirroring the unmaterializable-surface refusal (*window_gaps*: the bound's, FR-009)."""
+    """Build a REFUSE-shaped claim, mirroring the unmaterializable-surface refusal (*window_gaps*: the bound's, FR-009).
+
+    It carries *mission_base* (so the note line can print) and no pre-Mission exemption.
+    """
     return ApprovedWpCommitSet(
         manifest_wp_ids=manifest_wp_ids,
         excluded_window_base=excluded_window_base,
@@ -431,6 +470,7 @@ def _refusal_claim(
         mission_slug=lanes_manifest.mission_slug,
         planning_prefix=planning_prefix,
         window_gaps=window_gaps,
+        mission_base=mission_base,
     )
 
 

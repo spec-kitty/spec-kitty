@@ -11,6 +11,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Literal
 
+from specify_cli.consolidation.mission_base import MissionBase
 from specify_cli.consolidation.wp_attribution import CanceledPathState, GapEntry
 
 
@@ -262,6 +263,24 @@ class ApprovedWpCommitSet:
     external_dependency_shas: frozenset[str] = frozenset()
     external_dependency_blobs: frozenset[tuple[str, str]] = frozenset()
     external_dependency_deletions: frozenset[str] = frozenset()
+    # Pre-Mission history (#7560, ADR 2026-09-29-1 Amendment): the commits the target lacks
+    # that predate the Mission (``window_base..mission_base``, computed ONCE by
+    # :func:`~specify_cli.consolidation.reconciliation_closed_world._pre_mission_attribution`).
+    # They have the standing of content already on the target, never of Mission work: the
+    # Mission base is an ancestor of the Mission branch, so no Mission-authored commit sits in
+    # the range. All four default empty (``mission_base`` ``None``), so a hand-built claim and
+    # a Mission whose base the target already reaches keep today's behaviour byte-for-byte.
+    # The exemption is by exact SHA (closed world, patch-id window) or exact final
+    # ``(path, blob)`` / deletion (squash axes), never by patch-id: a re-lettered copy of a
+    # pre-Mission commit (new SHA, same patch) is still judged (fail-closed residual).
+    #: The Mission base the claim was built against (provenance and reason ride along for the note line).
+    mission_base: MissionBase | None = None
+    #: Pre-Mission commit SHAs (``window_base..mission_base``).
+    pre_mission_shas: frozenset[str] = frozenset()
+    #: Their final per-path ``(path, blob)`` state, from the same walk the declared refs use.
+    pre_mission_blobs: frozenset[tuple[str, str]] = frozenset()
+    #: Paths that history last deleted.
+    pre_mission_deletions: frozenset[str] = frozenset()
     # Mixed-lane canceled-content axis (mixed-lane-authorship-soundness / #5046,
     # WP05). Every :class:`~specify_cli.consolidation.wp_attribution.CanceledPathState`
     # resolved for a canceled-with-provenance WP sharing an approved lane with a
