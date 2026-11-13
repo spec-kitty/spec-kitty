@@ -57,6 +57,7 @@ __all__ = [
     "claim_inputs",
     "frozen_dependency_tips",
     "live_lane_tips",
+    "record_was_rebaselined",
 ]
 
 _EMPTY: Mapping[str, str] = MappingProxyType({})
@@ -94,9 +95,11 @@ class ClaimInputs:
         strategy: The consolidation strategy value (``squash``, ``merge`` or ``rebase``).
         status_dir: The status directory the claim reads.
         mission_branch_tip: The Mission branch's tip, frozen (#7626): the record's pre-mutation snapshot
-            when it holds one (a resume, the gate rebuild), else the tip read now (a fresh run's claim,
-            which precedes the first mutation). Never read again later, so a branch merged into the
-            Mission branch after this point is not trusted history. ``None`` when the branch is absent.
+            when it holds one (a resume, the gate rebuild), else the tip read now: a fresh run's claim,
+            or a resume of a rebaselined record (``ClaimInputContext.rebaselined``), both of which
+            precede the first mutation. Any other resume with no snapshot (a legacy record) gets
+            ``None``. Never read again later, so a branch merged into the Mission branch after this
+            point is not trusted history. ``None`` when the branch is absent.
         degraded_dependency_anchors: ``SAVED`` only: the dependency-lane branches the saved record
             holds no frozen tip for (a record written without that tip, H1), read live instead -- the
             degraded anchors the ADR names. Empty for ``LIVE`` and ``LIVE_THEN_SAVED``.
@@ -144,6 +147,10 @@ class ClaimInputContext:
             approved-reviewed attestation check, before the record is loaded for the run). Its frozen
             anchor set and degraded branches are reused, never read again, so the attestation check and
             the claim read ONE anchor set (FR-015, L4); every other value is read from *state* as usual.
+        rebaselined: ``SAVED`` only: the run started from a record a full-restore rollback rebaselined
+            (#6770), as :func:`record_was_rebaselined` tells it at run start, BEFORE the claim phase
+            re-persists the transaction's target tip. Such a resume reads the Mission tip live,
+            before its first mutation, as a fresh run does (#7626).
     """
 
     repo_root: Path
@@ -160,6 +167,7 @@ class ClaimInputContext:
     coord_base_override: str | None = None
     mission_slug: str | None = None
     prior: ClaimInputs | None = None
+    rebaselined: bool = False
 
 
 def live_lane_tips(repo_root: Path, manifest: LanesManifest, excluded_canceled_wp_ids: frozenset[str]) -> dict[str, str]:
@@ -240,20 +248,32 @@ def _run_coord_base(context: ClaimInputContext, saved_coord_sha: str | None) -> 
     return mission_branch
 
 
+def record_was_rebaselined(state: ConsolidationState | None) -> bool:
+    """True when *state* is a record a full-restore rollback rebaselined (#6770): no snapshot, no transaction target tip.
+
+    :func:`~specify_cli.consolidation.rollback.rebaseline_after_full_restore` clears both, and nothing
+    else does. A legacy record written before the snapshot existed, or one interrupted after its
+    mutations, still carries the transaction's target tip (persisted at first capture), so it is
+    not a rebaselined record even though its snapshot is empty. Read it at run start: the claim
+    phase re-persists the target tip before it builds the claim inputs.
+    """
+    if state is None:
+        return False
+    return not state.pre_mutation_refs and state.pre_mutation_target_sha is None
+
+
 def _mission_branch_tip(context: ClaimInputContext, *, read_live: bool = True) -> str | None:
     """The Mission branch's frozen tip: the record's pre-mutation snapshot, else (before any mutation) the tip as it stands.
 
-    A resume (``read_live=False``) whose record holds a snapshot never reads the branch: the
-    snapshot's entry or nothing, so a branch that moved during an interrupted run cannot become a
-    trusted root. A record with NO snapshot was rebaselined after a full restore (#6770): no branch
-    moved in this run yet, so the resume reads the tip as it stands, as a fresh run does (#7626
-    follow-up, operator ruling: the operator's commits on the Mission branch between attempts are
-    trusted history).
+    A resume (``read_live=False``) never reads the branch, the snapshot's entry or nothing, so a
+    branch that moved during an interrupted run cannot become a trusted root. The one exception is
+    a resume of a rebaselined record (``context.rebaselined``, #6770): no branch moved in this run
+    yet, so it reads the tip as it stands, as a fresh run does (#7626 follow-up, operator ruling:
+    the operator's commits on the Mission branch between attempts are trusted history).
     """
     branch: str = context.manifest.mission_branch
-    snapshot = context.state.pre_mutation_refs if context.state is not None else {}
-    saved: str | None = snapshot.get(branch)
-    if saved or (not read_live and snapshot):
+    saved: str | None = context.state.pre_mutation_refs.get(branch) if context.state is not None else None
+    if saved or not (read_live or context.rebaselined):
         return saved
     # Local annotation re-narrows the callee's return type (the narrow-file mypy override erases it).
     tip: str | None = capture_branch_tip(context.repo_root, branch)
