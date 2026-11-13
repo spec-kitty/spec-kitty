@@ -185,11 +185,14 @@ class SharedWorkPackageReads:
     The per-Mission cases, the detail reader's work package index and the corpus exam's v1 control each parse
     every ``tasks/WP*.md`` of the checkout through ``read_authored_wp_frontmatter``, and each reconstructs the same
     work package view, which re-reads and reduces the Mission's whole event log once per work package. Both are
-    pure functions of the files, and the read-only fingerprint fixture above proves the tree is unchanged for the
-    whole module, so the first answer for a real path is reused: every file is still parsed, and every view still
-    built, by the production function, once. A failed parse is never kept (it raises again on the next call). A
+    pure functions of the files, and no reader writes them: the read-only fingerprint fixture above proves that for
+    ``kitty-specs/`` (a coordination read directory outside it is not fingerprinted, and no reader writes there
+    either). So the first answer for a real path is reused: every file is still parsed, and every view still built,
+    by the production function, once. A failed parse or view is never kept (it raises again on the next call). A
     planted repository lives under pytest's base temp directory and is always read fresh, so a control that edits
-    a planted file still sees the edit. A view is reused only for metadata equal to the metadata it was built from.
+    a planted file still sees the edit. A view is reused only for metadata equal to the metadata it was built from;
+    only the latest metadata per work package is kept, so alternating metadata rebuilds (slower, never wrong). The
+    timed resolver run restores the production readers (``production_index``), so its bound never measures a memo.
     """
 
     def __init__(
@@ -559,6 +562,23 @@ def test_a_view_is_reused_only_for_equal_metadata_on_a_real_directory(tmp_path: 
     assert calls["view WP01"] == 4, "two real builds plus one build per planted call"
 
 
+def test_a_view_without_metadata_is_reused_and_a_failed_view_is_never_kept(tmp_path: Path) -> None:
+    shared, calls = _counting_reads(tmp_path)
+    real = tmp_path / "real"
+    assert shared.view(real, "WP01") is shared.view(real, "WP01"), "metadata None on a real directory reuses the view"
+    assert calls["view WP01"] == 1
+
+    def failing(feature_dir: Path, wp_id: str, *, metadata: Any = None) -> Any:
+        calls["failing view"] += 1
+        raise ValueError("unreadable log")
+
+    shared._view = failing
+    for _attempt in range(2):
+        with pytest.raises(ValueError, match="unreadable log"):
+            shared.view(real, "WP02")
+    assert calls["failing view"] == 2, "a failed view must raise again, never answer from a memo"
+
+
 def test_the_shared_reads_are_active_in_both_reader_modules(work_package_reads_are_shared: SharedWorkPackageReads) -> None:
     """Non-vacuity: the corpus readers really go through the shared reads, and the shared reads call the production functions."""
     shared = work_package_reads_are_shared
@@ -568,7 +588,7 @@ def test_the_shared_reads_are_active_in_both_reader_modules(work_package_reads_a
     assert shared._frontmatter is read_authored_wp_frontmatter and shared._view is reconstruct_wp_view
 
 
-def test_use_production_restores_the_production_readers_for_one_test(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_use_production_points_both_modules_at_the_wrapped_readers(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     shared, _calls = _counting_reads(tmp_path)
     shared.use_production(monkeypatch)
     for module in SHARED_READER_MODULES:
@@ -2743,17 +2763,24 @@ def corpus_run(remote_state: oracles.RemoteState, tools: helper.ContractTools) -
 
 @contextmanager
 def production_index() -> Iterator[None]:
-    """Restore the production ``_build_index`` (a fresh walk per call) for the duration of a timed block."""
+    """Restore the production ``_build_index`` (a fresh walk per call) and the production work package readers for the duration of a timed block."""
     with pytest.MonkeyPatch.context() as mp:
         mp.setattr(mission_resolver, "_build_index", PRODUCTION_BUILD_INDEX)
+        for module in SHARED_READER_MODULES:
+            mp.setattr(module, "read_authored_wp_frontmatter", read_authored_wp_frontmatter)
+            mp.setattr(module, "reconstruct_wp_view", reconstruct_wp_view)
         yield
 
 
 def production_index_problems() -> list[str]:
-    """One line when the resolver's index walk is not the production one (a timed bound measured on a patched path proves nothing)."""
-    if mission_resolver._build_index is PRODUCTION_BUILD_INDEX:
-        return []
-    return ["the timed block ran with a patched resolver index walk, not the production one"]
+    """One line per patched path a timed block would run on (a timed bound measured on a patched path proves nothing)."""
+    problems = []
+    if mission_resolver._build_index is not PRODUCTION_BUILD_INDEX:
+        problems.append("the timed block ran with a patched resolver index walk, not the production one")
+    for module in SHARED_READER_MODULES:
+        if module.read_authored_wp_frontmatter is not read_authored_wp_frontmatter or module.reconstruct_wp_view is not reconstruct_wp_view:
+            problems.append(f"the timed block ran with shared work package reads in {module.__name__}, not the production readers")
+    return problems
 
 
 @functools.cache
@@ -2968,6 +2995,15 @@ def test_the_timed_block_runs_the_production_index_walk_and_a_patched_one_is_ref
         assert mission_resolver._build_index is PRODUCTION_BUILD_INDEX
         assert production_index_problems() == []
     assert production_index_problems(), "the production walk was not re-patched after the timed block"
+
+
+def test_the_timed_block_runs_the_production_work_package_readers_and_shared_reads_are_refused() -> None:
+    """The module-wide shared reads are active here (#7621), so the guard must name them; inside ``production_index`` it must not."""
+    problems = production_index_problems()
+    assert sum("shared work package reads" in problem for problem in problems) == len(SHARED_READER_MODULES), problems
+    with production_index():
+        assert all(module.reconstruct_wp_view is reconstruct_wp_view for module in SHARED_READER_MODULES)
+        assert production_index_problems() == []
 
 
 def test_corpus_trees_are_unchanged_by_the_resolver_run(corpus_run: CorpusRun) -> None:
