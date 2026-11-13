@@ -119,6 +119,15 @@ def _init_git_repo(repo: Path, *, branch: str = "main") -> None:
     _git(repo, "commit", "-m", "init: golden-path baseline", "--allow-empty")
 
 
+def _unprotect_main(repo: Path) -> None:
+    """Un-protect ``main`` in *repo*'s config: the shape a ``lanes`` create on ``main`` needs (#7632).
+
+    A ``lanes`` Mission records its status on its target, so create refuses a protected target.
+    """
+    config = repo / ".kittify" / "config.yaml"
+    config.write_text(config.read_text(encoding="utf-8") + "protection:\n  protected_branches: []\n", encoding="utf-8")
+
+
 def _create_mission(
     repo: Path, slug: str, topology: MissionTopology
 ) -> MissionCreationResult:

@@ -332,45 +332,31 @@ class TestMetaAndEventBranches:
         assert _git(repo, "branch", "--show-current") == _TOPIC
         assert _git(repo, "rev-parse", _TOPIC) == topic_tip
 
-    def test_row6_scaffold_commit_bootstrap_skip_on_protected_target(self, tmp_path: Path) -> None:
-        """Row 6a: LANES on protected ``main`` -- the scaffold commit is a disclosed bootstrap
-        skip (``ProtectedBranchRefused``): no commit lands, the scaffold is reported uncommitted."""
+    def test_row6_lanes_on_protected_target_refused_before_scaffold(self, tmp_path: Path) -> None:
+        """Row 6a (#7632, operator ruling 2026-11-13): LANES on protected ``main`` used to reach
+        the scaffold commit's ``ProtectedBranchRefused`` bootstrap skip and leave a Mission no
+        status write could reach. Create now refuses it before any write."""
         repo = _init_repo_with_target(tmp_path, target_branch=_MAIN, protected_primary=True)
         main_tip = _git(repo, "rev-parse", _MAIN)
 
-        result = _create(repo, "row-six", topology=MissionTopology.LANES, target_branch=_MAIN)
+        with pytest.raises(MissionCreationError) as excinfo:
+            _create(repo, "row-six", topology=MissionTopology.LANES, target_branch=_MAIN)
 
-        feature_dir = result.feature_dir
-        assert _git(repo, "rev-parse", _MAIN) == main_tip, "a bootstrap skip must not create any commit"
+        assert excinfo.value.error_code == "LANES_PROTECTED_TARGET_REFUSED"
+        assert _git(repo, "rev-parse", _MAIN) == main_tip
         assert _git(repo, "branch", "--show-current") == _MAIN
-        assert set(result.uncommitted_files) == {
-            feature_dir / "spec.md",
-            feature_dir / "meta.json",
-            feature_dir / "tasks" / "README.md",
-            feature_dir / "tasks" / ".gitkeep",
-            feature_dir / "status.events.jsonl",
-        }
-        assert _git(repo, "ls-files", f"{_SPECS}/{result.mission_slug}") == ""
-        assert (feature_dir / "meta.json").is_file()
+        assert list(repo.glob(f"{_SPECS}/row-six*")) == [], "refused before any scaffold write"
 
-    def test_row6_origin_binding_commit_bootstrap_skip(self, tmp_path: Path, origin_consumer: _RecordingOriginConsumer) -> None:
-        """Row 6b (``:1821-1822``): after a successful origin binding, the origin-ticket meta
-        commit is ALSO a disclosed bootstrap skip on the protected target -- no commit, no raise."""
+    def test_row6_lanes_refusal_precedes_origin_binding(self, tmp_path: Path, origin_consumer: _RecordingOriginConsumer) -> None:
+        """Row 6b (#7632): the refusal comes before the origin binding, so no ticket is bound
+        to a Mission that is never created."""
         repo = _init_repo_with_target(tmp_path, target_branch=_MAIN, protected_primary=True)
-        main_tip = _git(repo, "rev-parse", _MAIN)
 
-        result = _create(repo, "row-six-origin", topology=MissionTopology.LANES, target_branch=_MAIN)
+        with pytest.raises(MissionCreationError) as excinfo:
+            _create(repo, "row-six-origin", topology=MissionTopology.LANES, target_branch=_MAIN)
 
-        assert len(origin_consumer.calls) == 1
-        assert result.origin_binding_attempted is True
-        assert result.origin_binding_succeeded is True
-        assert result.origin_binding_error is None
-        assert result.meta["origin_ticket"] == {"provider": "test", "key": "branch-cov-1"}
-        assert _git(repo, "rev-parse", _MAIN) == main_tip, "neither the scaffold nor the origin-binding commit may land"
-        meta_file = result.feature_dir / "meta.json"
-        assert meta_file in result.uncommitted_files
-        assert json.loads(meta_file.read_text(encoding="utf-8"))["origin_ticket"]["key"] == "branch-cov-1"
-        assert _git(repo, "ls-files", f"{_SPECS}/{result.mission_slug}") == ""
+        assert excinfo.value.error_code == "LANES_PROTECTED_TARGET_REFUSED"
+        assert origin_consumer.calls == []
 
 
 # ---------------------------------------------------------------------------

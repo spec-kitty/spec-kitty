@@ -14,9 +14,10 @@ Protected Primary Branch (``main``, also named in ``protection.protected_branche
   is persisted.
 * ``protected/single_branch/retention`` and ``protected/single_branch/pr_bound``:
   the flag cross-products on the mint path.
-* ``protected/lanes/plain``, ``protected/coord/plain``,
-  ``protected/lanes_with_coord/plain``: what non-minting topologies do on a
-  protected target today (skipped commits included).
+* ``protected/lanes/plain``: refused before any write with
+  ``LANES_PROTECTED_TARGET_REFUSED`` (#7632).
+* ``protected/coord/plain``, ``protected/lanes_with_coord/plain``: what
+  non-minting topologies do on a protected target today (skipped commits included).
 * ``protected/coord/retention``: the retention cross-product on the
   coordination path.
 

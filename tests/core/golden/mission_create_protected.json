@@ -1,5 +1,5 @@
 {
-  "base_commit": "6a7bf5ccf25ad3d4dfef7efea414f03068b341ef",
+  "base_commit": "f2cf6144f50759108673f9d0ea9391d94b8fa140",
   "cells": {
     "configured_non_primary/single_branch": {
       "outcome": {
@@ -1490,50 +1490,9 @@
     },
     "protected/lanes/plain": {
       "outcome": {
-        "result": {
-          "canonical_repo_root": "<TMP>/repo",
-          "coordination_branch": null,
-          "coordination_branch_created": false,
-          "created_files": [
-            "<TMP>/repo/kitty-specs/prot-lanes-plain-<MID8#1>/spec.md",
-            "<TMP>/repo/kitty-specs/prot-lanes-plain-<MID8#1>/meta.json",
-            "<TMP>/repo/kitty-specs/prot-lanes-plain-<MID8#1>/tasks/README.md",
-            "<TMP>/repo/kitty-specs/prot-lanes-plain-<MID8#1>/tasks/.gitkeep",
-            "<TMP>/repo/kitty-specs/prot-lanes-plain-<MID8#1>/status.events.jsonl"
-          ],
-          "current_branch": "main",
-          "feature_dir": "<TMP>/repo/kitty-specs/prot-lanes-plain-<MID8#1>",
-          "meta": {
-            "created_at": "<TS>",
-            "flattened": false,
-            "friendly_name": "prot lanes plain",
-            "mid8": "<MID8#1>",
-            "mission_id": "<ULID#1>",
-            "mission_number": null,
-            "mission_slug": "prot-lanes-plain-<MID8#1>",
-            "mission_type": "software-dev",
-            "purpose_context": "This mission advances prot lanes plain on main so stakeholders can track the work from mission creation onward.",
-            "purpose_tldr": "prot lanes plain",
-            "slug": "prot-lanes-plain-<MID8#1>",
-            "target_branch": "main",
-            "topology": "lanes"
-          },
-          "mission_number": null,
-          "mission_slug": "prot-lanes-plain-<MID8#1>",
-          "origin_binding_attempted": false,
-          "origin_binding_error": null,
-          "origin_binding_succeeded": false,
-          "owned_checkout": null,
-          "target_branch": "main",
-          "target_replacement": null,
-          "uncommitted_files": [
-            "<TMP>/repo/kitty-specs/prot-lanes-plain-<MID8#1>/spec.md",
-            "<TMP>/repo/kitty-specs/prot-lanes-plain-<MID8#1>/meta.json",
-            "<TMP>/repo/kitty-specs/prot-lanes-plain-<MID8#1>/tasks/README.md",
-            "<TMP>/repo/kitty-specs/prot-lanes-plain-<MID8#1>/tasks/.gitkeep",
-            "<TMP>/repo/kitty-specs/prot-lanes-plain-<MID8#1>/status.events.jsonl"
-          ]
-        }
+        "error_code": "LANES_PROTECTED_TARGET_REFUSED",
+        "exc_type": "LanesProtectedTargetError",
+        "message": "Cannot create a lanes Mission on protected target branch 'main': a lanes Mission has no Mission or coordination branch, so every status write would land on 'main', which this project protects. Pass --target-branch naming an unprotected branch, or pass --topology lanes_with_coord to record status on a coordination branch."
       },
       "post": {
         "branches": [
@@ -1542,66 +1501,12 @@
         "head": {
           "repo": "main"
         },
-        "missions": {
-          "repo/kitty-specs/prot-lanes-plain-<MID8#1>": {
-            "meta": {
-              "created_at": "<TS>",
-              "flattened": false,
-              "friendly_name": "prot lanes plain",
-              "mid8": "<MID8#1>",
-              "mission_id": "<ULID#1>",
-              "mission_number": null,
-              "mission_slug": "prot-lanes-plain-<MID8#1>",
-              "mission_type": "software-dev",
-              "purpose_context": "This mission advances prot lanes plain on main so stakeholders can track the work from mission creation onward.",
-              "purpose_tldr": "prot lanes plain",
-              "slug": "prot-lanes-plain-<MID8#1>",
-              "target_branch": "main",
-              "topology": "lanes"
-            },
-            "meta_key_order": [
-              "created_at",
-              "flattened",
-              "friendly_name",
-              "mid8",
-              "mission_id",
-              "mission_number",
-              "mission_slug",
-              "mission_type",
-              "purpose_context",
-              "purpose_tldr",
-              "slug",
-              "target_branch",
-              "topology"
-            ],
-            "tree": [
-              "checklists/",
-              "meta.json",
-              "research/",
-              "spec.md",
-              "status.events.jsonl",
-              "tasks/",
-              "tasks/.gitkeep",
-              "tasks/README.md"
-            ]
-          }
-        },
+        "missions": {},
         "new_commits": {},
         "porcelain": {
-          "repo": [
-            "?? kitty-specs/prot-lanes-plain-<MID8#1>/meta.json",
-            "?? kitty-specs/prot-lanes-plain-<MID8#1>/spec.md",
-            "?? kitty-specs/prot-lanes-plain-<MID8#1>/status.events.jsonl",
-            "?? kitty-specs/prot-lanes-plain-<MID8#1>/tasks/.gitkeep",
-            "?? kitty-specs/prot-lanes-plain-<MID8#1>/tasks/README.md"
-          ]
+          "repo": []
         },
-        "status_log": {
-          "repo/kitty-specs/prot-lanes-plain-<MID8#1>/status.events.jsonl": [
-            "MissionCreated",
-            "SpecifyStarted"
-          ]
-        },
+        "status_log": {},
         "worktrees": [
           {
             "branch": "main",
