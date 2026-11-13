@@ -97,7 +97,10 @@ def _seed_primary(primary: Path, *, primary_branch: str, meta_target: str, missi
         "target_branch": meta_target,
     }
     if mission_branch is not None:
+        # ``agent mission create`` records the minted branch only for a single_branch
+        # Mission, and always records that topology beside it (#5100 WP08).
         meta["mission_branch"] = mission_branch
+        meta["topology"] = "single_branch"
     (feature_dir / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     (feature_dir / "spec.md").write_text(SUBSTANTIVE_SPEC, encoding="utf-8")
     return feature_dir
@@ -213,43 +216,31 @@ def test_owner_invocation_from_primary_unchanged(tmp_path: Path, monkeypatch: py
 # --------------------------------------------------------------------------- #
 # Coord-husk fallback — meta.json unreadable ⇒ operands collapse to invoking HEAD.
 # --------------------------------------------------------------------------- #
-def test_coord_husk_meta_unreadable_degrades_to_silent_match(tmp_path: Path) -> None:
-    """FR-006 fallback: when ``meta.json`` cannot be read (a coord husk), the match
-    operands both collapse to the invoking HEAD so the guard degrades to a silent
-    match (``branch_matches_target: true``) rather than a spurious disagreement.
+def test_coord_husk_meta_unreadable_degrades_to_silent_match(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """FR-006 fallback: when the Mission cannot be resolved (a coord husk, no
+    ``meta.json``), the verdict degrades to a silent match
+    (``branch_matches_target: true``) rather than a spurious disagreement.
 
-    Exercises ``_resolve_branch_match_operands``'s ``PlanningBranchResolutionFailed``
-    branch directly: ``plan_read_dir`` has no ``meta.json``, so the canonical target
-    read raises and ``match_target`` falls back to ``invoking_branch``.
-
-    #3786: the identity is now an injected :class:`CheckoutIdentity` value object
-    (resolved once at the ``setup_plan`` entrypoint) — no ``chdir`` and no
-    internal-symbol patch needed to make this deterministic.
+    Exercises ``resolve_planning_checkout_verdict``'s fallback directly (#7594: the
+    shared verdict replaced setup-plan's private ``_resolve_branch_match_operands``).
+    The identity is injected as ``invoking_root`` (#3786), so no ``chdir`` is needed.
     """
-    from specify_cli.cli.commands.agent.mission_setup_plan import (
-        _resolve_branch_match_operands,
-    )
-    from specify_cli.core.checkout_identity import CheckoutIdentity, Intent
+    from specify_cli.cli.commands.agent import mission_branch_context
+    from specify_cli.cli.commands.agent.mission_branch_context import resolve_planning_checkout_verdict
 
-    plan_read_dir = tmp_path / "coord-husk"  # no meta.json here
-    plan_read_dir.mkdir()
+    (tmp_path / "kitty-specs").mkdir()  # no Mission directory, so no meta.json
+    monkeypatch.setattr(mission_branch_context, "get_current_branch", lambda _root: "kitty/mission-x-lane-a")
 
-    invocation_identity = CheckoutIdentity(
+    verdict = resolve_planning_checkout_verdict(
+        tmp_path,
+        "coord-husk-01KVW9B0",
         invoking_root=tmp_path,
-        canonical_target=tmp_path,
-        is_owner=True,
-        intent=Intent.WRITE,
-    )
-    invoking_branch, match_target = _resolve_branch_match_operands(
-        invocation_identity,
-        plan_read_dir,
         fallback_branch="kitty/mission-x-lane-a",
-        get_current_branch=lambda _root: "kitty/mission-x-lane-a",
     )
 
-    # Both operands are the invoking HEAD ⇒ the honest match is a silent True.
-    assert invoking_branch == "kitty/mission-x-lane-a"
-    assert match_target == invoking_branch
+    # Both operands are the invoking HEAD => the honest match is a silent True.
+    assert verdict.current_branch == "kitty/mission-x-lane-a"
+    assert verdict.expected_checkout_branch == verdict.current_branch
 
 
 # --------------------------------------------------------------------------- #

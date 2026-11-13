@@ -26,7 +26,6 @@ import. Behavior is preserved byte-for-byte from the pre-decomposition
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import contextlib
 from dataclasses import dataclass
 import logging
@@ -46,20 +45,16 @@ from mission_runtime import MissionArtifactKind, OwnedCheckout, placement_seam
 from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption
 from specify_cli.coordination.commit_outcome import STATUS_COMMITTED, STATUS_UNCHANGED, SurfaceOutcome, commit_outcome_payload, render_commit_outcome
 from specify_cli.coordination.commit_router import CommitRouterResult
-from specify_cli.core.checkout_identity import CheckoutIdentity, Intent, resolve_checkout_identity
+from specify_cli.core.checkout_identity import Intent, resolve_checkout_identity
 from specify_cli.core.constants import MISSION_TYPE_DOCUMENTATION
 from specify_cli.doc_analysis.doc_state import GeneratorConfig
 from specify_cli.mission import _canonical_meta_mission_type, get_mission_type
 from specify_cli.core.paths import load_meta_fail_closed, read_target_branch_from_meta
-from specify_cli.missions._resolve_planning_branch import (
-    PlanningBranchResolutionFailed,
-    load_mission_target_branch,
-)
 from specify_cli.runtime.resolver import TemplateConfigurationError
 
 from specify_cli.cli.commands.agent.mission_branch_context import (
     _inject_branch_contract,
-    read_minted_mission_branch,
+    resolve_planning_checkout_verdict,
 )
 from specify_cli.cli.commands.agent.mission_feature_resolution import (
     _ARTIFACT_TYPE_TO_KIND as _ARTIFACT_TYPE_TO_KIND,
@@ -363,40 +358,6 @@ def _resolve_setup_plan_feature_dir(repo_root: Path, feature: str | None, *, jso
         raise typer.Exit(1) from None
 
 
-def _resolve_branch_match_operands(
-    invocation_identity: CheckoutIdentity,
-    plan_read_dir: Path,
-    *,
-    fallback_branch: str,
-    get_current_branch: Callable[[Path], str | None],
-) -> tuple[str, str]:
-    """Resolve ``(invoking_branch, match_target)`` for the honest branch match.
-
-    FR-006 / #3124: ``branch_matches_target`` must reflect the INVOKING checkout's
-    HEAD against the mission's canonical ``meta.json`` target — not the primary
-    checkout's HEAD (which ``locate_project_root`` re-anchored ``repo_root`` onto).
-    ``invocation_identity`` carries the invoking checkout root — the lane
-    worktree itself for a linked worktree, the primary for an owner invocation —
-    so ``get_current_branch`` reads the honest branch. The identity is resolved
-    ONCE at the ``setup_plan`` entrypoint (#3786) — the single boundary that
-    legitimately reads ambient state — and injected here; this helper never
-    reads ``Path.cwd()`` or re-resolves the identity itself. The comparison
-    target is the canonical ``meta.json`` value read off the PRIMARY planning
-    surface (``plan_read_dir``). When ``meta.json`` is unreadable (a coord husk)
-    both operands collapse to the invoking HEAD, so the guard degrades to a
-    silent match rather than a spurious disagreement.
-
-    This changes only the *match* operands; the deliberate primary-anchored
-    target resolution feeding every display/planning field is left untouched.
-    """
-    invoking_branch = get_current_branch(invocation_identity.invoking_root) or fallback_branch
-    try:
-        match_target = load_mission_target_branch(plan_read_dir)
-    except PlanningBranchResolutionFailed:
-        match_target = invoking_branch
-    return invoking_branch, read_minted_mission_branch(plan_read_dir) or match_target
-
-
 def _enforce_spec_gate(
     spec_file: Path,
     feature_dir: Path,
@@ -405,7 +366,6 @@ def _enforce_spec_gate(
     *,
     target_branch: str,
     current_branch: str,
-    match_target_branch: str | None = None,
     expected_checkout_branch: str | None = None,
     json_output: bool,
 ) -> bool:
@@ -422,7 +382,6 @@ def _enforce_spec_gate(
         repo_root,
         target_branch=target_branch,
         current_branch=current_branch,
-        match_target_branch=match_target_branch,
         expected_checkout_branch=expected_checkout_branch,
     )
     if outcome is None:
@@ -444,7 +403,6 @@ def _evaluate_spec_gate(
     *,
     target_branch: str,
     current_branch: str,
-    match_target_branch: str | None = None,
     expected_checkout_branch: str | None = None,
 ) -> tuple[SetupPlanLocalOutcome | None, str | None]:
     """Build, but do not report, the authoritative local spec-gate result."""
@@ -513,7 +471,6 @@ def _evaluate_spec_gate(
         payload,
         target_branch=target_branch,
         current_branch=current_branch,
-        match_target_branch=match_target_branch,
         expected_checkout_branch=expected_checkout_branch,
     )
     return (
@@ -1101,7 +1058,6 @@ def _build_setup_plan_result(
     generators_detected: list[GeneratorConfig],
     target_branch: str,
     current_branch: str,
-    match_target_branch: str | None = None,
     expected_checkout_branch: str | None = None,
     plan_scaffold_only: bool = False,
     requirement_id_warnings: Sequence[Mapping[str, object]] = (),
@@ -1154,7 +1110,6 @@ def _build_setup_plan_result(
         result,
         target_branch=target_branch,
         current_branch=current_branch,
-        match_target_branch=match_target_branch,
         expected_checkout_branch=expected_checkout_branch,
     )
     render_kind: Literal["success", "scaffold", "blocked", "error"] = "scaffold" if plan_scaffold_only else "success" if plan_is_substantive else "blocked"
@@ -1174,7 +1129,6 @@ def _emit_setup_plan_result(
     generators_detected: list[GeneratorConfig],
     target_branch: str,
     current_branch: str,
-    match_target_branch: str | None = None,
     expected_checkout_branch: str | None = None,
     json_output: bool,
     plan_scaffold_only: bool = False,
@@ -1194,7 +1148,6 @@ def _emit_setup_plan_result(
         generators_detected=generators_detected,
         target_branch=target_branch,
         current_branch=current_branch,
-        match_target_branch=match_target_branch,
         expected_checkout_branch=expected_checkout_branch,
         plan_scaffold_only=plan_scaffold_only,
         requirement_id_warnings=requirement_id_warnings,
@@ -1378,42 +1331,31 @@ def setup_plan(
         spec_file = spec_read_dir / "spec.md"
         plan_file = plan_read_dir / "plan.md"
 
-        expected_checkout_branch: str | None = None
-        if owned is not None:
-            # The minter already proved P's branch; the invoking-checkout
-            # match reduces to the fact's own write branch (owned-checkout-
-            # lifecycle-authority WP09, FR-005), which is also the checkout the
-            # contract names (the #5100 minted branch for a protected-target
-            # mint; ``target_branch`` stays the landing branch).
-            current_branch = match_target_branch = expected_checkout_branch = owned.write_branch
-        else:
-            # FR-006 / #3124: compute the branch-match operands from the INVOKING
-            # checkout + the mission's meta.json target — NOT the primary HEAD that
-            # locate_project_root() re-anchored ``repo_root`` onto. ``target_branch``
-            # (above) stays primary-anchored for every display/planning field; only the
-            # match value reflects the invoking checkout. ``plan_read_dir`` is the
-            # PRIMARY planning surface where the canonical meta.json lives.
-            #
-            # #3786: the identity is resolved ONCE here, at the command entrypoint —
-            # the single boundary that legitimately reads ambient state — and injected
-            # into ``_resolve_branch_match_operands``; nothing below this point reads
-            # ``Path.cwd()`` for identity.
-            invocation_identity = resolve_checkout_identity(Path.cwd(), Intent.WRITE)
-            current_branch, match_target_branch = _resolve_branch_match_operands(
-                invocation_identity,
-                plan_read_dir,
-                fallback_branch=target_branch,
-                get_current_branch=_mission.get_current_branch,
-            )
+        # #7594: one planning checkout verdict, shared with check-prerequisites. The
+        # expected checkout is the placement seam's planning write ref; the current branch
+        # is the INVOKING checkout's HEAD (FR-006 / #3124), resolved once here at the
+        # command entry point (#3786); the contract's ``target_branch`` is the landing
+        # target from ``meta.json``. ``target_branch`` (above) still feeds the commit
+        # helpers unchanged.
+        invoking_root = owned.owned_root if owned is not None else resolve_checkout_identity(Path.cwd(), Intent.WRITE).invoking_root
+        verdict = resolve_planning_checkout_verdict(
+            repo_root,
+            mission_slug,
+            invoking_root=invoking_root,
+            owned=owned,
+            fallback_branch=target_branch,
+        )
+        current_branch = verdict.current_branch
+        expected_checkout_branch = verdict.expected_checkout_branch
+        contract_target_branch = verdict.target_branch
 
         if _enforce_spec_gate(
             spec_file,
             feature_dir,
             mission_slug,
             git_root,
-            target_branch=target_branch,
+            target_branch=contract_target_branch,
             current_branch=current_branch,
-            match_target_branch=match_target_branch,
             expected_checkout_branch=expected_checkout_branch,
             json_output=json_output,
         ):
@@ -1470,9 +1412,8 @@ def setup_plan(
             plan_commit_result=plan_commit_result,
             gap_analysis_path=gap_analysis_path,
             generators_detected=generators_detected,
-            target_branch=target_branch,
+            target_branch=contract_target_branch,
             current_branch=current_branch,
-            match_target_branch=match_target_branch,
             expected_checkout_branch=expected_checkout_branch,
             json_output=json_output,
             plan_scaffold_only=plan_scaffold_only,
