@@ -106,9 +106,9 @@
     },
     "WP03": {
       "actor": "claude",
-      "agent": null,
-      "agent_profile": "python-pedro",
-      "agent_profile_version": "1.0",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude",
       "lane": "for_review",
@@ -119,7 +119,8 @@
         "- 2026-11-13T04:29:47Z – claude – shell_pid=13310 – T013 red-first 8cb857b4 (74 fail/5 pass on ed48e678). T014-T017 in d33a745b: create_review_cycle + alias; adoption probe and citation verifier in review/cycle.py; forced moves write no cycle; honest body; refusals before any write via one call line in _mt_require_independent_approval (leeway). FR-009 also needed: retained-evidence adoption skips referenced cycles and the 'already approved' skip no longer applies to a review approval. Leeway: xfail removed (XPASS), topology [done] re-pinned (forced move writes no cycle), format_stamp + dead mints removed.",
         "- 2026-11-13T06:47:51Z – claude – shell_pid=13310 – Validation at 08ee8918: agent dir 3258 passed/0 failed (-n 8 loadfile); tests/review+tests/status+tests/kernel green; tests/contract 1951 setup errors = SERVICE_BINARY_MISSING (env), identical on origin main 89217ac8; 45 integration files touching cycles/approvals all green (per-file); gates untrusted_path_containment, status_state_read_dir_single_authority, no_dead_symbols, verdict_vocab_single_source, layer_rules, status_read_single_door green; fast tier 3037 passed. NFR-001 (4670 fixture, median of 5): base 0.288/0.274 s, tip 0.286/0.290 s. Design calls: legacy log with a verdict naming no cycle -> probe adopts and refuses nothing; refusal JSON carries the code as the error prefix (no separate code field: WP04 contract row); inputs kept on st via review_cycle_inputs field (leeway).",
         "Ready for review: one review one cycle (adoption probe, FR-008/009/014), cited cycles exist (FR-010), forced moves write no cycle (FR-006), honest body, create_review_cycle + alias; dead mints and format_stamp removed; NFR-001 within budget; agent dir 3258/0.",
-        "Changes requested: has_unaccounted_verdict treats a post-fix forced approval (force-override, no cycle) as legacy, disabling adoption/NOT_ADOPTABLE forever on that WP; scope it to verdicts after the floor-setting reference"
+        "Changes requested: has_unaccounted_verdict treats a post-fix forced approval (force-override, no cycle) as legacy, disabling adoption/NOT_ADOPTABLE forever on that WP; scope it to verdicts after the floor-setting reference",
+        "Cycle 2: B1 fixed. has_unaccounted_verdict now reads only verdicts after the first event that references the floor cycle number (cycle numbers are max+1), and a forced move (arbiter override included) is accounted through the named predicate verdict_writes_no_cycle_by_design (event.force). Red 7b7d5a5d (7 failed), fix 1f5c4b61, real-CLI regression 337b427d (red on pre-fix: cycle 3 written / refusal exit 0). EVIDENCE_WINDOW_UNCOMPUTABLE reproduces identically on 89217ac8: fixture artifact (seeded 2026-01 rework hops sort before the CLI's real-clock rejection in the wall-clock fold). NFR-001 base .335/.349 vs lane .361/.354."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
