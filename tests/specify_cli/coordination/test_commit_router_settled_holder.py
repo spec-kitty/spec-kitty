@@ -292,6 +292,24 @@ def test_head_mismatch_holder_never_names_the_commit_worktree(tmp_path: Path, mo
     assert _head_mismatch_holder(tmp_path, tmp_path / "other", "topic") is None
 
 
+def test_coord_kind_on_primary_arm_never_asks_write_dir_for_itself(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A COORD kind on the PRIMARY arm never asks ``write_dir`` for itself; this guards seed re-entry recursion."""
+    _identity_main_root(monkeypatch)
+    asked: list[MissionArtifactKind] = []
+
+    def resolve(repo_root: Path, kind: MissionArtifactKind, **_: object) -> _FakeLocation:
+        asked.append(kind)
+        return _FakeLocation(surface_root=repo_root)
+
+    monkeypatch.setattr(commit_router, "_resolve_owning_write_dir", resolve)
+    status = tmp_path / "kitty-specs" / "m" / "status.json"
+
+    result = commit_router._primary_commit_paths(tmp_path, "m", (status,), kind=MissionArtifactKind.STATUS_STATE)
+
+    assert result == (tmp_path, (status,), False)
+    assert asked == [MissionArtifactKind.SPEC]
+
+
 def test_refuse_copy_outside_holder_passes_when_both_copies_are_directories(tmp_path: Path) -> None:
     """Two directories cannot be compared byte-wise; the helper keeps the pre-fold behaviour and lets the holder copy stand."""
     from specify_cli.coordination.commit_router import _refuse_copy_outside_holder
