@@ -66,8 +66,8 @@
     "WP02": {
       "actor": "claude",
       "agent": "claude",
-      "agent_profile": "python-pedro",
-      "agent_profile_version": "1.0",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
       "lane": "for_review",
@@ -77,7 +77,8 @@
       "notes": [
         "- 2026-11-12T23:13:36Z – claude – shell_pid=31984 – T008 red-first c9b73536 (9 failed/6 passed on base, incl. case 2 same-tool supervisor). T009/T010: guard + APPROVER_NOT_CLAIMANT + MoveTaskRequest.review_claimant/asserted_agent/asserted_reviewer; one-line wiring of the WP02 guard input in tasks_move_task._mt_build_request (ownership-map leeway). Design: compared identity = what the approval records (--profile binding applied); case 9: refusal precedes the override persist, so no override record is written (stricter than the prompt expected; pinned).",
         "- 2026-11-12T23:23:56Z – claude – shell_pid=31984 – T011: re-pinned test_ac5_hash_guard (stale free-text --reviewer reviewer-renata beside --agent codex; dropped, ownership-map leeway: unowned-by-intent but listed) and test_move_task_structured_actor_6400 seed test (seed replay now exercised on the for_review submission path that still replays a recorded migration: owner; companion pins forced migration in_review = no claimant -> REVIEW_NOT_INDEPENDENT, nothing written). The other listed fixtures (approval_evidence, body_collision, issue_matrix_orchestrator, verdict_save_performance, 6400 profile-flag) stay green unchanged: their in_review seeds are forced (no claimant) or the compared identity is the recorded one (--profile binding applied).",
-        "- 2026-11-13T00:58:24Z – claude – shell_pid=31984 – T011 (cont.): re-pinned under ownership-map leeway test_wp03_advance_to_approval (--agent claude --reviewer reviewer: stale free-text --reviewer) and test_owned_reopen_feedback::test_explicit_profiles_preserved_on_actual_owned_hops (--reviewer reviewer-renata -> codex::reviewer-renata); both green on base, red on tip before. T012: fast tier 3037 passed; tests/status+tests/review 2884 passed; full agent dir 3149 passed; arch gates 160 passed + 2 pre-existing no_dead_symbols reds (format_stamp, synthetic_auto_approval_ref; same_review_identity cleared); approving integration files 471 passed, remaining reds pre-existing on base (verdict_save_topologies[done], explicit_checkout_commands::test_owned_composition_policy...) or load timeouts (default_mission setup, green on base)."
+        "- 2026-11-13T00:58:24Z – claude – shell_pid=31984 – T011 (cont.): re-pinned under ownership-map leeway test_wp03_advance_to_approval (--agent claude --reviewer reviewer: stale free-text --reviewer) and test_owned_reopen_feedback::test_explicit_profiles_preserved_on_actual_owned_hops (--reviewer reviewer-renata -> codex::reviewer-renata); both green on base, red on tip before. T012: fast tier 3037 passed; tests/status+tests/review 2884 passed; full agent dir 3149 passed; arch gates 160 passed + 2 pre-existing no_dead_symbols reds (format_stamp, synthetic_auto_approval_ref; same_review_identity cleared); approving integration files 471 passed, remaining reds pre-existing on base (verdict_save_topologies[done], explicit_checkout_commands::test_owned_composition_policy...) or load timeouts (default_mission setup, green on base).",
+        "Ready for review: pure _guard_review_claimant (after _guard_agent_ownership) refuses unforced in_review->approved/done by a non-claimant, and --agent/--reviewer disagreeing, with APPROVER_NOT_CLAIMANT (exit 1, nothing written); compared identity = what the approval records (binding applied); fixtures re-pinned (ac5, 6400 seed, wp03 advance, owned reopen)."
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
