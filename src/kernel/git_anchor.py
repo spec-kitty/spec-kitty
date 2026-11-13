@@ -56,6 +56,7 @@ __all__ = [
     "GitAnchor",
     "UNRESOLVABLE_START_REASON",
     "checkout_root_containing",
+    "checkout_root_in_spelling",
     "find_git_anchor",
 ]
 
@@ -210,3 +211,30 @@ def checkout_root_containing(path: Path) -> Path | None:
         no ancestor up to the ceiling holds a ``.git`` entry.
     """
     return find_ancestor(path, lambda candidate: (candidate / _GIT_DIR_NAME).exists())
+
+
+def checkout_root_in_spelling(path: Path) -> Path | None:
+    """The checkout that contains *path*, spelled as an ancestor of *path* itself (#7546, FR-001).
+
+    :func:`checkout_root_containing` answers in resolved form. When *path* is spelled through
+    a symbolic link, the answer is re-expressed as *path*'s own ancestor, so
+    ``path.is_relative_to(answer)`` holds without mixing spellings. The answer stays the
+    resolved checkout in three cases, all of them still a checkout that contains *path*'s
+    resolved form: *path* cannot be resolved (a symbolic-link loop: the walk already ran over
+    its lexical form), *path* is shallower than the checkout depth (a relative path), and the
+    lexical ancestor does not resolve to the checkout.
+
+    Returns:
+        The checkout root, or ``None`` when no ancestor of *path* is a checkout.
+    """
+    holder = checkout_root_containing(path)
+    if holder is None or path.is_relative_to(holder):
+        return holder
+    try:
+        depth = len(resolve_rejecting_loops(path).relative_to(holder).parts)
+    except (OSError, ValueError):
+        return holder
+    if depth >= len(path.parts):
+        return holder
+    lexical = path.parents[depth - 1] if depth else path
+    return lexical if lexical.resolve() == holder else holder
