@@ -479,3 +479,135 @@ def test_feedback_path_and_path_references_name_their_cycle() -> None:
     prose = _event(3, Lane.PLANNED, review_ref="see review-cycle-5.md")
     assert cycle.cycle_numbers_referenced([result_with_path, legacy_path, prose], _WP_ID) == frozenset({3, 4})
     assert cycle.has_unaccounted_verdict([result_with_path], _WP_ID) is False
+
+
+# ---------------------------------------------------------------------------
+# The legacy carve-out is as narrow as the ambiguity (WP03 review cycle 1, B1)
+# ---------------------------------------------------------------------------
+#
+# Cycle numbers are allocated ``max(existing) + 1``. A verdict that names no cycle but wrote one
+# BEFORE the event that first references the floor number wrote a cycle at or below that floor, so
+# it is never a candidate. Only such a verdict AFTER that event can leave an unreferenced cycle above
+# the floor. A forced move (an arbiter override included) writes no cycle by design (FR-006) and is
+# never unaccounted.
+
+
+def _forced_approval(idx: int) -> StatusEvent:
+    """A forced approval as this Mission records it: ``force-override``, no cycle written (FR-006)."""
+    return StatusEvent(
+        **{
+            **_event(idx, Lane.APPROVED).__dict__,
+            "from_lane": Lane.IN_REVIEW,
+            "force": True,
+            "review_ref": "force-override",
+            "review_result": ReviewResult(reviewer=_REVIEWER, verdict="approved", reference="force-override"),
+        }
+    )
+
+
+def _forced_then_rejected() -> list[StatusEvent]:
+    """The reviewer's probe: claim; forced approval; a rejection referencing cycle 1; a new claim."""
+    return [
+        _event(1, Lane.IN_REVIEW),
+        _forced_approval(2),
+        StatusEvent(**{**_event(3, Lane.PLANNED, review_ref=_pointer(1), result=("changes_requested", 1)).__dict__, "from_lane": Lane.APPROVED}),
+        _event(4, Lane.FOR_REVIEW),
+        _event(5, Lane.IN_REVIEW),
+    ]
+
+
+def test_forced_approval_earlier_in_history_still_adopts(tmp_path: Path) -> None:
+    """B1 probe: a forced approval before the floor does not switch adoption off (#7571)."""
+    _write_cycle(tmp_path, 1)
+    own = _write_cycle(tmp_path, 2)
+    events = _forced_then_rejected()
+    assert _cycle().has_unaccounted_verdict(events, _WP_ID) is False
+    result = _probe(tmp_path, events)
+    assert result.kind == "adopt"
+    assert result.path == own
+    assert result.pointer == _pointer(2)
+
+
+def test_forced_approval_earlier_in_history_still_refuses_another_identity(tmp_path: Path) -> None:
+    """FR-014 holds on the same log: another identity's post-claim cycle refuses."""
+    _write_cycle(tmp_path, 1)
+    other = _write_cycle(tmp_path, 2, reviewer=_OTHER)
+    result = _probe(tmp_path, _forced_then_rejected())
+    assert result.kind == "not_adoptable"
+    assert result.path == other
+
+
+def test_forced_approval_after_the_floor_is_not_unaccounted(tmp_path: Path) -> None:
+    """A forced move writes no cycle by design, so even after the floor it leaves no ambiguity."""
+    own = _write_cycle(tmp_path, 1)
+    rewind = StatusEvent(**{**_event(3, Lane.PLANNED, review_ref="force-override").__dict__, "from_lane": Lane.APPROVED, "force": True})
+    events = [_event(1, Lane.IN_REVIEW), _forced_approval(2), rewind, _event(4, Lane.IN_REVIEW)]
+    assert _cycle().has_unaccounted_verdict(events, _WP_ID) is False
+    assert _probe(tmp_path, events).path == own
+
+
+def test_arbiter_override_is_not_unaccounted() -> None:
+    """An arbiter override is a forced move out of ``planned`` after a rejection; it writes no cycle."""
+    override = StatusEvent(**{**_forced_approval(3).__dict__, "from_lane": Lane.PLANNED})
+    events = [_event(1, Lane.IN_REVIEW), _event(2, Lane.PLANNED, review_ref=_pointer(1), result=("changes_requested", 1)), override]
+    cycle = _cycle()
+    assert cycle.verdict_writes_no_cycle_by_design(override) is True
+    assert cycle.has_unaccounted_verdict(events, _WP_ID) is False
+
+
+def test_legacy_approval_after_the_floor_still_disables_the_probe(tmp_path: Path) -> None:
+    """Positive control: a pre-#7569 unforced approval after the newest referenced cycle wrote cycle 2,
+    which no event references; the probe adopts and refuses nothing."""
+    _write_cycle(tmp_path, 1)
+    _write_cycle(tmp_path, 2, reviewer=_OTHER)
+    events = [
+        _event(1, Lane.PLANNED, review_ref=_pointer(1), result=("changes_requested", 1)),
+        _legacy_approval(2, "approval:WP01"),
+        _event(3, Lane.PLANNED, review_ref="force-override"),
+        _event(4, Lane.IN_REVIEW),
+    ]
+    assert _cycle().has_unaccounted_verdict(events, _WP_ID) is True
+    assert _probe(tmp_path, events).kind == "none"
+
+
+def test_legacy_approval_before_the_floor_is_accounted_for(tmp_path: Path) -> None:
+    """A legacy approval that a later rejection's higher cycle follows wrote a cycle below the floor."""
+    _write_cycle(tmp_path, 1, reviewer=_OTHER)
+    _write_cycle(tmp_path, 2)
+    own = _write_cycle(tmp_path, 3)
+    events = [
+        _legacy_approval(1, "approval:WP01"),
+        StatusEvent(**{**_event(2, Lane.PLANNED, review_ref=_pointer(2), result=("changes_requested", 2)).__dict__, "from_lane": Lane.APPROVED}),
+        _event(3, Lane.IN_REVIEW),
+    ]
+    assert _cycle().has_unaccounted_verdict(events, _WP_ID) is False
+    assert _probe(tmp_path, events).path == own
+
+
+def test_a_later_reference_to_an_older_cycle_does_not_move_the_boundary() -> None:
+    """The boundary is the first event that references the floor number, not the newest reference:
+    a legacy approval after the floor stays unaccounted although a later event re-references cycle 1."""
+    events = [
+        _event(1, Lane.PLANNED, review_ref=_pointer(1), result=("changes_requested", 1)),
+        _legacy_approval(2, "approval:WP01"),
+        _event(3, Lane.PLANNED, review_ref=_pointer(1)),
+        _event(4, Lane.IN_REVIEW),
+    ]
+    assert _cycle().has_unaccounted_verdict(events, _WP_ID) is True
+
+
+@pytest.mark.parametrize(("legacy_after_floor", "expected"), [(False, False), (True, True)])
+def test_moving_the_unaccounted_verdict_across_the_floor_flips_the_answer(legacy_after_floor: bool, expected: bool) -> None:
+    """Self-mutation: the same two events in the other order give the other answer."""
+    floor = _event(2, Lane.PLANNED, review_ref=_pointer(1), result=("changes_requested", 1))
+    legacy = _legacy_approval(1, "approval:WP01")
+    events = [floor, legacy] if legacy_after_floor else [legacy, floor]
+    assert _cycle().has_unaccounted_verdict([*events, _event(3, Lane.IN_REVIEW)], _WP_ID) is expected
+
+
+@pytest.mark.parametrize("forced", [False, True])
+def test_force_is_what_makes_a_cycle_free_verdict_accounted(forced: bool) -> None:
+    """Self-mutation: the same approval after the floor is unaccounted unforced, accounted forced."""
+    approval = StatusEvent(**{**_legacy_approval(2, "force-override").__dict__, "force": forced})
+    events = [_event(1, Lane.PLANNED, review_ref=_pointer(1), result=("changes_requested", 1)), approval]
+    assert _cycle().has_unaccounted_verdict(events, _WP_ID) is (not forced)
