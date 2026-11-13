@@ -25,103 +25,6 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _DOCS = _REPO_ROOT / "docs"
 
-#: The (page, surface) pairs the burn-down held when the gate landed (#7520). Entries may only
-#: leave: a pair outside this set is a refill (a swap, or a re-addition after a fix) and fails.
-_LANDING_PAIRS: frozenset[tuple[str, str]] = frozenset(
-    {
-        ("api/batch-api-contract.md", "spec-kitty auth"),
-        ("api/batch-api-contract.md", "src/specify_cli/delivery"),
-        ("api/batch-api-contract.md", "src/specify_cli/sync"),
-        ("api/batch-api-contract.md", "src/specify_cli/tracker/saas_service.py"),
-        ("api/configuration.md", "Zeitgeist"),
-        ("api/configuration.md", "spec-kitty moments"),
-        ("api/environment-variables.md", "spec-kitty merge"),
-        ("api/file-structure.md", "/spec-kitty.merge"),
-        ("api/skills/spk-gate-mission-review.md", "spec-kitty merge"),
-        ("architecture/00_landscape/README.md", "Zeitgeist"),
-        ("architecture/00_landscape/README.md", "saas_client"),
-        ("architecture/00_landscape/README.md", "spec-kitty dashboard"),
-        ("architecture/00_landscape/README.md", "src/doctrine"),
-        ("architecture/00_landscape/README.md", "src/specify_cli/dashboard"),
-        ("architecture/04_implementation_mapping/README.md", "Zeitgeist"),
-        ("architecture/04_implementation_mapping/README.md", "saas_client"),
-        ("architecture/04_implementation_mapping/README.md", "src/specify_cli/dashboard"),
-        ("architecture/04_implementation_mapping/README.md", "src/specify_cli/saas"),
-        ("architecture/05_ownership_map.md", "Zeitgeist"),
-        ("architecture/05_ownership_map.md", "saas_client"),
-        ("architecture/05_ownership_map.md", "src/doctrine"),
-        ("architecture/05_ownership_map.md", "src/specify_cli/saas"),
-        ("architecture/05_ownership_map.md", "src/specify_cli/sync"),
-        ("architecture/README.md", "Zeitgeist"),
-        ("architecture/diagrams/01_context/README.md", "Zeitgeist"),
-        ("architecture/diagrams/01_context/README.md", "saas_client"),
-        ("architecture/diagrams/02_containers/README.md", "Zeitgeist"),
-        ("architecture/diagrams/02_containers/runtime-execution-domain.md", "Zeitgeist"),
-        ("architecture/documentation-mission.md", "/spec-kitty.merge"),
-        ("architecture/mission-type-resolution.md", "src/doctrine"),
-        ("architecture/vision/README.md", "Zeitgeist"),
-        ("architecture/vision/README.md", "saas_client"),
-        ("context/README.md", "Zeitgeist"),
-        ("context/identity.md", "saas_client"),
-        ("context/identity.md", "src/specify_cli/egress.py"),
-        ("context/identity.md", "src/specify_cli/tracker/saas_client.py"),
-        ("context/orchestration.md", "Zeitgeist"),
-        ("context/orchestration.md", "spec-kitty merge"),
-        ("context/orchestration.md", "src/specify_cli/auth"),
-        ("context/orchestration.md", "src/specify_cli/delivery"),
-        ("context/orchestration.md", "src/specify_cli/sync"),
-        ("context/product-lines.md", "Zeitgeist"),
-        ("context/team-kitty.md", "Zeitgeist"),
-        ("context/team-kitty.md", "saas_client"),
-        ("context/team-kitty.md", "spec-kitty sync"),
-        ("context/team-kitty.md", "src/specify_cli/sync"),
-        ("development/agent-fleet.md", "Zeitgeist"),
-        ("development/how-to/manage-issue-tracker.md", "Zeitgeist"),
-        ("development/how-to/manage-issue-tracker.md", "saas_client"),
-        ("development/how-to/review-gates.md", "src/doctrine"),
-        ("development/testing/testing-parallel.md", "src/specify_cli/cli/commands/sync.py"),
-        ("guides/how-to/collaboration/run-an-autonomous-mission.md", "spec-kitty merge"),
-        ("guides/how-to/governance/use-retrospective-learning.md", "spec-kitty merge"),
-        ("guides/how-to/harnesses/amazon-q.md", "/spec-kitty.merge"),
-        ("guides/how-to/harnesses/augment.md", "/spec-kitty.merge"),
-        ("guides/how-to/harnesses/claude-code.md", "/spec-kitty.merge"),
-        ("guides/how-to/harnesses/copilot.md", "/spec-kitty.merge"),
-        ("guides/how-to/harnesses/cursor.md", "/spec-kitty.merge"),
-        ("guides/how-to/harnesses/gemini.md", "/spec-kitty.merge"),
-        ("guides/how-to/harnesses/kilocode.md", "/spec-kitty.merge"),
-        ("guides/how-to/harnesses/opencode.md", "/spec-kitty.merge"),
-        ("guides/how-to/harnesses/qwen.md", "/spec-kitty.merge"),
-        ("guides/how-to/harnesses/setup-lint-hooks.md", "spec-kitty live-work"),
-        ("guides/how-to/harnesses/windsurf.md", "/spec-kitty.merge"),
-        ("guides/how-to/installation/install-spec-kitty.md", "/spec-kitty.merge"),
-        ("guides/how-to/missions/accept-and-merge.md", "/spec-kitty.merge"),
-        ("guides/how-to/missions/keep-main-clean.md", "spec-kitty merge"),
-        ("guides/how-to/missions/merge-mission.md", "spec-kitty merge"),
-        ("guides/how-to/monitoring/use-dashboard.md", "/spec-kitty.dashboard"),
-        ("guides/how-to/monitoring/use-dashboard.md", "spec-kitty dashboard"),
-        ("guides/how-to/recovery/recover-from-implementation-crash.md", "spec-kitty merge"),
-        ("guides/how-to/scenarios/agency-client-demo.md", "/spec-kitty.merge"),
-        ("guides/how-to/scenarios/claude-cursor-collaboration.md", "/spec-kitty.merge"),
-        ("guides/how-to/scenarios/multi-agent-mission-development.md", "/spec-kitty.merge"),
-        ("guides/how-to/scenarios/parallel-implementation-tracking.md", "/spec-kitty.merge"),
-        ("guides/how-to/scenarios/research-mission-example.md", "/spec-kitty.merge"),
-        ("guides/how-to/scenarios/solo-developer-workflow.md", "/spec-kitty.merge"),
-        ("guides/how-to/scenarios/worktree-parallel-missions.md", "/spec-kitty.merge"),
-        ("guides/tutorials/claude-code-integration.md", "/spec-kitty.merge"),
-        ("guides/tutorials/claude-code-workflow.md", "/spec-kitty.merge"),
-        ("guides/tutorials/claude-code-workflow.md", "spec-kitty merge"),
-        ("guides/tutorials/your-first-mission.md", "/spec-kitty.merge"),
-        ("guides/tutorials/your-first-mission.md", "spec-kitty merge"),
-        ("migrations/charter-pack-cutover.md", "spec-kitty live-work"),
-        ("migrations/from-charter-2x.md", "src/doctrine"),
-        ("migrations/relocate-builtin-doctrine-packs.md", "src/doctrine"),
-        ("migrations/tracker-egress-refusal.md", "spec-kitty sync"),
-        ("operations/manual-test-plan.md", "spec-kitty auth"),
-        ("operations/manual-test-plan.md", "spec-kitty merge"),
-    }
-)
-
-
 # --- One authority --------------------------------------------------------------
 
 
@@ -305,8 +208,10 @@ def test_main_exits_one_on_a_finding(docs: Path, tmp_path: Path, capsys: pytest.
 
     baselines = tmp_path / "_baselines.yaml"
     baselines.write_text("test_retired_surface_gate:\n  burn_down: 0\n", encoding="utf-8")
+    landing = tmp_path / "landing.yaml"
+    landing.write_text("kind: retired-surface-landing\nversion: 1\npages:\n  guides/old.md: {spec-kitty merge: 1}\n", encoding="utf-8")
 
-    assert gate.main(["--docs-root", str(docs), "--burndown", str(burndown), "--baselines", str(baselines)]) == 1
+    assert gate.main(["--docs-root", str(docs), "--burndown", str(burndown), "--baselines", str(baselines), "--landing", str(landing)]) == 1
     assert "NEW guides/old.md:8" in capsys.readouterr().err
 
 
@@ -339,14 +244,8 @@ def test_load_refuses_an_unknown_shape(tmp_path: Path) -> None:
 
 
 def test_the_burn_down_only_shrinks_from_its_landing_set() -> None:
-    assert gate.refilled(gate.BURN_DOWN, _LANDING_PAIRS) == []
-
-
-def test_a_swapped_or_re_added_pair_is_a_refill() -> None:
-    fixed = set(_LANDING_PAIRS) - {min(_LANDING_PAIRS)}
-    assert gate.refilled(frozenset(fixed), _LANDING_PAIRS) == []  # shrinking is allowed
-    swapped = frozenset({*fixed, ("guides/README.md", "spec-kitty merge")})
-    assert gate.refilled(swapped, _LANDING_PAIRS) == [("guides/README.md", "spec-kitty merge")]
+    counts = gate.burn_down_counts(gate.load_burndown(gate.DEFAULT_BURNDOWN))
+    assert gate.refilled(counts, gate.load_landing(gate.DEFAULT_LANDING)) == []
 
 
 # --- Leaving is one-way: the live count equals the recorded baseline ----------------------------
@@ -358,21 +257,33 @@ def test_the_burn_down_count_equals_its_baseline() -> None:
 
 
 def test_a_drained_pair_lowers_the_baseline_and_cannot_come_back() -> None:
-    drained = min(_LANDING_PAIRS)
-    after_drain = frozenset(_LANDING_PAIRS - {drained})
-    baseline = len(_LANDING_PAIRS)
+    landing = frozenset({("a.md", "x"), ("b.md", "x"), ("c.md", "x")})
+    after_drain = landing - {("a.md", "x")}
 
     # Draining without lowering the baseline fails and says to lower it.
-    (finding,) = gate.baseline_findings(after_drain, baseline)
+    (finding,) = gate.baseline_findings(after_drain, len(landing))
     assert "lower" in finding and "_baselines.yaml" in finding
     # Draining with the baseline lowered in the same pull request is clean.
-    lowered = baseline - 1
-    assert gate.baseline_findings(after_drain, lowered) == []
+    assert gate.baseline_findings(after_drain, len(landing) - 1) == []
     # Putting the drained pair back exceeds the lowered baseline and fails.
-    readded = frozenset({*after_drain, drained})
-    assert gate.refilled(readded, _LANDING_PAIRS) == []  # the subset check alone would miss it
-    (finding,) = gate.baseline_findings(readded, lowered)
+    (finding,) = gate.baseline_findings(landing, len(landing) - 1)
     assert "above" in finding
+
+
+def test_main_reports_a_swapped_pair_as_a_refill(docs: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Drain one pair and add another: the pair count is unchanged, so only the landing set catches it."""
+    burndown = tmp_path / "burndown.yaml"
+    burndown.write_text(
+        "kind: retired-surface-burndown\nversion: 2\nentries:\n  - {page: guides/old.md, issue: '#7523', surfaces: {spec-kitty merge: 1}}\n",
+        encoding="utf-8",
+    )
+    landing = tmp_path / "landing.yaml"
+    landing.write_text("kind: retired-surface-landing\nversion: 1\npages:\n  guides/other.md: {spec-kitty merge: 1}\n", encoding="utf-8")
+    baselines = tmp_path / "_baselines.yaml"
+    baselines.write_text("test_retired_surface_gate:\n  burn_down: 1\n", encoding="utf-8")
+
+    assert gate.main(["--docs-root", str(docs), "--burndown", str(burndown), "--landing", str(landing), "--baselines", str(baselines)]) == 1
+    assert "REFILL guides/old.md: 'spec-kitty merge'" in capsys.readouterr().err
 
 
 def test_main_reports_a_baseline_mismatch(docs: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -383,8 +294,10 @@ def test_main_reports_a_baseline_mismatch(docs: Path, tmp_path: Path, capsys: py
     )
     baselines = tmp_path / "_baselines.yaml"
     baselines.write_text("test_retired_surface_gate:\n  burn_down: 2\n", encoding="utf-8")
+    landing = tmp_path / "landing.yaml"
+    landing.write_text("kind: retired-surface-landing\nversion: 1\npages:\n  guides/old.md: {spec-kitty merge: 1}\n", encoding="utf-8")
 
-    assert gate.main(["--docs-root", str(docs), "--burndown", str(burndown), "--baselines", str(baselines)]) == 1
+    assert gate.main(["--docs-root", str(docs), "--burndown", str(burndown), "--baselines", str(baselines), "--landing", str(landing)]) == 1
     err = capsys.readouterr().err
     assert "BASELINE" in err
     assert "_baselines.yaml" in err

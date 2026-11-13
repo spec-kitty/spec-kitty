@@ -1,0 +1,66 @@
+# The retired-surface burn-down as it stood when scripts/docs/retired_surface_gate.py landed (#7520):
+# page -> surface -> number of lines naming it. Frozen: the burn-down may only shrink from here, so
+# the gate fails (REFILL) on a pair this file does not list, or a count above the one recorded here.
+# That catches a swap (drain one pair, add another, same pair count) that the pair count alone cannot.
+# Never edit this file to make the gate pass; fix the page instead.
+kind: retired-surface-landing
+version: 1
+pages:
+  api/batch-api-contract.md: {"spec-kitty auth": 1, "src/specify_cli/delivery": 1, "src/specify_cli/sync": 3, "src/specify_cli/tracker/saas_service.py": 1}
+  api/configuration.md: {"Zeitgeist": 1, "spec-kitty moments": 3}
+  api/environment-variables.md: {"spec-kitty merge": 1}
+  api/file-structure.md: {"/spec-kitty.merge": 1}
+  api/skills/spk-gate-mission-review.md: {"spec-kitty merge": 1}
+  architecture/00_landscape/README.md: {"Zeitgeist": 1, "saas_client": 1, "spec-kitty dashboard": 1, "src/doctrine": 3, "src/specify_cli/dashboard": 1}
+  architecture/04_implementation_mapping/README.md: {"Zeitgeist": 2, "saas_client": 1, "src/specify_cli/dashboard": 1, "src/specify_cli/saas": 1}
+  architecture/05_ownership_map.md: {"Zeitgeist": 1, "saas_client": 1, "src/doctrine": 3, "src/specify_cli/saas": 1, "src/specify_cli/sync": 1}
+  architecture/README.md: {"Zeitgeist": 3}
+  architecture/diagrams/01_context/README.md: {"Zeitgeist": 4, "saas_client": 1}
+  architecture/diagrams/02_containers/README.md: {"Zeitgeist": 1}
+  architecture/diagrams/02_containers/runtime-execution-domain.md: {"Zeitgeist": 1}
+  architecture/documentation-mission.md: {"/spec-kitty.merge": 1}
+  architecture/mission-type-resolution.md: {"src/doctrine": 2}
+  architecture/vision/README.md: {"Zeitgeist": 2, "saas_client": 1}
+  context/README.md: {"Zeitgeist": 2}
+  context/identity.md: {"saas_client": 1, "src/specify_cli/egress.py": 1, "src/specify_cli/tracker/saas_client.py": 1}
+  context/orchestration.md: {"Zeitgeist": 1, "spec-kitty merge": 1, "src/specify_cli/auth": 1, "src/specify_cli/delivery": 1, "src/specify_cli/sync": 2}
+  context/product-lines.md: {"Zeitgeist": 2}
+  context/team-kitty.md: {"Zeitgeist": 8, "saas_client": 1, "spec-kitty sync": 1, "src/specify_cli/sync": 1}
+  development/agent-fleet.md: {"Zeitgeist": 2}
+  development/how-to/manage-issue-tracker.md: {"Zeitgeist": 1, "saas_client": 1}
+  development/how-to/review-gates.md: {"src/doctrine": 1}
+  development/testing/testing-parallel.md: {"src/specify_cli/cli/commands/sync.py": 2}
+  guides/how-to/collaboration/run-an-autonomous-mission.md: {"spec-kitty merge": 2}
+  guides/how-to/governance/use-retrospective-learning.md: {"spec-kitty merge": 3}
+  guides/how-to/harnesses/amazon-q.md: {"/spec-kitty.merge": 1}
+  guides/how-to/harnesses/augment.md: {"/spec-kitty.merge": 1}
+  guides/how-to/harnesses/claude-code.md: {"/spec-kitty.merge": 1}
+  guides/how-to/harnesses/copilot.md: {"/spec-kitty.merge": 1}
+  guides/how-to/harnesses/cursor.md: {"/spec-kitty.merge": 1}
+  guides/how-to/harnesses/gemini.md: {"/spec-kitty.merge": 1}
+  guides/how-to/harnesses/kilocode.md: {"/spec-kitty.merge": 1}
+  guides/how-to/harnesses/opencode.md: {"/spec-kitty.merge": 1}
+  guides/how-to/harnesses/qwen.md: {"/spec-kitty.merge": 1}
+  guides/how-to/harnesses/setup-lint-hooks.md: {"spec-kitty live-work": 1}
+  guides/how-to/harnesses/windsurf.md: {"/spec-kitty.merge": 1}
+  guides/how-to/installation/install-spec-kitty.md: {"/spec-kitty.merge": 1}
+  guides/how-to/missions/accept-and-merge.md: {"/spec-kitty.merge": 1}
+  guides/how-to/missions/keep-main-clean.md: {"spec-kitty merge": 2}
+  guides/how-to/missions/merge-mission.md: {"spec-kitty merge": 1}
+  guides/how-to/monitoring/use-dashboard.md: {"/spec-kitty.dashboard": 1, "spec-kitty dashboard": 2}
+  guides/how-to/recovery/recover-from-implementation-crash.md: {"spec-kitty merge": 1}
+  guides/how-to/scenarios/agency-client-demo.md: {"/spec-kitty.merge": 1}
+  guides/how-to/scenarios/claude-cursor-collaboration.md: {"/spec-kitty.merge": 1}
+  guides/how-to/scenarios/multi-agent-mission-development.md: {"/spec-kitty.merge": 1}
+  guides/how-to/scenarios/parallel-implementation-tracking.md: {"/spec-kitty.merge": 1}
+  guides/how-to/scenarios/research-mission-example.md: {"/spec-kitty.merge": 1}
+  guides/how-to/scenarios/solo-developer-workflow.md: {"/spec-kitty.merge": 1}
+  guides/how-to/scenarios/worktree-parallel-missions.md: {"/spec-kitty.merge": 6}
+  guides/tutorials/claude-code-integration.md: {"/spec-kitty.merge": 4}
+  guides/tutorials/claude-code-workflow.md: {"/spec-kitty.merge": 1, "spec-kitty merge": 1}
+  guides/tutorials/your-first-mission.md: {"/spec-kitty.merge": 2, "spec-kitty merge": 1}
+  migrations/charter-pack-cutover.md: {"spec-kitty live-work": 1}
+  migrations/from-charter-2x.md: {"src/doctrine": 1}
+  migrations/relocate-builtin-doctrine-packs.md: {"src/doctrine": 20}
+  migrations/tracker-egress-refusal.md: {"spec-kitty sync": 9}
+  operations/manual-test-plan.md: {"spec-kitty auth": 6, "spec-kitty merge": 3}
