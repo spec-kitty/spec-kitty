@@ -197,8 +197,9 @@ class BranchOutcome:
     observed_sha: str
     expected_sha: str | None = None
     reason: str | None = None
-    # For RESTORED only: the commit the branch was moved to. It is the snapshot
+    # For RESTORED: the commit the branch was moved to. It is the snapshot
     # unless someone else moved the branch between attempts (``begin_attempt``).
+    # For a MISSING NOT_RESTORED: the commit to recreate it at (its restore target).
     restored_to_sha: str | None = None
     # The snapshot entry was captured live when an older record was resumed (F8).
     resume_seeded: bool = False
@@ -329,7 +330,8 @@ def _next_step(outcome: BranchOutcome, follow_up: RollbackFollowUp) -> str | Non
     if outcome.kind is not BranchOutcomeKind.NOT_RESTORED:
         return None
     if outcome.cause is NotRestoredCause.MISSING:
-        return f"{outcome.branch}: recreate it (`git branch {outcome.branch} {outcome.snapshot_sha}`), then {_then_follow_up(follow_up)}."
+        recreate_at = outcome.restored_to_sha or outcome.snapshot_sha
+        return f"{outcome.branch}: recreate it (`git branch {outcome.branch} {recreate_at}`), then {_then_follow_up(follow_up)}."
     if outcome.cause is NotRestoredCause.RESTORE_REFUSED:
         return f"{outcome.branch}: inspect it (`git log -3 {outcome.branch}`), then {_then_follow_up(follow_up)}."
     if outcome.cause is NotRestoredCause.DIRTY_CHECKOUT:
@@ -795,10 +797,15 @@ def _refusal(state: ConsolidationState, repo_root: Path, target_branch: str) -> 
 
 def _missing_branch_outcome(state: ConsolidationState, branch: str, snapshot: str) -> BranchOutcome:
     """A snapshotted branch that no longer exists: report it with a recreate hint, never block the rest (F3)."""
-    hint = f"no longer exists; snapshot {snapshot}; recreate with `git branch {branch} {snapshot}` if you still need it"
     if branch in state.snapshot_lane_branches:
+        hint = f"no longer exists; snapshot {snapshot}; recreate with `git branch {branch} {snapshot}` if you still need it"
         return BranchOutcome(branch, BranchOutcomeKind.LANE_MISSING, snapshot, "", reason=f"lane branch {branch} {hint}")
-    return BranchOutcome(branch, BranchOutcomeKind.NOT_RESTORED, snapshot, "", reason=f"branch {branch} {hint}", cause=NotRestoredCause.MISSING)
+    # #7598 fold: a run-movable branch is restored to its restore target, so that is where to recreate it.
+    restore_to = state.restore_targets.get(branch, snapshot)
+    hint = f"no longer exists; snapshot {snapshot}; recreate with `git branch {branch} {restore_to}` if you still need it"
+    return BranchOutcome(
+        branch, BranchOutcomeKind.NOT_RESTORED, snapshot, "", reason=f"branch {branch} {hint}", restored_to_sha=restore_to, cause=NotRestoredCause.MISSING
+    )
 
 
 @dataclass(frozen=True)
