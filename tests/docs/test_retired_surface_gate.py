@@ -257,7 +257,7 @@ def docs(tmp_path: Path) -> Path:
     return root
 
 
-_BURNDOWN = [gate.BurnDownEntry(page="guides/old.md", surfaces=("spec-kitty merge",), issue="#7523")]
+_BURNDOWN = [gate.BurnDownEntry(page="guides/old.md", surfaces={"spec-kitty merge": 1}, issue="#7523")]
 
 
 def test_a_tree_whose_hits_are_all_burned_down_passes(docs: Path) -> None:
@@ -278,6 +278,17 @@ def test_a_second_surface_on_a_burned_down_page_is_new(docs: Path) -> None:
     assert [finding.split(":")[0] for finding in gate.check(docs, _BURNDOWN)] == ["NEW guides/old.md"]
 
 
+def test_a_burned_down_page_cannot_add_a_mention_of_the_same_surface(docs: Path) -> None:
+    """The burn-down records a line count per pair: more lines is NEW, fewer is STALE (ratchet down)."""
+    _page(docs, "guides/old.md", "Run `spec-kitty merge`.\nThen `spec-kitty merge` again.\n")
+    (finding,) = gate.check(docs, _BURNDOWN)
+    assert finding.startswith("NEW guides/old.md:9: names retired surface 'spec-kitty merge' on 2 lines, the burn-down allows 1")
+
+    _page(docs, "guides/old.md", "Run `spec-kitty merge`.\n")
+    higher = [gate.BurnDownEntry(page="guides/old.md", surfaces={"spec-kitty merge": 2}, issue="#7523")]
+    assert gate.check(docs, higher) == ["STALE guides/old.md: 'spec-kitty merge' is named on 1 lines, below the burn-down's 2; lower it to 1 (#7523)"]
+
+
 def test_a_burn_down_entry_with_no_hit_left_is_stale(docs: Path) -> None:
     _page(docs, "guides/old.md", "Run `spec-kitty consolidate`.\n")
 
@@ -290,7 +301,7 @@ def test_history_and_unpublished_pages_are_not_checked(docs: Path) -> None:
 
 def test_main_exits_one_on_a_finding(docs: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     burndown = tmp_path / "burndown.yaml"
-    burndown.write_text("kind: retired-surface-burndown\nversion: 1\nentries: []\n", encoding="utf-8")
+    burndown.write_text("kind: retired-surface-burndown\nversion: 2\nentries: []\n", encoding="utf-8")
 
     baselines = tmp_path / "_baselines.yaml"
     baselines.write_text("test_retired_surface_gate:\n  burn_down: 0\n", encoding="utf-8")
@@ -322,7 +333,7 @@ def test_the_ratcheted_size_is_the_number_of_burned_down_pairs() -> None:
 
 def test_load_refuses_an_unknown_shape(tmp_path: Path) -> None:
     path = tmp_path / "b.yaml"
-    path.write_text("kind: something-else\nversion: 1\nentries: []\n", encoding="utf-8")
+    path.write_text("kind: something-else\nversion: 2\nentries: []\n", encoding="utf-8")
     with pytest.raises(gate.BurnDownError):
         gate.load_burndown(path)
 
@@ -367,7 +378,7 @@ def test_a_drained_pair_lowers_the_baseline_and_cannot_come_back() -> None:
 def test_main_reports_a_baseline_mismatch(docs: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     burndown = tmp_path / "burndown.yaml"
     burndown.write_text(
-        "kind: retired-surface-burndown\nversion: 1\nentries:\n  - {page: guides/old.md, issue: '#7523', surfaces: [spec-kitty merge]}\n",
+        "kind: retired-surface-burndown\nversion: 2\nentries:\n  - {page: guides/old.md, issue: '#7523', surfaces: {spec-kitty merge: 1}}\n",
         encoding="utf-8",
     )
     baselines = tmp_path / "_baselines.yaml"
@@ -411,17 +422,18 @@ def test_a_code_list_surface_says_there_is_no_replacement(docs: Path) -> None:
     [
         ("entries: {}\n", "entries must be a list"),
         ("entries: [3]\n", "entries[0] must be a mapping"),
-        ("entries:\n  - page: a.md\n    issue: '#7523'\n", "needs a page, an issue and a non-empty surfaces list"),
-        ("entries:\n  - page: a.md\n    issue: '#7523'\n    surfaces: []\n", "needs a page, an issue and a non-empty surfaces list"),
+        ("entries:\n  - page: a.md\n    issue: '#7523'\n", "needs a page, an issue and a non-empty surfaces mapping"),
+        ("entries:\n  - page: a.md\n    issue: '#7523'\n    surfaces: {}\n", "needs a page, an issue and a non-empty surfaces mapping"),
+        ("entries:\n  - {page: a.md, issue: '#7523', surfaces: {x: 0}}\n", "every surface needs a positive integer line count"),
         (
-            "entries:\n  - {page: a.md, issue: '#7523', surfaces: [x]}\n  - {page: a.md, issue: '#7523', surfaces: [y]}\n",
+            "entries:\n  - {page: a.md, issue: '#7523', surfaces: {x: 1}}\n  - {page: a.md, issue: '#7523', surfaces: {y: 1}}\n",
             "duplicate page a.md",
         ),
     ],
 )
 def test_load_refuses_a_malformed_burn_down(tmp_path: Path, body: str, message: str) -> None:
     path = tmp_path / "b.yaml"
-    path.write_text("kind: retired-surface-burndown\nversion: 1\n" + body, encoding="utf-8")
+    path.write_text("kind: retired-surface-burndown\nversion: 2\n" + body, encoding="utf-8")
     with pytest.raises(gate.BurnDownError, match=re.escape(message)):
         gate.load_burndown(path)
 

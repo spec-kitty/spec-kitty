@@ -9,8 +9,10 @@ Pages that already named a retired surface when the gate landed are listed in th
 burn-down ``scripts/docs/retired_surface_burndown.yaml``, each with the section sub-issue
 (#7522-#7528) that drains it. The gate fails on:
 
-* ``NEW``: a (page, surface) pair the burn-down does not list;
-* ``STALE``: a burn-down pair the page no longer names (remove it, so the list shrinks);
+* ``NEW``: a (page, surface) pair the burn-down does not list, or one the page names on more
+  lines than the burn-down records (a burned-down page cannot add mentions of the same surface);
+* ``STALE``: a burn-down pair the page no longer names, or names on fewer lines (remove it or
+  lower its count, so the list shrinks);
 * ``BASELINE``: the number of burned-down pairs, :data:`BURN_DOWN`, differs from
   ``test_retired_surface_gate.burn_down`` in ``tests/architectural/_baselines.yaml``. A pull
   request that drains a pair lowers that number with it, so a drained pair put back is above
@@ -51,6 +53,7 @@ __all__ = [
     "BurnDownError",
     "DEFAULT_BASELINES",
     "baseline_findings",
+    "burn_down_counts",
     "check",
     "load_baseline",
     "load_burndown",
@@ -67,7 +70,7 @@ _BASELINE_SECTION: Final[str] = "test_retired_surface_gate"
 _BASELINE_LEAF: Final[str] = "burn_down"
 _DEFAULT_DOCS: Final[Path] = _REPO_ROOT / "docs"
 BURNDOWN_KIND: Final[str] = "retired-surface-burndown"
-_BURNDOWN_VERSION: Final[int] = 1
+_BURNDOWN_VERSION: Final[int] = 2
 
 
 class BurnDownError(ValueError):
@@ -79,7 +82,7 @@ class BurnDownEntry:
     """A living page that still names retired surfaces, and the section sub-issue that drains it."""
 
     page: str
-    surfaces: tuple[str, ...]
+    surfaces: Mapping[str, int]  # surface id -> the number of lines on the page that name it
     issue: str
 
 
@@ -87,9 +90,12 @@ def _entry(raw: object, index: int) -> BurnDownEntry:
     if not isinstance(raw, Mapping):
         raise BurnDownError(f"entries[{index}] must be a mapping")
     page, issue, surfaces = raw.get("page"), raw.get("issue"), raw.get("surfaces")
-    if not isinstance(page, str) or not isinstance(issue, str) or not isinstance(surfaces, list) or not surfaces:
-        raise BurnDownError(f"entries[{index}] needs a page, an issue and a non-empty surfaces list")
-    return BurnDownEntry(page=page, surfaces=tuple(str(surface) for surface in surfaces), issue=issue)
+    if not isinstance(page, str) or not isinstance(issue, str) or not isinstance(surfaces, Mapping) or not surfaces:
+        raise BurnDownError(f"entries[{index}] needs a page, an issue and a non-empty surfaces mapping (surface -> line count)")
+    counts = {str(surface): count for surface, count in surfaces.items()}
+    if not all(type(count) is int and count > 0 for count in counts.values()):
+        raise BurnDownError(f"entries[{index}] ({page}): every surface needs a positive integer line count")
+    return BurnDownEntry(page=page, surfaces=counts, issue=issue)
 
 
 def load_burndown(path: Path) -> list[BurnDownEntry]:
@@ -122,22 +128,31 @@ def scan(docs_root: Path) -> dict[str, dict[str, list[int]]]:
     return hits
 
 
+def burn_down_counts(burndown: Iterable[BurnDownEntry]) -> dict[tuple[str, str], int]:
+    """The burn-down as (page, surface) -> the number of lines that may name it."""
+    return {(entry.page, surface): count for entry in burndown for surface, count in entry.surfaces.items()}
+
+
 def check(docs_root: Path, burndown: Iterable[BurnDownEntry]) -> list[str]:
     """``NEW`` and ``STALE`` findings, sorted; empty when the tree matches the burn-down."""
     retired_by = {surface.id: surface.retired_by for surface in docs_retired_surfaces()}
-    listed = {(entry.page, surface): entry.issue for entry in burndown for surface in entry.surfaces}
+    entries = list(burndown)
+    allowed = burn_down_counts(entries)
+    issues = {entry.page: entry.issue for entry in entries}
     hits = scan(docs_root)
-    findings = [
-        f"NEW {page}:{lines[0]}: names retired surface '{surface}' (retired: {retired_by[surface]})"
-        for page, surfaces in sorted(hits.items())
-        for surface, lines in sorted(surfaces.items())
-        if (page, surface) not in listed
-    ]
-    findings += [
-        f"STALE {page}: '{surface}' is no longer named; remove it from the burn-down ({issue})"
-        for (page, surface), issue in sorted(listed.items())
-        if surface not in hits.get(page, {})
-    ]
+    findings = []
+    for page, surfaces in sorted(hits.items()):
+        for surface, lines in sorted(surfaces.items()):
+            listed = allowed.get((page, surface), 0)
+            if len(lines) > listed:
+                detail = "" if not listed else f" on {len(lines)} lines, the burn-down allows {listed}"
+                findings.append(f"NEW {page}:{lines[listed]}: names retired surface '{surface}'{detail} (retired: {retired_by[surface]})")
+    for (page, surface), listed in sorted(allowed.items()):
+        live = len(hits.get(page, {}).get(surface, []))
+        if live == 0:
+            findings.append(f"STALE {page}: '{surface}' is no longer named; remove it from the burn-down ({issues[page]})")
+        elif live < listed:
+            findings.append(f"STALE {page}: '{surface}' is named on {live} lines, below the burn-down's {listed}; lower it to {live} ({issues[page]})")
     return findings
 
 
@@ -187,7 +202,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--baselines", type=Path, default=DEFAULT_BASELINES)
     args = parser.parse_args(argv)
     entries = load_burndown(args.burndown)
-    pairs = frozenset((entry.page, surface) for entry in entries for surface in entry.surfaces)
+    pairs = frozenset(burn_down_counts(entries))
     findings = check(args.docs_root, entries) + baseline_findings(pairs, load_baseline(args.baselines))
     for finding in findings:
         print(finding, file=sys.stderr)
@@ -205,7 +220,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 #: The burned-down (page, surface) pairs; their count is ratcheted in ``tests/architectural/_baselines.yaml``.
-BURN_DOWN: Final[frozenset[tuple[str, str]]] = frozenset((entry.page, surface) for entry in load_burndown(DEFAULT_BURNDOWN) for surface in entry.surfaces)
+BURN_DOWN: Final[frozenset[tuple[str, str]]] = frozenset(burn_down_counts(load_burndown(DEFAULT_BURNDOWN)))
 
 
 if __name__ == "__main__":  # pragma: no cover - CLI entry point
