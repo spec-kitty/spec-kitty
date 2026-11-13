@@ -1871,7 +1871,10 @@ def _commit_acceptance_meta(
     lenient: bool = False,
     owned: OwnedCheckout | None = None,
 ) -> tuple[str | None, str | None, bool]:
-    """Record acceptance in meta.json and commit; return (parent_commit, accept_commit, commit_created)."""
+    """Record acceptance in meta.json and commit; return (parent_commit, accept_commit, commit_created).
+
+    Compatibility wrapper over :func:`_record_and_commit_acceptance`, kept for existing callers and tests.
+    """
     return _record_and_commit_acceptance(summary, actor_name, mode, lenient=lenient, owned=owned).as_tuple()
 
 
@@ -2012,7 +2015,10 @@ def _commit_acceptance_meta_via_router(
     primary_ref: str | None = None,
     owned: OwnedCheckout | None = None,
 ) -> tuple[str | None, str | None, bool]:
-    """Commit the acceptance record through ``commit_for_mission``; return (parent_commit, accept_commit, commit_created)."""
+    """Commit the acceptance record through ``commit_for_mission``; return (parent_commit, accept_commit, commit_created).
+
+    Compatibility wrapper over :func:`_route_acceptance_record`, kept for existing callers and tests.
+    """
     return _route_acceptance_record(
         repo_root=repo_root,
         mission_slug=mission_slug,
