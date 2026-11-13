@@ -237,7 +237,6 @@ def test_recorded_sha_resolve_failure_is_a_probe_failure(repo: Path, tmp_path: P
 def test_not_recorded_derives_first_parent_of_scaffold(repo: Path, tmp_path: Path, meta: str) -> None:
     base, scaffold = _mission_on_branch(repo)
     feature_dir: Path | None = tmp_path / "meta"
-    assert feature_dir is not None
     if meta == "no_feature_dir":
         feature_dir = None
     elif meta == "unreadable_meta":
@@ -248,6 +247,8 @@ def test_not_recorded_derives_first_parent_of_scaffold(repo: Path, tmp_path: Pat
 
     result = resolve_mission_base(repo, feature_dir, mission_branch=MISSION_BRANCH, mission_slug=SLUG)
 
+    if meta == "not_recorded":
+        assert result.reason == "no mission_base_sha recorded"
     assert result.provenance is MissionBaseProvenance.DERIVED
     assert result.sha == base == _git(repo, "rev-parse", f"{scaffold}^1")
     assert result.kind is MissionBaseReason.NOT_RECORDED

@@ -362,23 +362,8 @@ def test_ratchet_declaring_a_post_base_mission_commit_refuses(tmp_path: Path) ->
     assert post_base[:10] in flat, f"the refusal must name the post-base Mission commit {post_base[:10]}:\n{flat[-3000:]}"
 
 
-@pytest.mark.parametrize("shape", ["smuggled_removed_wp", "pre_scaffold_commit_unrecorded_base"])
-def test_ratchet_smuggled_removed_wp_commit_is_unattributable(tmp_path: Path, shape: str) -> None:
-    """Content that is not pre-Mission history is never attributed, however it got onto the target path.
-
-    ``smuggled_removed_wp``: a removed WP's post-base commit rides a lane through a second-parent
-    merge. ``pre_scaffold_commit_unrecorded_base``: a code commit made on the Mission branch before
-    its first scaffold commit, with no recorded base (the derived base sits above it, so the
-    range ``window_base..base`` holds it): a derived base exempts nothing, so the squash blob
-    axis still names its path.
-    """
-    if shape == "pre_scaffold_commit_unrecorded_base":
-        fork = build_fork_mission(tmp_path, mid8="01M7560K", record_base=False)
-        result = _consolidate(fork.mission, "--dry-run", strategy=None)
-        flat = _flat(result)
-        assert result.returncode != 0, flat[-3000:]
-        assert UNATTRIBUTABLE in flat and "overlay/cfg.txt" in flat, flat[-3000:]
-        return
+def test_ratchet_smuggled_removed_wp_commit_is_unattributable(tmp_path: Path) -> None:
+    """A removed WP's post-base commit riding a lane through a second-parent merge is never attributed."""
     fork = build_fork_mission(tmp_path, mid8="01M7560G")
     mission = fork.mission
     smuggled = _commit_on_new_branch(mission.repo, tmp_path, "removed-wp", mission.coord_branch, {"src/pkg/removed.py": "REMOVED = 1\n"})
@@ -392,6 +377,21 @@ def test_ratchet_smuggled_removed_wp_commit_is_unattributable(tmp_path: Path, sh
     assert result.returncode != 0, flat[-3000:]
     assert UNATTRIBUTABLE in flat, flat[-3000:]
     assert smuggled[:10] in flat, f"the refusal must name the smuggled commit {smuggled[:10]}:\n{flat[-3000:]}"
+
+
+def test_ratchet_derived_base_exempts_pre_scaffold_commit(tmp_path: Path) -> None:
+    """A code commit made before the first scaffold commit, with no recorded base, is still named.
+
+    The derived base sits above it, so the range ``window_base..base`` holds it: a derived base
+    exempts nothing, and the squash blob axis still names its path.
+    """
+    fork = build_fork_mission(tmp_path, mid8="01M7560K", record_base=False)
+
+    result = _consolidate(fork.mission, "--dry-run", strategy=None)
+
+    flat = _flat(result)
+    assert result.returncode != 0, flat[-3000:]
+    assert UNATTRIBUTABLE in flat and "overlay/cfg.txt" in flat, flat[-3000:]
 
 
 def test_ratchet_declaring_a_lane_branch_refuses(tmp_path: Path) -> None:
