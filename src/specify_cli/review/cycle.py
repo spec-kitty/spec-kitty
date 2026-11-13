@@ -648,6 +648,7 @@ REVIEW_CYCLE_NOT_ADOPTABLE = "REVIEW_CYCLE_NOT_ADOPTABLE"
 _CYCLE_CITATION_RE = re.compile(r"(?<![\w-])(?:review-)?cycle(?:-|\s+)(?P<cycle>[1-9][0-9]*)(?!\w)", re.IGNORECASE)
 _REVIEW_CYCLE_POINTER_PREFIX = "review-cycle://"
 _REWORK_LANES = frozenset({"planned", "in_progress"})
+_APPROVAL_LANE_VALUES = frozenset({"approved", "done"})
 _REVIEW_FEEDBACK_ROUTE = "rename it to review-feedback-{n}.md and pass --review-feedback-file, or remove it"
 
 
@@ -662,20 +663,66 @@ def parse_cycle_citations(text: str | None) -> tuple[int, ...]:
 
 
 def _cycle_number_of_reference(reference: str | None) -> int | None:
-    """The cycle number a ``review-cycle://`` reference names, or ``None`` for any other reference."""
-    if not reference or not reference.strip().startswith(_REVIEW_CYCLE_POINTER_PREFIX):
+    """The cycle number a reference names, or ``None`` for any other reference.
+
+    A ``review-cycle://`` pointer, or a file path (a legacy path reference, or a ``review_result``
+    ``feedback_path``) whose file name is ``review-cycle-N.md``. Free text never matches.
+    """
+    value = (reference or "").strip()
+    if value.startswith(_REVIEW_CYCLE_POINTER_PREFIX):
+        try:
+            return validate_review_cycle_pointer(value).cycle_number
+        except ReviewCycleError:
+            return None
+    if "/" not in value and "\\" not in value:
         return None
-    try:
-        return validate_review_cycle_pointer(reference).cycle_number
-    except ReviewCycleError:
-        return None
+    match = _REVIEW_CYCLE_FILE_RE.match(Path(value).name)
+    return int(match.group("cycle")) if match is not None else None
 
 
 def _event_cycle_references(event: StatusEvent) -> tuple[str | None, ...]:
-    """The three fields an event references a review cycle through."""
-    result_ref = event.review_result.reference if event.review_result is not None else None
+    """The fields an event references a review cycle through.
+
+    ``review_ref``, ``review_result.reference`` and ``evidence.review.reference``, plus
+    ``review_result.feedback_path`` (the written file's own path).
+    """
+    result = event.review_result
     evidence_ref = event.evidence.review.reference if event.evidence is not None else None
-    return (event.review_ref, result_ref, evidence_ref)
+    if result is None:
+        return (event.review_ref, evidence_ref)
+    return (event.review_ref, result.reference, evidence_ref, result.feedback_path)
+
+
+def _is_verdict_event(event: StatusEvent) -> bool:
+    """A recorded review verdict: an approval entering ``approved``/``done``, or a rejection.
+
+    ``approved -> done`` carries the earlier approval and is not a verdict of its own.
+    """
+    if _is_rejection_event(event):
+        return True
+    return str(event.to_lane) in _APPROVAL_LANE_VALUES and str(event.from_lane) not in _APPROVAL_LANE_VALUES
+
+
+def has_unaccounted_verdict(events: Sequence[StatusEvent], wp_id: str) -> bool:
+    """Whether a recorded verdict of *wp_id* names no review cycle (#7571, legacy logs).
+
+    Before #7569 an approval wrote ``review-cycle-N.md`` but recorded ``--approval-ref``, an
+    ``approval:`` / ``auto-approval:`` token or ``force-override``, never the cycle's pointer. Such a
+    log has cycles no event references that are NOT the current reviewer's, so the adoption probe
+    cannot tell an old cycle from a new one: it adopts nothing and refuses nothing (the approval
+    writes its own cycle, as before). A rejection's synthetic ``review:<WP>`` token wrote no file
+    and is accounted for.
+    """
+    for event in events:
+        if event.wp_id != wp_id or not _is_verdict_event(event):
+            continue
+        references = _event_cycle_references(event)
+        if any(_cycle_number_of_reference(ref) is not None for ref in references):
+            continue
+        if _is_rejection_event(event) and any(ref and ref.strip().startswith(_REVIEW_PREFIX) for ref in references):
+            continue
+        return True
+    return False
 
 
 def _is_rejection_event(event: StatusEvent) -> bool:
@@ -775,13 +822,16 @@ def find_adoptable_review_cycle(
     """Decide whether an approval adopts a cycle the reviewer already wrote (FR-008, FR-009, FR-014).
 
     A candidate is a file whose N is above every cycle number the event log references, and which
-    no event references. It is adoptable when it is valid and its ``reviewer_agent`` is the reviewer
+    no event references. A log with a verdict that names no cycle (:func:`has_unaccounted_verdict`)
+    adopts and refuses nothing. It is adoptable when it is valid and its ``reviewer_agent`` is the reviewer
     of record (:func:`~specify_cli.status.review_roles.same_review_identity`). Any candidate that is
     not adoptable makes the result ``not_adoptable``; otherwise the highest adoptable N is adopted.
     Keyed on event references and cycle numbers, never on ``reviewed_at`` (research R5).
     """
     from specify_cli.status.review_roles import same_review_identity
 
+    if has_unaccounted_verdict(events, wp_id):
+        return AdoptionResult("none", reason="a recorded verdict names no review cycle (a legacy log)")
     floor = max(cycle_numbers_referenced(events, wp_id), default=0)
     adoptable: list[Path] = []
     for number in sorted(n for n in files if n > floor):

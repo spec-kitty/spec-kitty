@@ -426,3 +426,56 @@ def test_create_review_cycle_is_the_writer_and_the_old_name_its_alias() -> None:
     """FR-013: one writer, named for what it does; the old name stays as an alias (#6709)."""
     cycle = _cycle()
     assert cycle.create_rejected_review_cycle is cycle.create_review_cycle
+
+
+# ---------------------------------------------------------------------------
+# Legacy logs: a verdict that names no cycle (has_unaccounted_verdict)
+# ---------------------------------------------------------------------------
+
+
+def _legacy_approval(idx: int, reference: str) -> StatusEvent:
+    """A pre-#7569 approval: it wrote a cycle file but recorded another reference."""
+    return StatusEvent(
+        **{
+            **_event(idx, Lane.APPROVED).__dict__,
+            "from_lane": Lane.IN_REVIEW,
+            "review_result": ReviewResult(reviewer=_OTHER, verdict="approved", reference=reference),
+        }
+    )
+
+
+@pytest.mark.parametrize("reference", ["approval:WP01", "auto-approval:WP01:20260101", "force-override", "LGTM in PR-42"])
+def test_legacy_approval_without_a_pointer_adopts_and_refuses_nothing(tmp_path: Path, reference: str) -> None:
+    """The old approval's cycle 1 is unreferenced and another identity's: neither adopted nor refused."""
+    _write_cycle(tmp_path, 1, reviewer=_OTHER)
+    events = [_legacy_approval(1, reference), _event(2, Lane.PLANNED, review_ref="force-override"), _event(3, Lane.IN_REVIEW)]
+    cycle = _cycle()
+    assert cycle.has_unaccounted_verdict(events, _WP_ID) is True
+    assert _probe(tmp_path, events).kind == "none"
+
+
+def test_synthetic_rejection_token_wrote_no_file_and_is_accounted_for(tmp_path: Path) -> None:
+    _write_cycle(tmp_path, 1)
+    events = [_event(1, Lane.PLANNED, review_ref="review:WP01", result=None), _event(2, Lane.IN_REVIEW)]
+    assert _cycle().has_unaccounted_verdict(events, _WP_ID) is False
+    assert _probe(tmp_path, events).kind == "adopt"
+
+
+def test_approval_carried_to_done_is_not_a_verdict_of_its_own() -> None:
+    carried = StatusEvent(**{**_event(2, Lane.DONE, evidence=1).__dict__, "from_lane": Lane.APPROVED})
+    events = [_event(1, Lane.APPROVED, result=("approved", 1)), carried]
+    assert _cycle().has_unaccounted_verdict(events, _WP_ID) is False
+
+
+def test_feedback_path_and_path_references_name_their_cycle() -> None:
+    cycle = _cycle()
+    result_with_path = StatusEvent(
+        **{
+            **_event(1, Lane.APPROVED).__dict__,
+            "review_result": ReviewResult(reviewer=_REVIEWER, verdict="approved", reference="approval:WP01", feedback_path="/x/tasks/WP01-core/review-cycle-3.md"),
+        }
+    )
+    legacy_path = _event(2, Lane.PLANNED, review_ref="kitty-specs/m/tasks/WP01-core/review-cycle-4.md")
+    prose = _event(3, Lane.PLANNED, review_ref="see review-cycle-5.md")
+    assert cycle.cycle_numbers_referenced([result_with_path, legacy_path, prose], _WP_ID) == frozenset({3, 4})
+    assert cycle.has_unaccounted_verdict([result_with_path], _WP_ID) is False

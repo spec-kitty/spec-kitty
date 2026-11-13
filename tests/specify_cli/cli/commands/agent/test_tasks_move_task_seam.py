@@ -752,7 +752,8 @@ def test_persist_approved_review_cycle_writes_over_stale_rejection(tmp_path: Pat
     call_kwargs = create_mock.call_args.kwargs
     assert call_kwargs["verdict"] == "approved"
     assert call_kwargs["reviewer_agent"] == "alice"
-    assert "Approved by alice: LGTM" in call_kwargs["body"]
+    # #7571 honest body (approval-honesty WP03, re-pinned): the caller's --approval-ref on its own line.
+    assert call_kwargs["body"] == "Approved by alice.\nReference: LGTM\n"
     assert call_kwargs["commit_router"] is ports.coord
 
 
@@ -1341,5 +1342,6 @@ def test_persist_approved_review_cycle_empty_feedback_file_keeps_synthesized_bod
         tasks_verdict_persistence._persist_approved_review_cycle(st, MagicMock())
     call_kwargs = create_mock.call_args.kwargs
     assert call_kwargs["feedback_source"] is None
-    assert call_kwargs["body"] == "Approved by reviewer: approval:WP01\n"
+    # #7571 honest body (approval-honesty WP03, re-pinned): no synthetic ``approval:<WP>`` token.
+    assert call_kwargs["body"] == "Approved by reviewer.\n"
     assert "the file is empty" in capsys.readouterr().err
