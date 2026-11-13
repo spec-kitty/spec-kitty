@@ -6,6 +6,8 @@
 #   pair missing here, or named on more lines than listed (NEW), and on a pair the page no
 #   longer names or names on fewer lines (STALE), so a fixed page lowers its count or leaves
 #   this list in the same pull request;
+# - the burn-down may only shrink from scripts/docs/retired_surface_landing.yaml (REFILL), so a
+#   swap (drain one pair, add another) fails too;
 # - the pair count must equal test_retired_surface_gate.burn_down in
 #   tests/architectural/_baselines.yaml: a pull request that drains a pair lowers that number
 #   too, so a drained pair cannot come back. Never add an entry; fix the page instead.

@@ -13,6 +13,9 @@ burn-down ``scripts/docs/retired_surface_burndown.yaml``, each with the section 
   lines than the burn-down records (a burned-down page cannot add mentions of the same surface);
 * ``STALE``: a burn-down pair the page no longer names, or names on fewer lines (remove it or
   lower its count, so the list shrinks);
+* ``REFILL``: a burn-down pair the landing set ``scripts/docs/retired_surface_landing.yaml`` does
+  not list, or a count above the landing one: the burn-down only shrinks, so a swap (drain one
+  pair, add another, same count) fails here on its own;
 * ``BASELINE``: the number of burned-down pairs, :data:`BURN_DOWN`, differs from
   ``test_retired_surface_gate.burn_down`` in ``tests/architectural/_baselines.yaml``. A pull
   request that drains a pair lowers that number with it, so a drained pair put back is above
@@ -56,20 +59,26 @@ __all__ = [
     "burn_down_counts",
     "check",
     "load_baseline",
+    "DEFAULT_LANDING",
     "load_burndown",
+    "load_landing",
     "main",
+    "refill_findings",
     "refilled",
     "scan",
     "surfaces_named",
 ]
 
 DEFAULT_BURNDOWN: Final[Path] = _REPO_ROOT / "scripts" / "docs" / "retired_surface_burndown.yaml"
+#: The burn-down as it stood at landing, frozen: the burn-down may only shrink from it.
+DEFAULT_LANDING: Final[Path] = _REPO_ROOT / "scripts" / "docs" / "retired_surface_landing.yaml"
 #: The one authority for the burn-down's pair count (``test_retired_surface_gate.burn_down``).
 DEFAULT_BASELINES: Final[Path] = _REPO_ROOT / "tests" / "architectural" / "_baselines.yaml"
 _BASELINE_SECTION: Final[str] = "test_retired_surface_gate"
 _BASELINE_LEAF: Final[str] = "burn_down"
 _DEFAULT_DOCS: Final[Path] = _REPO_ROOT / "docs"
 BURNDOWN_KIND: Final[str] = "retired-surface-burndown"
+_LANDING_KIND: Final[str] = "retired-surface-landing"
 _BURNDOWN_VERSION: Final[int] = 2
 
 
@@ -156,13 +165,33 @@ def check(docs_root: Path, burndown: Iterable[BurnDownEntry]) -> list[str]:
     return findings
 
 
-def refilled(pairs: frozenset[tuple[str, str]], landing: frozenset[tuple[str, str]]) -> list[tuple[str, str]]:
-    """Burn-down pairs outside the *landing* set, sorted: a swap or a re-addition after a fix.
+def load_landing(path: Path) -> dict[tuple[str, str], int]:
+    """The frozen landing set: (page, surface) -> line count, as recorded when the gate landed."""
+    data: Any = yaml.safe_load(path.read_text(encoding="utf-8"))
+    pages = data.get("pages") if isinstance(data, Mapping) else None
+    if not isinstance(data, Mapping) or data.get("kind") != _LANDING_KIND or not isinstance(pages, Mapping):
+        raise BurnDownError(f"{path} must declare kind: {_LANDING_KIND} and a pages mapping")
+    landing = {(str(page), str(surface)): count for page, surfaces in pages.items() if isinstance(surfaces, Mapping) for surface, count in surfaces.items()}
+    if not landing or not all(type(count) is int and count > 0 for count in landing.values()):
+        raise BurnDownError(f"{path}: every landing surface needs a positive integer line count")
+    return landing
 
-    The burn-down may only shrink. ``tests/docs/test_retired_surface_gate.py`` freezes the
-    landing set and fails on any pair this returns.
+
+def refilled(counts: Mapping[tuple[str, str], int], landing: Mapping[tuple[str, str], int]) -> list[tuple[str, str]]:
+    """Burn-down pairs outside the *landing* set or above its count, sorted: a swap or a re-addition.
+
+    The burn-down may only shrink from the landing set; :func:`main` fails on any pair this returns.
     """
-    return sorted(pairs - landing)
+    return sorted(pair for pair, count in counts.items() if count > landing.get(pair, 0))
+
+
+def refill_findings(counts: Mapping[tuple[str, str], int], landing: Mapping[tuple[str, str], int]) -> list[str]:
+    """``REFILL`` findings for :func:`refilled`, one line per pair."""
+    return [
+        f"REFILL {page}: '{surface}' is in the burn-down on {counts[(page, surface)]} lines but the landing set has {landing.get((page, surface), 0)}; "
+        "the burn-down only shrinks, fix the page instead"
+        for page, surface in refilled(counts, landing)
+    ]
 
 
 def load_baseline(path: Path) -> int:
@@ -200,10 +229,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--docs-root", type=Path, default=_DEFAULT_DOCS)
     parser.add_argument("--burndown", type=Path, default=DEFAULT_BURNDOWN)
     parser.add_argument("--baselines", type=Path, default=DEFAULT_BASELINES)
+    parser.add_argument("--landing", type=Path, default=DEFAULT_LANDING)
     args = parser.parse_args(argv)
     entries = load_burndown(args.burndown)
-    pairs = frozenset(burn_down_counts(entries))
-    findings = check(args.docs_root, entries) + baseline_findings(pairs, load_baseline(args.baselines))
+    counts = burn_down_counts(entries)
+    findings = (
+        check(args.docs_root, entries) + refill_findings(counts, load_landing(args.landing)) + baseline_findings(frozenset(counts), load_baseline(args.baselines))
+    )
     for finding in findings:
         print(finding, file=sys.stderr)
     if findings:
