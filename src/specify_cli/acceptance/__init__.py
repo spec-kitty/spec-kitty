@@ -2267,7 +2267,7 @@ def _has_lanes_to_consolidate(feature_dir: Path, *, lands_by_consolidation: bool
     ``lanes.json`` land through ``consolidate``. An unreadable ``lanes.json`` answers
     ``False``: the acceptance gates own that refusal.
     """
-    from mission_runtime.landing import mission_has_landed
+    from mission_runtime import mission_has_landed
     from specify_cli.lanes.compute import is_planning_lane
     from specify_cli.lanes.persistence import read_lanes_json
 
