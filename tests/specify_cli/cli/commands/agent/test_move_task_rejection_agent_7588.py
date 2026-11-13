@@ -1,8 +1,9 @@
 """#7588: ``move-task --to planned --agent <reviewer>`` must not rebind the WP owner.
 
-A move into ``planned`` (a review rejection, an approved reopen, a rollback)
-releases the WP's runtime claim (#2512). ``--agent`` on that move names who
-acted (the transition's actor); it is not a reassignment. Before the fix, a
+A move that hands a WP back for work (a review rejection into ``planned`` or
+``in_progress``, an approved reopen, a bounce out of ``for_review``) names in
+``--agent`` who acted (the transition's actor); it is not a reassignment. A move
+into ``planned`` also releases the WP's runtime claim (#2512). Before the fix, a
 reviewer whose identity differed from the current claim holder was stamped into
 the reduced ``agent`` (ownership) slot, overriding the release, so a different
 implementer's re-claim was refused with "Agent mismatch ... assigned to
@@ -20,6 +21,7 @@ from typing import Any
 import pytest
 
 from specify_cli.status import wp_snapshot_state
+from specify_cli.status.resolved_binding import RESOLVED_PROFILE_ABSENT
 from tests.specify_cli.cli.commands.agent import _rework_loop_harness as h
 from tests.specify_cli.cli.commands.agent.test_tasks_cli_contract_coord import (
     _build_coord_protected_tree,
@@ -86,11 +88,14 @@ def test_assignee_on_a_rejection_reassigns_the_wp_explicitly(tmp_path: Path, mon
     snapshot = wp_snapshot_state(m.feature_dir, h.WP) or {}
     assert snapshot.get("agent") == h.THIRD
     assert snapshot.get("assignee") == h.THIRD
+    # The reviewer's binding does not describe the assignee: it is recorded absent.
+    assert snapshot.get("role") == "implementer"
+    assert snapshot.get("agent_profile") == RESOLVED_PROFILE_ABSENT
     assert h.move(m, h.WP, "claimed", h.THIRD).exit_code == 0
 
 
 def test_agent_on_a_non_planned_move_still_records_the_owner(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Positive control: the fix is scoped to moves into ``planned`` (#3029 stays)."""
+    """Positive control: a review claim is not a hand-back, so ``--agent`` binds (#3029 stays)."""
     m = h.build_mission(tmp_path, monkeypatch)
     h.drive_to_for_review(m)
 
@@ -170,8 +175,17 @@ _HANDS_BACK = [
     ("in_progress", "planned"),
     ("in_review", "in_progress"),
     ("approved", "in_progress"),
+    ("for_review", "in_progress"),
+    ("for_review", "claimed"),
 ]
-_BINDING = [("planned", "claimed"), ("claimed", "in_progress"), ("for_review", "in_review"), ("in_review", "approved"), ("for_review", "in_progress")]
+_BINDING = [
+    ("planned", "claimed"),
+    ("claimed", "in_progress"),
+    ("in_progress", "for_review"),
+    ("for_review", "in_review"),
+    ("in_review", "approved"),
+    ("approved", "done"),
+]
 
 
 def _st(old: str, target: str, agent: str | None = "reviewer", assignee: str | None = None) -> Any:
@@ -188,7 +202,10 @@ def test_agent_never_binds_the_owner_when_work_is_handed_back(old: str, target: 
 
     assert not _mt_agent_binds_owner(_st(old, target))
     assert _mt_ownership_fields(_st(old, target)) == {}
-    assert _mt_ownership_fields(_st(old, target, assignee="next-implementer")) == {"agent": "next-implementer"}
+    reassigned = _mt_ownership_fields(_st(old, target, assignee="next-implementer"))
+    assert reassigned["agent"] == "next-implementer"
+    assert reassigned["role"] == "implementer"
+    assert reassigned["agent_profile"] == RESOLVED_PROFILE_ABSENT
 
 
 @pytest.mark.parametrize(("old", "target"), _BINDING)
@@ -199,3 +216,30 @@ def test_agent_binds_the_owner_on_every_other_move(old: str, target: str) -> Non
     assert _mt_ownership_fields(_st(old, target, assignee="someone-else"))["agent"] == "reviewer"
     assert not _mt_agent_binds_owner(_st(old, target, agent=None))
     assert _mt_ownership_fields(_st(old, target, agent=None, assignee="someone-else")) == {}
+
+
+def test_a_reviewer_bounce_out_of_for_review_keeps_the_implementer_as_owner(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``for_review -> in_progress`` by the reviewer is a hand-back: the slot keeps the implementer."""
+    m = h.build_mission(tmp_path, monkeypatch)
+    h.drive_to_for_review(m)
+
+    bounced = h.move(m, h.WP, "in_progress", h.REVIEWER, "--force")
+
+    assert bounced.exit_code == 0, bounced.output
+    assert _owner(m.feature_dir) == h.IMPLEMENTER
+    resubmitted = h.move(m, h.WP, "for_review", h.IMPLEMENTER)
+    assert resubmitted.exit_code == 0, resubmitted.output
+
+
+def test_a_rejection_does_not_plant_the_reviewers_shell_pid(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    m = h.build_mission(tmp_path, monkeypatch)
+    h.drive_to_for_review(m)
+    feedback = m.repo / "feedback.md"
+    feedback.write_text("## Issues\n\nFix this thing.\n", encoding="utf-8")
+
+    rejected = h.move(m, h.WP, "planned", h.REVIEWER, "--review-feedback-file", str(feedback), "--shell-pid", "4242")
+
+    assert rejected.exit_code == 0, rejected.output
+    snapshot = wp_snapshot_state(m.feature_dir, h.WP) or {}
+    assert not snapshot.get("agent")
+    assert not snapshot.get("shell_pid"), snapshot.get("shell_pid")
