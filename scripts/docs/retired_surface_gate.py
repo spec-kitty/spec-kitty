@@ -104,6 +104,9 @@ def _entry(raw: object, index: int) -> BurnDownEntry:
     counts = {str(surface): count for surface, count in surfaces.items()}
     if not all(type(count) is int and count > 0 for count in counts.values()):
         raise BurnDownError(f"entries[{index}] ({page}): every surface needs a positive integer line count")
+    known = {surface.id for surface in docs_retired_surfaces()}
+    if unknown := sorted(set(counts) - known):
+        raise BurnDownError(f"entries[{index}] ({page}): unknown retired surface {unknown[0]!r}; ids come from scripts/retired_surfaces.py")
     return BurnDownEntry(page=page, surfaces=counts, issue=issue)
 
 

@@ -337,9 +337,10 @@ def test_a_code_list_surface_says_there_is_no_replacement(docs: Path) -> None:
         ("entries: [3]\n", "entries[0] must be a mapping"),
         ("entries:\n  - page: a.md\n    issue: '#7523'\n", "needs a page, an issue and a non-empty surfaces mapping"),
         ("entries:\n  - page: a.md\n    issue: '#7523'\n    surfaces: {}\n", "needs a page, an issue and a non-empty surfaces mapping"),
-        ("entries:\n  - {page: a.md, issue: '#7523', surfaces: {x: 0}}\n", "every surface needs a positive integer line count"),
+        ("entries:\n  - {page: a.md, issue: '#7523', surfaces: {Zeitgeist: 0}}\n", "every surface needs a positive integer line count"),
+        ("entries:\n  - {page: a.md, issue: '#7523', surfaces: {not-a-surface: 1}}\n", "unknown retired surface 'not-a-surface'"),
         (
-            "entries:\n  - {page: a.md, issue: '#7523', surfaces: {x: 1}}\n  - {page: a.md, issue: '#7523', surfaces: {y: 1}}\n",
+            "entries:\n  - {page: a.md, issue: '#7523', surfaces: {Zeitgeist: 1}}\n  - {page: a.md, issue: '#7523', surfaces: {saas_client: 1}}\n",
             "duplicate page a.md",
         ),
     ],
