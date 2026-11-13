@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-09-29'
-updated: '2026-09-29T00:00:00Z'
+updated: '2026-11-12T00:00:00Z'
 ---
 
 ## Context and Problem Statement
@@ -450,3 +450,102 @@ claim-time anchor set feeds the closed-world anchors; see
 `2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition`. The lane anchor
 (`first_governed_open_stamp`, where `blocked` counts as an opener) stays as a named window
 variant there, so no closed-world verdict changes through the window model itself.
+
+## Amendment 2026-11-12: history from before the Mission is not Mission work (#7560)
+
+**Context.** Every reconciliation window starts at the window base, the target's tip before
+the run. On a fork, the local target can lack the commit the Mission branch was cut from: the
+Mission started from an upstream pin plus a fork overlay, or from a `--pr-bound` start branch
+the target never received. The history between the target and that commit then sat inside
+every window. In the first report, a lane merged an upstream commit `U`; `consolidate --strategy
+merge --dependency-ref U` refused with `DEPENDENCY_REF_COVERS_MISSION_WORK`, because the
+missing upstream history sat on the Mission branch's first-parent spine. In the second report,
+no lane merged anything: a plain run reported that history as un-attributable content and
+deletions, and a declared run named the Mission base's own parent as Mission work.
+
+**Decision.** History from before the Mission was created is not Mission work, on every
+window axis (operator rulings, Decision Moments `01M78XBQS8NE8PPMSTZHMDJ610`,
+`01M78XBWYTWJ6TZJVF4GWQMCQF` and `01M78XC2CJVH9ZXR0WB92NWYG5`).
+
+- **The Mission base** is the commit the Mission branch was cut from
+  (`consolidation/mission_base.py::resolve_mission_base`). It is not the claim base and not a
+  lane creation base. It is resolved in a fixed order:
+  1. **Recorded.** `meta.json` `mission_base_sha`, written once where the Mission branch is
+     created: the topic or protected mint, and the coordination-branch create (a reused
+     coordination branch records nothing). It is used only when it is a full lowercase object
+     id (40 or 64 hex characters) equal to what `rev-parse --verify <value>^{commit}` prints,
+     so a branch name, `HEAD`, a short sha or a tag object is never a recorded base; when it
+     names a commit in this clone that is an ancestor of, or equal to, the Mission's *origin*
+     (the first parent of the commit the derivation below finds), so neither a Mission commit
+     nor a side branch merged into the Mission branch after it started qualifies, and without
+     an origin the value is not used; and
+     when the Mission directory is not reachable from it (`git log -1 --full-history <base> --
+     kitty-specs/<slug>/` is empty), because a base the Mission directory is reachable from
+     sits at or above the Mission's start. A value that fails a check is ignored, with its
+     reason, and the derivation runs. Beyond those checks the value is trusted as tool-written.
+  2. **Derived**, for a Mission without a usable recorded value: the first parent of the
+     earliest commit on the Mission branch's first-parent history that adds a file under
+     `kitty-specs/<slug>/`, checked the same way (on the branch, Mission directory not
+     reachable). When that commit brought the directory in by
+     a rename git detects (`git mv kitty-specs/<old> kitty-specs/<slug>`), its parent can sit
+     above work done under the old name, so the base is unavailable instead.
+  3. **Unavailable.** No base, and today's bound applies: the window base alone. A git probe
+     failure lands here too; a base is never guessed.
+- **Pre-Mission history** is `rev-list window_base..mission_base`. It is empty whenever the
+  target already reaches the Mission base, which is the ordinary case, so every existing
+  verdict is unchanged there. A range that holds a `lane_head` stamp any work package of the
+  Mission recorded, or a recorded lane work tip in the Mission's branch namespace, holds
+  Mission work: the base sits above the Mission's start, so the whole range is dropped and the
+  base is unavailable (an unreadable status log or lane-tip listing does the same).
+- **Where it counts.** Pre-Mission history has the standing of content already on the target:
+  - the closed-world scan (fresh run, gate and `--dry-run`) exempts its commits by exact SHA,
+    and so does the patch-id window of the excluded-commit check (a canceled work package's
+    commit reaching the target under a new SHA): a pre-Mission commit's patch-id no longer
+    counts there;
+  - the squash blob and deletion axes exempt its exact final `(path, blob)` pairs and the
+    paths it last deleted, read by the same final-state walk the declared refs use;
+  - the #6771 declaration guard leaves its commits out of the Mission-spine walk and the
+    recorded-tip walk, so a fork's pin can be declared.
+- **Unchanged.** A declared ref's own window stays `window_base..ref`; it is not cut at the
+  Mission base. The approved bound (#5668) and the mixed-lane canceled-content axes (per-path
+  state and line attribution, #6309) do not read the Mission base. Everything the Mission
+  authored or carried after its base (commits on the Mission branch, lane spines,
+  `lane_head` stamps, recorded lane tips) refuses exactly as before. No refusal code is added
+  or changed.
+- **Resolved per claim build.** The base is resolved each time the claim is built (the claim
+  and the gate's rebuild), with no new consolidation record field. In the recorded case one
+  resolution and its range cost six git calls; a non-empty range adds one status-log read and
+  one lane-tip listing.
+- **Note line.** A run and `--dry-run` print one note (never under `--json`) when pre-Mission
+  history is non-empty, naming the base, its provenance and the commit count, or when the base
+  is unavailable, naming the reason. A probe failure is shown as "a git probe failed", without
+  git's own output. The note is silent when the Mission branch itself does not resolve. The
+  note decides on the base's typed reason (`MissionBaseReason`), never on the reason's text.
+
+**Consequences.**
+
+- On a fork, content that predates the Mission lands without a work package attributing it.
+  That is the operator ruling: it was never Mission work.
+- It fails closed. An unavailable base, or a probe failure while reading pre-Mission history,
+  exempts nothing and leaves today's bound in force.
+- A derived base reads history the operator can edit. Changing that history is a recorded
+  operator act, as with the declared ref.
+
+**Residuals.**
+
+- The derivation follows git's rename detection only. A hand copy that keeps its source, a
+  move edited past git's 50% similarity threshold, and a copy whose source is deleted in a
+  later commit are not detected. The derived base can then sit above earlier Mission work,
+  which takes an operator act to arrange. A recorded base is unaffected.
+- A hand-edited recorded base is anchored to the Mission's origin, so it can only name history
+  the Mission started from. It inherits the derivation's residuals above: where the origin
+  itself sits above earlier Mission work, so can a recorded base. The guard against Mission
+  work in the pre-Mission range reads recorded facts only (stamps and lane work tips).
+- A rebased Mission branch whose first-parent history no longer carries the scaffold commit
+  derives no base and falls back to today's bound.
+- The exemption is by exact SHA, so a re-lettered copy of a pre-Mission commit (a new SHA with
+  the same patch, for example after a rebase) is still judged as window content. This is
+  fail-closed.
+- `pre_mission_blobs` follows `rev-list` walk order, so on a range with side branches the blob
+  kept for a path can be a side branch's intermediate one, which is then exempt on the squash
+  axis. It is the same class of gap as the approved lanes' authored blobs.
