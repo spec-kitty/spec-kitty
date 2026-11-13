@@ -2061,11 +2061,11 @@ def test_squash_fails_closed_when_lane_plus_target_merge_carries_an_unapproved_l
     assert ("src/shared.py", target_blob) in result.divergence.unattributable_blobs
 
 
-def _hand_resolved_mission_branch(tmp_path: Path) -> tuple[Path, Path, LanesManifest, str, str]:
+def _hand_resolved_mission_branch(tmp_path: Path) -> tuple[Path, Path, LanesManifest, str, str, str]:
     """The charter repro shape (#7626): lane-a and lane-b edit the SAME line of a shared file;
     the mission branch merges both and an operator hand-resolves the conflict to a third
-    blob. Returns ``(repo, feature_dir, manifest, mission_branch, resolved_blob)``; lane-c
-    (WP03) is cut and empty.
+    blob. Returns ``(repo, feature_dir, manifest, mission_branch, resolved_blob, coord_anchor)``;
+    lane-c (WP03) is cut and empty, and *coord_anchor* is the coordination base before any merge.
     """
     lane_wp_pairs = (("lane-a", "WP01"), ("lane-b", "WP02"), ("lane-c", "WP03"))
     repo, feature_dir, manifest, coord_base = _build_shared_file_lanes(tmp_path, lane_wp_pairs=lane_wp_pairs)
@@ -2088,7 +2088,7 @@ def _hand_resolved_mission_branch(tmp_path: Path) -> tuple[Path, Path, LanesMani
     _git(repo, "commit", "-qm", "merge lane-b: hand-resolved line 5")
     resolved_blob = git_probes.blob_id_at(repo, mission, "src/shared.py")
     _git(repo, "checkout", "-q", _TARGET)
-    return repo, feature_dir, manifest, mission, resolved_blob
+    return repo, feature_dir, manifest, mission, resolved_blob, coord_base
 
 
 def _lane_c_own_commit(repo: Path) -> str:
@@ -2125,13 +2125,16 @@ def test_squash_passes_reviewed_lane_merge_of_the_mission_branch_resolution(tmp_
 
     RED before #7626: a merge on a lane's spine authored nothing, so the resolved blob
     (equal to neither lane's own blob) was un-attributable."""
-    repo, feature_dir, manifest, mission, resolved_blob = _hand_resolved_mission_branch(tmp_path)
+    repo, feature_dir, manifest, mission, resolved_blob, coord_anchor = _hand_resolved_mission_branch(tmp_path)
     _lane_c_merges(repo, mission)
     _restamp_approvals(repo)
     window_base = _land_lane_c(repo)
     assert git_probes.blob_id_at(repo, _TARGET, "src/shared.py") == resolved_blob
 
-    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=_rev(repo, mission), excluded_window_base=window_base)
+    # The claim measures lanes from the first attempt's frozen anchor (the coordination base
+    # before any lane was merged), as the charter run did: only the live Mission branch, a
+    # trusted root of its own, carries the hand resolution.
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_anchor, excluded_window_base=window_base)
     assert ("src/shared.py", resolved_blob) in claim.authored_blobs
     result = MergeOutcomeVerifier(repo).verify(_TARGET, replace(claim, verify_reachability=False))
     assert result.is_pass, result.divergence.describe() if result.divergence else result.refusal_reason
@@ -2162,7 +2165,7 @@ def test_squash_fails_closed_when_reviewed_lane_merges_a_foreign_branch(tmp_path
 def test_squash_fails_closed_when_lane_merges_the_mission_branch_after_its_approval(tmp_path: Path) -> None:
     """#7626 negative: the same mission-branch resolution, but lane-c merges it AFTER its
     approval (no stamp reaches the merge). Unreviewed: it authors nothing, FAIL."""
-    repo, feature_dir, manifest, mission, resolved_blob = _hand_resolved_mission_branch(tmp_path)
+    repo, feature_dir, manifest, mission, resolved_blob, coord_anchor = _hand_resolved_mission_branch(tmp_path)
     lane_c = _lane_c_own_commit(repo)
     _restamp_approvals(repo)  # approved here: the stamp is lane-c's own commit
     _git(repo, "checkout", "-q", lane_c)
@@ -2171,7 +2174,7 @@ def test_squash_fails_closed_when_lane_merges_the_mission_branch_after_its_appro
     window_base = _land_lane_c(repo)
     assert git_probes.blob_id_at(repo, _TARGET, "src/shared.py") == resolved_blob
 
-    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=_rev(repo, mission), excluded_window_base=window_base)
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_anchor, excluded_window_base=window_base)
     assert ("src/shared.py", resolved_blob) not in claim.authored_blobs
     result = MergeOutcomeVerifier(repo).verify(_TARGET, replace(claim, verify_reachability=False))
     assert not result.is_pass
