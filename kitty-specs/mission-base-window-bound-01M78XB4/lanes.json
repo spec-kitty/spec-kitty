@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "mission_slug": "mission-base-window-bound-01M78XB4",
+  "mission_id": "01M78XB4KAHDBSGB7145370E60",
+  "mission_branch": "kitty/mission-mission-base-window-bound-01M78XB4",
+  "target_branch": "fix/7560-dependency-ref-spine-base",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/consolidation/test_dependency_ref_mission_base_7560.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/mission_base.py",
+        "src/specify_cli/core/mission_creation_meta.py",
+        "src/specify_cli/core/mission_creation_protected_mint.py",
+        "src/specify_cli/meta_keys.py",
+        "src/specify_cli/mission_metadata.py",
+        "tests/consolidation/test_mission_base.py",
+        "tests/specify_cli/core/test_mission_base_recording.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/forecast.py",
+        "src/specify_cli/consolidation/phase_claim.py",
+        "src/specify_cli/consolidation/reconciliation.py",
+        "src/specify_cli/consolidation/reconciliation_claim.py",
+        "src/specify_cli/consolidation/reconciliation_claim_types.py",
+        "src/specify_cli/consolidation/reconciliation_closed_world.py",
+        "tests/consolidation/test_mission_base_claim.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/reconciliation_verifier.py",
+        "tests/consolidation/test_mission_base_verifier.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "CLAUDE.md",
+        "docs/adr/3.x/2026-09-29-1-closed-world-refuse-on-mixed-lanes.md",
+        "docs/changelog/unreleased/7560.fixed.md",
+        "tests/architectural/test_consolidation_stamp_reads.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-11-12T22:27:10.668988+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "9e4350e7461be5c85841e45692e052b2e9a86bf8"
+}

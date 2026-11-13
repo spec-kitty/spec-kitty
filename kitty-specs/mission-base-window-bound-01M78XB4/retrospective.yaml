@@ -1,0 +1,353 @@
+schema_version: 1
+mission_id: 01M78XB4KAHDBSGB7145370E60
+mission_slug: mission-base-window-bound-01M78XB4
+mission_number: 258
+friendly_name: Bound reconciliation windows at the Mission base (#7560)
+mission_type: software-dev
+target_branch: fix/7560-dependency-ref-spine-base
+created_at: '2026-11-13T02:18:23.670158+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-11-13T02:18:23.670158+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-010
+not_helpful:
+- id: n-008
+  category: doc
+  summary: analysis-report.md records 5 finding(s)
+  evidence_refs:
+  - e-018
+  details: The analysis-report.md artifact for this mission records 5 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-002
+  category: process
+  summary: WP01 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-012
+  details: WP WP01 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-005
+  category: process
+  summary: WP01 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-015
+  details: WP WP01 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-003
+  category: process
+  summary: WP04 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-013
+  details: WP WP04 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-006
+  category: process
+  summary: WP04 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-016
+  details: WP WP04 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-004
+  category: process
+  summary: WP05 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-014
+  details: WP WP05 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-007
+  category: process
+  summary: WP05 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-017
+  details: WP WP05 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP02 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-011
+  details: WP WP02 was sent back to an earlier lane with documented review feedback 2 time(s).
+- id: n-027
+  category: tooling
+  summary: 'Tracer: [2026-11-12][implement] `move-task --to for_review` runs the fast tier twice'
+  evidence_refs:
+  - e-021
+  details: '- **[2026-11-12][implement] `move-task --to for_review` runs the fast tier twice** (baseline + candidate), several
+    minutes per submission.'
+- id: n-018
+  category: tooling
+  summary: 'Tracer: [2026-11-12][plan] Approved-bound and canceled-content axes unchanged.'
+  evidence_refs:
+  - e-020
+  details: '- **[2026-11-12][plan] Approved-bound and canceled-content axes unchanged.** Dispatch non-goal; approval stamps
+    descend from the base, so pre-base commits never enter those checks.'
+- id: n-017
+  category: tooling
+  summary: 'Tracer: [2026-11-12][plan] No resume state.'
+  evidence_refs:
+  - e-020
+  details: '- **[2026-11-12][plan] No resume state.** The base is re-derived deterministically (recorded key or scaffold commit,
+    both stable under consolidation), so no `ConsolidationState` field and no A2 resume surface is touched.'
+- id: n-010
+  category: tooling
+  summary: 'Tracer: [2026-11-12][plan] Red first.'
+  evidence_refs:
+  - e-019
+  details: '- **[2026-11-12][plan] Red first.** Both report shapes land as strict-xfail acceptance tests through `spec-kitty
+    consolidate` before any behaviour change.'
+- id: n-009
+  category: tooling
+  summary: 'Tracer: [2026-11-12][plan] Treat pre-Mission history like a verified declared dependency.'
+  evidence_refs:
+  - e-019
+  details: "- **[2026-11-12][plan] Treat pre-Mission history like a verified declared dependency.** `window_base..mission_base`
+    is empty whenever the target reaches the base, so every existing verdict is unchanged by construction; on a fork it names
+    exactly the history the target lacks. Its commits leave the guard's spine walks; its shas/blobs/deletions join the #6771
+    exemption sets on the closed-world, squash and patch-id axes."
+- id: n-025
+  category: tooling
+  summary: 'Tracer: [2026-11-12][research] Container restart dropped a subagent result.'
+  evidence_refs:
+  - e-021
+  details: "- **[2026-11-12][research] Container restart dropped a subagent result.** The challenger's report was recovered
+    from its transcript file. Disposition: workaround, no tracker item (harness, not Spec Kitty)."
+- id: n-012
+  category: tooling
+  summary: 'Tracer: [2026-11-12][research] Root cause is data shape, not a regression.'
+  evidence_refs:
+  - e-020
+  details: '- **[2026-11-12][research] Root cause is data shape, not a regression.** The refusal code and its inputs are byte-identical
+    between `bcd2afa03` and `v4.0.0rc8`; the window base (local target tip) need not reach the Mission base on a fork.'
+- id: n-024
+  category: tooling
+  summary: 'Tracer: [2026-11-12][research] Shallow clone hides history.'
+  evidence_refs:
+  - e-021
+  details: '- **[2026-11-12][research] Shallow clone hides history.** The checkout is grafted at `497c356a93`, so 90-day churn
+    for the post-rc8 extractions (`reconciliation_closed_world.py`, `claim_inputs.py`) shows one commit each. Workaround:
+    diffed functions at `bcd2afa03` and `1d1a0c04c` after fetching them.'
+- id: n-020
+  category: tooling
+  summary: 'Tracer: [2026-11-12][review] Rename-only probe, no copy detection (WP02 cycle 2).'
+  evidence_refs:
+  - e-020
+  details: '- **[2026-11-12][review] Rename-only probe, no copy detection (WP02 cycle 2).** `-C --find-copies-harder` marked
+    every real Mission UNAVAILABLE (scaffold files resemble older Missions) at seconds per call. Accepted residual: a hand
+    copy that keeps its source, a move edited past 50% similarity, copy-then-delete.'
+- id: n-019
+  category: tooling
+  summary: 'Tracer: [2026-11-12][review] Renamed Mission dir fails closed (WP02 cycle 1).'
+  evidence_refs:
+  - e-020
+  details: '- **[2026-11-12][review] Renamed Mission dir fails closed (WP02 cycle 1).** A `git mv` into `kitty-specs/<slug>/`
+    made the derived base land above Mission work; the derivation now returns UNAVAILABLE on a git-detected rename. Following
+    renames was rejected (more surface, same residuals).'
+- id: n-021
+  category: tooling
+  summary: 'Tracer: [2026-11-12][review] `core` must not import `consolidation` (WP02 cycle 1).'
+  evidence_refs:
+  - e-020
+  details: '- **[2026-11-12][review] `core` must not import `consolidation` (WP02 cycle 1).** `record_mission_base_sha` lives
+    in `mission_metadata.py`.'
+- id: n-015
+  category: tooling
+  summary: 'Tracer: [2026-11-12][specify] All window axes (DM 01M78XC2CJVH9ZXR0WB92NWYG5).'
+  evidence_refs:
+  - e-020
+  details: "- **[2026-11-12][specify] All window axes (DM 01M78XC2CJVH9ZXR0WB92NWYG5).** Declared-ref window stays `target..ref`
+    (challenger: `^base` would empty report 2's window)."
+- id: n-013
+  category: tooling
+  summary: 'Tracer: [2026-11-12][specify] Base source: record + derive (DM 01M78XBQS8NE8PPMSTZHMDJ610).'
+  evidence_refs:
+  - e-020
+  details: '- **[2026-11-12][specify] Base source: record + derive (DM 01M78XBQS8NE8PPMSTZHMDJ610).** New `meta.json` `mission_base_sha`;
+    older Missions derive it.'
+- id: n-014
+  category: tooling
+  summary: 'Tracer: [2026-11-12][specify] Derivation: scaffold parent (DM 01M78XBWYTWJ6TZJVF4GWQMCQF).'
+  evidence_refs:
+  - e-020
+  details: '- **[2026-11-12][specify] Derivation: scaffold parent (DM 01M78XBWYTWJ6TZJVF4GWQMCQF).** Corrects my first recommendation
+    (earliest lane base), which the challenger showed unsound: lane bases sit above planning and pre-implement commits.'
+- id: n-016
+  category: tooling
+  summary: 'Tracer: [2026-11-12][specify] Fold #7593 (DM 01M78XC76BMN026BTEH4T1ADFM).'
+  evidence_refs:
+  - e-020
+  details: '- **[2026-11-12][specify] Fold #7593 (DM 01M78XC76BMN026BTEH4T1ADFM).** Blocked on PR #7596.'
+- id: n-026
+  category: tooling
+  summary: 'Tracer: [2026-11-12][specify] `mission create` commits are untrailered.'
+  evidence_refs:
+  - e-021
+  details: '- **[2026-11-12][specify] `mission create` commits are untrailered.** CLI-made commits carry no `Co-Authored-By`;
+    history cleanup at closeout adds the required trailer. Disposition: workaround.'
+- id: n-028
+  category: tooling
+  summary: 'Tracer: [2026-11-13][implement] Container restart stopped the WP04 implementer mid-run'
+  evidence_refs:
+  - e-021
+  details: '- **[2026-11-13][implement] Container restart stopped the WP04 implementer mid-run**; resumed from its transcript,
+    nothing was committed in between.'
+- id: n-011
+  category: tooling
+  summary: 'Tracer: [2026-11-13][implement] Reviews earned their keep.'
+  evidence_refs:
+  - e-019
+  details: '- **[2026-11-13][implement] Reviews earned their keep.** WP02 took three cycles (rename soundness, copy-detection
+    regression on real repos) and WP04 two (speculative exemption). Each catch came from an adversarial probe against real
+    repositories, not from the unit tests.'
+- id: n-022
+  category: tooling
+  summary: 'Tracer: [2026-11-13][review] Exact-SHA exemption only (WP04 cycle 2).'
+  evidence_refs:
+  - e-020
+  details: "- **[2026-11-13][review] Exact-SHA exemption only (WP04 cycle 2).** A re-lettered-copy patch-id exemption was
+    added on WP01's evidence, then dropped: a mutation test showed no reproduced shape needs it, and under `--strategy rebase`
+    it would exempt re-lettered Mission commits. Re-lettered copies stay flagged (fail-closed)."
+- id: n-023
+  category: tooling
+  summary: 'Tracer: [2026-11-13][review] Quiet note when the Mission branch does not resolve; no git stderr in the note (WP04).'
+  evidence_refs:
+  - e-020
+  details: '- **[2026-11-13][review] Quiet note when the Mission branch does not resolve; no git stderr in the note (WP04).**'
+gaps:
+- id: g-002
+  category: tooling
+  summary: 'Tracer: [2026-11-12][implement] `check-prerequisites` reports `branch_matches_target: false` on a default topic
+    branch'
+  evidence_refs:
+  - e-021
+  details: '- **[2026-11-12][implement] `check-prerequisites` reports `branch_matches_target: false` on a default topic branch**
+    while `setup-plan` reports true for the same state. Candidate gap.'
+- id: g-001
+  category: tooling
+  summary: 'Tracer: [2026-11-12][review] Bare `--agent claude` cannot prove review independence.'
+  evidence_refs:
+  - e-021
+  details: "- **[2026-11-12][review] Bare `--agent claude` cannot prove review independence.** WP01's approval refused `REVIEW_NOT_INDEPENDENT`:
+    implementer and reviewer both recorded `claude::`. Fix: reopen to `in_progress` and resubmit as `claude::python-pedro`,
+    approve as `claude::reviewer-renata`; later WPs use profile-qualified identities from the claim. The model segment is
+    left empty (no model ids in committed artifacts). Candidate gap: `implement --agent` could default the profile from the
+    WP's `agent_profile`."
+- id: g-003
+  category: tooling
+  summary: 'Tracer: [2026-11-13][implement] `safe-commit` with an absolute coordination-worktree path from the repo root commits
+    nothing'
+  evidence_refs:
+  - e-021
+  details: '- **[2026-11-13][implement] `safe-commit` with an absolute coordination-worktree path from the repo root commits
+    nothing** ("no changed files"); a relative path from inside the coordination worktree works. Candidate gap.'
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/mission-base-window-bound-01M78XB4/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/mission-base-window-bound-01M78XB4/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/mission-base-window-bound-01M78XB4/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/mission-base-window-bound-01M78XB4/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/mission-base-window-bound-01M78XB4/tasks/WP01-red-acceptance-fork-shapes.md
+- id: e-006
+  kind: file
+  path: kitty-specs/mission-base-window-bound-01M78XB4/tasks/WP02-mission-base-authority.md
+- id: e-007
+  kind: file
+  path: kitty-specs/mission-base-window-bound-01M78XB4/tasks/WP03-guard-and-claim.md
+- id: e-008
+  kind: file
+  path: kitty-specs/mission-base-window-bound-01M78XB4/tasks/WP04-verifier-axes.md
+- id: e-009
+  kind: file
+  path: kitty-specs/mission-base-window-bound-01M78XB4/tasks/WP05-adr-changelog-docs.md
+- id: e-010
+  kind: file
+  path: kitty-specs/mission-base-window-bound-01M78XB4/status.events.jsonl
+- id: e-011
+  kind: event_range
+  path: kitty-specs/mission-base-window-bound-01M78XB4/status.events.jsonl
+  range: 01M78ZPZYTRE6TKZP1VNHKY35J..01M7910XKWRX6HQEGPBAHNSWC7
+- id: e-012
+  kind: event_range
+  path: kitty-specs/mission-base-window-bound-01M78XB4/status.events.jsonl
+  range: 01M78ZT6VJZWHWAGM5JPGFVA02
+- id: e-013
+  kind: event_range
+  path: kitty-specs/mission-base-window-bound-01M78XB4/status.events.jsonl
+  range: 01M797PM94752N3H19T854HNX3
+- id: e-014
+  kind: event_range
+  path: kitty-specs/mission-base-window-bound-01M78XB4/status.events.jsonl
+  range: 01M799WA3DZB58HPWPBB2KKDSF
+- id: e-015
+  kind: event_range
+  path: kitty-specs/mission-base-window-bound-01M78XB4/status.events.jsonl
+  range: 01M78ZRBTBPJBBCSY800WTHPRG..01M78ZT6VJZWHWAGM5JPGFVA02
+- id: e-016
+  kind: event_range
+  path: kitty-specs/mission-base-window-bound-01M78XB4/status.events.jsonl
+  range: 01M797PM94752N3H19T854HNX3
+- id: e-017
+  kind: event_range
+  path: kitty-specs/mission-base-window-bound-01M78XB4/status.events.jsonl
+  range: 01M799WA3DZB58HPWPBB2KKDSF
+- id: e-018
+  kind: file
+  path: kitty-specs/mission-base-window-bound-01M78XB4/analysis-report.md
+- id: e-019
+  kind: file
+  path: kitty-specs/mission-base-window-bound-01M78XB4/traces/approach.md
+- id: e-020
+  kind: file
+  path: kitty-specs/mission-base-window-bound-01M78XB4/traces/design-decisions.md
+- id: e-021
+  kind: file
+  path: kitty-specs/mission-base-window-bound-01M78XB4/traces/tooling-friction.md
+generator_version: '1.0'
+provenance_history: []
