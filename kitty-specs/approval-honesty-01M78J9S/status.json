@@ -65,7 +65,7 @@
     },
     "WP02": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": "claude::reviewer-renata",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 2,
@@ -82,7 +82,8 @@
         "Cycle 2: one reviewer of record. resolve_reviewer_of_record now takes --agent, --reviewer and the claimant through asserted_review_identity (the binding applied), the same identity the claimant guard compares; a flag whose own profile/model the binding would override, or a binding that would rename the claimant, refuses APPROVER_NOT_CLAIMANT. Cycle reviewer_agent pinned as strict xfail for WP03.",
         "- 2026-11-13T02:16:53Z – claude – Leeway edit in tasks_move_task.py (WP01): FR-001 single reviewer of record; review fields used the raw flag while the actor used the bound identity",
         "- 2026-11-13T03:31:52Z – claude – Cycle 3 leeway: tasks_move_task_hops.py and tasks_move_task.py (WP01 files) - ReviewerOfRecord gains from_caller and _mt_structured_actor routes a caller-sourced reviewer through the strict builder; the hop actor is where the source is consumed (#6754). test_approval_honesty_identity.py expectations pin the new field.",
-        "Cycle 3: ReviewerOfRecord carries from_caller; a caller --reviewer is always parsed strictly (build_status_actor) even when the binding rewrote it, so --reviewer migration:x --profile p records tool migration, not a seed (#6754). Red b9aee291, fix 01948f7c + 0a14c168."
+        "Cycle 3: ReviewerOfRecord carries from_caller; a caller --reviewer is always parsed strictly (build_status_actor) even when the binding rewrote it, so --reviewer migration:x --profile p records tool migration, not a seed (#6754). Red b9aee291, fix 01948f7c + 0a14c168.",
+        "Review passed (cycle 3): #6754 regression fixed - caller --reviewer migration:x --profile p records strict tool 'migration' (not a seed), matching base 1693d554; ReviewerOfRecord.from_caller set only for --agent/--reviewer; red-first b9aee291 verified (1 failed without fix); 108-combo CLI sweep: 34 accepted all single-identity unforced, 74 refusals byte-identical; agent dir 3164 passed, status+review 2884 passed, fast 3037 passed, gates only WP03-owned dead-symbol reds; ruff/format/mypy/C901 clean; _do_move_task unchanged; leeway recorded."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
