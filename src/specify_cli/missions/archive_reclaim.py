@@ -32,15 +32,16 @@ from kernel.git import GitCommandError, status_entries
 from mission_runtime import ActionContextError, MissionArtifactKind, placement_seam
 from specify_cli.consolidation.git_probes import GitProbeError, commit_in_clone, commits_in_range, is_ancestor_strict, resolve_commit
 from specify_cli.consolidation.landed_coordination import clear_landed_coordination_tip, landed_coordination_ref, landed_coordination_tip
+from specify_cli.consolidation.state import has_active_consolidation
 from specify_cli.coordination.teardown import CoordTeardownKeptOnlyCopy, ProjectionTeardownAbort, teardown_coordination_topology
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 from specify_cli.git.bookkeeping_commit import commit_merge_bookkeeping, preflight_merge_bookkeeping
-from specify_cli.git.commit_helpers import SafeCommitError, SafeCommitHeadMismatch
-from specify_cli.git.destructive_guard import LANDED_INTENT, DestructiveOpRefused, discarded_ref, guarded_branch_delete
+from specify_cli.git.commit_helpers import ProtectedBranchCommitError, SafeCommitBackstopError, SafeCommitError, SafeCommitHeadMismatch
+from specify_cli.git.destructive_guard import BRANCH_TIP_MOVED, LANDED_INTENT, DestructiveOpRefused, discarded_ref, guarded_branch_delete
 from specify_cli.mission_metadata import flatten_coordination_metadata, load_meta_or_empty, recorded_mid8
 from specify_cli.missions._archive import CANCELED, is_mission_archived, resolve_terminal_state
-from specify_cli.status import is_mission_merged
+from specify_cli.status import FeatureStatusLockTimeoutError, is_mission_merged
 
 __all__ = [
     "ReclaimRefused",
@@ -57,6 +58,7 @@ RECLAIM_UNABSORBED = "RECLAIM_UNABSORBED"
 RECLAIM_WORKTREE_KEPT = "RECLAIM_WORKTREE_KEPT"
 RECLAIM_MARKER_NOT_COMMITTED = "RECLAIM_MARKER_NOT_COMMITTED"
 RECLAIM_NOT_ON_TARGET = "RECLAIM_NOT_ON_TARGET"
+RECLAIM_CONSOLIDATION_ACTIVE = "RECLAIM_CONSOLIDATION_ACTIVE"
 
 _COORDINATION_BRANCH_KEY = "coordination_branch"
 _FLATTENED_KEY = "flattened"
@@ -125,7 +127,7 @@ def reclaim_archived_mission(repo_root: Path, mission_slug: str) -> ReclaimRepor
     Raises:
         ReclaimRefused: the Mission is not archived, never had a coordination topology, its
             coordination branch is not proved landed, its coordination worktree holds the only copy
-            of files, or the branch moved while it was being deleted. Nothing is changed by a
+            of files, a consolidation of it is unfinished, or the branch moved while it was being deleted. Nothing is changed by a
             refusal raised before the first step; a later one keeps what it did not reach.
     """
     feature_dir = primary_mission_dir(repo_root, mission_slug)
@@ -140,6 +142,12 @@ def reclaim_archived_mission(repo_root: Path, mission_slug: str) -> ReclaimRepor
             RECLAIM_NOT_ARCHIVED,
             f"Mission {mission_slug} is not archived.",
             f"Archive it first: spec-kitty archive create {mission_slug} --by <operator> --reason <why>.",
+        )
+    if has_active_consolidation(repo_root, str(meta.get("mission_id") or "")):
+        raise ReclaimRefused(
+            RECLAIM_CONSOLIDATION_ACTIVE,
+            f"Mission {mission_slug} has an unfinished consolidation, which owns its coordination triple; nothing was changed.",
+            f"Finish it with spec-kitty consolidate --resume, or undo it with spec-kitty consolidate --abort, then re-run {reclaim_command(mission_slug)}.",
         )
     if _COORDINATION_BRANCH_KEY not in meta:
         return _finish_without_marker(repo_root, feature_dir, mission_slug, meta)
@@ -284,9 +292,7 @@ def _delete_branch(coordination: _Coordination, live_tip: str | None) -> Reclaim
             expected_tip=live_tip,
         )
     except DestructiveOpRefused as exc:
-        raise ReclaimRefused(
-            exc.error_code, f"The coordination branch {coordination.branch} was kept: {exc}", f"Re-run: {reclaim_command(coordination.mission_slug)}."
-        ) from exc
+        raise ReclaimRefused(exc.error_code, f"The coordination branch {coordination.branch} was kept: {exc}", _delete_refused_remedy(coordination, exc)) from exc
     detail = f"{coordination.branch} (tip kept as {discarded_ref(coordination.repo_root, coordination.branch, kept)})" if kept else coordination.branch
     return ReclaimStep("coordination branch", "deleted", _with_landed_ref_note(coordination, detail))
 
@@ -298,10 +304,20 @@ def _with_landed_ref_note(coordination: _Coordination, detail: str) -> str:
     return f"{detail}; landed ref kept: delete {landed_coordination_ref(coordination.branch)} by hand"
 
 
+def _delete_refused_remedy(coordination: _Coordination, exc: DestructiveOpRefused) -> str:
+    rerun = reclaim_command(coordination.mission_slug)
+    if exc.error_code != BRANCH_TIP_MOVED:
+        return f"Re-run: {rerun}."
+    # The branch moved after it was proved landed: what moved it is unproved, so inspect before re-running.
+    landed = landed_coordination_ref(coordination.branch)
+    return f"The branch moved after it was proved landed. Inspect what it gained (git log {landed}..{coordination.branch}), then re-run: {rerun}."
+
+
 def _flatten_marker(coordination: _Coordination) -> ReclaimStep:
     try:
         flatten_coordination_metadata(coordination.feature_dir)
-    except Exception as exc:  # noqa: BLE001 — the branch is already gone; any flatten failure (e.g. a held Mission write lock) is a named, re-runnable refusal
+    # The branch is already gone: a missing or corrupt meta.json, or a held Mission write lock, is a named, re-runnable refusal.
+    except (OSError, MissionMetaReadError, FeatureStatusLockTimeoutError) as exc:
         raise ReclaimRefused(
             RECLAIM_MARKER_NOT_COMMITTED,
             f"The coordination worktree and branch are gone, but the marker in {coordination.feature_dir / _META_FILE} could not be flattened: {exc}",
@@ -322,7 +338,8 @@ def _commit_marker(repo_root: Path, feature_dir: Path, mission_slug: str) -> Rec
             paths=(meta_path,),
             branch=_target_branch(feature_dir),
         )
-    except Exception as exc:  # noqa: BLE001 — any commit failure is rendered as a named refusal the operator can re-run
+    # A commit failure is rendered as a named refusal the operator can re-run.
+    except (SafeCommitError, SafeCommitBackstopError, ProtectedBranchCommitError, ActionContextError, GitCommandError, OSError) as exc:
         raise ReclaimRefused(
             RECLAIM_MARKER_NOT_COMMITTED,
             f"The coordination marker was flattened but {meta_path} could not be committed: {exc}",
