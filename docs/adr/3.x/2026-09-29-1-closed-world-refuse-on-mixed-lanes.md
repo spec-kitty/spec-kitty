@@ -489,9 +489,16 @@ window axis (operator rulings, Decision Moments `01M78XBQS8NE8PPMSTZHMDJ610`,
      reachable). When that commit brought the directory in by
      a rename git detects (`git mv kitty-specs/<old> kitty-specs/<slug>`), its parent can sit
      above work done under the old name, so the base is unavailable instead.
+     A derived base is reported (note line, provenance) but exempts nothing: it is the first
+     parent of the first scaffold commit, not the cut point, so a code commit made on the Mission
+     branch before the scaffold sits in `window_base..base` and topology cannot tell it from
+     fork history. Exempting it would pass Mission-authored content as pre-Mission (fail-open).
+     A Mission created before the base was recorded opts in by recording `mission_base_sha` in
+     its `meta.json` (validated like any recorded base).
   3. **Unavailable.** No base, and today's bound applies: the window base alone. A git probe
      failure lands here too; a base is never guessed.
-- **Pre-Mission history** is `rev-list window_base..mission_base`. It is empty whenever the
+- **Pre-Mission history** is `rev-list window_base..mission_base` for a **recorded** base
+  (empty for a derived or unavailable one). It is empty whenever the
   target already reaches the Mission base, which is the ordinary case, so every existing
   verdict is unchanged there. A range that holds a `lane_head` stamp any work package of the
   Mission recorded, or a recorded lane work tip in the Mission's branch namespace, holds

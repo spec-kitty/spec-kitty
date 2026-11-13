@@ -502,7 +502,8 @@ def _pre_mission_attribution(
 ) -> PreMissionHistory:
     """The pre-Mission history below *base* that *window_base* lacks; any doubt degrades to today's bound.
 
-    An empty range costs no further probe (no walk). A non-empty range must hold no recorded
+    Only a **recorded** base exempts (see the comment below); a derived or unavailable base
+    returns the empty history. An empty range costs no further probe (no walk). A non-empty range must hold no recorded
     Mission work: a ``lane_head`` stamp any work package of the Mission recorded (read from
     *feature_dir*'s status log) or a recorded lane work tip in the Mission's branch namespace
     (from *lanes_manifest*). Such a commit means the base sits above the Mission's start, so the
@@ -511,6 +512,14 @@ def _pre_mission_attribution(
     status log, returns empty sets with the base marked unavailable (``PROBE_FAILED``):
     fail-closed, because it exempts nothing.
     """
+    if base.provenance is not MissionBaseProvenance.RECORDED:
+        # A derived base is the first parent of the first scaffold commit, not the commit the
+        # branch was cut from: a non-Mission-path commit made on the Mission branch before the
+        # scaffold sits in ``window_base..base`` and topology cannot tell it from fork history,
+        # so exempting it would pass Mission-authored content as pre-Mission (fail-open). Only a
+        # recorded base (write-once at the cut) exempts; a legacy Mission opts in by recording
+        # ``mission_base_sha`` in its meta.json (validated like any recorded base).
+        return PreMissionHistory(base)
     try:
         shas = pre_mission_history(repo_root, window_base, base)
         if not shas:
