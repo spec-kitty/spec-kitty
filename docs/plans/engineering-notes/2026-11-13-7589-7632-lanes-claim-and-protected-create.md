@@ -38,6 +38,11 @@ prose) and records the commit that already carries the paths, through the same
 `_already_present_receipt_sha` the pre-check arm uses. The protected-branch refusal and every
 other `safe_commit` error still raise.
 
+**Residual.** `_resolve_legacy_porcelain_root` still picks `.worktrees/<slug>-coord` by
+existence alone, so on a coord-less Mission with such a directory left on disk the pre-check
+never short-cuts and each claim costs one extra `safe_commit` staging round. That is harmless
+now and belongs to #7633 (coordination-less commits pick their checkout by a raw probe).
+
 ## #7632: `create --topology lanes` on a protected target is admitted
 
 **Root cause.** `protected_mint_applies` (`core/mission_creation_decisions.py`) mints a Mission
