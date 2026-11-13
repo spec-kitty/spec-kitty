@@ -13,6 +13,8 @@ Two levels:
 
 from __future__ import annotations
 
+import re
+
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -179,9 +181,18 @@ def test_a_driver_that_raises_is_merge_driver_failed(tmp_path: Path) -> None:
         assert _unlanded(repo, (_TRACE,), checkpoint, pre_squash) == [(_TRACE, bp.ProjectedPathReason.MERGE_DRIVER_FAILED)]
 
 
-def test_a_config_key_with_no_registry_entry_is_a_driver_failure() -> None:
-    with pytest.raises(git_probes.MergeDriverFailedError):
+def test_a_config_key_with_no_registry_entry_is_no_merge_driver() -> None:
+    """#7598 fold: an unregistered ``merge=<key>`` is NO_MERGE_DRIVER (reconcile the copies), not "fix the content"."""
+    with pytest.raises(MergeDriverNotRegisteredError):
         git_probes._resolve_registered_driver_callable("spec-kitty-does-not-exist")
+
+
+def test_an_unrecognised_driver_command_shape_is_no_merge_driver() -> None:
+    """#7598 fold: a registry command this replay cannot parse names no driver it can run."""
+    from specify_cli.lanes.consolidation import _MERGE_DRIVERS
+
+    with patch.object(git_probes, "_DRIVER_COMMAND_PATTERN", re.compile(r"(?!)")), pytest.raises(MergeDriverNotRegisteredError):
+        git_probes._resolve_registered_driver_callable(_MERGE_DRIVERS[0].config_key)
 
 
 @pytest.mark.git_repo
