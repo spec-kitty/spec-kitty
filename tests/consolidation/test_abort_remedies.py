@@ -226,6 +226,22 @@ def test_a_missing_branch_names_the_recreate_command_and_the_follow_up(repo: Pat
     assert f"{_MISSION_BRANCH}: recreate it (`git branch {_MISSION_BRANCH} {snapshot}`), then resume the consolidation (`{_RESUME}`)." in _render(report, "resume")
 
 
+def test_a_missing_branch_is_recreated_at_its_restore_target(repo: Path) -> None:
+    """#7598 fold (NIT-6): the rollback restores to ``restore_targets`` when one is recorded, so the recreate names it."""
+    state = _advanced_state(repo)
+    snapshot = state.pre_mutation_refs[_MISSION_BRANCH]
+    _git(repo, "branch", "elsewhere", _MISSION_BRANCH)
+    restore_target = _commit(repo, "elsewhere", "restore target")
+    state.restore_targets = {_MISSION_BRANCH: restore_target}
+    _git(repo, "branch", "-D", _MISSION_BRANCH)
+
+    report = rollback_to_snapshot(repo, state, target_branch="main")
+
+    text = _render(report, "abort")
+    assert f"recreate it (`git branch {_MISSION_BRANCH} {restore_target}`)" in text
+    assert f"git branch {_MISSION_BRANCH} {snapshot}" not in text
+
+
 def test_a_refused_compare_and_swap_names_an_inspect_step_and_the_follow_up(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#7600 fold: a restore whose compare-and-swap was refused (a race) had no next step."""
     from specify_cli.consolidation import rollback
