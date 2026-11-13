@@ -375,6 +375,7 @@ def test_live_lane_tips_skip_planning_canceled_and_unresolved_lanes(monkeypatch:
 def test_saved_reads_the_record_never_live(recorded: list[Any], monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(ci, "capture_branch_tip", lambda *_a: pytest.fail("SAVED must not read a lane tip live (CI-3)"))
     state = _state()
+    state.pre_mutation_refs = {_MISSION_BRANCH: "5" * 40}  # an interrupted run's snapshot: the record decides
 
     inputs = claim_inputs(ClaimInputSource.SAVED, _context(state=state, resolved_target_base="f" * 40, resolved_coord_sha="f" * 40))
 
@@ -382,6 +383,52 @@ def test_saved_reads_the_record_never_live(recorded: list[Any], monkeypatch: pyt
     assert dict(inputs.dependency_anchors) == {_LANE_A: "1" * 40}
     assert inputs.strategy == "merge"
     assert inputs.dependency_refs == _REFS and dict(inputs.dependency_pins) == _PINS
+
+
+def test_saved_with_a_snapshot_freezes_the_mission_tip_never_live(recorded: list[Any], monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7626 / c52a0626: an interrupted run's resume trusts the Mission branch only as its snapshot froze it."""
+    monkeypatch.setattr(ci, "capture_branch_tip", lambda *_a: pytest.fail("a resume holding a snapshot must not read the Mission branch live"))
+    state = _state()
+    state.pre_mutation_refs = {_MISSION_BRANCH: "5" * 40, "main": _TARGET}
+
+    inputs = claim_inputs(ClaimInputSource.SAVED, _context(state=state))
+
+    assert inputs.mission_branch_tip == "5" * 40
+
+
+def test_saved_with_a_snapshot_lacking_the_mission_branch_trusts_no_mission_tip(recorded: list[Any], monkeypatch: pytest.MonkeyPatch) -> None:
+    """A snapshot exists but names no Mission branch (absent at that run's start): nothing is read live, nothing is trusted."""
+    monkeypatch.setattr(ci, "capture_branch_tip", lambda *_a: pytest.fail("a resume holding a snapshot must not read the Mission branch live"))
+    state = _state()
+    state.pre_mutation_refs = {"main": _TARGET}
+
+    inputs = claim_inputs(ClaimInputSource.SAVED, _context(state=state))
+
+    assert inputs.mission_branch_tip is None
+
+
+def test_saved_after_a_rebaseline_reads_the_mission_tip_live(recorded: list[Any], monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7626 follow-up (operator ruling): a record that holds NO snapshot was rebaselined after a full
+    restore (#6770), so no branch moved in this run yet. Like a fresh run, it reads the Mission tip
+    live, before the first mutation: what the operator committed on the Mission branch between
+    attempts is trusted history. Lane tips still come from the record (CI-3)."""
+    reads: list[str] = []
+
+    def read(_repo: Path, branch: str) -> str:
+        if branch != _MISSION_BRANCH:
+            pytest.fail(f"SAVED must not read a lane tip live (CI-3), read {branch}")
+        reads.append(branch)
+        return "m" * 40
+
+    monkeypatch.setattr(ci, "capture_branch_tip", read)
+    state = _state()
+    state.pre_mutation_refs = {}
+
+    inputs = claim_inputs(ClaimInputSource.SAVED, _context(state=state))
+
+    assert inputs.mission_branch_tip == "m" * 40
+    assert reads == [_MISSION_BRANCH]
+    assert dict(inputs.dependency_anchors) == {_LANE_A: "1" * 40}
 
 
 def test_live_then_saved_reuses_the_tips_the_claim_phase_captured(recorded: list[Any], monkeypatch: pytest.MonkeyPatch) -> None:
