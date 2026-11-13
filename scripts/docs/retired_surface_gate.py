@@ -32,6 +32,7 @@ Exit 0 when clean, 1 with one line per finding on stderr. No git history is read
 from __future__ import annotations
 
 import argparse
+import functools
 import sys
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
@@ -49,7 +50,6 @@ from scripts.docs._living_pages import living_pages, published_text  # noqa: E40
 from scripts.retired_surfaces import docs_retired_surfaces, surfaces_named  # noqa: E402  (sys.path bootstrap above)
 
 __all__ = [
-    "BURN_DOWN",
     "BURNDOWN_KIND",
     "DEFAULT_BURNDOWN",
     "BurnDownEntry",
@@ -254,8 +254,20 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-#: The burned-down (page, surface) pairs; their count is ratcheted in ``tests/architectural/_baselines.yaml``.
-BURN_DOWN: Final[frozenset[tuple[str, str]]] = frozenset(burn_down_counts(load_burndown(DEFAULT_BURNDOWN)))
+@functools.cache
+def _burn_down() -> frozenset[tuple[str, str]]:
+    return frozenset(burn_down_counts(load_burndown(DEFAULT_BURNDOWN)))
+
+
+def __getattr__(name: str) -> frozenset[tuple[str, str]]:
+    """``BURN_DOWN``: the burned-down (page, surface) pairs, read on first use, not at import.
+
+    Their count is ratcheted in ``tests/architectural/_baselines.yaml``. A module attribute
+    (not a function) because the shared ratchet reads it by name.
+    """
+    if name == "BURN_DOWN":
+        return _burn_down()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 if __name__ == "__main__":  # pragma: no cover - CLI entry point
