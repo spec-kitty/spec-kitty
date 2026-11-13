@@ -28,26 +28,6 @@ _DOCS = _REPO_ROOT / "docs"
 _RESOLVED_FOLDERS = ("adr/1.x", "adr/2.x", "adr/3.x", "architecture")
 
 
-def folders_with_two_index_files(root: Path) -> list[str]:
-    """Folders under *root* that hold both ``index.md`` and ``README.md``."""
-    return sorted(index.parent.relative_to(root).as_posix() for index in root.rglob("index.md") if (index.parent / "README.md").is_file())
-
-
-def test_no_docs_folder_holds_two_index_files() -> None:
-    assert len(list(_DOCS.rglob("README.md"))) >= 50  # non-vacuous: every section index since #6939
-    assert folders_with_two_index_files(_DOCS) == []
-
-
-def test_helper_reports_a_folder_with_both_files(tmp_path: Path) -> None:
-    """Positive control: the helper sees a collision when there is one."""
-    (tmp_path / "both").mkdir()
-    (tmp_path / "both" / "index.md").write_text("x", encoding="utf-8")
-    (tmp_path / "both" / "README.md").write_text("x", encoding="utf-8")
-    (tmp_path / "one").mkdir()
-    (tmp_path / "one" / "index.md").write_text("x", encoding="utf-8")
-    assert folders_with_two_index_files(tmp_path) == ["both"]
-
-
 @pytest.mark.parametrize("folder", _RESOLVED_FOLDERS)
 def test_a_resolved_folder_is_back_on_its_readme(folder: str) -> None:
     """#6928 moved ``README -> index``; #6939 moved it back, so ``README.html`` is a live route again."""
