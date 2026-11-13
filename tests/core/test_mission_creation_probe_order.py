@@ -93,6 +93,8 @@ EXPECTED: dict[str, list[str]] = {
         _STATUS_PROBE,
         "rev-parse --verify refs/heads/kitty/mission-probe-ok-<MID8>",
         "checkout -b kitty/mission-probe-ok-<MID8> main",
+        # #7560: the mint records the new branch's tip as meta.json mission_base_sha.
+        "rev-parse --verify refs/heads/kitty/mission-probe-ok-<MID8>",
         "config user.email",
         "rev-parse --git-common-dir",
         "branch --show-current",
