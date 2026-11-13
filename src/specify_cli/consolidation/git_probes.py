@@ -938,7 +938,8 @@ def _synthetic_merge_commit(repo_root: Path, tree: str, parents: Sequence[str]) 
 
     It is written to the object store only (no ref names it, so ``git gc`` prunes it),
     exactly like the tree ``git merge-tree --write-tree`` already wrote. A fixed identity
-    and date keep it deterministic and independent of the user's git config.
+    keeps it independent of the user's git config. Its own SHA varies with the clock,
+    which does not matter: the next fold step reads only its tree and parents.
     """
     parent_args = [arg for parent in parents for arg in ("-p", parent)]
     ret, out, err = run_command(

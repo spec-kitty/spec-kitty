@@ -340,15 +340,19 @@ def _trusted_history_roots(
 ) -> tuple[str, ...]:
     """The refs whose history a reviewed merge on *lane* may bring in as authorship (#7626).
 
-    The mission branch the claim measures from (*coord_base_ref*), the target's
-    pre-run tip (``presence.base``: content the target already had), and the approval
-    stamps of every OTHER approved lane's WPs (content in another reviewed tip). The
+    The Mission branch, both as the claim measures from it (*coord_base_ref*, which a
+    coordination topology freezes at the first attempt's tip) and as it stands now
+    (``lanes_manifest.mission_branch``: an earlier attempt's merges, and an operator's
+    resolutions of their conflicts, live there and reach a lane only through a merge the
+    lane's reviewer then saw), the target's pre-run tip (``presence.base``: content the
+    target already had), and the approval stamps of every OTHER approved lane's WPs
+    (content in another reviewed tip). The
     lane's own stamps are left out: they reach every merge on its own spine, so they
-    would trust any branch the lane merged, the #4977 carrier shape.
+    would trust any branch merged into the lane, the #4977 carrier shape.
     """
     if presence is None:
         return ()
-    roots = [coord_base_ref, presence.base]
+    roots = [coord_base_ref, lanes_manifest.mission_branch, presence.base]
     for other in lanes_manifest.lanes:
         if other.lane_id != lane.lane_id and _lane_is_approved(other, work_packages):
             roots.extend(_approved_stamps(other, work_packages, presence))
@@ -366,6 +370,11 @@ def _authoring_merges(repo_root: Path, spine: Sequence[str], roots: Sequence[str
     merge of any other branch (a foreign or removed WP's branch, the #4977 carrier)
     authors nothing, as before #7626. A probe error leaves the merge out (attributes
     less; fail-closed).
+
+    Not the same question as :func:`_own_dependency_merges` (#7307), which keeps a
+    lane's merges of its DECLARED dependency lanes as authorship by SHA only (the
+    closed-world axis). This one decides which merges author BLOBS for the squash
+    axis, over a wider root set. Keep the two trust models apart.
     """
     if not roots:
         return frozenset()
