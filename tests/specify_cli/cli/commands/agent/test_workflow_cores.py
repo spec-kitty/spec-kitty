@@ -22,6 +22,7 @@ temporary directory.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -144,8 +145,20 @@ class TestWpOwnedFiles:
 # ---------------------------------------------------------------------------
 
 
+def _mission(tmp_path: Path) -> Path:
+    """A minimal readable Mission, so the range resolves its bookkeeping surface (an unreadable one builds no excludes)."""
+    mission_dir = tmp_path / "kitty-specs" / "my-mission"
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text(
+        json.dumps({"mission_slug": "my-mission", "mission_id": "01KABCDEFGHJKMNPQRSTVWXYZ0", "target_branch": "main"}),
+        encoding="utf-8",
+    )
+    (mission_dir / "status.events.jsonl").write_text("", encoding="utf-8")
+    return tmp_path
+
+
 def _pathspecs(owned: list[str], tmp_path: Path) -> list[str]:
-    return list(resolve_wp_review_range(tmp_path, "my-mission", "WP01", owned_files=owned).owned_pathspecs)
+    return list(resolve_wp_review_range(_mission(tmp_path), "my-mission", "WP01", owned_files=owned).owned_pathspecs)
 
 
 @pytest.mark.git_repo
@@ -175,6 +188,12 @@ class TestWpReviewRangeOwnedPathspecs:
         owned = ["kitty-specs/my-mission/**", "kitty-specs/my-mission/research/**", "kitty-specs/*/tasks/**"]
         result = _pathspecs(owned, tmp_path)
         assert result.count(":(exclude)kitty-specs/my-mission/tasks/*") == 1
+
+    def test_unreadable_status_builds_no_excludes_from_the_callers_handle(self, tmp_path: Path) -> None:
+        """Landing fold: with no readable Mission the handle may be a mid8 or ULID, so only the owned globs are returned."""
+        owned = ["kitty-specs/my-mission/**", "src/foo.py"]
+        result = resolve_wp_review_range(tmp_path, "my-mission", "WP01", owned_files=owned).owned_pathspecs
+        assert list(result) == owned
 
 
 # ---------------------------------------------------------------------------
