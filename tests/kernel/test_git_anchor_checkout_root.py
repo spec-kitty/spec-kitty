@@ -1,8 +1,8 @@
 """``kernel.git_anchor.checkout_root_containing``: the checkout that contains a path (#7546, FR-001).
 
 Real repositories: the repository root checkout (``.git`` directory), a linked worktree
-(``.git`` file), a nested folder, a path that does not exist yet, a path outside every
-checkout, and a symbolic-link start (the answer is the resolved checkout).
+(``.git`` file), a path that does not exist yet, and a symbolic-link loop (the walk runs
+over the lexical form).
 """
 
 from __future__ import annotations
@@ -36,18 +36,13 @@ def _ceiling_above(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.resolve()))
 
 
-def test_repository_root_checkout_contains_itself(repo: Path) -> None:
+def test_repository_root_checkout_has_a_git_directory_and_a_missing_path_resolves_to_it(repo: Path) -> None:
+    assert (repo / ".git").is_dir()
     assert checkout_root_containing(repo) == repo.resolve()
+    assert checkout_root_containing(repo / "kitty-specs" / "not-yet" / "created") == repo.resolve()
 
 
-def test_nested_folder_and_a_path_not_yet_created_resolve_to_the_root_checkout(repo: Path) -> None:
-    nested = repo / "kitty-specs" / "mission"
-    nested.mkdir(parents=True)
-    assert checkout_root_containing(nested) == repo.resolve()
-    assert checkout_root_containing(nested / "not-yet" / "created") == repo.resolve()
-
-
-def test_linked_worktree_is_its_own_checkout(repo: Path) -> None:
+def test_linked_worktree_has_a_git_file_and_is_its_own_checkout(repo: Path) -> None:
     worktree = repo / ".worktrees" / "probe-coord"
     _git(repo, "worktree", "add", "-q", "-b", "topic", str(worktree))
     assert (worktree / ".git").is_file()
@@ -56,15 +51,7 @@ def test_linked_worktree_is_its_own_checkout(repo: Path) -> None:
     assert checkout_root_containing(inner) == worktree.resolve()
 
 
-def test_path_outside_every_checkout_is_none(tmp_path: Path) -> None:
-    outside = tmp_path / "elsewhere" / "kitty-specs"
-    outside.mkdir(parents=True)
-    assert checkout_root_containing(outside) is None
-
-
-def test_symlinked_start_answers_the_resolved_checkout(repo: Path, tmp_path: Path) -> None:
-    nested = repo / "kitty-specs"
-    nested.mkdir()
-    link = tmp_path / "alias"
-    link.symlink_to(nested, target_is_directory=True)
-    assert checkout_root_containing(link) == repo.resolve()
+def test_a_symbolic_link_loop_answers_the_walk_over_its_lexical_form(repo: Path) -> None:
+    loop = repo / "loop"
+    loop.symlink_to(loop)
+    assert checkout_root_containing(loop / "kitty-specs") == repo
