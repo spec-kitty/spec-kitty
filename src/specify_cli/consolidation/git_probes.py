@@ -403,8 +403,9 @@ class GitProbeError(RuntimeError):
 class MergeDriverNotRegisteredError(GitProbeError):
     """:func:`driver_replay_expected_bytes` found no registered merge driver for the path (#5867).
 
-    Raised only when ``git check-attr`` succeeded and named no ``merge=<key>`` value; a failed
-    ``git check-attr`` raises a plain :class:`GitProbeError`. A subclass, so every caller that
+    Raised when ``git check-attr`` succeeded and named no ``merge=<key>`` value, and when the
+    named key has no registry entry or a command shape the replay cannot parse (no driver it can
+    run); a failed ``git check-attr`` raises a plain :class:`GitProbeError`. A subclass, so every caller that
     refuses on :class:`GitProbeError` still does; the squash projection refusal reads it to tell
     a deterministic cause (no driver) from a probe failure.
     """
@@ -413,8 +414,8 @@ class MergeDriverNotRegisteredError(GitProbeError):
 class MergeDriverFailedError(GitProbeError):
     """The registered merge driver could not reconcile the path (#5867).
 
-    Raised for a driver that refused the content (e.g. malformed rows) and for a ``merge=<key>``
-    with no registry entry, an unrecognized command shape or no driver body. Deterministic: a
+    Raised for a driver that refused the content (e.g. malformed rows) and for a registered
+    command with no driver body. Deterministic: a
     re-run repeats it. A :class:`GitProbeError` subclass, so existing catchers are unchanged.
     """
 
@@ -959,10 +960,10 @@ def _resolve_registered_driver_callable(config_key: str) -> MergeDriverBody:
 
     spec = next((candidate for candidate in _MERGE_DRIVERS if candidate.config_key == config_key), None)
     if spec is None:
-        raise MergeDriverFailedError(f"no merge-driver registry entry for config key {config_key!r}")
+        raise MergeDriverNotRegisteredError(f"no merge-driver registry entry for config key {config_key!r}")
     match = _DRIVER_COMMAND_PATTERN.match(spec.command)
     if match is None:
-        raise MergeDriverFailedError(f"unrecognized merge-driver command shape: {spec.command!r}")
+        raise MergeDriverNotRegisteredError(f"unrecognized merge-driver command shape: {spec.command!r}")
     driver = MERGE_DRIVER_BODIES.get(match.group(1))
     if driver is None:
         raise MergeDriverFailedError(f"no merge-driver implementation for config key {config_key!r}")
@@ -992,7 +993,7 @@ def driver_replay_expected_bytes(
     (a diverged path's two live sides must exist). Raises its subclass
     :class:`MergeDriverNotRegisteredError` when the path has no registered merge driver at
     *ours_ref* (:func:`_resolve_merge_driver_config_key`), and
-    :class:`MergeDriverFailedError` when the driver cannot be resolved from the registry or
+    :class:`MergeDriverFailedError` when the registered command has no driver body or the driver
     itself errors while reconciling the materialized blobs (#5867). ``base`` may
     legitimately be absent (a path newly added on both sides) -- materialized as
     an empty file, mirroring git's own ``%O`` behavior for a brand-new path.
