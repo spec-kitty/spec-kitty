@@ -18,6 +18,7 @@ from specify_cli.agent_tasks_ports import (
     TasksPorts,
 )
 from specify_cli.cli.commands.agent.tasks_transition_core import (
+    _is_approved_reopen,
     is_review_rejection_edge,
 )
 from specify_cli.review.cycle import (
@@ -385,6 +386,42 @@ def _mt_hop_records_binding(st: _MoveTaskState, target: Lane | str) -> bool:
     if st.profile is not None or st.invocation_id is not None:
         return True
     return bool(st.agent) and _actor_key(st.agent) != _actor_key(st.current_agent)
+
+
+def _mt_hands_back_work(st: _MoveTaskState) -> bool:
+    """Whether this move hands a WP back for (re)work: a rejection or a reopen.
+
+    The review-rejection edges (any move into ``planned``, which releases the
+    runtime claim per #2512, and ``in_review -> in_progress``) plus the
+    approved reopen (``approved -> in_progress``).
+    """
+    return bool(is_review_rejection_edge(st.old_lane, st.target_lane) or _is_approved_reopen(st.old_lane, st.target_lane))
+
+
+def _mt_agent_binds_owner(st: _MoveTaskState) -> bool:
+    """Whether this move's ``--agent`` is recorded as the WP's owner (#7588).
+
+    On a move that hands the WP back for work (:func:`_mt_hands_back_work`)
+    ``--agent`` names only who acted, the transition's actor, never a
+    reassignment. Every other move records the acting identity in the
+    ownership slot (#3029).
+    """
+    return bool(st.agent) and not _mt_hands_back_work(st)
+
+
+def _mt_ownership_fields(st: _MoveTaskState) -> dict[str, Any]:
+    """Off-axis ownership-slot fields for a move outside the claim transition.
+
+    A binding ``--agent`` (see :func:`_mt_agent_binds_owner`) records that agent
+    with its resolved binding. On a rejection or reopen only an explicit
+    ``--assignee`` reassigns the slot (#7588); it carries no binding, because
+    the resolved binding describes the acting agent, not the assignee.
+    """
+    if _mt_agent_binds_owner(st):
+        return {"agent": st.agent, **_mt_reassignment_binding_fields(st)}
+    if st.assignee and _mt_hands_back_work(st):
+        return {"agent": st.assignee}
+    return {}
 
 
 def _mt_reassignment_binding_fields(st: _MoveTaskState) -> dict[str, Any]:
