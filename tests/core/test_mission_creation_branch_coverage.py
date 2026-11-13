@@ -358,7 +358,6 @@ class TestMetaAndEventBranches:
         assert excinfo.value.error_code == "LANES_PROTECTED_TARGET_REFUSED"
         assert origin_consumer.calls == []
 
-
     def test_row6c_origin_binding_commit_bootstrap_skip_on_coord(self, tmp_path: Path, origin_consumer: _RecordingOriginConsumer) -> None:
         """Row 6c (the former row 6b's skip, re-targeted after #7632): a COORD Mission on protected
         ``main`` still binds its origin ticket, and the origin-ticket meta commit onto the protected
