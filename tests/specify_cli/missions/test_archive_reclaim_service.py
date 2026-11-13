@@ -510,6 +510,34 @@ def test_archive_create_points_at_reclaim_only_while_the_marker_remains(cli: Cli
     assert (f"spec-kitty archive reclaim {_SLUG}" in result.output) is holds
 
 
+@pytest.mark.parametrize("holds", [True, False])
+def test_archive_create_json_carries_the_reclaim_command_while_the_marker_remains(cli: CliRunner, monkeypatch: pytest.MonkeyPatch, holds: bool) -> None:
+    """#7598 fold (NIT-9): the JSON record carries the reclaim hint the text output prints (null when none)."""
+    from specify_cli.missions._archive import ArchivedMission, ArchiveOutcome
+
+    record = ArchivedMission(
+        mission_id="01ABCDEF" + "0" * 18, archived_by="t", archived_at="2026-11-12T00:00:00+00:00", reason="done", terminal_state_at_archive="merged"
+    )
+    monkeypatch.setattr(archive_cli, "archive_mission", lambda **_kwargs: ArchiveOutcome(record=record, cleared_deferrals=[]))
+    monkeypatch.setattr(archive_cli, "holds_coordination_marker", lambda _root, _slug: holds)
+
+    result = cli.invoke(archive_cli.app, ["create", _SLUG, "--by", "t", "--reason", "done", "--json"])
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["reclaim_command"] == (f"spec-kitty archive reclaim {_SLUG}" if holds else None)
+
+
+def test_late_commits_are_named_as_unreachable_from_the_recorded_landing(tmp_path: Path, seams: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7598 fold (NIT-9): a rewritten branch's commits are not "made after" the landing; say what is proved."""
+    _coord_meta(tmp_path)
+    monkeypatch.setattr(reclaim, "landed_coordination_tip", lambda _root, _branch: _LANDED)
+    monkeypatch.setattr(reclaim, "commits_in_range", lambda _root, _base, _tip: ["c" * 40])
+
+    text = str(_refusal(tmp_path))
+
+    assert f"not reachable from the recorded landing ({_LANDED[:12]})" in text and "made after" not in text
+
+
 def test_cli_renders_nothing_left_and_a_refusal_as_text(cli: CliRunner, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(archive_cli, "reclaim_archived_mission", lambda _root, _slug: _report(True))
     assert "Nothing left to reclaim" in cli.invoke(archive_cli.app, ["reclaim", _SLUG]).output
