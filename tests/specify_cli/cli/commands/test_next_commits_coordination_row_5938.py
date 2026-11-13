@@ -229,8 +229,7 @@ def test_next_dispatch_surfaces_a_recovery_failure_with_its_stash_ref_on_stderr(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """Wiring: ``next``'s advancing path commits through ``commit_event_row``, so the orphan stash ref reaches stderr."""
-    from types import SimpleNamespace
-
+    from runtime.next.decision import Decision, DecisionKind
     from runtime.next.next_invocation_lifecycle import MissionNextInvokedWrite
     from specify_cli.cli.commands import next_cmd
     from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
@@ -243,7 +242,21 @@ def test_next_dispatch_surfaces_a_recovery_failure_with_its_stash_ref_on_stderr(
 
     monkeypatch.setattr(events, "commit_mission_event_log", _commit)
     monkeypatch.setattr(next_cmd, "_pair_previous_lifecycle_record", lambda *a, **k: None)
-    monkeypatch.setattr(next_cmd, "decide_next", lambda *a, **k: SimpleNamespace(kind="step"))
+    prompt = tmp_path / "WP01-prompt.md"
+    prompt.write_text("# WP01\n", encoding="utf-8")
+    # A real Decision (#7623): a hand-rolled stand-in drifts each time the command reads a new field.
+    decision = Decision(
+        kind=DecisionKind.step,
+        agent="claude",
+        mission_slug="m",
+        mission="software-dev",
+        mission_state="implement",
+        timestamp="2026-11-13T00:00:00+00:00",
+        action="implement",
+        wp_id="WP01",
+        prompt_file=str(prompt),
+    )
+    monkeypatch.setattr(next_cmd, "decide_next", lambda *a, **k: decision)
     monkeypatch.setattr(next_cmd, "_emit_mission_next_invoked", lambda *a, **k: write)
     monkeypatch.setattr(next_cmd, "_write_issuance_lifecycle_record", lambda *a, **k: None)
     monkeypatch.setattr(next_cmd, "_print_decision", lambda *a, **k: None)

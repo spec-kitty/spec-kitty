@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -25,6 +24,7 @@ import typer
 
 from kernel.locks import machine_file_lock
 from mission_runtime import MissionTopology, OwnedCheckout
+from runtime.next.decision import Decision, DecisionKind
 from specify_cli.cli.commands import next_cmd
 from specify_cli.decisions.lock import lock_path as _decisions_lock_path
 
@@ -63,15 +63,34 @@ def _materialize_lock(fact: OwnedCheckout) -> Path:
     return lock
 
 
-def _stub_decision() -> SimpleNamespace:
-    return SimpleNamespace(kind="step", wp_id="WP01", action="implement", step_id="S1", prompt_file=None)
+def _stub_decision(fact: OwnedCheckout) -> Decision:
+    """A real ``Decision`` (#7622): a hand-rolled stand-in drifts each time the command reads a new field.
+
+    A ``kind="step"`` decision must carry a prompt file that resolves on disk.
+    """
+    prompt = fact.mission_dir / "tasks" / "WP01-prompt.md"
+    prompt.parent.mkdir(parents=True, exist_ok=True)
+    prompt.write_text("# WP01\n", encoding="utf-8")
+    return Decision(
+        kind=DecisionKind.step,
+        agent="claude",
+        mission_slug=_SLUG,
+        mission="software-dev",
+        mission_state="implement",
+        timestamp="2026-11-13T00:00:00+00:00",
+        action="implement",
+        wp_id="WP01",
+        step_id="S1",
+        prompt_file=str(prompt),
+    )
 
 
 def _drive_dispatch(fact: OwnedCheckout, monkeypatch: pytest.MonkeyPatch, *, json_output: bool) -> tuple[BaseException | None, list[str]]:
     """Drive ``_dispatch_advancing_mode`` with only the pre-commit steps faked."""
     printed: list[str] = []
     monkeypatch.setattr(next_cmd, "_pair_previous_lifecycle_record", lambda *a, **k: None)
-    monkeypatch.setattr(next_cmd, "decide_next", lambda *a, **k: _stub_decision())
+    decision = _stub_decision(fact)
+    monkeypatch.setattr(next_cmd, "decide_next", lambda *a, **k: decision)
     monkeypatch.setattr(next_cmd, "_emit_mission_next_invoked", lambda *a, **k: None)
     monkeypatch.setattr(next_cmd, "_write_issuance_lifecycle_record", lambda *a, **k: None)
     monkeypatch.setattr(next_cmd, "_print_decision", lambda *_a, **_k: printed.append("printed"))
