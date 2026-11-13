@@ -229,10 +229,13 @@ def _unlanded_remedy(coordination: _Coordination) -> str:
     """Kept-and-unchanged, plus a next step that works: inspect, and remove by hand only once confirmed (#7598 fold)."""
     branch = coordination.branch
     target = _target_branch(coordination.feature_dir) or "<target branch>"
+    # Content, not history: a squash landing leaves the branch's commits unreachable from the target, so
+    # ``git log <target>..<branch>`` would list commits that did land.
     remedy = (
-        f"The coordination branch is kept; nothing was changed. See what it holds that {target} lacks: "
-        f"git log {target}..{branch}; remove it by hand (git branch -D {branch}) only after confirming {target} "
-        f"has all of it, then re-run: {reclaim_command(coordination.mission_slug)}."
+        f"The coordination branch is kept; nothing was changed. Compare content, not history (a squash landing leaves its commits "
+        f"unreachable from {target}): git diff {target} {branch} -- kitty-specs/{coordination.mission_slug}/. Remove it by hand only "
+        f"after confirming {target} has all of it, and keep its tip first: git update-ref refs/spec-kitty/discarded/{branch} {branch}, "
+        f"then git branch -D {branch}; then re-run: {reclaim_command(coordination.mission_slug)}."
     )
     if resolve_terminal_state(coordination.feature_dir) == CANCELED:
         return f"{remedy} A canceled Mission is abandoned instead with: {_DISCARD_COMMAND.format(slug=coordination.mission_slug)}."
