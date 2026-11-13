@@ -56,6 +56,8 @@ from specify_cli.git.remote_probes import _reset_remote_branch_lookup_cache
 from specify_cli.lanes.branch_naming import code_lane_branch_name
 from specify_cli.review.artifacts import ReviewCycleArtifact
 from specify_cli.status.reducer import materialize_snapshot, materialize_to_json
+from specify_cli.status.wp_metadata import read_authored_wp_frontmatter
+from specify_cli.status.wp_view import reconstruct_wp_view
 from tests.contract import _mission_status_artifacts as artifacts
 from tests.contract import _mission_status_detail as detail
 from tests.contract import _mission_status_drift as drift
@@ -171,6 +173,73 @@ def identity_index_is_walked_once(tmp_path_factory: pytest.TempPathFactory) -> I
     with pytest.MonkeyPatch.context() as mp:
         mp.setattr(mission_resolver, "_build_index", once)
         yield
+
+
+#: The test-side readers that parse one work package's file and re-reduce its Mission's event log per call (#7621).
+SHARED_READER_MODULES = (detail, helper)
+
+
+class SharedWorkPackageReads:
+    """One parse of each real work package file, and one view of each real work package, for the whole module (#7621).
+
+    The per-Mission cases, the detail reader's work package index and the corpus exam's v1 control each parse
+    every ``tasks/WP*.md`` of the checkout through ``read_authored_wp_frontmatter``, and each reconstructs the same
+    work package view, which re-reads and reduces the Mission's whole event log once per work package. Both are
+    pure functions of the files, and the read-only fingerprint fixture above proves the tree is unchanged for the
+    whole module, so the first answer for a real path is reused: every file is still parsed, and every view still
+    built, by the production function, once. A failed parse is never kept (it raises again on the next call). A
+    planted repository lives under pytest's base temp directory and is always read fresh, so a control that edits
+    a planted file still sees the edit. A view is reused only for metadata equal to the metadata it was built from.
+    """
+
+    def __init__(
+        self,
+        planted_under: Path,
+        frontmatter: Callable[[Path], tuple[Any, str]],
+        view: Callable[..., Any],
+    ) -> None:
+        self.planted_under = planted_under.resolve()
+        self._frontmatter, self._view = frontmatter, view
+        self._parsed: dict[Path, tuple[Any, str]] = {}
+        self._views: dict[tuple[Path, str], tuple[Any, Any]] = {}
+
+    def _real(self, path: Path) -> Path | None:
+        resolved = Path(path).resolve()
+        return None if resolved.is_relative_to(self.planted_under) else resolved
+
+    def frontmatter(self, path: Path) -> tuple[Any, str]:
+        real = self._real(path)
+        if real is None:
+            return self._frontmatter(path)
+        if real not in self._parsed:
+            self._parsed[real] = self._frontmatter(path)
+        return self._parsed[real]
+
+    def view(self, feature_dir: Path, wp_id: str, *, metadata: Any = None) -> Any:
+        real = self._real(feature_dir)
+        if real is None:
+            return self._view(feature_dir, wp_id, metadata=metadata)
+        cached = self._views.get((real, wp_id))
+        if cached is not None and (cached[0] is metadata or cached[0] == metadata):
+            return cached[1]
+        built = self._view(feature_dir, wp_id, metadata=metadata)
+        self._views[(real, wp_id)] = (metadata, built)
+        return built
+
+
+@pytest.fixture(scope="module", autouse=True)
+def work_package_reads_are_shared(tmp_path_factory: pytest.TempPathFactory) -> Iterator[SharedWorkPackageReads]:
+    """Parse each real work package file and build each real work package view once per module (see ``SharedWorkPackageReads``).
+
+    Only the names the two test-side reader modules bound are patched: the production modules, and the timed
+    resolver run (``execute_corpus_run``, which reads through ``drift`` and the ``Project`` builder), are untouched.
+    """
+    shared = SharedWorkPackageReads(tmp_path_factory.getbasetemp(), read_authored_wp_frontmatter, reconstruct_wp_view)
+    with pytest.MonkeyPatch.context() as mp:
+        for module in SHARED_READER_MODULES:
+            mp.setattr(module, "read_authored_wp_frontmatter", shared.frontmatter)
+            mp.setattr(module, "reconstruct_wp_view", shared.view)
+        yield shared
 
 
 @pytest.fixture(scope="module")
@@ -433,6 +502,64 @@ def test_the_floors_are_pinned_below_the_measured_corpus() -> None:
     assert FLOORS.missions >= 500
     assert FLOORS.work_package_payloads >= 3000
     assert FLOORS.snapshot_work_packages >= 2800
+
+
+# ---------------------------------------------------------------------------
+# The shared work package reads (#7621)
+# ---------------------------------------------------------------------------
+
+
+def _counting_reads(tmp_path: Path) -> tuple[SharedWorkPackageReads, Counter[str]]:
+    calls: Counter[str] = Counter()
+
+    def frontmatter(path: Path) -> tuple[Any, str]:
+        calls[f"parse {Path(path).name}"] += 1
+        if Path(path).name == "broken.md":
+            raise ValueError("unparseable")
+        return ({"file": Path(path).name}, "body")
+
+    def view(feature_dir: Path, wp_id: str, *, metadata: Any = None) -> Any:
+        calls[f"view {wp_id}"] += 1
+        return (wp_id, metadata, calls[f"view {wp_id}"])
+
+    return SharedWorkPackageReads(tmp_path / "planted", frontmatter, view), calls
+
+
+def test_a_real_work_package_file_is_parsed_once_and_a_planted_one_every_time(tmp_path: Path) -> None:
+    shared, calls = _counting_reads(tmp_path)
+    real, planted = tmp_path / "real" / "WP01.md", tmp_path / "planted" / "WP02.md"
+    assert shared.frontmatter(real) is shared.frontmatter(real)
+    shared.frontmatter(planted)
+    shared.frontmatter(planted)
+    assert calls == {"parse WP01.md": 1, "parse WP02.md": 2}
+
+
+def test_a_failed_parse_is_never_kept(tmp_path: Path) -> None:
+    shared, calls = _counting_reads(tmp_path)
+    for _attempt in range(2):
+        with pytest.raises(ValueError, match="unparseable"):
+            shared.frontmatter(tmp_path / "real" / "broken.md")
+    assert calls["parse broken.md"] == 2, "a failed parse must raise again, never answer from a memo"
+
+
+def test_a_view_is_reused_only_for_equal_metadata_on_a_real_directory(tmp_path: Path) -> None:
+    shared, calls = _counting_reads(tmp_path)
+    real, planted = tmp_path / "real", tmp_path / "planted" / "mission"
+    first = shared.view(real, "WP01", metadata={"a": 1})
+    assert shared.view(real, "WP01", metadata={"a": 1}) is first, "equal metadata on a real directory reuses the view"
+    assert shared.view(real, "WP01", metadata={"a": 2}) is not first, "different metadata builds a new view"
+    shared.view(planted, "WP01", metadata=None)
+    shared.view(planted, "WP01", metadata=None)
+    assert calls["view WP01"] == 4, "two real builds plus one build per planted call"
+
+
+def test_the_shared_reads_are_active_in_both_reader_modules(work_package_reads_are_shared: SharedWorkPackageReads) -> None:
+    """Non-vacuity: the corpus readers really go through the shared reads, and the shared reads call the production functions."""
+    shared = work_package_reads_are_shared
+    for module in SHARED_READER_MODULES:
+        assert module.read_authored_wp_frontmatter == shared.frontmatter, f"{module.__name__} parses without the shared reads"
+        assert module.reconstruct_wp_view == shared.view, f"{module.__name__} builds views without the shared reads"
+    assert shared._frontmatter is read_authored_wp_frontmatter and shared._view is reconstruct_wp_view
 
 
 # ---------------------------------------------------------------------------
