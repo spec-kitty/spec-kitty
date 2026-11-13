@@ -592,6 +592,21 @@ def _reopen_after_rejection(fixture: _Fixture) -> None:
     default_ports().coord.commit_status(request, capability=GuardCapability.STANDARD)
 
 
+def _assert_forced_move_records_no_cycle(fixture: _Fixture, payload: dict[str, Any] | None, *, reviewer: str) -> None:
+    """A forced move: no cycle pointer or evidence in the JSON, ``force-override`` in the event."""
+    assert payload is not None
+    assert "review_feedback" not in payload, payload
+    assert "verdict_durably_persisted" not in payload, payload
+    matches = [event for event in _events_from_governed_ref(fixture) if event.event_id == payload["event_id"]]
+    assert len(matches) == 1
+    event = matches[0]
+    assert event.force is True
+    assert event.evidence is not None
+    assert event.evidence.review.reference == "force-override"
+    assert event.evidence.review.reviewer == reviewer
+    assert not list(fixture.feature_dir.rglob("review-cycle-2.md")), "a forced move writes no review cycle"
+
+
 @pytest.mark.parametrize("target_lane", ("approved", "done"))
 def test_real_command_records_approval_for_approved_and_done_targets(
     tmp_path: Path,
@@ -616,6 +631,13 @@ def test_real_command_records_approval_for_approved_and_done_targets(
     )
     assert approved.result.exit_code == 0, approved.result.output
     payload = approved.payload
+    if target_lane == "done":
+        # FR-006 (#7569/#7571, approval-honesty WP03): the ``done`` leg of this fixture is a
+        # ``--force`` move, and a forced move is not a review: it writes no review cycle, so the
+        # JSON reports no cycle pointer and no evidence write, and the event records
+        # ``force-override`` (re-pinned from the pre-WP03 expectation of a written cycle).
+        _assert_forced_move_records_no_cycle(fixture, payload, reviewer=reviewer)
+        return
     assert payload is not None and payload["durability_classification"] == "durable"
     assert payload["verdict_durably_persisted"] is True
     _assert_event_correlation(

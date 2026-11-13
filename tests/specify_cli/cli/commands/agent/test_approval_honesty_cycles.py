@@ -220,7 +220,9 @@ def test_citation_refusal_carries_the_code_in_json(tmp_path: Path, monkeypatch: 
     result = _move(["WP01", "--to", "approved", "--mission", mission_slug, "--note", "cycle 4 APPROVE", "--json"])
 
     assert result.exit_code == 1, result.output
-    assert _json_payload(result.output)["code"] == _CITATION_MISSING
+    # The diagnostic's ``error`` leads with the code (the move-task error envelope of an
+    # ``ActionContextError``; a separate ``code`` field is the contract row WP04 owns).
+    assert _json_payload(result.output)["error"].startswith(f"{_CITATION_MISSING}:")
     assert _snapshot(repo, feature_dir) == before
 
 
@@ -316,7 +318,7 @@ def test_cycle_of_another_identity_is_not_adoptable(tmp_path: Path, monkeypatch:
 
     assert result.exit_code == 1, result.output
     payload = _json_payload(result.output)
-    assert payload["code"] == _NOT_ADOPTABLE
+    assert payload["error"].startswith(f"{_NOT_ADOPTABLE}:")
     assert "codex:gpt-5:reviewer-renata" in payload["error"]
     assert _snapshot(repo, feature_dir) == before
 
@@ -326,7 +328,7 @@ def test_forced_approval_is_not_judged_by_the_cycle_probe(tmp_path: Path, monkey
     _repo, feature_dir, mission_slug = _claimed_mission(tmp_path, monkeypatch, "not-adoptable-forced")
     _write_reviewer_cycle(feature_dir, mission_slug, 1, reviewer="codex:gpt-5:reviewer-renata")
 
-    result = _move(["WP01", "--to", "approved", "--mission", mission_slug, "--force", "--agent", "kitty-orchestrator"])
+    result = _move(["WP01", "--to", "approved", "--mission", mission_slug, "--force", "--agent", "kitty-orchestrator", "--note", "operator override"])
 
     assert result.exit_code == 0, result.output
     assert _cycles(feature_dir) == ["review-cycle-1.md"]
@@ -369,7 +371,7 @@ def test_forced_approval_writes_no_review_cycle(tmp_path: Path, monkeypatch: pyt
     """Case 10 (FR-006): a forced approval is not a review: no cycle, reference ``force-override``."""
     _repo, feature_dir, mission_slug = _claimed_mission(tmp_path, monkeypatch, "forced")
 
-    result = _move(["WP01", "--to", "approved", "--mission", mission_slug, "--force", "--agent", "kitty-orchestrator", "--json"])
+    result = _move(["WP01", "--to", "approved", "--mission", mission_slug, "--force", "--agent", "kitty-orchestrator", "--note", "operator override", "--json"])
 
     assert result.exit_code == 0, result.output
     assert _cycles(feature_dir) == []

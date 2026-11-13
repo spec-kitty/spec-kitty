@@ -29,7 +29,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, BinaryIO, Protocol
 
-from kernel.clock import UTC_SECOND_TIMESTAMP_FORMAT, format_stamp, from_epoch
+from kernel.clock import UTC_SECOND_TIMESTAMP_FORMAT, from_epoch
 from tests.contract._mission_status_payloads import ContractTools
 
 # ---------------------------------------------------------------------------
@@ -246,7 +246,7 @@ def media_type_of(path: str) -> str:
 
 def modified_at(st_mtime: float) -> str:
     """RFC 3339 UTC with ``Z`` and whole seconds: the modification time floored, never rounded."""
-    return format_stamp(from_epoch(math.floor(st_mtime)), UTC_SECOND_TIMESTAMP_FORMAT)
+    return from_epoch(math.floor(st_mtime)).strftime(UTC_SECOND_TIMESTAMP_FORMAT)
 
 
 def has_credential(tools: ContractTools, text: str) -> bool:

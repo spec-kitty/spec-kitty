@@ -1,9 +1,10 @@
 """Shared review-cycle invariant boundary.
 
-This module owns only rejected review-cycle artifact invariants:
-artifact creation, required frontmatter validation, canonical pointer
-construction/resolution, legacy feedback pointer normalization, and rejected
-ReviewResult derivation.
+This module owns the review-cycle artifact invariants: artifact creation for
+rejections and approvals (:func:`create_review_cycle`), adoption of a cycle
+the reviewer already wrote (#7571), cycle-citation verification (#7570),
+required frontmatter validation, canonical pointer construction/resolution,
+legacy feedback pointer normalization, and ReviewResult derivation.
 """
 
 from __future__ import annotations
@@ -26,7 +27,8 @@ import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, TypeAlias
+from collections.abc import Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING, Literal, TypeAlias
 
 from specify_cli.review.artifacts import (
     AffectedFile,
@@ -43,6 +45,9 @@ from specify_cli.status import (
     mission_write_lock,
 )
 from specify_cli.missions._read_path_resolver import mission_write_lock_dir
+
+if TYPE_CHECKING:
+    from specify_cli.status.models import StatusEvent
 
 logger = logging.getLogger(__name__)
 
@@ -75,9 +80,11 @@ def is_operator_rewind_sentinel(value: object) -> bool:
 #:
 #: These three prefix constants are the SINGLE SOURCE OF TRUTH for the
 #: synthetic ``review_ref`` grammar: ``SYNTHETIC_REVIEW_REF_PREFIXES`` (the
-#: classifier's input) and the ``synthetic_*_ref`` mint formatters below are
+#: classifier's input) and the ``synthetic_review_ref`` mint formatter below are
 #: both built from them, so a prefix rename here flows to mint and classify
-#: together instead of drifting silently.
+#: together instead of drifting silently. #7569 / #7571: approvals no longer
+#: mint ``approval:`` or ``auto-approval:`` tokens (their formatters were
+#: deleted); the prefixes stay because older event logs still carry them.
 _REVIEW_PREFIX = "review:"
 _APPROVAL_PREFIX = "approval:"
 _AUTO_APPROVAL_PREFIX = "auto-approval:"
@@ -103,22 +110,6 @@ def synthetic_review_ref(wp_id: str) -> str:
     Used when a rejection has no real review-feedback pointer to record.
     """
     return f"{_REVIEW_PREFIX}{wp_id}"
-
-
-def synthetic_approval_ref(wp_id: str) -> str:
-    """Mint the synthetic approval ``review_ref`` token for *wp_id* (#4327).
-
-    Used when an approval has no ``--approval-ref`` and no real pointer.
-    """
-    return f"{_APPROVAL_PREFIX}{wp_id}"
-
-
-def synthetic_auto_approval_ref(wp_id: str, date: str) -> str:
-    """Mint the synthetic auto-approval ``review_ref`` token for *wp_id* on
-    *date* (#4327). *date* is caller-formatted (``format_stamp(now_utc(), '%Y%m%d')``
-    at the current call sites) -- this formatter does not touch the clock.
-    """
-    return f"{_AUTO_APPROVAL_PREFIX}{wp_id}:{date}"
 
 
 def is_non_resolvable_review_ref(value: str) -> bool:
@@ -229,7 +220,7 @@ def _review_cycle_wp_dir(
 
     **This is a READ-mode resolver (:meth:`~mission_runtime.resolution.
     PlacementSeam.read_dir`), not the write location.** The WRITE seam
-    (:func:`create_rejected_review_cycle`) resolves its directory through
+    (:func:`create_review_cycle`) resolves its directory through
     :func:`_review_cycle_write_dir` instead, which uses :meth:`~mission_runtime.
     resolution.PlacementSeam.write_dir` — materializing/seeding an EMPTY
     coordination surface rather than silently falling back to PRIMARY
@@ -256,7 +247,7 @@ def _review_cycle_wp_dir(
     PRIMARY directory IF IT has them -- read-only, never the reverse: a
     coordination copy, once present, always wins (the steady state every
     other reader-co-resolution test pins), and nothing here ever writes to
-    PRIMARY (:func:`create_rejected_review_cycle` resolves its own directory
+    PRIMARY (:func:`create_review_cycle` resolves its own directory
     through the separate write-side seam, :func:`_review_cycle_write_dir`,
     which never falls back).
 
@@ -350,7 +341,7 @@ def _review_cycle_write_location(
     ``read_dir``, so an EMPTY coordination surface is materialized/seeded
     (or an UNMATERIALIZED local head is checked out) rather than silently
     substituting the PRIMARY checkout for a real coordination write (FR-014).
-    Called exactly ONCE per :func:`create_rejected_review_cycle` invocation —
+    Called exactly ONCE per :func:`create_review_cycle` invocation —
     ``write_dir`` may have side effects (seeding/materializing), so its
     result (including ``.surface_root``, the basis every evidence-path
     computation in this module now uses) is threaded through rather than
@@ -643,6 +634,259 @@ def resolve_review_cycle_pointer(repo_root: Path, pointer: str) -> ResolvedRevie
         path=candidate if candidate.exists() and candidate.is_file() else None,
         kind="path",
     )
+
+
+#: #7570 (FR-010): an approval's ``--approval-ref`` or ``--note`` cites a review cycle that is
+#: missing, invalid, a recorded rejection's cycle, or from before the latest review claim.
+REVIEW_CYCLE_CITATION_MISSING = "REVIEW_CYCLE_CITATION_MISSING"
+#: #7571 (FR-014, ruling ``non_adoptable_cycle``): a ``review-cycle-N.md`` written after the latest
+#: verdict that the approval cannot adopt (invalid, or attributed to another identity).
+REVIEW_CYCLE_NOT_ADOPTABLE = "REVIEW_CYCLE_NOT_ADOPTABLE"
+
+#: FR-010 citation grammar: ``cycle N``, ``cycle-N`` or ``review-cycle-N`` (case-insensitive), as a
+#: whole word. ``recycle 2``, ``lifecycle 3``, ``cycle time`` and ``cycle 4th`` are prose, not citations.
+_CYCLE_CITATION_RE = re.compile(r"(?<![\w-])(?:review-)?cycle(?:-|\s+)(?P<cycle>[1-9][0-9]*)(?!\w)", re.IGNORECASE)
+_REVIEW_CYCLE_POINTER_PREFIX = "review-cycle://"
+_REWORK_LANES = frozenset({"planned", "in_progress"})
+_REVIEW_FEEDBACK_ROUTE = "rename it to review-feedback-{n}.md and pass --review-feedback-file, or remove it"
+
+
+def parse_cycle_citations(text: str | None) -> tuple[int, ...]:
+    """Every review-cycle number *text* cites explicitly, ascending and without repeats (FR-010).
+
+    Only the explicit forms of :data:`_CYCLE_CITATION_RE` count; other prose is ignored.
+    """
+    if not text:
+        return ()
+    return tuple(sorted({int(match.group("cycle")) for match in _CYCLE_CITATION_RE.finditer(text)}))
+
+
+def _cycle_number_of_reference(reference: str | None) -> int | None:
+    """The cycle number a ``review-cycle://`` reference names, or ``None`` for any other reference."""
+    if not reference or not reference.strip().startswith(_REVIEW_CYCLE_POINTER_PREFIX):
+        return None
+    try:
+        return validate_review_cycle_pointer(reference).cycle_number
+    except ReviewCycleError:
+        return None
+
+
+def _event_cycle_references(event: StatusEvent) -> tuple[str | None, ...]:
+    """The three fields an event references a review cycle through."""
+    result_ref = event.review_result.reference if event.review_result is not None else None
+    evidence_ref = event.evidence.review.reference if event.evidence is not None else None
+    return (event.review_ref, result_ref, evidence_ref)
+
+
+def _is_rejection_event(event: StatusEvent) -> bool:
+    """A recorded rejection: a ``changes_requested`` result, or a rework move carrying a ``review_ref``."""
+    if event.review_result is not None:
+        return str(event.review_result.verdict) == "changes_requested"
+    return bool(event.review_ref) and str(event.to_lane) in _REWORK_LANES
+
+
+def cycle_numbers_referenced(
+    events: Sequence[StatusEvent],
+    wp_id: str,
+    *,
+    before_index: int | None = None,
+    rejections_only: bool = False,
+) -> frozenset[int]:
+    """Every review-cycle number *wp_id*'s events reference (#7571, decision ``adoption_rule``).
+
+    Read from ``review_ref``, ``review_result.reference`` and ``evidence.review.reference``.
+    ``before_index`` keeps only the events before that index; ``rejections_only`` keeps only
+    recorded rejections. Never reads a cycle's frontmatter: the event log is the verdict authority.
+    """
+    window = events if before_index is None else events[:before_index]
+    numbers: set[int] = set()
+    for event in window:
+        if event.wp_id != wp_id or (rejections_only and not _is_rejection_event(event)):
+            continue
+        numbers.update(n for n in map(_cycle_number_of_reference, _event_cycle_references(event)) if n is not None)
+    return frozenset(numbers)
+
+
+def _latest_claim_index(events: Sequence[StatusEvent], wp_id: str) -> int | None:
+    """The index of *wp_id*'s newest entry into ``in_review``, or ``None`` when it has none."""
+    for index in range(len(events) - 1, -1, -1):
+        event = events[index]
+        if event.wp_id == wp_id and str(event.to_lane) == "in_review":
+            return index
+    return None
+
+
+def review_cycle_files_by_number(wp_dirs: Iterable[Path]) -> dict[int, Path]:
+    """The ``review-cycle-N.md`` files in *wp_dirs*, keyed by N (#7571).
+
+    Directories are read in order (the read candidates of :func:`_review_cycle_read_candidate_dirs`),
+    and the first file for a number wins. Files are found by listing, never by joining a number
+    from user text onto a directory; filenames outside the cycle grammar are ignored.
+    """
+    files: dict[int, Path] = {}
+    for wp_dir in wp_dirs:
+        if not wp_dir.is_dir():
+            continue
+        for path in sorted(wp_dir.glob("review-cycle-*.md")):
+            match = _REVIEW_CYCLE_FILE_RE.match(path.name)
+            if match is not None and path.is_file():
+                files.setdefault(int(match.group("cycle")), path)
+    return files
+
+
+def _cycle_validity_problem(path: Path, *, number: int, wp_id: str) -> tuple[str | None, ReviewCycleArtifact | None]:
+    """Why *path* is not a valid cycle *number* of *wp_id*, or ``(None, artifact)`` when it is."""
+    try:
+        artifact = validate_review_artifact_file(path)
+    except (ValueError, OSError) as exc:
+        return f"it is not a valid review cycle ({exc})", None
+    if artifact.cycle_number != number:
+        return f"its cycle_number {artifact.cycle_number} disagrees with its filename", None
+    if artifact.wp_id != wp_id:
+        return f"it records work package {artifact.wp_id}, not {wp_id}", None
+    return None, artifact
+
+
+@dataclass(frozen=True)
+class AdoptionResult:
+    """What an approval does with the review cycles written after the latest verdict (#7571).
+
+    ``adopt``: reference ``pointer`` (the file at ``path``) and write nothing; ``ignored`` are other
+    valid candidates below it. ``none``: no candidate; write a cycle as before. ``not_adoptable``:
+    ``path`` cannot be adopted for ``reason``; an unforced approval refuses.
+    """
+
+    kind: Literal["adopt", "none", "not_adoptable"]
+    path: Path | None = None
+    pointer: str | None = None
+    reason: str | None = None
+    ignored: tuple[Path, ...] = ()
+
+
+def find_adoptable_review_cycle(
+    *,
+    files: Mapping[int, Path],
+    events: Sequence[StatusEvent],
+    wp_id: str,
+    mission_slug: str,
+    wp_slug: str,
+    reviewer_of_record: str | None,
+) -> AdoptionResult:
+    """Decide whether an approval adopts a cycle the reviewer already wrote (FR-008, FR-009, FR-014).
+
+    A candidate is a file whose N is above every cycle number the event log references, and which
+    no event references. It is adoptable when it is valid and its ``reviewer_agent`` is the reviewer
+    of record (:func:`~specify_cli.status.review_roles.same_review_identity`). Any candidate that is
+    not adoptable makes the result ``not_adoptable``; otherwise the highest adoptable N is adopted.
+    Keyed on event references and cycle numbers, never on ``reviewed_at`` (research R5).
+    """
+    from specify_cli.status.review_roles import same_review_identity
+
+    floor = max(cycle_numbers_referenced(events, wp_id), default=0)
+    adoptable: list[Path] = []
+    for number in sorted(n for n in files if n > floor):
+        path = files[number]
+        problem, artifact = _cycle_validity_problem(path, number=number, wp_id=wp_id)
+        if problem is None and artifact is not None and not same_review_identity(artifact.reviewer_agent, reviewer_of_record):
+            problem = f"it is attributed to {artifact.reviewer_agent}, not the reviewer of record {reviewer_of_record or '(none)'}"
+        if problem is not None:
+            return AdoptionResult("not_adoptable", path=path, reason=problem)
+        adoptable.append(path)
+    if not adoptable:
+        return AdoptionResult("none")
+    chosen = adoptable[-1]
+    return AdoptionResult(
+        "adopt",
+        path=chosen,
+        pointer=build_review_cycle_pointer(mission_slug, wp_slug, chosen.name),
+        ignored=tuple(adoptable[:-1]),
+    )
+
+
+def not_adoptable_message(wp_id: str, result: AdoptionResult) -> str:
+    """The ``REVIEW_CYCLE_NOT_ADOPTABLE`` refusal text for *result* (FR-014): the file and the route."""
+    path = result.path
+    match = _REVIEW_CYCLE_FILE_RE.match(path.name) if path is not None else None
+    number = match.group("cycle") if match is not None else "N"
+    return (
+        f"{REVIEW_CYCLE_NOT_ADOPTABLE}: {wp_id} cannot be approved: {path} was written after the latest verdict, "
+        f"but the approval cannot adopt it: {result.reason}. review-cycle-N.md is a tool-owned record; to "
+        f"record your review, {_REVIEW_FEEDBACK_ROUTE.format(n=number)}. Nothing was written."
+    )
+
+
+def _cited_cycle_numbers(*, approval_ref: str | None, note: str | None, mission_slug: str, wp_slug: str) -> tuple[tuple[int, ...], str | None]:
+    """The cycle numbers cited by ``--approval-ref`` and ``--note``, or a refusal reason for a bad pointer."""
+    numbers = set(parse_cycle_citations(note))
+    ref = (approval_ref or "").strip()
+    if ref.startswith(_REVIEW_CYCLE_POINTER_PREFIX):
+        try:
+            parts = validate_review_cycle_pointer(ref)
+        except ReviewCycleError as exc:
+            return (), f"--approval-ref {ref} is not a review-cycle pointer ({exc})"
+        if (parts.mission_slug, parts.wp_slug) != (mission_slug, wp_slug):
+            return (), f"--approval-ref {ref} names another work package's cycle; expected review-cycle://{mission_slug}/{wp_slug}/review-cycle-N.md"
+        numbers.add(parts.cycle_number)
+    else:
+        numbers.update(parse_cycle_citations(ref))
+    return tuple(sorted(numbers)), None
+
+
+def _citation_problem(number: int, *, files: Mapping[int, Path], wp_id: str, rejected: frozenset[int], stale_floor: int) -> str | None:
+    """Why a citation of cycle *number* does not name a current cycle, or ``None`` when it does."""
+    path = files.get(number)
+    if path is None:
+        return "does not exist"
+    problem, _artifact = _cycle_validity_problem(path, number=number, wp_id=wp_id)
+    if problem is not None:
+        return f"is not a valid review cycle: {problem}"
+    if number in rejected:
+        return "is the cycle of a recorded rejection"
+    if number <= stale_floor:
+        return "was written before the latest review claim (a cycle referenced before it is stale)"
+    return None
+
+
+def verify_cycle_citation(
+    *,
+    files: Mapping[int, Path],
+    events: Sequence[StatusEvent],
+    wp_id: str,
+    mission_slug: str,
+    wp_slug: str,
+    approval_ref: str | None,
+    note: str | None,
+) -> str | None:
+    """The ``REVIEW_CYCLE_CITATION_MISSING`` refusal for a citation that names no current cycle (FR-010).
+
+    A citation is an ``--approval-ref`` ``review-cycle://`` pointer (of this work package), or an
+    explicit ``cycle N`` form in ``--approval-ref`` or ``--note``. Each cited cycle must exist among
+    *files*, be valid, not be a recorded rejection's cycle, and be numbered above every cycle the
+    log references before the latest review claim (research R7). ``None`` when every citation holds.
+    """
+    numbers, pointer_problem = _cited_cycle_numbers(approval_ref=approval_ref, note=note, mission_slug=mission_slug, wp_slug=wp_slug)
+    if pointer_problem is not None:
+        return f"{REVIEW_CYCLE_CITATION_MISSING}: {wp_id} cannot be approved: {pointer_problem}. Nothing was written."
+    if not numbers:
+        return None
+    rejected = cycle_numbers_referenced(events, wp_id, rejections_only=True)
+    stale_floor = max(cycle_numbers_referenced(events, wp_id, before_index=_latest_claim_index(events, wp_id)), default=0)
+    where = ", ".join(str(directory) for directory in dict.fromkeys(path.parent for path in files.values())) or f"tasks/{wp_slug}/"
+    for number in numbers:
+        problem = _citation_problem(number, files=files, wp_id=wp_id, rejected=rejected, stale_floor=stale_floor)
+        if problem is not None:
+            return (
+                f"{REVIEW_CYCLE_CITATION_MISSING}: {wp_id} cannot be approved: it cites review cycle {number}, "
+                f"expected at review-cycle-{number}.md ({_REVIEW_CYCLE_POINTER_PREFIX}{mission_slug}/{wp_slug}/review-cycle-{number}.md, "
+                f"read from {where}), which {problem}. Cite a review cycle written after the latest review claim, "
+                "or record the review with --review-feedback-file review-feedback-N.md. Nothing was written."
+            )
+    return None
+
+
+def review_cycle_files_for_wp(repo_root: Path, mission_slug: str, wp_slug: str, *, owned: OwnedCheckout | None = None) -> dict[int, Path]:
+    """The work package's ``review-cycle-N.md`` files on every read surface (#7571), keyed by N."""
+    return review_cycle_files_by_number(_review_cycle_read_candidate_dirs(repo_root, mission_slug, wp_slug, owned=owned))
 
 
 def _guard_feedback_source_provenance(*, feedback_source: Path, sub_artifact_dir: Path) -> None:
@@ -1006,11 +1250,15 @@ def _local_matching_retained_review_cycles(
     reviewer_agent: str,
     affected_files: list[AffectedFile],
     body: str,
+    excluded_cycle_numbers: frozenset[int] = frozenset(),
 ) -> tuple[_RetainedReviewCycleCandidate, ...]:
     """Enumerate matching local evidence while the caller holds the short lock.
 
     This helper is filesystem-only by contract. Placement resolution and Git
     reachability checks happen after the caller releases ``feature_status_lock``.
+    ``excluded_cycle_numbers`` (#7571, FR-009) are cycles a recorded verdict already
+    answered: retained evidence is a retry of an interrupted write, which no event
+    references, so a referenced cycle is never adopted however identical it is.
     """
     wanted_affected = _canonical_affected_files(affected_files)
     matches: list[_RetainedReviewCycleCandidate] = []
@@ -1020,7 +1268,8 @@ def _local_matching_retained_review_cycles(
         except ValueError:
             continue
         if (
-            candidate.mission_slug != mission_slug
+            candidate.cycle_number in excluded_cycle_numbers
+            or candidate.mission_slug != mission_slug
             or candidate.wp_id != wp_id
             or candidate.reviewer_agent != (reviewer_agent or "unknown")
             or candidate.body != body
@@ -1136,7 +1385,7 @@ def _allocate_and_write_review_cycle_locked(
 
     FR-003/SC-007 (WP06): no longer takes a ``verdict`` parameter --
     ``ReviewCycleArtifact`` carries no such field. The caller
-    (:func:`create_rejected_review_cycle`) still threads its own ``verdict``
+    (:func:`create_review_cycle`) still threads its own ``verdict``
     parameter into the event-side :class:`~specify_cli.status.ReviewResult`
     and the best-effort commit message; neither of those is this function's
     concern.
@@ -1191,6 +1440,7 @@ def _adopt_or_allocate_review_cycle_locked(
     sibling_dirs: tuple[Path, ...] = (),
     owned: OwnedCheckout | None = None,
     surface_root: Path | None = None,
+    excluded_cycle_numbers: frozenset[int] = frozenset(),
 ) -> tuple[ReviewCycleArtifact, Path, str, bool]:
     """Adopt identical retained evidence or allocate a new record.
 
@@ -1219,6 +1469,7 @@ def _adopt_or_allocate_review_cycle_locked(
             reviewer_agent=reviewer_agent,
             affected_files=affected_files,
             body=body,
+            excluded_cycle_numbers=excluded_cycle_numbers,
         )
         if not candidates:
             artifact, artifact_path, filename = _allocate_and_write_review_cycle_while_locked(
@@ -1260,6 +1511,7 @@ def _adopt_or_allocate_review_cycle_locked(
             reviewer_agent=reviewer_agent,
             affected_files=affected_files,
             body=body,
+            excluded_cycle_numbers=excluded_cycle_numbers,
         )
         original_snapshot = {candidate.path: candidate.local_bytes for candidate in candidates}
         refreshed_snapshot = {candidate.path: candidate.local_bytes for candidate in refreshed}
@@ -1298,7 +1550,7 @@ def _resolve_review_body(
     A ``feedback_source`` file is validated (exists, is a file, non-empty) and
     then routed through :func:`_guard_feedback_source_provenance`; a
     caller-generated ``body`` bypasses that guard (see
-    :func:`create_rejected_review_cycle`). ``body_header`` is prepended to the
+    :func:`create_review_cycle`). ``body_header`` is prepended to the
     guarded file content, never checked by the guard itself.
 
     ``source_text`` is the SOURCE FILE's own text -- ``None`` on the ``body``
@@ -1520,7 +1772,7 @@ def _persistence_after_commit_exception(
     )
 
 
-def create_rejected_review_cycle(
+def create_review_cycle(
     *,
     main_repo_root: Path,
     mission_slug: str,
@@ -1535,8 +1787,13 @@ def create_rejected_review_cycle(
     commit_router: CoordCommitRouter | None = None,
     reproduction_command: str | None = None,
     owned: OwnedCheckout | None = None,
+    excluded_cycle_numbers: frozenset[int] = frozenset(),
 ) -> CreatedRejectedReviewCycle:
-    """Create or adopt evidence and return a typed persistence outcome.
+    """Write (or adopt identical retained) review-cycle evidence and return a typed persistence outcome.
+
+    The one review-cycle writer, for rejections AND approvals (#6709 / FR-013: named for what it
+    does; the old rejection-only name :data:`create_rejected_review_cycle` stays as an alias that
+    every caller still imports, so their ``mock.patch`` targets keep intercepting).
 
     ``verdict`` defaults to ``"rejected"`` so every pre-existing caller keeps
     behaving unchanged (C-002 / backward compatibility). ``commit_router`` is
@@ -1581,11 +1838,14 @@ def create_rejected_review_cycle(
     ``owned`` is the validated owned checkout, when the command runs against
     one. Every directory, placement ref and evidence path is then derived from
     the fact (``owned.owned_root``), never from ``main_repo_root``.
+
+    ``excluded_cycle_numbers`` (#7571, FR-009): cycles a recorded verdict already references;
+    identical retained evidence among them is stale, never adopted as this write's record.
     """
     if (feedback_source is None) == (body is None):
-        raise ReviewCycleError("create_rejected_review_cycle requires exactly one of feedback_source or body")
+        raise ReviewCycleError("create_review_cycle requires exactly one of feedback_source or body")
     if body_header is not None and feedback_source is None:
-        raise ReviewCycleError("create_rejected_review_cycle accepts body_header only with feedback_source")
+        raise ReviewCycleError("create_review_cycle accepts body_header only with feedback_source")
 
     safe_mission_slug = _validate_segment("mission_slug", mission_slug)
     safe_wp_slug = _validate_segment("wp_slug", wp_slug)
@@ -1647,6 +1907,7 @@ def create_rejected_review_cycle(
             owned=owned,
             surface_root=surface_root,
             sibling_dirs=sibling_dirs,
+            excluded_cycle_numbers=excluded_cycle_numbers,
         )
     pointer = build_review_cycle_pointer(safe_mission_slug, safe_wp_slug, filename)
 
@@ -1754,4 +2015,72 @@ def create_rejected_review_cycle(
         warnings=retirement_warnings,
         retired_feedback_source=retired_feedback_source,
         adopted=already_committed,
+    )
+
+
+#: #6709 / FR-013: the writer's former, rejection-only name, kept as an alias. Callers keep
+#: importing this name, so their ``mock.patch("<module>.create_rejected_review_cycle")`` targets
+#: still intercept.
+create_rejected_review_cycle = create_review_cycle
+
+
+def adopted_review_cycle_record(
+    *,
+    main_repo_root: Path,
+    mission_slug: str,
+    adoption: AdoptionResult,
+    committing: bool,
+    owned: OwnedCheckout | None = None,
+) -> CreatedRejectedReviewCycle:
+    """The approval record of a cycle the reviewer already wrote, adopted without a write (FR-008).
+
+    Nothing is written or committed. The outcome is ``durable`` when the governed destination ref
+    already holds the file's exact bytes, else local-only, exactly like a local-only write today
+    (``no_auto_commit`` under ``--no-auto-commit``, ``adopted_uncommitted`` otherwise). ``adopted``
+    is always ``True``: the revert compensator never deletes or reverts the reviewer's file.
+    """
+    if adoption.kind != "adopt" or adoption.path is None or adoption.pointer is None:
+        raise ReviewCycleError("adopted_review_cycle_record requires an adopt result")
+    artifact_path = adoption.path
+    artifact = validate_review_artifact_file(artifact_path)
+    write_location = _review_cycle_write_location(main_repo_root, mission_slug, owned=owned)
+    destination_ref = placement_seam(main_repo_root, mission_slug, owned=owned).write_target(MissionArtifactKind.REVIEW_CYCLE).ref
+    try:
+        evidence_ref = _evidence_ref(write_location.surface_root, artifact_path)
+    except ReviewCycleError:
+        evidence_ref = None
+    committed = (
+        committing and evidence_ref is not None and _read_artifact_at_ref(write_location.surface_root, destination_ref, evidence_ref) == artifact_path.read_bytes()
+    )
+    if committed:
+        persistence = VerdictPersistenceOutcome(
+            classification="durable",
+            verdict_durably_persisted=True,
+            evidence_ref=evidence_ref,
+            destination_ref=destination_ref,
+            reason=None,
+            message=f"Adopted the reviewer's review cycle, already committed at {destination_ref}.",
+        )
+    else:
+        persistence = VerdictPersistenceOutcome(
+            classification="local_only",
+            verdict_durably_persisted=False,
+            evidence_ref=evidence_ref or str(artifact_path),
+            destination_ref=None,
+            reason="adopted_uncommitted" if committing else "no_auto_commit",
+            message="Adopted the reviewer's review cycle, which is not committed; nothing was written.",
+        )
+    review_result = ReviewResult(
+        reviewer=artifact.reviewer_agent,
+        verdict=emission_event_verdict("approved"),
+        reference=adoption.pointer,
+        feedback_path=str(artifact_path),
+    )
+    return CreatedRejectedReviewCycle(
+        artifact_path=artifact_path,
+        pointer=adoption.pointer,
+        artifact=artifact,
+        review_result=review_result,
+        persistence=persistence,
+        adopted=True,
     )

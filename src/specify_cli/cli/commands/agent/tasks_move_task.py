@@ -109,6 +109,7 @@ from specify_cli.cli.commands.agent.tasks_verdict_persistence import (
     VerdictDurabilitySignal,
     VerdictPersistenceFailure,
     VerdictRevertCompoundFailure,
+    _mt_require_honest_review_cycle,
     persist_arbiter_override_decision,
     persist_review_override_before_guard,
     resolve_review_verdict_facts,
@@ -1428,6 +1429,7 @@ def _mt_require_independent_approval(st: _MoveTaskState) -> None:
     if st.force or st.target_lane not in _APPROVAL_LANES:
         return
     _mt_refuse_damaged_review_slot(st)
+    _mt_require_honest_review_cycle(st)  # WP03 leeway (#7570 #7571): cycle citation + adoption refusals, before any write
     from specify_cli.status import GENERIC_IMPLEMENTATION_ACTORS, _actor_key, actor_full_identity, actor_identities_independent
 
     actor = _mt_approval_actor(st)

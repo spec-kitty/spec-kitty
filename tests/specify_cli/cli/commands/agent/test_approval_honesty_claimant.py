@@ -265,11 +265,6 @@ def test_profile_flag_alone_cannot_rename_the_claimant(tmp_path: Path, monkeypat
     assert _snapshot(repo, feature_dir) == before
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="WP03 owns the cycle writer: its reviewer_agent still reads the raw st.reviewer/st.agent, "
-    "not st.request.effective_reviewer (the bound reviewer of record WP02 now settles)",
-)
 def test_profile_flag_completes_the_cycle_reviewer_agent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """FR-001 for the review cycle: ``--agent codex --profile reviewer-renata`` writes ``reviewer_agent: codex::reviewer-renata``."""
     _repo, feature_dir, mission_slug = _claimed_mission(tmp_path, monkeypatch, "binding-cycle", claimant="codex::reviewer-renata")
