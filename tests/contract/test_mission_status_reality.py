@@ -226,6 +226,12 @@ class SharedWorkPackageReads:
         self._views[(real, wp_id)] = (metadata, built)
         return built
 
+    def use_production(self, mp: pytest.MonkeyPatch) -> None:
+        """Point both reader modules back at the production functions for one test: a test that traps file reads must see every read."""
+        for module in SHARED_READER_MODULES:
+            mp.setattr(module, "read_authored_wp_frontmatter", self._frontmatter)
+            mp.setattr(module, "reconstruct_wp_view", self._view)
+
 
 @pytest.fixture(scope="module", autouse=True)
 def work_package_reads_are_shared(tmp_path_factory: pytest.TempPathFactory) -> Iterator[SharedWorkPackageReads]:
@@ -562,6 +568,13 @@ def test_the_shared_reads_are_active_in_both_reader_modules(work_package_reads_a
     assert shared._frontmatter is read_authored_wp_frontmatter and shared._view is reconstruct_wp_view
 
 
+def test_use_production_restores_the_production_readers_for_one_test(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    shared, _calls = _counting_reads(tmp_path)
+    shared.use_production(monkeypatch)
+    for module in SHARED_READER_MODULES:
+        assert module.read_authored_wp_frontmatter is shared._frontmatter and module.reconstruct_wp_view is shared._view
+
+
 # ---------------------------------------------------------------------------
 # Corpus-level assertions
 # ---------------------------------------------------------------------------
@@ -773,8 +786,11 @@ def test_a_real_payload_validates_and_each_planted_defect_fails(tools: helper.Co
 
 
 @pytest.mark.timeout(120)
-def test_the_overview_builder_never_reads_a_work_package_file(tools: helper.ContractTools, contract: helper.Contract, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_overview_builder_never_reads_a_work_package_file(
+    tools: helper.ContractTools, contract: helper.Contract, monkeypatch: pytest.MonkeyPatch, work_package_reads_are_shared: SharedWorkPackageReads
+) -> None:
     mission = next(name for name in CASES if run_case(name, tools, contract).work_packages)
+    work_package_reads_are_shared.use_production(monkeypatch)  # a shared parse would answer without opening the file the trap watches
     touched = helper.work_package_trap(monkeypatch)
     source = helper.load_source(REPO_ROOT, mission)
     overview = helper.build_overview(source, helper.Projector(tools.leak, mission))
