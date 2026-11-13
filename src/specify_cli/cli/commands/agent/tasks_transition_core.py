@@ -90,13 +90,24 @@ from specify_cli.status import (
     GENERIC_IMPLEMENTATION_ACTORS,
     GuardContext,
     Lane,
+    ResolvedBinding,
+    actor_compact_identity,
+    actor_full_identity,
+    actor_identities_independent,
+    build_status_actor,
     requires_review_ref,
     resolve_lane_alias,
     validate_transition,
     wp_state_for,
 )
 from specify_cli.status import _actor_key, is_latest_implementer
+from specify_cli.status.review_roles import same_review_identity
 from specify_cli.review.cycle import OPERATOR_REWIND_SENTINEL, is_operator_rewind_sentinel
+
+#: #7573: an unforced verdict out of ``in_review`` recorded by an identity other than the review
+#: claimant, or ``--agent`` and ``--reviewer`` naming two identities. Lives here, beside the
+#: ownership guard, not in ``consolidation/wp_evidence`` (C-004); no ``SINGLE_BRANCH_*`` alias.
+APPROVER_NOT_CLAIMANT = "APPROVER_NOT_CLAIMANT"
 
 # Terminal lanes that build approval evidence + run the rejected-verdict guard.
 _APPROVAL_LANES: tuple[str, ...] = (Lane.APPROVED, Lane.DONE)
@@ -204,6 +215,38 @@ class MoveTaskRequest:
     # #5196: the WP's latest implementer (``status.latest_implementer_actor``),
     # resolved by the shell. ``None`` (default) grants no role allowance.
     latest_implementer: str | None = None
+    # #7573: the review claimant (``status.review_roles.latest_review_claim_identity``) of a move out
+    # of ``in_review`` into an approval lane, else ``None``; and the identities ``--agent`` and
+    # ``--reviewer`` assert, as the approval would record them (:func:`asserted_review_identity`).
+    # All resolved by the shell in pass 1, so :func:`_guard_review_claimant` refuses before any write.
+    # ``reviewer_flag`` is the raw ``--reviewer`` (``agent`` is the raw ``--agent``): the guard refuses a
+    # move whose dispatch binding would override a segment the flag itself asserts.
+    review_claimant: str | None = None
+    asserted_agent: str | None = None
+    asserted_reviewer: str | None = None
+    reviewer_flag: str | None = None
+    # The review claimant as an approval with no ``--agent``/``--reviewer`` records it (the binding applied).
+    claimant_as_recorded: str | None = None
+
+
+def asserted_review_identity(flag: str | None, binding: ResolvedBinding | None) -> str | None:
+    """The compact identity a ``--agent`` / ``--reviewer`` value records on a verdict hop, or ``None``.
+
+    Built as the hop actor is (``build_status_actor``): the dispatch binding (``--profile``,
+    ``--model``, ``--invocation-id``) fills or wins for the profile and model. It is the ONE
+    identity an approval records (FR-001): the guard compares it with the review claimant, and
+    ``resolve_reviewer_of_record`` writes it into every review field. Pure. A value the strict
+    parser rejects (refused upfront by the shell) is compared as given.
+    """
+    text = (flag or "").strip()
+    if not text:
+        return None
+    try:
+        actor = build_status_actor(role="reviewer", agent=text, fallback_tool=None, binding=binding)
+    except ValueError:
+        return text
+    identity: str | None = actor_compact_identity(actor)
+    return identity
 
 
 @dataclass(frozen=True)
@@ -605,6 +648,114 @@ def _guard_agent_ownership(req: MoveTaskRequest) -> RefuseExit1 | None:
     )
 
 
+def _claimant_mismatch(req: MoveTaskRequest) -> tuple[str, str | None] | None:
+    """``(approver, claimant)`` when the asserted approver is not the reviewer of the verdict, else ``None``.
+
+    ``--agent`` and ``--reviewer`` naming two identities is a mismatch on any approval lane, and so is
+    a flag whose own model or profile the dispatch binding would override (:func:`_binding_override`):
+    the approval would record an identity the flag contradicts. Out of ``in_review``, an approver who
+    is not the review claimant is one. The approver is the identity the approval records: the asserted
+    one, else the claimant as recorded (``claimant_as_recorded``, the binding applied, so a binding
+    that changes the claimant's profile names another identity). With no claimant (none, forced or
+    placeholder) this rule does not apply. Equality is :func:`same_review_identity` (tool, model and
+    profile).
+    """
+    if _flags_disagree(req):
+        return req.asserted_reviewer or "", req.review_claimant
+    override = _binding_override(req)
+    if override is not None:
+        return override[1], req.review_claimant
+    approver = req.asserted_agent or req.asserted_reviewer or req.claimant_as_recorded
+    from_review = resolve_lane_alias(req.old_lane) == Lane.IN_REVIEW
+    if not from_review or req.review_claimant is None or approver is None:
+        return None
+    return None if same_review_identity(approver, req.review_claimant) else (approver, req.review_claimant)
+
+
+def _binding_overrides(flag: str | None, recorded: str | None) -> bool:
+    """Whether the dispatch binding replaced a model or profile *flag* itself asserts.
+
+    ``build_status_actor`` lets the binding win over the flag's own segments; *recorded* is the
+    identity that rule gives (:func:`asserted_review_identity`). A segment the flag leaves open and
+    the binding fills is no override; the role segment is never compared.
+    """
+    if not (flag and flag.strip() and recorded):
+        return False
+    # Bound explicitly: mypy widens ``specify_cli.*`` returns to ``Any`` through ``follow_imports=skip``.
+    overridden: bool = actor_identities_independent(actor_full_identity(flag), actor_full_identity(recorded))
+    return overridden
+
+
+def _binding_override(req: MoveTaskRequest) -> tuple[str, str, str] | None:
+    """``(option, flag, recorded)`` of the first flag the binding would override, else ``None``."""
+    for option, flag, recorded in (("--agent", req.agent, req.asserted_agent), ("--reviewer", req.reviewer_flag, req.asserted_reviewer)):
+        if flag and recorded and _binding_overrides(flag, recorded):
+            return option, flag.strip(), recorded
+    return None
+
+
+def _flags_disagree(req: MoveTaskRequest) -> bool:
+    """``--agent`` and ``--reviewer`` both asserted and naming two identities."""
+    agent, reviewer = req.asserted_agent, req.asserted_reviewer
+    return bool(agent and reviewer and not same_review_identity(agent, reviewer))
+
+
+def _claimant_refusal_text(req: MoveTaskRequest, approver: str, claimant: str | None) -> str:
+    under_review = f" {req.task_id} is under review by {claimant}." if claimant else ""
+    remedy = f"Have the claimant record it (--agent {claimant})" if claimant else "Pass one identity"
+    override = _binding_override(req)
+    if _flags_disagree(req):
+        return (
+            f"{APPROVER_NOT_CLAIMANT}: --agent {req.asserted_agent} and --reviewer {approver} name different "
+            f"identities; {req.task_id}'s verdict has one reviewer.{under_review} {remedy}, or, as an operator "
+            "override, use --force (recorded as a forced move, not a review)."
+        )
+    if override is not None:
+        option, flag, recorded = override
+        return (
+            f"{APPROVER_NOT_CLAIMANT}: {option} {flag} names a different identity than the dispatch binding "
+            f"(--profile / --invocation-id), which records {recorded}; {req.task_id}'s verdict has one reviewer."
+            f"{under_review} {remedy}, or, as an operator override, use --force (recorded as a forced move, not a review)."
+        )
+    return (
+        f"{APPROVER_NOT_CLAIMANT}: {req.task_id} is under review by {claimant}; {approver} cannot record its verdict. "
+        f"Have the claimant record it (--agent {claimant}), or, as an operator override, use --force "
+        "(recorded as a forced move, not a review)."
+    )
+
+
+def _guard_review_claimant(req: MoveTaskRequest) -> RefuseExit1 | None:
+    """#7573: an unforced verdict into ``approved``/``done`` must be recorded by the review claimant.
+
+    Pure sibling of :func:`_guard_agent_ownership` (which compares the bare tool only, so a same-tool
+    supervisor passed it). ``--force`` bypasses it: the move is then recorded as forced, not as a
+    review (decision ``claimant_remedy``). Re-claiming is no remedy: another identity's review claim
+    collides, and ``in_review -> for_review`` does not exist.
+    """
+    if req.force or resolve_lane_alias(req.target_lane) not in _APPROVAL_LANES:
+        return None
+    mismatch = _claimant_mismatch(req)
+    if mismatch is None:
+        return None
+    approver, claimant = mismatch
+    error = _claimant_refusal_text(req, approver, claimant)
+    diagnostic = {
+        "result": "error",
+        "code": APPROVER_NOT_CLAIMANT,
+        "error": error,
+        "current_lane": resolve_lane_alias(req.old_lane),
+        "requested_lane": resolve_lane_alias(req.target_lane),
+        "review_claimant": claimant,
+        "requesting_agent": approver,
+        "asserted_agent": req.asserted_agent,
+        "asserted_reviewer": req.asserted_reviewer,
+        "verdict_durably_persisted": False,
+        "evidence_ref": None,
+        "destination_ref": None,
+    }
+    return RefuseExit1(error, diagnostic=diagnostic)
+
+
 def _guard_rejected_verdict(req: MoveTaskRequest) -> RefuseExit1 | None:
     """Refuse arms of the rejected-verdict guard (APPROVAL_LANES only).
 
@@ -935,6 +1086,7 @@ _GUARDS = (
     _guard_unsupported_skip_metadata,
     _guard_protected_branch,
     _guard_agent_ownership,
+    _guard_review_claimant,
     _guard_done_exit,
     _guard_rejected_verdict,
     _guard_feedback_file,

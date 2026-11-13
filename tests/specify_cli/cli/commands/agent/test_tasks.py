@@ -158,6 +158,7 @@ def _seed_wp_event(
     to_lane: str,
     *,
     review_result: ReviewResult | None = None,
+    force: bool = True,
 ) -> None:
     """Seed a WP event so the canonical event log knows the WP exists.
 
@@ -167,6 +168,10 @@ def _seed_wp_event(
     frontmatter -- callers that need the guard/writer to see a CURRENT
     rejection/approval must seed it here, not merely write the on-disk
     artifact.
+
+    ``force=False`` seeds an ``in_review`` entry as the review claim
+    ``agent action review`` records: only an unforced entry names a claimant
+    (approval-honesty WP01), so an approval with no ``--agent`` needs it.
     """
     event = StatusEvent(
         event_id=f"test-{wp_id}-{to_lane}",
@@ -176,7 +181,7 @@ def _seed_wp_event(
         to_lane=Lane(to_lane),
         at="2026-01-01T00:00:00+00:00",
         actor="test",
-        force=True,
+        force=force,
         execution_mode="worktree",
         review_result=review_result,
     )
@@ -678,6 +683,7 @@ class TestVerdictGuardInMoveTask:
             review_result=ReviewResult(
                 reviewer="test-reviewer", verdict="changes_requested", reference="x"
             ),
+            force=False,
         )
 
         # Write a review-cycle-1.md with verdict: rejected inside the WP sub-dir

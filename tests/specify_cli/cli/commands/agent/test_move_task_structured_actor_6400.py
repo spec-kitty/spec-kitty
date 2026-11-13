@@ -146,6 +146,14 @@ def test_review_approval_with_profile_flag_is_a_reviewer_actor(tmp_path: Path, m
     _assert_no_bare_actor(appended)
     expected = {"tool": "codex", "role": "reviewer", "profile": "reviewer-renata", "model": None}
     assert [(e["to_lane"], e["actor"]) for e in _lane(appended)] == [("in_review", expected), ("approved", expected)]
+    # FR-001 (#7573 review cycle 1): the review fields record the same bound identity as the actor,
+    # never the bare ``--agent codex`` flag.
+    approval = _lane(appended)[-1]
+    assert {
+        "evidence.review.reviewer": approval["evidence"]["review"]["reviewer"],
+        "review_result.reviewer": approval["review_result"]["reviewer"],
+        "policy_metadata.tool": approval["policy_metadata"]["tool"],
+    } == dict.fromkeys(("evidence.review.reviewer", "review_result.reviewer", "policy_metadata.tool"), "codex::reviewer-renata")
 
 
 def test_review_override_verdict_note_is_a_reviewer_actor(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -224,13 +232,88 @@ def test_explicit_agent_with_more_than_four_segments_is_refused_before_any_write
     assert h.events(m) == before
 
 
-def test_recorded_migration_reviewer_identity_stays_a_reconstruction_seed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A recorded ``migration:`` identity (no ``--agent``) is kept whole, so it stays a seed (#6400 review F3)."""
+def test_recorded_migration_identity_stays_a_reconstruction_seed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A recorded ``migration:`` identity (no ``--agent``) is kept whole, so it stays a seed (#6400 review F3, #6754).
+
+    Re-pinned for #7569/#7573: a forced ``migration:`` entry into ``in_review`` is no review claim, so
+    the approval no longer replays it (see the companion test below). The recorded-identity replay this
+    test guards is exercised where it still happens: an ``in_progress -> for_review`` submission with no
+    ``--agent`` hands the WP to its recorded owner, here a backfilled ``migration:`` claim.
+    """
     from spec_kitty_events import diary
 
     from specify_cli.cli.commands.agent.tasks import app as tasks_app
     from specify_cli.status import Lane, StatusEvent, is_migration_actor
     from tests._support.reconstruction_seed import reduces_as_reconstruction_seed
+    from tests._support.status_seed import seed_status_event
+    from typer.testing import CliRunner
+
+    m = h.build_mission(tmp_path, monkeypatch)
+    for index, (from_lane, to_lane) in enumerate([(Lane.PLANNED, Lane.CLAIMED), (Lane.CLAIMED, Lane.IN_PROGRESS)]):
+        seed_status_event(
+            m.feature_dir,
+            StatusEvent(
+                event_id=f"seed-migration-claim-{index}",
+                mission_slug=m.mission_slug,
+                wp_id=h.WP,
+                from_lane=from_lane,
+                to_lane=to_lane,
+                at=f"2026-01-01T00:00:0{index + 2}+00:00",
+                actor="migration:backfill",
+                force=True,
+                execution_mode="worktree",
+                # The backfilled claim triple: the recorded owner the submission replays.
+                policy_metadata={"agent": "migration:backfill", "shell_pid": "1"},
+            ),
+        )
+    before = len(h.events(m))
+
+    result = CliRunner().invoke(tasks_app, ["move-task", h.WP, "--to", "for_review", "--mission", m.mission_slug])
+
+    assert result.exit_code == 0, result.output
+    submissions = [e for e in _lane(_appended(m, before)) if e["to_lane"] == "for_review"]
+    assert len(submissions) == 1, _appended(m, before)
+    assert submissions[0]["actor"] == {"tool": "migration:backfill", "role": "implementer", "profile": None, "model": None}
+    assert is_migration_actor(submissions[0]["actor"])
+    assert diary._is_reconstruction_seed(diary.StatusEvent.from_dict(dict(submissions[0])))
+    assert reduces_as_reconstruction_seed(submissions[0]["actor"])
+
+
+def test_caller_reviewer_migration_identity_under_a_binding_is_never_a_seed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6754: an unforced approval asserted by ``--reviewer migration:x --profile p`` (no ``--agent``) is parsed strictly.
+
+    A caller flag is never replayed as a recorded reconstruction seed, also when the dispatch binding
+    rewrites the identity the approval records (WP02 review cycle 2). As on the base: tool ``migration``.
+    """
+    from typer.testing import CliRunner
+
+    from specify_cli.cli.commands.agent.tasks import app as tasks_app
+    from specify_cli.status import is_migration_actor
+    from tests._support.reconstruction_seed import reduces_as_reconstruction_seed
+
+    m = h.build_mission(tmp_path, monkeypatch)
+    h.drive_to_for_review(m)
+    before = len(h.events(m))
+
+    argv = ["move-task", h.WP, "--to", "approved", "--mission", m.mission_slug, "--reviewer", "migration:x", "--profile", "python-pedro", "--note", "ok"]
+    result = CliRunner().invoke(tasks_app, argv)
+
+    assert result.exit_code == 0, result.output
+    approval = _lane(_appended(m, before))[-1]
+    actor = approval["actor"]
+    assert actor == {"tool": "migration", "role": "reviewer", "profile": "python-pedro", "model": "x"}
+    assert not is_migration_actor(actor)
+    assert not reduces_as_reconstruction_seed(actor)
+    # The review fields name the same identity the actor records.
+    assert approval["evidence"]["review"]["reviewer"] == approval["review_result"]["reviewer"] == approval["policy_metadata"]["tool"]
+
+
+def test_forced_migration_review_entry_is_no_claimant_to_replay(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7569: a forced ``migration:`` entry into ``in_review`` names no reviewer, so an approval without
+    ``--agent`` is refused (``REVIEW_NOT_INDEPENDENT``) instead of recording the seed as the reviewer, and
+    nothing is written."""
+    from specify_cli.cli.commands.agent.tasks import app as tasks_app
+    from specify_cli.status import Lane, StatusEvent
     from tests._support.status_seed import seed_status_event
     from typer.testing import CliRunner
 
@@ -250,20 +333,17 @@ def test_recorded_migration_reviewer_identity_stays_a_reconstruction_seed(tmp_pa
             execution_mode="worktree",
         ),
     )
-    before = len(h.events(m))
+    log = m.feature_dir / "status.events.jsonl"
+    before = log.read_bytes()
 
     result = CliRunner().invoke(
         tasks_app,
         ["move-task", h.WP, "--to", "approved", "--mission", m.mission_slug, "--skip-review-artifact-check", "--note", "seeded"],
     )
 
-    assert result.exit_code == 0, result.output
-    approvals = [e for e in _lane(_appended(m, before)) if e["to_lane"] == "approved"]
-    assert len(approvals) == 1, _appended(m, before)
-    assert approvals[0]["actor"] == {"tool": "migration:backfill", "role": "reviewer", "profile": None, "model": None}
-    assert is_migration_actor(approvals[0]["actor"])
-    assert diary._is_reconstruction_seed(diary.StatusEvent.from_dict(dict(approvals[0])))
-    assert reduces_as_reconstruction_seed(approvals[0]["actor"])
+    assert result.exit_code == 1, result.output
+    assert "REVIEW_NOT_INDEPENDENT" in " ".join(result.output.split())
+    assert log.read_bytes() == before
 
 
 def test_explicit_migration_agent_is_parsed_strictly_and_is_not_a_seed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -200,7 +200,7 @@ def test_explicit_profiles_preserved_on_actual_owned_hops(
         ("in_review", "reviewer-renata"),
         ("approved", "reviewer-renata"),
     ]:
-        result = _move(case, target, profile, *(["--reviewer", "reviewer-renata"] if target == "approved" else []))
+        result = _move(case, target, profile, *(["--reviewer", "codex::reviewer-renata"] if target == "approved" else []))
         assert result.exit_code == 0, (target, result.output)
         event = list(read_events(case.mission_dir))[-1]
         assert event.to_lane == target
