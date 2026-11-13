@@ -40,6 +40,7 @@ __all__ = [
     "index_entries",
     "is_tracked",
     "log_paths",
+    "commit_tree",
     "merge_tree",
     "numstat_entries",
     "remerge_paths",
@@ -469,6 +470,22 @@ def merge_tree(cwd: Path, ours: str, theirs: str, *, env: Env = None, timeout: f
     if result.returncode not in (0, 1):
         raise GitCommandError(argv=args, cwd=cwd, returncode=result.returncode, stderr=result.stderr.decode("utf-8", "replace"))
     return parse_merge_tree_z(result.stdout)
+
+
+def commit_tree(cwd: Path, tree: str, parents: Sequence[str], *, message: str, env: Env = None, timeout: float | None = None) -> str:
+    """Write a dangling commit of *tree* with *parents* (``git commit-tree``) and return its id.
+
+    It writes objects: the commit lands in the object store only, no ref names it, so
+    ``git gc`` prunes it. A fixed author and committer identity (and no signing) keeps
+    it independent of the user's git config. Its id varies with the clock.
+
+    Raises:
+        GitCommandError: git refused (an unreadable tree or parent), timed out, or did not start.
+    """
+    config = ("-c", "user.name=spec-kitty", "-c", "user.email=spec-kitty@localhost", "-c", "commit.gpgsign=false")
+    parent_args = [arg for parent in parents for arg in ("-p", parent)]
+    result = run_git(cwd, *config, "commit-tree", tree, *parent_args, "-m", message, env=env, timeout=timeout)
+    return result.stdout.decode("utf-8", "replace").strip()
 
 
 def remerge_paths(cwd: Path, commit: str, *, env: Env = None, timeout: float | None = None) -> tuple[GitPath, ...]:
