@@ -28,11 +28,11 @@ Arguments
 Options
 * --to <str> Target lane (planned/doing/for_review/approved/done) [required]
 --mission <str> Mission slug
---agent,--actor <str> Agent name (alias: --actor, matching issue-verdict's vocabulary). If both --agent and --actor are given, the one supplied LAST on the command line wins.
+--agent,--actor <str> Agent name (alias: --actor, matching issue-verdict's vocabulary). When the move hands the WP back for work (a rejection, a reopen, a move back out of for_review) it records only who acted and does not reassign the WP; use --assignee for that. If both --agent and --actor are given, the one supplied LAST on the command line wins.
 --model <str> Refused: the dispatch Op carries no model identifier (#7013); omit it
 --profile <str> Dispatch-resolved agent profile actual
 --invocation-id <str> Authoritative dispatch Op record id
---assignee <str> Assignee name, recorded on this transition regardless of the target lane (not limited to --to doing).
+--assignee <str> Assignee name, recorded on this transition regardless of the target lane (not limited to --to doing). When the move hands the WP back for work it also reassigns the WP to this agent.
 --shell-pid <str> Shell PID
 --note,--reason <str> History note (alias: --reason, matching issue-verdict's vocabulary). If both --note and --reason are given, the one supplied LAST on the command line wins.
 --review-feedback-file <path> Path to review feedback file. Required for review-rejection edges (--to planned, incl. with --force; and in_review->in_progress); omitting it there makes the status event contract-invalid. On --to approved/done its content is recorded when the move writes a new approval review-cycle record; otherwise a warning on stderr says it was not recorded (JSON stdout is unchanged). Refused (exit 1) on every other edge: those edges write no review cycle, so the file would be validated and then dropped.

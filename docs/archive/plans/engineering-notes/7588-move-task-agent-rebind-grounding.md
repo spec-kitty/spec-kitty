@@ -33,7 +33,8 @@ Red witnessed through `move-task`, in the `_rework_loop_harness` fixture:
 | Surface | Writes the slot from who acted on a rejection? | Disposition |
 |---|---|---|
 | `_mt_emit_runtime_state` → `planned` | yes (the bug) | in scope, fixed |
-| same → `in_review → in_progress`, `approved → in_progress` | yes | in scope ("rejection or reopen" in #7588), fixed |
+| same → `in_review → in_progress`, `approved → in_progress` | yes | in scope ("rejection or reopen" in #7588), fixed: `--agent` no longer re-stamps; the slot keeps its holder (after a review claim, the reviewer, #4899) |
+| same → forced `for_review → in_progress / claimed` (a reviewer bounce) | yes | in scope (pre-PR review finding): the reducer reads the same edges as a rejection rollback; fixed |
 | claim hop (`annotation_delta` / `policy_metadata` on `→ claimed`) | no, it is an explicit claim | untouched |
 | `agent action review` review claim (`workflow_executor.review_claim_transition`) | no, it is an explicit review claim | untouched, load-bearing for #5196 |
 | `agent action implement` / top-level `implement` | no | untouched |
@@ -54,6 +55,15 @@ Red witnessed through `move-task`, in the `_rework_loop_harness` fixture:
 - **#5815:** Related, not folded. orchestrator-api rejection review-ref; a different defect.
 - **No duplicates found.** Searched "Agent mismatch", "move-task --agent assignee", "rejection rebind agent", "release_runtime_claim", "re-claim rejected --force" and "review claim agent slot".
 
-## Test expectation changed (operator-signalled)
+## Test expectations changed (operator-signalled)
 
 `test_move_task_rollback_clears_claim.py::test_rollback_with_explicit_agent_replants_claim` pinned `--agent` as the re-plant. It is re-pinned as `..._explicit_assignee_replants_claim`: `--assignee` re-plants, `--agent` names the actor (option A, surfaced to the orchestrator).
+
+\`test_rework_guard_ratchets.py::test_unrelated_agent_refused_on_slot_left_by_forced_rejection\` pinned the defect itself: a \`for_review → planned\` rejection left the slot with the reviewer, so a third tool was refused. It is re-pinned as \`..._once_a_forced_rejection_is_reclaimed\`. The slot is now released, as on \`in_review → planned\` (#4673), and the guard still refuses an unrelated tool after the implementer re-claims.
+
+## Pre-PR review squad (folded)
+
+- **\`--assignee\` re-plant.** It now records the assignee's binding as explicitly absent with the \`implementer\` role, so the previous holder's \`role\`/profile/model no longer linger.
+- **\`--shell-pid\` on a hand-back.** It names the actor's process and is no longer planted.
+- **Reviewer bounce out of \`for_review\`.** Classified as a hand-back.
+- **Comments and docstrings.** Corrected; the changelog states that the \`→ in_progress\` hand-backs keep the current holder.

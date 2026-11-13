@@ -49,16 +49,20 @@ def test_unrelated_agent_refused_on_occupied_in_progress_slot(tmp_path: Path, mo
     _refused(m, "for_review", h.THIRD)
 
 
-def test_unrelated_agent_refused_on_slot_left_by_forced_rejection(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Base: a for_review rejection leaves the slot with the reviewer; a third tool cannot claim it.
+def test_unrelated_agent_refused_once_a_forced_rejection_is_reclaimed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A for_review rejection releases the slot; once re-claimed, a third tool is refused.
 
-    By design (not tested): after an ``in_review -> planned`` rejection the slot is
-    released (#4673), so an unclaimed WP is claimable by anyone.
+    Re-pinned by #7588: this ratchet used to assert that a ``for_review -> planned``
+    rejection left the slot with the reviewer, which was the defect (``--agent``
+    on a rejection rebound the WP owner). Like ``in_review -> planned`` (#4673),
+    the rejection now releases the slot, so the unclaimed WP is claimable by
+    anyone; the guard still refuses an unrelated tool on the re-claimed slot.
     """
     m = h.build_mission(tmp_path, monkeypatch)
     h.drive_to_for_review(m)
     h.reject(m, "for_review_to_planned", allow_force=True)
-    _refused(m, "claimed", h.THIRD)
+    assert h.move(m, h.WP, "claimed", h.IMPLEMENTER).exit_code == 0
+    _refused(m, "in_progress", h.THIRD)
 
 
 def test_unrelated_agent_refused_on_in_review_verdict(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

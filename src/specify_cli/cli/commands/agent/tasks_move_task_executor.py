@@ -33,6 +33,7 @@ from specify_cli.cli.commands.agent.tasks_move_task_hops import (
     _mt_hop_review_ref,
     _mt_hop_review_result,
     _mt_hop_structured_actor,
+    _mt_hands_back_work,
     _mt_ownership_fields,
     _mt_plan_review_result,
     _mt_shell_pid_baseline,
@@ -546,22 +547,22 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
 
     fields: dict[str, Any] = {}
     if not st.claim_emitted:
-        # #7588: a rollback to ``planned`` (rejection, reopen) ALSO carries
-        # ``release_runtime_claim=True`` in this SAME delta (added below via
-        # ``_build_claim_review_override``). The reducer applies that release
-        # clear BEFORE its replace-slot loop, so a concrete ``agent`` value in
-        # the SAME delta overwrites the just-cleared slot. ``--agent`` on such a
-        # move names only who acted (the reviewer), so it never lands here; an
-        # explicit ``--assignee`` is the one re-plant (``_mt_ownership_fields``).
+        # #7588: on a hand-back (a rejection, a reopen, a bounce out of
+        # ``for_review``; ``_mt_hands_back_work``) ``--agent`` and ``--shell-pid``
+        # name who acted, so neither is stamped into the claim slots: a move into
+        # ``planned`` releases them (``release_runtime_claim``, added below via
+        # ``_build_claim_review_override``), every other hand-back keeps the
+        # current holder. The reducer applies the release BEFORE its replace-slot
+        # loop, so an explicit ``--assignee`` (``_mt_ownership_fields``) still
+        # re-plants the slot on the same move.
         #
-        # #4899 (WP01, Fold 5 -- KEEP AS-IS, deliberately NOT routed through
-        # ``is_review_rejection_edge``): the re-implement edge (in_review ->
-        # in_progress) intentionally RETAINS the runtime claim (resume-in-place)
-        # rather than releasing it to the pool; only the ``PLANNED`` target is
-        # scoped out of the ``--agent`` ownership stamp. See the truth-table
-        # cell in ``test_tasks_move_task_seam.py`` asserting the claim survives.
+        # #4899 (WP01, Fold 5 -- KEEP AS-IS): the re-implement edge (in_review ->
+        # in_progress) RETAINS the runtime claim (resume-in-place) rather than
+        # releasing it to the pool; it only no longer re-stamps ``--agent``. See
+        # the truth-table cell in ``test_tasks_move_task_seam.py`` asserting the
+        # claim survives.
         fields.update(_mt_ownership_fields(st))
-        if st.shell_pid:
+        if st.shell_pid and not _mt_hands_back_work(st):
             pid = int(st.shell_pid)
             fields["shell_pid"] = pid
             baseline = _mt_shell_pid_baseline(pid)

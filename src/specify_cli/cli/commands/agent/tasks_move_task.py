@@ -163,6 +163,8 @@ from specify_cli.cli.commands.agent.tasks_move_task_hops import (
     _mt_plan_review_result as _mt_plan_review_result,
     _mt_reassignment_binding_fields as _mt_reassignment_binding_fields,
     _mt_agent_binds_owner as _mt_agent_binds_owner,
+    _mt_hands_back_work as _mt_hands_back_work,
+    _mt_ownership_fields as _mt_ownership_fields,
     _build_claim_review_override as _build_claim_review_override,
     _mt_shell_pid_baseline as _mt_shell_pid_baseline,
 )
