@@ -170,11 +170,11 @@
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
-        "T019": "planned",
-        "T020": "planned",
-        "T021": "planned",
-        "T022": "planned",
-        "T023": "planned"
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done"
       }
     }
   }
