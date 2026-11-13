@@ -704,26 +704,60 @@ def _is_verdict_event(event: StatusEvent) -> bool:
     return str(event.to_lane) in _APPROVAL_LANE_VALUES and str(event.from_lane) not in _APPROVAL_LANE_VALUES
 
 
+def verdict_writes_no_cycle_by_design(event: StatusEvent) -> bool:
+    """Whether *event* is a verdict that writes no review cycle by design (FR-006).
+
+    A forced move is an operator override, not a review: a forced approval records
+    ``force-override`` and writes no cycle, and an arbiter override (always forced,
+    :func:`~specify_cli.review.arbiter.is_arbiter_override_history`) is recorded as a review
+    override, not an approval. Keyed on the event's own ``force`` flag, never on a reference string:
+    an unforced pre-#7569 approval could also record ``force-override`` and did write a cycle.
+    """
+    return bool(event.force)
+
+
+def _floor_setting_index(events: Sequence[StatusEvent], wp_id: str) -> int:
+    """The index of the first event of *wp_id* that references the floor cycle number, else ``-1``.
+
+    The floor is the highest cycle number any event references (:func:`cycle_numbers_referenced`).
+    """
+    floor = max(cycle_numbers_referenced(events, wp_id), default=0)
+    if floor == 0:
+        return -1
+    for index, event in enumerate(events):
+        if event.wp_id == wp_id and floor in map(_cycle_number_of_reference, _event_cycle_references(event)):
+            return index
+    return -1
+
+
+def _is_unaccounted_verdict(event: StatusEvent) -> bool:
+    """A verdict that names no review cycle and may have written one (a pre-#7569 approval)."""
+    if not _is_verdict_event(event) or verdict_writes_no_cycle_by_design(event):
+        return False
+    references = _event_cycle_references(event)
+    if any(_cycle_number_of_reference(ref) is not None for ref in references):
+        return False
+    # A rejection's synthetic ``review:<WP>`` token wrote no file.
+    return not (_is_rejection_event(event) and any(ref and ref.strip().startswith(_REVIEW_PREFIX) for ref in references))
+
+
 def has_unaccounted_verdict(events: Sequence[StatusEvent], wp_id: str) -> bool:
-    """Whether a recorded verdict of *wp_id* names no review cycle (#7571, legacy logs).
+    """Whether a verdict of *wp_id* may have left a cycle above the floor that no event references (#7571).
 
     Before #7569 an approval wrote ``review-cycle-N.md`` but recorded ``--approval-ref``, an
-    ``approval:`` / ``auto-approval:`` token or ``force-override``, never the cycle's pointer. Such a
-    log has cycles no event references that are NOT the current reviewer's, so the adoption probe
-    cannot tell an old cycle from a new one: it adopts nothing and refuses nothing (the approval
-    writes its own cycle, as before). A rejection's synthetic ``review:<WP>`` token wrote no file
-    and is accounted for.
+    ``approval:`` / ``auto-approval:`` token or ``force-override``, never the cycle's pointer. The
+    adoption probe cannot tell such a cycle from the current reviewer's, so on that log it adopts
+    nothing and refuses nothing (the approval writes its own cycle, as before).
+
+    The carve-out is as narrow as that ambiguity. Cycle numbers are allocated ``max + 1``
+    (:meth:`ReviewCycleArtifact.next_cycle_number`), so a verdict before the first event that
+    references the floor number wrote a cycle at or below the floor: never a candidate. Only an
+    unaccounted verdict after that event counts. A verdict that writes no cycle by design
+    (:func:`verdict_writes_no_cycle_by_design`) and a rejection's synthetic ``review:<WP>`` token
+    are accounted for.
     """
-    for event in events:
-        if event.wp_id != wp_id or not _is_verdict_event(event):
-            continue
-        references = _event_cycle_references(event)
-        if any(_cycle_number_of_reference(ref) is not None for ref in references):
-            continue
-        if _is_rejection_event(event) and any(ref and ref.strip().startswith(_REVIEW_PREFIX) for ref in references):
-            continue
-        return True
-    return False
+    boundary = _floor_setting_index(events, wp_id)
+    return any(event.wp_id == wp_id and _is_unaccounted_verdict(event) for event in events[boundary + 1 :])
 
 
 def _is_rejection_event(event: StatusEvent) -> bool:
@@ -823,8 +857,8 @@ def find_adoptable_review_cycle(
     """Decide whether an approval adopts a cycle the reviewer already wrote (FR-008, FR-009, FR-014).
 
     A candidate is a file whose N is above every cycle number the event log references, and which
-    no event references. A log with a verdict that names no cycle (:func:`has_unaccounted_verdict`)
-    adopts and refuses nothing. It is adoptable when it is valid and its ``reviewer_agent`` is the reviewer
+    no event references. A log where a verdict after the floor names no cycle and may have written
+    one (:func:`has_unaccounted_verdict`) adopts and refuses nothing. It is adoptable when it is valid and its ``reviewer_agent`` is the reviewer
     of record (:func:`~specify_cli.status.review_roles.same_review_identity`). Any candidate that is
     not adoptable makes the result ``not_adoptable``; otherwise the highest adoptable N is adopted.
     Keyed on event references and cycle numbers, never on ``reviewed_at`` (research R5).
@@ -832,7 +866,7 @@ def find_adoptable_review_cycle(
     from specify_cli.status.review_roles import same_review_identity
 
     if has_unaccounted_verdict(events, wp_id):
-        return AdoptionResult("none", reason="a recorded verdict names no review cycle (a legacy log)")
+        return AdoptionResult("none", reason="a verdict after the newest referenced cycle names no review cycle (a legacy log)")
     floor = max(cycle_numbers_referenced(events, wp_id), default=0)
     adoptable: list[Path] = []
     for number in sorted(n for n in files if n > floor):
