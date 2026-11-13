@@ -381,6 +381,11 @@
      "help": "Enumerate archived missions (AM-3).",
      "hidden": false,
      "deprecated": false
+    },
+    "reclaim": {
+     "help": "Remove the coordination worktree, branch and marker an archived Mission still holds.\n\nThe branch is deleted only when the Mission records its landing (merged_at) and the\ncoordination tip is the one that landing recorded (or behind it). A second run reports\nthat nothing is left.\n\nExample: spec-kitty archive reclaim my-mission-01ABCDEF",
+     "hidden": false,
+     "deprecated": false
     }
    }
   },
