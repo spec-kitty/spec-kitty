@@ -351,3 +351,10 @@ def test_a_resume_whose_landing_already_passed_refuses_without_claiming_a_rollba
     assert _MATRIX in out
     assert "rolled back" not in out
     assert "Reconciliation verified" not in out
+
+
+def test_every_squash_projection_remedy_names_the_resume_command() -> None:
+    """#7598 fold (NIT-9): the squash remedies use one command, `spec-kitty consolidate --resume`."""
+    for reason, remedy in phase_gate._PROJECTION_REMEDIES.items():
+        assert "`spec-kitty consolidate --resume`" in remedy, reason
+        assert "`spec-kitty consolidate`" not in remedy, reason
