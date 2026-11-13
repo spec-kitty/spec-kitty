@@ -143,6 +143,13 @@ RETIRED_CLI_PREFIXES: Final[tuple[tuple[str, ...], ...]] = (
     # hosted Team Kitty SaaS dashboard, which is a web surface, never a CLI
     # command, so it cannot collide with this prefix.
     ("dashboard",),
+    # The hosted CLI entries removed from open-core (#6164).
+    ("auth",),
+    ("issue-search",),
+    ("live-work",),
+    ("moments",),
+    ("routes",),
+    ("zeitgeist",),
 )
 
 
@@ -209,10 +216,6 @@ DOC_RETIRED_SURFACES: Final[tuple[RetiredSurface, ...]] = (
     ),
     _surface("Zeitgeist", r"(?<![\w-])zeitgeist_(?:client|bridge)(?![\w-])", "#6164: hosted surfaces removed from open-core"),
     _surface("saas_client", r"(?<![\w-])saas_client(?![\w-])", "#6164: hosted surfaces removed from open-core"),
-    *(
-        _surface(f"{_CLI} {command}", _command_pattern((command,)), "#6164: hosted surfaces removed from open-core")
-        for command in ("auth", "issue-search", "live-work", "moments", "routes", "zeitgeist")
-    ),
     *(_surface(f"/spec-kitty.{command}", _slash_pattern(command), note) for command, note in sorted(RETIRED_SLASH_COMMANDS.items())),
 )
 
