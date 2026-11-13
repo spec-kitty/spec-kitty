@@ -1,0 +1,104 @@
+{
+  "event_count": 55,
+  "last_event_id": "01M79B4K0ECMHDP5PFZT55PNGH",
+  "materialized_at": "2026-11-13T02:17:42.670528+00:00",
+  "mission_number": "",
+  "mission_slug": "mission-base-window-bound-01M78XB4",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M79B3TEC8MD0KY4PYD0F3VJQ",
+      "last_transition_at": "2026-11-13T02:17:17.516481+00:00",
+      "review_result": {
+        "reference": "review-cycle://mission-base-window-bound-01M78XB4/WP01-red-acceptance-fork-shapes/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 7176,
+      "shell_pid_created_at": "1794522519.08"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude::python-pedro",
+      "force_count": 2,
+      "implementer_of_record": "claude::python-pedro",
+      "lane": "done",
+      "last_event_id": "01M79B40PF1DWWQ5FX9RNR8424",
+      "last_transition_at": "2026-11-13T02:17:23.919064+00:00",
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/mission-base-window-bound-01M78XB4-coord/kitty-specs/mission-base-window-bound-01M78XB4/tasks/WP02-mission-base-authority/review-cycle-3.md",
+        "reference": "review-cycle://mission-base-window-bound-01M78XB4/WP02-mission-base-authority/review-cycle-3.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 15326,
+      "shell_pid_created_at": "1794525700.72"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude::python-pedro",
+      "force_count": 0,
+      "implementer_of_record": "claude::python-pedro",
+      "lane": "done",
+      "last_event_id": "01M79B46R1HDMGAV0C4PRBPYQW",
+      "last_transition_at": "2026-11-13T02:17:30.113865+00:00",
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/mission-base-window-bound-01M78XB4-coord/kitty-specs/mission-base-window-bound-01M78XB4/tasks/WP03-guard-and-claim/review-cycle-1.md",
+        "reference": "review-cycle://mission-base-window-bound-01M78XB4/WP03-guard-and-claim/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 7305,
+      "shell_pid_created_at": "1794526523.26"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude::python-pedro",
+      "force_count": 1,
+      "implementer_of_record": "claude::python-pedro",
+      "lane": "done",
+      "last_event_id": "01M79B4D180Y4X9JSY3Q88EP2Q",
+      "last_transition_at": "2026-11-13T02:17:36.552680+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261113",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 914,
+      "shell_pid_created_at": "1794529503.73"
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude::scribe-sally",
+      "force_count": 1,
+      "implementer_of_record": "claude::scribe-sally",
+      "lane": "done",
+      "last_event_id": "01M79B4K0ECMHDP5PFZT55PNGH",
+      "last_transition_at": "2026-11-13T02:17:42.670528+00:00",
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/mission-base-window-bound-01M78XB4-coord/kitty-specs/mission-base-window-bound-01M78XB4/tasks/WP05-adr-changelog-docs/review-cycle-1.md",
+        "reference": "review-cycle://mission-base-window-bound-01M78XB4/WP05-adr-changelog-docs/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 14334,
+      "shell_pid_created_at": "1794534282.01"
+    }
+  }
+}

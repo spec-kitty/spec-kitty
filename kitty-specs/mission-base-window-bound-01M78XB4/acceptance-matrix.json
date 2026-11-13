@@ -1,0 +1,101 @@
+{
+  "mission_slug": "mission-base-window-bound-01M78XB4",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "New Missions record meta.json mission_base_sha at mint/coordination create, write-once",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/core/test_mission_base_recording.py (real agent mission create)",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-13T02:03:41.754733+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "One resolver yields the Mission base with provenance recorded/derived/unavailable, fail-closed",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_mission_base.py 23 tests incl. rename, older-Mission, probe-failure cases",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-13T02:03:50.058059+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "#6771 guard prunes pre-Mission commits from Mission-spine and recorded-tip walks; declared window unchanged",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_mission_base_claim.py; tests/consolidation/test_dependency_ref_mission_base_7560.py report-1/2 declared",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-13T02:03:57.912586+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Closed-world, squash and patch-id axes exempt pre-Mission history (exact SHA, exact final blob, deletions)",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_mission_base_verifier.py; 7560 module plain/squash/real-run tests",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-13T02:04:05.599862+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Genuine post-base Mission work still refuses",
+      "proof_type": "automated_test",
+      "evidence": "7560 module ratchets (post-base side ref, smuggled second-parent commit, lane-branch declaration); re-lettered copy still flagged",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-13T02:04:13.378089+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Forecast, run, gate rebuild and resume use the same base (one claim builder)",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_mission_base_claim.py; dry-run and real-run agree in the 7560 module",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-13T02:04:21.387638+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Provenance note on run and forecast (not --json), quiet when the Mission branch does not resolve",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_mission_base_claim.py note tests",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-13T02:04:29.326699+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "ADR 2026-09-29-1 Amendment 2026-11-12 states the bound and residuals",
+      "proof_type": "automated_test",
+      "evidence": "docs/adr/3.x/2026-09-29-1-closed-world-refuse-on-mixed-lanes.md",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-13T02:04:37.079992+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "#7593 stamp-read gate",
+      "proof_type": "automated_test",
+      "evidence": "Follow-up: #7593",
+      "pass_fail": "deferred",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-13T02:05:13.063614+00:00",
+      "notes": "TODO: replace with a real acceptance criterion",
+      "deferral_reason": "Blocked on PR #7596 (consolidation_events), unmerged; operator ruling DM 01M78XC76BMN026BTEH4T1ADFM",
+      "deferral_follow_up": "#7593"
+    }
+  ],
+  "negative_invariants": []
+}

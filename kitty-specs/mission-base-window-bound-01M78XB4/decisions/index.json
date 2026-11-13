@@ -1,0 +1,102 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-12T22:16:56.872223Z",
+      "decision_id": "01M78XBQS8NE8PPMSTZHMDJ610",
+      "final_answer": "Record + derive: new meta.json mission_base_sha recorded at create/mint; existing Missions derive it (see specify.design.base-derivation); else fall back fail-closed to today's target bound; report recorded vs derived.",
+      "input_key": "mission_base_source",
+      "mission_id": "01M78XB4KAHDBSGB7145370E60",
+      "mission_slug": "mission-base-window-bound-01M78XB4",
+      "opened_by": "cli",
+      "options": [
+        "Record + derive",
+        "Record only",
+        "merge-base(target, mission)",
+        "Lane bases only"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Where does the reconciliation windows' lower bound (the Mission base) come from?",
+      "rationale": null,
+      "resolved_at": "2026-11-12T22:16:59.501939Z",
+      "resolved_by": null,
+      "slot_key": "specify.design.base-source",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-12T22:17:02.170459Z",
+      "decision_id": "01M78XBWYTWJ6TZJVF4GWQMCQF",
+      "final_answer": "Scaffold parent: first parent of the earliest first-parent commit on the Mission branch that adds kitty-specs/<slug>/; not derivable -> today's target bound (fail-closed).",
+      "input_key": "mission_base_derivation",
+      "mission_id": "01M78XB4KAHDBSGB7145370E60",
+      "mission_slug": "mission-base-window-bound-01M78XB4",
+      "opened_by": "cli",
+      "options": [
+        "Scaffold parent",
+        "Keep lane base",
+        "Record only"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "For Missions without a recorded mission_base_sha, how is the base derived? (Corrects an earlier lane-base recommendation found unsound by the challenger.)",
+      "rationale": null,
+      "resolved_at": "2026-11-12T22:17:05.068573Z",
+      "resolved_by": null,
+      "slot_key": "specify.design.base-derivation",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-12T22:17:07.730401Z",
+      "decision_id": "01M78XC2CJVH9ZXR0WB92NWYG5",
+      "final_answer": "All window axes, with an ADR 2026-09-29-1 amendment in this Mission. The declared-ref window itself stays target..ref (challenger finding).",
+      "input_key": "window_axes_scope",
+      "mission_id": "01M78XB4KAHDBSGB7145370E60",
+      "mission_slug": "mission-base-window-bound-01M78XB4",
+      "opened_by": "cli",
+      "options": [
+        "Guard only",
+        "All window axes",
+        "Guard + named refusal"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Apply the Mission-base exclusion to the guard only, or to every window axis?",
+      "rationale": null,
+      "resolved_at": "2026-11-12T22:17:10.162976Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.window-axes",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-12T22:17:12.651403Z",
+      "decision_id": "01M78XC76BMN026BTEH4T1ADFM",
+      "final_answer": "Fold #7593 (consolidation reads commit-to-target stamps only through consolidation_events); blocked until PR #7596 merges.",
+      "input_key": "fold_set",
+      "mission_id": "01M78XB4KAHDBSGB7145370E60",
+      "mission_slug": "mission-base-window-bound-01M78XB4",
+      "opened_by": "cli",
+      "options": [
+        "No folds",
+        "Fold #7593"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Fold set (proposal: none; #7593 Refs only)?",
+      "rationale": null,
+      "resolved_at": "2026-11-12T22:17:15.113938Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.folds",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M78XB4KAHDBSGB7145370E60",
+  "version": 1
+}
