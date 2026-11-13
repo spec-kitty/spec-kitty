@@ -553,17 +553,14 @@ def test_cli_renders_nothing_left_and_a_refusal_as_text(cli: CliRunner, monkeypa
 
 
 def test_preflight_validates_the_bookkeeping_destination(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from specify_cli.core.commit_guard import GuardCapability
-
     feature_dir = _coord_meta(tmp_path)
     seen: dict[str, Any] = {}
-    monkeypatch.setattr(reclaim, "resolve_write_target_or_degrade", lambda _root, _slug, *, kind, degrade_ref: seen.setdefault("degrade", degrade_ref) or "target")
-    monkeypatch.setattr(reclaim, "preflight_commit", lambda **kwargs: seen.update(kwargs))
+    monkeypatch.setattr(reclaim, "preflight_merge_bookkeeping", lambda **kwargs: seen.update(kwargs))
 
     reclaim._preflight_marker_commit(tmp_path, feature_dir, _SLUG)
 
-    assert seen["degrade"] == "main"
-    assert seen["capability"] is GuardCapability.MERGE_BOOKKEEPING and seen["paths"] == (feature_dir / "meta.json",)
+    assert seen["branch"] == "main" and seen["mission_slug"] == _SLUG
+    assert seen["paths"] == (feature_dir / "meta.json",) and seen["worktree_root"] == tmp_path
 
 
 def test_any_other_commit_precondition_refuses_before_any_change(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

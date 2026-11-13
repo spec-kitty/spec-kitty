@@ -29,16 +29,16 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from kernel.git import GitCommandError, status_entries
-from mission_runtime import ActionContextError, MissionArtifactKind, placement_seam, resolve_write_target_or_degrade
+from mission_runtime import ActionContextError, MissionArtifactKind, placement_seam
 from specify_cli.consolidation.git_probes import GitProbeError, commit_in_clone, commits_in_range, is_ancestor_strict, resolve_commit
 from specify_cli.consolidation.landed_coordination import clear_landed_coordination_tip, landed_coordination_tip
 from specify_cli.coordination.teardown import CoordTeardownKeptOnlyCopy, ProjectionTeardownAbort, teardown_coordination_topology
 from specify_cli.coordination.workspace import CoordinationWorkspace
-from specify_cli.core.commit_guard import GuardCapability
-from specify_cli.git.bookkeeping_commit import commit_merge_bookkeeping
-from specify_cli.git.commit_helpers import SafeCommitError, SafeCommitHeadMismatch, preflight_commit
+from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
+from specify_cli.git.bookkeeping_commit import commit_merge_bookkeeping, preflight_merge_bookkeeping
+from specify_cli.git.commit_helpers import SafeCommitError, SafeCommitHeadMismatch
 from specify_cli.git.destructive_guard import LANDED_INTENT, DestructiveOpRefused, discarded_ref, guarded_branch_delete
-from specify_cli.mission_metadata import flatten_coordination_metadata, load_meta, recorded_mid8
+from specify_cli.mission_metadata import flatten_coordination_metadata, load_meta_or_empty, recorded_mid8
 from specify_cli.missions._archive import CANCELED, is_mission_archived, resolve_terminal_state
 from specify_cli.status import is_mission_merged
 
@@ -115,8 +115,8 @@ def primary_mission_dir(repo_root: Path, mission_slug: str) -> Path:
 
 def holds_coordination_marker(repo_root: Path, mission_slug: str) -> bool:
     """True while *mission_slug*'s ``meta.json`` still names a coordination branch (``archive create`` points at reclaim then)."""
-    meta = load_meta(primary_mission_dir(repo_root, mission_slug), allow_missing=True, on_malformed="none")
-    return isinstance(meta, dict) and bool(meta.get(_COORDINATION_BRANCH_KEY))
+    meta = load_meta_or_empty(primary_mission_dir(repo_root, mission_slug))
+    return bool(meta.get(_COORDINATION_BRANCH_KEY))
 
 
 def reclaim_archived_mission(repo_root: Path, mission_slug: str) -> ReclaimReport:
@@ -129,7 +129,10 @@ def reclaim_archived_mission(repo_root: Path, mission_slug: str) -> ReclaimRepor
             refusal raised before the first step; a later one keeps what it did not reach.
     """
     feature_dir = primary_mission_dir(repo_root, mission_slug)
-    meta = load_meta(feature_dir)
+    try:
+        meta = load_meta_fail_closed(feature_dir)
+    except MissionMetaReadError:
+        meta = None
     if not isinstance(meta, dict):
         raise ReclaimRefused(RECLAIM_NO_COORDINATION, f"{feature_dir / _META_FILE} could not be read.", "Repair meta.json, then re-run.")
     if not is_mission_archived(repo_root, str(meta.get("mission_id") or "")):
@@ -322,8 +325,8 @@ def _commit_marker(repo_root: Path, feature_dir: Path, mission_slug: str) -> Rec
 
 
 def _target_branch(feature_dir: Path) -> str | None:
-    meta = load_meta(feature_dir, allow_missing=True, on_malformed="none")
-    return (str(meta.get("target_branch") or "").strip() if isinstance(meta, dict) else "") or None
+    meta = load_meta_or_empty(feature_dir)
+    return str(meta.get("target_branch") or "").strip() or None
 
 
 def _marker_commit_message(mission_slug: str) -> str:
@@ -335,14 +338,13 @@ def _preflight_marker_commit(repo_root: Path, feature_dir: Path, mission_slug: s
 
     Raises whatever :func:`preflight_commit` or the placement resolution raises.
     """
-    target = resolve_write_target_or_degrade(repo_root, mission_slug, kind=MissionArtifactKind.PRIMARY_METADATA, degrade_ref=_target_branch(feature_dir))
-    preflight_commit(
+    preflight_merge_bookkeeping(
         repo_root=repo_root,
         worktree_root=repo_root,
-        target=target,
+        mission_slug=mission_slug,
         message=_marker_commit_message(mission_slug),
         paths=(feature_dir / _META_FILE,),
-        capability=GuardCapability.MERGE_BOOKKEEPING,
+        branch=_target_branch(feature_dir),
     )
 
 
