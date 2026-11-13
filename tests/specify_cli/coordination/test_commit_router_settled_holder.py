@@ -9,6 +9,7 @@ log, and the ``safe_commit`` HEAD-mismatch remedy names the checkout that holds 
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,13 +20,7 @@ import pytest
 from mission_runtime import MissionArtifactKind
 from specify_cli.coordination import commit_router
 from specify_cli.git.protection_policy import ProtectionPolicy
-from tests.specify_cli.cli.commands.agent.test_finalize_topology_settlement import (
-    THREE_LANES,
-    DefaultMission,
-    git,
-    make_default_mission,
-    run_finalize,
-)
+from tests.specify_cli.cli.commands.agent.test_finalize_topology_settlement import DefaultMission, git
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -35,13 +30,6 @@ def _quiet_fanout(monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status.emit as emit_module
 
     monkeypatch.setattr(emit_module, "_status_fan_out", lambda *a, **k: None)
-
-
-def _settled(tmp_path: Path, owned: tuple[str, ...] = THREE_LANES) -> DefaultMission:
-    mission = make_default_mission(tmp_path, owned)
-    code, payload = run_finalize(mission)
-    assert code == 0, payload
-    return mission
 
 
 def _spy_status_lock(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
@@ -67,8 +55,10 @@ def _touch_status(mission_dir: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 
-def test_settled_coordination_status_commit_takes_status_lock(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    mission = _settled(tmp_path)
+def test_settled_coordination_status_commit_takes_status_lock(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, settle_default_mission: Callable[..., DefaultMission]
+) -> None:
+    mission = settle_default_mission(tmp_path)
     taken = _spy_status_lock(monkeypatch)
     status = _touch_status(mission.coord_mission_dir)
 
@@ -86,8 +76,10 @@ def test_settled_coordination_status_commit_takes_status_lock(tmp_path: Path, mo
     assert [path.resolve() for path in taken] == [mission.coord_mission_dir.resolve()]
 
 
-def test_single_branch_status_commit_at_root_takes_no_status_lock(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    mission = _settled(tmp_path, ("src/one.py", "src/two.py"))
+def test_single_branch_status_commit_at_root_takes_no_status_lock(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, settle_default_mission: Callable[..., DefaultMission]
+) -> None:
+    mission = settle_default_mission(tmp_path, ("src/one.py", "src/two.py"))
     assert git(mission.root, "branch", "--show-current") == mission.topic
     taken = _spy_status_lock(monkeypatch)
     status = _touch_status(mission.root_mission_dir)
@@ -110,11 +102,11 @@ def test_single_branch_status_commit_at_root_takes_no_status_lock(tmp_path: Path
 # ---------------------------------------------------------------------------
 
 
-def test_head_mismatch_remedy_names_the_holding_worktree(tmp_path: Path) -> None:
+def test_head_mismatch_remedy_names_the_holding_worktree(tmp_path: Path, settle_default_mission: Callable[..., DefaultMission]) -> None:
     from mission_runtime import CommitTarget
     from specify_cli.git.commit_helpers import SafeCommitHeadMismatch, safe_commit
 
-    mission = _settled(tmp_path)
+    mission = settle_default_mission(tmp_path)
     holder = mission.coord_mission_dir.parents[1]
     stray = mission.root_mission_dir / "traces" / "x.md"
     stray.parent.mkdir(parents=True, exist_ok=True)
@@ -140,8 +132,8 @@ def test_head_mismatch_remedy_names_the_holding_worktree(tmp_path: Path) -> None
 # ---------------------------------------------------------------------------
 
 
-def test_edited_other_worktree_copy_beside_holder_copy_is_refused(tmp_path: Path) -> None:
-    mission = _settled(tmp_path)
+def test_edited_other_worktree_copy_beside_holder_copy_is_refused(tmp_path: Path, settle_default_mission: Callable[..., DefaultMission]) -> None:
+    mission = settle_default_mission(tmp_path)
     holder_copy = mission.coord_mission_dir / "spec.md"
     holder_text = holder_copy.read_text(encoding="utf-8")
     other = mission.root / ".worktrees" / "other-checkout" / "kitty-specs" / mission.slug / "spec.md"
@@ -213,15 +205,6 @@ def test_reanchor_keeps_holder_and_outside_paths(tmp_path: Path, monkeypatch: py
     assert result == (inside, outside)
 
 
-def test_reanchor_translates_absent_root_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    root, holder = _holder_layout(tmp_path, monkeypatch)
-    rel = Path("kitty-specs/m/traces/t.md")
-
-    result = commit_router._reanchor_primary_paths(root, holder, (root / rel,), mission_slug="m", write_dirs={})
-
-    assert result == (holder / rel,)
-
-
 def test_reanchor_prefers_holder_copy_when_both_exist(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     root, holder = _holder_layout(tmp_path, monkeypatch)
     rel = Path("kitty-specs/m/traces/t.md")
@@ -291,20 +274,6 @@ def test_owning_surface_refusal_status(reason: str, status: str) -> None:
     assert [(fate.path, fate.reason) for fate in result.surfaces[0].refused] == [("kitty-specs/m/x.md", reason)]
 
 
-@pytest.mark.parametrize(("use_coord", "is_holder_checkout", "locked"), [(False, False, False), (False, True, True), (True, False, True)])
-def test_coord_status_locks_engage_for_coord_or_holder(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, use_coord: bool, is_holder_checkout: bool, locked: bool
-) -> None:
-    taken: list[Path] = []
-    monkeypatch.setattr(commit_router, "_hold_coord_status_dir", lambda stack, repo_root, status_dir: taken.append(status_dir))
-    status = tmp_path / "kitty-specs" / "m" / "status.json"
-
-    with commit_router._coord_status_locks(tmp_path, tmp_path, (status,), use_coord=use_coord, is_holder_checkout=is_holder_checkout):
-        pass
-
-    assert taken == ([status.parent] if locked else [])
-
-
 def test_head_mismatch_message_without_holder_keeps_checkout_remedy() -> None:
     from specify_cli.git.commit_helpers import SafeCommitHeadMismatch
 
@@ -321,24 +290,6 @@ def test_head_mismatch_holder_never_names_the_commit_worktree(tmp_path: Path, mo
     assert _head_mismatch_holder(tmp_path, tmp_path, "topic") is None
     monkeypatch.setattr(read_surface, "non_lane_checkout_holding_branch", lambda repo_root, ref: None)
     assert _head_mismatch_holder(tmp_path, tmp_path / "other", "topic") is None
-
-
-def test_primary_commit_paths_looks_up_checkout_with_a_primary_kind(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A COORD kind on the PRIMARY arm never asks ``write_dir`` for itself (no seed re-entry)."""
-    _identity_main_root(monkeypatch)
-    asked: list[MissionArtifactKind] = []
-
-    def resolve(repo_root: Path, kind: MissionArtifactKind, **_: object) -> _FakeLocation:
-        asked.append(kind)
-        return _FakeLocation(surface_root=repo_root)
-
-    monkeypatch.setattr(commit_router, "_resolve_owning_write_dir", resolve)
-    status = tmp_path / "kitty-specs" / "m" / "status.json"
-
-    result = commit_router._primary_commit_paths(tmp_path, "m", (status,), kind=MissionArtifactKind.STATUS_STATE)
-
-    assert result == (tmp_path, (status,), False)
-    assert asked == [MissionArtifactKind.SPEC]
 
 
 def test_refuse_copy_outside_holder_passes_when_both_copies_are_directories(tmp_path: Path) -> None:

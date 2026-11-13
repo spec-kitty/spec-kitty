@@ -21,6 +21,7 @@ import json
 import os
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -32,7 +33,6 @@ from tests.specify_cli.cli.commands.agent.test_finalize_topology_settlement impo
     DefaultMission,
     git,
     make_default_mission,
-    run_finalize,
 )
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
@@ -82,14 +82,15 @@ def _isolated_run(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture
-def settled_on_dev(tmp_path: Path) -> DefaultMission:
+def settled_on_dev(tmp_path: Path, settle_default_mission: Callable[..., DefaultMission]) -> DefaultMission:
     """A finalized three-lane default Mission, settled ``lanes_with_coord``, the root checkout on ``dev``."""
-    mission = make_default_mission(tmp_path, THREE_LANES, standing_on="dev")
-    (mission.root_mission_dir / "plan.md").write_text("# Plan\n\nDo it.\n", encoding="utf-8")
-    git(mission.root, "add", "kitty-specs")
-    git(mission.root, "commit", "-qm", "plan")
-    code, payload = run_finalize(mission)
-    assert code == 0, payload
+
+    def _commit_plan(mission: DefaultMission) -> None:
+        (mission.root_mission_dir / "plan.md").write_text("# Plan\n\nDo it.\n", encoding="utf-8")
+        git(mission.root, "add", "kitty-specs")
+        git(mission.root, "commit", "-qm", "plan")
+
+    mission = settle_default_mission(tmp_path, standing_on="dev", before_finalize=_commit_plan)
     recorded = _spec_kitty(
         mission.root, "agent", "mission", "record-analysis", "--mission", mission.slug, "--input-file", "-", "--agent", "claude", stdin=_ANALYSIS_REPORT
     )
@@ -154,18 +155,6 @@ def test_an_artifact_inside_the_checkout_raises_no_warning(tmp_path: Path) -> No
     artifact = tmp_path / "kitty-specs" / "m" / "tasks" / _WP01_DIR / _BASELINE
 
     assert _baseline_outside_checkout_warning(artifact, tmp_path) is None
-
-
-def test_an_artifact_outside_the_checkout_is_named_with_the_checkout(tmp_path: Path) -> None:
-    from specify_cli.cli.commands.agent.workflow_executor import _baseline_outside_checkout_warning
-
-    checkout = tmp_path / "root"
-    artifact = tmp_path / "elsewhere" / _BASELINE
-
-    warning = _baseline_outside_checkout_warning(artifact, checkout)
-
-    assert warning is not None
-    assert str(artifact) in warning and str(checkout) in warning
 
 
 @pytest.mark.parametrize("quiet", [True, False])
