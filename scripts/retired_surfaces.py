@@ -196,8 +196,14 @@ DOC_RETIRED_SURFACES: Final[tuple[RetiredSurface, ...]] = (
     _surface("src/doctrine", r"(?<![\w./-])src/doctrine(?![\w-])", "#3881: moved to src/charter/offering/"),
     _surface("src/specify_cli/glossary", r"(?<![\w-])specify_cli[/.]glossary(?![\w-])", "moved to src/glossary/"),
     _surface("spec-kitty merge", _command_pattern(("merge",)), "#3080: renamed to spec-kitty consolidate"),
-    _surface("Blacksmith", r"\bBlacksmith\b", "#3995: the CI producer, replaced by the modular GitHub CI", re.IGNORECASE),
-    _surface("Zeitgeist", r"\bzeitgeist", "#6164: hosted surfaces removed from open-core", re.IGNORECASE),
+    # Identifiers only: the runner label and the removed client modules. Prose that explains a retirement
+    # (the Blacksmith producer, the Zeitgeist relay) is the retirement notice, not a stale instruction.
+    _surface(
+        "Blacksmith",
+        r"(?<![\w-])blacksmith-\d[\w-]*|\buseblacksmith\b|\bruns-on:\s*blacksmith\b",
+        "#3995: the CI producer, replaced by the modular GitHub CI",
+    ),
+    _surface("Zeitgeist", r"(?<![\w-])zeitgeist_(?:client|bridge)(?![\w-])", "#6164: hosted surfaces removed from open-core"),
     _surface("saas_client", r"(?<![\w-])saas_client(?![\w-])", "#6164: hosted surfaces removed from open-core"),
     *(
         _surface(f"{_CLI} {command}", _command_pattern((command,)), "#6164: hosted surfaces removed from open-core")

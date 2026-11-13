@@ -21,7 +21,7 @@ entries:
     surfaces: {"spec-kitty auth": 1, "src/specify_cli/delivery": 1, "src/specify_cli/sync": 3, "src/specify_cli/tracker/saas_service.py": 1}
   - page: api/configuration.md
     issue: "#7526"
-    surfaces: {"Zeitgeist": 1, "spec-kitty moments": 3}
+    surfaces: {"spec-kitty moments": 3}
   - page: api/environment-variables.md
     issue: "#7526"
     surfaces: {"spec-kitty merge": 1}
@@ -40,18 +40,9 @@ entries:
   - page: architecture/05_ownership_map.md
     issue: "#7524"
     surfaces: {"Zeitgeist": 1, "saas_client": 1, "src/doctrine": 3, "src/specify_cli/saas": 1, "src/specify_cli/sync": 1}
-  - page: architecture/README.md
-    issue: "#7524"
-    surfaces: {"Zeitgeist": 3}
   - page: architecture/diagrams/01_context/README.md
     issue: "#7524"
-    surfaces: {"Zeitgeist": 4, "saas_client": 1}
-  - page: architecture/diagrams/02_containers/README.md
-    issue: "#7524"
-    surfaces: {"Zeitgeist": 1}
-  - page: architecture/diagrams/02_containers/runtime-execution-domain.md
-    issue: "#7524"
-    surfaces: {"Zeitgeist": 1}
+    surfaces: {"Zeitgeist": 1, "saas_client": 1}
   - page: architecture/documentation-mission.md
     issue: "#7524"
     surfaces: {"/spec-kitty.merge": 1}
@@ -60,25 +51,16 @@ entries:
     surfaces: {"src/doctrine": 2}
   - page: architecture/vision/README.md
     issue: "#7524"
-    surfaces: {"Zeitgeist": 2, "saas_client": 1}
-  - page: context/README.md
-    issue: "#7522"
-    surfaces: {"Zeitgeist": 2}
+    surfaces: {"Zeitgeist": 1, "saas_client": 1}
   - page: context/identity.md
     issue: "#7522"
     surfaces: {"saas_client": 1, "src/specify_cli/egress.py": 1, "src/specify_cli/tracker/saas_client.py": 1}
   - page: context/orchestration.md
     issue: "#7522"
-    surfaces: {"Zeitgeist": 1, "spec-kitty merge": 1, "src/specify_cli/auth": 1, "src/specify_cli/delivery": 1, "src/specify_cli/sync": 2}
-  - page: context/product-lines.md
-    issue: "#7522"
-    surfaces: {"Zeitgeist": 2}
+    surfaces: {"spec-kitty merge": 1, "src/specify_cli/auth": 1, "src/specify_cli/delivery": 1, "src/specify_cli/sync": 2}
   - page: context/team-kitty.md
     issue: "#7522"
-    surfaces: {"Zeitgeist": 8, "saas_client": 1, "spec-kitty sync": 1, "src/specify_cli/sync": 1}
-  - page: development/agent-fleet.md
-    issue: "#7525"
-    surfaces: {"Zeitgeist": 2}
+    surfaces: {"Zeitgeist": 2, "saas_client": 1, "spec-kitty sync": 1, "src/specify_cli/sync": 1}
   - page: development/how-to/manage-issue-tracker.md
     issue: "#7525"
     surfaces: {"Zeitgeist": 1, "saas_client": 1}

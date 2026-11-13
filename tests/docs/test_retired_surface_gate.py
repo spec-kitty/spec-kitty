@@ -65,7 +65,7 @@ def test_every_surface_says_what_retired_it() -> None:
     [
         ("See `src/doctrine/directives/` for the old layout.", "src/doctrine"),
         ("Run `spec-kitty merge --mission x`.", "spec-kitty merge"),
-        ("The Blacksmith producer built every PR.", "Blacksmith"),
+        ("jobs run with `runs-on: blacksmith-4vcpu-ubuntu-2404`.", "Blacksmith"),
         ("The bundled zeitgeist_client talks to it.", "Zeitgeist"),
         ("import specify_cli.sync.daemon", "src/specify_cli/sync"),
         ("Run `spec-kitty sync now`.", "spec-kitty sync"),
@@ -85,6 +85,7 @@ def test_a_retired_surface_is_found(line: str, surface_id: str) -> None:
         "Offering content lives in `src/charter/offering/doctrine-kinds.md`.",
         "The glossary pipeline is `src/glossary/`.",
         "Run `spec-kitty consolidate`.",
+        "The Zeitgeist relay and the Blacksmith producer were retired (#6164, #3995).",
     ],
 )
 def test_a_live_identifier_is_not_a_hit(line: str) -> None:
@@ -155,8 +156,8 @@ def docs(tmp_path: Path) -> Path:
     _page(root, "guides/old.md", "Run `spec-kitty merge`.\n")
     _page(root, "guides/clean.md", "Run `spec-kitty consolidate`.\n")
     _page(root, "guides/wip.md", "Run `spec-kitty merge`.\n", status="draft")
-    _page(root, "plans/history.md", "The Blacksmith producer.\n")
-    _page(root, "adr/4.x/2026-01-01-1-x.md", "The Blacksmith producer.\n")
+    _page(root, "plans/history.md", "runs-on: blacksmith-4vcpu\n")
+    _page(root, "adr/4.x/2026-01-01-1-x.md", "runs-on: blacksmith-4vcpu\n")
     return root
 
 
@@ -176,7 +177,7 @@ def test_a_new_hit_on_a_living_page_fails_naming_page_and_surface(docs: Path) ->
 
 
 def test_a_second_surface_on_a_burned_down_page_is_new(docs: Path) -> None:
-    _page(docs, "guides/old.md", "Run `spec-kitty merge`.\nThe Blacksmith producer.\n")
+    _page(docs, "guides/old.md", "Run `spec-kitty merge`.\nThe `zeitgeist_client` package.\n")
 
     assert [finding.split(":")[0] for finding in gate.check(docs, _BURNDOWN)] == ["NEW guides/old.md"]
 
