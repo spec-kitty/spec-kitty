@@ -19,6 +19,7 @@ Red-first through ``spec-kitty consolidate`` (Charter Standing Order 4):
 
 from __future__ import annotations
 
+import json
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -142,7 +143,7 @@ def _plant_upstream(repo: Path) -> str:
     return _git(repo, "rev-parse", "HEAD")
 
 
-def build_fork_mission(tmp_path: Path, *, mid8: str) -> ForkMission:
+def build_fork_mission(tmp_path: Path, *, mid8: str, record_base: bool = True) -> ForkMission:
     """Report 2: the Mission base is ``PIN`` + one overlay commit, and the target never received either.
 
     Built like :func:`tests.terminus.conftest.build_coord_mission` (planning scaffold on
@@ -155,6 +156,10 @@ def build_fork_mission(tmp_path: Path, *, mid8: str) -> ForkMission:
     in the repository root checkout and ``consolidate`` stops at "Mission not found". So the
     target gets one commit above ``R`` that carries only the Mission directory (bookkeeping
     paths), copied from the coordination branch; it carries none of ``B``'s history.
+
+    The Mission records ``mission_base_sha`` = ``B`` (what the create flow writes where the
+    branch is cut); only a recorded base exempts pre-Mission history. ``record_base=False``
+    leaves it derived (a Mission created before the base was recorded), which exempts nothing.
     """
     slug = f"terminus-{mid8.upper()}"
     mission = _init_fixture_repo(tmp_path, mid8=mid8, slug=slug, target_branch="main")
@@ -167,6 +172,10 @@ def build_fork_mission(tmp_path: Path, *, mid8: str) -> ForkMission:
 
     (mission.feature_dir / "tasks").mkdir(parents=True)
     _write_meta(mission)
+    if record_base:
+        meta_path = mission.feature_dir / "meta.json"
+        recorded = {**json.loads(meta_path.read_text(encoding="utf-8")), "mission_base_sha": base}
+        meta_path.write_text(json.dumps(recorded, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     _write_manifest(mission, _WPS)
     for wp_id in _WPS:
         _write_wp_file(mission, wp_id)
@@ -353,8 +362,23 @@ def test_ratchet_declaring_a_post_base_mission_commit_refuses(tmp_path: Path) ->
     assert post_base[:10] in flat, f"the refusal must name the post-base Mission commit {post_base[:10]}:\n{flat[-3000:]}"
 
 
-def test_ratchet_smuggled_removed_wp_commit_is_unattributable(tmp_path: Path) -> None:
-    """A removed WP's post-base commit riding a lane through a second-parent merge is never attributed."""
+@pytest.mark.parametrize("shape", ["smuggled_removed_wp", "pre_scaffold_commit_unrecorded_base"])
+def test_ratchet_smuggled_removed_wp_commit_is_unattributable(tmp_path: Path, shape: str) -> None:
+    """Content that is not pre-Mission history is never attributed, however it got onto the target path.
+
+    ``smuggled_removed_wp``: a removed WP's post-base commit rides a lane through a second-parent
+    merge. ``pre_scaffold_commit_unrecorded_base``: a code commit made on the Mission branch before
+    its first scaffold commit, with no recorded base (the derived base sits above it, so the
+    range ``window_base..base`` holds it): a derived base exempts nothing, so the squash blob
+    axis still names its path.
+    """
+    if shape == "pre_scaffold_commit_unrecorded_base":
+        fork = build_fork_mission(tmp_path, mid8="01M7560K", record_base=False)
+        result = _consolidate(fork.mission, "--dry-run", strategy=None)
+        flat = _flat(result)
+        assert result.returncode != 0, flat[-3000:]
+        assert UNATTRIBUTABLE in flat and "overlay/cfg.txt" in flat, flat[-3000:]
+        return
     fork = build_fork_mission(tmp_path, mid8="01M7560G")
     mission = fork.mission
     smuggled = _commit_on_new_branch(mission.repo, tmp_path, "removed-wp", mission.coord_branch, {"src/pkg/removed.py": "REMOVED = 1\n"})
