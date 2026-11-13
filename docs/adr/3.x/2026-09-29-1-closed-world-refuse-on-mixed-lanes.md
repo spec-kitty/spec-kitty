@@ -518,7 +518,14 @@ window axis (operator rulings, Decision Moments `01M78XBQS8NE8PPMSTZHMDJ610`,
   state and line attribution, #6309) do not read the Mission base. Everything the Mission
   authored or carried after its base (commits on the Mission branch, lane spines,
   `lane_head` stamps, recorded lane tips) refuses exactly as before. No refusal code is added
-  or changed.
+  or changed. The protected single_branch authorship window
+  (`lanes/single_branch_landing.py::authorship_window`, `merge-base(target, mission_branch)`) is
+  a second, older Mission-start resolver and is left as it is: it only widens which first-parent
+  commits count as the lane's own authorship (a fork's pre-Mission history can read as lane
+  authorship there, never as exempt content), it takes no `meta.json`, and the mint records the
+  target's tip as the base, which is that merge-base unless the target has moved on since. A
+  known residual, not a second exemption; routing it through `resolve_mission_base` is follow-up
+  work.
 - **Resolved per claim build.** The base is resolved each time the claim is built (the claim
   and the gate's rebuild), with no new consolidation record field. In the recorded case one
   resolution and its range cost six git calls; a non-empty range adds one status-log read and
