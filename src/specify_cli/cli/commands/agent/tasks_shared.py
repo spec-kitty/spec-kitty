@@ -450,11 +450,11 @@ def _wp_file_commit_branch(main_repo_root: Path, mission_slug: str, target_branc
     Mission -- the answer is *target_branch*, the branch
     ``_ensure_target_branch_checked_out`` already read there, so nothing is read again.
     A topic holder's branch is read through the one shared checkout-HEAD helper
-    (``implement_claim.checkout_branch_or_fallback``, tracked #2453). A placement that
+    (``git.checkout_head.checkout_branch_or_fallback``, tracked #2453). A placement that
     does not resolve keeps *target_branch* (operator ruling, decision
     ``01M78JFMRQS6GE04BENPXGQX8J``, option B).
     """
-    from specify_cli.cli.commands.implement_claim import checkout_branch_or_fallback
+    from specify_cli.git.checkout_head import checkout_branch_or_fallback
     from specify_cli.coordination.surface_resolver import StatusReadPathNotFound
 
     try:

@@ -157,6 +157,8 @@ _WRITE_DIR_CONSUMER_MODULES: tuple[Path, ...] = (
     _SRC / "cli" / "commands" / "implement_planning_commit.py",
     # implement-degod WP08: the claim preflight and claim commit moved here; the scan follows the code.
     _SRC / "cli" / "commands" / "implement_claim.py",
+    # #7601: the shared checkout-HEAD read moved out of implement_claim.py; the scan follows the code.
+    _SRC / "git" / "checkout_head.py",
     # implement-degod WP09: the phase blocks and the --recover family moved here; the scan follows the code.
     _SRC / "cli" / "commands" / "implement_phases.py",
     _SRC / "cli" / "commands" / "implement_recover.py",
@@ -251,7 +253,7 @@ class _Finding:
 #: never touches ``mission_id``/``mid8``/``primary_root`` or a write
 #: ``CommitTarget``).
 #:
-#: WS#3 — ``cli/commands/implement_claim.py`` / ``checkout_branch_or_fallback``
+#: WS#3 — ``git/checkout_head.py`` / ``checkout_branch_or_fallback``
 #: (moved from ``implement.py`` by implement-degod WP08; settled-placement-surface
 #: WP03 / #7601 moved the read from ``_status_commit_destination_branch`` into this
 #: one shared helper): tracked #2453 — the ``get_current_branch(checkout) or
@@ -283,7 +285,7 @@ _ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
         ),
     ),
     ContentDescriptor(
-        rel_path="src/specify_cli/cli/commands/implement_claim.py",
+        rel_path="src/specify_cli/git/checkout_head.py",
         qualname="checkout_branch_or_fallback",
         token_substring="get_current_branch ( checkout ) or fallback_branch",
         occurrence=None,
@@ -337,7 +339,7 @@ def _scan_source(source: str, path: Path) -> list[_Finding]:
       git-HEAD write-target selectors.
     * ``get_current_branch(...) or <fallback>`` git-HEAD branch selectors — the
       generic checkout-derived ``current-branch-or-fallback`` shape (e.g.
-      ``implement_claim.py``'s ``checkout_branch_or_fallback``, which reads the
+      ``git/checkout_head.py``'s ``checkout_branch_or_fallback``, which reads the
       branch of the checkout a commit runs in for the protected-branch guards). Making
       this shape a first-class finding pulls the last checkout-derived selector
       an adopted module carries into the ratchet's field of view so it cannot
@@ -503,7 +505,7 @@ def test_ws1_descriptor_no_longer_seeded_after_the_1716_drain() -> None:
 def test_checkout_head_selector_entry_is_still_a_live_finding() -> None:
     """Staleness twin-guard for the tracked #2453 checkout-HEAD selector descriptor.
 
-    The ``implement_claim.py`` descriptor pins ``checkout_branch_or_fallback``'s
+    The ``git/checkout_head.py`` descriptor pins ``checkout_branch_or_fallback``'s
     ``get_current_branch(checkout) or fallback_branch`` selector (#7601 moved it there
     from ``_status_commit_destination_branch``; #2453 stays open). If
     that site is finally routed through the placement seam (or removed),
@@ -512,7 +514,7 @@ def test_checkout_head_selector_entry_is_still_a_live_finding() -> None:
     now-stale allow-list entry (shrink-only), never to leave a vacuous
     allow-list rule masking nothing.
     """
-    descriptor, seeded_key = _seed_and_key_for("src/specify_cli/cli/commands/implement_claim.py")
+    descriptor, seeded_key = _seed_and_key_for("src/specify_cli/git/checkout_head.py")
     source = (_REPO_ROOT / descriptor.rel_path).read_text(encoding="utf-8")
     assert descriptor_still_live(source, descriptor, seeded_key), (
         f"{descriptor.rel_path} ({descriptor.qualname}) checkout_head_selector "

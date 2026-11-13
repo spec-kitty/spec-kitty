@@ -182,9 +182,14 @@ def test_dispatched_status_preflight_refusal_omits_no_auto_commit(monkeypatch: p
 
 @_GIT
 def test_checkout_branch_or_fallback_reads_head_or_falls_back(tmp_path: Path) -> None:
-    assert implement_claim.checkout_branch_or_fallback(tmp_path, "fallback") == "fallback"
+    from specify_cli.git.checkout_head import checkout_branch_or_fallback
+
+    assert checkout_branch_or_fallback(tmp_path, "fallback") == "fallback"
     git_out(tmp_path, "init", "-qb", "head-branch")
-    assert implement_claim.checkout_branch_or_fallback(tmp_path, "fallback") == "head-branch"
+    git_out(tmp_path, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "c")
+    assert checkout_branch_or_fallback(tmp_path, "fallback") == "head-branch"
+    git_out(tmp_path, "checkout", "-q", "--detach")
+    assert checkout_branch_or_fallback(tmp_path, "fallback") == "fallback"
 
 
 @_GIT
