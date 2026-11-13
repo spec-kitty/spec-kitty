@@ -321,6 +321,19 @@ def test_the_target_banner_reads_the_declared_target_after_settlement(settled_ro
     assert resolution.should_notify is True
 
 
+def test_a_corrupt_coordination_meta_fails_closed_instead_of_falling_back(settled_root_on_main: DefaultMission) -> None:
+    """The target read raises on an unreadable ``meta.json``; it never answers the checked-out ``main``."""
+    from specify_cli.core.paths import MissionMetaReadError, get_feature_target_branch, resolve_merge_target_branch
+
+    mission = settled_root_on_main
+    (mission.coord_mission_dir / "meta.json").write_text("{ not json", encoding="utf-8")
+
+    with pytest.raises(MissionMetaReadError):
+        get_feature_target_branch(mission.root, mission.slug)
+    with pytest.raises(MissionMetaReadError):
+        resolve_merge_target_branch(mission.root, mission.slug, None)
+
+
 def test_the_write_side_reads_the_declared_target_after_settlement(settled_root_on_main: DefaultMission) -> None:
     """Blast radius: the composition root's target is ``dev``; writes still commit on the topic branch."""
     from mission_runtime import MissionArtifactKind, placement_seam
