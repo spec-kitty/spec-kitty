@@ -44,6 +44,7 @@ from specify_cli.consolidation.run_state import (
     _CONSOLIDATE_ABORT_COMMAND,
     _MergeRunState,
     _NOTHING_TORN_DOWN,
+    record_landed_coordination_ref,
     _resume_reconciliation_already_passed,
 )
 
@@ -159,9 +160,6 @@ def _record_reconciliation_pass(run: _MergeRunState, verified_sha: str | None) -
     run.state.reconciliation_passed_target_sha = verified_sha
     run.state.coord_tip_after_projection = run.coord_tip_after_projection
     save_state(run.state, run.main_repo)
-    # Function-local: phase_teardown is the late-window owner and imports far more than this phase.
-    from specify_cli.consolidation.phase_teardown import record_landed_coordination_ref
-
     record_landed_coordination_ref(run, run.coord_tip_after_projection)
 
 

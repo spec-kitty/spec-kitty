@@ -48,8 +48,7 @@ from specify_cli.git.ref_advance import (
     worktrees_with_branch_checked_out,
 )
 from specify_cli.consolidation.git_probes import GitProbeError, _paths_have_status_changes, is_ancestor_strict
-from specify_cli.consolidation.landed_coordination import LandedCoordinationRefError, clear_landed_coordination_tip, record_landed_coordination_tip
-from specify_cli.consolidation import lane_cleanup
+from specify_cli.consolidation import landed_coordination, lane_cleanup
 from specify_cli.consolidation.lane_cleanup import (
     LaneCleanupReport,
     LaneRetention,
@@ -84,6 +83,7 @@ from specify_cli.consolidation.run_state import (
     CoordMovedAfterLanding,
     CoordinationTeardownError,
     _MergeRunState,
+    record_landed_coordination_ref,
     _is_coord_topology_mission,
     landing_verified_for_resume,
 )
@@ -445,25 +445,6 @@ def _persist_proven_coordination_tip(run: _MergeRunState, proven_tip: str) -> No
     run.state.coord_tip_after_projection = proven_tip
     save_state(run.state, run.main_repo)
     record_landed_coordination_ref(run, proven_tip)
-
-
-def record_landed_coordination_ref(run: _MergeRunState, tip: str | None) -> None:
-    """Best effort: record *tip* as the landed coordination tip of this run's coordination branch (#4041).
-
-    Written only for a coordination topology (the checkpoint ref names a coordination branch, not the
-    target). A failure never fails the landing: the ref only enables a later reclaim, which refuses
-    without it, so it is logged at warning and the run goes on.
-    """
-    checkpoint = run.coord_checkpoint
-    if not tip or checkpoint is None:
-        return
-    branch = checkpoint.ref.removeprefix("refs/heads/")
-    if branch in ("", run.lanes_manifest.target_branch) or branch != run.lanes_manifest.mission_branch:
-        return
-    try:
-        record_landed_coordination_tip(run.main_repo, branch, tip)
-    except (LandedCoordinationRefError, GitProbeError, ValueError) as exc:
-        logger.warning("Could not record the landed coordination tip of %s at %s: %s", branch, tip[:12], exc)
 
 
 def _verified_resume_base(run: _MergeRunState) -> str | None:
@@ -1054,15 +1035,12 @@ def _teardown_coordination_triple(run: _MergeRunState) -> None:
 
 
 def _clear_landed_coordination_ref(run: _MergeRunState) -> None:
-    """Best effort: drop the landed-coordination ref of the branch the teardown just deleted.
+    """Drop the landed-coordination ref of the branch the teardown just deleted (best effort, through the one owner).
 
     The ref only serves a later reclaim of a KEPT coordination branch (#4041); once the branch is
-    gone it would pin the dead branch's commits forever. Like the lane-tip ref of a cleaned lane, a
-    failure is logged at warning and never fails the landing.
+    gone it would pin the dead branch's commits forever. A failure is logged and never fails the landing.
     """
-    branch = run.lanes_manifest.mission_branch
-    if not clear_landed_coordination_tip(run.main_repo, branch):
-        logger.warning("Could not clear the landed coordination tip of %s; delete refs/spec-kitty/landed-coordination/%s by hand.", branch, branch)
+    landed_coordination.clear_landed_coordination_ref(run.main_repo, run.lanes_manifest.mission_branch, target_branch=run.lanes_manifest.target_branch)
 
 
 def _branch_kept_after_teardown_message(run: _MergeRunState, refusal: str) -> str:

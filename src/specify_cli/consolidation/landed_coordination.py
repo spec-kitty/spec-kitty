@@ -22,19 +22,24 @@ Soundness rules (operator rulings for #4041 and #7491):
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
-from specify_cli.consolidation.git_probes import commit_in_clone, is_ancestor_strict, resolve_commit
+from specify_cli.consolidation.git_probes import GitProbeError, commit_in_clone, is_ancestor_strict, resolve_commit
 from specify_cli.git.ref_advance import delete_bookkeeping_ref, write_bookkeeping_ref
 
 # ``landed_coordination_tip`` is read by ``archive reclaim`` (#4041). LANDED_COORDINATION_REF_PREFIX and
 # landed_coordination_ref stay module-internal until a caller outside this module needs them.
 __all__ = [
     "LandedCoordinationRefError",
+    "clear_landed_coordination_ref",
     "clear_landed_coordination_tip",
     "landed_coordination_tip",
+    "record_landed_coordination_ref",
     "record_landed_coordination_tip",
 ]
+
+logger = logging.getLogger(__name__)
 
 #: Namespace of the landed-coordination refs, one per coordination branch.
 LANDED_COORDINATION_REF_PREFIX = "refs/spec-kitty/landed-coordination/"
@@ -100,3 +105,45 @@ def clear_landed_coordination_tip(repo_root: Path, coordination_branch: str) -> 
     """Delete the ref for *coordination_branch*; return ``True`` on success (an absent ref succeeds)."""
     deleted: bool = delete_bookkeeping_ref(repo_root, landed_coordination_ref(coordination_branch))
     return deleted
+
+
+def _owned_coordination_branch(coordination_branch: str | None, target_branch: str) -> str | None:
+    """Normalize one coordination-branch input; ``None`` when it names no coordination branch (empty, or the target itself)."""
+    branch = (coordination_branch or "").removeprefix(_HEADS_PREFIX)
+    return None if branch in ("", target_branch) else branch
+
+
+def record_landed_coordination_ref(repo_root: Path, coordination_branch: str | None, tip: str | None, *, target_branch: str, mission_branch: str) -> None:
+    """Best effort: record *tip* as the landed coordination tip of *coordination_branch* (#4041).
+
+    The one record door for the consolidation run. Written only for a coordination topology: the
+    input must name the Mission's own coordination branch, not the target. A failure never fails the
+    landing (the ref only enables a later reclaim, which refuses without it), so it is logged at warning.
+    """
+    branch = _owned_coordination_branch(coordination_branch, target_branch)
+    if not tip or branch is None or branch != mission_branch:
+        return
+    try:
+        record_landed_coordination_tip(repo_root, branch, tip)
+    except (LandedCoordinationRefError, GitProbeError, ValueError) as exc:
+        logger.warning("Could not record the landed coordination tip of %s at %s: %s", branch, tip[:12], exc)
+
+
+def clear_landed_coordination_ref(repo_root: Path, coordination_branch: str | None, *, target_branch: str) -> bool:
+    """Best effort: drop the landed-coordination ref of *coordination_branch*; ``False`` when one was left behind.
+
+    The one clear door for the consolidation run (teardown after the branch delete, rollback off a
+    landing). An input that names no coordination branch has no ref, so that is a success. A failure is
+    logged at warning and returned, so the caller can say the ref was kept.
+    """
+    branch = _owned_coordination_branch(coordination_branch, target_branch)
+    if branch is None:
+        return True
+    try:
+        cleared = clear_landed_coordination_tip(repo_root, branch)
+    except ValueError as exc:
+        logger.warning("Could not delete the landed-coordination ref of %r: %s", branch, exc)
+        return False
+    if not cleared:
+        logger.warning("Could not delete the landed-coordination ref of %s; delete refs/spec-kitty/landed-coordination/%s by hand.", branch, branch)
+    return cleared
