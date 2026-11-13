@@ -454,6 +454,7 @@ def _wp_file_commit_branch(main_repo_root: Path, mission_slug: str, target_branc
     does not resolve keeps *target_branch* (operator ruling, decision
     ``01M78JFMRQS6GE04BENPXGQX8J``, option B).
     """
+    from specify_cli.core.paths import is_main_repo_root
     from specify_cli.git.checkout_head import checkout_branch_or_fallback
     from specify_cli.coordination.surface_resolver import StatusReadPathNotFound
 
@@ -461,7 +462,7 @@ def _wp_file_commit_branch(main_repo_root: Path, mission_slug: str, target_branc
         holder = placement_seam(main_repo_root, mission_slug).write_dir(MissionArtifactKind.WORK_PACKAGE_TASK).surface_root
     except (ActionContextError, StatusReadPathNotFound):
         return target_branch
-    if holder.resolve() == main_repo_root.resolve():
+    if is_main_repo_root(holder, main_repo_root):
         return target_branch
     # Typed bind: the ``specify_cli.*`` follow_imports=skip boundary widens the deferred import's return to Any.
     commit_branch: str = checkout_branch_or_fallback(holder, target_branch)
