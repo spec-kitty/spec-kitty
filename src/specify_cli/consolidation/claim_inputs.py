@@ -93,6 +93,10 @@ class ClaimInputs:
         excluded_canceled_wp_ids: Canceled work packages excluded from the claim.
         strategy: The consolidation strategy value (``squash``, ``merge`` or ``rebase``).
         status_dir: The status directory the claim reads.
+        mission_branch_tip: The Mission branch's tip, frozen (#7626): the record's pre-mutation snapshot
+            when it holds one (a resume, the gate rebuild), else the tip read now (a fresh run's claim,
+            which precedes the first mutation). Never read again later, so a branch merged into the
+            Mission branch after this point is not trusted history. ``None`` when the branch is absent.
         degraded_dependency_anchors: ``SAVED`` only: the dependency-lane branches the saved record
             holds no frozen tip for (a record written without that tip, H1), read live instead -- the
             degraded anchors the ADR names. Empty for ``LIVE`` and ``LIVE_THEN_SAVED``.
@@ -108,6 +112,7 @@ class ClaimInputs:
     strategy: str
     status_dir: Path
     degraded_dependency_anchors: tuple[str, ...] = ()
+    mission_branch_tip: str | None = None
 
 
 @dataclass(frozen=True)
@@ -235,6 +240,21 @@ def _run_coord_base(context: ClaimInputContext, saved_coord_sha: str | None) -> 
     return mission_branch
 
 
+def _mission_branch_tip(context: ClaimInputContext, *, read_live: bool = True) -> str | None:
+    """The Mission branch's frozen tip: the record's pre-mutation snapshot, else (a fresh run, before any mutation) the tip as it stands.
+
+    A resume (``read_live=False``) never reads the branch: the record's entry or nothing, so a branch
+    that moved since the first attempt cannot become a trusted root.
+    """
+    branch: str = context.manifest.mission_branch
+    saved: str | None = context.state.pre_mutation_refs.get(branch) if context.state is not None else None
+    if saved or not read_live:
+        return saved
+    # Local annotation re-narrows the callee's return type (the narrow-file mypy override erases it).
+    tip: str | None = capture_branch_tip(context.repo_root, branch)
+    return tip
+
+
 def _mission_slug(context: ClaimInputContext) -> str:
     """The slug the run resolved, else the manifest's."""
     slug: str = context.mission_slug or context.manifest.mission_slug
@@ -281,6 +301,7 @@ def _live(context: ClaimInputContext) -> ClaimInputs:
         excluded_canceled_wp_ids=excluded,
         strategy=context.strategy,
         status_dir=context.status_dir,
+        mission_branch_tip=_mission_branch_tip(context),
     )
 
 
@@ -310,6 +331,7 @@ def _live_then_saved(context: ClaimInputContext) -> ClaimInputs:
         excluded_canceled_wp_ids=frozenset(context.excluded_canceled_wp_ids),
         strategy=context.strategy,
         status_dir=context.status_dir,
+        mission_branch_tip=_mission_branch_tip(context),
     )
 
 
@@ -334,6 +356,7 @@ def _saved(context: ClaimInputContext) -> ClaimInputs:
         strategy=state.strategy,
         status_dir=context.status_dir,
         degraded_dependency_anchors=degraded,
+        mission_branch_tip=_mission_branch_tip(context, read_live=False),
     )
 
 
@@ -373,4 +396,5 @@ def build_claim(repo_root: Path, manifest: LanesManifest, inputs: ClaimInputs) -
         external_dependency_refs=inputs.dependency_refs,
         external_dependency_pins=inputs.dependency_pins,
         frozen_dependency_tips=frozen_dependency_tips(inputs),
+        mission_branch_tip=inputs.mission_branch_tip,
     )
