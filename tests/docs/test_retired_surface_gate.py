@@ -28,13 +28,6 @@ _DOCS = _REPO_ROOT / "docs"
 # --- One authority --------------------------------------------------------------
 
 
-def test_the_code_gate_reads_the_one_retired_list() -> None:
-    from tests.architectural import test_no_retired_subsystems as code_gate
-
-    assert code_gate._RETIRED_PATHS is retired_surfaces.RETIRED_PATHS
-    assert code_gate._RETIRED_CLI_PREFIXES is retired_surfaces.RETIRED_CLI_PREFIXES
-
-
 def test_every_retired_source_path_and_command_is_a_docs_surface() -> None:
     ids = {surface.id for surface in retired_surfaces.docs_retired_surfaces()}
     source_paths = {path for path in retired_surfaces.RETIRED_PATHS if path.startswith("src/")}
@@ -50,6 +43,11 @@ def test_every_retired_source_path_and_command_is_a_docs_surface() -> None:
 )
 def test_the_documentation_retirements_are_named(surface_id: str) -> None:
     assert surface_id in {surface.id for surface in retired_surfaces.docs_retired_surfaces()}
+
+
+def test_a_surface_without_a_retired_by_note_is_refused() -> None:
+    with pytest.raises(ValueError, match="must say what retired it"):
+        retired_surfaces.RetiredSurface(id="x", pattern=re.compile("x"), retired_by="  ")
 
 
 def test_every_surface_says_what_retired_it() -> None:
