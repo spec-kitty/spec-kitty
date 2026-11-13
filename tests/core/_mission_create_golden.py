@@ -74,6 +74,12 @@ _ULID_RE = re.compile(r"(?<![0-9A-Za-z])[0-9A-HJKMNP-TV-Z]{26}(?![0-9A-Za-z])")
 _MID8_BODY = r"[0-9A-Z]{8}"
 #: ISO-8601 timestamps.
 _TS_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})")
+#: The recorded Mission base (#7560): the target tip a mint created the Mission branch at. The
+#: fixture commits carry wall-clock timestamps, so the SHA differs per run. Key-scoped, and only a
+#: full lowercase object id is tokenised, so a missing, malformed or misplaced value still drifts.
+_MISSION_BASE_KEY = "mission_base_sha"
+_FULL_SHA_RE = re.compile(r"[0-9a-f]{40}|[0-9a-f]{64}")
+_MISSION_BASE_TOKEN = "<MISSION_BASE_SHA>"
 #: Placeholders.
 _TMP_TOKEN = "<TMP>"
 _TS_TOKEN = "<TS>"
@@ -479,8 +485,20 @@ def _first_seen(pattern: re.Pattern[str], obj: Any, group: int = 0) -> list[str]
     return seen
 
 
+def _tokenise_mission_base(obj: Any) -> Any:
+    """Replace a full-SHA ``mission_base_sha`` value with its token, wherever the key occurs."""
+    if isinstance(obj, dict):
+        return {
+            key: _MISSION_BASE_TOKEN if key == _MISSION_BASE_KEY and isinstance(value, str) and _FULL_SHA_RE.fullmatch(value) else _tokenise_mission_base(value)
+            for key, value in obj.items()
+        }
+    if isinstance(obj, list):
+        return [_tokenise_mission_base(item) for item in obj]
+    return obj
+
+
 def normalise(obj: Any, *, tmp_root: Path, slugs: Sequence[str]) -> Any:
-    """Apply the frozen whitelist: temp root, ULIDs, mid8s, ISO timestamps.
+    """Apply the frozen whitelist: temp root, ULIDs, mid8s, ISO timestamps, the recorded Mission base.
 
     ULIDs and mid8s are numbered in order of first appearance (``<ULID#1>``,
     ``<MID8#1>`` ...) so a cell holding several missions stays exact. A mid8
@@ -494,7 +512,7 @@ def normalise(obj: Any, *, tmp_root: Path, slugs: Sequence[str]) -> Any:
             text = text.replace(root, _TMP_TOKEN)
         return text
 
-    obj = _rewrite(obj, strip_tmp)
+    obj = _tokenise_mission_base(_rewrite(obj, strip_tmp))
     mid8_re = re.compile("(?:" + "|".join(re.escape(s) for s in slugs) + r")-(" + _MID8_BODY + r")(?![0-9A-Za-z])") if slugs else None
     mid8s = _first_seen(mid8_re, obj, group=1) if mid8_re is not None else []
     ulids = _first_seen(_ULID_RE, obj)
