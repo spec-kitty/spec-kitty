@@ -1,0 +1,47 @@
+{
+  "accept_commit": "916b92e5b29ab958c3fc0ab19b25d75c6bb4b54a",
+  "acceptance_history": [
+    {
+      "accept_commit": "916b92e5b29ab958c3fc0ab19b25d75c6bb4b54a",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-13T02:25:55.440970+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "935bf116fe80c680690054849832e7896dbe56ea"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-13T02:25:55.440970+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "935bf116fe80c680690054849832e7896dbe56ea",
+  "baseline_merge_commit": "7e9113ce2ffe755622bb3dd4bca3e6c1cff5f3d2",
+  "contracts": "none",
+  "contracts_rationale": "No API or schema is published; the mission renames docs files, records the moves in the existing ledger, and adds a docs-lint gate and an on-demand report whose interfaces are their command-line flags and tests.",
+  "create_return_branch": "issue-6939-readme-rename-and-audit",
+  "created_at": "2026-11-12T22:10:28.120203+00:00",
+  "flattened": false,
+  "friendly_name": "Rename section indexes to README.md; docs staleness inventory and retired-surface gate",
+  "merged_at": "2026-11-13T02:27:38.546417+00:00",
+  "merged_commit": "df9a9ea31b4581e825fc08776b86c6f8145a2c82",
+  "mid8": "01M78WZM",
+  "mission_id": "01M78WZM48VJHP4HJVHKG2FDBN",
+  "mission_number": 259,
+  "mission_slug": "readme-rename-and-docs-audit-01M78WZM",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "DocFX is retired (#6943), so ADR 2026-10-31-1 D-1/D-13 step 5 lets every docs/**/index.md become README.md with indexBasename narrowed to README. Links are rewritten through site/moves.yaml and every legacy URL stays covered. On the final paths, the content-refresh epic #3891 needs an audit first: a reproducible inventory of every published living page (last real content change, named code paths and commands, target reader, retired-surface references, text-drawn diagrams, Divio type) and a gate that fails when a page newly names a retired surface, with existing hits in a shrink-only burn-down list pointing at the section sub-issues.",
+  "purpose_tldr": "Rename the docs section index.md pages to README.md (#6939), then generate a staleness inventory of published living pages and gate new retired-surface references (#7520)",
+  "slug": "readme-rename-and-docs-audit-01M78WZM",
+  "status_phase": "1",
+  "target_branch": "issue-6939-readme-rename-and-audit",
+  "topology": "single_branch",
+  "topology_decision": {
+    "code_lane_count": 2,
+    "from": "single_branch",
+    "rule": "wp_count_le_2",
+    "target_protected": false,
+    "to": "single_branch",
+    "wp_count": 2
+  },
+  "topology_settled": true,
+  "topology_source": "default"
+}

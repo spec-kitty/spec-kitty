@@ -1,0 +1,159 @@
+{
+  "mission_slug": "readme-rename-and-docs-audit-01M78WZM",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "59 git mv renames (R100); tests/docs/test_section_index_basename.py::test_no_index_md_remains_under_docs (WP01)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-13T02:24:45.247962+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_section_index_basename.py::test_the_guard_catches_a_reintroduced_index_md (planted control)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-13T02:24:48.872509+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "site/moves.yaml 59 #6939 entries; tests/docs/test_moves_ledger.py::test_every_section_index_rename_is_recorded, ::test_collapse_reads_a_return_as_superseding_the_earlier_move_away",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-13T02:24:52.212836+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Ledger-driven rewrite of #6939 pairs; immutable bodies verified link-target-only (59 files, 0 other changes); dockitty-check-links --strict 0 failures",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-13T02:24:55.760537+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_section_index_basename.py::test_the_site_reads_only_readme_as_a_section_index; site_contract --check",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-13T02:24:59.141948+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "freshen_adr_inventory, regen_docs_index, generated_docs_surfaces, check_generated_docs_untouched, site_built_check, migration and readers updated; tests/docs 2160+ passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-13T02:25:02.540236+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "site_redirects --check clean, legacy-redirects.json byte-identical; redirect coverage 970/970 on a built site; tests/docs/test_site_redirects.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-13T02:25:05.946984+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_check_generated_docs_untouched.py::test_moving_the_era_table_to_another_landing_file_adds_no_row, ::test_main_passes_a_pr_that_renames_the_era_index",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-13T02:25:09.215983+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_staleness_audit.py (21+ tests incl. shallow refusal, reproducibility); snapshot kitty-specs/readme-rename-and-docs-audit-01M78WZM/audit/inventory.json",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-13T02:25:12.532687+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "scripts/retired_surfaces.py; tests/docs/test_retired_surface_gate.py::test_the_code_gate_reads_the_one_retired_list",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-13T02:25:15.803842+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_retired_surface_gate.py::test_a_new_hit_on_a_living_page_fails_naming_page_and_surface, ::test_a_planted_slash_command_fails_the_gate",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-13T02:25:19.003780+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "89-pair burn-down tied to #7522-#7528; ::test_a_drained_pair_lowers_the_baseline_and_cannot_come_back, ::test_the_burn_down_only_shrinks_from_its_landing_set; _baselines.yaml ratchet",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-13T02:25:22.201514+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "ci-router.yml docs-lint step + make docs-lint; tests/ci/test_docs_lint_job.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-13T02:25:25.449761+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "kitty-specs/readme-rename-and-docs-audit-01M78WZM/audit/page-lists.md (one list per #7522-#7528)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-13T02:25:28.787029+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "ADR 2026-10-31-1 Amendment 2026-11-12 (section indexes renamed); docs/changelog/unreleased/6939-section-indexes-readme-and-docs-audit.changed.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-13T02:25:32.103737+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
