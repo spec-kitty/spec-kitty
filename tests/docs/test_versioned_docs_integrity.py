@@ -35,10 +35,10 @@ FORBIDDEN_TERMS = (
 
 def test_versioned_docs_required_files_exist() -> None:
     expected = [
-        DOCS_DIR / "index.md",
-        ARCHIVE_DIR / "index.md",
-        ARCHIVE_DIR / "1x" / "index.md",
-        ARCHIVE_DIR / "2x" / "index.md",
+        DOCS_DIR / "README.md",
+        ARCHIVE_DIR / "README.md",
+        ARCHIVE_DIR / "1x" / "README.md",
+        ARCHIVE_DIR / "2x" / "README.md",
     ]
     missing = [str(path.relative_to(REPO_ROOT)) for path in expected if not path.is_file()]
     assert not missing, f"Missing required versioned docs files: {missing}"

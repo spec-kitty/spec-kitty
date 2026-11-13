@@ -296,8 +296,8 @@ def _page(path: Path, frontmatter: str) -> None:
 def _publication_repo(tmp_path: Path, source_status: str, related: list[str]) -> Path:
     repo = tmp_path / "repo"
     docs = repo / "docs"
-    _page(docs / "index.md", "doc_status: active\n")
-    _page(docs / "guides" / "index.md", "doc_status: active\n")
+    _page(docs / "README.md", "doc_status: active\n")
+    _page(docs / "guides" / "README.md", "doc_status: active\n")
     _page(docs / "notes.md", "doc_status: draft\n")
     _page(docs / "archive" / "old.md", "doc_status: active\n")
     lines = "".join(f"- {entry!r}\n" for entry in related)
@@ -313,9 +313,9 @@ def test_slugs_resolve_to_files_and_folder_indexes(tmp_path: Path) -> None:
 
 
 def test_a_repository_path_is_no_longer_a_slug(tmp_path: Path) -> None:
-    repo = _publication_repo(tmp_path, "active", ["docs/guides/index.md"])
+    repo = _publication_repo(tmp_path, "active", ["docs/guides/README.md"])
     report = validate_related(docs_root=repo / "docs", repo_root=repo)
-    assert report.dangling_edges == [DanglingEdge(from_path="docs/source.md", to_path="docs/guides/index.md")]
+    assert report.dangling_edges == [DanglingEdge(from_path="docs/source.md", to_path="docs/guides/README.md")]
 
 
 @pytest.mark.parametrize(

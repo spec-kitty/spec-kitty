@@ -121,7 +121,7 @@ def _live_doc_scan_targets() -> list[tuple[Path, str]]:
             # The relocated canonical CHANGELOG is handled like root CHANGELOG.md
             # below (only the Unreleased section is scanned; historical version
             # sections legitimately carry era-correct terminology). Its sibling
-            # docs/changelog/index.md stays a normally-scanned live doc.
+            # docs/changelog/README.md stays a normally-scanned live doc.
             if relative_path == "docs/changelog/CHANGELOG.md":
                 continue
             scan_targets.append((path, _read(path)))

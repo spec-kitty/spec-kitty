@@ -181,7 +181,7 @@ def test_controls_name_each_old_shape(tmp_path: Path) -> None:
     docs = _tree(
         tmp_path,
         {
-            "index.md": "doc_status: active\n",
+            "README.md": "doc_status: active\n",
             "a.md": "doc_status: active\n",
             "draft.md": "doc_status: draft\n",
             "archive/old.md": "doc_status: active\n",
@@ -203,4 +203,4 @@ def test_controls_name_each_old_shape(tmp_path: Path) -> None:
         "adr/4.x/2026-01-01-1-x.md: doc_status None, expected 'active' for status 'Accepted'",
         "adr/4.x/2026-01-01-1-x.md: kind None, expected 'ADR'",
     ]
-    assert adr_problems("adr/4.x/index.md", {}) == []
+    assert adr_problems("adr/4.x/README.md", {}) == []

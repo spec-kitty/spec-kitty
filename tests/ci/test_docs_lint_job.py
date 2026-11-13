@@ -1,7 +1,8 @@
 """CI-shape guard for the always-on ``docs-lint`` job and ``make docs-lint`` (#5426).
 
-The docs prose lint (``scripts.docs.check_spelling`` and
-``scripts.docs.check_changelog_style``) must block every PR (FR-013) and be
+The docs prose lint (``scripts.docs.check_spelling``,
+``scripts.docs.check_changelog_style`` and, since #7520, the retired-surface gate
+``scripts.docs.retired_surface_gate``) must block every PR (FR-013) and be
 runnable locally with one command (FR-014). A job that silently passes is worse
 than no job, so each contract clause below is a small checker over parsed data,
 and every checker has a companion mutant test that feeds a mutated in-memory
@@ -33,7 +34,9 @@ _MAKEFILE_PATH = _REPO_ROOT / "Makefile"
 _JOB = "docs-lint"
 _SPELLING_CMD = "python -m scripts.docs.check_spelling"
 _CHANGELOG_CMD = "python -m scripts.docs.check_changelog_style"
-_REQUIRED_COMMANDS = (_SPELLING_CMD, _CHANGELOG_CMD)
+# #7520: a published living page must not newly name a retired surface.
+_RETIRED_SURFACE_GATE_CMD = "python -m scripts.docs.retired_surface_gate"
+_REQUIRED_COMMANDS = (_SPELLING_CMD, _CHANGELOG_CMD, _RETIRED_SURFACE_GATE_CMD)
 # CI-only (it judges a pull request's diff, so `make docs-lint` does not run it): a PR
 # must not edit the generated docs surfaces the post-merge bot regenerates.
 _GENERATED_SURFACE_GUARD_CMD = "python -m scripts.ci.check_generated_docs_untouched"
@@ -283,3 +286,8 @@ def test_mutant_router_gate_without_job_is_caught(workflow: dict[str, Any]) -> N
 def test_mutant_phony_without_target_is_caught(makefile_text: str) -> None:
     mutated = re.sub(r"(^\.PHONY:[^\n]*?)\bdocs-lint\b", r"\1", makefile_text, flags=re.MULTILINE)
     assert check_makefile_phony(mutated)
+
+
+def test_job_name_says_it_runs_the_retired_surface_gate(job: dict[str, Any]) -> None:
+    """#7520: the check name on a pull request names every gate the job runs."""
+    assert "retired surfaces" in str(job.get("name", ""))

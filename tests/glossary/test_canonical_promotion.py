@@ -253,6 +253,23 @@ def _with_6929_frontmatter_migration(rel_path: str, lines: list[str]) -> list[st
     return migrated.splitlines()
 
 
+#: Sanctioned post-WP02 edit (#6939): every section ``index.md`` became ``README.md`` and each
+#: body link to one was rewritten from the moves ledger. Only a Markdown link target that
+#: resolves to a renamed section index is excused; any other ``index.md`` text still reds.
+_INDEX_LINK_TARGET = re.compile(r"(\]\()([^)\s#]*index\.md)([#)])")
+
+
+def _with_6939_index_rename(rel_path: str, line: str) -> str:
+    def swap(match: re.Match[str]) -> str:
+        target = (REPO_ROOT / rel_path).parent / match.group(2)
+        readme = target.with_name("README.md")
+        if target.exists() or not readme.is_file():
+            return match.group(0)
+        return f"{match.group(1)}{match.group(2)[: -len('index.md')]}README.md{match.group(3)}"
+
+    return _INDEX_LINK_TARGET.sub(swap, line)
+
+
 #: Sanctioned post-WP02 doc edits (later waves, each recorded here so the
 #: diff-shape ratchet below stays green without loosening its shape check):
 #: the post-convergence doc-alignment wave 2 (#3964) repointed the dead
@@ -408,7 +425,8 @@ def test_wp02_referrer_diffs_are_exactly_the_path_token() -> None:
         old_lines = _git_show(rel_path, base_commit).splitlines()
         new_lines = _strip_retirement_additions(rel_path, (REPO_ROOT / rel_path).read_text(encoding="utf-8").splitlines())
         if rel_path in WP02_CONTEXT_SOURCES_CONSOLIDATION_REFERRERS:
-            expected_lines = _with_6929_frontmatter_migration(rel_path, _context_sources_consolidation_expected(rel_path, old_lines))
+            consolidated = [_with_6939_index_rename(rel_path, line) for line in _context_sources_consolidation_expected(rel_path, old_lines)]
+            expected_lines = _with_6929_frontmatter_migration(rel_path, consolidated)
             if _mask_updated_dates(new_lines) == _mask_updated_dates(expected_lines):
                 continue
             violations.append(f"{rel_path}: diff is not the sanctioned context-sources consolidation")
@@ -416,7 +434,10 @@ def test_wp02_referrer_diffs_are_exactly_the_path_token() -> None:
         allow_source_topology = rel_path.startswith("src/charter/offering/") or rel_path == ("tests/architectural/test_no_dead_doctrine_paths.py")
         expected_lines = _with_6929_frontmatter_migration(
             rel_path,
-            [_apply_later_wave_replacements(rel_path, _flip_path_token(old, allow_source_topology=allow_source_topology)) for old in old_lines],
+            [
+                _with_6939_index_rename(rel_path, _apply_later_wave_replacements(rel_path, _flip_path_token(old, allow_source_topology=allow_source_topology)))
+                for old in old_lines
+            ],
         )
         if len(expected_lines) != len(new_lines):
             violations.append(f"{rel_path}: line count changed ({len(expected_lines)} expected -> {len(new_lines)})")

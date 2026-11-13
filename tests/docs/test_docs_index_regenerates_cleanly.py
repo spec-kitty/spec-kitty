@@ -50,8 +50,8 @@ pytestmark = pytest.mark.unit
 #: Pages that must be in any generation of the live tree: a floor that keeps the
 #: coverage checks below non-vacuous without re-deciding which files are pages.
 _KNOWN_PAGES = (
-    "docs/index.md",
-    "docs/adr/index.md",
+    "docs/README.md",
+    "docs/adr/README.md",
     "docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md",
 )
 

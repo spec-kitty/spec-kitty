@@ -238,6 +238,14 @@ _SIZE_RATCHETS: tuple[_SizeRatchet, ...] = (
         "tests.architectural.test_auth_transport_singleton",
         "_TRANSPORT_ALLOWLIST",
     ),
+    # #7520: the retired-surface burn-down of the published living pages (owner epic #3891,
+    # drained by the section sub-issues #7522-#7528). Shrink-only.
+    _SizeRatchet(
+        "test_retired_surface_gate",
+        "burn_down",
+        "scripts.docs.retired_surface_gate",
+        "BURN_DOWN",
+    ),
     # FR-141: legacy contract allowlist for the round-trip gate.
     _SizeRatchet(
         "test_example_round_trip",

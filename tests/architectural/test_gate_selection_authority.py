@@ -281,7 +281,7 @@ def test_a_pins_only_diff_selects_the_ci_module_and_the_contract_tests(router: R
     assert contract_jobs | {"tests-corpus-blocking"} <= selection.selected_jobs
     assert {"ci", "glossary"} <= select_modules([PINS_ONLY_PATH], router=router)
     assert not selection.unmatched_src
-    unrelated = select_gates(["docs/index.md"], router=router)
+    unrelated = select_gates(["docs/README.md"], router=router)
     assert not contract_jobs & unrelated.selected_jobs, "control: a docs-only diff does not run the contract tests"
 
 
