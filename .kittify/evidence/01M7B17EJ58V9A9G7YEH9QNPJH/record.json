@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01M7B17EJ58V9A9G7YEH9QNPJH",
+  "completed_at": "2026-11-13T19:18:03.620937+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "research/issue-7621-corpus-exam-cost/grounding-note.md"
+}
