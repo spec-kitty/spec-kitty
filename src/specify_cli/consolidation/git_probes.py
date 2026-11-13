@@ -12,6 +12,7 @@ imports the command shim.
 from __future__ import annotations
 
 import contextlib
+import functools
 import re
 import subprocess
 import tempfile
@@ -863,7 +864,7 @@ def three_way_merge_blob(repo_root: Path, lane_a_commit: str, lane_b_commit: str
     * Exit code 1 — a genuine merge conflict (including a binary-file
       conflict). The tree is still written (with higher-stage conflict info),
       but the resolution is NOT a deterministic function of the two parents —
-      :func:`is_legitimate_three_way_resolution`'s caller must fail closed, so
+      :func:`is_legitimate_merge_resolution`'s caller must fail closed, so
       this returns ``None`` without inspecting the conflicted tree.
     * Any OTHER exit code is an unexpected git failure (an unresolvable commit
       ref, a corrupt object store, …) and raises :class:`GitProbeError` so the
@@ -888,6 +889,126 @@ def three_way_merge_blob(repo_root: Path, lane_a_commit: str, lane_b_commit: str
         return blob_id_at(repo_root, tree_oid, path)
     except GitProbeError:
         return None  # path absent (or otherwise unreadable) in the clean-merged tree
+
+
+def first_parent_changed_paths(repo_root: Path, sha: str) -> list[str]:
+    """Paths whose content *sha* changed against its FIRST parent (#7626).
+
+    ``git diff --name-only --no-renames -z <sha>^1 <sha>``: for a merge commit, every
+    path the merge brought into its first parent's line, its own resolution included.
+    :func:`changed_paths_of` reads a merge through ``git show``'s combined diff, which
+    omits a path whose result equals one parent (a merge that took the second
+    parent's blob verbatim), so it cannot tell what a merge brought in. Raises
+    :class:`GitProbeError` on any git error (a root commit has no ``^1``), never ``[]``.
+    """
+    ret, out, err = run_command(
+        ["git", "diff", "--name-only", "--no-renames", "-z", f"{sha}^1", sha],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret != 0:
+        raise GitProbeError(f"git diff --name-only {sha}^1 {sha} failed (exit {ret}): {(err or '').strip()}")
+    return [path for path in (out or "").split("\0") if path]
+
+
+def _merge_tree_step(repo_root: Path, ours: str, theirs: str) -> tuple[str, frozenset[str]]:
+    """``git merge-tree --write-tree`` of *ours* + *theirs*: the written tree and the paths that conflicted.
+
+    A path that did not conflict has its clean, deterministic merge in the written tree
+    even when another path conflicted. Any exit code other than 0 (clean) or 1 (some
+    conflict) raises :class:`GitProbeError`.
+    """
+    ret, out, err = run_command(
+        ["git", "merge-tree", "--write-tree", "--name-only", "--no-messages", "-z", ours, theirs],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret not in (0, 1):
+        raise GitProbeError(f"git merge-tree --write-tree {ours} {theirs} failed (exit {ret}): {(err or '').strip()}")
+    fields = [field for field in (out or "").split("\0") if field]
+    if not fields:
+        raise GitProbeError(f"git merge-tree --write-tree {ours} {theirs} printed no tree id")
+    return fields[0].strip(), frozenset(fields[1:]) if ret == 1 else frozenset()
+
+
+def _synthetic_merge_commit(repo_root: Path, tree: str, parents: Sequence[str]) -> str:
+    """A dangling commit of *tree* with *parents*, so the next fold step can find merge bases.
+
+    It is written to the object store only (no ref names it, so ``git gc`` prunes it),
+    exactly like the tree ``git merge-tree --write-tree`` already wrote. A fixed identity
+    and date keep it deterministic and independent of the user's git config.
+    """
+    parent_args = [arg for parent in parents for arg in ("-p", parent)]
+    ret, out, err = run_command(
+        [
+            "git",
+            "-c",
+            "user.name=spec-kitty",
+            "-c",
+            "user.email=spec-kitty@localhost",
+            "-c",
+            "commit.gpgsign=false",
+            "commit-tree",
+            tree,
+            *parent_args,
+            "-m",
+            "spec-kitty: merge derivation (#7626)",
+        ],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    commit = (out or "").strip()
+    if ret != 0 or not commit:
+        raise GitProbeError(f"git commit-tree {tree} failed (exit {ret}): {(err or '').strip()}")
+    return commit
+
+
+@functools.lru_cache(maxsize=64)
+def _n_way_merge_fold(repo_root: Path, commits: tuple[str, ...]) -> tuple[str, frozenset[str]]:
+    """The tree a ``git merge-tree --write-tree`` fold over *commits* writes, and every path that conflicted on any step.
+
+    Keyed on the input commits only (immutable SHAs), so one fold serves every path of a
+    claim with the same inputs. A probe error is raised, never cached.
+    """
+    current = commits[0]
+    tree = ""
+    conflicted: set[str] = set()
+    for step, nxt in enumerate(commits[1:], start=1):
+        tree, step_conflicts = _merge_tree_step(repo_root, current, nxt)
+        conflicted |= step_conflicts
+        if step < len(commits) - 1:
+            current = _synthetic_merge_commit(repo_root, tree, (current, nxt))
+    return tree, frozenset(conflicted)
+
+
+def n_way_merge_blob(repo_root: Path, commits: Sequence[str], path: str) -> str | None:
+    """Fold ``git merge-tree --write-tree`` over *commits* in order; return *path*'s resulting blob (#7626).
+
+    The N-way generalization of :func:`three_way_merge_blob`. Each step merges the
+    previous result (a dangling commit, :func:`_synthetic_merge_commit`) with the next
+    input; git derives every merge base itself. ``None`` when *path* conflicted on any
+    step, or is absent from the result: a conflicted path has no deterministic
+    resolution, so the caller must not attribute it. A conflict on ANOTHER path does
+    not matter: *path*'s entry is still its own clean merge.
+
+    Soundness does not depend on the fold order. A clean three-way merge takes every
+    line of its result from one of its two sides (the base never adds a line), so the
+    result is built only from the inputs' content at *path*; any order that reproduces
+    a blob proves that blob is made of the inputs. A different order may conflict
+    where this one does not, which only attributes less. Gate with
+    :func:`merge_tree_write_tree_available` first (git >= 2.38).
+    """
+    if not commits:
+        return None
+    if len(commits) == 1:
+        return path_state_at(repo_root, commits[0], path)
+    tree, conflicted = _n_way_merge_fold(repo_root, tuple(commits))
+    if path in conflicted:
+        return None
+    return path_state_at(repo_root, tree, path)
 
 
 def lane_integrated_by_tree_or_ancestry(repo_root: Path, lane_branch: str, mission_branch: str) -> bool:
@@ -1118,4 +1239,6 @@ __all__ = [
     "driver_replay_expected_bytes",
     "merge_tree_write_tree_available",
     "three_way_merge_blob",
+    "n_way_merge_blob",
+    "first_parent_changed_paths",
 ]

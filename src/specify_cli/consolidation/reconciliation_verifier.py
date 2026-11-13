@@ -26,7 +26,7 @@ from specify_cli.consolidation.git_probes import (
     patch_ids_in_range,
     path_state_at,
     sha_reachable_from,
-    three_way_merge_blob,
+    n_way_merge_blob,
 )
 from specify_cli.consolidation.reconciliation_authorship import unmet_approved_content
 from specify_cli.consolidation.reconciliation_claim_types import ApprovedWpCommitSet, CanceledDependencyContent, MissingApprovedContent
@@ -833,15 +833,13 @@ class MergeOutcomeVerifier:
 
         An Added/Modified path whose blob is NOT in ``authored_blobs`` (a single
         approved lane's own final content) gets one more, strictly fail-closed
-        chance: :func:`is_legitimate_three_way_resolution` (terminus-merge-
-        resolution-attribution / #5051-adjacent, FR-002/003) — a path authored by
-        EXACTLY TWO approved lanes whose target blob equals the deterministic
-        ``git merge-tree`` resolution of those two lanes' own contributions is a
-        genuine merge resolution, not removed content, and is attributed too.
-        Every other shape (>2 lanes, a single-lane mismatch, binary, a
-        conflicting resolution, git<2.38) stays unattributable — this second
-        chance never attributes vacuously; see that function's docstring for the
-        full fail-closed ordering.
+        chance: :func:`is_legitimate_merge_resolution` (#5051, widened to N lanes
+        by #7626) — a target blob equal to the clean ``git merge-tree`` fold of
+        every approved lane that authored the path plus the target's pre-run tip
+        is a genuine merge resolution, not removed content, and is attributed
+        too. A conflicting fold, binary, or git<2.38 stays unattributable — this
+        second chance never attributes vacuously; see that function's docstring
+        for the full fail-closed ordering.
         """
         unattributable_blobs: list[tuple[str, str]] = []
         unattributable_deletions: list[str] = []
@@ -864,13 +862,13 @@ class MergeOutcomeVerifier:
 
         The three second chances of :meth:`_unattributable_content_squash`, in order: a declared,
         verified external dependency's final content (#6771), the pre-Mission final content the
-        target lacks (#7560), and a legitimate three-way resolution of a path two approved lanes
-        both authored. Each is keyed on the exact ``(path, blob)``, so a post-base change of the
+        target lacks (#7560), and a legitimate merge resolution of the approved lanes that
+        authored the path and the target's pre-run content (#7626). Each is keyed on the exact ``(path, blob)``, so a post-base change of the
         path (a different blob) is not covered.
         """
         if _inherited_blob(path, blob, claim):
             return True
-        return is_legitimate_three_way_resolution(self._repo, claim, path, blob)
+        return is_legitimate_merge_resolution(self._repo, claim, path, blob)
 
     def _commit_is_content(self, sha: str, claim: ApprovedWpCommitSet) -> bool:
         """True when *sha* changes at least one path that is NOT mission bookkeeping.
@@ -916,77 +914,72 @@ def _deletion_attributed(path: str, claim: ApprovedWpCommitSet) -> bool:
     return path in claim.authored_deletions or _inherited_deletion(path, claim)
 
 
-def is_legitimate_three_way_resolution(
+def is_legitimate_merge_resolution(
     repo_root: Path,
     claim: ApprovedWpCommitSet,
     path: str,
     target_blob: str,
 ) -> bool:
-    """True iff *target_blob* is the deterministic 2-way merge of *path*'s two
-    approved-lane contributions (Seam A merge-resolution recognizer,
-    terminus-merge-resolution-attribution / #5051-adjacent, FR-002/FR-003).
+    """True iff *target_blob* is the clean merge of *path*'s approved-lane
+    contributions and the target's pre-run tip (#7626; the 2-lane recognizer of
+    #5051 generalized to N lanes and to content the target already had).
 
     Called ONLY as :meth:`MergeOutcomeVerifier._unattributable_content_squash`'s
-    second chance, after the ``authored_blobs`` single-lane fast path has already
-    missed — every guard below fires strictly ABOVE any attribution (F1
-    corollary), so this never attributes vacuously:
+    last second chance, after the ``authored_blobs`` fast path missed. Every guard
+    fires strictly ABOVE any attribution (F1 corollary), so this never attributes
+    vacuously:
 
-    1. *path* absent from :attr:`ApprovedWpCommitSet.multi_lane_paths` (not
-       authored by exactly two approved lanes: zero, one, or three-or-more) →
-       ``False`` — the simulation never even runs (Decision 2, ``research.md``:
-       2-way ``merge-tree`` folding is order-dependent/nondeterministic for N>2).
-    2. The installed git does not support ``git merge-tree --write-tree`` (git<
-       2.38, :func:`~specify_cli.consolidation.git_probes.merge_tree_write_tree_available`)
-       → ``False`` (Decision 3: fail-closed fallback, no unsound raw-``merge-
-       file`` substitute).
-    3. Smuggled-tip guard (#5124 landing fold — closes the reopened #4977
-       carrier-lane threat): ``lane_commit`` is a raw lane TIP and CAN be a
-       merge commit. ``three_way_merge_blob`` below feeds it that commit's
-       FULL tree, not just its first-parent authorship — so if a contributing
-       lane's tip is a merge commit that smuggled a disjoint SECOND-parent hunk
-       into *path* (content ``_final_authored_walk``/``authored_blobs``
-       deliberately excludes, being first-parent-only), the simulation would
-       reproduce the smuggled hunk right along with the legitimate edit, and a
-       target that shipped it would match. The guard: for each of the two
-       contributions, the lane's OWN tip-tree blob at *path*
-       (:func:`~specify_cli.consolidation.git_probes.blob_id_at`) must equal that
-       contribution's recorded first-parent-authored blob
-       (:attr:`LaneContribution.authored_blob`) — the value the same spine walk
-       already vetted as pure first-parent authorship. A mismatch means the
-       tip carries unvetted content beyond what was authored → refuse to
-       simulate → ``False`` (the path stays unattributable, FAILing the gate
-       and CAS-reverting the target, never shipping the smuggled hunk). A
-       :class:`~specify_cli.consolidation.git_probes.GitProbeError` from ``blob_id_at``
-       here is NOT caught — it propagates to the caller
-       (:meth:`MergeOutcomeVerifier._unattributable_content_squash`), which lets
-       it bubble to :meth:`MergeOutcomeVerifier._verify_squash_content`'s
-       ``except GitProbeError`` → REFUSE, the fail-closed outcome for an
-       unevaluable probe. The legitimate clean disjoint-hunk case (each lane's
-       tip IS its own authored blob — no second parent, or a merge commit whose
-       combined diff was empty) passes this guard unchanged.
-    4. Otherwise, simulate the 2-way merge of the two lanes' OWN commits
-       (:func:`~specify_cli.consolidation.git_probes.three_way_merge_blob` — the ONLY
-       inputs are those two commits; git derives their common ancestor, so no
-       third input, e.g. a canceled/removed hunk, can ever be smuggled in) and
-       compare its result for *path* to *target_blob*. A conflicting resolution,
-       a binary conflict, or an absent result path all come back as ``None``
-       from the simulation and compare unequal → ``False``.
+    1. *path* has no :attr:`ApprovedWpCommitSet.path_contributions` entry (no
+       approved lane authored it) → ``False``; nothing is simulated.
+    2. The installed git lacks ``git merge-tree --write-tree`` (git < 2.38) →
+       ``False`` (Decision 3 of #5051: fail closed, no raw ``merge-file`` stand-in).
+    3. Smuggled-tip guard (#5124, closes the reopened #4977 carrier threat): a
+       contribution's ``lane_commit`` is a raw lane TIP and can be a merge commit
+       whose FULL tree carries more than the lane authored at *path*. Each lane's
+       tip-tree blob at *path* must equal its recorded authored blob
+       (:attr:`LaneContribution.authored_blob`); a mismatch → ``False``. A
+       :class:`~specify_cli.consolidation.git_probes.GitProbeError` from that read
+       propagates, so the caller REFUSEs.
+    4. Otherwise fold ``git merge-tree --write-tree`` over the contributing lanes'
+       commits in manifest order and then the target's pre-run tip
+       (:attr:`ApprovedWpCommitSet.excluded_window_base`, content the target
+       already had: a sibling Mission that landed mid-Mission, or the target's
+       own newer edit of the path), with
+       :func:`~specify_cli.consolidation.git_probes.n_way_merge_blob`, and compare
+       *path*'s result with *target_blob*. A conflict at *path* on any step, or an
+       absent result, compares unequal → ``False``.
 
-    This is the PER-SEAM recognizer (research open-item 3): it is intentionally
-    NOT physically shared with Seam B's presence-under-union check — blob-merge
-    and block-presence are conceptually and mechanically distinct questions.
+    Why this is sound for any number of inputs (it was limited to exactly two lanes
+    because a 2-way fold is order-dependent, #5051 Decision 2): a clean three-way
+    merge takes every line of its result from one of its two sides, never from the
+    base, so whatever order the fold uses, a reproduced blob consists only of the
+    approved lanes' authored content and the target's own pre-run content. Order
+    only decides whether a fold conflicts, which attributes less, never more.
+
+    A hand resolution (a conflicted path resolved by an operator) is not
+    reproducible here. It is attributed only when a reviewed merge brought it into an
+    approved lane (``_authoring_merges`` in ``reconciliation_authorship``), and then
+    through ``authored_blobs``, not here.
     """
-    contributions = claim.multi_lane_paths.get(path)
-    if contributions is None:
+    contributions = claim.path_contributions.get(path, ())
+    if not contributions:
         return False
     if not merge_tree_write_tree_available(repo_root):
         return False
-    lane_a, lane_b = contributions
-    for contribution in (lane_a, lane_b):
+    for contribution in contributions:
         if blob_id_at(repo_root, contribution.lane_commit, path) != contribution.authored_blob:
             return False
-    resolved_blob: str | None = three_way_merge_blob(repo_root, lane_a.lane_commit, lane_b.lane_commit, path)
+    inputs = [contribution.lane_commit for contribution in contributions]
+    if claim.excluded_window_base:
+        inputs.append(claim.excluded_window_base)
+    if len(inputs) < 2:
+        return False
+    resolved_blob: str | None = n_way_merge_blob(repo_root, inputs, path)
     return resolved_blob == target_blob
+
+
+#: The #5051 name, kept for callers and tests that import it: the recognizer is N-way now (#7626).
+is_legitimate_three_way_resolution = is_legitimate_merge_resolution
 
 
 def claim_integrity_refusal(claim: ApprovedWpCommitSet) -> str | None:
@@ -1024,5 +1017,6 @@ __all__ = [
     "_refuse_merged_independent_change",
     "_with_attribution_hint",
     "claim_integrity_refusal",
+    "is_legitimate_merge_resolution",
     "is_legitimate_three_way_resolution",
 ]

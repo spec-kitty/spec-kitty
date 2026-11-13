@@ -228,6 +228,7 @@ from specify_cli.consolidation.reconciliation_verifier import (
     _refuse_merged_independent_change as _refuse_merged_independent_change,
     _with_attribution_hint as _with_attribution_hint,
     claim_integrity_refusal as claim_integrity_refusal,
+    is_legitimate_merge_resolution as is_legitimate_merge_resolution,
     is_legitimate_three_way_resolution as is_legitimate_three_way_resolution,
 )
 from specify_cli.consolidation.reconciliation_claim import (

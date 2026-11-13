@@ -51,7 +51,7 @@ merge:
 3. ``spec-kitty merge --resume`` anchors the reconciliation claim to the
    PERSISTED (step 1) pre-fold coordination tip -- never a live re-capture,
    which would by now already reflect the fold -- so
-   ``ApprovedWpCommitSet.authored_blobs`` / ``multi_lane_paths`` are built
+   ``ApprovedWpCommitSet.authored_blobs`` / ``path_contributions`` are built
    from each lane's genuinely isolated commit, exactly the shape T001-T003
    fix.
 
@@ -65,7 +65,7 @@ had to equal EXACTLY ONE approved lane's own final content, byte-for-byte.
 The disjoint-hunk merge's target blob matches NEITHER lane's own blob, so the
 pre-fix axis named it un-attributable and FAILed the gate (CAS-reverting a
 genuinely clean, lossless merge -- NFR-004 false-FAIL). Post-fix,
-``ApprovedWpCommitSet.multi_lane_paths`` (T001) records the two lanes'
+``ApprovedWpCommitSet.path_contributions`` (T001) records the two lanes'
 still-resolvable commits for a path touched by EXACTLY two approved lanes;
 ``is_legitimate_three_way_resolution`` (T003) simulates their deterministic
 ``git merge-tree --write-tree`` resolution (T002) and attributes the target
@@ -146,7 +146,7 @@ def test_5051_adjacent_clean_disjoint_hunk_merge_must_pass(tmp_path: Path) -> No
     fold_lanes_into_mission_branch(mission, _WPS)
 
     # Step 3: resume -- the reconciliation claim anchors to the PERSISTED
-    # pre-fold coordination tip, so ``multi_lane_paths`` sees each lane's
+    # pre-fold coordination tip, so ``path_contributions`` sees each lane's
     # genuinely disjoint, never-combined contribution.
     result = run_terminus(mission, ["consolidate", "--resume", "--mission", mission.slug, "--yes"])
 

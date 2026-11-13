@@ -101,7 +101,7 @@ class ApprovedLaneContent:
 
 @dataclass(frozen=True)
 class LaneContribution:
-    """One approved lane's contribution to a multi-lane-authored content path,
+    """One approved lane's contribution to an authored content path,
     PER (lane, path) — never lane-only.
 
     ``terminus-merge-resolution-attribution`` / FR-009 (widened by the #5124
@@ -118,11 +118,11 @@ class LaneContribution:
     for THIS path (the same value :attr:`ApprovedWpCommitSet.authored_blobs`
     would record for this (lane, path)), read straight from
     :func:`_final_authored_walk` at contribution-build time — never
-    recomputed. :func:`is_legitimate_three_way_resolution` refuses to simulate
+    recomputed. :func:`is_legitimate_merge_resolution` refuses to simulate
     unless each contributing lane's tip-tree blob at *path* equals this value,
     so a merge-commit tip that smuggled extra content can never feed the
     simulation. Used to supply
-    :func:`~specify_cli.consolidation.git_probes.three_way_merge_blob`'s two merge
+    :func:`~specify_cli.consolidation.git_probes.n_way_merge_blob`'s merge
     inputs (via ``lane_commit``) plus the guard check (via ``authored_blob``);
     blob-identity attribution ITSELF (the actual accepted content) continues
     to come from :attr:`ApprovedWpCommitSet.authored_blobs`, never from here.
@@ -199,35 +199,20 @@ class ApprovedWpCommitSet:
     # every ``D`` path as unattributable unless it is bookkeeping, preserving
     # pre-#5022 behavior for any claim that never populates it.
     authored_deletions: frozenset[str] = frozenset()
-    # Merge-resolution-aware Seam A attribution (terminus-merge-resolution-
-    # attribution / #5051-adjacent, FR-009; smuggled-tip guard added by the
-    # #5124 landing fold). For each content path authored by EXACTLY TWO
-    # approved lanes (a path outside the disjoint-write-scope invariant
-    # `_final_authored_walk` documents), the two contributing lanes' PER-PATH
-    # :class:`LaneContribution`s — their still-resolvable pre-squash lane
-    # commit SHAs (which CAN be a merge commit) plus, per (lane, path), the
-    # lane's own first-parent-AUTHORED blob for that path (the guard input
-    # that catches a merge-commit tip smuggling extra content — see
-    # :class:`LaneContribution`). One ``LaneContribution`` is now recorded PER
-    # (lane, path) — never one shared object reused across every path a lane
-    # touches — because the authored blob differs per path.
-    # Populated in the SAME first-parent spine walk that builds
-    # ``authored_blobs`` (:func:`_collect_authored` / :func:`_final_authored_walk`)
-    # — never a second walk. Absent (no key) for a single-lane path (the
-    # existing ``authored_blobs`` fast path already attributes those) and for a
-    # path touched by three-or-more approved lanes (2-way `merge-tree` folding
-    # is order-dependent/nondeterministic for N>2 — Decision 2, ``research.md``
-    # — so those stay fail-closed, never simulated). The "exactly two lanes"
-    # count is still one contribution per (lane, path) — i.e. per lane per
-    # path — so a path is a member iff exactly two DISTINCT lanes recorded a
-    # contribution for it, unchanged by the per-path widening. Supplies
-    # ``is_legitimate_three_way_resolution``'s two merge inputs AND its
-    # fail-closed guard; it never itself supplies the FINAL blob identity that
-    # is attributed — that authority stays with ``authored_blobs``.
-    # Populated by ``_collect_authored`` only in the production claim builder; a
-    # hand-built claim leaves it empty and the merge-resolution recognizer never
-    # fires, preserving pre-widening behavior byte-for-byte.
-    multi_lane_paths: Mapping[str, tuple[LaneContribution, LaneContribution]] = field(default_factory=dict)
+    # Merge-resolution-aware attribution (#5051-adjacent FR-009, widened to N
+    # lanes by #7626). For EVERY content path at least one approved lane authored,
+    # each contributing lane's PER-PATH :class:`LaneContribution`: its
+    # still-resolvable pre-squash lane commit (which CAN be a merge commit) plus
+    # the lane's own authored blob for that path (the smuggled-tip guard input,
+    # see :class:`LaneContribution`). Lanes appear in manifest order. Built in the
+    # SAME spine walk as ``authored_blobs`` (:func:`_collect_authored`), never a
+    # second one. It supplies the inputs of
+    # :func:`~specify_cli.consolidation.reconciliation_verifier.is_legitimate_merge_resolution`
+    # (the approved lanes' commits, folded with the target's pre-run tip) and its
+    # guard; it never itself supplies an attributed blob identity, which stays
+    # with ``authored_blobs``. A hand-built claim leaves it empty, so the
+    # derivation never fires there.
+    path_contributions: Mapping[str, tuple[LaneContribution, ...]] = field(default_factory=dict)
     mission_slug: str | None = None
     # Repo-relative posix path of the mission's planning/status directory
     # (``kitty-specs/<slug>``). A window commit that touches ONLY paths under this

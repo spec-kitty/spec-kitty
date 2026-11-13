@@ -364,7 +364,7 @@ def _build_claim(
     # Authored (WP1/WP2 shared prerequisite): computed BEFORE the excluded axis so
     # #5018's commit-level narrowing (below) can subtract it. Collectors stay pure
     # (WP2 note) — no shared mutable state, just a value threaded as a parameter.
-    authored_shas, authored_patch_ids, authored_blobs, authored_deletions, multi_lane_paths, approved_lane_content = _collect_authored(
+    authored_shas, authored_patch_ids, authored_blobs, authored_deletions, path_contributions, approved_lane_content = _collect_authored(
         repo_root,
         lanes_manifest,
         work_packages,
@@ -393,7 +393,7 @@ def _build_claim(
         authored_patch_ids=authored_patch_ids,
         authored_blobs=authored_blobs,
         authored_deletions=authored_deletions,
-        multi_lane_paths=multi_lane_paths,
+        path_contributions=path_contributions,
         mission_slug=lanes_manifest.mission_slug,
         planning_prefix=planning_prefix,
         canceled_content=canceled_content,
