@@ -279,6 +279,35 @@ def test_recorded_migration_identity_stays_a_reconstruction_seed(tmp_path: Path,
     assert reduces_as_reconstruction_seed(submissions[0]["actor"])
 
 
+def test_caller_reviewer_migration_identity_under_a_binding_is_never_a_seed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6754: an unforced approval asserted by ``--reviewer migration:x --profile p`` (no ``--agent``) is parsed strictly.
+
+    A caller flag is never replayed as a recorded reconstruction seed, also when the dispatch binding
+    rewrites the identity the approval records (WP02 review cycle 2). As on the base: tool ``migration``.
+    """
+    from typer.testing import CliRunner
+
+    from specify_cli.cli.commands.agent.tasks import app as tasks_app
+    from specify_cli.status import is_migration_actor
+    from tests._support.reconstruction_seed import reduces_as_reconstruction_seed
+
+    m = h.build_mission(tmp_path, monkeypatch)
+    h.drive_to_for_review(m)
+    before = len(h.events(m))
+
+    argv = ["move-task", h.WP, "--to", "approved", "--mission", m.mission_slug, "--reviewer", "migration:x", "--profile", "python-pedro", "--note", "ok"]
+    result = CliRunner().invoke(tasks_app, argv)
+
+    assert result.exit_code == 0, result.output
+    approval = _lane(_appended(m, before))[-1]
+    actor = approval["actor"]
+    assert actor == {"tool": "migration", "role": "reviewer", "profile": "python-pedro", "model": "x"}
+    assert not is_migration_actor(actor)
+    assert not reduces_as_reconstruction_seed(actor)
+    # The review fields name the same identity the actor records.
+    assert approval["evidence"]["review"]["reviewer"] == approval["review_result"]["reviewer"] == approval["policy_metadata"]["tool"]
+
+
 def test_forced_migration_review_entry_is_no_claimant_to_replay(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#7569: a forced ``migration:`` entry into ``in_review`` names no reviewer, so an approval without
     ``--agent`` is refused (``REVIEW_NOT_INDEPENDENT``) instead of recording the seed as the reviewer, and
