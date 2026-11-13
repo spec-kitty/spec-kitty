@@ -335,6 +335,95 @@ def test_forced_approval_is_not_judged_by_the_cycle_probe(tmp_path: Path, monkey
     assert _latest(feature_dir, "approved")["evidence"]["review"]["reference"] == "force-override"
 
 
+def _forced_approval_then_reopened_and_reclaimed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, suffix: str) -> tuple[Path, str]:
+    """Forced approval, a rejection that writes and references cycle 1, rework, and a new unforced claim.
+
+    The rework and the claim are seeded AFTER the real clock: the status fold orders by wall clock,
+    and the CLI stamps its own moves with the real clock, so hops seeded at the fixture's fixed 2026-01
+    dates would sort before the rejection and leave the work package in ``planned``.
+    """
+    from datetime import UTC, datetime, timedelta
+
+    from specify_cli.status import Lane
+    from specify_cli.status.models import StatusEvent
+    from tests._support.status_seed import seed_status_event
+    from tests.specify_cli.cli.commands.agent.test_verdict_attribution_4670 import _seed_hops
+
+    repo, feature_dir, mission_slug = _claimed_mission(tmp_path, monkeypatch, suffix)
+    forced = _move(["WP01", "--to", "approved", "--mission", mission_slug, "--force", "--agent", _CLAIMANT, "--note", "operator override"])
+    assert forced.exit_code == 0, forced.output
+    feedback = repo.parent / f"{suffix}-feedback.md"
+    feedback.write_text("**Issue 1**: rework the core.\n", encoding="utf-8")
+    reopened = _move(
+        [
+            "WP01",
+            "--to",
+            "planned",
+            "--mission",
+            mission_slug,
+            "--force",
+            "--agent",
+            _CLAIMANT,
+            "--review-feedback-file",
+            str(feedback),
+            "--note",
+            "reopen for rework",
+        ]
+    )
+    assert reopened.exit_code == 0, reopened.output
+    assert _cycles(feature_dir) == ["review-cycle-1.md"]
+
+    later = datetime.now(UTC) + timedelta(days=1)
+    _seed_hops(
+        feature_dir,
+        mission_slug,
+        [(Lane.PLANNED, Lane.CLAIMED), (Lane.CLAIMED, Lane.IN_PROGRESS), (Lane.IN_PROGRESS, Lane.FOR_REVIEW)],
+        at_day=later.date().isoformat(),
+    )
+    seed_status_event(
+        feature_dir,
+        StatusEvent(
+            event_id="claim-after-rework",
+            mission_slug=mission_slug,
+            wp_id="WP01",
+            from_lane=Lane.FOR_REVIEW,
+            to_lane=Lane.IN_REVIEW,
+            at=(later + timedelta(days=1)).isoformat(),
+            actor=_CLAIMANT,
+            force=False,
+            execution_mode="worktree",
+        ),
+    )
+    return feature_dir, mission_slug
+
+
+def test_forced_approval_earlier_in_history_does_not_switch_adoption_off(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """WP03 review cycle 1, B1: a forced approval writes no cycle (FR-006), so it leaves no ambiguity.
+    The reviewer's cycle 2 is adopted; red before the fix, which wrote review-cycle-3.md too (#7571)."""
+    feature_dir, mission_slug = _forced_approval_then_reopened_and_reclaimed(tmp_path, monkeypatch, "forced-then-adopt")
+    _write_reviewer_cycle(feature_dir, mission_slug, 2)
+
+    result = _move(["WP01", "--to", "approved", "--mission", mission_slug, "--agent", _CLAIMANT, "--note", "Review passed"])
+
+    assert result.exit_code == 0, result.output
+    assert _cycles(feature_dir) == ["review-cycle-1.md", "review-cycle-2.md"]
+    assert _references(_latest(feature_dir, "approved")) == {_pointer(mission_slug, 2)}
+
+
+def test_forced_approval_earlier_in_history_still_refuses_a_non_adoptable_cycle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """FR-014 on the same history: another identity's post-claim cycle refuses, nothing written."""
+    feature_dir, mission_slug = _forced_approval_then_reopened_and_reclaimed(tmp_path, monkeypatch, "forced-then-refuse")
+    _write_reviewer_cycle(feature_dir, mission_slug, 2, reviewer="codex:gpt-5:reviewer-renata")
+    events_before = (feature_dir / "status.events.jsonl").read_bytes()
+
+    result = _move(["WP01", "--to", "approved", "--mission", mission_slug, "--agent", _CLAIMANT, "--note", "Review passed"])
+
+    assert result.exit_code != 0
+    assert _NOT_ADOPTABLE in _output(result)
+    assert _cycles(feature_dir) == ["review-cycle-1.md", "review-cycle-2.md"]
+    assert (feature_dir / "status.events.jsonl").read_bytes() == events_before
+
+
 # ---------------------------------------------------------------------------
 # #6652 feedback-file leg, FR-006 forced moves, FR-012 pins, honest body
 # ---------------------------------------------------------------------------
