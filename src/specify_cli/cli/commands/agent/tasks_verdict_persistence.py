@@ -70,7 +70,7 @@ from __future__ import annotations
 
 import re
 import shlex
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, NoReturn
@@ -889,24 +889,45 @@ def _approval_reviewer_agent(st: _MoveTaskState) -> str:
     return (bound or st.reviewer or st.agent or st.actor or "unknown").strip() or "unknown"
 
 
-def _wp_events(st: _MoveTaskState) -> list[StatusEvent]:
-    """The Mission's status events, read through the same transactional door as every move-task read."""
+@dataclass(frozen=True)
+class ReviewCycleInputs:
+    """What a review approval's cycle checks read, once per move (#7571, T017).
+
+    The work package's task-directory slug, its status events (the transactional read every
+    move-task read uses) and its ``review-cycle-N.md`` files on every read surface. The guard
+    (:func:`_mt_require_honest_review_cycle`) reads them and leaves them on the move; the approval
+    writer reuses them, so one approval scans once.
+    """
+
+    wp_slug: str
+    events: tuple[StatusEvent, ...]
+    files: Mapping[int, Path]
+
+
+def _review_cycle_inputs(st: _MoveTaskState) -> ReviewCycleInputs:
+    """The move's :class:`ReviewCycleInputs`, read on first use and kept on the move."""
+    if st.review_cycle_inputs is not None:
+        return st.review_cycle_inputs
     from specify_cli.cli.commands.agent import tasks as _tasks
 
-    events: list[StatusEvent] = _tasks.read_events_transactional(
-        feature_dir=st.feature_dir, mission_slug=st.mission_slug, repo_root=st.main_repo_root, owned=st.owned
+    wp_slug = _approval_wp_slug(st)
+    events = _tasks.read_events_transactional(feature_dir=st.feature_dir, mission_slug=st.mission_slug, repo_root=st.main_repo_root, owned=st.owned)
+    st.review_cycle_inputs = ReviewCycleInputs(
+        wp_slug=wp_slug,
+        events=tuple(events),
+        files=review_cycle_files_for_wp(st.main_repo_root, st.mission_slug, wp_slug, owned=st.owned),
     )
-    return events
+    return st.review_cycle_inputs
 
 
-def _approval_cycle_probe(st: _MoveTaskState, wp_slug: str, events: Sequence[StatusEvent]) -> AdoptionResult:
+def _approval_cycle_probe(st: _MoveTaskState, inputs: ReviewCycleInputs) -> AdoptionResult:
     """Run the adoption probe (#7571) over the work package's cycles and its event log."""
     return find_adoptable_review_cycle(
-        files=review_cycle_files_for_wp(st.main_repo_root, st.mission_slug, wp_slug, owned=st.owned),
-        events=events,
+        files=inputs.files,
+        events=inputs.events,
         wp_id=st.task_id,
         mission_slug=st.mission_slug,
-        wp_slug=wp_slug,
+        wp_slug=inputs.wp_slug,
         reviewer_of_record=_approval_reviewer_agent(st),
     )
 
@@ -934,21 +955,20 @@ def _mt_require_honest_review_cycle(st: _MoveTaskState) -> None:
       approval cannot adopt (invalid, or another identity's), when the approval would write one.
 
     Called from ``tasks_move_task._mt_require_independent_approval``, which runs before every
-    review-cycle write. The writer re-runs the adoption probe itself (a listing and a few reads),
-    so no probe state rides on the move.
+    review-cycle write. The inputs it reads stay on the move for the writer
+    (:class:`ReviewCycleInputs`).
     """
     if not _is_review_approval(st):
         return
     from mission_runtime import ActionContextError
 
-    wp_slug = _approval_wp_slug(st)
-    events = _wp_events(st)
+    inputs = _review_cycle_inputs(st)
     refusal = verify_cycle_citation(
-        files=review_cycle_files_for_wp(st.main_repo_root, st.mission_slug, wp_slug, owned=st.owned),
-        events=events,
+        files=inputs.files,
+        events=inputs.events,
         wp_id=st.task_id,
         mission_slug=st.mission_slug,
-        wp_slug=wp_slug,
+        wp_slug=inputs.wp_slug,
         approval_ref=st.approval_ref,
         note=st.note,
     )
@@ -956,20 +976,20 @@ def _mt_require_honest_review_cycle(st: _MoveTaskState) -> None:
         raise ActionContextError(REVIEW_CYCLE_CITATION_MISSING, refusal)
     if not _adopts_a_cycle(st):
         return
-    adoption = _approval_cycle_probe(st, wp_slug, events)
+    adoption = _approval_cycle_probe(st, inputs)
     if adoption.kind == "not_adoptable":
         raise ActionContextError(REVIEW_CYCLE_NOT_ADOPTABLE, not_adoptable_message(st.task_id, adoption))
 
 
-def _adopt_reviewer_cycle(st: _MoveTaskState, wp_slug: str, events: Sequence[StatusEvent]) -> VerdictDurabilitySignal | None:
+def _adopt_reviewer_cycle(st: _MoveTaskState, inputs: ReviewCycleInputs | None) -> VerdictDurabilitySignal | None:
     """FR-008: reference the cycle the reviewer already wrote, writing nothing; ``None`` when there is none.
 
     The signal is marked ``adopted``, so ``revert_committed_verdict_write`` never deletes or reverts
     the reviewer's file. A file not committed at the governed ref is reported local-only.
     """
-    if not _adopts_a_cycle(st):
+    if inputs is None or not _adopts_a_cycle(st):
         return None
-    adoption = _approval_cycle_probe(st, wp_slug, events)
+    adoption = _approval_cycle_probe(st, inputs)
     if adoption.kind != "adopt":
         return None
     import typer
@@ -1046,14 +1066,15 @@ def _persist_approved_review_cycle(st: _MoveTaskState, ports: TasksPorts) -> Ver
     if skip_reason is not None:
         _warn_feedback_file_not_recorded(st, skip_reason)
         return None
-    wp_slug = _approval_wp_slug(st)
-    # A review approval reads the log once: for adoption (FR-008) and for the cycles a recorded
-    # verdict already answered, which the writer never adopts as retained evidence (FR-009).
-    events: Sequence[StatusEvent] = _wp_events(st) if _is_review_approval(st) else ()
-    adopted = _adopt_reviewer_cycle(st, wp_slug, events)
+    # A review approval reads its inputs once (kept on the move by the guard): for adoption (FR-008)
+    # and for the cycles a recorded verdict already answered, which the writer never adopts as
+    # retained evidence (FR-009).
+    inputs = _review_cycle_inputs(st) if _is_review_approval(st) else None
+    wp_slug = inputs.wp_slug if inputs is not None else _approval_wp_slug(st)
+    adopted = _adopt_reviewer_cycle(st, inputs)
     if adopted is not None:
         return adopted
-    answered_cycles = cycle_numbers_referenced(events, st.task_id)
+    answered_cycles = cycle_numbers_referenced(inputs.events if inputs is not None else (), st.task_id)
     # FR-007 (T2, brownfield gap closed): a genuine first-pass approval writes its
     # ``review-cycle-N.md`` evidence artifact through the one writer
     # (``create_review_cycle``, imported under its alias), verdict ``approved``.

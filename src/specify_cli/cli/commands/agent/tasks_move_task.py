@@ -106,6 +106,7 @@ from specify_cli.cli.commands.agent.tasks_transition_core import (
     is_review_rejection_edge,
 )
 from specify_cli.cli.commands.agent.tasks_verdict_persistence import (
+    ReviewCycleInputs,
     VerdictDurabilitySignal,
     VerdictPersistenceFailure,
     VerdictRevertCompoundFailure,
@@ -467,6 +468,8 @@ class _MoveTaskState:
     # whether T048's revert-compensator has anything to undo after a later
     # ``_mt_execute`` failure.
     pending_verdict_write: VerdictDurabilitySignal | None = None
+    #: #7571 (WP03 leeway): the review-cycle inputs the honest-cycle guard read, reused by the approval writer.
+    review_cycle_inputs: ReviewCycleInputs | None = None
     # True immediately after the first durable status hop. Later failures must
     # report partial application and retain any verdict referenced by that hop.
     transition_applied: bool = False
