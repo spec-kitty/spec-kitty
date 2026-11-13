@@ -115,10 +115,22 @@
       "last_event_id": "01M79GZPBF2VS28539RV3VW2NH",
       "last_transition_at": "2026-11-13T03:59:52.983853+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-13T04:29:47Z – claude – shell_pid=13310 – T013 red-first 8cb857b4 (74 fail/5 pass on ed48e678). T014-T017 in d33a745b: create_review_cycle + alias; adoption probe and citation verifier in review/cycle.py; forced moves write no cycle; honest body; refusals before any write via one call line in _mt_require_independent_approval (leeway). FR-009 also needed: retained-evidence adoption skips referenced cycles and the 'already approved' skip no longer applies to a review approval. Leeway: xfail removed (XPASS), topology [done] re-pinned (forced move writes no cycle), format_stamp + dead mints removed.",
+        "- 2026-11-13T06:47:51Z – claude – shell_pid=13310 – Validation at 08ee8918: agent dir 3258 passed/0 failed (-n 8 loadfile); tests/review+tests/status+tests/kernel green; tests/contract 1951 setup errors = SERVICE_BINARY_MISSING (env), identical on origin main 89217ac8; 45 integration files touching cycles/approvals all green (per-file); gates untrusted_path_containment, status_state_read_dir_single_authority, no_dead_symbols, verdict_vocab_single_source, layer_rules, status_read_single_door green; fast tier 3037 passed. NFR-001 (4670 fixture, median of 5): base 0.288/0.274 s, tip 0.286/0.290 s. Design calls: legacy log with a verdict naming no cycle -> probe adopts and refuses nothing; refusal JSON carries the code as the error prefix (no separate code field: WP04 contract row); inputs kept on st via review_cycle_inputs field (leeway)."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 13310,
-      "shell_pid_created_at": "1794542371.83"
+      "shell_pid_created_at": "1794542371.83",
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
     },
     "WP04": {
       "actor": "finalize-tasks",
