@@ -48,7 +48,7 @@ from specify_cli.git.ref_advance import (
     worktrees_with_branch_checked_out,
 )
 from specify_cli.consolidation.git_probes import GitProbeError, _paths_have_status_changes, is_ancestor_strict
-from specify_cli.consolidation.landed_coordination import LandedCoordinationRefError, record_landed_coordination_tip
+from specify_cli.consolidation.landed_coordination import LandedCoordinationRefError, clear_landed_coordination_tip, record_landed_coordination_tip
 from specify_cli.consolidation import lane_cleanup
 from specify_cli.consolidation.lane_cleanup import (
     LaneCleanupReport,
@@ -1049,7 +1049,20 @@ def _teardown_coordination_triple(run: _MergeRunState) -> None:
     refusal = _refused_mission_branch_delete(run, approved_tip)
     if refusal is not None:
         raise CoordinationTeardownError(_branch_kept_after_teardown_message(run, refusal))
+    _clear_landed_coordination_ref(run)
     _flatten_coordination_metadata_after_branch_delete(run)
+
+
+def _clear_landed_coordination_ref(run: _MergeRunState) -> None:
+    """Best effort: drop the landed-coordination ref of the branch the teardown just deleted.
+
+    The ref only serves a later reclaim of a KEPT coordination branch (#4041); once the branch is
+    gone it would pin the dead branch's commits forever. Like the lane-tip ref of a cleaned lane, a
+    failure is logged at warning and never fails the landing.
+    """
+    branch = run.lanes_manifest.mission_branch
+    if not clear_landed_coordination_tip(run.main_repo, branch):
+        logger.warning("Could not clear the landed coordination tip of %s; delete refs/spec-kitty/landed-coordination/%s by hand.", branch, branch)
 
 
 def _branch_kept_after_teardown_message(run: _MergeRunState, refusal: str) -> str:
