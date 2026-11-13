@@ -41,14 +41,15 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
     ("rel", "slug"),
     [
         ("guides/x.md", "guides/x"),
-        ("adr/4.x/index.md", "adr/4.x"),
+        ("adr/4.x/README.md", "adr/4.x"),
         ("architecture/README.md", "architecture"),
-        ("index.md", ""),
         ("README.md", ""),
         ("guides/index-of-things.md", "guides/index-of-things"),
         ("Guides/Mixed.md", "Guides/Mixed"),
         ("guides/Readme.md", "guides"),
-        ("guides/INDEX.md", "guides"),
+        ("guides/README-1.x.md", "guides/README-1.x"),
+        # #6939: ``index.md`` is no section index any more; it would build as its own page.
+        ("guides/index.md", "guides/index"),
     ],
 )
 def test_slug_of(rel: str, slug: str) -> None:
@@ -96,31 +97,33 @@ def _touch(root: Path, rel: str) -> None:
     path.write_text("---\ntitle: t\n---\n", encoding="utf-8")
 
 
-def test_page_for_slug_prefers_file_then_readme_then_index(tmp_path: Path) -> None:
+def test_page_for_slug_prefers_file_then_readme(tmp_path: Path) -> None:
     _touch(tmp_path, "a.md")
     _touch(tmp_path, "b/README.md")
-    _touch(tmp_path, "c/index.md")
-    _touch(tmp_path, "index.md")
+    _touch(tmp_path, "c/README.md")
+    _touch(tmp_path, "d/index.md")
+    _touch(tmp_path, "README.md")
     assert page_for_slug(tmp_path, "a") == tmp_path / "a.md"
     assert page_for_slug(tmp_path, "b") == tmp_path / "b/README.md"
-    assert page_for_slug(tmp_path, "c/") == tmp_path / "c/index.md"
-    assert page_for_slug(tmp_path, "") == tmp_path / "index.md"
+    assert page_for_slug(tmp_path, "c/") == tmp_path / "c/README.md"
+    assert page_for_slug(tmp_path, "") == tmp_path / "README.md"
+    assert page_for_slug(tmp_path, "d") is None  # #6939: an index.md is no section index
     assert page_for_slug(tmp_path, "missing") is None
     assert page_for_slug(tmp_path, "a/deeper") is None
 
 
 def test_page_for_slug_finds_an_index_in_any_case(tmp_path: Path) -> None:
     _touch(tmp_path, "d/Readme.md")
-    _touch(tmp_path, "e/INDEX.md")
+    _touch(tmp_path, "e/readme.md")
     assert page_for_slug(tmp_path, "d") == tmp_path / "d/Readme.md"
-    assert page_for_slug(tmp_path, "e") == tmp_path / "e/INDEX.md"
+    assert page_for_slug(tmp_path, "e") == tmp_path / "e/readme.md"
 
 
 def test_persona_resolution(tmp_path: Path) -> None:
     _touch(tmp_path, "context/audience/internal/maintainer.md")
-    _touch(tmp_path, "context/audience/external/index.md")
+    _touch(tmp_path, "context/audience/external/README.md")
     assert persona_page(tmp_path, "internal/maintainer") == tmp_path / "context/audience/internal/maintainer.md"
-    assert persona_page(tmp_path, "external") == tmp_path / "context/audience/external/index.md"
+    assert persona_page(tmp_path, "external") == tmp_path / "context/audience/external/README.md"
     assert persona_page(tmp_path, "internal/ghost") is None
     assert persona_page(tmp_path, "") is None
     assert persona_page(tmp_path, "../secrets") is None
@@ -144,7 +147,7 @@ def test_profile_of_persona_path(value: str, profile: str | None) -> None:
     ("rel", "adr", "immutable"),
     [
         ("adr/4.x/2026-10-31-1-x.md", True, True),
-        ("adr/4.x/index.md", False, False),
+        ("adr/4.x/README.md", False, False),
         ("adr/1.x/README.md", False, False),
         ("plans/x.md", False, True),
         ("reports/x.md", False, True),
@@ -338,7 +341,7 @@ def _page_at(root: Path, rel: str, frontmatter: str | None) -> None:
 
 @pytest.fixture
 def docs_tree(tmp_path: Path) -> Path:
-    _page_at(tmp_path, "index.md", "doc_status: active\n")
+    _page_at(tmp_path, "README.md", "doc_status: active\n")
     _page_at(tmp_path, "guides/live.md", "doc_status: active\n")
     _page_at(tmp_path, "guides/old.md", "doc_status: 'deprecated'\n")
     _page_at(tmp_path, "guides/wip.md", "doc_status: draft\n")
@@ -369,7 +372,7 @@ def test_published_pages_are_the_pages_not_in_unpublished_routes(docs_tree: Path
     """``published_pages`` is the complement of ``unpublished_routes`` over the tree's pages (#6943)."""
     published = contract.published_pages(docs_tree)
 
-    assert published == frozenset({"index.md", "guides/live.md", "guides/old.md", "plans/roadmap.md"})
+    assert published == frozenset({"README.md", "guides/live.md", "guides/old.md", "plans/roadmap.md"})
     every_route = {contract.route_of(path.relative_to(docs_tree).as_posix()) for path in docs_tree.rglob("*.md")}
     published_routes = {contract.route_of(rel) for rel in published}
     assert published_routes.isdisjoint(contract.unpublished_routes(docs_tree))
@@ -387,7 +390,7 @@ def test_a_status_key_nested_under_another_key_does_not_publish_a_page(docs_tree
     [
         ("plans/engineering-notes/x.md", True),
         ("plans/investigations/a/b.md", True),
-        ("plans/research/index.md", True),
+        ("plans/research/README.md", True),
         ("plans/research-notes.md", False),
         ("plans/roadmap.md", False),
         ("guides/engineering-notes/x.md", False),
@@ -400,7 +403,7 @@ def test_is_in_draft_folder(rel: str, in_draft_folder: bool) -> None:
 def test_route_of_matches_the_built_directory_route() -> None:
     assert contract.route_of("guides/x.md") == "/guides/x/"
     assert contract.route_of("adr/4.x/README.md") == "/adr/4.x/"
-    assert contract.route_of("index.md") == "/"
+    assert contract.route_of("README.md") == "/"
 
 
 def test_the_generated_llms_txt_is_the_only_one() -> None:

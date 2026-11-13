@@ -30,7 +30,7 @@ def repo(tmp_path: Path) -> Path:
     """A tiny repository: personas, published/draft/excluded pages, an ADR and a non-docs file."""
     _write(tmp_path, _MAINTAINER, "---\ntitle: 'Stakeholder Persona: Maintainer'\ndoc_status: active\n---\n")
     _write(tmp_path, "docs/guides/a.md", "---\ntitle: A\ndoc_status: active\ntype: how-to\n---\n")
-    _write(tmp_path, "docs/guides/index.md", "---\ntitle: Guides\ndoc_status: active\n---\n")
+    _write(tmp_path, "docs/guides/README.md", "---\ntitle: Guides\ndoc_status: active\n---\n")
     _write(tmp_path, "docs/plans/notes.md", "---\ntitle: Notes\ndoc_status: draft\n---\n")
     _write(tmp_path, "docs/archive/old.md", "---\ntitle: Old\ndoc_status: deprecated\n---\n")
     _write(tmp_path, "docs/adr/4.x/2026-01-01-1-x.md", "---\ntitle: X\nstatus: Proposed\ndate: '2026-01-01'\n---\nbody\n")
@@ -100,15 +100,23 @@ def test_adr_with_conflicting_doc_status_fails_closed(repo: Path) -> None:
 
 def test_adr_era_index_is_not_an_adr(repo: Path) -> None:
     text = "---\ntitle: ADRs\nstatus: whatever\n---\n"
-    assert _migrate(repo, "adr/4.x/index.md", text)[0] == text
+    assert _migrate(repo, "adr/4.x/README.md", text)[0] == text
 
 
 # --- related ----------------------------------------------------------------
 
 
+def test_an_old_shape_path_to_a_renamed_section_index_names_its_readme(repo: Path) -> None:
+    """#6939: an old-shape ``related`` path written before the rename still finds the section index."""
+    text = "---\ntitle: P\ndoc_status: active\nrelated:\n- docs/guides/index.md\n- docs/ghost/index.md\ndescription: d\n---\n"
+    out, report = _migrate(repo, "guides/p.md", text)
+    assert parse_frontmatter(out)["related"] == ["guides"]
+    assert report.dropped_references == [{"from": "docs/guides/p.md", "to": "docs/ghost/index.md"}]
+
+
 def test_related_published_pages_become_slugs_and_the_rest_external(repo: Path) -> None:
     text = (
-        "---\ntitle: P\ndoc_status: active\nrelated:\n- docs/guides/a.md\n- docs/guides/index.md\n"
+        "---\ntitle: P\ndoc_status: active\nrelated:\n- docs/guides/a.md\n- docs/guides/README.md\n"
         "- docs/adr/4.x/2026-01-01-1-x.md\n- docs/plans/notes.md\n- docs/archive/old.md\n- pyproject.toml\n"
         "- tests\n- docs/gone.md\n- guides/a\n- {ref: guides, note: n}\ndescription: d\n---\n"
     )
@@ -170,8 +178,8 @@ def test_related_of_an_unknown_shape_fails_closed(repo: Path, bad: str) -> None:
 
 
 def test_root_page_is_the_empty_slug_and_stays_stable(repo: Path) -> None:
-    _write(repo, "docs/index.md", "---\ntitle: Home\ndoc_status: active\n---\n")
-    out, _ = _migrate(repo, "guides/p.md", "---\ntitle: P\ndoc_status: active\nrelated:\n- docs/index.md\n---\n")
+    _write(repo, "docs/README.md", "---\ntitle: Home\ndoc_status: active\n---\n")
+    out, _ = _migrate(repo, "guides/p.md", "---\ntitle: P\ndoc_status: active\nrelated:\n- docs/README.md\n---\n")
     assert parse_frontmatter(out)["related"] == [""]
     assert _migrate(repo, "guides/p.md", out)[0] == out
 
@@ -227,16 +235,17 @@ def test_mixed_line_endings_are_refused(repo: Path) -> None:
 
 @pytest.mark.parametrize(
     "rel",
-    ["adr/1.x/README.md", "architecture/README.md", "changelog/unreleased/1.fixed.md"],
+    ["changelog/unreleased/1.fixed.md", "archive/plans/x.md", "reports/r/README.md"],
 )
 def test_skipped_files_are_never_edited(repo: Path, rel: str) -> None:
     text = f"---\ntitle: S\naudience: {_MAINTAINER}\n---\n"
     assert _migrate(repo, rel, text)[0] == text
 
 
-def test_adr_era_index_frontmatter_is_migrated(repo: Path) -> None:
-    """The era table rows are bot-owned; the page's frontmatter is not, so it is migrated."""
-    out = _migrate(repo, "adr/4.x/index.md", f"---\ntitle: ADRs\naudience: {_MAINTAINER}\n---\n| table |\n")[0]
+@pytest.mark.parametrize("rel", ["adr/4.x/README.md", "adr/1.x/README.md", "architecture/README.md"])
+def test_section_index_frontmatter_is_migrated(repo: Path, rel: str) -> None:
+    """A section index (#6939: the four #6928 folders too) is migrated; only era table rows are bot-owned."""
+    out = _migrate(repo, rel, f"---\ntitle: ADRs\naudience: {_MAINTAINER}\n---\n| table |\n")[0]
     assert parse_frontmatter(out)["audience"][0]["profile"] == "internal/maintainer"
     assert out.endswith("---\n| table |\n")
 
@@ -279,8 +288,8 @@ def _migrate_d7(repo: Path, rel: str, text: str) -> tuple[str, mig.MigrationRepo
 @pytest.mark.parametrize(
     ("rel", "frontmatter", "kind"),
     [
-        ("guides/index.md", {"type": "how-to"}, "Hub"),
-        ("adr/4.x/index.md", {}, "Hub"),
+        ("guides/README.md", {"type": "how-to"}, "Hub"),
+        ("adr/4.x/README.md", {}, "Hub"),
         ("guides/Readme.md", {}, "Hub"),
         ("adr/4.x/2026-01-01-1-x.md", {"type": "reference"}, "ADR"),
         ("guides/x.md", {"type": "tutorial"}, "Tutorial"),

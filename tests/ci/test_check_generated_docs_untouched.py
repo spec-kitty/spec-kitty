@@ -23,9 +23,9 @@ REPO = "spec-kitty/spec-kitty"
 
 _NEW_ROW_DIFF = dedent(
     """\
-    diff --git a/docs/adr/4.x/index.md b/docs/adr/4.x/index.md
-    --- a/docs/adr/4.x/index.md
-    +++ b/docs/adr/4.x/index.md
+    diff --git a/docs/adr/4.x/README.md b/docs/adr/4.x/README.md
+    --- a/docs/adr/4.x/README.md
+    +++ b/docs/adr/4.x/README.md
     @@ -40,0 +41 @@
     +| 2026-11-01 | [New decision](2026-11-01-1-new-decision.md) |
     """
@@ -33,9 +33,9 @@ _NEW_ROW_DIFF = dedent(
 
 _EDITED_ROW_DIFF = dedent(
     """\
-    diff --git a/docs/adr/4.x/index.md b/docs/adr/4.x/index.md
-    --- a/docs/adr/4.x/index.md
-    +++ b/docs/adr/4.x/index.md
+    diff --git a/docs/adr/4.x/README.md b/docs/adr/4.x/README.md
+    --- a/docs/adr/4.x/README.md
+    +++ b/docs/adr/4.x/README.md
     @@ -41 +41 @@
     -| 2026-10-01 | [Old title](2026-10-01-1-x.md) |
     +| 2026-10-01 | [Fixed title](2026-10-01-1-x.md) |
@@ -44,9 +44,9 @@ _EDITED_ROW_DIFF = dedent(
 
 _PROSE_DIFF = dedent(
     """\
-    diff --git a/docs/adr/4.x/index.md b/docs/adr/4.x/index.md
-    --- a/docs/adr/4.x/index.md
-    +++ b/docs/adr/4.x/index.md
+    diff --git a/docs/adr/4.x/README.md b/docs/adr/4.x/README.md
+    --- a/docs/adr/4.x/README.md
+    +++ b/docs/adr/4.x/README.md
     @@ -30 +30 @@
     -Run the freshener in your PR.
     +The bot adds rows after merge; see [the guide](../../development/how-to/pr-landing.md).
@@ -75,13 +75,57 @@ def test_editing_a_generated_file_is_a_violation() -> None:
 
 
 def test_a_new_era_table_row_is_a_violation() -> None:
-    assert guard.new_era_rows(_NEW_ROW_DIFF) == {"docs/adr/4.x/index.md": ["2026-11-01-1-new-decision.md"]}
-    assert guard.violations(["docs/adr/4.x/index.md"], _NEW_ROW_DIFF) == ["docs/adr/4.x/index.md: new ADR era table row(s) for 2026-11-01-1-new-decision.md"]
+    assert guard.new_era_rows(_NEW_ROW_DIFF) == {"docs/adr/4.x/README.md": ["2026-11-01-1-new-decision.md"]}
+    assert guard.violations(["docs/adr/4.x/README.md"], _NEW_ROW_DIFF) == ["docs/adr/4.x/README.md: new ADR era table row(s) for 2026-11-01-1-new-decision.md"]
+
+
+_MOVED_TABLE_DIFF = dedent(
+    """\
+    diff --git a/docs/adr/4.x/index.md b/docs/adr/4.x/index.md
+    deleted file mode 100644
+    --- a/docs/adr/4.x/index.md
+    +++ /dev/null
+    @@ -1,2 +0,0 @@
+    -| 2026-10-01 | [A decision](2026-10-01-1-x.md) |
+    -| 2026-10-02 | [Another](2026-10-02-1-y.md) |
+    diff --git a/docs/adr/4.x/README.md b/docs/adr/4.x/README.md
+    new file mode 100644
+    --- /dev/null
+    +++ b/docs/adr/4.x/README.md
+    @@ -0,0 +1,2 @@
+    +| 2026-10-01 | [A decision](2026-10-01-1-x.md) |
+    +| 2026-10-02 | [Another](2026-10-02-1-y.md) |
+    """
+)
+
+
+def test_moving_the_era_table_to_another_landing_file_adds_no_row() -> None:
+    """#6939: ``index.md -> README.md`` without rename detection is a delete plus an add in one era folder."""
+    assert guard.new_era_rows(_MOVED_TABLE_DIFF) == {}
+
+
+def test_a_row_added_while_the_table_moves_is_still_a_violation() -> None:
+    diff = _MOVED_TABLE_DIFF + "+| 2026-11-01 | [New](2026-11-01-1-new.md) |\n"
+    assert guard.new_era_rows(diff) == {"docs/adr/4.x/README.md": ["2026-11-01-1-new.md"]}
+
+
+def test_a_row_removed_in_another_era_does_not_excuse_a_new_row() -> None:
+    """Rows are matched per era folder: a 3.x removal never offsets a 4.x addition."""
+    removed_in_3x = dedent(
+        """\
+        diff --git a/docs/adr/3.x/README.md b/docs/adr/3.x/README.md
+        --- a/docs/adr/3.x/README.md
+        +++ b/docs/adr/3.x/README.md
+        @@ -9 +8,0 @@
+        -| 2026-11-01 | [Misfiled](2026-11-01-1-new-decision.md) |
+        """
+    )
+    assert guard.new_era_rows(removed_in_3x + _NEW_ROW_DIFF) == {"docs/adr/4.x/README.md": ["2026-11-01-1-new-decision.md"]}
 
 
 @pytest.mark.parametrize("diff", [_EDITED_ROW_DIFF, _PROSE_DIFF, _NON_ERA_ROW_DIFF, ""])
 def test_row_edits_prose_and_other_pages_are_allowed(diff: str) -> None:
-    assert guard.violations(["docs/adr/4.x/index.md", "docs/adr/4.x/2026-11-01-1-new.md"], diff) == []
+    assert guard.violations(["docs/adr/4.x/README.md", "docs/adr/4.x/2026-11-01-1-new.md"], diff) == []
 
 
 @pytest.mark.parametrize(
@@ -129,7 +173,7 @@ def pr_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     (root / "docs" / "development").mkdir(parents=True)
     (root / "docs" / "adr" / "4.x").mkdir(parents=True)
     (root / DOCS_INDEX_PATH).write_text("[]\n", encoding="utf-8")
-    (root / "docs" / "adr" / "4.x" / "index.md").write_text("| Date | Title |\n|---|---|\n", encoding="utf-8")
+    (root / "docs" / "adr" / "4.x" / "README.md").write_text("| Date | Title |\n|---|---|\n", encoding="utf-8")
     _git(root, "init", "-q", "-b", "main")
     _git(root, "add", "-A")
     _git(root, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "base")
@@ -158,7 +202,7 @@ def test_main_refuses_a_pr_that_edits_the_index(pr_repo: Path, capsys: pytest.Ca
 
 
 def test_main_refuses_a_pr_that_adds_an_era_row(pr_repo: Path) -> None:
-    index = pr_repo / "docs" / "adr" / "4.x" / "index.md"
+    index = pr_repo / "docs" / "adr" / "4.x" / "README.md"
     index.write_text(index.read_text(encoding="utf-8") + "| 2026-11-01 | [New](2026-11-01-1-new.md) |\n", encoding="utf-8")
     _commit(pr_repo)
     assert guard.main() == 1
@@ -189,3 +233,15 @@ def test_main_fails_closed_without_a_parent_commit(pr_repo: Path, monkeypatch: p
     with pytest.raises(SystemExit) as excinfo:  # the seed commit has no HEAD^1
         guard.main()
     assert excinfo.value.code == 1
+
+
+def test_main_passes_a_pr_that_renames_the_era_index(pr_repo: Path) -> None:
+    """#6939 on a real history: ``git mv index.md README.md`` with its rows is not a new row."""
+    era = pr_repo / "docs" / "adr" / "4.x"
+    (era / "README.md").write_text("| Date | Title |\n|---|---|\n| 2026-10-01 | [A](2026-10-01-1-a.md) |\n", encoding="utf-8")
+    _commit(pr_repo)
+    _git(pr_repo, "mv", "docs/adr/4.x/README.md", "docs/adr/4.x/index.md")
+    _commit(pr_repo)
+    _git(pr_repo, "mv", "docs/adr/4.x/index.md", "docs/adr/4.x/README.md")
+    _commit(pr_repo)
+    assert guard.main() == 0

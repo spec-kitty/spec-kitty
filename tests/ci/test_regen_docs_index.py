@@ -121,7 +121,9 @@ def _adr(title: str, date: str) -> str:
 def _stage_repo(root: Path) -> Path:
     era = root / "docs" / "adr" / "4.x"
     era.mkdir(parents=True)
-    (era / "index.md").write_text(_ERA_INDEX, encoding="utf-8")
+    # README.md is the era landing page since #6939; the retired index.md stays
+    # recognised by the classifier (see the parametrized test above).
+    (era / "README.md").write_text(_ERA_INDEX, encoding="utf-8")
     (era / "2026-10-01-1-first.md").write_text(_adr("First", "2026-10-01"), encoding="utf-8")
     (root / "docs" / "guide.md").write_text("---\ntitle: Guide\ntype: how-to\n---\n\n## Intro\n\nText.\n", encoding="utf-8")
     (root / "docs" / "development").mkdir()
@@ -136,7 +138,7 @@ def test_regenerate_reconciles_all_three_surfaces_idempotently(tmp_path: Path) -
 
     regen.regenerate(root)
 
-    era_index = (root / "docs" / "adr" / "4.x" / "index.md").read_text(encoding="utf-8")
+    era_index = (root / "docs" / "adr" / "4.x" / "README.md").read_text(encoding="utf-8")
     assert "| 2026-10-20 | [Second](2026-10-20-1-second.md) |" in era_index
     docs_root = root / "docs"
     assert (root / regen.DOCS_INDEX_PATH).read_text(encoding="utf-8") == render_index(generate_index(docs_root, repo_root=root))
@@ -156,7 +158,7 @@ def test_regenerate_moves_the_era_row_of_a_renamed_adr(tmp_path: Path) -> None:
 
     regen.regenerate(root)
 
-    index = (era / "index.md").read_text(encoding="utf-8")
+    index = (era / "README.md").read_text(encoding="utf-8")
     assert "](2026-10-01-1-first.md)" not in index
     assert "| 2026-10-01 | [First](2026-10-01-1-first-renamed.md) |" in index
 

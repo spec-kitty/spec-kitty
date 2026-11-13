@@ -437,6 +437,18 @@ def test_occurrence_subset_redirect_flags_missing_redirect() -> None:
     assert violations[0].rule_id == "occurrence_subset_redirect"
 
 
+def test_occurrence_subset_redirect_needs_no_key_for_an_index_rename() -> None:
+    """#6939: ``/x/index.html -> /x/README.html`` keeps the directory URL, so no redirect key exists for it."""
+    moves = [
+        rr.Move("/guides/index.html", "/guides/README.html", "#6939"),
+        rr.Move("/guides/old.html", "/guides/README.html", "#1"),
+    ]
+
+    violations = rr.check_occurrence_subset_redirect(moves, set())
+
+    assert [v.path for v in violations] == ["/guides/old.html"]
+
+
 def test_run_reconcile_end_to_end_with_fixtures(tmp_path: Path) -> None:
     repo = _init_repo(tmp_path)
     _touch(repo / "docs" / "architecture" / "rogue.md", "off spine\n" * 5)

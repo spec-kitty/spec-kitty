@@ -76,14 +76,14 @@ def _moves_yaml(moves: list[tuple[str, str]]) -> str:
 def tree(tmp_path: Path) -> dict[str, Path]:
     """docs/, site/public, a baseline and a moves ledger whose map is :data:`EXPECTED`."""
     docs = tmp_path / "docs"
-    _write(docs, "index.md", _page())
+    _write(docs, "README.md", _page())
     _write(docs, "guides/README.md", _page())
     _write(docs, "guides/live.md", _page())
     _write(docs, "guides/new.md", _page())
     _write(docs, "guides/wip.md", _page("draft"))
-    _write(docs, "plans/index.md", _page())
+    _write(docs, "plans/README.md", _page())
     _write(docs, "plans/engineering-notes/note.md", _page("active"))
-    _write(docs, "assets/index.md", _page())
+    _write(docs, "assets/README.md", _page())
     _write(docs, "assets/tool.html", "<html>a standalone resource</html>")
     _write(docs, "adr/1.x/README.md", _page())
     public = tmp_path / "site" / "public"
@@ -138,9 +138,39 @@ def test_a_baseline_route_with_no_page_no_move_and_no_resource_is_refused(tree: 
 
 
 def test_a_cycle_in_the_moves_ledger_is_refused(tree: dict[str, Path]) -> None:
-    tree["moves"].write_text(_moves_yaml([*MOVES, ("/guides/new.html", "/guides/old.html")]), encoding="utf-8")
+    tree["moves"].write_text(_moves_yaml([*MOVES, ("/guides/new.html", "/guides/new.html")]), encoding="utf-8")
 
     assert "cycle" in _refusal(tree)
+
+
+def test_a_return_to_a_route_with_no_page_is_refused(tree: dict[str, Path]) -> None:
+    """The ledger reads a move back as a return (#6939); a return to a route with no page still fails."""
+    tree["moves"].write_text(_moves_yaml([*MOVES, ("/guides/new.html", "/guides/old.html")]), encoding="utf-8")
+
+    assert "/guides/old.html" in _refusal(tree)
+
+
+def test_an_index_renamed_to_readme_keeps_its_directory_url_without_a_key(tree: dict[str, Path]) -> None:
+    """#6939: ``/x/index.html -> /x/README.html`` ends at the live ``/x/``, which serves ``x/index.html`` itself."""
+    renames = [
+        ("/guides/index.html", "/guides/README.html"),
+        ("/adr/1.x/README.html", "/adr/1.x/index.html"),  # #6928 moved it away ...
+        ("/adr/1.x/index.html", "/adr/1.x/README.html"),  # ... and #6939 moves it back
+    ]
+    tree["moves"].write_text(_moves_yaml([*MOVES, *renames]), encoding="utf-8")
+
+    assert _build(tree) == EXPECTED
+
+
+def test_a_moved_index_whose_hub_fallback_is_its_own_folder_is_still_refused(tree: dict[str, Path]) -> None:
+    """Rule 3 excuses an unmoved index or an index rename (#6939), not any move that happens to land on ``dir/``.
+
+    ``/guides/index.html -> /guides/wip.html`` ends at a draft, whose hub fallback (rule 4)
+    is ``/guides/``: the move conflicts with the live page and must stay refused.
+    """
+    tree["moves"].write_text(_moves_yaml([*MOVES, ("/guides/index.html", "/guides/wip.html")]), encoding="utf-8")
+
+    assert "/guides/index.html" in _refusal(tree)
 
 
 def test_a_key_that_would_overwrite_a_live_page_is_refused(tree: dict[str, Path]) -> None:
@@ -208,7 +238,7 @@ def test_check_reports_a_refusal_instead_of_a_traceback(tree: dict[str, Path], c
 
 
 def test_a_route_with_no_published_ancestor_is_refused(tree: dict[str, Path]) -> None:
-    for rel in ("index.md", "guides/README.md"):
+    for rel in ("README.md", "guides/README.md"):
         _write(tree["docs"], rel, _page("draft"))
 
     assert "no published ancestor" in _refusal(tree)

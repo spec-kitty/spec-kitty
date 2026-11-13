@@ -18,101 +18,14 @@ from typing import Any
 import pytest
 
 from scripts.docs._typer_walker import walk
+from scripts.retired_surfaces import RETIRED_CLI_PREFIXES, RETIRED_PATHS
 from tests.architectural.test_docs_cli_reference_parity import _build_live_app
 
 pytestmark = [pytest.mark.architectural, pytest.mark.fast]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
-_RETIRED_PATHS = (
-    "src/specify_cli/sync",
-    "src/specify_cli/delivery",
-    "src/specify_cli/event_journal",
-    "src/specify_cli/saas",
-    "src/specify_cli/egress.py",
-    "src/specify_cli/egress_consent.py",
-    "src/specify_cli/cli/commands/sync.py",
-    "src/specify_cli/cli/commands/_daemon_doctor.py",
-    # Frozen hosted / sync / drain surfaces removed from open-core (#6164).
-    "src/specify_cli/saas_client",
-    "src/specify_cli/zeitgeist_client",
-    "src/specify_cli/auth",
-    "src/specify_cli/live_work",
-    "src/specify_cli/widen",
-    "src/specify_cli/core/hosted_posture.py",
-    "src/specify_cli/core/saas_sync_config.py",
-    "src/specify_cli/core/toml_table.py",
-    "src/specify_cli/status/zeitgeist_bridge.py",
-    "src/specify_cli/events/runtime_moments.py",
-    "src/specify_cli/readiness/auth.py",
-    "src/specify_cli/readiness/render.py",
-    "src/specify_cli/tracker/saas_client.py",
-    "src/specify_cli/tracker/saas_service.py",
-    "src/specify_cli/tracker/saas_readiness.py",
-    "src/specify_cli/tracker/feature_flags.py",
-    "src/specify_cli/tracker/origin.py",
-    "src/specify_cli/tracker/origin_consumer.py",
-    "src/specify_cli/tracker/origin_models.py",
-    "src/specify_cli/tracker/discovery.py",
-    "src/specify_cli/tracker/ticket_context.py",
-    "src/specify_cli/cli/commands/auth.py",
-    "src/specify_cli/cli/commands/live_work.py",
-    "src/specify_cli/cli/commands/moments.py",
-    "src/specify_cli/cli/commands/routes.py",
-    "src/specify_cli/cli/commands/zeitgeist.py",
-    "src/specify_cli/dossier/emitter_adapter.py",
-    "src/specify_cli/dossier/drift_detector.py",
-    # The whole package: after the D1 publish pipeline was retired only an
-    # 8-line docstring tombstone survived (mission dead-port-disposition-01M1TZVN,
-    # FR-014). A package-level ban subsumes the former write/attestation rows.
-    "src/specify_cli/team_projection",
-    "src/specify_cli/core/batch_partition.py",
-    "src/specify_cli/migration/envelope_seam.py",
-    "src/specify_cli/cli/commands/agent/setup_plan_hosted.py",
-    "src/specify_cli/cli/commands/agent/setup_plan_hosted_effects.py",
-    # The bundled local dashboard (``spec-kitty dashboard``) and its generator
-    # skill were removed in #5530; the retiring migration
-    # (``m_4_0_0rc5_retire_bundled_dashboard.py``) and the ``skills/retired.py``
-    # registry entry for it are the sanctioned survivors and stay off this list.
-    "src/specify_cli/dashboard",
-    "src/specify_cli/cli/commands/dashboard.py",
-    "src/specify_cli/charter_runtime/preflight/dashboard_warning.py",
-    "src/charter/offering/skills/spk-admin-dashboard",
-    "tests/test_dashboard",
-    "tests/dashboard",
-    "tests/specify_cli/dashboard",
-    "tests/cross_cutting/dashboard",
-    "tests/ui/test_dashboard_wp_modal.py",
-    "tests/cli_gate/test_dashboard_modes.py",
-    "tests/status/test_dashboard_status_parity.py",
-    "tests/integration/test_dashboard_counters.py",
-    "tests/regressions/test_issue_71_dashboard_empty.py",
-    "tests/architectural/test_no_process_name_wide_dashboard_kill.py",
-    "tests/sync",
-    "tests/delivery",
-    "tests/event_journal",
-    "tests/saas",
-    "tests/deactivation",
-    "tests/specify_cli/sync",
-    "tests/_real_port_suites.py",
-    "tests/support/sync_transport_barriers.py",
-    "tests/_support/consented_batches.py",
-    "tests/agent/cli/commands/test_sync.py",
-    "tests/architectural/test_sync_deactivate_census.py",
-    "tests/architectural/test_sync_env_census.py",
-    "tests/architectural/test_sync_no_early_bind.py",
-    "tests/architectural/test_sync_two_authority.py",
-    "tests/architectural/test_sync_writer_census.py",
-    "tests/architectural/test_status_sync_boundary.py",
-    "tests/architectural/test_dossier_sync_boundary.py",
-    "tests/architectural/test_project_store_boundary.py",
-    "tests/architectural/test_unfiltered_journal_read_boundary.py",
-    "scripts/benchmarks/bench_project_discovery.py",
-    "scripts/benchmarks/bench_queue_enqueue.py",
-    "scripts/mutants/nonterminating_dispatch_3115.py",
-    ".github/workflows/drift-detector.yml",
-    ".github/workflows/project-sync-consent-evidence.yml",
-)
+_RETIRED_PATHS = RETIRED_PATHS
 _RETIRED_PATH_GLOBS = (
     "tests/cli/commands/test_sync_*.py",
     "tests/architectural/census/sync_deactivate_*.txt",
@@ -187,16 +100,7 @@ _BANNED_IMPORT_PREFIXES = (
 
 _MANIFEST_PATH = _REPO_ROOT / "src/specify_cli/_completion_manifest.json"
 _RUFF_PATH = _REPO_ROOT / "ruff.toml"
-_RETIRED_CLI_PREFIXES = (
-    ("sync",),
-    ("doctor", _ORPHAN_DAEMONS),
-    ("doctor", _RESTART_DAEMON),
-    ("team-projection",),
-    # The local bundled ``spec-kitty dashboard`` command (#5530) — not the
-    # hosted Team Kitty SaaS dashboard, which is a web surface, never a CLI
-    # command, so it cannot collide with this prefix.
-    ("dashboard",),
-)
+_RETIRED_CLI_PREFIXES = RETIRED_CLI_PREFIXES
 _REQUIRED_CLI_PATHS = {
     ("tracker", "sync", "publish"),
     ("agent", "config", "sync"),
