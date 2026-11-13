@@ -25,7 +25,6 @@ pytestmark = [pytest.mark.architectural, pytest.mark.fast]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
-_RETIRED_PATHS = RETIRED_PATHS
 _RETIRED_PATH_GLOBS = (
     "tests/cli/commands/test_sync_*.py",
     "tests/architectural/census/sync_deactivate_*.txt",
@@ -100,7 +99,6 @@ _BANNED_IMPORT_PREFIXES = (
 
 _MANIFEST_PATH = _REPO_ROOT / "src/specify_cli/_completion_manifest.json"
 _RUFF_PATH = _REPO_ROOT / "ruff.toml"
-_RETIRED_CLI_PREFIXES = RETIRED_CLI_PREFIXES
 _REQUIRED_CLI_PATHS = {
     ("tracker", "sync", "publish"),
     ("agent", "config", "sync"),
@@ -182,7 +180,7 @@ _MISSION_DSL_V1_KEY_RE = re.compile(r"^(mission|initial|states|transitions|guard
 
 
 def _retired_path_violations(root: Path) -> list[str]:
-    violations = {path for path in _RETIRED_PATHS if (root / path).exists()}
+    violations = {path for path in RETIRED_PATHS if (root / path).exists()}
     for pattern in _RETIRED_PATH_GLOBS:
         violations.update(path.relative_to(root).as_posix() for path in root.glob(pattern))
     return sorted(violations)
@@ -273,7 +271,7 @@ def _manifest_command_paths(node: dict[str, Any], prefix: tuple[str, ...] = ()) 
 
 
 def _has_retired_cli_prefix(paths: set[tuple[str, ...]]) -> list[tuple[str, ...]]:
-    return sorted(path for path in paths if any(path[: len(prefix)] == prefix for prefix in _RETIRED_CLI_PREFIXES))
+    return sorted(path for path in paths if any(path[: len(prefix)] == prefix for prefix in RETIRED_CLI_PREFIXES))
 
 
 def _cli_surface_violations(app_paths: set[tuple[str, ...]], manifest_path: Path, root: Path) -> list[str]:
@@ -347,7 +345,7 @@ def _retired_ruff_ignore_violations(path: Path) -> list[str]:
     return sorted(
         f"retired Ruff per-file ignore: {pattern}"
         for pattern in per_file_ignores
-        if any(pattern == retired_path or pattern.startswith(f"{retired_path}/") for retired_path in _RETIRED_PATHS)
+        if any(pattern == retired_path or pattern.startswith(f"{retired_path}/") for retired_path in RETIRED_PATHS)
     )
 
 

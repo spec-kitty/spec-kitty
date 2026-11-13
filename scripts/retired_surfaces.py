@@ -161,6 +161,10 @@ class RetiredSurface:
     pattern: re.Pattern[str]
     retired_by: str
 
+    def __post_init__(self) -> None:
+        if not self.retired_by.strip():
+            raise ValueError(f"retired surface {self.id!r} must say what retired it (retired_by)")
+
 
 def _surface(surface_id: str, pattern: str, retired_by: str, flags: int = 0) -> RetiredSurface:
     return RetiredSurface(id=surface_id, pattern=re.compile(pattern, flags), retired_by=retired_by)

@@ -220,14 +220,12 @@ def retirement_evidence(surface: str) -> str | None:
     Reuses the canonical ``test_no_retired_subsystems`` data (imported lazily so
     a consumer importing this oracle does not pay that module's import cost).
     """
-    from tests.architectural.test_no_retired_subsystems import (
-        _RETIRED_PATHS,
-        _has_banned_prefix,
-    )
+    from scripts.retired_surfaces import RETIRED_PATHS
+    from tests.architectural.test_no_retired_subsystems import _has_banned_prefix
 
     if _has_banned_prefix(surface):
         return _RETIREMENT_EVIDENCE
-    if surface in _RETIRED_PATHS or f"src/{surface.replace('.', '/')}" in _RETIRED_PATHS:
+    if surface in RETIRED_PATHS or f"src/{surface.replace('.', '/')}" in RETIRED_PATHS:
         return _RETIREMENT_EVIDENCE
     return None
 
