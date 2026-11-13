@@ -947,9 +947,11 @@ class TestMoveTaskDecisionBranchesFrozen:
         """
         sc = scenarios["rejected_verdict_block"]
         assert sc.exit_code == 0, sc.output
-        assert sc.evidence["cycle_artifacts"] == ["review-cycle-1.md", "review-cycle-2.md"], (
-            "expected the ordinary approve to write a fresh review-cycle-2.md "
-            f"artifact alongside the untouched rejected cycle 1; got {sc.evidence}"
+        # FR-006 (#7569/#7571, approval-honesty WP03, re-pinned): the scenario's approve is
+        # ``--force``, and a forced move is not a review: it proceeds but writes no review cycle
+        # (formerly pinned a fresh review-cycle-2.md beside the rejected cycle 1).
+        assert sc.evidence["cycle_artifacts"] == ["review-cycle-1.md"], (
+            f"a forced approval writes no review cycle; got {sc.evidence}"
         )
 
     def test_rejected_verdict_override_reopens_path(self, scenarios: dict[str, Scenario]) -> None:

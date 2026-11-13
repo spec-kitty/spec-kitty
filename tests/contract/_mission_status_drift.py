@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from kernel.clock import UTC, UTC_SECOND_TIMESTAMP_FORMAT, Clock, datetime, format_stamp, parse_iso
+from kernel.clock import UTC, UTC_SECOND_TIMESTAMP_FORMAT, Clock, datetime, parse_iso
 from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
 from specify_cli.lanes.branch_naming import PLANNING_LANE_ID, code_lane_branch_name
@@ -582,5 +582,5 @@ def scan_drift(
     except ScanUnreadable:
         return refusal(REFUSAL_UNREADABLE)
     kept, truncated = sort_and_cap(findings)
-    body = {"scannedAt": format_stamp(now, UTC_SECOND_TIMESTAMP_FORMAT), "findings": kept, "truncated": truncated}
+    body = {"scannedAt": now.strftime(UTC_SECOND_TIMESTAMP_FORMAT), "findings": kept, "truncated": truncated}
     return DriftOutcome(OK, body, fallbacks, tuple(sorted(legacy)))

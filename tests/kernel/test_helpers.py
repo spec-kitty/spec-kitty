@@ -16,10 +16,8 @@ from kernel.clock import (
     UTC,
     FrozenClock,
     datetime,
-    format_stamp,
     from_epoch,
     now_epoch,
-    now_utc,
     now_utc_iso,
     now_utc_stamp,
     parse_iso,
@@ -64,19 +62,6 @@ def test_parse_stamp_round_trips_now_utc_stamp(frozen: datetime) -> None:
     parsed = parse_stamp(stamp, stamp_format)
 
     assert parsed.replace(tzinfo=UTC) == frozen.replace(microsecond=0)
-
-
-def test_format_stamp_matches_now_utc_stamp_for_the_same_instant(frozen: datetime) -> None:
-    """``format_stamp(now_utc(), fmt)`` matches :func:`now_utc_stamp`'s own
-    output for the identical instant and format -- the manual formatting
-    path and the producer must never drift apart.
-
-    C-009 mutation verified: replacing :func:`format_stamp`'s body with
-    ``return value.isoformat()`` (ignoring ``fmt``) turns this red.
-    """
-    stamp_format = "%Y-%m-%dT%H:%M:%SZ"
-
-    assert format_stamp(now_utc(), stamp_format) == now_utc_stamp()
 
 
 def test_from_epoch_round_trips_now_epoch(frozen: datetime) -> None:

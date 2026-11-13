@@ -138,8 +138,13 @@ def _build_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Pat
     return repo, feature_dir
 
 
-def _write_review_cycle(feature_dir: Path, cycle: int, verdict: str) -> str:
-    """Write a ``review-cycle-N.md`` approval artifact next to the WP file."""
+def _write_review_cycle(feature_dir: Path, cycle: int, verdict: str, reviewer: str = "reviewer-renata") -> str:
+    """Write a ``review-cycle-N.md`` approval artifact next to the WP file.
+
+    #7571 (approval-honesty WP03): the approval adopts a cycle the reviewer wrote after the claim
+    only when it names the reviewer of record; another identity's cycle refuses
+    ``REVIEW_CYCLE_NOT_ADOPTABLE``. The approve step therefore writes it as the claimant.
+    """
     wp_dir = feature_dir / "tasks" / "WP01-core"
     wp_dir.mkdir(parents=True, exist_ok=True)
     (wp_dir / f"review-cycle-{cycle}.md").write_text(
@@ -147,7 +152,7 @@ def _write_review_cycle(feature_dir: Path, cycle: int, verdict: str) -> str:
         f"cycle_number: {cycle}\n"
         f"mission_slug: {feature_dir.name}\n"
         f"reviewed_at: '2026-04-30T12:00:00Z'\n"
-        f"reviewer_agent: reviewer-renata\n"
+        f"reviewer_agent: {reviewer}\n"
         f"verdict: {verdict}\n"
         f"wp_id: WP01\n"
         f"---\n\nReview body.\n",
@@ -229,6 +234,8 @@ def test_ac5_hash_stable_across_driven_lifecycle_with_proof_of_drive(
     drive("re-in_review", ["move-task", "WP01", "--to", "in_review", "--agent", "codex", *m])
 
     # 8. review-approve (in_review -> approved): evidence-gated, force-free.
-    approval_ref = _write_review_cycle(feature_dir, 2, "approved")
+    approval_ref = _write_review_cycle(feature_dir, 2, "approved", reviewer="codex")
+    # #7573: the approver is the review claimant (codex); --reviewer is an identity assertion,
+    # not free text, so a second identity ("reviewer-renata") would refuse APPROVER_NOT_CLAIMANT.
     drive("review-approve", ["move-task", "WP01", "--to", "approved", "--agent", "codex",
-                             "--reviewer", "reviewer-renata", "--approval-ref", approval_ref, *m])
+                             "--approval-ref", approval_ref, *m])

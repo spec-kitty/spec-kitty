@@ -391,6 +391,10 @@ def _assert_committed_frontmatter_has_no_verdict_key(frontmatter_and_body: str) 
     assert "verdict" not in keys, f"committed review-cycle blob must carry no verdict key, found keys {sorted(keys)} in:\n{frontmatter_and_body}"
 
 
+#: The reviewer the approval cells assert (#7569: no git-user or claimant fallback applies here).
+_MATRIX_APPROVER = "claude:sonnet:reviewer-renata"
+
+
 def _run_cell(
     repo: Path,
     *,
@@ -429,7 +433,10 @@ def _run_cell(
                 task_id=wp_id,
                 to=to,
                 mission=mission,
-                agent=None,
+                # #7569: an approval records an asserted reviewer only. The seeded
+                # ``in_review`` entry is forced (an operator move, never a claim),
+                # so the approval cells assert theirs; rejections keep no --agent.
+                agent=_MATRIX_APPROVER if to in ("approved", "done") else None,
                 assignee=None,
                 shell_pid=None,
                 note=note,
@@ -522,9 +529,9 @@ def _drive_scenario(
     done_override = "matrix cell: bypass merge-ancestry check" if scenario.target_lane == "done" else None
     # ``_guard_unsupported_skip_metadata`` refuses a coord-protected commit
     # that ALSO carries a ``note`` (frontmatter activity-log write, which the
-    # skip arm cannot land) -- omit it under that topology and rely on
-    # ``_mt_approval_facts``'s own ``auto-approval:<wp>:<date>`` default
-    # reference instead of reproducing that guard's refusal here.
+    # skip arm cannot land) -- omit it under that topology instead of
+    # reproducing that guard's refusal here. The approval's reference is the
+    # review-cycle pointer the move writes (#7569: no minted default).
     note = None if skip_target_branch_commit else "Review passed"
     _run_cell(
         repo,
@@ -1047,7 +1054,7 @@ def test_real_router_commit_lands_on_disk_and_git_history(tmp_path: Path, capsys
                 task_id=_WP_ID,
                 to="approved",
                 mission=_MISSION,
-                agent=None,
+                agent=_MATRIX_APPROVER,  # #7569: approvals assert their reviewer
                 assignee=None,
                 shell_pid=None,
                 note="Review passed",
@@ -1115,7 +1122,7 @@ def test_real_router_cell_reds_when_commit_artifact_is_neutered(tmp_path: Path, 
                 task_id=_WP_ID,
                 to="approved",
                 mission=_MISSION,
-                agent=None,
+                agent=_MATRIX_APPROVER,  # #7569: approvals assert their reviewer
                 assignee=None,
                 shell_pid=None,
                 note="Review passed",
@@ -1262,7 +1269,7 @@ def _run_coord_cell_approval(ctx: CoordTopologyContext, *, wp_id: str, router: _
                 task_id=wp_id,
                 to="approved",
                 mission=ctx.slug,
-                agent=None,
+                agent=_MATRIX_APPROVER,  # #7569: approvals assert their reviewer
                 assignee=None,
                 shell_pid=None,
                 note="Review passed",

@@ -30,10 +30,11 @@ This module hosts (mission ``kernel-clock-single-door``):
   :func:`now_epoch` -- one function per distinct on-disk/on-wire
   serialization contract (C-003); folding two contracts together is
   forbidden even when they look similar (WP03, FR-004/005/006).
-- Parse/format helpers -- :func:`parse_iso`, :func:`parse_stamp`,
-  :func:`format_stamp`, :func:`from_epoch` -- so consumers never need a raw
-  stdlib ``datetime`` import merely to parse or format a value they already
-  have (WP04, FR-007/C-007).
+- Parse helpers -- :func:`parse_iso`, :func:`parse_stamp`, :func:`from_epoch`
+  -- so consumers never need a raw stdlib ``datetime`` import merely to parse
+  a value they already have (WP04, FR-007/C-007). The former
+  ``format_stamp`` lost its last caller (#7569) and was removed; a held
+  ``datetime`` formats itself with ``.strftime``.
 - Minimal type re-exports (:data:`__all__`) so consumers can import
   ``datetime``/``date``/``timedelta``/``UTC`` from the door for annotations,
   arithmetic, and parsing rather than importing stdlib ``datetime``
@@ -56,7 +57,6 @@ __all__ = [
     "SystemClock",
     "date",
     "datetime",
-    "format_stamp",
     "from_epoch",
     "now_epoch",
     "now_utc",
@@ -239,17 +239,9 @@ def parse_iso(value: str) -> datetime:
 
 def parse_stamp(value: str, fmt: str) -> datetime:
     """Parse a stamp string into a ``datetime`` given its format (wraps
-    ``datetime.strptime``) -- the inverse of :func:`format_stamp` /
+    ``datetime.strptime``) -- the inverse of
     :func:`now_utc_stamp` / :func:`now_utc_compact_stamp`."""
     return datetime.strptime(value, fmt)
-
-
-def format_stamp(value: datetime, fmt: str) -> str:
-    """Format a ``datetime`` per an explicit format string (wraps
-    ``datetime.strftime``) so a consumer never needs a raw stdlib
-    ``datetime`` import just to call ``.strftime`` on a value it already
-    holds."""
-    return value.strftime(fmt)
 
 
 def from_epoch(value: float) -> datetime:

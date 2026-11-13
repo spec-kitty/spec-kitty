@@ -70,7 +70,7 @@ from __future__ import annotations
 
 import re
 import shlex
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, NoReturn
@@ -85,11 +85,19 @@ from specify_cli.cli.commands.agent.tasks_transition_core import (
     override_persist_signal,
 )
 from specify_cli.review.cycle import (
+    REVIEW_CYCLE_CITATION_MISSING,
+    REVIEW_CYCLE_NOT_ADOPTABLE,
+    AdoptionResult,
     CreatedRejectedReviewCycle,
     VerdictPersistenceOutcome,
     _review_cycle_wp_dir,
+    adopted_review_cycle_record,
     create_rejected_review_cycle,
-    synthetic_approval_ref,
+    cycle_numbers_referenced,
+    find_adoptable_review_cycle,
+    not_adoptable_message,
+    review_cycle_files_for_wp,
+    verify_cycle_citation,
 )
 from specify_cli.review.verdict_commit_queue import (
     VerdictSaveBusy,
@@ -106,6 +114,7 @@ if TYPE_CHECKING:
     from specify_cli.agent_tasks_ports import CoordCommitRouter
     from specify_cli.cli.commands.agent.tasks_move_task import _MoveTaskState
     from specify_cli.review.arbiter import ArbiterCategory, ArbiterDecision
+    from specify_cli.status import StatusEvent
 
 # T049/T050: the two DISTINCT, non-overlapping reasons a verdict write can end
 # up uncommitted. FR-013 sanctions only the first; the second (T050) was
@@ -114,6 +123,9 @@ if TYPE_CHECKING:
 # each string is referenced from two sites (the resolver + its tests).
 _DURABILITY_REASON_NO_AUTO_COMMIT = "no_auto_commit"
 _DURABILITY_REASON_PROTECTED_TARGET_BRANCH = "protected_target_branch"
+#: #7571 (FR-008): the approval adopted the reviewer's own cycle, which is not committed. Like a
+#: local-only write: the record is honest, and nothing was written or committed by this command.
+_DURABILITY_REASON_ADOPTED_UNCOMMITTED = "adopted_uncommitted"
 
 # #3773 item 1: a THIRD, structurally distinct busy/timeout reason. The
 # checkout-wide verdict-save queue (``acquire_verdict_save_queue``) already
@@ -559,6 +571,7 @@ def _persist_review_cycle_with_queue(
 
 _DURABILITY_NOTICE_BY_REASON = {
     _DURABILITY_REASON_NO_AUTO_COMMIT: "--no-auto-commit",
+    _DURABILITY_REASON_ADOPTED_UNCOMMITTED: "the reviewer's adopted review cycle is not committed",
     _DURABILITY_REASON_PROTECTED_TARGET_BRANCH: ("protected target branch under coordination topology"),
 }
 
@@ -740,10 +753,20 @@ def persist_review_override_before_guard(st: _MoveTaskState) -> None:
     )
 
 
+def _is_review_approval(st: _MoveTaskState) -> bool:
+    """Whether this move records a review: an unforced approval whose reviewer of record is a reviewer (#7569)."""
+    record = st.reviewer_of_record
+    return not st.force and record is not None and record.kind == "review"
+
+
 def _approval_write_skip_reason(st: _MoveTaskState) -> str | None:
     """Why the approval writer writes nothing for this move, or ``None`` when it writes."""
     if st.request is not None and st.request.is_arbiter_override:
         return "an arbiter override is recorded as a review override, not an approval"
+    if st.force:
+        # FR-006 (story 2 case 4): a forced approval is an operator override, not a review; it is
+        # recorded with ``force-override`` and writes no review cycle.
+        return "a forced move is not a review and writes no review cycle"
     lookup = event_sourced_review_result(st.feature_dir, st.task_id)
     # FR-007 (T2 / IC-04): a malformed/damaged event-sourced slot
     # (``slot_present=True, result=None``) stays a no-op, UNCHANGED — the
@@ -758,7 +781,10 @@ def _approval_write_skip_reason(st: _MoveTaskState) -> str | None:
     # :852 idempotency (unchanged, PRESERVED): the current event-sourced
     # verdict is already something other than a stale rejection (i.e.
     # already ``approved``) -- never a redundant/duplicate write.
-    if lookup.result is not None and lookup.result.verdict != "changes_requested":
+    # FR-009 (#7571): a review approval (out of the current review) is never answered by an approval
+    # recorded before it: the slot can still read ``approved`` after a reopen with feedback, and
+    # skipping here would point the new approval at that stale cycle.
+    if lookup.result is not None and lookup.result.verdict != "changes_requested" and not _is_review_approval(st):
         return "the work package already has an approval record"
     return None
 
@@ -820,6 +846,15 @@ def _warn_feedback_file_not_recorded(st: _MoveTaskState, reason: str) -> None:
     )
 
 
+def _feedback_file_is_empty(source: Path) -> bool:
+    """Whether a supplied feedback file holds only whitespace (an unreadable file is not empty)."""
+    try:
+        return not source.read_text(encoding="utf-8").strip()
+    except (OSError, UnicodeDecodeError):
+        # Unreadable or not UTF-8: let the guarded writer raise its own typed error.
+        return False
+
+
 def _approval_feedback_source(st: _MoveTaskState) -> Path | None:
     """The supplied feedback file to record on approval, or ``None`` when there is nothing to record.
 
@@ -829,15 +864,148 @@ def _approval_feedback_source(st: _MoveTaskState) -> Path | None:
     source: Path | None = st.resolved_feedback_source
     if source is None:
         return None
-    try:
-        has_content = bool(source.read_text(encoding="utf-8").strip())
-    except (OSError, UnicodeDecodeError):
-        # Unreadable or not UTF-8: let the guarded writer raise its own typed error.
-        return source
-    if has_content:
+    if not _feedback_file_is_empty(source):
         return source
     _warn_feedback_file_not_recorded(st, "the file is empty")
     return None
+
+
+def _approval_wp_slug(st: _MoveTaskState) -> str:
+    """The work package's task-directory slug, resolved as the writer has always resolved it."""
+    if st.owned is not None and st.wp is not None:
+        stem: str = st.wp.path.stem
+        return stem
+    slug: str = _resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id)
+    return slug
+
+
+def _approval_reviewer_agent(st: _MoveTaskState) -> str:
+    """The cycle's ``reviewer_agent``: the reviewer of record (#7573), never the raw ``--reviewer`` flag.
+
+    ``st.request.effective_reviewer`` is the identity every other approval field records (the dispatch
+    binding applied). A state built outside the pipeline keeps the former fallback chain.
+    """
+    bound = st.request.effective_reviewer if st.request is not None else None
+    return (bound or st.reviewer or st.agent or st.actor or "unknown").strip() or "unknown"
+
+
+@dataclass(frozen=True)
+class ReviewCycleInputs:
+    """What a review approval's cycle checks read, once per move (#7571, T017).
+
+    The work package's task-directory slug, its status events (the transactional read every
+    move-task read uses) and its ``review-cycle-N.md`` files on every read surface. The guard
+    (:func:`_mt_require_honest_review_cycle`) reads them and leaves them on the move; the approval
+    writer reuses them, so one approval scans once.
+    """
+
+    wp_slug: str
+    events: tuple[StatusEvent, ...]
+    files: Mapping[int, Path]
+
+
+def _review_cycle_inputs(st: _MoveTaskState) -> ReviewCycleInputs:
+    """The move's :class:`ReviewCycleInputs`, read on first use and kept on the move."""
+    if st.review_cycle_inputs is not None:
+        return st.review_cycle_inputs
+    from specify_cli.cli.commands.agent import tasks as _tasks
+
+    wp_slug = _approval_wp_slug(st)
+    events = _tasks.read_events_transactional(feature_dir=st.feature_dir, mission_slug=st.mission_slug, repo_root=st.main_repo_root, owned=st.owned)
+    st.review_cycle_inputs = ReviewCycleInputs(
+        wp_slug=wp_slug,
+        events=tuple(events),
+        files=review_cycle_files_for_wp(st.main_repo_root, st.mission_slug, wp_slug, owned=st.owned),
+    )
+    return st.review_cycle_inputs
+
+
+def _approval_cycle_probe(st: _MoveTaskState, inputs: ReviewCycleInputs) -> AdoptionResult:
+    """Run the adoption probe (#7571) over the work package's cycles and its event log."""
+    return find_adoptable_review_cycle(
+        files=inputs.files,
+        events=inputs.events,
+        wp_id=st.task_id,
+        mission_slug=st.mission_slug,
+        wp_slug=inputs.wp_slug,
+        reviewer_of_record=_approval_reviewer_agent(st),
+    )
+
+
+def _adopts_a_cycle(st: _MoveTaskState) -> bool:
+    """Whether the approval writer would consider adopting: a review that writes, with no feedback file.
+
+    A ``--review-feedback-file`` keeps the #6652 guarded write and never adopts (decision
+    ``adoption_rule``); an empty one is no feedback (it is warned about and not recorded).
+    """
+    source = st.resolved_feedback_source
+    has_feedback = source is not None and not _feedback_file_is_empty(source)
+    return _is_review_approval(st) and not has_feedback and _approval_write_skip_reason(st) is None
+
+
+def _mt_require_honest_review_cycle(st: _MoveTaskState) -> None:
+    """Refuse, before any write, an approval whose review-cycle evidence is not honest (#7570, #7571).
+
+    Unforced review approvals only. Two refusals, both ``ActionContextError`` (exit 1, nothing
+    written, NFR-003):
+
+    * ``REVIEW_CYCLE_CITATION_MISSING`` (FR-010): ``--approval-ref`` or ``--note`` cites a cycle that
+      does not exist, is invalid, is a recorded rejection's cycle, or predates the latest claim;
+    * ``REVIEW_CYCLE_NOT_ADOPTABLE`` (FR-014): a cycle written after the latest verdict that the
+      approval cannot adopt (invalid, or another identity's), when the approval would write one.
+
+    Called from ``tasks_move_task._mt_require_independent_approval``, which runs before every
+    review-cycle write. The inputs it reads stay on the move for the writer
+    (:class:`ReviewCycleInputs`).
+    """
+    if not _is_review_approval(st):
+        return
+    from mission_runtime import ActionContextError
+
+    inputs = _review_cycle_inputs(st)
+    refusal = verify_cycle_citation(
+        files=inputs.files,
+        events=inputs.events,
+        wp_id=st.task_id,
+        mission_slug=st.mission_slug,
+        wp_slug=inputs.wp_slug,
+        approval_ref=st.approval_ref,
+        note=st.note,
+    )
+    if refusal is not None:
+        raise ActionContextError(REVIEW_CYCLE_CITATION_MISSING, refusal)
+    if not _adopts_a_cycle(st):
+        return
+    adoption = _approval_cycle_probe(st, inputs)
+    if adoption.kind == "not_adoptable":
+        raise ActionContextError(REVIEW_CYCLE_NOT_ADOPTABLE, not_adoptable_message(st.task_id, adoption))
+
+
+def _adopt_reviewer_cycle(st: _MoveTaskState, inputs: ReviewCycleInputs | None) -> VerdictDurabilitySignal | None:
+    """FR-008: reference the cycle the reviewer already wrote, writing nothing; ``None`` when there is none.
+
+    The signal is marked ``adopted``, so ``revert_committed_verdict_write`` never deletes or reverts
+    the reviewer's file. A file not committed at the governed ref is reported local-only.
+    """
+    if inputs is None or not _adopts_a_cycle(st):
+        return None
+    adoption = _approval_cycle_probe(st, inputs)
+    if adoption.kind != "adopt":
+        return None
+    import typer
+
+    for ignored in adoption.ignored:
+        typer.echo(f"Warning: {ignored} is a valid review cycle no event references; {adoption.path} was adopted instead.", err=True)
+    record = adopted_review_cycle_record(
+        main_repo_root=st.main_repo_root,
+        mission_slug=st.mission_slug,
+        adoption=adoption,
+        committing=commits_status_record(st),
+        owned=st.owned,
+    )
+    signal = _build_durability_signal(record)
+    _announce_verdict_durability_gap(st, signal)
+    return signal
 
 
 def _persist_approved_review_cycle(st: _MoveTaskState, ports: TasksPorts) -> VerdictDurabilitySignal | None:
@@ -898,37 +1066,37 @@ def _persist_approved_review_cycle(st: _MoveTaskState, ports: TasksPorts) -> Ver
     if skip_reason is not None:
         _warn_feedback_file_not_recorded(st, skip_reason)
         return None
-    wp_slug = st.wp.path.stem if st.owned is not None and st.wp is not None else _resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id)
-    # FR-007 (T2, brownfield gap closed): a genuine first-pass approval —
-    # NO prior event-sourced verdict slot at all (``lookup.slot_present``
-    # False) — used to be an unconditional no-op here, so a first-pass
-    # approve authored NO ``review-cycle-N.md`` evidence artifact at all
-    # (SC-006). It now falls through to the SAME write this function
-    # already used for the "stale rejection -> fresh approval" flip,
-    # reusing ``create_rejected_review_cycle(..., verdict="approved")`` —
-    # already verdict-symmetric — rather than a second writer.
+    # A review approval reads its inputs once (kept on the move by the guard): for adoption (FR-008)
+    # and for the cycles a recorded verdict already answered, which the writer never adopts as
+    # retained evidence (FR-009).
+    inputs = _review_cycle_inputs(st) if _is_review_approval(st) else None
+    wp_slug = inputs.wp_slug if inputs is not None else _approval_wp_slug(st)
+    adopted = _adopt_reviewer_cycle(st, inputs)
+    if adopted is not None:
+        return adopted
+    answered_cycles = cycle_numbers_referenced(inputs.events if inputs is not None else (), st.task_id)
+    # FR-007 (T2, brownfield gap closed): a genuine first-pass approval writes its
+    # ``review-cycle-N.md`` evidence artifact through the one writer
+    # (``create_review_cycle``, imported under its alias), verdict ``approved``.
     #
-    # Real reviewer_agent (matches ``_mt_plan_review_result``'s own
-    # fallback chain) — never the literal "unknown" for a genuine
-    # approval.
-    reviewer_agent = (st.reviewer or st.agent or st.actor or "unknown").strip() or "unknown"
-    # #4327: pointer-only -- ``--approval-ref`` or the synthetic ``approval:<WP>``
-    # token, never the operator's ``--note`` prose (the note stays whole in the
-    # emitted event's ``reason``).
-    approval_reference = (st.approval_ref or synthetic_approval_ref(st.task_id)).strip() or synthetic_approval_ref(st.task_id)
+    # #7573 / FR-001: the cycle names the reviewer of record (``st.request.effective_reviewer``,
+    # the identity every other approval field records), never the raw ``--reviewer`` flag.
+    reviewer_agent = _approval_reviewer_agent(st)
+    # #7571 honest body: "Approved by <reviewer of record>." and, only when the caller gave one that
+    # is not a cycle pointer, the ``--approval-ref``. No synthetic ``approval:<WP>`` token; the
+    # operator's ``--note`` prose stays whole in the emitted event's ``reason``.
+    caller_ref = (st.approval_ref or "").strip()
+    approval_line = f"Approved by {reviewer_agent}.\n"
+    if caller_ref and not caller_ref.startswith("review-cycle://"):
+        approval_line += f"Reference: {caller_ref}\n"
     # SC-006: the artifact carries at least a reproduction_command —
-    # auto-derived from the decision already made (NFR-005), never a new
-    # hand-filled field: the exact ``move-task`` invocation that reproduces
-    # this approval. #4670: carries the resolved ``reviewer_agent`` too
-    # (the same identity this write already attributes the approval to)
-    # so a replay of this exact command reproduces the SAME attribution
-    # instead of silently falling back to whoever re-runs it. #6654: each
-    # argument is shell-quoted so a free-text reviewer such as
-    # ``Jane Doe (model-x)`` replays as ONE ``--agent`` value.
+    # auto-derived from the decision already made (NFR-005): the exact
+    # ``move-task`` invocation that reproduces this approval, attributed to the
+    # reviewer of record (#4670). #6654: each argument is shell-quoted so a
+    # free-text reviewer replays as ONE ``--agent`` value.
     reproduction_command = shlex.join(
         ["spec-kitty", "agent", "tasks", "move-task", st.task_id, "--to", "approved", "--mission", st.mission_slug, "--agent", reviewer_agent]
     )
-    approval_line = f"Approved by {reviewer_agent}: {approval_reference}\n"
 
     # M1 (adversarial squad, PR #3156): the approval body is synthesized
     # by THIS caller, not supplied by a reviewer — pass it via ``body=``
@@ -962,6 +1130,7 @@ def _persist_approved_review_cycle(st: _MoveTaskState, ports: TasksPorts) -> Ver
             commit_router=commit_router,
             reproduction_command=reproduction_command,
             owned=st.owned,
+            excluded_cycle_numbers=answered_cycles,
         )
 
     durability_signal = _persist_review_cycle_with_queue(st, ports, _create)

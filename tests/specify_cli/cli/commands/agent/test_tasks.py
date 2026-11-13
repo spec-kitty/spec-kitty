@@ -158,6 +158,7 @@ def _seed_wp_event(
     to_lane: str,
     *,
     review_result: ReviewResult | None = None,
+    force: bool = True,
 ) -> None:
     """Seed a WP event so the canonical event log knows the WP exists.
 
@@ -167,6 +168,10 @@ def _seed_wp_event(
     frontmatter -- callers that need the guard/writer to see a CURRENT
     rejection/approval must seed it here, not merely write the on-disk
     artifact.
+
+    ``force=False`` seeds an ``in_review`` entry as the review claim
+    ``agent action review`` records: only an unforced entry names a claimant
+    (approval-honesty WP01), so an approval with no ``--agent`` needs it.
     """
     event = StatusEvent(
         event_id=f"test-{wp_id}-{to_lane}",
@@ -176,7 +181,7 @@ def _seed_wp_event(
         to_lane=Lane(to_lane),
         at="2026-01-01T00:00:00+00:00",
         actor="test",
-        force=True,
+        force=force,
         execution_mode="worktree",
         review_result=review_result,
     )
@@ -678,6 +683,7 @@ class TestVerdictGuardInMoveTask:
             review_result=ReviewResult(
                 reviewer="test-reviewer", verdict="changes_requested", reference="x"
             ),
+            force=False,
         )
 
         # Write a review-cycle-1.md with verdict: rejected inside the WP sub-dir
@@ -942,24 +948,10 @@ class TestVerdictGuardInMoveTask:
         )
 
         assert result.exit_code == 0, f"Expected exit 0. Output:\n{result.output}"
-        from specify_cli.review.artifacts import ReviewCycleArtifact
-
-        latest = ReviewCycleArtifact.latest(wp_dir)
-        assert latest is not None, f"expected a fresh approved artifact. Output:\n{result.output}"
-        assert latest.cycle_number == 2, (
-            f"expected the approval at the next sequential cycle number, got "
-            f"{latest.cycle_number}. Output:\n{result.output}"
-        )
-        # WP06 (FR-003/SC-007): ReviewCycleArtifact no longer carries a
-        # verdict field -- the approval write's own synthesized body
-        # ("Approved by ...") is the checkable proxy.
-        assert latest.body.startswith("Approved by "), (
-            f"expected an 'Approved by ...' body, got "
-            f"{latest.body!r}. Output:\n{result.output}"
-        )
-        assert latest.reviewer_agent != "unknown", (
-            f"expected a real reviewer_agent, not 'unknown'. Output:\n{result.output}"
-        )
+        # FR-006 (#7569/#7571, approval-honesty WP03, re-pinned): this move is ``--force``, and a
+        # forced move is an operator override, not a review: it proceeds over the rejection but writes
+        # no review cycle. Formerly pinned a synthesized review-cycle-2.md ("Approved by ...").
+        assert not (wp_dir / "review-cycle-2.md").exists(), f"a forced move writes no review cycle. Output:\n{result.output}"
         assert (wp_dir / "review-cycle-1.md").exists()
 
 

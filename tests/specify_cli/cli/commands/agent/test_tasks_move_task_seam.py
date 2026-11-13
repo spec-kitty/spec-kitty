@@ -298,18 +298,29 @@ def test_patched_workspace_and_ancestry_intercept_done_facts(tmp_path: Path) -> 
     assert (mode, merged, msg) == ("code_change", True, "merged via PR")
 
 
-def test_patched_detect_reviewer_intercepts_approval_facts() -> None:
-    """``tasks._detect_reviewer_name`` (module-resident def) bites through
-    ``_mt_approval_facts`` when no ``--reviewer`` is given."""
-    st = _make_state(to="approved")
-    st.target_lane = Lane.APPROVED
-    with patch(
-        f"{_TASKS}._detect_reviewer_name", return_value="sentinel-reviewer"
-    ) as detect_mock:
+def test_reviewer_of_record_combiner_is_the_approval_facts_seam() -> None:
+    """#7569: ``_mt_approval_facts`` reads the reviewer of record, and the pure
+    ``resolve_reviewer_of_record`` combiner is the one seam that decides it: no git
+    user is detected and no ``auto-approval:`` token is minted."""
+    st = _make_state(to="approved", target_lane=Lane.APPROVED, old_lane=Lane.IN_REVIEW, agent="claude:sonnet:reviewer-renata")
+    sentinel = tasks_move_task.ReviewerOfRecord("sentinel:model:reviewer", "sentinel-ref", "review")
+    with (
+        patch.object(tasks_move_task, "resolve_reviewer_of_record", return_value=sentinel) as combiner,
+        patch(f"{_TASKS}.subprocess.run", side_effect=AssertionError("no git lookup")),
+    ):
+        st.reviewer_of_record = tasks_move_task._mt_reviewer_of_record(st)
         reviewer, approval_ref = tasks_move_task._mt_approval_facts(st)
-    detect_mock.assert_called_once()
-    assert reviewer == "sentinel-reviewer"
-    assert approval_ref is not None and approval_ref.startswith("auto-approval:WP01:")
+    combiner.assert_called_once()
+    assert combiner.call_args.kwargs["agent"] == "claude:sonnet:reviewer-renata"
+    assert (reviewer, approval_ref) == ("sentinel:model:reviewer", "sentinel-ref")
+
+
+def test_approval_facts_without_identity_mint_nothing() -> None:
+    """#7569: with no ``--agent``, ``--reviewer`` or claim, an unforced approval has no
+    reviewer of record (the placeholder refusal fires later) -- nothing is invented."""
+    st = _make_state(to="approved", target_lane=Lane.APPROVED, old_lane=Lane.FOR_REVIEW)
+    st.reviewer_of_record = tasks_move_task._mt_reviewer_of_record(st)
+    assert tasks_move_task._mt_approval_facts(st) == (None, None)
 
 
 def test_seam_read_dir_intercepts_issue_matrix_facts(tmp_path: Path) -> None:
@@ -741,7 +752,8 @@ def test_persist_approved_review_cycle_writes_over_stale_rejection(tmp_path: Pat
     call_kwargs = create_mock.call_args.kwargs
     assert call_kwargs["verdict"] == "approved"
     assert call_kwargs["reviewer_agent"] == "alice"
-    assert "Approved by alice: LGTM" in call_kwargs["body"]
+    # #7571 honest body (approval-honesty WP03, re-pinned): the caller's --approval-ref on its own line.
+    assert call_kwargs["body"] == "Approved by alice.\nReference: LGTM\n"
     assert call_kwargs["commit_router"] is ports.coord
 
 
@@ -1330,5 +1342,6 @@ def test_persist_approved_review_cycle_empty_feedback_file_keeps_synthesized_bod
         tasks_verdict_persistence._persist_approved_review_cycle(st, MagicMock())
     call_kwargs = create_mock.call_args.kwargs
     assert call_kwargs["feedback_source"] is None
-    assert call_kwargs["body"] == "Approved by reviewer: approval:WP01\n"
+    # #7571 honest body (approval-honesty WP03, re-pinned): no synthetic ``approval:<WP>`` token.
+    assert call_kwargs["body"] == "Approved by reviewer.\n"
     assert "the file is empty" in capsys.readouterr().err
