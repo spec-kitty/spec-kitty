@@ -656,7 +656,7 @@ def _commit_partition_group(
         )
         return replace(refusal, surfaces=(refused_surface,))
 
-    holder_checkout = False
+    is_holder_checkout = False
     try:
         if use_coord:
             # NOTE (reviewer ruling L1, WP05 cycle 1): ``owned`` is NOT
@@ -690,7 +690,7 @@ def _commit_partition_group(
             # A PRIMARY-partition commit of a flattened or unprotected Mission, or of a
             # settled default Mission whose PRIMARY and coordination partitions share one
             # ref (#7551): commit in the checkout the seam names.
-            worktree_root, commit_paths, holder_checkout = _primary_commit_paths(repo_root, mission_slug, files, kind=kind)
+            worktree_root, commit_paths, is_holder_checkout = _primary_commit_paths(repo_root, mission_slug, files, kind=kind)
     except _OwningSurfaceRefused as exc:
         # T029: a named write_dir refusal (PROTECTED_BRANCH_REFUSED /
         # COORDINATION_BRANCH_DELETED / COORDINATION_WORKTREE_UNMATERIALIZED /
@@ -709,12 +709,11 @@ def _commit_partition_group(
             f"({placement.ref}, worktree={worktree_root}); commit would no-op "
             f"against the wrong surface and was not created."
         )
-        refused = tuple(PathFate(path=_relpath(repo_root, p), reason=commit_outcome.WRONG_SURFACE) for p in commit_paths if not p.exists())
-        return CommitRouterResult(
-            status=_STATUS_NO_OP_WRONG_SURFACE,
-            placement_ref=placement.ref,
-            diagnostic=diagnostic,
-            surfaces=(SurfaceOutcome(surface=surface_name, branch=placement.ref, status="refused", commit_hash=None, refused=refused, diagnostic=diagnostic),),
+        absent = tuple(_relpath(repo_root, p) for p in commit_paths if not p.exists())
+        return _owning_surface_refusal(
+            _OwningSurfaceRefused(path=absent[0], paths=absent, reason=commit_outcome.WRONG_SURFACE, diagnostic=diagnostic),
+            surface_name=surface_name,
+            placement=placement,
         )
 
     commit_result = _safe_commit_group(
@@ -727,7 +726,7 @@ def _commit_partition_group(
         owned=owned,
         expected_parent_sha=expected_parent_sha,
         expected_path_bytes=expected_path_bytes,
-        holder_checkout=holder_checkout,
+        is_holder_checkout=is_holder_checkout,
     )
     if isinstance(commit_result, CommitRouterResult):
         return _refine_unchanged_for_root_checkout_dirt(commit_result, repo_root, files, use_coord=use_coord, surface_name=surface_name, placement=placement)
@@ -774,7 +773,7 @@ def _owning_surface_refusal(
         branch=placement.ref,
         status="refused",
         commit_hash=None,
-        refused=(PathFate(path=exc.path, reason=exc.reason),),
+        refused=tuple(PathFate(path=path, reason=exc.reason) for path in exc.paths),
         diagnostic=exc.diagnostic,
     )
     status = _STATUS_NO_OP_WRONG_SURFACE if exc.reason == commit_outcome.WRONG_SURFACE else _STATUS_ERROR
@@ -808,7 +807,7 @@ def _coord_status_locks(
     commit_paths: tuple[Path, ...],
     *,
     use_coord: bool,
-    holder_checkout: bool = False,
+    is_holder_checkout: bool = False,
 ) -> Iterator[None]:
     """Hold the status lock (L1) of every coord-resident status log this commit carries.
 
@@ -824,12 +823,12 @@ def _coord_status_locks(
 
     The lock engages for a commit on the coordination partition's own branch (``use_coord``) and for a
     commit in a holder checkout away from the repository root checkout
-    (``holder_checkout``, #7607): a settled default Mission's coordination branch
+    (``is_holder_checkout``, #7607): a settled default Mission's coordination branch
     IS its topic branch, so ``use_coord`` is False for every kind while its status
     log still lives in, and is committed from, the coordination worktree. A
     commit in the repository root checkout or in an owned checkout never takes it.
     """
-    if not (use_coord or holder_checkout):
+    if not (use_coord or is_holder_checkout):
         yield
         return
 
@@ -885,7 +884,7 @@ def _safe_commit_group(
     owned: OwnedCheckout | None,
     expected_parent_sha: str | None,
     expected_path_bytes: Mapping[Path, bytes] | None,
-    holder_checkout: bool = False,
+    is_holder_checkout: bool = False,
 ) -> object:
     """Run ``safe_commit`` for one group; a failure or no-op comes back as a :class:`CommitRouterResult`.
 
@@ -896,7 +895,7 @@ def _safe_commit_group(
     """
     surface_name: Literal["primary", "coordination"] = "coordination" if use_coord else "primary"
     try:
-        with _coord_status_locks(repo_root, worktree_root, commit_paths, use_coord=use_coord, holder_checkout=holder_checkout):
+        with _coord_status_locks(repo_root, worktree_root, commit_paths, use_coord=use_coord, is_holder_checkout=is_holder_checkout):
             return safe_commit(
                 repo_root=repo_root,
                 worktree_root=worktree_root,
@@ -1198,7 +1197,7 @@ def _primary_commit_paths(
 ) -> tuple[Path, tuple[Path, ...], bool]:
     """The checkout, paths and holder flag of a non-owned PRIMARY-arm commit (#7551, #7607).
 
-    Returns ``(worktree_root, commit_paths, holder_checkout)``: the checkout from
+    Returns ``(worktree_root, commit_paths, is_holder_checkout)``: the checkout from
     :func:`_primary_commit_root`, the *files* re-expressed in it by
     :func:`_reanchor_primary_paths`, and whether that checkout is a holder away
     from the repository root checkout (the status-lock input, T008). One
@@ -1641,9 +1640,11 @@ class _OwningSurfaceRefused(RuntimeError):
     :class:`CommitRouterResult` — NEVER silently swallowed (T029).
     """
 
-    def __init__(self, *, path: str, reason: str, diagnostic: str) -> None:
+    def __init__(self, *, path: str, reason: str, diagnostic: str, paths: tuple[str, ...] = ()) -> None:
         super().__init__(diagnostic)
         self.path = path
+        #: Every path the refusal names (``path`` alone when empty), for a refusal that covers several.
+        self.paths = paths or (path,)
         self.reason = reason
         self.diagnostic = diagnostic
 
