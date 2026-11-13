@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-10-04'
-updated: '2026-11-10T00:00:00Z'
+updated: '2026-11-12T00:00:00Z'
 ---
 
 **Status:** Accepted
@@ -341,3 +341,59 @@ Every non-migration move of a lane-mapped work package into `claimed` or `in_pro
 - The refusal text of the review-lane exit (`work_package_lifecycle`) still names the unrefined claim.
 
 **Confirmation.** `tests/integration/test_7159_implement_claim_profile.py` (the fresh-lane claim on coord and lanes; the agent-less placeholder; a refusal before any lane exists; a bare claim refined by a submission), `tests/cli/commands/test_dispatched_claim_identity_7159.py` (the seam) and the `latest_implementer_identity` truth table in `tests/unit/status/test_review_roles.py`.
+
+## Amendment 2026-11-12: approvals record the review claimant, never a fabricated reviewer (#7569, #7573, #7571, #7570)
+
+**Reader:** a maintainer who needs to know what `move-task --to approved` and `--to done` record as the reviewer, why an approval now refuses with `APPROVER_NOT_CLAIMANT`, `REVIEW_CYCLE_CITATION_MISSING`, `REVIEW_CYCLE_NOT_ADOPTABLE` or `REVIEW_SLOT_DAMAGED`, and which gaps stay open. Mission `approval-honesty-01M78J9S`; folds [#6709](https://github.com/spec-kitty/spec-kitty/issues/6709) and [#3451](https://github.com/spec-kitty/spec-kitty/issues/3451).
+
+**Context.** The approval bound in this record trusts the reviewer an approval records, but `move-task` did not record a real one:
+
+- with no `--reviewer`, it recorded `git config user.name` and minted an `auto-approval:<WP>:<date>` reference ([#7569](https://github.com/spec-kitty/spec-kitty/issues/7569)). 931 of the 1,390 approvals recorded in this repository since 2026-09-18 carry a reviewer that is not the moving actor, and the fabricated names reach the committed acceptance matrix;
+- it accepted any `--agent`, so a supervisor could record the verdict of a review another identity had claimed ([#7573](https://github.com/spec-kitty/spec-kitty/issues/7573));
+- it wrote its own `review-cycle-N+1.md` when the reviewer had already written `review-cycle-N.md`, so one review was recorded as two cycles ([#7571](https://github.com/spec-kitty/spec-kitty/issues/7571), #3451);
+- it accepted a `--note` or `--approval-ref` citing a cycle that did not exist ([#7570](https://github.com/spec-kitty/spec-kitty/issues/7570)).
+
+The follow-up 2026-10-07 above describes what a forced move wrote under the old rule (a git-user reviewer, a synthetic token, a cycle of its own). This amendment replaces that description; its text is kept as history.
+
+**Decision.**
+
+- **One reviewer of record** (decision `DM-01M78JBBF9F5KGY999NRK7W5XQ`, `reviewer_identity`). Every identity field of an approval (the event `actor`, `evidence.review.reviewer`, the `review_result` reviewer, the review-cycle `reviewer_agent` and the cycle body) names one identity, resolved once (`tasks_move_task.resolve_reviewer_of_record`):
+  - an unforced review: `--agent`, else `--reviewer`, else the review claimant. With none of them, the approval refuses with the existing `REVIEW_NOT_INDEPENDENT`; no new code is added for a missing identity;
+  - a forced move: the forcing identity (`--agent`, else `--reviewer`, else the claimant, else the placeholder `user`), with the arbiter decision's reference or `force-override`. A forced move writes no review cycle;
+  - `approved -> done`: the recorded approval's reviewer and reference, copied verbatim, even when that approval predates this amendment (decision `DM-01M78KX2MEE320MDQE92PVBATB`, `carry_forward`); with no readable approval, the asserted `--agent` with `force-override`.
+  The git user is never read and no `auto-approval:`, `approval:` or `auto-forward:` token is minted. Historical tokens stay readable. A dispatch binding (`--profile`, `--invocation-id`) is applied to the same identity, so the review fields and the actor cannot disagree.
+- **The review claimant** (decision `DM-01M78KWYNSKQTSMJS1J7RM93P5`, `claimant_definition`). The work package's newest entry into `in_review`, when that entry is a review claim: unforced, not a `migration:` actor and not a generic placeholder such as `user` (`status.review_roles.latest_review_claim_identity`, the same rule as consolidation's `approved_bound._entered_review_by_claim`). When the newest entry is not a claim, there is no claimant; an older claim is never reached back to. Identities compare with `review_roles.same_review_identity`: tool, model and profile must all be equal and the role segment is dropped, so bare `claude` is not `claude:sonnet:reviewer-renata`. This is stricter than `actor_identities_independent`, on purpose.
+- **`APPROVER_NOT_CLAIMANT`** (decisions `DM-01M78JBFFCCN3VQJ88Z4QX1AFJ`, `claimant_mismatch`, and `DM-01M78KWPJ4QE5PY18W9MTF5XQ3`, `codes_and_reviewer`). An unforced move into `approved` or `done` refuses, before any write, when:
+  - it leaves `in_review` and the approver is not the claimant;
+  - `--agent` and `--reviewer` name two identities (any approval lane);
+  - the dispatch binding (`--profile`, `--invocation-id`) would override a model or profile that `--agent` or `--reviewer` itself names, including on a direct approval from `for_review`. A binding that only fills a segment the flag left empty passes.
+  The remedy (decision `DM-01M78KWEV05BD19FGPVQXPMSW7`, `claimant_remedy`, which replaces the re-claim remedy of `claimant_mismatch`): the claimant records the verdict (`--agent <claimant>`), or an operator uses `--force`, recorded as a forced move and not as a review. Re-claiming is no remedy: another identity's review claim collides, and `in_review -> for_review` does not exist. The check is the pure guard `_guard_review_claimant`, beside `_guard_agent_ownership` in `tasks_transition_core.py`.
+- **One review, one cycle** (decisions `DM-01M78JBKCZW7QQ8FQTDDRY7YDB`, `review_cycles`, and `DM-01M78KX6GZXB78JVDJ3NQJ9K5X`, `adoption_rule`). An unforced review approval adopts the `review-cycle-N.md` the reviewer wrote instead of writing `N+1`, when the file is valid, no status event references it, its N is above every cycle number the event log references, and its `reviewer_agent` is the reviewer of record. The cycle frontmatter has no verdict field, so a rejection's cycle is excluded because its rejection event references it; dates are never read. With `--review-feedback-file`, nothing is adopted and the cycle is written as before. `approved -> done` writes no cycle.
+- **`REVIEW_CYCLE_NOT_ADOPTABLE`** (decision `DM-01M78KWJRJ8Y1QZ97GDJRWMK2X`, `non_adoptable_cycle`). A cycle written after the latest verdict that is invalid or attributed to another identity refuses the unforced approval. Remedy: rename the file to `review-feedback-N.md` and pass `--review-feedback-file`, or remove it.
+- **`REVIEW_CYCLE_CITATION_MISSING`** (`review_cycles`). A `review-cycle://` `--approval-ref`, or `cycle N` in `--approval-ref` or `--note`, must name a cycle of this work package that exists, is valid, is not a recorded rejection's cycle and was written after the latest review claim. Otherwise the approval refuses, naming the expected path. Remedy: cite a current cycle, or record the review with `--review-feedback-file`.
+- **`REVIEW_SLOT_DAMAGED`** (decision `DM-01M78RHF6ZDFN8392Q8Z0XRDHQ`, `damaged_slot`). When the review verdict in the event log cannot be read, no cycle can be written, so an unforced review approval refuses unless `--approval-ref` names the evidence. Remedy: repair the log, or pass `--approval-ref` or `--force`.
+- **Shape.** Every code exits 1 and writes nothing. Under `--json`, `APPROVER_NOT_CLAIMANT` is a move-task diagnostic with a `code` field, `review_claimant` and `requesting_agent`. The other three, like `REVIEW_NOT_INDEPENDENT`, print `{"error": "<CODE>: ..."}`: the code is the prefix of the `error` text and there is no separate `code` field (with `--owned-checkout`, the owned refusal envelope carries `error.code`). There is no `SINGLE_BRANCH_*` alias.
+
+**Consequences.**
+
+- `--reviewer` is an identity assertion, no longer free text: it sets the approver when `--agent` is absent and must equal `--agent` and the claimant. A name such as `"Jane Doe"` now refuses. Its help text says so.
+- A script that approved as an identity other than the claimant must pass the claimant's identity, or use `--force` and be recorded as a forced move.
+- The `spec-kitty next` merged-Mission hint and the `spk-run-verdict-capture` skill print `--agent <your identity>` on the approve command.
+
+**Not changed.** Consolidation verdicts and their codes (C-004); the event schema, so a reviewer is never null (C-001, which would need a `spec-kitty-events` release); recorded history, with no backfill of fabricated approvals (C-002).
+
+**Residuals.** Each stays open (decision `DM-01M78KWTBN7DVFAZ7HM9GZQEV8`, `closure`).
+
+- (a) `--force` bypasses the new refusals, and consolidation still counts a forced approval after a review claim as a review (#5721 route (a), above).
+- (b) An auto-walk from `for_review` to `approved` records its own claim in the same command, so there is no earlier claimant to compare.
+- (c) `--agent <claimant>` impersonation cannot be detected: identities are self-asserted.
+- (d) The review-artifact override (`--skip-review-artifact-check` over a rejection) persists before the new checks run. A non-claimant now writes nothing; a claimant still persists its override when a later check refuses.
+- (e) `agent status emit` and `orchestrator-api transition` accept any asserted reviewer.
+- (f) Consolidation's done bookkeeping records the git user and the `lane-approved:` / `snapshot-review:` references.
+- (g) On a log written before this amendment, a citation of a pre-claim cycle that no event references is accepted, because dating it would need timestamps (ruled out by `adoption_rule`).
+- (h) On such a log, a forced approval after the newest cycle-referencing event that did write a cycle, followed by a forced rewind with no rejection cycle, can let the same identity adopt that older cycle. It needs two operator force acts and heals once a referenced cycle lands.
+- (i) A review claim recorded with `--agent migration:x` is replayed as a seed actor on a later flagless approval (pre-existing, #6754).
+- (j) `approved -> done` without `--agent` still refuses `REVIEW_NOT_INDEPENDENT`; the done event carries the approval's reviewer and reference in its review fields only.
+- (k) A lane-tip citation in a note is not verified.
+
+**Confirmation.** `tests/specify_cli/cli/commands/agent/test_approval_honesty_identity.py` (one identity in every field; a distinctive git `user.name` appears nowhere; the damaged slot), `test_approval_honesty_claimant.py` (the claimant rule, the flag and binding disagreements, the `--json` diagnostic), `test_approval_honesty_cycles.py` and `tests/review/test_review_cycle_adoption.py` (adoption, citations, the legacy-log rule), the claimant and identity-equality table in `tests/status/test_review_claim_identity.py`, and `tests/runtime/next/test_approval_hint_identity.py` (the shipped guidance).
