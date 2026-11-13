@@ -72,6 +72,8 @@ __all__ = [
     "LLMS_STANCE",
     "NOT_A_DATE_MESSAGE",
     "PERSONA_ROOT",
+    "RETIRED_SECTION_INDEX_FILE",
+    "SECTION_INDEX_FILE",
     "REQUIRED_FIELDS",
     "REQUIRED_FIELD_FLOOR",
     "FrontmatterFindings",
@@ -103,6 +105,14 @@ EXCLUDED_FOLDERS: Final[tuple[str, ...]] = ("archive", "reports", "convergence",
 #: The section index basename (ADR D-1): ``README`` only since the rename of every
 #: ``index.md`` (#6939); ``tests/docs/test_section_index_basename.py`` keeps ``index.md`` out.
 INDEX_BASENAMES: Final[tuple[str, ...]] = ("README",)
+
+#: The section index file name, derived from :data:`INDEX_BASENAMES` (``README.md``): the one literal
+#: every docs script imports instead of spelling it.
+SECTION_INDEX_FILE: Final[str] = f"{INDEX_BASENAMES[0]}.md"
+
+#: The retired section index file name (``index.md``, renamed to ``README.md`` in #6939): named only
+#: where a script reads or tolerates a leftover one, never written.
+RETIRED_SECTION_INDEX_FILE: Final[str] = "index.md"
 
 #: History folders whose pages never change besides the dated ADRs: plans, reports, changelog, archive.
 IMMUTABLE_PREFIXES: Final[tuple[str, ...]] = ("plans/", "reports/", "changelog/", "archive/")

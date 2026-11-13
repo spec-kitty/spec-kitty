@@ -52,7 +52,7 @@ from typing import Any, Final
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
-from scripts.docs._dockitty_contract import is_excluded, persona_page
+from scripts.docs._dockitty_contract import RETIRED_SECTION_INDEX_FILE, SECTION_INDEX_FILE, is_excluded, persona_page
 from scripts.docs._guards import assert_examined_floor
 from scripts.docs._inventory import parse_frontmatter
 from scripts.docs._page_scope import is_docs_page
@@ -86,7 +86,7 @@ _DESC_MAX: Final[int] = 180
 #: scaffolding, not content pages carrying audience/description/placement.
 #: ``README.md`` is the only landing basename the tree carries since #6939; the
 #: retired ``index.md`` stays excluded so a stray one is scaffolding, not content.
-_NAV_BASENAMES: Final[frozenset[str]] = frozenset({"index.md", "README.md"})
+_NAV_BASENAMES: Final[frozenset[str]] = frozenset({RETIRED_SECTION_INDEX_FILE, SECTION_INDEX_FILE})
 
 #: Root files considered "documentation-bearing" for the root-allowlist gate.
 _DOC_ROOT_SUFFIXES: Final[tuple[str, ...]] = (".md", ".txt")
