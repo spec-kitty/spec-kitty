@@ -21,14 +21,19 @@ append-only, deterministic, and identical across every agent.
 
 - **Approve** a WP under review:
   ```bash
-  spec-kitty agent tasks move-task <WP> --to approved --mission <slug> --note "<why>"
+  spec-kitty agent tasks move-task <WP> --to approved --mission <slug> --agent <your identity> --note "<why>"
   ```
+  The approval records the identity that claimed the review
+  (`spec-kitty agent action review <WP> --agent <id>`); it is never taken from git.
+  `APPROVER_NOT_CLAIMANT`, `REVIEW_CYCLE_CITATION_MISSING` and `REVIEW_CYCLE_NOT_ADOPTABLE`
+  explain a refused approval.
 - **Reject** a WP (send it back with structured feedback):
   ```bash
   spec-kitty agent tasks move-task <WP> --to planned \
     --review-feedback-file <path/to/review-feedback-N.md> --mission <slug>
   ```
-- **Terminal (done) with an explicit review triple** (reviewer / verdict / reference):
+- **Terminal (done) with an explicit review triple** (reviewer / verdict / reference). `--actor`
+  and `reviewer` must name a real identity, the one that did the review, never a placeholder:
   ```bash
   spec-kitty agent status emit <WP> --to done --actor <name> \
     --evidence-json '{"review": {"reviewer": "<name>", "verdict": "approved", "reference": "<PR/commit>"}}'

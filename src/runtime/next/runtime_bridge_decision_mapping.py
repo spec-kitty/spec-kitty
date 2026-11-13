@@ -315,7 +315,7 @@ def _merged_mission_short_circuit(
                 "acceptable ending (conflict). Inspect the committed board with "
                 f"'spec-kitty agent tasks status --mission {mission_slug}' and "
                 "resolve the straggling work package(s) — e.g. "
-                f"'spec-kitty agent tasks move-task <wp> --to approved --mission {mission_slug}'."
+                f"'spec-kitty agent tasks move-task <wp> --to approved --mission {mission_slug} --agent <your identity>'."
             ),
         )
     )
