@@ -87,15 +87,9 @@ SECTION_ISSUES: Final[Mapping[str, str]] = {
 #: Every other section and the root pages (#7528: operations, configuration and the small sections).
 DEFAULT_SECTION_ISSUE: Final[str] = "#7528"
 
-_SECTION_TITLES: Final[Mapping[str, str]] = {
-    "#7522": "context/",
-    "#7523": "guides/",
-    "#7524": "architecture/",
-    "#7525": "development/",
-    "#7526": "api/",
-    "#7527": "migrations/",
-    "#7528": "operations/, configuration/ and the small sections",
-}
+_SMALL_SECTIONS: Final[str] = "operations/, configuration/ and the small sections"
+#: The section title the page lists print for each sub-issue, derived from :data:`SECTION_ISSUES`.
+_SECTION_TITLES: Final[Mapping[str, str]] = {**{issue: f"{head}/" for head, issue in SECTION_ISSUES.items()}, DEFAULT_SECTION_ISSUE: _SMALL_SECTIONS}
 
 _DOCS: Final[str] = "docs"
 _MANIFEST: Final[str] = "src/specify_cli/_completion_manifest.json"
