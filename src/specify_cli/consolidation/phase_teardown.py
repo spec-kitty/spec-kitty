@@ -566,8 +566,8 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
     the window starts at the PRE-mutation coordination snapshot (``state.pre_mutation_coord_sha``),
     so it spans everything the coordination branch changed SINCE THE MERGE BEGAN: it also carries
     commits made while the merge ran. After a verified landing it starts at the coordination tip
-    persisted with the PASS anchor, like a first run (#7491), so the merge's own lane merges of
-    PRIMARY artifacts the target later changed are not re-judged. The refusal is reachable on an
+    persisted with the PASS anchor, like a first run (#7491), so the lane consolidation's own
+    PRIMARY artifacts that the target later changed are not re-judged. The refusal is reachable on an
     ordinary resume, not just one that follows a refused teardown -- a window that deletes a record
     the target holds REFUSES (exit 1) where this path used to exit 0 and drop the deletion with the
     branch (see :func:`assert_late_window_landed`).
