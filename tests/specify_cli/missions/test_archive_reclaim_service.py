@@ -270,6 +270,38 @@ def test_a_dirty_worktree_refusal_keeps_its_code(tmp_path: Path, seams: dict[str
     assert seams["deleted"] == []
 
 
+def test_the_teardown_seam_runs_without_its_persist_leg(tmp_path: Path, seams: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7598 fold (NIT-4): consolidate already persisted a merged Mission's retrospective; reclaim never commits one."""
+    _coord_meta(tmp_path)
+    seen: dict[str, object] = {}
+
+    def teardown(*_args: object, **kwargs: object) -> bool:
+        seen.update(kwargs)
+        seams["present"]["value"] = False
+        return True
+
+    monkeypatch.setattr(reclaim, "teardown_coordination_topology", teardown)
+
+    reclaim.reclaim_archived_mission(tmp_path, _SLUG)
+
+    assert seen.get("persist") is False
+
+
+def test_an_unexpected_teardown_error_is_a_named_refusal(tmp_path: Path, seams: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7598 fold (NIT-4): any other seam failure is RECLAIM_WORKTREE_KEPT with its text, never a traceback."""
+    _coord_meta(tmp_path)
+
+    def broken(*_args: object, **_kwargs: object) -> bool:
+        raise OSError("disk went away")
+
+    monkeypatch.setattr(reclaim, "teardown_coordination_topology", broken)
+
+    refused = _refusal(tmp_path)
+
+    assert refused.error_code == reclaim.RECLAIM_WORKTREE_KEPT and "disk went away" in str(refused)
+    assert seams["deleted"] == []
+
+
 def test_a_worktree_the_seam_could_not_remove_refuses(tmp_path: Path, seams: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> None:
     _coord_meta(tmp_path)
     monkeypatch.setattr(reclaim, "teardown_coordination_topology", lambda *_a, **_k: False)
