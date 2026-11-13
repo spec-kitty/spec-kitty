@@ -1,7 +1,7 @@
 {
-  "event_count": 26,
-  "last_event_id": "01M7992MY2S48R9ZX4HFAS0332",
-  "materialized_at": "2026-11-13T01:41:41.174291+00:00",
+  "event_count": 28,
+  "last_event_id": "01M79B433KMD6N579FH01QBNXM",
+  "materialized_at": "2026-11-13T02:17:26.387566+00:00",
   "mission_number": "",
   "mission_slug": "approval-honesty-01M78J9S",
   "mission_type": "software-dev",
@@ -13,8 +13,8 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
-    "in_review": 0,
+    "in_progress": 0,
+    "in_review": 1,
     "planned": 2
   },
   "work_packages": {
@@ -65,20 +65,22 @@
     },
     "WP02": {
       "actor": "claude",
-      "agent": null,
-      "agent_profile": "python-pedro",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M7992MY2S48R9ZX4HFAS0332",
-      "last_transition_at": "2026-11-13T01:41:41.174291+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M79B433KMD6N579FH01QBNXM",
+      "last_transition_at": "2026-11-13T02:17:26.387566+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-12T23:13:36Z – claude – shell_pid=31984 – T008 red-first c9b73536 (9 failed/6 passed on base, incl. case 2 same-tool supervisor). T009/T010: guard + APPROVER_NOT_CLAIMANT + MoveTaskRequest.review_claimant/asserted_agent/asserted_reviewer; one-line wiring of the WP02 guard input in tasks_move_task._mt_build_request (ownership-map leeway). Design: compared identity = what the approval records (--profile binding applied); case 9: refusal precedes the override persist, so no override record is written (stricter than the prompt expected; pinned).",
         "- 2026-11-12T23:23:56Z – claude – shell_pid=31984 – T011: re-pinned test_ac5_hash_guard (stale free-text --reviewer reviewer-renata beside --agent codex; dropped, ownership-map leeway: unowned-by-intent but listed) and test_move_task_structured_actor_6400 seed test (seed replay now exercised on the for_review submission path that still replays a recorded migration: owner; companion pins forced migration in_review = no claimant -> REVIEW_NOT_INDEPENDENT, nothing written). The other listed fixtures (approval_evidence, body_collision, issue_matrix_orchestrator, verdict_save_performance, 6400 profile-flag) stay green unchanged: their in_review seeds are forced (no claimant) or the compared identity is the recorded one (--profile binding applied).",
         "- 2026-11-13T00:58:24Z – claude – shell_pid=31984 – T011 (cont.): re-pinned under ownership-map leeway test_wp03_advance_to_approval (--agent claude --reviewer reviewer: stale free-text --reviewer) and test_owned_reopen_feedback::test_explicit_profiles_preserved_on_actual_owned_hops (--reviewer reviewer-renata -> codex::reviewer-renata); both green on base, red on tip before. T012: fast tier 3037 passed; tests/status+tests/review 2884 passed; full agent dir 3149 passed; arch gates 160 passed + 2 pre-existing no_dead_symbols reds (format_stamp, synthetic_auto_approval_ref; same_review_identity cleared); approving integration files 471 passed, remaining reds pre-existing on base (verdict_save_topologies[done], explicit_checkout_commands::test_owned_composition_policy...) or load timeouts (default_mission setup, green on base).",
-        "Ready for review: pure _guard_review_claimant (after _guard_agent_ownership) refuses unforced in_review->approved/done by a non-claimant, and --agent/--reviewer disagreeing, with APPROVER_NOT_CLAIMANT (exit 1, nothing written); compared identity = what the approval records (binding applied); fixtures re-pinned (ac5, 6400 seed, wp03 advance, owned reopen)."
+        "Ready for review: pure _guard_review_claimant (after _guard_agent_ownership) refuses unforced in_review->approved/done by a non-claimant, and --agent/--reviewer disagreeing, with APPROVER_NOT_CLAIMANT (exit 1, nothing written); compared identity = what the approval records (binding applied); fixtures re-pinned (ac5, 6400 seed, wp03 advance, owned reopen).",
+        "Cycle 2: one reviewer of record. resolve_reviewer_of_record now takes --agent, --reviewer and the claimant through asserted_review_identity (the binding applied), the same identity the claimant guard compares; a flag whose own profile/model the binding would override, or a binding that would rename the claimant, refuses APPROVER_NOT_CLAIMANT. Cycle reviewer_agent pinned as strict xfail for WP03.",
+        "- 2026-11-13T02:16:53Z – claude – Leeway edit in tasks_move_task.py (WP01): FR-001 single reviewer of record; review fields used the raw flag while the actor used the bound identity"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -88,15 +90,15 @@
         "reviewer": "claude::reviewer-renata",
         "verdict": "changes_requested"
       },
-      "role": "implementer",
-      "shell_pid": null,
-      "shell_pid_created_at": null,
+      "role": "reviewer",
+      "shell_pid": 13700,
+      "shell_pid_created_at": "1794536237.22",
       "subtasks": {
-        "T008": "planned",
-        "T009": "planned",
-        "T010": "planned",
-        "T011": "planned",
-        "T012": "planned"
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
       }
     },
     "WP03": {
