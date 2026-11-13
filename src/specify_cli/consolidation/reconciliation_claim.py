@@ -149,6 +149,7 @@ def build_approved_wp_set(
     external_dependency_refs: Sequence[str] = (),
     external_dependency_pins: Mapping[str, str] | None = None,
     frozen_dependency_tips: Mapping[str, str] | None = None,
+    mission_branch_tip: str | None = None,
 ) -> ApprovedWpCommitSet:
     """Derive the fail-closed, reduced-snapshot claim once per transaction (T027).
 
@@ -175,6 +176,9 @@ def build_approved_wp_set(
       claim so the verifier and the ``--dry-run`` forecast attribute the same content. A
       declaration that cannot be honoured yields a REFUSE-shaped claim, so it refuses at
       claim time (before the first mutating phase) instead of at the gate.
+    * *mission_branch_tip* (#7626) is the Mission branch's frozen tip (a SHA: the run's
+      pre-mutation tip, never the live branch) that a reviewed merge on a lane may bring in
+      as authorship; ``None`` trusts no Mission-branch history beyond *coord_base_ref*.
     * *frozen_dependency_tips* (FR-015) is a ``--resume``'s ONE frozen anchor set (created
       dependency-lane branch -> tip frozen before the first mutation). It anchors all three
       claim-time readers of :func:`_closed_world_anchors` -- the fully-canceled lanes' own
@@ -201,6 +205,7 @@ def build_approved_wp_set(
         external_dependency_refs=external_dependency_refs,
         external_dependency_pins=external_dependency_pins,
         frozen_dependency_tips=frozen_dependency_tips,
+        mission_branch_tip=mission_branch_tip,
         pre_mission=pre_mission,
     )
 
@@ -216,6 +221,7 @@ def _build_claim(
     external_dependency_refs: Sequence[str],
     external_dependency_pins: Mapping[str, str] | None,
     frozen_dependency_tips: Mapping[str, str] | None,
+    mission_branch_tip: str | None,
     pre_mission: PreMissionHistory,
 ) -> ApprovedWpCommitSet:
     """The body of :func:`build_approved_wp_set`, with the pre-Mission history already resolved."""
@@ -357,6 +363,7 @@ def _build_claim(
         base=_bound_claim_base(repo_root, excluded_window_base, coord_base_ref),
         coord_base_ref=coord_base_ref,
         events=event_log.read(),
+        mission_tip=mission_branch_tip,
     )
     presence_refusal = _presence_range_unreadable_refusal(lanes_manifest, work_packages, presence, coord_base_ref)
     if presence_refusal is not None:

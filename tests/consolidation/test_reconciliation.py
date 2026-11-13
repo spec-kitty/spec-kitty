@@ -2132,9 +2132,11 @@ def test_squash_passes_reviewed_lane_merge_of_the_mission_branch_resolution(tmp_
     assert git_probes.blob_id_at(repo, _TARGET, "src/shared.py") == resolved_blob
 
     # The claim measures lanes from the first attempt's frozen anchor (the coordination base
-    # before any lane was merged), as the charter run did: only the live Mission branch, a
+    # before any lane was merged), as the charter run did: only the Mission branch's frozen tip, a
     # trusted root of its own, carries the hand resolution.
-    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_anchor, excluded_window_base=window_base)
+    claim = build_approved_wp_set(
+        repo, feature_dir, manifest, coord_base_ref=coord_anchor, excluded_window_base=window_base, mission_branch_tip=_rev(repo, mission)
+    )
     assert ("src/shared.py", resolved_blob) in claim.authored_blobs
     result = MergeOutcomeVerifier(repo).verify(_TARGET, replace(claim, verify_reachability=False))
     assert result.is_pass, result.divergence.describe() if result.divergence else result.refusal_reason
@@ -2149,8 +2151,14 @@ def test_squash_fails_closed_when_reviewed_lane_merges_a_foreign_branch(tmp_path
     _git(repo, "branch", "foreign", coord_base)
     _edit_shared_line(repo, "foreign", "src/shared.py", 4, "SMUGGLED\n")
     _lane_c_merges(repo, "foreign")
-    _git(repo, "branch", "-qD", "foreign")
     _restamp_approvals(repo)
+    # The branch later reaches the live Mission branch too (an operator merge, or an earlier
+    # attempt): that must not make it trusted history for a merge approved before it got there.
+    _git(repo, "branch", manifest.mission_branch, coord_base)
+    _git(repo, "checkout", "-q", manifest.mission_branch)
+    _git(repo, "merge", "-q", "--no-ff", "--no-edit", "foreign")
+    _git(repo, "checkout", "-q", _TARGET)
+    _git(repo, "branch", "-qD", "foreign")
     window_base = _land_lane_c(repo)
     target_blob = git_probes.blob_id_at(repo, _TARGET, "src/shared.py")
 

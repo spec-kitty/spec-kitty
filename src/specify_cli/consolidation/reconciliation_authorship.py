@@ -341,10 +341,12 @@ def _trusted_history_roots(
     """The refs whose history a reviewed merge on *lane* may bring in as authorship (#7626).
 
     The Mission branch, both as the claim measures from it (*coord_base_ref*, which a
-    coordination topology freezes at the first attempt's tip) and as it stands now
-    (``lanes_manifest.mission_branch``: an earlier attempt's merges, and an operator's
-    resolutions of their conflicts, live there and reach a lane only through a merge the
-    lane's reviewer then saw), the target's pre-run tip (``presence.base``: content the
+    coordination topology freezes at the first attempt's tip) and as the run froze it
+    (``presence.mission_tip``, the pre-mutation tip: an operator's resolutions of conflicts
+    live there and reach a lane only through a merge the lane's reviewer then saw). The
+    LIVE branch is never a root: a foreign branch merged into a lane before its approval
+    and into the Mission branch afterwards would otherwise turn trusted, the #4977 carrier
+    shape. The target's pre-run tip (``presence.base``: content the
     target already had), and the approval stamps of every OTHER approved lane's WPs
     (content in another reviewed tip). The
     lane's own stamps are left out: they reach every merge on its own spine, so they
@@ -352,7 +354,7 @@ def _trusted_history_roots(
     """
     if presence is None:
         return ()
-    roots = [coord_base_ref, lanes_manifest.mission_branch, presence.base]
+    roots = [coord_base_ref, presence.mission_tip or "", presence.base]
     for other in lanes_manifest.lanes:
         if other.lane_id != lane.lane_id and _lane_is_approved(other, work_packages):
             roots.extend(_approved_stamps(other, work_packages, presence))
@@ -558,6 +560,8 @@ class _PresenceScope:
     canceled: frozenset[str]
     #: Each WP's newest approval stamp (:func:`approval_stamp`), ``None`` when unstamped (#7307).
     approval_stamps: Mapping[str, str | None] = field(default_factory=dict)
+    #: The Mission branch's frozen tip (SHA) the run measures from, ``None`` when none is known (#7626).
+    mission_tip: str | None = None
 
 
 def _presence_scope(
@@ -568,6 +572,7 @@ def _presence_scope(
     base: str,
     coord_base_ref: str,
     events: Sequence[Any] | None,
+    mission_tip: str | None = None,
 ) -> _PresenceScope:
     """Build the :class:`_PresenceScope` of one claim: one range read for the mission branch, the event log already read."""
     try:
@@ -578,7 +583,7 @@ def _presence_scope(
     # The gate-time presence axis reads the dependency-lane tips live (FR-015 freezes the claim-time readers only).
     canceled = _fully_canceled_lane_commits(repo_root, lanes_manifest, excluded_ids, base, base, frozen_tips=None)
     stamps = {wp: approval_stamp(events, wp) for lane in lanes_manifest.lanes for wp in lane.wp_ids} if events is not None else {}
-    return _PresenceScope(base=base, carried=carried, lane_bases=lane_bases, canceled=canceled, approval_stamps=stamps)
+    return _PresenceScope(base=base, carried=carried, lane_bases=lane_bases, canceled=canceled, approval_stamps=stamps, mission_tip=mission_tip)
 
 
 def _presence_range_unreadable_refusal(

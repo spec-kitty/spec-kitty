@@ -386,12 +386,20 @@ def test_saved_reads_the_record_never_live(recorded: list[Any], monkeypatch: pyt
 
 def test_live_then_saved_reuses_the_tips_the_claim_phase_captured(recorded: list[Any], monkeypatch: pytest.MonkeyPatch) -> None:
     """M7: a fresh run's dependency anchors come from the tips the claim phase just captured, never a second read."""
-    monkeypatch.setattr(ci, "capture_branch_tip", lambda *_a: pytest.fail("LIVE_THEN_SAVED must reuse the captured tips"))
+
+    def read(_repo: Path, branch: str) -> str:
+        # Only the Mission branch is read live (its tip is frozen into the inputs, #7626); a lane tip must not be.
+        if branch != _context(state=state).manifest.mission_branch:
+            pytest.fail("LIVE_THEN_SAVED must reuse the captured tips")
+        return "m" * 40
+
     state = _state()
+    monkeypatch.setattr(ci, "capture_branch_tip", read)
 
     inputs = claim_inputs(ClaimInputSource.LIVE_THEN_SAVED, _context(state=state))
 
     assert dict(inputs.dependency_anchors) == {_LANE_A: "1" * 40}
+    assert inputs.mission_branch_tip == "m" * 40
 
 
 def test_live_then_saved_reads_live_when_nothing_was_captured(recorded: list[Any]) -> None:
