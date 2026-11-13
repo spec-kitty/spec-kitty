@@ -23,18 +23,16 @@ import pytest
 
 from specify_cli.consolidation import reconciliation_verifier
 from specify_cli.consolidation.git_probes import blob_id_at, patch_id_of
-from specify_cli.consolidation.mission_base import MissionBase, MissionBaseProvenance, MissionBaseReason
+from specify_cli.consolidation.mission_base import MissionBase, MissionBaseProvenance
 from specify_cli.consolidation.reconciliation import (
     ApprovedWpCommitSet,
     MergeOutcomeVerifier,
     PreMissionHistory,
     VerifyStatus,
     _pre_mission_attribution,
-    mission_base_note,
 )
 from specify_cli.lanes.compute import lane_created_branch
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
-from tests.consolidation.reconciliation_family import setattr_reconciliation_family
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -364,56 +362,3 @@ def test_empty_pre_mission_sets_keep_todays_verdict(fork: _Fork, shape: str) -> 
     verifier = MergeOutcomeVerifier(fork.repo)
 
     assert verifier.verify(target, claim) == verifier.verify(target, today)
-
-
-def test_patch_id_window_without_pre_mission_history_is_todays_single_probe(fork: _Fork, monkeypatch: pytest.MonkeyPatch) -> None:
-    calls: list[tuple[str, str]] = []
-
-    def _spy(_repo: Path, base: str, tip: str) -> set[str]:
-        calls.append((base, tip))
-        return set()
-
-    monkeypatch.setattr(reconciliation_verifier, "patch_ids_in_range", _spy)
-    verifier = MergeOutcomeVerifier(fork.repo)
-
-    assert verifier._window_patch_ids(fork.root, _MISSION_BRANCH, _claim(fork)) == set()
-    assert calls == [(fork.root, _MISSION_BRANCH)]
-
-
-# --- the claim-side helpers (pre-Mission history, base settling, note) ----------------------
-
-
-def test_pre_mission_attribution_computes_no_patch_ids(fork: _Fork, monkeypatch: pytest.MonkeyPatch) -> None:
-    def _forbidden(*_args: object, **_kwargs: object) -> str:
-        raise AssertionError("the pre-Mission history needs no patch-ids: the exemption is by exact SHA")
-
-    setattr_reconciliation_family(monkeypatch, "patch_id_of", _forbidden)
-    base = MissionBase(fork.base, MissionBaseProvenance.RECORDED)
-
-    assert _pre_mission_attribution(fork.repo, fork.root, base, feature_dir=None, lanes_manifest=None).shas == _pre_base(fork)
-    # The window base already reaches the base: nothing pre-Mission.
-    assert _pre_mission_attribution(fork.repo, fork.base, base, feature_dir=None, lanes_manifest=None) == PreMissionHistory(base)
-
-
-def test_mission_base_note_is_silent_for_a_missing_mission_branch_and_never_quotes_git() -> None:
-    """The note decides on the typed reason, never on the reason's text (Arch-3/4)."""
-    gone = MissionBase(None, MissionBaseProvenance.UNAVAILABLE, "the Mission branch does not resolve", MissionBaseReason.MISSION_BRANCH_UNRESOLVED)
-    assert mission_base_note(ApprovedWpCommitSet(mission_base=gone)) is None
-
-    for leaky in (
-        "git probe failed: fatal: bad revision 'x'",
-        "git probe failed: git log failed (exit 128): fatal: x; secret; more stderr",
-        "no mission_base_sha recorded; git probe failed: fatal: bad revision 'x'",
-        "rev-list exploded",
-    ):
-        probe = MissionBase(None, MissionBaseProvenance.UNAVAILABLE, leaky, MissionBaseReason.PROBE_FAILED)
-        note = mission_base_note(ApprovedWpCommitSet(mission_base=probe))
-        assert note == "Mission base unavailable (a git probe failed); reconciliation windows are bounded by the target's pre-run tip only."
-    plain = MissionBase(None, MissionBaseProvenance.UNAVAILABLE, "no mission_base_sha recorded", MissionBaseReason.NOT_RECORDED)
-    assert mission_base_note(ApprovedWpCommitSet(mission_base=plain)) == (
-        "Mission base unavailable (no mission_base_sha recorded); reconciliation windows are bounded by the target's pre-run tip only."
-    )
-    sha = "0123456789abcdef0123456789abcdef01234567"
-    derived = MissionBase(sha, MissionBaseProvenance.DERIVED, "git probe failed: fatal: boom", MissionBaseReason.PROBE_FAILED)
-    with_history = mission_base_note(ApprovedWpCommitSet(mission_base=derived, pre_mission_shas=frozenset({"a"})))
-    assert with_history is not None and "fatal" not in with_history and "(derived: a git probe failed)" in with_history

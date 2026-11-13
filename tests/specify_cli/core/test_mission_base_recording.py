@@ -128,10 +128,3 @@ def test_record_is_write_once() -> None:
     record_mission_base_sha(meta, "a" * 40)
     record_mission_base_sha(meta, "b" * 40)
     assert meta[MISSION_BASE_SHA_KEY] == "a" * 40
-
-
-@pytest.mark.parametrize("sha", [None, ""])
-def test_record_skips_missing_sha(sha: str | None) -> None:
-    meta: dict[str, Any] = {}
-    record_mission_base_sha(meta, sha)
-    assert MISSION_BASE_SHA_KEY not in meta

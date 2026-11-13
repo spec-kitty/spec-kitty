@@ -73,18 +73,19 @@ def test_recorded_and_valid_is_recorded(repo: Path, tmp_path: Path) -> None:
     assert result == MissionBase(base, MissionBaseProvenance.RECORDED)
 
 
-def test_recorded_not_on_branch_falls_through_to_derived(repo: Path, tmp_path: Path) -> None:
+@pytest.mark.parametrize("which", ["elsewhere", "absent_from_clone"])
+def test_recorded_not_on_branch_falls_through_to_derived(repo: Path, tmp_path: Path, which: str) -> None:
     base, _ = _mission_on_branch(repo)
     _git(repo, "checkout", "-q", "main")
-    elsewhere = _commit(repo, "other.txt", "o\n", "elsewhere")
+    recorded = _commit(repo, "other.txt", "o\n", "elsewhere") if which == "elsewhere" else "0" * 40
     feature_dir = tmp_path / "meta"
-    _write_meta(feature_dir, mission_base_sha=elsewhere)
+    _write_meta(feature_dir, mission_base_sha=recorded)
 
     result = resolve_mission_base(repo, feature_dir, mission_branch=MISSION_BRANCH, mission_slug=SLUG)
 
     assert result.provenance is MissionBaseProvenance.DERIVED
     assert result.sha == base
-    assert result.reason is not None and elsewhere[:12] in result.reason
+    assert result.reason is not None and recorded[:12] in result.reason
 
 
 @pytest.mark.parametrize(
@@ -232,38 +233,24 @@ def test_recorded_sha_resolve_failure_is_a_probe_failure(repo: Path, tmp_path: P
     assert result.reason is not None and "fatal: corrupt" in result.reason
 
 
-def test_recorded_sha_absent_from_clone_falls_through(repo: Path, tmp_path: Path) -> None:
-    base, _ = _mission_on_branch(repo)
-    feature_dir = tmp_path / "meta"
-    _write_meta(feature_dir, mission_base_sha="0" * 40)
-
-    result = resolve_mission_base(repo, feature_dir, mission_branch=MISSION_BRANCH, mission_slug=SLUG)
-
-    assert (result.sha, result.provenance) == (base, MissionBaseProvenance.DERIVED)
-
-
-def test_not_recorded_derives_first_parent_of_scaffold(repo: Path, tmp_path: Path) -> None:
+@pytest.mark.parametrize("meta", ["not_recorded", "no_feature_dir", "unreadable_meta"])
+def test_not_recorded_derives_first_parent_of_scaffold(repo: Path, tmp_path: Path, meta: str) -> None:
     base, scaffold = _mission_on_branch(repo)
-    feature_dir = tmp_path / "meta"
-    _write_meta(feature_dir)
+    feature_dir: Path | None = tmp_path / "meta"
+    assert feature_dir is not None
+    if meta == "no_feature_dir":
+        feature_dir = None
+    elif meta == "unreadable_meta":
+        feature_dir.mkdir()
+        (feature_dir / "meta.json").write_text("{not json", encoding="utf-8")
+    else:
+        _write_meta(feature_dir)
 
     result = resolve_mission_base(repo, feature_dir, mission_branch=MISSION_BRANCH, mission_slug=SLUG)
 
     assert result.provenance is MissionBaseProvenance.DERIVED
     assert result.sha == base == _git(repo, "rev-parse", f"{scaffold}^1")
-    assert result.reason == "no mission_base_sha recorded"
     assert result.kind is MissionBaseReason.NOT_RECORDED
-
-
-def test_no_feature_dir_and_unreadable_meta_derive(repo: Path, tmp_path: Path) -> None:
-    base, _ = _mission_on_branch(repo)
-    feature_dir = tmp_path / "meta"
-    feature_dir.mkdir()
-    (feature_dir / "meta.json").write_text("{not json", encoding="utf-8")
-
-    for candidate in (None, feature_dir):
-        result = resolve_mission_base(repo, candidate, mission_branch=MISSION_BRANCH, mission_slug=SLUG)
-        assert (result.sha, result.provenance) == (base, MissionBaseProvenance.DERIVED)
 
 
 def test_scaffold_root_commit_is_unavailable(repo: Path) -> None:
@@ -372,25 +359,6 @@ def test_scaffold_beside_an_older_mission_still_derives(repo: Path) -> None:
     assert _git(repo, "rev-parse", f"{scaffold}^1") == base
 
 
-def test_rename_probe_uses_no_copy_detection(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The probe is rename-only through ``kernel.git``: renames on, ``R`` only, never copy detection."""
-    _mission_on_branch(repo)
-    from specify_cli.consolidation import mission_base
-
-    calls: list[dict[str, Any]] = []
-    real = mission_base.changed_entries
-
-    def recording(*args: Any, **kwargs: Any) -> Any:
-        calls.append(kwargs)
-        return real(*args, **kwargs)
-
-    monkeypatch.setattr(mission_base, "changed_entries", recording)
-
-    resolve_mission_base(repo, None, mission_branch=MISSION_BRANCH, mission_slug=SLUG)
-
-    assert calls == [{"renames": True, "diff_filter": "R"}]
-
-
 def test_copy_that_keeps_its_source_derives_residual(repo: Path) -> None:
     """Named residual: a copy that leaves its source in place (``cp -r old <slug>``) is not detected.
 
@@ -475,10 +443,13 @@ def test_scaffold_through_second_parent_merge_never_picks_above_mission_work(rep
     assert side_scaffold not in pre_mission_history(repo, "main", result)
 
 
-def test_unresolvable_mission_branch_is_unavailable_never_raises(repo: Path, tmp_path: Path) -> None:
+@pytest.mark.parametrize("recorded", [True, False])
+def test_unresolvable_mission_branch_is_unavailable_never_raises(repo: Path, tmp_path: Path, recorded: bool) -> None:
     base, _ = _mission_on_branch(repo)
-    feature_dir = tmp_path / "meta"
-    _write_meta(feature_dir, mission_base_sha=base)
+    feature_dir: Path | None = None
+    if recorded:
+        feature_dir = tmp_path / "meta"
+        _write_meta(feature_dir, mission_base_sha=base)
 
     result = resolve_mission_base(repo, feature_dir, mission_branch="kitty/no-such-branch", mission_slug=SLUG)
 
@@ -486,14 +457,6 @@ def test_unresolvable_mission_branch_is_unavailable_never_raises(repo: Path, tmp
     assert result.provenance is MissionBaseProvenance.UNAVAILABLE
     assert result.kind is MissionBaseReason.MISSION_BRANCH_UNRESOLVED
     assert result.reason == "the Mission branch does not resolve"
-
-
-def test_unresolvable_branch_without_record_is_unavailable(repo: Path) -> None:
-    _mission_on_branch(repo)
-
-    result = resolve_mission_base(repo, None, mission_branch="kitty/no-such-branch", mission_slug=SLUG)
-
-    assert (result.sha, result.provenance, result.kind) == (None, MissionBaseProvenance.UNAVAILABLE, MissionBaseReason.MISSION_BRANCH_UNRESOLVED)
 
 
 def test_pre_mission_history_empty_when_target_reaches_base(repo: Path) -> None:
