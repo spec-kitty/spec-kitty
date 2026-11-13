@@ -550,12 +550,35 @@ class MergeOutcomeVerifier:
             if sha_reachable_from(self._repo, sha, target_ref):
                 reachable.append((sha, patch_id_of(self._repo, sha)))
         if claim.excluded_patch_ids and claim.excluded_window_base is not None:
-            window = patch_ids_in_range(self._repo, claim.excluded_window_base, target_ref)
+            window = self._window_patch_ids(claim.excluded_window_base, target_ref, claim)
             already = {pid for _sha, pid in reachable}
             for pid in claim.excluded_patch_ids:
                 if pid in window and pid not in already:
                     reachable.append(("", pid))
         return reachable
+
+    def _window_patch_ids(self, window_base: str, target_ref: str, claim: ApprovedWpCommitSet) -> set[str]:
+        """Patch-ids of the window ``window_base..target`` that a canceled WP's change can be reached through.
+
+        With no pre-Mission history this is :func:`patch_ids_in_range`, unchanged and with no extra
+        probe (NFR-001/NFR-002). Otherwise (#7560) a window commit that IS pre-Mission history,
+        by exact SHA, does not count: a canceled WP's patch-id equal to a pre-Mission commit's is
+        reported only when another window commit carries it. A re-lettered copy of a pre-Mission
+        commit (new SHA, same patch) still counts (fail-closed residual). The per-commit cost
+        equals :func:`patch_ids_in_range`'s.
+        """
+        ids: set[str]
+        if not claim.pre_mission_shas:
+            ids = patch_ids_in_range(self._repo, window_base, target_ref)  # typed local: the probe module is mypy-skipped (#7334)
+            return ids
+        ids = set()
+        for sha in commits_in_range(self._repo, window_base, target_ref):
+            if sha in claim.pre_mission_shas:
+                continue
+            pid: str = patch_id_of(self._repo, sha)
+            if pid:
+                ids.add(pid)
+        return ids
 
     def _unattributable_content(self, target_ref: str, claim: ApprovedWpCommitSet) -> list[tuple[str, str]]:
         """Closed-world axis: window CONTENT commits not attributable to any approved WP.
@@ -576,6 +599,12 @@ class MergeOutcomeVerifier:
         unless the operator declared a ref that passed every guard, so this never
         widens attribution on its own (see
         :func:`resolve_external_dependency_refs`).
+
+        Pre-Mission history (#7560) has the same standing: a commit in
+        :attr:`ApprovedWpCommitSet.pre_mission_shas` (``window_base..mission_base``, history the
+        target lacks below the Mission base) is not a divergence. The exemption is by exact SHA
+        only: a re-lettered copy of a pre-Mission commit (new SHA, same patch, e.g. after a
+        rebase) is still judged as window content (fail-closed residual).
 
         NON-content commits are never flagged: a merge commit that adds nothing beyond
         its parents (empty ``--remerge-diff``, #7307; a merge with its own content is
@@ -625,6 +654,8 @@ class MergeOutcomeVerifier:
             return None  # an approved WP's own authorship, or its lane's own dependency merge (#7307)
         if sha in claim.external_dependency_shas:
             return None  # a declared, verified external dependency (#6771) — predates the window
+        if sha in claim.pre_mission_shas:
+            return None  # history below the Mission base the target lacks (#7560) — predates the Mission
         if is_merge_commit(self._repo, sha):
             own_paths = merge_own_changed_paths(self._repo, sha)
             if not any(not self._is_bookkeeping_path(path, claim) for path in own_paths):
@@ -754,6 +785,11 @@ class MergeOutcomeVerifier:
     def _window_has_non_bookkeeping_change(self, target_ref: str, claim: ApprovedWpCommitSet, window_base: str) -> bool:
         """True iff ``window_base..target`` carries any un-authorized A/M/D path.
 
+        Pre-Mission history (#7560) is not content: a ``D`` path in
+        :attr:`ApprovedWpCommitSet.pre_mission_deletions`, and an A/M path whose target blob is
+        the pre-Mission final blob (:attr:`ApprovedWpCommitSet.pre_mission_blobs`). Only that
+        second check reads a blob, and only when the pre-Mission blob set is non-empty.
+
         Mirrors :meth:`_unattributable_content_squash`'s bookkeeping + deletion-
         authority filter, without reading blobs — this only asks WHETHER
         attributable content exists, never WHICH blob it is (there is no
@@ -767,8 +803,12 @@ class MergeOutcomeVerifier:
         for status, path in changed_paths_in_range(self._repo, window_base, target_ref):
             if self._is_bookkeeping_path(path, claim):
                 continue
-            if status.startswith("D") and path in claim.authored_deletions:
-                continue  # an approved lane's own final-state deletion — not content
+            if status.startswith("D"):
+                if path in claim.authored_deletions or path in claim.pre_mission_deletions:
+                    continue  # an approved lane's own, or pre-Mission (#7560), final-state deletion — not content
+                return True
+            if claim.pre_mission_blobs and (path, blob_id_at(self._repo, target_ref, path)) in claim.pre_mission_blobs:
+                continue  # the pre-Mission final content (#7560) — not content of this Mission
             return True
         return False
 
@@ -785,7 +825,8 @@ class MergeOutcomeVerifier:
         **Deleted** path (#5022 — previously unconditionally skipped, the silent
         data-loss escape), the path is attributable iff it is in
         :attr:`ApprovedWpCommitSet.authored_deletions` (an approved lane's own
-        first-parent spine ends by deleting it); otherwise it is a canceled/removed
+        first-parent spine ends by deleting it), in a declared dependency's deletions (#6771) or in
+        the pre-Mission deletions (#7560); otherwise it is a canceled/removed
         WP's deletion that rode a carrier lane onto the target and is unattributable.
         Bounded by the squash diff size (NFR-003).
 
@@ -807,18 +848,35 @@ class MergeOutcomeVerifier:
             if self._is_bookkeeping_path(path, claim):
                 continue  # status/meta/matrix/retrospective/planning churn — not content
             if status.startswith("D"):
-                if path not in claim.authored_deletions and path not in claim.external_dependency_deletions:
+                if not _deletion_attributed(path, claim):
                     unattributable_deletions.append(path)
                 continue
             blob = blob_id_at(self._repo, target_ref, path)  # raises → REFUSE (F1)
             if (path, blob) in claim.authored_blobs:
                 continue
-            if (path, blob) in claim.external_dependency_blobs:
-                continue  # a declared, verified external dependency's own final content (#6771)
-            if is_legitimate_three_way_resolution(self._repo, claim, path, blob):
-                continue
-            unattributable_blobs.append((path, blob))
+            if not self._attributed_outside_mission(path, blob, claim):
+                unattributable_blobs.append((path, blob))
         return unattributable_blobs, unattributable_deletions
+
+    def _attributed_outside_mission(self, path: str, blob: str, claim: ApprovedWpCommitSet) -> bool:
+        """True when an Added/Modified *path* at *blob* is attributable beyond a single approved lane's own blob.
+
+        The three second chances of :meth:`_unattributable_content_squash`, in order: a declared,
+        verified external dependency's final content (#6771), the pre-Mission final content the
+        target lacks (#7560), and a legitimate three-way resolution of a path two approved lanes
+        both authored. Each is keyed on the exact ``(path, blob)``, so a post-base change of the
+        path (a different blob) is not covered.
+        """
+        if (path, blob) in claim.external_dependency_blobs:
+            return True
+        # Residual (#7560): ``pre_mission_blobs`` comes from ``_final_authored_walk`` over the
+        # ``rev-list`` order of ``window_base..mission_base``, so on a range with side branches the
+        # "final" blob it keeps for a path can be a side branch's intermediate one rather than the
+        # Mission base's own, and that blob is then exempt here. The same class of gap as
+        # ``authored_blobs`` (also a walk's final state, not the tip's tree).
+        if (path, blob) in claim.pre_mission_blobs:
+            return True
+        return is_legitimate_three_way_resolution(self._repo, claim, path, blob)
 
     def _commit_is_content(self, sha: str, claim: ApprovedWpCommitSet) -> bool:
         """True when *sha* changes at least one path that is NOT mission bookkeeping.
@@ -847,6 +905,11 @@ class MergeOutcomeVerifier:
         function's docstring for the full anchoring rules.
         """
         return _is_bookkeeping(path, claim.mission_slug, claim.planning_prefix)
+
+
+def _deletion_attributed(path: str, claim: ApprovedWpCommitSet) -> bool:
+    """True when a squash-window deletion of *path* is an approved lane's, a declared dependency's (#6771) or pre-Mission (#7560)."""
+    return path in claim.authored_deletions or path in claim.external_dependency_deletions or path in claim.pre_mission_deletions
 
 
 def is_legitimate_three_way_resolution(
