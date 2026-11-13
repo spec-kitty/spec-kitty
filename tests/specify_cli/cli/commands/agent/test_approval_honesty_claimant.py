@@ -101,6 +101,13 @@ _REFUSED_CASES = [
         id="case4-agent-and-reviewer-disagree",
     ),
     pytest.param("straight-done", ["--to", "done", "--agent", _SUPERVISOR, *_DONE_OVERRIDE], _SUPERVISOR, id="case5-done-from-in-review"),
+    # Review cycle 1, probe 1: ``--profile`` would rename the supervisor into the claimant's profile.
+    pytest.param(
+        "profile-renames-supervisor",
+        ["--to", "approved", "--agent", _SUPERVISOR, "--profile", "reviewer-renata"],
+        _SUPERVISOR,
+        id="probe1-profile-cannot-rename-a-supervisor",
+    ),
 ]
 
 
@@ -188,18 +195,63 @@ def test_forced_approval_by_a_non_claimant_is_recorded_as_forced(tmp_path: Path,
     assert actor_full_identity(record["actor"]) == actor_full_identity(_ORCHESTRATOR)
 
 
-def test_profile_flag_completes_an_asserted_identity(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The compared identity is the one the approval records: ``--agent codex --profile reviewer-renata`` is the claimant.
+def _assert_one_reviewer_of_record(feature_dir: Path, expected: str) -> None:
+    """FR-001: every identity field of the approval names *expected* (segment for segment)."""
+    from specify_cli.status.review_roles import same_review_identity
+
+    record = _latest(feature_dir, "approved")
+    recorded = {
+        "actor": actor_full_identity(record["actor"]),
+        "evidence.review.reviewer": record["evidence"]["review"]["reviewer"],
+        "review_result.reviewer": record["review_result"]["reviewer"],
+        "policy_metadata.tool": record["policy_metadata"]["tool"],
+        "review-cycle reviewer_agent": _latest_cycle_reviewer_agent(feature_dir),
+    }
+    wrong = {field: value for field, value in recorded.items() if not same_review_identity(value, expected)}
+    assert wrong == {}, f"fields not naming {expected}: {wrong}"
+
+
+def _latest_cycle_reviewer_agent(feature_dir: Path) -> str | None:
+    cycles = sorted(feature_dir.rglob("review-cycle-*.md"), key=lambda path: int(path.stem.rsplit("-", 1)[1]))
+    assert cycles, "the approval wrote no review cycle"
+    for line in cycles[-1].read_text(encoding="utf-8").splitlines():
+        if line.startswith("reviewer_agent:"):
+            return line.partition(":")[2].strip().strip("'\"")
+    return None
+
+
+@pytest.mark.parametrize(
+    "identity_flags",
+    [
+        pytest.param(["--agent", "codex"], id="agent"),
+        pytest.param(["--reviewer", "codex"], id="reviewer"),
+    ],
+)
+def test_profile_flag_completes_an_asserted_identity(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, identity_flags: list[str]) -> None:
+    """Review cycle 1, probe 2: ``codex`` + ``--profile reviewer-renata`` records ``codex::reviewer-renata`` everywhere.
 
     The claim itself was recorded that way (``--agent codex --profile reviewer-renata``), so the same
-    flags on the verdict name the same reviewer.
+    flags on the verdict name the same reviewer. The binding completes the asserted identity
+    (``build_status_actor``: it fills a segment the flag leaves open), and the review fields record
+    that completed identity, the one the guard compared, never the bare ``codex`` flag.
     """
     _repo, feature_dir, mission_slug = _claimed_mission(tmp_path, monkeypatch, "binding", claimant="codex::reviewer-renata")
 
-    result = _move(["WP01", "--to", "approved", "--mission", mission_slug, "--agent", "codex", "--profile", "reviewer-renata", "--note", "ok"])
+    result = _move(["WP01", "--to", "approved", "--mission", mission_slug, *identity_flags, "--profile", "reviewer-renata", "--note", "ok"])
 
     assert result.exit_code == 0, result.output
-    assert actor_full_identity(_latest(feature_dir, "approved")["actor"]) == actor_full_identity("codex::reviewer-renata")
+    assert _latest(feature_dir, "approved")["force"] is False
+    _assert_one_reviewer_of_record(feature_dir, "codex::reviewer-renata")
+
+
+def test_claimant_approval_records_one_reviewer_of_record(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Positive control of FR-001 without a binding: the claimant's own flag lands in every field."""
+    _repo, feature_dir, mission_slug = _claimed_mission(tmp_path, monkeypatch, "one-record")
+
+    result = _move(["WP01", "--to", "approved", "--mission", mission_slug, "--agent", _CLAIMANT, "--note", "ok"])
+
+    assert result.exit_code == 0, result.output
+    _assert_one_reviewer_of_record(feature_dir, _CLAIMANT)
 
 
 def test_profile_flag_cannot_rename_a_different_profile_into_the_claimant(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -268,6 +320,18 @@ _IN_REVIEW_APPROVAL: dict[str, Any] = {"old_lane": "in_review", "target_lane": "
         pytest.param({"asserted_agent": _SUPERVISOR, "old_lane": "for_review"}, False, id="direct-approval-keeps-todays-rules"),
         pytest.param({"asserted_agent": "a", "asserted_reviewer": "b", "old_lane": "approved", "review_claimant": None}, True, id="flags-disagree-anywhere"),
         pytest.param({"asserted_agent": _CLAIMANT, "asserted_reviewer": _CLAIMANT + ":reviewer"}, False, id="flags-agree-role-ignored"),
+        # The binding wins over the flag's own profile (``build_status_actor``); a move where it would
+        # override one is refused, so the recorded identity is never one the flag contradicts.
+        pytest.param({"agent": _SUPERVISOR, "asserted_agent": _CLAIMANT}, True, id="binding-overrides-agent-profile"),
+        pytest.param({"reviewer_flag": _SUPERVISOR, "asserted_reviewer": _CLAIMANT}, True, id="binding-overrides-reviewer-profile"),
+        pytest.param(
+            {"agent": _SUPERVISOR, "asserted_agent": _CLAIMANT, "old_lane": "for_review", "review_claimant": None},
+            True,
+            id="binding-override-refused-on-a-direct-approval",
+        ),
+        pytest.param({"agent": "claude:sonnet", "asserted_agent": _CLAIMANT}, False, id="binding-completes-agent"),
+        pytest.param({"reviewer_flag": "claude", "asserted_reviewer": _CLAIMANT}, False, id="binding-completes-reviewer"),
+        pytest.param({"agent": _CLAIMANT + ":reviewer", "asserted_agent": _CLAIMANT}, False, id="role-segment-is-no-override"),
     ],
 )
 def test_guard_review_claimant_table(overrides: dict[str, Any], refused: bool) -> None:
@@ -294,6 +358,18 @@ def test_flag_conflict_without_claimant_asks_for_one_identity() -> None:
     assert refusal is not None
     assert "--agent claude:sonnet:mover and --reviewer codex name different identities" in refusal.error
     assert "Pass one identity" in refusal.error
+
+
+def test_binding_override_names_the_flag_and_the_recorded_identity() -> None:
+    from specify_cli.cli.commands.agent.tasks_transition_core import _guard_review_claimant
+    from tests._support.tasks_transition_request import base_request
+
+    refusal = _guard_review_claimant(base_request(**{**_IN_REVIEW_APPROVAL, "agent": _SUPERVISOR, "asserted_agent": _CLAIMANT}))
+
+    assert refusal is not None
+    assert f"--agent {_SUPERVISOR}" in refusal.error and f"records {_CLAIMANT}" in refusal.error
+    assert f"--agent {_CLAIMANT}" in refusal.error and "--force" in refusal.error
+    assert refusal.diagnostic is not None and refusal.diagnostic["requesting_agent"] == _SUPERVISOR
 
 
 def test_asserted_review_identity_is_the_recorded_compact_form() -> None:

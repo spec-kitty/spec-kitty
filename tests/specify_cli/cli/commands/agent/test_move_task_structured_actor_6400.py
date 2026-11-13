@@ -146,6 +146,14 @@ def test_review_approval_with_profile_flag_is_a_reviewer_actor(tmp_path: Path, m
     _assert_no_bare_actor(appended)
     expected = {"tool": "codex", "role": "reviewer", "profile": "reviewer-renata", "model": None}
     assert [(e["to_lane"], e["actor"]) for e in _lane(appended)] == [("in_review", expected), ("approved", expected)]
+    # FR-001 (#7573 review cycle 1): the review fields record the same bound identity as the actor,
+    # never the bare ``--agent codex`` flag.
+    approval = _lane(appended)[-1]
+    assert {
+        "evidence.review.reviewer": approval["evidence"]["review"]["reviewer"],
+        "review_result.reviewer": approval["review_result"]["reviewer"],
+        "policy_metadata.tool": approval["policy_metadata"]["tool"],
+    } == dict.fromkeys(("evidence.review.reviewer", "review_result.reviewer", "policy_metadata.tool"), "codex::reviewer-renata")
 
 
 def test_review_override_verdict_note_is_a_reviewer_actor(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
