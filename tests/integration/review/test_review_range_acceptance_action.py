@@ -92,24 +92,20 @@ def _site1(fx: ReviewFixture) -> str:
 
 
 def _review_args(fx: ReviewFixture) -> list[str]:
-    """The ``review`` arguments, after readying a lane fixture for a review claim.
+    """The ``review`` arguments: every fixture claims the review with ``--agent`` (#7589, #7632).
 
-    The lane fixtures keep their Mission on protected ``main``, so the review claim's bookkeeping is
-    refused there; their copy lifts the protection in ``.kittify/config.yaml`` (committed; a
-    bookkeeping path, so the range is unchanged). It does not touch WP02's ``for_review``
-    submission or its window. Every fixture then claims the review with ``--agent`` (#7589).
+    ``lanes_with_coord`` alone still lifts ``main``'s protection on its copy (committed; a
+    bookkeeping path, so the range is unchanged): its claim lands on the coordination branch,
+    then a follow-up commit routed to protected ``main`` is refused (#7637).
     """
-    args = ["review", REVIEWED_WP, "--mission", fx.mission_slug]
-    if fx.lane_mission is None:
-        return [*args, "--agent", _AGENT]
-    config = fx.repo / ".kittify" / "config.yaml"
-    config.parent.mkdir(parents=True, exist_ok=True)
-    existing = config.read_text(encoding="utf-8") if config.exists() else ""
-    if "protected_branches" not in existing:
+    if fx.name == "lanes_with_coord":
+        config = fx.repo / ".kittify" / "config.yaml"
+        config.parent.mkdir(parents=True, exist_ok=True)
+        existing = config.read_text(encoding="utf-8") if config.exists() else ""
         config.write_text(existing + "\nprotection:\n  protected_branches: []\n", encoding="utf-8")
         subprocess.run(["git", "add", "-f", str(config)], cwd=fx.repo, check=True, capture_output=True)
-        subprocess.run(["git", "commit", "-qm", "test: lift main's protection"], cwd=fx.repo, check=True, capture_output=True)
-    return [*args, "--agent", _AGENT]
+        subprocess.run(["git", "commit", "-qm", "test: lift main's protection (#7637)"], cwd=fx.repo, check=True, capture_output=True)
+    return ["review", REVIEWED_WP, "--mission", fx.mission_slug, "--agent", _AGENT]
 
 
 def _site2(fx: ReviewFixture, args: list[str]) -> tuple[int, str, Path | None]:

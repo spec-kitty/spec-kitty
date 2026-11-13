@@ -292,18 +292,60 @@ def test_unprotected_target_no_mint(tmp_path: Path) -> None:
     assert mission_refs == ""
 
 
-def test_lanes_topology_protected_target_unchanged(tmp_path: Path) -> None:
-    """Control: a `lanes`-topology mission on a protected target is
-    untouched by the single_branch mint -- no `mission_branch` field."""
+def test_lanes_topology_protected_target_refused(tmp_path: Path) -> None:
+    """#7632 (operator ruling 2026-11-13): a `lanes` create on a protected target
+    refuses before any write with LANES_PROTECTED_TARGET_REFUSED and its two
+    remedies; it mints no branch and leaves no scaffold."""
     repo = _seed_repo(tmp_path, name="lanes-protected")
+    head_before = _git(repo, "rev-parse", "HEAD")
+    with pytest.raises(MissionCreationError) as error:
+        make_mission(
+            repo,
+            "lanes-protected-mission",
+            topology=MissionTopology.LANES,
+            target_branch="main",
+        )
+    assert error.value.error_code == "LANES_PROTECTED_TARGET_REFUSED"
+    assert "--target-branch" in str(error.value)
+    assert "--topology lanes_with_coord" in str(error.value)
+    assert _git(repo, "rev-parse", "HEAD") == head_before
+    assert _git(repo, "branch", "--show-current") == "main"
+    assert _git(repo, "for-each-ref", "--format=%(refname)", "refs/heads/kitty/") == ""
+    assert not (repo / "kitty-specs").exists() or not any((repo / "kitty-specs").iterdir())
+
+
+def test_lanes_topology_unprotected_target_admitted(tmp_path: Path) -> None:
+    """Control: a `lanes` create on an unprotected target is admitted unchanged."""
+    repo = _seed_repo(tmp_path, name="lanes-unprotected")
+    _git(repo, "checkout", "-b", "issue-work")
     result = make_mission(
         repo,
-        "lanes-protected-mission",
+        "lanes-unprotected-mission",
+        topology=MissionTopology.LANES,
+        target_branch="issue-work",
+    )
+    assert result.meta.get("mission_branch") is None
+    assert result.meta["topology"] == "lanes"
+
+
+def test_lanes_topology_primary_with_lifted_protection_admitted(tmp_path: Path) -> None:
+    """Control: the refusal asks the bookkeeping guard's predicate, not the #5100
+    mint rule, so a primary branch the project un-protects (`protected_branches: []`)
+    still admits a `lanes` Mission whose status writes would land there."""
+    repo = _seed_repo(tmp_path, name="lanes-lifted")
+    config = repo / ".kittify" / "config.yaml"
+    config.parent.mkdir(parents=True, exist_ok=True)
+    existing = config.read_text(encoding="utf-8") if config.exists() else ""
+    config.write_text(existing + "\nprotection:\n  protected_branches: []\n", encoding="utf-8")
+    _git(repo, "add", "-f", str(config))
+    _git(repo, "commit", "-qm", "lift main's protection")
+    result = make_mission(
+        repo,
+        "lanes-lifted-mission",
         topology=MissionTopology.LANES,
         target_branch="main",
     )
-    assert result.meta.get("mission_branch") is None
-    assert _git(repo, "branch", "--show-current") == "main"
+    assert result.meta["topology"] == "lanes"
 
 
 # ---------------------------------------------------------------------------

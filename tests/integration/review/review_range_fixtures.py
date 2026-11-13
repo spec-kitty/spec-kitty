@@ -616,7 +616,12 @@ def _build_lanes_with_coord(base: Path) -> ReviewFixture:
 
 
 def _adapt_to_lanes(fixture: ReviewFixture) -> ReviewFixture:
-    """Re-declare a coordination Mission ``lanes``: drop the coordination branch and read the repository root log."""
+    """Re-declare a coordination Mission ``lanes``: drop the coordination branch and read the repository root log.
+
+    A ``lanes`` Mission records its status on its target, so the target must be unprotected:
+    create refuses ``lanes`` on a protected target (#7632). The copy un-protects ``main`` in
+    ``.kittify/config.yaml``, the shape create admits, in the same commit.
+    """
     meta_path = fixture.feature_dir / "meta.json"
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
     meta["topology"] = "lanes"
@@ -624,6 +629,11 @@ def _adapt_to_lanes(fixture: ReviewFixture) -> ReviewFixture:
     coord_log = next(log for log in cs._event_logs(fixture.repo) if log.parent != fixture.feature_dir)
     shutil.copyfile(coord_log, fixture.feature_dir / _EVENTS)
     meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    config = fixture.repo / ".kittify" / "config.yaml"
+    config.parent.mkdir(parents=True, exist_ok=True)
+    existing = config.read_text(encoding="utf-8") if config.exists() else ""
+    config.write_text(existing + "\nprotection:\n  protected_branches: []\n", encoding="utf-8")
+    cs._git(fixture.repo, "add", "-f", str(config))
     cs._git(fixture.repo, "add", "-A", "kitty-specs")
     cs._git(fixture.repo, "commit", "-qm", "test: declare the Mission lanes")
     return replace(fixture, name="lanes")

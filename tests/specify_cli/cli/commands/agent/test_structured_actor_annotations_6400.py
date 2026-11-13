@@ -36,6 +36,7 @@ from specify_cli.status import Lane, StatusEvent
 from tests._support.status_seed import seed_status_event
 from tests.integration.test_placement_partition_golden_path import (
     _create_mission,
+    _unprotect_main,
     _init_git_repo,
     _write_wp_and_lanes,
 )
@@ -73,6 +74,7 @@ def lanes_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path
     repo = tmp_path / "repo"
     repo.mkdir()
     _init_git_repo(repo)
+    _unprotect_main(repo)
     result = _create_mission(repo, "actor-6400-demo", MissionTopology.LANES)
     meta = json.loads((result.feature_dir / "meta.json").read_text(encoding="utf-8"))
     _write_wp_and_lanes(result.feature_dir, result.mission_slug, str(meta["mission_id"]), "main")

@@ -219,11 +219,30 @@ def test_create_json_marks_provisional(tmp_path: Path, monkeypatch: pytest.Monke
     assert _TOPIC_PATTERN.match(default["mission_branch"])
 
     _commit_scaffold(repo_root, default)
-    explicit = _payload(_invoke(repo_root, monkeypatch, "other", "--topology", "lanes", "--target-branch", "main").output)
+    # An unprotected target: a lanes create on protected main refuses (#7632).
+    _git(repo_root, "branch", "lanes-target", _PROTECTED_TARGET)
+    explicit = _payload(_invoke(repo_root, monkeypatch, "other", "--topology", "lanes", "--target-branch", "lanes-target").output)
 
     assert explicit["topology"] == "lanes"
     assert explicit["topology_source"] == "explicit"
     assert explicit["topology_provisional"] is False
+
+
+def test_create_lanes_on_protected_target_refuses_with_named_code(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7632 (operator ruling 2026-11-13): refused before any write, with the code and both remedies."""
+    repo_root = _repo(tmp_path)
+    branches_before = _branches(repo_root)
+    specs_before = sorted(p.name for p in (repo_root / "kitty-specs").glob("*"))
+
+    result = _invoke(repo_root, monkeypatch, SLUG, "--topology", "lanes", "--target-branch", _PROTECTED_TARGET)
+
+    assert result.exit_code != 0, result.output
+    payload = _payload(result.output)
+    assert payload["error_code"] == "LANES_PROTECTED_TARGET_REFUSED"
+    assert "--target-branch" in payload["error"]
+    assert "--topology lanes_with_coord" in payload["error"]
+    assert _branches(repo_root) == branches_before
+    assert sorted(p.name for p in (repo_root / "kitty-specs").glob("*")) == specs_before
 
 
 # ---------------------------------------------------------------------------
