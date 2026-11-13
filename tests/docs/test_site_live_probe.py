@@ -433,18 +433,30 @@ def test_the_http_fetcher_caps_its_timeout_at_the_limit(monkeypatch: pytest.Monk
 # --- the budget over real HTTP: a trickled body, an oversized body ------------------------------
 
 
+def test_every_trickle_outlasts_the_budget_plus_the_margin() -> None:
+    """The elapsed-time bounds below only prove something while no trickle can finish inside them."""
+    shortest = min([len(rest) for _status, rest in _TRICKLED_HEADS.values()] + [_TRICKLED_BODY_BYTES]) * _TRICKLE_GAP
+    assert shortest >= 5 * (_SMALL_BUDGET + _MARGIN)
+
+
+# Each trickle takes far longer to finish (at least 30 s) than the budget plus the margin, so a run
+# under the bound proves the probe stopped at its budget. The margin absorbs a loaded CI runner
+# stalling the whole test process for a few seconds (seen at 3.3 s); it does not let the probe
+# wait for a trickle to finish.
+_TRICKLE_GAP = 0.2
 _TRICKLED_HEADS = {
-    "/trickle-headers": (b"HTTP/1.0 200 OK\r\n", b"X-Slow: abcdefghij\r\nContent-Length: 0\r\n\r\n"),
-    "/trickle-location": (b"HTTP/1.0 301 Moved Permanently\r\n", b"Location: /elsewhere/\r\n\r\n"),
+    "/trickle-headers": (b"HTTP/1.0 200 OK\r\n", b"X-Slow: " + b"a" * 150 + b"\r\nContent-Length: 0\r\n\r\n"),
+    "/trickle-location": (b"HTTP/1.0 301 Moved Permanently\r\n", b"Location: /" + b"e" * 150 + b"/\r\n\r\n"),
 }
+_TRICKLED_BODY_BYTES = 150
 _SMALL_BUDGET = 0.6
-_MARGIN = 0.5
+_MARGIN = 5.0
 
 
 class _SlowHandler(http.server.BaseHTTPRequestHandler):
-    """``/trickle`` answers 200 and then one body byte every 0.2 s; ``/trickle-headers`` and
+    """``/trickle`` answers 200 and then one body byte every ``_TRICKLE_GAP`` s; ``/trickle-headers`` and
     ``/trickle-location`` send their status line at once and then a header (on a 200, and the
-    ``Location`` of a 301) one byte every 0.2 s; ``/huge`` a body over the cap; anything else a
+    ``Location`` of a 301) one byte every ``_TRICKLE_GAP`` s; ``/huge`` a body over the cap; anything else a
     small page at once."""
 
     def do_GET(self) -> None:  # noqa: N802 - the base class's name
@@ -453,13 +465,13 @@ class _SlowHandler(http.server.BaseHTTPRequestHandler):
                 self.wfile.write(_TRICKLED_HEADS[self.path][0])
                 self.wfile.flush()
                 for byte in _TRICKLED_HEADS[self.path][1]:
-                    time.sleep(0.2)
+                    time.sleep(_TRICKLE_GAP)
                     self.wfile.write(bytes([byte]))
                     self.wfile.flush()
             elif self.path == "/trickle":
-                self._head(10)
-                for _ in range(10):
-                    time.sleep(0.2)
+                self._head(_TRICKLED_BODY_BYTES)
+                for _ in range(_TRICKLED_BODY_BYTES):
+                    time.sleep(_TRICKLE_GAP)
                     self.wfile.write(b"x")
                     self.wfile.flush()
             elif self.path == "/huge":
