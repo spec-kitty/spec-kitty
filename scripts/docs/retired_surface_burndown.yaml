@@ -1,0 +1,188 @@
+# Retired-surface burn-down (#7520): the published living pages that named a retired surface
+# when scripts/docs/retired_surface_gate.py landed. Tracked debt, not an allowlist:
+#
+# - each entry names the section sub-issue of epic #3891 that drains it (#7522-#7528);
+# - the gate fails on a (page, surface) pair missing here (NEW) and on a pair the page no
+#   longer names (STALE), so a fixed page must leave this list in the same pull request;
+# - the pair count must equal test_retired_surface_gate.burn_down in
+#   tests/architectural/_baselines.yaml: a pull request that drains a pair lowers that number
+#   too, so a drained pair cannot come back. Never add an entry; fix the page instead.
+#
+# The retired set has one authority: scripts/retired_surfaces.py.
+kind: retired-surface-burndown
+version: 1
+entries:
+  - page: api/batch-api-contract.md
+    issue: "#7526"
+    surfaces: ["spec-kitty auth", "src/specify_cli/delivery", "src/specify_cli/sync", "src/specify_cli/tracker/saas_service.py"]
+  - page: api/configuration.md
+    issue: "#7526"
+    surfaces: ["Zeitgeist", "spec-kitty moments"]
+  - page: api/environment-variables.md
+    issue: "#7526"
+    surfaces: ["spec-kitty merge"]
+  - page: api/file-structure.md
+    issue: "#7526"
+    surfaces: ["/spec-kitty.merge"]
+  - page: api/skills/spk-gate-mission-review.md
+    issue: "#7526"
+    surfaces: ["spec-kitty merge"]
+  - page: architecture/00_landscape/README.md
+    issue: "#7524"
+    surfaces: ["Zeitgeist", "saas_client", "spec-kitty dashboard", "src/doctrine", "src/specify_cli/dashboard"]
+  - page: architecture/04_implementation_mapping/README.md
+    issue: "#7524"
+    surfaces: ["Zeitgeist", "saas_client", "src/specify_cli/dashboard", "src/specify_cli/saas"]
+  - page: architecture/05_ownership_map.md
+    issue: "#7524"
+    surfaces: ["Zeitgeist", "saas_client", "src/doctrine", "src/specify_cli/saas", "src/specify_cli/sync"]
+  - page: architecture/README.md
+    issue: "#7524"
+    surfaces: ["Zeitgeist"]
+  - page: architecture/diagrams/01_context/README.md
+    issue: "#7524"
+    surfaces: ["Zeitgeist", "saas_client"]
+  - page: architecture/diagrams/02_containers/README.md
+    issue: "#7524"
+    surfaces: ["Zeitgeist"]
+  - page: architecture/diagrams/02_containers/runtime-execution-domain.md
+    issue: "#7524"
+    surfaces: ["Zeitgeist"]
+  - page: architecture/documentation-mission.md
+    issue: "#7524"
+    surfaces: ["/spec-kitty.merge"]
+  - page: architecture/mission-type-resolution.md
+    issue: "#7524"
+    surfaces: ["src/doctrine"]
+  - page: architecture/vision/README.md
+    issue: "#7524"
+    surfaces: ["Zeitgeist", "saas_client"]
+  - page: context/README.md
+    issue: "#7522"
+    surfaces: ["Zeitgeist"]
+  - page: context/identity.md
+    issue: "#7522"
+    surfaces: ["saas_client", "src/specify_cli/egress.py", "src/specify_cli/tracker/saas_client.py"]
+  - page: context/orchestration.md
+    issue: "#7522"
+    surfaces: ["Zeitgeist", "spec-kitty merge", "src/specify_cli/auth", "src/specify_cli/delivery", "src/specify_cli/sync"]
+  - page: context/product-lines.md
+    issue: "#7522"
+    surfaces: ["Zeitgeist"]
+  - page: context/team-kitty.md
+    issue: "#7522"
+    surfaces: ["Zeitgeist", "saas_client", "spec-kitty sync", "src/specify_cli/sync"]
+  - page: development/agent-fleet.md
+    issue: "#7525"
+    surfaces: ["Zeitgeist"]
+  - page: development/how-to/manage-issue-tracker.md
+    issue: "#7525"
+    surfaces: ["Zeitgeist", "saas_client"]
+  - page: development/how-to/review-gates.md
+    issue: "#7525"
+    surfaces: ["src/doctrine"]
+  - page: development/testing/testing-parallel.md
+    issue: "#7525"
+    surfaces: ["src/specify_cli/cli/commands/sync.py"]
+  - page: guides/how-to/collaboration/run-an-autonomous-mission.md
+    issue: "#7523"
+    surfaces: ["spec-kitty merge"]
+  - page: guides/how-to/governance/use-retrospective-learning.md
+    issue: "#7523"
+    surfaces: ["spec-kitty merge"]
+  - page: guides/how-to/harnesses/amazon-q.md
+    issue: "#7523"
+    surfaces: ["/spec-kitty.merge"]
+  - page: guides/how-to/harnesses/augment.md
+    issue: "#7523"
+    surfaces: ["/spec-kitty.merge"]
+  - page: guides/how-to/harnesses/claude-code.md
+    issue: "#7523"
+    surfaces: ["/spec-kitty.merge"]
+  - page: guides/how-to/harnesses/copilot.md
+    issue: "#7523"
+    surfaces: ["/spec-kitty.merge"]
+  - page: guides/how-to/harnesses/cursor.md
+    issue: "#7523"
+    surfaces: ["/spec-kitty.merge"]
+  - page: guides/how-to/harnesses/gemini.md
+    issue: "#7523"
+    surfaces: ["/spec-kitty.merge"]
+  - page: guides/how-to/harnesses/kilocode.md
+    issue: "#7523"
+    surfaces: ["/spec-kitty.merge"]
+  - page: guides/how-to/harnesses/opencode.md
+    issue: "#7523"
+    surfaces: ["/spec-kitty.merge"]
+  - page: guides/how-to/harnesses/qwen.md
+    issue: "#7523"
+    surfaces: ["/spec-kitty.merge"]
+  - page: guides/how-to/harnesses/setup-lint-hooks.md
+    issue: "#7523"
+    surfaces: ["spec-kitty live-work"]
+  - page: guides/how-to/harnesses/windsurf.md
+    issue: "#7523"
+    surfaces: ["/spec-kitty.merge"]
+  - page: guides/how-to/installation/install-spec-kitty.md
+    issue: "#7523"
+    surfaces: ["/spec-kitty.merge"]
+  - page: guides/how-to/missions/accept-and-merge.md
+    issue: "#7523"
+    surfaces: ["/spec-kitty.merge"]
+  - page: guides/how-to/missions/keep-main-clean.md
+    issue: "#7523"
+    surfaces: ["spec-kitty merge"]
+  - page: guides/how-to/missions/merge-mission.md
+    issue: "#7523"
+    surfaces: ["spec-kitty merge"]
+  - page: guides/how-to/monitoring/use-dashboard.md
+    issue: "#7523"
+    surfaces: ["/spec-kitty.dashboard", "spec-kitty dashboard"]
+  - page: guides/how-to/recovery/recover-from-implementation-crash.md
+    issue: "#7523"
+    surfaces: ["spec-kitty merge"]
+  - page: guides/how-to/scenarios/agency-client-demo.md
+    issue: "#7523"
+    surfaces: ["/spec-kitty.merge"]
+  - page: guides/how-to/scenarios/claude-cursor-collaboration.md
+    issue: "#7523"
+    surfaces: ["/spec-kitty.merge"]
+  - page: guides/how-to/scenarios/multi-agent-mission-development.md
+    issue: "#7523"
+    surfaces: ["/spec-kitty.merge"]
+  - page: guides/how-to/scenarios/parallel-implementation-tracking.md
+    issue: "#7523"
+    surfaces: ["/spec-kitty.merge"]
+  - page: guides/how-to/scenarios/research-mission-example.md
+    issue: "#7523"
+    surfaces: ["/spec-kitty.merge"]
+  - page: guides/how-to/scenarios/solo-developer-workflow.md
+    issue: "#7523"
+    surfaces: ["/spec-kitty.merge"]
+  - page: guides/how-to/scenarios/worktree-parallel-missions.md
+    issue: "#7523"
+    surfaces: ["/spec-kitty.merge"]
+  - page: guides/tutorials/claude-code-integration.md
+    issue: "#7523"
+    surfaces: ["/spec-kitty.merge"]
+  - page: guides/tutorials/claude-code-workflow.md
+    issue: "#7523"
+    surfaces: ["/spec-kitty.merge", "spec-kitty merge"]
+  - page: guides/tutorials/your-first-mission.md
+    issue: "#7523"
+    surfaces: ["/spec-kitty.merge", "spec-kitty merge"]
+  - page: migrations/charter-pack-cutover.md
+    issue: "#7527"
+    surfaces: ["spec-kitty live-work"]
+  - page: migrations/from-charter-2x.md
+    issue: "#7527"
+    surfaces: ["src/doctrine"]
+  - page: migrations/relocate-builtin-doctrine-packs.md
+    issue: "#7527"
+    surfaces: ["src/doctrine"]
+  - page: migrations/tracker-egress-refusal.md
+    issue: "#7527"
+    surfaces: ["spec-kitty sync"]
+  - page: operations/manual-test-plan.md
+    issue: "#7528"
+    surfaces: ["spec-kitty auth", "spec-kitty merge"]

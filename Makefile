@@ -36,9 +36,10 @@ format-check: ## Run ruff formatter check on the whole repo (issue #473's gate)
 format-check-files: ## Run ruff formatter check on explicit paths, honoring the format-exclude ratchet
 	uv run --frozen ruff format --check --force-exclude $(FILES)
 
-docs-lint: ## Spell-check docs (typos + scoped US spelling) and check the changelog [Unreleased] style
+docs-lint: ## Spell-check docs (typos + scoped US spelling), check the changelog [Unreleased] style and gate new retired-surface mentions
 	uv run --frozen python -m scripts.docs.check_spelling
 	uv run --frozen python -m scripts.docs.check_changelog_style
+	uv run --frozen python -m scripts.docs.retired_surface_gate
 
 # doc-kitty docsite (#6930; ADR docs/adr/4.x/2026-10-31-1, D-1 and D-2). Needs node >= 22.22 and pnpm.
 # Any dockitty-* gate added here runs from site/ with `--astro-config astro.config.mjs` (D-1), except
