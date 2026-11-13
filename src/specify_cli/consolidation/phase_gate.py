@@ -309,7 +309,7 @@ def _squash_projected_paths_or_refuse(run: _MergeRunState, checkpoint_sha: str, 
 
 # #5867: the squash projection refusal lists at most this many paths, then a count.
 _UNLANDED_PATHS_SHOWN = 20
-_RERUN_CONSOLIDATE = "then re-run `spec-kitty consolidate`"
+_RERUN_CONSOLIDATE = "then re-run `spec-kitty consolidate --resume`"
 _MATCH_COORDINATION_COPY = f"make the target's copy match the coordination branch, or revert the coordination change, {_RERUN_CONSOLIDATE}"
 _PROJECTION_REMEDIES: dict[ProjectedPathReason, str] = {
     ProjectedPathReason.CONTENT_DIFFERS: _MATCH_COORDINATION_COPY,
