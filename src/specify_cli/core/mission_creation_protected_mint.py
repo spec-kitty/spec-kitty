@@ -214,8 +214,11 @@ def _mint_protected_single_branch_mission_branch(
         decide=lambda dirty: _decide_mint_switch(write_root, replace(facts, dirty_outside_scaffold=dirty, branch_name=branch_name)),
     )
     meta["mission_branch"] = branch_name
-    # #7560: the new branch's tip right after the switch is the commit it was cut from.
-    record_mission_base_sha(meta, capture_branch_tip(write_root, branch_name))
+    # #7560: the commit the branch was cut from is the start point's tip. The switch above
+    # returns only after ``checkout -b`` created the branch (an existing one is refused before
+    # any write), so this never records the tip of a reused branch; it reads the start point,
+    # never the Mission branch, so even a branch that already moved cannot be recorded.
+    record_mission_base_sha(meta, capture_branch_tip(write_root, target_branch))
 
 
 def _decide_mint_switch(write_root: Path, facts: ProtectedMintFacts) -> None:
