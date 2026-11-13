@@ -80,7 +80,8 @@
         "- 2026-11-13T00:58:24Z – claude – shell_pid=31984 – T011 (cont.): re-pinned under ownership-map leeway test_wp03_advance_to_approval (--agent claude --reviewer reviewer: stale free-text --reviewer) and test_owned_reopen_feedback::test_explicit_profiles_preserved_on_actual_owned_hops (--reviewer reviewer-renata -> codex::reviewer-renata); both green on base, red on tip before. T012: fast tier 3037 passed; tests/status+tests/review 2884 passed; full agent dir 3149 passed; arch gates 160 passed + 2 pre-existing no_dead_symbols reds (format_stamp, synthetic_auto_approval_ref; same_review_identity cleared); approving integration files 471 passed, remaining reds pre-existing on base (verdict_save_topologies[done], explicit_checkout_commands::test_owned_composition_policy...) or load timeouts (default_mission setup, green on base).",
         "Ready for review: pure _guard_review_claimant (after _guard_agent_ownership) refuses unforced in_review->approved/done by a non-claimant, and --agent/--reviewer disagreeing, with APPROVER_NOT_CLAIMANT (exit 1, nothing written); compared identity = what the approval records (binding applied); fixtures re-pinned (ac5, 6400 seed, wp03 advance, owned reopen).",
         "Cycle 2: one reviewer of record. resolve_reviewer_of_record now takes --agent, --reviewer and the claimant through asserted_review_identity (the binding applied), the same identity the claimant guard compares; a flag whose own profile/model the binding would override, or a binding that would rename the claimant, refuses APPROVER_NOT_CLAIMANT. Cycle reviewer_agent pinned as strict xfail for WP03.",
-        "- 2026-11-13T02:16:53Z – claude – Leeway edit in tasks_move_task.py (WP01): FR-001 single reviewer of record; review fields used the raw flag while the actor used the bound identity"
+        "- 2026-11-13T02:16:53Z – claude – Leeway edit in tasks_move_task.py (WP01): FR-001 single reviewer of record; review fields used the raw flag while the actor used the bound identity",
+        "- 2026-11-13T03:31:52Z – claude – Cycle 3 leeway: tasks_move_task_hops.py and tasks_move_task.py (WP01 files) - ReviewerOfRecord gains from_caller and _mt_structured_actor routes a caller-sourced reviewer through the strict builder; the hop actor is where the source is consumed (#6754). test_approval_honesty_identity.py expectations pin the new field."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -94,11 +95,11 @@
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
-        "T008": "planned",
-        "T009": "planned",
-        "T010": "planned",
-        "T011": "planned",
-        "T012": "planned"
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
       }
     },
     "WP03": {
