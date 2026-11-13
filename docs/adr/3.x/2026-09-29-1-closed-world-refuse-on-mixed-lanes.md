@@ -527,7 +527,12 @@ window axis (operator rulings, Decision Moments `01M78XBQS8NE8PPMSTZHMDJ610`,
   known residual, not a second exemption; routing it through `resolve_mission_base` is follow-up
   work.
 - **Resolved per claim build.** The base is resolved each time the claim is built (the claim
-  and the gate's rebuild), with no new consolidation record field. In the recorded case one
+  and the gate's rebuild), with no new consolidation record field. It is not frozen with the
+  claim-time anchors because each input is stable for the run: the recorded value is write-once
+  in `meta.json`, and its validation reads the Mission branch's first-parent history at and
+  below the scaffold commit, which a consolidation (it only adds commits above the lanes' work)
+  and a rollback (it restores to a recorded tip) leave as they are. The range is anchored to the
+  window base, which the record persists. In the recorded case one
   resolution and its range cost six git calls; a non-empty range adds one status-log read and
   one lane-tip listing.
 - **Note line.** A run and `--dry-run` print one note (never under `--json`) when pre-Mission
