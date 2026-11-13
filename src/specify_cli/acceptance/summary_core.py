@@ -231,6 +231,7 @@ def evaluate_path_conventions(
     *,
     strict_metadata: bool,
     candidate_source_roots: Sequence[Path] = (),
+    holding_checkout: Path | None = None,
 ) -> tuple[list[str], str | None, frozenset[str]]:
     """Evaluate mission path conventions; returns violations, warning, and dedup tokens.
 
@@ -275,6 +276,7 @@ def evaluate_path_conventions(
         # its worktree. The caller supplies approved lanes only.
         candidate_source_roots=candidate_source_roots,
         waived_artifact_tokens=waived_tokens,
+        holding_checkout=holding_checkout,
     )
     if not path_result.missing_paths:
         return [], waiver_notice, waived_tokens

@@ -22,6 +22,7 @@ from pathlib import Path
 
 import pytest
 
+from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.mission import get_mission_for_feature
 from specify_cli.validators.paths import validate_mission_paths
 from tests.specify_cli.cli.commands.agent.test_finalize_topology_settlement import (
@@ -72,7 +73,7 @@ def test_artifact_miss_is_named_relative_to_its_holding_checkout(tmp_path: Path)
     feature_dir = holder / "kitty-specs" / _SLUG
     mission = get_mission_for_feature(feature_dir, project_root=root)
 
-    result = validate_mission_paths(mission, root, feature_dir=feature_dir)
+    result = validate_mission_paths(mission, root, feature_dir=feature_dir, holding_checkout=holder)
 
     resolved_holder = holder.resolve().as_posix()
     assert result.missing_paths == [f"kitty-specs/{_SLUG}/contracts/"]
@@ -112,10 +113,10 @@ def test_build_path_miss_keeps_the_project_frame(tmp_path: Path) -> None:
     assert "path: src/ (not found)" in result.format_warnings()
 
 
-def _miss_frame(full_path: Path, project_root: Path, relative_path: str, holding_from: Path | None) -> tuple[str, Path | None]:
+def _miss_frame(full_path: Path, project_root: Path, relative_path: str, holding_checkout: Path | None) -> tuple[str, Path | None]:
     from specify_cli.validators import paths
 
-    return paths._miss_frame(full_path, project_root, relative_path, holding_from)
+    return paths._miss_frame(full_path, project_root, relative_path, holding_checkout)
 
 
 class TestMissFrame:
@@ -125,7 +126,7 @@ class TestMissFrame:
         root, holder = _repo_with_linked_holder(tmp_path)
         full_path = holder / "kitty-specs" / _SLUG / "contracts"
 
-        assert _miss_frame(full_path, root, "contracts/", holder / "kitty-specs" / _SLUG) == (
+        assert _miss_frame(full_path, root, "contracts/", holder) == (
             f"kitty-specs/{_SLUG}/contracts/",
             holder.resolve(),
         )
@@ -134,7 +135,7 @@ class TestMissFrame:
         root, _holder = _repo_with_linked_holder(tmp_path)
         feature_dir = root / "kitty-specs" / _SLUG
 
-        assert _miss_frame(feature_dir / "contracts", root, "contracts/", feature_dir) == (f"kitty-specs/{_SLUG}/contracts/", None)
+        assert _miss_frame(feature_dir / "contracts", root, "contracts/", root) == (f"kitty-specs/{_SLUG}/contracts/", None)
 
     def test_build_path_is_never_reframed(self, tmp_path: Path) -> None:
         root, _holder = _repo_with_linked_holder(tmp_path)
@@ -149,14 +150,14 @@ class TestMissFrame:
         feature_dir = project_root / "kitty-specs" / _SLUG
         feature_dir.mkdir(parents=True)
 
-        assert _miss_frame(feature_dir / "contracts", project_root, "contracts/", feature_dir) == (f"kitty-specs/{_SLUG}/contracts/", None)
+        assert _miss_frame(feature_dir / "contracts", project_root, "contracts/", checkout) == (f"kitty-specs/{_SLUG}/contracts/", None)
 
     def test_outside_every_checkout_falls_back_to_the_absolute_path(self, tmp_path: Path) -> None:
         root, _holder = _repo_with_linked_holder(tmp_path)
         loose = tmp_path / "elsewhere" / "kitty-specs" / _SLUG
         loose.mkdir(parents=True)
 
-        assert _miss_frame(loose / "contracts", root, "contracts/", loose) == (f"{loose / 'contracts'}/", None)
+        assert _miss_frame(loose / "contracts", root, "contracts/", root) == (f"{loose / 'contracts'}/", None)
 
 
 @pytest.fixture
@@ -194,7 +195,10 @@ def test_accept_on_a_settled_mission_names_contracts_in_the_coordination_checkou
     assert accepted.returncode == 0, accepted.stdout + accepted.stderr
     violations = "\n".join(json.loads(accepted.stdout)["path_violations"])
 
-    holder = mission.coord_mission_dir.parents[1].resolve().as_posix()
+    # The checkout the message names is the one the placement seam reports as holding the PRIMARY partition.
+    seam_holder = placement_seam(mission.root, mission.slug).write_dir(MissionArtifactKind.PRIMARY_METADATA).surface_root
+    assert seam_holder.resolve() == mission.coord_mission_dir.parents[1].resolve()
+    holder = seam_holder.resolve().as_posix()
     coord_frame = f".worktrees/{mission.slug}-coord/"
     assert f"path: kitty-specs/{mission.slug}/contracts/ in checkout {holder} (not found)" in violations, violations
     assert f"path: {coord_frame}" not in violations

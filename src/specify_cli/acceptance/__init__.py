@@ -1281,6 +1281,17 @@ def _planning_read_dir(repo_root: Path, feature: str, *, owned: OwnedCheckout | 
     return read_dir
 
 
+def _planning_holding_checkout(repo_root: Path, feature: str, *, owned: OwnedCheckout | None = None) -> Path:
+    """The checkout holding the Mission's PRIMARY partition, as the placement seam reports it (#7602)."""
+    from mission_runtime import placement_seam
+
+    # The planning artifacts are PRIMARY-partition kinds (checked by ``_planning_read_dir``'s
+    # caller invariant), so ``write_dir`` is the pure declared-PRIMARY derivation: no coordination
+    # state is established.
+    holder: Path = placement_seam(repo_root, feature, owned=owned).write_dir(_accept_planning_artifact_kinds()[_spec_file()]).surface_root
+    return holder
+
+
 def _wp_tasks_read_dir(repo_root: Path, feature: str, *, owned: OwnedCheckout | None = None) -> Path:
     """Return the PRIMARY mission dir the accept gate reads WP tasks from.
 
@@ -1619,6 +1630,7 @@ def collect_feature_summary(
         planning_read_dir,
         strict_metadata=strict_metadata,
         candidate_source_roots=_approved_lane_source_roots(repo_root, feature_dir, lanes),
+        holding_checkout=_planning_holding_checkout(repo_root, primary_slug, owned=owned),
     )
     if dedup_tokens:
         # FR-002: apply the dedup query result explicitly — evaluate_path_conventions

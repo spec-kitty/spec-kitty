@@ -371,20 +371,19 @@ def _display_path(full_path: Path, base: Path, relative_path: str) -> str:
     return shown
 
 
-def _miss_frame(full_path: Path, project_root: Path, relative_path: str, holding_from: Path | None) -> tuple[str, Path | None]:
+def _miss_frame(full_path: Path, project_root: Path, relative_path: str, holding_checkout: Path | None) -> tuple[str, Path | None]:
     """How a missing path is named: ``(shown path, holding checkout or None)`` (#7602).
 
-    ``holding_from`` is the Mission directory an artifact-tagged path was resolved
-    under (``None`` for a build path). When the checkout containing it is not the
-    project root -- e.g. the coordination worktree of a settled Mission -- the path
-    is shown relative to that checkout, and the checkout is returned so the
-    message can name the location actually tested (#3085a). Otherwise the path
-    keeps its project-relative frame, including a project root nested inside a
-    checkout whose Mission sits under it: there the holding checkout is the one
-    that contains the project root, so nothing is reframed.
+    ``holding_checkout`` is the checkout holding the Mission's PRIMARY partition, as the
+    placement seam reports it (``write_dir(...).surface_root``); ``None`` for a build path
+    or when the caller has no seam answer. When it is not the project root -- e.g. the
+    coordination worktree of a settled Mission -- the path is shown relative to that
+    checkout, and the checkout is returned so the message can name the location actually
+    tested (#3085a). Otherwise the path keeps its project-relative frame, including a
+    project root nested inside a checkout whose Mission sits under it: there the holding
+    checkout is the one that contains the project root, so nothing is reframed.
     """
-    # The validator has no Mission slug or placement seam, so it asks the kernel primitive directly.
-    checkout = checkout_root_containing(holding_from) if holding_from is not None else None
+    checkout = holding_checkout.resolve() if holding_checkout is not None else None
     if checkout is None or not full_path.resolve().is_relative_to(checkout):
         return _display_path(full_path, project_root, relative_path), None
     if checkout in (project_root.resolve(), checkout_root_containing(project_root)):
@@ -402,6 +401,7 @@ def validate_mission_paths(
     path_overrides: dict[str, str] | None = None,
     candidate_source_roots: Sequence[Path] = (),
     waived_artifact_tokens: frozenset[str] = frozenset(),
+    holding_checkout: Path | None = None,
 ) -> PathValidationResult:
     """Validate that project directories follow mission-defined conventions.
 
@@ -440,6 +440,10 @@ def validate_mission_paths(
             path whose token is waived is not required. Only ARTIFACT-tagged
             paths can be waived -- a build/repo path (``src/``, ``tests/``,
             ``docs/``) is never skipped, whatever this set holds.
+        holding_checkout: The checkout holding the Mission's PRIMARY partition, from the
+            placement seam's ``write_dir(...).surface_root`` (#7602). A missing
+            artifact held by a checkout other than the project root is named relative
+            to it. ``None`` keeps the project-relative frame.
 
     Returns:
         PathValidationResult summarising the state of each required path.
@@ -509,7 +513,7 @@ def validate_mission_paths(
         # declared token (#3085a) — otherwise remediation names a different,
         # untested directory (e.g. the repo root instead of feature_dir). An
         # artifact held by another checkout is framed by that checkout (#7602).
-        resolved, checkout = _miss_frame(full_path, project_root, relative_path, feature_dir if is_artifact_tagged else None)
+        resolved, checkout = _miss_frame(full_path, project_root, relative_path, holding_checkout if is_artifact_tagged else None)
 
         _record_missing_path(
             result,
