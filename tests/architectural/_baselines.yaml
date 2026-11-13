@@ -474,4 +474,4 @@ test_no_dead_symbols:
 # living pages named when the gate landed. Owner: epic #3891; drained by the section
 # sub-issues #7522-#7528. Shrink-only: a fixed page leaves the burn-down and this number.
 test_retired_surface_gate:
-  burn_down: 89  # justification: #7520 lands the gate with the 89 pre-existing (page, surface) pairs across 58 living pages listed in scripts/docs/retired_surface_burndown.yaml (64 at first, plus the 25 retired slash-command pairs the review found before landing), each tied to its section sub-issue (#7522-#7528); new pairs fail the gate itself.
+  burn_down: 81  # justification: 89 -> 81 (landing fold): the Zeitgeist and Blacksmith patterns now match identifiers only (zeitgeist_client/_bridge, the blacksmith runner label), so eight pages that only explain the retirement in prose left the burn-down. Prior: #7520 lands the gate with the 89 pre-existing (page, surface) pairs across 58 living pages listed in scripts/docs/retired_surface_burndown.yaml (64 at first, plus the 25 retired slash-command pairs the review found before landing), each tied to its section sub-issue (#7522-#7528); new pairs fail the gate itself.
