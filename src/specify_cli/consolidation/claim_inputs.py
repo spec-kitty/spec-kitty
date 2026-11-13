@@ -241,14 +241,19 @@ def _run_coord_base(context: ClaimInputContext, saved_coord_sha: str | None) -> 
 
 
 def _mission_branch_tip(context: ClaimInputContext, *, read_live: bool = True) -> str | None:
-    """The Mission branch's frozen tip: the record's pre-mutation snapshot, else (a fresh run, before any mutation) the tip as it stands.
+    """The Mission branch's frozen tip: the record's pre-mutation snapshot, else (before any mutation) the tip as it stands.
 
-    A resume (``read_live=False``) never reads the branch: the record's entry or nothing, so a branch
-    that moved since the first attempt cannot become a trusted root.
+    A resume (``read_live=False``) whose record holds a snapshot never reads the branch: the
+    snapshot's entry or nothing, so a branch that moved during an interrupted run cannot become a
+    trusted root. A record with NO snapshot was rebaselined after a full restore (#6770): no branch
+    moved in this run yet, so the resume reads the tip as it stands, as a fresh run does (#7626
+    follow-up, operator ruling: the operator's commits on the Mission branch between attempts are
+    trusted history).
     """
     branch: str = context.manifest.mission_branch
-    saved: str | None = context.state.pre_mutation_refs.get(branch) if context.state is not None else None
-    if saved or not read_live:
+    snapshot = context.state.pre_mutation_refs if context.state is not None else {}
+    saved: str | None = snapshot.get(branch)
+    if saved or (not read_live and snapshot):
         return saved
     # Local annotation re-narrows the callee's return type (the narrow-file mypy override erases it).
     tip: str | None = capture_branch_tip(context.repo_root, branch)
