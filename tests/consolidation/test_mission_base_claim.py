@@ -9,6 +9,7 @@ resolving the pre-Mission history degrades to today's bound (nothing exempted).
 
 from __future__ import annotations
 
+import io
 import json
 import subprocess
 from dataclasses import dataclass, fields, replace
@@ -471,28 +472,20 @@ def test_refused_claim_still_carries_the_mission_base(fork_repo: _Fork) -> None:
     assert claim.pre_mission_shas == frozenset()
 
 
-class _Console:
-    def __init__(self) -> None:
-        self.lines: list[str] = []
-
-    def print(self, text: str, **_kwargs: object) -> None:
-        self.lines.append(text)
-
-
 @pytest.mark.parametrize("json_output", [False, True])
-def test_the_run_and_the_forecast_print_the_note_but_never_under_json(monkeypatch: pytest.MonkeyPatch, json_output: bool) -> None:
-    from specify_cli.consolidation import forecast, phase_claim
+def test_the_note_is_printed_but_never_under_json(json_output: bool) -> None:
+    """One printer serves the run and the forecast; ``--json`` (quiet) keeps the payload valid JSON."""
+    from rich.console import Console
 
-    run_console, forecast_console = _Console(), _Console()
-    monkeypatch.setattr(phase_claim, "console", run_console)
-    monkeypatch.setattr(forecast, "console", forecast_console)
+    from specify_cli.consolidation.reconciliation import print_mission_base_note
+
+    sink = io.StringIO()
+    shown = Console(file=sink, width=400, color_system=None)
     claim = ApprovedWpCommitSet(mission_base=MissionBase(None, MissionBaseProvenance.UNAVAILABLE, "no [base]"))
 
-    phase_claim._print_mission_base_note(claim)
-    phase_claim._print_mission_base_note(None)
-    phase_claim._print_mission_base_note(ApprovedWpCommitSet())
-    forecast._print_mission_base_note(claim, json_output=json_output)
+    print_mission_base_note(claim, shown, quiet=json_output)
+    print_mission_base_note(None, shown)
+    print_mission_base_note(ApprovedWpCommitSet(), shown)
 
-    expected = "[yellow]Note:[/yellow] Mission base unavailable (no \\[base]); reconciliation windows are bounded by the target's pre-run tip only."
-    assert run_console.lines == [expected]
-    assert forecast_console.lines == ([] if json_output else [expected])
+    expected = "Note: Mission base unavailable (no [base]); reconciliation windows are bounded by the target's pre-run tip only."
+    assert sink.getvalue().strip() == ("" if json_output else expected)

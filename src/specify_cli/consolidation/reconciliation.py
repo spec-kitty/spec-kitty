@@ -144,6 +144,7 @@ from specify_cli.consolidation.reconciliation_closed_world import (
     _verify_declared_ref as _verify_declared_ref,
     dependency_refs_moved_refusal as dependency_refs_moved_refusal,
     mission_base_note as mission_base_note,
+    print_mission_base_note as print_mission_base_note,
     resolve_external_dependency_refs as resolve_external_dependency_refs,
 )
 from specify_cli.consolidation.reconciliation_bound import (
@@ -255,6 +256,7 @@ __all__ = [
     "claim_integrity_refusal",
     "detect_legacy_in_flight_state",
     "mission_base_note",
+    "print_mission_base_note",
     "route_terminus",
     "write_post_fix_marker",
 ]
