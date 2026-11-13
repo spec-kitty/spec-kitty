@@ -82,7 +82,7 @@ from charter.activation.context import build_charter_context
 from specify_cli.cli.commands._owned_checkout import owned_checkout_option
 from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts  # noqa: F401 -- late-bound via workflow_executor._wf() / patched by tests
 from specify_cli.cli.commands.implement import implement as top_level_implement
-from specify_cli.cli.commands.implement_claim import dispatched_claim_identity, no_auto_commit_not_offered
+from specify_cli.cli.commands.implement_claim import dispatched_claim_identity
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.coordination.types import CommitReceipt
 from specify_cli.core.paths import get_feature_target_branch, get_main_repo_root, is_worktree_context, locate_project_root  # noqa: F401 -- late-bound via workflow_executor._wf() / patched by tests
@@ -1736,7 +1736,7 @@ def implement(
             # Without --agent the claim keeps the generic placeholder: the frontmatter
             # agent is planned, not proven, and never names the implementer (#6400).
             claim_identity = _executor.implementer_claim_identity(agent, wp_meta.resolved_agent(), resolved_binding) if agent else None
-            with dispatched_claim_identity(claim_identity), no_auto_commit_not_offered():
+            with dispatched_claim_identity(claim_identity):
                 top_level_implement(
                     wp_id=normalized_wp_id,
                     mission=mission_slug,
@@ -1745,6 +1745,7 @@ def implement(
                     acknowledge_not_bulk_edit=request.acknowledge_not_bulk_edit,
                     actor=agent,
                     base=request.base,
+                    accepts_no_auto_commit=False,
                 )
 
         # FR-005/#3281 (C-006): a retry over an already-materialized lane

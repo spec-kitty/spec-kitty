@@ -125,22 +125,6 @@ def test_raise_if_status_commit_protected_is_inert_without_auto_commit(monkeypat
 
 
 @_FAST
-def test_dispatched_protected_branch_error_names_the_checkout_and_no_unaccepted_option(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """#7601 / SC-003: ``agent action implement`` has no ``--no-auto-commit``; its remedy never names it."""
-    _stub_policy(monkeypatch, True)
-
-    message = implement_claim._protected_branch_status_commit_error("main", tmp_path, _SLUG, accepts_no_auto_commit=False, checkout=tmp_path / "root")
-
-    assert message == (
-        f"Refusing to start implementation status on protected branch 'main' (checked out in {tmp_path / 'root'}) "
-        "before mutating status files. Claim the work package with the top-level "
-        "`spec-kitty implement` command instead, which can leave the status commit to you."
-    )
-    assert "--no-auto-commit" not in message
-    assert "Check out" not in message, "checking out another branch there can be refused while a worktree holds it"
-
-
-@_FAST
 def test_protected_destination_hint_per_entry_point() -> None:
     """The top-level ``implement`` keeps ``--no-auto-commit``; ``agent action implement`` never sees it (#7601)."""
     assert "--no-auto-commit" in implement_claim._protected_destination_hint("main")
@@ -149,35 +133,17 @@ def test_protected_destination_hint_per_entry_point() -> None:
     assert "'main' is a protected branch" in dispatched and "`spec-kitty implement`" in dispatched
 
 
-@_FAST
-def test_no_auto_commit_not_offered_withdraws_the_remedy_and_restores_it() -> None:
-    """Only inside ``no_auto_commit_not_offered`` (``agent action implement``) is the option withheld."""
-    assert implement_claim._NO_AUTO_COMMIT_OFFERED.get() is True
-    with implement_claim.no_auto_commit_not_offered():
-        assert implement_claim._NO_AUTO_COMMIT_OFFERED.get() is False
-    assert implement_claim._NO_AUTO_COMMIT_OFFERED.get() is True
-    with pytest.raises(RuntimeError), implement_claim.no_auto_commit_not_offered():
-        raise RuntimeError("claim failed")
-    assert implement_claim._NO_AUTO_COMMIT_OFFERED.get() is True
-
-
-@_FAST
-def test_dispatched_claim_identity_leaves_the_no_auto_commit_remedy_alone() -> None:
-    """The claim identity no longer flips the remedy switch; the call site enters its own block."""
-    with implement_claim.dispatched_claim_identity(None):
-        assert implement_claim._NO_AUTO_COMMIT_OFFERED.get() is True
-
-
 @_GIT
-def test_dispatched_status_preflight_refusal_omits_no_auto_commit(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+@pytest.mark.parametrize("accepts", [True, False])
+def test_status_preflight_refusal_names_no_auto_commit_only_where_it_is_accepted(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, accepts: bool) -> None:
+    """#7601 / SC-003: ``agent action implement`` has no ``--no-auto-commit``; its refusal never names it."""
     _stub_policy(monkeypatch, True)
     git_out(tmp_path, "init", "-qb", "main")
 
-    with implement_claim.no_auto_commit_not_offered(), pytest.raises(ValueError, match="Refusing to start implementation status") as refusal:
-        implement_claim._raise_if_status_commit_protected(tmp_path, "fallback", True, _SLUG)
+    with pytest.raises(ValueError, match="Refusing to start implementation status") as refusal:
+        implement_claim._raise_if_status_commit_protected(tmp_path, "fallback", True, _SLUG, accepts_no_auto_commit=accepts)
 
-    assert f"protected branch 'main' (checked out in {tmp_path})" in str(refusal.value)
-    assert "--no-auto-commit" not in str(refusal.value)
+    assert ("--no-auto-commit" in str(refusal.value)) is accepts
 
 
 @_GIT

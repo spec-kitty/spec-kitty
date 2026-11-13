@@ -57,6 +57,8 @@ class ImplementContext:
     mission_dir: Path
     wp_file: Path
     declared_deps: list[str]
+    #: ``False`` for ``agent action implement``, which has no ``--no-auto-commit``: its claim refusals must not name it (#7601).
+    accepts_no_auto_commit: bool = True
 
 
 @dataclass(frozen=True)
@@ -348,7 +350,9 @@ def _resolve_effective_base(repo_root: Path, base: str | None, resolved_workspac
 # ---------------------------------------------------------------------------
 
 
-def detect_context(mission: str, wp_id: str, repo_root: Path, auto_commit: bool | None, *, json_mode: bool) -> ImplementContext:
+def detect_context(
+    mission: str, wp_id: str, repo_root: Path, auto_commit: bool | None, *, json_mode: bool, accepts_no_auto_commit: bool = True
+) -> ImplementContext:
     """Charter preflight, then resolve the mission and the WP (the ``detect`` step)."""
     json_output = json_mode
     # FR-006 caller contract (T024): charter preflight runs BEFORE
@@ -358,14 +362,16 @@ def detect_context(mission: str, wp_id: str, repo_root: Path, auto_commit: bool 
 
     run_preflight_or_abort(repo_root, consumer="implement")
     auto_commit, mission_slug, feature_dir, wp_file, declared_deps = _detect_wp_context(mission, wp_id, repo_root, auto_commit, json_mode=json_output)
-    return ImplementContext(repo_root, auto_commit, mission_slug, feature_dir, wp_file, declared_deps)
+    return ImplementContext(repo_root, auto_commit, mission_slug, feature_dir, wp_file, declared_deps, accepts_no_auto_commit)
 
 
 def claim_preflight(ctx: ImplementContext, wp_id: str) -> ClaimPreflight:
     """Target branch, protected-branch refusal, status and lanes surfaces, dependency gate."""
     repo_root, mission_slug, auto_commit, declared_deps = ctx.repo_root, ctx.mission_slug, ctx.auto_commit, ctx.declared_deps
     planning_branch = workspace_context.resolve_mission_target_branch(mission_slug, repo_root)
-    implement_claim._raise_if_status_commit_protected(repo_root, planning_branch, auto_commit, mission_slug, ctx.mission_dir)
+    implement_claim._raise_if_status_commit_protected(
+        repo_root, planning_branch, auto_commit, mission_slug, ctx.mission_dir, accepts_no_auto_commit=ctx.accepts_no_auto_commit
+    )
 
     from specify_cli.status import materialize_status, resolve_status_read
 
@@ -498,7 +504,9 @@ def allocate(ctx: ImplementContext, wp_id: str, selection: WorkspaceSelection, b
     occupancy_verified = implement_support.refuse_repo_root_checkout_if_unavailable(repo_root, mission_slug, wp_id, resolved_workspace)
     # #5738: a claim whose auto-commit cannot land on the checked-out branch is
     # refused here too, before the VCS lock, the lane worktree and the status write.
-    implement_claim._raise_if_claim_commit_head_mismatch(repo_root, mission_slug, wp_id, ctx.auto_commit, feature_dir)
+    implement_claim._raise_if_claim_commit_head_mismatch(
+        repo_root, mission_slug, wp_id, ctx.auto_commit, feature_dir, accepts_no_auto_commit=ctx.accepts_no_auto_commit
+    )
     meta_dirty_before = _meta_dirty_before_claim(repo_root, feature_dir)
     # A lock an earlier, failed claim of this mission left behind is this claim's to commit, not dirty operator work.
     retry_lock = meta_dirty_before and _meta_differs_only_by_vcs_lock(repo_root, feature_dir)
