@@ -220,7 +220,7 @@ def test_no_recorded_landed_tip_refuses(tmp_path: Path, seams: dict[str, Any], m
     assert refused.error_code == reclaim.RECLAIM_UNABSORBED and "no recorded landed coordination tip" in str(refused)
 
 
-_INSPECT = f"git log main..{_BRANCH}"
+_INSPECT = f"git diff main {_BRANCH} -- kitty-specs/{_SLUG}/"
 
 
 @pytest.mark.parametrize("cause", ["no_merged_at", "no_landed_tip"])
@@ -239,7 +239,10 @@ def test_an_unproved_landing_names_the_inspection_command(
     refused = _refusal(tmp_path)
 
     assert _INSPECT in refused.remedy
-    assert f"git branch -D {_BRANCH}" in refused.remedy and "only after" in refused.remedy
+    assert f"git log main..{_BRANCH}" not in refused.remedy, "a squash landing leaves the branch's commits unreachable, so history proves nothing"
+    keep, delete = f"git update-ref refs/spec-kitty/discarded/{_BRANCH} {_BRANCH}", f"git branch -D {_BRANCH}"
+    assert keep in refused.remedy and delete in refused.remedy and "only after" in refused.remedy
+    assert refused.remedy.index(keep) < refused.remedy.index(delete), "the tip is preserved before the branch is deleted"
     assert ("spec-kitty mission close --discard --mission" in refused.remedy) is (terminal == "canceled")
 
 
