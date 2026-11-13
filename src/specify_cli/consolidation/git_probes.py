@@ -12,7 +12,6 @@ imports the command shim.
 from __future__ import annotations
 
 import contextlib
-import functools
 import re
 import subprocess
 import tempfile
@@ -29,6 +28,7 @@ from kernel.git import (
     changed_entries,
     changed_paths,
     commit_paths,
+    commit_tree,
     merge_tree,
     status_entries,
     tree_entry,
@@ -879,47 +879,20 @@ def _merge_tree_step(repo_root: Path, ours: str, theirs: str) -> tuple[str, froz
     return result.tree, frozenset(str(path) for path in result.conflicted)
 
 
-def _synthetic_merge_commit(repo_root: Path, tree: str, parents: Sequence[str]) -> str:
-    """A dangling commit of *tree* with *parents*, so the next fold step can find merge bases.
+#: One verification's folds, keyed on the input commits (immutable SHAs): lives as long as its owner (one ``verify`` call).
+MergeFoldCache = dict[tuple[str, ...], tuple[str, frozenset[str]]]
 
-    It is written to the object store only (no ref names it, so ``git gc`` prunes it),
-    exactly like the tree ``git merge-tree --write-tree`` already wrote. A fixed identity
-    keeps it independent of the user's git config. Its own SHA varies with the clock,
-    which does not matter: the next fold step reads only its tree and parents.
-    """
-    parent_args = [arg for parent in parents for arg in ("-p", parent)]
-    ret, out, err = run_command(
-        [
-            "git",
-            "-c",
-            "user.name=spec-kitty",
-            "-c",
-            "user.email=spec-kitty@localhost",
-            "-c",
-            "commit.gpgsign=false",
-            "commit-tree",
-            tree,
-            *parent_args,
-            "-m",
-            "spec-kitty: merge derivation (#7626)",
-        ],
-        capture=True,
-        check_return=False,
-        cwd=repo_root,
-    )
-    commit = (out or "").strip()
-    if ret != 0 or not commit:
-        raise GitProbeError(f"git commit-tree {tree} failed (exit {ret}): {(err or '').strip()}")
-    return commit
+_MERGE_DERIVATION_MESSAGE = "spec-kitty: merge derivation (#7626)"
 
 
-@functools.lru_cache(maxsize=64)
-def _n_way_merge_fold(repo_root: Path, commits: tuple[str, ...]) -> tuple[str, frozenset[str]]:
+def _n_way_merge_fold(repo_root: Path, commits: tuple[str, ...], cache: MergeFoldCache | None = None) -> tuple[str, frozenset[str]]:
     """The tree a ``git merge-tree --write-tree`` fold over *commits* writes, and every path that conflicted on any step.
 
-    Keyed on the input commits only (immutable SHAs), so one fold serves every path of a
-    claim with the same inputs. A probe error is raised, never cached.
+    With a *cache* one fold serves every path of a claim with the same inputs. A probe error is
+    raised, never cached.
     """
+    if cache is not None and commits in cache:
+        return cache[commits]
     current = commits[0]
     tree = ""
     conflicted: set[str] = set()
@@ -928,10 +901,27 @@ def _n_way_merge_fold(repo_root: Path, commits: tuple[str, ...]) -> tuple[str, f
         conflicted |= step_conflicts
         if step < len(commits) - 1:
             current = _synthetic_merge_commit(repo_root, tree, (current, nxt))
-    return tree, frozenset(conflicted)
+    folded = (tree, frozenset(conflicted))
+    if cache is not None:
+        cache[commits] = folded
+    return folded
 
 
-def n_way_merge_blob(repo_root: Path, commits: Sequence[str], path: str) -> str | None:
+def _synthetic_merge_commit(repo_root: Path, tree: str, parents: Sequence[str]) -> str:
+    """A dangling commit of *tree* with *parents* (``kernel.git.commit_tree``), so the next fold step can find merge bases.
+
+    The next step reads only its tree and parents, so the commit's clock-dependent id does not matter.
+    """
+    try:
+        commit = commit_tree(repo_root, tree, parents, message=_MERGE_DERIVATION_MESSAGE)
+    except GitCommandError as exc:
+        raise GitProbeError(f"git commit-tree {tree} failed (exit {exc.returncode}): {exc.stderr.strip()}") from exc
+    if not commit:
+        raise GitProbeError(f"git commit-tree {tree} printed no commit id")
+    return commit
+
+
+def n_way_merge_blob(repo_root: Path, commits: Sequence[str], path: str, *, fold_cache: MergeFoldCache | None = None) -> str | None:
     """Fold ``git merge-tree --write-tree`` over *commits* in order; return *path*'s resulting blob (#7626).
 
     The N-way generalization of #5051's two-lane ``git merge-tree`` simulation. Each step merges the
@@ -941,18 +931,22 @@ def n_way_merge_blob(repo_root: Path, commits: Sequence[str], path: str) -> str 
     resolution, so the caller must not attribute it. A conflict on ANOTHER path does
     not matter: *path*'s entry is still its own clean merge.
 
-    Soundness does not depend on the fold order. A clean three-way merge takes every
-    line of its result from one of its two sides (the base never adds a line), so the
-    result is built only from the inputs' content at *path*; any order that reproduces
-    a blob proves that blob is made of the inputs. A different order may conflict
+    Soundness does not depend on the fold order. With git's built-in merge a clean three-way
+    merge takes every line of its result from one of its two sides (the base never adds a
+    line), so the result is built only from the inputs' content at *path*; any order that reproduces
+    a blob proves that blob is made of the inputs. Exception: a custom ``merge=`` driver
+    set in ``.gitattributes`` (or git config) may write any bytes on a clean exit, so for a path
+    such a driver covers the "made of the inputs" claim does not hold; this probe does not detect
+    one (git's built-in merge has none, and a driver is an in-repo, reviewed choice). A different order may conflict
     where this one does not, which only attributes less. Gate with
-    :func:`merge_tree_write_tree_available` first (git >= 2.38).
+    :func:`merge_tree_write_tree_available` first (git >= 2.38). A *fold_cache* shares one fold
+    across the paths of one verification.
     """
     if not commits:
         return None
     if len(commits) == 1:
         return path_state_at(repo_root, commits[0], path)
-    tree, conflicted = _n_way_merge_fold(repo_root, tuple(commits))
+    tree, conflicted = _n_way_merge_fold(repo_root, tuple(commits), fold_cache)
     if path in conflicted:
         return None
     return path_state_at(repo_root, tree, path)
@@ -1185,6 +1179,7 @@ __all__ = [
     "lane_integrated_by_tree_or_ancestry",
     "driver_replay_expected_bytes",
     "merge_tree_write_tree_available",
+    "MergeFoldCache",
     "n_way_merge_blob",
     "first_parent_changed_paths",
 ]

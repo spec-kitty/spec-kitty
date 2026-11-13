@@ -229,7 +229,6 @@ from specify_cli.consolidation.reconciliation_verifier import (
     _with_attribution_hint as _with_attribution_hint,
     claim_integrity_refusal as claim_integrity_refusal,
     is_legitimate_merge_resolution as is_legitimate_merge_resolution,
-    is_legitimate_three_way_resolution as is_legitimate_three_way_resolution,
 )
 from specify_cli.consolidation.reconciliation_claim import (
     TERMINUS_ENTRY_POINTS as TERMINUS_ENTRY_POINTS,

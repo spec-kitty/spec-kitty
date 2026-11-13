@@ -26,6 +26,7 @@ from specify_cli.consolidation.git_probes import (
     patch_ids_in_range,
     path_state_at,
     sha_reachable_from,
+    MergeFoldCache,
     n_way_merge_blob,
 )
 from specify_cli.consolidation.reconciliation_authorship import unmet_approved_content
@@ -843,6 +844,7 @@ class MergeOutcomeVerifier:
         """
         unattributable_blobs: list[tuple[str, str]] = []
         unattributable_deletions: list[str] = []
+        fold_cache: MergeFoldCache = {}  # one verification's merge folds: shared by its paths, gone with the call
         for status, path in changed_paths_in_range(self._repo, window_base, target_ref):
             if self._is_bookkeeping_path(path, claim):
                 continue  # status/meta/matrix/retrospective/planning churn — not content
@@ -853,11 +855,11 @@ class MergeOutcomeVerifier:
             blob = blob_id_at(self._repo, target_ref, path)  # raises → REFUSE (F1)
             if (path, blob) in claim.authored_blobs:
                 continue
-            if not self._attributed_outside_mission(path, blob, claim):
+            if not self._attributed_outside_mission(path, blob, claim, fold_cache):
                 unattributable_blobs.append((path, blob))
         return unattributable_blobs, unattributable_deletions
 
-    def _attributed_outside_mission(self, path: str, blob: str, claim: ApprovedWpCommitSet) -> bool:
+    def _attributed_outside_mission(self, path: str, blob: str, claim: ApprovedWpCommitSet, fold_cache: MergeFoldCache) -> bool:
         """True when an Added/Modified *path* at *blob* is attributable beyond a single approved lane's own blob.
 
         The three second chances of :meth:`_unattributable_content_squash`, in order: a declared,
@@ -868,7 +870,7 @@ class MergeOutcomeVerifier:
         """
         if _inherited_blob(path, blob, claim):
             return True
-        return is_legitimate_merge_resolution(self._repo, claim, path, blob)
+        return is_legitimate_merge_resolution(self._repo, claim, path, blob, fold_cache=fold_cache)
 
     def _commit_is_content(self, sha: str, claim: ApprovedWpCommitSet) -> bool:
         """True when *sha* changes at least one path that is NOT mission bookkeeping.
@@ -919,6 +921,8 @@ def is_legitimate_merge_resolution(
     claim: ApprovedWpCommitSet,
     path: str,
     target_blob: str,
+    *,
+    fold_cache: MergeFoldCache | None = None,
 ) -> bool:
     """True iff *target_blob* is the clean merge of *path*'s approved-lane
     contributions and the target's pre-run tip (#7626; the 2-lane recognizer of
@@ -950,11 +954,14 @@ def is_legitimate_merge_resolution(
        absent result, compares unequal → ``False``.
 
     Why this is sound for any number of inputs (it was limited to exactly two lanes
-    because a 2-way fold is order-dependent, #5051 Decision 2): a clean three-way
-    merge takes every line of its result from one of its two sides, never from the
-    base, so whatever order the fold uses, a reproduced blob consists only of the
+    because a 2-way fold is order-dependent, #5051 Decision 2): with git's built-in
+    merge a clean three-way merge takes every line of its result from one of its two
+    sides, never from the base, so whatever order the fold uses, a reproduced blob consists only of the
     approved lanes' authored content and the target's own pre-run content. Order
-    only decides whether a fold conflicts, which attributes less, never more.
+    only decides whether a fold conflicts, which attributes less, never more. The one
+    exception is a custom ``merge=`` driver (``.gitattributes``) covering *path*: such a
+    driver may write bytes no side held on a clean exit, and this recognizer does not
+    detect it.
 
     A hand resolution (a conflicted path resolved by an operator) is not
     reproducible here. It is attributed only when a reviewed merge brought it into an
@@ -974,12 +981,8 @@ def is_legitimate_merge_resolution(
         inputs.append(claim.excluded_window_base)
     if len(inputs) < 2:
         return False
-    resolved_blob: str | None = n_way_merge_blob(repo_root, inputs, path)
+    resolved_blob: str | None = n_way_merge_blob(repo_root, inputs, path, fold_cache=fold_cache)
     return resolved_blob == target_blob
-
-
-#: The #5051 name, kept for callers and tests that import it: the recognizer is N-way now (#7626).
-is_legitimate_three_way_resolution = is_legitimate_merge_resolution
 
 
 def claim_integrity_refusal(claim: ApprovedWpCommitSet) -> str | None:
@@ -1018,5 +1021,4 @@ __all__ = [
     "_with_attribution_hint",
     "claim_integrity_refusal",
     "is_legitimate_merge_resolution",
-    "is_legitimate_three_way_resolution",
 ]
