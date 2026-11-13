@@ -44,6 +44,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
+from scripts.docs._dockitty_contract import RETIRED_SECTION_INDEX_FILE, SECTION_INDEX_FILE
 from scripts.docs._inventory import parse_frontmatter
 from scripts.docs.inventory_lockfile import (
     DEFAULT_INVENTORY_PATH,
@@ -73,8 +74,8 @@ _ADR_SUBDIR: Final[str] = "adr"
 #: landing basename is ``README``, ADR 2026-10-31-1 D-1); ``index.md`` is the retired
 #: basename, recognised read-only so an era directory that still carries one is not
 #: mistaken for an ADR body. Never written: adding or pruning a row refuses instead.
-_INDEX_NAME: Final[str] = "README.md"
-_RETIRED_INDEX_NAME: Final[str] = "index.md"
+_INDEX_NAME: Final[str] = SECTION_INDEX_FILE
+_RETIRED_INDEX_NAME: Final[str] = RETIRED_SECTION_INDEX_FILE
 _ERA_RE: Final[re.Pattern[str]] = re.compile(r"^\d+\.x$")
 _TITLE_PREFIX: Final[str] = "ADR: "
 _WHITESPACE_RE: Final[re.Pattern[str]] = re.compile(r"\s+")

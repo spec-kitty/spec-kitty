@@ -56,7 +56,7 @@ from urllib.parse import unquote, urljoin, urlsplit
 
 # Runnable bare (`python3 scripts/docs/site_built_check.py`): resolve `scripts.*` from the script, not the cwd.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from scripts.docs._dockitty_contract import redirect_stub_target, route_of, unpublished_routes  # noqa: E402  (after the path bootstrap above)
+from scripts.docs._dockitty_contract import SECTION_INDEX_FILE, redirect_stub_target, route_of, unpublished_routes  # noqa: E402  (after the path bootstrap above)
 from scripts.docs import site_built_check_diagrams, site_built_check_llms, site_built_check_render  # noqa: E402  (surfaces kept in their own modules)
 
 __all__ = ["SITE_ORIGIN", "SOURCE_SURFACES", "SURFACES", "Finding", "check", "main", "normalise_url", "unpublished_routes"]
@@ -145,7 +145,7 @@ def _sitemaps(dist: Path, routes: frozenset[str]) -> Iterator[Finding]:
 def _okf_route(rel: str) -> str:
     if rel == _OKF_FOLDER_META or rel.endswith(f"/{_OKF_FOLDER_META}"):
         folder = rel[: -len(_OKF_FOLDER_META)].rstrip("/")
-        return route_of(f"{folder}/README.md" if folder else "README.md")
+        return route_of(f"{folder}/{SECTION_INDEX_FILE}" if folder else SECTION_INDEX_FILE)
     return route_of(rel)
 
 

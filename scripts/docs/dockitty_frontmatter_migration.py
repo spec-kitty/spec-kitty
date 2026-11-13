@@ -57,6 +57,8 @@ from ruamel.yaml import YAML
 from scripts.docs._dockitty_contract import (
     DRAFT_FOLDERS,
     INDEX_BASENAMES,
+    RETIRED_SECTION_INDEX_FILE,
+    SECTION_INDEX_FILE,
     FrontmatterFindings,
     body_of,
     format_instant,
@@ -160,8 +162,6 @@ _DRAFT: Final[str] = "draft"
 _ISO_DATE: Final[re.Pattern[str]] = re.compile(r"\d{4}-\d{2}-\d{2}")
 _INDEX_BASENAMES_FOLDED: Final[frozenset[str]] = frozenset(f"{name.lower()}.md" for name in INDEX_BASENAMES)
 _DOCS_PREFIX: Final[str] = "docs/"
-_LEGACY_INDEX_FILE: Final[str] = "index.md"
-_README_FILE: Final[str] = "README.md"
 _REPO_URL: Final[str] = "https://github.com/spec-kitty/spec-kitty"
 _PERSONA_TITLE_PREFIXES: Final[tuple[str, ...]] = ("Stakeholder Persona: ",)
 _INTENDED_KEYS: Final[frozenset[str]] = frozenset({_AUDIENCE, _RELATED, _EXTERNAL, _DOC_STATUS, _KIND, _UPDATED, _TYPE})
@@ -459,9 +459,9 @@ def _renamed_section_index(docs_root: Path, target: str) -> str:
     resolves to ``x/README.md`` when that is the folder's index. Any other path is returned as is.
     """
     head, _, name = target.rpartition("/")
-    if name != _LEGACY_INDEX_FILE or (docs_root / target).is_file():
+    if name != RETIRED_SECTION_INDEX_FILE or (docs_root / target).is_file():
         return target
-    readme = f"{head}/{_README_FILE}" if head else _README_FILE
+    readme = f"{head}/{SECTION_INDEX_FILE}" if head else SECTION_INDEX_FILE
     return readme if (docs_root / readme).is_file() else target
 
 
