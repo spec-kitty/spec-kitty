@@ -31,7 +31,7 @@ from pathlib import Path
 from kernel.git import GitCommandError, status_entries
 from mission_runtime import ActionContextError, MissionArtifactKind, placement_seam
 from specify_cli.consolidation.git_probes import GitProbeError, commit_in_clone, commits_in_range, is_ancestor_strict, resolve_commit
-from specify_cli.consolidation.landed_coordination import clear_landed_coordination_tip, landed_coordination_tip
+from specify_cli.consolidation.landed_coordination import clear_landed_coordination_tip, landed_coordination_ref, landed_coordination_tip
 from specify_cli.coordination.teardown import CoordTeardownKeptOnlyCopy, ProjectionTeardownAbort, teardown_coordination_topology
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
@@ -271,8 +271,7 @@ def _remove_worktree(coordination: _Coordination) -> ReclaimStep:
 def _delete_branch(coordination: _Coordination, live_tip: str | None) -> ReclaimStep:
     """Delete the proved branch at *live_tip*, then drop its landed-coordination ref."""
     if live_tip is None:
-        clear_landed_coordination_tip(coordination.repo_root, coordination.branch)
-        return ReclaimStep("coordination branch", "already gone", coordination.branch)
+        return ReclaimStep("coordination branch", "already gone", _with_landed_ref_note(coordination, coordination.branch))
     try:
         kept = guarded_branch_delete(
             coordination.repo_root,
@@ -285,9 +284,15 @@ def _delete_branch(coordination: _Coordination, live_tip: str | None) -> Reclaim
         raise ReclaimRefused(
             exc.error_code, f"The coordination branch {coordination.branch} was kept: {exc}", f"Re-run: {reclaim_command(coordination.mission_slug)}."
         ) from exc
-    clear_landed_coordination_tip(coordination.repo_root, coordination.branch)
     detail = f"{coordination.branch} (tip kept as {discarded_ref(coordination.repo_root, coordination.branch, kept)})" if kept else coordination.branch
-    return ReclaimStep("coordination branch", "deleted", detail)
+    return ReclaimStep("coordination branch", "deleted", _with_landed_ref_note(coordination, detail))
+
+
+def _with_landed_ref_note(coordination: _Coordination, detail: str) -> str:
+    """Drop the branch's landed-coordination ref; say so in the step detail when it was kept (it then pins the dead branch's commits)."""
+    if clear_landed_coordination_tip(coordination.repo_root, coordination.branch):
+        return detail
+    return f"{detail}; landed ref kept: delete {landed_coordination_ref(coordination.branch)} by hand"
 
 
 def _flatten_marker(coordination: _Coordination) -> ReclaimStep:

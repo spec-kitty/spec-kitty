@@ -136,6 +136,7 @@ _UNRECORDED_MOVE_REASON = "moved since the snapshot but no post-mutation tip was
 _KEPT_WARNING = "may contain this consolidation's unverified changes"
 _ADOPTED_NOTE = "adopted interrupted advance"
 _COORD_CHECKOUT_NOT_RESYNCED = "coordination checkout left as found (its status files may differ from the branch tip)"
+_LANDED_REF_NOT_CLEARED = "NOT cleared: the landed-coordination ref of {branch} names a landing this rollback undid"
 _ABORT_COMMAND = "spec-kitty consolidate --abort"
 _RESUME_COMMAND = "spec-kitty consolidate --resume"
 _NEXT_STEPS_HEADER = "Next steps:"
@@ -237,11 +238,14 @@ class RollbackReport:
     # #5638: why the checkout of a coordination branch left in place could not be
     # brought back to that branch's tip (None when it was, or nothing needed it).
     coord_checkout_note: str | None = None
+    # The coordination branch whose landed-coordination ref (#4041) could not be deleted after the
+    # rollback undid its landing: a stale ref would let a later reclaim treat the undone landing as proved.
+    landed_ref_kept: str | None = None
 
     @property
     def fully_restored(self) -> bool:
         """True when nothing was refused and every branch is restored or legitimately untouched."""
-        return not self.refused_verified_landing and self.reason is None and all(o.kind in _OK_KINDS for o in self.outcomes)
+        return not self.refused_verified_landing and self.reason is None and self.landed_ref_kept is None and all(o.kind in _OK_KINDS for o in self.outcomes)
 
     @property
     def rebaselineable(self) -> bool:
@@ -301,6 +305,10 @@ class RollbackReport:
         if self.coord_checkout_note:
             lines.append(f"  {_COORD_CHECKOUT_NOT_RESYNCED}: {self.coord_checkout_note}")
             lines.append(f"  {_coord_resync_remedy(follow_up)}")
+        if self.landed_ref_kept:
+            lines.append(f"  {_LANDED_REF_NOT_CLEARED.format(branch=self.landed_ref_kept)}")
+            rerun = _ABORT_COMMAND if follow_up is RollbackFollowUp.ABORT else _RESUME_COMMAND
+            lines.append(f"  Remedy: delete it by hand (`git update-ref -d refs/spec-kitty/landed-coordination/{self.landed_ref_kept}`), then re-run `{rerun}`.")
         steps = [step for o in self.outcomes if (step := _next_step(o, follow_up)) is not None]
         if steps:
             lines.append(_NEXT_STEPS_HEADER)
@@ -1054,16 +1062,18 @@ def _resync_kept_coord_checkout(repo_root: Path, state: ConsolidationState, outc
     return None
 
 
-def _clear_landed_coordination_ref(repo_root: Path, state: ConsolidationState) -> None:
-    """Delete the landed-coordination ref of this record's coordination branch (best effort, logged by the owner).
+def _clear_landed_coordination_ref(repo_root: Path, state: ConsolidationState) -> str | None:
+    """Delete the landed-coordination ref of this record's coordination branch; return the branch whose ref was kept.
 
     The ref exists only while its landing stands; a coordination anchor that names the target
-    (LANES / SINGLE_BRANCH) has no such ref.
+    (LANES / SINGLE_BRANCH) has no such ref. ``None`` when nothing was left behind.
     """
     coord_ref = state.pre_mutation_coord_ref
     if not coord_ref or _coord_anchor_is_the_target(state):
-        return
-    clear_landed_coordination_ref(repo_root, coord_ref, target_branch=state.target_branch)
+        return None
+    if clear_landed_coordination_ref(repo_root, coord_ref, target_branch=state.target_branch):
+        return None
+    return coord_ref.removeprefix("refs/heads/")
 
 
 def rollback_to_snapshot(repo_root: Path, state: ConsolidationState, *, target_branch: str) -> RollbackReport:
@@ -1079,13 +1089,18 @@ def rollback_to_snapshot(repo_root: Path, state: ConsolidationState, *, target_b
         replace(outcome, resume_seeded=outcome.branch in seeded)
         for outcome in (_rollback_branch(repo_root, state, branch, snapshot, context) for branch, snapshot in state.pre_mutation_refs.items())
     )
-    report = RollbackReport(outcomes=outcomes, coord_checkout_note=_resync_kept_coord_checkout(repo_root, state, outcomes, context))
+    landed_ref_kept: str | None = None
     _settle_outcomes(state, outcomes)
     if any(o.branch == target_branch and o.kind is BranchOutcomeKind.RESTORED for o in outcomes):
         # F4: the target left the landing the PASS anchor verified; never keep a stale anchor.
         state.clear_reconciliation_pass()
         # #4041/#7491: nor a landed-coordination ref naming a tip whose landing was just undone.
-        _clear_landed_coordination_ref(repo_root, state)
+        landed_ref_kept = _clear_landed_coordination_ref(repo_root, state)
+    report = RollbackReport(
+        outcomes=outcomes,
+        coord_checkout_note=_resync_kept_coord_checkout(repo_root, state, outcomes, context),
+        landed_ref_kept=landed_ref_kept,
+    )
     if report.fully_restored:
         _clear_bookkeeping(state, outcomes)
     save_state(state, repo_root)

@@ -290,6 +290,21 @@ def test_a_rollback_that_restores_the_target_deletes_the_ref(repo: _Repo) -> Non
     assert landed_coordination.landed_coordination_tip(repo.root, _COORD) is None
 
 
+def test_a_landed_ref_that_would_not_clear_is_a_not_restored_outcome(repo: _Repo, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A stale ref would let a later reclaim treat the undone landing as proved: it is reported, and the record is not re-baselined."""
+    record_landed_coordination_tip(repo.root, _COORD, repo.projected)
+    monkeypatch.setattr(landed_coordination, "clear_landed_coordination_tip", lambda _root, _branch: False)
+    state = _state(repo, anchor=None, coord_tip=None)
+    state.pre_mutation_refs = {_TARGET: repo.base}
+    state.post_mutation_refs = {_TARGET: repo.landing}
+
+    report = rollback.rollback_to_snapshot(repo.root, state, target_branch=_TARGET)
+
+    assert report.landed_ref_kept == _COORD
+    assert not report.fully_restored and not report.rebaselineable
+    assert f"git update-ref -d refs/spec-kitty/landed-coordination/{_COORD}" in report.render()
+
+
 def test_the_rollback_helper_leaves_a_target_anchored_record_alone(repo: _Repo) -> None:
     record_landed_coordination_tip(repo.root, _COORD, repo.projected)
     state = _state(repo, anchor=None, coord_tip=None)

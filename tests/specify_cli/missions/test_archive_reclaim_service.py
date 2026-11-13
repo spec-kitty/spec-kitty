@@ -331,6 +331,16 @@ def test_a_moved_branch_refuses_and_keeps_the_landed_ref(tmp_path: Path, seams: 
     assert seams["cleared"] == []
 
 
+def test_a_landed_ref_that_would_not_clear_is_reported_in_the_step(tmp_path: Path, seams: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> None:
+    _coord_meta(tmp_path)
+    monkeypatch.setattr(reclaim, "clear_landed_coordination_tip", lambda _root, _branch: False)
+
+    report = reclaim.reclaim_archived_mission(tmp_path, _SLUG)
+
+    detail = next(step.detail for step in report.steps if step.name == "coordination branch")
+    assert f"landed ref kept: delete refs/spec-kitty/landed-coordination/{_BRANCH} by hand" in detail
+
+
 def test_a_kept_tip_is_reported_under_the_ref_the_guard_names(tmp_path: Path, seams: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> None:
     _coord_meta(tmp_path)
     monkeypatch.setattr(reclaim, "guarded_branch_delete", lambda *_a, **_k: _LIVE)
