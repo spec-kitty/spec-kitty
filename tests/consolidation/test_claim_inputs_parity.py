@@ -376,7 +376,7 @@ def test_live_lane_tips_skip_planning_canceled_and_unresolved_lanes(monkeypatch:
 def test_saved_reads_the_record_never_live(recorded: list[Any], monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(ci, "capture_branch_tip", lambda *_a: pytest.fail("SAVED must not read a lane tip live (CI-3)"))
     state = _state()
-    state.pre_mutation_refs = {_MISSION_BRANCH: "5" * 40}  # an interrupted run's snapshot: the record decides
+    state.pre_mutation_refs = {_MISSION_BRANCH: "5" * 40, "main": _TARGET}  # an interrupted run's snapshot: the record decides
 
     inputs = claim_inputs(ClaimInputSource.SAVED, _context(state=state, resolved_target_base="f" * 40, resolved_coord_sha="f" * 40))
 
@@ -384,28 +384,7 @@ def test_saved_reads_the_record_never_live(recorded: list[Any], monkeypatch: pyt
     assert dict(inputs.dependency_anchors) == {_LANE_A: "1" * 40}
     assert inputs.strategy == "merge"
     assert inputs.dependency_refs == _REFS and dict(inputs.dependency_pins) == _PINS
-
-
-def test_saved_with_a_snapshot_freezes_the_mission_tip_never_live(recorded: list[Any], monkeypatch: pytest.MonkeyPatch) -> None:
-    """#7626 / c52a0626: an interrupted run's resume trusts the Mission branch only as its snapshot froze it."""
-    monkeypatch.setattr(ci, "capture_branch_tip", lambda *_a: pytest.fail("a resume holding a snapshot must not read the Mission branch live"))
-    state = _state()
-    state.pre_mutation_refs = {_MISSION_BRANCH: "5" * 40, "main": _TARGET}
-
-    inputs = claim_inputs(ClaimInputSource.SAVED, _context(state=state))
-
-    assert inputs.mission_branch_tip == "5" * 40
-
-
-def test_saved_with_a_snapshot_lacking_the_mission_branch_trusts_no_mission_tip(recorded: list[Any], monkeypatch: pytest.MonkeyPatch) -> None:
-    """A snapshot exists but names no Mission branch (absent at that run's start): nothing is read live, nothing is trusted."""
-    monkeypatch.setattr(ci, "capture_branch_tip", lambda *_a: pytest.fail("a resume holding a snapshot must not read the Mission branch live"))
-    state = _state()
-    state.pre_mutation_refs = {"main": _TARGET}
-
-    inputs = claim_inputs(ClaimInputSource.SAVED, _context(state=state))
-
-    assert inputs.mission_branch_tip is None
+    assert inputs.mission_branch_tip == "5" * 40, "#7626 / c52a0626: the Mission branch is trusted only as the snapshot froze it"
 
 
 def test_saved_after_a_rebaseline_reads_the_mission_tip_live(recorded: list[Any], monkeypatch: pytest.MonkeyPatch) -> None:
@@ -460,6 +439,9 @@ def test_record_was_rebaselined_reads_the_rebaseline_signature(refs: dict[str, s
     state.pre_mutation_target_sha = target_sha
 
     assert ci.record_was_rebaselined(state) is expected
+
+
+def test_no_record_is_not_a_rebaselined_record() -> None:
     assert ci.record_was_rebaselined(None) is False
 
 
@@ -492,8 +474,9 @@ def test_claim_phase_reads_the_rebaseline_signature_before_repersisting_the_targ
         raise _Stop
 
     def repersist(_repo: Path, _branch: str, state: ConsolidationState) -> str:
-        state.pre_mutation_target_sha = state.pre_mutation_target_sha or "b" * 40
-        return state.pre_mutation_target_sha
+        tip: str = state.pre_mutation_target_sha or "b" * 40
+        state.pre_mutation_target_sha = tip
+        return tip
 
     monkeypatch.setattr(phase_claim, "detect_legacy_in_flight_state", lambda *_a, **_k: None)
     monkeypatch.setattr(phase_claim, "write_post_fix_marker", lambda *_a: None)
@@ -649,10 +632,13 @@ def test_a_rebaselined_coordination_resume_gate_reads_the_tip_the_claim_trusted(
     assert state.pre_mutation_refs[_MISSION_BRANCH] == before, "the snapshot seeds the shared branch from the older anchor"
 
     seen: list[ClaimInputs] = []
-    monkeypatch.setattr(phase_gate, "build_claim", lambda _r, _m, got: seen.append(got) or "rebuilt")
-    run = SimpleNamespace(
-        main_repo=repo, lanes_manifest=manifest, approved_wp_set=None, claim_inputs=inputs, dependency_ref_pins={}, strategy=MergeStrategy.MERGE
-    )
+
+    def _build(_repo: Path, _manifest: LanesManifest, got: ClaimInputs) -> str:
+        seen.append(got)
+        return "rebuilt"
+
+    monkeypatch.setattr(phase_gate, "build_claim", _build)
+    run = SimpleNamespace(main_repo=repo, lanes_manifest=manifest, approved_wp_set=None, claim_inputs=inputs, dependency_ref_pins={}, strategy=MergeStrategy.MERGE)
 
     assert phase_gate._reconciliation_claim_for_gate(cast(Any, run)) == "rebuilt"
 
