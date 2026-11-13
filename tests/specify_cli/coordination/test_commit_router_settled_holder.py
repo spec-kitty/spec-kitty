@@ -291,15 +291,15 @@ def test_owning_surface_refusal_status(reason: str, status: str) -> None:
     assert [(fate.path, fate.reason) for fate in result.surfaces[0].refused] == [("kitty-specs/m/x.md", reason)]
 
 
-@pytest.mark.parametrize(("use_coord", "holder_checkout", "locked"), [(False, False, False), (False, True, True), (True, False, True)])
+@pytest.mark.parametrize(("use_coord", "is_holder_checkout", "locked"), [(False, False, False), (False, True, True), (True, False, True)])
 def test_coord_status_locks_engage_for_coord_or_holder(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, use_coord: bool, holder_checkout: bool, locked: bool
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, use_coord: bool, is_holder_checkout: bool, locked: bool
 ) -> None:
     taken: list[Path] = []
     monkeypatch.setattr(commit_router, "_hold_coord_status_dir", lambda stack, repo_root, status_dir: taken.append(status_dir))
     status = tmp_path / "kitty-specs" / "m" / "status.json"
 
-    with commit_router._coord_status_locks(tmp_path, tmp_path, (status,), use_coord=use_coord, holder_checkout=holder_checkout):
+    with commit_router._coord_status_locks(tmp_path, tmp_path, (status,), use_coord=use_coord, is_holder_checkout=is_holder_checkout):
         pass
 
     assert taken == ([status.parent] if locked else [])
