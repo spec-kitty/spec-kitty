@@ -401,6 +401,29 @@ class ConsolidationState:
         """
         return self.restore_reconciliation_pass(None)
 
+    def record_reconciliation_pass(self, anchor: str, coord_tip: str | None) -> bool:
+        """Record a verified landing: the PASS anchor (#5021) and the coordination tip the merge projected (#7491), in one write.
+
+        A pure field mutator (the caller persists); returns whether either changed.
+        """
+        if not anchor:
+            raise ValueError("a reconciliation PASS anchor must name a target tip")
+        return self.restore_reconciliation_pass(anchor, coord_tip)
+
+    def advance_pass_anchor(self, commit_sha: str) -> bool:
+        """Move a recorded PASS anchor to *commit_sha*, a target commit this run made on top of it; ``False`` when none is recorded."""
+        if not self.reconciliation_passed_target_sha or not commit_sha:
+            return False
+        self.reconciliation_passed_target_sha = commit_sha
+        return True
+
+    def advance_proven_coordination_tip(self, proven_tip: str) -> bool:
+        """Move the recorded coordination tip to *proven_tip*; only beside a PASS anchor, and ``False`` when it is already that tip."""
+        if not self.reconciliation_passed_target_sha or self.coord_tip_after_projection == proven_tip:
+            return False
+        self.coord_tip_after_projection = proven_tip
+        return True
+
     def reconciliation_pass_pair(self) -> tuple[str | None, str | None]:
         """The PASS anchor and its coordination tip, as :meth:`restore_reconciliation_pass` takes them back."""
         return self.reconciliation_passed_target_sha, self.coord_tip_after_projection

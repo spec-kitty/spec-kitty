@@ -312,7 +312,7 @@ def _carry_pass_anchor_over_own_commit(run: _MergeRunState, commit_sha: str) -> 
     target = run.lanes_manifest.target_branch
     if _resolve_ref_sha(run.main_repo, target) != commit_sha or _resolve_ref_sha(run.main_repo, f"{commit_sha}^") != anchor:
         return
-    run.state.reconciliation_passed_target_sha = commit_sha
+    run.state.advance_pass_anchor(commit_sha)
     save_state(run.state, run.main_repo)
 
 
@@ -440,9 +440,8 @@ def _persist_proven_coordination_tip(run: _MergeRunState, proven_tip: str) -> No
     sound beside it. The window was proven landed before this advance, so a narrower resume base
     is still sound. The landed-coordination ref follows (#4041).
     """
-    if not run.state.reconciliation_passed_target_sha or run.state.coord_tip_after_projection == proven_tip:
+    if not run.state.advance_proven_coordination_tip(proven_tip):
         return
-    run.state.coord_tip_after_projection = proven_tip
     save_state(run.state, run.main_repo)
     record_landed_coordination_ref(run, proven_tip)
 
