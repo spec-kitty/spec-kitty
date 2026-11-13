@@ -83,6 +83,25 @@ def test_default_create_records_target_tip(tmp_path: Path, monkeypatch: pytest.M
     assert (resolved.sha, resolved.provenance) == (target_tip, MissionBaseProvenance.RECORDED)
 
 
+def test_mint_onto_an_existing_branch_refuses_and_records_nothing(tmp_path: Path) -> None:
+    """A reused Mission branch is refused before any write, so no base is recorded for it."""
+    from specify_cli.core.mission_creation_errors import MissionCreationError
+    from specify_cli.core.mission_creation_protected_mint import _mint_protected_single_branch_mission_branch
+    from specify_cli.lanes.branch_naming import mission_branch_name
+
+    repo_root = _repo(tmp_path)
+    mission_id = "01K6PR0BE0RDERF1XED0000000"
+    existing = mission_branch_name(SLUG, mission_id=mission_id)
+    _git(repo_root, "branch", existing)
+    _git(repo_root, "commit", "-q", "--allow-empty", "-m", "target moves on")
+    meta: dict[str, Any] = {}
+
+    with pytest.raises(MissionCreationError):
+        _mint_protected_single_branch_mission_branch(repo_root, SLUG, mission_id=mission_id, target_branch=_TARGET, meta=meta)
+
+    assert MISSION_BASE_SHA_KEY not in meta
+
+
 def test_coord_create_records_target_tip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo_root = _repo(tmp_path)
     target_tip = _git(repo_root, "rev-parse", _TARGET)
