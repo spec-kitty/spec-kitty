@@ -424,11 +424,106 @@ def test_saved_after_a_rebaseline_reads_the_mission_tip_live(recorded: list[Any]
     state = _state()
     state.pre_mutation_refs = {}
 
-    inputs = claim_inputs(ClaimInputSource.SAVED, _context(state=state))
+    inputs = claim_inputs(ClaimInputSource.SAVED, _context(state=state, rebaselined=True))
 
     assert inputs.mission_branch_tip == "m" * 40
     assert reads == [_MISSION_BRANCH]
     assert dict(inputs.dependency_anchors) == {_LANE_A: "1" * 40}
+
+
+def test_saved_with_no_snapshot_but_not_rebaselined_trusts_no_mission_tip(recorded: list[Any], monkeypatch: pytest.MonkeyPatch) -> None:
+    """Squad MAJOR (#7626 follow-up): an empty snapshot alone is not a rebaseline. A legacy record (written
+    before the snapshot existed, possibly after its own lane merges) keeps c52a0626's rule: no live read,
+    no trusted Mission tip, so this attempt's own merges never become trusted roots."""
+    monkeypatch.setattr(ci, "capture_branch_tip", lambda *_a: pytest.fail("a non-rebaselined resume must not read the Mission branch live"))
+    state = _state()
+    state.pre_mutation_refs = {}
+
+    inputs = claim_inputs(ClaimInputSource.SAVED, _context(state=state))
+
+    assert inputs.mission_branch_tip is None
+
+
+@pytest.mark.parametrize(
+    ("refs", "target_sha", "expected"),
+    [
+        ({}, None, True),  # what rebaseline_after_full_restore leaves
+        ({}, "a" * 40, False),  # a legacy record: target tip persisted, no snapshot
+        ({_MISSION_BRANCH: "5" * 40}, None, False),  # a snapshot exists
+        ({_MISSION_BRANCH: "5" * 40}, "a" * 40, False),  # an interrupted run
+    ],
+)
+def test_record_was_rebaselined_reads_the_rebaseline_signature(refs: dict[str, str], target_sha: str | None, expected: bool) -> None:
+    state = _state()
+    state.pre_mutation_refs = dict(refs)
+    state.pre_mutation_target_sha = target_sha
+
+    assert ci.record_was_rebaselined(state) is expected
+    assert ci.record_was_rebaselined(None) is False
+
+
+def test_rebaseline_leaves_the_signature_record_was_rebaselined_reads() -> None:
+    """The predicate and its one writer agree: a full restore's rebaseline yields a rebaselined record."""
+    from specify_cli.consolidation.rollback import rebaseline_after_full_restore
+
+    state = _state()
+    state.pre_mutation_refs = {_MISSION_BRANCH: "5" * 40, "main": _TARGET}
+    assert not ci.record_was_rebaselined(state)
+
+    rebaseline_after_full_restore(state, ())
+
+    assert ci.record_was_rebaselined(state)
+
+
+@pytest.mark.parametrize(("persisted_target", "expected"), [(None, True), ("a" * 40, False)])
+def test_claim_phase_reads_the_rebaseline_signature_before_repersisting_the_target(
+    monkeypatch: pytest.MonkeyPatch, persisted_target: str | None, expected: bool
+) -> None:
+    """The claim phase re-persists the transaction target tip before it builds the inputs, which would
+    hide the signature: it must read ``record_was_rebaselined`` first (squad MAJOR fold, #7626)."""
+    seen: list[ClaimInputContext] = []
+
+    class _Stop(Exception):
+        pass
+
+    def fake_claim_inputs(_source: ClaimInputSource, context: ClaimInputContext) -> ClaimInputs:
+        seen.append(context)
+        raise _Stop
+
+    def repersist(_repo: Path, _branch: str, state: ConsolidationState) -> str:
+        state.pre_mutation_target_sha = state.pre_mutation_target_sha or "b" * 40
+        return state.pre_mutation_target_sha
+
+    monkeypatch.setattr(phase_claim, "detect_legacy_in_flight_state", lambda *_a, **_k: None)
+    monkeypatch.setattr(phase_claim, "write_post_fix_marker", lambda *_a: None)
+    monkeypatch.setattr(phase_claim, "_capture_coord_checkpoint", lambda _run: None)
+    monkeypatch.setattr(phase_claim, "_enforce_resume_anchor_integrity", lambda *_a, **_k: None)
+    monkeypatch.setattr(phase_claim, "_resolve_pre_mutation_coord_sha", lambda *_a: _COORD)
+    monkeypatch.setattr(phase_claim, "_resolve_pre_mutation_target_sha", repersist)
+    monkeypatch.setattr(phase_claim, "claim_inputs", fake_claim_inputs)
+    state = _state()
+    state.pre_mutation_refs = {}
+    state.pre_mutation_target_sha = persisted_target
+    run = SimpleNamespace(
+        main_repo=_REPO,
+        canonical_id="m",
+        feature_dir=_STATUS,
+        lanes_manifest=_manifest(),
+        is_resume=True,
+        state=state,
+        strategy=MergeStrategy.SQUASH,
+        dependency_refs=_REFS,
+        dependency_ref_pins={},
+        excluded_canceled_wp_ids=_EXCLUDED,
+        claim_inputs=None,
+        coord_checkpoint=None,
+    )
+
+    with pytest.raises(_Stop):
+        phase_claim._capture_reconciliation_claim(cast(Any, run))
+
+    assert state.pre_mutation_target_sha is not None, "the target tip was re-persisted before the inputs were built"
+    assert seen[0].rebaselined is expected
 
 
 def test_live_then_saved_reuses_the_tips_the_claim_phase_captured(recorded: list[Any], monkeypatch: pytest.MonkeyPatch) -> None:

@@ -43,7 +43,14 @@ from specify_cli.consolidation.preflight import (
 )
 from specify_cli.consolidation import rollback
 from specify_cli.consolidation.entry_preflight import _REFUSED_WITH_EARLIER_RECORD
-from specify_cli.consolidation.claim_inputs import ClaimInputContext, ClaimInputSource, build_claim, claim_inputs, live_lane_tips
+from specify_cli.consolidation.claim_inputs import (
+    ClaimInputContext,
+    ClaimInputSource,
+    build_claim,
+    claim_inputs,
+    live_lane_tips,
+    record_was_rebaselined,
+)
 from specify_cli.consolidation.reconciliation import (
     claim_integrity_refusal,
     detect_legacy_in_flight_state,
@@ -500,6 +507,8 @@ def _capture_reconciliation_claim(run: _MergeRunState) -> None:
     # absent base (H4) or a truly-divergent lane tip (H3) refuses rather than the
     # resolver falling back to a live capture.
     _enforce_resume_anchor_integrity(run, coord_topology=checkpoint is not None)
+    # #7626: read before the target tip is re-persisted just below, which would hide the signature.
+    rebaselined = run.is_resume and record_was_rebaselined(run.state)
     coord_base_sha = _resolve_pre_mutation_coord_sha(run.state, run)
     target_base = _resolve_pre_mutation_target_sha(run.main_repo, run.lanes_manifest.target_branch, run.state)
 
@@ -523,6 +532,7 @@ def _capture_reconciliation_claim(run: _MergeRunState) -> None:
             excluded_canceled_wp_ids=run.excluded_canceled_wp_ids,
             # L4: a resume reuses the frozen anchor set the executor built for the attestation check.
             prior=run.claim_inputs if run.is_resume else None,
+            rebaselined=rebaselined,
         ),
     )
     coord_base = inputs.coord_base
