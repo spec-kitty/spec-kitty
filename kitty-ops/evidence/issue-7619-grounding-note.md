@@ -42,6 +42,8 @@ fail loudly. That fails in the safe direction and hides nothing.
 | `MissionFixture.ensureProject` | Yes: unconditional commit | **Fixed here** |
 | `ArrangeSteps` "a project already set up with Spec Kitty for the agents" | No: runs `init` only | Unaffected |
 | `GitStates.commitEverything` ("every change in the project is committed") | Uses `--allow-empty` | Unaffected. Used after `init` in `migration-ledger.feature`, and still holds |
+| `ArrangeSteps.commitWorkingTree` (some uses right after `init`) | Uses `--allow-empty` | Unaffected |
+| `ArrangeSteps` "the file ... is committed with the text ..." | Commits a file it has just written | Unaffected |
 | `MissionLifecycle.commit(...)` | Runs after `mission create`, plan and amend, which leave writes | Unaffected by #7555. If a scenario goes red here, it shows up in the gating run (see the PR's *Tests run*) |
 | `init.feature` "...inside an existing repository leaves its git history alone" (`no new commits`) | Records commits *before* `init <dir>` in a subfolder | Not among the 73. `init` does not commit into the parent repository for a new subfolder project |
 | `migration-ledger.feature` `no new commits` after `upgrade` | Counts after the explicit commit step | Unaffected |
