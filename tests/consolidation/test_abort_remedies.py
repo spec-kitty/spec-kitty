@@ -114,7 +114,7 @@ def _cli_abort(repo: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[int, str]:
 
 def test_dirty_worktree_error_names_the_blocker_and_no_command() -> None:
     exc = RefAdvanceDirtyWorktreeError(
-        worktree_path=Path("/tmp/wt"),
+        worktree_path=Path("/srv/checkouts/wt"),
         branch="main",
         old_sha="a" * 40,
         new_sha="b" * 40,
@@ -123,7 +123,7 @@ def test_dirty_worktree_error_names_the_blocker_and_no_command() -> None:
 
     text = str(exc)
 
-    assert "Commit, stash, or revert these changes in /tmp/wt." in text
+    assert "Commit, stash, or revert these changes in /srv/checkouts/wt." in text
     assert "consolidate" not in text
     assert exc.error_code == "REF_ADVANCE_DIRTY_WORKTREE"
 
@@ -309,7 +309,7 @@ def test_a_lane_merge_refused_by_a_dirty_checkout_keeps_the_resume_hint() -> Non
     from specify_cli.lanes.consolidation import lane_merge_error_text
 
     exc = RefAdvanceDirtyWorktreeError(
-        worktree_path=Path("/tmp/wt"),
+        worktree_path=Path("/srv/checkouts/wt"),
         branch="kitty/mission-x",
         old_sha="a" * 40,
         new_sha="b" * 40,
