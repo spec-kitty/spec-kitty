@@ -269,11 +269,18 @@ def test_squash_post_base_change_of_a_pre_mission_path_stays_unattributable(fork
 # --- 4. vacuous squash --------------------------------------------------------------------
 
 
-def test_vacuous_squash_with_only_pre_mission_content_passes(fork: _Fork) -> None:
+@pytest.mark.parametrize("source", ["pre_mission", "declared_ref"])
+def test_vacuous_squash_with_only_pre_mission_content_passes(fork: _Fork, source: str) -> None:
+    """Inherited history passes the vacuous-squash probe whether it is pre-Mission or a declared dependency's (one source of truth)."""
     squashed = _squashed(fork, "squashed-base", fork.base)
     vacuous = {"approved": {"WP01": ()}, "authored_shas": frozenset(), "authored_patch_ids": frozenset()}
+    history = _history(fork)
+    inherited: dict[str, object] = {}
+    if source == "declared_ref":
+        inherited = {"external_dependency_blobs": history.blobs, "external_dependency_deletions": history.deletions}
+        history = PreMissionHistory(history.base)
 
-    claim = _claim(fork, _history(fork), verify_reachability=False, **vacuous)
+    claim = _claim(fork, history, verify_reachability=False, **vacuous, **inherited)
     assert MergeOutcomeVerifier(fork.repo).verify(squashed, claim).is_pass
 
     control = MergeOutcomeVerifier(fork.repo).verify(squashed, _claim(fork, verify_reachability=False, **vacuous))
