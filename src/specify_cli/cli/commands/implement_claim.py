@@ -68,27 +68,6 @@ class DispatchedClaimIdentity:
 _DISPATCHED_CLAIM_IDENTITY: ContextVar[DispatchedClaimIdentity | None] = ContextVar("dispatched_claim_identity", default=None)
 
 
-#: ``False`` only inside :func:`no_auto_commit_not_offered`: ``agent action implement`` has no
-#: ``--no-auto-commit``, so a refusal printed through it must not name that option (#7601,
-#: SC-003). The top-level ``spec-kitty implement`` keeps the default and its remedy text.
-_NO_AUTO_COMMIT_OFFERED: ContextVar[bool] = ContextVar("no_auto_commit_offered", default=True)
-
-
-@contextmanager
-def no_auto_commit_not_offered() -> Iterator[None]:
-    """Withhold ``--no-auto-commit`` from every claim refusal printed inside this block (#7601).
-
-    Entered by ``agent action implement`` around its call of the top-level ``implement``
-    command: that entry point has no ``--no-auto-commit``, so its remedies name only ways
-    out it can follow. The previous value is restored on exit, also on an exception.
-    """
-    token = _NO_AUTO_COMMIT_OFFERED.set(False)
-    try:
-        yield
-    finally:
-        _NO_AUTO_COMMIT_OFFERED.reset(token)
-
-
 @contextmanager
 def dispatched_claim_identity(identity: DispatchedClaimIdentity | None) -> Iterator[None]:
     """Record *identity* on any implement claim emitted inside this block (#7159).
@@ -182,11 +161,14 @@ def _raise_if_status_commit_protected(
     auto_commit: bool | None,
     mission_slug: str | None = None,
     feature_dir: Path | None = None,
+    *,
+    accepts_no_auto_commit: bool = True,
 ) -> None:
     """Raise ``ValueError`` when auto-commit is on and the claim status commit would land on a protected branch.
 
     The branch judged is the one checked out in the checkout the claim commit runs in
     (:func:`_claim_checkout_branch`), *planning_branch* when that checkout is detached.
+    *accepts_no_auto_commit* is ``False`` for ``agent action implement`` (#7601, SC-003).
     """
     if not auto_commit:
         return
@@ -195,7 +177,7 @@ def _raise_if_status_commit_protected(
         status_destination,
         repo_root,
         mission_slug,
-        accepts_no_auto_commit=_NO_AUTO_COMMIT_OFFERED.get(),
+        accepts_no_auto_commit=accepts_no_auto_commit,
         checkout=checkout,
     )
     if protected_error is not None:
@@ -248,6 +230,8 @@ def _raise_if_claim_commit_head_mismatch(
     wp_id: str,
     auto_commit: bool | None,
     feature_dir: Path | None = None,
+    *,
+    accepts_no_auto_commit: bool = True,
 ) -> None:
     """Refuse up front a claim whose auto-commit cannot land (#5738).
 
@@ -265,6 +249,7 @@ def _raise_if_claim_commit_head_mismatch(
     *feature_dir* (#7372) is the claim's Mission directory: when the checkout holding
     the destination (a default Mission's topic holder) contains it, that checkout's
     HEAD is the one judged, as the commit runs there (:func:`_claim_commit_checkout`).
+    *accepts_no_auto_commit* is ``False`` for ``agent action implement`` (#7601).
     """
     if not auto_commit:
         return
@@ -295,7 +280,7 @@ def _raise_if_claim_commit_head_mismatch(
     )
     if ProtectionPolicy.resolve_for_mission(repo_root, mission_slug).is_protected(destination_ref):
         # Same type and ``error_code``; only the message gains the working remedy.
-        mismatch.message += _protected_destination_hint(destination_ref, accepts_no_auto_commit=_NO_AUTO_COMMIT_OFFERED.get())
+        mismatch.message += _protected_destination_hint(destination_ref, accepts_no_auto_commit=accepts_no_auto_commit)
         mismatch.args = (mismatch.message,)
     raise mismatch
 

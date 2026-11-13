@@ -408,6 +408,14 @@ def implement(
         ),
     ] = False,
     actor: Annotated[str | None, typer.Option("--actor", hidden=True, help="Actor identity for programmatic callers")] = None,
+    accepts_no_auto_commit: Annotated[
+        bool,
+        typer.Option(
+            "--accepts-no-auto-commit/--refuses-no-auto-commit",
+            hidden=True,
+            help="False for programmatic callers without --no-auto-commit: claim refusals then do not name it (#7601)",
+        ),
+    ] = True,
 ) -> None:
     """Internal — allocate or reuse the lane worktree for a work package.
 
@@ -458,7 +466,7 @@ def implement(
     tracker.start("detect")
     try:
         repo_root = find_repo_root()
-        ctx = implement_phases.detect_context(mission, wp_id, repo_root, auto_commit, json_mode=json_output)
+        ctx = implement_phases.detect_context(mission, wp_id, repo_root, auto_commit, json_mode=json_output, accepts_no_auto_commit=accepts_no_auto_commit)
         tracker.complete("detect", f"Mission: {ctx.mission_slug}")
     except (TaskCliError, FileNotFoundError, FrontmatterError, ValidationError, typer.Exit) as exc:
         tracker.error("detect", str(exc))
