@@ -89,7 +89,7 @@ from specify_cli.core.paths import get_feature_target_branch, get_main_repo_root
 from mission_runtime import CommitTarget, MissionArtifactKind, is_primary_artifact_kind, kind_for_mission_file
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git import safe_commit
-from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
+from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed, SafeCommitStagedTreeUnchanged
 from specify_cli.git.merge_conclusion import run_committing_op
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.review.cycle import (
@@ -1014,14 +1014,29 @@ def _commit_via_legacy_safe_commit(
     # mission branch), which is normally not protected. STANDARD asserts no
     # protected-branch flow: a protected ``target_branch`` (legacy missions
     # tracking ``main``) is REFUSED by the guard, never waived (FR-008).
-    result = safe_commit(
-        repo_root=repo_root,
-        worktree_root=repo_root,
-        target=CommitTarget(ref=target_branch),
-        message=message,
-        paths=tuple(paths),
-        capability=GuardCapability.STANDARD,
-    )
+    try:
+        result = safe_commit(
+            repo_root=repo_root,
+            worktree_root=repo_root,
+            target=CommitTarget(ref=target_branch),
+            message=message,
+            paths=tuple(paths),
+            capability=GuardCapability.STANDARD,
+        )
+    except SafeCommitStagedTreeUnchanged:
+        # #7589: the pre-check above is advisory and can fail to answer (a
+        # coordination worktree left on disk whose checkout does not hold these
+        # paths). ``safe_commit``'s index authority then finds the staged tree
+        # equal to HEAD: the paths are already committed, the benign no-op the
+        # type names. Record the commit that carries them, as the pre-check would.
+        _record_receipt(
+            target_branch,
+            message,
+            "committed",
+            sha=_already_present_receipt_sha(porcelain_root=repo_root, target_branch=target_branch, paths=paths),
+            wp_id=wp_id,
+        )
+        return
     _record_receipt(
         target_branch,
         message,
