@@ -82,7 +82,7 @@ from dataclasses import dataclass, replace
 from enum import StrEnum
 from pathlib import Path
 
-from specify_cli.consolidation.landed_coordination import clear_landed_coordination_tip
+from specify_cli.consolidation.landed_coordination import clear_landed_coordination_ref
 from specify_cli.consolidation.state import UNSETTLED_ALL, ConsolidationState, reconciliation_passed_for_tip, save_state
 from specify_cli.coordination.coherence import CheckoutRole, ResidueContext, is_status_state_path
 from specify_cli.core.paths import MissionMetaReadError
@@ -1055,7 +1055,7 @@ def _resync_kept_coord_checkout(repo_root: Path, state: ConsolidationState, outc
 
 
 def _clear_landed_coordination_ref(repo_root: Path, state: ConsolidationState) -> None:
-    """Delete the landed-coordination ref of this record's coordination branch (best effort, logged).
+    """Delete the landed-coordination ref of this record's coordination branch (best effort, logged by the owner).
 
     The ref exists only while its landing stands; a coordination anchor that names the target
     (LANES / SINGLE_BRANCH) has no such ref.
@@ -1063,14 +1063,7 @@ def _clear_landed_coordination_ref(repo_root: Path, state: ConsolidationState) -
     coord_ref = state.pre_mutation_coord_ref
     if not coord_ref or _coord_anchor_is_the_target(state):
         return
-    try:
-        cleared = clear_landed_coordination_tip(repo_root, coord_ref)
-    except ValueError as exc:
-        # A ref that names no branch (or one outside refs/spec-kitty/): nothing to delete, never fail the rollback.
-        logger.warning("Could not delete the landed-coordination ref of %r after the rollback restored the target: %s", coord_ref, exc)
-        return
-    if not cleared:
-        logger.warning("Could not delete the landed-coordination ref of %s after the rollback restored the target", coord_ref)
+    clear_landed_coordination_ref(repo_root, coord_ref, target_branch=state.target_branch)
 
 
 def rollback_to_snapshot(repo_root: Path, state: ConsolidationState, *, target_branch: str) -> RollbackReport:

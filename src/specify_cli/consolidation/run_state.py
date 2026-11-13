@@ -47,7 +47,7 @@ from specify_cli.consolidation._constants import (
     COORD_MOVED_AFTER_LANDING_EXIT_CODE,
 )
 from specify_cli.consolidation.config import MergeStrategy
-from specify_cli.consolidation import rollback
+from specify_cli.consolidation import landed_coordination, rollback
 from specify_cli.consolidation.reconciliation import (
     ApprovedWpCommitSet,
     VerifyResult,
@@ -429,6 +429,18 @@ class _CoordCheckpoint:
 
     ref: str
     sha: str
+
+
+def record_landed_coordination_ref(run: _MergeRunState, tip: str | None) -> None:
+    """Record *tip* as the landed coordination tip of this run's coordination branch (#4041), through the one owner."""
+    checkpoint = run.coord_checkpoint
+    landed_coordination.record_landed_coordination_ref(
+        run.main_repo,
+        checkpoint.ref if checkpoint is not None else None,
+        tip,
+        target_branch=run.lanes_manifest.target_branch,
+        mission_branch=run.lanes_manifest.mission_branch,
+    )
 
 
 def _capture_coord_checkpoint(run: _MergeRunState) -> _CoordCheckpoint | None:

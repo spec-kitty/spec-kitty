@@ -301,7 +301,7 @@ def test_the_rollback_helper_leaves_a_target_anchored_record_alone(repo: _Repo) 
 
 
 @pytest.mark.parametrize("coord_ref", ["", "refs/heads/"], ids=("empty", "heads-prefix-only"))
-def test_the_rollback_helper_never_raises_on_an_unusable_coordination_ref(repo: _Repo, coord_ref: str, caplog: pytest.LogCaptureFixture) -> None:
+def test_the_rollback_helper_never_raises_on_an_unusable_coordination_ref(repo: _Repo, coord_ref: str) -> None:
     """Best effort: a record whose coordination ref names no branch neither raises nor touches any ref."""
     record_landed_coordination_tip(repo.root, _COORD, repo.projected)
     state = _state(repo, anchor=None, coord_tip=None)
@@ -310,8 +310,6 @@ def test_the_rollback_helper_never_raises_on_an_unusable_coordination_ref(repo: 
     rollback._clear_landed_coordination_ref(repo.root, state)
 
     assert landed_coordination.landed_coordination_tip(repo.root, _COORD) == repo.projected
-    if coord_ref:
-        assert "Could not delete the landed-coordination ref" in caplog.text
 
 
 # -- #4380 item 2: the kept-branch refusal says what is true ------------------------------------------------
@@ -406,8 +404,8 @@ def test_a_teardown_whose_branch_delete_refused_keeps_the_landed_ref(repo: _Repo
 
 def test_a_landed_ref_clear_failure_never_fails_the_teardown(repo: _Repo, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
     _stub_teardown_legs(monkeypatch, delete_refusal=None)
-    monkeypatch.setattr(phase_teardown, "clear_landed_coordination_tip", lambda _root, _branch: False, raising=False)
+    monkeypatch.setattr(landed_coordination, "clear_landed_coordination_tip", lambda _root, _branch: False)
 
     phase_teardown._teardown_coordination_triple(_run(repo, is_resume=False, state=_state(repo, anchor=None, coord_tip=None)))
 
-    assert "Could not clear the landed coordination tip" in caplog.text
+    assert "Could not delete the landed-coordination ref" in caplog.text
