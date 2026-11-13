@@ -21,7 +21,8 @@ assert:
   ``agent``/``shell_pid`` slots are released (falsy) where they were live before
   (proof-of-drive positive control);
 * the WP file stays **byte-stable** across the rollback (event-only, AC-5);
-* an explicit ``--agent`` on rollback RE-PLANTS a fresh claim (override case).
+* an explicit ``--assignee`` on rollback RE-PLANTS a fresh claim (override case);
+  ``--agent`` there names only who acted (#7588).
 """
 
 from __future__ import annotations
@@ -230,13 +231,15 @@ def test_rollback_release_is_event_only_wp_file_byte_stable(
     assert _content_hash(wp_file) == hash_before, "rollback rewrote tasks/WP01.md bytes"
 
 
-def test_rollback_with_explicit_agent_replants_claim(
+def test_rollback_with_explicit_assignee_replants_claim(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """An explicit ``--agent`` on rollback RE-PLANTS a fresh claim (override
-    case): the snapshot ``agent`` slot carries the supplied value, not the
-    release sentinel. ``--force`` bypasses the orthogonal claim-owner mismatch
-    guard so the override path itself is what is exercised."""
+    """An explicit ``--assignee`` on rollback RE-PLANTS a fresh claim (override
+    case): the snapshot ``agent`` slot carries the assignee, not the release
+    sentinel. ``--agent`` on the same move is only the event actor (#7588), so
+    it is not the re-plant: before #7588 a differing ``--agent`` was. ``--force``
+    bypasses the orthogonal claim-owner mismatch guard so the override path
+    itself is what is exercised."""
     repo, feature_dir = _build_flag_on_mission(tmp_path, monkeypatch)
     feedback = repo / "feedback.md"
     feedback.write_text("**Issue**: rework requested.\n", encoding="utf-8")
@@ -244,13 +247,13 @@ def test_rollback_with_explicit_agent_replants_claim(
     result = _move(
         [
             "WP01", "--to", "planned", "--mission", _MISSION_SLUG,
-            "--review-feedback-file", str(feedback), "--agent", "fresh-claimer",
-            "--force", "--no-auto-commit", "--json",
+            "--review-feedback-file", str(feedback), "--agent", "reviewer-x",
+            "--assignee", "fresh-claimer", "--force", "--no-auto-commit", "--json",
         ]
     )
     assert result.exit_code == 0, result.output
 
     after = _snapshot_wp_state(feature_dir)
     assert after.get("agent") == "fresh-claimer", (
-        "explicit --agent on rollback must re-plant a fresh claim, not release it"
+        "explicit --assignee on rollback must re-plant a fresh claim, not release it"
     )

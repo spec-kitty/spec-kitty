@@ -162,6 +162,7 @@ from specify_cli.cli.commands.agent.tasks_move_task_hops import (
     _mt_hop_review_result as _mt_hop_review_result,
     _mt_plan_review_result as _mt_plan_review_result,
     _mt_reassignment_binding_fields as _mt_reassignment_binding_fields,
+    _mt_agent_binds_owner as _mt_agent_binds_owner,
     _build_claim_review_override as _build_claim_review_override,
     _mt_shell_pid_baseline as _mt_shell_pid_baseline,
 )
@@ -1949,7 +1950,7 @@ def _mt_output(st: _MoveTaskState) -> None:
     if st.decision.skip_primary:
         result["wp_file_update"] = "skipped"
         result["wp_file_update_reason"] = "protected branch with coordination topology; status event is authoritative on the coordination branch"
-        if st.agent:
+        if _mt_agent_binds_owner(st):
             result["frontmatter_fields_skipped"] = ["agent"]
     if st.review_feedback_pointer is not None:
         result["review_feedback"] = st.review_feedback_pointer

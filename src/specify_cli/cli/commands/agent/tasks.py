@@ -730,6 +730,8 @@ def move_task(
             "--actor",
             help=(
                 "Agent name (alias: --actor, matching issue-verdict's vocabulary). "
+                "On a rejection or reopen it records only who acted and does not "
+                "reassign the WP; use --assignee for that. "
                 "If both --agent and --actor are given, the one supplied LAST on "
                 "the command line wins."
             ),
@@ -753,7 +755,8 @@ def move_task(
             "--assignee",
             help=(
                 "Assignee name, recorded on this transition regardless of the "
-                "target lane (not limited to --to doing)."
+                "target lane (not limited to --to doing). On a rejection or "
+                "reopen it also reassigns the WP to this agent."
             ),
         ),
     ] = None,

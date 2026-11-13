@@ -33,8 +33,8 @@ from specify_cli.cli.commands.agent.tasks_move_task_hops import (
     _mt_hop_review_ref,
     _mt_hop_review_result,
     _mt_hop_structured_actor,
+    _mt_ownership_fields,
     _mt_plan_review_result,
-    _mt_reassignment_binding_fields,
     _mt_shell_pid_baseline,
 )
 
@@ -60,7 +60,6 @@ from specify_cli.status import (
     StatusEvent,
     TransitionRequest,
     WPInnerStateDelta,
-    _actor_key,
     mission_lock_key,
     resolve_lane_alias,
 )
@@ -547,38 +546,21 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
 
     fields: dict[str, Any] = {}
     if not st.claim_emitted:
-        # #4673/T011: a rollback to ``planned`` (rejection) ALSO carries
+        # #7588: a rollback to ``planned`` (rejection, reopen) ALSO carries
         # ``release_runtime_claim=True`` in this SAME delta (added below via
         # ``_build_claim_review_override``). The reducer applies that release
-        # clear BEFORE its replace-slot loop, so a concrete ``agent`` value
-        # present in the SAME delta overwrites the just-cleared slot — by
-        # design, for a genuine same-move re-plant (an explicit fresh claim
-        # on the rollback itself, ``test_rollback_with_explicit_agent_
-        # replants_claim``). But an ORDINARY rejection's ``st.agent`` is just
-        # the REVIEWER re-asserting their OWN already-current identity (the
-        # reviewer's own review-claim already stamped the runtime ``agent``
-        # slot to their identity before the rejection runs) — stamping it
-        # again here re-clobbers the release right back to the reviewer, so
-        # the slot never actually shows "released" (#4673's precise live
-        # root). The two cases are distinguished by whether ``st.agent`` is
-        # genuinely NEW relative to the prior owner (``st.current_agent``,
-        # resolved before this move): a same-identity restamp on a
-        # ``PLANNED`` target is suppressed (lets the release take effect); a
-        # DIFFERING identity on a ``PLANNED`` target is a real re-plant and
-        # still wins over the release, exactly as before.
+        # clear BEFORE its replace-slot loop, so a concrete ``agent`` value in
+        # the SAME delta overwrites the just-cleared slot. ``--agent`` on such a
+        # move names only who acted (the reviewer), so it never lands here; an
+        # explicit ``--assignee`` is the one re-plant (``_mt_ownership_fields``).
         #
         # #4899 (WP01, Fold 5 -- KEEP AS-IS, deliberately NOT routed through
         # ``is_review_rejection_edge``): the re-implement edge (in_review ->
-        # in_progress) intentionally RETAINS the implementer's runtime claim
-        # (resume-in-place) rather than releasing it to the pool -- routing
-        # this restamp-suppress check through the rejection-edge predicate
-        # would widen the release to the re-implement edge too and regress
-        # resume-in-place. Only the ``PLANNED`` target release-suppress
-        # window is in scope here; see the truth-table cell in
-        # ``test_tasks_move_task_seam.py`` asserting the claim survives.
-        if st.agent and not (st.target_lane == Lane.PLANNED and _actor_key(st.agent) == _actor_key(st.current_agent)):
-            fields["agent"] = st.agent
-            fields.update(_mt_reassignment_binding_fields(st))
+        # in_progress) intentionally RETAINS the runtime claim (resume-in-place)
+        # rather than releasing it to the pool; only the ``PLANNED`` target is
+        # scoped out of the ``--agent`` ownership stamp. See the truth-table
+        # cell in ``test_tasks_move_task_seam.py`` asserting the claim survives.
+        fields.update(_mt_ownership_fields(st))
         if st.shell_pid:
             pid = int(st.shell_pid)
             fields["shell_pid"] = pid

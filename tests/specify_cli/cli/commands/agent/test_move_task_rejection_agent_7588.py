@@ -86,9 +86,6 @@ def test_assignee_on_a_rejection_reassigns_the_wp_explicitly(tmp_path: Path, mon
     snapshot = wp_snapshot_state(m.feature_dir, h.WP) or {}
     assert snapshot.get("agent") == h.THIRD
     assert snapshot.get("assignee") == h.THIRD
-    refused = h.move(m, h.WP, "claimed", h.IMPLEMENTER)
-    assert refused.exit_code != 0
-    assert "Agent mismatch" in refused.output
     assert h.move(m, h.WP, "claimed", h.THIRD).exit_code == 0
 
 
@@ -103,22 +100,40 @@ def test_agent_on_a_non_planned_move_still_records_the_owner(tmp_path: Path, mon
     assert _owner(m.feature_dir) == h.REVIEWER
 
 
-def test_coord_skip_arm_does_not_rebind_or_report_the_agent_as_skipped_metadata(tmp_path: Path) -> None:
-    """The coordination skip arm (protected primary) releases the claim too.
+def test_coord_skip_arm_rejection_leaves_the_owner_untouched(tmp_path: Path) -> None:
+    """The coordination skip arm (protected primary) never rebinds on a rejection.
 
-    ``frontmatter_fields_skipped`` names WP metadata the move would have bound;
-    on a move into ``planned`` ``--agent`` binds nothing, so it is not listed.
+    Every hand-back move needs review feedback, and on this arm that verdict
+    cannot be committed to the protected primary, so the move refuses before any
+    write: the ownership slot keeps its holder. The envelope's
+    ``frontmatter_fields_skipped`` keys off the same ``_mt_agent_binds_owner``
+    predicate the emit uses (pinned by the predicate tests below).
     """
     ctx = _build_coord_protected_tree(tmp_path / "coord")
+    owner_before = (wp_snapshot_state(ctx.coord_feature_dir, "WP01") or {}).get("agent")
+    feedback = tmp_path / "feedback.md"
+    feedback.write_text("**Issue**: rework requested.\n", encoding="utf-8")
     with setup_mocked_env(ctx.repo, mission_slug=ctx.slug, workspace_resolution=None, auto_commit_default=True):
-        code, text, payload = _invoke(["move-task", "WP01", "--to", "planned", "--mission", ctx.slug, "--agent", "reviewer-renata", "--force", "--json"])
+        code, text, _ = _invoke(
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                "planned",
+                "--review-feedback-file",
+                str(feedback),
+                "--mission",
+                ctx.slug,
+                "--agent",
+                "reviewer-renata",
+                "--force",
+                "--json",
+            ]
+        )
 
-    assert code == 0, text
-    assert payload is not None
-    assert payload["wp_file_update"] == "skipped"
-    assert "frontmatter_fields_skipped" not in payload, payload
-    snapshot = wp_snapshot_state(ctx.coord_feature_dir, "WP01") or {}
-    assert snapshot.get("agent") != "reviewer-renata", snapshot
+    assert code == 1, text
+    assert "protected" in text
+    assert (wp_snapshot_state(ctx.coord_feature_dir, "WP01") or {}).get("agent") == owner_before
 
 
 def test_coord_skip_arm_still_reports_the_agent_on_a_binding_move(tmp_path: Path) -> None:
@@ -130,3 +145,57 @@ def test_coord_skip_arm_still_reports_the_agent_on_a_binding_move(tmp_path: Path
     assert code == 0, text
     assert payload is not None
     assert payload.get("frontmatter_fields_skipped") == ["agent"], payload
+
+
+def test_assignee_on_the_re_implement_edge_reassigns_explicitly(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``in_review -> in_progress`` is a rejection too: ``--assignee`` reassigns, ``--agent`` does not."""
+    m = h.build_mission(tmp_path, monkeypatch)
+    h.drive_to_for_review(m)
+    assert h.move(m, h.WP, "in_review", h.REVIEWER).exit_code == 0
+    feedback = m.repo / "feedback.md"
+    feedback.write_text("## Issues\n\nFix this thing.\n", encoding="utf-8")
+
+    rejected = h.move(m, h.WP, "in_progress", h.REVIEWER, "--review-feedback-file", str(feedback), "--assignee", h.IMPLEMENTER)
+
+    assert rejected.exit_code == 0, rejected.output
+    assert _owner(m.feature_dir) == h.IMPLEMENTER
+
+
+# --- Pure predicates (tasks_move_task_hops) --------------------------------------------------
+
+_HANDS_BACK = [
+    ("for_review", "planned"),
+    ("in_review", "planned"),
+    ("approved", "planned"),
+    ("in_progress", "planned"),
+    ("in_review", "in_progress"),
+    ("approved", "in_progress"),
+]
+_BINDING = [("planned", "claimed"), ("claimed", "in_progress"), ("for_review", "in_review"), ("in_review", "approved"), ("for_review", "in_progress")]
+
+
+def _st(old: str, target: str, agent: str | None = "reviewer", assignee: str | None = None) -> Any:
+    from types import SimpleNamespace
+
+    from specify_cli.status import Lane
+
+    return SimpleNamespace(old_lane=Lane(old), target_lane=Lane(target), agent=agent, assignee=assignee, resolved_binding=None)
+
+
+@pytest.mark.parametrize(("old", "target"), _HANDS_BACK)
+def test_agent_never_binds_the_owner_when_work_is_handed_back(old: str, target: str) -> None:
+    from specify_cli.cli.commands.agent.tasks_move_task_hops import _mt_agent_binds_owner, _mt_ownership_fields
+
+    assert not _mt_agent_binds_owner(_st(old, target))
+    assert _mt_ownership_fields(_st(old, target)) == {}
+    assert _mt_ownership_fields(_st(old, target, assignee="next-implementer")) == {"agent": "next-implementer"}
+
+
+@pytest.mark.parametrize(("old", "target"), _BINDING)
+def test_agent_binds_the_owner_on_every_other_move(old: str, target: str) -> None:
+    from specify_cli.cli.commands.agent.tasks_move_task_hops import _mt_agent_binds_owner, _mt_ownership_fields
+
+    assert _mt_agent_binds_owner(_st(old, target))
+    assert _mt_ownership_fields(_st(old, target, assignee="someone-else"))["agent"] == "reviewer"
+    assert not _mt_agent_binds_owner(_st(old, target, agent=None))
+    assert _mt_ownership_fields(_st(old, target, agent=None, assignee="someone-else")) == {}
