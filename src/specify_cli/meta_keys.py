@@ -21,7 +21,8 @@ TOPOLOGY_DECISION_KEY = "topology_decision"
 #: Mission topic branch; settlement to ``lanes_with_coord`` moves the checkout back to it.
 CREATE_RETURN_BRANCH_KEY = "create_return_branch"
 #: The commit the Mission branch was cut from (#7560), written once where the Mission branch
-#: is created (the topic/protected mint, or the coordination-branch create). Absent on
+#: is created (the topic/protected mint, or the coordination-branch create; for a coordination
+#: create the value equals ``coordination_branch_creation_base``). Absent on
 #: Missions created earlier; ``consolidation.mission_base`` derives it then.
 MISSION_BASE_SHA_KEY = "mission_base_sha"
 
