@@ -1106,7 +1106,7 @@ def test_function_signature_is_the_programmatic_call_contract() -> None:
     signature = inspect.signature(top_level_implement)
     parameters = signature.parameters
 
-    assert list(parameters) == ["wp_id", "mission", "auto_commit", "json_output", "recover", "base", "acknowledge_not_bulk_edit", "actor"]
+    assert list(parameters) == ["wp_id", "mission", "auto_commit", "json_output", "recover", "base", "acknowledge_not_bulk_edit", "actor", "accepts_no_auto_commit"]
     assert isinstance(parameters["wp_id"].default, ArgumentInfo)
     assert parameters["mission"].default is None
     assert parameters["auto_commit"].default is None
@@ -1115,6 +1115,7 @@ def test_function_signature_is_the_programmatic_call_contract() -> None:
     assert parameters["base"].default is None
     assert parameters["acknowledge_not_bulk_edit"].default is False
     assert parameters["actor"].default is None
+    assert parameters["accepts_no_auto_commit"].default is True
     assert hasattr(top_level_implement, "__wrapped__")
     assert inspect.unwrap(top_level_implement) is not top_level_implement
 
