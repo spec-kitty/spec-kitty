@@ -359,6 +359,24 @@ class TestMetaAndEventBranches:
         assert origin_consumer.calls == []
 
 
+    def test_row6c_origin_binding_commit_bootstrap_skip_on_coord(self, tmp_path: Path, origin_consumer: _RecordingOriginConsumer) -> None:
+        """Row 6c (the former row 6b's skip, re-targeted after #7632): a COORD Mission on protected
+        ``main`` still binds its origin ticket, and the origin-ticket meta commit onto the protected
+        target is a disclosed bootstrap skip -- no commit on ``main``, no raise."""
+        repo = _init_repo_with_target(tmp_path, target_branch=_MAIN, protected_primary=True)
+        main_tip = _git(repo, "rev-parse", _MAIN)
+
+        result = _create(repo, "row-six-coord", topology=MissionTopology.COORD, target_branch=_MAIN)
+
+        assert len(origin_consumer.calls) == 1
+        assert result.origin_binding_succeeded is True
+        assert result.meta["origin_ticket"] == {"provider": "test", "key": "branch-cov-1"}
+        assert _git(repo, "rev-parse", _MAIN) == main_tip, "the origin-binding meta commit may not land on protected main"
+        meta_file = result.feature_dir / "meta.json"
+        assert meta_file in result.uncommitted_files
+        assert json.loads(meta_file.read_text(encoding="utf-8"))["origin_ticket"]["key"] == "branch-cov-1"
+
+
 # ---------------------------------------------------------------------------
 # Duplicates and rollback branches (rows 7-10)
 # ---------------------------------------------------------------------------
