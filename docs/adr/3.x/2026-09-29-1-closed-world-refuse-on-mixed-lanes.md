@@ -510,7 +510,7 @@ window axis (operator rulings, Decision Moments `01M78XBQS8NE8PPMSTZHMDJ610`,
     commit reaching the target under a new SHA): a pre-Mission commit's patch-id no longer
     counts there;
   - the squash blob and deletion axes exempt its exact final `(path, blob)` pairs and the
-    paths it last deleted, read by the same final-state walk the declared refs use;
+    paths it last deleted, for the paths the pre-Mission range touched, read from the Mission base's own tree;
   - the #6771 declaration guard leaves its commits out of the Mission-spine walk and the
     recorded-tip walk, so a fork's pin can be declared.
 - **Unchanged.** A declared ref's own window stays `window_base..ref`; it is not cut at the
@@ -566,6 +566,3 @@ window axis (operator rulings, Decision Moments `01M78XBQS8NE8PPMSTZHMDJ610`,
 - The exemption is by exact SHA, so a re-lettered copy of a pre-Mission commit (a new SHA with
   the same patch, for example after a rebase) is still judged as window content. This is
   fail-closed.
-- `pre_mission_blobs` follows `rev-list` walk order, so on a range with side branches the blob
-  kept for a path can be a side branch's intermediate one, which is then exempt on the squash
-  axis. It is the same class of gap as the approved lanes' authored blobs.

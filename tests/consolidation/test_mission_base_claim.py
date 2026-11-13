@@ -206,6 +206,29 @@ def test_pre_mission_attribution_carries_shas_and_final_state(fork_repo: _Fork) 
     assert history.deletions == frozenset()
 
 
+def test_pre_mission_blobs_are_read_from_the_base_tree_not_a_side_branch_walk(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A side branch's newer intermediate blob is not the range's final state: the base tree is."""
+    repo = _init(tmp_path)
+    window_base = _commit_file(repo, "README.md", "root\n")
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "2020-01-01T00:00:00Z")
+    _git(repo, "checkout", "-q", "-b", "dep")
+    _commit_file(repo, "f.txt", "chain\n")
+    chain_blob = _git(repo, "rev-parse", "HEAD:f.txt")
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "2021-01-01T00:00:00Z")
+    _git(repo, "checkout", "-q", "-b", "side", window_base)
+    _commit_file(repo, "f.txt", "side\n")
+    side_blob = _git(repo, "rev-parse", "HEAD:f.txt")
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "2022-01-01T00:00:00Z")
+    _git(repo, "checkout", "-q", "dep")
+    _git(repo, "merge", "-q", "--no-ff", "-s", "ours", "-m", "merge side keeping the chain's f.txt", "side")
+    base = MissionBase(_git(repo, "rev-parse", "HEAD"), MissionBaseProvenance.RECORDED)
+
+    history = _pre_mission_attribution(repo, window_base, base, feature_dir=None, lanes_manifest=None)
+
+    assert history.blobs == frozenset({("f.txt", chain_blob)})
+    assert ("f.txt", side_blob) not in history.blobs
+
+
 def test_pre_mission_attribution_of_an_empty_range_costs_no_extra_probe(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo = _init(tmp_path)
     base = _commit_file(repo, "a.txt", "a\n")

@@ -868,11 +868,6 @@ class MergeOutcomeVerifier:
         both authored. Each is keyed on the exact ``(path, blob)``, so a post-base change of the
         path (a different blob) is not covered.
         """
-        # Residual (#7560): ``pre_mission_blobs`` comes from ``_final_authored_walk`` over the
-        # ``rev-list`` order of ``window_base..mission_base``, so on a range with side branches the
-        # "final" blob it keeps for a path can be a side branch's intermediate one rather than the
-        # Mission base's own, and that blob is then exempt here. The same class of gap as
-        # ``authored_blobs`` (also a walk's final state, not the tip's tree).
         if _inherited_blob(path, blob, claim):
             return True
         return is_legitimate_three_way_resolution(self._repo, claim, path, blob)

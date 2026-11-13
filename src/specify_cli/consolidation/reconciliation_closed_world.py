@@ -26,6 +26,7 @@ from specify_cli.consolidation.git_probes import (
     commits_in_range,
     first_parent_commits_in_range,
     patch_id_of,
+    path_state_at,
     resolve_commit,
     sha_reachable_from,
 )
@@ -474,8 +475,8 @@ def _verify_declared_ref(
 class PreMissionHistory:
     """History the target lacks that predates the Mission (#7560): ``window_base..mission_base``.
 
-    ``shas`` are those commits, ``blobs``/``deletions`` their final per-path state from the SAME
-    :func:`_final_authored_walk` the declared refs use. No patch-ids: the exemption is by exact
+    ``shas`` are those commits, ``blobs``/``deletions`` their final per-path state read from the
+    Mission base's own tree (:func:`_base_tree_state`). No patch-ids: the exemption is by exact
     SHA, so a re-lettered copy of a pre-Mission commit is still judged (fail-closed). All empty when the
     window base already reaches the base, when the base is unavailable, when the range holds
     recorded Mission work, and when a probe failed (``base`` is then unavailable, its ``kind``
@@ -527,11 +528,30 @@ def _pre_mission_attribution(
             return PreMissionHistory(base)
         if _range_holds_mission_work(repo_root, frozenset(shas), feature_dir, lanes_manifest):
             return PreMissionHistory(_unavailable(_RANGE_HOLDS_MISSION_WORK_REASON, MissionBaseReason.RANGE_HOLDS_MISSION_WORK))
-        blobs, deletions = _final_authored_walk(repo_root, list(shas))
+        blobs, deletions = _base_tree_state(repo_root, base, list(shas))
     except GitProbeError:
         logger.debug("pre-Mission attribution below %s degraded to the target's pre-run bound", base.sha, exc_info=True)
         return PreMissionHistory(_unavailable(_PROBE_FAILED_REASON, MissionBaseReason.PROBE_FAILED))
     return PreMissionHistory(base, frozenset(shas), frozenset(blobs), frozenset(deletions))
+
+
+def _base_tree_state(repo_root: Path, base: MissionBase, shas: list[str]) -> tuple[set[tuple[str, str]], set[str]]:
+    """The final ``(path, blob)`` / deleted-path state of the range *shas*, read from the Mission base's own tree.
+
+    The paths are the ones the range touched (:func:`_final_authored_walk`); their state is
+    what ``<base>:<path>`` holds, so a range with side branches cannot leave a side branch's
+    intermediate blob as the "final" one. A path the base tree lacks is a deletion.
+    """
+    touched, deleted = _final_authored_walk(repo_root, shas)
+    blobs: set[tuple[str, str]] = set()
+    deletions: set[str] = set()
+    for path in sorted({path for path, _blob in touched} | deleted):
+        state = path_state_at(repo_root, base.sha or "", path)
+        if state is None:
+            deletions.add(path)
+        else:
+            blobs.add((path, state))
+    return blobs, deletions
 
 
 def _unavailable(reason: str, kind: MissionBaseReason) -> MissionBase:
