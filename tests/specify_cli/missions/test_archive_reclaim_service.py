@@ -210,6 +210,29 @@ def test_no_recorded_landed_tip_refuses(tmp_path: Path, seams: dict[str, Any], m
     assert refused.error_code == reclaim.RECLAIM_UNABSORBED and "no recorded landed coordination tip" in str(refused)
 
 
+_INSPECT = f"git log main..{_BRANCH}"
+
+
+@pytest.mark.parametrize("cause", ["no_merged_at", "no_landed_tip"])
+@pytest.mark.parametrize("terminal", ["merged", "canceled"])
+def test_an_unproved_landing_names_the_inspection_command(
+    tmp_path: Path, seams: dict[str, Any], monkeypatch: pytest.MonkeyPatch, cause: str, terminal: str
+) -> None:
+    """#7598 fold (MINOR-3): "nothing was changed" alone is no next step; name what to inspect, and when removal is safe."""
+    _coord_meta(tmp_path)
+    if cause == "no_merged_at":
+        monkeypatch.setattr(reclaim, "is_mission_merged", lambda _dir: False)
+    else:
+        monkeypatch.setattr(reclaim, "landed_coordination_tip", lambda _root, _branch: None)
+    monkeypatch.setattr(reclaim, "resolve_terminal_state", lambda _dir: terminal)
+
+    refused = _refusal(tmp_path)
+
+    assert _INSPECT in refused.remedy
+    assert f"git branch -D {_BRANCH}" in refused.remedy and "only after" in refused.remedy
+    assert ("spec-kitty mission close --discard --mission" in refused.remedy) is (terminal == "canceled")
+
+
 def test_commits_after_the_landing_are_listed_and_capped(tmp_path: Path, seams: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> None:
     _coord_meta(tmp_path)
     late = [f"{index:02d}" + "c" * 38 for index in range(25)]
