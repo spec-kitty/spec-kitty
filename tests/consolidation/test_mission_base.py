@@ -488,3 +488,22 @@ def test_pre_mission_history_probe_error_propagates(repo: Path) -> None:
 
     with pytest.raises(GitProbeError):
         pre_mission_history(repo, "no-such-ref", MissionBase(base, MissionBaseProvenance.RECORDED))
+
+
+def test_rename_probe_uses_no_copy_detection(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The probe is rename-only through ``kernel.git``: renames on, ``R`` only, never copy detection."""
+    _mission_on_branch(repo)
+    from specify_cli.consolidation import mission_base
+
+    calls: list[dict[str, Any]] = []
+    real = mission_base.changed_entries
+
+    def recording(*args: Any, **kwargs: Any) -> Any:
+        calls.append(kwargs)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(mission_base, "changed_entries", recording)
+
+    resolve_mission_base(repo, None, mission_branch=MISSION_BRANCH, mission_slug=SLUG)
+
+    assert calls == [{"renames": True, "diff_filter": "R"}]
