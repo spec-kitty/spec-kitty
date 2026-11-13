@@ -235,13 +235,15 @@ def test_capture_skips_and_warns_when_the_artifact_is_outside_its_commit_checkou
 
 
 @pytest.mark.parametrize("quiet", [True, False])
+@pytest.mark.parametrize("seam_failure", [True, False])
 def test_capture_warns_when_the_commit_checkout_does_not_resolve(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, quiet: bool
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, quiet: bool, seam_failure: bool
 ) -> None:
-    """A seam failure naming the holding checkout reaches the baseline warning, not only the generic logger line."""
+    """A seam failure naming the holding checkout reaches the baseline warning; any other error is not mislabelled as one."""
     import specify_cli.cli.console as console_module
     import specify_cli.review.baseline as baseline_module
     import specify_cli.review.scope_source as scope_source_module
+    from mission_runtime import ActionContextError
     from specify_cli.cli.commands.agent import workflow_executor
     from specify_cli.review.baseline import BaselineTestResult
 
@@ -264,6 +266,8 @@ def test_capture_warns_when_the_commit_checkout_does_not_resolve(
     monkeypatch.setattr(scope_source_module, "resolve_scope_source", lambda _root: None)
 
     def _unresolvable(*_a: object) -> Path:
+        if seam_failure:
+            raise ActionContextError("COORD_WORKTREE_MISSING", "coordination worktree missing")
         raise RuntimeError("coordination worktree missing")
 
     monkeypatch.setattr(workflow_executor, "_baseline_commit_checkout", _unresolvable)
@@ -283,10 +287,11 @@ def test_capture_warns_when_the_commit_checkout_does_not_resolve(
             test_timeout=60,
         )
 
-    assert f"Baseline artifact {artifact} was not committed" in caplog.text
     assert "coordination worktree missing" in caplog.text
-    assert "Baseline capture error" not in caplog.text
-    assert any("was not committed" in line for line in printed) is not quiet
+    # Only a seam failure is the "holding checkout unresolved" warning; anything else is a capture error.
+    assert (f"Baseline artifact {artifact} was not committed" in caplog.text) is seam_failure
+    assert ("Baseline capture error" in caplog.text) is not seam_failure
+    assert any("was not committed" in line for line in printed) is (seam_failure and not quiet)
 
 
 # ---------------------------------------------------------------------------

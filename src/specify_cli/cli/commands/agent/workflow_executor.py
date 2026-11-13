@@ -46,7 +46,7 @@ import typer
 
 from kernel.git import GitCommandError, status_entries
 
-from mission_runtime import MissionArtifactKind, OwnedCheckout, placement_seam
+from mission_runtime import ActionContextError, MissionArtifactKind, OwnedCheckout, placement_seam
 from specify_cli.cli.commands._commit_recipes import safe_commit_recipe
 from specify_cli.core.commit_recipe import implementation_commit_step
 from specify_cli.cli.commands.implement_claim import DispatchedClaimIdentity, claim_status_pair_paths
@@ -1558,9 +1558,11 @@ def capture_and_commit_baseline(
         # default Mission settles, that is the coordination worktree, not the repository root
         # checkout (whose ``git status`` never sees a path under the ignored ``.worktrees/``).
         # ``authority_root`` stays the command/config authority above.
+        from specify_cli.coordination.surface_resolver import StatusReadPathNotFound
+
         try:
             commit_checkout = _baseline_commit_checkout(main_repo_root, mission_slug, owned)
-        except Exception as checkout_exc:
+        except (ActionContextError, StatusReadPathNotFound) as checkout_exc:
             _warn_baseline_not_committed(_baseline_checkout_unresolved_warning(baseline_artifact, checkout_exc), quiet=quiet)
             return
         outside = _baseline_outside_checkout_warning(baseline_artifact, commit_checkout)
