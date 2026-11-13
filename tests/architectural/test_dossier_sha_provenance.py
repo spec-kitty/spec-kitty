@@ -111,6 +111,10 @@ DOSSIER_SHA_FIELDS: Mapping[tuple[str, str], ShaProvenance] = {
     ("meta.json", "accepted_from_commit"): _BR,
     ("meta.json", "acceptance_history[].accept_commit"): _BR,
     ("meta.json", "acceptance_history[].accepted_from_commit"): _BR,
+    # mission_metadata.record_mission_base_sha (#7560): the commit the Mission
+    # branch was cut from, written once at create; no ancestry check, so it
+    # promises nothing about the target after landing.
+    ("meta.json", "mission_base_sha"): _BR,
     # Hand-recorded keys in older dossiers; no writer in src/ today.
     ("meta.json", "move_task_extension_source_base"): _BR,
     ("meta.json", "pr_prep_base"): _BR,
