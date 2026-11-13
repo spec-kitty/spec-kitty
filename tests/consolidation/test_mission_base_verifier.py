@@ -33,6 +33,7 @@ from specify_cli.consolidation.reconciliation import (
 )
 from specify_cli.lanes.compute import lane_created_branch
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from tests.consolidation.reconciliation_family import setattr_reconciliation_family
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -362,3 +363,15 @@ def test_empty_pre_mission_sets_keep_todays_verdict(fork: _Fork, shape: str) -> 
     verifier = MergeOutcomeVerifier(fork.repo)
 
     assert verifier.verify(target, claim) == verifier.verify(target, today)
+
+
+def test_pre_mission_attribution_computes_no_patch_ids(fork: _Fork, monkeypatch: pytest.MonkeyPatch) -> None:
+    def _forbidden(*_args: object, **_kwargs: object) -> str:
+        raise AssertionError("the pre-Mission history needs no patch-ids: the exemption is by exact SHA")
+
+    setattr_reconciliation_family(monkeypatch, "patch_id_of", _forbidden)
+    base = MissionBase(fork.base, MissionBaseProvenance.RECORDED)
+
+    assert _pre_mission_attribution(fork.repo, fork.root, base, feature_dir=None, lanes_manifest=None).shas == _pre_base(fork)
+    # The window base already reaches the base: nothing pre-Mission.
+    assert _pre_mission_attribution(fork.repo, fork.base, base, feature_dir=None, lanes_manifest=None) == PreMissionHistory(base)
