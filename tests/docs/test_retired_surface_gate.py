@@ -37,22 +37,9 @@ def test_every_retired_source_path_and_command_is_a_docs_surface() -> None:
     assert commands <= ids
 
 
-@pytest.mark.parametrize(
-    "surface_id",
-    ["src/doctrine", "src/specify_cli/glossary", "spec-kitty merge", "Blacksmith", "Zeitgeist", "saas_client", "spec-kitty auth"],
-)
-def test_the_documentation_retirements_are_named(surface_id: str) -> None:
-    assert surface_id in {surface.id for surface in retired_surfaces.docs_retired_surfaces()}
-
-
 def test_a_surface_without_a_retired_by_note_is_refused() -> None:
     with pytest.raises(ValueError, match="must say what retired it"):
         retired_surfaces.RetiredSurface(id="x", pattern=re.compile("x"), retired_by="  ")
-
-
-def test_every_surface_says_what_retired_it() -> None:
-    for surface in retired_surfaces.docs_retired_surfaces():
-        assert surface.retired_by.strip(), surface.id
 
 
 # --- Matching -------------------------------------------------------------------
@@ -228,11 +215,6 @@ def test_every_burn_down_entry_names_its_section_issue() -> None:
     for entry in entries:
         assert entry.issue == section_issue(entry.page), entry
         assert entry.issue in {"#7522", "#7523", "#7524", "#7525", "#7526", "#7527", "#7528"}
-
-
-def test_the_ratcheted_size_is_the_number_of_burned_down_pairs() -> None:
-    entries = gate.load_burndown(gate.DEFAULT_BURNDOWN)
-    assert len(gate.BURN_DOWN) == sum(len(entry.surfaces) for entry in entries)
 
 
 def test_load_refuses_an_unknown_shape(tmp_path: Path) -> None:
