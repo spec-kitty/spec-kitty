@@ -31,9 +31,10 @@ cycle). Behavior is preserved byte-for-byte from the pre-decomposition
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 import subprocess
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from specify_cli.cli.console import console
 import typer
@@ -54,6 +55,9 @@ from specify_cli.cli.commands.agent.mission_parsing import (
     _emit_json,
     _utc_now_iso,
 )
+
+if TYPE_CHECKING:
+    from specify_cli.core.owned_mission import OwnedCheckout
 
 
 PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
@@ -79,23 +83,67 @@ def _resolve_feature_target_branch(feature_dir: Path, repo_root: Path) -> str:
     return get_current_branch(repo_root) or "main"
 
 
-def read_minted_mission_branch(feature_dir: Path) -> str | None:
-    """The protected-target ``mission_branch`` recorded in ``meta.json``, else ``None``.
+@dataclass(frozen=True)
+class PlanningCheckoutVerdict:
+    """The one planning checkout verdict that ``setup-plan`` and ``check-prerequisites`` report (#7594).
 
-    #5100 FR-007: a protected single_branch mission's planning and write
-    checkout is the minted ``meta.mission_branch``; ``meta.target_branch``
-    stays the protected merge target. Callers that ask "is HEAD on the branch
-    this mission expects?" must prefer this over the merge target, or every
-    such mission reports a spurious mismatch. An unreadable ``meta.json`` or an
-    absent/blank field yields ``None`` (the caller keeps its merge-target
-    operand), never an error.
+    ``current_branch`` is the invoking checkout's HEAD, ``target_branch`` the landing target
+    from ``meta.json``, and ``expected_checkout_branch`` the branch the Mission's planning
+    partition writes to. ``branch_matches_target`` in the branch contract compares the first
+    with the last.
     """
+
+    current_branch: str
+    target_branch: str
+    expected_checkout_branch: str
+
+
+def resolve_planning_checkout_verdict(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    invoking_root: Path,
+    owned: OwnedCheckout | None = None,
+    fallback_branch: str,
+) -> PlanningCheckoutVerdict:
+    """Resolve the planning checkout verdict for one Mission (#7594).
+
+    The expected checkout is the placement seam's planning write ref
+    (``placement_seam(...).write_target(PRIMARY_METADATA).ref``), never a second
+    derivation from ``meta.json`` fields (C-001). For a Mission created without
+    ``--topology`` this is its topic branch until it lands, also after ``finalize-tasks``
+    settled it; for a protected ``single_branch`` mint it is the minted branch (#5100); for
+    every other Mission it is the target branch. An owned run takes the fact's own write
+    branch (#5877).
+
+    ``current_branch`` is read from *invoking_root*, the checkout the command was invoked
+    in (FR-006 / #3124; the caller resolves the identity once at its entry point, #3786).
+    When the Mission cannot be resolved the verdict degrades to a silent match rather than
+    a spurious disagreement (#3124).
+    """
+    from mission_runtime import ActionContextError, MissionArtifactKind, placement_seam, read_dir_for
+
+    if owned is not None:
+        # The minter already proved the owned checkout is on its write branch
+        # (owned-checkout-lifecycle-authority WP09, FR-005), so no git read is needed.
+        target = read_target_branch_from_meta(owned.mission_dir) or owned.write_branch
+        return PlanningCheckoutVerdict(current_branch=owned.write_branch, target_branch=str(target), expected_checkout_branch=owned.write_branch)
+    primary_kind = MissionArtifactKind.PRIMARY_METADATA
+    # Branch identity belongs to the invoking checkout, but only within the repository being
+    # queried (the same guard as the ``branch-context`` command).
+    if get_main_repo_root(invoking_root).resolve() != get_main_repo_root(repo_root).resolve():
+        invoking_root = repo_root
+    current = get_current_branch(invoking_root) or fallback_branch
+    silent_match = PlanningCheckoutVerdict(current_branch=current, target_branch=fallback_branch, expected_checkout_branch=current)
     try:
-        meta = load_meta_fail_closed(feature_dir)
-    except MissionMetaReadError:
-        return None
-    minted = (meta or {}).get("mission_branch")
-    return minted if isinstance(minted, str) and minted else None
+        meta_dir = read_dir_for(repo_root, mission_slug, kind=primary_kind)
+        if not load_meta_fail_closed(meta_dir):
+            return silent_match
+        expected = placement_seam(repo_root, mission_slug).write_target(primary_kind).ref
+    except (ActionContextError, MissionMetaReadError):
+        return silent_match
+    target = read_target_branch_from_meta(meta_dir) or fallback_branch
+    return PlanningCheckoutVerdict(current_branch=current, target_branch=str(target), expected_checkout_branch=str(expected))
 
 
 def _inject_branch_contract(
@@ -104,7 +152,6 @@ def _inject_branch_contract(
     target_branch: str,
     current_branch: str | None = None,
     primary_branch: str | None = None,
-    match_target_branch: str | None = None,
     expected_checkout_branch: str | None = None,
 ) -> dict[str, object]:
     """Attach deterministic branch/runtime aliases for templates and agents.
@@ -116,23 +163,15 @@ def _inject_branch_contract(
     omit it, and the emitted payload is byte-identical to the legacy contract
     so existing snapshots and consumers are unaffected.
 
-    ``match_target_branch`` (FR-006 / #3124) decouples the honesty of the
-    ``branch_matches_target`` verdict from the *display* ``target_branch``. When
-    supplied, the match is computed against it (``resolved_current_branch ==
-    match_target_branch``) instead of the primary-anchored ``target_branch`` used
-    for every display/planning field. ``setup-plan`` passes the mission's
-    ``meta.json`` target here while feeding ``current_branch`` the invoking
-    checkout's HEAD, so a lane on a divergent branch reports honest disagreement
-    without disturbing the deliberate primary-anchored target resolution. Callers
-    that omit it (e.g. ``branch-context``) keep the legacy match byte-for-byte.
-
     ``expected_checkout_branch`` names the branch the operator's checkout is
     *supposed* to be on when that differs from the merge ``target_branch`` --
     the protected-target mission branch minted at create time (#5100 FR-007),
     which is checked out while ``target_branch`` stays the protected merge
-    target. It feeds ``branch_context.expected_checkout_branch`` and, unless
-    ``match_target_branch`` overrides it, the ``branch_matches_target`` verdict,
-    so the contract never describes the protected target as the checkout.
+    target, or the topic branch of a Mission created without ``--topology``
+    (#7594). It feeds ``branch_context.expected_checkout_branch`` and the
+    ``branch_matches_target`` verdict, so the contract never describes the
+    landing target as the checkout. ``setup-plan`` and ``check-prerequisites``
+    take all three operands from :func:`resolve_planning_checkout_verdict`.
     """
     enriched = dict(payload)
     raw_runtime_vars = enriched.get("runtime_vars", {})
@@ -142,8 +181,7 @@ def _inject_branch_contract(
     planning_base_branch = target_branch
     merge_target_branch = target_branch
     expected_checkout = expected_checkout_branch or target_branch
-    match_reference = match_target_branch if match_target_branch is not None else expected_checkout
-    branch_matches_target = resolved_current_branch == match_reference
+    branch_matches_target = resolved_current_branch == expected_checkout
     branch_strategy_summary = (
         f"Current branch at workflow start: {resolved_current_branch}. "
         f"Planning/base branch for this mission: {planning_base_branch}. "

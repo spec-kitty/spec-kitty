@@ -144,7 +144,11 @@ def _invoke(case: dict[str, object]) -> ReplayResult:  # noqa: C901
                 "_commit_to_branch",
                 lambda *_args, **_kwargs: seam.CommitToBranchResult("committed", "main", "abc123"),
             ),
-            (seam, "_resolve_branch_match_operands", lambda *_args, **_kwargs: ("main", "main")),
+            (
+                seam,
+                "resolve_planning_checkout_verdict",
+                lambda *_args, **_kwargs: mission_branch_context.PlanningCheckoutVerdict("main", "main", "main"),
+            ),
             (seam, "_resolve_plan_template", _resolve),
             (seam, "_emit_spec_plan_phase_events", lambda *_args, **_kwargs: None),
             (seam, "_run_documentation_wiring", lambda *_args, **_kwargs: (None, [])),

@@ -35,11 +35,13 @@ from specify_cli.cli.commands._owned_checkout import (
     emit_owned_refusal,
     resolve_owned_or_refuse,
 )
+from specify_cli.core.checkout_identity import Intent, resolve_checkout_identity
 from specify_cli.core.owned_mission import LIFECYCLE_OWNED_TOPOLOGIES
 
 from specify_cli.cli.commands.agent.mission_branch_context import (
     _inject_branch_contract,
     _resolve_feature_target_branch,
+    resolve_planning_checkout_verdict,
 )
 from specify_cli.cli.commands.agent.mission_feature_resolution import (
     _build_setup_plan_detection_error,
@@ -736,16 +738,24 @@ def check_prerequisites(
             raise typer.Exit(1) from None
 
         validation_result = _mission.validate_feature_structure(feature_dir, check_tasks=include_tasks)
-        target_branch = _resolve_feature_target_branch(feature_dir, repo_root)
-        current_branch = _mission.get_current_branch(repo_root) or target_branch
+        # #7594: the same planning checkout verdict setup-plan reports. The invoking
+        # checkout is resolved once, here at the command entry point (#3786), so a run
+        # from a linked worktree reads that worktree's HEAD, not the primary's.
+        verdict = resolve_planning_checkout_verdict(
+            repo_root,
+            feature_dir.name,
+            invoking_root=resolve_checkout_identity(cwd, Intent.PRIMARY_READ).invoking_root,
+            owned=owned,
+            fallback_branch=_resolve_feature_target_branch(feature_dir, repo_root),
+        )
         _emit_check_prerequisites_result(
             validation_result=validation_result,
             feature_dir=feature_dir,
             json_output=json_output,
             paths_only=paths_only,
-            target_branch=target_branch,
-            current_branch=current_branch,
-            expected_checkout_branch=owned.write_branch if owned else None,
+            target_branch=verdict.target_branch,
+            current_branch=verdict.current_branch,
+            expected_checkout_branch=verdict.expected_checkout_branch,
         )
 
     except typer.Exit:
