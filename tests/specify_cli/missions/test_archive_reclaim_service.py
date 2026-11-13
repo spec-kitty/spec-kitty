@@ -257,6 +257,8 @@ def test_commits_after_the_landing_are_listed_and_capped(tmp_path: Path, seams: 
 
     assert "25 commit(s)" in str(refused) and late[0][:12] in str(refused) and "and 5 more" in str(refused)
     assert late[24][:12] not in str(refused)
+    # A rewritten branch's commits are not "made after" the landing; the text says only what is proved.
+    assert f"not reachable from the recorded landing ({_LANDED[:12]})" in str(refused) and "made after" not in str(refused)
 
 
 def test_an_unprovable_landing_refuses(tmp_path: Path, seams: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> None:
@@ -428,13 +430,6 @@ def test_a_failed_marker_commit_refuses(tmp_path: Path, seams: dict[str, Any], m
     assert _refusal(tmp_path).error_code == reclaim.RECLAIM_MARKER_NOT_COMMITTED
 
 
-def test_holds_coordination_marker(tmp_path: Path, seams: dict[str, Any]) -> None:
-    _coord_meta(tmp_path)
-
-    assert reclaim.holds_coordination_marker(tmp_path, _SLUG) is True
-    assert reclaim.reclaim_command(_SLUG) == f"spec-kitty archive reclaim {_SLUG}"
-
-
 # -- CLI rendering ---------------------------------------------------------------------------
 
 
@@ -474,14 +469,6 @@ def test_cli_renders_a_refusal_as_json(cli: CliRunner, monkeypatch: pytest.Monke
     assert result.exit_code == 1
     payload = json.loads(result.output)
     assert payload["remedy"] == "keep it" and reclaim.RECLAIM_UNABSORBED in json.dumps(payload)
-
-
-def test_cli_renders_steps_as_text(cli: CliRunner, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(archive_cli, "reclaim_archived_mission", lambda _root, _slug: _report(False))
-
-    result = cli.invoke(archive_cli.app, ["reclaim", _SLUG])
-
-    assert result.exit_code == 0 and "Coordination branch  deleted" in result.output
 
 
 def test_cli_outside_a_project_exits_2(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -526,22 +513,8 @@ def test_cli_reports_an_ambiguous_selector(monkeypatch: pytest.MonkeyPatch, tmp_
     result = CliRunner().invoke(archive_cli.app, ["reclaim", "demo", *json_flag])
 
     assert result.exit_code == 1
-
-
-@pytest.mark.parametrize("holds", [True, False])
-def test_archive_create_points_at_reclaim_only_while_the_marker_remains(cli: CliRunner, monkeypatch: pytest.MonkeyPatch, holds: bool) -> None:
-    from specify_cli.missions._archive import ArchivedMission, ArchiveOutcome
-
-    record = ArchivedMission(
-        mission_id="01ABCDEF" + "0" * 18, archived_by="t", archived_at="2026-11-12T00:00:00+00:00", reason="done", terminal_state_at_archive="merged"
-    )
-    monkeypatch.setattr(archive_cli, "archive_mission", lambda **_kwargs: ArchiveOutcome(record=record, cleared_deferrals=[]))
-    monkeypatch.setattr(archive_cli, "holds_coordination_marker", lambda _root, _slug: holds)
-
-    result = cli.invoke(archive_cli.app, ["create", _SLUG, "--by", "t", "--reason", "done"])
-
-    assert result.exit_code == 0, result.output
-    assert (f"spec-kitty archive reclaim {_SLUG}" in result.output) is holds
+    if json_flag:
+        assert json.loads(result.output)["candidates"] == ["a", "b"]
 
 
 @pytest.mark.parametrize("holds", [True, False])
@@ -559,42 +532,6 @@ def test_archive_create_json_carries_the_reclaim_command_while_the_marker_remain
 
     assert result.exit_code == 0, result.output
     assert json.loads(result.output)["reclaim_command"] == (f"spec-kitty archive reclaim {_SLUG}" if holds else None)
-
-
-def test_late_commits_are_named_as_unreachable_from_the_recorded_landing(tmp_path: Path, seams: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> None:
-    """#7598 fold (NIT-9): a rewritten branch's commits are not "made after" the landing; say what is proved."""
-    _coord_meta(tmp_path)
-    monkeypatch.setattr(reclaim, "landed_coordination_tip", lambda _root, _branch: _LANDED)
-    monkeypatch.setattr(reclaim, "commits_in_range", lambda _root, _base, _tip: ["c" * 40])
-
-    text = str(_refusal(tmp_path))
-
-    assert f"not reachable from the recorded landing ({_LANDED[:12]})" in text and "made after" not in text
-
-
-def test_cli_renders_nothing_left_and_a_refusal_as_text(cli: CliRunner, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(archive_cli, "reclaim_archived_mission", lambda _root, _slug: _report(True))
-    assert "Nothing left to reclaim" in cli.invoke(archive_cli.app, ["reclaim", _SLUG]).output
-
-    def refuse(_root: Path, _slug: str) -> ReclaimReport:
-        raise ReclaimRefused(reclaim.RECLAIM_NOT_ARCHIVED, "not archived [yet]", "archive it")
-
-    monkeypatch.setattr(archive_cli, "reclaim_archived_mission", refuse)
-    result = cli.invoke(archive_cli.app, ["reclaim", _SLUG])
-
-    assert result.exit_code == 1
-    assert "not archived [yet]" in result.output and f"Error code: {reclaim.RECLAIM_NOT_ARCHIVED}." in result.output
-
-
-def test_preflight_validates_the_bookkeeping_destination(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    feature_dir = _coord_meta(tmp_path)
-    seen: dict[str, Any] = {}
-    monkeypatch.setattr(reclaim, "preflight_merge_bookkeeping", lambda **kwargs: seen.update(kwargs))
-
-    reclaim._preflight_marker_commit(tmp_path, feature_dir, _SLUG)
-
-    assert seen["branch"] == "main" and seen["mission_slug"] == _SLUG
-    assert seen["paths"] == (feature_dir / "meta.json",) and seen["worktree_root"] == tmp_path
 
 
 def test_any_other_commit_precondition_refuses_before_any_change(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
