@@ -82,7 +82,7 @@ _CONSUMERS: tuple[tuple[str, str], ...] = (
     # orchestrator API (D8: orchestrator_api/commands.py L3018; in design_phase.py since #5628).
     ("src/specify_cli/orchestrator_api/design_phase.py", "_record_analysis_commit_surfaces_payload"),
     # acceptance (D8: acceptance/__init__.py L1791, L1822).
-    ("src/specify_cli/acceptance/__init__.py", "_commit_acceptance_meta_via_router"),
+    ("src/specify_cli/acceptance/__init__.py", "_route_acceptance_record"),
     # write seam -> acceptance matrix (D8: acceptance/matrix.py L524). The matrix
     # module is a ``write_seam.write_artifact`` wrapper; its CALLERS render.
     (_VERDICT, "_emit_outcome_error"),
