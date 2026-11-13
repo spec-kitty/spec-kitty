@@ -125,12 +125,13 @@ def test_containing_checkout_falls_back_to_the_main_repo_root_outside_every_chec
 @pytest.mark.unit
 def test_containing_checkout_answers_the_walk_when_path_cannot_be_resolved(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A symbolic-link loop cannot be resolved: the walk's own answer stands."""
+    from kernel import git_anchor
     from mission_runtime import resolution
 
     loop = tmp_path / "loop"
     loop.symlink_to(loop)
     holder = tmp_path / "elsewhere"
-    monkeypatch.setattr(resolution, "checkout_root_containing", lambda _path: holder)
+    monkeypatch.setattr(git_anchor, "checkout_root_containing", lambda _path: holder)
 
     assert resolution._containing_checkout(loop / "kitty-specs", tmp_path) == holder
 
