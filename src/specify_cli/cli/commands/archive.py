@@ -26,13 +26,14 @@ from rich.markup import escape
 
 from specify_cli.cli.console import console
 from specify_cli.cli.json_contract import json_error
-from specify_cli.core.paths import locate_project_root
+from mission_runtime import ActionContextError
+from specify_cli.core.paths import UnsafePathSegmentError, locate_project_root
 from specify_cli.missions._archive import (
     MissionArchiveRefused,
     archive_mission,
     list_archived_missions,
 )
-from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous, candidate_feature_dir_for_mission
+from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous, StatusReadPathNotFound, candidate_feature_dir_for_mission
 from specify_cli.missions.archive_reclaim import (
     ReclaimRefused,
     ReclaimReport,
@@ -193,6 +194,8 @@ def reclaim(
         mission_dir = primary_mission_dir(root, mission)
     except MissionSelectorAmbiguous as exc:
         _exit_ambiguous(exc, json_output)
+    except (ActionContextError, StatusReadPathNotFound, UnsafePathSegmentError):
+        _exit_not_found(mission, json_output)
     if not (mission_dir / "meta.json").is_file():
         _exit_not_found(mission, json_output)
     try:

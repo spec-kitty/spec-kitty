@@ -9,6 +9,7 @@ collaborators replaced at the module boundary.
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -19,7 +20,7 @@ from specify_cli.cli.commands import archive as archive_cli
 from specify_cli.consolidation.git_probes import GitProbeError
 from specify_cli.coordination.teardown import CoordTeardownKeptOnlyCopy, ProjectionTeardownAbort
 from specify_cli.coordination.workspace import CoordinationWorkspace
-from specify_cli.git.commit_helpers import SafeCommitHeadMismatch
+from specify_cli.git.commit_helpers import SafeCommitError, SafeCommitHeadMismatch
 from specify_cli.git.destructive_guard import DestructiveOpRefused
 from specify_cli.missions import archive_reclaim as reclaim
 from specify_cli.missions.archive_reclaim import ReclaimRefused, ReclaimReport
@@ -330,8 +331,12 @@ def test_a_moved_branch_refuses_and_keeps_the_landed_ref(tmp_path: Path, seams: 
 
     monkeypatch.setattr(reclaim, "guarded_branch_delete", moved)
 
-    assert _refusal(tmp_path).error_code == "BRANCH_TIP_MOVED"
+    refused = _refusal(tmp_path)
+
+    assert refused.error_code == "BRANCH_TIP_MOVED"
     assert seams["cleared"] == []
+    # What moved it is unproved: the remedy says to inspect it against the landed ref before re-running.
+    assert f"git log refs/spec-kitty/landed-coordination/{_BRANCH}..{_BRANCH}" in refused.remedy
 
 
 def test_a_landed_ref_that_would_not_clear_is_reported_in_the_step(tmp_path: Path, seams: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> None:
@@ -342,6 +347,19 @@ def test_a_landed_ref_that_would_not_clear_is_reported_in_the_step(tmp_path: Pat
 
     detail = next(step.detail for step in report.steps if step.name == "coordination branch")
     assert f"landed ref kept: delete refs/spec-kitty/landed-coordination/{_BRANCH} by hand" in detail
+
+
+def test_an_unfinished_consolidation_refuses_before_any_change(tmp_path: Path, seams: dict[str, Any]) -> None:
+    from specify_cli.consolidation.state import ConsolidationState, save_state
+
+    feature_dir = _coord_meta(tmp_path)
+    mission_id = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))["mission_id"]
+    save_state(ConsolidationState(mission_id=mission_id, mission_slug=_SLUG, target_branch="main", wp_order=["WP01"]), tmp_path)
+
+    refused = _refusal(tmp_path)
+
+    assert refused.error_code == reclaim.RECLAIM_CONSOLIDATION_ACTIVE and "consolidate --resume" in refused.remedy
+    assert seams["teardown"] == 0 and seams["deleted"] == [] and seams["flattened"] == 0
 
 
 def test_a_kept_tip_is_reported_under_the_ref_the_guard_names(tmp_path: Path, seams: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> None:
@@ -403,7 +421,7 @@ def test_a_failed_marker_commit_refuses(tmp_path: Path, seams: dict[str, Any], m
     _coord_meta(tmp_path)
 
     def broken(**_kwargs: object) -> None:
-        raise RuntimeError("protected")
+        raise SafeCommitError("protected")
 
     monkeypatch.setattr(reclaim, "commit_merge_bookkeeping", broken)
 
@@ -483,13 +501,16 @@ def test_cli_outside_a_project_exits_2_with_json(monkeypatch: pytest.MonkeyPatch
 
 
 @pytest.mark.parametrize("json_flag", [[], ["--json"]])
-def test_cli_reports_an_unknown_mission(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, json_flag: list[str]) -> None:
-    monkeypatch.setattr(archive_cli, "locate_project_root", lambda: tmp_path)
-    monkeypatch.setattr(archive_cli, "primary_mission_dir", lambda _root, _mission: tmp_path / "absent")
+@pytest.mark.parametrize("handle", [_SLUG, "../escape"], ids=("absent", "unsafe-segment"))
+def test_cli_reports_an_unknown_mission(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, json_flag: list[str], handle: str) -> None:
+    """A real (empty) project: the placement seam resolves an absent slug and refuses an unsafe one; both are "not found", never a traceback."""
+    subprocess.run(["git", "init", "-q", "-b", "main", str(tmp_path)], check=True)
+    (tmp_path / ".kittify").mkdir()
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
 
-    result = CliRunner().invoke(archive_cli.app, ["reclaim", _SLUG, *json_flag])
+    result = CliRunner().invoke(archive_cli.app, ["reclaim", handle, *json_flag])
 
-    assert result.exit_code == 2 and "not" in result.output.lower()
+    assert result.exit_code == 2 and "not found" in result.output.lower()
 
 
 @pytest.mark.parametrize("json_flag", [[], ["--json"]])
@@ -577,8 +598,6 @@ def test_preflight_validates_the_bookkeeping_destination(tmp_path: Path, monkeyp
 
 
 def test_any_other_commit_precondition_refuses_before_any_change(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from specify_cli.git.commit_helpers import SafeCommitError
-
     feature_dir = _coord_meta(tmp_path)
 
     def protected(*_args: object, **_kwargs: object) -> None:
