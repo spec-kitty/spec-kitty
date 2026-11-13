@@ -44,7 +44,6 @@ from specify_cli.core.paths import (
     MissionMetaReadError,
     get_main_repo_root,
     get_status_read_root,
-    load_meta_fail_closed,
     read_target_branch_from_meta,
 )
 from specify_cli.missions._resolve_planning_branch import (
@@ -129,21 +128,27 @@ def resolve_planning_checkout_verdict(
         target = read_target_branch_from_meta(owned.mission_dir) or owned.write_branch
         return PlanningCheckoutVerdict(current_branch=owned.write_branch, target_branch=str(target), expected_checkout_branch=owned.write_branch)
     primary_kind = MissionArtifactKind.PRIMARY_METADATA
-    # Branch identity belongs to the invoking checkout, but only within the repository being
-    # queried (the same guard as the ``branch-context`` command).
-    if get_main_repo_root(invoking_root).resolve() != get_main_repo_root(repo_root).resolve():
-        invoking_root = repo_root
-    current = get_current_branch(invoking_root) or fallback_branch
+    current = get_current_branch(_branch_identity_root(invoking_root, repo_root)) or fallback_branch
     silent_match = PlanningCheckoutVerdict(current_branch=current, target_branch=fallback_branch, expected_checkout_branch=current)
     try:
-        meta_dir = read_dir_for(repo_root, mission_slug, kind=primary_kind)
-        if not load_meta_fail_closed(meta_dir):
+        target = read_target_branch_from_meta(read_dir_for(repo_root, mission_slug, kind=primary_kind))
+        if not target:
             return silent_match
         expected = placement_seam(repo_root, mission_slug).write_target(primary_kind).ref
     except (ActionContextError, MissionMetaReadError):
         return silent_match
-    target = read_target_branch_from_meta(meta_dir) or fallback_branch
     return PlanningCheckoutVerdict(current_branch=current, target_branch=str(target), expected_checkout_branch=str(expected))
+
+
+def _branch_identity_root(invoking_root: Path, repo_root: Path) -> Path:
+    """The checkout whose HEAD is the current branch: *invoking_root*, within *repo_root*'s repository.
+
+    Branch identity belongs to the invoking checkout, but only within the repository being
+    queried; an invocation from another repository reads *repo_root* instead.
+    """
+    if get_main_repo_root(invoking_root).resolve() != get_main_repo_root(repo_root).resolve():
+        return repo_root
+    return invoking_root
 
 
 def _inject_branch_contract(
@@ -478,9 +483,7 @@ def branch_context(
         # ``locate_project_root`` deliberately re-anchors linked worktrees to
         # the primary checkout for shared metadata reads. Branch identity is
         # invocation-owned state, but only within the repository being queried.
-        caller_root = get_status_read_root(Path.cwd())
-        if get_main_repo_root(caller_root).resolve() != get_main_repo_root(repo_root).resolve():
-            caller_root = repo_root
+        caller_root = _branch_identity_root(get_status_read_root(Path.cwd()), repo_root)
         current_branch = _mission.get_current_branch(caller_root)
         if not current_branch or current_branch == "HEAD":
             error_msg = "Must be on a branch to resolve branch context (detached HEAD detected)."

@@ -270,3 +270,25 @@ def test_branch_context_reports_invoking_linked_worktree_branch(monkeypatch: pyt
     assert payload["repo_root"] == str(primary.resolve())
     assert payload["current_branch"] == "op/invoking"
     assert payload["target_branch"] == "op/invoking"
+
+
+def _init_repo(root: Path) -> Path:
+    root.mkdir()
+    subprocess.run(["git", "init", "-q", "-b", "main", str(root)], check=True)
+    return root
+
+
+def test_branch_identity_root_keeps_an_invoking_checkout_of_the_same_repository(tmp_path: Path) -> None:
+    """#7594: a linked worktree of the queried repository is read as the invoking checkout."""
+    repo = _init_repo(tmp_path / "repo")
+    subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@example.test", "commit", "-q", "--allow-empty", "-m", "init"], check=True)
+    linked = tmp_path / "linked"
+    subprocess.run(["git", "-C", str(repo), "worktree", "add", "-q", "-b", "lane", str(linked)], check=True)
+    assert seam._branch_identity_root(linked, repo) == linked
+
+
+def test_branch_identity_root_reads_the_project_root_for_another_repository(tmp_path: Path) -> None:
+    """#7594: an invocation from a different repository never lends its HEAD to the verdict."""
+    repo = _init_repo(tmp_path / "repo")
+    other = _init_repo(tmp_path / "other")
+    assert seam._branch_identity_root(other, repo) == repo
