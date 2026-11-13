@@ -373,24 +373,22 @@ def test_scaffold_beside_an_older_mission_still_derives(repo: Path) -> None:
 
 
 def test_rename_probe_uses_no_copy_detection(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The probe is rename-only: no ``-C`` and no ``--find-copies-harder`` (cost and false positives)."""
+    """The probe is rename-only through ``kernel.git``: renames on, ``R`` only, never copy detection."""
     _mission_on_branch(repo)
-    from specify_cli.core.git_ops import run_command as real
+    from specify_cli.consolidation import mission_base
 
-    diffs: list[list[str]] = []
+    calls: list[dict[str, Any]] = []
+    real = mission_base.changed_entries
 
-    def recording(argv: list[str], **kwargs: Any) -> Any:
-        if argv[:2] == ["git", "diff"]:
-            diffs.append(list(argv))
-        return real(argv, **kwargs)
+    def recording(*args: Any, **kwargs: Any) -> Any:
+        calls.append(kwargs)
+        return real(*args, **kwargs)
 
-    monkeypatch.setattr("specify_cli.consolidation.mission_base.run_command", recording)
+    monkeypatch.setattr(mission_base, "changed_entries", recording)
 
     resolve_mission_base(repo, None, mission_branch=MISSION_BRANCH, mission_slug=SLUG)
 
-    assert len(diffs) == 1
-    assert {"-M", "-l0", "--diff-filter=R"} <= set(diffs[0])
-    assert not {"-C", "--find-copies-harder"} & set(diffs[0])
+    assert calls == [{"renames": True, "diff_filter": "R"}]
 
 
 def test_copy_that_keeps_its_source_derives_residual(repo: Path) -> None:
@@ -437,34 +435,19 @@ def test_rename_inside_the_mission_dir_after_scaffold_still_derives(repo: Path) 
 
 def test_rename_probe_failure_is_unavailable(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _mission_on_branch(repo)
-    from specify_cli.core.git_ops import run_command as real
+    from kernel.git import GitCommandError
+    from specify_cli.consolidation import mission_base
 
-    def failing_diff(argv: list[str], **kwargs: Any) -> Any:
-        if argv[:2] == ["git", "diff"]:
-            return 128, "", "fatal: bad object"
-        return real(argv, **kwargs)
+    def failing_diff(*_args: Any, **_kwargs: Any) -> Any:
+        raise GitCommandError(argv=("diff",), cwd=repo, returncode=128, stderr="fatal: bad object")
 
-    monkeypatch.setattr("specify_cli.consolidation.mission_base.run_command", failing_diff)
+    monkeypatch.setattr(mission_base, "changed_entries", failing_diff)
 
     result = resolve_mission_base(repo, None, mission_branch=MISSION_BRANCH, mission_slug=SLUG)
 
     assert result.provenance is MissionBaseProvenance.UNAVAILABLE
     assert result.reason is not None and "git probe failed" in result.reason
     assert result.kind is MissionBaseReason.PROBE_FAILED
-
-
-def test_name_status_parser_pairs_rename_and_copy_paths() -> None:
-    from specify_cli.consolidation.mission_base import _name_status_records
-
-    raw = "A\0new.txt\0R100\0a/x\0b/x\0C075\0c/y\0d/y\0M\0e\0"
-
-    assert _name_status_records(raw) == [
-        ("A", ("new.txt",)),
-        ("R100", ("a/x", "b/x")),
-        ("C075", ("c/y", "d/y")),
-        ("M", ("e",)),
-    ]
-    assert _name_status_records("") == []
 
 
 def test_scaffold_through_second_parent_merge_never_picks_above_mission_work(repo: Path) -> None:

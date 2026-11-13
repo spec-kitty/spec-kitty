@@ -64,6 +64,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
+from kernel.git import GitCommandError, changed_entries
 from specify_cli.consolidation.git_probes import (
     GitProbeError,
     commit_in_clone,
@@ -303,45 +304,23 @@ def _earliest_scaffold_commit(repo_root: Path, mission_branch: str, mission_slug
 def _renamed_into(repo_root: Path, parent: str, commit: str, mission_slug: str) -> str | None:
     """The source path of a rename into the Mission directory in *commit*, or ``None``.
 
-    Diffs *commit* against *parent* (its first parent) with rename detection only (``-M``, no
-    rename limit, ``--diff-filter=R``), so a source outside the Mission directory still pairs
-    with its destination. Copy detection is deliberately off: with ``--find-copies-harder``
+    Diffs *commit* against *parent* (its first parent) through ``kernel.git`` with rename
+    detection only (``-M``, ``--diff-filter=R``), so a source outside the Mission directory
+    still pairs with its destination. Copy detection is deliberately off: with copy detection
     every new scaffold pairs with another Mission's identical ``.gitkeep`` or similar
-    ``README.md``. A ``git diff`` failure raises :class:`GitProbeError`.
+    ``README.md``. git's default rename limit applies (a rename inside a commit with more
+    candidate paths than that limit is not detected; a documented residual). A ``git diff``
+    failure raises :class:`GitProbeError`.
     """
-    argv = [
-        "git",
-        "diff",
-        "--no-ext-diff",
-        "--name-status",
-        "-z",
-        "-M",
-        "-l0",
-        "--diff-filter=R",
-        parent,
-        commit,
-    ]
-    ret, out, err = run_command(argv, capture=True, check_return=False, cwd=repo_root)
-    if ret != 0:
-        raise GitProbeError(f"git diff {parent[:_SHORT]} {commit[:_SHORT]} failed (exit {ret}): {(err or '').strip()}")
+    try:
+        entries = changed_entries(repo_root, parent, commit, renames=True, diff_filter="R")
+    except GitCommandError as exc:
+        raise GitProbeError(f"git diff {parent[:_SHORT]} {commit[:_SHORT]} failed: {exc}") from exc
     prefix = f"{KITTY_SPECS_DIR}/{mission_slug}/"
-    for status, paths in _name_status_records(out or ""):
-        if status[:1] == "R" and len(paths) == 2 and paths[1].startswith(prefix):
-            return paths[0]
+    for entry in entries:
+        if entry.status[:1] == "R" and entry.orig_path is not None and str(entry.path).startswith(prefix):
+            return str(entry.orig_path)
     return None
-
-
-def _name_status_records(raw: str) -> list[tuple[str, tuple[str, ...]]]:
-    """Parse ``git diff --name-status -z``: a status, then one path (two for ``R``/``C``)."""
-    fields = raw.split("\0")
-    records: list[tuple[str, tuple[str, ...]]] = []
-    index = 0
-    while index < len(fields) and fields[index]:
-        status = fields[index]
-        width = 2 if status[:1] in ("R", "C") else 1
-        records.append((status, tuple(fields[index + 1 : index + 1 + width])))
-        index += 1 + width
-    return records
 
 
 def _is_on_branch(repo_root: Path, sha: str, mission_branch: str) -> bool:
