@@ -365,3 +365,49 @@ def test_kept_branch_text_when_worktrees_cannot_be_listed(repo: _Repo, monkeypat
     message = phase_teardown._branch_kept_after_teardown_message(run, _DELETE_REFUSAL)
 
     assert "could not be listed" in message and "worktree list failed" in message, message
+
+
+# -- a normal teardown clears the landed-coordination ref (MINOR-1, #7598 closeout) ----------------------------
+
+
+def _stub_teardown_legs(monkeypatch: pytest.MonkeyPatch, *, delete_refusal: str | None) -> None:
+    """Every teardown leg but the ref clear is a no-op; the branch delete answers *delete_refusal*."""
+    for leg in (
+        "_refuse_unlanded_topic_primary",
+        "_land_late_coordination_commits",
+        "_fold_coord_status_before_flatten",
+        "_flatten_coordination_metadata_after_branch_delete",
+    ):
+        monkeypatch.setattr(phase_teardown, leg, lambda _run: None)
+    monkeypatch.setattr(phase_teardown, "_mission_branch_tip", lambda _run: None)
+    monkeypatch.setattr(phase_teardown, "_teardown_coord_worktree", lambda _run: None)
+    monkeypatch.setattr(phase_teardown, "_refused_mission_branch_delete", lambda _run, _tip: delete_refusal)
+    monkeypatch.setattr(phase_teardown, "_branch_kept_after_teardown_message", lambda _run, refusal: refusal)
+
+
+def test_a_teardown_that_deletes_the_branch_clears_its_landed_ref(repo: _Repo, monkeypatch: pytest.MonkeyPatch) -> None:
+    record_landed_coordination_tip(repo.root, _COORD, repo.projected)
+    _stub_teardown_legs(monkeypatch, delete_refusal=None)
+
+    phase_teardown._teardown_coordination_triple(_run(repo, is_resume=False, state=_state(repo, anchor=None, coord_tip=None)))
+
+    assert landed_coordination.landed_coordination_tip(repo.root, _COORD) is None
+
+
+def test_a_teardown_whose_branch_delete_refused_keeps_the_landed_ref(repo: _Repo, monkeypatch: pytest.MonkeyPatch) -> None:
+    record_landed_coordination_tip(repo.root, _COORD, repo.projected)
+    _stub_teardown_legs(monkeypatch, delete_refusal="cannot delete")
+
+    with pytest.raises(CoordinationTeardownError):
+        phase_teardown._teardown_coordination_triple(_run(repo, is_resume=False, state=_state(repo, anchor=None, coord_tip=None)))
+
+    assert landed_coordination.landed_coordination_tip(repo.root, _COORD) == repo.projected
+
+
+def test_a_landed_ref_clear_failure_never_fails_the_teardown(repo: _Repo, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    _stub_teardown_legs(monkeypatch, delete_refusal=None)
+    monkeypatch.setattr(phase_teardown, "clear_landed_coordination_tip", lambda _root, _branch: False, raising=False)
+
+    phase_teardown._teardown_coordination_triple(_run(repo, is_resume=False, state=_state(repo, anchor=None, coord_tip=None)))
+
+    assert "Could not clear the landed coordination tip" in caplog.text
