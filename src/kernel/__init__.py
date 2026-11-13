@@ -15,8 +15,8 @@ clock
     The single door to wall-clock time: the injectable ``Clock`` protocol
     (``SystemClock``/``FrozenClock``/``DEFAULT_CLOCK``), the producer family
     (``now_utc_iso``, ``now_utc_stamp``, ``now_utc_compact_stamp``,
-    ``now_utc_seconds``, ``now_utc``, ``now_epoch``), parse/format helpers
-    (``parse_iso``, ``parse_stamp``, ``format_stamp``, ``from_epoch``), and
+    ``now_utc_seconds``, ``now_utc``, ``now_epoch``), parse helpers
+    (``parse_iso``, ``parse_stamp``, ``from_epoch``), and
     minimal datetime type re-exports. Distinct from any Lamport logical
     clock. See ``kitty-specs/kernel-clock-single-door``.
 glossary_types
