@@ -4104,6 +4104,7 @@ pages:
     - {slug: "amendment-2026-11-10", text: "Amendment 2026-11-10", level: 2}
     - {slug: "amendment-2026-11-11", text: "Amendment 2026-11-11", level: 2}
     - {slug: "amendment-2026-11-11-cutover", text: "Amendment 2026-11-11 (cutover)", level: 2}
+    - {slug: "amendment-2026-11-12-docfx-retired", text: "Amendment 2026-11-12 (DocFX retired)", level: 2}
   - path: "docs/adr/4.x/2026-11-01-1-pull-requests-touch-no-shared-generated-files-and-land-through-a-merge-queue.md"
     title: "ADR: pull requests touch no shared generated file and land through a merge queue"
     divio_type: "none"
@@ -4942,13 +4943,12 @@ pages:
   - path: "docs/api/configuration.md"
     title: "Configuration Reference"
     divio_type: "reference"
-    abstract: "Reference for Spec Kitty configurations. Explore parameters for meta.json, work package frontmatter, docfx.json, toc.yml, config.yaml's env_file pointer, and agent settings."
+    abstract: "Reference for Spec Kitty configurations. Explore parameters for meta.json, work package frontmatter, the docsite build, config.yaml's env_file pointer, and agent settings."
     anchors:
     - {slug: "env-file-pointer", text: "env_file Pointer", level: 2}
     - {slug: "meta-json-feature-metadata", text: "meta.json (Feature Metadata)", level: 2}
     - {slug: "work-package-frontmatter", text: "work package frontmatter", level: 2}
-    - {slug: "docfx-json-documentation-build", text: "docfx.json (Documentation Build)", level: 2}
-    - {slug: "toc-yml-table-of-contents", text: "toc.yml (Table of Contents)", level: 2}
+    - {slug: "docsite-build-doc-kitty", text: "Docsite build (doc-kitty)", level: 2}
     - {slug: "charter-md-project-principles", text: "charter.md (Project Principles)", level: 2}
     - {slug: "mission-configuration-advanced", text: "Mission Configuration (Advanced)", level: 2}
     - {slug: "hosted-repository-opt-in-for-live-drain", text: "hosted (repository opt-in for live drain)", level: 2}
@@ -16330,11 +16330,4 @@ pages:
     divio_type: "none"
     abstract: "Security posture for Spec Kitty: credential handling, secrets, and authentication. This forward-looking section collects security guidance."
     anchors:
-    - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/templates/index.md"
-    title: "Documentation templates"
-    divio_type: "none"
-    abstract: "Static templates and front-end assets used to render the Spec Kitty documentation site, including the public stylesheet and script bundle."
-    anchors:
-    - {slug: "in-this-section", text: "In this section", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
