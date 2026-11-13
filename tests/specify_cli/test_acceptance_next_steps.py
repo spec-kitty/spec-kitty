@@ -155,7 +155,7 @@ def test_flat_lanes_mission_with_done_but_unconsolidated_lanes_names_consolidate
 def test_landed_mission_keeps_no_merge_needed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Nothing remains to consolidate once the landing is recorded."""
     summary = _summary_on_main(tmp_path, topology="lanes")
-    monkeypatch.setattr("mission_runtime.landing.mission_has_landed", lambda _primary_dir: True)
+    monkeypatch.setattr("mission_runtime.mission_has_landed", lambda _primary_dir: True)
 
     result = perform_acceptance(summary, mode="local", actor="tester", auto_commit=False)
 
@@ -242,7 +242,7 @@ def test_code_lane_has_lanes_to_consolidate_until_landed(tmp_path: Path, monkeyp
     feature_dir = _feature_with_lanes(tmp_path, _lane("lane-a", "WP01"), _lane(PLANNING_LANE_ID, "WP02"))
     assert _has_lanes_to_consolidate(feature_dir, lands_by_consolidation=False)
 
-    monkeypatch.setattr("mission_runtime.landing.mission_has_landed", lambda _primary_dir: True)
+    monkeypatch.setattr("mission_runtime.mission_has_landed", lambda _primary_dir: True)
     assert not _has_lanes_to_consolidate(feature_dir, lands_by_consolidation=False)
 
 
@@ -260,7 +260,7 @@ def test_corrupt_lanes_manifest_has_nothing_to_consolidate(tmp_path: Path) -> No
 def test_coordination_mission_has_lanes_to_consolidate_until_landed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     assert _has_lanes_to_consolidate(tmp_path, lands_by_consolidation=True)
 
-    monkeypatch.setattr("mission_runtime.landing.mission_has_landed", lambda _primary_dir: True)
+    monkeypatch.setattr("mission_runtime.mission_has_landed", lambda _primary_dir: True)
     assert not _has_lanes_to_consolidate(tmp_path, lands_by_consolidation=True)
 
 
