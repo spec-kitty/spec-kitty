@@ -42,7 +42,9 @@ from specify_cli.core.mission_creation_errors import (
     TargetReplacement,
     WriteCheckoutSwitchDirtyError,
 )
+from specify_cli.core.vcs.git import capture_branch_tip
 from specify_cli.core.write_checkout_switch import switch_write_checkout
+from specify_cli.mission_metadata import record_mission_base_sha
 
 
 def _target_has_commit(write_root: Path, target_branch: str) -> bool:
@@ -212,6 +214,8 @@ def _mint_protected_single_branch_mission_branch(
         decide=lambda dirty: _decide_mint_switch(write_root, replace(facts, dirty_outside_scaffold=dirty, branch_name=branch_name)),
     )
     meta["mission_branch"] = branch_name
+    # #7560: the new branch's tip right after the switch is the commit it was cut from.
+    record_mission_base_sha(meta, capture_branch_tip(write_root, branch_name))
 
 
 def _decide_mint_switch(write_root: Path, facts: ProtectedMintFacts) -> None:

@@ -20,7 +20,7 @@ from specify_cli.core.mission_creation_decisions import (
     meta_flag_patch,
 )
 from kernel.clock import now_utc_iso
-from specify_cli.mission_metadata import load_meta_or_empty
+from specify_cli.mission_metadata import load_meta_or_empty, record_mission_base_sha
 from specify_cli.meta_keys import (
     COORDINATION_BRANCH_KEY,
     FLATTENED_KEY,
@@ -202,6 +202,9 @@ def _build_create_meta(
             coordination_branch_pre_seed_tip = _mc._rev_parse_or_none(resolved_root, coordination_outcome.branch_name)
         elif coordination_outcome.skipped_reason is None:
             coordination_branch_creation_base = _mc._rev_parse_or_none(resolved_root, coordination_outcome.branch_name)
+            # #7560: a coordination branch cut this run records its creation base (write-once);
+            # a reused branch's base is unknown here and records nothing.
+            record_mission_base_sha(meta, coordination_branch_creation_base)
 
     from mission_runtime import classify_topology
 

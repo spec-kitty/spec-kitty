@@ -34,6 +34,7 @@ from specify_cli.core.paths import safe_mission_slug
 from specify_cli.meta_keys import (
     COORDINATION_BRANCH_KEY,
     FLATTENED_KEY,
+    MISSION_BASE_SHA_KEY,
     TOPOLOGY_DECISION_KEY,
     TOPOLOGY_KEY,
     TOPOLOGY_SETTLED_KEY,
@@ -138,6 +139,8 @@ class MissionMetaOptional(TypedDict, total=False):
     topology_settled: bool
     topology_decision: dict[str, Any]
     create_return_branch: str
+    # #7560: the commit the Mission branch was cut from, write-once at create/mint.
+    mission_base_sha: str
 
 
 # ---------------------------------------------------------------------------
@@ -778,6 +781,21 @@ def load_meta_or_empty(feature_dir: Path) -> dict[str, Any]:
     # on_malformed="empty" never yields None; ``or {}`` narrows ``| None`` for
     # the type checker (value-preserving: ``{} or {}`` is ``{}``).
     return result or {}
+
+
+def record_mission_base_sha(meta: dict[str, Any], sha: str | None) -> None:
+    """Record ``mission_base_sha`` in a ``meta.json`` dict, once: the commit the Mission branch was cut from (#7560).
+
+    Called where the Mission branch is created (the topic/protected mint and the
+    coordination-branch create). Write-once: an existing value is never overwritten. A
+    ``None`` or empty *sha* (the tip read failed) records nothing and never raises;
+    ``specify_cli.consolidation.mission_base.resolve_mission_base`` derives the base for a
+    Mission without one. It lives here, beside the meta key, so ``specify_cli.core`` never
+    imports ``specify_cli.consolidation``.
+    """
+    if not sha or MISSION_BASE_SHA_KEY in meta:
+        return
+    meta[MISSION_BASE_SHA_KEY] = sha
 
 
 def recorded_mid8(meta: Mapping[str, object]) -> str:

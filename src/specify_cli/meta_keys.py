@@ -20,6 +20,10 @@ TOPOLOGY_DECISION_KEY = "topology_decision"
 #: The branch the write checkout was on before a default create switched it onto the
 #: Mission topic branch; settlement to ``lanes_with_coord`` moves the checkout back to it.
 CREATE_RETURN_BRANCH_KEY = "create_return_branch"
+#: The commit the Mission branch was cut from (#7560), written once where the Mission branch
+#: is created (the topic/protected mint, or the coordination-branch create). Absent on
+#: Missions created earlier; ``consolidation.mission_base`` derives it then.
+MISSION_BASE_SHA_KEY = "mission_base_sha"
 
 COORDINATION_KEYS: frozenset[str] = frozenset({COORDINATION_BRANCH_KEY, TOPOLOGY_KEY, FLATTENED_KEY, PR_BOUND_KEY})
 IDENTITY_KEYS: frozenset[str] = frozenset({MISSION_ID_KEY, MISSION_NUMBER_KEY})
