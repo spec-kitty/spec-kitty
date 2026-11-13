@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from kernel.git import MergeTreeResult
 from specify_cli.consolidation import git_probes
 from specify_cli.consolidation import reconciliation_authorship as authorship
 from specify_cli.consolidation.git_probes import GitProbeError
@@ -89,7 +90,7 @@ def test_n_way_merge_blob_raises_on_an_unresolvable_input(repo: Path) -> None:
 
 
 def test_merge_tree_step_raises_when_git_prints_no_tree(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(git_probes, "run_command", lambda *_a, **_k: (0, "", ""))
+    monkeypatch.setattr(git_probes, "merge_tree", lambda *_a, **_k: MergeTreeResult(tree="", conflicted=()))
     with pytest.raises(GitProbeError, match="no tree id"):
         git_probes._merge_tree_step(repo, "a", "b")
 

@@ -29,6 +29,7 @@ from kernel.git import (
     changed_entries,
     changed_paths,
     commit_paths,
+    merge_tree,
     status_entries,
     tree_entry,
 )
@@ -838,99 +839,44 @@ def is_merge_commit(repo_root: Path, sha: str) -> bool:
 
 # ---------------------------------------------------------------------------
 # Merge-resolution-aware Seam A attribution probes (terminus-merge-resolution-
-# attribution / #5051-adjacent). ``git merge-tree --write-tree`` (git>=2.38)
-# derives the common ancestor of the two lane commits itself (never a caller-
+# attribution / #5051-adjacent, N-way since #7626). ``git merge-tree --write-tree``
+# (git>=2.38) derives the common ancestor of the lane commits itself (never a caller-
 # supplied guess) and honors ``.gitattributes``, faithfully modeling the
 # resolution a real squash of those two lanes would have produced (Seam A
 # Decision 1, ``research.md``).
 # ---------------------------------------------------------------------------
 
 
-def three_way_merge_blob(repo_root: Path, lane_a_commit: str, lane_b_commit: str, path: str) -> str | None:
-    """Simulate the 2-way merge of two lane commits; return *path*'s resulting blob id.
-
-    Uses ``git merge-tree --write-tree <lane_a_commit> <lane_b_commit>``
-    (git>=2.38 — gate with :func:`merge_tree_write_tree_available` first): git
-    derives the common ancestor itself and honors ``.gitattributes``. The ONLY
-    inputs are the two lane commits (and the ancestor git derives from them) —
-    no third input (e.g. a canceled/removed hunk) can ever be smuggled into the
-    simulation, so a target blob equal to this result is, by construction,
-    legitimate approved-lane content.
-
-    * Exit code 0 — a clean merge. The new tree's oid is printed on stdout's
-      first line; this reads *path*'s blob id from that tree
-      (:func:`blob_id_at`). A path absent from the clean-merged tree (e.g. both
-      sides deleted it) is treated as unattributable — returns ``None``.
-    * Exit code 1 — a genuine merge conflict (including a binary-file
-      conflict). The tree is still written (with higher-stage conflict info),
-      but the resolution is NOT a deterministic function of the two parents —
-      :func:`is_legitimate_merge_resolution`'s caller must fail closed, so
-      this returns ``None`` without inspecting the conflicted tree.
-    * Any OTHER exit code is an unexpected git failure (an unresolvable commit
-      ref, a corrupt object store, …) and raises :class:`GitProbeError` so the
-      caller REFUSEs rather than silently treating it as either a clean merge
-      or a conflict.
-    """
-    ret, out, err = run_command(
-        ["git", "merge-tree", "--write-tree", lane_a_commit, lane_b_commit],
-        capture=True,
-        check_return=False,
-        cwd=repo_root,
-    )
-    if ret not in (0, 1):
-        raise GitProbeError(f"git merge-tree --write-tree {lane_a_commit} {lane_b_commit} failed (exit {ret}): {(err or '').strip()}")
-    if ret == 1:
-        return None  # genuine conflict — not a deterministic resolution
-    lines = (out or "").splitlines()
-    tree_oid = lines[0].strip() if lines else ""
-    if not tree_oid:
-        raise GitProbeError(f"git merge-tree --write-tree {lane_a_commit} {lane_b_commit} reported a clean merge but printed no tree id")
-    try:
-        return blob_id_at(repo_root, tree_oid, path)
-    except GitProbeError:
-        return None  # path absent (or otherwise unreadable) in the clean-merged tree
-
-
 def first_parent_changed_paths(repo_root: Path, sha: str) -> list[str]:
     """Paths whose content *sha* changed against its FIRST parent (#7626).
 
-    ``git diff --name-only --no-renames -z <sha>^1 <sha>``: for a merge commit, every
-    path the merge brought into its first parent's line, its own resolution included.
-    :func:`changed_paths_of` reads a merge through ``git show``'s combined diff, which
-    omits a path whose result equals one parent (a merge that took the second
-    parent's blob verbatim), so it cannot tell what a merge brought in. Raises
+    ``kernel.git.changed_paths(<sha>^1, <sha>)`` (``git diff --name-only --no-renames``):
+    for a merge commit, every path the merge brought into its first parent's line, its
+    own resolution included. :func:`changed_paths_of` reads a merge through ``git show``'s
+    combined diff, which omits a path whose result equals one parent (a merge that took
+    the second parent's blob verbatim), so it cannot tell what a merge brought in. Raises
     :class:`GitProbeError` on any git error (a root commit has no ``^1``), never ``[]``.
     """
-    ret, out, err = run_command(
-        ["git", "diff", "--name-only", "--no-renames", "-z", f"{sha}^1", sha],
-        capture=True,
-        check_return=False,
-        cwd=repo_root,
-    )
-    if ret != 0:
-        raise GitProbeError(f"git diff --name-only {sha}^1 {sha} failed (exit {ret}): {(err or '').strip()}")
-    return [path for path in (out or "").split("\0") if path]
+    try:
+        return [str(path) for path in changed_paths(repo_root, f"{sha}^1", sha)]
+    except GitCommandError as exc:
+        raise GitProbeError(f"git diff --name-only {sha}^1 {sha} failed (exit {exc.returncode}): {exc.stderr.strip()}") from exc
 
 
 def _merge_tree_step(repo_root: Path, ours: str, theirs: str) -> tuple[str, frozenset[str]]:
-    """``git merge-tree --write-tree`` of *ours* + *theirs*: the written tree and the paths that conflicted.
+    """``git merge-tree --write-tree`` of *ours* + *theirs* (``kernel.git.merge_tree``): the written tree and the conflicted paths.
 
     A path that did not conflict has its clean, deterministic merge in the written tree
     even when another path conflicted. Any exit code other than 0 (clean) or 1 (some
     conflict) raises :class:`GitProbeError`.
     """
-    ret, out, err = run_command(
-        ["git", "merge-tree", "--write-tree", "--name-only", "--no-messages", "-z", ours, theirs],
-        capture=True,
-        check_return=False,
-        cwd=repo_root,
-    )
-    if ret not in (0, 1):
-        raise GitProbeError(f"git merge-tree --write-tree {ours} {theirs} failed (exit {ret}): {(err or '').strip()}")
-    fields = [field for field in (out or "").split("\0") if field]
-    if not fields:
+    try:
+        result = merge_tree(repo_root, ours, theirs)
+    except GitCommandError as exc:
+        raise GitProbeError(f"git merge-tree --write-tree {ours} {theirs} failed (exit {exc.returncode}): {exc.stderr.strip()}") from exc
+    if not result.tree:
         raise GitProbeError(f"git merge-tree --write-tree {ours} {theirs} printed no tree id")
-    return fields[0].strip(), frozenset(fields[1:]) if ret == 1 else frozenset()
+    return result.tree, frozenset(str(path) for path in result.conflicted)
 
 
 def _synthetic_merge_commit(repo_root: Path, tree: str, parents: Sequence[str]) -> str:
@@ -988,7 +934,7 @@ def _n_way_merge_fold(repo_root: Path, commits: tuple[str, ...]) -> tuple[str, f
 def n_way_merge_blob(repo_root: Path, commits: Sequence[str], path: str) -> str | None:
     """Fold ``git merge-tree --write-tree`` over *commits* in order; return *path*'s resulting blob (#7626).
 
-    The N-way generalization of :func:`three_way_merge_blob`. Each step merges the
+    The N-way generalization of #5051's two-lane ``git merge-tree`` simulation. Each step merges the
     previous result (a dangling commit, :func:`_synthetic_merge_commit`) with the next
     input; git derives every merge base itself. ``None`` when *path* conflicted on any
     step, or is absent from the result: a conflicted path has no deterministic
@@ -1239,7 +1185,6 @@ __all__ = [
     "lane_integrated_by_tree_or_ancestry",
     "driver_replay_expected_bytes",
     "merge_tree_write_tree_available",
-    "three_way_merge_blob",
     "n_way_merge_blob",
     "first_parent_changed_paths",
 ]

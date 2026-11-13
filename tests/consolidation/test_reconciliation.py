@@ -1898,7 +1898,7 @@ def test_squash_fails_closed_when_carrier_lane_tip_smuggles_second_parent_hunk_i
 ) -> None:
     """Data-loss guard (#5124 landing fold — closes a reopened #4977 carrier-lane
     threat). A ``LaneContribution.lane_commit`` is a raw lane TIP and CAN be a
-    merge commit; ``three_way_merge_blob`` feeds it that commit's FULL tree, not
+    merge commit; ``n_way_merge_blob`` feeds it that commit's FULL tree, not
     just its first-parent authorship. If a contributing lane's tip is a merge
     commit whose resulting tree, for the shared path, is CONTENT-IDENTICAL to
     its (smuggling) second parent — a "trivial" content resolution git's own
