@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from kernel.git_anchor import checkout_root_containing
+from kernel.git_anchor import checkout_root_containing, checkout_root_in_spelling
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -55,3 +55,18 @@ def test_a_symbolic_link_loop_answers_the_walk_over_its_lexical_form(repo: Path)
     loop = repo / "loop"
     loop.symlink_to(loop)
     assert checkout_root_containing(loop / "kitty-specs") == repo
+
+
+def test_spelling_keeps_a_symlinked_ancestor_of_the_path(repo: Path, tmp_path: Path) -> None:
+    alias = tmp_path / "alias"
+    alias.symlink_to(repo, target_is_directory=True)
+    path = alias / "kitty-specs" / "probe"
+    answer = checkout_root_in_spelling(path)
+    assert answer == alias
+    assert path.is_relative_to(answer)
+
+
+def test_spelling_answers_the_resolved_checkout_when_the_path_cannot_be_resolved(repo: Path) -> None:
+    loop = repo / "loop"
+    loop.symlink_to(loop)
+    assert checkout_root_in_spelling(loop / "kitty-specs") == repo

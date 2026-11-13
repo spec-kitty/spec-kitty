@@ -144,6 +144,9 @@ def test_status_preflight_refusal_names_no_auto_commit_only_where_it_is_accepted
         implement_claim._raise_if_status_commit_protected(tmp_path, "fallback", True, _SLUG, accepts_no_auto_commit=accepts)
 
     assert ("--no-auto-commit" in str(refusal.value)) is accepts
+    if not accepts:
+        assert f"(checked out in {tmp_path})" in str(refusal.value)
+        assert "Check out" not in str(refusal.value)
 
 
 @_GIT

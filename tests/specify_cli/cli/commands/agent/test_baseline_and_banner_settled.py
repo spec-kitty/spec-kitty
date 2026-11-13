@@ -220,6 +220,7 @@ def test_capture_skips_and_warns_when_the_artifact_is_outside_its_commit_checkou
         )
 
     assert f"Baseline artifact {artifact}" in caplog.text
+    assert str(tmp_path / "root") in caplog.text
     assert "Baseline capture error" not in caplog.text
 
 

@@ -62,6 +62,7 @@ def test_root_refusal_names_holder_and_remedy_is_followable(settled: DefaultMiss
 
     code, payload = safe_commit(settled.root, monkeypatch, rel, "-m", "trace x", "--to-branch", settled.topic)
 
+    assert code == 1, payload
     error = str(payload["error"])
     assert str(holder.resolve()) in error, error
     assert "git -C" not in error, error
@@ -72,6 +73,7 @@ def test_root_refusal_names_holder_and_remedy_is_followable(settled: DefaultMiss
     stray.rename(holder / rel)
     code, payload = safe_commit(holder, monkeypatch, rel, "-m", "trace x", "--to-branch", settled.topic)
 
+    assert code == 0, payload
     assert git(settled.root, "log", "-1", "--format=%s", settled.topic) == "trace x"
 
 
