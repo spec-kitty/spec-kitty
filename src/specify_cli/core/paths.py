@@ -903,13 +903,11 @@ def resolve_merge_target_branch(
     ``develop`` (persisted) rather than re-deriving ``main`` from stale meta.
     An empty/blank persisted value is treated as absent (not authoritative).
 
-    The merge target lives in the PRIMARY-checkout meta.json (like
-    ``coordination_branch``), so it is read via the module-private
-    ``_compose_primary_feature_dir`` leaf — NOT the topology-aware candidate.
-    Under coordination topology that candidate
-    resolves to the coordination worktree, whose mission dir has no meta.json;
-    reading it found nothing and silently fell back to the repo default (main),
-    merging the mission into the wrong branch.
+    The merge target lives in the PRIMARY-metadata ``meta.json`` (like
+    ``coordination_branch``), so it is read through ``read_dir_for`` with
+    ``PRIMARY_METADATA`` — NOT the topology-aware lifecycle candidate, whose
+    coordination worktree has no meta.json (reading it fell back silently to the
+    repo default and merged the mission into the wrong branch).
 
     Returns ``(branch, source)`` where ``source`` is ``"flag"``, ``"meta.json"``,
     or ``"primary_branch"``.
@@ -924,34 +922,23 @@ def resolve_merge_target_branch(
     if persisted_target and persisted_target.strip():
         return persisted_target, "merge_state"
 
-    # Deferred imports: core.paths is imported very early; these pull in the
-    # missions/git layers that import back into core — module-level imports would
-    # form a circular import.
+    # Deferred imports: core.paths is imported very early; the missions/runtime/git layers
+    # import back into core, so module-level imports would form a circular import.
     #
-    # read-side-seam-primary-primitive-closure-01KYKMMT WP07/WP08 (T034/T035,
-    # FR-005 / NFR-009): RECORDED FOUNDATION SITE 2/4, deliberately UNROUTED —
-    # it keeps reading the repository root checkout's literal Mission directory.
-    # The constraints are the early-import deferred-import layering noted above
-    # and behaviour preservation with the deleted wrapper's pre-delegation body;
-    # unlike ``get_feature_target_branch`` above (#7595) it was not moved onto
-    # ``read_dir_for``. WP08 deleted the public wrapper this site imported; calls the
-    # module-private ``_compose_primary_feature_dir`` leaf directly
-    # (``_FOUNDATION_SANCTION_SEED`` token re-pointed in the same commit).
+    # Read through ``read_dir_for`` (PRIMARY_METADATA), like ``get_feature_target_branch`` and
+    # ``git_ops.resolve_target_branch`` (#7595), so a default Mission settled before its landing
+    # (its ``meta.json`` held by the coordination worktree on the topic branch) resolves the same
+    # target here as it does in the write path. ``read_dir_for`` never resolves the lifecycle
+    # phase, so it cannot re-enter this function.
+    from mission_runtime import MissionArtifactKind, read_dir_for
     from specify_cli.core.git_ops import resolve_primary_branch
-    from specify_cli.missions._read_path_resolver import (
-        _canonicalize_primary_read_handle,
-        _compose_primary_feature_dir,
-    )
 
     main_root = get_main_repo_root(repo_root)
     fallback = str(resolve_primary_branch(main_root))
     if not mission_slug:
         return fallback, "primary_branch"
 
-    feature_dir = _compose_primary_feature_dir(
-        main_root,
-        _canonicalize_primary_read_handle(main_root, mission_slug),
-    )
+    feature_dir = read_dir_for(main_root, mission_slug, kind=MissionArtifactKind.PRIMARY_METADATA)
     data = load_meta_fail_closed(feature_dir)
     if data:
         for key in ("merge_target_branch", "target_branch"):

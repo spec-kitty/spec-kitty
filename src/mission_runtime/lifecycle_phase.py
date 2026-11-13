@@ -106,7 +106,12 @@ def _primary_feature_dir(
     checkout with no copy at all, gives the same PRE_CONSOLIDATION verdict the
     holder's copy would. It cannot be routed through the placement seam's
     reader: ``PlacementSeam.read_dir`` -> ``resolve_lifecycle_phase`` ->
-    ``get_feature_target_branch`` would make this probe re-enter itself.
+    ``get_feature_target_branch`` would make this probe re-enter itself. Nor is
+    ``read_dir_for`` used (as ``get_feature_target_branch`` now does): this dir
+    also anchors the status event log, which is not PRIMARY metadata, and the
+    topic-holder lookup behind ``read_dir_for`` reads the meta and event log this
+    probe is itself deciding how to read. Pinned by
+    ``test_the_write_side_reads_the_declared_target_after_settlement``.
     """
     from specify_cli.core.paths import get_main_repo_root
     from specify_cli.missions._read_path_resolver import (
