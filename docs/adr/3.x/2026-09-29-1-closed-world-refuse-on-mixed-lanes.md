@@ -533,9 +533,10 @@ window axis (operator rulings, Decision Moments `01M78XBQS8NE8PPMSTZHMDJ610`,
 
 **Residuals.**
 
-- The derivation follows git's rename detection only. A hand copy that keeps its source, a
-  move edited past git's 50% similarity threshold, and a copy whose source is deleted in a
-  later commit are not detected. The derived base can then sit above earlier Mission work,
+- The derivation follows git's rename detection only (`kernel.git`, git's default rename
+  limit). A hand copy that keeps its source, a move edited past git's 50% similarity
+  threshold, a rename inside a commit with more candidate paths than the rename limit, and a
+  copy whose source is deleted in a later commit are not detected. The derived base can then sit above earlier Mission work,
   which takes an operator act to arrange. A recorded base is unaffected.
 - A hand-edited recorded base is anchored to the Mission's origin, so it can only name history
   the Mission started from. It inherits the derivation's residuals above: where the origin
