@@ -16,7 +16,9 @@ import java.util.regex.Pattern;
  * Builds a project that holds a Mission, only by running the CLI (constraint C-002).
  *
  * <p>The sequence is the one a user follows: a git repository with a commit, {@code spec-kitty init},
- * a commit of the generated files, then {@code spec-kitty agent mission create <slug> --json}. Nothing
+ * a commit of whatever {@code init} left uncommitted, then
+ * {@code spec-kitty agent mission create <slug> --json}. Since #7555 {@code init} commits its own
+ * writes, so that middle commit is usually not needed; it is made only when the tree is dirty. Nothing
  * under {@code .kittify/} or {@code kitty-specs/} is written from here. Each step fails fast with the
  * command output, so a broken fixture never reads as a product failure.
  *
@@ -48,7 +50,14 @@ public final class MissionFixture {
         this.cli = cli;
     }
 
-    /** Sets up Spec Kitty in the repository once, committing what {@code init} generated. */
+    /**
+     * Sets up Spec Kitty in the repository once, so that every file {@code init} wrote is committed.
+     *
+     * <p>Since #7555 {@code init} commits its own writes, which leaves a clean tree, and a plain
+     * {@code git commit} on a clean tree fails with "nothing to commit". The fixture commits only
+     * what is still uncommitted (an opt-out, or anything {@code init} does not commit), and never an
+     * empty commit, so the history stays what a user would have.
+     */
     public void ensureProject() {
         if (projectReady) {
             return;
@@ -57,8 +66,10 @@ public final class MissionFixture {
             gitRepoWithCommit.run();
         }
         succeed(List.of("spec-kitty", "init", "--non-interactive", "--ai", "claude"));
-        git("add", "-A");
-        git("commit", "-m", "set up spec-kitty");
+        if (!git("status", "--porcelain").isBlank()) {
+            git("add", "-A");
+            git("commit", "-m", "set up spec-kitty");
+        }
         projectReady = true;
     }
 
@@ -93,7 +104,7 @@ public final class MissionFixture {
         return result;
     }
 
-    private void git(String... args) {
+    private String git(String... args) {
         List<String> command = new ArrayList<>(List.of("git", "-c", "user.name=" + GitFixture.GIT_NAME,
                 "-c", "user.email=" + GitFixture.GIT_EMAIL, "-c", "commit.gpgsign=false"));
         command.addAll(List.of(args));
@@ -105,5 +116,6 @@ public final class MissionFixture {
         if (outcome.exitCode() != 0) {
             throw new IllegalStateException("git " + List.of(args) + " failed:\n" + outcome.output());
         }
+        return outcome.output();
     }
 }
