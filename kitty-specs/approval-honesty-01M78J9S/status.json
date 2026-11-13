@@ -145,7 +145,7 @@
     },
     "WP04": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": null,
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 1,
@@ -159,6 +159,7 @@
         "Ready for review: next straggler hint and spk-run-verdict-capture skill print --agent <your identity> (red-first ba50c4f2); ADR 2026-10-04-5 Amendment 2026-11-12 (reviewer of record, claimant, four codes with --json shape, adoption, residuals a-k, decision IDs); changelog fixed + upgrade-notes fragments; CLAUDE.md one sentence; kernel docstring leeway fix."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/approval-honesty-01M78J9S-coord/kitty-specs/approval-honesty-01M78J9S/tasks/WP04-guidance-adr-changelog/review-cycle-1.md",
         "reference": "review-cycle://approval-honesty-01M78J9S/WP04-guidance-adr-changelog/review-cycle-1.md",
@@ -166,14 +167,14 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 30336,
-      "shell_pid_created_at": "1794562692.09",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T019": "done",
-        "T020": "done",
-        "T021": "done",
-        "T022": "done",
-        "T023": "done"
+        "T019": "planned",
+        "T020": "planned",
+        "T021": "planned",
+        "T022": "planned",
+        "T023": "planned"
       }
     }
   }
