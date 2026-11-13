@@ -45,10 +45,9 @@ from specify_cli.consolidation import rollback
 from specify_cli.consolidation.entry_preflight import _REFUSED_WITH_EARLIER_RECORD
 from specify_cli.consolidation.claim_inputs import ClaimInputContext, ClaimInputSource, build_claim, claim_inputs, live_lane_tips
 from specify_cli.consolidation.reconciliation import (
-    ApprovedWpCommitSet,
     claim_integrity_refusal,
     detect_legacy_in_flight_state,
-    mission_base_note,
+    print_mission_base_note,
     write_post_fix_marker,
 )
 from specify_cli.consolidation.state import (
@@ -535,7 +534,7 @@ def _capture_reconciliation_claim(run: _MergeRunState) -> None:
         run.approved_wp_set = build_claim(run.main_repo, run.lanes_manifest, inputs)
     except GitProbeError as exc:
         _exit_on_claim_probe_error(exc)
-    _print_mission_base_note(run.approved_wp_set)
+    print_mission_base_note(run.approved_wp_set, console)
 
     _pin_dependency_refs(run)
     _print_dependency_refs(run)
@@ -576,13 +575,6 @@ def _print_degraded_dependency_anchors(degraded: tuple[str, ...]) -> None:
         + "; this resume anchors on their live tips (degraded anchor), so a commit they gained after the interruption is not refused on the lanes that merged it.",
         soft_wrap=True,
     )
-
-
-def _print_mission_base_note(claim: ApprovedWpCommitSet | None) -> None:
-    """Print the Mission-base provenance note (#7560, FR-007) when the claim has one: pre-Mission history, or no base."""
-    note = mission_base_note(claim) if claim is not None else None
-    if note is not None:
-        console.print(f"[yellow]Note:[/yellow] {escape(note)}", soft_wrap=True)
 
 
 def _pin_dependency_refs(run: _MergeRunState) -> None:

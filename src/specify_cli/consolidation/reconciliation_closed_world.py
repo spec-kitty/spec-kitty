@@ -13,6 +13,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from rich.markup import escape
+
 from specify_cli.consolidation._constants import (
     DEPENDENCY_REF_COVERS_MISSION_WORK,
     DEPENDENCY_REF_MOVED,
@@ -39,6 +41,8 @@ from specify_cli.lanes.lane_tip import LaneTipListingError, read_tip, recorded_t
 from specify_cli.lanes.models import LanesManifest
 
 if TYPE_CHECKING:
+    from rich.console import Console
+
     from specify_cli.consolidation.reconciliation_claim_types import ApprovedWpCommitSet
 
 logger = logging.getLogger(__name__)
@@ -606,6 +610,16 @@ def mission_base_note(claim: ApprovedWpCommitSet) -> str | None:
     return None
 
 
+def print_mission_base_note(claim: ApprovedWpCommitSet | None, console: Console, *, quiet: bool = False) -> None:
+    """Print :func:`mission_base_note` on *console* as a ``Note:`` line (FR-007), unless there is none or *quiet*.
+
+    *quiet* is ``--json``: the payload must stay valid JSON, so nothing is printed.
+    """
+    note = None if quiet or claim is None else mission_base_note(claim)
+    if note is not None:
+        console.print(f"[yellow]Note:[/yellow] {escape(note)}", soft_wrap=True)
+
+
 def dependency_refs_moved_refusal(repo_root: Path, pins: Mapping[str, str]) -> str | None:
     """Refusal text when a pinned declared ref now resolves to a different commit (``DEPENDENCY_REF_MOVED``), else ``None``.
 
@@ -647,5 +661,6 @@ __all__ = [
     "_verify_declared_ref",
     "dependency_refs_moved_refusal",
     "mission_base_note",
+    "print_mission_base_note",
     "resolve_external_dependency_refs",
 ]
