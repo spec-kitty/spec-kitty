@@ -24,7 +24,7 @@ from mission_runtime import (
 )
 from specify_cli.coordination.coherence import is_coord_residue_churn, is_self_bookkeeping_churn
 from specify_cli.core.constants import WORKTREES_DIR
-from specify_cli.core.paths import get_main_repo_root
+from specify_cli.core.paths import is_main_repo_root
 from specify_cli.git.commit_helpers import SafeCommitPathPolicyError
 
 
@@ -229,7 +229,7 @@ def primary_partition_checkout(repo_root: Path, mission_slug: str) -> Path | Non
     guards downstream report that, e.g. the #4979 demotion refusal).
     """
     holder = placement_seam(repo_root, mission_slug).write_dir(MissionArtifactKind.PRIMARY_METADATA).surface_root
-    if holder.resolve() == get_main_repo_root(repo_root).resolve():
+    if is_main_repo_root(holder, repo_root):
         return None
     return holder
 

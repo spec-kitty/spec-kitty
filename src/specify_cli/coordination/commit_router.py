@@ -1257,12 +1257,12 @@ def _primary_commit_root(
     "which checkout holds this ref" probe is consulted (C-001). *label* names the
     path a seam refusal is reported against.
     """
-    from specify_cli.core.paths import get_main_repo_root
+    from specify_cli.core.paths import is_main_repo_root
 
     if kind not in write_dirs:
         write_dirs[kind] = _resolve_owning_write_dir(repo_root, kind, mission_slug=mission_slug, owned=None, rel=label)
     holder = write_dirs[kind].surface_root
-    if holder.resolve() == get_main_repo_root(repo_root).resolve():
+    if is_main_repo_root(holder, repo_root):
         return _PrimaryCheckout(root=repo_root, is_holder=False)
     return _PrimaryCheckout(root=holder, is_holder=True)
 

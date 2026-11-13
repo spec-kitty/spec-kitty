@@ -568,6 +568,18 @@ class MissionMetaReadError(GuardedReadError, RuntimeError):
         self.path = str(meta_path)
 
 
+
+
+def is_main_repo_root(checkout: Path, repo_root: Path) -> bool:
+    """True when *checkout* is the repository root checkout of *repo_root* (resolved on both sides).
+
+    The one comparison the settled-placement callers share: a placement seam's ``surface_root``
+    names the repository root checkout, as opposed to a topic holder, exactly when this holds.
+    *repo_root* may be a lane or coordination worktree; its main repo root is what *checkout*
+    is compared with, never the caller's raw path.
+    """
+    return checkout.resolve() == get_main_repo_root(repo_root).resolve()
+
 def get_status_read_root(start: Path | None = None) -> Path:
     """Resolve the root for read-only status commands.
 
