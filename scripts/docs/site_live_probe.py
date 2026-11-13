@@ -324,7 +324,12 @@ def _bound(fetch: Fetch, clock: Callable[[], float], deadline: float) -> _BoundF
         left = deadline - clock()
         if left <= 0:
             return Response(None, "", error=_BUDGET_EXHAUSTED)
-        return _within(fetch, path, left)
+        answer = _within(fetch, path, left)
+        # The request's own timeout is the time left, so a failure that ends at the deadline is the
+        # budget running out, whichever of the two waits noticed it first.
+        if answer.error and _BUDGET_EXHAUSTED not in answer.error and clock() >= deadline:
+            return Response(None, "", error=f"{_BUDGET_EXHAUSTED}: {answer.error} for {path} at the deadline")
+        return answer
 
     return bounded
 
