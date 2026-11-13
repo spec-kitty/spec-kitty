@@ -66,10 +66,10 @@ The disjoint-hunk merge's target blob matches NEITHER lane's own blob, so the
 pre-fix axis named it un-attributable and FAILed the gate (CAS-reverting a
 genuinely clean, lossless merge -- NFR-004 false-FAIL). Post-fix,
 ``ApprovedWpCommitSet.path_contributions`` (T001) records the two lanes'
-still-resolvable commits for a path touched by EXACTLY two approved lanes;
-``is_legitimate_three_way_resolution`` (T003) simulates their deterministic
+still-resolvable commits for a path touched by two or more approved lanes;
+``is_legitimate_merge_resolution`` (T003, N-way since #7626) simulates their deterministic
 ``git merge-tree --write-tree`` resolution (T002) and attributes the target
-path when it matches. Everything unsound (>2 lanes, a real conflict, binary,
+path when it matches. Everything unsound (a real conflict, binary,
 old git) stays fail-closed -- see ``tests/merge/test_reconciliation.py`` for
 those unit-level fail-closed proofs; this file's job is only the real-CLI
 green path.
