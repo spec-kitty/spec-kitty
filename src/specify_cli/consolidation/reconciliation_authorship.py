@@ -25,7 +25,9 @@ from specify_cli.consolidation.approved_bound import approval_stamp
 from specify_cli.consolidation.git_probes import (
     GitProbeError,
     changed_paths_of,
+    commit_parents,
     commits_in_range,
+    first_parent_changed_paths,
     is_merge_commit,
     patch_id_of,
     path_state_at,
@@ -329,7 +331,63 @@ def _own_dependency_merges(
     return merges
 
 
-def _final_authored_walk(repo_root: Path, first_parent_shas: list[str]) -> tuple[set[tuple[str, str]], set[str]]:
+def _trusted_history_roots(
+    lanes_manifest: LanesManifest,
+    lane: ExecutionLane,
+    work_packages: Mapping[str, Mapping[str, object]],
+    presence: _PresenceScope | None,
+    coord_base_ref: str,
+) -> tuple[str, ...]:
+    """The refs whose history a reviewed merge on *lane* may bring in as authorship (#7626).
+
+    The mission branch the claim measures from (*coord_base_ref*), the target's
+    pre-run tip (``presence.base``: content the target already had), and the approval
+    stamps of every OTHER approved lane's WPs (content in another reviewed tip). The
+    lane's own stamps are left out: they reach every merge on its own spine, so they
+    would trust any branch the lane merged, the #4977 carrier shape.
+    """
+    if presence is None:
+        return ()
+    roots = [coord_base_ref, presence.base]
+    for other in lanes_manifest.lanes:
+        if other.lane_id != lane.lane_id and _lane_is_approved(other, work_packages):
+            roots.extend(_approved_stamps(other, work_packages, presence))
+    return tuple(dict.fromkeys(root for root in roots if root))
+
+
+def _authoring_merges(repo_root: Path, spine: Sequence[str], roots: Sequence[str]) -> frozenset[str]:
+    """The merge commits on *spine* that author what they brought into the lane (#7626).
+
+    *spine* is the lane's reviewed authorship spine (:func:`_drop_unreviewed_merges`
+    already removed every merge no approval stamp reaches), so each merge here was in
+    a reviewed tip. It authors only when EVERY non-first parent is trusted history,
+    reachable from one of *roots* (:func:`_trusted_history_roots`): the mission
+    branch, the target's pre-run tip, or another approved lane's reviewed tip. A
+    merge of any other branch (a foreign or removed WP's branch, the #4977 carrier)
+    authors nothing, as before #7626. A probe error leaves the merge out (attributes
+    less; fail-closed).
+    """
+    if not roots:
+        return frozenset()
+    authoring: set[str] = set()
+    for sha in spine:
+        try:
+            parents = commit_parents(repo_root, sha)
+        except GitProbeError:
+            continue
+        if len(parents) < 2:
+            continue
+        if all(any(sha_reachable_from(repo_root, parent, root) for root in roots) for parent in parents[1:]):
+            authoring.add(sha)
+    return frozenset(authoring)
+
+
+def _final_authored_walk(
+    repo_root: Path,
+    first_parent_shas: list[str],
+    *,
+    authoring_merges: frozenset[str] = frozenset(),
+) -> tuple[set[tuple[str, str]], set[str]]:
     """FINAL ``(path, blob)``s AND final DELETED paths across a lane's first-parent spine (F5, #5022).
 
     Walks the spine newest→oldest (``git rev-list`` order) and, per path, keeps
@@ -351,6 +409,14 @@ def _final_authored_walk(repo_root: Path, first_parent_shas: list[str]) -> tuple
     Computed in ONE spine walk (not two) so :func:`_collect_authored` — the sole
     production caller — never re-reads the same commits' diffs twice.
 
+    *authoring_merges* (#7626) are the spine's merge commits that author what they
+    brought in (:func:`_authoring_merges`: reviewed, and every non-first parent is
+    trusted history). For those, the touched paths are the merge's first-parent
+    diff (:func:`first_parent_changed_paths`) instead of its combined diff, so the
+    blob the merge left at a path is the lane's final state there. Every other
+    merge keeps contributing nothing, as above. Empty by default: the presence axis
+    and every pre-#7626 caller read the walk unchanged.
+
     FIX D (#5001 landing remediation) — the invariant this axis rests on: the
     squash content axis's soundness depends on lanes being sliced by DISJOINT
     write-scope (project doctrine: lanes collapse by write-scope, not
@@ -361,24 +427,24 @@ def _final_authored_walk(repo_root: Path, first_parent_shas: list[str]) -> tuple
     lanes both touch to disambiguate between. When two approved lanes DO modify
     the SAME path (the invariant violated in practice), this axis alone would
     false-FAIL whenever their independently-resolved final blobs differ from the
-    squash's (correctly merged/rebased) resolution. That gap is now partly
-    closed downstream: for a path authored by EXACTLY TWO approved lanes,
-    :func:`is_legitimate_three_way_resolution` (terminus-merge-resolution-
-    attribution / #5051-adjacent) attributes the CLEAN ``git merge-tree``
-    resolution as a second chance — so only the genuine same-line-CONFLICT
-    sub-case still stays unattributable, pinned as
+    squash's (correctly merged/rebased) resolution. That gap is closed
+    downstream for every derivable shape (#7626, widening #5051's two-lane
+    recognizer): :func:`is_legitimate_merge_resolution` attributes the CLEAN
+    ``git merge-tree`` fold of every approved lane that authored the path plus
+    the target's pre-run tip, and a reviewed merge whose second parent is
+    trusted history authors what it brought in (*authoring_merges*, below). Only
+    a hand resolution that reached the target outside any reviewed lane stays
+    unattributable, pinned as
     ``test_squash_three_way_merge_resolution_is_unattributable`` (strict
-    ``xfail``, tracked in #5051). Both remain the SAFE direction (refuse/rollback
-    a legitimate merge, never ship unattributed content); the sustainable fix is
-    still upstream — restore write-scope disjointness at lane-slicing time (or
-    register content-path merge drivers) rather than widen this recognizer
-    toward an N-way merge simulator.
+    ``xfail``, #5053). That is the SAFE direction (refuse/rollback a legitimate
+    merge, never ship unattributed content).
     """
     seen_paths: set[str] = set()
     blobs: set[tuple[str, str]] = set()
     deletions: set[str] = set()
     for sha in first_parent_shas:
-        for path in changed_paths_of(repo_root, sha):
+        touched = first_parent_changed_paths(repo_root, sha) if sha in authoring_merges else changed_paths_of(repo_root, sha)
+        for path in touched:
             if path in seen_paths:
                 continue
             seen_paths.add(path)
@@ -441,7 +507,7 @@ def _record_lane_path_contribution(
     is built PER PATH (never one shared object reused across every path): each
     carries THIS path's own final first-parent-authored blob
     (:attr:`LaneContribution.authored_blob`, ``_blob`` from *lane_blobs*) — the
-    fail-closed guard input :func:`is_legitimate_three_way_resolution` checks
+    fail-closed guard input :func:`is_legitimate_merge_resolution` checks
     the lane's raw tip-tree blob against before trusting a simulation that feeds
     that tip's FULL tree (#5124 landing fold).
     """
@@ -459,7 +525,7 @@ class _AuthoredClaim(NamedTuple):
     patch_ids: frozenset[str]
     blobs: frozenset[tuple[str, str]]
     deletions: frozenset[str]
-    multi_lane_paths: Mapping[str, tuple[LaneContribution, LaneContribution]]
+    path_contributions: Mapping[str, tuple[LaneContribution, ...]]
     lane_content: tuple[ApprovedLaneContent, ...]
 
 
@@ -624,20 +690,20 @@ def _collect_authored(
     squash deletion-attribution axis's authority for a legitimate approved
     deletion.
 
-    ``multi_lane_paths`` (terminus-merge-resolution-attribution / FR-009,
-    smuggled-tip guard added by the #5124 landing fold) is derived in this SAME
-    per-lane walk — never a second one: for each approved lane, every path in
-    that lane's own ``lane_blobs`` (its FINAL first-parent blob set,
-    :func:`_final_authored_walk`) records its OWN, per-path
-    :class:`LaneContribution` (:func:`_record_lane_path_contribution`) — one
-    contribution per (lane, path), carrying that path's own authored blob,
-    never one lane-wide object reused across every path. A path collected from
-    EXACTLY two lanes (i.e. two DISTINCT lanes each recorded one contribution
-    for it — the per-path widening does not change this count) becomes a
-    ``multi_lane_paths`` entry; a path from one lane (the common case under the
-    disjoint-write-scope invariant) or from three-or-more lanes is absent — the
-    merge-resolution recognizer only ever runs for the exactly-two case
-    (Decision 2, ``research.md``).
+    The fifth element, ``path_contributions`` (FR-009 of #5051, widened by #7626;
+    smuggled-tip guard from the #5124 landing fold), is derived in this SAME
+    per-lane walk, never a second one: for each approved lane, every path in that
+    lane's own ``lane_blobs`` records its OWN per-path :class:`LaneContribution`
+    (:func:`_record_lane_path_contribution`), carrying that path's own authored
+    blob. Every path at least one lane authored is present, with all its
+    contributions in manifest order: the merge derivation folds them with the
+    target's pre-run tip (:func:`is_legitimate_merge_resolution`).
+
+    A CODE lane's reviewed merges whose every non-first parent is trusted history
+    (:func:`_authoring_merges` over :func:`_trusted_history_roots`: the mission
+    branch, the target's pre-run tip, another approved lane's approval stamps)
+    author what they brought in (#7626): the walk then reads them through their
+    first-parent diff. The presence element below keeps the plain walk.
 
     The sixth element (#5571) is each approved CODE lane's final path state in
     dependency order (:class:`ApprovedLaneContent`), taken from that same walk.
@@ -720,6 +786,10 @@ def _collect_authored(
             if len(own) != len(reviewed):
                 authored = [sha for sha in reviewed if sha in own]
                 lane_blobs, lane_deletions = _final_authored_walk(repo_root, authored)
+        if not is_planning_lane(lane):
+            authoring = _authoring_merges(repo_root, authored, _trusted_history_roots(lanes_manifest, lane, work_packages, presence, coord_base_ref))
+            if authoring:
+                lane_blobs, lane_deletions = _final_authored_walk(repo_root, authored, authoring_merges=authoring)
         for sha in authored:
             shas.add(sha)
             pid = patch_id_of(repo_root, sha)
@@ -733,8 +803,8 @@ def _collect_authored(
         blobs |= lane_blobs
         deletions |= lane_deletions
         _record_lane_path_contribution(path_contributions, lane, lane_blobs, authored)
-    multi_lane_paths = {path: (contributions[0], contributions[1]) for path, contributions in path_contributions.items() if len(contributions) == 2}
-    return _AuthoredClaim(frozenset(shas), frozenset(patch_ids), frozenset(blobs), frozenset(deletions), multi_lane_paths, _order_lane_content(lane_contents))
+    contributions_by_path = {path: tuple(contributions) for path, contributions in path_contributions.items()}
+    return _AuthoredClaim(frozenset(shas), frozenset(patch_ids), frozenset(blobs), frozenset(deletions), contributions_by_path, _order_lane_content(lane_contents))
 
 
 __all__ = [

@@ -451,9 +451,9 @@ def test_multi_lane_contribution_is_recorded_at_an_authored_commit_not_a_cancele
     manifest = _manifest(_lane("lane-b", "WP02"), _lane("lane-c", "WP03"))
     approved = {"WP02": {"lane": "approved"}, "WP03": {"lane": "approved"}}
     # lane-b's tip is dep.approved_sha; mark it canceled so lane-b authors only dep.canceled_sha (ALPHA).
-    *_, multi_lane_paths, _content = _collect_authored(dep.repo, manifest, approved, dep.base, None, canceled_lane_commits=frozenset({dep.approved_sha}))
+    *_, path_contributions, _content = _collect_authored(dep.repo, manifest, approved, dep.base, None, canceled_lane_commits=frozenset({dep.approved_sha}))
 
-    first, second = multi_lane_paths[_ALPHA]
+    first, second = path_contributions[_ALPHA]
     by_lane = {contribution.lane_id: contribution for contribution in (first, second)}
     assert by_lane["lane-b"].lane_commit == dep.canceled_sha
 

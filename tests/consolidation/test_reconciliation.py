@@ -1094,7 +1094,7 @@ def _squash_claim(
     manifest_wp_ids: frozenset[str],
     planning_prefix: str | None = None,
     authored_deletions: frozenset[str] = frozenset(),
-    multi_lane_paths: dict[str, tuple[LaneContribution, LaneContribution]] | None = None,
+    path_contributions: dict[str, tuple[LaneContribution, ...]] | None = None,
 ) -> ApprovedWpCommitSet:
     """A production (closed-world) SQUASH claim exercising the blob/deletion axes."""
     return ApprovedWpCommitSet(
@@ -1103,7 +1103,7 @@ def _squash_claim(
         enforce_closed_world=True,
         authored_blobs=authored_blobs,
         authored_deletions=authored_deletions,
-        multi_lane_paths=multi_lane_paths or {},
+        path_contributions=path_contributions or {},
         excluded_window_base=window_base,
         mission_slug=_MISSION_SLUG,
         planning_prefix=planning_prefix,
@@ -1719,7 +1719,7 @@ def test_collect_excluded_fully_canceled_lane_stays_fully_excluded(tmp_path: Pat
 # Merge-resolution-aware Seam A attribution (terminus-merge-resolution-
 # attribution / #5051-adjacent, FR-002/003/009). A path authored by EXACTLY TWO
 # approved lanes at DISJOINT hunks squashes to a legitimate 3-way-merged blob
-# (equal to neither lane's own final blob) — ``multi_lane_paths`` names the two
+# (equal to neither lane's own final blob) — ``path_contributions`` names the two
 # contributing lanes and ``is_legitimate_three_way_resolution`` simulates their
 # deterministic ``git merge-tree`` resolution. Every unsound shape (>2 lanes, a
 # conflicting resolution, binary, an unresolvable lane commit, git<2.38) stays
@@ -1818,9 +1818,9 @@ def _edit_shared_line(repo: Path, branch: str, shared_path: str, line_index: int
     return sha
 
 
-def test_collect_authored_multi_lane_paths_present_for_exactly_two_lanes(tmp_path: Path) -> None:
+def test_collect_authored_path_contributions_present_for_exactly_two_lanes(tmp_path: Path) -> None:
     """FR-009: a path touched by EXACTLY TWO approved lanes' own final blobs is
-    present in ``multi_lane_paths`` with both lane ids and their still-resolvable
+    present in ``path_contributions`` with both lane ids and their still-resolvable
     (raw SHA) lane commits."""
     lane_wp_pairs = (("lane-a", "WP01"), ("lane-b", "WP02"))
     repo, feature_dir, manifest, coord_base = _build_shared_file_lanes(tmp_path, lane_wp_pairs=lane_wp_pairs)
@@ -1831,27 +1831,29 @@ def test_collect_authored_multi_lane_paths_present_for_exactly_two_lanes(tmp_pat
     _git(repo, "checkout", "-q", _TARGET)
 
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base)
-    assert "src/shared.py" in claim.multi_lane_paths
-    contrib_a, contrib_b = claim.multi_lane_paths["src/shared.py"]
+    assert "src/shared.py" in claim.path_contributions
+    contrib_a, contrib_b = claim.path_contributions["src/shared.py"]
     assert {contrib_a.lane_id, contrib_b.lane_id} == {"lane-a", "lane-b"}
     assert {contrib_a.lane_commit, contrib_b.lane_commit} == {a_sha, b_sha}
 
 
-def test_collect_authored_multi_lane_paths_absent_for_single_lane_path(tmp_path: Path) -> None:
-    """A path only ONE approved lane touches never enters ``multi_lane_paths`` —
-    the existing single-lane ``authored_blobs`` fast path already attributes it
-    (the disjoint-write-scope invariant's common case)."""
+def test_collect_authored_path_contributions_single_lane_path(tmp_path: Path) -> None:
+    """#7626: a path only ONE approved lane touches records that lane's one
+    contribution, so the merge derivation can fold it with the target's own
+    newer content (a lane plus base/target merge). The ``authored_blobs`` fast
+    path still attributes the lane's own blob first."""
     repo, feature_dir, manifest, coord_base = _build_mission(tmp_path, approved_wps=("WP01",))
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base)
-    assert not claim.multi_lane_paths
+    assert [c.lane_id for c in claim.path_contributions["src/wp01.py"]] == ["lane-a"]
     assert any(path == "src/wp01.py" for path, _blob in claim.authored_blobs)
 
 
-def test_collect_authored_multi_lane_paths_absent_for_three_lane_path(tmp_path: Path) -> None:
-    """A path touched by THREE approved lanes stays absent from
-    ``multi_lane_paths`` (2-way ``merge-tree`` folding is order-dependent /
-    nondeterministic for N>2 — Decision 2, ``research.md``); those paths stay
-    fail-closed, never simulated."""
+def test_collect_authored_path_contributions_three_lane_path(tmp_path: Path) -> None:
+    """#7626 (re-pinned; was "absent for three lanes", Decision 2 of #5051): a path
+    touched by THREE approved lanes records all three contributions, so the
+    N-way derivation can fold them. Soundness does not depend on the fold order:
+    a clean merge's every line comes from one of its inputs, so ANY order that
+    reproduces the target blob proves it is approved content."""
     lane_wp_pairs = (("lane-a", "WP01"), ("lane-b", "WP02"), ("lane-c", "WP03"))
     repo, feature_dir, manifest, coord_base = _build_shared_file_lanes(tmp_path, lane_wp_pairs=lane_wp_pairs)
     for lane_id, line_idx, text in (("lane-a", 0, "A\n"), ("lane-b", 4, "B\n"), ("lane-c", 9, "C\n")):
@@ -1860,7 +1862,7 @@ def test_collect_authored_multi_lane_paths_absent_for_three_lane_path(tmp_path: 
     _git(repo, "checkout", "-q", _TARGET)
 
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base)
-    assert "src/shared.py" not in claim.multi_lane_paths
+    assert {c.lane_id for c in claim.path_contributions["src/shared.py"]} == {"lane-a", "lane-b", "lane-c"}
 
 
 def test_squash_passes_disjoint_hunk_two_lane_merge_resolution(tmp_path: Path) -> None:
@@ -1883,8 +1885,8 @@ def test_squash_passes_disjoint_hunk_two_lane_merge_resolution(tmp_path: Path) -
     _git(repo, "merge", "-q", "--no-edit", lane_b)
 
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_window_base=coord_base)
-    assert "src/shared.py" in claim.multi_lane_paths
-    contributions = claim.multi_lane_paths["src/shared.py"]
+    assert "src/shared.py" in claim.path_contributions
+    contributions = claim.path_contributions["src/shared.py"]
     assert {c.lane_id for c in contributions} == {"lane-a", "lane-b"}
     squash_claim = replace(claim, verify_reachability=False)
     result = MergeOutcomeVerifier(repo).verify(_TARGET, squash_claim)
@@ -1951,8 +1953,8 @@ def test_squash_fails_closed_when_carrier_lane_tip_smuggles_second_parent_hunk_i
 
     _restamp_approvals(repo)
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_window_base=coord_base)
-    assert "src/shared.py" in claim.multi_lane_paths
-    contributions = claim.multi_lane_paths["src/shared.py"]
+    assert "src/shared.py" in claim.path_contributions
+    contributions = claim.path_contributions["src/shared.py"]
     by_lane = {c.lane_id: c for c in contributions}
     contrib_a, contrib_b = by_lane["lane-a"], by_lane["lane-b"]
     assert contrib_a.lane_commit == a_sha
@@ -1973,10 +1975,10 @@ def test_squash_fails_closed_when_carrier_lane_tip_smuggles_second_parent_hunk_i
     assert any(path == "src/shared.py" and blob == target_blob for path, blob in result.divergence.unattributable_blobs), result.divergence.unattributable_blobs
 
 
-def test_squash_fails_closed_when_path_touched_by_more_than_two_approved_lanes(tmp_path: Path) -> None:
-    """A5: a path touched by THREE approved lanes' clean, disjoint edits still
-    FAILs closed — 2-way ``merge-tree`` folding is nondeterministic for N>2
-    (Decision 2), so the merge-resolution recognizer never even runs for it."""
+def test_squash_passes_disjoint_three_lane_merge_resolution(tmp_path: Path) -> None:
+    """#7626 (re-pinned A5; was a strict FAIL): three approved lanes edit DISJOINT
+    hunks of one path. The squash target's blob is the clean N-way merge of the
+    three lanes' own commits, so every line of it is approved content: PASS."""
     lane_wp_pairs = (("lane-a", "WP01"), ("lane-b", "WP02"), ("lane-c", "WP03"))
     repo, feature_dir, manifest, coord_base = _build_shared_file_lanes(tmp_path, lane_wp_pairs=lane_wp_pairs)
     branches = []
@@ -1989,12 +1991,190 @@ def test_squash_fails_closed_when_path_touched_by_more_than_two_approved_lanes(t
         _git(repo, "merge", "-q", "--no-edit", branch)
 
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_window_base=coord_base)
-    assert "src/shared.py" not in claim.multi_lane_paths
     squash_claim = replace(claim, verify_reachability=False)
     result = MergeOutcomeVerifier(repo).verify(_TARGET, squash_claim)
+    assert result.is_pass, result.divergence.describe() if result.divergence else result.refusal_reason
+
+
+def test_squash_fails_closed_when_three_lane_target_carries_an_unapproved_line(tmp_path: Path) -> None:
+    """#7626 negative: the N-way derivation never attributes content beyond its
+    inputs. Three approved lanes edit disjoint hunks, and the target ALSO carries
+    a line no lane wrote; the target blob is no merge of approved inputs: FAIL."""
+    lane_wp_pairs = (("lane-a", "WP01"), ("lane-b", "WP02"), ("lane-c", "WP03"))
+    repo, feature_dir, manifest, coord_base = _build_shared_file_lanes(tmp_path, lane_wp_pairs=lane_wp_pairs)
+    branches = []
+    for lane_id, line_idx, text in (("lane-a", 0, "A\n"), ("lane-b", 4, "B\n"), ("lane-c", 9, "C\n")):
+        branch = lane_branch_name(_MISSION_SLUG, lane_id, target_branch=_TARGET)
+        branches.append(branch)
+        _edit_shared_line(repo, branch, "src/shared.py", line_idx, text)
+    _git(repo, "checkout", "-q", _TARGET)
+    for branch in branches:
+        _git(repo, "merge", "-q", "--no-edit", branch)
+    _edit_shared_line(repo, _TARGET, "src/shared.py", 6, "UNREVIEWED\n")
+    target_blob = git_probes.blob_id_at(repo, _TARGET, "src/shared.py")
+
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_window_base=coord_base)
+    result = MergeOutcomeVerifier(repo).verify(_TARGET, replace(claim, verify_reachability=False))
     assert result.status is VerifyStatus.FAIL
     assert result.divergence is not None
-    assert any(path == "src/shared.py" for path, _blob in result.divergence.unattributable_blobs)
+    assert ("src/shared.py", target_blob) in result.divergence.unattributable_blobs
+
+
+def _land_lane_on_moved_target(tmp_path: Path, *, unreviewed_line: str | None) -> tuple[Path, ApprovedWpCommitSet, str]:
+    """One approved lane edits line 0 of a shared file; the TARGET then gains its own newer
+    edit of line 9 (a sibling Mission landed) before the run; the lane is merged onto it.
+
+    Returns ``(repo, squash_claim, target_blob)``. *unreviewed_line*, when set, is a line the
+    landing also slips into line 5 that neither the lane nor the target held.
+    """
+    repo, feature_dir, manifest, coord_base = _build_shared_file_lanes(tmp_path, lane_wp_pairs=(("lane-a", "WP01"),))
+    lane_a = lane_branch_name(_MISSION_SLUG, "lane-a", target_branch=_TARGET)
+    _edit_shared_line(repo, lane_a, "src/shared.py", 0, "A\n")
+    _git(repo, "checkout", "-q", _TARGET)
+    _edit_shared_line(repo, _TARGET, "src/shared.py", 9, "NEWER ON TARGET\n")
+    window_base = _rev(repo, _TARGET)
+    _git(repo, "merge", "-q", "--no-edit", lane_a)
+    if unreviewed_line is not None:
+        _edit_shared_line(repo, _TARGET, "src/shared.py", 5, unreviewed_line)
+    target_blob = git_probes.blob_id_at(repo, _TARGET, "src/shared.py")
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_window_base=window_base)
+    return repo, replace(claim, verify_reachability=False), target_blob
+
+
+def test_squash_passes_lane_merged_with_newer_target_content(tmp_path: Path) -> None:
+    """#7626: one lane is the only author of a path, but the target moved during the
+    Mission (a sibling Mission landed a disjoint edit of the same file). The landed blob is
+    the clean merge of the lane's own commit and the target's pre-run tip, content the
+    target already had: PASS."""
+    repo, claim, _target_blob = _land_lane_on_moved_target(tmp_path, unreviewed_line=None)
+    result = MergeOutcomeVerifier(repo).verify(_TARGET, claim)
+    assert result.is_pass, result.divergence.describe() if result.divergence else result.refusal_reason
+
+
+def test_squash_fails_closed_when_lane_plus_target_merge_carries_an_unapproved_line(tmp_path: Path) -> None:
+    """#7626 negative: the same lane-plus-target shape, but the landing also carries a line
+    neither the lane nor the target held. It is no merge of approved and pre-run content: FAIL."""
+    repo, claim, target_blob = _land_lane_on_moved_target(tmp_path, unreviewed_line="UNREVIEWED\n")
+    result = MergeOutcomeVerifier(repo).verify(_TARGET, claim)
+    assert result.status is VerifyStatus.FAIL
+    assert result.divergence is not None
+    assert ("src/shared.py", target_blob) in result.divergence.unattributable_blobs
+
+
+def _hand_resolved_mission_branch(tmp_path: Path) -> tuple[Path, Path, LanesManifest, str, str]:
+    """The charter repro shape (#7626): lane-a and lane-b edit the SAME line of a shared file;
+    the mission branch merges both and an operator hand-resolves the conflict to a third
+    blob. Returns ``(repo, feature_dir, manifest, mission_branch, resolved_blob)``; lane-c
+    (WP03) is cut and empty.
+    """
+    lane_wp_pairs = (("lane-a", "WP01"), ("lane-b", "WP02"), ("lane-c", "WP03"))
+    repo, feature_dir, manifest, coord_base = _build_shared_file_lanes(tmp_path, lane_wp_pairs=lane_wp_pairs)
+    lane_a = lane_branch_name(_MISSION_SLUG, "lane-a", target_branch=_TARGET)
+    lane_b = lane_branch_name(_MISSION_SLUG, "lane-b", target_branch=_TARGET)
+    _edit_shared_line(repo, lane_a, "src/shared.py", 4, "line 5 by A\n")
+    _edit_shared_line(repo, lane_b, "src/shared.py", 4, "line 5 by B\n")
+    mission = manifest.mission_branch
+    _git(repo, "branch", mission, coord_base)
+    _git(repo, "checkout", "-q", mission)
+    _git(repo, "merge", "-q", "--no-ff", "--no-edit", lane_a)
+    conflict = subprocess.run(["git", "-C", str(repo), "merge", "-q", "--no-ff", "--no-edit", lane_b], capture_output=True, check=False)
+    assert conflict.returncode != 0  # a genuine same-line conflict, resolved by hand below
+    shared = repo / "src" / "shared.py"
+    kept = [line for line in shared.read_text(encoding="utf-8").splitlines(keepends=True) if not line.startswith(("<<<<<<<", "=======", ">>>>>>>"))]
+    kept = [line for line in kept if line not in ("line 5 by A\n", "line 5 by B\n")]
+    kept.insert(4, "line 5 by A, and by B\n")
+    shared.write_text("".join(kept), encoding="utf-8")
+    _git(repo, "add", "src/shared.py")
+    _git(repo, "commit", "-qm", "merge lane-b: hand-resolved line 5")
+    resolved_blob = git_probes.blob_id_at(repo, mission, "src/shared.py")
+    _git(repo, "checkout", "-q", _TARGET)
+    return repo, feature_dir, manifest, mission, resolved_blob
+
+
+def _lane_c_own_commit(repo: Path) -> str:
+    """lane-c commits its own file (no edit of the shared path); returns the lane branch name."""
+    lane_c = lane_branch_name(_MISSION_SLUG, "lane-c", target_branch=_TARGET)
+    _git(repo, "checkout", "-q", lane_c)
+    (repo / "src" / "c.py").write_text("C = 1\n", encoding="utf-8")
+    _git(repo, "add", "src/c.py")
+    _git(repo, "commit", "-qm", "feat: lane-c own file")
+    _git(repo, "checkout", "-q", _TARGET)
+    return lane_c
+
+
+def _lane_c_merges(repo: Path, source: str) -> None:
+    """lane-c commits its own file, then merges *source* (no conflict on the shared path)."""
+    lane_c = _lane_c_own_commit(repo)
+    _git(repo, "checkout", "-q", lane_c)
+    _git(repo, "merge", "-q", "--no-ff", "--no-edit", source)
+    _git(repo, "checkout", "-q", _TARGET)
+
+
+def _land_lane_c(repo: Path) -> str:
+    """Land lane-c onto the target the way the squash does; return the window base (the pre-run target tip)."""
+    window_base = _rev(repo, _TARGET)
+    _git(repo, "merge", "-q", "--no-edit", lane_branch_name(_MISSION_SLUG, "lane-c", target_branch=_TARGET))
+    return window_base
+
+
+def test_squash_passes_reviewed_lane_merge_of_the_mission_branch_resolution(tmp_path: Path) -> None:
+    """#7626, the charter repro shape: a hand-resolved conflict sits on the MISSION branch
+    (trusted history). lane-c merges the mission branch and is approved AFTER that merge,
+    so its approval stamp reaches it: the resolution is in a reviewed tip, and the lane
+    authors what the merge brought in. The landed blob equals it: PASS.
+
+    RED before #7626: a merge on a lane's spine authored nothing, so the resolved blob
+    (equal to neither lane's own blob) was un-attributable."""
+    repo, feature_dir, manifest, mission, resolved_blob = _hand_resolved_mission_branch(tmp_path)
+    _lane_c_merges(repo, mission)
+    _restamp_approvals(repo)
+    window_base = _land_lane_c(repo)
+    assert git_probes.blob_id_at(repo, _TARGET, "src/shared.py") == resolved_blob
+
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=_rev(repo, mission), excluded_window_base=window_base)
+    assert ("src/shared.py", resolved_blob) in claim.authored_blobs
+    result = MergeOutcomeVerifier(repo).verify(_TARGET, replace(claim, verify_reachability=False))
+    assert result.is_pass, result.divergence.describe() if result.divergence else result.refusal_reason
+
+
+def test_squash_fails_closed_when_reviewed_lane_merges_a_foreign_branch(tmp_path: Path) -> None:
+    """#7626 negative (the #4977 carrier threat): lane-c merges a branch that is NOT
+    trusted history (not on the mission branch, the target, or another approved lane's
+    reviewed tip) and is approved after it. The merge is reviewed, but its second parent
+    is foreign, so it authors nothing: the smuggled blob stays un-attributable, FAIL."""
+    repo, feature_dir, manifest, coord_base = _build_shared_file_lanes(tmp_path, lane_wp_pairs=(("lane-c", "WP03"),))
+    _git(repo, "branch", "foreign", coord_base)
+    _edit_shared_line(repo, "foreign", "src/shared.py", 4, "SMUGGLED\n")
+    _lane_c_merges(repo, "foreign")
+    _git(repo, "branch", "-qD", "foreign")
+    _restamp_approvals(repo)
+    window_base = _land_lane_c(repo)
+    target_blob = git_probes.blob_id_at(repo, _TARGET, "src/shared.py")
+
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_window_base=window_base)
+    assert ("src/shared.py", target_blob) not in claim.authored_blobs
+    result = MergeOutcomeVerifier(repo).verify(_TARGET, replace(claim, verify_reachability=False))
+    assert result.status is VerifyStatus.FAIL
+    assert result.divergence is not None
+    assert ("src/shared.py", target_blob) in result.divergence.unattributable_blobs
+
+
+def test_squash_fails_closed_when_lane_merges_the_mission_branch_after_its_approval(tmp_path: Path) -> None:
+    """#7626 negative: the same mission-branch resolution, but lane-c merges it AFTER its
+    approval (no stamp reaches the merge). Unreviewed: it authors nothing, FAIL."""
+    repo, feature_dir, manifest, mission, resolved_blob = _hand_resolved_mission_branch(tmp_path)
+    lane_c = _lane_c_own_commit(repo)
+    _restamp_approvals(repo)  # approved here: the stamp is lane-c's own commit
+    _git(repo, "checkout", "-q", lane_c)
+    _git(repo, "merge", "-q", "--no-ff", "--no-edit", mission)
+    _git(repo, "checkout", "-q", _TARGET)
+    window_base = _land_lane_c(repo)
+    assert git_probes.blob_id_at(repo, _TARGET, "src/shared.py") == resolved_blob
+
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=_rev(repo, mission), excluded_window_base=window_base)
+    assert ("src/shared.py", resolved_blob) not in claim.authored_blobs
+    result = MergeOutcomeVerifier(repo).verify(_TARGET, replace(claim, verify_reachability=False))
+    assert not result.is_pass
 
 
 def test_squash_fails_closed_on_binary_conflict_between_two_lanes(tmp_path: Path) -> None:
@@ -2035,7 +2215,7 @@ def test_squash_fails_closed_on_binary_conflict_between_two_lanes(tmp_path: Path
         authored_blobs=frozenset({("unrelated.py", "0" * 40)}),
         window_base=window_base,
         manifest_wp_ids=frozenset({"WP01", "WP02"}),
-        multi_lane_paths={
+        path_contributions={
             "asset.bin": (
                 LaneContribution("lane-a", a_sha, git_probes.blob_id_at(repo, a_sha, "asset.bin")),
                 LaneContribution("lane-b", b_sha, git_probes.blob_id_at(repo, b_sha, "asset.bin")),
@@ -2049,7 +2229,7 @@ def test_squash_fails_closed_on_binary_conflict_between_two_lanes(tmp_path: Path
 
 
 def test_squash_fails_closed_when_lane_commit_ref_is_unresolvable(tmp_path: Path) -> None:
-    """'Absent base' residual (T005): a ``multi_lane_paths`` entry whose recorded
+    """'Absent base' residual (T005): a ``path_contributions`` entry whose recorded
     lane commit ref is no longer resolvable cannot even run the merge
     simulation — the probe errors, and the axis never attributes vacuously; the
     result is FAILED or REFUSED, but never PASSed."""
@@ -2064,10 +2244,10 @@ def test_squash_fails_closed_when_lane_commit_ref_is_unresolvable(tmp_path: Path
     _git(repo, "merge", "-q", "--no-edit", lane_b)
 
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_window_base=coord_base)
-    assert "src/shared.py" in claim.multi_lane_paths  # the map WOULD support the simulation
-    contribs = claim.multi_lane_paths["src/shared.py"]
+    assert "src/shared.py" in claim.path_contributions  # the map WOULD support the simulation
+    contribs = claim.path_contributions["src/shared.py"]
     corrupted = {"src/shared.py": (LaneContribution(contribs[0].lane_id, "deadbeef" * 5, contribs[0].authored_blob), contribs[1])}
-    squash_claim = replace(claim, verify_reachability=False, multi_lane_paths=corrupted)
+    squash_claim = replace(claim, verify_reachability=False, path_contributions=corrupted)
     result = MergeOutcomeVerifier(repo).verify(_TARGET, squash_claim)
     assert not result.is_pass
 
@@ -2088,7 +2268,7 @@ def test_squash_fails_closed_when_merge_tree_write_tree_unavailable(tmp_path: Pa
     _git(repo, "merge", "-q", "--no-edit", lane_b)
 
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_window_base=coord_base)
-    assert "src/shared.py" in claim.multi_lane_paths
+    assert "src/shared.py" in claim.path_contributions
     setattr_reconciliation_family(monkeypatch, "merge_tree_write_tree_available", lambda _repo_root: False)
     squash_claim = replace(claim, verify_reachability=False)
     result = MergeOutcomeVerifier(repo).verify(_TARGET, squash_claim)
@@ -2111,7 +2291,9 @@ def test_squash_fails_closed_when_merge_tree_write_tree_unavailable(tmp_path: Pa
         "whose deterministic output is reproducible in-process; this path has "
         "none, so no analogous replay proof is possible. Soundly unfixable "
         "(research.md Decision 3); tracked separately from #5038 as its own "
-        "dedicated follow-up issue #5051."
+        "dedicated follow-up issue #5051, now #5053. #7626 narrowed it: a hand "
+        "resolution that a reviewed lane merge brought in from trusted history is "
+        "attributed; one committed straight onto the target, as here, is not."
     ),
 )
 def test_squash_three_way_merge_resolution_is_unattributable(tmp_path: Path) -> None:
@@ -2151,7 +2333,7 @@ def test_squash_three_way_merge_resolution_is_unattributable(tmp_path: Path) -> 
         # than short-circuiting on the pre-widening "absent from authored_blobs"
         # check alone — the residual this pin documents is the CONFLICT case,
         # not merely "the map is empty".
-        multi_lane_paths={"src/shared.py": (LaneContribution("WP01", a_sha, alpha_blob), LaneContribution("WP02", b_sha, beta_blob))},
+        path_contributions={"src/shared.py": (LaneContribution("WP01", a_sha, alpha_blob), LaneContribution("WP02", b_sha, beta_blob))},
     )
     result = MergeOutcomeVerifier(repo).verify(_TARGET, claim)
     # Desired (not yet achievable): a genuine resolution is not "removed content".
@@ -2804,7 +2986,7 @@ def test_claim_fields_are_byte_identical_to_unmodified_collectors_non_mixed(tmp_
     snapshot = materialize_snapshot(feature_dir)
     work_packages = snapshot.work_packages or {}
     expected_approved = _collect_approved_shas(repo, manifest, work_packages, coord_base)
-    expected_authored_shas, expected_authored_patch_ids, expected_authored_blobs, expected_authored_deletions, expected_multi_lane_paths, *_ = _collect_authored(
+    expected_authored_shas, expected_authored_patch_ids, expected_authored_blobs, expected_authored_deletions, expected_path_contributions, *_ = _collect_authored(
         repo, manifest, work_packages, coord_base, canceled_lane_commits=frozenset()
     )
     expected_excluded_shas, expected_excluded_patch_ids = _collect_excluded(
@@ -2816,7 +2998,7 @@ def test_claim_fields_are_byte_identical_to_unmodified_collectors_non_mixed(tmp_
     assert claim.authored_patch_ids == expected_authored_patch_ids
     assert claim.authored_blobs == expected_authored_blobs
     assert claim.authored_deletions == expected_authored_deletions
-    assert claim.multi_lane_paths == expected_multi_lane_paths
+    assert claim.path_contributions == expected_path_contributions
     assert claim.excluded_shas == expected_excluded_shas
     assert claim.excluded_patch_ids == expected_excluded_patch_ids
     assert claim.canceled_content == frozenset()  # non-mixed mission: always empty
@@ -2846,7 +3028,7 @@ def test_claim_fields_are_byte_identical_to_unmodified_collectors_mixed_lane(tmp
     snapshot = materialize_snapshot(feature_dir)
     work_packages = snapshot.work_packages or {}
     expected_approved = _collect_approved_shas(repo, manifest, work_packages, coord_base)
-    expected_authored_shas, expected_authored_patch_ids, expected_authored_blobs, expected_authored_deletions, expected_multi_lane_paths, *_ = _collect_authored(
+    expected_authored_shas, expected_authored_patch_ids, expected_authored_blobs, expected_authored_deletions, expected_path_contributions, *_ = _collect_authored(
         repo, manifest, work_packages, coord_base, canceled_lane_commits=frozenset()
     )
     expected_excluded_shas, expected_excluded_patch_ids = _collect_excluded(
@@ -2858,7 +3040,7 @@ def test_claim_fields_are_byte_identical_to_unmodified_collectors_mixed_lane(tmp
     assert claim.authored_patch_ids == expected_authored_patch_ids
     assert claim.authored_blobs == expected_authored_blobs
     assert claim.authored_deletions == expected_authored_deletions
-    assert claim.multi_lane_paths == expected_multi_lane_paths
+    assert claim.path_contributions == expected_path_contributions
     assert claim.excluded_shas == expected_excluded_shas
     assert claim.excluded_patch_ids == expected_excluded_patch_ids
 
