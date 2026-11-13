@@ -324,7 +324,9 @@ def test_the_target_banner_reads_the_declared_target_after_settlement(settled_ro
 def test_the_write_side_reads_the_declared_target_after_settlement(settled_root_on_main: DefaultMission) -> None:
     """Blast radius: the composition root's target is ``dev``; writes still commit on the topic branch."""
     from mission_runtime import MissionArtifactKind, placement_seam
+    from mission_runtime.lifecycle_phase import LifecyclePhase, resolve_lifecycle_phase
     from mission_runtime.resolution import resolve_action_context
+    from specify_cli.core.paths import resolve_merge_target_branch
 
     mission = settled_root_on_main
     seam = placement_seam(mission.root, mission.slug)
@@ -332,6 +334,11 @@ def test_the_write_side_reads_the_declared_target_after_settlement(settled_root_
     assert seam.write_target(MissionArtifactKind.TRACER_FILE).ref == mission.topic
     assert seam.write_target(MissionArtifactKind.WORK_PACKAGE_TASK).ref == mission.topic
     assert resolve_action_context(mission.root, action="tasks", feature=mission.slug).target_branch == "dev"
+    # ``consolidate`` / ``orchestrator-api`` resolve the landing branch through this helper: it must agree.
+    assert resolve_merge_target_branch(mission.root, mission.slug, None) == ("dev", "meta.json")
+    # The phase probe still reads the root checkout, which is sound only because the landing alone records
+    # ``baseline_merge_commit``: a settled, unlanded Mission is PRE_CONSOLIDATION.
+    assert resolve_lifecycle_phase(mission.slug, mission.root) is LifecyclePhase.PRE_CONSOLIDATION
 
 
 def test_the_target_read_of_a_consolidated_mission_does_not_re_enter_itself(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

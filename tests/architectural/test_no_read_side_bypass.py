@@ -125,11 +125,11 @@ membership/uniqueness checks below key on the resulting
 
 Foundation-site sanctions (WP02 T011, E3) — per-site, never a module blanket
 ------------------------------------------------------------------------------
-``core/paths.py::resolve_merge_target_branch`` calls the leaf from beneath
-the seam's own composition root (NFR-009: routing it risks a resolution
-cycle); ``core/paths.py::get_feature_target_branch`` and
-``core/git_ops.py::resolve_target_branch`` did too until #7595 moved them onto
-the seam's ``read_dir_for`` reader. Neither module is otherwise a
+``core/paths.py::resolve_merge_target_branch``,
+``core/paths.py::get_feature_target_branch`` and
+``core/git_ops.py::resolve_target_branch`` called the leaf from beneath the
+seam's own composition root until #7595 moved them onto the seam's
+``read_dir_for`` reader. Neither module is otherwise a
 sanctioned-infra module — both carry substantial unrelated logic — so
 whole-module sanctioning would be exactly the path-scoped blanket C-003
 forbids. ``_FOUNDATION_SANCTION_SEED`` sanctions each remaining site
@@ -701,20 +701,6 @@ _FOUNDATION_SANCTION_SEED: tuple[ContentDescriptor, ...] = (
     # (``core/git_ops.py::resolve_target_branch``) now read ``meta.json`` through the seam's
     # PRIMARY-metadata reader ``mission_runtime.resolution.read_dir_for`` and no longer call the
     # leaf; their rows are removed (shrink-only), never re-pointed.
-    ContentDescriptor(
-        rel_path="src/specify_cli/core/paths.py",
-        qualname="resolve_merge_target_branch",
-        token_substring="_compose_primary_feature_dir (",
-        occurrence=None,
-        rationale=(
-            "FR-005 foundation site 2/4: reads the repository root checkout's "
-            "literal Mission dir; constrained by core/paths.py's early-import "
-            "deferred-import layering and behaviour preservation with the "
-            "deleted wrapper (one entry, not a module blanket, per C-003). "
-            "WP08 (T035): token re-pointed to the leaf in the same commit as "
-            "the wrapper deletion, same M1 rationale."
-        ),
-    ),
     # ---- Post-merge aggregate-squad closeout (fix/read-side-seam-primary-
     # ---- primitive-closure follow-up): the remaining two named FR-005/
     # ---- NFR-009 foundation sites, deferred at WP06/WP08 time (ledger's "WP06
