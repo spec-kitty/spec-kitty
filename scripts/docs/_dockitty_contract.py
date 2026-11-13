@@ -65,6 +65,8 @@ __all__ = [
     "DRAFT_FOLDERS",
     "DRAFT_STATUS",
     "EXCLUDED_FOLDERS",
+    "HISTORY_PREFIXES",
+    "IMMUTABLE_PREFIXES",
     "INDEX_BASENAMES",
     "KINDS",
     "LLMS_STANCE",
@@ -102,6 +104,13 @@ EXCLUDED_FOLDERS: Final[tuple[str, ...]] = ("archive", "reports", "convergence",
 #: ``index.md`` (#6939); ``tests/docs/test_section_index_basename.py`` keeps ``index.md`` out.
 INDEX_BASENAMES: Final[tuple[str, ...]] = ("README",)
 
+#: History folders whose pages never change besides the dated ADRs: plans, reports, changelog, archive.
+IMMUTABLE_PREFIXES: Final[tuple[str, ...]] = ("plans/", "reports/", "changelog/", "archive/")
+
+#: Every history folder, ``adr/`` included: pages there are never part of the living set. The one
+#: source for the staleness audit and the retired-surface gate (``scripts/docs/_living_pages.py``).
+HISTORY_PREFIXES: Final[tuple[str, ...]] = ("adr/", *IMMUTABLE_PREFIXES)
+
 #: Personas live under ``docs/context/audience/``; a profile is a path below it.
 PERSONA_ROOT: Final[str] = "context/audience"
 
@@ -133,7 +142,6 @@ _INDEX_BASENAMES_FOLDED: Final[frozenset[str]] = frozenset(name.lower() for name
 _MD_SUFFIX: Final[str] = ".md"
 _FENCE: Final[str] = "---"
 _DATED_ADR: Final[re.Pattern[str]] = re.compile(r"^adr/\d+\.x/\d{4}-\d{2}-\d{2}-[^/]+\.md$")
-_IMMUTABLE_PREFIXES: Final[tuple[str, ...]] = ("plans/", "reports/", "changelog/", "archive/")
 _DOC_STATUS_LINE: Final[re.Pattern[str]] = re.compile(r"""^doc_status:[ \t]*(?P<value>[^\s#]*)""", re.MULTILINE)
 #: doc-kitty's redirect stub (``renderLegacyStub``, ``lib/legacy-html-redirects.mjs``): the same
 #: two-part shape its coverage gate reads (``REDIRECT_STUB_RE``, ``scripts/check-redirect-coverage.mjs``),
@@ -304,7 +312,7 @@ def is_immutable(rel_under_docs: str) -> bool:
     """True for history whose body never changes: ADRs, plans, reports, changelog, archive."""
     if not rel_under_docs.endswith(_MD_SUFFIX):
         return False
-    return is_dated_adr(rel_under_docs) or rel_under_docs.startswith(_IMMUTABLE_PREFIXES)
+    return is_dated_adr(rel_under_docs) or rel_under_docs.startswith(IMMUTABLE_PREFIXES)
 
 
 # ---------------------------------------------------------------------------

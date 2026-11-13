@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+from scripts.docs import _living_pages as living
 from scripts.docs import staleness_audit as audit
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -27,7 +28,7 @@ _FRONT = "---\ntitle: t\ndescription: d\ndoc_status: active\nkind: How-To\nupdat
 
 
 def test_living_pages_are_the_published_set_minus_history() -> None:
-    pages = audit.living_pages(_REPO_ROOT / "docs")
+    pages = living.living_pages(_REPO_ROOT / "docs")
     assert len(pages) >= 300  # non-vacuity: about 340 published living pages
     assert pages == sorted(pages)
     assert "README.md" in pages and "guides/README.md" in pages
@@ -211,7 +212,7 @@ def test_the_inventory_is_reproducible_and_lists_every_section(repo: Path, tmp_p
     assert (first / "inventory.json").read_bytes() == (second / "inventory.json").read_bytes()
     assert (first / "page-lists.md").read_bytes() == (second / "page-lists.md").read_bytes()
     data = json.loads((first / "inventory.json").read_text(encoding="utf-8"))
-    assert [record["page"] for record in data["pages"]] == audit.living_pages(repo / "docs")
+    assert [record["page"] for record in data["pages"]] == living.living_pages(repo / "docs")
     assert "plans/p.md" not in [record["page"] for record in data["pages"]]
     assert data["pages"][1]["retired_surfaces"] == ["spec-kitty merge"]
     assert data["pages"][1]["commands_missing"] == ["spec-kitty merge"]
@@ -229,4 +230,4 @@ def test_the_inventory_reads_title_and_description_like_the_gate(repo: Path) -> 
     record = next(record for record in audit.build_inventory(repo) if record.page == "guides/b.md")
 
     assert record.retired_surfaces == ["spec-kitty merge"]
-    assert audit.published_text(front + "body\n").splitlines()[1] == "Run spec-kitty merge"
+    assert living.published_text(front + "body\n").splitlines()[1] == "Run spec-kitty merge"

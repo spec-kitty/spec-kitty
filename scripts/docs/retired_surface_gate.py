@@ -1,6 +1,6 @@
 """The retired-surface gate: a published living page must not newly name a retired surface (#7520).
 
-The living pages are :func:`scripts.docs.staleness_audit.living_pages` (the published set
+The living pages are :func:`scripts.docs._living_pages.living_pages` (the published set
 minus the history folders); the retired surfaces come from one authority,
 :mod:`scripts.retired_surfaces`, which the code gate
 ``tests/architectural/test_no_retired_subsystems.py`` reads too.
@@ -45,7 +45,7 @@ _REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from scripts.docs.staleness_audit import living_pages, published_text  # noqa: E402  (sys.path bootstrap above)
+from scripts.docs._living_pages import living_pages, published_text  # noqa: E402  (sys.path bootstrap above)
 from scripts.retired_surfaces import docs_retired_surfaces, surfaces_named  # noqa: E402  (sys.path bootstrap above)
 
 __all__ = [

@@ -17,7 +17,7 @@ immutable history folders ``adr/``, ``plans/``, ``reports/``, ``changelog/`` and
   command words can be read as a missing subcommand.
 * ``readers``: the audience profiles the frontmatter names (``docs/context/audience/``).
 * ``retired_surfaces``: the retired surfaces the page names in its body, ``title`` or
-  ``description`` (:func:`published_text`, the same text the retired-surface gate scans).
+  ``description`` (:func:`scripts.docs._living_pages.published_text`, the same text the retired-surface gate scans).
 * ``text_diagrams``: code fences drawn as text (box-drawing characters or arrow art in an
   untyped or ``text`` fence) that could move to build-time Mermaid or PlantUML. A heuristic.
 * ``kind``, ``divio_signals``, ``mixed_types``: the declared kind and the Divio types its
@@ -50,13 +50,13 @@ _REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from scripts.docs._dockitty_contract import body_of, published_pages  # noqa: E402  (sys.path bootstrap above)
+from scripts.docs._dockitty_contract import body_of  # noqa: E402  (sys.path bootstrap above)
 from scripts.docs._inventory import parse_frontmatter  # noqa: E402  (sys.path bootstrap above)
+from scripts.docs._living_pages import living_pages, published_text  # noqa: E402  (sys.path bootstrap above)
 from scripts.retired_surfaces import surfaces_named  # noqa: E402  (sys.path bootstrap above)
 
 __all__ = [
     "DEFAULT_SECTION_ISSUE",
-    "HISTORY_PREFIXES",
     "SECTION_ISSUES",
     "ContentChange",
     "ShallowHistoryError",
@@ -65,20 +65,15 @@ __all__ = [
     "PageRecord",
     "build_inventory",
     "divio",
-    "living_pages",
     "main",
     "named_commands",
     "named_paths",
-    "published_text",
     "readers",
     "render_json",
     "render_page_lists",
     "section_issue",
     "text_diagrams",
 ]
-
-#: Immutable history: never part of the living set.
-HISTORY_PREFIXES: Final[tuple[str, ...]] = ("adr/", "plans/", "reports/", "changelog/", "archive/")
 
 #: The section sub-issue of epic #3891 that owns each top-level section.
 SECTION_ISSUES: Final[Mapping[str, str]] = {
@@ -127,39 +122,6 @@ def section_issue(page: str) -> str:
     """The section sub-issue (#7522-#7528) a page under ``docs/`` belongs to."""
     head, _, rest = page.partition("/")
     return SECTION_ISSUES.get(head, DEFAULT_SECTION_ISSUE) if rest else DEFAULT_SECTION_ISSUE
-
-
-#: The frontmatter keys the site publishes on the page (doc-kitty renders both).
-_PUBLISHED_KEYS: Final[tuple[str, ...]] = ("title", "description")
-_FENCE_LINE: Final[str] = "---"
-
-
-def published_text(text: str) -> str:
-    """The text a page publishes, line for line: its ``title`` and ``description`` and its body.
-
-    The frontmatter is read with the YAML loader, so a folded or continued value
-    (``description: >-``) is whole; it is placed on its key's line. Every other frontmatter
-    line is blanked, not removed, so line numbers stay file line numbers. The gate and the
-    inventory both scan this text.
-    """
-    lines = text.splitlines()
-    if not lines or lines[0].strip() != _FENCE_LINE:
-        return text
-    closing = next((index for index in range(1, len(lines)) if lines[index].strip() == _FENCE_LINE), None)
-    if closing is None:
-        return text
-    values = parse_frontmatter(text)
-    kept = [""] * closing
-    for index in range(1, closing):
-        key = lines[index].split(":", 1)[0]
-        if key in _PUBLISHED_KEYS and isinstance(values.get(key), str):
-            kept[index] = " ".join(str(values[key]).split())
-    return "\n".join([*kept, *lines[closing:]])
-
-
-def living_pages(docs_root: Path) -> list[str]:
-    """The published living pages under *docs_root*, relative to it and sorted."""
-    return sorted(page for page in published_pages(docs_root) if not page.startswith(HISTORY_PREFIXES))
 
 
 # --- Last real content change ---------------------------------------------------------
