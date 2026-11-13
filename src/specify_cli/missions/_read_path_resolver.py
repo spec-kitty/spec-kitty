@@ -2134,20 +2134,28 @@ def default_mission_topic_dir(repo_root: Path, composed: Path) -> Path | None:
     every explicit-topology or legacy Mission, a landed one (the one "landed" signal,
     :func:`mission_runtime.mission_has_landed`), and when no non-lane checkout holding the
     topic branch carries the Mission directory. ``meta.json`` is read through the one
-    fail-closed reader (FR-007 / #3162): a corrupt or unreadable one raises
-    :class:`~specify_cli.core.paths.MissionMetaReadError`. Answering ``None`` would hand the caller
+    fail-closed reader (FR-007 / #3162). A corrupt or unreadable coordination-worktree copy raises
+    :class:`~specify_cli.core.paths.MissionMetaReadError`: answering ``None`` would hand the caller
     the composed root checkout path, which carries no ``meta.json`` after a settlement, so its own
-    read would find nothing and fall back silently to the checked-out primary branch.
+    read would find nothing and fall back silently to the checked-out primary branch. A corrupt
+    ``meta.json`` in *composed* itself answers ``None`` instead (the posture of
+    :func:`mission_runtime.mission_has_landed`): the caller's own read of that same file keeps its
+    documented fail-closed verdict.
 
     Raises:
-        MissionMetaReadError: When the Mission's ``meta.json`` is corrupt or unreadable.
+        MissionMetaReadError: When the coordination worktree's ``meta.json`` is corrupt or unreadable.
     """
-    from specify_cli.core.paths import load_meta_fail_closed
+    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 
     meta_dir = composed if (composed / "meta.json").is_file() else _coord_worktree_mission_dir(repo_root, composed.name)
     if meta_dir is None:
         return None
-    meta = load_meta_fail_closed(meta_dir)
+    try:
+        meta = load_meta_fail_closed(meta_dir)
+    except MissionMetaReadError:
+        if meta_dir == composed:
+            return None
+        raise
     topic = meta.get("mission_branch") if meta else None
     if not meta or meta.get("topology_source") != "default" or not isinstance(topic, str) or not topic:
         return None
