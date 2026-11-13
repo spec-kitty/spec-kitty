@@ -358,10 +358,31 @@ def test_mission_base_note_cases() -> None:
     )
 
     unavailable = ApprovedWpCommitSet(mission_base=MissionBase(None, MissionBaseProvenance.UNAVAILABLE, "git probe failed: x", MissionBaseReason.PROBE_FAILED))
-    assert mission_base_note(unavailable) == ("Mission base unavailable (a git probe failed); reconciliation windows are bounded by the target's pre-run tip only.")
+    unavailable_note = "Mission base unavailable (a git probe failed); reconciliation windows are bounded by the target's pre-run tip only."
+    assert mission_base_note(unavailable) == unavailable_note
 
     assert mission_base_note(ApprovedWpCommitSet(mission_base=MissionBase(sha, MissionBaseProvenance.RECORDED))) is None
     assert mission_base_note(ApprovedWpCommitSet()) is None
+
+    # The note decides on the typed reason, never on the reason's text (Arch-3/4): silent for a missing
+    # Mission branch, and git's own words never reach the line.
+    gone = MissionBase(None, MissionBaseProvenance.UNAVAILABLE, "the Mission branch does not resolve", MissionBaseReason.MISSION_BRANCH_UNRESOLVED)
+    assert mission_base_note(ApprovedWpCommitSet(mission_base=gone)) is None
+    for leaky in (
+        "git probe failed: fatal: bad revision 'x'",
+        "git probe failed: git log failed (exit 128): fatal: x; secret; more stderr",
+        "no mission_base_sha recorded; git probe failed: fatal: bad revision 'x'",
+        "rev-list exploded",
+    ):
+        probe = MissionBase(None, MissionBaseProvenance.UNAVAILABLE, leaky, MissionBaseReason.PROBE_FAILED)
+        assert mission_base_note(ApprovedWpCommitSet(mission_base=probe)) == unavailable_note
+    plain = MissionBase(None, MissionBaseProvenance.UNAVAILABLE, "no mission_base_sha recorded", MissionBaseReason.NOT_RECORDED)
+    assert mission_base_note(ApprovedWpCommitSet(mission_base=plain)) == (
+        "Mission base unavailable (no mission_base_sha recorded); reconciliation windows are bounded by the target's pre-run tip only."
+    )
+    leaky_derived = MissionBase(sha, MissionBaseProvenance.DERIVED, "git probe failed: fatal: boom", MissionBaseReason.PROBE_FAILED)
+    leaky_note = mission_base_note(ApprovedWpCommitSet(mission_base=leaky_derived, pre_mission_shas=frozenset({"a"})))
+    assert leaky_note is not None and "fatal" not in leaky_note and "(derived: a git probe failed)" in leaky_note
 
 
 # --- T012 / NFR-001: the claim builder --------------------------------------------------
