@@ -1003,7 +1003,8 @@ jobs:
         run: uv run --frozen --no-sync pytest tests/architectural/test_no_legacy_terminology.py -q
 
   # Docs prose lint (#5426): codespell (typos + scoped US spelling) and the
-  # changelog [Unreleased] style guard. Always-on because its inputs span
+  # changelog [Unreleased] style guard, plus the retired-surface gate (#7520: a published
+  # living page must not newly name a retired surface). Always-on because its inputs span
   # docs/**, README.md, packs/built-in/**/*.md, pyproject.toml and uv.lock,
   # which no single path group covers. Runs no pytest (duplicate-suite ledger).
   # Also the generated-surface guard: a PR must not edit the docs retrieval
@@ -1013,7 +1014,7 @@ jobs:
   # gives it the PR merge commit's base parent (HEAD^1).
   docs-lint:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
-    name: docs lint (spelling + changelog style, always-on)
+    name: docs lint (spelling, changelog style, retired surfaces; always-on)
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -1031,6 +1032,7 @@ jobs:
         run: |
           uv run --frozen --no-sync python -m scripts.docs.check_spelling
           uv run --frozen --no-sync python -m scripts.docs.check_changelog_style
+          uv run --frozen --no-sync python -m scripts.docs.retired_surface_gate
           uv run --frozen --no-sync python -m scripts.ci.check_generated_docs_untouched
           uv run --frozen --no-sync python -m scripts.ci.check_legacy_lifecycle_log_untouched
 
