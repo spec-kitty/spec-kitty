@@ -71,7 +71,9 @@ finalize), which owns create-time topology.
 | `invocation/executor.py` records the no-op as a refusal | File separately (minor). |
 | Coordination root picked by existence only (`tasks_move_task.py`, `tasks_shared.py`, `mission_finalize_planning_pin.py`, `_resolve_legacy_porcelain_root`) | Overlaps #7633 (coordination-less commits pick their checkout by a raw probe). Refs #7633, not changed here. |
 | Tests that pin today's `lanes`-on-protected admission (`tests/core/test_mission_create_protected_single_branch.py`, the `protected/lanes/plain` golden, the branch-coverage rows, CLI `--topology lanes --target-branch main`) | In scope: the ruling changes the behavior they pin. |
-| Hand-built `lanes` fixtures on protected `main` (`review_range_fixtures.py`, `tests/terminus/lanes_fixture.py`, `coord_topology_fixture.py`) | Unaffected by a create-time refusal. The review fixture is fixed in scope (its #7578 protection workaround removed). |
+| Hand-built `lanes` fixtures on protected `main` (`review_range_fixtures.py`, `tests/terminus/lanes_fixture.py`, `coord_topology_fixture.py`) | Unaffected by a create-time refusal. The review fixture is fixed in scope: `_adapt_to_lanes` now builds the admitted shape (`main` un-protected), and `_review_args` claims with `--agent` for every fixture. |
+| Test helpers that create `lanes` on protected `main` through `create_mission_core` (`test_concurrent_appenders.py`, `test_add_history_event_log.py`, `test_structured_actor_annotations_6400.py`) | In scope: they un-protect `main` first (`_unprotect_main`), the shape create admits. |
+| `lanes_with_coord` review claim on protected `main`: the claim lands on the coordination branch, then a follow-up commit routed to `main` is refused | New defect, filed as #7637. The review fixture keeps a protection lift for `lanes_with_coord` only, citing #7637. |
 | `migration/backfill_topology.py` restamps or derives `lanes` with no protected-target check | File separately: a migration of an existing Mission, not create. |
 
 **Tracked issues.** No duplicate of either bug. Refs: #7633 (coordination-less checkout

@@ -5,7 +5,7 @@ status: Proposed
 doc_status: active
 kind: ADR
 date: '2026-11-06'
-updated: '2026-11-06T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
 ---
 
 # A default Mission topology is settled once, by size, at the first finalize
@@ -210,3 +210,14 @@ No user-reachable settlement ships in a release without the per-WP approval wind
 - Mission artifacts: `kitty-specs/lane-worktree-model-hardening-01M6QY1M/spec.md` (User Story 3, FR-050 to FR-062, A-1 to A-7), `research.md` R-6, `data-model.md` §1, `contracts/finalize-tasks-json.md`, `contracts/mission-create-json.md`, `contracts/error-codes.yaml`.
 - Decision Moments: `01M6QY2SJ9ND1SKMH2230FS7JA` (ruling 1), `01M6QY46RJGFZN6WBVQQXCZSY6` (deferred materialization), `01M6QZ02HDACM7A0VNYSAQ8MQB` and `01M6R0B954ZPQN5NV4R1ZRE7NY` (the "lanes otherwise" mapping), `01M6R0BDYC29D6XMDY72R22CP9` (provisional representation), `01M6R0BJQ6Q1MV6492EH6HB66H` (contract bump), `01M6R0QJVPVZG2QT8MWQD4NXJR` (PRIMARY placement), `01M6R0QQM5FCPY736008AD4W6V` (`--pr-bound`).
 - Related: [ADR 2026-06-22-1](../3.x/2026-06-22-1-mission-topology-ssot.md) (stored topology, amended), [ADR 2026-10-04-5](2026-10-04-5-approval-stamp-bounds-the-approved-claim.md) (approval bound, amended for S8), [ADR 2026-11-06-2](2026-11-06-2-one-status-read-contract.md) (status read contract), [`docs/context/topology.md`](../../context/topology.md).
+
+## Amendment 2026-11-13: an explicit `lanes` create on a protected target is refused
+
+Operator ruling Q2 (2026-11-13), [#7632](https://github.com/spec-kitty/spec-kitty/issues/7632).
+
+- **The gap.** `lanes` is explicit-only (Decision 1) and mints neither a Mission branch nor a coordination branch. On a protected target, `agent mission create --topology lanes` was admitted, its scaffold commit was skipped, and every later status write was refused with `PROTECTED_BRANCH_REFUSED`.
+- **Decision.** Create refuses that shape before any write, with `LANES_PROTECTED_TARGET_REFUSED` (`LanesProtectedTargetError`, exit 1, the code in the `--json` payload). The message names two remedies: an unprotected target branch (`--target-branch`), or `--topology lanes_with_coord`. Create does not mint a branch for a `lanes` Mission; that would be Option 5, which stays rejected.
+- **Predicate.** The refusal asks the predicate the later status write asks, `ProtectionPolicy.is_protected` with the operator hatch, over the repository root's configuration and, for an owned create, the owned checkout's as well. It does not ask the #5100 mint rule (`is_protected_target`, primary branch plus configured branches). A primary branch the project un-protects (`protection.protected_branches: []`) still admits `lanes`, because its status writes succeed there.
+- **Scope.** Only create changes. A stored `lanes` Mission, the migrations that stamp or restamp `lanes`, and finalize (which never settles to `lanes`) are unchanged. The scaffold commit's `ProtectedBranchRefused` bootstrap skip is no longer reached by a `lanes` create; it stays for the other skip causes.
+
+Nothing else in this record changes.
