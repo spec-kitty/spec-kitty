@@ -31,6 +31,7 @@ from specify_cli.consolidation import claim_inputs as ci
 from specify_cli.consolidation import forecast, phase_claim, phase_gate, status_surface
 from specify_cli.consolidation.claim_inputs import ClaimInputContext, ClaimInputs, ClaimInputSource, claim_inputs
 from specify_cli.consolidation.config import MergeStrategy
+from specify_cli.consolidation.rollback import capture_pre_mutation_snapshot, rebaseline_after_full_restore
 from specify_cli.consolidation.state import ConsolidationState
 from specify_cli.lanes.compute import lane_created_branch
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
@@ -609,3 +610,51 @@ def test_gate_rebuild_keeps_the_live_mission_branch_name(monkeypatch: pytest.Mon
     assert seen[0].coord_base == _MISSION_BRANCH
     assert seen[0].target_base == _TARGET
     assert seen[0].excluded_canceled_wp_ids == _EXCLUDED
+
+
+def test_a_rebaselined_coordination_resume_gate_reads_the_tip_the_claim_trusted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7626 on a coordination topology, claim to gate over a real repository.
+
+    The coordination branch shares the Mission branch's name, and a rebaseline keeps
+    ``pre_mutation_coord_sha``, so the snapshot taken after the claim seeds that branch from the tip
+    BEFORE the operator's commit. The gate must not re-read the Mission tip from that snapshot: it reuses
+    the claim phase's one inputs value, so the claim and the gate trust the same (live) tip.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q", "-b", "main")
+    _git(repo, "config", "user.email", "t@example.com")
+    _git(repo, "config", "user.name", "t")
+    _git(repo, "config", "commit.gpgsign", "false")
+    _git(repo, "commit", "-q", "--allow-empty", "-m", "base")
+    _git(repo, "checkout", "-qb", _MISSION_BRANCH)
+    _git(repo, "commit", "-q", "--allow-empty", "-m", "pre-rollback tip")
+    before = _git(repo, "rev-parse", "HEAD")
+    _git(repo, "commit", "-q", "--allow-empty", "-m", "operator conflict resolution")
+    operator_tip = _git(repo, "rev-parse", "HEAD")
+    _git(repo, "checkout", "-q", "main")
+    manifest = _manifest()
+    state = _state()
+    state.pre_mutation_refs = {_MISSION_BRANCH: before}
+    state.pre_mutation_coord_ref, state.pre_mutation_coord_sha = _MISSION_BRANCH, before
+    rebaseline_after_full_restore(state, ())
+    assert state.pre_mutation_coord_sha == before, "a coordination topology keeps its anchor across a rebaseline"
+    assert ci.record_was_rebaselined(state)
+
+    inputs = claim_inputs(
+        ClaimInputSource.SAVED,
+        ClaimInputContext(repo_root=repo, manifest=manifest, status_dir=_STATUS, strategy="merge", resolved_target_base=_TARGET, state=state, rebaselined=True),
+    )
+    capture_pre_mutation_snapshot(repo, state, manifest, coord_ref=_MISSION_BRANCH, is_resume=True)
+    assert state.pre_mutation_refs[_MISSION_BRANCH] == before, "the snapshot seeds the shared branch from the older anchor"
+
+    seen: list[ClaimInputs] = []
+    monkeypatch.setattr(phase_gate, "build_claim", lambda _r, _m, got: seen.append(got) or "rebuilt")
+    run = SimpleNamespace(
+        main_repo=repo, lanes_manifest=manifest, approved_wp_set=None, claim_inputs=inputs, dependency_ref_pins={}, strategy=MergeStrategy.MERGE
+    )
+
+    assert phase_gate._reconciliation_claim_for_gate(cast(Any, run)) == "rebuilt"
+
+    assert inputs.mission_branch_tip == operator_tip
+    assert seen == [inputs] and seen[0].mission_branch_tip == operator_tip
