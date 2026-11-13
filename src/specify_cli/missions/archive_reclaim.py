@@ -245,9 +245,17 @@ def _remove_worktree(coordination: _Coordination) -> ReclaimStep:
             coordination.mission_slug,
             coordination.mid8,
             follow_up_command=reclaim_command(coordination.mission_slug),
+            # Reclaim requires merged_at, so consolidate already persisted the retrospective; never commit one here.
+            persist=False,
         )
     except (CoordTeardownKeptOnlyCopy, ProjectionTeardownAbort) as exc:
         raise ReclaimRefused(exc.error_code, str(exc), "The coordination worktree, branch and marker were kept.") from exc
+    except Exception as exc:  # noqa: BLE001 — any other seam failure is a named, re-runnable refusal, never a traceback
+        raise ReclaimRefused(
+            RECLAIM_WORKTREE_KEPT,
+            f"The coordination worktree of {coordination.mission_slug} could not be torn down: {exc}",
+            f"The coordination worktree, branch and marker were kept. Clear the cause above, then re-run: {reclaim_command(coordination.mission_slug)}.",
+        ) from exc
     if CoordinationWorkspace.is_present(coordination.repo_root, coordination.mission_slug, coordination.mid8):
         raise ReclaimRefused(
             RECLAIM_WORKTREE_KEPT,
