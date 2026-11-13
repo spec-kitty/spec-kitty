@@ -75,7 +75,6 @@ persisted record.
 
 from __future__ import annotations
 
-import logging
 import subprocess
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
@@ -95,8 +94,6 @@ from specify_cli.git.ref_advance import (
 )
 from specify_cli.lanes.compute import lane_created_branch
 from specify_cli.lanes.models import LanesManifest
-
-logger = logging.getLogger(__name__)
 
 # Only the entry points other modules call. The report/outcome types and
 # ``snapshot_branches`` stay public (tests and typed callers import them by name)

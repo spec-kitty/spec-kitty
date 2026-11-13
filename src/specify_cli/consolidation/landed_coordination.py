@@ -31,13 +31,11 @@ from specify_cli.git.ref_advance import delete_bookkeeping_ref, write_bookkeepin
 # ``landed_coordination_tip`` and ``landed_coordination_ref`` are read by ``archive reclaim`` (#4041).
 # LANDED_COORDINATION_REF_PREFIX stays module-internal until a caller outside this module needs it.
 __all__ = [
-    "LandedCoordinationRefError",
     "clear_landed_coordination_ref",
     "clear_landed_coordination_tip",
     "landed_coordination_ref",
     "landed_coordination_tip",
     "record_landed_coordination_ref",
-    "record_landed_coordination_tip",
 ]
 
 logger = logging.getLogger(__name__)
