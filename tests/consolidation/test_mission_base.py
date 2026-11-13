@@ -206,7 +206,7 @@ def test_mission_start_probe_failure_is_unavailable(repo: Path, tmp_path: Path, 
             return 128, "", "fatal: bad object"
         return real(argv, **kwargs)
 
-    monkeypatch.setattr("specify_cli.consolidation.mission_base.run_command", failing_log)
+    monkeypatch.setattr("specify_cli.consolidation.git_probes.run_command", failing_log)
 
     result = resolve_mission_base(repo, feature_dir, mission_branch=MISSION_BRANCH, mission_slug=SLUG)
 
@@ -220,11 +220,11 @@ def test_recorded_sha_resolve_failure_is_a_probe_failure(repo: Path, tmp_path: P
     from specify_cli.core.git_ops import run_command as real
 
     def failing_rev_parse(argv: list[str], **kwargs: Any) -> Any:
-        if argv[:2] == ["git", "rev-parse"]:
+        if argv[:2] == ["git", "rev-parse"] and "--quiet" in argv:  # the recorded-sha probe, not the branch resolve
             return 128, "", "fatal: corrupt"
         return real(argv, **kwargs)
 
-    monkeypatch.setattr("specify_cli.consolidation.mission_base.run_command", failing_rev_parse)
+    monkeypatch.setattr("specify_cli.consolidation.git_probes.run_command", failing_rev_parse)
 
     result = resolve_mission_base(repo, feature_dir, mission_branch=MISSION_BRANCH, mission_slug=SLUG)
 

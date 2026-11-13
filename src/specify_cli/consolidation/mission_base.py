@@ -67,14 +67,16 @@ from pathlib import Path
 from kernel.git import GitCommandError, changed_entries
 from specify_cli.consolidation.git_probes import (
     GitProbeError,
+    commit_id_in_clone,
     commit_in_clone,
     commit_parents,
+    earliest_first_parent_adding,
     commits_in_range,
     is_ancestor_strict,
+    last_commit_touching,
     resolve_commit,
 )
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.core.git_ops import run_command
 from specify_cli.meta_keys import MISSION_BASE_SHA_KEY
 from specify_cli.mission_metadata import load_meta_or_empty
 
@@ -222,7 +224,7 @@ def _recorded_base(repo_root: Path, feature_dir: Path | None, mission_slug: str,
     sha = value.strip()
     if not _FULL_OBJECT_ID.fullmatch(sha):
         return _Candidate(None, f"recorded {MISSION_BASE_SHA_KEY} {sha[:_SHORT]!r} is not a full commit id", MissionBaseReason.RECORDED_NOT_A_SHA)
-    resolved = _commit_id_in_clone(repo_root, sha)
+    resolved = commit_id_in_clone(repo_root, sha)
     if resolved is not None and resolved != sha:
         return _Candidate(None, f"recorded {MISSION_BASE_SHA_KEY} {sha[:_SHORT]!r} is not a full commit id", MissionBaseReason.RECORDED_NOT_A_SHA)
     if resolved is None:
@@ -263,11 +265,7 @@ def _below_mission_start(repo_root: Path, sha: str, mission_slug: str, what: str
     merge made TREESAME is not pruned) means the base is not below the Mission. A ``git log``
     failure raises :class:`GitProbeError`.
     """
-    argv = ["git", "log", "-1", "--full-history", "--format=%H", sha, "--", f"{KITTY_SPECS_DIR}/{mission_slug}/"]
-    ret, out, err = run_command(argv, capture=True, check_return=False, cwd=repo_root)
-    if ret != 0:
-        raise GitProbeError(f"git log -1 {sha[:_SHORT]} -- {KITTY_SPECS_DIR}/{mission_slug}/ failed (exit {ret}): {(err or '').strip()}")
-    touched = (out or "").strip()
+    touched = last_commit_touching(repo_root, sha, f"{KITTY_SPECS_DIR}/{mission_slug}/")
     if touched:
         return _Candidate(
             None,
@@ -279,26 +277,9 @@ def _below_mission_start(repo_root: Path, sha: str, mission_slug: str, what: str
 
 def _earliest_scaffold_commit(repo_root: Path, mission_branch: str, mission_slug: str) -> str | None:
     """The oldest first-parent commit of *mission_branch* that adds a file under the Mission directory."""
-    argv = [
-        "git",
-        "log",
-        "--first-parent",
-        "--diff-merges=first-parent",
-        "--no-patch",
-        "--reverse",
-        "--diff-filter=A",
-        "--format=%H",
-        mission_branch,
-        "--",
-        f"{KITTY_SPECS_DIR}/{mission_slug}/",
-    ]
-    ret, out, err = run_command(argv, capture=True, check_return=False, cwd=repo_root)
-    if ret != 0:
-        raise GitProbeError(f"git log --first-parent {mission_branch} failed (exit {ret}): {(err or '').strip()}")
-    for line in (out or "").splitlines():
-        if line.strip():
-            return line.strip()
-    return None
+    # Typed local: the probe module is mypy-skipped (#7334).
+    scaffold: str | None = earliest_first_parent_adding(repo_root, mission_branch, f"{KITTY_SPECS_DIR}/{mission_slug}/")
+    return scaffold
 
 
 def _renamed_into(repo_root: Path, parent: str, commit: str, mission_slug: str) -> str | None:
@@ -331,20 +312,6 @@ def _is_on_branch(repo_root: Path, sha: str, mission_branch: str) -> bool:
     if not commit_in_clone(repo_root, sha):
         return False
     return bool(is_ancestor_strict(repo_root, sha, mission_branch))
-
-
-def _commit_id_in_clone(repo_root: Path, sha: str) -> str | None:
-    """The commit id ``rev-parse --verify --quiet <sha>^{commit}`` prints, ``None`` when absent from the clone.
-
-    A full id that names a tag object prints the tagged commit's id, which differs from *sha*.
-    Any failure other than "absent" raises :class:`GitProbeError`.
-    """
-    ret, out, err = run_command(["git", "rev-parse", "--verify", "--quiet", f"{sha}^{{commit}}"], capture=True, check_return=False, cwd=repo_root)
-    if ret == 1:
-        return None
-    if ret != 0:
-        raise GitProbeError(f"git rev-parse --verify {sha[:_SHORT]} exited {ret}: {(err or '').strip()}")
-    return (out or "").strip()
 
 
 def _join_reasons(*reasons: str | None) -> str:
