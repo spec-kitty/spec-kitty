@@ -25,7 +25,7 @@ related:
 Durable operational procedures — deployment, on-call, incident, and standing
 CI-gate runbooks. These pages are maintainer-facing references that stay correct
 across missions (unlike the effort-scoped notes that live under
-[`../plans/`](../plans/index.md)).
+[`../plans/`](../plans/README.md)).
 
 ## Pages
 
@@ -39,6 +39,6 @@ across missions (unlike the effort-scoped notes that live under
 
 ## See also
 
-- [Documentation home](../index.md)
-- [Guides](../guides/index.md)
-- [Configuration](../configuration/index.md)
+- [Documentation home](../README.md)
+- [Guides](../guides/README.md)
+- [Configuration](../configuration/README.md)

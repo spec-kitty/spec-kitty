@@ -40,4 +40,4 @@ Inside Claude Code, Codex, or another configured harness, you don't run a CLI co
 
 ## See also
 
-- [Agent Profiles index](index.md)
+- [Agent Profiles index](README.md)

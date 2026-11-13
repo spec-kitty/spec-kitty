@@ -14,7 +14,7 @@ objects into smaller modules and deleting compatibility shims) and adjacent
 slice-landing work.
 
 These notes follow the distil-then-retire lifecycle described in the
-[plans index](../../../plans/index.md): pages retire once their subject ships or is distilled.
+[plans index](../../../plans/README.md): pages retire once their subject ships or is distilled.
 The active cycle is 4.0.0 — see the [4.0.0 roadmap](../../../plans/4-0-0-milestone-roadmap.md).
 
 ## Live
@@ -36,4 +36,4 @@ Mission Clarity Layer (#1746) is tracked on the *CLI 4.x stable* milestone.
 
 ## See also
 
-- [Plans index](../../../plans/index.md)
+- [Plans index](../../../plans/README.md)

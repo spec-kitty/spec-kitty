@@ -7,7 +7,9 @@ requires two index updates the ``docs-freshness`` CI gate enforces:
    ``docs/development/page-inventory.yaml`` — a **generated lockfile**,
    regenerated from every page's frontmatter.
 2. A table row ``| YYYY-MM-DD | [Title](filename.md) |`` in the era's
-   ``docs/adr/<era>/index.md`` index (or its legacy ``README.md`` index).
+   ``docs/adr/<era>/README.md`` index (the retired ``index.md`` basename is read
+   only when it is the only landing page left, and is never written: adding or
+   pruning a row there refuses with "era index not found" — #6939).
 
 Agents repeatedly trip the gate (``LEAK-MISSING-INVENTORY``,
 ``INVENTORY-INCOMPLETE``, ``INVENTORY-LOCKFILE-DRIFT``) by forgetting one of
@@ -67,8 +69,12 @@ __all__ = [
 # --------------------------------------------------------------------------- #
 
 _ADR_SUBDIR: Final[str] = "adr"
-_INDEX_NAME: Final[str] = "index.md"
-_README_NAME: Final[str] = "README.md"
+#: The era landing page basename. ``README.md`` is canonical since #6939 (the site
+#: landing basename is ``README``, ADR 2026-10-31-1 D-1); ``index.md`` is the retired
+#: basename, recognised read-only so an era directory that still carries one is not
+#: mistaken for an ADR body. Never written: adding or pruning a row refuses instead.
+_INDEX_NAME: Final[str] = "README.md"
+_RETIRED_INDEX_NAME: Final[str] = "index.md"
 _ERA_RE: Final[re.Pattern[str]] = re.compile(r"^\d+\.x$")
 _TITLE_PREFIX: Final[str] = "ADR: "
 _WHITESPACE_RE: Final[re.Pattern[str]] = re.compile(r"\s+")
@@ -147,10 +153,7 @@ def _era_index_for(adr_path: Path, docs_root: Path) -> Path:
             f"{adr_path} is not under {docs_root.name}/{_ADR_SUBDIR}/<era>/<file>.md "
             f"(era must match N.x and the path must live inside the docs root)"
         )
-    canonical_index = adr_path.parent / _INDEX_NAME
-    if canonical_index.exists():
-        return canonical_index
-    return adr_path.parent / _README_NAME
+    return adr_path.parent / _INDEX_NAME
 
 
 # --------------------------------------------------------------------------- #
@@ -361,8 +364,9 @@ def _table_era_indexes(docs_root: Path) -> list[Path]:
     """The era landing pages under ``docs/adr/<era>/`` that maintain an index table.
 
     Legacy eras without a table (e.g. 1.x/2.x) are skipped rather than back-filled with
-    a table they never carried. A canonical ``index.md`` that declares an ``## Index``
-    section but carries no table is a hard error.
+    a table they never carried. A canonical ``README.md`` that declares an ``## Index``
+    section but carries no table is a hard error; a retired ``index.md`` that does the
+    same is a pre-#6939 production shape and is skipped instead.
     """
     adr_root = docs_root / _ADR_SUBDIR
     if not adr_root.is_dir():
@@ -378,7 +382,13 @@ def _table_era_indexes(docs_root: Path) -> list[Path]:
                 raise FreshenError(
                     f"canonical era index has no ADR table: {canonical_index}"
                 )
-        era_index = canonical_index if canonical_index.exists() else era_dir / _README_NAME
+        # Canonical first; a tree that has not been renamed yet may still carry only
+        # the retired basename, which is read but never written (#6939).
+        era_index = (
+            canonical_index
+            if canonical_index.exists()
+            else era_dir / _RETIRED_INDEX_NAME
+        )
         if _era_has_table(era_index):
             indexes.append(era_index)
     return indexes
@@ -390,7 +400,7 @@ def indexed_era_adrs(docs_root: Path) -> list[Path]:
         adr_path
         for era_index in _table_era_indexes(docs_root)
         for adr_path in sorted(era_index.parent.glob("*.md"))
-        if adr_path.name not in {_INDEX_NAME, _README_NAME}
+        if adr_path.name not in {_INDEX_NAME, _RETIRED_INDEX_NAME}
     ]
 
 
@@ -398,7 +408,7 @@ def _dangling_link(row: str, era_dir: Path) -> str | None:
     """The first local ``.md`` link of *row* whose file does not exist, else ``None``.
 
     External links (``scheme://``) are never judged; a link resolves relative to the
-    era directory, so ``../index.md`` style links are checked too.
+    era directory, so ``../README.md`` style links are checked too.
     """
     for match in _ROW_LINK_RE.finditer(row):
         local = match.group(1).split("#", 1)[0]
@@ -414,7 +424,9 @@ def prune_dangling_rows(docs_root: Path, *, check: bool = False) -> list[str]:
 
     Returns ``"<era index relative to docs_root>: <link>"`` per pruned row, in table
     order. Idempotent and deterministic: only rows of the index tables are touched,
-    prose links are left alone. In ``check`` mode nothing is written.
+    prose links are left alone. In ``check`` mode nothing is written. A row to prune
+    from a lone retired ``index.md`` raises :class:`FreshenError` ("era index not
+    found"), as adding a row there does: the retired basename is never written (#6939).
     """
     pruned: list[str] = []
     for era_index in _table_era_indexes(docs_root):
@@ -430,6 +442,9 @@ def prune_dangling_rows(docs_root: Path, *, check: bool = False) -> list[str]:
             pruned.append(f"{era_index.relative_to(docs_root).as_posix()}: {dangling}")
         if check or len(kept) == data_end - data_start:
             continue
+        if era_index.name != _INDEX_NAME:
+            # A retired ``index.md`` is read but never written (#6939): refuse like the add-row path.
+            raise FreshenError(f"era index not found: {era_index.parent / _INDEX_NAME}")
         new_text = "\n".join([*lines[:data_start], *kept, *lines[data_end:]])
         if text.endswith("\n"):
             new_text += "\n"

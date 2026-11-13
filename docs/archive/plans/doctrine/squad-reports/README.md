@@ -37,4 +37,4 @@ adjudicates on semantics and says so.
 
 ## See also
 
-- [Doctrine plans index](../../../../plans/doctrine/index.md)
+- [Doctrine plans index](../../../../plans/doctrine/README.md)

@@ -7,9 +7,10 @@ reintroduces the merge conflicts that move removed, so this guard refuses:
 
 * any change to ``docs/development/docs-retrieval-index.yaml`` or
   ``docs/development/page-inventory.yaml``;
-* a NEW row in an ADR era table (``docs/adr/<era>/index.md``): a ``| date | [title](x.md) |``
-  line whose linked file no removed line links. Editing an existing row (a title fix)
-  and editing the page's prose stay allowed.
+* a NEW row in an ADR era table (``docs/adr/<era>/README.md``): a ``| date | [title](x.md) |``
+  line whose linked file no removed line in the same era folder links. Editing an existing
+  row (a title fix), editing the page's prose and moving the table to another landing file
+  of the same era (#6939: ``index.md`` -> ``README.md``) stay allowed.
 
 The bot's own pull request (head branch ``ci/regen-docs-index`` in this repository) is
 exempt. Any event other than ``pull_request`` is skipped: the guard judges a PR's diff,
@@ -26,6 +27,7 @@ from __future__ import annotations
 
 import json
 import os
+import posixpath
 import re
 import subprocess
 import sys
@@ -40,7 +42,7 @@ from scripts.ci.generated_docs_surfaces import ERA_INDEX_RE, GENERATED_FILES, RE
 
 #: An ADR era table data row, capturing the linked file name.
 _ADR_ROW_RE = re.compile(r"^\s*\|\s*\d{4}-\d{2}-\d{2}\s*\|.*\]\(([^)\s]+\.md)\)")
-_DIFF_FILE_RE = re.compile(r"^\+\+\+ b/(.+)$")
+_DIFF_GIT_RE = re.compile(r"^diff --git a/(\S+) b/(\S+)$")
 
 REMEDY = (
     "Do not regenerate the docs index, the page inventory or the ADR era tables in a pull request: "
@@ -54,30 +56,40 @@ def protected_file_changes(changed_paths: Iterable[str]) -> list[str]:
     return sorted({path for path in changed_paths if path in GENERATED_FILES})
 
 
+def _era_index(path: str) -> str | None:
+    """*path* when it is an ADR era index, else ``None``."""
+    return path if ERA_INDEX_RE.match(path) else None
+
+
 def new_era_rows(era_diff: str) -> dict[str, list[str]]:
-    """Per era index, the ADR files that an added table row links and no removed row does.
+    """Per era index, the ADR files that an added table row links and no removed row of its era does.
 
     *era_diff* is ``git diff --unified=0`` output; only files matching the era index
-    pattern are read.
+    pattern are read. Rows are matched per era folder, not per file, so a table that
+    moves between the landing files of one era (#6939: ``index.md`` -> ``README.md``)
+    adds no row.
     """
     added: dict[str, set[str]] = {}
     removed: dict[str, set[str]] = {}
     current: str | None = None
     for line in era_diff.splitlines():
-        header = _DIFF_FILE_RE.match(line)
+        header = _DIFF_GIT_RE.match(line)
         if header:
-            current = header.group(1) if ERA_INDEX_RE.match(header.group(1)) else None
+            # ``b/`` names the file after the change; a deleted file's header names it twice.
+            current = _era_index(header.group(2))
             continue
-        if current is None or line.startswith(("+++", "---")):
+        if current is None or line.startswith(("+++", "---")) or not line or line[0] not in "+-":
             continue
-        if line and line[0] in "+-":
-            match = _ADR_ROW_RE.match(line[1:])
-            if match:
-                bucket = added if line[0] == "+" else removed
-                bucket.setdefault(current, set()).add(match.group(1))
+        match = _ADR_ROW_RE.match(line[1:])
+        if match:
+            bucket = added if line[0] == "+" else removed
+            bucket.setdefault(current, set()).add(match.group(1))
+    removed_by_era: dict[str, set[str]] = {}
+    for path, linked in removed.items():
+        removed_by_era.setdefault(posixpath.dirname(path), set()).update(linked)
     result: dict[str, list[str]] = {}
     for path, linked in added.items():
-        fresh = sorted(linked - removed.get(path, set()))
+        fresh = sorted(linked - removed_by_era.get(posixpath.dirname(path), set()))
         if fresh:
             result[path] = fresh
     return dict(sorted(result.items()))

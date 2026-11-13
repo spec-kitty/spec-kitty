@@ -221,4 +221,4 @@ your decision back to absence.
 
 ## Related Documentation
 
-- [Migrations index](index.md)
+- [Migrations index](README.md)

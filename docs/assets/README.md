@@ -21,4 +21,4 @@ alongside the rendered docs and are not consumed directly by readers.
 
 ## See also
 
-- [Documentation home](../index.md)
+- [Documentation home](../README.md)

@@ -30,8 +30,8 @@ related:
 
 Precise, authoritative specifications for Spec Kitty's command surfaces, configuration, and
 schemas. Use these pages to look up exact flags, fields, and values — "what it is, not what to
-do with it." For task-oriented instructions see the [How-to guides](../guides/index.md); for
-conceptual background see [Explanation](../architecture/index.md).
+do with it." For task-oriented instructions see the [How-to guides](../guides/README.md); for
+conceptual background see [Explanation](../architecture/README.md).
 
 ## Commands
 
@@ -53,7 +53,7 @@ conceptual background see [Explanation](../architecture/index.md).
 
 ## Catalogs
 
-- [Skills](skills/index.md) — the operator-facing skill catalog: what each skill does and when
+- [Skills](skills/README.md) — the operator-facing skill catalog: what each skill does and when
   to invoke it.
-- [Agent profiles](agent_profiles/index.md) — the built-in agent profile roster: identity,
+- [Agent profiles](agent_profiles/README.md) — the built-in agent profile roster: identity,
   roles, and routing for each shipped profile.

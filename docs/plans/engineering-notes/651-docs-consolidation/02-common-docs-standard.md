@@ -20,7 +20,7 @@ external_references:
 
 > Research capture (paula-patterns, 2026-06-27) of the **actual** Common Docs standard
 > (<https://github.com/velvet-tiger/common-docs>) for the #2165/#651 full-consolidation
-> direction. Companion to [the four-lens review](./index.md) and
+> direction. Companion to [the four-lens review](./README.md) and
 > [the target-structure mapping](./03-target-structure-mapping.md).
 
 ## 1. What the standard actually mandates

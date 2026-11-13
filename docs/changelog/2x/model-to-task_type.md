@@ -7,7 +7,7 @@ updated: '2026-06-03T00:00:00Z'
 related:
 - context
 ---
-> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../context/index.md) for current docs.
+> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../context/README.md) for current docs.
 
 # Appendix: Model-to-Task Type Mapping Schema
 

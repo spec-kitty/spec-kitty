@@ -12,7 +12,7 @@ audience:
 # 2.x ADRs
 
 Architectural Decision Records for the 2.x track. **Not the current track —
-see [`docs/adr/3.x/`](../3.x/index.md) for current decisions.**
+see [`docs/adr/3.x/`](../3.x/README.md) for current decisions.**
 
 ## Era history
 
@@ -44,7 +44,7 @@ docs-site posture without committing to a hosted platform, and hardened the
 verify/doctor command taxonomy and post-merge audit primitives.
 
 This track captured the architecture through the 2.x → 3.x cutover. The current track is
-[3.x](../3.x/index.md); the foundational decisions are [1.x](../1.x/index.md).
+[3.x](../3.x/README.md); the foundational decisions are [1.x](../1.x/README.md).
 
 ## Naming
 
@@ -55,7 +55,7 @@ This track captured the architecture through the 2.x → 3.x cutover. The curren
 
 This folder is canonical for 2.x decisions (dates before 2026-03-30, the
 3.0.0 release). ADRs dated on or after 2026-03-30 were moved to
-[`docs/adr/3.x/`](../3.x/index.md). The `architecture/` tree was removed by the
+[`docs/adr/3.x/`](../3.x/README.md). The `architecture/` tree was removed by the
 Common Docs structural move (PR #2225); existing references using the old
 `architecture/2.x/adr/<filename>` or `architecture/adrs/` paths should be updated to the
 new `docs/adr/` paths.

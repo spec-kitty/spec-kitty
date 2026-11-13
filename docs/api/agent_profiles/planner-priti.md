@@ -54,4 +54,4 @@ load a profile directly. Two paths work:
 
 ## See also
 
-- [Agent Profiles index](index.md)
+- [Agent Profiles index](README.md)

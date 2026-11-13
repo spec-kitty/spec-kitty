@@ -29,4 +29,4 @@ Canonical decisions landed (or would have landed) in `docs/adr/2.x/`.
    - 2.x test-improvement programme
 
 `next-mission-mappings/` was once listed here; it is a separate collection with its own
-[index](../next-mission-mappings/index.md).
+[index](../next-mission-mappings/README.md).

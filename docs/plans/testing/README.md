@@ -16,8 +16,8 @@ Planning artifacts for the test suite: mutation-testing findings, acceleration
 remediation, the friction audit, and CI quality and coverage gate notes.
 
 These notes follow the distil-then-retire lifecycle described in the
-[plans index](../index.md): pages retire once their subject ships or is distilled.
-Current testing guidance lives in [development/testing](../../development/testing/index.md)
+[plans index](../README.md): pages retire once their subject ships or is distilled.
+Current testing guidance lives in [development/testing](../../development/testing/README.md)
 and [CI gate mechanics](../../development/reference/ci-gate-mechanics.md). The active cycle
 is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
 
@@ -48,4 +48,4 @@ None. Every note below belongs to closed work.
 
 ## See also
 
-- [Plans index](../index.md)
+- [Plans index](../README.md)

@@ -40,6 +40,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from scripts.docs.moves_ledger import Move  # noqa: E402  (sys.path bootstrap above)
+from scripts.docs.moves_ledger import is_index_rename  # noqa: E402  (sys.path bootstrap above)
 from scripts.docs.moves_ledger import load_baseline  # noqa: E402  (sys.path bootstrap above)
 from scripts.docs.moves_ledger import load_moves as load_ledger_moves  # noqa: E402  (sys.path bootstrap above)
 from scripts.docs.moves_ledger import source_to_route  # noqa: E402  (sys.path bootstrap above)
@@ -185,9 +186,15 @@ def check_renames_covered(
 def check_occurrence_subset_redirect(
     moves: list[Move], redirect_keys: set[str]
 ) -> list[Violation]:
-    """Flag a ledger move whose ``from`` route is not a redirect-map key."""
+    """Flag a ledger move whose ``from`` route is not a redirect-map key.
+
+    An index rename (``/x/index.html -> /x/README.html``, #6939) needs no key: its
+    directory page serves ``x/index.html`` itself (ADR D-5 rule 3).
+    """
     violations: list[Violation] = []
     for move in moves:
+        if is_index_rename(move.from_route, move.to_route):
+            continue
         key = move.from_route.lstrip("/")
         if key not in redirect_keys:
             violations.append(

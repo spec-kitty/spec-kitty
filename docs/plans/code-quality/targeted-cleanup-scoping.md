@@ -23,7 +23,7 @@ external_references:
 > the [4.0.0 Milestone Roadmap](../4-0-0-milestone-roadmap.md).
 
 Line-level scoping of the two highest-signal cleanup targets surfaced by the
-2026-08-12 SonarCloud snapshot (see [Code Quality index](index.md) for the full
+2026-08-12 SonarCloud snapshot (see [Code Quality index](README.md) for the full
 picture). Effort figures are SonarCloud's own remediation estimates; the risk and
 sequencing judgement is ours.
 

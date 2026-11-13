@@ -14,13 +14,13 @@ related:
 - ''
 - migrations
 ---
-> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../context/index.md) for current docs.
+> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../context/README.md) for current docs.
 
 # 2.x Documentation (Archive)
 
 > **Archive Notice**: This section documents Spec Kitty 2.x behavior. It is preserved
 > for historical reference only. For current 3.2 documentation, see
-> [Spec Kitty 3.2 current overview](../../context/index.md).
+> [Spec Kitty 3.2 current overview](../../context/README.md).
 
 `2.x` was the architecture track centered on doctrine-backed governance, living glossary
 semantics, and runtime-owned mission execution. These pages are archived so existing projects and
@@ -43,8 +43,8 @@ contributors can understand older behavior; current projects should use the 3.2 
 
 ## Current replacement
 
-- For new projects: start with [Spec Kitty 3.2 documentation](../../index.md).
-- For upgrades: use [Migration to Spec Kitty 3.2](../../migrations/index.md).
+- For new projects: start with [Spec Kitty 3.2 documentation](../../README.md).
+- For upgrades: use [Migration to Spec Kitty 3.2](../../migrations/README.md).
 - For old behavior lookup: use this 2.x archive only for historical context.
 
 ## Architecture Repository Layout

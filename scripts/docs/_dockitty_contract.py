@@ -98,8 +98,9 @@ __all__ = [
 #: ``changelog/unreleased`` holds per-PR changelog fragments, which are not pages.
 EXCLUDED_FOLDERS: Final[tuple[str, ...]] = ("archive", "reports", "convergence", "changelog/unreleased")
 
-#: Section index basenames until the README rename (#6939; ADR D-1: ``['README', 'index']``).
-INDEX_BASENAMES: Final[tuple[str, ...]] = ("README", "index")
+#: The section index basename (ADR D-1): ``README`` only since the rename of every
+#: ``index.md`` (#6939); ``tests/docs/test_section_index_basename.py`` keeps ``index.md`` out.
+INDEX_BASENAMES: Final[tuple[str, ...]] = ("README",)
 
 #: Personas live under ``docs/context/audience/``; a profile is a path below it.
 PERSONA_ROOT: Final[str] = "context/audience"

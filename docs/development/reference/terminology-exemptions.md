@@ -98,7 +98,7 @@ files are explicitly excluded from the `docs/**/*.md` glob and processed
 separately through this extractor, ensuring only the unreleased content is
 evaluated.
 
-The `docs/changelog/index.md` index page is not a CHANGELOG file and is still
+The `docs/changelog/README.md` index page is not a CHANGELOG file and is still
 scanned as a normal live doc.
 
 ---

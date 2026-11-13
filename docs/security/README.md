@@ -16,8 +16,8 @@ forward-looking section: security guidance is added here as the surface grows.
 
 Until dedicated pages land here, see:
 
-- [Configuration](../configuration/index.md) — configuration files, flags, and environment variables.
+- [Configuration](../configuration/README.md) — configuration files, flags, and environment variables.
 
 ## See also
 
-- [Documentation home](../index.md)
+- [Documentation home](../README.md)

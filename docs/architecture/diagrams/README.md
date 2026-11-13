@@ -18,7 +18,7 @@ related:
 This directory holds the **living C4 model** for the **current architecture**.
 It is not era-stamped: it was carried forward from the 2.x snapshot and is refreshed
 in place against the ratified domain model. It is one of the living surfaces
-described in [architecture index](../index.md).
+described in [architecture index](../README.md).
 
 The numbered C4 levels are kept stable so navigation and tooling stay predictable:
 

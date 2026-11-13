@@ -30,7 +30,7 @@ external_references:
 The standing code-quality surface for Spec Kitty: what the SonarCloud analysis of
 `main` actually says, how the metrics have moved, where the debt clusters, and how
 that debt lines up with work the roadmap has already scoped. This is a
-**distil-then-retire** working collection (see [Plans](../index.md)) — the durable
+**distil-then-retire** working collection (see [Plans](../README.md)) — the durable
 "why" lives in the [degod/unshim roadmap](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/refactor/degod-unshim-roadmap.md) and the
 [4.0.0 Milestone Roadmap](../4-0-0-milestone-roadmap.md) (the
 [3.2.x milestone roadmap](../3-2-x-milestone-roadmap.md) is the prior-cycle record); this

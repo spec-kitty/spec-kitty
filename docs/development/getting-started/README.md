@@ -23,5 +23,5 @@ one machine while you work.
 
 ## See also
 
-- [Development home](../index.md)
+- [Development home](../README.md)
 - [Contributing to Spec Kitty](../contributing.md)

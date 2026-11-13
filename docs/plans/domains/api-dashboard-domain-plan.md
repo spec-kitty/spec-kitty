@@ -293,4 +293,4 @@ drift being killed — not a live UI label.*
 doctrine-import facet is doctrine-charter §3.6), #650 (dashboard/UX + `Feature`-drift
 retirement).
 
-**Plans index:** [docs/plans/index.md](../index.md).
+**Plans index:** [docs/plans/index.md](../README.md).

@@ -20,11 +20,11 @@ system is navigable across major versions.
 
 ## Eras
 
-- [1.x ADRs](1.x/index.md) — decisions from the 1.x lineage.
-- [2.x ADRs](2.x/index.md) — decisions from the 2.x lineage.
-- [3.x ADRs](3.x/index.md) — decisions from the 3.x line, plus those written early in the
+- [1.x ADRs](1.x/README.md) — decisions from the 1.x lineage.
+- [2.x ADRs](2.x/README.md) — decisions from the 2.x lineage.
+- [3.x ADRs](3.x/README.md) — decisions from the 3.x line, plus those written early in the
   4.0.0 cycle (up to 2026-09-29), before the 4.x folder opened.
-- [4.x ADRs](4.x/index.md) — **current.** New ADRs land here.
+- [4.x ADRs](4.x/README.md) — **current.** New ADRs land here.
 
 ## Adding an ADR
 
@@ -44,5 +44,5 @@ in the same bot pull request. Use `--check --prune` locally to see dangling rows
 
 ## See also
 
-- [Documentation home](../index.md)
-- [Architecture](../architecture/index.md)
+- [Documentation home](../README.md)
+- [Architecture](../architecture/README.md)

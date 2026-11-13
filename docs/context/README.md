@@ -69,7 +69,7 @@ projects and upgrades.
   authoritative file; `charter.md` is a human-readable companion the runtime
   never parses).
 - Current mission loop: `spec-kitty next --agent <name> --mission <slug>`.
-- Upgrade path: [Migration to Spec Kitty 3.2](../migrations/index.md).
+- Upgrade path: [Migration to Spec Kitty 3.2](../migrations/README.md).
 
 ### What is Charter?
 
@@ -135,7 +135,7 @@ migration steps, and known failure modes.
 ### What is archived
 
 Documentation for Spec Kitty 1.x and 2.x is preserved through the
-[migration hub](../migrations/index.md) for historical context. The 2.x
+[migration hub](../migrations/README.md) for historical context. The 2.x
 governance model did not include the DRG-backed synthesis pipeline or the
 retrospective learning loop. If you are running a current project, use the 3.2
 documentation above.

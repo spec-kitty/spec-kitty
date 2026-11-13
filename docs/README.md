@@ -29,12 +29,12 @@ Just need the install steps? [Install Spec Kitty](guides/how-to/installation/ins
 
 Set up and wondering what to type? The [slash command reference](api/slash-commands.md) covers the `/spec-kitty.*` commands your AI agent gains — specify, plan, tasks, implement, review, accept, merge — with each one's syntax, prerequisites, and the files it writes.
 
-Already using Spec Kitty? Head to [Migrations](migrations/index.md) if you're upgrading, [Guides](guides/index.md) for task-oriented how-tos, or the [API and CLI reference](api/index.md) for exact command behavior.
+Already using Spec Kitty? Head to [Migrations](migrations/README.md) if you're upgrading, [Guides](guides/README.md) for task-oriented how-tos, or the [API and CLI reference](api/README.md) for exact command behavior.
 
 ## What's new and roadmap
 
-- [Changelog](changelog/index.md) — release history (canonical `CHANGELOG.md`).
-- [Release goals](changelog/release-goals.md) — declared intent of each release line (3.2.x, 3.3.x); each line's execution roadmap is linked from there and from [Plans](plans/index.md).
+- [Changelog](changelog/README.md) — release history (canonical `CHANGELOG.md`).
+- [Release goals](changelog/release-goals.md) — declared intent of each release line (3.2.x, 3.3.x); each line's execution roadmap is linked from there and from [Plans](plans/README.md).
 
 ## Browse by topic
 
@@ -130,24 +130,24 @@ Already using Spec Kitty? Head to [Migrations](migrations/index.md) if you're up
 
 | Section | Landing page |
 |---|---|
-| Context | [context/index.md](context/index.md) |
-| Core Concepts | [core-concepts/index.md](context/index.md) |
+| Context | [context/index.md](context/README.md) |
+| Core Concepts | [core-concepts/index.md](context/README.md) |
 | Doctrine | [doctrine/index.md](architecture/doctrine-kinds.md) |
-| Architecture | [architecture/index.md](architecture/index.md) |
-| ADRs | [adr/index.md](adr/index.md) |
-| Plans | [plans/index.md](plans/index.md) |
-| API | [api/index.md](api/index.md) |
-| Reference | [reference/index.md](api/index.md) |
-| Configuration | [configuration/index.md](configuration/index.md) |
-| Integrations | [integrations/index.md](integrations/index.md) |
-| Security | [security/index.md](security/index.md) |
-| Guides | [guides/index.md](guides/index.md) |
-| Operations | [operations/index.md](operations/index.md) |
-| Migrations | [migrations/index.md](migrations/index.md) |
-| Changelog | [changelog/index.md](changelog/index.md) |
+| Architecture | [architecture/index.md](architecture/README.md) |
+| ADRs | [adr/index.md](adr/README.md) |
+| Plans | [plans/index.md](plans/README.md) |
+| API | [api/index.md](api/README.md) |
+| Reference | [reference/index.md](api/README.md) |
+| Configuration | [configuration/index.md](configuration/README.md) |
+| Integrations | [integrations/index.md](integrations/README.md) |
+| Security | [security/index.md](security/README.md) |
+| Guides | [guides/index.md](guides/README.md) |
+| Operations | [operations/index.md](operations/README.md) |
+| Migrations | [migrations/index.md](migrations/README.md) |
+| Changelog | [changelog/index.md](changelog/README.md) |
 | Release Goals | [release-goals/index.md](changelog/release-goals.md) |
-| Project Updates | [updates/index.md](changelog/index.md) |
+| Project Updates | [updates/index.md](changelog/README.md) |
 
 ## Migration and archive
 
-Use [Migrations](migrations/index.md) when moving an existing project onto the current release. 1.x and 2.x docs are preserved as a historical archive and should not be used to start a new project.
+Use [Migrations](migrations/README.md) when moving an existing project onto the current release. 1.x and 2.x docs are preserved as a historical archive and should not be used to start a new project.

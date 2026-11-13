@@ -18,7 +18,7 @@ related:
 # Development
 
 Runbooks and policy for people **contributing to or maintaining the Spec Kitty
-project itself** — as opposed to [`../guides/`](../guides/index.md), which
+project itself** — as opposed to [`../guides/`](../guides/README.md), which
 documents *using* Spec Kitty in your own project. The split is strict: no
 contributor-only page is reachable from end-user navigation.
 
@@ -28,10 +28,10 @@ closed.
 
 This zone is subdivided by concern:
 
-- **[Getting started](getting-started/index.md)** — [onboarding a co-maintainer](getting-started/onboarding-run.md) and [isolated dev environments](getting-started/isolated-dev-environments.md).
-- **[How-to](how-to/index.md)** — task runbooks: [landing PRs](how-to/pr-landing.md), [review gates](how-to/review-gates.md), [local overrides](how-to/local-overrides.md), [the issue tracker](how-to/manage-issue-tracker.md), [contract pinning](how-to/contract-pinning.md), [the cut-over guard](how-to/cutover-guard.md), [creating a doctrine artifact](how-to/create-a-doctrine-artifact.md), [architectural-gate exemptions](how-to/add-architectural-gate-exemption.md), and [compressing mission history](how-to/compress-mission-history.md).
-- **[Reference](reference/index.md)** — policy and ledgers: [friction points](reference/known-friction-points.md), [coverage signals](reference/coverage-signals.md), [CI and architectural gate mechanics](reference/ci-gate-mechanics.md), [issue-matrix verdicts](reference/issue-matrix-verdicts.md), [standing orders](reference/quality-and-tech-debt-standing-orders.md), [the read-side seam ledger](reference/read-side-seam-classification.md), [red-main policy](reference/red-main-and-release-readiness.md), [terminology exemptions](reference/terminology-exemptions.md), and the [version taxonomy](reference/version-taxonomy.md).
-- **[Testing](testing/index.md)** — [CLI acceptance scenarios](testing/acceptance-scenarios.md), [flakiness policy](testing/testing-flakiness.md), [parallel runs](testing/testing-parallel.md), [mutation tests](testing/run-mutation-tests.md), [UI e2e](testing/ui-e2e.md), and [time-dependent tests](testing/write-time-dependent-tests.md).
+- **[Getting started](getting-started/README.md)** — [onboarding a co-maintainer](getting-started/onboarding-run.md) and [isolated dev environments](getting-started/isolated-dev-environments.md).
+- **[How-to](how-to/README.md)** — task runbooks: [landing PRs](how-to/pr-landing.md), [review gates](how-to/review-gates.md), [local overrides](how-to/local-overrides.md), [the issue tracker](how-to/manage-issue-tracker.md), [contract pinning](how-to/contract-pinning.md), [the cut-over guard](how-to/cutover-guard.md), [creating a doctrine artifact](how-to/create-a-doctrine-artifact.md), [architectural-gate exemptions](how-to/add-architectural-gate-exemption.md), and [compressing mission history](how-to/compress-mission-history.md).
+- **[Reference](reference/README.md)** — policy and ledgers: [friction points](reference/known-friction-points.md), [coverage signals](reference/coverage-signals.md), [CI and architectural gate mechanics](reference/ci-gate-mechanics.md), [issue-matrix verdicts](reference/issue-matrix-verdicts.md), [standing orders](reference/quality-and-tech-debt-standing-orders.md), [the read-side seam ledger](reference/read-side-seam-classification.md), [red-main policy](reference/red-main-and-release-readiness.md), [terminology exemptions](reference/terminology-exemptions.md), and the [version taxonomy](reference/version-taxonomy.md).
+- **[Testing](testing/README.md)** — [CLI acceptance scenarios](testing/acceptance-scenarios.md), [flakiness policy](testing/testing-flakiness.md), [parallel runs](testing/testing-parallel.md), [mutation tests](testing/run-mutation-tests.md), [UI e2e](testing/ui-e2e.md), and [time-dependent tests](testing/write-time-dependent-tests.md).
 - **Reporting** — the [executive debrief styleguide](reporting/debrief-styleguide.md).
 - **Other records** — analysis-report transactions (`record-analysis --report-only`, an unpublished draft) and the [inline meta-read allowlist baseline deviation](inline-meta-read-allowlist-baseline-deviation.md).
 
@@ -108,5 +108,5 @@ subcommand — plus the regen command for generated agent copies:
 
 ## See also
 
-- [Documentation home](../index.md)
-- [Guides (end-user zone)](../guides/index.md)
+- [Documentation home](../README.md)
+- [Guides (end-user zone)](../guides/README.md)

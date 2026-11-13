@@ -2,7 +2,7 @@
 #
 # The docs retrieval index (docs/development/docs-retrieval-index.yaml), the page
 # inventory (docs/development/page-inventory.yaml) and the ADR era table rows
-# (docs/adr/<era>/index.md; missing rows added, rows of renamed or deleted ADRs pruned)
+# (docs/adr/<era>/README.md; missing rows added, rows of renamed or deleted ADRs pruned)
 # are generated from the docs/ tree. Every docs PR used to
 # regenerate them, so every merge conflicted every docs PR in flight. Operator ruling
 # (Option A): pull requests no longer touch them; this workflow regenerates them on

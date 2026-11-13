@@ -24,7 +24,7 @@ Internal working notes for maintainers: design investigations, field reports, an
 records of closed missions. They are not end-user documentation.
 
 These notes follow the distil-then-retire lifecycle described in the
-[plans index](../index.md). A page stays under **Live** while it still guides current
+[plans index](../README.md). A page stays under **Live** while it still guides current
 work. Once its subject ships or is distilled into a canonical doc, it moves to
 **Historical** and carries `doc_status: deprecated`, `superseded` or `closeout`. Historical
 pages are kept as a record and are not current guidance. The active cycle is 4.0.0 — see the
@@ -91,7 +91,7 @@ Kept as a record only. Each entry says what replaced it.
 
 ### Mission closeouts and verification records
 
-- [Mission closeout 01KSMG8Y — Pre-Doctrine Test Stabilization](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/01KSMG8Y-closeout/index.md) — baseline and retrospective for a merged mission.
+- [Mission closeout 01KSMG8Y — Pre-Doctrine Test Stabilization](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/01KSMG8Y-closeout/README.md) — baseline and retrospective for a merged mission.
 - [Verification evidence — egress-refusal consolidation (01KYW895)](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/01KYW895-verification-evidence.md) — closeout evidence for the egress-refusal consolidation mission (#3110).
 - [Docs IA & Onboarding Overhaul — terminology sweep and closing report](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/terminology-sweep-report.md) — closing record of mission `docs-ia-onboarding-overhaul-01KY02JB`: the terminology sweep, the frontmatter coverage check, and follow-up issues.
 - [Retro-summary performance investigation](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/2342-retro-summary-nfr/report.md) — verdict that the 200-mission summary timing breach on CI was runner hardware variance, not a code regression (#2342); with its [oracle proof](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/2342-retro-summary-nfr/evidence/oracle-proof.md).
@@ -105,8 +105,8 @@ Kept as a record only. Each entry says what replaced it.
 - [Coord-branch bookkeeping: read/write split-brain root cause](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/coord-splitbrain-rootcause.md) and [Coordination-branch trust — mission scope](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/coord-trust-mission-scope.md) — delivered by mission `coord-write-placement-closure-01KYCF83` (#2841).
 - [Coord-trust residual + runtime-state birth cutover — mission scope](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/2841-residual-2917-mission-scope.md) and [runtime-state birth cutover — research](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/2917-runtime-state-birth-cutover-research.md) — delivered by mission `runtime-state-birth-cutover-all-paths-01KYH654` (#2917).
 - [Mission #883 brief: doctrine as mission-type authority](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/883-mission-type-authority-brief.md) and [its research dossier](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/883-research-synthesis.md) — superseded by ADR 2026-07-14-2 and `docs/architecture/mission-type-resolution.md`.
-- [Mission notes](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/mission-notes/index.md) — mission-scoped classifications whose owning missions have closed.
-- [Docs consolidation — four-lens review and direction](651-docs-consolidation/index.md) — delivered by the Common Docs reconciliation (ADR 2026-06-27-1) (#2165, #651).
+- [Mission notes](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/mission-notes/README.md) — mission-scoped classifications whose owning missions have closed.
+- [Docs consolidation — four-lens review and direction](651-docs-consolidation/README.md) — delivered by the Common Docs reconciliation (ADR 2026-06-27-1) (#2165, #651).
 
 ### Architecture audits (May 2026, 3.2.x cycle)
 
@@ -135,5 +135,5 @@ Every page in these clusters carries `doc_status: deprecated`.
 
 ## See also
 
-- [Plans index](../index.md)
-- [Development notes](../../development/index.md)
+- [Plans index](../README.md)
+- [Development notes](../../development/README.md)

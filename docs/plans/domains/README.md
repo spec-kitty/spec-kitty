@@ -23,7 +23,7 @@ related:
 holds the standing "why" — invariants, sub-areas, and cross-references — and points at
 the release-scoped epics and roadmaps for the "what ships when" rather than duplicating
 them. Unlike the distil-then-retire working notes elsewhere under
-[`docs/plans/`](../index.md), a throughline does **not** retire when a milestone closes.
+[`docs/plans/`](../README.md), a throughline does **not** retire when a milestone closes.
 
 This page is the one-hop catalog of every throughline. Naming convention:
 `<domain>-domain-plan.md`, filed here under `domains/`.
@@ -53,5 +53,5 @@ Three throughlines are live. A fourth, the former "SaaS & hosted sync" plan, is 
 
 ## See also
 
-- [Plans landing page](../index.md) — the full plans surface (throughlines plus the
+- [Plans landing page](../README.md) — the full plans surface (throughlines plus the
   distil-then-retire working collections).

@@ -1078,4 +1078,4 @@ blast radius.
   contributor-side hygiene this runbook assumes.
 - [Test-flakiness handling policy](../testing/testing-flakiness.md) — the
   never-retry-to-green rule and budget-gate tuning.
-- [Guides index](../../guides/index.md)
+- [Guides index](../../guides/README.md)

@@ -13,8 +13,10 @@
 # at its section hub (ADR D-5 rule 4) with a `note`.
 #
 # Rules: append only; never edit or delete a recorded line. A page that moves
-# again gets a NEW entry from its previous route. Each `from` appears once, and no
-# `from` is a published page. Each entry carries a `ref` (PR, issue or Mission).
+# again gets a NEW entry from its previous route. A page that moves BACK to a route
+# it left gets a new entry into that route, which supersedes the route's earlier
+# move away (the route is live again; #6939). Each `from` appears once, and no
+# live `from` is a published page. Each entry carries a `ref` (PR, issue or Mission).
 # To record a move: append `- {from: /old.html, to: /new.html, ref: "#<issue>"}`, add the old
 # route to site/url-baseline.txt if missing, run `python -m scripts.docs.site_redirects`,
 # then the same with `--check`.
@@ -359,3 +361,65 @@ moves:
   - {from: /migrations/teamspace-mission-state-repair.html, to: /migrations/index.html, ref: "#6932", note: "retired hosted/sync page, archived (#6932)"}
   - {from: /operations/sync-daemon-orphan-cleanup.html, to: /operations/index.html, ref: "#6932", note: "retired hosted/sync page, archived (#6932)"}
   - {from: /plans/zeitgeist-client-wp01-remaining.html, to: /plans/index.html, ref: "#6932", note: "retired hosted/sync page, archived (#6932)"}
+  # #6939: every section index renamed index.md -> README.md after the legacy site was retired (ADR 2026-10-31-1 D-1,
+  # D-13 step 5). Each folder's URL stays /dir/ (the page serves dir/index.html). Eight folders moved
+  # README -> index above (#3914, #6928); their entry here is a return, which supersedes that move.
+  - {from: /adr/1.x/index.html, to: /adr/1.x/README.html, ref: "#6939"}
+  - {from: /adr/2.x/index.html, to: /adr/2.x/README.html, ref: "#6939"}
+  - {from: /adr/3.x/index.html, to: /adr/3.x/README.html, ref: "#6939"}
+  - {from: /adr/4.x/index.html, to: /adr/4.x/README.html, ref: "#6939"}
+  - {from: /adr/index.html, to: /adr/README.html, ref: "#6939"}
+  - {from: /api/agent_profiles/index.html, to: /api/agent_profiles/README.html, ref: "#6939"}
+  - {from: /api/index.html, to: /api/README.html, ref: "#6939"}
+  - {from: /api/skills/index.html, to: /api/skills/README.html, ref: "#6939"}
+  - {from: /architecture/index.html, to: /architecture/README.html, ref: "#6939"}
+  - {from: /archive/plans/3-2-doc-publication/index.html, to: /archive/plans/3-2-doc-publication/README.html, ref: "#6939"}
+  - {from: /archive/plans/doctrine/squad-reports/index.html, to: /archive/plans/doctrine/squad-reports/README.html, ref: "#6939"}
+  - {from: /archive/plans/engineering-notes/01KSMG8Y-closeout/index.html, to: /archive/plans/engineering-notes/01KSMG8Y-closeout/README.html, ref: "#6939"}
+  - {from: /archive/plans/engineering-notes/mission-notes/index.html, to: /archive/plans/engineering-notes/mission-notes/README.html, ref: "#6939"}
+  - {from: /archive/plans/initiatives/index.html, to: /archive/plans/initiatives/README.html, ref: "#6939"}
+  - {from: /archive/plans/next-mission-mappings/index.html, to: /archive/plans/next-mission-mappings/README.html, ref: "#6939"}
+  - {from: /archive/plans/refactor/index.html, to: /archive/plans/refactor/README.html, ref: "#6939"}
+  - {from: /archive/plans/reviews/index.html, to: /archive/plans/reviews/README.html, ref: "#6939"}
+  - {from: /assets/index.html, to: /assets/README.html, ref: "#6939"}
+  - {from: /changelog/1x/index.html, to: /changelog/1x/README.html, ref: "#6939"}
+  - {from: /changelog/2x/index.html, to: /changelog/2x/README.html, ref: "#6939"}
+  - {from: /changelog/index.html, to: /changelog/README.html, ref: "#6939"}
+  - {from: /configuration/index.html, to: /configuration/README.html, ref: "#6939"}
+  - {from: /context/audience/external/index.html, to: /context/audience/external/README.html, ref: "#6939"}
+  - {from: /context/audience/index.html, to: /context/audience/README.html, ref: "#6939"}
+  - {from: /context/audience/internal/index.html, to: /context/audience/internal/README.html, ref: "#6939"}
+  - {from: /context/index.html, to: /context/README.html, ref: "#6939"}
+  - {from: /contracts/index.html, to: /contracts/README.html, ref: "#6939"}
+  - {from: /development/getting-started/index.html, to: /development/getting-started/README.html, ref: "#6939"}
+  - {from: /development/how-to/index.html, to: /development/how-to/README.html, ref: "#6939"}
+  - {from: /development/index.html, to: /development/README.html, ref: "#6939"}
+  - {from: /development/reference/index.html, to: /development/reference/README.html, ref: "#6939"}
+  - {from: /development/testing/index.html, to: /development/testing/README.html, ref: "#6939"}
+  - {from: /guides/how-to/collaboration/index.html, to: /guides/how-to/collaboration/README.html, ref: "#6939"}
+  - {from: /guides/how-to/governance/index.html, to: /guides/how-to/governance/README.html, ref: "#6939"}
+  - {from: /guides/how-to/harnesses/index.html, to: /guides/how-to/harnesses/README.html, ref: "#6939"}
+  - {from: /guides/how-to/index.html, to: /guides/how-to/README.html, ref: "#6939"}
+  - {from: /guides/how-to/installation/index.html, to: /guides/how-to/installation/README.html, ref: "#6939"}
+  - {from: /guides/how-to/missions/index.html, to: /guides/how-to/missions/README.html, ref: "#6939"}
+  - {from: /guides/how-to/monitoring/index.html, to: /guides/how-to/monitoring/README.html, ref: "#6939"}
+  - {from: /guides/how-to/recovery/index.html, to: /guides/how-to/recovery/README.html, ref: "#6939"}
+  - {from: /guides/how-to/scenarios/index.html, to: /guides/how-to/scenarios/README.html, ref: "#6939"}
+  - {from: /guides/index.html, to: /guides/README.html, ref: "#6939"}
+  - {from: /guides/tutorials/index.html, to: /guides/tutorials/README.html, ref: "#6939"}
+  - {from: /index.html, to: /README.html, ref: "#6939"}
+  - {from: /integrations/index.html, to: /integrations/README.html, ref: "#6939"}
+  - {from: /migrations/index.html, to: /migrations/README.html, ref: "#6939"}
+  - {from: /operations/index.html, to: /operations/README.html, ref: "#6939"}
+  - {from: /plans/code-quality/index.html, to: /plans/code-quality/README.html, ref: "#6939"}
+  - {from: /plans/doctrine/index.html, to: /plans/doctrine/README.html, ref: "#6939"}
+  - {from: /plans/doctrine/test_quality/index.html, to: /plans/doctrine/test_quality/README.html, ref: "#6939"}
+  - {from: /plans/domains/index.html, to: /plans/domains/README.html, ref: "#6939"}
+  - {from: /plans/engineering-notes/651-docs-consolidation/index.html, to: /plans/engineering-notes/651-docs-consolidation/README.html, ref: "#6939"}
+  - {from: /plans/engineering-notes/index.html, to: /plans/engineering-notes/README.html, ref: "#6939"}
+  - {from: /plans/index.html, to: /plans/README.html, ref: "#6939"}
+  - {from: /plans/investigations/index.html, to: /plans/investigations/README.html, ref: "#6939"}
+  - {from: /plans/research/index.html, to: /plans/research/README.html, ref: "#6939"}
+  - {from: /plans/testing/index.html, to: /plans/testing/README.html, ref: "#6939"}
+  - {from: /plans/user_journey/index.html, to: /plans/user_journey/README.html, ref: "#6939"}
+  - {from: /security/index.html, to: /security/README.html, ref: "#6939"}

@@ -12,7 +12,7 @@ audience:
 
 Per-era **vision** record for the 3.x architecture track. This is part of the
 **versioned history beneath** the living architecture (see the
-[architecture README](../index.md) for the boundary and decay rules).
+[architecture README](../README.md) for the boundary and decay rules).
 
 3.x is the **prior era**: its last release was 3.2.7 (2026-09-10), and 4.0.0 is the active
 cycle. Forward vision lives in the living [vision page](README.md); 3.x-era ADRs are in
@@ -25,7 +25,7 @@ Demoted from the living vision page on 2026-09-30 under the decay rule. It was t
 forward signal written during the 3.x era.
 
 Forward intent, corroborated by the 2026-08-12 code-health measurement (full detail:
-[Code Quality — Working Collection](../../plans/code-quality/index.md)). Not yet an ADR.
+[Code Quality — Working Collection](../../plans/code-quality/README.md)). Not yet an ADR.
 
 The 3.x north-star — a **doctrine-governed, charter-activated runtime with a hardened
 execution model** — is showing up in the measurements, not just the design:

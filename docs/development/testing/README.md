@@ -30,5 +30,5 @@ local mutation testing, browser regressions, and time-dependent test discipline.
 
 ## See also
 
-- [Development home](../index.md)
+- [Development home](../README.md)
 - [Coverage signals](../reference/coverage-signals.md)

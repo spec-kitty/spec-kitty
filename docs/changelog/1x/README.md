@@ -13,7 +13,7 @@ related:
 - ''
 - migrations
 ---
-> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../context/index.md) for current docs.
+> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../context/README.md) for current docs.
 
 # 1.x Documentation (Legacy Track)
 
@@ -43,6 +43,6 @@ No new `1.x` PyPI releases are planned.
 
 ## Current replacement
 
-- For new projects: start with [Spec Kitty 3.2 documentation](../../index.md).
-- For upgrades: use [Migration to Spec Kitty 3.2](../../migrations/index.md).
+- For new projects: start with [Spec Kitty 3.2 documentation](../../README.md).
+- For upgrades: use [Migration to Spec Kitty 3.2](../../migrations/README.md).
 - For old behavior lookup: use this 1.x archive only for historical context.

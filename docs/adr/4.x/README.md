@@ -20,7 +20,7 @@ cycle's intent is declared in [`docs/changelog/4.0.0.md`](../../changelog/4.0.0.
 executed against the [4.0.0 milestone roadmap](../../plans/4-0-0-milestone-roadmap.md).
 
 This folder opened on 2026-09-30. ADRs written earlier in the 4.0.0 cycle (dated
-2026-09-13 to 2026-09-29) stay in [`docs/adr/3.x/`](../3.x/index.md): ADRs are immutable
+2026-09-13 to 2026-09-29) stay in [`docs/adr/3.x/`](../3.x/README.md): ADRs are immutable
 and moving them would break every link to them. Read the two folders together for the
 full 4.0.0 decision record.
 

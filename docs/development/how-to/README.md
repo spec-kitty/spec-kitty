@@ -36,5 +36,5 @@ Spec Kitty. Each page is scoped to one job you can pick up and finish.
 
 ## See also
 
-- [Development home](../index.md)
+- [Development home](../README.md)
 - [Contributing to Spec Kitty](../contributing.md)

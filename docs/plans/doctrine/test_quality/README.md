@@ -23,4 +23,4 @@ tests: where the test boundary is drawn, and what may (and may not) be mocked.
 
 ## See also
 
-- [Doctrine plans home](../index.md)
+- [Doctrine plans home](../README.md)

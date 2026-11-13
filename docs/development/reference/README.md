@@ -39,5 +39,5 @@ Kept as a record; not current reference.
 
 ## See also
 
-- [Development home](../index.md)
-- [How-to runbooks](../how-to/index.md)
+- [Development home](../README.md)
+- [How-to runbooks](../how-to/README.md)
