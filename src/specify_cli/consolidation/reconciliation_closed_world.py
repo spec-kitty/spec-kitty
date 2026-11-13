@@ -7,9 +7,11 @@ re-exports every name, so no caller changes (C-005).
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from specify_cli.consolidation._constants import (
     DEPENDENCY_REF_COVERS_MISSION_WORK,
@@ -27,6 +29,7 @@ from specify_cli.consolidation.git_probes import (
     resolve_commit,
     sha_reachable_from,
 )
+from specify_cli.consolidation.mission_base import MissionBase, MissionBaseProvenance, MissionBaseReason, pre_mission_history
 from specify_cli.consolidation.reconciliation_authorship import _final_authored_walk
 from specify_cli.consolidation.reconciliation_kernel import _lane_branch_for, _lane_tip_commits
 from specify_cli.consolidation.wp_attribution import stamp_of
@@ -34,6 +37,10 @@ from specify_cli.lanes._git import branch_exists
 from specify_cli.lanes.lane_tip import LaneTipListingError, read_tip, recorded_tip_branches
 from specify_cli.lanes.models import LanesManifest
 
+if TYPE_CHECKING:
+    from specify_cli.consolidation.reconciliation_claim_types import ApprovedWpCommitSet
+
+logger = logging.getLogger(__name__)
 
 # Declared external dependency refs (#6771). A lane that merges a dependency branch's
 # newer head in (a two-parent merge, so the lane is still reviewed on one tree) brings
@@ -187,6 +194,7 @@ def _mission_spines(
     *,
     coord_base_ref: str,
     window_base: str,
+    pre_mission: frozenset[str] = frozenset(),
 ) -> dict[str, str]:
     """Commit SHA -> the mission spine it sits on, for the #6771 declaration guard.
 
@@ -198,6 +206,13 @@ def _mission_spines(
     package's commit is on its lane's spine, and a direct commit on the mission branch is on
     the mission branch's spine. An external dependency's commits are on neither (they arrived
     as a merge's second parent), which is exactly what makes them declarable.
+
+    Mission work is what the Mission authored AFTER its base (#7560, ADR 2026-09-29-1
+    Amendment): history the target lacks below the Mission base (*pre_mission*,
+    ``window_base..mission_base``) is pre-Mission and sits on no Mission spine, so it is
+    skipped on both walks. On a lane spine (bounded by *coord_base_ref*, above the base) the
+    skip is defensive; on the Mission branch's spine it is what keeps a Mission branch cut from
+    a fork of the target from reading the fork's own history as Mission work.
     """
     spines: dict[str, str] = {}
     for lane in lanes_manifest.lanes:
@@ -210,12 +225,14 @@ def _mission_spines(
         if not branch_exists(repo_root, branch):
             continue
         for sha in first_parent_commits_in_range(repo_root, coord_base_ref, branch):
-            spines.setdefault(sha, label)
+            if sha not in pre_mission:
+                spines.setdefault(sha, label)
     mission_label = f"the mission branch {lanes_manifest.mission_branch}'s first-parent spine"
     # The mission branch is READ, not tolerated: a spine this guard cannot read is a spine it
     # cannot defend, and the caller turns the resulting GitProbeError into a REFUSE.
     for sha in first_parent_commits_in_range(repo_root, window_base, lanes_manifest.mission_branch):
-        spines.setdefault(sha, mission_label)
+        if sha not in pre_mission:
+            spines.setdefault(sha, mission_label)
     return spines
 
 
@@ -293,6 +310,7 @@ def _recorded_work_hit(
     window: Sequence[str],
     lane_heads: frozenset[str],
     tip_shas: Mapping[str, str],
+    pre_mission: frozenset[str] = frozenset(),
 ) -> tuple[str, str] | None:
     """The first window commit on the first-parent history of a recorded Mission work tip, with how it was recorded, or ``None``.
 
@@ -302,8 +320,9 @@ def _recorded_work_hit(
     recorded commit contributes its first-parent spine back to the window base. Commits an
     external dependency brought in sit on second-parent sides and are not on it. A recorded
     commit that no longer resolves covers nothing and is skipped; a probe failure raises.
+    Pre-Mission commits (*pre_mission*, #7560) are not Mission work and never hit.
     """
-    in_window = set(window)
+    in_window = set(window) - pre_mission
     recorded = [(sha, "a work package of this Mission recorded as a lane head in the status log") for sha in sorted(lane_heads)]
     recorded += [(sha, f"is on the history of the recorded work tip of the Mission lane branch '{branch}'") for sha, branch in sorted(tip_shas.items())]
     for tip, how in recorded:
@@ -331,6 +350,7 @@ def resolve_external_dependency_refs(
     coord_base_ref: str,
     recorded_lane_heads: frozenset[str] = frozenset(),
     pins: Mapping[str, str] | None = None,
+    pre_mission: frozenset[str] = frozenset(),
 ) -> ExternalDependencyAttribution:
     """Verify the declared dependency refs and return the sets that are outside the closed world.
 
@@ -348,6 +368,12 @@ def resolve_external_dependency_refs(
     namespace is refused, and so is a window commit that is a ``lane_head`` stamp any work
     package recorded (*recorded_lane_heads*, canceled and removed ones included) or the
     recorded work tip of a Mission lane branch (``refs/spec-kitty/lane-tip/*``).
+
+    Mission work is what the Mission authored after its base (#7560, ADR 2026-09-29-1
+    Amendment). *pre_mission* is the history the target lacks below the Mission base
+    (:func:`_pre_mission_attribution`); both guard walks skip it, so a Mission branch cut from
+    a fork of the target can declare the fork's pin. The declared ref's own window is
+    unchanged (``window_base..ref``): it is not bounded at the base.
 
     *pins* (``ref -> SHA``) are the commits an earlier step of this consolidation verified.
     A pinned ref is verified against its PIN; if the name now resolves elsewhere the
@@ -367,7 +393,7 @@ def resolve_external_dependency_refs(
         return _refused(declared, _REFUSE_DEPENDENCY_NO_WINDOW_BASE.format(refs=", ".join(declared)))
     namespaces = _mission_namespaces(lanes_manifest)
     try:
-        spines = _mission_spines(repo_root, lanes_manifest, coord_base_ref=coord_base_ref, window_base=window_base)
+        spines = _mission_spines(repo_root, lanes_manifest, coord_base_ref=coord_base_ref, window_base=window_base, pre_mission=pre_mission)
         tip_shas = _mission_tip_shas(repo_root, namespaces)
     except GitProbeError as exc:
         return _refused(declared, _REFUSE_DEPENDENCY_PROBE.format(doing="reading the mission spines", exc=exc))
@@ -386,7 +412,7 @@ def resolve_external_dependency_refs(
             lanes_manifest=lanes_manifest,
             namespaces=namespaces,
             spines=spines,
-            guards=(recorded_lane_heads, tip_shas),
+            guards=(recorded_lane_heads, tip_shas, pre_mission),
         )
         if isinstance(outcome, str):
             return _refused(declared, outcome)
@@ -408,10 +434,10 @@ def _verify_declared_ref(
     lanes_manifest: LanesManifest,
     namespaces: Sequence[str],
     spines: Mapping[str, str],
-    guards: tuple[frozenset[str], Mapping[str, str]],
+    guards: tuple[frozenset[str], Mapping[str, str], frozenset[str]],
 ) -> str | tuple[str, list[str], set[tuple[str, str]], set[str]]:
     """Verify ONE declared ref: the refusal text, or ``(tip, window, blobs, deletions)``."""
-    lane_heads, tip_shas = guards
+    lane_heads, tip_shas, pre_mission = guards
     namespace = _namespace_hit(ref, namespaces)
     if namespace is not None:
         return _REFUSE_DEPENDENCY_MISSION_NAMESPACE.format(ref=ref, namespace=namespace)
@@ -434,13 +460,121 @@ def _verify_declared_ref(
         covered = [sha for sha in window if sha in spines]
         if covered:
             return _REFUSE_DEPENDENCY_COVERS_MISSION_WORK.format(ref=ref, sha=covered[0][:10], spine=spines[covered[0]])
-        recorded = _recorded_work_hit(repo_root, window_base, window, lane_heads, tip_shas)
+        recorded = _recorded_work_hit(repo_root, window_base, window, lane_heads, tip_shas, pre_mission)
         if recorded is not None:
             return _REFUSE_DEPENDENCY_RECORDED_TIP.format(ref=ref, sha=recorded[0][:10], recorded=recorded[1])
         ref_blobs, ref_deletions = _final_authored_walk(repo_root, window)
     except GitProbeError as exc:
         return _REFUSE_DEPENDENCY_PROBE.format(doing=f"verifying external dependency ref '{ref}'", exc=exc)
     return tip, window, ref_blobs, ref_deletions
+
+
+@dataclass(frozen=True)
+class PreMissionHistory:
+    """History the target lacks that predates the Mission (#7560): ``window_base..mission_base``.
+
+    ``shas`` are those commits, ``blobs``/``deletions`` their final per-path state from the SAME
+    :func:`_final_authored_walk` the declared refs use. No patch-ids: the exemption is by exact
+    SHA, so a re-lettered copy of a pre-Mission commit is still judged (fail-closed). All empty when the
+    window base already reaches the base, when the base is unavailable, when the range holds
+    recorded Mission work, and when a probe failed (``base`` is then unavailable, its ``kind``
+    naming why): that is today's bound, which exempts nothing.
+    """
+
+    base: MissionBase
+    shas: frozenset[str] = frozenset()
+    blobs: frozenset[tuple[str, str]] = frozenset()
+    deletions: frozenset[str] = frozenset()
+
+
+# The short clause the note line prints for a failed probe: never raw git stderr.
+_PROBE_FAILED_REASON = "a git probe failed"
+_RANGE_HOLDS_MISSION_WORK_REASON = "pre-Mission range holds Mission work"
+
+
+def _pre_mission_attribution(
+    repo_root: Path,
+    window_base: str | None,
+    base: MissionBase,
+    *,
+    feature_dir: Path | None,
+    lanes_manifest: LanesManifest | None,
+) -> PreMissionHistory:
+    """The pre-Mission history below *base* that *window_base* lacks; any doubt degrades to today's bound.
+
+    An empty range costs no further probe (no walk). A non-empty range must hold no recorded
+    Mission work: a ``lane_head`` stamp any work package of the Mission recorded (read from
+    *feature_dir*'s status log) or a recorded lane work tip in the Mission's branch namespace
+    (from *lanes_manifest*). Such a commit means the base sits above the Mission's start, so the
+    whole set is dropped (``RANGE_HOLDS_MISSION_WORK``). ``None`` for either skips that guard
+    (a hand-built claim with no Mission on disk). A :class:`GitProbeError`, or an unreadable
+    status log, returns empty sets with the base marked unavailable (``PROBE_FAILED``):
+    fail-closed, because it exempts nothing.
+    """
+    try:
+        shas = pre_mission_history(repo_root, window_base, base)
+        if not shas:
+            return PreMissionHistory(base)
+        if _range_holds_mission_work(repo_root, frozenset(shas), feature_dir, lanes_manifest):
+            return PreMissionHistory(_unavailable(_RANGE_HOLDS_MISSION_WORK_REASON, MissionBaseReason.RANGE_HOLDS_MISSION_WORK))
+        blobs, deletions = _final_authored_walk(repo_root, list(shas))
+    except GitProbeError:
+        logger.debug("pre-Mission attribution below %s degraded to the target's pre-run bound", base.sha, exc_info=True)
+        return PreMissionHistory(_unavailable(_PROBE_FAILED_REASON, MissionBaseReason.PROBE_FAILED))
+    return PreMissionHistory(base, frozenset(shas), frozenset(blobs), frozenset(deletions))
+
+
+def _unavailable(reason: str, kind: MissionBaseReason) -> MissionBase:
+    return MissionBase(None, MissionBaseProvenance.UNAVAILABLE, reason, kind)
+
+
+def _range_holds_mission_work(
+    repo_root: Path,
+    shas: frozenset[str],
+    feature_dir: Path | None,
+    lanes_manifest: LanesManifest | None,
+) -> bool:
+    """True when *shas* holds a recorded ``lane_head`` stamp or a recorded lane work tip of this Mission.
+
+    Raises :class:`GitProbeError` when the status log or the lane-tip listing cannot be read.
+    """
+    if feature_dir is not None:
+        lane_heads = _recorded_lane_heads(feature_dir)
+        if lane_heads is None:
+            raise GitProbeError("the status log is unreadable, so its recorded lane heads are unknown")
+        if lane_heads & shas:
+            return True
+    if lanes_manifest is not None:
+        return not shas.isdisjoint(_mission_tip_shas(repo_root, _mission_namespaces(lanes_manifest)))
+    return False
+
+
+def _note_detail(base: MissionBase) -> str | None:
+    """*base*'s reason as one short clause, chosen by its kind: a probe failure is the fixed clause, whole.
+
+    A probe failure's reason carries git stderr, so it is replaced, never split or trimmed.
+    """
+    return _PROBE_FAILED_REASON if base.kind is MissionBaseReason.PROBE_FAILED else base.reason
+
+
+def mission_base_note(claim: ApprovedWpCommitSet) -> str | None:
+    """The one provenance note line for *claim*'s Mission base (FR-007), or ``None`` when there is nothing to say.
+
+    Nothing is said when the Mission branch itself does not resolve: no pre-Mission history can exist then.
+    """
+    base = claim.mission_base
+    if base is None:
+        return None
+    detail = _note_detail(base)
+    if claim.pre_mission_shas and base.sha is not None:
+        detail = f": {detail}" if detail else ""
+        return (
+            f"Mission base {base.sha[:10]} ({base.provenance}{detail}): {len(claim.pre_mission_shas)} commit(s) of history "
+            "the target lacks predate this Mission and are not judged as Mission work (#7560)."
+        )
+    if base.provenance is MissionBaseProvenance.UNAVAILABLE and base.kind is not MissionBaseReason.MISSION_BRANCH_UNRESOLVED:
+        return f"Mission base unavailable ({detail}); reconciliation windows are bounded by the target's pre-run tip only."
+    return None
 
 
 def dependency_refs_moved_refusal(repo_root: Path, pins: Mapping[str, str]) -> str | None:
@@ -462,6 +596,7 @@ def dependency_refs_moved_refusal(repo_root: Path, pins: Mapping[str, str]) -> s
 
 __all__ = [
     "ExternalDependencyAttribution",
+    "PreMissionHistory",
     "_REFUSE_DEPENDENCY_COVERS_MISSION_WORK",
     "_REFUSE_DEPENDENCY_MISSION_NAMESPACE",
     "_REFUSE_DEPENDENCY_MOVED",
@@ -475,11 +610,13 @@ __all__ = [
     "_mission_spines",
     "_mission_tip_shas",
     "_mission_work_reaches",
+    "_pre_mission_attribution",
     "_namespace_hit",
     "_recorded_lane_heads",
     "_recorded_work_hit",
     "_refused",
     "_verify_declared_ref",
     "dependency_refs_moved_refusal",
+    "mission_base_note",
     "resolve_external_dependency_refs",
 ]

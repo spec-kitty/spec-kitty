@@ -17,6 +17,7 @@ import json
 from pathlib import Path
 
 import typer
+from rich.markup import escape
 
 from specify_cli.version_utils import cli_version
 from specify_cli.cli.console import console
@@ -34,6 +35,7 @@ from specify_cli.consolidation.reconciliation import (
     VerifyResult,
     VerifyStatus,
     claim_integrity_refusal,
+    mission_base_note,
 )
 from specify_cli.lanes.persistence import (
     CorruptLanesError,
@@ -454,6 +456,7 @@ def _refuse_unattributable_in_forecast(
             ),
         )
         claim = build_claim(main_repo, lanes_manifest, inputs)
+        _print_mission_base_note(claim, json_output=json_output)
         refusal = claim_integrity_refusal(claim)
         if refusal is not None:
             _emit_dry_run_error(
@@ -481,6 +484,13 @@ def _refuse_unattributable_in_forecast(
         raise typer.Exit(1) from exc
     _forecast_verdict_or_exit(claim, result, json_output=json_output)
     return claim
+
+
+def _print_mission_base_note(claim: ApprovedWpCommitSet, *, json_output: bool) -> None:
+    """Print the Mission-base provenance note (#7560, FR-007); never under ``--json``, so the payload stays valid JSON."""
+    note = None if json_output else mission_base_note(claim)
+    if note is not None:
+        console.print(f"[yellow]Note:[/yellow] {escape(note)}", soft_wrap=True)
 
 
 def _forecast_verdict_or_exit(claim: ApprovedWpCommitSet, result: VerifyResult, *, json_output: bool) -> None:
