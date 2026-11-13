@@ -31,4 +31,4 @@ operator ruling on its source-of-truth status.
 
 ## See also
 
-- [Plans home](../../../plans/index.md)
+- [Plans home](../../../plans/README.md)

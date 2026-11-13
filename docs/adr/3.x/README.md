@@ -14,15 +14,15 @@ audience:
 Architectural Decision Records for the 3.x track (starting 3.0.0, released 2026-03-30).
 
 > **Closed to new ADRs.** The 4.x line is active: new ADRs land in
-> [`docs/adr/4.x/`](../4.x/index.md). This folder also holds the ADRs written early in the
+> [`docs/adr/4.x/`](../4.x/README.md). This folder also holds the ADRs written early in the
 > 4.0.0 cycle (2026-09-13 to 2026-09-29), before the 4.x folder opened; they stay here
 > because ADRs are immutable and their links must keep resolving.
 
 ## Era history
 
 The 3.x track formally began with the **3.0.0 release on 2026-03-30**. ADRs dated on or
-after that release live here; older decisions remain in [`docs/adr/2.x/`](../2.x/index.md)
-and [`docs/adr/1.x/`](../1.x/index.md). A handful of ADRs landed just before the era
+after that release live here; older decisions remain in [`docs/adr/2.x/`](../2.x/README.md)
+and [`docs/adr/1.x/`](../1.x/README.md). A handful of ADRs landed just before the era
 restructuring but thematically belong to 3.x — the shared-package-boundary cutover,
 mission-identity-uses-ULID, and the retrospective-gate work — and were moved here with
 their git history preserved.
@@ -46,8 +46,8 @@ system with a hardened execution model. The through-lines of this era's decision
 - **Governance honesty** — red main is honest signal and CI is the release authority;
   charter.yaml is the authoritative structured source with the prose extractor retired.
 
-The current track is [4.x](../4.x/index.md). The prior architecture is [2.x](../2.x/index.md); the
-foundational decisions are [1.x](../1.x/index.md).
+The current track is [4.x](../4.x/README.md). The prior architecture is [2.x](../2.x/README.md); the
+foundational decisions are [1.x](../1.x/README.md).
 
 ## Naming
 

@@ -16,7 +16,7 @@ related:
 > **Historical (delivered).** The Common Docs consolidation described here shipped: see [ADR 2026-06-27-1](../../../adr/3.x/2026-06-27-1-common-docs-reconciliation.md) and the per-section `index.md` / frontmatter now used across `docs/`. Kept as a record; the active cycle is 4.0.0 — see the [4.0.0 roadmap](../../4-0-0-milestone-roadmap.md).
 
 > Operator-directed target structure and mapping decisions (2026-06-27). Companion to
-> [the four-lens review](./index.md) and [the standard analysis](./02-common-docs-standard.md).
+> [the four-lens review](./README.md) and [the standard analysis](./02-common-docs-standard.md).
 
 ## Canonical top-level structure (operator-confirmed)
 

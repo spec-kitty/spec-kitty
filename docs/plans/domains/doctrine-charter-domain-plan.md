@@ -596,4 +596,4 @@ These three `docs/plans/doctrine/` investigations have been distilled into the i
 (governance configuration & docs), #2216 (governance tiers), #3259 (meta.json fail-closed
 routing), #645 (stable application API surface).
 
-**Plans index:** [docs/plans/index.md](../index.md).
+**Plans index:** [docs/plans/index.md](../README.md).

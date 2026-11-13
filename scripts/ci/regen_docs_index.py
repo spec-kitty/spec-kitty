@@ -6,7 +6,7 @@ Three docs surfaces are generated from the ``docs/`` tree:
   (``scripts/docs/docs_index.py``);
 * the page inventory, ``docs/development/page-inventory.yaml``
   (``scripts/docs/inventory_lockfile.py``);
-* the ADR era tables, the ``| Date | Title |`` rows of ``docs/adr/<era>/index.md``
+* the ADR era tables, the ``| Date | Title |`` rows of ``docs/adr/<era>/README.md``
   (``scripts/docs/freshen_adr_inventory.py --all --prune``: a missing row is added, a
   row whose ADR was renamed or deleted is removed).
 

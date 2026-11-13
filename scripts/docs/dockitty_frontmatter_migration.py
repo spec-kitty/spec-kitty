@@ -160,23 +160,21 @@ _DRAFT: Final[str] = "draft"
 _ISO_DATE: Final[re.Pattern[str]] = re.compile(r"\d{4}-\d{2}-\d{2}")
 _INDEX_BASENAMES_FOLDED: Final[frozenset[str]] = frozenset(f"{name.lower()}.md" for name in INDEX_BASENAMES)
 _DOCS_PREFIX: Final[str] = "docs/"
+_LEGACY_INDEX_FILE: Final[str] = "index.md"
+_README_FILE: Final[str] = "README.md"
 _REPO_URL: Final[str] = "https://github.com/spec-kitty/spec-kitty"
 _PERSONA_TITLE_PREFIXES: Final[tuple[str, ...]] = ("Stakeholder Persona: ",)
 _INTENDED_KEYS: Final[frozenset[str]] = frozenset({_AUDIENCE, _RELATED, _EXTERNAL, _DOC_STATUS, _KIND, _UPDATED, _TYPE})
 
-#: Files the migration never edits:
+#: The migration never edits the excluded folders
+#: (:data:`scripts.docs._dockitty_contract.EXCLUDED_FOLDERS`): doc-kitty never reads them,
+#: its gates skip them (ADR D-8), and they are immutable history, part of it byte-pinned
+#: by ``tests/architectural/test_archive_root_byte_identical.py``. The four files #6928
+#: resolved left the tree; their folders' ``README.md`` is the section index again since
+#: #6939 and is migrated like any page.
 #:
-#: * the excluded folders (:data:`scripts.docs._dockitty_contract.EXCLUDED_FOLDERS`):
-#:   doc-kitty never reads them, its gates skip them (ADR D-8), and they are
-#:   immutable history, part of it byte-pinned by
-#:   ``tests/architectural/test_archive_root_byte_identical.py``;
-#: * the four files #6928 resolves (the dual-index README stubs and the
-#:   architecture landing page), which leave the tree there.
-#:
-#: The ADR era ``index.md`` pages ARE migrated: their table rows are bot-owned,
-#: their frontmatter is not (``check_generated_docs_untouched.py`` refuses only
-#: new table rows).
-_SKIPPED_FILES: Final[frozenset[str]] = frozenset({"adr/1.x/README.md", "adr/2.x/README.md", "adr/3.x/README.md", "architecture/README.md"})
+#: The ADR era ``README.md`` pages ARE migrated: their table rows are bot-owned, their
+#: frontmatter is not (``check_generated_docs_untouched.py`` refuses only new table rows).
 
 
 class MigrationError(RuntimeError):
@@ -454,9 +452,22 @@ def _classify_docs_page(source: _Source, target: str, slug: str, corpus: Corpus,
         out.external.append(_external(corpus, f"{_DOCS_PREFIX}{target}", corpus.title(target)))
 
 
+def _renamed_section_index(docs_root: Path, target: str) -> str:
+    """An old-shape ``related`` path to a section ``index.md`` names its ``README.md`` since #6939.
+
+    Old-shape paths predate the rename (ADR D-1), so ``x/index.md`` that no longer exists
+    resolves to ``x/README.md`` when that is the folder's index. Any other path is returned as is.
+    """
+    head, _, name = target.rpartition("/")
+    if name != _LEGACY_INDEX_FILE or (docs_root / target).is_file():
+        return target
+    readme = f"{head}/{_README_FILE}" if head else _README_FILE
+    return readme if (docs_root / readme).is_file() else target
+
+
 def _classify_entry(source: _Source, entry: str, corpus: Corpus, out: _RelatedOutcome) -> None:
     if entry.startswith(_DOCS_PREFIX):
-        target = entry[len(_DOCS_PREFIX) :]
+        target = _renamed_section_index(corpus.docs_root, entry[len(_DOCS_PREFIX) :])
         if target.endswith(".md") and (corpus.docs_root / target).is_file():
             _classify_docs_page(source, target, slug_of(target), corpus, out)
             return
@@ -583,8 +594,8 @@ def _check_integrity(rel: str, old: Mapping[str, Any], new: Mapping[str, Any], i
 
 
 def is_skipped(rel: str) -> bool:
-    """True for a page under ``docs/`` the migration never edits (see :data:`_SKIPPED_FILES`)."""
-    return rel in _SKIPPED_FILES or is_excluded(rel)
+    """True for a page under ``docs/`` the migration never edits: one in an excluded folder."""
+    return is_excluded(rel)
 
 
 def _intended_changes(rel: str, data: Mapping[str, Any], corpus: Corpus, report: MigrationReport, *, d7: bool) -> dict[str, Any]:

@@ -41,7 +41,7 @@ Where the project is going next — the declared intent of each release line:
 
 Previous-release documentation, preserved for audits and older-project behavior
 lookup. Do not use these to start a new project or upgrade — see the
-[3.2 docs](../index.md) and [migration guide](../migrations/index.md) instead.
+[3.2 docs](../README.md) and [migration guide](../migrations/README.md) instead.
 
-- [Spec Kitty 2.x archive](2x/index.md) — the 2.x model before the current 3.2 runtime and Charter-era guidance.
-- [Spec Kitty 1.x archive](1x/index.md) — the original workflow model and early command structure.
+- [Spec Kitty 2.x archive](2x/README.md) — the 2.x model before the current 3.2 runtime and Charter-era guidance.
+- [Spec Kitty 1.x archive](1x/README.md) — the original workflow model and early command structure.

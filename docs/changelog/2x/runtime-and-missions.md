@@ -8,7 +8,7 @@ related:
 - context
 - changelog/2x/orchestration-and-api
 ---
-> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../context/index.md) for current docs.
+> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../context/README.md) for current docs.
 
 # 2.x Runtime, Mission Types, and Missions
 

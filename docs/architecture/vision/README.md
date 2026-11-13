@@ -16,7 +16,7 @@ related:
 
 This directory holds the **current and future** architecture vision for Spec Kitty —
 forward intent that may still change. It is one of the living architecture surfaces
-(see [architecture index](../index.md) for the boundary and decay rules).
+(see [architecture index](../README.md) for the boundary and decay rules).
 
 ## What belongs here
 

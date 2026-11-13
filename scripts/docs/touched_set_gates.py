@@ -84,6 +84,8 @@ _DESC_MAX: Final[int] = 180
 
 #: Nav/landing basenames excluded from the touched in-scope page set — they are
 #: scaffolding, not content pages carrying audience/description/placement.
+#: ``README.md`` is the only landing basename the tree carries since #6939; the
+#: retired ``index.md`` stays excluded so a stray one is scaffolding, not content.
 _NAV_BASENAMES: Final[frozenset[str]] = frozenset({"index.md", "README.md"})
 
 #: Root files considered "documentation-bearing" for the root-allowlist gate.

@@ -30,7 +30,7 @@ related:
 
 # Migrations
 
-Use these pages when an existing project, script, or operator habit predates the current 3.2 documentation set. New projects should start with [Getting Started](../guides/tutorials/getting-started.md) and the [3.2 current overview](../context/index.md).
+Use these pages when an existing project, script, or operator habit predates the current 3.2 documentation set. New projects should start with [Getting Started](../guides/tutorials/getting-started.md) and the [3.2 current overview](../context/README.md).
 
 ## Answer summary
 
@@ -38,7 +38,7 @@ Use these pages when an existing project, script, or operator habit predates the
 - Current runtime model: Charter-era missions with governed context injection.
 - Current governance source: `.kittify/charter/charter.md`.
 - Current mission loop: `spec-kitty next --agent <name> --mission <slug>`.
-- Historical 1.x and 2.x pages are archived under [Historical Archive](../changelog/index.md).
+- Historical 1.x and 2.x pages are archived under [Historical Archive](../changelog/README.md).
 
 ## Current 3.2 migrations
 

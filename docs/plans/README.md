@@ -54,7 +54,7 @@ below, a throughline does not retire when a milestone closes.
   (#650), including retiring the Feature-labelled UI drift.
 
 The three live throughlines (and the retired one) are catalogued one hop away in the
-[domains catalog](domains/index.md). Naming convention for throughlines:
+[domains catalog](domains/README.md). Naming convention for throughlines:
 `<domain>-domain-plan.md`, filed under `domains/`.
 
 ## Portfolio & milestone planning
@@ -113,7 +113,7 @@ record: each folder's own `index.md` says what in it is live and what is retired
 - **Doctrine** — doctrine layering, charter boundary, and
   artifact-selection planning. The [Charter-Resolution Program](charter-resolution/README.md)
   is a sibling folder in the same area.
-- **[Code quality](code-quality/index.md)** — the SonarCloud baseline, quality-metric
+- **[Code quality](code-quality/README.md)** — the SonarCloud baseline, quality-metric
   evolution, the smell/vulnerability cluster taxonomy, and targeted cleanup scoping.
 - **Testing** — mutation testing, acceleration, friction audit,
   and CI gate tuning.
@@ -134,8 +134,8 @@ Retired collections (distilled and closed out; their `index.md` is `deprecated`,
 on disk as archived provenance, not a live working surface): the **Reviews** collection
 (PR review resolution plans, test plans, execution reports), the **3.2 doc
 publication** collection (IA, navigation, and the 3.2 publication checklist), the
-**[Initiatives](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/initiatives/index.md)** collection (2.x-era architecture initiatives, retired
-2026-09-30), the **[Refactor](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/refactor/index.md)** collection (the degod/unshim
+**[Initiatives](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/initiatives/README.md)** collection (2.x-era architecture initiatives, retired
+2026-09-30), the **[Refactor](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/refactor/README.md)** collection (the degod/unshim
 programme, executed; retired 2026-09-30), and the
-**[Next-mission mappings](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/next-mission-mappings/index.md)** collection (both mapped gaps are
+**[Next-mission mappings](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/next-mission-mappings/README.md)** collection (both mapped gaps are
 now hard regression tests; retired 2026-09-30).

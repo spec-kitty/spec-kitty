@@ -81,7 +81,7 @@ Terms describing who performs work and who owns semantic decisions.
 | **Canonical authority** | Exactly one source per datum — **dynamic → event log** (reduced snapshot). (Umbrella rule shared with [Authored Intent](#authored-intent).) |
 | **Related terms** | [Authored Intent](#authored-intent), [Agent Profile](#agent-profile), [Role](#role), [Field-authority ADR](../adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md) |
 
-See the [Agent Profiles reference](../api/agent_profiles/index.md) for the full built-in roster.
+See the [Agent Profiles reference](../api/agent_profiles/README.md) for the full built-in roster.
 
 ---
 
@@ -106,7 +106,7 @@ See the [Agent Profiles reference](../api/agent_profiles/index.md) for the full 
 | **Context** | Identity |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Persona catalog** | [Internal Audience Index](audience/internal/index.md), [Lead Developer](audience/internal/lead-developer.md), [Maintainer](audience/internal/maintainer.md), [System Architect](audience/internal/system-architect.md), [Spec Kitty CLI Runtime](audience/internal/spec-kitty-cli-runtime.md), [AI Collaboration Agent](audience/internal/ai-collaboration-agent.md), [Project Codebase](audience/internal/project-codebase.md) |
+| **Persona catalog** | [Internal Audience Index](audience/internal/README.md), [Lead Developer](audience/internal/lead-developer.md), [Maintainer](audience/internal/maintainer.md), [System Architect](audience/internal/system-architect.md), [Spec Kitty CLI Runtime](audience/internal/spec-kitty-cli-runtime.md), [AI Collaboration Agent](audience/internal/ai-collaboration-agent.md), [Project Codebase](audience/internal/project-codebase.md) |
 | **Related terms** | [Audience Persona](#audience-persona), [Mission Participant](#mission-participant) |
 
 ---
@@ -119,7 +119,7 @@ See the [Agent Profiles reference](../api/agent_profiles/index.md) for the full 
 | **Context** | Identity |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Persona catalog** | [External Audience Index](audience/external/index.md), [Project Owner](audience/external/project-owner.md), [External Tech Lead Evaluator](audience/external/tech-lead-evaluator.md), [External Architect Evaluator](audience/external/architect-evaluator.md), [External Product Manager Evaluator](audience/external/product-manager-evaluator.md) |
+| **Persona catalog** | [External Audience Index](audience/external/README.md), [Project Owner](audience/external/project-owner.md), [External Tech Lead Evaluator](audience/external/tech-lead-evaluator.md), [External Architect Evaluator](audience/external/architect-evaluator.md), [External Product Manager Evaluator](audience/external/product-manager-evaluator.md) |
 | **Related terms** | [Audience Persona](#audience-persona), [Mission Owner](#mission-owner) |
 
 ---

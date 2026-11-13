@@ -15,7 +15,7 @@ related:
 Standalone research notes and syntheses that sit outside a single mission.
 
 These notes follow the distil-then-retire lifecycle described in the
-[plans index](../index.md): pages retire once their question is answered or their
+[plans index](../README.md): pages retire once their question is answered or their
 subject ships. The active cycle is 4.0.0 — see the
 [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
 
@@ -34,4 +34,4 @@ subject ships. The active cycle is 4.0.0 — see the
 
 ## See also
 
-- [Plans index](../index.md)
+- [Plans index](../README.md)

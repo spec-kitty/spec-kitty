@@ -17,7 +17,7 @@ related:
 
 Durable settings, toolchain, and policy references — pages that document *how
 the project is configured* and stay correct across missions. Effort-scoped
-tuning notes live under [`../plans/`](../plans/index.md).
+tuning notes live under [`../plans/`](../plans/README.md).
 
 ## Pages
 
@@ -29,6 +29,6 @@ tuning notes live under [`../plans/`](../plans/index.md).
 
 ## See also
 
-- [Documentation home](../index.md)
-- [Operations](../operations/index.md)
-- [Guides](../guides/index.md)
+- [Documentation home](../README.md)
+- [Operations](../operations/README.md)
+- [Guides](../guides/README.md)

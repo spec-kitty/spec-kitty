@@ -44,12 +44,12 @@ related mission scope notes.
 - **[FoundationalValues/creed program — delivery sequence](manifesto-program-delivery-sequence.md)** — **AUTHORITY** for sequencing
 - [Creed and FoundationalValues — design as proposed](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/creed-and-values-design-as-proposed.md) — RECORD; **retired (deprecated)**; operator input + measured corpus grounding
 - [Creed and FoundationalValues — hardened design](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/creed-and-values-design-hardened.md) — RECORD; **retired (deprecated)**; four-lens hardening round
-- [Squad reports + measurements](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/squad-reports/index.md) — EVIDENCE; **retired (deprecated)**; raw lens reports, measurements, and the [final verification round](squad-reports/review-round-2026-07-26.md)
+- [Squad reports + measurements](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/squad-reports/README.md) — EVIDENCE; **retired (deprecated)**; raw lens reports, measurements, and the [final verification round](squad-reports/review-round-2026-07-26.md)
 - [Mission B (proposed scope) — Charter-mediated doctrine selection](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/mission-b-proposed-scope.md) — **retired (deprecated)**
 - [Org Doctrine Layer — Post-Implementation Architecture Review](org-doctrine-layer-architecture-review.md) — **retired (deprecated)**
 - [Runtime → Charter → Doctrine — boundary audit and recommendations](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/runtime-charter-doctrine-boundary.md) — **retired (deprecated)**
 - [WP-Prompt Governance Contract — ATDD Findings](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/wp-prompt-governance-atdd-findings.md) — **retired (deprecated)**
-- [Test Quality — test slicing & mocking-boundary discipline](test_quality/index.md) — *live (input for the unmerged Mission C)*
+- [Test Quality — test slicing & mocking-boundary discipline](test_quality/README.md) — *live (input for the unmerged Mission C)*
 - [Next doctrine slice (preliminary research) — wheel cutover, mission-type relocation, public API surface](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/next-slice-wheel-mission-types-public-api-research.md) — RECORD; **retired (deprecated)**; pre-spec research, gap-flags a missing tracker issue for the public-API thread
 - [#3179 doctrine public API surface — scoping brief](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/3179-public-api-surface-scoping.md) — EVIDENCE; **retired (deprecated)**; reach-through inventory, facade gap map, lazy-import ratchet design, SonarCloud read, and the OpenAPI-does-not-apply decision
 - [Charter as Sole Door: Deferred Issues Record](charter-sole-door-deferred-issues.md) — *live (relocated by PR #3324)*
@@ -81,4 +81,4 @@ and the D-2/D-3 rulings are recorded in
 
 ## See also
 
-- [Plans home](../index.md)
+- [Plans home](../README.md)

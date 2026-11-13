@@ -408,6 +408,6 @@ deliberately never wrote it down.
 
 ## See also
 
-- [Doctrine plans index](../../../plans/doctrine/index.md)
+- [Doctrine plans index](../../../plans/doctrine/README.md)
 - [Org Doctrine Layer — Post-Implementation Architecture Review](../../../plans/doctrine/org-doctrine-layer-architecture-review.md)
 - [Layered Doctrine Resolution — Design Blueprint](../../../plans/doctrine/layered-doctrine-resolution-design.md)

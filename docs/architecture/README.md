@@ -95,7 +95,7 @@ silently rewritten; history accrues by era.
 
 ## ADR locations
 
-ADRs are grouped into era folders under `docs/adr/<era>/`. The [ADR index](../adr/index.md)
+ADRs are grouped into era folders under `docs/adr/<era>/`. The [ADR index](../adr/README.md)
 lists them all.
 
 - `docs/adr/1.x/`: 1.x-era decisions.
@@ -240,6 +240,6 @@ Kept as records; not maintained as current.
 
 ## See also
 
-- [Documentation home](../index.md)
-- [Architecture Decision Records](../adr/index.md)
+- [Documentation home](../README.md)
+- [Architecture Decision Records](../adr/README.md)
 - Project terminology canon: [glossary conventions](../context/glossary-conventions.md)

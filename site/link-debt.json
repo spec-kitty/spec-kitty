@@ -214,7 +214,7 @@
     {
       "gate": "built-links",
       "source": "adr/3.x/2026-06-27-1-common-docs-reconciliation.md",
-      "target": "../../../docs/plans/engineering-notes/651-docs-consolidation/index.md",
+      "target": "../../../docs/plans/engineering-notes/651-docs-consolidation/README.md",
       "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
     },
     {
@@ -640,7 +640,7 @@
     {
       "gate": "check-links",
       "source": "adr/3.x/2026-06-27-1-common-docs-reconciliation.md",
-      "target": "../../../docs/plans/engineering-notes/651-docs-consolidation/index.md",
+      "target": "../../../docs/plans/engineering-notes/651-docs-consolidation/README.md",
       "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
     },
     {

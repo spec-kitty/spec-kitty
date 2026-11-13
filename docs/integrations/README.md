@@ -17,9 +17,9 @@ here as the supported harness and connector surface grows.
 
 Until dedicated pages land here, see:
 
-- [Guides](../guides/index.md) — task-oriented workflows, including harness usage.
-- [API and CLI reference](../api/index.md) — exact integration surfaces.
+- [Guides](../guides/README.md) — task-oriented workflows, including harness usage.
+- [API and CLI reference](../api/README.md) — exact integration surfaces.
 
 ## See also
 
-- [Documentation home](../index.md)
+- [Documentation home](../README.md)

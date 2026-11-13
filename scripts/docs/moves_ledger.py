@@ -15,10 +15,16 @@ Two committed, repository-level files under ``site/`` (ADR ``2026-10-31-1`` D-5)
     :func:`collapse` follows the chain to the final route.
 
 A **route** is a site-relative published path in its legacy ``.html`` form, such
-as ``/guides/x.html`` or ``/adr/1.x/index.html``: the form the legacy site
+as ``/guides/x.html`` or ``/adr/1.x/README.html``: the form the legacy site
 published before the doc-kitty cutover (#6938). The doc-kitty redirect generator
 (``scripts/docs/site_redirects.py``) maps ``X.html`` to the directory URL ``X/``
 (ADR D-5 rule 1).
+
+A page that moves back to a route it left is a later entry *into* that route. The
+return supersedes the route's earlier move away (:func:`collapse`): eight section
+indexes moved ``README.md -> index.md`` (#3914, #6928) and back (#6939). An index
+rename (:func:`is_index_rename`, ``/x/index.html -> /x/README.html``) keeps the
+directory URL ``/x/``, so it needs no baseline entry and no redirect key.
 
 This module is the single reader and validator of both files. It has no CLI.
 ``scripts/docs/site_redirects.py`` and the live-site probe read the collapsed
@@ -44,8 +50,10 @@ __all__ = [
     "Move",
     "MovesLedgerError",
     "collapse",
+    "is_index_rename",
     "load_baseline",
     "load_moves",
+    "returned_routes",
     "route_to_source",
     "source_pairs",
     "source_to_route",
@@ -62,6 +70,8 @@ _DOCS_PREFIX: Final[str] = "docs/"
 _MD_SUFFIX: Final[str] = ".md"
 _HTML_SUFFIX: Final[str] = ".html"
 _SLASH: Final[str] = "/"
+#: The section index file names the legacy site published (``dir/index.html``, ``dir/README.html``).
+_LEGACY_INDEX_STEMS: Final[frozenset[str]] = frozenset({"index", "readme"})
 
 
 class MovesLedgerError(ValueError):
@@ -138,10 +148,39 @@ def _final_route(start: str, direct: Mapping[str, str]) -> str:
     return current
 
 
+def returned_routes(moves: Iterable[Move]) -> frozenset[str]:
+    """Routes a later entry moves a page back into: live again, so their earlier move away is over."""
+    ordered = list(moves)
+    left_at = {move.from_route: index for index, move in enumerate(ordered)}
+    return frozenset(move.to_route for index, move in enumerate(ordered) if left_at.get(move.to_route, index) < index)
+
+
 def collapse(moves: Iterable[Move]) -> dict[str, str]:
-    """Map every ``from`` route to the end of its chain (ADR D-5 rule 2)."""
-    direct = {move.from_route: move.to_route for move in moves}
+    """Map every live ``from`` route to the end of its chain (ADR D-5 rule 2).
+
+    The ledger is append-only, so a page that moves back to a route it left is a later
+    entry into that route (``/a -> /b``, then ``/b -> /a``). The return supersedes the
+    route's earlier move away: the route is live again and is not a ``from`` any more.
+    A route that moves to itself is still refused as a cycle.
+    """
+    ordered = list(moves)
+    returned = returned_routes(ordered)
+    direct = {move.from_route: move.to_route for move in ordered if move.from_route not in returned}
     return {source: _final_route(source, direct) for source in direct}
+
+
+def _section_of(route: str) -> str | None:
+    """``/a/index.html`` and ``/a/README.html`` -> ``/a/``; ``None`` for any other route."""
+    head, _, last = route.rpartition(_SLASH)
+    if last.lower().removesuffix(_HTML_SUFFIX) not in _LEGACY_INDEX_STEMS or not last.endswith(_HTML_SUFFIX):
+        return None
+    return f"{head}{_SLASH}"
+
+
+def is_index_rename(from_route: str, to_route: str) -> bool:
+    """True when a move only renames a folder's index file, so its directory URL stays put (#6939)."""
+    section = _section_of(from_route)
+    return from_route != to_route and section is not None and section == _section_of(to_route)
 
 
 # --- URL baseline --------------------------------------------------------------

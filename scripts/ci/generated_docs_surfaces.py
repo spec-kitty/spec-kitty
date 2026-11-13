@@ -21,6 +21,9 @@ PAGE_INVENTORY_PATH = "docs/development/page-inventory.yaml"
 GENERATED_FILES = (DOCS_INDEX_PATH, PAGE_INVENTORY_PATH)
 
 #: An ADR era landing page whose index table the regeneration maintains.
+#: ``README.md`` is the canonical basename since #6939; the retired ``index.md``
+#: stays recognised so the bot still classifies an era page on a tree that has not
+#: been renamed yet (it runs on ``main``, where either shape can exist).
 ERA_INDEX_RE = re.compile(r"^docs/adr/\d+\.x/(?:index|README)\.md$")
 
 

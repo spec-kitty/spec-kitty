@@ -21,7 +21,7 @@ related:
 tracker on 2026-10-06. It replaces the
 [3.2.x Executive Overview](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/3-2-x-executive-overview.md).
 The operator detail is in the [4.0.0 Milestone Roadmap](4-0-0-milestone-roadmap.md). What
-actually shipped is in the [changelog](../changelog/index.md). Counts below are a snapshot:
+actually shipped is in the [changelog](../changelog/README.md). Counts below are a snapshot:
 check the [4.0.0 release scope milestone](https://github.com/spec-kitty/spec-kitty/milestone/11)
 for today's numbers.*
 

@@ -145,7 +145,7 @@ def _sitemaps(dist: Path, routes: frozenset[str]) -> Iterator[Finding]:
 def _okf_route(rel: str) -> str:
     if rel == _OKF_FOLDER_META or rel.endswith(f"/{_OKF_FOLDER_META}"):
         folder = rel[: -len(_OKF_FOLDER_META)].rstrip("/")
-        return route_of(f"{folder}/index.md" if folder else "index.md")
+        return route_of(f"{folder}/README.md" if folder else "README.md")
     return route_of(rel)
 
 

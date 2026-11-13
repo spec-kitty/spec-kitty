@@ -26,8 +26,8 @@ Use these persona documents as the canonical audience reference for:
 
 | Group | Scope | Index |
 |---|---|---|
-| Internal Audience | Contributors and runtime/system actors | [internal/index.md](internal/index.md) |
-| External Audience | Stakeholders outside runtime boundary, including evaluators for adoption decisions | [external/index.md](external/index.md) |
+| Internal Audience | Contributors and runtime/system actors | [internal/index.md](internal/README.md) |
+| External Audience | Stakeholders outside runtime boundary, including evaluators for adoption decisions | [external/index.md](external/README.md) |
 
 ## Conventions
 

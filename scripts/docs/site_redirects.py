@@ -17,8 +17,11 @@ The rules, applied to each baseline route:
 
 1. ``X.html`` redirects to ``X/``; ``dir/README.html`` and ``dir/index.html`` to ``dir/``.
 2. A moved route first follows its collapsed chain to the final route.
-3. A ``dir/index.html`` that is the built file of the live, unmoved page ``dir/`` gets no
-   key: the page serves it.
+3. A ``dir/index.html`` that ends at the live page ``dir/`` gets no key: the page serves it.
+   That holds for an unmoved index and for an index renamed to ``README.md`` (#6939), whose
+   collapsed ledger move ``dir/index.html -> dir/README.html`` is an index rename. Any other
+   move of ``dir/index.html`` that lands on ``dir/`` (for example through a hub fallback) is
+   refused: its key would overwrite the live page.
 4. A route whose page is unpublished (draft folder, draft status, excluded or archived
    folder) redirects to its nearest published ancestor, normally the section hub. It
    was put here, not in ``moves.yaml``, while the legacy site still published drafts
@@ -54,7 +57,7 @@ from typing import Final
 # Runnable bare (`python3 scripts/docs/site_redirects.py`): resolve `scripts.*` from the script, not the cwd.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from scripts.docs._dockitty_contract import INDEX_BASENAMES, route_of, unpublished_routes  # noqa: E402
-from scripts.docs.moves_ledger import MovesLedgerError, collapse, load_baseline, load_moves  # noqa: E402
+from scripts.docs.moves_ledger import MovesLedgerError, collapse, is_index_rename, load_baseline, load_moves  # noqa: E402
 
 __all__ = ["MAP_PATH", "RedirectMapError", "build_map", "check", "main", "render", "write"]
 
@@ -68,7 +71,9 @@ _PUBLIC: Final[Path] = REPO_ROOT / "site" / "public"
 _HTML_SUFFIX: Final[str] = ".html"
 _MD_SUFFIX: Final[str] = ".md"
 _INDEX_HTML: Final[str] = "index.html"
-_INDEX_FOLDED: Final[frozenset[str]] = frozenset(name.lower() for name in INDEX_BASENAMES)
+#: The legacy site published a section index as ``dir/index.html`` or ``dir/README.html``; both fold
+#: to ``dir/`` whatever today's index basename is (``INDEX_BASENAMES``, ``README`` since #6939).
+_INDEX_FOLDED: Final[frozenset[str]] = frozenset({"index", "readme", *(name.lower() for name in INDEX_BASENAMES)})
 _FIX: Final[str] = "python -m scripts.docs.site_redirects"
 
 
@@ -118,7 +123,8 @@ def _entry(route: str, moved: Mapping[str, str], docs: Path, public: Path, pages
     """The map value for *route*, or ``None`` when the route needs no key (rule 3)."""
     target = _resolve(route, moved.get(route, route), docs, pages, live)
     if route.endswith(f"/{_INDEX_HTML}") and route.removesuffix(_INDEX_HTML) in live:
-        if route not in moved and target == route.removesuffix(_INDEX_HTML):
+        folder = route.removesuffix(_INDEX_HTML)
+        if target == folder and (route not in moved or is_index_rename(route, moved[route])):
             return None
         raise RedirectMapError(f"{route}: the key would overwrite the live page {route.removesuffix(_INDEX_HTML)} (redirects to {target})")
     if (public / route.lstrip("/")).exists():

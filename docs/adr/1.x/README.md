@@ -33,7 +33,7 @@ loop. The decisions recorded here set the foundations later eras built on:
   the early worktree lifecycle and isolation posture.
 
 These decisions are **retained as history**. The current track is
-[3.x](../3.x/index.md); the intervening architecture is [2.x](../2.x/index.md). Use the
+[3.x](../3.x/README.md); the intervening architecture is [2.x](../2.x/README.md). Use the
 1.x record when working on local-first legacy behavior and maintenance, or when tracing
 why a foundational mechanism exists.
 

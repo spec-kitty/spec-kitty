@@ -31,4 +31,4 @@ None.
 
 ## See also
 
-- [Plans index](../../../plans/index.md)
+- [Plans index](../../../plans/README.md)

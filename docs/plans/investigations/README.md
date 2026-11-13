@@ -16,7 +16,7 @@ Standalone investigation and scope-assessment artifacts: issue analyses,
 compatibility matrices, schema research, and mission review reports.
 
 These notes follow the distil-then-retire lifecycle described in the
-[plans index](../index.md): a page stays **Live** while its question is open and
+[plans index](../README.md): a page stays **Live** while its question is open and
 moves to **Historical** once its subject ships or is decided. The active cycle is
 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
 
@@ -76,4 +76,4 @@ Kept as records only; do not consult them for current behavior.
 
 ## See also
 
-- [Plans index](../index.md)
+- [Plans index](../README.md)
