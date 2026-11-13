@@ -345,32 +345,38 @@ _NO_FACTS: dict[str, Any] = {
             ReviewerOfRecord(_RECORDED.reviewer, _RECORDED.reference, "carried"),
             id="carried-verbatim",
         ),
-        pytest.param({"carrying": True, "agent": "codex"}, ReviewerOfRecord("codex", "force-override", "carried"), id="carried-no-approval-agent"),
         pytest.param(
-            {"carrying": True, "reviewer": " claude:opus "}, ReviewerOfRecord("claude:opus", "force-override", "carried"), id="carried-no-approval-reviewer"
+            {"carrying": True, "agent": "codex"}, ReviewerOfRecord("codex", "force-override", "carried", from_caller=True), id="carried-no-approval-agent"
+        ),
+        pytest.param(
+            {"carrying": True, "reviewer": " claude:opus "},
+            ReviewerOfRecord("claude:opus", "force-override", "carried", from_caller=True),
+            id="carried-no-approval-reviewer",
         ),
         pytest.param({"carrying": True}, None, id="carried-no-identity"),
         pytest.param({"carrying": True, "agent": "  ", "reviewer": "", "claimant": "codex"}, None, id="carried-blank-identity-ignores-claimant"),
         # forced
         pytest.param(
             {"forced": True, "agent": "operator", "arbiter_ref": "arbiter://WP01/1"},
-            ReviewerOfRecord("operator", "arbiter://WP01/1", "forced"),
+            ReviewerOfRecord("operator", "arbiter://WP01/1", "forced", from_caller=True),
             id="forced-arbiter-ref",
         ),
         pytest.param(
-            {"forced": True, "agent": "operator", "arbiter_ref": "  "}, ReviewerOfRecord("operator", "force-override", "forced"), id="forced-blank-arbiter-ref"
+            {"forced": True, "agent": "operator", "arbiter_ref": "  "},
+            ReviewerOfRecord("operator", "force-override", "forced", from_caller=True),
+            id="forced-blank-arbiter-ref",
         ),
         pytest.param({"forced": True, "claimant": "codex"}, ReviewerOfRecord("codex", "force-override", "forced"), id="forced-claimant"),
         pytest.param({"forced": True}, ReviewerOfRecord("user", "force-override", "forced"), id="forced-no-identity"),
         pytest.param({"forced": True, "agent": " ", "reviewer": "\t"}, ReviewerOfRecord("user", "force-override", "forced"), id="forced-whitespace-identity"),
         pytest.param(
             {"forced": True, "carrying": True, "recorded_approval": _RECORDED, "agent": "operator"},
-            ReviewerOfRecord("operator", "force-override", "forced"),
+            ReviewerOfRecord("operator", "force-override", "forced", from_caller=True),
             id="forced-wins-over-carried",
         ),
         # review (precedence --agent > --reviewer > claimant; --approval-ref kept)
-        pytest.param({"agent": "a", "reviewer": "r", "claimant": "c"}, ReviewerOfRecord("a", None, "review"), id="review-agent-first"),
-        pytest.param({"reviewer": "r", "claimant": "c"}, ReviewerOfRecord("r", None, "review"), id="review-reviewer-second"),
+        pytest.param({"agent": "a", "reviewer": "r", "claimant": "c"}, ReviewerOfRecord("a", None, "review", from_caller=True), id="review-agent-first"),
+        pytest.param({"reviewer": "r", "claimant": "c"}, ReviewerOfRecord("r", None, "review", from_caller=True), id="review-reviewer-second"),
         pytest.param({"claimant": "c"}, ReviewerOfRecord("c", None, "review"), id="review-claimant-third"),
         pytest.param({"agent": "  ", "reviewer": " ", "claimant": " c "}, ReviewerOfRecord("c", None, "review"), id="review-blank-flags-skipped"),
         pytest.param({"claimant": "c", "approval_ref": " pr-12 "}, ReviewerOfRecord("c", "pr-12", "review"), id="review-keeps-approval-ref"),

@@ -293,11 +293,15 @@ class ReviewerOfRecord:
     approval's reviewer, or the forced-move placeholder ``user``); it is never read from git.
     ``reference`` is the evidence reference, or ``None`` for a review whose ``review-cycle://`` pointer
     is known only once the approval's cycle is written. ``kind`` says which rule produced it.
+    ``from_caller`` says the identity came from a caller flag (``--agent`` / ``--reviewer``), not
+    from the event log (claimant, recorded approval) or the placeholder: a caller flag is always
+    parsed strictly, never replayed as a recorded reconstruction seed (#6754).
     """
 
     identity: str
     reference: str | None
     kind: Literal["review", "forced", "carried"]
+    from_caller: bool = False
 
 
 #: The reference a forced approval records when no arbiter decision names one.
@@ -344,13 +348,15 @@ def resolve_reviewer_of_record(
     asserted = _first_identity(agent, reviewer)
     if forced:
         identity = asserted or _first_identity(claimant) or _UNASSERTED_FORCED_IDENTITY
-        return ReviewerOfRecord(identity, _first_identity(arbiter_ref) or _FORCE_OVERRIDE_REFERENCE, "forced")
+        return ReviewerOfRecord(identity, _first_identity(arbiter_ref) or _FORCE_OVERRIDE_REFERENCE, "forced", from_caller=asserted is not None)
     if carrying:
         if recorded_approval is not None:
             return ReviewerOfRecord(recorded_approval.reviewer, recorded_approval.reference, "carried")
-        return ReviewerOfRecord(asserted, _FORCE_OVERRIDE_REFERENCE, "carried") if asserted else None
+        return ReviewerOfRecord(asserted, _FORCE_OVERRIDE_REFERENCE, "carried", from_caller=True) if asserted else None
     reviewer_identity = asserted or _first_identity(claimant)
-    return ReviewerOfRecord(reviewer_identity, _first_identity(approval_ref), "review") if reviewer_identity else None
+    if reviewer_identity is None:
+        return None
+    return ReviewerOfRecord(reviewer_identity, _first_identity(approval_ref), "review", from_caller=asserted is not None)
 
 
 @dataclass

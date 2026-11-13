@@ -207,6 +207,12 @@ def _mt_hop_actor(st: _MoveTaskState, event: StatusEvent | None, current_event_l
     return "user"
 
 
+def _mt_records_caller_identity(st: _MoveTaskState, tool_identity: str) -> bool:
+    """Whether ``tool_identity`` is the reviewer of record and that identity came from a caller flag (#6754)."""
+    record = st.reviewer_of_record
+    return record is not None and record.from_caller and tool_identity == record.identity
+
+
 def _mt_structured_actor(st: _MoveTaskState, role: str, tool_identity: str) -> dict[str, str | None]:
     """The structured 4-key ``{tool, role, profile, model}`` actor a move-task write records (#6400).
 
@@ -226,8 +232,9 @@ def _mt_structured_actor(st: _MoveTaskState, role: str, tool_identity: str) -> d
     # Bound explicitly: mypy widens ``specify_cli.*`` returns to ``Any`` through ``follow_imports=skip``.
     actor: dict[str, str | None]
     # #7569: ``--reviewer`` is an identity assertion like ``--agent``; when it is the identity this hop
-    # records, it is parsed as strictly (refused upfront when it does not parse).
-    asserted = st.agent or (st.reviewer if st.reviewer and tool_identity == st.reviewer.strip() else None)
+    # records, it is parsed as strictly (refused upfront when it does not parse). #6754: the reviewer of
+    # record carries its source, so a caller flag stays strict also when the binding rewrote it.
+    asserted = st.agent or (st.reviewer if st.reviewer and (tool_identity == st.reviewer.strip() or _mt_records_caller_identity(st, tool_identity)) else None)
     if asserted:
         actor = build_status_actor(role=role, agent=asserted, fallback_tool=None, binding=st.resolved_binding)
     else:
