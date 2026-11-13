@@ -785,14 +785,15 @@ class MergeOutcomeVerifier:
     def _window_has_non_bookkeeping_change(self, target_ref: str, claim: ApprovedWpCommitSet, window_base: str) -> bool:
         """True iff ``window_base..target`` carries any un-authorized A/M/D path.
 
-        Pre-Mission history (#7560) is not content: a ``D`` path in
-        :attr:`ApprovedWpCommitSet.pre_mission_deletions`, and an A/M path whose target blob is
-        the pre-Mission final blob (:attr:`ApprovedWpCommitSet.pre_mission_blobs`). Only that
-        second check reads a blob, and only when the pre-Mission blob set is non-empty.
+        Inherited history is not content (the same two sources the squash axes exempt, through
+        :func:`_inherited_deletion` / :func:`_inherited_blob`): a ``D`` path a declared dependency
+        (#6771) or pre-Mission history (#7560) last deleted, and an A/M path whose target blob is
+        such history's final blob. Only the blob check reads a blob, and only when an inherited
+        blob set is non-empty.
 
         Mirrors :meth:`_unattributable_content_squash`'s bookkeeping + deletion-
-        authority filter, without reading blobs — this only asks WHETHER
-        attributable content exists, never WHICH blob it is (there is no
+        authority filter; it reads a blob only for the inherited-blob check above — this
+        only asks WHETHER attributable content exists, never WHICH blob it is (there is no
         authorship set to attribute against here; ``claim.authored_deletions`` is
         always empty in the caller's context, :meth:`_verify_squash_vacuous_authorship`
         — no lane resolved any commits — so a ``D`` path here is never skipped as
@@ -804,11 +805,11 @@ class MergeOutcomeVerifier:
             if self._is_bookkeeping_path(path, claim):
                 continue
             if status.startswith("D"):
-                if path in claim.authored_deletions or path in claim.pre_mission_deletions:
-                    continue  # an approved lane's own, or pre-Mission (#7560), final-state deletion — not content
+                if path in claim.authored_deletions or _inherited_deletion(path, claim):
+                    continue  # an approved lane's own, or inherited (#6771, #7560), final-state deletion — not content
                 return True
-            if claim.pre_mission_blobs and (path, blob_id_at(self._repo, target_ref, path)) in claim.pre_mission_blobs:
-                continue  # the pre-Mission final content (#7560) — not content of this Mission
+            if (claim.pre_mission_blobs or claim.external_dependency_blobs) and _inherited_blob(path, blob_id_at(self._repo, target_ref, path), claim):
+                continue  # inherited final content (#6771, #7560) — not content of this Mission
             return True
         return False
 
@@ -867,14 +868,12 @@ class MergeOutcomeVerifier:
         both authored. Each is keyed on the exact ``(path, blob)``, so a post-base change of the
         path (a different blob) is not covered.
         """
-        if (path, blob) in claim.external_dependency_blobs:
-            return True
         # Residual (#7560): ``pre_mission_blobs`` comes from ``_final_authored_walk`` over the
         # ``rev-list`` order of ``window_base..mission_base``, so on a range with side branches the
         # "final" blob it keeps for a path can be a side branch's intermediate one rather than the
         # Mission base's own, and that blob is then exempt here. The same class of gap as
         # ``authored_blobs`` (also a walk's final state, not the tip's tree).
-        if (path, blob) in claim.pre_mission_blobs:
+        if _inherited_blob(path, blob, claim):
             return True
         return is_legitimate_three_way_resolution(self._repo, claim, path, blob)
 
@@ -907,9 +906,19 @@ class MergeOutcomeVerifier:
         return _is_bookkeeping(path, claim.mission_slug, claim.planning_prefix)
 
 
+def _inherited_deletion(path: str, claim: ApprovedWpCommitSet) -> bool:
+    """True when *path*'s final deletion is inherited history: a declared dependency's (#6771) or pre-Mission (#7560)."""
+    return path in claim.external_dependency_deletions or path in claim.pre_mission_deletions
+
+
+def _inherited_blob(path: str, blob: str, claim: ApprovedWpCommitSet) -> bool:
+    """True when ``(path, blob)`` is inherited history's final content: a declared dependency's (#6771) or pre-Mission (#7560)."""
+    return (path, blob) in claim.external_dependency_blobs or (path, blob) in claim.pre_mission_blobs
+
+
 def _deletion_attributed(path: str, claim: ApprovedWpCommitSet) -> bool:
-    """True when a squash-window deletion of *path* is an approved lane's, a declared dependency's (#6771) or pre-Mission (#7560)."""
-    return path in claim.authored_deletions or path in claim.external_dependency_deletions or path in claim.pre_mission_deletions
+    """True when a squash-window deletion of *path* is an approved lane's or inherited history's."""
+    return path in claim.authored_deletions or _inherited_deletion(path, claim)
 
 
 def is_legitimate_three_way_resolution(
