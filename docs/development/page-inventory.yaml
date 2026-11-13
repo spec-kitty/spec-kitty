@@ -5594,9 +5594,3 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/templates/index.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
