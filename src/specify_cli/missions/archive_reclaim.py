@@ -218,7 +218,7 @@ def _prove_landed(coordination: _Coordination, live_tip: str) -> None:
 def _late_commits_message(branch: str, landed: str, late: list[str]) -> str:
     listed = "\n".join(f"  {sha[:12]}" for sha in late[:_MAX_LISTED_COMMITS])
     more = f"\n  ... and {len(late) - _MAX_LISTED_COMMITS} more" if len(late) > _MAX_LISTED_COMMITS else ""
-    head = f"The coordination branch {branch} holds {len(late)} commit(s) made after its landing ({landed[:12]})"
+    head = f"The coordination branch {branch} holds {len(late)} commit(s) not reachable from the recorded landing ({landed[:12]})"
     return f"{head}, which the target never received:\n{listed}{more}"
 
 

@@ -123,6 +123,7 @@ def create(
         raise typer.Exit(_EXIT_REFUSED) from refused
 
     record = outcome.record
+    reclaim_hint = reclaim_command(feature_dir.name) if holds_coordination_marker(root, feature_dir.name) else None
     if json_output:
         payload = {
             "record": record.to_dict(),
@@ -130,6 +131,7 @@ def create(
                 {"invariant_id": d.invariant_id, "disposition": d.disposition}
                 for d in outcome.cleared_deferrals
             ],
+            "reclaim_command": reclaim_hint,
         }
         console.print(json.dumps(payload, indent=2, sort_keys=True))
         return
@@ -143,8 +145,8 @@ def create(
         console.print(
             f"  Cancellation cleared deferrals to a canceled disposition: {ids}"
         )
-    if holds_coordination_marker(root, feature_dir.name):
-        console.print(f"Reclaim its coordination worktree and branch with: {reclaim_command(feature_dir.name)}", soft_wrap=True)
+    if reclaim_hint is not None:
+        console.print(f"Reclaim its coordination worktree and branch with: {reclaim_hint}", soft_wrap=True)
 
 
 @app.command("list")
