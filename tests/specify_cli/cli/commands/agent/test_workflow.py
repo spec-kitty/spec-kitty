@@ -919,6 +919,57 @@ class TestLegacyAlreadyPresentReceipt:
         workflow._reset_workflow_receipts()
 
 
+@pytest.mark.git_repo
+class TestLegacyStagedTreeUnchangedIsBenign:
+    """#7589: an unchanged staged tree is the benign no-op its type names, not a failure.
+
+    A coord-less Mission's review claim commits its status rows in the transactional emit,
+    then ``_commit_via_legacy_safe_commit`` runs its follow-up commit. When the porcelain
+    pre-check cannot answer (here: a coordination worktree left on disk, whose checkout does
+    not contain the Mission's paths, so ``git status`` exits 128), ``safe_commit`` stages the
+    paths and raises :class:`SafeCommitStagedTreeUnchanged`. The leaf must record the commit
+    that already carries the paths and return, not exit 1 (RED before the fix).
+    """
+
+    def test_unchanged_staged_tree_records_the_carrying_commit(self, tmp_path: Path) -> None:
+        from specify_cli.cli.commands.agent import workflow
+        from specify_cli.coordination.workspace import CoordinationWorkspace
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _git(repo, "init", "-q", "-b", "lanes-target")
+        _git(repo, "config", "user.email", "t7589@example.invalid")
+        _git(repo, "config", "user.name", "T7589")
+        _git(repo, "config", "commit.gpgsign", "false")
+        (repo / ".gitignore").write_text(".worktrees/\n", encoding="utf-8")
+        slug, mid8 = "lanes-claim-01M7589A", "01M7589A"
+        mission_dir = repo / "kitty-specs" / slug
+        mission_dir.mkdir(parents=True)
+        events_path = mission_dir / "status.events.jsonl"
+        events_path.write_text('{"event_id":"claim-already-committed"}\n', encoding="utf-8")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-q", "-m", "status claim already committed")
+        expected_sha = _head_sha(repo)
+        coord = CoordinationWorkspace.worktree_path(repo, slug, mid8)
+        _git(repo, "worktree", "add", "-q", "-b", CoordinationWorkspace.branch_name(slug, mid8), str(coord))
+
+        workflow._reset_workflow_receipts()
+        workflow._commit_via_legacy_safe_commit(
+            repo_root=repo,
+            target_branch="lanes-target",
+            paths=[events_path],
+            message="chore: Start WP02 review [claude]",
+            wp_id="WP02",
+            mission_slug=slug,
+            mid8=mid8,
+        )
+
+        receipts = workflow._WORKFLOW_COMMIT_RECEIPTS
+        assert [(r["outcome"], r["destination_ref"], r["sha"]) for r in receipts] == [("committed", "lanes-target", expected_sha)]
+        assert _head_sha(repo) == expected_sha, "no empty commit may land"
+        workflow._reset_workflow_receipts()
+
+
 class TestPathsTrackedAtCommit:
     """Direct unit coverage for ``_paths_tracked_at_commit`` (cycle-3, B2 item 2 / N6)."""
 

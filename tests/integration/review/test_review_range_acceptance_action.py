@@ -54,8 +54,6 @@ from tests.integration.review.review_range_fixtures import (
 )
 from tests.integration.test_owned_lifecycle_acceptance_review import _commit_all, _owned_next, _owned_review_ready
 from tests.runtime._next_mission_scaffold import analysis_is_current
-from tests.terminus.canceled_dependency_support import ACTOR
-from tests.terminus.mixed_lane_support import transition
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -98,10 +96,8 @@ def _review_args(fx: ReviewFixture) -> list[str]:
 
     The lane fixtures keep their Mission on protected ``main``, so the review claim's bookkeeping is
     refused there; their copy lifts the protection in ``.kittify/config.yaml`` (committed; a
-    bookkeeping path, so the range is unchanged). On ``lanes`` (and its stamp-stripped copy) the claim's follow-up commit then
-    finds an empty changeset (a defect of the claim path, not of the range, reported with WP07),
-    so that copy records the ``in_review`` claim up front and the review resumes it without
-    ``--agent``. Neither step touches WP02's ``for_review`` submission or its window.
+    bookkeeping path, so the range is unchanged). It does not touch WP02's ``for_review``
+    submission or its window. Every fixture then claims the review with ``--agent`` (#7589).
     """
     args = ["review", REVIEWED_WP, "--mission", fx.mission_slug]
     if fx.lane_mission is None:
@@ -113,11 +109,7 @@ def _review_args(fx: ReviewFixture) -> list[str]:
         config.write_text(existing + "\nprotection:\n  protected_branches: []\n", encoding="utf-8")
         subprocess.run(["git", "add", "-f", str(config)], cwd=fx.repo, check=True, capture_output=True)
         subprocess.run(["git", "commit", "-qm", "test: lift main's protection"], cwd=fx.repo, check=True, capture_output=True)
-    if fx.name == "lanes_with_coord":
-        return [*args, "--agent", _AGENT]
-    with fx.environment():
-        transition(fx.lane_mission, REVIEWED_WP, "in_review", actor=ACTOR)
-    return args
+    return [*args, "--agent", _AGENT]
 
 
 def _site2(fx: ReviewFixture, args: list[str]) -> tuple[int, str, Path | None]:
