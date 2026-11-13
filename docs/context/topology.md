@@ -3,7 +3,7 @@ title: 'Context: Topology'
 description: 'Topology glossary: the four topologies, size default, topic branch, write checkout, repo-root and code lanes, mission branch, lane work tip, started work package.'
 doc_status: active
 kind: Explanation
-updated: '2026-11-07T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
 related:
 - context/orchestration
 - context/execution
@@ -95,7 +95,7 @@ Terms describing the shape a mission is given at creation and where its work run
 
 | | |
 |---|---|
-| **Definition** | A target branch that is the repository's [primary branch](./orchestration.md#primary-branch), or one that `ProtectionPolicy` reports as protected. Both cases are answered by one query, `ProtectionPolicy.is_protected_target` (`src/specify_cli/git/protection_policy.py`); no forge API is consulted. A `single_branch` mission targeting a protected target gets a [mission branch](#mission-branch) at create time unless `--commit-to-target` is passed; that flag (persisted in `meta.json`, decided in `ProtectionPolicy`) un-protects only that mission's own target for its own writes. |
+| **Definition** | A target branch that is the repository's [primary branch](./orchestration.md#primary-branch), or one that `ProtectionPolicy` reports as protected. Both cases are answered by one query, `ProtectionPolicy.is_protected_target` (`src/specify_cli/git/protection_policy.py`); no forge API is consulted. A `single_branch` mission targeting a protected target gets a [mission branch](#mission-branch) at create time unless `--commit-to-target` is passed; that flag (persisted in `meta.json`, decided in `ProtectionPolicy`) un-protects only that mission's own target for its own writes. An explicit `lanes` create (no Mission or coordination branch) on a target the status-write guard protects (`ProtectionPolicy.is_protected`) is refused before any write with `LANES_PROTECTED_TARGET_REFUSED`; use an unprotected target or `--topology lanes_with_coord` (#7632). |
 | **Context** | Topology |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |

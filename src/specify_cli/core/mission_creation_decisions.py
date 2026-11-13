@@ -51,6 +51,7 @@ __all__ = [
     "is_abandoned",
     "is_coordination_routed",
     "is_same_mission_type",
+    "lanes_create_refused",
     "meta_flag_patch",
     "orphan_scaffold_candidates",
     "plan_orphan_scaffold_removal",
@@ -105,6 +106,20 @@ def protected_mint_applies(
     if commit_to_target is None:
         return None
     if commit_to_target:
+        return False
+    return target_protected
+
+
+def lanes_create_refused(topology: MissionTopology, target_protected: bool | None) -> bool | None:
+    """True when create refuses a ``lanes`` Mission on a protected target (#7632).
+
+    A ``lanes`` Mission records its status on the target branch (it mints no Mission or
+    coordination branch), so a target the bookkeeping guard protects admits no status
+    write. *target_protected* is that guard's answer (``ProtectionPolicy.is_protected``,
+    not the #5100 mint rule); ``None`` means it was not gathered yet, and the result is
+    ``None`` when that fact decides.
+    """
+    if topology is not MissionTopology.LANES:
         return False
     return target_protected
 

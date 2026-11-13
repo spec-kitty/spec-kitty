@@ -179,3 +179,28 @@ class WriteCheckoutSwitchDirtyError(ProtectedMintRefusedError):
     __module__ = "specify_cli.core.mission_creation"
 
     error_code: str = "WRITE_CHECKOUT_DIRTY"
+
+
+class LanesProtectedTargetError(MissionCreationError):
+    """A ``lanes`` create on a protected target, refused before any write (#7632).
+
+    A ``lanes`` Mission mints neither a Mission branch nor a coordination branch, so
+    every bookkeeping write would land on the target, which the protected-branch guard
+    refuses. Create refuses the shape up front instead (operator ruling 2026-11-13, ADR
+    ``2026-11-06-3`` Amendment 2026-11-13); it never mints a branch for it.
+    """
+
+    # Report the façade as home, as the sibling creation errors do (#5634).
+    __module__ = "specify_cli.core.mission_creation"
+
+    error_code: str = "LANES_PROTECTED_TARGET_REFUSED"
+
+    def __init__(self, target_branch: str) -> None:
+        super().__init__(
+            f"Cannot create a lanes Mission on protected target branch {target_branch!r}: a lanes "
+            "Mission has no Mission or coordination branch, so every status write would land on "
+            f"{target_branch!r}, which this project protects. Pass --target-branch naming an "
+            "unprotected branch, or pass --topology lanes_with_coord to record status on a "
+            "coordination branch."
+        )
+        self.target_branch = target_branch

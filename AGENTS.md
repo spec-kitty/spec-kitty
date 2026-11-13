@@ -450,7 +450,7 @@ Follow [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md) for PyPI and GitHub releas
   `WRITE_CHECKOUT_DIRTY` and `TOPOLOGY_SETTLEMENT_REFUSED`. Until the landing, a default
   Mission's PRIMARY-partition artifacts live on the topic branch; once `consolidate` records
   the landing, the placement seam resolves them on `target_branch`. `lanes` and `coord` are
-  explicit-only (`--topology`); `single_branch` also comes from `--owned-checkout`.
+  explicit-only (`--topology`); `single_branch` also comes from `--owned-checkout`. An explicit `lanes` create on a target the status-write guard protects refuses before any write with `LANES_PROTECTED_TARGET_REFUSED` (remedies: an unprotected target, or `lanes_with_coord`; #7632, ADR `2026-11-06-3` Amendment 2026-11-13).
   When a `single_branch` mission targets a *protected target* (the primary branch or a
   configured protected branch), `agent mission create` mints and checks out
   `kitty/mission-<slug>-<mid8>` in the write checkout and records it in `meta.json`;

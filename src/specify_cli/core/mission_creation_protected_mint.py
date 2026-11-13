@@ -25,6 +25,7 @@ from specify_cli.core.mission_creation_decisions import (
     ProtectedTargetPolicy,
     Refuse,
     decide_protected_mint,
+    lanes_create_refused,
     protected_mint_applies,
     target_is_protected,
 )
@@ -37,6 +38,7 @@ from specify_cli.lanes.branch_naming import (
 from specify_cli.core.mission_creation_errors import (
     MissionAlreadyExistsError,
     MissionBranchExistsError,
+    LanesProtectedTargetError,
     MissionCreationError,
     ProtectedMintRefusedError,
     TargetReplacement,
@@ -145,6 +147,30 @@ def _protected_mint_applies(
         probe = protection if protection is not None else _ProtectionProbe(write_root)
         applies = protected_mint_applies(topology, override, probe.is_protected(target_branch))
     return applies is True
+
+
+def _refuse_lanes_on_protected_target(
+    repository_root: Path,
+    write_root: Path,
+    *,
+    topology: MissionTopology,
+    target_branch: str,
+) -> None:
+    """Refuse a ``lanes`` create whose target the bookkeeping guard protects (#7632).
+
+    Asks the predicate the later status write asks (``ProtectionPolicy.is_protected``
+    with the operator hatch), over the repository root's configuration and, for an
+    owned create, the owned checkout's as well (the union ``resolve_for_owned`` reads).
+    Protection is resolved only for a ``lanes`` create.
+    """
+    if lanes_create_refused(topology, None) is False:
+        return
+    from specify_cli.git.protection_policy import ProtectionPolicy
+
+    roots = dict.fromkeys((repository_root, write_root))
+    protected = any(ProtectionPolicy.resolve(root).is_protected(target_branch) for root in roots)
+    if lanes_create_refused(topology, protected):
+        raise LanesProtectedTargetError(target_branch)
 
 
 def _mint_protected_single_branch_mission_branch(

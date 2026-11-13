@@ -157,6 +157,7 @@ from specify_cli.core.mission_creation_errors import (
     MissionCreationError as MissionCreationError,
     MissionAlreadyExistsError as MissionAlreadyExistsError,
     MissionCreationResult as MissionCreationResult,
+    LanesProtectedTargetError as LanesProtectedTargetError,
     MissionBranchExistsError as MissionBranchExistsError,
     ProtectedMintRefusedError as ProtectedMintRefusedError,
     TargetReplacement as TargetReplacement,
@@ -190,6 +191,7 @@ from specify_cli.core.mission_creation_protected_mint import (
     _mint_protected_single_branch_mission_branch as _mint_protected_single_branch_mission_branch,
     _local_branch_exists as _local_branch_exists,
     _refuse_protected_recreate as _refuse_protected_recreate,
+    _refuse_lanes_on_protected_target as _refuse_lanes_on_protected_target,
     _mint_protected_branch_for_topology as _mint_protected_branch_for_topology,
     _decide_mint_switch as _decide_mint_switch,
     _scaffold_owned_paths as _scaffold_owned_paths,
@@ -616,6 +618,9 @@ def _create_mission_core_impl(
     # IC-13 (S7 #7282): a default create's implicit target never resolves to another
     # Mission's branch.
     planning_branch, target_replacement = _resolve_planning_branch(write_root, target_branch, current_branch, guard=topology_source is TopologySource.DEFAULT)
+    # #7632 (operator ruling 2026-11-13): a ``lanes`` Mission on a protected target could
+    # record no status at all. Refuse before any write; never mint a branch for it.
+    _refuse_lanes_on_protected_target(resolved_root, write_root, topology=topology, target_branch=planning_branch)
 
     # One protection probe per create, shared by the duplicate guard, the
     # recreate guard and the mint. Making it resolves nothing; the first caller
