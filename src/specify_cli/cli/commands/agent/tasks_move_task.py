@@ -880,6 +880,7 @@ def _mt_build_request(
 ) -> MoveTaskRequest:
     """Assemble the pass-1 ``MoveTaskRequest`` (late facts default to skip-safe)."""
     feedback_source_str, feedback_exists, feedback_is_file, feedback_content = feedback
+    review_claimant = _mt_resolve_active_reviewer_identity(st) if st.old_lane == Lane.IN_REVIEW and st.target_lane in _APPROVAL_LANES else None
     return MoveTaskRequest(
         task_id=st.task_id,
         target_lane=str(st.target_lane),
@@ -920,9 +921,11 @@ def _mt_build_request(
         mission_slug=st.mission_slug,
         latest_implementer=latest_implementer,
         # #7573 (WP02 wiring): the claimant guard's pass-1 facts.
-        review_claimant=_mt_resolve_active_reviewer_identity(st) if st.old_lane == Lane.IN_REVIEW and st.target_lane in _APPROVAL_LANES else None,
+        review_claimant=review_claimant,
         asserted_agent=asserted_review_identity(st.agent, st.resolved_binding),
         asserted_reviewer=asserted_review_identity(st.reviewer, st.resolved_binding),
+        reviewer_flag=st.reviewer,
+        claimant_as_recorded=asserted_review_identity(review_claimant, st.resolved_binding),
     )
 
 
@@ -1819,10 +1822,13 @@ def _mt_reviewer_of_record(st: _MoveTaskState) -> ReviewerOfRecord | None:
     if st.target_lane not in _APPROVAL_LANES:
         return None
     carrying = st.old_lane == Lane.APPROVED and st.target_lane == Lane.DONE
+    # FR-001 (#7573 review cycle 1): every identity enters as the approval records it (the dispatch
+    # binding applied, ``asserted_review_identity``), the same values the claimant guard compared,
+    # never the raw flag or the raw claim.
     return resolve_reviewer_of_record(
-        agent=st.agent,
-        reviewer=st.reviewer,
-        claimant=_mt_resolve_active_reviewer_identity(st) if st.old_lane == Lane.IN_REVIEW else None,
+        agent=asserted_review_identity(st.agent, st.resolved_binding),
+        reviewer=asserted_review_identity(st.reviewer, st.resolved_binding),
+        claimant=asserted_review_identity(_mt_resolve_active_reviewer_identity(st), st.resolved_binding) if st.old_lane == Lane.IN_REVIEW else None,
         forced=st.force,
         carrying=carrying,
         recorded_approval=_mt_recorded_approval(st) if carrying and not st.force else None,
