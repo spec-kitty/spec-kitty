@@ -157,8 +157,7 @@ def _record_reconciliation_pass(run: _MergeRunState, verified_sha: str | None) -
     """
     if not verified_sha:
         return
-    run.state.reconciliation_passed_target_sha = verified_sha
-    run.state.coord_tip_after_projection = run.coord_tip_after_projection
+    run.state.record_reconciliation_pass(verified_sha, run.coord_tip_after_projection)
     save_state(run.state, run.main_repo)
     record_landed_coordination_ref(run, run.coord_tip_after_projection)
 
