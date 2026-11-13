@@ -384,6 +384,35 @@ def test_the_default_settings_use_every_try_within_the_budget() -> None:
     assert "budget" not in outcome.detail
 
 
+def test_a_request_timing_out_at_the_deadline_is_a_budget_exhaustion() -> None:
+    """The request's own timeout is the budget left, so its "timed out" can win the race with the
+    deadline wait; it is the budget running out either way (a CI race on the trickled-head tests)."""
+    module = _probe()
+    clock = _FakeClock()
+
+    def times_out_at_the_deadline(path: str, limit: float) -> Any:
+        clock.now += limit
+        return module.Response(status=None, body="", error="timed out")
+
+    (outcome,) = module.run([_page("/slow")], times_out_at_the_deadline, attempts=1, delay=0, sleep=clock.sleep, clock=clock, budget=0.6)
+
+    assert not outcome.ok
+    assert "budget" in outcome.detail
+
+
+def test_a_request_failing_before_the_deadline_keeps_its_own_reason() -> None:
+    """Positive control: an early failure is reported as itself, not as the budget."""
+    module = _probe()
+    clock = _FakeClock()
+
+    def refused_at_once(path: str, limit: float) -> Any:
+        return module.Response(status=None, body="", error="connection refused")
+
+    (outcome,) = module.run([_page("/down")], refused_at_once, attempts=1, delay=0, sleep=clock.sleep, clock=clock, budget=0.6)
+
+    assert outcome.detail == "no answer (connection refused), expected HTTP 200"
+
+
 def test_the_http_fetcher_caps_its_timeout_at_the_limit(monkeypatch: pytest.MonkeyPatch) -> None:
     module = _probe()
     seen: list[float] = []
