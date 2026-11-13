@@ -162,10 +162,20 @@ def test_an_uncommitted_flatten_is_committed(tmp_path: Path, seams: dict[str, An
     assert not report.nothing_left and seams["committed"] == 1
 
 
-def test_meta_uncommitted_fails_open_outside_a_repository(tmp_path: Path) -> None:
+def test_meta_uncommitted_fails_closed_outside_a_repository(tmp_path: Path) -> None:
+    """#7598 fold (NIT-8): a git error must not read as "nothing uncommitted" ("Nothing left to reclaim")."""
     feature_dir = _feature_dir(tmp_path)
 
-    assert reclaim._meta_uncommitted(tmp_path, feature_dir) is False
+    with pytest.raises(ReclaimRefused) as excinfo:
+        reclaim._meta_uncommitted(tmp_path, feature_dir)
+
+    assert excinfo.value.error_code == reclaim.RECLAIM_MARKER_NOT_COMMITTED
+
+
+def test_a_flattened_mission_whose_status_cannot_be_read_is_refused(tmp_path: Path, seams: dict[str, Any]) -> None:
+    _feature_dir(tmp_path, flattened=True)
+
+    assert _refusal(tmp_path).error_code == reclaim.RECLAIM_MARKER_NOT_COMMITTED
 
 
 def test_marker_without_mid8_refuses(tmp_path: Path, seams: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> None:
