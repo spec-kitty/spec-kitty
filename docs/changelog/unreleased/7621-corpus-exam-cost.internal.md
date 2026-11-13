@@ -1,0 +1,1 @@
+- The Mission Status reality check parses each work package file and builds each work package view once per module, so its `corpus_exam` setup drops from 189 s to 141 s, well under the 240 s timeout a nightly run crossed (#7621).
