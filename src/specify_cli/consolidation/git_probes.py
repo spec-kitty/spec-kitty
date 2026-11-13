@@ -437,6 +437,50 @@ def commit_in_clone(repo_root: Path, sha: str) -> bool:
     raise GitProbeError(f"git rev-parse --verify {sha} exited {ret}: {err.strip()}")
 
 
+def commit_id_in_clone(repo_root: Path, sha: str) -> str | None:
+    """The commit id ``rev-parse --verify --quiet <sha>^{commit}`` prints, ``None`` when absent from the clone.
+
+    A full id that names a tag object prints the tagged commit's id, which differs from *sha*, so
+    a caller that needs the id to be the commit itself compares the result. Any failure other than
+    "absent" (exit 1) raises :class:`GitProbeError`.
+    """
+    ret, out, err = run_command(["git", "rev-parse", "--verify", "--quiet", f"{sha}^{{commit}}"], capture=True, check_return=False, cwd=repo_root)
+    if ret == 1:
+        return None
+    if ret != 0:
+        raise GitProbeError(f"git rev-parse --verify {sha[:12]} exited {ret}: {(err or '').strip()}")
+    return (out or "").strip()
+
+
+def last_commit_touching(repo_root: Path, rev: str, pathspec: str) -> str | None:
+    """The newest commit reachable from *rev* that touched *pathspec* (``git log -1 --full-history``), else ``None``.
+
+    ``--full-history`` keeps a side branch a merge made TREESAME from being pruned, so any commit
+    that ever touched the path counts. A ``git log`` failure raises :class:`GitProbeError`.
+    """
+    argv = ["git", "log", "-1", "--full-history", "--format=%H", rev, "--", pathspec]
+    ret, out, err = run_command(argv, capture=True, check_return=False, cwd=repo_root)
+    if ret != 0:
+        raise GitProbeError(f"git log -1 {rev[:12]} -- {pathspec} failed (exit {ret}): {(err or '').strip()}")
+    return (out or "").strip() or None
+
+
+def earliest_first_parent_adding(repo_root: Path, branch: str, pathspec: str) -> str | None:
+    """The oldest first-parent commit of *branch* that adds a file under *pathspec*, else ``None``.
+
+    A merge commit is diffed against its first parent (``--diff-merges=first-parent``). A ``git log``
+    failure raises :class:`GitProbeError`.
+    """
+    argv = ["git", "log", "--first-parent", "--diff-merges=first-parent", "--no-patch", "--reverse", "--diff-filter=A", "--format=%H", branch, "--", pathspec]
+    ret, out, err = run_command(argv, capture=True, check_return=False, cwd=repo_root)
+    if ret != 0:
+        raise GitProbeError(f"git log --first-parent {branch} failed (exit {ret}): {(err or '').strip()}")
+    for line in (out or "").splitlines():
+        if line.strip():
+            return line.strip()
+    return None
+
+
 def is_ancestor_strict(repo_root: Path, ancestor: str, descendant: str) -> bool:
     """True iff *ancestor* is an ancestor of (or equal to) *descendant*; raises on a git failure.
 
@@ -1030,6 +1074,9 @@ __all__ = [
     "GitProbeError",
     "sha_reachable_from",
     "commit_in_clone",
+    "commit_id_in_clone",
+    "last_commit_touching",
+    "earliest_first_parent_adding",
     "is_ancestor_strict",
     "resolve_commit",
     "commits_in_range",
