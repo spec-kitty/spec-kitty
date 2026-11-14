@@ -561,7 +561,16 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
         # pool; since the #7588 follow-up that claim is the implementer's again,
         # not the review-claim holder's. See the truth-table cell in
         # ``test_tasks_move_task_seam.py`` asserting the claim survives.
-        fields.update(_mt_ownership_fields(st))
+        ownership = _mt_ownership_fields(st)
+        fields.update(ownership)
+        if ownership.get("agent") and _mt_hands_back_work(st) and st.target_lane != Lane.PLANNED:
+            # A hand-back that re-plants the owner (the implementer of record, or
+            # ``--assignee``) must not leave the previous holder's ``shell_pid`` in
+            # the claim triple: a liveness check would judge the new owner's claim
+            # by the old holder's shell. ``release_runtime_claim`` clears the triple
+            # first, and the reducer's replace loop then re-plants ``agent`` from
+            # this same delta. (A move into ``planned`` releases below.)
+            fields["release_runtime_claim"] = True
         if st.shell_pid and not _mt_hands_back_work(st):
             pid = int(st.shell_pid)
             fields["shell_pid"] = pid
