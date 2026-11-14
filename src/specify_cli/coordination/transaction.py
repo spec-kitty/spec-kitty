@@ -225,7 +225,7 @@ def _canonical_coord_mission_slug(
     return composed if composed_declares else mission_slug
 
 
-def _seam_commit_checkout(
+def seam_commit_checkout(
     repo_root: Path,
     mission_slug: str,
     destination_ref: str,
@@ -287,7 +287,7 @@ def _primary_partition_holder(repo_root: Path, mission_slug: str, destination_re
     (with its Mission directory); an explicit-topology, legacy or landed Mission, or a
     destination the seam does not name, keeps the repository root checkout.
     """
-    return _seam_commit_checkout(repo_root, mission_slug, destination_ref, MissionArtifactKind.WORK_PACKAGE_TASK, owned=owned)
+    return seam_commit_checkout(repo_root, mission_slug, destination_ref, MissionArtifactKind.WORK_PACKAGE_TASK, owned=owned)
 
 
 class _CoordWriteTarget(NamedTuple):
@@ -437,6 +437,7 @@ __all__ = [
     "BookkeepingTransaction",
     "BookkeepingWorktreeMissing",
     "build_status_event",
+    "seam_commit_checkout",
 ]
 
 
@@ -761,7 +762,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         if not coordination_arm:
             if _warrants_legacy_warning(arm_root, safe_mission_slug, safe_mid8):
                 return None
-            worktree_root = _seam_commit_checkout(arm_root, safe_mission_slug, destination_ref, MissionArtifactKind.STATUS_STATE, owned=owned)
+            worktree_root = seam_commit_checkout(arm_root, safe_mission_slug, destination_ref, MissionArtifactKind.STATUS_STATE, owned=owned)
             feature_dir = _checkout_mission_dir(worktree_root, safe_mission_slug, safe_mid8)
         else:
             caller_refusal = _caller_ref_refusal(
@@ -925,7 +926,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 # #7633: the checkout comes from the placement seam (the status read door's
                 # answer), and a checkout that does not hold the write branch refuses here,
                 # before any write (operator ruling Q8, option a).
-                worktree_root = _seam_commit_checkout(repo_root, safe_mission_slug, effective_destination_ref, MissionArtifactKind.STATUS_STATE, owned=owned)
+                worktree_root = seam_commit_checkout(repo_root, safe_mission_slug, effective_destination_ref, MissionArtifactKind.STATUS_STATE, owned=owned)
                 checkout_must_hold_ref = True
         else:
             coord_branch = CoordinationWorkspace.branch_name(safe_mission_slug, safe_mid8)

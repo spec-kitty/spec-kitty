@@ -792,56 +792,30 @@ def _resolve_workflow_read_dir(
     return read_dir
 
 
-def _resolve_legacy_porcelain_root(
-    repo_root: Path, mission_slug: str | None, mid8: str | None
-) -> Path:
-    """Return the git worktree root the legacy porcelain pre-check must run in.
+def _legacy_commit_checkout(repo_root: Path, mission_slug: str | None, target_branch: str) -> Path:
+    """The checkout the legacy leaf commits in, and where its pre-check asks git (#7633).
 
-    coord-commit-integrity WP01/T004 (FR-002(b), #2684). A status file that
-    lives in a materialized ``.worktrees/<slug>-<mid8>-coord`` sub-worktree is
-    *gitignored* from ``repo_root``: ``git status --porcelain`` at ``repo_root``
-    reports it as clean, which the caller reads as a phantom "already committed"
-    early-return. Run the pre-check in the coord worktree instead, so the file
-    is correctly seen as dirty.
-
-    The coord sub-worktree is resolved through the ONE canonical authority,
-    :meth:`CoordinationWorkspace.resolve` (shared with WP04 — do NOT fork a
-    second resolver). :meth:`CoordinationWorkspace.worktree_path` is pure, so
-    the existence pre-check never materializes a spurious worktree for a
-    genuinely coord-less / flat mission whose paths really do live in
-    ``repo_root`` (the correct root in that case).
+    The placement seam's status checkout when the Mission is known (the checkout the status
+    read door reads and the transactional emit committed in), else *repo_root*. A leftover
+    ``.worktrees/<slug>-coord`` directory never redirects it: no directory is probed.
     """
-    if not mid8 or not mission_slug:
+    if not mission_slug:
         return repo_root
-    from specify_cli.coordination.workspace import (
-        CoordinationWorkspace,
-        CoordinationWorkspaceBranchMismatch,
-        CoordinationWorkspaceIdentityUnresolved,
-    )
+    from specify_cli.coordination.transaction import seam_commit_checkout
 
-    try:
-        coord_worktree = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8)
-    except CoordinationWorkspaceIdentityUnresolved:
-        # Unresolved identity ⇒ paths live in repo_root (mid8 is guarded non-empty
-        # above, so this is belt-and-suspenders; a genuine programming error is no
-        # longer masked as a repo_root fallback — renata #3 narrowing).
-        return repo_root
-    if not coord_worktree.exists():
-        # No coord worktree on disk ⇒ this mission's paths live in repo_root.
-        return repo_root
-    try:
-        return CoordinationWorkspace.resolve(repo_root, mission_slug, mid8)
-    except (
-        OSError,
-        subprocess.SubprocessError,
-        CoordinationWorkspaceBranchMismatch,
-        CoordinationWorkspaceIdentityUnresolved,
-    ):
-        # Resolve genuinely refused (git worktree add / branch-mismatch / OS
-        # error) ⇒ fall back to repo_root for the porcelain pre-check. Narrowed
-        # from a blind ``except Exception`` so an unexpected programming error
-        # propagates (observable) instead of masquerading as a repo_root fallback.
-        return repo_root
+    return seam_commit_checkout(repo_root, mission_slug, target_branch, MissionArtifactKind.STATUS_STATE)
+
+
+def _paths_inside_checkout(checkout: Path, paths: list[Path]) -> bool:
+    """Whether every path lives in *checkout* itself, not in a nested or sibling checkout (#2684)."""
+    from kernel.git_anchor import checkout_root_in_spelling
+
+    resolved = checkout.resolve()
+    for path in paths:
+        holder = checkout_root_in_spelling(path if path.is_absolute() else checkout / path)
+        if holder is None or holder.resolve() != resolved:
+            return False
+    return True
 
 
 def _legacy_paths_already_committed(root: Path, paths: list[Path]) -> bool:
@@ -973,7 +947,6 @@ def _commit_via_legacy_safe_commit(
     message: str,
     wp_id: str,
     mission_slug: str | None = None,
-    mid8: str | None = None,
 ) -> None:
     """Commit workflow changes directly on legacy mission branches."""
     # #2684: nothing-to-commit is a benign no-op, not a hard failure. When the
@@ -989,11 +962,11 @@ def _commit_via_legacy_safe_commit(
     # reports both modified AND untracked paths, so a genuine first-time write
     # (new status.json) still has a non-empty pending set and proceeds to commit.
     #
-    # WP01/T004 (FR-002(b)): run the pre-check in the resolved worktree root, not
-    # ``repo_root`` — a gitignored ``.worktrees/`` status file reads as clean
-    # from ``repo_root`` and would trip a phantom "already committed" no-op.
-    porcelain_root = _resolve_legacy_porcelain_root(repo_root, mission_slug, mid8)
-    if _legacy_paths_already_committed(porcelain_root, paths):
+    # #7633: the pre-check asks the checkout the commit runs in (the seam's status checkout),
+    # and answers only for paths inside that checkout: a path in a nested or sibling checkout
+    # (a gitignored ``.worktrees/`` file) reads clean from here, so it never short-cuts (#2684).
+    commit_root = _legacy_commit_checkout(repo_root, mission_slug, target_branch)
+    if _paths_inside_checkout(commit_root, paths) and _legacy_paths_already_committed(commit_root, paths):
         # State already present at HEAD (persisted by the transactional emit).
         # FR-013/US6 (#5440): name the VERIFIED commit that actually carries
         # it when one can be confirmed; otherwise an honest ``None`` (which
@@ -1004,7 +977,7 @@ def _commit_via_legacy_safe_commit(
             message,
             "committed",
             sha=_already_present_receipt_sha(
-                porcelain_root=porcelain_root, target_branch=target_branch, paths=paths
+                porcelain_root=commit_root, target_branch=target_branch, paths=paths
             ),
             wp_id=wp_id,
         )
@@ -1017,7 +990,7 @@ def _commit_via_legacy_safe_commit(
     try:
         result = safe_commit(
             repo_root=repo_root,
-            worktree_root=repo_root,
+            worktree_root=commit_root,
             target=CommitTarget(ref=target_branch),
             message=message,
             paths=tuple(paths),
@@ -1033,7 +1006,7 @@ def _commit_via_legacy_safe_commit(
             target_branch,
             message,
             "committed",
-            sha=_already_present_receipt_sha(porcelain_root=repo_root, target_branch=target_branch, paths=paths),
+            sha=_already_present_receipt_sha(porcelain_root=commit_root, target_branch=target_branch, paths=paths),
             wp_id=wp_id,
         )
         return
