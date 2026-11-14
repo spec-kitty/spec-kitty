@@ -247,3 +247,17 @@ def test_refused_status_commit_writes_nothing(tmp_path: Path, shape_id: str) -> 
     ref = placement_seam(mission.root, mission.slug).write_target(_STATUS).ref
     assert _write_answer(mission, checkouts, ref) == _REFUSED
     assert _status_bytes(mission, checkouts) == before
+
+
+@pytest.mark.parametrize("shape_id", ["a-commit-to-target-held-by-other-checkout", "b-default-topic-holder-without-mission-dir"])
+def test_refusal_names_the_holder_and_the_remedy(tmp_path: Path, shape_id: str) -> None:
+    """Operator ruling on shape (a): the refusal names the checkout holding the write branch."""
+    build, _expected = MATRIX[shape_id]
+    mission, checkouts = build(tmp_path)
+    ref = placement_seam(mission.root, mission.slug).write_target(_STATUS).ref
+    verdict = BookkeepingTransaction.preflight_refusal(
+        repo_root=mission.root, mission_slug=mission.slug, mid8=str(_meta(mission)["mission_id"])[:8], destination_ref=ref, operation="probe"
+    )
+    assert verdict is not None and verdict.error_code == STATUS_WRITE_CHECKOUT_NOT_ON_WRITE_BRANCH
+    assert str(checkouts["other"].resolve()) in verdict.message or str(checkouts["other"]) in verdict.message
+    assert f"checkout {ref}" in verdict.next_step
