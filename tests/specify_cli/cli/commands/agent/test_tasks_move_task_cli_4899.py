@@ -301,12 +301,6 @@ class TestReimplementEdgeRequiresRationale:
         assert events_after_accept[-1].to_lane == Lane.IN_PROGRESS
 
 
-def _seconds_after_latest_event(feature_dir: Path, *offsets: int) -> list[str]:
-    """ISO-8601 timestamps ``offsets`` seconds after the latest status event."""
-    latest = parse_iso(read_events(feature_dir)[-1].at.replace("Z", "+00:00"))
-    return [(latest + timedelta(seconds=offset)).isoformat() for offset in offsets]
-
-
 @pytest.mark.regression
 class TestFr008ReviewCycleCounterOnReimplementEdge:
     """FR-008 (conditional, #3451): the review-cycle counter must increment
@@ -337,11 +331,13 @@ class TestFr008ReviewCycleCounterOnReimplementEdge:
 
         # Drive the WP back through for_review -> in_review for a genuine
         # second review round (mirrors the real implement/review lifecycle).
-        # Stamp the hand-appended events AFTER the first rejection, which the
+        # Stamp the hand-appended submission AFTER the first rejection, which the
         # CLI stamped with the wall clock: a fixed literal timestamp sorts
         # before it once the clock passes the literal, and the lane reducer
-        # then sees in_progress -> in_progress.
-        second_round_at = _seconds_after_latest_event(feature_dir, 1, 2)
+        # then sees in_progress -> in_progress. It stays a microsecond after
+        # that rejection so the real review claim below (wall clock) sorts after it.
+        latest_at = parse_iso(read_events(feature_dir)[-1].at.replace("Z", "+00:00"))
+        second_round_at = [(latest_at + timedelta(microseconds=1)).isoformat()]
         seed_status_event(
             feature_dir,
             StatusEvent(
@@ -356,20 +352,13 @@ class TestFr008ReviewCycleCounterOnReimplementEdge:
                 execution_mode="worktree",
             ),
         )
-        seed_status_event(
-            feature_dir,
-            StatusEvent(
-                event_id="01PARITYSECONDROUND000002",
-                mission_slug=_PARITY_MISSION_SLUG,
-                wp_id="WP01",
-                from_lane=Lane.FOR_REVIEW,
-                to_lane=Lane.IN_REVIEW,
-                at=second_round_at[1],
-                actor="claude",
-                force=False,
-                execution_mode="worktree",
-            ),
-        )
+        # The second review claim goes through the real command, as a reviewer's
+        # does: it is what makes the reviewer the review-claim holder again. Since
+        # the #7588 follow-up the first rejection returned the WP to its
+        # implementer, so a hand-seeded claim event would leave the implementer
+        # holding it and the reviewer's verdict would be refused.
+        claim = _move_task_cli(mission_slug=_PARITY_MISSION_SLUG, to="in_review", feedback_file=None)
+        assert claim.exit_code == 0, claim.stdout
 
         feedback_2 = repo / "feedback-2.md"
         feedback_2.write_text("## Cycle 2 issues\n\nFix the remaining edge case.\n", encoding="utf-8")

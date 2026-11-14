@@ -549,18 +549,18 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
     if not st.claim_emitted:
         # #7588: on a hand-back (a rejection, a reopen, a bounce out of
         # ``for_review``; ``_mt_hands_back_work``) ``--agent`` and ``--shell-pid``
-        # name who acted, so neither is stamped into the claim slots: a move into
+        # name who acted, so neither is stamped into the claim slots. A move into
         # ``planned`` releases them (``release_runtime_claim``, added below via
-        # ``_build_claim_review_override``), every other hand-back keeps the
-        # current holder. The reducer applies the release BEFORE its replace-slot
-        # loop, so an explicit ``--assignee`` (``_mt_ownership_fields``) still
-        # re-plants the slot on the same move.
+        # ``_build_claim_review_override``); every other hand-back returns the WP
+        # to its implementer of record (``_mt_ownership_fields``). An explicit
+        # ``--assignee`` wins over both: the reducer applies the release BEFORE its
+        # replace-slot loop, so it still re-plants the slot on the same move.
         #
-        # #4899 (WP01, Fold 5 -- KEEP AS-IS): the re-implement edge (in_review ->
-        # in_progress) RETAINS the runtime claim (resume-in-place) rather than
-        # releasing it to the pool; it only no longer re-stamps ``--agent``. See
-        # the truth-table cell in ``test_tasks_move_task_seam.py`` asserting the
-        # claim survives.
+        # #4899 (WP01, Fold 5): the re-implement edge (in_review -> in_progress)
+        # RETAINS a runtime claim (resume-in-place) rather than releasing it to the
+        # pool; since the #7588 follow-up that claim is the implementer's again,
+        # not the review-claim holder's. See the truth-table cell in
+        # ``test_tasks_move_task_seam.py`` asserting the claim survives.
         fields.update(_mt_ownership_fields(st))
         if st.shell_pid and not _mt_hands_back_work(st):
             pid = int(st.shell_pid)

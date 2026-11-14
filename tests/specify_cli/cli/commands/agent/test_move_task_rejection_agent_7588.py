@@ -298,7 +298,7 @@ def test_assignee_still_wins_over_the_returning_implementer(tmp_path: Path, monk
     assert _owner(m.feature_dir) == h.THIRD
 
 
-@pytest.mark.parametrize(("old", "target"), [("in_review", "in_progress"), ("approved", "in_progress"), ("for_review", "in_progress"), ("for_review", "claimed")])
+@pytest.mark.parametrize(("old", "target"), [("in_review", "in_progress"), ("approved", "in_progress"), ("for_review", "in_progress")])
 def test_a_non_planned_hand_back_returns_ownership_to_the_implementer_of_record(old: str, target: str) -> None:
     from specify_cli.cli.commands.agent.tasks_move_task_hops import _mt_ownership_fields
 
@@ -315,6 +315,16 @@ def test_a_move_into_planned_still_releases_rather_than_returning_ownership() ->
 
     st = _st("in_review", "planned")
     st.implementer_identity = "claude:opus:implementer-ivan"
+    assert _mt_ownership_fields(st) == {}
+
+
+def test_a_hand_back_to_the_current_holder_leaves_the_slot_alone() -> None:
+    """The slot already holds the implementer (a bounce out of ``for_review``): no re-stamp."""
+    from specify_cli.cli.commands.agent.tasks_move_task_hops import _mt_ownership_fields
+
+    st = _st("for_review", "in_progress")
+    st.implementer_identity = "claude:opus:implementer-ivan"
+    st.current_agent = "claude:opus:implementer-ivan:implementer"
     assert _mt_ownership_fields(st) == {}
 
 

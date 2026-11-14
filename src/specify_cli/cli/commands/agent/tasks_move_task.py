@@ -140,7 +140,7 @@ from specify_cli.status import (
     read_authored_wp_frontmatter,
     resolve_lane_alias,
 )
-from specify_cli.status import latest_implementer_actor
+from specify_cli.status import latest_implementer_actor, latest_implementer_identity
 from specify_cli.task_utils import (
     WorkPackage,
     ensure_lane,
@@ -165,6 +165,7 @@ from specify_cli.cli.commands.agent.tasks_move_task_hops import (
     _mt_agent_binds_owner as _mt_agent_binds_owner,
     _mt_hands_back_work as _mt_hands_back_work,
     _mt_ownership_fields as _mt_ownership_fields,
+    _mt_returning_implementer as _mt_returning_implementer,
     _build_claim_review_override as _build_claim_review_override,
     _mt_shell_pid_baseline as _mt_shell_pid_baseline,
 )
@@ -357,6 +358,10 @@ class _MoveTaskState:
     verdict_artifact_path: Path | None = None
     resolved_feedback_source: Path | None = None
     request: MoveTaskRequest | None = None
+    # Full identity of the WP's implementer of record (``status.latest_implementer_identity``),
+    # resolved with the #5196 latest-implementer read; a hand-back into ``in_progress``
+    # returns ownership to it (#7588 follow-up). ``None`` when unknown.
+    implementer_identity: str | None = None
     # --- phase C: decision ---
     decision: Emit | None = None
     arb_review_ref: str | None = None
@@ -1604,19 +1609,21 @@ def _mt_gather_review_facts(st: _MoveTaskState) -> None:
     # #5196: resolve "who is the WP's latest implementer" once (one extra event
     # read) so the ownership guard can admit the review-loop roles. Fail closed
     # toward today's behaviour: any read failure leaves ``None`` (no allowance).
+    # The same read resolves the implementer of record's full identity, which a
+    # hand-back into ``in_progress`` returns ownership to (#7588 follow-up).
     latest_implementer: str | None = None
     try:
-        latest_implementer = latest_implementer_actor(
-            _tasks.read_events_transactional(
-                feature_dir=st.feature_dir,
-                mission_slug=st.mission_slug,
-                repo_root=st.main_repo_root,
-                owned=st.owned,
-            ),
-            st.task_id,
+        events = _tasks.read_events_transactional(
+            feature_dir=st.feature_dir,
+            mission_slug=st.mission_slug,
+            repo_root=st.main_repo_root,
+            owned=st.owned,
         )
+        latest_implementer = latest_implementer_actor(events, st.task_id)
+        st.implementer_identity = latest_implementer_identity(events, st.task_id)
     except Exception:  # noqa: BLE001 — fail closed toward today's behaviour (R-03)
         latest_implementer = None
+        st.implementer_identity = None
     st.request = _mt_build_request(
         st,
         protected_error=protected_error,
