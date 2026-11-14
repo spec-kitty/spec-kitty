@@ -1,0 +1,45 @@
+{
+  "nodes": {
+    "built-in-pack": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1793439121,
+        "narHash": "sha256-eTGxg/U3RiEid/xeDHY7lSkk1ez5PcKZ3CdlKq7dCX8=",
+        "owner": "spec-kitty",
+        "repo": "spec-kitty-open-packs",
+        "rev": "a79c36318b7a506ca2ab26d74705c5e3e406004f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "spec-kitty",
+        "repo": "spec-kitty-open-packs",
+        "rev": "a79c36318b7a506ca2ab26d74705c5e3e406004f",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1793540411,
+        "narHash": "sha256-fiPJ88izTVucjeo2EQ3jk4aWmLg03I1D4vxnX2QjEgE=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "0bb2eedc20e4739f29e8045034f2828ad7054f8f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "built-in-pack": "built-in-pack",
+        "nixpkgs": "nixpkgs"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
