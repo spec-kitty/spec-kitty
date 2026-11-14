@@ -1,0 +1,89 @@
+{
+  "mission_slug": "coordless-commit-checkout-01M7DW13",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Coordination-less status commit runs in write_dir(STATUS_STATE).surface_root (repository root for a ref the seam does not name)",
+      "proof_type": "automated_test",
+      "evidence": "tests/coordination/test_coordless_status_commit_checkout.py::test_coordless_status_commit_checkout_matrix (7 agreeing rows + default-topic-held-by-other)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-14T22:10:56.561809+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Refuses before any write with STATUS_WRITE_CHECKOUT_NOT_ON_WRITE_BRANCH, naming the holder, when that checkout does not hold the ref",
+      "proof_type": "automated_test",
+      "evidence": "matrix rows lane-holder, a x2, b (red on d7cedd7e); test_refused_status_commit_writes_nothing; test_refusal_names_the_holder_and_the_remedy",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-14T22:11:00.220339+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "No raw holder probe in coordination/transaction.py; PRIMARY arm consumes the seam",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/coordination/test_transaction_primary_partition_holder_7372.py (real Missions); negative invariant NI-001",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-14T22:11:03.799308+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Review claim commits only the status pair; lanes_with_coord claim on protected main exits 0",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/review/test_review_range_acceptance_action.py lanes_with_coord cells, protection lift removed (8 red on d7cedd7e)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-14T22:11:07.084374+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "commit_idempotent returns the no-op receipt on SafeCommitStagedTreeUnchanged; strict commit unchanged",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/coordination/test_transaction.py::test_commit_idempotent_unchanged_tree_is_a_noop_when_the_pending_check_cannot_read (red on d7cedd7e) + test_strict_commit_still_raises_on_an_unchanged_staged_tree",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-14T22:11:10.312242+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Legacy leaf commits and pre-checks in the seam's status checkout; paths in another checkout never short-cut",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_coord_commit_integrity_e2e.py::test_legacy_leaf_commits_in_the_seam_checkout_holding_the_topic + test_legacy_precheck_never_reports_a_nested_checkout_path_as_committed (both red on d7cedd7e)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-14T22:11:13.470716+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Write-side re-derivation gate entry cites open #1878",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_no_write_side_rederivation.py (81 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-14T22:11:16.646090+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "No raw branch-holder probe chooses a commit checkout in coordination/transaction.py (#7633 FR-003)",
+      "verification_method": "grep_absence",
+      "verification_command": "non_lane_checkout_holding_branch|_write_branch_holder|primary_partition_checkout",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches",
+      "scope": "src/specify_cli/coordination/transaction.py"
+    }
+  ]
+}
