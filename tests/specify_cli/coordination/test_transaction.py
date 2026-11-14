@@ -1381,3 +1381,59 @@ def test_seeded_establishment_still_gates_on_coord_commit(repo: Path, tmp_path: 
     seed_committed_this_txn = coord_target.seed_committed
 
     assert seed_committed_this_txn is False
+
+
+def _committed_log_then_restage(repo: Path, operation: str) -> tuple[BookkeepingTransaction, Path, bytes]:
+    """A txn staging the status pair a prior transaction already committed (the claim follow-up shape)."""
+    _write_modern_meta(repo)
+    with BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        operation="emit_commits_the_rows",
+    ) as txn1:
+        txn1.append_event(_make_event("WP01", "claimed"))
+        txn1.commit("status: the transactional emit's own commit")
+    txn2 = BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        operation=operation,
+    )
+    txn2.stage_path(txn2._events_path)
+    return txn2, txn2._events_path, txn2._events_path.read_bytes()
+
+
+def _unreadable_status_entries(*_args: Any, **_kwargs: Any) -> tuple[()]:
+    raise GitCommandError(argv=("status",), cwd=Path("."), returncode=128, stderr="fatal: not a git repository")
+
+
+def test_commit_idempotent_unchanged_tree_is_a_noop_when_the_pending_check_cannot_read(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#7648: the fail-open pending check must not turn an unchanged staged tree into a rollback.
+
+    The rows are already committed at HEAD. When ``_worktree_has_pending_changes`` cannot read
+    the checkout it answers "pending", the strict commit runs, and ``safe_commit``'s index
+    authority raises ``SafeCommitStagedTreeUnchanged``. ``commit_idempotent`` returns the no-op
+    receipt pinned at HEAD: no rollback, no ``BookkeepingCommitFailed`` (the #7589 twin).
+    """
+    txn, events_path, before = _committed_log_then_restage(repo, "follow_up_unreadable_pending_check")
+    monkeypatch.setattr("specify_cli.coordination.transaction.status_entries", _unreadable_status_entries)
+    with txn:
+        receipt = txn.commit_idempotent("status: follow-up of an already-committed claim")
+    head = _git(txn.worktree_root, "rev-parse", "HEAD").stdout.strip()
+    assert receipt.is_noop is True
+    assert receipt.commit_sha == head
+    assert events_path.read_bytes() == before
+
+
+def test_strict_commit_still_raises_on_an_unchanged_staged_tree(repo: Path) -> None:
+    """#7648 control: the strict ``commit()`` keeps raising on an unchanged tree, as documented."""
+    txn, _events_path, _before = _committed_log_then_restage(repo, "strict_unchanged")
+    with pytest.raises(BookkeepingCommitFailed, match="nothing to commit"), txn:
+        txn.commit("status: should not happen")
