@@ -389,10 +389,11 @@ def _mt_hop_records_binding(st: _MoveTaskState, target: Lane | str) -> bool:
     return bool(st.agent) and _actor_key(st.agent) != _actor_key(st.current_agent)
 
 
-#: #7588: backward moves out of ``for_review`` a reviewer uses to bounce a
-#: submission before claiming its review. The reducer reads the same edges as a
-#: rejection rollback (``spec_kitty_events.diary._REJECTION_ROLLBACK_TARGETS``).
-_FOR_REVIEW_BOUNCE_TARGETS: frozenset[Lane] = frozenset({Lane.CLAIMED, Lane.IN_PROGRESS})
+#: #7588: the backward move out of ``for_review`` a reviewer uses to bounce a
+#: submission before claiming its review. ``-> claimed`` is deliberately absent:
+#: a move into ``claimed`` is a claim, and the claim hop records ``--agent`` and
+#: ``--shell-pid`` as the new owner (``_mt_hop_policy_metadata``).
+_FOR_REVIEW_BOUNCE_TARGETS: frozenset[Lane] = frozenset({Lane.IN_PROGRESS})
 
 
 def _mt_hands_back_work(st: _MoveTaskState) -> bool:
@@ -401,7 +402,7 @@ def _mt_hands_back_work(st: _MoveTaskState) -> bool:
     The review-rejection edges (any move into ``planned``, which releases the
     runtime claim per #2512, and ``in_review -> in_progress``), the approved
     reopen (``approved -> in_progress``), and a bounce out of ``for_review``
-    (``-> claimed``/``-> in_progress``).
+    (``-> in_progress``; ``-> claimed`` is a claim and binds the owner).
     """
     if is_review_rejection_edge(st.old_lane, st.target_lane) or _is_approved_reopen(st.old_lane, st.target_lane):
         return True

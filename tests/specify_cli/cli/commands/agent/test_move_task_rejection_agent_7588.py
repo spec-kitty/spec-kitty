@@ -176,10 +176,10 @@ _HANDS_BACK = [
     ("in_review", "in_progress"),
     ("approved", "in_progress"),
     ("for_review", "in_progress"),
-    ("for_review", "claimed"),
 ]
 _BINDING = [
     ("planned", "claimed"),
+    ("for_review", "claimed"),
     ("claimed", "in_progress"),
     ("in_progress", "for_review"),
     ("for_review", "in_review"),
@@ -229,6 +229,17 @@ def test_a_reviewer_bounce_out_of_for_review_keeps_the_implementer_as_owner(tmp_
     assert _owner(m.feature_dir) == h.IMPLEMENTER
     resubmitted = h.move(m, h.WP, "for_review", h.IMPLEMENTER)
     assert resubmitted.exit_code == 0, resubmitted.output
+
+
+def test_a_forced_claim_out_of_for_review_binds_the_claimant_with_its_shell_pid(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``for_review -> claimed`` is a claim, not a hand-back: ``--agent`` and ``--shell-pid`` are the new owner's."""
+    m = h.build_mission(tmp_path, monkeypatch)
+    h.drive_to_for_review(m)
+
+    claimed = h.move(m, h.WP, "claimed", h.REVIEWER, "--force", "--shell-pid", "4242")
+
+    assert claimed.exit_code == 0, claimed.output
+    assert _owner(m.feature_dir) == h.REVIEWER
 
 
 def test_a_rejection_does_not_plant_the_reviewers_shell_pid(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
