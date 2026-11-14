@@ -844,7 +844,7 @@ class TestSpecTemplateDeliveryLabels:
 
     def test_success_criteria_bullets_carry_the_label_suffix(self) -> None:
         text = self._template_text()
-        suffix = "— [build/ratchet/folded] · no-op passable: [yes/no]"
+        suffix = "- [build/ratchet/folded] | no-op passable: [yes/no]"
         for sc_id in ("SC-001", "SC-002", "SC-003", "SC-004"):
             marker = f"**{sc_id}**"
             idx = text.index(marker)

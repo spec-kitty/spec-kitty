@@ -187,6 +187,33 @@ def test_updates_task_prompt_template_override(tmp_path: Path) -> None:
     assert "role:" in content
 
 
+@pytest.mark.parametrize(
+    "heading",
+    [
+        pytest.param("## ⚡ Do This First: Load Agent Profile", id="old-emoji"),
+        pytest.param("## Do This First: Load Agent Profile", id="new-ascii"),
+    ],
+)
+def test_does_not_duplicate_profile_load_section_for_old_or_new_template(
+    tmp_path: Path, heading: str
+) -> None:
+    content = _TASK_PROMPT_WITHOUT_DO_THIS_FIRST.replace(
+        "dependencies: []",
+        'dependencies: []\nagent_profile: "implementer"\nrole: "implementer"',
+    ).replace(
+        "## Objective",
+        f"{heading}\n\nLoad the profile before continuing.\n\n## Objective",
+    )
+    p = _make_override_template(tmp_path, content)
+
+    result = KittifyProfileHandoffMigration().apply(tmp_path)
+
+    assert result.success is True
+    assert result.changes_made == []
+    assert p.read_text(encoding="utf-8") == content
+    assert content.count("Do This First: Load Agent Profile") == 1
+
+
 def test_skips_if_kittify_dir_missing(tmp_path: Path) -> None:
     migration = KittifyProfileHandoffMigration()
     result = migration.apply(tmp_path)
@@ -234,3 +261,19 @@ def test_detect_returns_false_when_already_applied(tmp_path: Path) -> None:
 def test_detect_returns_false_when_no_files(tmp_path: Path) -> None:
     migration = KittifyProfileHandoffMigration()
     assert migration.detect(tmp_path) is False
+
+
+def test_inserts_profile_load_section_when_only_an_unrelated_do_this_first_heading_exists(
+    tmp_path: Path,
+) -> None:
+    content = _TASK_PROMPT_WITHOUT_DO_THIS_FIRST.replace(
+        "## Objective",
+        "## Do This First: Something Else\n\nUnrelated setup.\n\n## Objective",
+    )
+    p = _make_override_template(tmp_path, content)
+
+    result = KittifyProfileHandoffMigration().apply(tmp_path)
+
+    assert result.success is True
+    assert result.changes_made
+    assert "Do This First: Load Agent Profile" in p.read_text(encoding="utf-8")

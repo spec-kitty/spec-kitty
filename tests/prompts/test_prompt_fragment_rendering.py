@@ -26,10 +26,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 # relocated mission-steps/ from src/charter/offering/missions/mission-steps to
 # packs/built-in/missions/mission-steps.
 ACTION_TEMPLATES: list[tuple[str, str]] = [
-    ("packs/built-in/missions/mission-steps/software-dev/specify/prompt.md", "REASONS Guidance — Specify"),
-    ("packs/built-in/missions/mission-steps/software-dev/plan/prompt.md", "REASONS Guidance — Plan"),
-    ("packs/built-in/missions/mission-steps/software-dev/tasks/prompt.md", "REASONS Guidance — Tasks"),
-    ("packs/built-in/missions/mission-steps/software-dev/implement/prompt.md", "REASONS Guidance — Implement"),
+    ("packs/built-in/missions/mission-steps/software-dev/specify/prompt.md", "REASONS Guidance - Specify"),
+    ("packs/built-in/missions/mission-steps/software-dev/plan/prompt.md", "REASONS Guidance - Plan"),
+    ("packs/built-in/missions/mission-steps/software-dev/tasks/prompt.md", "REASONS Guidance - Tasks"),
+    ("packs/built-in/missions/mission-steps/software-dev/implement/prompt.md", "REASONS Guidance - Implement"),
 ]
 
 
@@ -46,18 +46,18 @@ class TestProcessSpddBlocks:
     """Unit-level behaviour of ``process_spdd_blocks``."""
 
     def test_active_keeps_content_strips_markers(self) -> None:
-        text = f"Header line\n\n{REASONS_BLOCK_START}\n\n### REASONS Guidance — X\n\n- bullet\n\n{REASONS_BLOCK_END}\n\nFooter line\n"
+        text = f"Header line\n\n{REASONS_BLOCK_START}\n\n### REASONS Guidance - X\n\n- bullet\n\n{REASONS_BLOCK_END}\n\nFooter line\n"
         rendered = process_spdd_blocks(text, active=True)
         assert REASONS_BLOCK_START not in rendered
         assert REASONS_BLOCK_END not in rendered
-        assert "### REASONS Guidance — X" in rendered
+        assert "### REASONS Guidance - X" in rendered
         assert "- bullet" in rendered
         # Header and footer survive intact.
         assert rendered.startswith("Header line\n")
         assert rendered.endswith("Footer line\n")
 
     def test_inactive_removes_block_entirely(self) -> None:
-        text = f"Header line\n\n{REASONS_BLOCK_START}\n\n### REASONS Guidance — X\n\n- bullet\n\n{REASONS_BLOCK_END}\n\nFooter line\n"
+        text = f"Header line\n\n{REASONS_BLOCK_START}\n\n### REASONS Guidance - X\n\n- bullet\n\n{REASONS_BLOCK_END}\n\nFooter line\n"
         rendered = process_spdd_blocks(text, active=False)
         assert "spdd:reasons-block" not in rendered
         assert "REASONS Guidance" not in rendered
@@ -68,7 +68,7 @@ class TestProcessSpddBlocks:
         # Pre-feature baseline: header followed by a blank then footer.
         baseline = "Header line\n\nFooter line\n"
         # Author convention: insert a blank + marker block between them.
-        with_block = f"Header line\n\n{REASONS_BLOCK_START}\n\n### REASONS Guidance — X\n\n{REASONS_BLOCK_END}\n\nFooter line\n"
+        with_block = f"Header line\n\n{REASONS_BLOCK_START}\n\n### REASONS Guidance - X\n\n{REASONS_BLOCK_END}\n\nFooter line\n"
         rendered = process_spdd_blocks(with_block, active=False)
         assert rendered == baseline
 

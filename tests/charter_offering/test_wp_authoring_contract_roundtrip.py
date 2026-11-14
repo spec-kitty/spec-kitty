@@ -115,7 +115,8 @@ DOC_AUTHORED_CREATE_INTENT = ("docs/architecture/_roundtrip_probe.md",)
 # The REQUIRED first body section of every task-prompt template
 # (mission-steps/software-dev/tasks/prompt.md: "REQUIRED, must be the first
 # body section ... See task-prompt-template.md for the exact block").
-PROFILE_LOAD_SECTION_HEADING = "## ⚡ Do This First: Load Agent Profile"
+PROFILE_LOAD_SECTION_HEADING = "## Do This First: Load Agent Profile"
+LEGACY_PROFILE_LOAD_SECTION_HEADING = "## ⚡ Do This First: Load Agent Profile"
 # Frontmatter fields the profile-load block's placeholders resolve against.
 PROFILE_LOAD_FIELDS = ("agent_profile", "role", "agent")
 
@@ -279,9 +280,14 @@ def test_task_prompt_template_carries_required_profile_load_section(mission: str
     documentation copy carried neither).
     """
     frontmatter, body = read_frontmatter(TASK_PROMPT_TEMPLATES[mission])
-    assert PROFILE_LOAD_SECTION_HEADING in body, (
+    expected_heading = (
+        PROFILE_LOAD_SECTION_HEADING
+        if mission == "software-dev"
+        else LEGACY_PROFILE_LOAD_SECTION_HEADING
+    )
+    assert expected_heading in body, (
         f"{mission} task-prompt-template.md omits the REQUIRED "
-        f"'{PROFILE_LOAD_SECTION_HEADING}' section that /spec-kitty.tasks pins."
+        f"'{expected_heading}' section that /spec-kitty.tasks pins."
     )
     missing_fields = [field for field in PROFILE_LOAD_FIELDS if field not in frontmatter]
     assert not missing_fields, (

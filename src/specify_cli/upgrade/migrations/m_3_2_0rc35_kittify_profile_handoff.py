@@ -45,7 +45,7 @@ from .base import BaseMigration, MigrationResult
 
 _HANDOFF_SENTINEL = "Prepare for Review Hand-off"
 _PROFILE_LOAD_SENTINEL = "Load Agent Profile"
-_DO_THIS_FIRST_SENTINEL = "⚡ Do This First"
+_DO_THIS_FIRST_SENTINEL = "Do This First: Load Agent Profile"
 
 # ---------------------------------------------------------------------------
 # Content blocks to insert
