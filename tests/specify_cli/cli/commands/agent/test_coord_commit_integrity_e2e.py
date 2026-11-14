@@ -8,7 +8,8 @@ with its sibling coord-commit / workflow tests here rather than in
 `tests/regression/`. FR-002/NFR-001 kept as history below.
 
 Scope (WP01-owned invariants only — paula): the misroute-to-legacy fail-loud
-guard, the legacy porcelain pre-check running in the resolved worktree root, a
+guard, the legacy porcelain pre-check running in the checkout the commit runs in
+(the placement seam's status checkout since #7633, never a directory picked by existence), a
 status event committing to the coord worktree (not the target branch), the
 ``SafeCommitHeadMismatch`` negative case, and a regression proving the MODERN
 transaction path still threads the coord worktree root with ZERO code change.
@@ -34,7 +35,7 @@ from mission_runtime import CommitTarget, MissionArtifactKind
 from specify_cli import app as root_app
 from specify_cli.cli.commands.agent import workflow
 from specify_cli.core.commit_guard import GuardCapability
-from specify_cli.git.commit_helpers import SafeCommitHeadMismatch, safe_commit
+from specify_cli.git.commit_helpers import SafeCommitError, SafeCommitHeadMismatch, safe_commit
 from specify_cli.status import RollbackPoint
 from tests.characterization.test_trio_json_envelope import _build_mission_repo
 
@@ -206,75 +207,86 @@ def test_complete_triple_still_routes_modern_not_guarded(
 
 
 # ---------------------------------------------------------------------------
-# T004 — FR-002(b) legacy porcelain pre-check against the resolved worktree root
+# T004 — FR-002(b) legacy pre-check asks the checkout the commit runs in (#7633)
 # ---------------------------------------------------------------------------
 
 
-def test_resolve_legacy_porcelain_root_without_identity_returns_repo_root(tmp_path: Path) -> None:
-    """Genuinely coord-less/legacy (no mid8) ⇒ paths live in repo_root."""
-    assert workflow._resolve_legacy_porcelain_root(tmp_path, None, None) is tmp_path
-    assert workflow._resolve_legacy_porcelain_root(tmp_path, "some-mission", None) is tmp_path
+def _commit_in(checkout: Path, path: Path, text: str) -> str:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    _git(checkout, "add", "-f", str(path))
+    _git(checkout, "commit", "-q", "-m", "status already committed")
+    return _git(checkout, "rev-parse", "HEAD").stdout.strip()
 
 
-def test_resolve_legacy_porcelain_root_absent_coord_worktree_returns_repo_root(tmp_path: Path) -> None:
-    """A flat/coord-less mission whose coord worktree does not exist on disk ⇒
-    repo_root (no spurious worktree materialized by the pure existence check)."""
+@pytest.mark.non_sandbox
+def test_legacy_leaf_commits_in_the_seam_checkout_holding_the_topic(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7633: the legacy leaf's pre-check and commit run in the placement seam's status checkout.
+
+    A default Mission whose topic branch another (non-lane) checkout holds, with its Mission
+    directory: the transactional emit committed the status rows there. The follow-up must find
+    them committed in that checkout and record that commit; it must not ask, or commit in, the
+    repository root checkout (which is not on the topic branch: a HEAD mismatch before #7633).
+    """
+    from tests.specify_cli.cli.commands.agent.test_finalize_topology_settlement import make_default_mission
+
+    monkeypatch.chdir(Path(__file__).resolve().parents[5])
+    mission = make_default_mission(tmp_path, ("src/one.py", "src/two.py"))
+    holder = tmp_path / "operator"
+    _git(mission.root, "checkout", "-q", "--detach")
+    _git(mission.root, "worktree", "add", "-q", str(holder), mission.topic)
+    events = holder / "kitty-specs" / mission.slug / "status.events.jsonl"
+    expected = _commit_in(holder, events, '{"event_id":"claim-already-committed"}\n')
+
+    workflow._reset_workflow_receipts()
+    workflow._commit_via_legacy_safe_commit(
+        repo_root=mission.root,
+        target_branch=mission.topic,
+        paths=[events],
+        message="chore: Start WP01 review [claude]",
+        wp_id="WP01",
+        mission_slug=mission.slug,
+    )
+
+    receipts = workflow._WORKFLOW_COMMIT_RECEIPTS
+    assert [(r["outcome"], r["destination_ref"], r["sha"]) for r in receipts] == [("committed", mission.topic, expected)]
+    assert _git(holder, "rev-parse", "HEAD").stdout.strip() == expected, "no empty commit may land"
+    workflow._reset_workflow_receipts()
+
+
+def test_legacy_precheck_never_reports_a_nested_checkout_path_as_committed(tmp_path: Path) -> None:
+    """#2684 phantom guard, kept without a directory probe: a path inside a nested registered
+    checkout reads CLEAN from the repository root checkout, so the pre-check must not short-cut
+    on it; the commit then runs and fails loudly instead of recording a receipt for state that
+    never landed on the target."""
     repo = tmp_path / "repo"
     repo.mkdir()
-    _git(repo, "init", "-q", "-b", "main")
-    assert workflow._resolve_legacy_porcelain_root(repo, "flat-mission", "01KY5JS8") == repo
+    _git(repo, "init", "-q", "-b", "target")
+    _git(repo, "config", "user.email", "t@example.invalid")
+    _git(repo, "config", "user.name", "T")
+    _git(repo, "config", "commit.gpgsign", "false")
+    (repo / ".gitignore").write_text(".worktrees/\n", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "seed")
+    nested = repo / ".worktrees" / "elsewhere"
+    _git(repo, "worktree", "add", "-q", "-b", "elsewhere", str(nested))
+    fresh = nested / "kitty-specs" / "m" / "status.events.jsonl"
+    fresh.parent.mkdir(parents=True)
+    fresh.write_text('{"event":"fresh-write"}\n', encoding="utf-8")
+    head_before = _git(repo, "rev-parse", "HEAD").stdout.strip()
 
-
-@pytest.mark.git_repo
-def test_legacy_porcelain_precheck_sees_coord_file_dirty_in_resolved_root(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """FR-002(b): a gitignored ``.worktrees/`` coord file reads CLEAN from
-    repo_root (the phantom "already committed" bug) but DIRTY from the resolved
-    coord worktree — proving the pre-check must run in the resolved root.
-
-    Uses a REAL coord worktree materialized by production
-    ``CoordinationWorkspace.resolve`` (via ``_build_mission_repo``) — no stubs.
-    """
-    repo_root, mission_dirname = _build_mission_repo(
-        tmp_path,
-        monkeypatch,
-        coord=True,
-        mission_slug="trio-coord-review",
-        wp_lane="for_review",
-        materialize_coord=True,
-    )
-    mid8 = mission_dirname.rsplit("-", 1)[1]
-    coord_worktree = repo_root / ".worktrees" / f"{mission_dirname}-coord"
-    assert coord_worktree.is_dir(), "fixture must materialize the coord worktree"
-
-    # The resolver lands on the coord worktree when it exists on disk.
-    resolved = workflow._resolve_legacy_porcelain_root(repo_root, mission_dirname, mid8)
-    assert resolved == coord_worktree
-
-    # A new, uncommitted status file inside the coord worktree.
-    coord_status = coord_worktree / "kitty-specs" / mission_dirname / "status.events.jsonl"
-    coord_status.write_text('{"event":"fresh-coord-write"}\n', encoding="utf-8")
-
-    def _porcelain(root: Path) -> str:
-        return subprocess.run(
-            ["git", "status", "--porcelain", "--", str(coord_status)],
-            cwd=root,
-            capture_output=True,
-            text=True,
-            check=False,
-        ).stdout
-
-    # Phantom: from repo_root the coord file is invisible (registered worktree).
-    assert _porcelain(repo_root).strip() == "", (
-        "expected the coord file to read CLEAN from repo_root (the phantom this "
-        "fix closes); if it is already dirty here the fixture changed"
-    )
-    # Correct: from the resolved coord worktree it is seen as dirty.
-    assert _porcelain(resolved).strip() != "", (
-        "the coord file must read DIRTY from the resolved worktree root — the "
-        "porcelain pre-check would otherwise phantom-early-return 'already committed'"
-    )
+    workflow._reset_workflow_receipts()
+    with pytest.raises(SafeCommitError):
+        workflow._commit_via_legacy_safe_commit(
+            repo_root=repo,
+            target_branch="target",
+            paths=[fresh],
+            message="chore: WP01 claimed [claude]",
+            wp_id="WP01",
+        )
+    assert not [r for r in workflow._WORKFLOW_COMMIT_RECEIPTS if r["outcome"] == "committed"]
+    assert _git(repo, "rev-parse", "HEAD").stdout.strip() == head_before
+    workflow._reset_workflow_receipts()
 
 
 # ---------------------------------------------------------------------------
