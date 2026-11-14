@@ -65,9 +65,12 @@ receipt pinned at HEAD. The strict `commit()` keeps raising.
 (`_commit_via_legacy_safe_commit`) commits with `worktree_root=repo_root`, but its advisory
 porcelain pre-check runs in `.worktrees/<slug>-coord` whenever that directory exists (and can
 even materialize it through `CoordinationWorkspace.resolve`). The pre-check must ask the checkout
-the commit runs in. Fix: run it in `repo_root`, and short-cut only when every path is inside that
-checkout (`checkout_root_in_spelling`), which keeps the #2684 phantom guard without an existence
-probe. The other directory-exists picks are filed, not changed (below).
+the commit runs in. Fix (as delivered): both the pre-check and the commit run in the placement
+seam's status checkout (`seam_commit_checkout`, the repository root checkout when no Mission is
+given), and the pre-check short-cuts only when every path is inside that checkout
+(`checkout_root_in_spelling`), which keeps the #2684 phantom guard without an existence probe.
+Moving the pre-check alone would have left a default Mission whose topic another checkout holds
+failing with a HEAD mismatch. The other directory-exists picks are filed, not changed (#7650).
 
 ## Invariants that must survive
 

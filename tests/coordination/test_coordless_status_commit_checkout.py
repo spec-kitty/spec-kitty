@@ -264,6 +264,7 @@ def test_refusal_names_the_holder_and_the_remedy(tmp_path: Path, shape_id: str) 
     assert verdict.error_code == STATUS_WRITE_CHECKOUT_NOT_ON_WRITE_BRANCH
     assert str(checkouts["other"].resolve()) in verdict.message or str(checkouts["other"]) in verdict.message
     assert f"checkout {ref}" in verdict.next_step
+    assert verdict.next_step in verdict.message, "every renderer prints the message; the remedy must be in it"
 
 
 @pytest.mark.parametrize("shape_id", ["a-commit-to-target-held-by-other-checkout", "b-default-topic-holder-without-mission-dir"])
@@ -277,3 +278,14 @@ def test_preflight_probe_answers_the_policy_question_only(tmp_path: Path, shape_
     mission_id = str(_meta(mission)["mission_id"])
     probe = BookkeepingTransaction.preflight_refusal(repo_root=mission.root, mission_slug=mission.slug, mid8=mission_id[:8], destination_ref=ref, operation="probe")
     assert probe is None
+
+
+def test_a_ref_the_seam_does_not_name_uses_the_repository_root_checkout_under_the_same_check(tmp_path: Path) -> None:
+    """The fallback of #7633: a destination the seam does not name keeps the repository root
+    checkout, and the hold check still applies there (no holder lookup chooses a checkout)."""
+    mission, _checkouts = _explicit_single_branch(tmp_path)
+    git(mission.root, "branch", "side")
+    assert placement_seam(mission.root, mission.slug).write_target(_STATUS).ref != "side"
+    assert _write_answer(mission, {}, "side") == _REFUSED
+    git(mission.root, "checkout", "-q", "side")
+    assert _write_answer(mission, {}, "side") == "root"

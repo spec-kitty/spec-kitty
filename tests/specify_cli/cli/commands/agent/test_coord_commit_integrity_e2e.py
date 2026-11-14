@@ -35,7 +35,7 @@ from mission_runtime import CommitTarget, MissionArtifactKind
 from specify_cli import app as root_app
 from specify_cli.cli.commands.agent import workflow
 from specify_cli.core.commit_guard import GuardCapability
-from specify_cli.git.commit_helpers import SafeCommitError, SafeCommitHeadMismatch, safe_commit
+from specify_cli.git.commit_helpers import SafeCommitHeadMismatch, SafeCommitPathPolicyError, safe_commit
 from specify_cli.status import RollbackPoint
 from tests.characterization.test_trio_json_envelope import _build_mission_repo
 
@@ -276,7 +276,7 @@ def test_legacy_precheck_never_reports_a_nested_checkout_path_as_committed(tmp_p
     head_before = _git(repo, "rev-parse", "HEAD").stdout.strip()
 
     workflow._reset_workflow_receipts()
-    with pytest.raises(SafeCommitError):
+    with pytest.raises(SafeCommitPathPolicyError):
         workflow._commit_via_legacy_safe_commit(
             repo_root=repo,
             target_branch="target",

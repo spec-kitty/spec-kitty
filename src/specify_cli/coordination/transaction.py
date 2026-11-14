@@ -267,16 +267,21 @@ def _write_checkout_refusal(repo_root: Path, checkout: Path, destination_ref: st
         return None
     on = f"branch {observed!r}" if observed else "a detached HEAD"
     holder = remedy_holder_of_ref(repo_root, checkout, ref)
-    held_by = f"{ref!r} is checked out in {holder}" if holder is not None else f"no checkout outside the lane worktrees holds {ref!r}"
+    if holder is not None:
+        held_by = f"{ref!r} is checked out in {holder}"
+        remedy = f"Switch {holder} off {ref!r}, then run `git -C {checkout} checkout {ref}` and re-run the command."
+    else:
+        held_by = f"no checkout outside the lane worktrees holds {ref!r}"
+        remedy = f"Run `git -C {checkout} checkout {ref}` (if a lane worktree holds it, switch that worktree off it first) and re-run the command."
     return Refused(
         error_code=STATUS_WRITE_CHECKOUT_NOT_ON_WRITE_BRANCH,
         message=(
             f"Refusing to record {operation!r}: the status write checkout {checkout} is on {on}, "
             f"not on the write branch {ref!r}, and {held_by}. Status reads come from {checkout}, "
-            "so the commit does not run anywhere else."
+            f"so the commit does not run anywhere else. {remedy}"
         ),
         destination_ref=ref,
-        next_step=(f"Release {ref!r} from the checkout that holds it, check it out in {checkout} (`git -C {checkout} checkout {ref}`), then re-run the command."),
+        next_step=remedy,
     )
 
 
