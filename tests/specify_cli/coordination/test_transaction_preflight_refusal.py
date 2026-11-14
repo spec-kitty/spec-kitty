@@ -53,7 +53,8 @@ def _mission(tmp_path: Path, *, target_branch: str = "main", coordination: bool 
     _git(repo, "add", "README.md")
     _git(repo, "commit", "-q", "-m", "seed")
     if target_branch != "main":
-        _git(repo, "branch", target_branch)
+        # #7633: the repository root checkout (the seam's status checkout) holds the target.
+        _git(repo, "checkout", "-q", "-b", target_branch)
     feature_dir = repo / "kitty-specs" / _SLUG
     feature_dir.mkdir(parents=True)
     meta: dict[str, object] = {
