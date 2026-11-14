@@ -92,6 +92,10 @@ PROTECTED_BRANCH_REFUSED = "PROTECTED_BRANCH_REFUSED"
 #: Destination ref does not exist locally.
 DESTINATION_REF_NOT_FOUND = "DESTINATION_REF_NOT_FOUND"
 
+#: A coordination-less status commit's checkout -- the one the placement seam names and the
+#: status read door reads -- does not hold the destination ref (#7633, operator ruling Q8).
+STATUS_WRITE_CHECKOUT_NOT_ON_WRITE_BRANCH = "STATUS_WRITE_CHECKOUT_NOT_ON_WRITE_BRANCH"
+
 
 @dataclass(frozen=True, kw_only=True)
 class Refused:
