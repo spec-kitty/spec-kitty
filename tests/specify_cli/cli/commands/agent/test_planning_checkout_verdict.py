@@ -115,3 +115,26 @@ def test_explicit_topology_expects_the_target_branch(tmp_path: Path, monkeypatch
     expected = _expected(current=_UNPROTECTED, target=_UNPROTECTED, expected_checkout=_UNPROTECTED)
     assert _setup_plan(explicit, explicit.root, monkeypatch) == expected
     assert _check_prerequisites(explicit, explicit.root, monkeypatch) == expected
+
+
+def test_protected_single_branch_mint_expects_the_minted_branch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#5100: an explicit ``single_branch`` Mission on protected ``main`` plans on its minted branch; both commands agree."""
+    minted = make_default_mission(tmp_path, THREE_LANES, standing_on="main", explicit="single_branch")
+    assert minted.topic and minted.topic != "main"
+    assert current_branch(minted.root) == minted.topic
+    expected = _expected(current=minted.topic, target="main", expected_checkout=minted.topic)
+    assert expected["branch_matches_target"] is True
+    assert _setup_plan(minted, minted.root, monkeypatch) == expected
+    assert _check_prerequisites(minted, minted.root, monkeypatch) == expected
+
+
+@pytest.mark.parametrize("meta_text", ["{not json", json.dumps({"mission_slug": "probe"})], ids=["corrupt", "no-target"])
+def test_an_unreadable_or_targetless_meta_degrades_to_a_silent_match(mission: DefaultMission, meta_text: str) -> None:
+    """#3124: the verdict never reports a spurious disagreement when ``meta.json`` cannot name a target."""
+    from specify_cli.cli.commands.agent.mission_branch_context import resolve_planning_checkout_verdict
+
+    (mission.root_mission_dir / "meta.json").write_text(meta_text, encoding="utf-8")
+    verdict = resolve_planning_checkout_verdict(mission.root, mission.slug, invoking_root=mission.root, fallback_branch="fallback")
+    assert verdict.current_branch == mission.topic
+    assert verdict.expected_checkout_branch == mission.topic
+    assert verdict.target_branch == "fallback"
