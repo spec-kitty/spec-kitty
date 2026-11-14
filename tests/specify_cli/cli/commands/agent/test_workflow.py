@@ -847,7 +847,6 @@ class TestLegacyAlreadyPresentReceipt:
             message="chore: WP01 claimed [claude]",
             wp_id="WP01",
             mission_slug=None,
-            mid8=None,
         )
 
         receipt = workflow._WORKFLOW_COMMIT_RECEIPTS[0]
@@ -961,7 +960,6 @@ class TestLegacyStagedTreeUnchangedIsBenign:
             message="chore: Start WP02 review [claude]",
             wp_id="WP02",
             mission_slug=slug,
-            mid8=mid8,
         )
 
         receipts = workflow._WORKFLOW_COMMIT_RECEIPTS
