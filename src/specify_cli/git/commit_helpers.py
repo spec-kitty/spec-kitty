@@ -209,9 +209,11 @@ def _head_mismatch_holder(repo_root: Path, worktree_root: Path, destination_ref:
     This is a remedy-text lookup, not a "which checkout holds this Mission write"
     decision (C-001): the commit is refused either way, and the placement seam
     stays the only authority for where a write lands. It names the checkout an
-    operator can actually run from; a lane worktree is never named (the same
-    ``non_lane_checkout_holding_branch`` probe ``coordination/transaction.py``
-    uses), and *worktree_root* itself is never named as its own remedy.
+    operator can actually run from; a lane worktree is never named (the
+    ``non_lane_checkout_holding_branch`` probe the status read door uses), and
+    *worktree_root* itself is never named as its own remedy. No commit checkout is
+    chosen with this probe: ``coordination/transaction.py`` takes its checkout from
+    the placement seam (#7633).
     """
     from specify_cli.status import non_lane_checkout_holding_branch
 

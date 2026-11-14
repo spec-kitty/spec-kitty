@@ -43,6 +43,7 @@ from specify_cli.coordination.types import (
     PendingEventHandle,
     PROTECTED_BRANCH_REFUSED,
     Refused,
+    STATUS_WRITE_CHECKOUT_NOT_ON_WRITE_BRANCH,
 )
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.events.event_bridge import work_package_transition_port
@@ -223,30 +224,68 @@ def _canonical_coord_mission_slug(
     return composed if composed_declares else mission_slug
 
 
-def _write_branch_holder(repo_root: Path, destination_ref: str) -> Path:
-    """The non-lane checkout holding *destination_ref*, else *repo_root* (FR-061, N1)."""
-    from specify_cli.status.read_surface import non_lane_checkout_holding_branch
+def _seam_commit_checkout(
+    repo_root: Path,
+    mission_slug: str,
+    destination_ref: str,
+    kind: MissionArtifactKind,
+    *,
+    owned: OwnedCheckout | None = None,
+) -> Path:
+    """The checkout a commit of *kind* runs in: the placement seam's, else *repo_root* (#7633).
 
-    holder: Path | None = non_lane_checkout_holding_branch(repo_root, _normalize_ref(destination_ref))
-    if holder is None or holder.resolve() == repo_root.resolve():
-        return repo_root
-    return holder
-
-
-def _primary_partition_holder(repo_root: Path, mission_slug: str, destination_ref: str) -> Path:
-    """Where a PRIMARY-target commit runs: a default Mission's topic holder, else *repo_root* (FR-061, #7372).
-
-    The holder is :func:`~specify_cli.coordination.planning_commit.primary_partition_checkout`
-    (a default Mission that has not landed, whose topic branch a non-lane checkout holds), and it
-    is used only when it holds *destination_ref*. An explicit-topology, legacy or landed Mission,
-    or a destination that holder does not hold, keeps *repo_root*.
+    The seam (``write_dir(kind).surface_root``, the one checkout authority, #7615 / #7546)
+    answers when *destination_ref* is the ref the seam names for *kind*
+    (``write_target(kind).ref``); a ref the seam does not name keeps the repository root
+    checkout. On a coordination-less topology every kind is declared PRIMARY, so ``write_dir``
+    has no side effects here. No branch holder is probed: the seam is the status read door's
+    answer, so the commit lands where status reads look.
     """
-    from specify_cli.coordination.planning_commit import primary_partition_checkout
-
-    holder: Path | None = primary_partition_checkout(repo_root, mission_slug)
-    if holder is None or holder.resolve() != _write_branch_holder(repo_root, destination_ref).resolve():
+    seam = placement_seam(repo_root, mission_slug, owned=owned)
+    if _normalize_ref(seam.write_target(kind).ref) != _normalize_ref(destination_ref):
         return repo_root
-    return holder
+    surface_root: Path = seam.write_dir(kind).surface_root
+    return surface_root
+
+
+def _write_checkout_refusal(checkout: Path, destination_ref: str, operation: str) -> Refused | None:
+    """``STATUS_WRITE_CHECKOUT_NOT_ON_WRITE_BRANCH`` when *checkout* does not hold *destination_ref* (#7633).
+
+    Operator ruling Q8 (option a): a coordination-less status commit never falls back to a
+    checkout the status read door does not read. Git lets one checkout hold a branch, so when
+    another checkout (or a lane worktree) holds the write branch, or its holder carries no
+    Mission directory, the seam's checkout is not on it and the commit refuses here, before
+    any write.
+    """
+    from specify_cli.core.git_ops import get_current_branch
+
+    ref = _normalize_ref(destination_ref)
+    observed = get_current_branch(checkout)
+    if observed == ref:
+        return None
+    on = f"branch {observed!r}" if observed else "a detached HEAD"
+    return Refused(
+        error_code=STATUS_WRITE_CHECKOUT_NOT_ON_WRITE_BRANCH,
+        message=(
+            f"Refusing to record {operation!r}: the status write checkout {checkout} is on {on}, "
+            f"not on the write branch {ref!r}. The status read door reads that checkout, so the "
+            "commit cannot run anywhere else."
+        ),
+        destination_ref=ref,
+        next_step=(
+            f"Check out {ref!r} in {checkout} (release it first from the checkout that holds it; `git worktree list` shows which), then re-run the command."
+        ),
+    )
+
+
+def _primary_partition_holder(repo_root: Path, mission_slug: str, destination_ref: str, *, owned: OwnedCheckout | None = None) -> Path:
+    """Where a PRIMARY-target commit runs: the seam's PRIMARY checkout, else *repo_root* (FR-061, #7372, #7633).
+
+    For a default Mission before its landing that is the checkout holding its topic branch
+    (with its Mission directory); an explicit-topology, legacy or landed Mission, or a
+    destination the seam does not name, keeps the repository root checkout.
+    """
+    return _seam_commit_checkout(repo_root, mission_slug, destination_ref, MissionArtifactKind.WORK_PACKAGE_TASK, owned=owned)
 
 
 class _CoordWriteTarget(NamedTuple):
@@ -876,7 +915,14 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 # default Mission's write branch (its topic branch) may be held by a checkout
                 # other than the repository root; the status read door reads that holder, so
                 # the write lands there too (the same topic-holder locator).
-                worktree_root = _write_branch_holder(repo_root, effective_destination_ref)
+                #
+                # #7633: the checkout comes from the placement seam (the status read door's
+                # answer), and a checkout that does not hold the write branch refuses here,
+                # before any write (operator ruling Q8, option a).
+                worktree_root = _seam_commit_checkout(repo_root, safe_mission_slug, effective_destination_ref, MissionArtifactKind.STATUS_STATE, owned=owned)
+                checkout_refusal = _write_checkout_refusal(worktree_root, effective_destination_ref, operation)
+                if checkout_refusal is not None:
+                    raise BookkeepingPolicyRefused(checkout_refusal)
         else:
             coord_branch = CoordinationWorkspace.branch_name(safe_mission_slug, safe_mid8)
             caller_refusal = _caller_ref_refusal(
@@ -915,7 +961,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 # track the read door; this arm is narrowed to a default Mission's
                 # PRIMARY topic holder so a planning commit never lands in an
                 # unrelated checkout of the target branch.)
-                worktree_root = _primary_partition_holder(repo_root, safe_mission_slug, effective_destination_ref)
+                worktree_root = _primary_partition_holder(repo_root, safe_mission_slug, effective_destination_ref, owned=owned)
             else:
                 # New topology — materialize/seed the coordination write
                 # location on first call (WP07 T039: the single write-location
