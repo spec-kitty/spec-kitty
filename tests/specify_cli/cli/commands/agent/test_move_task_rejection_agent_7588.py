@@ -335,3 +335,23 @@ def test_an_unknown_or_generic_implementer_leaves_the_slot_alone(identity: str |
     st = _st("in_review", "in_progress")
     st.implementer_identity = identity
     assert _mt_ownership_fields(st) == {}
+
+
+def test_a_hand_back_to_the_implementer_clears_the_reviewers_shell_pid(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The returned claim never pairs the implementer with the reviewer's shell (landing fold)."""
+    from specify_cli.status import _actor_key
+
+    m = h.build_mission(tmp_path, monkeypatch)
+    h.drive_to_for_review(m)
+    assert h.move(m, h.WP, "in_review", h.REVIEWER, "--shell-pid", "4242").exit_code == 0
+    assert (wp_snapshot_state(m.feature_dir, h.WP) or {}).get("shell_pid") == 4242
+    feedback = m.repo / "feedback-pid.md"
+    feedback.write_text("## Issues\n\nFix this thing.\n", encoding="utf-8")
+
+    rejected = h.move(m, h.WP, "in_progress", h.REVIEWER, "--review-feedback-file", str(feedback))
+
+    assert rejected.exit_code == 0, rejected.output
+    snapshot = wp_snapshot_state(m.feature_dir, h.WP) or {}
+    assert _actor_key(_owner(m.feature_dir)) == _actor_key(h.IMPLEMENTER)
+    assert not snapshot.get("shell_pid"), snapshot.get("shell_pid")
+    assert not snapshot.get("shell_pid_created_at"), snapshot.get("shell_pid_created_at")
