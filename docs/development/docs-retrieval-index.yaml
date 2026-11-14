@@ -4207,6 +4207,7 @@ pages:
     - {slug: "option-5-the-write-checkout-holds-the-topic-branch-for-a-lanes-mission-s-life", text: "Option 5: the write checkout holds the topic branch for a `lanes` Mission's life", level: 3}
     - {slug: "option-6-land-planning-commits-on-an-unprotected-target-at-settlement-and-settle-to-lanes", text: "Option 6: land planning commits on an unprotected target at settlement and settle to `lanes`", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendment-2026-11-13-an-explicit-lanes-create-on-a-protected-target-is-refused", text: "Amendment 2026-11-13: an explicit `lanes` create on a protected target is refused", level: 2}
   - path: "docs/adr/4.x/2026-11-06-4-coordination-branch-written-by-commit.md"
     title: "ADR: a coordination branch is written by commit, not through a coordination worktree"
     divio_type: "none"
@@ -7947,6 +7948,17 @@ pages:
     - {slug: "internal-work-lines-roadmap-context-not-all-pr-backed-yet", text: "Internal work lines (roadmap context — not all PR-backed yet)", level: 3}
     - {slug: "4-what-this-means-for-the-stabilization-partial-code-freeze", text: "4. What this means for the stabilization partial code freeze", level: 2}
     - {slug: "5-what-a-maintainer-should-know", text: "5. What a maintainer should know", level: 2}
+  - path: "docs/archive/plans/engineering-notes/7588-move-task-agent-rebind-grounding.md"
+    title: "Grounding — #7588 move-task --agent rebinds the WP owner on a rejection"
+    divio_type: "none"
+    abstract: "Read-only grounding, similar-surfaces and tracked-issues verdicts for the #7588 fix: where --agent becomes the ownership slot, which paths rely on it, and what is in scope."
+    anchors:
+    - {slug: "where-the-defect-lives", text: "Where the defect lives", level: 2}
+    - {slug: "invariants-that-must-survive", text: "Invariants that must survive", level: 2}
+    - {slug: "similar-surfaces-squad-dispositions", text: "Similar-surfaces squad (dispositions)", level: 2}
+    - {slug: "tracked-issues-squad", text: "Tracked-issues squad", level: 2}
+    - {slug: "test-expectations-changed-operator-signalled", text: "Test expectations changed (operator-signalled)", level: 2}
+    - {slug: "pre-pr-review-squad-folded", text: "Pre-PR review squad (folded)", level: 2}
   - path: "docs/archive/plans/engineering-notes/883-mission-type-authority-brief.md"
     title: "Mission #883 Brief: Doctrine as Mission-Type Authority"
     divio_type: "none"
@@ -15197,6 +15209,14 @@ pages:
     - {slug: "5-4-operator-rulings-2026-11-06", text: "5.4 Operator rulings (2026-11-06)", level: 3}
     - {slug: "5-5-proposed-slices-for-the-operator-to-approve-none-filed-or-started", text: "5.5 Proposed slices (for the operator to approve; none filed or started)", level: 3}
     - {slug: "6-limitations", text: "6. Limitations", level: 2}
+  - path: "docs/plans/engineering-notes/2026-11-13-7589-7632-lanes-claim-and-protected-create.md"
+    title: "Lanes review claim and lanes create on a protected target"
+    divio_type: "reference"
+    abstract: "Grounding note for the sequenced bugfixes"
+    anchors:
+    - {slug: "7589-the-review-claim-fails-with-an-empty-changeset", text: "#7589: the review claim fails with an empty changeset", level: 2}
+    - {slug: "7632-create-topology-lanes-on-a-protected-target-is-admitted", text: "#7632: `create --topology lanes` on a protected target is admitted", level: 2}
+    - {slug: "discovery", text: "Discovery", level: 2}
   - path: "docs/plans/engineering-notes/2173-infra-logic-separation/00-SYNTHESIS.md"
     title: "Infra-to-logic separation (#2173) — investigation synthesis"
     divio_type: "none"
