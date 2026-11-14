@@ -3,7 +3,7 @@ title: 'Grounding — #7588 move-task --agent rebinds the WP owner on a rejectio
 description: 'Read-only grounding, similar-surfaces and tracked-issues verdicts for the #7588 fix: where --agent becomes the ownership slot, which paths rely on it, and what is in scope.'
 doc_status: closeout
 type: explanation
-updated: '2026-11-13'
+updated: '2026-11-14'
 ---
 # Grounding — #7588 move-task `--agent` rebinds the WP owner on a rejection
 
@@ -59,11 +59,17 @@ Red witnessed through `move-task`, in the `_rework_loop_harness` fixture:
 
 `test_move_task_rollback_clears_claim.py::test_rollback_with_explicit_agent_replants_claim` pinned `--agent` as the re-plant. It is re-pinned as `..._explicit_assignee_replants_claim`: `--assignee` re-plants, `--agent` names the actor (option A, surfaced to the orchestrator).
 
-\`test_rework_guard_ratchets.py::test_unrelated_agent_refused_on_slot_left_by_forced_rejection\` pinned the defect itself: a \`for_review → planned\` rejection left the slot with the reviewer, so a third tool was refused. It is re-pinned as \`..._once_a_forced_rejection_is_reclaimed\`. The slot is now released, as on \`in_review → planned\` (#4673), and the guard still refuses an unrelated tool after the implementer re-claims.
+`test_rework_guard_ratchets.py::test_unrelated_agent_refused_on_slot_left_by_forced_rejection` pinned the defect itself: a `for_review → planned` rejection left the slot with the reviewer, so a third tool was refused. It is re-pinned as `..._once_a_forced_rejection_is_reclaimed`. The slot is now released, as on `in_review → planned` (#4673), and the guard still refuses an unrelated tool after the implementer re-claims.
 
 ## Pre-PR review squad (folded)
 
-- **\`--assignee\` re-plant.** It now records the assignee's binding as explicitly absent with the \`implementer\` role, so the previous holder's \`role\`/profile/model no longer linger.
-- **\`--shell-pid\` on a hand-back.** It names the actor's process and is no longer planted.
-- **Reviewer bounce out of \`for_review\`.** Classified as a hand-back.
-- **Comments and docstrings.** Corrected; the changelog states that the \`→ in_progress\` hand-backs keep the current holder.
+- **`--assignee` re-plant.** It now records the assignee's binding as explicitly absent with the `implementer` role, so the previous holder's `role`/profile/model no longer linger.
+- **`--shell-pid` on a hand-back.** It names the actor's process and is no longer planted.
+- **Reviewer bounce out of `for_review`.** Classified as a hand-back.
+- **Comments and docstrings.** Corrected; the changelog states that the `→ in_progress` hand-backs keep the current holder.
+
+## Operator rulings after merge (2026-11-14)
+
+1. **Re-pinned tests.** Both re-pinned test expectations are accepted.
+2. **Ownership on `→ in_progress` hand-backs.** A hand-back that does not release the claim returns the work package to its implementer of record (`status.latest_implementer_identity`, the single authority in `status/review_roles.py`), not to the review-claim holder. This covers `in_review → in_progress`, `approved → in_progress` and `for_review → in_progress`. `--assignee` still wins. An unknown or generic implementer, or one that already holds the slot, leaves the slot alone.
+3. **orchestrator-api.** The no-release gap is filed as #7644 (P1, milestone "4.0.0 release scope").

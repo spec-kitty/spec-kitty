@@ -27,6 +27,7 @@ from specify_cli.review.cycle import (
 )
 from specify_cli.status import (
     APPROVED,
+    GENERIC_IMPLEMENTATION_ACTORS,
     REJECTED,
     ResolvedBinding,
     Lane,
@@ -421,21 +422,47 @@ def _mt_agent_binds_owner(st: _MoveTaskState) -> bool:
     return bool(st.agent) and not _mt_hands_back_work(st)
 
 
+def _mt_returning_implementer(st: _MoveTaskState) -> str | None:
+    """The implementer of record a hand-back returns ownership to, or ``None``.
+
+    Operator ruling on the #7588 follow-up: a hand-back that does not release the
+    claim (any target but ``planned``) gives the WP back to its implementer of
+    record (``status.latest_implementer_identity``), not to the reviewer who held
+    the review claim. An unknown or generic implementer, or one that already
+    holds the slot, returns nothing, so the slot keeps its holder.
+    """
+    if st.target_lane == Lane.PLANNED:
+        return None
+    identity = getattr(st, "implementer_identity", None)
+    key = _actor_key(identity) if identity else None
+    if key is None or key in GENERIC_IMPLEMENTATION_ACTORS:
+        return None
+    holder = getattr(st, "current_agent", None)
+    if holder and key == _actor_key(holder):
+        return None  # already the holder: keep its richer recorded identity
+    return str(identity)
+
+
 def _mt_ownership_fields(st: _MoveTaskState) -> dict[str, Any]:
     """Off-axis ownership-slot fields for a move outside the claim transition.
 
     A binding ``--agent`` (see :func:`_mt_agent_binds_owner`) records that agent
-    with its resolved binding. On a hand-back only an explicit ``--assignee``
-    reassigns the slot (#7588). The acting agent's resolved binding does not
-    describe the assignee, so the assignee's binding is recorded as explicitly
-    absent with the ``implementer`` role, replacing the previous holder's.
+    with its resolved binding. On a hand-back the slot goes to an explicit
+    ``--assignee`` (#7588), else to the returning implementer of record
+    (:func:`_mt_returning_implementer`); a move into ``planned`` with neither
+    releases it. Neither agent's binding is known here, so it is recorded as
+    explicitly absent with the ``implementer`` role, replacing the previous
+    holder's.
     """
     if _mt_agent_binds_owner(st):
         return {"agent": st.agent, **_mt_reassignment_binding_fields(st)}
-    if st.assignee and _mt_hands_back_work(st):
-        absent: dict[str, Any] = ResolvedBinding().to_delta(role="implementer").to_dict()
-        return {**absent, "agent": st.assignee}
-    return {}
+    if not _mt_hands_back_work(st):
+        return {}
+    owner = st.assignee or _mt_returning_implementer(st)
+    if not owner:
+        return {}
+    absent: dict[str, Any] = ResolvedBinding().to_delta(role="implementer").to_dict()
+    return {**absent, "agent": owner}
 
 
 def _mt_reassignment_binding_fields(st: _MoveTaskState) -> dict[str, Any]:
