@@ -1,0 +1,39 @@
+{
+  "mission_slug": "checkout-verdict-agreement-01M7B1GG",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "integration_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_planning_checkout_verdict.py (red at 123e408162: 2 failed/1 passed; green at 7cab5a79d5)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-13T18:50:01.820573+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "integration_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_planning_checkout_verdict.py (red at 123e408162: 2 failed/1 passed; green at 7cab5a79d5)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-13T18:50:05.634525+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "integration_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_planning_checkout_verdict.py (red at 123e408162: 2 failed/1 passed; green at 7cab5a79d5)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-13T18:50:09.185601+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

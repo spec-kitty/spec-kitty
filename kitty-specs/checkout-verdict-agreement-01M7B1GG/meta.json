@@ -1,0 +1,47 @@
+{
+  "accept_commit": "bb3a40b0c7ce6772ae40a8ba360eb2bd8eb810e4",
+  "acceptance_history": [
+    {
+      "accept_commit": "bb3a40b0c7ce6772ae40a8ba360eb2bd8eb810e4",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-13T18:50:13.896380+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "5ca8dd2a06a2512151ecb0d88cb9901ff7e57a4b",
+      "lenient": true
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-13T18:50:13.896380+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "5ca8dd2a06a2512151ecb0d88cb9901ff7e57a4b",
+  "baseline_merge_commit": "1fb3b55fec71e71b658bd20d2d1d0e5ad4219555",
+  "create_return_branch": "fix/7594-shared-checkout-verdict",
+  "created_at": "2026-11-13T18:07:56.954147+00:00",
+  "flattened": false,
+  "friendly_name": "One checkout verdict for the planning commands",
+  "merged_at": "2026-11-13T18:51:29.179337+00:00",
+  "merged_commit": "29ba8fbc2295deda40875b921fabb74d5fdf1d2d",
+  "mid8": "01M7B1GG",
+  "mission_base_sha": "1fb3b55fec71e71b658bd20d2d1d0e5ad4219555",
+  "mission_id": "01M7B1GG1NGBFN0P4Q44WSHW33",
+  "mission_number": 260,
+  "mission_slug": "checkout-verdict-agreement-01M7B1GG",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "A non-owned Mission with a minted topic branch gets opposite branch_matches_target verdicts from setup-plan and check-prerequisites (#7594), so the tasks step stops on the branch the tool chose. Slice 1 makes both commands consume one shared checkout verdict; slice 2 (#7633) routes the coordination-less status commit through the same seam after an operator ruling.",
+  "purpose_tldr": "setup-plan and check-prerequisites give the same checkout verdict, taken from the placement seam.",
+  "slug": "checkout-verdict-agreement-01M7B1GG",
+  "status_phase": "1",
+  "target_branch": "fix/7594-shared-checkout-verdict",
+  "topology": "single_branch",
+  "topology_decision": {
+    "code_lane_count": 1,
+    "from": "single_branch",
+    "rule": "wp_count_le_2",
+    "target_protected": false,
+    "to": "single_branch",
+    "wp_count": 1
+  },
+  "topology_settled": true,
+  "topology_source": "default"
+}

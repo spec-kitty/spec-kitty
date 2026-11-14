@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "mission_slug": "checkout-verdict-agreement-01M7B1GG",
+  "mission_id": "01M7B1GG1NGBFN0P4Q44WSHW33",
+  "mission_branch": "kitty/mission-checkout-verdict-agreement-01M7B1GG",
+  "target_branch": "fix/7594-shared-checkout-verdict",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/7594-planning-checkout-verdict.fixed.md",
+        "src/specify_cli/cli/commands/agent/mission_branch_context.py",
+        "src/specify_cli/cli/commands/agent/mission_check_prerequisites.py",
+        "src/specify_cli/cli/commands/agent/mission_setup_plan.py",
+        "tests/fixtures/setup_plan_pre_mission_replay.py",
+        "tests/specify_cli/cli/commands/agent/test_planning_checkout_verdict.py",
+        "tests/specify_cli/cli/commands/agent/test_setup_plan_branch_match.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-13T18:14:12.503755+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "1fb3b55fec71e71b658bd20d2d1d0e5ad4219555"
+}
