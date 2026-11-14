@@ -731,7 +731,7 @@ def move_task(
             help=(
                 "Agent name (alias: --actor, matching issue-verdict's vocabulary). "
                 "When the move hands the WP back for work (a rejection, a reopen, "
-                "a move back out of for_review) it records only who acted and "
+                "for_review -> in_progress) it records only who acted and "
                 "does not reassign the WP; use --assignee for that. "
                 "If both --agent and --actor are given, the one supplied LAST on "
                 "the command line wins."
