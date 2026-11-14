@@ -2666,6 +2666,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/archive/plans/engineering-notes/7588-move-task-agent-rebind-grounding.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/archive/plans/engineering-notes/883-mission-type-authority-brief.md
   tag: current
   divio_type: none
@@ -5219,6 +5225,12 @@
 - path: docs/plans/engineering-notes/2026-11-06-lane-worktree-friction-research.md
   tag: current
   divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/2026-11-13-7589-7632-lanes-claim-and-protected-create.md
+  tag: current
+  divio_type: reference
   owning_workstream: none
   current_target: true
   notes: null
