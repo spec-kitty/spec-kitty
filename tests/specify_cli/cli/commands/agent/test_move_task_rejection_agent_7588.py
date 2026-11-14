@@ -193,7 +193,7 @@ def _st(old: str, target: str, agent: str | None = "reviewer", assignee: str | N
 
     from specify_cli.status import Lane
 
-    return SimpleNamespace(old_lane=Lane(old), target_lane=Lane(target), agent=agent, assignee=assignee, resolved_binding=None)
+    return SimpleNamespace(old_lane=Lane(old), target_lane=Lane(target), agent=agent, assignee=assignee, resolved_binding=None, implementer_identity=None)
 
 
 @pytest.mark.parametrize(("old", "target"), _HANDS_BACK)
@@ -254,3 +254,74 @@ def test_a_rejection_does_not_plant_the_reviewers_shell_pid(tmp_path: Path, monk
     snapshot = wp_snapshot_state(m.feature_dir, h.WP) or {}
     assert not snapshot.get("agent")
     assert not snapshot.get("shell_pid"), snapshot.get("shell_pid")
+
+
+# --- Operator ruling on #7588 follow-up: a hand-back into in_progress returns ownership --------
+# to the implementer of record (``status.latest_implementer_identity``), not the reviewer who
+# held the review claim. A move into ``planned`` still releases; ``--assignee`` still wins.
+
+
+def _reject_to_in_progress(m: h.ReworkMission, *extra: str) -> h.Result:
+    assert h.move(m, h.WP, "in_review", h.REVIEWER).exit_code == 0
+    assert _owner(m.feature_dir) == h.REVIEWER
+    feedback = m.repo / "feedback-ip.md"
+    feedback.write_text("## Issues\n\nFix this thing.\n", encoding="utf-8")
+    return h.move(m, h.WP, "in_progress", h.REVIEWER, "--review-feedback-file", str(feedback), *extra)
+
+
+def test_an_in_review_rejection_into_in_progress_returns_the_wp_to_its_implementer(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.status import _actor_key
+
+    m = h.build_mission(tmp_path, monkeypatch)
+    h.drive_to_for_review(m)
+
+    rejected = _reject_to_in_progress(m)
+
+    assert rejected.exit_code == 0, rejected.output
+    owner = _owner(m.feature_dir)
+    assert _actor_key(owner) == _actor_key(h.IMPLEMENTER), f"slot still held by {owner!r}"
+    snapshot = wp_snapshot_state(m.feature_dir, h.WP) or {}
+    assert snapshot.get("role") == "implementer"
+    # The returned owner is enforced: an unrelated tool is refused, the implementer resubmits.
+    third = h.move(m, h.WP, "for_review", h.THIRD)
+    assert third.exit_code != 0 and "Agent mismatch" in third.output
+    assert h.move(m, h.WP, "for_review", h.IMPLEMENTER).exit_code == 0
+
+
+def test_assignee_still_wins_over_the_returning_implementer(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    m = h.build_mission(tmp_path, monkeypatch)
+    h.drive_to_for_review(m)
+
+    rejected = _reject_to_in_progress(m, "--assignee", h.THIRD)
+
+    assert rejected.exit_code == 0, rejected.output
+    assert _owner(m.feature_dir) == h.THIRD
+
+
+@pytest.mark.parametrize(("old", "target"), [("in_review", "in_progress"), ("approved", "in_progress"), ("for_review", "in_progress"), ("for_review", "claimed")])
+def test_a_non_planned_hand_back_returns_ownership_to_the_implementer_of_record(old: str, target: str) -> None:
+    from specify_cli.cli.commands.agent.tasks_move_task_hops import _mt_ownership_fields
+
+    st = _st(old, target)
+    st.implementer_identity = "claude:opus:implementer-ivan"
+    fields = _mt_ownership_fields(st)
+    assert fields["agent"] == "claude:opus:implementer-ivan"
+    assert fields["role"] == "implementer"
+    assert fields["agent_profile"] == RESOLVED_PROFILE_ABSENT
+
+
+def test_a_move_into_planned_still_releases_rather_than_returning_ownership() -> None:
+    from specify_cli.cli.commands.agent.tasks_move_task_hops import _mt_ownership_fields
+
+    st = _st("in_review", "planned")
+    st.implementer_identity = "claude:opus:implementer-ivan"
+    assert _mt_ownership_fields(st) == {}
+
+
+@pytest.mark.parametrize("identity", [None, "", "implement-command", "user"])
+def test_an_unknown_or_generic_implementer_leaves_the_slot_alone(identity: str | None) -> None:
+    from specify_cli.cli.commands.agent.tasks_move_task_hops import _mt_ownership_fields
+
+    st = _st("in_review", "in_progress")
+    st.implementer_identity = identity
+    assert _mt_ownership_fields(st) == {}
