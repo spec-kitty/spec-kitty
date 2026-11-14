@@ -92,19 +92,11 @@ def _site1(fx: ReviewFixture) -> str:
 
 
 def _review_args(fx: ReviewFixture) -> list[str]:
-    """The ``review`` arguments: every fixture claims the review with ``--agent`` (#7589, #7632).
+    """The ``review`` arguments: every fixture claims the review with ``--agent`` (#7589, #7632, #7637).
 
-    ``lanes_with_coord`` alone still lifts ``main``'s protection on its copy (committed; a
-    bookkeeping path, so the range is unchanged): its claim lands on the coordination branch,
-    then a follow-up commit routed to protected ``main`` is refused (#7637).
+    No fixture lifts ``main``'s protection: the ``lanes_with_coord`` claim commits only its status
+    pair, on the coordination branch, and routes nothing to protected ``main`` (#7637).
     """
-    if fx.name == "lanes_with_coord":
-        config = fx.repo / ".kittify" / "config.yaml"
-        config.parent.mkdir(parents=True, exist_ok=True)
-        existing = config.read_text(encoding="utf-8") if config.exists() else ""
-        config.write_text(existing + "\nprotection:\n  protected_branches: []\n", encoding="utf-8")
-        subprocess.run(["git", "add", "-f", str(config)], cwd=fx.repo, check=True, capture_output=True)
-        subprocess.run(["git", "commit", "-qm", "test: lift main's protection (#7637)"], cwd=fx.repo, check=True, capture_output=True)
     return ["review", REVIEWED_WP, "--mission", fx.mission_slug, "--agent", _AGENT]
 
 
