@@ -399,8 +399,9 @@ def test_legacy_warning_classification_matrix(
     # cwd-derived lane branch, so "kitty/x" must exist as a real branch for
     # the shared post-legacy-branch policy gate (WorkflowMutationPolicy) to
     # accept it. Genuinely-legacy/malformed-topology cases still discard it
-    # (cwd override), so this is a no-op for those parametrizations.
-    _run(repo_root, "git", "branch", "kitty/x", "main")
+    # (cwd override), so this is a no-op for those parametrizations. #7633: the
+    # repository root checkout (the seam's status checkout) must hold it.
+    _run(repo_root, "git", "checkout", "-q", "-b", "kitty/x", "main")
 
     with BookkeepingTransaction.acquire(
         repo_root=repo_root,
@@ -553,8 +554,9 @@ def test_backfill_suppresses_future_legacy_warning(
     monkeypatch.chdir(mission["lane_worktree"])
     # #2453: post-backfill the mission becomes modern coordination-less and
     # routes to repo_root on the caller-supplied destination_ref -- "kitty/x"
-    # must exist as a real branch for the post-legacy-branch policy gate.
-    _run(repo_root, "git", "branch", "kitty/x", "main")
+    # must exist as a real branch for the post-legacy-branch policy gate, and (#7633) the
+    # repository root checkout, the seam's status checkout, must hold it.
+    _run(repo_root, "git", "checkout", "-q", "-b", "kitty/x", "main")
 
     # Pre-backfill: genuinely legacy, warning fires.
     with BookkeepingTransaction.acquire(

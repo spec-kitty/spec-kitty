@@ -284,12 +284,12 @@ def test_head_mismatch_message_without_holder_keeps_checkout_remedy() -> None:
 
 def test_head_mismatch_holder_never_names_the_commit_worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status.read_surface as read_surface
-    from specify_cli.git.commit_helpers import _head_mismatch_holder
+    from specify_cli.git.commit_helpers import remedy_holder_of_ref
 
     monkeypatch.setattr(read_surface, "non_lane_checkout_holding_branch", lambda repo_root, ref: tmp_path)
-    assert _head_mismatch_holder(tmp_path, tmp_path, "topic") is None
+    assert remedy_holder_of_ref(tmp_path, tmp_path, "topic") is None
     monkeypatch.setattr(read_surface, "non_lane_checkout_holding_branch", lambda repo_root, ref: None)
-    assert _head_mismatch_holder(tmp_path, tmp_path / "other", "topic") is None
+    assert remedy_holder_of_ref(tmp_path, tmp_path / "other", "topic") is None
 
 
 def test_coord_kind_on_primary_arm_never_asks_write_dir_for_itself(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

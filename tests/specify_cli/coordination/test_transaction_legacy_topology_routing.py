@@ -266,7 +266,8 @@ def test_modern_coordinationless_acquire_routes_to_repo_root_not_cwd(
     # caller (e.g. status_transition._resolve_write_target's flat arm) would
     # already have resolved before calling .acquire().
     target_branch = "mission/t029a-target"
-    _git(repo_root, "branch", target_branch, "main")
+    # #7633: the repository root checkout (the seam's status checkout) must hold it.
+    _git(repo_root, "checkout", "-q", "-b", target_branch, "main")
 
     # The operator's shell sits in the STALE lane worktree — genuinely
     # tripping is_worktree_context, exactly the #2647 repro shape.

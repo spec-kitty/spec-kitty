@@ -60,6 +60,7 @@ from specify_cli.git.commit_helpers import (
     SafeCommitPathPolicyError,
     SafeCommitRecoveryFailed,
     SafeCommitStagedTreeUnchanged,
+    remedy_holder_of_ref,
     safe_commit,
 )
 from specify_cli.lanes.branch_naming import coord_mission_dir_name
@@ -248,14 +249,15 @@ def _seam_commit_checkout(
     return surface_root
 
 
-def _write_checkout_refusal(checkout: Path, destination_ref: str, operation: str) -> Refused | None:
+def _write_checkout_refusal(repo_root: Path, checkout: Path, destination_ref: str, operation: str) -> Refused | None:
     """``STATUS_WRITE_CHECKOUT_NOT_ON_WRITE_BRANCH`` when *checkout* does not hold *destination_ref* (#7633).
 
-    Operator ruling Q8 (option a): a coordination-less status commit never falls back to a
-    checkout the status read door does not read. Git lets one checkout hold a branch, so when
-    another checkout (or a lane worktree) holds the write branch, or its holder carries no
-    Mission directory, the seam's checkout is not on it and the commit refuses here, before
-    any write.
+    Operator rulings (Q8, option a, and shape (a), option 1): a coordination-less status commit
+    never falls back to a checkout the status read door does not read. Git lets one checkout
+    hold a branch, so when another checkout (or a lane worktree) holds the write branch, or its
+    holder carries no Mission directory, the seam's checkout is not on it and the commit refuses
+    before any write. The holder is looked up for the remedy text only
+    (:func:`~specify_cli.git.commit_helpers.remedy_holder_of_ref`); it never chooses a checkout.
     """
     from specify_cli.core.git_ops import get_current_branch
 
@@ -264,17 +266,17 @@ def _write_checkout_refusal(checkout: Path, destination_ref: str, operation: str
     if observed == ref:
         return None
     on = f"branch {observed!r}" if observed else "a detached HEAD"
+    holder = remedy_holder_of_ref(repo_root, checkout, ref)
+    held_by = f"{ref!r} is checked out in {holder}" if holder is not None else f"no checkout outside the lane worktrees holds {ref!r}"
     return Refused(
         error_code=STATUS_WRITE_CHECKOUT_NOT_ON_WRITE_BRANCH,
         message=(
             f"Refusing to record {operation!r}: the status write checkout {checkout} is on {on}, "
-            f"not on the write branch {ref!r}. The status read door reads that checkout, so the "
-            "commit cannot run anywhere else."
+            f"not on the write branch {ref!r}, and {held_by}. Status reads come from {checkout}, "
+            "so the commit does not run anywhere else."
         ),
         destination_ref=ref,
-        next_step=(
-            f"Check out {ref!r} in {checkout} (release it first from the checkout that holds it; `git worktree list` shows which), then re-run the command."
-        ),
+        next_step=(f"Release {ref!r} from the checkout that holds it, check it out in {checkout} (`git -C {checkout} checkout {ref}`), then re-run the command."),
     )
 
 
@@ -742,7 +744,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         * genuinely-legacy arm: ``None`` -- its destination is the operator's
           lane HEAD, which is not knowable before the run;
         * modern coordination-less arm: the gate against ``destination_ref`` on
-          the primary checkout.
+          the placement seam's checkout, then the same hold check (#7633).
 
         C-001 (no second rule): the probe carries ``owned`` verbatim into
         :func:`_preflight_policy_verdict`, so it resolves protection the same way the
@@ -759,7 +761,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         if not coordination_arm:
             if _warrants_legacy_warning(arm_root, safe_mission_slug, safe_mid8):
                 return None
-            worktree_root = arm_root
+            worktree_root = _seam_commit_checkout(arm_root, safe_mission_slug, destination_ref, MissionArtifactKind.STATUS_STATE, owned=owned)
             feature_dir = _checkout_mission_dir(worktree_root, safe_mission_slug, safe_mid8)
         else:
             caller_refusal = _caller_ref_refusal(
@@ -792,7 +794,8 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             owned=owned,
         )
         if not isinstance(verdict, Refused):
-            return None
+            # The modern coordination-less arm's hold check (#7633), in acquire's order.
+            return None if coordination_arm else _write_checkout_refusal(arm_root, worktree_root, destination_ref, operation)
         if coordination_arm and verdict.error_code == DESTINATION_REF_NOT_FOUND:
             # Coordination arm: ``acquire`` resolves the coordination worktree BEFORE
             # this gate runs and, when the coordination branch is missing, fails
@@ -831,6 +834,9 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # by ``write_dir`` (never re-composed here). ``None`` for the
         # non-coordination checkouts (legacy lane worktree, primary checkout).
         coord_feature_dir: Path | None = None
+        # Set ONLY by the modern coordination-less arm (#7633): its seam checkout must hold the
+        # destination ref, checked after the policy gate.
+        checkout_must_hold_ref = False
 
         # Resolve the worktree.  Two paths exist (WP08 T035–T036, SC-11):
         #
@@ -920,9 +926,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 # answer), and a checkout that does not hold the write branch refuses here,
                 # before any write (operator ruling Q8, option a).
                 worktree_root = _seam_commit_checkout(repo_root, safe_mission_slug, effective_destination_ref, MissionArtifactKind.STATUS_STATE, owned=owned)
-                checkout_refusal = _write_checkout_refusal(worktree_root, effective_destination_ref, operation)
-                if checkout_refusal is not None:
-                    raise BookkeepingPolicyRefused(checkout_refusal)
+                checkout_must_hold_ref = True
         else:
             coord_branch = CoordinationWorkspace.branch_name(safe_mission_slug, safe_mid8)
             caller_refusal = _caller_ref_refusal(
@@ -1012,6 +1016,13 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             raise BookkeepingPolicyRefused(verdict)
         # ``Allowed`` — fall through.
         assert isinstance(verdict, Allowed)  # noqa: S101 — defensive
+        # 4a. (#7633) The coordination-less arm's checkout must hold the write branch; checked
+        # after the policy gate (a protected-branch refusal stays the first answer) and before
+        # any write.
+        if checkout_must_hold_ref:
+            checkout_refusal = _write_checkout_refusal(repo_root, worktree_root, effective_destination_ref, operation)
+            if checkout_refusal is not None:
+                raise BookkeepingPolicyRefused(checkout_refusal)
 
         # 4b. (#5613) Refuse to build on a coordination worktree whose status log lost
         # events its branch HEAD has committed -- the write would drop them silently.

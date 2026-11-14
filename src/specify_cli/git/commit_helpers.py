@@ -203,7 +203,7 @@ class SafeCommitHeadMismatch(SafeCommitError):
         )
 
 
-def _head_mismatch_holder(repo_root: Path, worktree_root: Path, destination_ref: str) -> Path | None:
+def remedy_holder_of_ref(repo_root: Path, worktree_root: Path, destination_ref: str) -> Path | None:
     """The non-lane checkout already holding *destination_ref*, for the HEAD-mismatch remedy text only.
 
     This is a remedy-text lookup, not a "which checkout holds this Mission write"
@@ -1690,7 +1690,7 @@ def preflight_commit(
             destination_ref=destination_ref,
             observed_head=observed_head if observed_head is not None else "<detached>",
             worktree_root=worktree_root,
-            holder=_head_mismatch_holder(repo_root, worktree_root, destination_ref),
+            holder=remedy_holder_of_ref(repo_root, worktree_root, destination_ref),
         )
 
     # 5. destination_ref exists.
