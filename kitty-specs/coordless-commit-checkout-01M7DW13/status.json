@@ -1,0 +1,92 @@
+{
+  "event_count": 19,
+  "last_event_id": "01M7E1WPJTH6VNNJNA9TS065FV",
+  "materialized_at": "2026-11-14T22:12:19.162305+00:00",
+  "mission_number": "261",
+  "mission_slug": "coordless-commit-checkout-01M7DW13",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M7E1WM1147F1G8NZK7V54PAY",
+      "last_transition_at": "2026-11-14T22:12:16.545149+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: #7648 no-op on SafeCommitStagedTreeUnchanged; #7633 seam checkout + STATUS_WRITE_CHECKOUT_NOT_ON_WRITE_BRANCH (after the policy gate, probe equal); 11-row matrix + NFR-001 + holder-named refusal; blast radius 4602 passed",
+        "Review cycle 1 folded: the lock-free probe answers the policy question only; the hold check runs at write time in acquire (consolidate --target and its hatch control restored); 7372 case on lanes_with_coord; legacy-leaf comment. tests/terminus + tests/consolidation + coordination: 5001 passed",
+        "Review cycle 2 passed: preflight_refusal is policy-only, hold check at acquire; terminus #6464 cases green (748+512 targeted, 226 gates). Non-blocking: hatch-control consolidate still exits 1 after landing (pre-existing; base fails later with HEAD-mismatch traceback, now a clean pre-write refusal + rollback); test asserts only '-> main'. Follow-up issue suggested."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/kitty-specs/coordless-commit-checkout-01M7DW13/tasks/WP01-transaction-seam-checkout-and-idempotent-noop/review-cycle-2.md",
+        "reference": "review-cycle://coordless-commit-checkout-01M7DW13/WP01-transaction-seam-checkout-and-idempotent-noop/review-cycle-2.md",
+        "reviewer": "claude-reviewer",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 10693,
+      "shell_pid_created_at": "1794693245.95",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude-reviewer-2",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M7E1WPJTH6VNNJNA9TS065FV",
+      "last_transition_at": "2026-11-14T22:12:19.162305+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: #7637 review claim commits the status pair only (8 lanes_with_coord cells red->green, protection lift removed); legacy leaf commits + pre-checks in seam_commit_checkout, _resolve_legacy_porcelain_root deleted (2 behaviour tests red->green); blast radius 403 passed",
+        "Review passed (claude-reviewer-2); see review report"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/kitty-specs/coordless-commit-checkout-01M7DW13/tasks/WP02-claim-and-legacy-followup-commits/review-cycle-1.md",
+        "reference": "review-cycle://coordless-commit-checkout-01M7DW13/WP02-claim-and-legacy-followup-commits/review-cycle-1.md",
+        "reviewer": "claude-reviewer-2",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 6042,
+      "shell_pid_created_at": "1794691608.55",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
+    }
+  }
+}

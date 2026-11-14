@@ -1,0 +1,55 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-14T20:30:14.440248Z",
+      "decision_id": "01M7DW1SD88WSPQERVA9YPVZ8E",
+      "final_answer": "refuse with a named code (operator ruling Q8, option a, 2026-11-13); never fall back to the repository root checkout",
+      "input_key": "holder_without_mission_dir",
+      "mission_id": "01M7DW13MNNS0BMMVVV7ZMCEVA",
+      "mission_slug": "coordless-commit-checkout-01M7DW13",
+      "opened_by": "cli",
+      "options": [
+        "refuse with a named code",
+        "fall back to root",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "#7633 shape (b): when the topic holder has no Mission directory, does a coordination-less status commit refuse or fall back to the repository root checkout?",
+      "rationale": null,
+      "resolved_at": "2026-11-14T20:30:20.763947Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.holder-without-mission-dir",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-14T20:30:22.917612Z",
+      "decision_id": "01M7DW21P5D4WNVCGC6ARASAV3",
+      "final_answer": "Option 1 (operator ruling, relayed 2026-11-14): one up-front check in the coordination-less arm; refuse before any write with STATUS_WRITE_CHECKOUT_NOT_ON_WRITE_BRANCH, naming the holder and the remedy; covers (a), (b) and the lane-holder row; changelog entry for the (a) behaviour change.",
+      "input_key": "write_ref_held_elsewhere",
+      "mission_id": "01M7DW13MNNS0BMMVVV7ZMCEVA",
+      "mission_slug": "coordless-commit-checkout-01M7DW13",
+      "opened_by": "cli",
+      "options": [
+        "refuse up front, same code",
+        "refuse late",
+        "keep holder routing",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "#7633 shape (a) and the lane-holder row: the seam's checkout cannot hold a branch another checkout holds. Refuse up front with the same named code, refuse late (SafeCommitHeadMismatch), or keep today's holder routing?",
+      "rationale": null,
+      "resolved_at": "2026-11-14T20:46:07.570916Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.write-ref-held-elsewhere",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M7DW13MNNS0BMMVVV7ZMCEVA",
+  "version": 1
+}

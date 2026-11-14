@@ -1,0 +1,48 @@
+{
+  "accept_commit": "8d54ae953ce511ad03581ae0e3e06fa2f5d04307",
+  "acceptance_history": [
+    {
+      "accept_commit": "8d54ae953ce511ad03581ae0e3e06fa2f5d04307",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-14T22:11:27.869995+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "6568b569ed3facd0b08e0e4e41e49a0f86b3df48"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-14T22:11:27.869995+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "6568b569ed3facd0b08e0e4e41e49a0f86b3df48",
+  "baseline_merge_commit": "8d391cfa0483c0a45f88d6171677327f074b3bc4",
+  "contracts": "none",
+  "contracts_rationale": "Bug fixes inside existing commit routing; the only new interface element is the STATUS_WRITE_CHECKOUT_NOT_ON_WRITE_BRANCH refusal code, specified in spec.md FR-002.",
+  "create_return_branch": "fix/7633-7637-7648-coordless-commit-checkout",
+  "created_at": "2026-11-14T20:29:53.223032+00:00",
+  "flattened": false,
+  "friendly_name": "Coordination-less status commits take their checkout from the placement seam",
+  "merged_at": "2026-11-14T22:12:48.741975+00:00",
+  "merged_commit": "45085927e9bfc77a874166ed40eb005b6b563760",
+  "mid8": "01M7DW13",
+  "mission_base_sha": "8d391cfa0483c0a45f88d6171677327f074b3bc4",
+  "mission_id": "01M7DW13MNNS0BMMVVV7ZMCEVA",
+  "mission_number": 261,
+  "mission_slug": "coordless-commit-checkout-01M7DW13",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Slice 2 of checkout-verdict-agreement-01M7B1GG (#7633): the coordination-less arm of BookkeepingTransaction picks its checkout with a raw holder probe instead of the placement seam. The same run fixes the lanes_with_coord review claim that routes an unchanged WP file to protected main (#7637) and commit_idempotent turning an unchanged staged tree into a rollback (#7648).",
+  "purpose_tldr": "Coordination-less status commits run where the read door reads, or refuse; review claims and idempotent follow-up commits stop failing on unchanged content.",
+  "slug": "coordless-commit-checkout-01M7DW13",
+  "status_phase": "1",
+  "target_branch": "fix/7633-7637-7648-coordless-commit-checkout",
+  "topology": "single_branch",
+  "topology_decision": {
+    "code_lane_count": 2,
+    "from": "single_branch",
+    "rule": "wp_count_le_2",
+    "target_protected": false,
+    "to": "single_branch",
+    "wp_count": 2
+  },
+  "topology_settled": true,
+  "topology_source": "default"
+}

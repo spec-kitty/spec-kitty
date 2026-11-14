@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "mission_slug": "coordless-commit-checkout-01M7DW13",
+  "mission_id": "01M7DW13MNNS0BMMVVV7ZMCEVA",
+  "mission_branch": "kitty/mission-coordless-commit-checkout-01M7DW13",
+  "target_branch": "fix/7633-7637-7648-coordless-commit-checkout",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/7633-coordless-status-commit-checkout.fixed.md",
+        "docs/changelog/unreleased/7637-review-claim-protected-target.fixed.md",
+        "docs/changelog/unreleased/7648-idempotent-commit-unchanged-tree.fixed.md",
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/cli/commands/agent/workflow_executor.py",
+        "src/specify_cli/coordination/transaction.py",
+        "src/specify_cli/coordination/types.py",
+        "src/specify_cli/git/commit_helpers.py",
+        "tests/architectural/test_no_write_side_rederivation.py",
+        "tests/coordination/test_coordless_status_commit_checkout.py",
+        "tests/integration/review/test_review_range_acceptance_action.py",
+        "tests/specify_cli/cli/commands/agent/test_coord_commit_integrity_e2e.py",
+        "tests/specify_cli/coordination/test_transaction.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-14T20:34:09.576998+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "8d391cfa0483c0a45f88d6171677327f074b3bc4"
+}
