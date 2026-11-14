@@ -417,9 +417,9 @@ def commit_workflow_change(
         raise typer.Exit(1)
 
     # Legacy fallback (TODO(WP08): replace with the legacy bridge). Genuinely
-    # coord-less (no coordination_branch) — the mission's paths live in
-    # ``repo_root``; ``_commit_via_legacy_safe_commit`` resolves the porcelain
-    # pre-check root from (mission_slug, mid8) for FR-002(b) robustness.
+    # coord-less (no coordination_branch); ``_commit_via_legacy_safe_commit``
+    # commits, and runs its pre-check, in the placement seam's status checkout
+    # for ``mission_slug`` (#7633).
     try:
         w._commit_via_legacy_safe_commit(
             repo_root=repo_root,
@@ -428,7 +428,6 @@ def commit_workflow_change(
             message=message,
             wp_id=wp_id,
             mission_slug=mission_slug,
-            mid8=mid8,
         )
     except Exception as exc:  # noqa: BLE001 — surface + truncate + exit
         _handle_commit_failure(
@@ -2125,16 +2124,17 @@ def review_claim_transition(
         # unconditional cutover, so this claim writes 0 runtime bytes to the WP
         # file (byte-stable across the claim).
 
-        # Atomic commit: WP file + all status artifacts (#211, #212)
-        actual_wp_path = wp.path.resolve()
-        status_artifacts = w._collect_status_artifacts(feature_dir)
+        # #7637 (as the implement claim, #5673): commit exactly the paths the claim wrote, the
+        # status pair. The claim writes no WP-file byte (#2816), and passing the unchanged
+        # PRIMARY-partition WP file routed a second commit to the Mission's target, which a
+        # protected target refuses before any content check.
         # WP06 T027: route through BookkeepingTransaction (modern
         # path) or surgical-truncate fallback (legacy path).
         w._commit_workflow_change(
             repo_root=main_repo_root,
             mission_slug=mission_slug,
             target_branch=target_branch,
-            paths=[actual_wp_path, *status_artifacts],
+            paths=claim_status_pair_paths(w._collect_status_artifacts(feature_dir)),
             message=f"chore: Start {normalized_wp_id} review [{agent}]",
             operation=f"for_review -> in_review for {normalized_wp_id}",
             wp_id=normalized_wp_id,
