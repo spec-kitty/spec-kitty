@@ -118,7 +118,9 @@ def resolve_planning_checkout_verdict(
     ``current_branch`` is read from *invoking_root*, the checkout the command was invoked
     in (FR-006 / #3124; the caller resolves the identity once at its entry point, #3786).
     When the Mission cannot be resolved the verdict degrades to a silent match rather than
-    a spurious disagreement (#3124).
+    a spurious disagreement (#3124). An owned run does not degrade: its ``meta.json`` is
+    the owned fact's own record, so an unreadable one raises ``MissionMetaReadError``
+    (fail closed) instead of matching silently.
     """
     from mission_runtime import ActionContextError, MissionArtifactKind, placement_seam, read_dir_for
 
