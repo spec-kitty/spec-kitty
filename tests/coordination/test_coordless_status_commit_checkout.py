@@ -96,10 +96,7 @@ def _answers(mission: DefaultMission, checkouts: Checkouts) -> Answers:
     seam = placement_seam(mission.root, mission.slug)
     write = _write_answer(mission, checkouts, seam.write_target(_STATUS).ref)
     surface = resolve_status_read(mission.root, mission.slug)
-    if surface.path is not None:
-        read_door = _label(checkout_root_in_spelling(surface.path), mission, checkouts)
-    else:
-        read_door = f"ref:{surface.ref}"
+    read_door = f"ref:{surface.ref}" if surface.path is None else _label(checkout_root_in_spelling(surface.path), mission, checkouts)
     return Answers(write, _label(seam.write_dir(_STATUS).surface_root, mission, checkouts), read_door)
 
 
@@ -234,3 +231,19 @@ def test_coordless_status_commit_checkout_matrix(tmp_path: Path, shape_id: str) 
     build, expected = MATRIX[shape_id]
     mission, checkouts = build(tmp_path)
     assert _answers(mission, checkouts) == replace(expected, read_door=expected.read_door.format(topic=mission.topic))
+
+
+def _status_bytes(mission: DefaultMission, checkouts: Checkouts) -> dict[str, bytes]:
+    roots = [mission.root, *checkouts.values()]
+    return {str(path): path.read_bytes() for root in roots if root.is_dir() for path in sorted(root.rglob("status*.json*")) if ".git" not in path.parts}
+
+
+@pytest.mark.parametrize("shape_id", [shape for shape, (_build, answers) in MATRIX.items() if answers.write == _REFUSED])
+def test_refused_status_commit_writes_nothing(tmp_path: Path, shape_id: str) -> None:
+    """NFR-001: the refusal comes before any write, in every checkout."""
+    build, _expected = MATRIX[shape_id]
+    mission, checkouts = build(tmp_path)
+    before = _status_bytes(mission, checkouts)
+    ref = placement_seam(mission.root, mission.slug).write_target(_STATUS).ref
+    assert _write_answer(mission, checkouts, ref) == _REFUSED
+    assert _status_bytes(mission, checkouts) == before

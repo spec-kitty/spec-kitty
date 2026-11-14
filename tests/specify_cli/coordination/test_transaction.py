@@ -1412,9 +1412,7 @@ def _unreadable_status_entries(*_args: Any, **_kwargs: Any) -> tuple[()]:
     raise GitCommandError(argv=("status",), cwd=Path("."), returncode=128, stderr="fatal: not a git repository")
 
 
-def test_commit_idempotent_unchanged_tree_is_a_noop_when_the_pending_check_cannot_read(
-    repo: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_commit_idempotent_unchanged_tree_is_a_noop_when_the_pending_check_cannot_read(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#7648: the fail-open pending check must not turn an unchanged staged tree into a rollback.
 
     The rows are already committed at HEAD. When ``_worktree_has_pending_changes`` cannot read

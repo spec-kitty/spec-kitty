@@ -256,11 +256,11 @@ class _Finding:
 #: WS#3 — ``git/checkout_head.py`` / ``checkout_branch_or_fallback``
 #: (moved from ``implement.py`` by implement-degod WP08; settled-placement-surface
 #: WP03 / #7601 moved the read from ``_status_commit_destination_branch`` into this
-#: one shared helper): tracked #2453 — the ``get_current_branch(checkout) or
+#: one shared helper): tracked #1878 (was #2453, closed 2026-07-08) — the ``get_current_branch(checkout) or
 #: fallback_branch`` git-HEAD selector. It ONLY reads the branch of the checkout a
 #: commit runs in for the protected-branch guards (the implement claim preflight and
 #: move-task's WP-file holder) — it never feeds a write ``CommitTarget``/
-#: ``destination_ref``. #2453 stays open: the read is re-pointed, not drained, and
+#: ``destination_ref``. #1878 stays open: the read is re-pointed, not drained, and
 #: the entry count is unchanged (D-1/C-003).
 #:
 #: Adding a NEW entry here is a deliberate scope decision, not a routine
@@ -290,10 +290,10 @@ _ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
         token_substring="get_current_branch ( checkout ) or fallback_branch",
         occurrence=None,
         rationale=(
-            "tracked: #2453 - reads the branch of the checkout a commit runs in "
+            "tracked: #1878 (was #2453, closed) - reads the branch of the checkout a commit runs in "
             "for the protected-branch guards only (implement claim preflight, "
             "move-task WP-file holder); never feeds a write "
-            "CommitTarget/destination_ref. Deferred to the #2453 read-site "
+            "CommitTarget/destination_ref. Deferred to the #1878 read-site "
             "sweep bucket (D-1/C-003). implement-degod WP08 moved it "
             "implement.py -> implement_claim.py; settled-placement-surface WP03 "
             "(#7601) moved it from _status_commit_destination_branch into this "
@@ -344,7 +344,7 @@ def _scan_source(source: str, path: Path) -> list[_Finding]:
       this shape a first-class finding pulls the last checkout-derived selector
       an adopted module carries into the ratchet's field of view so it cannot
       silently drift; the one live site is tracked-VISIBLE in ``_ALLOW_LIST_SEED``
-      (tracked: #2453 deferred read-site sweep, D-1/C-003).
+      (tracked: #1878 deferred read-site sweep, D-1/C-003).
     """
     findings: list[_Finding] = []
     for lineno, code in code_tokens_by_line(source).items():
@@ -503,11 +503,11 @@ def test_ws1_descriptor_no_longer_seeded_after_the_1716_drain() -> None:
 
 
 def test_checkout_head_selector_entry_is_still_a_live_finding() -> None:
-    """Staleness twin-guard for the tracked #2453 checkout-HEAD selector descriptor.
+    """Staleness twin-guard for the tracked #1878 checkout-HEAD selector descriptor.
 
     The ``git/checkout_head.py`` descriptor pins ``checkout_branch_or_fallback``'s
     ``get_current_branch(checkout) or fallback_branch`` selector (#7601 moved it there
-    from ``_status_commit_destination_branch``; #2453 stays open). If
+    from ``_status_commit_destination_branch``; #1878 tracks it, #2453 is closed). If
     that site is finally routed through the placement seam (or removed),
     :func:`descriptor_still_live` returns ``False`` (0 matches, or a
     key-inequality) and this test fails loudly — the fix is to DELETE the
@@ -811,7 +811,7 @@ def _scan_checkout_grammar_module(path: Path) -> list[_CheckoutGrammarFinding]:
 _CHECKOUT_GRAMMAR_ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
     ContentDescriptor(
         rel_path="src/specify_cli/coordination/transaction.py",
-        qualname="BookkeepingTransaction.commit",
+        qualname="BookkeepingTransaction._commit",
         token_substring="CommitTarget ( ref = self . destination_ref )",
         occurrence=None,
         rationale=(
@@ -830,7 +830,9 @@ _CHECKOUT_GRAMMAR_ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
             "entry originally tracked is closed for that shape. The remaining "
             "genuinely-legacy re-derivation is intentional, permanent debt (a "
             "pre-SSOT mission has no other reliable write target) -- there is "
-            "no #2453 sweep left to defer."
+            "no #2453 sweep left to defer. #7648 moved the construction from "
+            "commit() into the shared _commit() that commit() and "
+            "commit_idempotent() call; descriptor re-pointed, count unchanged."
         ),
     ),
     ContentDescriptor(
