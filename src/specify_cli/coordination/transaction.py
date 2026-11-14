@@ -58,6 +58,7 @@ from specify_cli.coordination.surface_resolver import (
 from specify_cli.git.commit_helpers import (
     SafeCommitPathPolicyError,
     SafeCommitRecoveryFailed,
+    SafeCommitStagedTreeUnchanged,
     safe_commit,
 )
 from specify_cli.lanes.branch_naming import coord_mission_dir_name
@@ -1317,12 +1318,19 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             # regardless of whether the Mission has UNRELATED prior history.
             return self.commit(message)
         if not self._worktree_has_pending_changes():
-            receipt = self._noop_commit_receipt()
-            self._committed = True
-            self._explicit_commit_message = message
-            self._explicit_commit_receipt = receipt
-            return receipt
-        return self.commit(message)
+            return self._record_noop_commit(message)
+        # #7648: the pending check fails open, so an unreadable checkout reaches the strict
+        # commit with a tree that already matches HEAD; safe_commit's index authority then
+        # raises the typed "unchanged" signal, which is this method's no-op, not a failure.
+        return self._commit(message, unchanged_is_noop=True)
+
+    def _record_noop_commit(self, message: str) -> CommitReceipt:
+        """Record and return the idempotent no-op receipt pinned at HEAD."""
+        receipt = self._noop_commit_receipt()
+        self._committed = True
+        self._explicit_commit_message = message
+        self._explicit_commit_receipt = receipt
+        return receipt
 
     def commit(self, message: str) -> CommitReceipt:
         """Commit all staged paths via :func:`safe_commit`.
@@ -1333,6 +1341,16 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         On commit failure: rolls back the event log + every
         :meth:`write_artifact` path, then raises
         :class:`BookkeepingCommitFailed` chaining the original error.
+        An unchanged staged tree is a failure here (the #2861 contract).
+        """
+        return self._commit(message, unchanged_is_noop=False)
+
+    def _commit(self, message: str, *, unchanged_is_noop: bool) -> CommitReceipt:
+        """The strict commit; with *unchanged_is_noop*, ``SafeCommitStagedTreeUnchanged`` is the no-op receipt.
+
+        Only :meth:`commit_idempotent` passes ``unchanged_is_noop=True`` (#7648). The signal is
+        typed and raised only on ``safe_commit``'s index authority, so no other failure (and
+        no message text) is ever read as "already committed".
         """
         if self._committed:
             # Idempotent: return the receipt from the first call.
@@ -1354,6 +1372,11 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 capability=self._capability,
                 owned=self._owned,
             )
+        except SafeCommitStagedTreeUnchanged as exc:
+            if unchanged_is_noop:
+                return self._record_noop_commit(message)
+            self._rollback()
+            raise BookkeepingCommitFailed(f"safe_commit failed on {self.destination_ref!r}: {exc}{self._refusal_suffix()}") from exc
         except SafeCommitRecoveryFailed as exc:
             if exc.commit_sha is None:
                 self._rollback()
