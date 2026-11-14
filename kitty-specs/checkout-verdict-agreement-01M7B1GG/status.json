@@ -1,0 +1,55 @@
+{
+  "event_count": 7,
+  "last_event_id": "01M7B3ZFTAB21T4KNKPVBAPBHE",
+  "materialized_at": "2026-11-13T18:51:04.394783+00:00",
+  "mission_number": "260",
+  "mission_slug": "checkout-verdict-agreement-01M7B1GG",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M7B3ZFTAB21T4KNKPVBAPBHE",
+      "last_transition_at": "2026-11-13T18:51:04.394783+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: shared checkout verdict; red test 123e408, fix 7cab5a7",
+        "Independent review passed. Verdict helper consumes placement_seam.write_target(PRIMARY_METADATA).ref (C-001); commit helpers keep scope target_branch (C-002); no seam/transaction change (C-003). Red-first verified (123e408162: 2 failed/1 passed pre-fix; 3 passed on HEAD). Probed real commands: protected explicit single_branch mint, divergent linked worktree, settled default Mission with coord worktree/branch removed (silent match, no crash). Targeted tests 118 passed; gates no_dead_symbols/no_write_side_rederivation/no_legacy_terminology 216 passed; ruff/format/mypy clean. Operator note: test_setup_plan_branch_match.py now seeds topology single_branch beside mission_branch; judged a realism fix (create mints only for single_branch and stamps topology; the seam already committed such meta to the target), but plan IC-01 asked that such a pin change be surfaced and the fix commit does not mention it. Issue matrix verdicts recorded by reviewer (#7594 fixed; #7633 deferred pending Q8; all other cited refs not-applicable)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/kitty-specs/checkout-verdict-agreement-01M7B1GG/tasks/WP01-shared-checkout-verdict/review-cycle-1.md",
+        "reference": "review-cycle://checkout-verdict-agreement-01M7B1GG/WP01-shared-checkout-verdict/review-cycle-1.md",
+        "reviewer": "claude-reviewer",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2656,
+      "shell_pid_created_at": "1794595153.79",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    }
+  }
+}
