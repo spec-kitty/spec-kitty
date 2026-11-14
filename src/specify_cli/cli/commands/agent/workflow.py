@@ -997,9 +997,9 @@ def _commit_via_legacy_safe_commit(
             capability=GuardCapability.STANDARD,
         )
     except SafeCommitStagedTreeUnchanged:
-        # #7589: the pre-check above is advisory and can fail to answer (a
-        # coordination worktree left on disk whose checkout does not hold these
-        # paths). ``safe_commit``'s index authority then finds the staged tree
+        # #7589: the pre-check above is advisory and can fail to answer (git cannot
+        # read the checkout, or a path is not inside the commit checkout, #7633).
+        # ``safe_commit``'s index authority then finds the staged tree
         # equal to HEAD: the paths are already committed, the benign no-op the
         # type names. Record the commit that carries them, as the pre-check would.
         _record_receipt(

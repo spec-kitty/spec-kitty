@@ -745,7 +745,11 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         * genuinely-legacy arm: ``None`` -- its destination is the operator's
           lane HEAD, which is not knowable before the run;
         * modern coordination-less arm: the gate against ``destination_ref`` on
-          the placement seam's checkout, then the same hold check (#7633).
+          the placement seam's checkout. The probe answers the POLICY question only:
+          :meth:`acquire`'s hold check (#7633, ``STATUS_WRITE_CHECKOUT_NOT_ON_WRITE_BRANCH``)
+          reads which branch a checkout holds, a transient state the probing caller may
+          change before its write (``consolidate`` probes its post-landing ``done`` write
+          before the landing moves any checkout), so it is checked at write time only.
 
         C-001 (no second rule): the probe carries ``owned`` verbatim into
         :func:`_preflight_policy_verdict`, so it resolves protection the same way the
@@ -795,8 +799,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             owned=owned,
         )
         if not isinstance(verdict, Refused):
-            # The modern coordination-less arm's hold check (#7633), in acquire's order.
-            return None if coordination_arm else _write_checkout_refusal(arm_root, worktree_root, destination_ref, operation)
+            return None
         if coordination_arm and verdict.error_code == DESTINATION_REF_NOT_FOUND:
             # Coordination arm: ``acquire`` resolves the coordination worktree BEFORE
             # this gate runs and, when the coordination branch is missing, fails

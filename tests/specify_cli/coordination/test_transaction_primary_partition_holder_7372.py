@@ -39,7 +39,7 @@ def test_default_mission_commits_in_the_holder_of_its_topic_branch(tmp_path: Pat
 
 def test_mission_that_is_not_default_keeps_the_root_even_when_another_checkout_holds_the_ref(tmp_path: Path) -> None:
     """The reviewer's M2 scenario: an operator's own worktree holds the destination branch."""
-    mission = make_default_mission(tmp_path, THREE_LANES, standing_on="work", explicit="single_branch")
+    mission = make_default_mission(tmp_path, THREE_LANES, standing_on="work", explicit="lanes_with_coord")
     target = git(mission.root, "branch", "--show-current")
     git(mission.root, "checkout", "-q", "--detach")
     git(mission.root, "worktree", "add", "-q", str(tmp_path / "operator"), target)

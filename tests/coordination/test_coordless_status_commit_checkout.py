@@ -255,9 +255,25 @@ def test_refusal_names_the_holder_and_the_remedy(tmp_path: Path, shape_id: str) 
     build, _expected = MATRIX[shape_id]
     mission, checkouts = build(tmp_path)
     ref = placement_seam(mission.root, mission.slug).write_target(_STATUS).ref
-    verdict = BookkeepingTransaction.preflight_refusal(
-        repo_root=mission.root, mission_slug=mission.slug, mid8=str(_meta(mission)["mission_id"])[:8], destination_ref=ref, operation="probe"
-    )
-    assert verdict is not None and verdict.error_code == STATUS_WRITE_CHECKOUT_NOT_ON_WRITE_BRANCH
+    mission_id = str(_meta(mission)["mission_id"])
+    with pytest.raises(BookkeepingPolicyRefused) as refused:
+        BookkeepingTransaction.acquire(
+            repo_root=mission.root, mission_id=mission_id, mission_slug=mission.slug, mid8=mission_id[:8], destination_ref=ref, operation="probe"
+        )
+    verdict = refused.value.verdict
+    assert verdict.error_code == STATUS_WRITE_CHECKOUT_NOT_ON_WRITE_BRANCH
     assert str(checkouts["other"].resolve()) in verdict.message or str(checkouts["other"]) in verdict.message
     assert f"checkout {ref}" in verdict.next_step
+
+
+@pytest.mark.parametrize("shape_id", ["a-commit-to-target-held-by-other-checkout", "b-default-topic-holder-without-mission-dir"])
+def test_preflight_probe_answers_the_policy_question_only(tmp_path: Path, shape_id: str) -> None:
+    """The lock-free probe does not read which branch a checkout holds (transient state): a
+    caller such as ``consolidate`` probes its post-landing write before the landing moves any
+    checkout. The hold check runs at write time, in ``acquire``."""
+    build, _expected = MATRIX[shape_id]
+    mission, _checkouts = build(tmp_path)
+    ref = placement_seam(mission.root, mission.slug).write_target(_STATUS).ref
+    mission_id = str(_meta(mission)["mission_id"])
+    probe = BookkeepingTransaction.preflight_refusal(repo_root=mission.root, mission_slug=mission.slug, mid8=mission_id[:8], destination_ref=ref, operation="probe")
+    assert probe is None
