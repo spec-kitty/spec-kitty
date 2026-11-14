@@ -2126,7 +2126,7 @@ def review_claim_transition(
 
         # #7637 (as the implement claim, #5673): commit exactly the paths the claim wrote, the
         # status pair. The claim writes no WP-file byte (#2816), and passing the unchanged
-        # PRIMARY-partition WP file routed a second commit to the Mission's target, which a
+        # PRIMARY-partition WP file sent a second commit to the Mission's target branch, which a
         # protected target refuses before any content check.
         # WP06 T027: route through BookkeepingTransaction (modern
         # path) or surgical-truncate fallback (legacy path).
