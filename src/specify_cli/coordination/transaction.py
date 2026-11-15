@@ -238,8 +238,10 @@ def seam_commit_checkout(
     The seam (``write_dir(kind).surface_root``, the one checkout authority, #7615 / #7546)
     answers when *destination_ref* is the ref the seam names for *kind*
     (``write_target(kind).ref``); a ref the seam does not name keeps the repository root
-    checkout. On a coordination-less topology every kind is declared PRIMARY, so ``write_dir``
-    has no side effects here. No branch holder is probed: the seam is the status read door's
+    checkout. ``write_dir`` has no side effects for a PRIMARY kind: every kind on a
+    coordination-less topology, and ``WORK_PACKAGE_TASK`` on any topology (the
+    ``_primary_partition_holder`` caller). The guarantee rests on the kind being PRIMARY, not on
+    the topology. No branch holder is probed: the seam is the status read door's
     answer, so the commit lands where status reads look.
     """
     seam = placement_seam(repo_root, mission_slug, owned=owned)
@@ -981,10 +983,10 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 # for such a Mission (:func:`_primary_partition_holder`); every
                 # other mission keeps ``repo_root`` even when some other
                 # checkout happens to hold its target branch. (The coordination-less
-                # arm above follows any holder of the write branch so status writes
-                # track the read door; this arm is narrowed to a default Mission's
-                # PRIMARY topic holder so a planning commit never lands in an
-                # unrelated checkout of the target branch.)
+                # arm above takes the placement seam's status checkout and refuses
+                # when it is not on the write branch, #7633; this arm likewise asks
+                # the seam, for the PRIMARY kind, so a planning commit never lands
+                # in an unrelated checkout of the target branch.)
                 worktree_root = _primary_partition_holder(repo_root, safe_mission_slug, effective_destination_ref, owned=owned)
             else:
                 # New topology — materialize/seed the coordination write
