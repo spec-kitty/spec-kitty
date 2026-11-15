@@ -16,7 +16,6 @@ stays green while the rule is weakened would prove nothing.
 from __future__ import annotations
 
 import json
-import math
 import os
 import warnings
 from collections.abc import Mapping, Sequence
@@ -27,6 +26,7 @@ import pytest
 import yaml
 
 from scripts.ci import shard_select
+from scripts.ci.battery_roster_budgets import budget_rule
 from scripts.ci.battery_partition_plugin import BatterySpec, load_battery_spec, load_battery_timings
 
 pytestmark = pytest.mark.fast
@@ -39,8 +39,6 @@ _REQUIRED_PROVENANCE: Final = ("producer", "captured_at", "selection", "workers"
 _MAX_LEG_SKEW: Final = 0.20  # same ceiling the module skew gate uses
 _MAX_STALE_KEY_FRACTION: Final = 0.10
 _MAX_UNTIMED_BASE_FRACTION: Final = 0.10
-_BUDGET_FLOOR_SECONDS: Final = 10
-_BUDGET_MULTIPLIER: Final = 1.5
 
 # Battery timing-table drift vs the live test corpus is a maintenance-cadence
 # concern, not a per-PR blocker (operator ruling 2026-10-18): adding or removing a
@@ -132,11 +130,6 @@ def untimed_base_problems(missing: Sequence[str], base_files: Sequence[str]) -> 
         share = f"{len(missing)} of {len(base_files)} base files have no timing (> {_MAX_UNTIMED_BASE_FRACTION:.0%})"
         return [f"{share}: {sorted(missing)[:5]} ... -- recapture the table"]
     return []
-
-
-def budget_rule(seed_seconds: float) -> int:
-    """The one budget rule: ``max(10, ceil(1.5 x seed))`` (research R1 section 4b)."""
-    return max(_BUDGET_FLOOR_SECONDS, math.ceil(_BUDGET_MULTIPLIER * seed_seconds))
 
 
 def budget_rule_problems(spec: BatterySpec, timings: Mapping[str, float]) -> list[str]:

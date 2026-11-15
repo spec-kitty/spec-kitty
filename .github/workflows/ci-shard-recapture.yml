@@ -64,14 +64,19 @@
 # (`needs:` plus `!cancelled()`, so it still runs when the recapture failed or was
 # skipped) and checks THAT RUN'S recapture output, not the committed tables. The
 # recapture job uploads the timings file it leaves behind (the committed data, the
-# open proposal's refreshed modules, this run's captures and battery refresh) as the
-# `shard-timings-recapture-output` artefact, and the strict job lays it over its
+# open proposal's refreshed modules, this run's captures and battery refresh) and the
+# registry (whose roster budgets the battery step re-derives by the rule, #7115) as the
+# `shard-timings-recapture-output` artefact, and the strict job lays both over its
 # checkout before the gates run. Main gains tests faster than one run used to
 # capture, so checking the pre-recapture tables kept the alarm red every morning on
 # drift the same run was already fixing. Now only drift the run could not close turns
 # it red: a module whose capture failed or was deferred, a battery table the refresh
 # could not produce or that breaks the roster rules, or a pinning inventory that
-# drifted. A green run reads as "main is green once the recapture proposal merges".
+# drifted. A green run reads as "main is green once the recapture proposal merges", so
+# the strict job then bounds how long that can take: its last step (`proposal-check`,
+# read-only workflow token) warns for every module, battery table or roster budget main's
+# committed files are still stale on, and FAILS when the open recapture proposal is older
+# than `PROPOSAL_MAX_AGE_DAYS` (3) -- an unmerged proposal cannot keep the alarm green.
 # When the recapture job is skipped (a topic-branch dispatch, see F4 below) the strict
 # job checks the committed tables, as it always did. When the recapture ran but left
 # no artefact, the download step fails and the strict job goes red rather than
@@ -252,7 +257,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: shard-timings-recapture-output
-          path: .github/ci-shard-timings.json
+          path: |
+            .github/ci-shard-timings.json
+            .github/ci-module-registry.yml
           include-hidden-files: true
           if-no-files-found: error
           overwrite: true
@@ -277,13 +284,16 @@ jobs:
 
   # Runs after the job above and checks its output (#7114, see the header comment).
   # `!cancelled()` keeps it running when the recapture failed or was skipped; the
-  # fork guard stays the first conjunct. Needs no PAT and no secret: it only reads the
-  # repo, downloads this run's artefact and runs pytest, so actions/checkout's default
-  # credential (this workflow's own permissions: {contents: read}) is sufficient.
+  # fork guard stays the first conjunct. Needs no PAT and no secret: it reads the repo,
+  # downloads this run's artefact, runs pytest and lists the open recapture proposal, so
+  # the read-only workflow token with `pull-requests: read` is sufficient.
   strict-shard-timings-check:
     needs: recapture-shard-timings
     if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !cancelled() }}
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: read
     # A local strict run of this exact command (`SPEC_KITTY_STRICT_SHARD_
     # TIMINGS=1 SPEC_KITTY_STRICT_PINNING_INVENTORY=1 pytest
     # tests/architectural/test_module_length_agreement.py
@@ -321,7 +331,8 @@ jobs:
           RECAPTURE_JOB_RESULT: ${{ needs.recapture-shard-timings.result }}
         run: |
           cp "$RUNNER_TEMP/recapture-output/ci-shard-timings.json" .github/ci-shard-timings.json
-          changed="$(git diff --stat -- .github/ci-shard-timings.json | tail -n 1)"
+          cp "$RUNNER_TEMP/recapture-output/ci-module-registry.yml" .github/ci-module-registry.yml
+          changed="$(git diff --stat -- .github/ci-shard-timings.json .github/ci-module-registry.yml | tail -n 1)"
           {
             echo "Strict check runs against this run's recapture output (recapture job: $RECAPTURE_JOB_RESULT)."
             echo "Changed against the committed tables: ${changed:-no change}"
@@ -331,3 +342,10 @@ jobs:
           SPEC_KITTY_STRICT_SHARD_TIMINGS: "1"
           SPEC_KITTY_STRICT_PINNING_INVENTORY: "1"
         run: uv run --frozen pytest tests/architectural/test_module_length_agreement.py tests/ci/test_battery_roster_budgets.py tests/release/test_pinning_inventory_fresh.py -q
+      # Runs even when the gates failed. Warns for what main's committed files still lack, and
+      # fails when the open recapture proposal is older than PROPOSAL_MAX_AGE_DAYS (#7114).
+      - name: Check how long main can stay behind the recapture output
+        if: ${{ !cancelled() && needs.recapture-shard-timings.result != 'skipped' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: uv run --frozen python -m scripts.ci.recapture_shard_timings proposal-check

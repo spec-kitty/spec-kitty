@@ -21,7 +21,7 @@ from typing import Any
 import pytest
 
 from kernel.clock import parse_iso
-from scripts.ci import capture_shard_timings
+from scripts.ci import battery_roster_budgets, capture_shard_timings
 from scripts.ci import recapture_battery_timings as battery
 from scripts.ci import recapture_shard_timings as recapture
 
@@ -145,6 +145,7 @@ class Fake:
     """Answers ``gh run list`` / ``gh run download`` / the producer, and records every call."""
 
     timings_path: Path
+    registry_path: Path
     run_ids: list[int] = field(default_factory=lambda: [30, 20, 10, 5])
     no_artifact: set[str] = field(default_factory=set)
     empty_artifact: set[str] = field(default_factory=set)
@@ -201,8 +202,13 @@ def fake(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Fake:
     (root / ".github").mkdir(parents=True)
     timings_path = root / ".github" / "ci-shard-timings.json"
     timings_path.write_text(json.dumps(_payload(TWO_FILES, SEED), indent=2) + "\n", encoding="utf-8")
-    fake = Fake(timings_path=timings_path)
+    registry_path = root / ".github" / "ci-module-registry.yml"
+    # Every roster file of THREE_FILES is on its rule (seconds <= 6.67 -> budget 10), so a
+    # test only sees re-derived budgets when it sets one off the rule.
+    registry_path.write_text(_ROSTER.format(a=10), encoding="utf-8")
+    fake = Fake(timings_path=timings_path, registry_path=registry_path)
     monkeypatch.setattr(recapture, "TIMINGS_PATH", timings_path)
+    monkeypatch.setattr(recapture, "REGISTRY_PATH", registry_path)
     monkeypatch.setattr(battery, "REPO_ROOT", root)
     monkeypatch.setattr(battery, "now_utc", lambda: NOW)
     monkeypatch.setattr(subprocess, "run", fake.run)
@@ -475,3 +481,89 @@ def test_the_script_runs_bare_without_pythonpath() -> None:
     proc = subprocess.run(["python3", str(script), "--help"], cwd=recapture.REPO_ROOT, env=env, capture_output=True, text=True, check=False, timeout=60)
     assert proc.returncode == 0, proc.stderr
     assert "--junit-root" in proc.stdout
+
+
+# --------------------------------------------------------------------------- #
+# Roster budgets re-derived by the rule (#7115).                               #
+# --------------------------------------------------------------------------- #
+
+_ROSTER = (
+    "special_tiers:\n  architectural:\n    workers: 4\n"
+    "    base: {{paths: [tests/architectural], marker: not performance, deselect: []}}\n"
+    "    fast_gate:\n      job: architectural-fast\n      max_file_budget_seconds: 90\n      max_total_measured_seconds: 300\n"
+    "      # a comment the edit must keep\n"
+    "      roster:\n"
+    '      - {{path: tests/architectural/test_a.py, budget_seconds: {a}, reason: "red 8x, kept: verbatim"}}\n'
+    '      - {{path: tests/architectural/test_z.py, budget_seconds: 44, reason: "untimed"}}\n'
+    "    shards: {{job: architectural-heavy, shard_count: 2, granularity: file, timings_key: architectural}}\n"
+)
+
+
+def test_rerule_sets_each_timed_budget_by_the_rule_and_keeps_every_other_byte() -> None:
+    rerule = battery_roster_budgets.rerule_registry(_ROSTER.format(a=88), {"tests/architectural/test_a.py": 32.153})
+    assert rerule.changed == {"tests/architectural/test_a.py": (88, 49)}
+    assert rerule.text == _ROSTER.format(a=49), "only the number moved; the untimed row, comments and reasons are kept"
+
+
+def test_paired_control_a_roster_on_its_rule_is_left_alone() -> None:
+    rerule = battery_roster_budgets.rerule_registry(_ROSTER.format(a=49), {"tests/architectural/test_a.py": 32.153})
+    assert rerule.changed == {}
+    assert rerule.text == _ROSTER.format(a=49)
+
+
+def test_rerule_refuses_a_roster_row_it_cannot_edit_in_place() -> None:
+    multi_line = _ROSTER.format(a=10).replace(
+        '      - {path: tests/architectural/test_a.py, budget_seconds: 10, reason: "red 8x, kept: verbatim"}\n',
+        "      - path: tests/architectural/test_a.py\n        budget_seconds: 10\n        reason: multi-line\n",
+    )
+    with pytest.raises(ValueError, match="one-line form"):
+        battery_roster_budgets.rerule_registry(multi_line, {"tests/architectural/test_a.py": 40.0})
+
+
+def test_the_committed_roster_is_on_its_rule() -> None:
+    """Today's registry against today's table: nothing to re-derive (the roster test's rule check, from the producer's side)."""
+    import yaml
+
+    from scripts.ci.battery_partition_plugin import load_battery_spec, load_battery_timings
+
+    registry = recapture.REGISTRY_PATH.read_text(encoding="utf-8")
+    spec = load_battery_spec(yaml.safe_load(registry))
+    table = load_battery_timings(json.loads(recapture.TIMINGS_PATH.read_text(encoding="utf-8")), spec.timings_key)
+    assert battery_roster_budgets.rerule_registry(registry, table).changed == {}
+
+
+def test_the_battery_step_re_derives_off_rule_budgets_and_publishes_them(fake: Fake, tmp_path: Path) -> None:
+    fake.registry_path.write_text(_ROSTER.format(a=77), encoding="utf-8")
+    fake.timings_path.write_text(json.dumps(_payload(TWO_FILES, _junit_provenance(2)), indent=2) + "\n", encoding="utf-8")
+    fake.fresh = dict(TWO_FILES)  # the table itself is current: only the budgets are off
+
+    exit_code, outputs, result = _main(tmp_path)
+
+    assert exit_code == 0
+    assert result.battery_captured == ()
+    assert result.battery_budgets == ("tests/architectural/test_a.py",)
+    assert outputs["drift"] == "true"
+    assert fake.registry_path.read_text(encoding="utf-8") == _ROSTER.format(a=10)
+
+
+def test_a_registry_the_step_cannot_edit_fails_the_battery_step_and_is_left_alone(fake: Fake, tmp_path: Path) -> None:
+    broken = _ROSTER.format(a=77).replace(
+        '      - {path: tests/architectural/test_a.py, budget_seconds: 77, reason: "red 8x, kept: verbatim"}\n',
+        "      - path: tests/architectural/test_a.py\n        budget_seconds: 77\n        reason: multi-line\n",
+    )
+    fake.registry_path.write_text(broken, encoding="utf-8")
+
+    exit_code, _outputs, result = _main(tmp_path)
+
+    assert exit_code == 1
+    assert result.battery_failed == ("architectural",)
+    assert "roster budgets not re-derived" in result.reasons["battery:architectural"]
+    assert fake.registry_path.read_text(encoding="utf-8") == broken
+
+
+def test_rerule_files_leaves_a_registry_without_a_roster_alone(tmp_path: Path) -> None:
+    registry, timings = tmp_path / "registry.yml", tmp_path / "timings.json"
+    registry.write_text("modules:\n- module: a\n", encoding="utf-8")
+    timings.write_text("{}\n", encoding="utf-8")
+    assert battery_roster_budgets.rerule_files(registry, timings) == {}
+    assert registry.read_text(encoding="utf-8") == "modules:\n- module: a\n"

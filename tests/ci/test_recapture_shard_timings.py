@@ -29,6 +29,7 @@ from typing import Any
 
 import pytest
 
+from kernel.clock import parse_iso
 from scripts.ci import capture_shard_timings
 from scripts.ci import recapture_shard_timings as recapture
 from scripts.ci.recapture_shard_timings import (
@@ -378,7 +379,7 @@ def test_the_recapture_uploads_its_output_before_publish_moves_the_working_tree(
     upload_step = steps[upload]
     assert upload_step.get("if") == "${{ !cancelled() }}", "a failed capture still hands its output to the strict check"
     assert upload_step["with"]["name"] == _OUTPUT_ARTIFACT
-    assert upload_step["with"]["path"] == TIMINGS_GIT_PATH
+    assert upload_step["with"]["path"].split() == [TIMINGS_GIT_PATH, ".github/ci-module-registry.yml"], "the table and the re-derived budgets"
     assert upload_step["with"]["include-hidden-files"] is True, "upload-artifact skips the hidden .github/ directory by default"
     assert upload_step["with"]["if-no-files-found"] == "error"
 
@@ -399,6 +400,21 @@ def test_the_strict_check_lays_the_recapture_output_over_its_checkout_before_the
     assert steps[download]["with"]["path"] == "${{ runner.temp }}/recapture-output", "the directory the overlay copies from"
     assert "continue-on-error" not in steps[download]
     assert f'cp "$RUNNER_TEMP/recapture-output/ci-shard-timings.json" {TIMINGS_GIT_PATH}' in steps[overlay]["run"]
+    assert 'cp "$RUNNER_TEMP/recapture-output/ci-module-registry.yml" .github/ci-module-registry.yml' in steps[overlay]["run"]
+
+
+def test_the_strict_job_bounds_how_long_main_can_stay_behind_the_output() -> None:
+    """#7114: after the gates (also when they failed) the proposal check runs with the read-only
+    workflow token, never the recapture PAT, and the job can read pull requests and nothing more."""
+    job = _strict_job()
+    assert job.get("permissions") == {"contents": "read", "pull-requests": "read"}
+    steps = job["steps"]
+    gates = _step_position(steps, lambda step: "test_module_length_agreement.py" in str(step.get("run", "")), "gate")
+    check = _step_position(steps, lambda step: "recapture_shard_timings proposal-check" in str(step.get("run", "")), "proposal-check")
+    assert gates < check
+    assert steps[check].get("if") == "${{ !cancelled() && needs.recapture-shard-timings.result != 'skipped' }}"
+    assert steps[check].get("env") == {"GH_TOKEN": "${{ github.token }}"}
+    assert recapture.SECRET_NAME not in str(job)
 
 
 # --------------------------------------------------------------------------- #
@@ -486,6 +502,7 @@ class World:
     proposal_tip_text: str = "stale proposal tip\n"
     open_prs: list[dict[str, object]] = field(default_factory=list)
     push_stderr: str | None = None
+    nothing_staged: bool = False
     collect_timeouts: set[str] = field(default_factory=set)
     node_ids: dict[str, list[str]] = field(default_factory=dict)
     calls: list[list[str]] = field(default_factory=list)
@@ -606,6 +623,8 @@ class World:
             self.timings_path.write_text(self.proposal_tip_text, encoding="utf-8")  # the working tree moves to the proposal tip
         if cmd[1] == "add":
             self.added_snapshots.append(self.timings_path.read_text(encoding="utf-8"))
+        if cmd[1:4] == ["diff", "--cached", "--quiet"]:  # exit 1: something is staged
+            return subprocess.CompletedProcess(cmd, 0 if self.nothing_staged else 1, stdout="", stderr="")
         if cmd[1] == "push" and self.push_stderr is not None:
             raise subprocess.CalledProcessError(128, cmd, stderr=self.push_stderr)
         return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
@@ -1042,6 +1061,7 @@ def test_nothing_drifted_captures_nothing_and_reports_drift_false(world: World) 
         "reasons": {},
         "battery_captured": [],
         "battery_failed": [],
+        "battery_budgets": [],
         "captured_with_failures": [],
         "drift_reasons": {},
     }
@@ -1403,6 +1423,9 @@ def _publish_env(world: World, monkeypatch: pytest.MonkeyPatch, result: Any = No
     _set_token(monkeypatch, FAKE_TOKEN)
     monkeypatch.setenv(recapture.RESULT_ENV_VAR, result.to_json())
     world.write_timings(_payload({"a": _entry_tables(4, captured_at=NEWEST)}))
+    registry = world.root / ".github" / "ci-module-registry.yml"
+    if not registry.exists():
+        registry.write_text("modules:\n- module: a\n", encoding="utf-8")
 
 
 def _commands(world: World, tool: str) -> list[list[str]]:
@@ -1416,9 +1439,10 @@ def test_publish_without_an_open_proposal_pushes_the_branch_and_opens_a_pull_req
     assert recapture.main([PHASE_PUBLISH]) == 0
 
     git_calls = world.git_calls()
-    assert git_calls[0] == ["git", "add", str(world.timings_path)]
-    assert recapture.COMMIT_MESSAGE in git_calls[1][-1]
-    assert git_calls[2] == ["git", "push", "--force", "origin", f"HEAD:refs/heads/{RECAPTURE_BRANCH}"]
+    assert git_calls[0] == ["git", "add", str(world.timings_path), str(world.root / ".github" / "ci-module-registry.yml")]
+    assert git_calls[1] == ["git", "diff", "--cached", "--quiet"]
+    assert recapture.COMMIT_MESSAGE in git_calls[2][-1]
+    assert git_calls[3] == ["git", "push", "--force", "origin", f"HEAD:refs/heads/{RECAPTURE_BRANCH}"]
     create = next(cmd for cmd in _commands(world, "gh") if cmd[1:3] == ["pr", "create"])
     assert create[create.index("--head") + 1] == RECAPTURE_BRANCH
     assert create[create.index("--title") + 1] == recapture.COMMIT_MESSAGE
@@ -1437,9 +1461,10 @@ def test_publish_with_an_open_proposal_adds_a_follow_up_commit_and_never_forces(
     git_calls = world.git_calls()
     assert git_calls[0] == ["git", "fetch", "origin", RECAPTURE_BRANCH]
     assert git_calls[1] == ["git", "checkout", "--force", "--detach", "FETCH_HEAD"]
-    assert git_calls[2] == ["git", "add", str(world.timings_path)]
-    assert "commit" in git_calls[3]
-    assert git_calls[4] == ["git", "push", "origin", f"HEAD:refs/heads/{RECAPTURE_BRANCH}"]
+    assert git_calls[2] == ["git", "add", str(world.timings_path), str(world.root / ".github" / "ci-module-registry.yml")]
+    assert git_calls[3] == ["git", "diff", "--cached", "--quiet"]
+    assert "commit" in git_calls[4]
+    assert git_calls[5] == ["git", "push", "origin", f"HEAD:refs/heads/{RECAPTURE_BRANCH}"]
     assert all("--force" not in cmd and "-f" not in cmd for cmd in git_calls if cmd[1] == "push")
     assert not [cmd for cmd in _commands(world, "gh") if cmd[1:3] == ["pr", "create"]]
     # The tree moved to the proposal tip, yet the commit carries exactly the refreshed data.
@@ -1463,6 +1488,7 @@ _NONE = "none"
 _NEW_PROPOSAL_CALLS = [
     ("gh pr list", _GH),
     ("git add", _NONE),
+    ("git diff", _NONE),
     ("git commit", _NONE),
     ("git push", _REMOTE),
     ("gh pr create", _GH),
@@ -1472,6 +1498,7 @@ _FOLLOW_UP_CALLS = [
     ("git fetch", _REMOTE),
     ("git checkout", _NONE),
     ("git add", _NONE),
+    ("git diff", _NONE),
     ("git commit", _NONE),
     ("git push", _REMOTE),
 ]
@@ -1652,7 +1679,7 @@ def test_a_push_failure_never_echoes_the_credential(world: World, monkeypatch: p
 
 @pytest.mark.parametrize(
     ("fail_at", "expected_step"),
-    [(0, "git add"), (1, "git commit"), (3, "gh pr create")],
+    [(0, "git add"), (2, "git commit"), (4, "gh pr create")],
     ids=["git-add", "git-commit", "gh-pr-create"],
 )
 def test_a_transport_failure_surfaces_through_the_error_convention(
@@ -1903,3 +1930,188 @@ def test_the_argv_the_recapture_builds_parses_under_the_real_producer(world: Wor
     for argv in producer_argvs:
         args = capture_shard_timings._parse_args(argv)
         assert args.modules == ["wide"]
+
+
+# --------------------------------------------------------------------------- #
+# Roster budgets ride the proposal (#7115).                                    #
+# --------------------------------------------------------------------------- #
+
+
+def _battery_registry(budget: int) -> str:
+    return (
+        "modules:\n- module: a\n"
+        "special_tiers:\n  architectural:\n    workers: 4\n"
+        "    base: {paths: [tests/architectural], marker: not performance, deselect: []}\n"
+        "    fast_gate:\n      job: architectural-fast\n      max_file_budget_seconds: 90\n      max_total_measured_seconds: 300\n"
+        "      roster:\n"
+        f'      - {{path: tests/architectural/test_a.py, budget_seconds: {budget}, reason: "kept verbatim"}}  # a comment\n'
+        "    shards: {job: architectural-heavy, shard_count: 2, granularity: file, timings_key: architectural}\n"
+    )
+
+
+def test_a_budget_only_result_is_publishable_and_reported() -> None:
+    result = recapture.RecaptureResult(battery_budgets=("tests/architectural/test_a.py",))
+    assert result.publishable
+    assert recapture.RecaptureResult.from_json(result.to_json()) == result
+    assert "tests/architectural/test_a.py" in result.summary_table()
+    assert "Roster budgets re-derived" in result.commit_message()
+    assert "tests/architectural/test_a.py" in result.proposal_body("https://example.invalid/run")
+
+
+def test_publish_stages_the_registry_with_the_timings(world: World, monkeypatch: pytest.MonkeyPatch) -> None:
+    registry = world.root / ".github" / "ci-module-registry.yml"
+    _publish_env(world, monkeypatch, recapture.RecaptureResult(captured=("a",), battery_budgets=("tests/architectural/test_a.py",)))
+    world.open_prs = []
+
+    assert recapture.main([PHASE_PUBLISH]) == 0
+    assert ["git", "add", str(world.timings_path), str(registry)] in world.git_calls()
+
+
+def test_an_open_proposal_gets_its_own_registry_re_derived_not_mains(world: World, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The follow-up commit re-derives budgets on the proposal tip's registry from the refreshed
+    table, so it changes budgets and nothing else on that branch."""
+    registry = world.root / ".github" / "ci-module-registry.yml"
+    registry.write_text(_battery_registry(77), encoding="utf-8")
+    _publish_env(world, monkeypatch, recapture.RecaptureResult(battery_budgets=("tests/architectural/test_a.py",)))
+    payload = world.read_timings()
+    payload["battery_file_durations"] = {"architectural": {"tests/architectural/test_a.py": 20.0}}
+    world.write_timings(payload)
+    world.open_prs = [{"number": 7, "headRefName": RECAPTURE_BRANCH}]
+
+    assert recapture.main([PHASE_PUBLISH]) == 0
+
+    assert ["git", "add", str(world.timings_path), str(registry)] in world.git_calls()
+    assert registry.read_text(encoding="utf-8") == _battery_registry(30), "budget 77 -> rule 30, every other byte kept"
+
+
+def test_an_open_proposal_that_already_carries_the_data_gets_no_empty_commit(world: World, monkeypatch: pytest.MonkeyPatch) -> None:
+    """While a proposal is open, main's registry stays off the rule, so the battery step reports
+    budgets every night; when the tip already carries them nothing is staged, and publish must
+    neither commit nor push nor fail."""
+    _publish_env(world, monkeypatch, recapture.RecaptureResult(battery_budgets=("tests/architectural/test_a.py",)))
+    world.open_prs = [{"number": 7, "headRefName": RECAPTURE_BRANCH}]
+    world.nothing_staged = True
+
+    assert recapture.main([PHASE_PUBLISH]) == 0
+    assert not [cmd for cmd in world.git_calls() if cmd[1] in ("commit", "push")]
+
+
+def test_staging_reports_whether_anything_changed_against_a_real_repository(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The fake git above cannot see an empty commit; this runs the staging check on a real repository."""
+    repo = tmp_path / "repo"
+    (repo / ".github").mkdir(parents=True)
+    timings, registry = repo / ".github" / "ci-shard-timings.json", repo / ".github" / "ci-module-registry.yml"
+    timings.write_text("{}\n", encoding="utf-8")
+    registry.write_text("modules: []\n", encoding="utf-8")
+    git = ["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false"]
+    subprocess.run([*git, "init", "-q"], check=True)
+    subprocess.run([*git, "add", "."], check=True)
+    subprocess.run([*git, "commit", "-q", "-m", "seed"], check=True)
+    monkeypatch.setattr(recapture, "REPO_ROOT", repo)
+    monkeypatch.setattr(recapture, "TIMINGS_PATH", timings)
+    monkeypatch.setattr(recapture, "REGISTRY_PATH", registry)
+    env = recapture._scrubbed_env()
+
+    assert recapture._stage_proposal(env) is False
+    timings.write_text('{"module_test_count": {}}\n', encoding="utf-8")
+    assert recapture._stage_proposal(env) is True
+
+
+# --------------------------------------------------------------------------- #
+# proposal-check: how long main can stay behind the recapture output (#7114).  #
+# --------------------------------------------------------------------------- #
+
+_CHECK_NOW = parse_iso("2026-11-15T05:00:00+00:00")
+
+
+def _proposal(created_at: str, *, number: int = 9, head: str = RECAPTURE_BRANCH) -> dict[str, object]:
+    return {"number": number, "headRefName": head, "createdAt": created_at}
+
+
+def test_stale_on_main_names_each_module_battery_and_roster_main_still_lacks() -> None:
+    committed = _payload({"a": _entry_tables(3, captured_at=OLD), "b": _entry_tables(3, captured_at=OLD)})
+    output = _payload({"a": _entry_tables(4, captured_at=NEWER), "b": _entry_tables(3, captured_at=OLD)})
+    output["battery_file_durations"] = {"architectural": {"tests/architectural/test_a.py": 1.0}}
+
+    assert recapture.stale_on_main(committed, output, registry_changed=True) == ["module `a`", "battery `architectural`", "battery roster budgets"]
+
+
+def test_paired_control_nothing_is_stale_when_main_matches_the_output() -> None:
+    committed = _payload({"a": _entry_tables(3, captured_at=OLD)})
+    assert recapture.stale_on_main(committed, json.loads(json.dumps(committed))) == []
+
+
+@pytest.mark.parametrize(
+    ("open_prs", "needle"),
+    [
+        ([_proposal("2026-11-11T05:00:00+00:00")], "open 4 days (> 3)"),
+        ([_proposal("not-a-date")], "no usable createdAt"),
+    ],
+)
+def test_an_old_or_unreadable_proposal_is_a_problem(open_prs: list[dict[str, object]], needle: str) -> None:
+    problem = recapture.proposal_age_problem(open_prs, _CHECK_NOW)
+    assert problem is not None
+    assert needle in problem
+
+
+@pytest.mark.parametrize(
+    "open_prs",
+    [[], [_proposal("2026-11-13T05:00:00+00:00")], [_proposal("2026-11-01T00:00:00+00:00", head="someone/else")]],
+    ids=["no-proposal", "two-days-old", "an-unrelated-old-pr"],
+)
+def test_paired_control_no_proposal_a_recent_one_or_another_branch_is_fine(open_prs: list[dict[str, object]]) -> None:
+    assert recapture.proposal_age_problem(open_prs, _CHECK_NOW) is None
+
+
+def _proposal_check_world(world: World, monkeypatch: pytest.MonkeyPatch, open_prs: list[dict[str, object]]) -> list[list[str]]:
+    """Committed tables behind the working tree on module ``a``; the fake answers git show / gh pr list."""
+    registry = world.root / ".github" / "ci-module-registry.yml"
+    registry.write_text("modules:\n- module: a\n", encoding="utf-8")
+    committed = _payload({"a": _entry_tables(3, captured_at=OLD)})
+    world.write_timings(_payload({"a": _entry_tables(4, captured_at=NEWER)}))
+    calls: list[list[str]] = []
+
+    def _run(cmd: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append(list(cmd))
+        if cmd[:2] == ["git", "show"]:
+            shown = _dump(committed) if cmd[2].endswith(TIMINGS_GIT_PATH) else registry.read_text(encoding="utf-8")
+            return subprocess.CompletedProcess(cmd, 0, stdout=shown, stderr="")
+        if cmd[:3] == ["gh", "pr", "list"]:
+            return subprocess.CompletedProcess(cmd, 0, stdout=json.dumps(open_prs), stderr="")
+        raise AssertionError(f"unexpected subprocess: {cmd}")
+
+    monkeypatch.setattr(subprocess, "run", _run)
+    monkeypatch.setattr(recapture, "now_utc", lambda: _CHECK_NOW)
+    monkeypatch.setenv("GH_TOKEN", "fake-read-only-token")  # obviously fake
+    return calls
+
+
+def test_proposal_check_warns_about_stale_modules_and_passes_while_the_proposal_is_recent(
+    world: World, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    calls = _proposal_check_world(world, monkeypatch, [_proposal("2026-11-14T05:00:00+00:00")])
+
+    assert recapture.main([recapture.PHASE_PROPOSAL_CHECK]) == 0
+
+    assert "::warning::main's committed shard timings are stale on module `a`" in capsys.readouterr().out
+    assert "createdAt" in next(cmd for cmd in calls if cmd[0] == "gh")[-1]
+    assert "Stale on main (fixed only in the recapture output): module `a`" in Path(os.environ["GITHUB_STEP_SUMMARY"]).read_text(encoding="utf-8")
+
+
+def test_proposal_check_fails_when_the_open_proposal_is_older_than_the_bound(
+    world: World, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _proposal_check_world(world, monkeypatch, [_proposal("2026-11-10T05:00:00+00:00")])
+
+    assert recapture.main([recapture.PHASE_PROPOSAL_CHECK]) == 1
+    assert "has been open 5 days (> 3)" in capsys.readouterr().err
+
+
+def test_proposal_check_refuses_the_recapture_pat_and_needs_the_read_token(world: World, monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = _proposal_check_world(world, monkeypatch, [])
+    monkeypatch.setenv(SECRET_NAME, "fake-pat")  # obviously fake
+    assert recapture.main([recapture.PHASE_PROPOSAL_CHECK]) == 1
+    monkeypatch.delenv(SECRET_NAME)
+    monkeypatch.delenv("GH_TOKEN")
+    assert recapture.main([recapture.PHASE_PROPOSAL_CHECK]) == 1
+    assert calls == []

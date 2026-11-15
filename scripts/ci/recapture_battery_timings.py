@@ -25,8 +25,14 @@ module ``capture`` phase and before ``publish``:
    added, renamed or removed), or when it is older than :data:`MAX_AGE_DAYS`. A table whose file
    set is unchanged and recent is left alone, so a nightly run does not churn the proposal with
    new medians every day.
-4. **Merge and report.** The battery tables are merged into the working-tree timings file (which
-   may already hold the module captures of this run) and folded into the module phase's
+4. **Merge.** The battery tables are merged into the working-tree timings file (which may
+   already hold the module captures of this run).
+5. **Re-derive the roster budgets** (#7115). Every fast-roster ``budget_seconds`` in the
+   working-tree registry is set by the rule from the working-tree table
+   (:func:`scripts.ci.battery_roster_budgets.rerule_files`), whether or not step 4 replaced the
+   table, so a refresh never leaves the roster off its own rule. Moving rows when the roster no
+   longer fits its caps stays a human decision.
+6. **Report.** Both are folded into the module phase's
    :class:`~scripts.ci.recapture_shard_timings.RecaptureResult`, re-emitted as the step's
    ``drift`` / ``result`` outputs for ``publish``. Exit status is 1 when the refresh failed (no
    usable nightly junit, or an invalid capture); the module captures are still published.
@@ -56,7 +62,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.ci import capture_shard_timings  # noqa: E402  (import after the path guard above)
+from scripts.ci import battery_roster_budgets, capture_shard_timings  # noqa: E402  (import after the path guard above)
 from scripts.ci import recapture_shard_timings as recapture  # noqa: E402
 from kernel.clock import datetime, now_utc, parse_iso, timedelta  # noqa: E402  (src/ is on the path once the producer is imported)
 
@@ -269,7 +275,7 @@ def _module_result() -> recapture.RecaptureResult:
         raise SystemExit(1) from exc
 
 
-def _with_battery(result: recapture.RecaptureResult, *, refreshed: bool, failure: str | None) -> recapture.RecaptureResult:
+def _with_battery(result: recapture.RecaptureResult, *, refreshed: bool, failure: str | None, budgets: Sequence[str] = ()) -> recapture.RecaptureResult:
     reasons = dict(result.reasons)
     if failure is not None:
         reasons[recapture.battery_reason_key(SUITE)] = failure
@@ -281,7 +287,21 @@ def _with_battery(result: recapture.RecaptureResult, *, refreshed: bool, failure
         reasons=reasons,
         battery_captured=(*result.battery_captured, SUITE) if refreshed else result.battery_captured,
         battery_failed=(*result.battery_failed, SUITE) if failure is not None else result.battery_failed,
+        captured_with_failures=result.captured_with_failures,
+        drift_reasons=result.drift_reasons,
+        battery_budgets=tuple(budgets),
     )
+
+
+def _rerule_budgets() -> tuple[tuple[str, ...], str | None]:
+    """``(re-ruled roster paths, failure)`` -- re-derive the roster budgets in the working tree."""
+    try:
+        changed = battery_roster_budgets.rerule_files(recapture.REGISTRY_PATH, recapture.TIMINGS_PATH)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        return (), f"roster budgets not re-derived: {exc}"
+    for path, (old, new) in changed.items():
+        print(f"battery roster: {path} budget {old}s -> {new}s (rule)")
+    return tuple(changed), None
 
 
 def _refresh(junit_root: Path, token: str) -> tuple[bool, str | None]:
@@ -314,11 +334,15 @@ def run(junit_root: Path) -> int:
     failure: str | None = f"{_GH_TOKEN_ENV_VAR} is not set -- cannot download the nightly junit"
     if token:
         refreshed, failure = _refresh(junit_root, token)
+    budgets, rerule_failure = _rerule_budgets()
     if failure is not None:
         print(f"::error::battery `{SUITE}` timings not refreshed: {failure}", file=sys.stderr)
-    combined = _with_battery(result, refreshed=refreshed, failure=failure)
+    if rerule_failure is not None:
+        print(f"::error::battery `{SUITE}` {rerule_failure}", file=sys.stderr)
+        failure = rerule_failure if failure is None else f"{failure}; {rerule_failure}"
+    combined = _with_battery(result, refreshed=refreshed, failure=failure, budgets=budgets)
     recapture._write_github_output(drift=str(combined.publishable).lower(), result=combined.to_json())
-    if refreshed or failure is not None:
+    if refreshed or budgets or failure is not None:
         recapture._write_job_summary(combined.summary_table())
     return 1 if failure is not None else 0
 
