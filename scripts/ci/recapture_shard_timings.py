@@ -93,7 +93,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.ci import bot_pr_publish, capture_shard_timings  # noqa: E402  (import after the path guard above)
+from scripts.ci import battery_roster_budgets, bot_pr_publish, capture_shard_timings  # noqa: E402  (import after the path guard above)
+from kernel.clock import datetime, now_utc, parse_iso, timedelta  # noqa: E402  (src/ is on the path once the producer is imported)
 
 #: The fixed recapture head branch. GitHub permits only one open PR per head branch into
 #: a given base, so a duplicate recapture PR from this workflow is structurally impossible.
@@ -106,7 +107,13 @@ SECRET_NAME = "CHARTER_SHARD_RECAPTURE_TOKEN"  # noqa: S105  # env-var name, not
 PHASE_DETECT = "detect"
 PHASE_CAPTURE = "capture"
 PHASE_PUBLISH = "publish"
-PHASES = (PHASE_DETECT, PHASE_CAPTURE, PHASE_PUBLISH)
+PHASE_PROPOSAL_CHECK = "proposal-check"
+PHASES = (PHASE_DETECT, PHASE_CAPTURE, PHASE_PUBLISH, PHASE_PROPOSAL_CHECK)
+
+#: An open recapture proposal older than this fails the strict job (#7114): the strict check
+#: grades the recapture output, so main's committed tables are only as fresh as the proposal's merge.
+PROPOSAL_MAX_AGE_DAYS = 3
+_REGISTRY_GIT_PATH = ".github/ci-module-registry.yml"
 
 #: ``detect`` -> ``capture``: whether a recapture proposal is open (``true`` / ``false``).
 PROPOSAL_OPEN_ENV_VAR = "RECAPTURE_PROPOSAL_OPEN"
@@ -171,8 +178,9 @@ PR_BODY_TEMPLATE = (
     "- Failed (committed data left unchanged): {failed}\n"
     "- Deferred (time budget spent, retried next run): {deferred}\n"
     "- Battery tables refreshed from nightly junit: {battery_captured}\n"
-    "- Battery tables that could not be refreshed: {battery_failed}\n\n"
-    "Workflow run: `{run_url}`. See spec-kitty#5189 and spec-kitty#6365."
+    "- Battery tables that could not be refreshed: {battery_failed}\n"
+    "- Roster budgets re-derived by the rule in `.github/ci-module-registry.yml`: {battery_budgets}\n\n"
+    "Workflow run: `{run_url}`. See spec-kitty#5189, spec-kitty#6365 and spec-kitty#7115."
 )
 
 _NONE_LABEL = "none"
@@ -372,6 +380,8 @@ class RecaptureResult:
     battery_failed: tuple[str, ...] = ()
     captured_with_failures: tuple[str, ...] = ()
     drift_reasons: Mapping[str, str] = field(default_factory=dict)
+    #: Roster files whose ``budget_seconds`` the battery step re-derived by the rule (#7115).
+    battery_budgets: tuple[str, ...] = ()
 
     def to_json(self) -> str:
         return json.dumps(
@@ -385,6 +395,7 @@ class RecaptureResult:
                 "battery_failed": list(self.battery_failed),
                 "captured_with_failures": list(self.captured_with_failures),
                 "drift_reasons": dict(self.drift_reasons),
+                "battery_budgets": list(self.battery_budgets),
             },
             sort_keys=True,
         )
@@ -402,12 +413,13 @@ class RecaptureResult:
             battery_failed=tuple(payload.get("battery_failed", ())),
             captured_with_failures=tuple(payload.get("captured_with_failures", ())),
             drift_reasons=dict(payload.get("drift_reasons", {})),
+            battery_budgets=tuple(payload.get("battery_budgets", ())),
         )
 
     @property
     def publishable(self) -> bool:
-        """True when at least one module or battery suite holds a fresh, valid capture to publish."""
-        return bool(self.captured or self.battery_captured)
+        """True when a module or battery suite holds a fresh, valid capture, or roster budgets were re-derived."""
+        return bool(self.captured or self.battery_captured or self.battery_budgets)
 
     def _outcome_cell(self, module: str, outcome: str) -> str:
         drift = self.drift_reasons.get(module)
@@ -424,6 +436,8 @@ class RecaptureResult:
         lines += [f"| `{module}` | {self._outcome_cell(module, 'deferred (' + self.reasons.get(module, 'time budget spent') + ')')} |" for module in self.deferred]
         lines += [f"| battery `{suite}` | refreshed from nightly junit |" for suite in self.battery_captured]
         lines += [f"| battery `{suite}` | failed: {self.reasons.get(battery_reason_key(suite), 'invalid capture')} |" for suite in self.battery_failed]
+        if self.battery_budgets:
+            lines.append(f"| battery roster | {len(self.battery_budgets)} budget(s) re-derived by the rule: {_format_modules(self.battery_budgets)} |")
         if len(lines) == 2:
             lines.append("| _none_ | nothing drifted |")
         return "\n".join(lines)
@@ -436,6 +450,7 @@ class RecaptureResult:
             deferred=_format_modules(self.deferred),
             battery_captured=_format_modules(self.battery_captured),
             battery_failed=_format_modules(self.battery_failed),
+            battery_budgets=_format_modules(self.battery_budgets),
             run_url=run_url,
         )
 
@@ -447,6 +462,8 @@ class RecaptureResult:
             message += f"\nCaptured with failing tests (durations complete): {_format_modules(self.captured_with_failures)}"
         if self.battery_captured or self.battery_failed:
             message += f"\nBattery refreshed: {_format_modules(self.battery_captured)}\nBattery failed: {_format_modules(self.battery_failed)}"
+        if self.battery_budgets:
+            message += f"\nRoster budgets re-derived: {_format_modules(self.battery_budgets)}"
         return message
 
 
@@ -956,6 +973,95 @@ def run_capture_phase(options: Options) -> int:
     return 1 if result.failed else 0
 
 
+def stale_on_main(committed: Mapping[str, Any], output: Mapping[str, Any], *, registry_changed: bool = False) -> list[str]:
+    """What main's committed tables still lack that the recapture output has, as report lines.
+
+    One line per module whose tables differ, per battery suite whose table differs, and one for
+    the roster budgets when the registry differs. Empty when main already matches the output.
+    """
+    modules = sorted({module for key in _MODULE_TABLE_KEYS for table in (committed.get(key) or {}, output.get(key) or {}) for module in table})
+    stale = [
+        f"module `{module}`"
+        for module in modules
+        if any((committed.get(key) or {}).get(module) != (output.get(key) or {}).get(module) for key in _MODULE_TABLE_KEYS)
+    ]
+    suites = sorted(
+        {suite for key in (_BATTERY_DURATIONS_KEY, _BATTERY_PROVENANCE_KEY) for table in (committed.get(key) or {}, output.get(key) or {}) for suite in table}
+    )
+    stale += [
+        f"battery `{suite}`"
+        for suite in suites
+        if any((committed.get(key) or {}).get(suite) != (output.get(key) or {}).get(suite) for key in (_BATTERY_DURATIONS_KEY, _BATTERY_PROVENANCE_KEY))
+    ]
+    if registry_changed:
+        stale.append("battery roster budgets")
+    return stale
+
+
+def proposal_age_problem(open_prs: Sequence[Mapping[str, object]], now: datetime, max_age_days: int = PROPOSAL_MAX_AGE_DAYS) -> str | None:
+    """Why the open recapture proposal is too old, or ``None`` (no proposal, or a recent one)."""
+    for pr in open_prs:
+        if pr.get("headRefName") != RECAPTURE_BRANCH:
+            continue
+        created = pr.get("createdAt")
+        try:
+            age = now - parse_iso(str(created))
+        except (TypeError, ValueError):
+            return f"recapture proposal #{pr.get('number')} has no usable createdAt ({created!r})"
+        if age > timedelta(days=max_age_days):
+            opened = f"recapture proposal #{pr.get('number')} has been open {age.days} days (> {max_age_days})"
+            return f"{opened}; main's committed shard timings stay stale until it merges"
+    return None
+
+
+def _git_show(path: str) -> str:
+    shown = _run_subprocess_or_die(["git", "show", f"HEAD:{path}"], step="git show", cwd=REPO_ROOT, env=_scrubbed_env(), capture_output=True, text=True)
+    return str(shown.stdout)
+
+
+def run_proposal_check_phase() -> int:
+    """The ``proposal-check`` phase of the strict job (#7114), run after the gates.
+
+    The gates grade this run's recapture output; this phase says what main still lacks. It
+    warns (never fails) for every module, battery suite or roster budget the committed tables
+    are stale on, and fails when an open recapture proposal is older than
+    :data:`PROPOSAL_MAX_AGE_DAYS` -- so a proposal nobody merges cannot keep the alarm green.
+    Uses the read-only workflow token (``GH_TOKEN``); the recapture PAT is refused.
+    """
+    if os.environ.get(SECRET_NAME):
+        print(f"::error::{SECRET_NAME} must not reach the proposal check", file=sys.stderr)
+        return 1
+    token = os.environ.get("GH_TOKEN", "").strip()
+    if not token:
+        print("::error::GH_TOKEN (the read-only workflow token) is not set -- cannot read the open recapture proposal", file=sys.stderr)
+        return 1
+    committed = json.loads(_git_show(_TIMINGS_GIT_PATH))
+    registry_changed = _git_show(_REGISTRY_GIT_PATH) != REGISTRY_PATH.read_text(encoding="utf-8")
+    stale = stale_on_main(committed, _read_timings(), registry_changed=registry_changed)
+    for line in stale:
+        print(f"::warning::main's committed shard timings are stale on {line}; the recapture output carries the fix")
+    repository = os.environ.get("GITHUB_REPOSITORY", "")
+    listed = _run_subprocess_or_die(
+        ["gh", "pr", "list", "--repo", repository, "--head", RECAPTURE_BRANCH, "--base", "main", "--state", "open", "--json", "number,headRefName,createdAt"],
+        step="gh pr list",
+        env=_gh_env(token),
+        capture_output=True,
+        text=True,
+    )
+    try:
+        open_prs = json.loads(listed.stdout)
+    except ValueError as exc:
+        print(f"::error::gh pr list returned non-JSON output: {exc}", file=sys.stderr)
+        return 1
+    problem = proposal_age_problem(open_prs if isinstance(open_prs, list) else [], now_utc())
+    summary = ["Stale on main (fixed only in the recapture output): " + (", ".join(stale) if stale else "nothing")]
+    if problem is not None:
+        print(f"::error::{problem}", file=sys.stderr)
+        summary.append(f"FAILED: {problem}")
+    _write_job_summary("\n\n".join(summary))
+    return 1 if problem is not None else 0
+
+
 def run_detect_phase() -> int:
     """The ``detect`` phase: is a recapture proposal open? Needs the token (``gh pr list``)
     but runs no test code, so the capture step that follows never sees the credential."""
@@ -995,6 +1101,30 @@ def _push(token: str, *, force: bool) -> None:
         raise SystemExit(1) from exc
 
 
+def _stage_proposal(env: dict[str, str]) -> bool:
+    """Stage the timings file and the registry; True when that staged a change.
+
+    An unchanged file stages nothing, so the registry only enters a commit when its roster
+    budgets were re-derived. Nothing staged (an open proposal that already carries this run's
+    data) means there is nothing to commit, not a failure.
+    """
+    _run_subprocess_or_die(["git", "add", str(TIMINGS_PATH), str(REGISTRY_PATH)], step="git add", cwd=REPO_ROOT, env=env)
+    staged = subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=REPO_ROOT, env=env, check=False)
+    if staged.returncode not in (0, 1):
+        print(f"::error::git diff --cached exited {staged.returncode}", file=sys.stderr)
+        raise SystemExit(1)
+    return staged.returncode == 1
+
+
+def _rerule_proposal_tip() -> None:
+    """Re-derive the roster budgets on the checked-out proposal tip's own registry (#7115)."""
+    try:
+        battery_roster_budgets.rerule_files(REGISTRY_PATH, TIMINGS_PATH)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        print(f"::error::roster budgets not re-derived on the proposal tip: {exc}", file=sys.stderr)
+        raise SystemExit(1) from exc
+
+
 def _open_new_proposal(repository: str, token: str, result: RecaptureResult, run_url: str) -> None:
     """Commit, force-push to the fixed branch, and open the recapture PR.
 
@@ -1004,7 +1134,9 @@ def _open_new_proposal(repository: str, token: str, result: RecaptureResult, run
     subprocess that does not need it.
     """
     no_credential_env = _scrubbed_env()
-    _run_subprocess_or_die(["git", "add", str(TIMINGS_PATH)], step="git add", cwd=REPO_ROOT, env=no_credential_env)
+    if not _stage_proposal(no_credential_env):
+        print("::warning::nothing to propose: the working tree matches main")
+        return
     _run_subprocess_or_die(_git_commit_cmd(result.commit_message()), step="git commit", cwd=REPO_ROOT, env=no_credential_env)
     _push(token, force=True)
     _run_subprocess_or_die(
@@ -1039,7 +1171,16 @@ def _refresh_open_proposal(token: str, result: RecaptureResult) -> None:
     _run_subprocess_or_die(["git", "fetch", "origin", RECAPTURE_BRANCH], step="git fetch", cwd=REPO_ROOT, env=_push_env(token))
     _run_subprocess_or_die(["git", "checkout", "--force", "--detach", "FETCH_HEAD"], step="git checkout", cwd=REPO_ROOT, env=no_credential_env)
     TIMINGS_PATH.write_bytes(refreshed)
-    _run_subprocess_or_die(["git", "add", str(TIMINGS_PATH)], step="git add", cwd=REPO_ROOT, env=no_credential_env)
+    # Re-derive on the proposal tip's own registry rather than carrying main's whole file over,
+    # so the follow-up commit changes budgets and nothing else (#7115). Always: main's registry
+    # (what the battery step compared) can differ from the tip's.
+    _rerule_proposal_tip()
+    if not _stage_proposal(no_credential_env):
+        # While a proposal is open main's registry stays off the rule, so the battery step
+        # reports budgets every night; a tip that already carries them is current, not an error.
+        print(f"recapture proposal on {RECAPTURE_BRANCH} already carries this run's data -- no follow-up commit")
+        _write_job_summary(f"The open recapture proposal on `{RECAPTURE_BRANCH}` already carries this run's data; nothing new to commit.")
+        return
     _run_subprocess_or_die(_git_commit_cmd(result.commit_message()), step="git commit", cwd=REPO_ROOT, env=no_credential_env)
     _push(token, force=False)
 
@@ -1080,6 +1221,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return run_detect_phase()
     if options.phase == PHASE_CAPTURE:
         return run_capture_phase(options)
+    if options.phase == PHASE_PROPOSAL_CHECK:
+        return run_proposal_check_phase()
     return run_publish_phase()
 
 
