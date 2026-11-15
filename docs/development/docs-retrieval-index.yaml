@@ -7959,6 +7959,7 @@ pages:
     - {slug: "tracked-issues-squad", text: "Tracked-issues squad", level: 2}
     - {slug: "test-expectations-changed-operator-signalled", text: "Test expectations changed (operator-signalled)", level: 2}
     - {slug: "pre-pr-review-squad-folded", text: "Pre-PR review squad (folded)", level: 2}
+    - {slug: "operator-rulings-after-merge-2026-11-14", text: "Operator rulings after merge (2026-11-14)", level: 2}
   - path: "docs/archive/plans/engineering-notes/883-mission-type-authority-brief.md"
     title: "Mission #883 Brief: Doctrine as Mission-Type Authority"
     divio_type: "none"
