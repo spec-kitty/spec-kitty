@@ -289,3 +289,20 @@ def test_a_ref_the_seam_does_not_name_uses_the_repository_root_checkout_under_th
     assert _write_answer(mission, {}, "side") == _REFUSED
     git(mission.root, "checkout", "-q", "side")
     assert _write_answer(mission, {}, "side") == "root"
+
+
+def test_unnamed_head_description_tells_a_detached_head_from_an_unreadable_checkout(tmp_path: Path) -> None:
+    """Landing fold: an unreadable checkout is not reported as a detached HEAD."""
+    import subprocess
+
+    from specify_cli.coordination.transaction import _unnamed_head_description
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    git = ["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"]
+    subprocess.run([*git, "init", "-q"], check=True)
+    subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", "seed"], check=True)
+    subprocess.run([*git, "checkout", "-q", "--detach"], check=True)
+
+    assert _unnamed_head_description(repo) == "a detached HEAD"
+    assert "no readable HEAD" in _unnamed_head_description(tmp_path / "missing")

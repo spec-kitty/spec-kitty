@@ -249,6 +249,17 @@ def seam_commit_checkout(
     return surface_root
 
 
+def _unnamed_head_description(checkout: Path) -> str:
+    """Describe a checkout whose current branch git did not name: a detached HEAD, or unreadable."""
+    probe = subprocess.run(
+        ["git", "-C", str(checkout), "rev-parse", "--verify", "--quiet", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return "a detached HEAD" if probe.returncode == 0 else "no readable HEAD (git could not read the checkout)"
+
+
 def _write_checkout_refusal(repo_root: Path, checkout: Path, destination_ref: str, operation: str) -> Refused | None:
     """``STATUS_WRITE_CHECKOUT_NOT_ON_WRITE_BRANCH`` when *checkout* does not hold *destination_ref* (#7633).
 
@@ -265,7 +276,7 @@ def _write_checkout_refusal(repo_root: Path, checkout: Path, destination_ref: st
     observed = get_current_branch(checkout)
     if observed == ref:
         return None
-    on = f"branch {observed!r}" if observed else "a detached HEAD"
+    on = f"branch {observed!r}" if observed else _unnamed_head_description(checkout)
     holder = remedy_holder_of_ref(repo_root, checkout, ref)
     if holder is not None:
         held_by = f"{ref!r} is checked out in {holder}"
