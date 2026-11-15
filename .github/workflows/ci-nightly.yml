@@ -75,6 +75,28 @@ permissions:
 # pull_request trigger, so its guard names no pull_request atom (#7704). Pinned by
 # tests/ci/test_fork_guard.py.
 jobs:
+  nix-flake:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
+    name: Nix flake build (nightly-only)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Check and build the flake
+        run: |
+          nix flake check --print-build-logs
+          nix build --no-link --print-build-logs .#default
+          nix run .# -- --help
+          nix develop --command codespell --version
+          nix develop --command env PYTHONPATH=src python3 -m scripts.docs.check_spelling --pass unreleased
+
   # ---------------------------------------------------------------------------
   # performance / e2e / stress: split from the former single
   # performance-and-e2e job (#4865) into three INDEPENDENT jobs, each with its
