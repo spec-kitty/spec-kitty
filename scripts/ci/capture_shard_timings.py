@@ -40,6 +40,33 @@ Usage
 
     python scripts/ci/capture_shard_timings.py --module unit --module specify_cli_runtime --write
 
+Part-wise capture (#7656)
+-------------------------
+A module's resolved test directories can also be captured one per process, so each
+directory runs under its own timeout and a large module never has to fit one. Two
+consequences: a session-scoped fixture's setup is charged once per directory (to the
+directory's first test) rather than once per module, closer to how a shard pays it;
+and a resolved directory that collects nothing under the selection is refused as a
+part (pytest exit 5), so such a module cannot be captured part-wise (none exists today). Each
+part is captured to a scratch file (``--part DIR --part-output FILE``, the timings
+file is not touched), all under the same ``--run-id``; the parts are then merged into
+one module record (``--from-parts FILE... --write``)::
+
+    python scripts/ci/capture_shard_timings.py --module consolidation --run-id R \\
+        --part tests/consolidation --part-output part-0.json
+    python scripts/ci/capture_shard_timings.py --module consolidation --run-id R \\
+        --part tests/terminus --part-output part-1.json
+    ...
+    python scripts/ci/capture_shard_timings.py --module consolidation \\
+        --from-parts part-0.json part-1.json ... --write
+
+:func:`combine_parts` refuses a set that does not cover the module's resolved
+directories exactly, in order, from one run. The record is the same as a whole-module
+capture's (the keyed table is the concatenation of the parts, which is the collection
+order of ``pytest <dir1> <dir2> ...`` for directories that do not nest) plus a
+``parts`` list in the provenance: one entry per directory with its run id, count and
+exit status. :func:`provenance_parts_problem` is the check that list is complete.
+
 Battery per-file timings (mission ci-runtime-stabilisation-01M3TZH6, WP05 / T022, D-29)
 -------------------------------------------------------------------------------------
 The architectural battery is partitioned by *file* (``battery_partition_plugin``), so its
@@ -87,16 +114,20 @@ __all__ = [
     "JunitCapture",
     "ModuleCapture",
     "capture_module",
+    "combine_parts",
     "generate_run_id",
     "junit_capture",
     "main",
     "median_across_runs",
     "merge_battery_capture",
     "merge_capture",
+    "provenance_parts_problem",
+    "read_part",
     "resolve_junit_classname",
     "resolve_test_dirs",
     "validate_capture",
     "validate_module_tables",
+    "write_part",
 ]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -234,6 +265,9 @@ class ModuleCapture:
     captured_at: str
     exit_code: int
     tests_failed: int = 0
+    #: One provenance entry per captured directory when the module was captured part-wise
+    #: (:func:`combine_parts`); empty for a whole-module capture.
+    parts: tuple[Mapping[str, Any], ...] = ()
 
     @property
     def total_seconds(self) -> float:
@@ -418,7 +452,147 @@ def merge_capture(payload: dict[str, Any], capture: ModuleCapture) -> dict[str, 
         "tests_failed": capture.tests_failed,
         "producer": "scripts/ci/capture_shard_timings.py",
     }
+    if capture.parts:
+        merged[_PROVENANCE_KEY][capture.module]["parts"] = [dict(part) for part in capture.parts]
     return merged
+
+
+# --------------------------------------------------------------------------- #
+# Part-wise capture (#7656).                                                  #
+# --------------------------------------------------------------------------- #
+
+#: The fields one part file carries: a :class:`ModuleCapture` of one directory.
+_PART_FIELDS = ("module", "test_dirs", "node_ids", "durations", "run_id", "command", "captured_at", "exit_code", "tests_failed")
+
+
+def write_part(capture: ModuleCapture, destination: Path) -> None:
+    """Write a one-directory capture to *destination* (a scratch file, never the timings file)."""
+    record = {name: getattr(capture, name) for name in _PART_FIELDS}
+    record["test_dirs"] = list(capture.test_dirs)
+    record["node_ids"] = list(capture.node_ids)
+    record["durations"] = list(capture.durations)
+    destination.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+
+
+def read_part(source: Path) -> ModuleCapture:
+    """The :class:`ModuleCapture` :func:`write_part` wrote to *source*; ``ValueError`` when it is not one."""
+    record = json.loads(source.read_text(encoding="utf-8"))
+    if not isinstance(record, dict) or sorted(record) != sorted(_PART_FIELDS):
+        msg = f"{source} is not a part capture (expected the fields {', '.join(_PART_FIELDS)})"
+        raise ValueError(msg)
+    return ModuleCapture(
+        module=str(record["module"]),
+        test_dirs=tuple(str(entry) for entry in record["test_dirs"]),
+        node_ids=tuple(str(entry) for entry in record["node_ids"]),
+        durations=tuple(record["durations"]),
+        run_id=str(record["run_id"]),
+        command=str(record["command"]),
+        captured_at=str(record["captured_at"]),
+        exit_code=record["exit_code"],
+        tests_failed=record["tests_failed"],
+    )
+
+
+def _parts_problem(module: str, test_dirs: Sequence[str], parts: Sequence[ModuleCapture]) -> str | None:
+    """Why *parts* are not one complete, consistent capture of *module* over *test_dirs*, or ``None``."""
+    if not parts:
+        return "no parts to merge"
+    for part in parts:
+        if part.module != module:
+            return f"a part of {part.module!r} cannot be merged into {module!r}"
+        if len(part.test_dirs) != 1:
+            return f"a part must capture exactly one directory, not {list(part.test_dirs)}"
+        problem = validate_capture(part)
+        if problem is not None:
+            return f"part {part.test_dirs[0]}: {problem}"
+    run_ids = sorted({part.run_id for part in parts})
+    if len(run_ids) != 1:
+        return f"the parts come from different runs ({', '.join(run_ids)})"
+    captured = [part.test_dirs[0] for part in parts]
+    if captured != list(test_dirs):
+        return f"the parts cover {captured}, but the module resolves to {list(test_dirs)} (each directory once, in order)"
+    node_ids = [node_id for part in parts for node_id in part.node_ids]
+    if len(set(node_ids)) != len(node_ids):
+        return "two parts recorded the same node id (do the directories nest?)"
+    return None
+
+
+def _part_provenance(part: ModuleCapture) -> dict[str, Any]:
+    return {
+        "test_dirs": list(part.test_dirs),
+        "run_id": part.run_id,
+        "captured_at": part.captured_at,
+        "unique_tests_measured": len(part.durations),
+        "exit_code": part.exit_code,
+        "tests_failed": part.tests_failed,
+    }
+
+
+def combine_parts(module: str, test_dirs: Sequence[str], parts: Sequence[ModuleCapture]) -> ModuleCapture:
+    """Merge one-directory captures into the module capture they add up to.
+
+    Raises :class:`ValueError` unless *parts* cover *test_dirs* exactly, in order, one
+    directory each, all from one run, every part a valid capture and no node id twice.
+    The keyed table is the parts' tables concatenated in directory order; the exit status
+    is the worst part's (1 when any part measured failing tests), ``tests_failed`` their sum.
+    """
+    problem = _parts_problem(module, test_dirs, parts)
+    if problem is not None:
+        msg = f"refusing to merge the parts of {module!r}: {problem}"
+        raise ValueError(msg)
+    run_id = parts[0].run_id
+    return ModuleCapture(
+        module=module,
+        test_dirs=tuple(test_dirs),
+        node_ids=tuple(node_id for part in parts for node_id in part.node_ids),
+        durations=tuple(duration for part in parts for duration in part.durations),
+        run_id=run_id,
+        command=(
+            f"python scripts/ci/capture_shard_timings.py --module {module} --run-id {run_id} --part <dir> --part-output <file> "
+            f"for each of {' '.join(test_dirs)}, then --from-parts <files> --write  # pytest <dir> {' '.join(_pytest_argv(())).strip()}"
+        ),
+        captured_at=max(part.captured_at for part in parts),
+        exit_code=max(part.exit_code for part in parts),
+        tests_failed=sum(part.tests_failed for part in parts),
+        parts=tuple(_part_provenance(part) for part in parts),
+    )
+
+
+def provenance_parts_problem(record: Mapping[str, Any]) -> str | None:
+    """Why a provenance record's ``parts`` list does not make it a complete capture, or ``None``.
+
+    A record without ``parts`` is a whole-module capture: nothing to check here. With
+    ``parts``, the record counts as complete only when every part carries the record's own
+    run id, the parts' directories are exactly the record's ``test_dirs`` in order, each part
+    measured at least one test and their counts add up to ``unique_tests_measured``, each
+    part's exit status is 0 or 1, the record's exit status is the worst part's and its
+    ``tests_failed`` (when recorded) is their sum.
+    """
+    if "parts" not in record:
+        return None
+    parts = record["parts"]
+    if not isinstance(parts, list) or not parts or not all(isinstance(part, Mapping) for part in parts):
+        return "parts is not a non-empty list of records"
+    if any(part.get("run_id") != record.get("run_id") for part in parts):
+        return "a part comes from another run than the record"
+    covered = [entry for part in parts for entry in (part.get("test_dirs") or [])]
+    if covered != list(record.get("test_dirs") or []):
+        return f"the parts cover {covered}, not the record's test_dirs {record.get('test_dirs')}"
+    counts = [part.get("unique_tests_measured") for part in parts]
+    usable = [count for count in counts if isinstance(count, int) and not isinstance(count, bool) and count > 0]
+    if len(usable) != len(counts):
+        return "a part has no usable unique_tests_measured"
+    if sum(usable) != record.get("unique_tests_measured"):
+        return f"the parts measured {sum(usable)} tests, the record claims {record.get('unique_tests_measured')}"
+    exit_codes = [part.get("exit_code") for part in parts]
+    if any(isinstance(code, bool) or code not in _VALID_PYTEST_EXIT_CODES for code in exit_codes):
+        return "a part did not complete (exit status other than 0 or 1)"
+    if record.get("exit_code") != max(code for code in exit_codes if isinstance(code, int)):
+        return f"the record's exit_code {record.get('exit_code')!r} is not the worst part's"
+    failed = [part.get("tests_failed", 0) for part in parts]
+    if "tests_failed" in record and record["tests_failed"] != sum(value for value in failed if isinstance(value, int)):
+        return f"the record's tests_failed {record['tests_failed']!r} is not the parts' sum"
+    return None
 
 
 @dataclass(frozen=True)
@@ -509,6 +683,10 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--write", action="store_true", help="merge into .github/ci-shard-timings.json in place")
     parser.add_argument("--output", type=Path, default=None, help="write the merged payload here instead (dry run)")
+    parts = parser.add_mutually_exclusive_group()
+    parts.add_argument("--part", default=None, metavar="DIR", help="capture only this resolved test directory of the one --module (needs --part-output)")
+    parts.add_argument("--from-parts", nargs="+", type=Path, default=None, metavar="FILE", help="merge these part files into the one --module's record")
+    parser.add_argument("--part-output", type=Path, default=None, metavar="FILE", help="where --part writes its capture (the timings file is not touched)")
     return parser
 
 
@@ -526,10 +704,27 @@ def _validate_mode_options(parser: argparse.ArgumentParser, args: argparse.Names
             parser.error("--run-id may be given once in --module mode")
 
 
+def _validate_part_options(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+    if (args.part or args.from_parts) and len(args.modules or []) != 1:
+        parser.error("--part and --from-parts take exactly one --module")
+    if args.part:
+        if args.part_output is None:
+            parser.error("--part requires --part-output FILE")
+        if not args.run_ids:
+            parser.error("--part requires --run-id: every part of one capture must carry the same run id")
+        if args.write or args.output:
+            parser.error("--part writes only --part-output; merge the parts with --from-parts --write")
+    elif args.part_output is not None:
+        parser.error("--part-output is only valid with --part")
+    if args.from_parts and args.run_ids:
+        parser.error("--from-parts takes the run id from the parts, not --run-id")
+
+
 def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     parser = _build_parser()
     args = parser.parse_args(argv)
-    if bool(args.write) == bool(args.output):
+    _validate_part_options(parser, args)
+    if not args.part and bool(args.write) == bool(args.output):
         parser.error("pass exactly one of --write or --output (stdout is shared with pytest's own report)")
     _validate_mode_options(parser, args)
     args.run_id = args.run_ids[0] if args.suite is None and args.run_ids else None
@@ -592,12 +787,47 @@ def _capture_suite(args: argparse.Namespace, payload: dict[str, Any]) -> tuple[d
     return merged, summary
 
 
+def _capture_part(args: argparse.Namespace) -> int:
+    """``--part``: capture one resolved directory of the module to ``--part-output``."""
+    module = args.modules[0]
+    resolved = resolve_test_dirs(_load_registry(), module)
+    if args.part not in resolved:
+        print(f"::error::capture_shard_timings: {args.part!r} is not a resolved test directory of {module!r} ({list(resolved)})", file=sys.stderr)
+        return 2
+    capture = capture_module(module, (args.part,), run_id=args.run_id or generate_run_id())
+    problem = validate_capture(capture)
+    if problem is not None:
+        print(f"::error::capture_shard_timings: refusing to record part {args.part} of {module!r}: {problem}", file=sys.stderr)
+        return 1
+    write_part(capture, args.part_output)
+    print(f"capture_shard_timings: {module} part {args.part} -> {len(capture.durations)} tests, {capture.total_seconds}s -> {args.part_output}", file=sys.stderr)
+    return 0 if capture.exit_code == 0 else 1
+
+
+def _merge_parts(args: argparse.Namespace, payload: dict[str, Any], destination: Path) -> int:
+    """``--from-parts``: merge the part files into the module's record at *destination*."""
+    module = args.modules[0]
+    try:
+        capture = combine_parts(module, resolve_test_dirs(_load_registry(), module), [read_part(path) for path in args.from_parts])
+    except (OSError, ValueError, KeyError, TypeError) as exc:  # ValueError: JSON decoding, refused merges; TypeError: a mistyped part field
+        print(f"::error::capture_shard_timings: {exc}", file=sys.stderr)
+        return 1
+    destination.write_text(json.dumps(merge_capture(payload, capture), indent=2) + "\n", encoding="utf-8")
+    summary = f"{module} -> {len(capture.durations)} tests in {len(capture.parts)} parts, {capture.total_seconds}s"
+    print(f"capture_shard_timings: {summary} -> {destination}", file=sys.stderr)
+    return 0 if capture.exit_code == 0 else 1
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Capture the requested modules (or battery suite) and merge them into the timings artefact."""
     args = _parse_args(argv)
+    if args.part:
+        return _capture_part(args)
     payload: dict[str, Any] = json.loads(TIMINGS_PATH.read_text(encoding="utf-8")) if TIMINGS_PATH.exists() else {}
     destination: Path = TIMINGS_PATH if args.write else args.output
 
+    if args.from_parts:
+        return _merge_parts(args, payload, destination)
     if args.suite:
         suite_result = _capture_suite(args, payload)
         if suite_result is None:

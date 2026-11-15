@@ -20,9 +20,11 @@
 #     (`pytest --collect-only`, seconds per module) finds the modules whose
 #     collected count differs from the committed one or whose provenance record
 #     is missing or invalid; only those are captured, each in its own
-#     subprocess through the canonical producer, oldest first, until the time
-#     budget is spent (the rest are reported as deferred and picked up by the
-#     next run). A failed capture of one module leaves that module's committed
+#     subprocess per resolved test directory through the canonical producer
+#     (part-wise, #7656: each directory has its own timeout and the producer
+#     merges the parts into the module's one record), oldest first, until the
+#     time budget is spent (the rest are reported as deferred and picked up by
+#     the next run). A failed capture of one module leaves that module's committed
 #     data unchanged and does not stop the others; the run is then marked
 #     failed.
 #     The result is proposed on a fixed branch: a new pull request when none is
@@ -138,18 +140,23 @@ jobs:
     permissions:
       contents: read
       actions: read
-    # Time arithmetic (NFR-007). The capture step stops STARTING captures after
+    # Time arithmetic (NFR-007). The capture step stops STARTING capture parts after
     # `--budget-seconds 4200` (70 min, counted from the script's start, so the
-    # count-only pass is inside it) and reports the rest as deferred. A capture
-    # that starts just under the budget can still run for its own timeout, 35 min
-    # (`DEFAULT_CAPTURE_TIMEOUT_SECONDS`; `charter`, the longest module, took about
-    # 25 min on a runner in the runs that hit the previous 30-minute cap, so 35 min
-    # leaves 40% headroom while still bounding a hung capture). So the script
-    # finishes within 70 + 35 = 105 min, and 130 min leaves 25 min for checkout,
-    # `uv sync`, the pack and service-extras sync (cached on their pins; the extras are
-    # ~230 KB, #7654), `detect`, the battery refresh (its own 10-minute step limit; three
-    # ~100 KB downloads and a junit parse in practice) and `publish`: at most one
-    # capture can start late and the job cannot time out in the middle of the next one.
+    # count-only pass is inside it) and reports the rest as deferred. A module is
+    # captured one resolved test directory per subprocess (#7656) and the budget is
+    # checked before every part, so a module the budget cuts off between two parts is
+    # restored and deferred. A part that starts just under the budget can still run
+    # for its own timeout, 35 min (`DEFAULT_CAPTURE_TIMEOUT_SECONDS`, per part; the
+    # largest single directory, `tests/consolidation`, took about 18 min serial in
+    # #7656's measurement, and the whole `consolidation` module about 32 min, which is
+    # what stopped fitting one 35-minute capture), then the parts are merged
+    # (`MERGE_PARTS_TIMEOUT_SECONDS`, 5 min; JSON only, seconds in practice). So the
+    # script finishes within 70 + 35 + 5 = 110 min, and 130 min leaves 20 min for
+    # checkout, `uv sync`, the pack and service-extras sync (cached on their pins; the
+    # extras are ~230 KB, #7654), `detect`, the battery refresh (its own 10-minute step
+    # limit; three ~100 KB downloads and a junit parse in practice), the output upload
+    # (one ~2 MB file) and `publish`: at most one part can start late and the job cannot
+    # time out in the middle of the next one.
     timeout-minutes: 130
     steps:
       # Credential wiring (F1, #5271 landing pass). The write PAT must never

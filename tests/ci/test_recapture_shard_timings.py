@@ -450,8 +450,16 @@ class World:
         return loaded
 
     def producer_calls(self) -> list[str]:
-        """The modules the canonical producer was asked to capture, in call order."""
-        return [cmd[cmd.index("--module") + 1] for cmd in self.calls if "scripts.ci.capture_shard_timings" in cmd]
+        """The modules the canonical producer was asked to capture, one entry per captured part, in call order."""
+        return [cmd[cmd.index("--module") + 1] for cmd in self.calls if "scripts.ci.capture_shard_timings" in cmd and "--part" in cmd]
+
+    def part_calls(self) -> list[tuple[str, str]]:
+        """``(module, test_dir)`` of every part capture, in call order."""
+        return [(cmd[cmd.index("--module") + 1], cmd[cmd.index("--part") + 1]) for cmd in self.calls if "--part" in cmd]
+
+    def merge_calls(self) -> list[str]:
+        """The modules whose parts the producer was asked to merge, in call order."""
+        return [cmd[cmd.index("--module") + 1] for cmd in self.calls if "--from-parts" in cmd]
 
     def git_calls(self) -> list[list[str]]:
         return [cmd for cmd in self.calls if cmd[0] == "git"]
@@ -480,17 +488,33 @@ class World:
         return subprocess.CompletedProcess(cmd, 0, stdout="\n".join([*lines, "", f"{len(lines)} tests collected"]) + "\n", stderr="")
 
     def _produce(self, cmd: list[str], kwargs: dict[str, Any]) -> subprocess.CompletedProcess[str]:
+        if "--part" in cmd:
+            return self._produce_part(cmd, kwargs)
+        return self._merge_parts(cmd)
+
+    def _produce_part(self, cmd: list[str], kwargs: dict[str, Any]) -> subprocess.CompletedProcess[str]:
+        """A ``--part`` capture: the slow, test-running call. Writes a part file the merge reads."""
         module = cmd[cmd.index("--module") + 1]
-        run_id = cmd[cmd.index("--run-id") + 1]
         self.clock["t"] += self.seconds_per_capture
         outcome = self.outcomes.get(module, "valid")
         if outcome == "timeout":
             raise subprocess.TimeoutExpired(cmd, kwargs["timeout"])
-        if outcome == "crash":
-            return subprocess.CompletedProcess(cmd, 1)
         if outcome == "os-error":  # the producer damaged the file, then the call itself failed (e.g. a broken pipe)
             self.timings_path.write_text("{ half written", encoding="utf-8")
             raise BrokenPipeError("simulated failure of the subprocess call")
+        if outcome == "no-part-file":  # a clean exit, but the part capture was never written
+            return subprocess.CompletedProcess(cmd, 0)
+        Path(cmd[cmd.index("--part-output") + 1]).write_text(json.dumps({"run_id": cmd[cmd.index("--run-id") + 1]}), encoding="utf-8")
+        return subprocess.CompletedProcess(cmd, 1 if outcome == "failing-tests" else 0)
+
+    def _merge_parts(self, cmd: list[str]) -> subprocess.CompletedProcess[str]:
+        """A ``--from-parts --write`` merge: writes the module record, as the real producer would."""
+        module = cmd[cmd.index("--module") + 1]
+        part_files = cmd[cmd.index("--from-parts") + 1 : cmd.index("--write")]
+        run_id = json.loads(Path(part_files[0]).read_text(encoding="utf-8"))["run_id"]
+        outcome = self.outcomes.get(module, "valid")
+        if outcome == "crash":  # the merge exits 1 without writing anything for this run
+            return subprocess.CompletedProcess(cmd, 1)
         if outcome in _UNREADABLE_FILE_OUTCOMES:  # the producer exits 0 yet leaves a file nobody can read
             self.timings_path.write_text(_UNREADABLE_FILE_OUTCOMES[outcome], encoding="utf-8")
             return subprocess.CompletedProcess(cmd, 0)
@@ -593,8 +617,25 @@ def _capture(world: World, *args: str) -> tuple[int, dict[str, str], dict[str, A
         ({"exit_code": 0}, False),
         ({"exit_code": True, "unique_tests_measured": 5}, False),
         (None, False),
+        (_PARTS_RECORD, True),
+        ({**_PARTS_RECORD, "parts": _PARTS_RECORD["parts"][:1]}, False),
+        ({**_PARTS_RECORD, "parts": [_PARTS_RECORD["parts"][0], {**_PARTS_RECORD["parts"][1], "run_id": "an-older-run"}]}, False),
     ],
-    ids=["clean", "failing-tests", "clean-empty", "failing-empty", "interrupted", "none-collected", "no-exit", "no-count", "bool-exit", "missing"],
+    ids=[
+        "clean",
+        "failing-tests",
+        "clean-empty",
+        "failing-empty",
+        "interrupted",
+        "none-collected",
+        "no-exit",
+        "no-count",
+        "bool-exit",
+        "missing",
+        "complete-parts",
+        "a-part-missing",
+        "a-part-from-another-run",
+    ],
 )
 def test_is_valid_capture(provenance: dict[str, Any] | None, expected: bool) -> None:
     assert recapture.is_valid_capture(provenance) is expected
@@ -638,6 +679,18 @@ def test_identity_drift_at_an_unchanged_count_is_detected() -> None:
     reason = recapture.drift_reasons(["unit"], timings, {"unit": collected})["unit"]
     assert "1 collected node id(s) not in the committed timings" in reason
     assert "1 committed node id(s) no longer collected" in reason
+
+#: A part-wise record (#7656): valid only while its parts cover test_dirs from its own run.
+_PARTS_RECORD: dict[str, Any] = {
+    "run_id": "r1",
+    "exit_code": 0,
+    "unique_tests_measured": 5,
+    "test_dirs": ["tests/a", "tests/b"],
+    "parts": [
+        {"test_dirs": ["tests/a"], "run_id": "r1", "unique_tests_measured": 3, "exit_code": 0},
+        {"test_dirs": ["tests/b"], "run_id": "r1", "unique_tests_measured": 2, "exit_code": 0},
+    ],
+}
 
 
 def test_paired_control_identical_node_ids_are_not_drift() -> None:
@@ -946,8 +999,17 @@ def test_nothing_drifted_captures_nothing_and_reports_drift_false(world: World) 
         ("os-error", "BrokenPipeError"),
         ("garbled", "unreadable"),
         ("not-a-mapping", "unreadable"),
+        ("no-part-file", "wrote no capture for part"),
     ],
-    ids=["invalid", "crash", "timeout", "os-error-escaping-the-call", "garbled-file-after-clean-exit", "non-mapping-file-after-clean-exit"],
+    ids=[
+        "invalid",
+        "crash",
+        "timeout",
+        "os-error-escaping-the-call",
+        "garbled-file-after-clean-exit",
+        "non-mapping-file-after-clean-exit",
+        "part-exits-clean-without-its-file",
+    ],
 )
 def test_a_failed_capture_leaves_its_data_unchanged_and_the_rest_still_run(world: World, outcome: str, reason_part: str) -> None:
     """FR-018: the failing module is restored byte for byte, the next module is still captured,
@@ -1689,5 +1751,96 @@ def test_the_job_timeout_covers_the_budget_plus_one_late_capture_and_publishing(
     capture_timeout = int(timeout_match.group(1)) if timeout_match else recapture.DEFAULT_CAPTURE_TIMEOUT_SECONDS
     job_limit = int(_recapture_job()["timeout-minutes"]) * 60
     headroom = 10 * 60  # checkout, uv sync, detect, publish
-    assert budget + capture_timeout + headroom <= job_limit
+    # #7656: the late capture is one part, then the parts are merged under their own bound.
+    assert budget + capture_timeout + recapture.MERGE_PARTS_TIMEOUT_SECONDS + headroom <= job_limit
     assert budget > 0
+
+
+# --------------------------------------------------------------------------- #
+# Part-wise capture (#7656): one producer subprocess per resolved directory.   #
+# --------------------------------------------------------------------------- #
+
+_WIDE_DIRS = ("tests/wide", "tests/wide_extra", "tests/wide_more")
+
+
+def _seed_wide(world: World, *, collected: int = 4) -> None:
+    """A module ``wide`` resolving to three directories, drifted (3 committed, *collected* live)."""
+    dirs = "".join(f"\n    - {test_dir}" for test_dir in _WIDE_DIRS)
+    (world.root / ".github" / "ci-module-registry.yml").write_text(f"modules:\n- module: wide\n  test_dirs:{dirs}\n", encoding="utf-8")
+    for test_dir in _WIDE_DIRS:
+        (world.root / test_dir).mkdir(parents=True, exist_ok=True)
+    world.counts = {"wide": collected}
+    world.write_timings(_payload({"wide": _entry_tables(3, captured_at=OLD)}))
+
+
+def test_each_resolved_directory_is_captured_in_its_own_subprocess_then_merged_once(world: World) -> None:
+    _seed_wide(world)
+
+    exit_code, _outputs, result = _capture(world)
+
+    assert exit_code == 0
+    assert world.part_calls() == [("wide", test_dir) for test_dir in _WIDE_DIRS]
+    assert world.merge_calls() == ["wide"]
+    assert result["captured"] == ["wide"]
+    run_ids = {cmd[cmd.index("--run-id") + 1] for cmd in world.calls if "--part" in cmd}
+    assert len(run_ids) == 1, "every part of one capture carries the same run id"
+    part_kwargs = [kwargs for cmd, kwargs in zip(world.calls, world.kwargs_seen, strict=True) if "--part" in cmd]
+    assert {kwargs["timeout"] for kwargs in part_kwargs} == {recapture.DEFAULT_CAPTURE_TIMEOUT_SECONDS}, "each part has its own timeout"
+    assert world.read_timings()["module_test_count"]["wide"] == 4
+
+
+def test_a_part_that_times_out_names_its_directory_and_restores_the_module(world: World) -> None:
+    _seed_wide(world)
+    world.outcomes["wide"] = "timeout"
+    before = world.read_timings()
+
+    exit_code, _outputs, result = _capture(world)
+
+    assert exit_code == 1
+    assert result["failed"] == ["wide"]
+    assert result["reasons"]["wide"] == f"part tests/wide timed out after {recapture.DEFAULT_CAPTURE_TIMEOUT_SECONDS}s"
+    assert world.merge_calls() == []
+    assert _module_slice(world.read_timings(), "wide") == _module_slice(before, "wide")
+
+
+def test_the_budget_is_checked_before_every_part_and_a_cut_off_module_is_deferred(world: World) -> None:
+    """The budget ends between two parts: no later part starts, the module is restored and
+    reported as deferred (never failed, never half-written), so the job keeps its 70 + 35 min bound."""
+    _seed_wide(world)
+    world.seconds_per_capture = 100.0
+    before = world.read_timings()
+
+    exit_code, outputs, result = _capture(world, "--budget-seconds", "150")
+
+    assert exit_code == 0
+    assert world.part_calls() == [("wide", "tests/wide"), ("wide", "tests/wide_extra")]
+    assert world.merge_calls() == []
+    assert result["deferred"] == ["wide"]
+    assert result["reasons"]["wide"] == "time budget spent after 2 of 3 parts"
+    assert result["failed"] == []
+    assert result["captured"] == []
+    assert outputs["drift"] == "false"
+    assert _module_slice(world.read_timings(), "wide") == _module_slice(before, "wide")
+
+
+def test_paired_control_a_budget_that_covers_every_part_captures_the_module(world: World) -> None:
+    _seed_wide(world)
+    world.seconds_per_capture = 100.0
+
+    _exit_code, _outputs, result = _capture(world, "--budget-seconds", "250")
+
+    assert world.merge_calls() == ["wide"]
+    assert result["captured"] == ["wide"]
+
+
+def test_the_argv_the_recapture_builds_parses_under_the_real_producer(world: World) -> None:
+    """The fake producer above answers any argv; this pins that the commands the recapture
+    actually builds are ones the real producer's parser accepts (a renamed flag would
+    otherwise pass every fake-backed test and fail only on the runner)."""
+    _seed_wide(world)
+    _capture(world)
+    producer_argvs = [cmd[cmd.index("scripts.ci.capture_shard_timings") + 1 :] for cmd in world.calls if "scripts.ci.capture_shard_timings" in cmd]
+    assert any("--part" in argv for argv in producer_argvs) and any("--from-parts" in argv for argv in producer_argvs)
+    for argv in producer_argvs:
+        args = capture_shard_timings._parse_args(argv)
+        assert args.modules == ["wide"]
