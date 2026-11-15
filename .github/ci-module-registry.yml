@@ -298,6 +298,11 @@ modules:
   - tests/mission_runtime
   - tests/runtime
   - tests/specify_cli/cli/commands/agent
+  # #7659: promoted from out_of_matrix_test_dirs (nightly-only) after four stub drifts
+  # there went unseen per PR (#7341, #7586, #7622/#7623, #7641). It exercises
+  # cli/commands/agent, status and acceptance; ~23 s serial (94 tests). Untimed node ids
+  # take the module median until the nightly recapture records them.
+  - tests/characterization
 - module: core_misc
   roots:
   - src/kernel/**
@@ -895,7 +900,6 @@ out_of_matrix_test_dirs:
   - tests/acceptance/charter_pack_cutover
   - tests/adversarial
   - tests/ast_analysis
-  - tests/characterization
   - tests/cli_gate
   - tests/compat
   - tests/concurrency

@@ -1,0 +1,1 @@
+- **`tests/characterization` runs on every pull request** (#7659). It moved from the nightly-only out-of-matrix list into the `execution_context` module, after four stub drifts there (#7341, #7586, #7622/#7623, #7641) reached `main` with a green pull request; it adds about 23 seconds of serial test time.
