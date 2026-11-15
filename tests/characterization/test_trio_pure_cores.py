@@ -1012,6 +1012,10 @@ class TestCollectFeatureSummaryWiring:
         monkeypatch.setattr(acceptance_module, "_collect_snapshot_wps", lambda *_a, **_k: snapshot_wps or {})
         monkeypatch.setattr(acceptance_module, "_iter_work_packages", lambda *_a, **_k: iter(wps))
         monkeypatch.setattr(acceptance_module, "_planning_read_dir", lambda *_a, **_k: feature_dir)
+        # #7641: ``collect_feature_summary`` also asks the placement seam which checkout
+        # holds the PRIMARY partition (``write_dir(...).surface_root``, #7602); stub that
+        # collaborator too, so the ``read_dir``-only seam stub above stays sufficient.
+        monkeypatch.setattr(acceptance_module, "_planning_holding_checkout", lambda *_a, **_k: tmp_path)
         monkeypatch.setattr(acceptance_module, "_find_unchecked_tasks", lambda _f: [])
         monkeypatch.setattr(acceptance_module, "_check_needs_clarification", lambda _files: [])
         monkeypatch.setattr(acceptance_module, "_missing_artifacts", lambda *_a: ([], []))
@@ -1070,6 +1074,31 @@ class TestCollectFeatureSummaryWiring:
         summary = collect_feature_summary(tmp_path, "trio-mission", strict_metadata=True, mutate_matrix=False)
 
         assert summary.metadata_issues == []
+
+    def test_planning_holding_checkout_flows_into_path_conventions(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """#7641 / #7602: the PRIMARY-partition holder the placement seam reports is the
+        ``holding_checkout`` the path-convention check receives."""
+        self._wire_common(monkeypatch, tmp_path, strict_metadata=False, wps=[])
+        holder = tmp_path / "primary-holder"
+        holder_calls: list[str] = []
+
+        def _holder(_repo: Path, feature: str, **_k: Any) -> Path:
+            holder_calls.append(feature)
+            return holder
+
+        monkeypatch.setattr(acceptance_module, "_planning_holding_checkout", _holder)
+        received: list[Path] = []
+
+        def _spy_path_conventions(*_a: Any, holding_checkout: Path, **_k: Any) -> tuple[list[str], str | None, set[str]]:
+            received.append(holding_checkout)
+            return [], None, set()
+
+        monkeypatch.setattr(acceptance_module, "evaluate_path_conventions", _spy_path_conventions)
+
+        collect_feature_summary(tmp_path, "trio-mission", strict_metadata=False, mutate_matrix=False)
+
+        assert holder_calls == ["trio-mission"]
+        assert received == [holder]
 
     def test_missing_feature_dir_raises_acceptance_error(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         absent = tmp_path / "kitty-specs" / "ghost-mission"
@@ -1133,6 +1162,7 @@ class TestCollectFeatureSummaryWiring:
         monkeypatch.setattr(acceptance_module, "_collect_snapshot_wps", lambda *_a, **_k: {})
         monkeypatch.setattr(acceptance_module, "_iter_work_packages", lambda *_a, **_k: iter([]))
         monkeypatch.setattr(acceptance_module, "_planning_read_dir", lambda *_a, **_k: primary_dir)
+        monkeypatch.setattr(acceptance_module, "_planning_holding_checkout", lambda *_a, **_k: tmp_path)  # #7641
         monkeypatch.setattr(acceptance_module, "_find_unchecked_tasks", lambda _f: [])
         monkeypatch.setattr(acceptance_module, "_check_needs_clarification", lambda _files: [])
         monkeypatch.setattr(acceptance_module, "_missing_artifacts", lambda *_a: ([], []))
