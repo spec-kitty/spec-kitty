@@ -380,6 +380,12 @@ DISPOSITIONS: dict[str, tuple[str, str]] = {
         "none",
         "A comment noting that job names are unique only WITHIN a workflow, using ci-quality's `changes` job as the example. Nothing to do with the retired job.",
     ),
+    "tests/ci/test_packaging_scope.py::<module>": (
+        "none",
+        "A parametrize case passing the surviving workflow's path to the packaging-scope classifier as an "
+        "uncertain input that must still build the wheel. It is input data about a path, not a claim about "
+        "the retired job or the file's contents.",
+    ),
     "tests/architectural/test_ci_quality_path_filters.py::_CI_QUALITY": (
         "none",
         "A Path to the surviving workflow file. Its assertions are about triggers, path filters and runner labels, all derived over whatever jobs the file has.",

@@ -123,6 +123,68 @@
       "reason": "References only the `make test-fast` target, which survives as a Makefile target and a local developer entry point; what retires is one workflow step's USE of it. The file does not mention the retiring job, so this rule is about the target, not about the job."
     },
     {
+      "rule": "tests/agent/test_build_implement_prompt_lines.py::test_implement_prompt_states_the_lane_test_invocation_and_probe",
+      "file": "tests/agent/test_build_implement_prompt_lines.py",
+      "scope": "test_implement_prompt_states_the_lane_test_invocation_and_probe",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "exact-string",
+      "lines": [
+        222,
+        231
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the `make test-fast` target, which survives as a Makefile target and a local developer entry point; what retires is one workflow step's USE of it. The file does not mention the retiring job, so this rule is about the target, not about the job."
+    },
+    {
+      "rule": "tests/agent/test_implement_lane_invocation.py::action_repo",
+      "file": "tests/agent/test_implement_lane_invocation.py",
+      "scope": "action_repo",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        323
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the `make test-fast` target, which survives as a Makefile target and a local developer entry point; what retires is one workflow step's USE of it. The file does not mention the retiring job, so this rule is about the target, not about the job."
+    },
+    {
+      "rule": "tests/agent/test_implement_lane_invocation.py::test_action_prompt_file_carries_the_lane_test_invocation",
+      "file": "tests/agent/test_implement_lane_invocation.py",
+      "scope": "test_action_prompt_file_carries_the_lane_test_invocation",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "exact-string",
+      "lines": [
+        343
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the `make test-fast` target, which survives as a Makefile target and a local developer entry point; what retires is one workflow step's USE of it. The file does not mention the retiring job, so this rule is about the target, not about the job."
+    },
+    {
+      "rule": "tests/agent/test_implement_lane_invocation.py::test_review_prompt_states_the_lane_test_invocation_and_probe",
+      "file": "tests/agent/test_implement_lane_invocation.py",
+      "scope": "test_review_prompt_states_the_lane_test_invocation_and_probe",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "exact-string",
+      "lines": [
+        295,
+        301
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the `make test-fast` target, which survives as a Makefile target and a local developer entry point; what retires is one workflow step's USE of it. The file does not mention the retiring job, so this rule is about the target, not about the job."
+    },
+    {
       "rule": "tests/architectural/_fast_tier_gate.py::<module-docstring>",
       "file": "tests/architectural/_fast_tier_gate.py",
       "scope": "<module-docstring>",
@@ -149,11 +211,11 @@
       "form": "docstring-or-comment",
       "lines": [
         106,
-        477,
-        479,
-        485,
-        538,
-        964
+        484,
+        486,
+        492,
+        545,
+        971
       ],
       "dependency": true,
       "disposition": "rewrite",
@@ -183,7 +245,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        2270
+        2277
       ],
       "dependency": true,
       "disposition": "none",
@@ -338,7 +400,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        41
+        52
       ],
       "dependency": false,
       "disposition": "none",
@@ -353,7 +415,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        57
+        62
       ],
       "dependency": false,
       "disposition": "none",
@@ -385,14 +447,14 @@
       ],
       "form": "set-equality",
       "lines": [
-        285,
-        286,
-        299,
-        306,
-        307,
-        1368,
-        1369,
-        1682
+        297,
+        298,
+        311,
+        318,
+        319,
+        1380,
+        1381,
+        1694
       ],
       "dependency": true,
       "disposition": "rewrite",
@@ -422,8 +484,8 @@
       ],
       "form": "synthetic-fixture",
       "lines": [
-        1795,
-        1804
+        1807,
+        1816
       ],
       "dependency": false,
       "disposition": "none",
@@ -438,7 +500,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        486
+        498
       ],
       "dependency": true,
       "disposition": "none",
@@ -453,8 +515,8 @@
       ],
       "form": "synthetic-fixture",
       "lines": [
-        1765,
-        1775
+        1777,
+        1787
       ],
       "dependency": false,
       "disposition": "none",
@@ -469,7 +531,7 @@
       ],
       "form": "synthetic-fixture",
       "lines": [
-        470
+        482
       ],
       "dependency": false,
       "disposition": "none",
@@ -514,7 +576,7 @@
       ],
       "form": "synthetic-fixture",
       "lines": [
-        564
+        576
       ],
       "dependency": false,
       "disposition": "none",
@@ -529,7 +591,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        731
+        743
       ],
       "dependency": true,
       "disposition": "none",
@@ -544,7 +606,7 @@
       ],
       "form": "exact-string",
       "lines": [
-        1358
+        1370
       ],
       "dependency": true,
       "disposition": "none",
@@ -559,7 +621,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        1059
+        1071
       ],
       "dependency": true,
       "disposition": "none",
@@ -574,7 +636,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        936
+        948
       ],
       "dependency": true,
       "disposition": "none",
@@ -604,7 +666,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        50
+        51
       ],
       "dependency": false,
       "disposition": "none",
@@ -911,6 +973,36 @@
       "dependency": true,
       "disposition": "none",
       "reason": "About ci-quality.yml's quality-gate consuming toJSON(needs). That job and that property are untouched by the retirement."
+    },
+    {
+      "rule": "tests/ci/test_ci_speed_hardening.py::test_static_checks_have_one_owner_and_required_router_waits",
+      "file": "tests/ci/test_ci_speed_hardening.py",
+      "scope": "test_static_checks_have_one_owner_and_required_router_waits",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        71
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/ci/test_ci_speed_hardening.py::test_wheel_and_clean_install_wiring_only_omits_proven_non_inputs",
+      "file": "tests/ci/test_ci_speed_hardening.py",
+      "scope": "test_wheel_and_clean_install_wiring_only_omits_proven_non_inputs",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        114
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
     },
     {
       "rule": "tests/ci/test_fleet_main.py::request",
@@ -1221,6 +1313,21 @@
       "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
     },
     {
+      "rule": "tests/ci/test_packaging_scope.py::<module>",
+      "file": "tests/ci/test_packaging_scope.py",
+      "scope": "<module>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "set-equality",
+      "lines": [
+        25
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "A parametrize case passing the surviving workflow's path to the packaging-scope classifier as an uncertain input that must still build the wheel. It is input data about a path, not a claim about the retired job or the file's contents."
+    },
+    {
       "rule": "tests/ci/test_pause_ci_label.py::_REQUIRED_GATES",
       "file": "tests/ci/test_pause_ci_label.py",
       "scope": "_REQUIRED_GATES",
@@ -1351,7 +1458,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        750
+        820
       ],
       "dependency": false,
       "disposition": "none",
@@ -1459,7 +1566,7 @@
       ],
       "form": "set-equality",
       "lines": [
-        383
+        384
       ],
       "dependency": true,
       "disposition": "none",
@@ -1474,7 +1581,7 @@
       ],
       "form": "set-equality",
       "lines": [
-        30
+        31
       ],
       "dependency": true,
       "disposition": "none",
@@ -1489,7 +1596,7 @@
       ],
       "form": "set-equality",
       "lines": [
-        69
+        70
       ],
       "dependency": true,
       "disposition": "none",
@@ -1504,9 +1611,9 @@
       ],
       "form": "path-anchored",
       "lines": [
-        338,
-        343,
-        344
+        339,
+        344,
+        345
       ],
       "dependency": true,
       "disposition": "none",
@@ -1521,7 +1628,7 @@
       ],
       "form": "set-equality",
       "lines": [
-        580
+        819
       ],
       "dependency": true,
       "disposition": "none",
@@ -1536,8 +1643,8 @@
       ],
       "form": "path-anchored",
       "lines": [
-        348,
-        357
+        349,
+        358
       ],
       "dependency": true,
       "disposition": "none",
@@ -1553,8 +1660,8 @@
       ],
       "form": "path-anchored",
       "lines": [
-        315,
-        317
+        316,
+        318
       ],
       "dependency": true,
       "disposition": "rewrite",
@@ -1585,8 +1692,8 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        286,
-        293
+        337,
+        344
       ],
       "dependency": true,
       "disposition": "rewrite",
@@ -1601,7 +1708,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        783
+        834
       ],
       "dependency": true,
       "disposition": "relocate",
@@ -1616,12 +1723,27 @@
       ],
       "form": "derived-relation",
       "lines": [
-        740,
-        756
+        791,
+        807
       ],
       "dependency": true,
       "disposition": "none",
       "reason": "Its docstring contrasts ci-aggregate's skipped-tolerant verdict with ci-quality.yml's strict-success quality-gate. Both jobs still exist and the contrast still holds."
+    },
+    {
+      "rule": "tests/review/test_lane_test_invocation_adapter.py::_COMMAND",
+      "file": "tests/review/test_lane_test_invocation_adapter.py",
+      "scope": "_COMMAND",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        28
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the `make test-fast` target, which survives as a Makefile target and a local developer entry point; what retires is one workflow step's USE of it. The file does not mention the retiring job, so this rule is about the target, not about the job."
     },
     {
       "rule": "tests/review/test_pre_review_gate_engine.py::<module-docstring>",
@@ -1647,11 +1769,42 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        53
+        54
       ],
       "dependency": false,
       "disposition": "none",
       "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/review/test_review_budget_scope_shape.py::_repo",
+      "file": "tests/review/test_review_budget_scope_shape.py",
+      "scope": "_repo",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        33,
+        35
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the `make test-fast` target, which survives as a Makefile target and a local developer entry point; what retires is one workflow step's USE of it. The file does not mention the retiring job, so this rule is about the target, not about the job."
+    },
+    {
+      "rule": "tests/review/test_review_budget_scope_shape.py::test_command",
+      "file": "tests/review/test_review_budget_scope_shape.py",
+      "scope": "test_command",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "set-equality",
+      "lines": [
+        124
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the `make test-fast` target, which survives as a Makefile target and a local developer entry point; what retires is one workflow step's USE of it. The file does not mention the retiring job, so this rule is about the target, not about the job."
     },
     {
       "rule": "tests/scripts/test_quality_gate_decision.py::<module-docstring>",
@@ -1738,7 +1891,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        329
+        330
       ],
       "dependency": false,
       "disposition": "none",
@@ -1829,7 +1982,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        418
+        419
       ],
       "dependency": false,
       "disposition": "none",
