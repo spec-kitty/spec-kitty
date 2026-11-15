@@ -146,7 +146,8 @@ jobs:
     # 25 min on a runner in the runs that hit the previous 30-minute cap, so 35 min
     # leaves 40% headroom while still bounding a hung capture). So the script
     # finishes within 70 + 35 = 105 min, and 130 min leaves 25 min for checkout,
-    # `uv sync`, `detect`, the battery refresh (its own 10-minute step limit; three
+    # `uv sync`, the pack and service-extras sync (cached on their pins; the extras are
+    # ~230 KB, #7654), `detect`, the battery refresh (its own 10-minute step limit; three
     # ~100 KB downloads and a junit parse in practice) and `publish`: at most one
     # capture can start late and the job cannot time out in the middle of the next one.
     timeout-minutes: 130
@@ -175,6 +176,19 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
       - name: Set up environment
         run: uv sync --frozen --all-extras
+      # The captures run whole module suites, so they need the same fetched inputs a
+      # module-tests shard has (#7654): the pinned packs/built-in and packs/internal trees
+      # (without them execution_context's charter-compile tests raise UnknownArtifactIdError
+      # and debrief's asset-sidecar test fails to collect) and the pinned service extras
+      # (tests/pinned_service_assets.py fails closed with SERVICE_* codes without them).
+      # extras-only mirrors module-tests.yml, so the capture times what a shard runs.
+      # Neither step receives the recapture PAT.
+      - name: Sync packs
+        uses: ./.github/actions/sync-packs
+      - name: Sync the pinned service extras
+        uses: ./.github/actions/sync-services
+        with:
+          extras-only: 'true'
       # Is a recapture proposal already open? When it is, the capture starts from
       # that branch's data for the modules it already refreshed, so the nightly
       # runs make progress instead of repeating the same first modules.
