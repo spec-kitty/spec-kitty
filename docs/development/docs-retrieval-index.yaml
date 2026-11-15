@@ -11964,6 +11964,8 @@ pages:
     abstract: "Prepare a Claude Code cloud session so the Spec Kitty CLI, the test package and CodeGraph are ready before you run a Mission or an Op."
     anchors:
     - {slug: "step-1-add-the-environment-setup-script", text: "Step 1: Add the environment setup script", level: 2}
+    - {slug: "optional-resolve-maven-central-through-a-mirror", text: "Optional: resolve Maven Central through a mirror", level: 3}
+    - {slug: "optional-install-the-cli-when-core-is-not-attached", text: "Optional: install the CLI when core is not attached", level: 3}
     - {slug: "optional-environment-variables", text: "Optional: environment variables", level: 3}
     - {slug: "step-2-run-the-repository-script-in-each-session", text: "Step 2: Run the repository script in each session", level: 2}
     - {slug: "optional-run-the-repository-script-from-the-environment-setup-script", text: "Optional: run the repository script from the environment setup script", level: 3}
@@ -15218,6 +15220,17 @@ pages:
     - {slug: "7589-the-review-claim-fails-with-an-empty-changeset", text: "#7589: the review claim fails with an empty changeset", level: 2}
     - {slug: "7632-create-topology-lanes-on-a-protected-target-is-admitted", text: "#7632: `create --topology lanes` on a protected target is admitted", level: 2}
     - {slug: "discovery", text: "Discovery", level: 2}
+  - path: "docs/plans/engineering-notes/2026-11-14-7633-7637-7648-coordless-commit-checkout.md"
+    title: "Coordination-less status commit checkout, review claim follow-up, idempotent no-op"
+    divio_type: "reference"
+    abstract: "Grounding note for"
+    anchors:
+    - {slug: "reproductions-red-on-d7cedd7e", text: "Reproductions (red on `d7cedd7e`)", level: 2}
+    - {slug: "root-causes-and-chosen-seams", text: "Root causes and chosen seams", level: 2}
+    - {slug: "invariants-that-must-survive", text: "Invariants that must survive", level: 2}
+    - {slug: "architectural-gates", text: "Architectural gates", level: 2}
+    - {slug: "similar-surfaces-squad-dispositions", text: "Similar-surfaces squad (dispositions)", level: 2}
+    - {slug: "tracked-issues-squad-dispositions", text: "Tracked-issues squad (dispositions)", level: 2}
   - path: "docs/plans/engineering-notes/2173-infra-logic-separation/00-SYNTHESIS.md"
     title: "Infra-to-logic separation (#2173) — investigation synthesis"
     divio_type: "none"
