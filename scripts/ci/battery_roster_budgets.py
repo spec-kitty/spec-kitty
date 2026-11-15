@@ -25,10 +25,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import yaml
-
-from scripts.ci.battery_partition_plugin import load_battery_spec, load_battery_timings
-
 __all__ = ["BUDGET_FLOOR_SECONDS", "BUDGET_MULTIPLIER", "RosterRerule", "budget_rule", "has_roster", "rerule_files", "rerule_registry"]
 
 BUDGET_FLOOR_SECONDS = 10
@@ -51,18 +47,26 @@ class RosterRerule:
     changed: Mapping[str, tuple[int, int]] = field(default_factory=dict)
 
 
+def _load_yaml(text: str) -> Any:
+    """Parse *text*. A local import, like the producer's: the scheduled scripts run bare (no
+    virtualenv) and must start without it; only the steps that edit the registry need it."""
+    import yaml
+
+    return yaml.safe_load(text)
+
+
 def _roster(document: Any) -> list[Any]:
     roster: list[Any] = document["special_tiers"]["architectural"]["fast_gate"]["roster"]
     return roster
 
 
 def _roster_budgets(text: str) -> dict[str, int]:
-    return {str(row["path"]): int(row["budget_seconds"]) for row in _roster(yaml.safe_load(text))}
+    return {str(row["path"]): int(row["budget_seconds"]) for row in _roster(_load_yaml(text))}
 
 
 def has_roster(text: str) -> bool:
     """True when *text* declares the architectural battery's fast roster."""
-    document = yaml.safe_load(text)
+    document = _load_yaml(text)
     try:
         _roster(document)
     except (KeyError, TypeError):
@@ -100,11 +104,11 @@ def rerule_registry(text: str, timings: Mapping[str, float]) -> RosterRerule:
         msg = f"roster rows not in the one-line form `- {{path: ..., budget_seconds: N, reason: ...}}`: {missing}"
         raise ValueError(msg)
     edited = "".join(lines)
-    expected = yaml.safe_load(text)
+    expected = _load_yaml(text)
     for row in _roster(expected):
         if str(row["path"]) in changed:
             row["budget_seconds"] = changed[str(row["path"])][1]
-    if yaml.safe_load(edited) != expected:
+    if _load_yaml(edited) != expected:
         msg = "the budget edit did not parse back to the original registry with only the intended budgets changed"
         raise ValueError(msg)
     return RosterRerule(edited, changed)
@@ -120,12 +124,13 @@ def rerule_files(registry_path: Path, timings_path: Path) -> Mapping[str, tuple[
     text = registry_path.read_text(encoding="utf-8")
     if not has_roster(text):
         return {}
-    spec = load_battery_spec(yaml.safe_load(text))
+    timings_key = str(_load_yaml(text)["special_tiers"]["architectural"]["shards"]["timings_key"])
     payload = json.loads(timings_path.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict):
-        msg = f"{timings_path} did not parse to a mapping"
+    table = payload.get("battery_file_durations", {}).get(timings_key, {}) if isinstance(payload, dict) else None
+    if not isinstance(table, dict) or any(isinstance(value, bool) or not isinstance(value, int | float) for value in table.values()):
+        msg = f"{timings_path} holds no usable battery_file_durations.{timings_key} table"
         raise ValueError(msg)
-    rerule = rerule_registry(text, load_battery_timings(payload, spec.timings_key))
+    rerule = rerule_registry(text, {str(path): float(value) for path, value in table.items()})
     if rerule.changed:
         registry_path.write_text(rerule.text, encoding="utf-8")
     return rerule.changed
