@@ -24,10 +24,13 @@ What a ``capture`` run does
    included -- a count-only check saw nothing), when the entry is still the retired
    positional shape (no node ids: a recapture is what migrates it), or when its committed
    tables disagree with each other (:func:`drift_reasons`).
-3. Each drifted module is captured by the canonical producer
-   (``python -m scripts.ci.capture_shard_timings --module <m> --write``) in **its own
-   subprocess**, oldest provenance first, until the time budget is spent. Modules left
-   over are reported as ``deferred``; the next run recomputes drift, so no state is kept.
+3. Each drifted module is captured by the canonical producer, oldest provenance first,
+   **one resolved test directory per subprocess** (#7656): ``--part <dir>`` writes each
+   directory's capture to a scratch file under :data:`DEFAULT_CAPTURE_TIMEOUT_SECONDS`
+   of its own, and ``--from-parts ... --write`` merges the parts into the module's one
+   record. No part starts once the time budget is spent: a module cut off between two
+   parts is restored and reported as ``deferred`` with the modules that never started.
+   The next run recomputes drift, so no state is kept.
 4. A capture is **valid** when its provenance record carries the run id this script passed
    in, exit status 0 or 1, at least one measured test, and its committed slice is
    structurally complete (:func:`capture_shard_timings.validate_module_tables`: exact
@@ -77,6 +80,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -187,10 +191,12 @@ def is_valid_capture(provenance: Mapping[str, object] | None) -> bool:
     (``unique_tests_measured`` above zero). Any other pytest exit status (2 interrupted /
     collection error, 3 internal error, 4 usage error, 5 nothing collected) means the
     suite never ran, so the recorded entry is empty or garbage; committing it would
-    silently replace a real timings table. The recapture script and the provenance
-    completeness check share this predicate (research D-11).
+    silently replace a real timings table. A part-wise record (#7656) is valid only when
+    its ``parts`` cover every captured directory from the record's own run
+    (:func:`capture_shard_timings.provenance_parts_problem`). The recapture script and the
+    provenance completeness check share this predicate (research D-11).
     """
-    if not isinstance(provenance, Mapping):
+    if not isinstance(provenance, Mapping) or capture_shard_timings.provenance_parts_problem(provenance) is not None:
         return False
     exit_code = provenance.get("exit_code")
     measured = provenance.get("unique_tests_measured")
@@ -415,7 +421,7 @@ class RecaptureResult:
             lines.append(f"| `{module}` | {self._outcome_cell(module, outcome)} |")
         for module in self.failed:
             lines.append(f"| `{module}` | {self._outcome_cell(module, 'failed: ' + self.reasons.get(module, 'invalid capture'))} |")
-        lines += [f"| `{module}` | {self._outcome_cell(module, 'deferred (time budget spent)')} |" for module in self.deferred]
+        lines += [f"| `{module}` | {self._outcome_cell(module, 'deferred (' + self.reasons.get(module, 'time budget spent') + ')')} |" for module in self.deferred]
         lines += [f"| battery `{suite}` | refreshed from nightly junit |" for suite in self.battery_captured]
         lines += [f"| battery `{suite}` | failed: {self.reasons.get(battery_reason_key(suite), 'invalid capture')} |" for suite in self.battery_failed]
         if len(lines) == 2:
@@ -668,11 +674,16 @@ def _read_timings_after_capture() -> tuple[dict[str, Any] | None, str | None]:
 
 @dataclass(frozen=True)
 class CaptureAttempt:
-    """One producer run's verdict: the reason it failed, or the pytest status it measured with."""
+    """One module capture's verdict: the reason it failed, or the pytest status it measured with.
+
+    ``deferred`` marks a capture the time budget cut off between two parts: its data is
+    restored like a failure's, but it is reported as deferred, not failed.
+    """
 
     module: str
     reason: str | None = None
     exit_code: int | None = None
+    deferred: bool = False
 
     @property
     def kept(self) -> bool:
@@ -683,16 +694,52 @@ class CaptureAttempt:
         return self.exit_code == 1
 
 
-def _capture_failure(module: str, run_id: str, timeout_seconds: float) -> CaptureAttempt:
-    """Run the producer for *module*; ``reason is None`` when it left a valid, fresh, complete
-    capture behind. The caller restores the file on a reason."""
-    cmd = [sys.executable, "-m", "scripts.ci.capture_shard_timings", "--module", module, "--run-id", run_id, "--write"]
-    try:
-        proc = subprocess.run(cmd, cwd=REPO_ROOT, env=_scrubbed_env(), check=False, timeout=timeout_seconds)
-    except subprocess.TimeoutExpired:
-        return CaptureAttempt(module, f"timed out after {int(timeout_seconds)}s")
+#: The merge of the part files only reads JSON and writes the timings file, so a short bound suffices.
+MERGE_PARTS_TIMEOUT_SECONDS = 5 * 60
+
+_PRODUCER = ("-m", "scripts.ci.capture_shard_timings")
+
+
+def _capture_parts(
+    module: str, run_id: str, test_dirs: Sequence[str], scratch: Path, timeout_seconds: float, budget_left: Callable[[], bool]
+) -> list[Path] | CaptureAttempt:
+    """Capture each of *test_dirs* in its own producer subprocess; the part files, or why not.
+
+    No part after the first starts once *budget_left* says the budget is spent (the caller
+    checked it before the first): the module is then reported as deferred.
+    """
+    part_files: list[Path] = []
+    for index, test_dir in enumerate(test_dirs):
+        if index and not budget_left():
+            return CaptureAttempt(module, f"time budget spent after {index} of {len(test_dirs)} parts", deferred=True)
+        part_file = scratch / f"part-{index}.json"
+        cmd = [sys.executable, *_PRODUCER, "--module", module, "--run-id", run_id, "--part", test_dir, "--part-output", str(part_file)]
+        try:
+            proc = subprocess.run(cmd, cwd=REPO_ROOT, env=_scrubbed_env(), check=False, timeout=timeout_seconds)
+        except subprocess.TimeoutExpired:
+            return CaptureAttempt(module, f"part {test_dir} timed out after {int(timeout_seconds)}s")
+        if proc.returncode not in _VALID_EXIT_CODES:
+            return CaptureAttempt(module, f"producer exited {proc.returncode} on part {test_dir}")
+        if not part_file.is_file():
+            return CaptureAttempt(module, f"producer wrote no capture for part {test_dir}")
+        part_files.append(part_file)
+    return part_files
+
+
+def _capture_failure(module: str, run_id: str, timeout_seconds: float, test_dirs: Sequence[str], budget_left: Callable[[], bool] = lambda: True) -> CaptureAttempt:
+    """Run the producer for *module*, part by part, then merge the parts; ``reason is None``
+    when it left a valid, fresh, complete capture behind. The caller restores the file on a reason."""
+    with tempfile.TemporaryDirectory(prefix=f"recapture-{module}-") as scratch:
+        parts = _capture_parts(module, run_id, test_dirs, Path(scratch), timeout_seconds, budget_left)
+        if isinstance(parts, CaptureAttempt):
+            return parts
+        cmd = [sys.executable, *_PRODUCER, "--module", module, "--from-parts", *map(str, parts), "--write"]
+        try:
+            proc = subprocess.run(cmd, cwd=REPO_ROOT, env=_scrubbed_env(), check=False, timeout=MERGE_PARTS_TIMEOUT_SECONDS)
+        except subprocess.TimeoutExpired:
+            return CaptureAttempt(module, f"merging the parts timed out after {MERGE_PARTS_TIMEOUT_SECONDS}s")
     if proc.returncode not in _VALID_EXIT_CODES:
-        return CaptureAttempt(module, f"producer exited {proc.returncode}")
+        return CaptureAttempt(module, f"producer exited {proc.returncode} merging the parts")
     payload, unreadable = _read_timings_after_capture()
     if payload is None:
         return CaptureAttempt(module, unreadable)
@@ -708,11 +755,12 @@ def _capture_failure(module: str, run_id: str, timeout_seconds: float) -> Captur
     return CaptureAttempt(module, None, exit_code if isinstance(exit_code, int) else None)
 
 
-def _capture_one(module: str, timeout_seconds: float) -> CaptureAttempt:
-    """Capture *module* in its own subprocess; on any failure put the committed file back
-    byte for byte and return the reason. A reason of ``None`` means the capture is valid and kept.
+def _capture_one(module: str, timeout_seconds: float, registry: dict[str, Any], budget_left: Callable[[], bool] = lambda: True) -> CaptureAttempt:
+    """Capture *module* one test directory per subprocess; on any failure (or a deferral) put the
+    committed file back byte for byte and return the reason. A reason of ``None`` means the
+    capture is valid and kept.
 
-    An ``OSError`` from the subprocess call (it could not start, a pipe broke) is a failure of
+    An ``OSError`` from a subprocess call (it could not start, a pipe broke) is a failure of
     this module, not of the run; any other exception propagates, after the file is put back.
     """
     before = TIMINGS_PATH.read_bytes()
@@ -720,7 +768,11 @@ def _capture_one(module: str, timeout_seconds: float) -> CaptureAttempt:
     kept = False
     try:
         try:
-            attempt = _capture_failure(module, run_id, timeout_seconds)
+            test_dirs = capture_shard_timings.resolve_test_dirs(registry, module)
+        except (KeyError, FileNotFoundError) as exc:
+            return CaptureAttempt(module, f"cannot resolve test directories: {exc}")
+        try:
+            attempt = _capture_failure(module, run_id, timeout_seconds, test_dirs, budget_left)
         except OSError as exc:
             attempt = CaptureAttempt(module, f"capture could not run ({type(exc).__name__}: {exc})")
         kept = attempt.kept
@@ -819,8 +871,13 @@ def _capture_drifted(
     options: Options,
     started: float,
     drift_reasons: Mapping[str, str] | None = None,
+    registry: dict[str, Any] | None = None,
 ) -> RecaptureResult:
-    """Capture *drifted* modules, oldest first, until the budget is spent."""
+    """Capture *drifted* modules, oldest first, until the budget is spent (checked before every part)."""
+
+    def budget_left() -> bool:
+        return options.budget_seconds is None or _now_seconds() - started < options.budget_seconds
+
     captured: list[str] = []
     captured_with_failures: list[str] = []
     failed: list[str] = []
@@ -830,8 +887,11 @@ def _capture_drifted(
         if options.budget_seconds is not None and _now_seconds() - started >= options.budget_seconds:
             deferred.append(module)
             continue
-        attempt = _capture_one(module, options.capture_timeout_seconds)
-        if attempt.kept:
+        attempt = _capture_one(module, options.capture_timeout_seconds, registry if registry is not None else _load_registry(), budget_left)
+        if attempt.deferred:
+            deferred.append(module)
+            reasons[module] = str(attempt.reason)
+        elif attempt.kept:
             captured.append(module)
             if attempt.measured_with_failures:
                 captured_with_failures.append(module)
@@ -878,7 +938,7 @@ def run_capture_phase(options: Options) -> int:
     reasons_by_module = drift_reasons([m for m in modules if m not in count_failures], timings, collected)
     drifted = list(reasons_by_module)
     result = (
-        _capture_drifted(drifted, timings, options, started, reasons_by_module)
+        _capture_drifted(drifted, timings, options, started, reasons_by_module, registry)
         if options.write
         else RecaptureResult(drifted=tuple(drifted), drift_reasons=reasons_by_module)
     )

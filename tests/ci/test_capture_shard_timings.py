@@ -660,3 +660,247 @@ def test_integration_next_suite_names_its_own_file_universe(capture_shard_timing
     assert timings_key == "integration_next" and workers == 4 and "no marker" in selection
     assert base_files and all(file.startswith(("tests/integration/", "tests/next/")) for file in base_files)
     assert "tests/integration/test_6715_lane_autowalk_guards.py" in base_files
+
+
+# ---------------------------------------------------------------------------
+# Part-wise capture (#7656): one directory per process, merged into one record
+# ---------------------------------------------------------------------------
+_PART_RUN_ID = "recapture-consolidation-durations-20261115T000000Z"
+_PART_DIRS = ("tests/consolidation", "tests/specify_cli/consolidation", "tests/terminus")
+
+
+def _part(
+    capture_shard_timings: ModuleType,
+    test_dir: str,
+    count: int,
+    *,
+    module: str = "consolidation",
+    run_id: str = _PART_RUN_ID,
+    exit_code: int = 0,
+    tests_failed: int = 0,
+    captured_at: str = "2026-11-15T00:00:00+00:00",
+    node_ids: tuple[str, ...] | None = None,
+) -> Any:
+    return capture_shard_timings.ModuleCapture(
+        module=module,
+        test_dirs=(test_dir,),
+        node_ids=tuple(f"{test_dir}/test_x.py::test_{index}" for index in range(count)) if node_ids is None else node_ids,
+        durations=tuple(0.5 + index for index in range(count)),
+        run_id=run_id,
+        command=f"pytest {test_dir}",
+        captured_at=captured_at,
+        exit_code=exit_code,
+        tests_failed=tests_failed,
+    )
+
+
+def _three_parts(capture_shard_timings: ModuleType, **overrides: Any) -> list[Any]:
+    return [_part(capture_shard_timings, test_dir, count, **overrides) for test_dir, count in zip(_PART_DIRS, (3, 1, 2), strict=True)]
+
+
+def test_combined_parts_are_one_record_in_directory_order(capture_shard_timings: ModuleType) -> None:
+    parts = _three_parts(capture_shard_timings)
+    parts[2] = _part(capture_shard_timings, _PART_DIRS[2], 2, exit_code=1, tests_failed=1, captured_at="2026-11-15T00:30:00+00:00")
+
+    combined = capture_shard_timings.combine_parts("consolidation", _PART_DIRS, parts)
+
+    assert combined.test_dirs == _PART_DIRS
+    assert combined.node_ids == tuple(node_id for part in parts for node_id in part.node_ids)
+    assert combined.durations == tuple(duration for part in parts for duration in part.durations)
+    assert combined.run_id == _PART_RUN_ID
+    assert (combined.exit_code, combined.tests_failed) == (1, 1), "the worst part decides; a failing part is never greenwashed"
+    assert combined.captured_at == "2026-11-15T00:30:00+00:00"
+    assert [part["test_dirs"] for part in combined.parts] == [[test_dir] for test_dir in _PART_DIRS]
+    assert [part["unique_tests_measured"] for part in combined.parts] == [3, 1, 2]
+    assert capture_shard_timings.validate_capture(combined) is None
+
+
+def test_a_merged_part_record_passes_every_table_check(capture_shard_timings: ModuleType) -> None:
+    combined = capture_shard_timings.combine_parts("consolidation", _PART_DIRS, _three_parts(capture_shard_timings))
+    payload = capture_shard_timings.merge_capture({}, combined)
+    record = payload["module_capture_provenance"]["consolidation"]
+
+    assert capture_shard_timings.validate_module_tables(payload, "consolidation") is None
+    assert record["test_dirs"] == list(_PART_DIRS)
+    assert record["unique_tests_measured"] == 6
+    assert len(record["parts"]) == 3
+    assert capture_shard_timings.provenance_parts_problem(record) is None
+
+
+def test_a_whole_module_record_has_no_parts_and_no_parts_problem(capture_shard_timings: ModuleType) -> None:
+    payload = capture_shard_timings.merge_capture({}, _capture(capture_shard_timings, "unit", (1.0,)))
+    record = payload["module_capture_provenance"]["unit"]
+    assert "parts" not in record
+    assert capture_shard_timings.provenance_parts_problem(record) is None
+
+
+@pytest.mark.parametrize(
+    ("make_parts", "needle"),
+    [
+        (lambda c: _three_parts(c)[:2], "the parts cover"),
+        (lambda c: list(reversed(_three_parts(c))), "the parts cover"),
+        (lambda c: [*_three_parts(c)[:2], _part(c, _PART_DIRS[2], 2, run_id="another-run")], "different runs"),
+        (lambda c: [*_three_parts(c)[:2], _part(c, _PART_DIRS[2], 1, node_ids=(f"{_PART_DIRS[0]}/test_x.py::test_0",))], "same node id"),
+        (lambda c: [*_three_parts(c)[:2], _part(c, _PART_DIRS[2], 2, module="charter")], "cannot be merged"),
+        (lambda c: [*_three_parts(c)[:2], _part(c, _PART_DIRS[2], 2, exit_code=2)], "part tests/terminus"),
+        (lambda c: [], "no parts"),
+    ],
+)
+def test_combine_parts_refuses_an_incomplete_or_mixed_set(capture_shard_timings: ModuleType, make_parts: Any, needle: str) -> None:
+    with pytest.raises(ValueError, match=needle):
+        capture_shard_timings.combine_parts("consolidation", _PART_DIRS, make_parts(capture_shard_timings))
+
+
+def test_combine_parts_refuses_a_part_of_two_directories(capture_shard_timings: ModuleType) -> None:
+    wide = capture_shard_timings.ModuleCapture(
+        module="consolidation",
+        test_dirs=_PART_DIRS[:2],
+        node_ids=("tests/consolidation/test_x.py::test_0",),
+        durations=(1.0,),
+        run_id=_PART_RUN_ID,
+        command="pytest",
+        captured_at="2026-11-15T00:00:00+00:00",
+        exit_code=0,
+    )
+    with pytest.raises(ValueError, match="exactly one directory"):
+        capture_shard_timings.combine_parts("consolidation", _PART_DIRS[:2], [wide])
+
+
+def _part_record(capture_shard_timings: ModuleType) -> dict[str, Any]:
+    combined = capture_shard_timings.combine_parts("consolidation", _PART_DIRS, _three_parts(capture_shard_timings))
+    record: dict[str, Any] = capture_shard_timings.merge_capture({}, combined)["module_capture_provenance"]["consolidation"]
+    return record
+
+
+@pytest.mark.parametrize(
+    ("mutate", "needle"),
+    [
+        (lambda r: r["parts"][1].update(run_id="older-run"), "another run"),
+        (lambda r: r["parts"].pop(), "the parts cover"),
+        (lambda r: r["parts"][0].update(unique_tests_measured=99), "the parts measured"),
+        (lambda r: r["parts"][0].update(unique_tests_measured=True), "no usable unique_tests_measured"),
+        (lambda r: r["parts"][2].update(exit_code=2), "did not complete"),
+        (lambda r: r["parts"][2].update(exit_code=1, tests_failed=1), "not the worst part's"),
+        (lambda r: r.update(tests_failed=3), "not the parts' sum"),
+        (lambda r: (r["parts"][1].update(unique_tests_measured=0), r.update(unique_tests_measured=5)), "no usable unique_tests_measured"),
+        (lambda r: r.update(parts=[]), "non-empty list"),
+        (lambda r: r.update(parts="tests/terminus"), "non-empty list"),
+    ],
+)
+def test_a_part_record_counts_as_complete_only_when_every_part_is_there(capture_shard_timings: ModuleType, mutate: Any, needle: str) -> None:
+    record = _part_record(capture_shard_timings)
+    mutate(record)
+    problem = capture_shard_timings.provenance_parts_problem(record)
+    assert problem is not None
+    assert needle in problem
+
+
+def test_a_part_file_round_trips(capture_shard_timings: ModuleType, tmp_path: Path) -> None:
+    part = _part(capture_shard_timings, _PART_DIRS[0], 3, exit_code=1, tests_failed=1)
+    target = tmp_path / "part-0.json"
+    capture_shard_timings.write_part(part, target)
+    assert capture_shard_timings.read_part(target) == part
+
+
+def test_read_part_refuses_a_file_that_is_not_a_part(capture_shard_timings: ModuleType, tmp_path: Path) -> None:
+    target = tmp_path / "timings.json"
+    target.write_text(json.dumps({"module_test_count": {}}), encoding="utf-8")
+    with pytest.raises(ValueError, match="not a part capture"):
+        capture_shard_timings.read_part(target)
+
+
+def _part_world(capture_shard_timings: ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+    """A timings file plus a registry resolving ``consolidation`` to :data:`_PART_DIRS`."""
+    timings = tmp_path / "timings.json"
+    timings.write_text(json.dumps({"module_test_count": {"unit": 1}}), encoding="utf-8")
+    monkeypatch.setattr(capture_shard_timings, "TIMINGS_PATH", timings)
+    monkeypatch.setattr(capture_shard_timings, "_load_registry", lambda: {"modules": [{"module": "consolidation"}]})
+    monkeypatch.setattr(capture_shard_timings, "resolve_test_dirs", lambda _registry, _module: _PART_DIRS)
+    return timings
+
+
+def test_part_capture_then_merge_end_to_end_through_main(capture_shard_timings: ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """``--part`` writes only its scratch file; ``--from-parts --write`` writes the one module record."""
+    timings = _part_world(capture_shard_timings, monkeypatch, tmp_path)
+    counts = dict(zip(_PART_DIRS, (3, 1, 2), strict=True))
+    seen: list[tuple[str, ...]] = []
+
+    def _fake_capture(module: str, test_dirs: tuple[str, ...], *, run_id: str) -> Any:
+        seen.append(tuple(test_dirs))
+        return _part(capture_shard_timings, test_dirs[0], counts[test_dirs[0]], module=module, run_id=run_id)
+
+    monkeypatch.setattr(capture_shard_timings, "capture_module", _fake_capture)
+    files = []
+    for index, test_dir in enumerate(_PART_DIRS):
+        files.append(tmp_path / f"part-{index}.json")
+        argv = ["--module", "consolidation", "--run-id", _PART_RUN_ID, "--part", test_dir, "--part-output", str(files[-1])]
+        assert capture_shard_timings.main(argv) == 0
+    assert seen == [(test_dir,) for test_dir in _PART_DIRS], "each part runs exactly its own directory"
+    assert json.loads(timings.read_text(encoding="utf-8")) == {"module_test_count": {"unit": 1}}, "a part never touches the timings file"
+
+    assert capture_shard_timings.main(["--module", "consolidation", "--from-parts", *map(str, files), "--write"]) == 0
+
+    payload = json.loads(timings.read_text(encoding="utf-8"))
+    assert payload["module_test_count"] == {"unit": 1, "consolidation": 6}
+    assert capture_shard_timings.validate_module_tables(payload, "consolidation") is None
+    assert capture_shard_timings.provenance_parts_problem(payload["module_capture_provenance"]["consolidation"]) is None
+
+
+def test_a_refused_merge_leaves_the_timings_file_alone(capture_shard_timings: ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    timings = _part_world(capture_shard_timings, monkeypatch, tmp_path)
+    before = timings.read_text(encoding="utf-8")
+    files = []
+    for index, part in enumerate(_three_parts(capture_shard_timings)[:2]):  # the third directory has no part
+        files.append(tmp_path / f"part-{index}.json")
+        capture_shard_timings.write_part(part, files[-1])
+
+    assert capture_shard_timings.main(["--module", "consolidation", "--from-parts", *map(str, files), "--write"]) == 1
+    assert timings.read_text(encoding="utf-8") == before
+
+
+def test_a_part_outside_the_resolved_directories_is_refused(capture_shard_timings: ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    _part_world(capture_shard_timings, monkeypatch, tmp_path)
+    monkeypatch.setattr(capture_shard_timings, "capture_module", lambda *_a, **_k: pytest.fail("must not capture an unresolved directory"))
+    out = tmp_path / "part.json"
+    assert capture_shard_timings.main(["--module", "consolidation", "--run-id", _PART_RUN_ID, "--part", "tests/unit", "--part-output", str(out)]) == 2
+    assert not out.exists()
+
+
+def test_an_invalid_part_writes_no_part_file(capture_shard_timings: ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    _part_world(capture_shard_timings, monkeypatch, tmp_path)
+    monkeypatch.setattr(capture_shard_timings, "capture_module", lambda module, dirs, *, run_id: _part(capture_shard_timings, dirs[0], 0, run_id=run_id))
+    out = tmp_path / "part.json"
+    assert capture_shard_timings.main(["--module", "consolidation", "--run-id", _PART_RUN_ID, "--part", _PART_DIRS[0], "--part-output", str(out)]) == 1
+    assert not out.exists()
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["--module", "m", "--part", "tests/m"],
+        ["--module", "m", "--part", "tests/m", "--part-output", "p.json"],
+        ["--module", "m", "--part", "tests/m", "--part-output", "p.json", "--write"],
+        ["--module", "m", "--module", "n", "--part", "tests/m", "--part-output", "p.json"],
+        ["--module", "m", "--part-output", "p.json", "--write"],
+        ["--module", "m", "--from-parts", "a.json", "--run-id", "r", "--write"],
+        ["--module", "m", "--from-parts", "a.json"],
+        ["--module", "m", "--part", "tests/m", "--from-parts", "a.json", "--write"],
+        ["--module", "m", "--module", "n", "--from-parts", "a.json", "--write"],
+    ],
+)
+def test_part_argument_combinations_are_validated(capture_shard_timings: ModuleType, argv: list[str]) -> None:
+    with pytest.raises(SystemExit) as excinfo:
+        capture_shard_timings._parse_args(argv)
+    assert excinfo.value.code == 2
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["--module", "m", "--run-id", "r", "--part", "tests/m", "--part-output", "p.json"],
+        ["--module", "m", "--from-parts", "a.json", "b.json", "--write"],
+        ["--module", "m", "--from-parts", "a.json", "--output", "o.json"],
+    ],
+)
+def test_part_combinations_that_are_accepted(capture_shard_timings: ModuleType, argv: list[str]) -> None:
+    capture_shard_timings._parse_args(argv)
