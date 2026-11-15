@@ -8,7 +8,7 @@ P0 issues in the fork).
 
 The rule these tests pin: in every workflow that has an automated trigger
 (``schedule``, ``push``, ``workflow_run``), every job that can start on its own
-(a root job with no ``needs``, or a job whose ``if:`` uses ``always()`` and so
+(a root job with no ``needs``, or a job whose ``if:`` uses ``always()``, ``!cancelled()`` or ``failure()`` and so
 runs even when its needs were skipped) carries a canonical fork guard as the
 first top-level ``&&`` conjunct of its ``if:``. Everything else only runs after a
 guarded job, so it skips with it. ``pull_request`` and ``workflow_dispatch``
@@ -102,9 +102,14 @@ def _guard_allows(guard: str, *, repository: str, event_name: str, run_event: st
     return any(results)
 
 
+#: Status functions that let a job run although a job it needs was skipped (fork-skipped
+#: included), so such a job starts on its own and must carry the guard itself (#7114).
+_SELF_STARTING_STATUS = ("always()", "!cancelled()", "failure()")
+
+
 def _self_starting_jobs(workflow: dict[Any, Any]) -> list[tuple[str, dict[str, Any]]]:
     jobs: dict[str, dict[str, Any]] = workflow.get("jobs") or {}
-    return [(name, job) for name, job in jobs.items() if not job.get("needs") or "always()" in str(job.get("if", ""))]
+    return [(name, job) for name, job in jobs.items() if not job.get("needs") or any(status in str(job.get("if", "")) for status in _SELF_STARTING_STATUS)]
 
 
 def _guarded_jobs() -> list[tuple[str, str, dict[str, Any]]]:

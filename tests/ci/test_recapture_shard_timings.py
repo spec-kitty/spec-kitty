@@ -342,6 +342,65 @@ def test_recapture_job_only_runs_on_main() -> None:
     )
 
 
+_OUTPUT_ARTIFACT = "shard-timings-recapture-output"
+
+
+def _strict_job() -> dict[str, Any]:
+    import yaml
+
+    job: dict[str, Any] = yaml.safe_load(WORKFLOW_PATH.read_text(encoding="utf-8"))["jobs"]["strict-shard-timings-check"]
+    return job
+
+
+def _step_position(steps: list[dict[str, Any]], predicate: Any, what: str) -> int:
+    positions = [index for index, step in enumerate(steps) if predicate(step)]
+    assert len(positions) == 1, f"expected exactly one {what} step, found {len(positions)}"
+    return positions[0]
+
+
+def test_the_strict_check_runs_after_the_recapture_even_when_it_failed_or_was_skipped() -> None:
+    """#7114: the strict check is ordered after the recapture (it checks that run's output),
+    and `!cancelled()` keeps it running when the recapture failed or was skipped. The fork
+    guard stays the first conjunct (tests/ci/test_fork_guard.py)."""
+    job = _strict_job()
+    assert job.get("needs") == "recapture-shard-timings"
+    assert job.get("if") == (
+        "${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !cancelled() }}"
+    )
+
+
+def test_the_recapture_uploads_its_output_before_publish_moves_the_working_tree() -> None:
+    steps = _recapture_job()["steps"]
+    upload = _step_position(steps, lambda step: str(step.get("uses", "")).startswith("actions/upload-artifact@"), "upload")
+    publish = _step_position(steps, lambda step: "recapture_shard_timings publish" in str(step.get("run", "")), "publish")
+    battery = _step_position(steps, lambda step: step.get("id") == "battery", "battery")
+    assert battery < upload < publish, "the output is the state after the battery refresh and before publish checks out the proposal"
+    upload_step = steps[upload]
+    assert upload_step.get("if") == "${{ !cancelled() }}", "a failed capture still hands its output to the strict check"
+    assert upload_step["with"]["name"] == _OUTPUT_ARTIFACT
+    assert upload_step["with"]["path"] == TIMINGS_GIT_PATH
+    assert upload_step["with"]["include-hidden-files"] is True, "upload-artifact skips the hidden .github/ directory by default"
+    assert upload_step["with"]["if-no-files-found"] == "error"
+
+
+def test_the_strict_check_lays_the_recapture_output_over_its_checkout_before_the_gates() -> None:
+    """The output is used only when the recapture job ran; a topic-branch dispatch (recapture
+    skipped) checks the committed tables. A missing artefact fails the download step instead
+    of silently falling back."""
+    steps = _strict_job()["steps"]
+    download = _step_position(steps, lambda step: str(step.get("uses", "")).startswith("actions/download-artifact@"), "download")
+    overlay = _step_position(steps, lambda step: "recapture-output/ci-shard-timings.json" in str(step.get("run", "")), "overlay")
+    gates = _step_position(steps, lambda step: "test_module_length_agreement.py" in str(step.get("run", "")), "gate")
+    assert download < overlay < gates
+    ran = "${{ needs.recapture-shard-timings.result != 'skipped' }}"
+    assert steps[download].get("if") == ran
+    assert steps[overlay].get("if") == ran
+    assert steps[download]["with"]["name"] == _OUTPUT_ARTIFACT
+    assert steps[download]["with"]["path"] == "${{ runner.temp }}/recapture-output", "the directory the overlay copies from"
+    assert "continue-on-error" not in steps[download]
+    assert f'cp "$RUNNER_TEMP/recapture-output/ci-shard-timings.json" {TIMINGS_GIT_PATH}' in steps[overlay]["run"]
+
+
 # --------------------------------------------------------------------------- #
 # Fixtures: a temporary repository and the fake behind ``subprocess.run``.    #
 # --------------------------------------------------------------------------- #
@@ -603,6 +662,18 @@ def _capture(world: World, *args: str) -> tuple[int, dict[str, str], dict[str, A
 # The valid-capture predicate -- the single authority (research D-11).        #
 # --------------------------------------------------------------------------- #
 
+#: A part-wise record (#7656): valid only while its parts cover test_dirs from its own run.
+_PARTS_RECORD: dict[str, Any] = {
+    "run_id": "r1",
+    "exit_code": 0,
+    "unique_tests_measured": 5,
+    "test_dirs": ["tests/a", "tests/b"],
+    "parts": [
+        {"test_dirs": ["tests/a"], "run_id": "r1", "unique_tests_measured": 3, "exit_code": 0},
+        {"test_dirs": ["tests/b"], "run_id": "r1", "unique_tests_measured": 2, "exit_code": 0},
+    ],
+}
+
 
 @pytest.mark.parametrize(
     ("provenance", "expected"),
@@ -679,18 +750,6 @@ def test_identity_drift_at_an_unchanged_count_is_detected() -> None:
     reason = recapture.drift_reasons(["unit"], timings, {"unit": collected})["unit"]
     assert "1 collected node id(s) not in the committed timings" in reason
     assert "1 committed node id(s) no longer collected" in reason
-
-#: A part-wise record (#7656): valid only while its parts cover test_dirs from its own run.
-_PARTS_RECORD: dict[str, Any] = {
-    "run_id": "r1",
-    "exit_code": 0,
-    "unique_tests_measured": 5,
-    "test_dirs": ["tests/a", "tests/b"],
-    "parts": [
-        {"test_dirs": ["tests/a"], "run_id": "r1", "unique_tests_measured": 3, "exit_code": 0},
-        {"test_dirs": ["tests/b"], "run_id": "r1", "unique_tests_measured": 2, "exit_code": 0},
-    ],
-}
 
 
 def test_paired_control_identical_node_ids_are_not_drift() -> None:

@@ -60,13 +60,22 @@
 #     pinning-inventory drift since the 2026-10-18 operator ruling) would be a
 #     silent removal of the gate, not a relocation.
 #
-# These two jobs are DELIBERATELY INDEPENDENT -- no `needs:` edge between
-# them, mirroring `ci-nightly.yml`'s own independent `performance`/`e2e`/
-# `stress`/`interpreter-matrix` jobs (none of which `needs:` each other). If a
-# module drifts, `strict-shard-timings-check` goes red (the visible alarm)
-# AND, independently in the same run, `recapture-shard-timings`
-# detects the same drift and opens/refreshes its fix PR (the fix); the next
-# scheduled run after that PR merges goes green again. Triage a red
+# ORDER (#7114): `strict-shard-timings-check` runs AFTER `recapture-shard-timings`
+# (`needs:` plus `!cancelled()`, so it still runs when the recapture failed or was
+# skipped) and checks THAT RUN'S recapture output, not the committed tables. The
+# recapture job uploads the timings file it leaves behind (the committed data, the
+# open proposal's refreshed modules, this run's captures and battery refresh) as the
+# `shard-timings-recapture-output` artefact, and the strict job lays it over its
+# checkout before the gates run. Main gains tests faster than one run used to
+# capture, so checking the pre-recapture tables kept the alarm red every morning on
+# drift the same run was already fixing. Now only drift the run could not close turns
+# it red: a module whose capture failed or was deferred, a battery table the refresh
+# could not produce or that breaks the roster rules, or a pinning inventory that
+# drifted. A green run reads as "main is green once the recapture proposal merges".
+# When the recapture job is skipped (a topic-branch dispatch, see F4 below) the strict
+# job checks the committed tables, as it always did. When the recapture ran but left
+# no artefact, the download step fails and the strict job goes red rather than
+# silently checking the committed tables. Triage a red
 # `strict-shard-timings-check` run BY TEST NAME FIRST: its unfiltered
 # `pytest ... -q` invocation collects every test in the agreement file, so a
 # red run names the module that drifted (`test_every_registry_module_agrees_with_live_collection`).
@@ -232,6 +241,22 @@ jobs:
           RECAPTURE_RESULT: ${{ steps.capture.outputs.result }}
         run: |
           uv run --frozen python -m scripts.ci.recapture_battery_timings --junit-root "$RUNNER_TEMP/nightly-battery-junit"
+      # #7114: hand this run's output to the strict check (the next job). Uploaded before
+      # `publish`, which moves the working tree to the proposal branch. Runs whenever the
+      # job got this far, so a failed capture still shows the strict check what this run
+      # left behind. `.github/` is a hidden directory, which upload-artifact skips by default.
+      # `overwrite` lets a re-run of this job replace an earlier attempt's output, so the
+      # strict job never grades the previous attempt's file.
+      - name: Upload the recapture output for the strict check
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: shard-timings-recapture-output
+          path: .github/ci-shard-timings.json
+          include-hidden-files: true
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
       # Runs when something was captured, even if another module failed (the
       # failure keeps the job red). Re-checks for an open recapture PR
       # immediately before publishing: none open -> push the branch (force is
@@ -250,12 +275,14 @@ jobs:
         run: |
           uv run --frozen python -m scripts.ci.recapture_shard_timings publish
 
-  # Independent of the job above (no `needs:` in either direction -- see the
-  # header comment). Needs no PAT and no secret: it only reads the repo and
-  # runs pytest, so actions/checkout's default credential (this workflow's
-  # own permissions: {contents: read}) is sufficient.
+  # Runs after the job above and checks its output (#7114, see the header comment).
+  # `!cancelled()` keeps it running when the recapture failed or was skipped; the
+  # fork guard stays the first conjunct. Needs no PAT and no secret: it only reads the
+  # repo, downloads this run's artefact and runs pytest, so actions/checkout's default
+  # credential (this workflow's own permissions: {contents: read}) is sufficient.
   strict-shard-timings-check:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    needs: recapture-shard-timings
+    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !cancelled() }}
     runs-on: ubuntu-24.04
     # A local strict run of this exact command (`SPEC_KITTY_STRICT_SHARD_
     # TIMINGS=1 SPEC_KITTY_STRICT_PINNING_INVENTORY=1 pytest
@@ -279,6 +306,26 @@ jobs:
         run: uv sync --frozen --all-extras
       - name: Sync packs
         uses: ./.github/actions/sync-packs
+      # Only when the recapture job ran (on main); a topic-branch dispatch skips it and
+      # the gates check the committed tables. A missing artefact fails this step: the
+      # strict check never falls back to the committed tables silently.
+      - name: Download this run's recapture output
+        if: ${{ needs.recapture-shard-timings.result != 'skipped' }}
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: shard-timings-recapture-output
+          path: ${{ runner.temp }}/recapture-output
+      - name: Check against this run's recapture output
+        if: ${{ needs.recapture-shard-timings.result != 'skipped' }}
+        env:
+          RECAPTURE_JOB_RESULT: ${{ needs.recapture-shard-timings.result }}
+        run: |
+          cp "$RUNNER_TEMP/recapture-output/ci-shard-timings.json" .github/ci-shard-timings.json
+          changed="$(git diff --stat -- .github/ci-shard-timings.json | tail -n 1)"
+          {
+            echo "Strict check runs against this run's recapture output (recapture job: $RECAPTURE_JOB_RESULT)."
+            echo "Changed against the committed tables: ${changed:-no change}"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Run length-agreement + battery-timings + pinning-inventory freshness gates under strict mode
         env:
           SPEC_KITTY_STRICT_SHARD_TIMINGS: "1"
