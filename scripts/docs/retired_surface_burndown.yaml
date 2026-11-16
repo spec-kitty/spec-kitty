@@ -52,15 +52,6 @@ entries:
   - page: architecture/vision/README.md
     issue: "#7524"
     surfaces: {"Zeitgeist": 1, "saas_client": 1}
-  - page: context/identity.md
-    issue: "#7522"
-    surfaces: {"saas_client": 1, "src/specify_cli/egress.py": 1, "src/specify_cli/tracker/saas_client.py": 1}
-  - page: context/orchestration.md
-    issue: "#7522"
-    surfaces: {"spec-kitty merge": 1, "src/specify_cli/auth": 1, "src/specify_cli/delivery": 1, "src/specify_cli/sync": 2}
-  - page: context/team-kitty.md
-    issue: "#7522"
-    surfaces: {"Zeitgeist": 2, "saas_client": 1, "spec-kitty sync": 1, "src/specify_cli/sync": 1}
   - page: development/how-to/manage-issue-tracker.md
     issue: "#7525"
     surfaces: {"Zeitgeist": 1, "saas_client": 1}

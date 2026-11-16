@@ -3,10 +3,12 @@ title: 'Context: Team Kitty and Zeitgeist'
 description: "Glossary context for Team Kitty and Zeitgeist: the hosted surfaces were removed from open-core in #6164, what that leaves, and why 'sync' is a dead word."
 doc_status: active
 kind: Explanation
-updated: '2026-10-14T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
 audience:
 - profile: internal/ai-collaboration-agent
-  guidance_text: Written for the AI Collaboration Agent reader.
+  guidance_text: Read this before any work that mentions Team Kitty, Zeitgeist or sync, so you translate the old vocabulary instead of building on it.
+- profile: internal/system-architect
+  guidance_text: Use this to see which hosted surfaces left open-core in #6164 and what open-core keeps.
 related:
 - context/system-events
 - context/orchestration
@@ -32,8 +34,8 @@ minted a capability, and published each status **moment** to the team's relay wh
 opt-in called **drain** was on. All of that client code left this repository:
 
 - the `auth`, `issue-search`, `live-work`, `moments`, `routes` and `zeitgeist` CLI entries;
-- the `zeitgeist_client/` and `saas_client/` packages and the auth package;
-- the drain posture (`core/hosted_posture.py`) and `status/zeitgeist_bridge.py`.
+- the hosted client packages: the Zeitgeist client, the SaaS client and the auth package;
+- the drain posture module and the status bridge that published moments to the Zeitgeist relay.
 
 Nothing hosted ships configured or gates a release. The SaaS and relay repositories are
 separate and are not covered here.
@@ -57,12 +59,14 @@ separate and are not covered here.
 ## "Sync" is dead
 
 The transport called "sync" (a local daemon, an offline queue, a per-project consent
-store, `spec-kitty sync opt-in`, `api/v1/sync/*`) was deleted in August 2026, and the
-`specify_cli.sync` package with it. `tests/architectural/test_no_retired_subsystems.py`
-refuses its return. The word survives only as residue in identifiers, stale docs and
+store, the `sync` command group, `api/v1/sync/*`) was deleted in August 2026, and its
+Python package with it. `tests/architectural/test_no_retired_subsystems.py` refuses its
+return. The word survives only as residue in identifiers, stale docs and
 comments. When you read "sync" here, translate it: it is leftover naming, never design
-against or "re-enable" it. `spec-kitty charter sync` is unrelated: it syncs charter
-artifacts.
+against or "re-enable" it. The former `charter sync` subcommand was unrelated to the
+transport; it had become a no-op and was removed in #5828. The
+`charter.activation.sync` module, which keeps the charter bundle fresh, is also
+unrelated and stays.
 
 ## Canonical vocabulary
 

@@ -4,6 +4,11 @@ description: 'Topology glossary: the four topologies, size default, topic branch
 doc_status: active
 kind: Explanation
 updated: '2026-11-13T00:00:00Z'
+audience:
+- profile: internal/ai-collaboration-agent
+  guidance_text: Use these terms to tell which checkout and branch a work package writes to, and to read the topology refusal codes correctly.
+- profile: internal/lead-developer
+  guidance_text: Use this when you create, finalize or consolidate a Mission and need to know what its topology implies.
 related:
 - context/orchestration
 - context/execution
@@ -21,7 +26,7 @@ Terms describing the shape a mission is given at creation and where its work run
 | **Context** | Topology |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Do NOT use when** | The concept is the artifact-kind routing rule — use [PRIMARY partition](./orchestration.md#primary-partition) or [COORD partition](./orchestration.md#coord-partition). The concept is the physical tree an artifact resolves to — use [Topology Surface](./orchestration.md#topology-surface). Never write "mode" or "layout" for a topology. |
+| **Do NOT use when** | The concept is the artifact-kind placement rule (placement routing) — use [PRIMARY partition](./orchestration.md#primary-partition) or [COORD partition](./orchestration.md#coord-partition). The concept is the physical tree an artifact resolves to — use [Topology Surface](./orchestration.md#topology-surface). Never write "mode" or "layout" for a topology. |
 | **Related terms** | [write checkout](#write-checkout), [code lane](#code-lane), [Topology Surface](./orchestration.md#topology-surface), [Lane](./orchestration.md#lane) |
 
 ---
@@ -43,7 +48,7 @@ Terms describing the shape a mission is given at creation and where its work run
 
 | | |
 |---|---|
-| **Definition** | The one branch a default Mission's create mints, `kitty/mission-<slug>-<mid8>`, recorded as `mission_branch` in `meta.json` and checked out in the write checkout. Before the landing it holds the Mission's [PRIMARY partition](./orchestration.md#primary-partition) artifacts (spec, plan, work package outlines): the placement seam resolves PRIMARY to `meta.mission_branch` until `consolidate` records the landing, and to `target_branch` after it. A Mission that stays `single_branch` lands it like any [mission branch](#mission-branch). A Mission settled to `lanes_with_coord` uses it as its coordination branch, which therefore shares the Mission branch's name, and cuts its code lanes from it. Its consolidation refuses the coordination teardown (exit 1, branch, coordination worktree and marker kept) while the topic branch still holds PRIMARY changes the target does not carry; the message names the paths and says to review them with `git diff <target> <branch>`, land them on the target, then run `spec-kitty consolidate --resume`. |
+| **Definition** | The one branch a default Mission's create mints, `kitty/mission-<slug>-<mid8>`, recorded as `mission_branch` in `meta.json` and checked out in the write checkout. Before the landing it holds the Mission's [PRIMARY partition](./orchestration.md#primary-partition) artifacts (spec, plan, work package outlines): the placement seam resolves the PRIMARY partition to `meta.mission_branch` until `consolidate` records the landing, and to `target_branch` after it. A Mission that stays `single_branch` lands it like any [mission branch](#mission-branch). A Mission settled to `lanes_with_coord` uses it as its coordination branch, which therefore shares the Mission branch's name, and cuts its code lanes from it. Its consolidation refuses the coordination teardown (exit 1, branch, coordination worktree and marker kept) while the topic branch still holds PRIMARY-partition changes the target does not carry; the message names the paths and says to review them with `git diff <target> <branch>`, land them on the target, then run `spec-kitty consolidate --resume`. |
 | **Context** | Topology |
 | **Status** | canonical |
 | **Applicable to** | `4.x` |
@@ -160,7 +165,7 @@ Terms describing the shape a mission is given at creation and where its work run
 
 | | |
 |---|---|
-| **Definition** | A work package whose status history has ever recorded a move into a working lane: `claimed`, `in_progress`, `for_review`, `in_review`, `approved` or `done`, including forced moves and `blocked → in_progress` moves that skip `claimed` (`started_wp_ids`, `src/specify_cli/lanes/frozen_membership.py`). Being reset to `planned`, or canceled, afterwards does not make it unstarted. A move from `planned` straight to `blocked` or `canceled` does not start it. On a re-finalize, a prior [code lane](#code-lane) with no such work package but a recorded [lane work tip](#lane-work-tip) counts as wholly started. A started work package keeps its recorded execution lane when `finalize-tasks` is re-run; see [Execution Lanes](../architecture/execution-lanes.md#re-finalizing-an-active-mission) and ADR [4.x `2026-10-04-2`](../adr/4.x/2026-10-04-2-started-work-package-lane-membership-is-frozen.md). |
+| **Definition** | A work package whose status history has ever recorded a move into a working status lane: `claimed`, `in_progress`, `for_review`, `in_review`, `approved` or `done`, including forced moves and `blocked → in_progress` moves that skip `claimed` (`started_wp_ids`, `src/specify_cli/lanes/frozen_membership.py`). Being reset to `planned`, or canceled, afterwards does not make it unstarted. A move from `planned` straight to `blocked` or `canceled` does not start it. On a re-finalize, a prior [code lane](#code-lane) with no such work package but a recorded [lane work tip](#lane-work-tip) counts as wholly started. A started work package keeps its recorded execution lane when `finalize-tasks` is re-run; see [Execution Lanes](../architecture/execution-lanes.md#re-finalizing-an-active-mission) and ADR [4.x `2026-10-04-2`](../adr/4.x/2026-10-04-2-started-work-package-lane-membership-is-frozen.md). |
 | **Context** | Topology |
 | **Status** | canonical |
 | **Applicable to** | `4.x` |
@@ -173,7 +178,7 @@ Terms describing the shape a mission is given at creation and where its work run
 
 | | |
 |---|---|
-| **Definition** | The error code (`LaneMembershipFrozenError`, `src/specify_cli/lanes/compute.py`) with which `spec-kitty agent mission finalize-tasks` refuses a re-finalize that cannot keep every [started work package](#started-work-package) on its recorded execution lane. Its `reason` is one of `started_lanes_collapsed` (started work packages from two lanes would share one), `started_wp_removed` (a started work package's task file was removed without canceling it), `started_wp_kind_changed` (its `execution_mode` would move it across `lane-planning`) or `status_unreadable` (a `lanes.json` exists but the status surface or log cannot be read). It is raised by a read-only preflight before the first status write, `--validate-only` included, and exits 1 with no status event, `lanes.json` or commit written; edits finalize made to work package files earlier in the run are restored. The JSON envelope and the non-destructive remedy for each reason are in [finalize-tasks internals §5](../api/finalize-tasks-internals.md#5-started-work-packages-keep-their-lane-lane_membership_frozen). |
+| **Definition** | The error code (`LaneMembershipFrozenError`, `src/specify_cli/lanes/compute.py`) with which `spec-kitty agent mission finalize-tasks` refuses a re-finalize that cannot keep every [started work package](#started-work-package) on its recorded execution lane. Its `reason` is one of `started_lanes_collapsed` (started work packages from two execution lanes would share one), `started_wp_removed` (a started work package's task file was removed without canceling it), `started_wp_kind_changed` (its `execution_mode` would move it across `lane-planning`) or `status_unreadable` (a `lanes.json` exists but the status surface or log cannot be read). It is raised by a read-only preflight before the first status write, `--validate-only` included, and exits 1 with no status event, `lanes.json` or commit written; edits finalize made to work package files earlier in the run are restored. The JSON envelope and the non-destructive remedy for each reason are in [finalize-tasks internals §5](../api/finalize-tasks-internals.md#5-started-work-packages-keep-their-lane-lane_membership_frozen). |
 | **Context** | Topology |
 | **Status** | canonical |
 | **Applicable to** | `4.x` |

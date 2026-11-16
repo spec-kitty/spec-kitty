@@ -3,7 +3,12 @@ title: 'Context: Identity'
 description: 'Glossary context for identity: who performs work and who owns semantic decisions, defining the agent and related workflow-coordination roles.'
 doc_status: active
 kind: Explanation
-updated: '2026-09-30T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
+audience:
+- profile: internal/lead-developer
+  guidance_text: Use these terms when code or docs say who performed work, who decides, and why a Mission identifier is confidential.
+- profile: internal/ai-collaboration-agent
+  guidance_text: Check the authored-intent versus resolved-binding split here before reporting who ran a work package.
 related:
 - context/execution
 - context/practices-principles
@@ -89,7 +94,7 @@ See the [Agent Profiles reference](../api/agent_profiles/README.md) for the full
 
 | | |
 |---|---|
-| **Definition** | Architecture-level stakeholder persona used to model needs, constraints, and success criteria for Spec Kitty usage and adoption. |
+| **Definition** | Architecture-level stakeholder persona used to model needs, constraints, and success criteria for Spec Kitty usage and adoption. A doc page also names one as its reader in its `audience:` frontmatter. |
 | **Context** | Identity |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
@@ -115,7 +120,7 @@ See the [Agent Profiles reference](../api/agent_profiles/README.md) for the full
 
 | | |
 |---|---|
-| **Definition** | Persona representing evaluators and decision-makers outside the runtime boundary who assess Spec Kitty value, fit, and adoption risk. |
+| **Definition** | Persona representing evaluators and decision-makers outside the delivery boundary who assess Spec Kitty value, fit, and adoption risk. |
 | **Context** | Identity |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
@@ -167,7 +172,7 @@ See the [Agent Profiles reference](../api/agent_profiles/README.md) for the full
 | **Context** | Identity |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Examples** | The operator-facing hosted-sync refusal names the term verbatim: *"the project at `<root>` has not consented to hosted sync, so its **mission and engagement identifiers** must not be transmitted"* (`TRACKER_EGRESS_IDENTIFIER_KINDS`, `specify_cli/tracker/saas_client.py`, rendered through `specify_cli/egress.py`). Four of the five widen-mode SaaS endpoints carry `mission_id` — documented as "ULID **or** slug" — in the *request path*, so an engagement name can reach the wire in a URL as readily as in a body. |
+| **Examples** | The local tracker providers (`beads`, `fp`) declare that what they send carries **mission and engagement identifiers** (`LOCAL_SUBPROCESS_EGRESS_IDENTIFIER_KINDS` in `src/specify_cli/tracker/local_service.py`): an issue title passed to the tracker executable can carry an engagement name. So the project's committed `tracker.egress` key in `.kittify/config.yaml` must grant egress before they run, and an absent key refuses (`src/specify_cli/tracker/egress_verdict.py`). The hosted tracker path that named the term the same way was removed with the hosted surfaces in #6164. |
 | **Use when** | Explaining *why* a mission identifier is confidential, or naming the party that a slug, branch name, worktree name or issue title discloses. |
-| **Do NOT use when** | Referring to the unit of work itself — that is a [Mission](./orchestration.md#mission). Or to the SaaS collaboration binding a repository may have — that is [`project_uuid`](./identity-fields.md#project_uuid), a SaaS-assigned identity that names no client. |
+| **Do NOT use when** | Referring to the unit of work itself — that is a [Mission](./orchestration.md#mission). Or to the project's own identity — that is [`project_uuid`](./identity-fields.md#project_uuid), a UUID4 that `spec-kitty init` mints locally and writes to `.kittify/config.yaml` under `project.uuid` (`src/specify_cli/identity/project.py`); it names no client. |
 | **Related terms** | [Mission](./orchestration.md#mission), [Mission Owner](#mission-owner), [Mission Participant](#mission-participant), [`project_uuid`](./identity-fields.md#project_uuid), [`repository_label`](./identity-fields.md#repository_label) |
