@@ -1358,3 +1358,60 @@ def refuse_protected_target_override(
             "topic branch instead."
         ),
     )
+
+
+#: #5783: a ``--target`` retarget whose RECORDED target's bookkeeping cannot be committed in this run.
+TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE = "TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE"
+
+
+def refuse_unwritable_recorded_target(
+    main_repo: Path,
+    mission_slug: str,
+    *,
+    recorded_target: str,
+    effective_target: str,
+) -> Refused | None:
+    """The refusal for a ``--target`` retarget whose recorded target cannot be written, else ``None``.
+
+    #5783 (operator ruling 2026-11-16): the branch-integration step lands on the EFFECTIVE
+    target, but part of the run's bookkeeping -- the per-WP ``done`` transitions on a
+    coordination-less Mission, the coordination flatten, the landed ``mission_branch`` clear --
+    resolves its destination from ``meta.json`` and commits to the RECORDED target, in the
+    repository root checkout. The write target stays
+    the recorded target (adopting ``--target`` as the new record is out of scope), so when
+    those commits have no checkout to run in, the run is refused before its first mutation
+    instead of landing and then failing (lanes: rollback, exit 1) or landing and leaving the
+    bookkeeping uncommitted (coord: the flatten fails open, exit 0).
+
+    ``None`` when the two targets agree (restating the recorded target is not a retarget) or
+    when the recorded target's PRIMARY write checkout holds it. The decision is the bookkeeping
+    write's own (:func:`~specify_cli.coordination.transaction.write_checkout_refusal`: the
+    placement seam's checkout and :meth:`~specify_cli.coordination.transaction.BookkeepingTransaction.acquire`'s
+    hold check), never a blanket rule. In the usual shape the repository root checkout must sit
+    on the effective target (``MERGE_UNSAFE_PRIMARY_OFF_TARGET``), so it cannot hold the recorded
+    one. Read-only and lock-free: no ref, file or merge record is touched.
+    """
+    if effective_target == recorded_target:
+        return None
+
+    from specify_cli.coordination.transaction import write_checkout_refusal
+    from specify_cli.coordination.types import Refused
+
+    hold = write_checkout_refusal(main_repo, mission_slug, recorded_target, operation=f"consolidation bookkeeping for {mission_slug}")
+    if hold is None:
+        return None
+    return Refused(
+        error_code=TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE,
+        message=(
+            f"Refusing to land the mission branch on '{effective_target}': '--target {effective_target}' "
+            f"overrides the mission's recorded target '{recorded_target}', but this run still commits part of "
+            f"its bookkeeping (the work packages' done transitions, the coordination flatten) to the recorded "
+            f"target '{recorded_target}', and that cannot be committed here. {hold.message}"
+        ),
+        destination_ref=recorded_target,
+        next_step=(
+            f"Drop '--target {effective_target}' and consolidate into the recorded target from a checkout "
+            f"of it (`git checkout {recorded_target}`); or, if the record is wrong, correct 'target_branch' "
+            f"in the mission's meta.json to '{effective_target}', commit it, and re-run without '--target'."
+        ),
+    )

@@ -213,7 +213,14 @@ from kernel.clock import now_utc_iso
 # present only when the advancing run materialized or restored the Mission's coordination worktree
 # (Mission runtime-status-read-door, FR-003). Absent otherwise, so every other payload stays
 # byte-identical. Purely additive.
-CONTRACT_VERSION = "1.27.0"
+# 1.28.0: ``consolidate-mission`` can newly refuse a ``--target`` retarget before it consolidates
+# any lane when the Mission's recorded target cannot be written in this run (#5783): its ``done``
+# and flatten bookkeeping still go to the recorded target, from a checkout on the ``--target``
+# branch. The envelope ``error_code`` stays ``PREFLIGHT_FAILED``; ``data.preflight_error_code`` /
+# ``preflight_error_codes`` carry ``TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE``. A call that
+# could answer ``success: true`` with the bookkeeping uncommitted now refuses, so a minor bump;
+# no field or ``error_code`` is removed or renamed.
+CONTRACT_VERSION = "1.28.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose

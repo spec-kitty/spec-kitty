@@ -31,7 +31,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.27.0`
+- `CONTRACT_VERSION`: `1.28.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -262,6 +262,14 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   `remediation` object, `{"kind": "materialized_coordination_worktree", "path": "<worktree>"}`.
   It is present only when the advancing run materialized or restored the Mission's coordination
   worktree, and absent otherwise, so every other payload is unchanged. Purely additive.
+- `1.28.0` — `consolidate-mission --target <branch>` can newly refuse before it consolidates any
+  lane when the Mission's recorded target cannot be written in this run (#5783): its `done` and
+  coordination-flatten bookkeeping still go to the recorded target, which the checkout on the
+  `--target` branch cannot commit to. The envelope `error_code` stays `PREFLIGHT_FAILED`;
+  `data.preflight_error_code` / `data.preflight_error_codes` carry
+  `TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE`. A call that could answer `success: true` with the
+  bookkeeping uncommitted now refuses, so a minor bump; no field or `error_code` is removed or
+  renamed.
 
 ## Response Envelope
 
@@ -269,7 +277,7 @@ Every command returns exactly one JSON object with these 7 top-level keys:
 
 ```json
 {
-  "contract_version": "1.27.0",
+  "contract_version": "1.28.0",
   "command": "orchestrator-api.mission-state",
   "timestamp": "2026-04-08T12:00:00+00:00",
   "correlation_id": "corr-0123456789abcdef",
@@ -1176,6 +1184,7 @@ envelope code, puts the message in `data.errors`, and carries a stable code in
 | `OWNERSHIP_UNRESOLVED` | (1.23.0) The work package's `owned_files` cannot be read: its task file, or the whole `tasks/` directory, is missing or unreadable, so there is no declaration to judge the evidence against. An authored empty list is not this case. | Restore or commit the task file with its `owned_files`, or run from the checkout that owns the Mission, re-run. No attestation lifts it. |
 | `SINGLE_BRANCH_OWNERSHIP_UNRESOLVED` | (1.23.0, #7149) The `single_branch` alias of `OWNERSHIP_UNRESOLVED`. | As for `OWNERSHIP_UNRESOLVED`. |
 | `SINGLE_BRANCH_IMPLEMENTATION_MISSING`, `SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT`, `SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE` | (#5939) The same three meanings on a `single_branch` Mission, which keeps emitting these aliases. | As for the neutral code. |
+| `TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE` | (1.28.0, #5783) `--target` names a branch other than the Mission's recorded target, and the recorded target's bookkeeping (the `done` transitions on a Mission without a coordination branch, the coordination flatten) cannot be committed in this run: the checkout it commits in is on the `--target` branch. | Drop `--target` and consolidate into the recorded target from a checkout of it, or correct `target_branch` in the Mission's `meta.json`, commit it, and re-run without `--target`. |
 | `SINGLE_BRANCH_EVIDENCE_UNREADABLE` | (#5939) The `single_branch` alias of `IMPLEMENTATION_UNREADABLE`, as `consolidate-mission`, `accept-mission`, `accept` and `consolidate` emit it. (`move-task` emits the other alias, `SINGLE_BRANCH_IMPLEMENTATION_UNREADABLE`, for the same meaning.) | As for `IMPLEMENTATION_UNREADABLE`. |
 
 `data.preflight_error_code` is the first code the message names. `data.preflight_error_codes`

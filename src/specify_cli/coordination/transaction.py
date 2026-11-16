@@ -298,6 +298,23 @@ def _write_checkout_refusal(repo_root: Path, checkout: Path, destination_ref: st
     )
 
 
+def write_checkout_refusal(repo_root: Path, mission_slug: str, destination_ref: str, *, operation: str) -> Refused | None:
+    """``STATUS_WRITE_CHECKOUT_NOT_ON_WRITE_BRANCH`` when a PRIMARY-target commit to *destination_ref* has no checkout to run in, else ``None``.
+
+    A lock-free, read-only probe (#5783). The checkout is :func:`_primary_partition_holder`'s:
+    the placement seam's PRIMARY checkout when the seam names *destination_ref*, else the
+    repository root checkout. On a coordination-less topology every kind is PRIMARY, so it is
+    the checkout the ``done`` write commits in (:meth:`BookkeepingTransaction.acquire`); on any
+    topology it is where the merge bookkeeping's PRIMARY commits (flatten, retrospective) run.
+    The hold check is :meth:`BookkeepingTransaction.acquire`'s own (:func:`_write_checkout_refusal`).
+    A PRIMARY kind keeps the probe free of side effects: ``write_dir`` never materializes a
+    coordination worktree for it. It reads which branch that checkout holds NOW; a caller that
+    later switches the checkout must not rely on it.
+    """
+    checkout = _primary_partition_holder(repo_root, mission_slug, destination_ref)
+    return _write_checkout_refusal(repo_root, checkout, destination_ref, operation)
+
+
 def _primary_partition_holder(repo_root: Path, mission_slug: str, destination_ref: str, *, owned: OwnedCheckout | None = None) -> Path:
     """Where a PRIMARY-target commit runs: the seam's PRIMARY checkout, else *repo_root* (FR-061, #7372, #7633).
 
@@ -456,6 +473,7 @@ __all__ = [
     "BookkeepingWorktreeMissing",
     "build_status_event",
     "seam_commit_checkout",
+    "write_checkout_refusal",
 ]
 
 
