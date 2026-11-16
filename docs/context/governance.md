@@ -3,7 +3,12 @@ title: 'Context: Governance'
 description: 'Glossary context for governance: rule ownership, precedence, and policy controls in Spec Kitty, including the charter and doctrine-selection terms.'
 doc_status: active
 kind: Explanation
-updated: '2026-10-31T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
+audience:
+- profile: internal/maintainer
+  guidance_text: Use these terms for who owns a rule, what takes precedence and what an activation command changes.
+- profile: internal/lead-developer
+  guidance_text: Use this when code or docs reason about precedence, activation or the effective set.
 related:
 - context/configuration-project-structure
 - context/charter
@@ -33,7 +38,7 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 | **Context** | Governance |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Location** | `docs/adr/1.x/` and `docs/adr/2.x/` |
+| **Location** | `docs/adr/<era>/`, filed by the era of the decision (`1.x` to `4.x`); new ADRs land in `docs/adr/4.x/` |
 
 ---
 
@@ -53,11 +58,11 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 
 | | |
 |---|---|
-| **Definition** | Rule that limits clarification interruption by prioritizing highest-impact conflicts first and capping prompt count per burst. |
+| **Definition** | Intended rule for limiting clarification interruption by prioritizing the highest-impact conflicts and capping the prompts per burst. No cap or prioritization is implemented today: the clarification step prompts for every unresolved conflict in turn (`src/glossary/clarification.py`). |
 | **Context** | Governance |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Cap** | 3 prompts per burst |
+| **Cap** | None implemented (an earlier design named 3 prompts per burst) |
 
 ---
 
@@ -150,7 +155,7 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 | | |
 |---|---|
 | **Definition** | The artifacts of one kind that are actually in force: the kind's allow state minus its [Effective deny](./charter.md#effective-deny). The allow state is the `activated_<kind>` list when present, nothing for `[]`, and, when the key is absent, every available artifact (for `skill`, the org-required ones plus the built-in defaults, empty today). The effective deny is the kind's [Exclusions](./charter.md#exclusion), matched by stem, declared id or DRG URN, minus the [Required floor](./charter.md#required-floor), so a deny never removes an org-required artifact. The governance selection overlay follows the same rule: `selected_<kind>` plus the required floor, minus the effective deny. Both are computed once, in `charter.activation`, from the [Activation ledger](./charter.md#activation-ledger) ([ADR 2026-10-19-1](../adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md) Decision 2). |
-| **Deny-writer rule** | Only four explicit choices change an exclusion list: `charter deactivate <kind> <id>` adds the id; `charter activate <kind> <id>` (also with `--only`) removes it; `charter activate ... --cascade ... --include-deactivated` removes the ids the walk reaches; `charter activate --preset <name> --force` removes the ids the preset lists. Presets without `--force`, the interview, org-required promotion, synthesis, mission-type seeding and every migration leave exclusions alone; a denied id they list stays out and is named in a warning. The activation-ledger write refuses (`DenyListWriteRefused`) any change to an exclusion list made without one of these choices. |
+| **Deny-writer rule** | Four explicit operator commands change an exclusion list: `charter deactivate <kind> <id>` adds the id; `charter activate <kind> <id>` (also with `--only`) removes it; `charter activate ... --cascade ... --include-deactivated` removes the ids the walk reaches; `charter activate --preset <name> --force` removes the ids the preset lists. A fifth recorded choice, the project-intent rename (#6565), only moves one entry from the legacy `mission-type-scope-directive` stem to `project-intent-directive` and never adds or removes a denial (`DenyListChoice`, `src/charter/activation/activation_ledger.py`). Presets without `--force`, the interview, org-required promotion, synthesis, mission-type seeding and every migration apart from that rename leave exclusions alone; a denied id they list stays out and is named in a warning. The activation-ledger write refuses (`DenyListWriteRefused`) any change to an exclusion list made without one of these choices. |
 | **Context** | Governance |
 | **Status** | canonical |
 | **Applicable to** | `4.x` |

@@ -3,7 +3,12 @@ title: 'Context: Dossier'
 description: 'Glossary context for the dossier: the local artifact inventory, integrity validation, and drift-detection system covering mission-lifecycle artifacts.'
 doc_status: active
 kind: Explanation
-updated: '2026-03-10T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
+audience:
+- profile: internal/lead-developer
+  guidance_text: Read this to know what the dossier indexes, how its hashes are built, and which drift check runs today.
+- profile: internal/ai-collaboration-agent
+  guidance_text: Read this before reporting dossier drift or a missing artifact, so you use the reason codes the code records.
 related:
 - context/technology-foundations
 ---
@@ -15,7 +20,7 @@ Terms describing the local artifact inventory, integrity validation, and drift d
 
 | | |
 |---|---|
-| **Definition** | Any file produced or consumed during the mission lifecycle (e.g., `spec.md`, `plan.md`, `tasks.md`, prompt files). Artifacts are identified by content hash and classified by role. |
+| **Definition** | Any file produced or consumed during the mission lifecycle (e.g., `spec.md`, `plan.md`, `tasks.md`, prompt files). Artifacts are identified by an artifact key, fingerprinted by content hash, and classified by role. |
 | **Context** | Dossier |
 | **Status** | candidate |
 | **Applicable to** | `1.x`, `2.x` |
@@ -27,7 +32,7 @@ Terms describing the local artifact inventory, integrity validation, and drift d
 
 | | |
 |---|---|
-| **Definition** | Local artifact inventory and integrity validation system. It answers three questions: (1) "What artifacts exist for this mission?" — scans a feature directory, catalogs every file as an ArtifactRef with a content hash. (2) "Are all required artifacts present?" — checks against a manifest of expected artifacts per mission type/step. (3) "Have artifacts changed since I last looked?" — compares a deterministic parity hash against a cached baseline. |
+| **Definition** | Local artifact inventory and integrity validation system. It answers three questions: (1) "What artifacts exist for this mission?" — scans a Mission directory, catalogs every file as an ArtifactRef with a content hash. (2) "Are all required artifacts present?" — checks against a manifest of expected artifacts per mission type/step. (3) "Have artifacts changed since I last looked?" — recomputes the snapshot hash and compares it with the recorded snapshot (`<Mission directory>/.kittify/dossiers/<mission_slug>/snapshot-latest.json`); `spec-kitty reconcile --mission <slug>` runs that check and names each differing artifact. Code: `src/specify_cli/dossier/`. |
 | **Context** | Dossier |
 | **Status** | candidate |
 | **Applicable to** | `1.x`, `2.x` |
@@ -51,7 +56,7 @@ Terms describing the local artifact inventory, integrity validation, and drift d
 
 | | |
 |---|---|
-| **Definition** | Classification of an artifact's role in the mission lifecycle. Six values: `input`, `workflow`, `output`, `evidence`, `policy`, `runtime`. |
+| **Definition** | Classification of an artifact's role in the mission lifecycle. Six values in the expected-artifact manifest (`ArtifactClassEnum`): `input`, `workflow`, `output`, `evidence`, `policy`, `runtime`. An indexed `ArtifactRef` also accepts a seventh value, `other`. |
 | **Context** | Dossier |
 | **Status** | candidate |
 | **Applicable to** | `1.x`, `2.x` |
@@ -110,7 +115,7 @@ Terms describing the local artifact inventory, integrity validation, and drift d
 
 | | |
 |---|---|
-| **Definition** | Checksum computed from all artifact content hashes in a dossier, sorted to guarantee the same result regardless of scan order. If any artifact's content changes, the parity hash changes too. Used to answer "has anything in this dossier changed?" |
+| **Definition** | Checksum computed from the `(relative path, content hash)` pairs of every present artifact in a dossier, sorted by path to guarantee the same result regardless of scan order, and written as `sha256:<64 hex>` (`compute_dossier_snapshot_hash`). If any artifact's content or path changes, the parity hash changes too. Used to answer "has anything in this dossier changed?" |
 | **Context** | Dossier |
 | **Status** | candidate |
 | **Applicable to** | `1.x`, `2.x` |
@@ -122,7 +127,8 @@ Terms describing the local artifact inventory, integrity validation, and drift d
 
 | | |
 |---|---|
-| **Definition** | A saved parity hash representing the last accepted state of a dossier. Scoped to a specific project, feature, branch, and mission so that baselines from different contexts can never be confused with each other. Drift is detected by comparing the current parity hash against this baseline. |
+| **Definition** | A saved parity hash representing the last accepted state of a dossier. Scoped to a specific project, Mission, target branch, and mission type so that baselines from different contexts can never be confused with each other. Drift is detected by comparing the current parity hash against this baseline. |
+| **Note** | The only writer of a parity baseline (`parity-baseline.json`, from `dossier/drift_detector.py`, deleted in commit `e7f777652b`, issue #116) is gone, so nothing writes one today. Drift is now checked against the recorded dossier snapshot (see [Mission Dossier](#mission-dossier)). The path stays declared in `src/specify_cli/state/contract.py`. |
 | **Context** | Dossier |
 | **Status** | candidate |
 | **Applicable to** | `1.x`, `2.x` |
@@ -134,7 +140,8 @@ Terms describing the local artifact inventory, integrity validation, and drift d
 
 | | |
 |---|---|
-| **Definition** | The combination of identifiers (project, node, feature, branch, mission, manifest version) that uniquely scopes a parity baseline. Ensures that a baseline captured in one context is never accidentally compared against artifacts from a different context. |
+| **Definition** | The combination of identifiers (`project_uuid`, `node_id`, `mission_slug`, `target_branch`, `mission_type`, `manifest_version`) that uniquely scopes a parity baseline. Ensures that a baseline captured in one context is never accidentally compared against artifacts from a different context. |
+| **Note** | No code in `src/` builds this key since the drift detector was deleted (commit `e7f777652b`, issue #116). |
 | **Context** | Dossier |
 | **Status** | candidate |
 | **Applicable to** | `1.x`, `2.x` |
@@ -147,6 +154,7 @@ Terms describing the local artifact inventory, integrity validation, and drift d
 | | |
 |---|---|
 | **Definition** | When the current parity hash no longer matches the saved baseline, something in the dossier has changed since it was last accepted. This mismatch is called parity drift. It tells the curator "artifacts have been modified — review what changed." |
+| **Note** | Today `spec-kitty reconcile` reports drift as `DIVERGENCE`, naming each differing artifact. The `MissionDossierParityDriftDetected` event emitter (`emit_parity_drift_detected`) is defined but has no caller in `src/`. |
 | **Context** | Dossier |
 | **Status** | candidate |
 | **Applicable to** | `1.x`, `2.x` |
@@ -170,7 +178,7 @@ Terms describing the local artifact inventory, integrity validation, and drift d
 
 | | |
 |---|---|
-| **Definition** | The process of walking through a feature directory, identifying each artifact file, computing its content hash, and recording it in the dossier. Also checks for any required artifacts that are missing. |
+| **Definition** | The process of walking through a Mission directory, identifying each artifact file, computing its content hash, and recording it in the dossier. Also checks for any required artifacts that are missing. |
 | **Context** | Dossier |
 | **Status** | candidate |
 | **Applicable to** | `1.x`, `2.x` |
@@ -182,7 +190,7 @@ Terms describing the local artifact inventory, integrity validation, and drift d
 
 | | |
 |---|---|
-| **Definition** | When artifact indexing finds that a required artifact is absent or unreadable, it records the gap with a reason code explaining why: `not_found` (file doesn't exist), `unreadable` (file exists but can't be read), `invalid_format` (file exists but isn't valid), or `deleted_after_scan` (file disappeared during indexing). |
+| **Definition** | When artifact indexing finds that a required artifact is absent or unreadable, it records the gap with a reason code explaining why. The indexer sets `not_found` (file doesn't exist), `unreadable` (file exists but can't be read) or `invalid_utf8` (file is not valid UTF-8). The `ArtifactRef` model also documents `invalid_format` and `deleted_after_scan`, which no code path in `src/` sets. |
 | **Context** | Dossier |
 | **Status** | candidate |
 | **Applicable to** | `1.x`, `2.x` |

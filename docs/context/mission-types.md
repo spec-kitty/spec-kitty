@@ -3,17 +3,24 @@ title: Mission Types
 description: 'The four Mission types Spec Kitty ships today, their purpose, phases, and how to choose one.'
 doc_status: active
 kind: Explanation
-updated: '2026-09-27T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
+audience:
+- profile: external/tech-lead-evaluator
+  guidance_text: Read this to see which kinds of work Spec Kitty structures as a Mission and what each type produces.
+- profile: internal/lead-developer
+  guidance_text: Read this to choose the mission type before you run /spec-kitty.specify.
 related:
 - context/ops-vs-missions
 ---
 # Mission Types
 
-A [Mission](ops-vs-missions.md) is the canonical spec-to-merge workflow unit.
+A [Mission](ops-vs-missions.md) is the canonical spec-to-consolidate workflow unit.
 Every mission is an instance of one **mission type**, which shapes the phases
 it moves through, the artifacts it produces, and the agent instructions used
 along the way. As of this writing there are exactly four mission types, each
-defined by its own `mission.yaml` under `src/specify_cli/missions/`:
+defined by its own `mission.yaml` under `src/specify_cli/missions/` (the built-in pack
+carries an identical copy under `packs/built-in/missions/<type>/`, beside the
+`mission-runtime.yaml` step DAG):
 `software-dev`, `research`, `documentation`, and `plan`. There is no fifth type
 — if you're choosing, pick from this list.
 
@@ -38,16 +45,17 @@ for the Op alternative.
 test-driven development." Enforces Library-First, CLI Interface, and
 Test-First principles; tests are written before code.
 
-**Phases** (`discovery` → `specify` → `plan` → `tasks` → `implement` → `review` →
-`accept`, per the mission's runtime step DAG in `mission-runtime.yaml`):
+**Phases** (`discovery` → `specify` → `plan` → `tasks` → `analyze` → `implement` →
+`review` → `accept`, per the mission's runtime step DAG in `mission-runtime.yaml`):
 
 1. Discovery & Research
 2. Specification
 3. Implementation Planning
 4. Tasks
-5. Implementation
-6. Code Review
-7. Acceptance
+5. Analysis (cross-artifact consistency, recorded as an analysis report)
+6. Implementation
+7. Code Review
+8. Acceptance
 
 The `mission.yaml` workflow description frames the same arc as research → design →
 implement → test → review. Required artifacts: `spec.md`, `plan.md`,
@@ -70,15 +78,16 @@ sources must be documented, findings must trace back to evidence, and at least
 
 1. Research Scoping
 2. Methodology Design
-3. Data Gathering
-4. Analysis & Synthesis
-5. Output & Publication
+3. Source Gathering
+4. Findings Synthesis
+5. Publication Output
 6. Acceptance
 
 Required artifacts: `spec.md` (research question/scope), `plan.md`
 (methodology), `tasks.md`, `findings.md` (synthesized findings). The mission
-also expects a `source-register.csv` documenting sources with citations, URLs,
-and access dates, and gates publication on approval.
+also expects `research/source-register.csv` documenting sources with citations, URLs,
+and access dates; the gathering step needs at least three `source_documented`
+events, and publication is gated on approval.
 
 **Best for**: systematic literature reviews, empirical investigations, or any
 question that needs a defensible, cited evidence trail rather than a single
@@ -93,8 +102,7 @@ following Write the Docs and Divio principles." Drives documentation as code,
 using the Divio four-type system (tutorial, how-to, reference, explanation)
 and supporting three iteration modes: `initial` (from scratch), `gap_filling`
 (audit existing docs and fill gaps), and `mission_specific` (document one
-component; `feature_specific` is accepted as a legacy input alias). This
-mission ran the mission that produced this very page.
+component; `feature_specific` is accepted as a legacy input alias).
 
 **Phases** (declared under `workflow.phases`; the runtime step DAG follows the
 same arc and adds a final acceptance step):
@@ -147,12 +155,12 @@ This page is generated from reading each mission type's own definition
 directly, not from memory:
 
 ```bash
-ls src/specify_cli/missions/
-# documentation/  plan/  research/  software-dev/
+ls -d src/specify_cli/missions/*/ | grep -v __pycache__
+# src/specify_cli/missions/documentation/  plan/  research/  software-dev/
 cat src/specify_cli/missions/<type>/mission.yaml
 ```
 
-If a fifth mission type appears in that directory listing that isn't described
+If a fifth mission type directory appears in that listing that isn't described
 above, this page is stale — file a docs gap rather than guessing at its
 purpose.
 

@@ -3,10 +3,12 @@ title: Glossary Conventions
 description: Authoring conventions for Spec Kitty's living glossary — source-of-truth precedence, policy/runtime layering, term status lifecycle, per-term entry schema, and runtime anchors.
 doc_status: active
 kind: Reference
-updated: '2026-09-08T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
 audience:
 - profile: internal/system-architect
-  guidance_text: Written for the System Architect reader.
+  guidance_text: Read this to know which source wins when terms conflict and which rows a glossary entry must carry.
+- profile: internal/lead-developer
+  guidance_text: Read this before adding or changing a term entry under docs/context/, so the entry follows the shared schema.
 ---
 # Glossary Conventions
 
@@ -36,8 +38,9 @@ Use policy docs to answer "what should this mean?" and runtime artifacts to answ
 ## Domain Index
 
 The canonical index of glossary context domains and their files lives on the
-[Context landing page](README.md). Each filename (without `.md`) under
-`docs/context/` is a valid context slug; see
+[Context landing page](README.md). A context slug is a filename (without
+`.md`) under `docs/context/`; the Contextive generator extracts terms only from
+a page with a `## Context:` heading. See
 [Contextive Glossary Integration](contextive-glossaries.md) for how those slugs
 generate the IDE hover glossaries.
 
@@ -72,6 +75,6 @@ Entries may also carry optional rows, used where they add clarity:
 ## PDR Alignment Notes
 
 - Scoped glossary model: `spec_kitty_core`, `team_domain`, `audience_domain`, `mission_local`
-- Strictness modes: `off`, `medium` (default), `max`
-- Generation block policy: block unresolved high-severity semantic conflicts only
+- Strictness modes: `off`, `medium` (global default), `max`
+- Generation block policy: `medium` blocks only unresolved high-severity semantic conflicts, `max` blocks any unresolved conflict, `off` never blocks (`src/glossary/strictness.py`)
 - History model: append-only glossary evolution events, replayable from canonical logs

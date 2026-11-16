@@ -3,10 +3,12 @@ title: 'Context: Spec Kitty Inc. Product Lines'
 description: 'Glossary context for the Spec Kitty Inc. product lines (Build Kitty, Brain Kitty, Team Kitty) and how they differ from the Spec Kitty toolkit and CLI.'
 doc_status: active
 kind: Reference
-updated: '2026-10-19T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
 audience:
 - profile: internal/system-architect
-  guidance_text: Written for the System Architect reader.
+  guidance_text: Read this to keep the product-line names apart from the CLI, its packages and its code identifiers.
+- profile: external/architect-evaluator
+  guidance_text: Read this to see which product line produces data and which consumes it, and where the boundary between them sits.
 related:
 - context/team-kitty
 - adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction
@@ -24,7 +26,7 @@ Brain Kitty) and Team Kitty as the **consumer** side.
 
 | | |
 |---|---|
-| **Definition** | The open-core producer line for governed mission delivery: the free CLI and its Mission Status Read API, the stable entry point to ledger and event data that consumers read across a public contract boundary. |
+| **Definition** | The open-core producer line for governed mission delivery: the free CLI and its Mission Status Read API, the stable entry point to ledger and event data that consumers read across a public contract boundary. The API's Java service is built and released by `spec-kitty-events` ([ADR 2026-10-29-1](../adr/4.x/2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md)); the CLI does not launch it. |
 | **Context** | Product lines |
 | **Status** | canonical |
 | **Applicable to** | `4.x` |
@@ -50,7 +52,7 @@ Brain Kitty) and Team Kitty as the **consumer** side.
 
 | | |
 |---|---|
-| **Definition** | The consumer line, framed as "Multiplayer Mode": the UI and multiplayer surfaces (mission-ui, the pack composer) that consume the open-core Mission Status Read API across its public contract, never reaching into CLI internals. The hosted collaboration product behind it is no longer actively supported; its model is in [Team Kitty and Zeitgeist](team-kitty.md). |
+| **Definition** | The consumer line, framed as "Multiplayer Mode": the UI and multiplayer surfaces (mission-ui, the pack composer) that consume the open-core Mission Status Read API across its public contract, never reaching into CLI internals. The hosted, sync and drain surfaces and their clients were removed from open-core in #6164 (the code is preserved in `spec-kitty/event-router`); what that leaves is in [Team Kitty and Zeitgeist](team-kitty.md). |
 | **Context** | Product lines |
 | **Status** | canonical |
 | **Applicable to** | `4.x` |

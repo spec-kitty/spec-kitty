@@ -3,7 +3,12 @@ title: How Charter Works
 description: The Charter mental model — synthesis, DRG, governed context, and profile invocation.
 doc_status: active
 kind: Explanation
-updated: '2026-10-08T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
+audience:
+- profile: internal/maintainer
+  guidance_text: Read this for the charter mental model before you set up or change a project's governance.
+- profile: external/tech-lead-evaluator
+  guidance_text: Read this to see how governance reaches each agent prompt.
 related:
 - context/governance-files
 - guides/how-to/governance/setup-governance
@@ -21,9 +26,10 @@ setup to a full mission run, see the
 [Governed Charter Workflow Tutorial](../guides/tutorials/charter-governed-workflow.md).
 
 > **Key invariant**: `.kittify/charter/charter.yaml` is the git-tracked, authoritative,
-> structured charter — `governance`, `directives`, `catalog`, activation, and `overrides` all
-> live inside it. `governance`, `directives`, activation, and `overrides` are hand-authored (or
-> interview-seeded); `catalog` and `metadata` are refreshed deterministically by
+> structured charter — `governance`, `directives`, `catalog`, and `overrides` all live inside it.
+> What the project has activated lives beside it in the git-tracked activation ledger
+> `.kittify/charter/activation.yaml`, written by `spec-kitty charter activate` / `deactivate`.
+> `governance`, `directives`, and `overrides` are hand-authored (or interview-seeded); `catalog` and `metadata` are refreshed deterministically by
 > `charter generate`. `.kittify/charter/charter.md` is a **curated companion**: a human-readable
 > narrative the runtime never parses, scrapes, or resolves policy from — editing it has no
 > runtime effect. A project may also keep a public constitution or governance document outside
@@ -42,9 +48,10 @@ sourced from one operator-controlled, machine-readable charter file.
 
 The mechanism:
 
-1. You author (directly, or via interview + `charter generate`) the `governance`, `directives`,
-   and activation sections of `.kittify/charter/charter.yaml` — testing standards, quality gates,
-   branching rules, directive selections, activated doctrine kinds.
+1. You author (directly, or via interview + `charter generate`) the `governance` and `directives`
+   sections of `.kittify/charter/charter.yaml` — testing standards, quality gates, branching rules,
+   directive selections — and record what you activate in `.kittify/charter/activation.yaml`
+   with `spec-kitty charter activate`.
 2. `charter generate` refreshes `charter.yaml`'s `catalog` and `metadata` sections (the doctrine
    reference manifest and a generation timestamp) from the active charter, merging
    the refresh back into the file without touching your authored sections.
@@ -101,10 +108,12 @@ uv run spec-kitty charter resynthesize --topic directive:PROJECT_001
 
 ## The DRG-Backed Context Model
 
-The charter bundle is not a flat file — it is backed by a **Directive Relationship Graph (DRG)**.
-The DRG is a directed graph whose nodes are directives, tactics, and glossary terms, and whose
-edges use typed relations such as `scope`, `requires`, `suggests`, `vocabulary`, `instantiates`,
-`replaces`, and `delegates_to`.
+The charter bundle is not a flat file — it is backed by the **Doctrine Reference Graph (DRG)**.
+The DRG is a directed graph whose nodes are doctrine artifacts (directives, tactics, paradigms,
+styleguides, toolguides, procedures, agent profiles and the other kinds), mission actions and
+glossary scopes (`NodeKind`, `src/charter/offering/drg/models.py`), and whose edges use typed
+relations such as `scope`, `requires`, `suggests`, `vocabulary`, `instantiates`, `replaces`, and
+`delegates_to`.
 
 When `spec-kitty next` prepares a prompt for a mission action (for example, `implement`), the
 runtime traverses the DRG from the entry point for that action and collects the relevant subgraph.
@@ -139,18 +148,22 @@ All referenced paths must be repository-relative and stay inside the repo root.
 
 ## Bootstrap vs Compact Context
 
-The DRG traversal for a given action can produce large context payloads for complex projects.
+`spec-kitty charter context --action <action> --json` reports which of two modes it rendered in
+its `mode` field. The mode depends on the action and on whether this is its first load, not on the
+size of the payload (`src/charter/activation/context.py`, `context_state.py`):
 
-- **Bootstrap mode**: the first time an action loads context (or when the charter is freshly
-  generated), the runtime injects the full relevant DRG subgraph. The agent sees all applicable
-  directives and tactics.
-- **Compact-context mode**: when the DRG context payload is too large to include in full, the
-  runtime falls back to a summarized view — resolved paradigms, directives, and tool list only,
-  without the full library text. This is a known limitation (see issue #787 in the project tracker;
-  check that issue for current resolution status).
+- **Bootstrap mode**: the first time an action loads context (recorded in
+  `.kittify/charter/context-state.json`), or whenever a caller asks for a depth of 2 or more, the runtime
+  renders the governance it resolved for that action from the DRG. This applies to `specify`,
+  `plan`, `implement` and `review` (`BOOTSTRAP_ACTIONS`) and to any other action whose node is
+  declared in the DRG.
+- **Compact mode**: later loads of the same action get a compact view that keeps every directive,
+  tactic and section id but collapses the long-form text. An action with no declared DRG node
+  always gets the compact view.
 
-Do not assume full-context behavior unconditionally. Large governance layers may trigger
-compact-context mode, causing agents to receive less detail.
+Issue #787 (closed) recorded that compact mode left out free-form rules written only in
+`charter.md`. The runtime resolves policy from `charter.yaml` only (see the key invariant above), so
+a rule belongs there, not in `charter.md`.
 
 ---
 
@@ -158,9 +171,10 @@ compact-context mode, causing agents to receive less detail.
 
 | File | Written by | Purpose |
 |---|---|---|
-| `.kittify/charter/charter.yaml` | **Human** (`governance`/`directives`/activation/`overrides`); `charter generate` (`catalog`/`metadata` only) | The single git-tracked, authoritative structured charter |
+| `.kittify/charter/charter.yaml` | **Human** (`governance`/`directives`/`overrides`); `charter generate` (`catalog`/`metadata` only) | The single git-tracked, authoritative structured charter |
+| `.kittify/charter/activation.yaml` | `spec-kitty charter activate` / `deactivate`, `init`, presets | Activation ledger: what the project has activated and deactivated |
 | `.kittify/charter/charter.md` | **Human** | Curated narrative companion; never parsed by the runtime |
-| `.kittify/config.yaml` | **Human**; `charter:` pointer minted once at bootstrap | Points to the active `charter.yaml`; also holds `org_packs` |
+| `.kittify/config.yaml` | **Human**; `charter:` pointer minted once at bootstrap | Points to the active `charter.yaml`; also declares org packs under `charter_packs.org.packs` |
 | `.kittify/charter/generated/` | Agent harness | Candidate doctrine YAML consumed by `charter synthesize` |
 | `.kittify/charter/synthesis-manifest.yaml` | Auto-generated (`charter synthesize`) | Manifest for promoted project-local doctrine artifacts |
 | `.kittify/charter/provenance/*.yaml` | Auto-generated (`charter synthesize`) | Provenance sidecars for synthesized doctrine artifacts |

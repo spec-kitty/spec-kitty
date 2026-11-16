@@ -3,7 +3,12 @@ title: Ops vs. Missions
 description: 'What separates a lightweight, governed ad-hoc Op from a full spec-to-consolidate Mission, and a concrete rule for choosing between them.'
 doc_status: active
 kind: Explanation
-updated: '2026-11-10T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
+audience:
+- profile: external/tech-lead-evaluator
+  guidance_text: Read this to see the two units of governed work and the rule for choosing between them.
+- profile: internal/lead-developer
+  guidance_text: Read this before starting work, to choose an Op or a Mission and to close an Op you opened.
 related:
 - context/mission-types
 - api/profile-invocation
@@ -12,7 +17,7 @@ related:
 # Ops vs. Missions
 
 Spec Kitty has two distinct units of governed work. Confusing them is the single
-most common source of "why didn't this get tracked/reviewed/merged" confusion for
+most common source of "why didn't this get tracked/reviewed/landed" confusion for
 users past their first mission.
 
 ## The two units of work
@@ -48,14 +53,15 @@ end event, nothing else.
 
 **A Mission** is the canonical product term for a full spec-to-consolidate workflow
 unit: specify → plan → tasks → implement → review → consolidate (accept, for some
-mission types). Starting one (`spec-kitty.specify` / `mission create`) creates a
+mission types). Starting one (`/spec-kitty.specify`, which runs `spec-kitty agent mission create`) creates a
 persistent mission directory under `kitty-specs/<mission-slug>/` with `spec.md`,
 `plan.md`, `tasks.md`, work-package files, and a `meta.json` carrying a durable
 `mission_id`. Work packages move through the 9-lane status state machine
 (`planned` → `claimed` → `in_progress` → `for_review` → `in_review` → `approved`
 → `done`, with `blocked`/`canceled` as side states), each transition is an
-append-only event in `status.events.jsonl`, and `spec-kitty implement` creates
-dedicated git worktrees/branches per work package. A Mission is designed to
+append-only event in `status.events.jsonl`, and `spec-kitty implement` prepares
+the work package's workspace: a lane worktree and branch per execution lane for a
+lanes topology, or the write checkout for a `single_branch` Mission. A Mission is designed to
 survive across many sessions, multiple agents, and a review/consolidation gate; an Op is
 designed to be opened and closed inside a single turn of work.
 
@@ -132,9 +138,9 @@ sessions:
 /spec-kitty.specify   # -> kitty-specs/<mission-slug>/spec.md
 /spec-kitty.plan       # -> plan.md
 /spec-kitty.tasks      # -> tasks.md + tasks/WP*.md
-spec-kitty implement WP01   # creates a lane worktree, work begins
+spec-kitty agent action implement WP01 --agent <name>   # prepares the workspace, work begins
 # ... review, approve, repeat per WP ...
-spec-kitty consolidate   # lane consolidation into local main
+spec-kitty consolidate   # lane consolidation into the Mission branch, then branch integration into the local target branch
 ```
 
 For the mechanism behind governed dispatch in more depth, see

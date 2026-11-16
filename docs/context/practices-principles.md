@@ -3,7 +3,12 @@ title: 'Context: Practices and Principles'
 description: 'Glossary context for practices and principles: the operating principles guiding glossary-semantic-integrity execution, such as the mostly-invisible process.'
 doc_status: active
 kind: Explanation
-updated: '2026-03-10T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
+audience:
+- profile: external/tech-lead-evaluator
+  guidance_text: Read this to see the working principles behind the glossary checks and who owns each decision.
+- profile: internal/lead-developer
+  guidance_text: Read this before changing glossary gating, so a change keeps the block rule and the append-only history.
 related:
 - context/identity
 ---
@@ -59,7 +64,7 @@ Terms describing operating principles for glossary-semantic-integrity execution.
 
 | | |
 |---|---|
-| **Definition** | Generation is blocked only when high-severity semantic conflicts remain unresolved. |
+| **Definition** | Under the default `medium` glossary strictness, generation is blocked only when high-severity semantic conflicts remain unresolved. `max` strictness blocks on any unresolved conflict and `off` never blocks (`should_block` in `src/glossary/strictness.py`). |
 | **Context** | Practices & Principles |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |

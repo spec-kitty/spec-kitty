@@ -3,10 +3,10 @@ title: Contextive Glossary Integration
 description: How Spec Kitty generates Contextive-compatible YAML glossaries from the canonical glossary markdown, giving IDE users in-editor term hover panels without duplication.
 doc_status: active
 kind: How-To
-updated: '2026-09-08T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
 audience:
 - profile: internal/lead-developer
-  guidance_text: Written for the Lead Developer reader.
+  guidance_text: Read this when you add a context page or a package scope, to regenerate and commit the Contextive files correctly.
 ---
 # Contextive Glossary Integration
 
@@ -16,19 +16,27 @@ duplication.
 
 ## How it works
 
+```mermaid
+%% title: Contextive glossary generation
+%% description: The generator reads the canonical term pages in docs/context and the traceability map, then writes one context YAML per referenced context and one scope YAML per mapped package.
+flowchart TD
+  pages["docs/context/{slug}.md<br/>canonical term definitions (edit here)"]
+  map[".kittify/traceability/contextive-map.yaml<br/>scope to context mapping"]
+  gen["scripts/generate_contextive_glossaries.py"]
+  ctx["src/specify_cli/.contextive/{slug}.yml<br/>one per referenced context"]
+  scope["{scope path}/.contextive.yml<br/>imports the scope's contexts"]
+  pages --> gen
+  map --> gen
+  gen --> ctx
+  gen --> scope
 ```
-docs/context/*.md        ← canonical term definitions (edit here)
-        │
-        ▼
-scripts/generate_contextive_glossaries.py
-        │
-        ├─ src/specify_cli/.contextive/<slug>.yml   (one per context)
-        └─ src/specify_cli/<scope>/.contextive.yml  (imports → DRY)
-```
+
+In words: the generator reads every context page the map references and the map itself, then writes
+one context YAML per referenced context and one scope YAML per mapped package.
 
 - **Context YAMLs** (`src/specify_cli/.contextive/<slug>.yml`) contain the extracted terms for one
   glossary context domain.
-- **Scope YAMLs** (`<package>/.contextive.yml`) use Contextive `imports:` to pull in only the
+- **Scope YAMLs** (`<scope path>/.contextive.yml`, for example `src/glossary/.contextive.yml`) use Contextive `imports:` to pull in only the
   contexts relevant to that package. This keeps files small and avoids copying definitions.
 
 The mapping from source package → relevant contexts is in
@@ -64,7 +72,7 @@ scopes:
 1. Open `.kittify/traceability/contextive-map.yaml`.
 2. Add a new entry under `scopes`:
    ```yaml
-   - path: "src/specify_cli/my_new_package"
+   - path: "src/specify_cli/my_new_package"   # illustrative path
      description: "What this package does"
      contexts:
        - orchestration     # choose from docs/context/ filenames (without .md)
@@ -73,36 +81,43 @@ scopes:
    ```bash
    python scripts/generate_contextive_glossaries.py generate
    ```
-4. Commit the updated map and the new `.contextive.yml` file together.
+4. Commit the updated map together with every file the generator wrote: the new scope `.contextive.yml` and any new context YAML under `src/specify_cli/.contextive/`.
 
 ## Available context slugs
 
-Each filename (without `.md`) under `docs/context/` is a valid context slug:
+A context slug is a filename (without `.md`) under `docs/context/`. The generator checks only that
+the file exists; it extracts terms from a page that has a `## Context:` heading followed by `###`
+term entries with a definition table. These pages have that shape today:
 
-| Slug | Domain |
-|------|--------|
-| `configuration-project-structure` | Project layout and configuration artifacts |
-| `charter` | Charter domain model and artifact taxonomy |
-| `dossier` | Artifact inventory and drift detection |
-| `execution` | CLI invocation and semantic safety gates |
-| `governance` | Charter, ADR, and policy precedence |
-| `identity` | Actors, roles, and Human-in-Charge |
-| `lexical` | Glossary internal data model |
-| `orchestration` | Mission, work package, and mission lifecycle |
-| `practices-principles` | Working agreements |
-| `system-events` | Event envelope and glossary evolution |
-| `technology-foundations` | General tech terms (API, CLI, YAML, Git) |
+| Slug | Domain | Mapped to a scope today |
+|------|--------|-------------------------|
+| `charter` | Charter domain model and artifact taxonomy | no |
+| `configuration-project-structure` | Project layout and configuration artifacts | no |
+| `dossier` | Artifact inventory and drift detection | yes |
+| `execution` | CLI invocation and semantic safety gates | yes |
+| `governance` | Charter, ADR, and policy precedence | yes |
+| `identity` | Actors, roles, and Human-in-Charge | no |
+| `identity-fields` | Repository, collaboration, and build identity fields | no |
+| `lexical` | Glossary internal data model | yes |
+| `orchestration` | Mission, work package, and Mission lifecycle | yes |
+| `planning-and-tracking` | Issue tracker organization and dispatch | no |
+| `practices-principles` | Working agreements | no |
+| `product-lines` | Spec Kitty product lines | no |
+| `system-events` | Event envelope and glossary evolution | yes |
+| `technology-foundations` | General tech terms (API, CLI, YAML, Git) | yes |
+| `testing-taxonomy` | Test categories and pytest markers | no |
+| `topology` | Mission topology and where work runs | no |
 
-## CI enforcement
+Only a mapped slug gets a context YAML. The header comment in `contextive-map.yaml` lists 11 slugs;
+the map's `scopes` reference seven.
 
-The CI pipeline (`ci-quality.yml`) runs `check` mode automatically when any of the following paths
-change in a PR:
+## Keeping the generated files current
 
-- `glossary/**`
-- `src/specify_cli/**`
-- `.kittify/traceability/**`
-
-If the generated files are stale, the check step fails and tells you to re-run the generator.
+No CI workflow runs `check` against the repository today. The tests in
+`tests/cross_cutting/encoding/test_contextive_traceability.py` exercise the generator on fixtures
+and parse the real context pages; they do not compare the committed files with a fresh generation.
+Run `check` yourself after you edit a page under `docs/context/`, and commit the regenerated file
+with the page. `check` exits 1 and names each stale or missing file.
 
 ## Do not edit generated files
 

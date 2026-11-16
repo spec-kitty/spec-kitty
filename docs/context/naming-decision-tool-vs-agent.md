@@ -3,7 +3,12 @@ title: 'Naming Decision: Tool vs Agent'
 description: "The canonical naming decision separating tool (the concrete execution product) from agent (the logical collaborator identity and role) across Spec Kitty."
 doc_status: active
 kind: Explanation
-updated: '2026-07-16T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
+audience:
+- profile: internal/lead-developer
+  guidance_text: Read this before naming a concept tool or agent in code, config or docs.
+- profile: internal/ai-collaboration-agent
+  guidance_text: Read this to word install and config steps with tool and role handoffs with agent.
 related:
 - context
 - context/historical-terms

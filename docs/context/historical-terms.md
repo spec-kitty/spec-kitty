@@ -3,7 +3,12 @@ title: Historical Terms and Mappings
 description: "Legacy Spec Kitty terminology mapped to its current canonical term, with applicable version scope and migration notes for each historical wording."
 doc_status: active
 kind: Explanation
-updated: '2026-07-16T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
+audience:
+- profile: internal/lead-developer
+  guidance_text: Read this to map a legacy word you meet in old code or docs to the current canonical term.
+- profile: internal/ai-collaboration-agent
+  guidance_text: Read this before writing output, so you use the current term and never a retired alias.
 related:
 - context
 - context/naming-decision-tool-vs-agent

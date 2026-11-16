@@ -3,7 +3,12 @@ title: 'Context: System Events'
 description: "Glossary context for system events: Spec Kitty's append-only event model, replay behavior, and system-level event types like the event envelope."
 doc_status: active
 kind: Explanation
-updated: '2026-03-10T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
+audience:
+- profile: internal/lead-developer
+  guidance_text: Read this to know which event logs and event types exist, how status events are ordered, and how events tail resumes.
+- profile: internal/ai-collaboration-agent
+  guidance_text: Read this before consuming events tail output or naming an event type, so the names and ordering match the code.
 related:
 - context/dossier
 - context/execution
@@ -22,7 +27,7 @@ Terms describing Spec Kitty's append-only event model, replay behavior, and syst
 | **Context** | System Events |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Common fields** | `event_id`, `event_type`, `aggregate_id`, `lamport_clock`, `payload` |
+| **Common fields** | `event_id`, `event_type`, `aggregate_id`, `lamport_clock` (optional), `payload` (the `Event` model in `spec_kitty_events.models`) |
 
 ---
 
@@ -30,7 +35,7 @@ Terms describing Spec Kitty's append-only event model, replay behavior, and syst
 
 | | |
 |---|---|
-| **Definition** | Append-only sequence of glossary-related events that records candidate extraction, semantic checks, clarifications, and sense updates. |
+| **Definition** | Append-only sequence of glossary-related events that records candidate extraction, semantic checks, clarifications, and sense updates. Stored per Mission in `.kittify/events/glossary/<mission_id>.events.jsonl` (`src/glossary/events.py`). |
 | **Context** | System Events |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
@@ -46,7 +51,7 @@ Terms describing Spec Kitty's append-only event model, replay behavior, and syst
 | **Context** | System Events |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Allowed values** | `spec_kitty_core`, `team_domain`, `audience_domain`, `mission_local` |
+| **Allowed values** | `spec_kitty_core`, `team_domain`, `audience_domain`, `mission_local` (`GlossaryScope` in `src/glossary/scope.py`) |
 
 ---
 
@@ -58,7 +63,7 @@ Terms describing Spec Kitty's append-only event model, replay behavior, and syst
 | **Context** | System Events |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Block rule** | Unresolved high-severity conflicts block generation |
+| **Block rule** | Depends on the glossary strictness (`src/glossary/strictness.py`): `off` never blocks, `medium` blocks on an unresolved high-severity conflict, `max` blocks on any unresolved conflict |
 
 ---
 
@@ -90,7 +95,8 @@ Terms describing Spec Kitty's append-only event model, replay behavior, and syst
 
 | | |
 |---|---|
-| **Definition** | An event emitted during dossier operations. Four types: `ArtifactIndexed` (artifact scanned), `SnapshotComputed` (snapshot created), `ArtifactMissing` (required artifact not found), `ParityDriftDetected` (content changed since baseline). |
+| **Definition** | An event emitted during dossier operations. Four types: `MissionDossierArtifactIndexed` (artifact scanned), `MissionDossierSnapshotComputed` (snapshot created), `MissionDossierArtifactMissing` (required artifact not found), `MissionDossierParityDriftDetected` (content changed since baseline). |
+| **Note** | The four emitters in `src/specify_cli/dossier/events.py` are defined, but no code path in `src/` calls them today. |
 | **Context** | System Events |
 | **Status** | candidate |
 | **Applicable to** | `1.x`, `2.x` |
@@ -103,6 +109,7 @@ Terms describing Spec Kitty's append-only event model, replay behavior, and syst
 | | |
 |---|---|
 | **Definition** | An event that is only emitted when something unexpected happens — such as a required artifact being missing or parity drift being detected. Unlike routine lifecycle events, anomaly events signal conditions that may need the Human-in-Charge's attention. |
+| **Note** | The dossier anomaly events (`MissionDossierArtifactMissing`, `MissionDossierParityDriftDetected`) are not emitted by any code path in `src/` today; see [Dossier Event](#dossier-event). |
 | **Context** | System Events |
 | **Status** | candidate |
 | **Applicable to** | `1.x`, `2.x` |
@@ -114,7 +121,7 @@ Terms describing Spec Kitty's append-only event model, replay behavior, and syst
 
 | | |
 |---|---|
-| **Definition** | The standard event emitted when a work package moves from one lane to another (e.g., from `planned` to `in_progress`). Part of the status model's event contract. |
+| **Definition** | The event type that carries a work package's move from one status lane to another (e.g., from `planned` to `claimed`). Part of the status model's event contract: the CLI writes each move as a `StatusEvent` row in `status.events.jsonl`, and `build_status_event_payload` (`src/specify_cli/status/wire_payload.py`) renders that row as a `WPStatusChanged` payload. |
 | **Context** | System Events |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
@@ -127,6 +134,7 @@ Terms describing Spec Kitty's append-only event model, replay behavior, and syst
 | | |
 |---|---|
 | **Definition** | A logical counter included in event envelopes that tracks the order events happened in, without relying on wall-clock time. Each new event increments the counter, ensuring events can be reliably ordered even across different machines. |
+| **Note** | The field is optional in the envelope. The CLI's status lane transitions carry no Lamport clock, and the status reducer orders them by the writer's `at` timestamp, then `event_id` (ADR [2026-02-09-3](../adr/2.x/2026-02-09-3-event-log-merge-semantics.md), Amendment 2026-10-22). Do not describe the status path as Lamport-ordered. |
 | **Context** | System Events |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
@@ -138,7 +146,7 @@ Terms describing Spec Kitty's append-only event model, replay behavior, and syst
 
 | | |
 |---|---|
-| **Definition** | The reader's resumable position in `spec-kitty events tail` -- a byte offset into a named mission's `status.events.jsonl`, plus a content invariant (a fixed-size SHA-256 hex digest of the last-consumed line/boundary bytes at that offset, never the raw bytes themselves) used to re-verify on every poll that growth at that offset is a true continuation and not a rollback-then-regrow landing back at or above the same size. Always caller-supplied/caller-owned: `events tail` is stateless across invocations and never persists cursor or resume state to disk anywhere. |
+| **Definition** | The reader's resumable position in `spec-kitty events tail` -- a byte offset into the selected log of a named Mission (`status.events.jsonl` by default; `--log` selects `decisions`, `mission`, `run`, `glossary`, `ops` or `canonical`), plus a content invariant (a fixed-size SHA-256 hex digest of the last-consumed line/boundary bytes at that offset, never the raw bytes themselves) used to re-verify on every poll that growth at that offset is a true continuation and not a rollback-then-regrow landing back at or above the same size. Always caller-supplied/caller-owned: `events tail` is stateless across invocations and never persists cursor or resume state to disk anywhere. |
 | **Context** | System Events |
 | **Status** | candidate |
 | **Applicable to** | `3.x` |
@@ -177,9 +185,9 @@ Terms describing Spec Kitty's append-only event model, replay behavior, and syst
 
 | | |
 |---|---|
-| **Definition** | One JSON line emitted on stdout by `spec-kitty events tail` in `--json` mode (#6611) -- either a pass-through of an existing `StatusEvent` dict as already serialized by `store.py`, or one of the two new signal shapes this command defines: the [`log_truncated`](#log_truncated) truncation-resync signal (FR-005/FR-007) and a resolve-failure/error signal (FR-009), the latter emitted on stderr only, never on the stdout Tail-envelope stream itself. Every pass-through envelope also carries the offset and content-invariant value immediately past the emitted event, so a consumer can persist both (as a [resume token](#resume-token)) without deriving them itself. Without `--json` the command prints one human-readable plain-text line per event instead (the reader-injected cursor keys omitted); the Tail envelope is the machine channel. |
+| **Definition** | One JSON line emitted on stdout by `spec-kitty events tail` in `--json` mode (#6611) -- either a pass-through of an existing line of the selected log (for the default status log, a `StatusEvent` dict as already serialized by `store.py`), or one of the two new signal shapes this command defines: the [`log_truncated`](#log_truncated) truncation-resync signal (FR-005/FR-007) and a resolve-failure/error signal (FR-009), the latter emitted on stderr only, never on the stdout Tail-envelope stream itself. Every pass-through envelope also carries the offset and content-invariant value immediately past the emitted event, so a consumer can persist both (as a [resume token](#resume-token)) without deriving them itself. Without `--json` the command prints one human-readable plain-text line per event instead (the reader-injected cursor keys omitted); the Tail envelope is the machine channel. |
 | **Context** | System Events |
 | **Status** | candidate |
 | **Applicable to** | `3.x` |
-| **Distinct from** | [Event Envelope](#event-envelope) -- the canonical Event Envelope term names a differently-shaped wrapper (`event_id`/`event_type`/`aggregate_id`/`lamport_clock`/`payload`); a Tail envelope here is always either a raw `StatusEvent` JSON line or one of `events tail`'s own signal shapes, never that canonical schema. |
+| **Distinct from** | [Event Envelope](#event-envelope) -- the canonical Event Envelope term names a differently-shaped wrapper (`event_id`/`event_type`/`aggregate_id`/`lamport_clock`/`payload`); a Tail envelope here is always either a raw line of the selected log (a `StatusEvent` JSON line for the status log) or one of `events tail`'s own signal shapes, never that canonical schema. |
 | **Related terms** | [Tail cursor](#tail-cursor), [resume token](#resume-token), [`log_truncated`](#log_truncated) |

@@ -3,10 +3,14 @@ title: Specification-Driven Development (SDD)
 description: Specification-Driven Development methodology behind Spec Kitty — how executable specifications and implementation plans generate code, inverting the code-first power structure.
 doc_status: active
 kind: Explanation
-updated: '2026-10-10T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
 audience:
+- profile: external/tech-lead-evaluator
+  guidance_text: Read this to judge the method Spec Kitty follows and how its commands carry a change from specification to review.
+- profile: internal/lead-developer
+  guidance_text: Read this for the command flow and the requirement ID grammar before you write or cite a spec.
 - profile: internal/system-architect
-  guidance_text: Written for the System Architect reader.
+  guidance_text: Read this for the principles behind the specification, plan and charter layers.
 ---
 # Specification-Driven Development (SDD)
 
@@ -46,7 +50,7 @@ In Spec Kitty, **CODE IS THE SOURCE OF TRUTH** - it represents what exists NOW. 
 - Specs describe "we want to ADD authentication" not "the system includes authentication"
 - Specs are forward-looking change requests, not backward-looking documentation
 - Keep specs focused on the delta, not comprehensive system documentation
-- After merging, the code becomes the new truth; the spec is now historical context
+- After the Mission lands on its target branch, the code becomes the new truth; the spec is now historical context
 
 ### The Philosophical Break from Spec Kit
 
@@ -60,7 +64,7 @@ In Spec Kitty, **CODE IS THE SOURCE OF TRUTH** - it represents what exists NOW. 
 - Code is always the definitive source of truth
 - Specifications are change requests (deltas)
 - LLMs read code to understand NOW, read specs to understand FUTURE
-- Specs become historical record after merge, not living documentation
+- Specs become historical record once the Mission lands (after consolidation), not living documentation
 
 ### Why This Approach Works Better for AI Agents
 
@@ -97,7 +101,7 @@ adds OAuth2 providers as delta to existing system.
 
 ## Progress Tracking with Kanban Lanes
 
-Spec Kitty pairs specification rigor with a **lane-based workflow** that keeps the entire team aligned. Every lane transition is appended to the Mission's status event log, giving product owners, reviewers, and AI assistants a single source of truth for progress. Agents coordinate through structured lane commands, and `spec-kitty agent tasks status` highlights blockers, review requests, and idle work packages. This **status board** becomes the heartbeat of the project—drive agent coordination from one place, rebalance workloads, and archive the full timeline for compliance.
+Spec Kitty pairs specification rigor with a **status-lane workflow** (the nine status lanes from `planned` to `done`, not the execution lanes of a topology) that keeps the entire team aligned. Every status lane transition is appended to the Mission's status event log, giving product owners, reviewers, and AI assistants a single source of truth for progress. Agents coordinate through structured status commands (`spec-kitty agent tasks move-task`), and `spec-kitty agent tasks status` highlights blockers, review requests, and idle work packages. This **status board** becomes the heartbeat of the project—drive agent coordination from one place, rebalance workloads, and archive the full timeline for compliance.
 
 ## The SDD Workflow in Practice
 
@@ -112,7 +116,7 @@ Spec Kitty treats specification and planning as co-creation activities. Every co
 - Proportional depth: lightweight features receive lightweight questioning, while complex platform builds demand exhaustive interrogation
 - No markdown tables rendered to users—agents track coverage internally and present one focused question per turn
 
-The workflow begins with an idea—often vague and incomplete. Through iterative dialogue with AI, this idea becomes a comprehensive PRD. The AI asks clarifying questions, identifies edge cases, and helps define precise acceptance criteria. What might take days of meetings and documentation in traditional development happens in hours of focused specification work. This transforms the traditional SDLC—requirements and design become continuous activities rather than discrete phases. This is supportive of a **team process**, where team-reviewed specifications are expressed and versioned, created in branches, and merged.
+The workflow begins with an idea—often vague and incomplete. Through iterative dialogue with AI, this idea becomes a comprehensive PRD. The AI asks clarifying questions, identifies edge cases, and helps define precise acceptance criteria. What might take days of meetings and documentation in traditional development happens in hours of focused specification work. This transforms the traditional SDLC—requirements and design become continuous activities rather than discrete phases. This is supportive of a **team process**, where team-reviewed specifications are expressed and versioned, created in branches, and integrated into the target branch through review.
 
 When a product manager updates acceptance criteria, implementation plans automatically flag affected technical decisions. When an architect discovers a better pattern, the PRD updates to reflect new possibilities.
 
@@ -170,115 +174,62 @@ The SDD methodology is significantly enhanced through three powerful commands th
 
 ### The `/spec-kitty.specify` Command
 
-This command transforms a simple feature description (the user-prompt) into a complete, structured specification with automatic repository management:
+This command turns a short description of a change (the user prompt) into a structured specification:
 
-1. **Automatic Feature Numbering**: Scans existing specs to determine the next feature number (e.g., 001, 002, 003)
-2. **Branch Creation**: Generates a semantic branch name from your description and creates it automatically
-3. **Dedicated Worktree**: Spawns an isolated checkout under `.worktrees/<feature-slug>` so each feature has its own sandbox without disturbing other branches
-4. **Template-Based Generation**: Copies and customizes the feature specification template with your requirements
-5. **Directory Structure**: Creates the proper `kitty-specs/[branch-name]/` structure for all related documents
+1. **Discovery interview**: Asks one question at a time and ends each turn with `WAITING_FOR_DISCOVERY_INPUT` until the answers are complete and the Intent Summary is confirmed.
+2. **Mission creation**: `spec-kitty agent mission create` records the Mission's identity in `meta.json`: a ULID `mission_id` and a `mission_slug` that ends with the first eight characters of that ULID (for example `context-docs-refresh-01M7AN3N`). A display `mission_number` is assigned only at consolidation.
+3. **Branch**: Without `--topology`, the Mission gets one topic branch (`kitty/mission-<slug>`) and no worktree; the topology settles at the first `finalize-tasks`, by size.
+4. **Template-based generation**: Writes `kitty-specs/<mission_slug>/spec.md` from the mission type's spec template.
 
-After the command finishes, switch your shell into the new worktree (e.g., `cd .worktrees/003-chat-system`) before running planning or implementation commands. If your environment can’t access the `.worktrees/` directory, the CLI falls back to the legacy single-worktree flow so you can keep working.
+Planning commands run from the repository root checkout; no worktree is required for `/spec-kitty.specify`, `/spec-kitty.plan` or `/spec-kitty.tasks`.
 
 ### The `/spec-kitty.plan` Command
 
-Once a feature specification exists, this command creates a comprehensive implementation plan:
+Once a Mission specification exists, this command creates the implementation plan:
 
-1. **Specification Analysis**: Reads and understands the feature requirements, user stories, and acceptance criteria
-2. **Charteral Compliance**: Ensures alignment with project charter and architectural principles
-3. **Technical Translation**: Converts business requirements into technical architecture and implementation details
-4. **Detailed Documentation**: Generates supporting documents for data models, API contracts, and test scenarios
-5. **Research Kickoff**: Generates and extends `research.md` itself during Phase 0 (any discovery findings captured earlier via `/spec-kitty.research` are extended, not replaced), so Phase 0 artifacts exist before task generation
-6. **Agent Context Refresh**: Reminds you to run `.kittify/scripts/bash/update-agent-context.sh __AGENT__` so Claude, Cursor, Gemini, and other assistants receive the latest architectural decisions
-7. **Quickstart Validation**: Produces a quickstart guide capturing key validation scenarios
+1. **Planning interview**: Asks about tech stack, architecture, non-functional requirements and operational constraints, ending each turn with `WAITING_FOR_PLANNING_INPUT` until the answers are complete.
+2. **Charter Check**: Checks the plan against the gates the project charter defines.
+3. **Technical translation**: Converts the requirements into technical decisions, with a Complexity Tracking section for any gate it has to break.
+4. **Research**: Generates and extends `research.md` during Phase 0 (findings captured earlier through `/spec-kitty.research` are extended, not replaced).
+5. **Design artifacts**: Generates `data-model.md`, `contracts/` and `quickstart.md` in Phase 1, where they apply.
 
 ### The `/spec-kitty.tasks` Command
 
-After a plan is created **and Phase 0 research is complete**, this command analyzes the plan and related design documents to generate both the executable task list *and* the kanban-ready prompt bundles:
+After the plan is complete, this command turns it into work packages in three steps (`tasks-outline`, `tasks-packages`, `tasks-finalize`):
 
-1. **Inputs**: Reads `plan.md` (required) and, if present, `data-model.md`, `contracts/`, `research.md` (captured during discovery and extended by the plan step), and `quickstart.md`.
-2. **Task Derivation**: Converts contracts, entities, and scenarios into fine-grained subtasks (`Txxx`), marking safe parallelization with `[P]`.
-3. **Work-package grouping**: Rolls the subtasks into at most ten work packages (`WPxx`), each aligned with a user story or cohesive subsystem so teams can deliver in independent slices.
-4. **Prompt Generation**: Creates work package prompt files in flat `tasks/` directory using the bundle template (complete with metadata and implementation detail), sets `lane: "planned"` in frontmatter, and links each package from `tasks.md`.
-5. **Outputs**: Produces `tasks.md` plus WP prompt files in flat `tasks/` directory with `lane: "planned"` so implementers can use workflow commands to start building.
+1. **Inputs**: Reads `plan.md` (required) and, where present, `data-model.md`, `contracts/`, `research.md` and `quickstart.md`.
+2. **Task derivation**: Converts contracts, entities and scenarios into subtasks (`Txxx`), marking safe parallel work with `[P]`.
+3. **Work package grouping**: Groups subtasks into work packages (`WPxx`): 3 to 7 subtasks each as a target, 10 at most.
+4. **Prompt generation**: Writes one prompt file per work package in the flat `tasks/` directory and links each from `tasks.md`.
+5. **Finalization**: `spec-kitty agent mission finalize-tasks` validates dependencies, writes the lane metadata (`lanes.json`, execution lanes) and settles the topology. A work package's status lives only in the Mission's `status.events.jsonl`; frontmatter carries no `lane` field.
+
+### The `/spec-kitty.implement` Workflow
+
+`spec-kitty agent action implement WPxx --agent <name>` is the only supported way to start a work package. It checks that every dependency is `approved` or `done`, moves the work package from `planned` through `claimed` to `in_progress` in the status event log (two events), prepares the workspace (the lane worktree `.worktrees/<slug>-lane-<id>` for a lanes topology, the write checkout for `single_branch`) and prints the prompt.
+
+While working, the agent:
+
+- Records notes in the status event log with `spec-kitty agent tasks add-history WPxx --note "..."`, without moving status lanes.
+- Records subtask progress with `spec-kitty agent tasks mark-status`.
+- Checks progress with `spec-kitty agent tasks status`.
+
+When the work is done, the agent moves the work package to review with `spec-kitty agent tasks move-task WPxx --to for_review`. That move refuses while subtasks are unchecked, and on a code lane while the lane branch has no commits.
+
+The optional git hook `scripts/git-hooks/pre-commit-task-workflow.sh` refuses commits of `kitty-specs/` from an execution lane's branch and validates staged task prompts.
 
 ### The `/spec-kitty.review` Command
 
-Provides a structured hand-off gate for work packages with `lane: "for_review"`:
-
-1. **Selection**: Auto-detects first WP with `lane: "for_review"` (or accepts an explicit WP ID passed through the slash command).
-2. **Auto-move to doing**: Moves WP to `lane: "doing"` and displays full prompt with review instructions.
-3. **Deep Review**: Agent reviews prompt, supporting docs, and code changes before rendering findings.
-4. **Decision Flow**: Agent uses workflow commands to update `lane` to "done" (approved) or "planned" (changes requested), which records the transition (with agent + PID data) in `status.events.jsonl`.
-4. **Automation Hooks**: Invokes helper scripts to flip task checkboxes in `tasks.md` when review passes, keeping status in sync with the kanban board.
+`spec-kitty agent action review WPxx --agent <name>` moves a work package from `for_review` to `in_review` and prints its prompt with any earlier review feedback. The reviewer then either approves (`spec-kitty agent tasks move-task WPxx --to approved`) or rejects it back to `planned` with `--review-feedback-file`. Each move is recorded in `status.events.jsonl`.
 
 ### The `/spec-kitty.accept` Command
 
-Use this command after every work package is in `tasks/done/` and the checklist is complete:
-
-1. **Readiness Checks**: Confirms no work packages remain in `planned`, `doing`, or `for_review`; validates frontmatter metadata (`lane`, `agent`, `assignee`, `shell_pid`) and ensures the status event log has an entry for each lane transition.
-2. **Artifact Audit**: Verifies `spec.md`, `plan.md`, `tasks.md`, and supporting documents are present and free from `NEEDS CLARIFICATION` markers; confirms all checkboxes in `tasks.md` are checked.
-3. **Acceptance Metadata**: Records timestamp, actor, mode, and parent commit in `kitty-specs/<feature>/meta.json`, creating an acceptance commit unless run in dry-run mode.
-4. **Guidance Output**: Produces merge instructions for either hosted PRs or local merges, plus cleanup commands to remove the feature worktree and branch once merged.
-
-`/spec-kitty.implement` and `/spec-kitty.accept` both assume you are operating from that feature’s worktree. If you drift back to the repo root, `cd .worktrees/<feature-slug>` (or recreate the worktree with `git worktree add`) before moving prompts or running acceptance.
-
-`/spec-kitty.accept` is also exposed as `spec-kitty accept`, so the same workflow is available from the terminal with optional `--json`, `--mode`, and `--no-commit` switches.
-
-### The `/spec-kitty.implement` Workflow: Kanban Discipline
-
-The implementation command enforces a rigorous task workflow that ensures traceability and prevents work from stalling:
-
-**Mandatory Initialization (Blocking):**
-
-Before any coding begins, `/spec-kitty.implement` requires each work package to transition through lanes with full metadata tracking:
-
-1. **Move prompt to doing lane**: Use `spec-kitty agent action implement WPxx` (workflow command handles this automatically)
-2. **Update frontmatter metadata**:
-   ```yaml
-   lane: "doing"
-   assignee: "Agent Name"
-   agent: "claude"  # or codex, gemini, copilot, etc.
-   shell_pid: "12345"  # from echo $$
-   ```
-3. **Record the lane transition**: The status event log (`status.events.jsonl`) gets a timestamped event; add context with `spec-kitty agent tasks add-history WPxx --note "..."`
-4. **Commit the move**: Preserve git history of the workflow transition
-
-**Validation Checkpoint:**
-
-The agent must verify before proceeding to implementation:
-- Prompt file exists in flat `tasks/` directory
-- Frontmatter shows `lane: "doing"`
-- `shell_pid` is captured
-- `spec-kitty agent tasks status` shows the WP as `in_progress`
-- Changes are committed to git
-
-**Automation Helpers:**
-
-Spec Kitty ships with helper scripts to streamline the workflow:
-
-- `spec-kitty agent action implement WPxx` – Modern workflow command that auto-advances lanes (planned → doing → for_review)
-- `spec-kitty agent tasks add-history WPxx --note "Resumed after dependency install"` – Records a history note in the status event log without moving lanes.
-- `.kittify/scripts/bash/tasks-list-lanes.sh FEATURE-SLUG` – Shows the current lane, agent, and assignee for every work package.
-- `.kittify/scripts/bash/tasks-rollback-move.sh FEATURE-SLUG WPxx` – Returns a prompt to its previous lane if a move was made in error.
-- `scripts/bash/validate-task-workflow.sh WPxx kitty-specs/FEATURE` – Validates prompt is in correct lane with required metadata before implementation starts.
-- `scripts/git-hooks/pre-commit-task-workflow.sh` – Optional git hook to enforce lane metadata in commits.
-
-**Completion Flow:**
-
-After implementing the work package, the agent must:
-
-1. Record a completion note: `spec-kitty agent tasks add-history WPxx --note "..."`
-2. Move to review: Use `spec-kitty agent action implement WPxx` (auto-advances to for_review when work complete)
-3. Update frontmatter: `lane: "for_review"`
-4. Optionally add a review-ready history note with `add-history`
-5. Commit the transition
+Use this command when every work package is `approved` or `done`. `spec-kitty accept` validates the Mission's readiness, records the acceptance metadata in `kitty-specs/<mission_slug>/meta.json` and, unless `--no-commit` is given, creates an acceptance commit. It takes `--mode` (`auto`, `pr`, `local` or `checklist`) and `--json`. After acceptance, `spec-kitty consolidate` does two local steps: [lane consolidation](./orchestration.md#lane-consolidation) of the execution lane branches into the Mission branch, then [branch integration](./orchestration.md#branch-integration--git-merge) of the Mission branch into the local target branch (a `single_branch` Mission has no lanes, so only the second step runs). [Publishing to origin](./orchestration.md#publish-to-originmain) goes through a pull request.
 
 This discipline ensures:
-- **Full traceability**: Every work package has complete history of who worked on it, when, and in which environment (shell_pid)
-- **No stalled work**: Prompts can't languish in doing without accountability
-- **Clear handoffs**: Review gates enforce quality checks before work is marked complete
-- **Parallel workflow visibility**: Multiple agents can work simultaneously, each with their own shell_pid tracking
+- **Full traceability**: every status lane move is an event with its actor in `status.events.jsonl`
+- **No stalled work**: `spec-kitty agent tasks status` shows what is in progress, waiting for review or blocked
+- **Clear handoffs**: review gates run before a work package can be approved
+- **Parallel workflow visibility**: work packages in different execution lanes can run at the same time, each in its own lane worktree
 
 ### Example: Building a Chat Feature
 
@@ -298,12 +249,12 @@ Total: ~12 hours of documentation work
 **SDD with Commands Approach:**
 
 ```bash
-# Step 1: Create the feature specification (5 minutes)
+# Step 1: Create the Mission specification (5 minutes)
 /spec-kitty.specify Real-time chat system with message history and user presence
 
 # This automatically:
-# - Creates branch "003-chat-system"
-# - Generates kitty-specs/003-chat-system/spec.md
+# - Creates the Mission (slug such as chat-system-01ABCDEF) and its topic branch
+# - Generates kitty-specs/chat-system-01ABCDEF/spec.md
 # - Populates it with structured requirements
 
 # Step 2: Generate implementation plan (5 minutes)
@@ -312,19 +263,19 @@ Total: ~12 hours of documentation work
 # Step 3: Generate executable tasks (5 minutes)
 /spec-kitty.tasks
 
-# This automatically creates:
-# - kitty-specs/003-chat-system/plan.md
-# - kitty-specs/003-chat-system/research.md (WebSocket library comparisons)
-# - kitty-specs/003-chat-system/data-model.md (Message and User schemas)
-# - kitty-specs/003-chat-system/contracts/ (WebSocket events, REST endpoints)
-# - kitty-specs/003-chat-system/quickstart.md (Key validation scenarios)
-# - kitty-specs/003-chat-system/tasks.md (Work packages with subtasks)
-# - kitty-specs/003-chat-system/tasks/WP0x-*.md (Prompt bundles in flat directory, lane: "planned" in frontmatter)
+# Steps 2 and 3 create:
+# - kitty-specs/chat-system-01ABCDEF/plan.md
+# - kitty-specs/chat-system-01ABCDEF/research.md (WebSocket library comparisons)
+# - kitty-specs/chat-system-01ABCDEF/data-model.md (Message and User schemas)
+# - kitty-specs/chat-system-01ABCDEF/contracts/ (WebSocket events, REST endpoints)
+# - kitty-specs/chat-system-01ABCDEF/quickstart.md (Key validation scenarios)
+# - kitty-specs/chat-system-01ABCDEF/tasks.md (Work packages with subtasks)
+# - kitty-specs/chat-system-01ABCDEF/tasks/WP0x-*.md (Prompt files in the flat tasks/ directory)
 ```
 
 In 15 minutes, you have:
 
-- A complete feature specification with user stories and acceptance criteria
+- A complete Mission specification with user stories and acceptance criteria
 - A detailed implementation plan with technology choices and rationale
 - API contracts and data models ready for code generation
 - Comprehensive test scenarios for both automated and manual testing
@@ -343,7 +294,9 @@ The commands embody SDD principles by treating specifications as executable arti
 
 ### Template-Driven Quality: How Structure Constrains LLMs for Better Outcomes
 
-The true power of these commands lies not just in automation, but in how the templates guide LLM behavior toward higher-quality specifications. The templates act as sophisticated prompts that constrain the LLM's output in productive ways:
+The true power of these commands lies not just in automation, but in how the templates guide LLM behavior toward higher-quality specifications. The templates act as sophisticated prompts that constrain the LLM's output in productive ways.
+
+> **Where these quotes come from.** The snippets in this section follow GitHub Spec Kit's templates. Spec Kitty's built-in software-dev templates and step prompts (`packs/built-in/missions/software-dev/templates/`, `packs/built-in/missions/mission-steps/software-dev/`) carry some of the same rules: the WHAT-not-HOW guidance, the `[NEEDS CLARIFICATION]` markers and the requirement-completeness checklist in the specify prompt, and the Charter Check and Complexity Tracking sections in the plan template. They do not carry the Phase -1 Simplicity and Anti-Abstraction gates, the `implementation-details/` rule or the File Creation Order list; Spec Kitty's plan template takes its gates from the project charter instead.
 
 #### 1. **Preventing Premature Implementation Details**
 
@@ -381,7 +334,7 @@ The templates include comprehensive checklists that act as "unit tests" for the 
 
 These checklists force the LLM to self-review its output systematically, catching gaps that might otherwise slip through. It's like giving the LLM a quality assurance framework.
 
-#### 4. **Charteral Compliance Through Gates**
+#### 4. **Charter Compliance Through Gates**
 
 The implementation plan template enforces architectural principles through phase gates:
 
@@ -445,13 +398,15 @@ These constraints work together to produce specifications that are:
 
 The templates transform the LLM from a creative writer into a disciplined specification engineer, channeling its capabilities toward producing consistently high-quality, executable specifications that truly drive development.
 
-## The Charteral Foundation: Enforcing Architectural Discipline
+## The Charter Foundation: Enforcing Architectural Discipline
 
-At the heart of SDD lies a charter—a set of immutable principles that govern how specifications become code. The charter (`.kittify/charter/charter.md`) acts as the architectural DNA of the system, ensuring that every generated implementation maintains consistency, simplicity, and quality.
+At the heart of SDD lies a charter—a set of principles that govern how specifications become code. The charter (`.kittify/charter/charter.md`) acts as the architectural DNA of the system, ensuring that every generated implementation maintains consistency, simplicity, and quality.
 
 ### The Core Articles of Development
 
-The charter defines several core articles that shape every aspect of the development process:
+> **Example articles.** The articles below are the example constitution from GitHub Spec Kit. Spec Kitty does not ship them: each project writes its own charter through `spec-kitty charter interview` and `spec-kitty charter generate`. The built-in software-dev mission's agent context names three of them (Library-First, CLI Interface, Test-First) as practices.
+
+The example charter defines several core articles that shape every aspect of the development process:
 
 #### Article I: Library-First Principle
 
@@ -520,7 +475,7 @@ Tests MUST use realistic environments:
 
 This ensures generated code works in practice, not just in theory.
 
-### Charteral Enforcement Through Templates
+### Charter Enforcement Through Templates
 
 The implementation plan template operationalizes these articles through concrete checkpoints:
 
@@ -550,7 +505,7 @@ The charter's power lies in its immutability. While implementation details can e
 3. **Architectural Integrity**: Every feature reinforces rather than undermines the system design
 4. **Quality Guarantees**: Test-first, library-first, and simplicity principles ensure maintainable code
 
-### Charteral Evolution
+### Charter Evolution
 
 While principles are immutable, their application can evolve:
 
@@ -587,7 +542,7 @@ Software development needs better tools for maintaining alignment between intent
 
 | | |
 |---|---|
-| **Definition** | A stable identifier for one spec requirement: a kind (`FR`, `NFR`, `C`, or `SC`), a digit string whose width is significant, an optional single lowercase letter suffix, and an optional `<mission-slug>#` qualifier; canonical form is kind uppercase, digits verbatim, suffix lowercase. |
+| **Definition** | A stable identifier for one spec requirement: a kind (`FR`, `NFR`, `C`, or `SC`; a research Mission also accepts `DR`, `AR` and `QR`), a digit string whose width is significant, an optional single lowercase letter suffix, and an optional `<mission-slug>#` qualifier; canonical form is kind uppercase, digits verbatim, suffix lowercase. |
 | **Context** | Spec-Driven Development |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |

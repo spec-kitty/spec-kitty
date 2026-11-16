@@ -3,7 +3,12 @@ title: Governance Files Reference
 description: Authoritative reference for every file under .kittify/charter/ — who writes it, what it contains, and whether you can edit it.
 doc_status: active
 kind: Explanation
-updated: '2026-10-08T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
+audience:
+- profile: internal/maintainer
+  guidance_text: Use this table to see which governance file to edit, which command owns it and what to commit.
+- profile: internal/lead-developer
+  guidance_text: Check here before you change a file under .kittify/charter/ or .kittify/charter-packs/.
 related:
 - context/charter-overview
 - architecture/charter-pack-usage-journey
@@ -16,7 +21,9 @@ must not be hand-edited. This page describes the common Charter-era files and th
 own them.
 
 > **Key rule**: edit `.kittify/charter/charter.yaml` for Spec Kitty runtime policy changes —
-> specifically its `governance:`, `directives:`, activation, and `overrides:` sections.
+> specifically its `governance:`, `directives:`, and `overrides:` sections. What the project has
+> activated lives in the activation ledger `.kittify/charter/activation.yaml`; change it with
+> `spec-kitty charter activate` / `deactivate`.
 > `.kittify/charter/charter.md` is a curated narrative companion; the runtime never reads it for
 > policy. External governance docs such as `spec/constitution.md` are supporting context
 > referenced from `charter.yaml`, not alternate authoritative charter paths. Re-run
@@ -30,9 +37,10 @@ own them.
 
 | File path | Who writes it | Contains | Edit directly? |
 |---|---|---|---|
-| `.kittify/charter/charter.yaml` | **Human** (`governance`/`directives`/activation/`overrides`); `charter generate` (`catalog`/`metadata` sections only) | The single structured charter: hand-authored policy plus a generator-refreshed offering catalog | `governance`/`directives`/activation/`overrides`: yes. `catalog`/`metadata`: no |
+| `.kittify/charter/charter.yaml` | **Human** (`governance`/`directives`/`overrides`); `charter generate` (`catalog`/`metadata` sections only) | The single structured charter: hand-authored policy plus a generator-refreshed offering catalog | `governance`/`directives`/`overrides`: yes. `catalog`/`metadata`: no |
 | `.kittify/charter/charter.md` | **Human**, or an agent during `/spec-kitty.charter`'s chat flow — never `charter generate` | Narrative summary of policy; may reference or summarize an external constitution | Yes — but edits have no runtime effect |
 | `.kittify/config.yaml` (`charter:` key) | Minted once by `charter generate` on first bootstrap; human-editable afterward | The single pointer resolving to the active `charter.yaml` | Yes, to redirect to a different charter file |
+| `.kittify/charter/activation.yaml` | `spec-kitty init`, `charter activate` / `deactivate` (presets included), upgrade migration `4.0.0rc8_activation_ledger` | The activation ledger: `activated_kinds`, `mission_type_activations`, the `activated_<kind>` allow state and the `deactivated_<kind>` exclusions | No: use `charter activate` / `deactivate` |
 | `.kittify/charter/interview/answers.yaml` | `charter interview` | Captured answers used by `charter generate` | Prefer re-running `charter interview` |
 | `.kittify/charter/context-state.json` | Runtime context loader | Per-action first-load state for compact/bootstrap context | No |
 | `.kittify/charter/generated/{directives,tactics,styleguides}/` | Agent harness | Candidate YAML artifacts consumed by `charter synthesize` | No routine hand edits |
@@ -106,7 +114,8 @@ projects:
 
 | Path | Git policy | Refresh command |
 |---|---|---|
-| `.kittify/charter/charter.yaml` | Commit. This is the Spec Kitty runtime policy source. | Edit `governance:`/`directives:`/activation/`overrides:` directly; run `spec-kitty charter generate` to refresh `catalog`/`metadata`. |
+| `.kittify/charter/charter.yaml` | Commit. This is the Spec Kitty runtime policy source. | Edit `governance:`/`directives:`/`overrides:` directly; run `spec-kitty charter generate` to refresh `catalog`/`metadata`. |
+| `.kittify/charter/activation.yaml` | Commit. The activation ledger is git-tracked. | `spec-kitty charter activate` / `deactivate` |
 | `.kittify/charter/charter.md` | Commit. Curated narrative companion, not a runtime source. | Edit directly, whenever convenient. |
 | `.kittify/config.yaml` | Commit. Holds the `charter:` pointer plus agent/pack config. | Edit directly to redirect the pointer. |
 | `.kittify/charter/provenance/*` | Do not commit. Synthesis provenance is regenerated with the promoted project layer. | `spec-kitty charter synthesize` |
@@ -129,9 +138,9 @@ Do not enforce markdown equality between the public document and `.kittify/chart
 `.kittify/charter/charter.yaml` unless the project deliberately adopts a mirror policy outside
 Spec Kitty's defaults.
 
-Spec Kitty's own repository follows this split: `charter.yaml`, `charter.md`, and selected
-project-layer artifacts are tracked, while synthesis provenance and `graph.yaml` remain
-local.
+Spec Kitty's own repository does not follow this split today: besides `charter.yaml`,
+`charter.md`, `activation.yaml` and selected project-layer artifacts, it also tracks its
+synthesis manifest, the provenance sidecars and `.kittify/charter-packs/graph.yaml`.
 
 When a required local generated file is missing, do not hand-create it. Run:
 
@@ -154,7 +163,7 @@ Charter Pack.
 ## What Happens If You Edit a Generated Section
 
 `charter generate` can overwrite `charter.yaml`'s `catalog` and `metadata` sections on every run —
-that refresh is a merge that leaves `governance`, `directives`, activation, and `overrides` alone,
+that refresh is a merge that leaves `governance`, `directives`, and `overrides` alone,
 but any hand edit made directly inside `catalog` or `metadata` will be lost the next time
 `charter generate` runs. `governance` and `directives` are never touched by `generate` — edit them
 freely.
@@ -204,6 +213,9 @@ The v2.0.0 manifest tracks two files — `charter.md` and `charter.yaml` — and
 `derived_files` is empty. `charter.yaml` is also the sole entry in `content_hash_files`, the
 content-identity input set used for the bundle's freshness hash. `charter.md` is tracked (git
 must contain it) but contributes nothing to that hash, since it is a companion, not an input.
+The activation ledger `activation.yaml` is an optional tracked member
+(`optional_tracked_files`): its absence is never a failure, and when present it is added to the
+freshness hash (`src/charter/bundle.py`).
 
 `charter lint` performs graph-native decay checks — it detects orphaned directives (directives
 that appear in the DRG but have no referencing tactic), contradictions (two directives with
