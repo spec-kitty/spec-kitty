@@ -3,7 +3,12 @@ title: 'Stakeholder Persona: Project Owner'
 description: 'External project-owner persona: ships meaningful outcomes quickly while keeping project direction coherent, valuing fast onboarding and clear governance defaults.'
 doc_status: active
 kind: Explanation
-updated: '2026-06-12T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
+audience:
+- profile: internal/maintainer
+  guidance_text: Check that this profile still describes a real reader before pages are written for it.
+- profile: internal/ai-collaboration-agent
+  guidance_text: Read this profile before drafting a page for this reader; match its vocabulary and the questions it brings.
 ---
 # Stakeholder Persona: Project Owner
 
@@ -13,8 +18,8 @@ updated: '2026-06-12T00:00:00Z'
 | **Actor Type** | `human` |
 | **Primary Goal** | Ship meaningful outcomes quickly while keeping project direction coherent. |
 | **Persona ID** | `aud-project-owner` |
-| **Created / Updated** | `2026-02-28` |
-| **Domain / Context** | Spec Kitty architecture 2.x |
+| **Created / Updated** | `2026-02-28` / `2026-11-13` |
+| **Domain / Context** | Spec Kitty 4.x |
 | **Status** | canonical |
 
 ---
@@ -39,10 +44,10 @@ updated: '2026-06-12T00:00:00Z'
 
 | Category | Expectation / Need | Description |
 |---|---|---|
-| Information | Clear status signals | Understand what has been generated and what still needs confirmation. |
-| Interaction | Guided interviews | Prefer structured prompts over open-ended architecture debates. |
-| Support | Reusable templates | Needs repeatable defaults for new features and contributors. |
-| Governance | Explicit approval points | Must be able to stop, adjust, or approve decisions at critical checkpoints. |
+| Information | Clear status signals | Understand what has been generated and what still needs confirmation (`/spec-kitty.status`). |
+| Interaction | Guided interviews | Prefer structured prompts, such as the charter interview and the discovery interview that opens `/spec-kitty.specify`, over open-ended architecture debates. |
+| Support | Reusable templates | Needs repeatable defaults for new Missions and contributors. |
+| Governance | Explicit approval points | Must be able to stop, adjust, or approve decisions at critical checkpoints: the confirmed spec, work-package review and acceptance. |
 | Decision Authority | Final on project intent | Approves mission scope, architecture direction, and governance exceptions. |
 
 ---
@@ -86,7 +91,7 @@ updated: '2026-06-12T00:00:00Z'
 
 | Dimension | Indicator | Type |
 |---|---|---|
-| Performance | Time from init to first accepted feature spec | Quantitative |
+| Performance | Time from `spec-kitty init` to the first accepted Mission spec | Quantitative |
 | Quality | Ratio of architecture docs accepted without major rewrite | Quantitative |
 | Growth | Contributor confidence in governance-guided workflow | Qualitative |
 

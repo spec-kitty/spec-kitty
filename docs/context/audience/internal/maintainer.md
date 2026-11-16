@@ -3,7 +3,12 @@ title: 'Stakeholder Persona: Maintainer'
 description: 'Internal maintainer persona: keeps governance operations sustainable, auditable, and low-friction for contributors across the Spec Kitty project.'
 doc_status: active
 kind: Explanation
-updated: '2026-06-12T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
+audience:
+- profile: internal/maintainer
+  guidance_text: Check that this profile still describes a real reader before pages are written for it.
+- profile: internal/ai-collaboration-agent
+  guidance_text: Read this profile before drafting a page for this reader; match its vocabulary and the questions it brings.
 ---
 # Stakeholder Persona: Maintainer
 
@@ -13,8 +18,8 @@ updated: '2026-06-12T00:00:00Z'
 | **Actor Type** | `human` |
 | **Primary Goal** | Keep governance operations sustainable, auditable, and low-friction for contributors. |
 | **Persona ID** | `aud-maintainer` |
-| **Created / Updated** | `2026-02-28` |
-| **Domain / Context** | Spec Kitty architecture 2.x |
+| **Created / Updated** | `2026-02-28` / `2026-11-13` |
+| **Domain / Context** | Spec Kitty 4.x |
 | **Status** | canonical |
 
 ---
@@ -41,7 +46,7 @@ updated: '2026-06-12T00:00:00Z'
 |---|---|---|
 | Information | Audit-ready change trail | Needs clear rationale and links for every governance update. |
 | Interaction | Safe mutation workflow | Requires review-before-change behavior for charter and doctrine updates. |
-| Support | Repeatable validation gates | Expects deterministic checks in CI and local execution. |
+| Support | Repeatable validation gates | Expects deterministic checks in CI and local execution (for example `make test-fast` and `make docs-lint`). |
 | Governance | Explicit escalation paths | Needs clear stop conditions when ambiguity remains unresolved. |
 | Decision Authority | Final governance approval | Decides whether proposed governance changes become project policy. |
 
@@ -78,7 +83,7 @@ updated: '2026-06-12T00:00:00Z'
 - **Affected By**: Charter command flow, governance mission artifacts, and CI consistency gates.
 - **Needs From Design**: Predictable governance lifecycle from proposal to validated adoption.
 - **Risk If Ignored**: Inconsistent project rules and contributor confusion.
-- **Acceptance Signal**: Governance changes can be traced, validated, and explained after merge.
+- **Acceptance Signal**: Governance changes can be traced, validated, and explained after the pull request is merged.
 
 ---
 
@@ -87,7 +92,7 @@ updated: '2026-06-12T00:00:00Z'
 | Dimension | Indicator | Type |
 |---|---|---|
 | Performance | Time to review and accept governance changes | Quantitative |
-| Quality | Post-merge governance regressions | Quantitative |
+| Quality | Governance regressions after a pull request is merged | Quantitative |
 | Growth | Contributor compliance with governance workflow | Qualitative |
 
 ---

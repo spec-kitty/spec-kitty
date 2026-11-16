@@ -3,7 +3,12 @@ title: 'Stakeholder Persona: External Tech Lead Evaluator'
 description: 'External tech-lead-evaluator persona: judges whether Spec Kitty improves team delivery quality and predictability without adding unsustainable process overhead.'
 doc_status: active
 kind: Explanation
-updated: '2026-06-12T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
+audience:
+- profile: internal/maintainer
+  guidance_text: Check that this profile still describes a real reader before pages are written for it.
+- profile: internal/ai-collaboration-agent
+  guidance_text: Read this profile before drafting a page for this reader; match its vocabulary and the questions it brings.
 ---
 # Stakeholder Persona: External Tech Lead Evaluator
 
@@ -13,8 +18,8 @@ updated: '2026-06-12T00:00:00Z'
 | **Actor Type** | `human` |
 | **Primary Goal** | Determine whether Spec Kitty can improve team delivery quality and predictability without adding unsustainable process overhead. |
 | **Persona ID** | `aud-ext-tech-lead-evaluator` |
-| **Created / Updated** | `2026-03-01` |
-| **Domain / Context** | Spec Kitty architecture 2.x |
+| **Created / Updated** | `2026-03-01` / `2026-11-13` |
+| **Domain / Context** | Spec Kitty 4.x |
 | **Status** | canonical |
 
 ---
@@ -39,10 +44,10 @@ updated: '2026-06-12T00:00:00Z'
 
 | Category | Expectation / Need | Description |
 |---|---|---|
-| Information | Clear operational model | Needs explicit understanding of runtime decisioning, lifecycle mutation, and branch routing behavior. |
+| Information | Clear operational model | Needs to understand how `spec-kitty next` picks the next step, how a work package moves through its status lanes (`planned`, `claimed`, `in_progress`, `for_review`, `in_review`, `approved`, `done`; `blocked` and `canceled` are side states off that path), and which branch each change lands on (branch-target routing). |
 | Interaction | Fast trial workflow | Wants a low-friction pilot path to evaluate fit before org-wide rollout. |
-| Support | Team onboarding assets | Expects templates, journeys, and docs that help engineers adopt consistent practices quickly. |
-| Governance | Policy compatibility | Needs confidence that Spec Kitty can align with existing review, merge, and compliance rules. |
+| Support | Team onboarding assets | Expects templates, guides, and docs that help engineers adopt consistent practices quickly. |
+| Governance | Policy compatibility | Needs confidence that Spec Kitty can align with existing review, pull-request merge, and compliance rules. |
 | Decision Authority | Recommendation authority | Can recommend adoption strategy and implementation rollout plan to engineering leadership. |
 
 ---
@@ -78,7 +83,7 @@ updated: '2026-06-12T00:00:00Z'
 - **Affected By**: Workflow command model, branch-target routing, and lifecycle guard semantics.
 - **Needs From Design**: Clear mapping from architecture intent to operational team workflows.
 - **Risk If Ignored**: Rejection due to perceived process weight or unclear delivery value.
-- **Acceptance Signal**: Team can execute pilot features with fewer coordination errors and clearer handoffs.
+- **Acceptance Signal**: Team can run pilot Missions with fewer coordination errors and clearer handoffs.
 
 ---
 

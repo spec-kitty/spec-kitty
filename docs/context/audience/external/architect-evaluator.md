@@ -3,7 +3,12 @@ title: 'Stakeholder Persona: External Architect Evaluator'
 description: "External architect-evaluator persona: assesses whether Spec Kitty's architecture and decision model are robust enough for long-term organizational adoption."
 doc_status: active
 kind: Explanation
-updated: '2026-06-12T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
+audience:
+- profile: internal/maintainer
+  guidance_text: Check that this profile still describes a real reader before pages are written for it.
+- profile: internal/ai-collaboration-agent
+  guidance_text: Read this profile before drafting a page for this reader; match its vocabulary and the questions it brings.
 ---
 # Stakeholder Persona: External Architect Evaluator
 
@@ -13,8 +18,8 @@ updated: '2026-06-12T00:00:00Z'
 | **Actor Type** | `human` |
 | **Primary Goal** | Assess whether Spec Kitty architecture and decision model are robust enough for long-term organizational adoption. |
 | **Persona ID** | `aud-ext-architect-evaluator` |
-| **Created / Updated** | `2026-03-01` |
-| **Domain / Context** | Spec Kitty architecture 2.x |
+| **Created / Updated** | `2026-03-01` / `2026-11-13` |
+| **Domain / Context** | Spec Kitty 4.x |
 | **Status** | canonical |
 
 ---
@@ -40,7 +45,7 @@ updated: '2026-06-12T00:00:00Z'
 | Category | Expectation / Need | Description |
 |---|---|---|
 | Information | Strong architecture narrative | Needs consistent domain, context, container, and component descriptions with clear boundaries. |
-| Interaction | Traceable decision flow | Expects architectural behavior to be linked to ADR rationale and supersession history. |
+| Interaction | Traceable decision flow | Expects architectural behavior to be linked to ADR rationale and supersession history (ADRs filed by era under `docs/adr/`; a decision changes through an appended, dated amendment or a superseding ADR, recorded in the older ADR's status). |
 | Support | Comparative evaluation material | Wants enough detail to compare Spec Kitty against existing architecture governance approaches. |
 | Governance | Explicit authority boundaries | Requires clear separation between host authority and external integration adapters. |
 | Decision Authority | Adoption sign-off influence | Can endorse or block architecture-level adoption decisions. |
