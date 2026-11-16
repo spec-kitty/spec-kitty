@@ -6,6 +6,7 @@ from __future__ import annotations
 import base64
 import subprocess
 from typing import Any
+from pathlib import Path
 
 import pytest
 
@@ -132,6 +133,39 @@ def test_git_commit_cmd_uses_the_bot_identity() -> None:
     assert f"user.name={bot_pr_publish.COMMIT_AUTHOR_NAME}" in cmd
     assert f"user.email={bot_pr_publish.COMMIT_AUTHOR_EMAIL}" in cmd
     assert cmd[-2:] == ["-m", "msg"]
+
+
+def test_git_commit_cmd_runs_no_hook() -> None:
+    """#7662: a hook left in the checkout must never run in the bot's commit."""
+    cmd = bot_pr_publish.git_commit_cmd("msg")
+    assert cmd[:3] == ["git", "-c", "core.hooksPath=/dev/null"]
+    assert cmd[cmd.index("commit") + 1] == "--no-verify"
+
+
+@pytest.mark.parametrize("force", [False, True])
+def test_git_push_cmd_runs_no_hook(force: bool) -> None:
+    """#7662: the push carries the token, so no pre-push or reference-transaction hook may run."""
+    expected = ["git", "-c", "core.hooksPath=/dev/null", "push", "--no-verify", *(["--force"] if force else []), "origin", "HEAD:refs/heads/b"]
+    assert bot_pr_publish.git_push_cmd("b", force=force) == expected
+
+
+def test_git_no_hooks_cmd_prefixes_the_hooks_override() -> None:
+    assert bot_pr_publish.git_no_hooks_cmd("fetch", "origin", "b") == ["git", "-c", "core.hooksPath=/dev/null", "fetch", "origin", "b"]
+
+
+def test_a_planted_hook_does_not_run_in_the_bot_commit(tmp_path: Path) -> None:
+    """End to end on a real repository: a pre-commit/post-commit hook that would fail is skipped."""
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    hooks = tmp_path / ".git" / "hooks"
+    marker = tmp_path / "hook-ran"
+    for name in ("pre-commit", "commit-msg", "post-commit"):
+        hook = hooks / name
+        hook.write_text(f"#!/bin/sh\ntouch {marker}\nexit 1\n", encoding="utf-8")
+        hook.chmod(0o755)
+    (tmp_path / "f.txt").write_text("x\n", encoding="utf-8")
+    subprocess.run(["git", "add", "f.txt"], cwd=tmp_path, check=True)
+    subprocess.run(bot_pr_publish.git_commit_cmd("msg"), cwd=tmp_path, check=True, capture_output=True)
+    assert not marker.exists()
 
 
 def test_write_github_output_appends_to_the_output_file(tmp_path: Any, monkeypatch: pytest.MonkeyPatch) -> None:

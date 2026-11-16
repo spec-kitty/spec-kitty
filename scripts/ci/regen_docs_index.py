@@ -204,7 +204,7 @@ def run_regenerate_phase() -> int:
 
 
 def _push(token: str) -> None:
-    cmd = ["git", "push", "--force", "origin", f"HEAD:refs/heads/{REGEN_BRANCH}"]
+    cmd = bot_pr_publish.git_push_cmd(REGEN_BRANCH, force=True)
     try:
         subprocess.run(
             cmd,

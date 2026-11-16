@@ -15,7 +15,11 @@ This module owns the credential handling both share, so neither keeps a private 
   ``http.extraheader`` entry (:func:`push_env`), never argv and never a persisted git
   config; ``gh`` gets ``GH_TOKEN`` in its own environment only (:func:`gh_env`);
 * :func:`require_token` never falls back to ``GH_TOKEN`` / ``GITHUB_TOKEN``;
-* :func:`redact` masks the token (raw and header-encoded) in anything printed.
+* :func:`redact` masks the token (raw and header-encoded) in anything printed;
+* every bot ``git`` call that can fire a hook (commit, push, fetch, checkout) goes through
+  :func:`git_no_hooks_cmd` (``-c core.hooksPath=/dev/null``), and commit and push also pass
+  ``--no-verify``, so a hook left in the checkout (for example by a test) never runs with
+  the token in reach (#7662).
 
 Everything here is standard library only, so a workflow step can import it before the
 project environment is installed.
@@ -38,6 +42,8 @@ __all__ = [
     "find_open_pr",
     "gh_env",
     "git_commit_cmd",
+    "git_no_hooks_cmd",
+    "git_push_cmd",
     "list_open_prs",
     "push_auth_header",
     "push_env",
@@ -59,6 +65,9 @@ COMMIT_AUTHOR_EMAIL = "ci-bot@users.noreply.github.com"
 PUSH_EXTRAHEADER_KEY = "http.https://github.com/.extraheader"
 
 _HEADER_PREFIX = "AUTHORIZATION: basic "
+
+#: One-shot git config that points the hooks directory at a path holding no hooks (#7662).
+NO_HOOKS_CONFIG = ("-c", "core.hooksPath=/dev/null")
 
 
 def scrubbed_env(token_env_vars: Sequence[str]) -> dict[str, str]:
@@ -194,9 +203,19 @@ def list_open_prs(
     return parsed
 
 
+def git_no_hooks_cmd(*args: str) -> list[str]:
+    """``git <args>`` with hooks disabled for this one invocation (#7662)."""
+    return ["git", *NO_HOOKS_CONFIG, *args]
+
+
 def git_commit_cmd(message: str) -> list[str]:
-    """``git commit`` as the fixed bot identity, never the PAT owner's."""
-    return ["git", "-c", f"user.name={COMMIT_AUTHOR_NAME}", "-c", f"user.email={COMMIT_AUTHOR_EMAIL}", "commit", "-m", message]
+    """``git commit`` as the fixed bot identity, never the PAT owner's, with no hook run."""
+    return git_no_hooks_cmd("-c", f"user.name={COMMIT_AUTHOR_NAME}", "-c", f"user.email={COMMIT_AUTHOR_EMAIL}", "commit", "--no-verify", "-m", message)
+
+
+def git_push_cmd(branch: str, *, force: bool) -> list[str]:
+    """``git push`` of ``HEAD`` to *branch* on ``origin``, with no hook run."""
+    return git_no_hooks_cmd("push", "--no-verify", *(["--force"] if force else []), "origin", f"HEAD:refs/heads/{branch}")
 
 
 def write_job_summary(line: str) -> None:
