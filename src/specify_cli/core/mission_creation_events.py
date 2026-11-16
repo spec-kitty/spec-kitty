@@ -24,7 +24,7 @@ from specify_cli.core.mission_creation_decisions import (
     is_coordination_routed,
 )
 from specify_cli.core.owned_mission import OwnedCreateRoot
-from specify_cli.core.mission_creation_errors import MissionCreationError
+from specify_cli.core.mission_creation_errors import CoordCreateEventsCommitError, MissionCreationError
 from specify_cli.core.mission_creation_identity import _Purpose
 from specify_cli.core.mission_creation_meta import _META_KEY_CREATED_AT, _META_KEY_MISSION_TYPE, _MetaBuild
 from specify_cli.core.mission_creation_rollback import CreateRollbackJournal, _CoordCreateRollbackContext
@@ -199,7 +199,7 @@ def _commit_coord_create_events(
         kind=MissionArtifactKind.STATUS_STATE,
     )
     if result.status not in (STATUS_COMMITTED, STATUS_UNCHANGED):
-        raise MissionCreationError(
+        raise CoordCreateEventsCommitError(
             f"Failed to commit mission-creation events onto the coordination branch "
             f"for {mission_slug_formatted!r}: status={result.status!r} diagnostic={result.diagnostic!r}"
         )

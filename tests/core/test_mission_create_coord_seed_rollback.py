@@ -278,3 +278,68 @@ def test_rollback_covers_a_failed_coordination_commit(tmp_path: Path) -> None:
         )
 
     _assert_no_coordination_leftovers(tmp_path, slug, original_branch, "commit_coord_create_events")
+
+
+# ---------------------------------------------------------------------------
+# (e) #7494: no scaffold survives that names the deleted coordination branch
+# ---------------------------------------------------------------------------
+
+
+def _scaffold_dirs(repo: Path) -> list[str]:
+    return sorted(entry.name for entry in (repo / "kitty-specs").iterdir() if entry.is_dir())
+
+
+@pytest.mark.parametrize("topology", [MissionTopology.COORD, MissionTopology.LANES_WITH_COORD], ids=lambda t: t.value)
+@pytest.mark.parametrize(
+    ("refused_branch", "expected_error"),
+    [
+        # The repository's hook aborts every commit: the coordination
+        # creation-events commit is the first one, so it fails there.
+        ("*", "Failed to commit mission-creation events"),
+        # The hook aborts only on the target: the scaffold commit fails after
+        # the coordination branch has been minted and seeded.
+        ("work", "meta.json commit failed"),
+    ],
+    ids=["hook_aborts_coord_commit", "hook_aborts_scaffold_commit"],
+)
+def test_hook_abort_removes_scaffold_naming_deleted_coordination_branch(
+    tmp_path: Path, topology: MissionTopology, refused_branch: str, expected_error: str
+) -> None:
+    """#7494: the rollback deletes the coordination branch this create minted,
+    so the scaffold whose ``meta.json`` declares it goes too, and a retry after
+    the operator fixes the hook creates exactly one Mission."""
+    _init_repo(tmp_path, branch="work")
+    original_branch = _git(tmp_path, "branch", "--show-current").strip()
+    _install_hook(tmp_path, _refuse_on_branch(refused_branch, "no usable Python interpreter - commit ABORTED"))
+
+    slug = "hook-abort"
+    with pytest.raises(RuntimeError, match=expected_error):
+        _create_mission_core_failure_atomic(
+            tmp_path, slug, topology=topology, allow_worktree_context=True, _mission_id="01KAAAAAAAAAAAAAAAAAAAAAAA", **_summary(slug)
+        )
+
+    _assert_no_coordination_leftovers(tmp_path, slug, original_branch, f"hook refusing {refused_branch}")
+    assert _scaffold_dirs(tmp_path) == [], "no scaffold may survive that names the deleted coordination branch"
+
+    (tmp_path / ".git" / "hooks" / "pre-commit").unlink()  # the operator fixes the hook
+    result = _create_mission_core_failure_atomic(
+        tmp_path, slug, topology=topology, allow_worktree_context=True, _mission_id="01KBBBBBBBBBBBBBBBBBBBBBBB", **_summary(slug)
+    )
+    assert _scaffold_dirs(tmp_path) == [result.mission_slug]
+
+
+def test_hook_abort_keeps_scaffold_when_coordination_branch_was_reused(tmp_path: Path) -> None:
+    """A coordination branch this create only reused is reset, not deleted, so
+    the scaffold that names it still points at a real branch and stays."""
+    _init_repo(tmp_path, branch="work")
+    mission_id = "01KCCCCCCCCCCCCCCCCCCCCCCC"
+    slug = "reuse-keep"
+    branch = coordination_branch_name(slug, mission_id[:8])
+    _git(tmp_path, "branch", branch)
+    _install_hook(tmp_path, _refuse_on_branch("work", "target refusal"))
+
+    with pytest.raises(RuntimeError, match="target refusal"):
+        _create_mission_core_failure_atomic(tmp_path, slug, topology=MissionTopology.COORD, allow_worktree_context=True, _mission_id=mission_id, **_summary(slug))
+
+    assert _git(tmp_path, "branch", "--list", branch).strip(), "a reused coordination branch is never deleted"
+    assert _scaffold_dirs(tmp_path) == [f"{slug}-{mission_id[:8]}"]

@@ -155,6 +155,8 @@ from specify_cli.mission_metadata import (
 # points, not patch points (see the module docstring).
 from specify_cli.core.mission_creation_errors import (
     MissionCreationError as MissionCreationError,
+    CoordCreateEventsCommitError as CoordCreateEventsCommitError,
+    ScaffoldCommitFailedError as ScaffoldCommitFailedError,
     MissionAlreadyExistsError as MissionAlreadyExistsError,
     MissionCreationResult as MissionCreationResult,
     LanesProtectedTargetError as LanesProtectedTargetError,
@@ -235,6 +237,9 @@ from specify_cli.core.mission_creation_rollback import (
     _list_coordination_branches as _list_coordination_branches,
     _rev_parse_or_none as _rev_parse_or_none,
     _path_is_tracked_by_git as _path_is_tracked_by_git,
+    _coord_rollback_orphans_scaffold as _coord_rollback_orphans_scaffold,
+    _failure_chain_has as _failure_chain_has,
+    _failure_is_create_commit_rejection as _failure_is_create_commit_rejection,
     _failure_is_disposable_create_refusal as _failure_is_disposable_create_refusal,
     _plan_orphan_scaffold_removal as _plan_orphan_scaffold_removal,
     _remove_orphan_mission_scaffolds as _remove_orphan_mission_scaffolds,
@@ -410,8 +415,13 @@ def _create_mission_core_failure_atomic(
         if rollback_root is not None:
             # Plan before rollback restores the index and branch ref; indexed
             # scaffold content must remain available for diagnosis.
+            # A rejected commit of a create that minted a coordination branch
+            # (#7494) is planned too, and kept below unless the rollback
+            # deletes the branch its ``meta.json`` names.
+            disposable_refusal = _failure_is_disposable_create_refusal(_create_exc)
+            commit_rejected = _failure_is_create_commit_rejection(_create_exc)
             planned_scaffold_removal: tuple[Path, ...] = ()
-            if _failure_is_disposable_create_refusal(_create_exc):
+            if disposable_refusal or commit_rejected:
                 planned_scaffold_removal = _plan_orphan_scaffold_removal(
                     rollback_root,
                     mission_slug=mission_slug,
@@ -429,7 +439,11 @@ def _create_mission_core_failure_atomic(
             # disposable commit refusal the on-disk scaffold outlives the failed
             # create and turns the documented recovery into a second mission,
             # so it goes too. Other failure classes keep theirs (see
-            # ``_failure_is_disposable_create_refusal``).
+            # ``_failure_is_disposable_create_refusal``). A rejected commit
+            # goes only once the rollback deleted the coordination branch its
+            # ``meta.json`` names; otherwise the probe can still resume it.
+            if not disposable_refusal and not _coord_rollback_orphans_scaffold(rollback_journal.coord):
+                planned_scaffold_removal = ()
             _remove_orphan_mission_scaffolds(planned_scaffold_removal)
         raise
 

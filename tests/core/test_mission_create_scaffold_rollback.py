@@ -260,3 +260,41 @@ def test_unclassified_oserror_before_meta_does_not_delete(tmp_path: Path, monkey
         create_mission_core(tmp_path, "unclassified", allow_worktree_context=True, **_mission_summary("unclassified"))
 
     assert [n for n in _scaffolds(tmp_path) if n.startswith("unclassified-")], "non-disposable failure had its scaffold deleted"
+
+
+def test_coord_rollback_orphans_scaffold_only_for_a_deleted_minted_branch(tmp_path: Path) -> None:
+    """#7494 predicate: only a branch this create minted AND the rollback deleted orphans the scaffold."""
+    from specify_cli.core.mission_creation_rollback import _coord_rollback_orphans_scaffold, _CoordCreateRollbackContext
+
+    _init_git_repo(tmp_path)
+    subprocess.run(["git", "branch", "kitty/mission-kept-01KAAAAA"], cwd=tmp_path, capture_output=True, check=True)
+
+    def _ctx(branch: str, *, created: bool) -> _CoordCreateRollbackContext:
+        return _CoordCreateRollbackContext(
+            repo_root=tmp_path, mission_slug_formatted="m-01KAAAAA", mid8="01KAAAAA", coordination_branch=branch, coordination_branch_created=created
+        )
+
+    assert _coord_rollback_orphans_scaffold(None) is False
+    assert _coord_rollback_orphans_scaffold(_ctx("kitty/mission-gone-01KAAAAA", created=False)) is False
+    assert _coord_rollback_orphans_scaffold(_ctx("kitty/mission-kept-01KAAAAA", created=True)) is False
+    assert _coord_rollback_orphans_scaffold(_ctx("kitty/mission-gone-01KAAAAA", created=True)) is True
+
+
+def test_create_commit_rejection_is_recognised_through_the_cause_chain() -> None:
+    """#7494: both create commit points are recognised, wrapped or bare; other failures are not."""
+    from specify_cli.core.mission_creation import CoordCreateEventsCommitError, ScaffoldCommitFailedError
+    from specify_cli.core.mission_creation_rollback import _failure_is_create_commit_rejection
+
+    def _wrapped(inner: BaseException) -> BaseException:
+        try:
+            try:
+                raise inner
+            except BaseException as exc:
+                raise RuntimeError("outer") from exc
+        except RuntimeError as outer:
+            return outer
+
+    assert _failure_is_create_commit_rejection(CoordCreateEventsCommitError("hook aborted")) is True
+    assert _failure_is_create_commit_rejection(_wrapped(ScaffoldCommitFailedError("hook aborted"))) is True
+    assert _failure_is_create_commit_rejection(RuntimeError("injected MissionCreated persistence failure")) is False
+    assert _failure_is_create_commit_rejection(OSError("no space left on device")) is False

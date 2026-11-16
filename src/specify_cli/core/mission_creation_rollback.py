@@ -26,7 +26,7 @@ from specify_cli.core.mission_creation_decisions import (
 )
 from kernel.git import GitCommandError, changed_paths, tracked_paths
 from specify_cli.core.git_ops import get_current_branch
-from specify_cli.core.mission_creation_errors import ProtectedMintRefusedError
+from specify_cli.core.mission_creation_errors import CoordCreateEventsCommitError, ProtectedMintRefusedError, ScaffoldCommitFailedError
 from specify_cli.coordination.coherence import CheckoutRole, ResidueContext
 from specify_cli.git.destructive_guard import guarded_branch_delete, guarded_tree_delete, guarded_worktree_prune
 from specify_cli.git.ref_advance import RefRestoreError, restore_branch_ref
@@ -122,14 +122,46 @@ def _failure_is_disposable_create_refusal(exc: BaseException) -> bool:
         SafeCommitHeadMismatch,
     )
 
+    return _failure_chain_has(exc, (ProtectedBranchRefused, SafeCommitHeadMismatch, SafeCommitDestinationNotFound, ProtectedMintRefusedError))
+
+
+def _failure_is_create_commit_rejection(exc: BaseException) -> bool:
+    """Recognize a create commit that never landed (#7494), e.g. an aborting pre-commit hook.
+
+    Its remedy is to fix the cause and create again. On its own it does not
+    make the scaffold disposable: the rollback removes the scaffold only when it
+    also deleted the coordination branch the scaffold's ``meta.json`` names
+    (:func:`_coord_rollback_orphans_scaffold`); otherwise the scaffold stays
+    for the resume probe.
+    """
+    return _failure_chain_has(exc, (CoordCreateEventsCommitError, ScaffoldCommitFailedError))
+
+
+def _failure_chain_has(exc: BaseException, types: tuple[type[BaseException], ...]) -> bool:
+    """True when ``exc`` or any exception in its cause/context chain is one of ``types``."""
     seen: set[int] = set()
     current: BaseException | None = exc
     while current is not None and id(current) not in seen:
-        if isinstance(current, (ProtectedBranchRefused, SafeCommitHeadMismatch, SafeCommitDestinationNotFound, ProtectedMintRefusedError)):
+        if isinstance(current, types):
             return True
         seen.add(id(current))
         current = current.__cause__ or current.__context__
     return False
+
+
+def _coord_rollback_orphans_scaffold(ctx: _CoordCreateRollbackContext | None) -> bool:
+    """True when the rollback deleted the coordination branch THIS create minted (#7494).
+
+    The scaffold's ``meta.json`` declares that branch, so once it is gone the
+    scaffold cannot be resumed: the resume probe could only report it as
+    ``MISSION_RESUME_MALFORMED``. A rejected commit
+    (:func:`_failure_is_create_commit_rejection`) then removes the new,
+    untracked scaffold. A branch the destructive guard kept, or a pre-existing
+    branch this create only reused, still exists, and the scaffold stays.
+    """
+    if ctx is None or not ctx.coordination_branch_created:
+        return False
+    return _rev_parse_or_none(ctx.repo_root, f"refs/heads/{ctx.coordination_branch}") is None
 
 
 def _plan_orphan_scaffold_removal(

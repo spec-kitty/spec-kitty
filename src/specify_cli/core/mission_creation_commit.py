@@ -30,7 +30,13 @@ from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import (
     SafeCommitStagedTreeUnchanged,
 )
-from specify_cli.core.mission_creation_errors import MissionAlreadyExistsError, MissionCreationError, MissionCreationResult, _BOOTSTRAP_META_COMMIT_SKIPS
+from specify_cli.core.mission_creation_errors import (
+    MissionAlreadyExistsError,
+    MissionCreationError,
+    MissionCreationResult,
+    ScaffoldCommitFailedError,
+    _BOOTSTRAP_META_COMMIT_SKIPS,
+)
 from specify_cli.core.mission_creation_scaffold import _Scaffold
 
 logger = logging.getLogger("specify_cli.core.mission_creation")
@@ -167,7 +173,7 @@ def _commit_create_scaffold(
             # already-exists signal, never the prose.
             raise MissionAlreadyExistsError(f"meta.json commit failed: {exc}") from exc
         if outcome == "raise":
-            raise RuntimeError(f"meta.json commit failed: {exc}") from exc
+            raise ScaffoldCommitFailedError(f"meta.json commit failed: {exc}") from exc
         scaffold_commit_skipped = True
         logger.info(
             "Skipping bootstrap scaffold commit for %s on planning branch %s: %s",
