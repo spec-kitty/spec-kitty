@@ -54,19 +54,31 @@ def _persist_interrupted_develop_merge(mission: CoordMission, wp_ids: list[str])
 
 
 def test_4991_resume_honors_persisted_target_branch_not_stale_meta(tmp_path: Path) -> None:
+    """The resume judges the persisted ``develop``, never meta's ``main``.
+
+    #5783 (operator ruling 2026-11-16): the write target stays the RECORDED ``main``, which
+    the checkout on ``develop`` cannot commit to, so the resume is refused up front with
+    ``TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE`` instead of landing on ``develop`` and
+    leaving the bookkeeping uncommitted. The #4991 half still holds: the persisted target is
+    the one judged (pre-fix the resume re-resolved to meta's ``main``), and ``main`` gets nothing.
+    """
     mission = build_coord_mission(tmp_path, wps=("WP01",), mid8="01M4991A")
     git(mission.repo, "branch", "develop", "main")
     git(mission.repo, "checkout", "-q", "develop")  # primary on the intended target
     approved = mission.approved_shas_from_lane_tips(["WP01"])  # PRE-resume, from lane tips
     _persist_interrupted_develop_merge(mission, ["WP01"])
+    tips_before = {b: git(mission.repo, "rev-parse", b).stdout.strip() for b in ("main", "develop")}
 
-    run_terminus(mission, ["consolidate", "--resume", "--yes"])
+    result = run_terminus(mission, ["consolidate", "--resume", "--yes"])
 
-    # The resume must honor the persisted develop target: the approved WP lands on
-    # develop, never on meta's main. Pre-fix the resume re-resolves to main and the
-    # approved work never reaches develop.
+    output = " ".join((result.stdout + result.stderr).split())
+    assert result.returncode == 1, output
+    assert "TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE" in output, output
+    assert "Refusing to land the mission branch on 'develop'" in output, (
+        f"the resume must judge the persisted develop target, not meta's main (#4991). output={output}"
+    )
+    assert "spec-kitty consolidate --abort" in output, f"a resume refusal points at --abort. output={output}"
+    assert {b: git(mission.repo, "rev-parse", b).stdout.strip() for b in ("main", "develop")} == tips_before, output
     for shas in approved.values():
         for sha in shas:
-            assert sha_reachable(mission.repo, sha, "develop"), (
-                f"approved commit {sha[:10]} did NOT land on 'develop' after --resume — resume ignored ConsolidationState.target_branch (#4991)"
-            )
+            assert not sha_reachable(mission.repo, sha, "main"), f"approved commit {sha[:10]} landed on stale-meta 'main' (#4991)"

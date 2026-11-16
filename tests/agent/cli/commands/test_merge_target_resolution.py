@@ -113,6 +113,11 @@ def _patch_merge_environment(
     # real run (#7267, MISSION_BRANCH_MISSING). This test is not about that refusal,
     # so model the branch as present.
     monkeypatch.setattr("specify_cli.consolidation.forecast._check_mission_branch", lambda *_a, **_k: (True, None))
+    # The fake repository's checkout holds no recorded target, so a retarget now forecasts
+    # TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE like the real run (#5783, pinned through real
+    # git in tests/terminus/test_target_override_recorded_target_unwritable.py). These tests
+    # are about target RESOLUTION, so model the recorded target as writable.
+    monkeypatch.setattr("specify_cli.consolidation.forecast.refuse_unwritable_recorded_target", lambda *_a, **_k: None)
     for _target in (
         "specify_cli.consolidation.run_state.run_command",
         "specify_cli.consolidation.status_surface.run_command",
