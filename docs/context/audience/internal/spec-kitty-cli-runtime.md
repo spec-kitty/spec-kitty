@@ -3,7 +3,12 @@ title: 'Stakeholder Persona: Spec Kitty CLI Runtime'
 description: 'Internal Spec Kitty CLI-runtime persona (system actor): enforces deterministic command behavior, artifact lifecycle rules, and governance boundaries.'
 doc_status: active
 kind: Explanation
-updated: '2026-06-12T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
+audience:
+- profile: internal/maintainer
+  guidance_text: Check that this profile still describes a real reader before pages are written for it.
+- profile: internal/ai-collaboration-agent
+  guidance_text: Read this profile before drafting a page for this reader; match its vocabulary and the questions it brings.
 ---
 # Stakeholder Persona: Spec Kitty CLI Runtime
 
@@ -13,8 +18,8 @@ updated: '2026-06-12T00:00:00Z'
 | **Actor Type** | `system` |
 | **Primary Goal** | Enforce deterministic command behavior, artifact lifecycle rules, and governance boundaries. |
 | **Persona ID** | `aud-spec-kitty-cli-runtime` |
-| **Created / Updated** | `2026-02-28` |
-| **Domain / Context** | Spec Kitty architecture 2.x |
+| **Created / Updated** | `2026-02-28` / `2026-11-13` |
+| **Domain / Context** | Spec Kitty 4.x |
 | **Status** | canonical |
 
 ---
@@ -22,8 +27,8 @@ updated: '2026-06-12T00:00:00Z'
 ## Overview
 
 - **Role Focus**: Command orchestration, policy execution, and artifact consistency.
-- **Primary Function**: Validates prerequisites, routes mission flows, and manages state transitions.
-- **Environment / Context**: Local-first repository workflows with optional external integrations.
+- **Primary Function**: Validates prerequisites, decides the next step of each Mission (`spec-kitty next`), and records state transitions.
+- **Environment / Context**: Local-first repository workflows with optional external integrations, such as local issue-tracker bindings (`spec-kitty tracker`). The hosted surfaces were removed from open-core in #6164.
 
 ---
 
@@ -43,7 +48,7 @@ updated: '2026-06-12T00:00:00Z'
 | Interaction | Predictable interfaces | Commands should have stable semantics and clear failure states. |
 | Support | Testable contracts | Needs coverage for boundary rules and migration behavior. |
 | Governance | Policy-backed execution | Runtime behavior must honor charter and doctrine constraints. |
-| Decision Authority | State transition authority | Owns canonical transition rules for command and task state changes. |
+| Decision Authority | State transition authority | Owns the work-package state machine; the append-only `status.events.jsonl` log is the sole authority for a work package's lane. |
 
 ---
 

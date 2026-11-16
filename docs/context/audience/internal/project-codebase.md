@@ -3,7 +3,12 @@ title: 'Stakeholder Persona: Project Codebase'
 description: 'Internal project-codebase persona (system actor): preserves structural coherence while enabling safe, incremental change throughout the repository.'
 doc_status: active
 kind: Explanation
-updated: '2026-06-12T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
+audience:
+- profile: internal/maintainer
+  guidance_text: Check that this profile still describes a real reader before pages are written for it.
+- profile: internal/ai-collaboration-agent
+  guidance_text: Read this profile before drafting a page for this reader; match its vocabulary and the questions it brings.
 ---
 # Stakeholder Persona: Project Codebase
 
@@ -13,8 +18,8 @@ updated: '2026-06-12T00:00:00Z'
 | **Actor Type** | `system` |
 | **Primary Goal** | Preserve structural coherence while enabling safe, incremental change. |
 | **Persona ID** | `aud-project-codebase` |
-| **Created / Updated** | `2026-02-28` |
-| **Domain / Context** | Spec Kitty architecture 2.x |
+| **Created / Updated** | `2026-02-28` / `2026-11-13` |
+| **Domain / Context** | Spec Kitty 4.x |
 | **Status** | canonical |
 
 ---

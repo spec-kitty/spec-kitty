@@ -3,7 +3,12 @@ title: 'Stakeholder Persona: Lead Developer'
 description: 'Internal lead-developer persona: translates architecture and governance intent into practical, day-to-day implementation behavior across the codebase.'
 doc_status: active
 kind: Explanation
-updated: '2026-06-12T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
+audience:
+- profile: internal/maintainer
+  guidance_text: Check that this profile still describes a real reader before pages are written for it.
+- profile: internal/ai-collaboration-agent
+  guidance_text: Read this profile before drafting a page for this reader; match its vocabulary and the questions it brings.
 ---
 # Stakeholder Persona: Lead Developer
 
@@ -13,8 +18,8 @@ updated: '2026-06-12T00:00:00Z'
 | **Actor Type** | `human` |
 | **Primary Goal** | Translate architecture and governance intent into practical implementation behavior. |
 | **Persona ID** | `aud-lead-developer` |
-| **Created / Updated** | `2026-02-28` |
-| **Domain / Context** | Spec Kitty architecture 2.x |
+| **Created / Updated** | `2026-02-28` / `2026-11-13` |
+| **Domain / Context** | Spec Kitty 4.x |
 | **Status** | canonical |
 
 ---
@@ -23,7 +28,7 @@ updated: '2026-06-12T00:00:00Z'
 
 - **Role Focus**: Delivery execution, code quality, and doctrine adoption.
 - **Primary Function**: Curates practices, validates feasibility, and applies governance decisions in implementation workflows.
-- **Environment / Context**: Active feature streams with frequent branch-level iterations.
+- **Environment / Context**: Several Missions in flight, each worked as work packages on lane branches or on a single Mission branch.
 
 ---
 
@@ -41,8 +46,8 @@ updated: '2026-06-12T00:00:00Z'
 |---|---|---|
 | Information | Actionable guidance | Expects architecture docs to clarify behavior, not restate code structure. |
 | Interaction | Fast feedback loops | Needs rapid validation for governance and workflow changes. |
-| Support | Reusable patterns | Prefers patterns that can be applied across features without re-interpretation. |
-| Governance | Explicit activation rules | Must know when a curated practice is actually active. |
+| Support | Reusable patterns | Prefers patterns that can be applied across Missions without re-interpretation. |
+| Governance | Explicit activation rules | Must know when a curated practice is actually active (`spec-kitty charter list`, `spec-kitty charter context --action <action>`). |
 | Decision Authority | Practice adoption recommendation | Proposes and validates practical adoption paths before final approval. |
 
 ---
@@ -75,7 +80,7 @@ updated: '2026-06-12T00:00:00Z'
 
 ## Design Impact
 
-- **Affected By**: Doctrine curation flow, charter activation path, and validation gates.
+- **Affected By**: Doctrine curation, charter activation (`spec-kitty charter activate` and `deactivate`), and validation gates.
 - **Needs From Design**: Clear ownership of transitions from proposal to active behavior.
 - **Risk If Ignored**: Shadow conventions and inconsistent implementation quality.
 - **Acceptance Signal**: Curated practices can be activated and observed without manual interpretation.

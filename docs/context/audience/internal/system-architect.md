@@ -3,7 +3,12 @@ title: 'Stakeholder Persona: System Architect'
 description: 'Internal system-architect persona: establishes architecture boundaries that stay coherent as the Spec Kitty system evolves, making trade-offs explicit.'
 doc_status: active
 kind: Explanation
-updated: '2026-06-12T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
+audience:
+- profile: internal/maintainer
+  guidance_text: Check that this profile still describes a real reader before pages are written for it.
+- profile: internal/ai-collaboration-agent
+  guidance_text: Read this profile before drafting a page for this reader; match its vocabulary and the questions it brings.
 ---
 # Stakeholder Persona: System Architect
 
@@ -13,8 +18,8 @@ updated: '2026-06-12T00:00:00Z'
 | **Actor Type** | `human` |
 | **Primary Goal** | Establish architecture boundaries that stay coherent as the system evolves. |
 | **Persona ID** | `aud-system-architect` |
-| **Created / Updated** | `2026-02-28` |
-| **Domain / Context** | Spec Kitty architecture 2.x |
+| **Created / Updated** | `2026-02-28` / `2026-11-13` |
+| **Domain / Context** | Spec Kitty 4.x |
 | **Status** | canonical |
 
 ---
@@ -42,7 +47,7 @@ updated: '2026-06-12T00:00:00Z'
 | Information | Evidence-backed options | Needs alternatives with measurable trade-offs. |
 | Interaction | Structured design dialogue | Prefers phased discovery over ad hoc brainstorming. |
 | Support | Traceability links | Requires clear mapping from decision to artifact and behavior. |
-| Governance | ADR discipline | Expects explicit rationale and supersession patterns. |
+| Governance | ADR discipline | Expects explicit rationale and supersession patterns: ADRs filed by era under `docs/adr/`; a decision changes through an appended, dated amendment or a superseding ADR, recorded in the older ADR's status. |
 | Decision Authority | Final on architecture direction | Approves container boundaries, integration patterns, and architectural constraints. |
 
 ---

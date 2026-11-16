@@ -3,7 +3,12 @@ title: 'Stakeholder Persona: External Product Manager Evaluator'
 description: 'External product-manager-evaluator persona: gauges whether Spec Kitty improves discovery-to-delivery flow while preserving product intent and decision accountability.'
 doc_status: active
 kind: Explanation
-updated: '2026-06-12T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
+audience:
+- profile: internal/maintainer
+  guidance_text: Check that this profile still describes a real reader before pages are written for it.
+- profile: internal/ai-collaboration-agent
+  guidance_text: Read this profile before drafting a page for this reader; match its vocabulary and the questions it brings.
 ---
 # Stakeholder Persona: External Product Manager Evaluator
 
@@ -13,8 +18,8 @@ updated: '2026-06-12T00:00:00Z'
 | **Actor Type** | `human` |
 | **Primary Goal** | Evaluate whether Spec Kitty improves discovery-to-delivery flow while preserving product intent and decision accountability. |
 | **Persona ID** | `aud-ext-product-manager-evaluator` |
-| **Created / Updated** | `2026-03-01` |
-| **Domain / Context** | Spec Kitty architecture 2.x |
+| **Created / Updated** | `2026-03-01` / `2026-11-13` |
+| **Domain / Context** | Spec Kitty 4.x |
 | **Status** | canonical |
 
 ---
@@ -40,8 +45,8 @@ updated: '2026-06-12T00:00:00Z'
 | Category | Expectation / Need | Description |
 |---|---|---|
 | Information | Intent-to-artifact transparency | Needs clear mapping between user intent, architecture artifacts, and execution outcomes. |
-| Interaction | Clear checkpoints | Expects explicit phases where product input is requested or confirmed. |
-| Support | Usable journey artifacts | Wants journey docs that are useful for planning alignment, not just technical traceability. |
+| Interaction | Clear checkpoints | Expects explicit phases where product input is requested or confirmed, such as the discovery interview and Intent Summary in `/spec-kitty.specify`, and acceptance. |
+| Support | Usable planning artifacts | Wants the Mission spec (user scenarios, requirements, success criteria) to be useful for planning alignment, not just technical traceability. |
 | Governance | Approval visibility | Needs confidence in who owns final decisions and where escalation occurs. |
 | Decision Authority | Scope and priority authority | Owns acceptance of outcome scope and prioritization implications. |
 
@@ -75,7 +80,7 @@ updated: '2026-06-12T00:00:00Z'
 
 ## Design Impact
 
-- **Affected By**: User journey quality, governance checkpoint clarity, and architecture readability.
+- **Affected By**: Mission spec quality, governance checkpoint clarity, and architecture readability.
 - **Needs From Design**: Shared understanding artifacts that product and engineering can both act on.
 - **Risk If Ignored**: Rejection due to perceived technical overfit and low product alignment value.
 - **Acceptance Signal**: Product-to-engineering handoffs improve with fewer intent mismatches.
@@ -96,7 +101,7 @@ updated: '2026-06-12T00:00:00Z'
 
 The External Product Manager Evaluator assesses Spec Kitty as a coordination
 system, not only as an engineering framework. They adopt when the architecture
-and journey artifacts help teams preserve intent, clarify accountability, and
+and planning artifacts help teams preserve intent, clarify accountability, and
 execute priorities with less churn.
 
 ---

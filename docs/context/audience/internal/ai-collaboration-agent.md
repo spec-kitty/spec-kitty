@@ -3,7 +3,12 @@ title: 'Stakeholder Persona: AI Collaboration Agent'
 description: 'Internal AI-collaboration-agent persona: an LLM actor that executes architecture and workflow tasks accurately under explicit human and policy constraints.'
 doc_status: active
 kind: Explanation
-updated: '2026-03-10T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
+audience:
+- profile: internal/maintainer
+  guidance_text: Check that this profile still describes a real reader before pages are written for it.
+- profile: internal/ai-collaboration-agent
+  guidance_text: Read this profile before drafting a page for this reader; match its vocabulary and the questions it brings.
 ---
 # Stakeholder Persona: AI Collaboration Agent
 
@@ -13,8 +18,8 @@ updated: '2026-03-10T00:00:00Z'
 | **Actor Type** | `llm` |
 | **Primary Goal** | Execute architecture and workflow tasks accurately under explicit human and policy constraints. |
 | **Persona ID** | `aud-ai-collaboration-agent` |
-| **Created / Updated** | `2026-02-28` |
-| **Domain / Context** | Spec Kitty architecture 2.x |
+| **Created / Updated** | `2026-02-28` / `2026-11-13` |
+| **Domain / Context** | Spec Kitty 4.x |
 | **Status** | canonical |
 
 ---
@@ -23,7 +28,7 @@ updated: '2026-03-10T00:00:00Z'
 
 - **Role Focus**: Deterministic execution, evidence capture, and artifact consistency.
 - **Primary Function**: Synthesizes context, proposes options, updates artifacts, and records traceable outcomes.
-- **Environment / Context**: Human-in-Charge (HiC)-guided workflows with directive and template constraints.
+- **Environment / Context**: [Human-in-Charge (HiC)](../../identity.md#human-in-charge-hic)-guided workflows with directive and template constraints. Runs Spec Kitty through slash commands or command skills, under a loaded agent profile.
 
 ---
 
@@ -39,7 +44,7 @@ updated: '2026-03-10T00:00:00Z'
 
 | Category | Expectation / Need | Description |
 |---|---|---|
-| Information | Explicit constraints | Needs clear scope, acceptance criteria, and conflict precedence. |
+| Information | Explicit constraints | Needs clear scope, acceptance criteria, and conflict precedence; reads the governance for each step with `spec-kitty charter context --action <action>`. |
 | Interaction | Fast clarification loop | Escalates when ambiguous constraints block safe execution. |
 | Support | Stable templates and tests | Relies on canonical templates and deterministic validation signals. |
 | Governance | Traceable decisions | Requires explicit rationale links for architecture-significant changes. |
