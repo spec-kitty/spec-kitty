@@ -1,0 +1,136 @@
+{
+  "event_count": 47,
+  "last_event_id": "01M7HKN0YBQW9JKM4EBN2CKQVM",
+  "materialized_at": "2026-11-16T07:20:25.291408+00:00",
+  "mission_number": "260",
+  "mission_slug": "context-docs-refresh-01M7AN3N",
+  "mission_type": "documentation",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude-reviewer::reviewer-renata",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 3,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M7HKMXRFQ5HSZYPJ5QSDV6T6",
+      "last_transition_at": "2026-11-16T07:20:22.031185+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP01 ready for review: 13 audience pages refreshed (4.x context, Mission terminology, named senses, reader frontmatter), hubs rewritten; corrections-log rows 1-8; operator flags P1-P3; docs-lint, link check, frontmatter gate, targeted tests and site build run.",
+        "Review cycle 1 folded: issues 1-5 fixed in 8b846addf0, 4495b909f8, 1bcf7ecb93, e3b357e474 + 99c3d1e7e3, c5734f7cc3; corrections rows 9-14 and O2 in ca9fc0b5be. Gates rerun on committed state: all green.",
+        "Review cycle 2 folded: human-persona count fixed (0c1e5a155e), side states named (557cc41e0c), log rows 15-16 (f4c38b38f4). Gates rerun on committed state: green.",
+        "Review passed (cycle 3): cycle-1 and cycle-2 findings fixed and verified against source; counts spot-checked (10 profiles, 4 external/6 internal, 7 human/1 llm/2 system); docs-lint, strict link check, frontmatter validator, audience_resolver --strict, tests/docs (2241 passed) and legacy-terminology test (98 passed) green.",
+        "Operator ruling 2026-11-16: add an external new-user/practitioner persona (P3); the docsite review squad found every tutorial and how-to names external/project-owner, who is not the person running the CLI.",
+        "WP01 rework for P3: external/practitioner persona and hub counts; corrections rows 127-129",
+        "Review passed (cycle 5, P3 reopen): external/practitioner persona verified against the CLI (install commands, init, next, agent tasks status, doctor, consolidate --resume/--abort, upgrade); hubs 5 and 11 rows match; no other WP01/WP02/WP03 page changed; hollow-review force count fully discounted (3 documented rejections). Gates green: docs-lint, strict links, frontmatter (681), audience_resolver (354), tests/docs 2242 passed, terminology 98 passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/kitty-specs/context-docs-refresh-01M7AN3N/tasks/WP01-audience-profiles/review-cycle-3.md",
+        "reference": "review-cycle://context-docs-refresh-01M7AN3N/WP01-audience-profiles/review-cycle-3.md",
+        "reviewer": "claude-reviewer::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 28344,
+      "shell_pid_created_at": "1794813167.56",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude-reviewer::reviewer-renata",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M7HKMZCXYD6Z6MPCTCSEV2DG",
+      "last_transition_at": "2026-11-16T07:20:23.709919+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP02 ready: five pages checked against the code, 11 context/ burn-down pairs drained (81 -> 70), anchors unchanged, corrections rows 17-33, flags U1-U8, O4-O5.",
+        "Review cycle 1 folded: issues 1-5 fixed (4bef6d13ef, 8960d84012, c274a7f475), log and flags 2eb754eaf9. Gates rerun: green.",
+        "Review passed (cycle 2): cycle-1 issues 1-5 fixed and verified against source (finalize-tasks planning_base_branch resolution, project_uuid minted locally, clarification loop, no GovernanceContext/InfraContext in src, feature_dir); symbol/path sweep spot-checked; docs-lint, strict link check, frontmatter validator, audience_resolver --strict (316), tests/docs (2241 passed) and the terminology/retired-subsystem/ratchet gates (169 passed) green."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/kitty-specs/context-docs-refresh-01M7AN3N/tasks/WP02-footgun-and-concept-pages/review-cycle-2.md",
+        "reference": "review-cycle://context-docs-refresh-01M7AN3N/WP02-footgun-and-concept-pages/review-cycle-2.md",
+        "reviewer": "claude-reviewer::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 10859,
+      "shell_pid_created_at": "1794585663.49",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude-reviewer::reviewer-renata",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M7HKN0YBQW9JKM4EBN2CKQVM",
+      "last_transition_at": "2026-11-16T07:20:25.291408+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP03: 22 context pages verified; corrections rows 41-120; flags U9-U17, P4-P5, O8-O12",
+        "WP03 review cycle 1 fixes: corrections rows 121-126",
+        "Review passed (cycle 2): cycle-1 issues 1-4 fixed and verified (doc-kitty parseMeta returns title+description for both diagrams; mermaid 11.17.1 parses both; consolidate senses named; e7f777652b/#116 cited; claimed step shown; #1418 closed 2026-07-22 by PR #2852 verified on GitHub). Advisory: planning-and-tracking.md:116 heading still says 'tracked as [#1418]'. Gates green: docs-lint, strict links, frontmatter, audience_resolver (352), contextive check, tests/docs 2241 passed, arch/contextive 195 passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/kitty-specs/context-docs-refresh-01M7AN3N/tasks/WP03-remaining-context-pages/review-cycle-2.md",
+        "reference": "review-cycle://context-docs-refresh-01M7AN3N/WP03-remaining-context-pages/review-cycle-2.md",
+        "reviewer": "claude-reviewer::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 20214,
+      "shell_pid_created_at": "1794812505.04",
+      "subtasks": {
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done"
+      }
+    }
+  }
+}

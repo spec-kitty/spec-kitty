@@ -1,0 +1,124 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-13T14:32:52.765575Z",
+      "decision_id": "01M7AN6Q8X5R06DY5G9KC48JVV",
+      "final_answer": "gap_filling: docs/context already exists (40 published pages); the #7520 audit lists what each page lacks (reader, freshness, retired surfaces, text diagrams). Source: #7522 Scope, #3891 Approach step 2.",
+      "input_key": "iteration_mode",
+      "mission_id": "01M7AN3N2K5Z9CGM3QWPWJ50X8",
+      "mission_slug": "context-docs-refresh-01M7AN3N",
+      "opened_by": "cli",
+      "options": [
+        "initial",
+        "gap_filling",
+        "mission_specific"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which documentation iteration mode applies?",
+      "rationale": null,
+      "resolved_at": "2026-11-13T14:32:55.172415Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.iteration-mode",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-13T14:32:57.509556Z",
+      "decision_id": "01M7AN6VX599R40BH1A1WHQDS5",
+      "final_answer": "The 40 published pages under docs/context/ listed in the #7522 audit comment (13 audience pages incl. 3 hub READMEs, then the concept pages). Immutable history (ADRs, plans/, reports/, changelog/, archive/), packs/ and the bot-generated docs-retrieval-index.yaml / page-inventory.yaml are out of scope. Source: #7522 Scope, #3891 Approach step 4, operator brief.",
+      "input_key": "scope_pages",
+      "mission_id": "01M7AN3N2K5Z9CGM3QWPWJ50X8",
+      "mission_slug": "context-docs-refresh-01M7AN3N",
+      "opened_by": "cli",
+      "options": [
+        "docs/context only",
+        "docs/context plus linked guides",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which pages are in scope?",
+      "rationale": null,
+      "resolved_at": "2026-11-13T14:32:59.612404Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.pages",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-13T14:33:02.109721Z",
+      "decision_id": "01M7AN70CX44C5DFP6KGH3096Y",
+      "final_answer": "Audience profiles first (docs/context/audience/**), then orchestration/execution/topology/team-kitty, then the remaining context pages; WP02 and WP03 depend on WP01. Source: #7522 Order, operator brief.",
+      "input_key": "work_order",
+      "mission_id": "01M7AN3N2K5Z9CGM3QWPWJ50X8",
+      "mission_slug": "context-docs-refresh-01M7AN3N",
+      "opened_by": "cli",
+      "options": [
+        "audience profiles first",
+        "alphabetical",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "In what order is the section refreshed?",
+      "rationale": null,
+      "resolved_at": "2026-11-13T14:33:04.419586Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.order",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-13T14:33:06.724202Z",
+      "decision_id": "01M7AN74X4J4S6CHNV9YXAZK6B",
+      "final_answer": "No. The ten profiles stay; any add/remove is brought to the operator as a proposal. Source: #7522 Order step 1, operator brief.",
+      "input_key": "profile_changes",
+      "mission_id": "01M7AN3N2K5Z9CGM3QWPWJ50X8",
+      "mission_slug": "context-docs-refresh-01M7AN3N",
+      "opened_by": "cli",
+      "options": [
+        "No, operator ruling needed",
+        "Yes"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "May the mission add or remove an audience profile?",
+      "rationale": null,
+      "resolved_at": "2026-11-13T14:33:09.060539Z",
+      "resolved_by": null,
+      "slot_key": "specify.audience.profile-changes",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-13T14:33:11.200948Z",
+      "decision_id": "01M7AN7990ZQSBWJFHXY4GQQ7H",
+      "final_answer": "comms-cleo writes; every claim, command, flag and path is checked against the current CLI (--help) and source; unverifiable facts are flagged to the operator, never invented or dropped; corrections are recorded with evidence. Source: #3891 'Who does the writing', operator brief.",
+      "input_key": "writer_profile",
+      "mission_id": "01M7AN3N2K5Z9CGM3QWPWJ50X8",
+      "mission_slug": "context-docs-refresh-01M7AN3N",
+      "opened_by": "cli",
+      "options": [
+        "comms-cleo with code verification",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Who writes and how are facts handled?",
+      "rationale": null,
+      "resolved_at": "2026-11-13T14:33:13.499659Z",
+      "resolved_by": null,
+      "slot_key": "specify.method.writer",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M7AN3N2K5Z9CGM3QWPWJ50X8",
+  "version": 1
+}

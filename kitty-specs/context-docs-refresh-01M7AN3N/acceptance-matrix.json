@@ -1,0 +1,119 @@
+{
+  "mission_slug": "context-docs-refresh-01M7AN3N",
+  "mission_number": "",
+  "mission_type": "documentation",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "review",
+      "evidence": "WP01 approved (review cycles 1-5); corrections-log rows 1-14, 127-129; 11 profiles after operator ruling P3",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-16T07:18:31.377231+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "review",
+      "evidence": "WP01 approved; audience/README.md and audience/{internal,external}/README.md tables match profile files (11)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-16T07:18:35.959873+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "scripts.docs.audience_resolver --strict: 354 values, 0 dangling, 0 malformed; tests/docs/test_audience_resolves.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-16T07:18:40.307544+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "review",
+      "evidence": "kitty-specs/context-docs-refresh-01M7AN3N/corrections-log.md rows 1-129 with evidence; WP01-WP03 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-16T07:18:44.358709+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "review",
+      "evidence": "kitty-specs/context-docs-refresh-01M7AN3N/operator-flags.md unverifiable facts U1-U17",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-16T07:18:48.246099+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approved; anchor check (39 inbound anchors resolve); strict link check 0 failures",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-16T07:18:52.395905+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "review",
+      "evidence": "WP02 approved; docs/context/team-kitty.md (#6164)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-16T07:18:56.227261+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_retired_surface_gate.py; retired_surface_gate clean; burn-down 81->70 in WP02",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-16T07:19:00.153936+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "parseMeta on README.md and contextive-glossaries.md diagrams returns title and description (corrections-log row 121); rendering left to CI docs-site job (no Docker)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-16T07:19:04.290943+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "review",
+      "evidence": "context audit: updated bumped only on verified pages; WP01-WP03 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-16T07:19:08.096030+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "review",
+      "evidence": "WP self-reviews and reviews; tests/architectural/test_no_legacy_terminology.py pass; make docs-lint exit 0",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-16T07:19:12.305783+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
