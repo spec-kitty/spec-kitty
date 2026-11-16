@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "mission_slug": "context-docs-refresh-01M7AN3N",
+  "mission_id": "01M7AN3N2K5Z9CGM3QWPWJ50X8",
+  "mission_branch": "kitty/mission-context-docs-refresh-01M7AN3N",
+  "target_branch": "issue-7522-context-refresh",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/context/README.md",
+        "docs/context/audience/**",
+        "docs/context/charter-overview.md",
+        "docs/context/charter.md",
+        "docs/context/configuration-project-structure.md",
+        "docs/context/contextive-glossaries.md",
+        "docs/context/dossier.md",
+        "docs/context/execution.md",
+        "docs/context/glossary-conventions.md",
+        "docs/context/governance-files.md",
+        "docs/context/governance.md",
+        "docs/context/historical-terms.md",
+        "docs/context/identity-fields.md",
+        "docs/context/identity.md",
+        "docs/context/lexical.md",
+        "docs/context/mission-types.md",
+        "docs/context/naming-decision-tool-vs-agent.md",
+        "docs/context/ops-vs-missions.md",
+        "docs/context/orchestration.md",
+        "docs/context/planning-and-tracking.md",
+        "docs/context/practices-principles.md",
+        "docs/context/product-lines.md",
+        "docs/context/spec-driven.md",
+        "docs/context/system-events.md",
+        "docs/context/team-kitty.md",
+        "docs/context/technology-foundations.md",
+        "docs/context/testing-taxonomy.md",
+        "docs/context/topology.md",
+        "scripts/docs/retired_surface_burndown.yaml",
+        "tests/architectural/_baselines.yaml"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-13T14:46:27.788957+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP01",
+    "WP03"
+  ],
+  "planning_commit_sha": "761b0b0c0162fef9b1971953a5bb5f934e585693"
+}

@@ -1,0 +1,357 @@
+schema_version: 1
+mission_id: 01M7AN3N2K5Z9CGM3QWPWJ50X8
+mission_slug: context-docs-refresh-01M7AN3N
+mission_number: 260
+friendly_name: Context docs refresh (audience profiles first)
+mission_type: documentation
+target_branch: issue-7522-context-refresh
+created_at: '2026-11-16T07:21:05.715337+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-11-16T07:21:05.715337+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped: []
+not_helpful:
+- id: n-004
+  category: doc
+  summary: analysis-report.md records 6 finding(s)
+  evidence_refs:
+  - e-012
+  details: The analysis-report.md artifact for this mission records 6 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-001
+  category: review_loop
+  summary: WP01 required 3 rejection cycle(s) before approval
+  evidence_refs:
+  - e-009
+  details: WP WP01 was sent back to an earlier lane with documented review feedback 3 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP02 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-010
+  details: WP WP02 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-003
+  category: review_loop
+  summary: WP03 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-011
+  details: WP WP03 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-023
+  category: tooling
+  summary: 'Tracer: [2026-11-13][audit] Runtime and spec-commit write unsigned commits.'
+  evidence_refs:
+  - e-015
+  details: '- **[2026-11-13][audit] Runtime and spec-commit write unsigned commits.** `spec-kitty` commits with `-c commit.gpgsign=false`
+    (`src/specify_cli/git/commit_helpers.py:1048`, `:1232`), so its scaffold, `chore(next)` and `op(...)` commits carry no
+    signature or co-author trailers. I re-signed my own spec commit by amend; tool bookkeeping commits stay unsigned until
+    history is compacted. Disposition: flagged to operator.'
+- id: n-020
+  category: tooling
+  summary: 'Tracer: [2026-11-13][design] Diagrams carry metadata and a prose equivalent.'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-13][design] Diagrams carry metadata and a prose equivalent.** Both new Mermaid diagrams carry `%%
+    title:` / `%% description:` (operator instruction) plus Mermaid `accTitle` / `accDescr`, and a sentence that says the
+    same in words (P5).'
+- id: n-019
+  category: tooling
+  summary: 'Tracer: [2026-11-13][design] Mission 081 names stay documented with their code names beside them.'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-13][design] Mission 081 names stay documented with their code names beside them.** `identity-fields.md`
+    keeps every 081 heading (identity.md links two of its anchors) and adds a "Code today" row per entry, because the code
+    still stores `project.uuid` / `project.slug` (W1, W2).'
+- id: n-016
+  category: tooling
+  summary: 'Tracer: [2026-11-13][design] Persona pages keep the canonical template.'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-13][design] Persona pages keep the canonical template.** Goals, vocabulary and questions are checked
+    inside the existing sections rather than adding new ones to ten copies; a template change is proposed to the operator
+    instead (plan.md Decision 3).'
+- id: n-017
+  category: tooling
+  summary: 'Tracer: [2026-11-13][design] Profile pages are read by maintainers and writing agents.'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-13][design] Profile pages are read by maintainers and writing agents.** The 13 audience pages name
+    `internal/maintainer` and `internal/ai-collaboration-agent` (plan.md Decision 2).'
+- id: n-005
+  category: tooling
+  summary: 'Tracer: [2026-11-13][discover] Gap-filling pass over docs/context, audience profiles first.'
+  evidence_refs:
+  - e-013
+  details: "- **[2026-11-13][discover] Gap-filling pass over docs/context, audience profiles first.** Documentation mission
+    in `gap_filling` mode driven by the #7520 audit list on #7522; three work packages in the issue's order (profiles, footgun
+    and concept pages, the rest), WP02 and WP03 depending on WP01. Writing runs under the `comms-cleo` profile; every claim
+    is checked against `--help` and source, and corrections are logged with evidence."
+- id: n-015
+  category: tooling
+  summary: 'Tracer: [2026-11-13][discover] No profile added or removed.'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-13][discover] No profile added or removed.** Profile changes need an operator ruling (#7522); proposals
+    go to the operator.'
+- id: n-014
+  category: tooling
+  summary: 'Tracer: [2026-11-13][discover] Reader is named in `audience:` frontmatter.'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-13][discover] Reader is named in `audience:` frontmatter.** The staleness audit and `scripts/docs/audience_resolver.py`
+    read the reader from `audience: [{profile, guidance_text}]`, so that is how each page names its reader; no new convention
+    is introduced.'
+- id: n-021
+  category: tooling
+  summary: 'Tracer: [2026-11-13][discover] Runtime resolves the documentation mission from a global copy.'
+  evidence_refs:
+  - e-015
+  details: '- **[2026-11-13][discover] Runtime resolves the documentation mission from a global copy.** `spec-kitty next`
+    reported `origin.mission_path: /root/.kittify/missions/documentation` (a global-tier copy), not the synced `packs/built-in/`
+    tree; the discover prompt body matched the pack source byte for byte, so no impact here. Disposition: noted, not a gap
+    yet.'
+- id: n-022
+  category: tooling
+  summary: 'Tracer: [2026-11-13][discover] `UV_NATIVE_TLS` deprecation noise.'
+  evidence_refs:
+  - e-015
+  details: '- **[2026-11-13][discover] `UV_NATIVE_TLS` deprecation noise.** The container exports `UV_NATIVE_TLS`; every `uv
+    run` prints a deprecation warning that pollutes `--json` output. Workaround: `unset UV_NATIVE_TLS; export UV_SYSTEM_CERTS=1`.
+    Disposition: environment, not product.'
+- id: n-027
+  category: tooling
+  summary: 'Tracer: [2026-11-13][implement] A second shrink-only ratchet tracked orchestration.md.'
+  evidence_refs:
+  - e-015
+  details: '- **[2026-11-13][implement] A second shrink-only ratchet tracked orchestration.md.** `_COMMAND_SURFACE_PHRASE_BASELINE`
+    in `tests/architectural/test_no_legacy_terminology.py` listed `docs/context/orchestration.md` and its generated `.contextive/orchestration.yml`;
+    once the retired merge command left the page, the test required both entries to go (`089086492a`). The burn-down hint
+    does not mention this ratchet. Disposition: fixed; worth noting in the burn-down guidance.'
+- id: n-026
+  category: tooling
+  summary: 'Tracer: [2026-11-13][implement] Contextive glossaries are generated from docs/context.'
+  evidence_refs:
+  - e-015
+  details: "- **[2026-11-13][implement] Contextive glossaries are generated from docs/context.** `src/specify_cli/.contextive/*.yml`
+    is regenerated from these pages by `scripts/generate_contextive_glossaries.py`, and two files were already stale on main
+    with no CI check; WP02 regenerates only its own pages' files (out-of-map, derived). Disposition: flagged (O5)."
+- id: n-018
+  category: tooling
+  summary: 'Tracer: [2026-11-13][implement] Landing set left unchanged.'
+  evidence_refs:
+  - e-014
+  details: "- **[2026-11-13][implement] Landing set left unchanged.** The coordinator asked WP02 to drain 'the landing set
+    as the gate's hint requires'; the gate's hint and the operator brief only touch the burn-down and the baseline, and the
+    landing set is a frozen record (C-004), so it was not edited."
+- id: n-028
+  category: tooling
+  summary: 'Tracer: [2026-11-13][implement] No gate compares the committed Contextive files with a fresh generation.'
+  evidence_refs:
+  - e-015
+  details: "- **[2026-11-13][implement] No gate compares the committed Contextive files with a fresh generation.** That is
+    how `governance.yml` and `system-events.yml` went stale (O5); the generator's `check` has to be run by hand (O10)."
+- id: n-007
+  category: tooling
+  summary: 'Tracer: [2026-11-13][implement] Note for WP02.'
+  evidence_refs:
+  - e-013
+  details: "- **[2026-11-13][implement] Note for WP02.** `identity.md`'s Internal/External Audience Persona entries still
+    say \"Applicable to 1.x, 2.x\" and \"runtime boundary\"; align them with the WP01 hubs."
+- id: n-008
+  category: tooling
+  summary: 'Tracer: [2026-11-13][implement] Review cycle 1 folded.'
+  evidence_refs:
+  - e-013
+  details: '- **[2026-11-13][implement] Review cycle 1 folded.** Five reviewer findings (two medium, three low) fixed in separate
+    commits with evidence rows 9 to 14; the one-primary-reader advice is now labelled a house convention.'
+- id: n-025
+  category: tooling
+  summary: 'Tracer: [2026-11-13][implement] The frontmatter gate caps `description` at 180 characters.'
+  evidence_refs:
+  - e-015
+  details: '- **[2026-11-13][implement] The frontmatter gate caps `description` at 180 characters.** Only `dockitty-validate-frontmatter`
+    (and `test_dockitty_frontmatter_shape.py`) caught it; `make docs-lint` does not. Disposition: fixed in WP01; worth adding
+    to the WP checklists.'
+- id: n-006
+  category: tooling
+  summary: 'Tracer: [2026-11-13][implement] WP01 edits stay inside the persona template.'
+  evidence_refs:
+  - e-013
+  details: '- **[2026-11-13][implement] WP01 edits stay inside the persona template.** Ten profiles get 4.x context, Mission
+    terminology and named senses for overloaded terms; the hubs replace the dead "Linked Journeys" column with when-to-name
+    guidance. Profile additions/removals and a template change went to `operator-flags.md` (P1 to P3).'
+- id: n-009
+  category: tooling
+  summary: 'Tracer: [2026-11-13][implement] WP02 and WP03 run sequentially.'
+  evidence_refs:
+  - e-013
+  details: '- **[2026-11-13][implement] WP02 and WP03 run sequentially.** On single_branch, implement refuses a second in_progress
+    WP in the same write checkout (WRITE_CHECKOUT_OCCUPIED), so the two WPs cannot run in parallel.'
+- id: n-011
+  category: tooling
+  summary: 'Tracer: [2026-11-13][implement] WP03 keeps Spec Kit heritage text and labels it.'
+  evidence_refs:
+  - e-013
+  details: "- **[2026-11-13][implement] WP03 keeps Spec Kit heritage text and labels it.** `spec-driven.md` quotes GitHub
+    Spec Kit templates and its example constitution; WP03 marked which rules Spec Kitty's templates carry instead of deleting
+    the essay (proposal P4)."
+- id: n-010
+  category: tooling
+  summary: 'Tracer: [2026-11-13][implement] WP03 sweeps each page against the code before editing it.'
+  evidence_refs:
+  - e-013
+  details: '- **[2026-11-13][implement] WP03 sweeps each page against the code before editing it.** Every backticked path,
+    symbol and command on the 22 pages was checked against `src/`, the CLI help and the pinned packs; each page went into
+    its own signed commit with its regenerated Contextive file. Rows 41 to 119 of the corrections log carry the evidence.'
+- id: n-029
+  category: tooling
+  summary: 'Tracer: [2026-11-13][implement] YAML frontmatter `guidance_text` cannot hold an unquoted `: `.'
+  evidence_refs:
+  - e-015
+  details: '- **[2026-11-13][implement] YAML frontmatter `guidance_text` cannot hold an unquoted `: `.** The audience helper
+    writes plain scalars, so one guidance sentence was reworded; `audience_resolver --strict` and a `yaml.safe_load` check
+    caught it before commit.'
+- id: n-024
+  category: tooling
+  summary: 'Tracer: [2026-11-13][implement] safe-commit cannot sign; DIRECTIVE_029 says agent commits are unsigned.'
+  evidence_refs:
+  - e-015
+  details: "- **[2026-11-13][implement] safe-commit cannot sign; DIRECTIVE_029 says agent commits are unsigned.** `spec-kitty
+    safe-commit` and every runtime commit pass `-c commit.gpgsign=false`, and active DIRECTIVE_029 tells agents to commit
+    unsigned, while the operator's brief for this Mission requires signed commits. Content commits use `git commit -S` with
+    explicit paths (targeted staging). Disposition: conflict flagged to operator."
+- id: n-013
+  category: tooling
+  summary: 'Tracer: [2026-11-16][implement] WP01 reopened for P3.'
+  evidence_refs:
+  - e-013
+  details: "- **[2026-11-16][implement] WP01 reopened for P3.** The rework path needed `--force` with `--actor` and `--reason`,
+    because WP01's assignee was the reviewer identity; the ruling text went in as the review-feedback file and reason. The
+    new persona follows the canonical template; the P1 sections were not added."
+- id: n-012
+  category: tooling
+  summary: 'Tracer: [2026-11-16][implement] WP03 review cycle 1 folded.'
+  evidence_refs:
+  - e-013
+  details: '- **[2026-11-16][implement] WP03 review cycle 1 folded.** Four findings fixed in separate commits (rows 121 to
+    124); the sweep of the 22 pages for bare merge senses and issue citations found two more (rows 125, 126). Every issue
+    number on those pages was checked against git or the tracker.'
+gaps:
+- id: g-002
+  category: doc
+  summary: data-model.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md declares domain entities but data-model.md is missing. A data model document clarifies domain entity
+    relationships.
+- id: g-001
+  category: doc
+  summary: research.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md is present but research.md is missing. Research artifacts help future maintainers understand design
+    decisions.
+- id: g-003
+  category: tooling
+  summary: 'Tracer: [2026-11-13][audit] Full staleness audit too slow for one section.'
+  evidence_refs:
+  - e-015
+  details: '- **[2026-11-13][audit] Full staleness audit too slow for one section.** `python -m scripts.docs.staleness_audit`
+    walks git history for all 341 pages and had not finished after ~10 minutes; ran its own `_record` over the 40 `context/`
+    pages instead (same per-page logic). Disposition: candidate gap (a `--section` filter).'
+- id: g-004
+  category: tooling
+  summary: 'Tracer: [2026-11-13][design] `spec-kitty plan` overwrote documentation_state.'
+  evidence_refs:
+  - e-015
+  details: '- **[2026-11-13][design] `spec-kitty plan` overwrote documentation_state.** It wrote `iteration_mode: initial`
+    and jsdoc/sphinx generators into meta.json for a docs-only gap_filling mission; corrected the non-identity field by hand
+    to match the decisions. Disposition: candidate gap (O3 in operator-flags.md).'
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/context-docs-refresh-01M7AN3N/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/context-docs-refresh-01M7AN3N/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/context-docs-refresh-01M7AN3N/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/context-docs-refresh-01M7AN3N/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/context-docs-refresh-01M7AN3N/tasks/WP01-audience-profiles.md
+- id: e-006
+  kind: file
+  path: kitty-specs/context-docs-refresh-01M7AN3N/tasks/WP02-footgun-and-concept-pages.md
+- id: e-007
+  kind: file
+  path: kitty-specs/context-docs-refresh-01M7AN3N/tasks/WP03-remaining-context-pages.md
+- id: e-008
+  kind: file
+  path: kitty-specs/context-docs-refresh-01M7AN3N/status.events.jsonl
+- id: e-009
+  kind: event_range
+  path: kitty-specs/context-docs-refresh-01M7AN3N/status.events.jsonl
+  range: 01M7AQ98XEZQ1HZQAQWGBG3SWG..01M7HJVZM914JYF982SGWGCQGN
+- id: e-010
+  kind: event_range
+  path: kitty-specs/context-docs-refresh-01M7AN3N/status.events.jsonl
+  range: 01M7ASWXJN4W6KHFMGQ3VQVKHB
+- id: e-011
+  kind: event_range
+  path: kitty-specs/context-docs-refresh-01M7AN3N/status.events.jsonl
+  range: 01M7HJ5TGJN3M18XX5VCRE4VKM
+- id: e-012
+  kind: file
+  path: kitty-specs/context-docs-refresh-01M7AN3N/analysis-report.md
+- id: e-013
+  kind: file
+  path: kitty-specs/context-docs-refresh-01M7AN3N/traces/approach.md
+- id: e-014
+  kind: file
+  path: kitty-specs/context-docs-refresh-01M7AN3N/traces/design-decisions.md
+- id: e-015
+  kind: file
+  path: kitty-specs/context-docs-refresh-01M7AN3N/traces/tooling-friction.md
+generator_version: '1.0'
+provenance_history: []

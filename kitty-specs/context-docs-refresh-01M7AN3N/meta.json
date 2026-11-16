@@ -1,0 +1,58 @@
+{
+  "accept_commit": "d968ceb6bb0327cbb0e903efedd316e7aeb67ad2",
+  "acceptance_history": [
+    {
+      "accept_commit": "d968ceb6bb0327cbb0e903efedd316e7aeb67ad2",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-16T07:19:20.337111+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "28e071ece8b09b1701935315f362fa3f2db63165"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-16T07:19:20.337111+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "28e071ece8b09b1701935315f362fa3f2db63165",
+  "baseline_merge_commit": "761b0b0c0162fef9b1971953a5bb5f934e585693",
+  "create_return_branch": "issue-7522-context-refresh",
+  "created_at": "2026-11-13T14:31:13.853577+00:00",
+  "documentation_state": {
+    "coverage_percentage": 0.075,
+    "divio_types_selected": [
+      "explanation",
+      "reference",
+      "how-to"
+    ],
+    "generators_configured": [],
+    "iteration_mode": "gap_filling",
+    "last_audit_date": null,
+    "target_audience": "contributors and agents writing Spec Kitty docs; evaluators reading the concept pages"
+  },
+  "flattened": false,
+  "friendly_name": "Context docs refresh (audience profiles first)",
+  "merged_at": "2026-11-16T07:21:02.701375+00:00",
+  "merged_commit": "ff222e10be278ec9845dc6decf53801a9bdd5af4",
+  "mid8": "01M7AN3N",
+  "mission_base_sha": "761b0b0c0162fef9b1971953a5bb5f934e585693",
+  "mission_id": "01M7AN3N2K5Z9CGM3QWPWJ50X8",
+  "mission_number": 260,
+  "mission_slug": "context-docs-refresh-01M7AN3N",
+  "mission_type": "documentation",
+  "pr_bound": true,
+  "purpose_context": "The docs/context section (40 published pages) defines the readers, terms and concepts every other doc section writes to, but many pages are stale, name no reader and still mention surfaces removed from open-core. This mission refreshes the section for issue #7522 (epic #3891): audience profiles first, then the glossary-footgun and concept pages, then the rest, verifying each claim against the code and draining the section's retired-surface burn-down.",
+  "purpose_tldr": "Check every docs/context page against the current CLI and code, name its reader, and rewrite it to the writing guidance, starting with the audience profiles.",
+  "slug": "context-docs-refresh-01M7AN3N",
+  "status_phase": "1",
+  "target_branch": "issue-7522-context-refresh",
+  "topology": "single_branch",
+  "topology_decision": {
+    "code_lane_count": 1,
+    "from": "single_branch",
+    "rule": "code_lanes_le_1",
+    "target_protected": false,
+    "to": "single_branch",
+    "wp_count": 3
+  },
+  "topology_settled": true,
+  "topology_source": "default"
+}
