@@ -7948,6 +7948,17 @@ pages:
     - {slug: "internal-work-lines-roadmap-context-not-all-pr-backed-yet", text: "Internal work lines (roadmap context — not all PR-backed yet)", level: 3}
     - {slug: "4-what-this-means-for-the-stabilization-partial-code-freeze", text: "4. What this means for the stabilization partial code freeze", level: 2}
     - {slug: "5-what-a-maintainer-should-know", text: "5. What a maintainer should know", level: 2}
+  - path: "docs/archive/plans/engineering-notes/7114-7115-7656-shard-timings-grounding.md"
+    title: "Grounding — #7656, #7115, #7114 shard-timings recapture and strict check"
+    divio_type: "none"
+    abstract: "Read-only grounding, similar-surfaces and tracked-issues verdicts for splitting the consolidation capture, putting the battery roster back on its rule and cap, and ordering the strict shard-timings check after the recapture."
+    anchors:
+    - {slug: "the-three-defects-as-the-code-holds-them", text: "The three defects, as the code holds them", level: 2}
+    - {slug: "invariants-that-must-survive", text: "Invariants that must survive", level: 2}
+    - {slug: "gates-and-ledgers-that-read-these-files", text: "Gates and ledgers that read these files", level: 2}
+    - {slug: "similar-surfaces-pointfix-sweep", text: "Similar surfaces (pointfix sweep)", level: 2}
+    - {slug: "operator-rulings-2026-11-15", text: "Operator rulings (2026-11-15)", level: 2}
+    - {slug: "tracked-issues", text: "Tracked issues", level: 2}
   - path: "docs/archive/plans/engineering-notes/7588-move-task-agent-rebind-grounding.md"
     title: "Grounding — #7588 move-task --agent rebinds the WP owner on a rejection"
     divio_type: "none"
