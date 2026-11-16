@@ -142,6 +142,32 @@ class ProtectedMintRefusedError(MissionCreationError):
     __module__ = "specify_cli.core.mission_creation"
 
 
+class CoordCreateEventsCommitError(MissionCreationError):
+    """The creation-events commit onto the coordination branch did not land (#7494).
+
+    Typically a repository pre-commit hook that aborts the commit, or a git
+    lock. Nothing of this create is committed on the coordination branch, so
+    the remedy is to fix the cause and run the create again; the failure-atomic
+    rollback removes the scaffold once it has deleted the branch the scaffold's
+    ``meta.json`` names.
+    """
+
+    # Report the façade as home, as before #5634 (tracebacks, repr, pickling).
+    __module__ = "specify_cli.core.mission_creation"
+
+
+class ScaffoldCommitFailedError(RuntimeError):
+    """The create's scaffold commit onto the target did not land (#7494).
+
+    A plain ``RuntimeError`` to every handler (the CLI renders it exactly as
+    before); the type only lets the failure-atomic rollback recognise a commit
+    that never landed, e.g. one an aborting pre-commit hook refused.
+    """
+
+    # Report the façade as home, as before #5634 (tracebacks, repr, pickling).
+    __module__ = "specify_cli.core.mission_creation"
+
+
 class MissionBranchExistsError(ProtectedMintRefusedError):
     """Raised when the deterministically-composed mission branch already exists.
 

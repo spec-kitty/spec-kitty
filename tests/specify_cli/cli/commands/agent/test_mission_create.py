@@ -989,3 +989,56 @@ def test_mission_created_persistence_failure_is_nonzero_and_probe_recoverable(
         "coordination branch were ever misread as absent -- it must not mask the specific, "
         "genuinely-diagnostic deleted-branch finding for THIS failure shape"
     )
+
+
+def _install_aborting_pre_commit_hook(repo: Path) -> None:
+    """A ``core.hooksPath`` pre-commit hook that always aborts the commit (#7494)."""
+    hooks = repo / ".git" / "custom-hooks"
+    hooks.mkdir()
+    hook = hooks / "pre-commit"
+    hook.write_text("#!/bin/sh\necho 'no usable Python interpreter - commit ABORTED' >&2\nexit 1\n", encoding="utf-8")
+    hook.chmod(0o755)
+    _git(repo, "config", "core.hooksPath", str(hooks))
+
+
+@pytest.mark.parametrize(("topology", "expected_probe"), [("coord", "not_found"), ("single_branch", "found")])
+def test_pre_commit_hook_abort_leaves_no_malformed_scaffold(tmp_path: Path, topology: str, expected_probe: str) -> None:
+    """#7494: a pre-commit hook that aborts the create commit must not leave a
+    scaffold whose ``meta.json`` declares a coordination branch the rollback
+    deleted. ``coord`` rolls back fully (probe ``not_found``, a retry after
+    fixing the hook yields exactly one Mission); ``single_branch`` keeps its
+    resumable scaffold (probe ``found``). Neither is ever ``MISSION_RESUME_MALFORMED``."""
+    _init_repo(tmp_path)
+    _install_aborting_pre_commit_hook(tmp_path)
+    slug = "hook-abort"
+
+    runner = CliRunner()
+    with patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path):
+        created = runner.invoke(
+            mission_app,
+            ["create", slug, "--topology", topology, "--json", *_mission_summary_args("Hook Abort")],
+        )
+        probe = runner.invoke(
+            mission_app,
+            ["check-prerequisites", "--mission", slug, "--resume-probe", "--json"],
+        )
+
+    assert created.exit_code != 0, created.output
+    payload = _json_payload_from_output(probe.output)
+    assert payload["resume_state"] == expected_probe, payload
+    assert payload.get("error_code") != "MISSION_RESUME_MALFORMED", payload
+    for meta_path in (tmp_path / "kitty-specs").glob("*/meta.json"):
+        coord_branch = json.loads(meta_path.read_text(encoding="utf-8")).get("coordination_branch")
+        if coord_branch:
+            assert _branch_exists(tmp_path, coord_branch), f"{meta_path} declares deleted {coord_branch}"
+    if expected_probe == "found":
+        return
+
+    _git(tmp_path, "config", "--unset", "core.hooksPath")
+    with patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path):
+        retry = runner.invoke(
+            mission_app,
+            ["create", slug, "--topology", topology, "--json", *_mission_summary_args("Hook Abort")],
+        )
+    assert retry.exit_code == 0, retry.output
+    assert len([p for p in (tmp_path / "kitty-specs").iterdir() if p.is_dir()]) == 1

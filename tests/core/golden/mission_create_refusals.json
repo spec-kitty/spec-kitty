@@ -1,5 +1,5 @@
 {
-  "base_commit": "6a7bf5ccf25ad3d4dfef7efea414f03068b341ef",
+  "base_commit": "dcb07c947871062ac7baf1f72eca3bebd0ba09ff",
   "cells": {
     "commit_to_target_without_single_branch": {
       "outcome": {
@@ -202,7 +202,7 @@
     "failed_create_restore/coord": {
       "outcome": {
         "error_code": null,
-        "exc_type": "MissionCreationError",
+        "exc_type": "CoordCreateEventsCommitError",
         "message": "Failed to commit mission-creation events onto the coordination branch for 'ref-restore-coord-<MID8#1>': status='error' diagnostic=\"safe_commit: git commit failed in <TMP>/repo/.worktrees/ref-restore-coord-<MID8#1>-coord for destination_ref='kitty/mission-ref-restore-coord-<MID8#1>': golden fixture: commits refused\""
       },
       "post": {
@@ -213,61 +213,10 @@
         "head": {
           "repo": "topic"
         },
-        "missions": {
-          "repo/kitty-specs/ref-restore-coord-<MID8#1>": {
-            "meta": {
-              "coordination_branch": "kitty/mission-ref-restore-coord-<MID8#1>",
-              "created_at": "<TS>",
-              "flattened": false,
-              "friendly_name": "ref restore coord",
-              "mid8": "<MID8#1>",
-              "mission_base_sha": "<MISSION_BASE_SHA>",
-              "mission_id": "<ULID#1>",
-              "mission_number": null,
-              "mission_slug": "ref-restore-coord-<MID8#1>",
-              "mission_type": "software-dev",
-              "purpose_context": "This mission advances ref restore coord on topic so stakeholders can track the work from mission creation onward.",
-              "purpose_tldr": "ref restore coord",
-              "slug": "ref-restore-coord-<MID8#1>",
-              "target_branch": "topic",
-              "topology": "coord"
-            },
-            "meta_key_order": [
-              "coordination_branch",
-              "created_at",
-              "flattened",
-              "friendly_name",
-              "mid8",
-              "mission_base_sha",
-              "mission_id",
-              "mission_number",
-              "mission_slug",
-              "mission_type",
-              "purpose_context",
-              "purpose_tldr",
-              "slug",
-              "target_branch",
-              "topology"
-            ],
-            "tree": [
-              "checklists/",
-              "meta.json",
-              "research/",
-              "spec.md",
-              "tasks/",
-              "tasks/.gitkeep",
-              "tasks/README.md"
-            ]
-          }
-        },
+        "missions": {},
         "new_commits": {},
         "porcelain": {
-          "repo": [
-            "?? kitty-specs/ref-restore-coord-<MID8#1>/meta.json",
-            "?? kitty-specs/ref-restore-coord-<MID8#1>/spec.md",
-            "?? kitty-specs/ref-restore-coord-<MID8#1>/tasks/.gitkeep",
-            "?? kitty-specs/ref-restore-coord-<MID8#1>/tasks/README.md"
-          ]
+          "repo": []
         },
         "status_log": {},
         "worktrees": [
@@ -302,7 +251,7 @@
     "failed_create_restore/protected_mint": {
       "outcome": {
         "error_code": null,
-        "exc_type": "RuntimeError",
+        "exc_type": "ScaffoldCommitFailedError",
         "message": "meta.json commit failed: safe_commit: git commit failed in <TMP>/repo for destination_ref='kitty/mission-ref-restore-mint-<MID8#1>': golden fixture: commits refused"
       },
       "post": {
