@@ -3,7 +3,12 @@ title: 'Context: Execution'
 description: 'Glossary context for execution semantics: tool invocation and the semantic safety gates applied during generation within a Spec Kitty mission.'
 doc_status: active
 kind: Explanation
-updated: '2026-11-05T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
+audience:
+- profile: internal/ai-collaboration-agent
+  guidance_text: Use these terms for tools, tool surfaces, checkouts and the glossary gates you run under; the repository root checkout entry is a footgun disambiguation.
+- profile: internal/lead-developer
+  guidance_text: Use this when you work on tool surfaces, checkouts or the glossary pipeline.
 related:
 - context/governance
 - context/identity
@@ -74,7 +79,7 @@ Terms describing tool invocation and semantic safety gates during generation.
 
 | | |
 |---|---|
-| **Definition** | User-facing command surface that triggers a lifecycle operation (for example specify, plan, tasks, review, merge). |
+| **Definition** | User-facing command surface that triggers a lifecycle operation (for example specify, plan, tasks, review, consolidate). |
 | **Context** | Execution |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
@@ -113,7 +118,7 @@ Terms describing tool invocation and semantic safety gates during generation.
 | **Context** | Execution |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Burst policy** | Cap to top 3 high-priority conflicts per prompt burst |
+| **Burst policy** | No cap is implemented today: the clarification step prompts for every unresolved conflict in turn (`src/glossary/clarification.py`). |
 
 ---
 
@@ -218,11 +223,11 @@ Terms describing tool invocation and semantic safety gates during generation.
 
 | | |
 |---|---|
-| **Definition** | The resolved set of Charter and Doctrine artifacts active for an operation. Owned by the Governance bounded module. Resolved once per operation and passed down; never re-derived mid-operation. |
+| **Definition** | A design concept, not a code type: the resolved set of Charter and Doctrine artifacts active for an operation, resolved once per operation and passed down, never re-derived mid-operation. No `GovernanceContext` type and no "Governance module" exist in `src/` today. |
 | **Context** | Execution |
-| **Status** | canonical |
+| **Status** | candidate |
 | **Applicable to** | `3.x` |
-| **Owner** | Governance module |
+| **Owner** | None in code today. |
 | **Related terms** | [MissionExecutionContext](#missionexecutioncontext), [InfraContext](#infracontext), [Charter](./governance.md#charter) |
 
 ---
@@ -231,7 +236,7 @@ Terms describing tool invocation and semantic safety gates during generation.
 
 | | |
 |---|---|
-| **Definition** | The resolved set of workspace root, branch name, feature directory, and WP identity for an operation. Owned by `mission_runtime/context.py` (Open Host Service facade). Resolved once per operation via `resolve_action_context`; never re-derived from CWD by individual command surfaces. Renamed from `ExecutionContext` (FR-012) to match the ubiquitous language and disambiguate from the unrelated `core/context_validation.py::ExecutionContext(StrEnum)`. |
+| **Definition** | The resolved set of workspace root, branch name, Mission directory (code field `feature_dir`), and WP identity for an operation. Owned by `mission_runtime/context.py` (Open Host Service facade). Resolved once per operation via `resolve_action_context`; never re-derived from CWD by individual command surfaces. Renamed from `ExecutionContext` (FR-012) to match the ubiquitous language and disambiguate from the unrelated `core/context_validation.py::ExecutionContext(StrEnum)`. |
 | **Context** | Execution |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
@@ -245,11 +250,11 @@ Terms describing tool invocation and semantic safety gates during generation.
 
 | | |
 |---|---|
-| **Definition** | The resolved set of infrastructure credentials and endpoints for an operation, including git remote URL, CI endpoint, and any external service tokens. Owned by the Execution module. |
+| **Definition** | A design concept, not a code type: the resolved set of infrastructure credentials and endpoints for an operation, such as the git remote URL, a CI endpoint and external service tokens. No `InfraContext` type and no "Execution module" exist in `src/` today. |
 | **Context** | Execution |
-| **Status** | canonical |
+| **Status** | candidate |
 | **Applicable to** | `3.x` |
-| **Owner** | Execution module |
+| **Owner** | None in code today. |
 | **Related terms** | [MissionExecutionContext](#missionexecutioncontext), [GovernanceContext](#governancecontext) |
 
 ---
@@ -335,7 +340,7 @@ Terms describing tool invocation and semantic safety gates during generation.
 | **Context** | Execution |
 | **Status** | candidate |
 | **Applicable to** | `3.x` |
-| **Examples** | A stable *primary* checkout backing the machine-global `spec-kitty`, plus one or more *shadow* checkouts each activated per-session against its own `.venv` and `SPEC_KITTY_HOME`. |
+| **Examples** | A stable checkout backing the machine-global `spec-kitty` (the maintainer's everyday repository root checkout), plus one or more *shadow* checkouts each activated per-session against its own `.venv` and `SPEC_KITTY_HOME`. |
 | **Use when** | Describing how a maintainer runs several Spec Kitty checkouts on one machine without cross-mission pollution, or the `SPEC_KITTY_HOME` / clone-local `.venv` isolation levers that make that safe. |
 | **Do NOT use when** | The concept is a per-work-package worktree under [`.worktrees/`](./configuration-project-structure.md#worktrees) inside a single checkout (that is intra-mission execution isolation, not a separate clone). The concept is the canonical [repository root checkout](#repository-root-checkout) of a *consumer* project rather than a maintainer's isolated development copy of Spec Kitty. |
 | **Related terms** | [repository root checkout](#repository-root-checkout), [Lane](./orchestration.md#lane), [Build](./orchestration.md#build) |
