@@ -85,7 +85,22 @@ class MergeTeardownRefused(RuntimeError):
         super().__init__(message)
 
 
-class ApprovedBoundRefused(RuntimeError):
+class CodedPreflightRefused(RuntimeError):
+    """A preflight refusal, before any lane was consolidated, that carries a stable code.
+
+    A ``RuntimeError``, so ``consolidate_mission`` envelopes it as ``PREFLIGHT_FAILED`` with
+    the message in ``data["errors"]``; the code travels in ``data["preflight_error_code"]``
+    (and ``data["preflight_error_codes"]``) so callers key on it instead of the prose.
+    Raised directly for the #5783 retarget refusal (``TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE``).
+    """
+
+    def __init__(self, message: str, *, error_code: str | None, error_codes: Sequence[str] | None = None) -> None:
+        self.error_code = error_code
+        self.error_codes = tuple(error_codes) if error_codes is not None else (() if error_code is None else (error_code,))
+        super().__init__(message)
+
+
+class ApprovedBoundRefused(CodedPreflightRefused):
     """A lane holds work review did not approve; refused before any lane was consolidated (#5668).
 
     A ``RuntimeError``, so ``consolidate_mission`` envelopes it as ``PREFLIGHT_FAILED``
@@ -97,11 +112,6 @@ class ApprovedBoundRefused(RuntimeError):
     reasons in one run, and this path never gets a mixed-lane or canceled-dependency
     refusal, so every code in the list is an approval-stamp code.
     """
-
-    def __init__(self, message: str, *, error_code: str | None, error_codes: Sequence[str] | None = None) -> None:
-        self.error_code = error_code
-        self.error_codes = tuple(error_codes) if error_codes is not None else (() if error_code is None else (error_code,))
-        super().__init__(message)
 
 
 _HELP_ORIGIN_CHECK = (
@@ -507,6 +517,22 @@ def _refuse_protected_target_override(main_repo_root: Path, mission_slug: str, l
     )
     if verdict is not None:
         raise RuntimeError(f"{verdict.error_code}: {verdict.message} Next step: {verdict.next_step}")
+    _refuse_unwritable_recorded_target(main_repo_root, mission_slug, recorded_target=recorded_target, effective_target=lanes_manifest.target_branch)
+
+
+def _refuse_unwritable_recorded_target(main_repo_root: Path, mission_slug: str, *, recorded_target: str, effective_target: str) -> None:
+    """#5783: refuse, before any branch moves, a retarget whose recorded target cannot be written.
+
+    This path has no rollback door, so the refusal must come before the first lane is
+    consolidated. The verdict is the CLI's own
+    (:func:`~specify_cli.consolidation.preflight.refuse_unwritable_recorded_target`); its code
+    travels in ``data.preflight_error_code``.
+    """
+    from specify_cli.consolidation.preflight import refuse_unwritable_recorded_target
+
+    verdict = refuse_unwritable_recorded_target(main_repo_root, mission_slug, recorded_target=recorded_target, effective_target=effective_target)
+    if verdict is not None:
+        raise CodedPreflightRefused(f"{verdict.error_code}: {verdict.message} Next step: {verdict.next_step}", error_code=verdict.error_code)
 
 
 def _orchestrator_refusal_text(refusal: str) -> str:
@@ -1056,8 +1082,8 @@ def consolidate_mission(
         if isinstance(exc, MergeTeardownRefused):
             # #5613: the stable code, beside the unchanged envelope code and message.
             failure["teardown_error_code"] = exc.error_code
-        if isinstance(exc, ApprovedBoundRefused) and exc.error_code is not None:
-            # #5668: the lane-check refusal's code, machine-readable and additive.
+        if isinstance(exc, CodedPreflightRefused) and exc.error_code is not None:
+            # #5668 / #5783: the preflight refusal's code, machine-readable and additive.
             failure["preflight_error_code"] = exc.error_code
             failure["preflight_error_codes"] = list(exc.error_codes)
         _fail(cmd, "PREFLIGHT_FAILED", "Merge failed", failure)

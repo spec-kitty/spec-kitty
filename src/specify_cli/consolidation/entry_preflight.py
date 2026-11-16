@@ -59,6 +59,7 @@ from specify_cli.lanes.persistence import require_lanes_json
 from specify_cli.consolidation.preflight import (
     refuse_protected_status_target,
     refuse_protected_target_override,
+    refuse_unwritable_recorded_target,
 )
 from specify_cli.consolidation.state import (
     ConsolidationState,
@@ -482,6 +483,11 @@ def _refuse_protected_target_override_or_continue(main_repo: Path, mission_slug:
     only after the recorded-target probe found nothing, so #5385's pinned refusal text
     for the recorded-target case is unchanged.
 
+    #5783: an override the #6464 guard lets through is then refused when the recorded
+    target's bookkeeping cannot be committed in this run
+    (:func:`~specify_cli.consolidation.preflight.refuse_unwritable_recorded_target`): the
+    write target stays the recorded one, so landing on the override would leave it unwritten.
+
     Like its sibling this is pre-lock, so a refusal writes no merge record (NFR-001) and
     points at ``consolidate --abort`` when an earlier attempt may have moved a branch.
     """
@@ -497,12 +503,23 @@ def _refuse_protected_target_override_or_continue(main_repo: Path, mission_slug:
         # No readable record means no retarget to judge; the pre-existing preflights own
         # the unreadable meta.json.
         return
-    verdict = refuse_protected_target_override(
-        main_repo,
-        mission_slug,
-        recorded_target=recorded_target,
-        effective_target=effective_target,
-    )
+    try:
+        verdict = refuse_protected_target_override(
+            main_repo,
+            mission_slug,
+            recorded_target=recorded_target,
+            effective_target=effective_target,
+        ) or refuse_unwritable_recorded_target(
+            main_repo,
+            mission_slug,
+            recorded_target=recorded_target,
+            effective_target=effective_target,
+        )
+    except ActionContextError as exc:
+        console.print(
+            f"[red]Error:[/red] Cannot probe where the recorded target's bookkeeping would be committed: {exc}. Fix the mission's meta.json before merging."
+        )
+        raise typer.Exit(1) from exc
     if verdict is None:
         return
     console.print(f"[red]Error:[/red] {verdict.error_code}: {verdict.message}")

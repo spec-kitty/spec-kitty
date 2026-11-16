@@ -117,6 +117,8 @@ By default `consolidate` lands on the Mission's recorded target branch. Override
 spec-kitty consolidate --mission 015-user-authentication --target develop
 ```
 
+`--target` moves only the landing. The rest of the run still writes its bookkeeping (the work packages' `done` transitions on a Mission without a coordination branch, and the coordination flatten) to the recorded target, from the repository root checkout. That checkout must be on the `--target` branch, so it cannot commit to the recorded one. The run is then refused before anything moves, with `TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE`. `--dry-run` reports the same code (#5783). To land on a branch other than the recorded one, change `target_branch` in the Mission's `meta.json`, commit that, and run `consolidate` without `--target`.
+
 ## Cleanup Options
 
 After a successful landing, `consolidate` removes the lane worktrees and deletes the lane branches. Each flag pair overrides that default for one resource:

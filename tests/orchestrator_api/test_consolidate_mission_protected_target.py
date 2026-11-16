@@ -113,3 +113,59 @@ def test_protected_target_override_is_refused_before_any_branch_moves(tmp_path: 
     output = flat(result)
     assert "→ main" not in output, f"the squash must never reach the protected branch. output={output}"
     assert not blob_present_at(mission.repo, "main", "src/pkg/wp01.py"), "no squashed content on main"
+
+
+# --------------------------------------------------------------------------- #
+# #5783: a retarget whose recorded target cannot be written
+#
+# The Mission is recorded for an UNPROTECTED ``main`` (empty protected-branch list),
+# so neither #5385 nor #6464 decides; ``--target develop`` with ``develop`` checked
+# out would land on ``develop`` and then commit the bookkeeping to ``main`` from a
+# checkout on ``develop``. This path has no rollback door, so it must refuse before
+# the first lane is consolidated, with the CLI guard's own code in
+# ``data.preflight_error_code``.
+# --------------------------------------------------------------------------- #
+_UNWRITABLE_CODE = "TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE"
+
+
+def _unprotected_main_mission(tmp_path: Path, mid8: str, topology: str) -> CoordMission:
+    from tests.terminus.conftest import build_coord_mission
+
+    if topology == "coord":
+        mission = build_coord_mission(tmp_path, wps=("WP01", "WP02"), target_branch="main", mid8=mid8)
+    else:
+        mission = build_lanes_mission(tmp_path, wps=("WP01", "WP02"), target_branch="main", mid8=mid8)
+    config = mission.repo / ".kittify" / "config.yaml"
+    config.parent.mkdir(parents=True, exist_ok=True)
+    config.write_text("protection:\n  protected_branches: []\n", encoding="utf-8")
+    git(mission.repo, "add", str(config))
+    git(mission.repo, "commit", "-qm", "chore: protection config")
+    return mission
+
+
+@pytest.mark.regression
+@pytest.mark.parametrize("topology", ["lanes", "coord"])
+def test_retarget_with_unwritable_recorded_target_is_refused_with_its_code(tmp_path: Path, topology: str) -> None:
+    mission = _unprotected_main_mission(tmp_path, "01M5783A", topology)
+    git(mission.repo, "checkout", "-qb", "develop", "main")
+    before = ref_shas(mission)
+    develop_before = git(mission.repo, "rev-parse", "develop").stdout.strip()
+
+    result = run_terminus(
+        mission,
+        ["orchestrator-api", "consolidate-mission", "--mission", mission.slug, "--target", "develop", "--strategy", "squash"],
+    )
+
+    output = flat(result)
+    assert result.returncode != 0, output
+    envelope = _envelope(result)
+    assert envelope["success"] is False, envelope
+    assert envelope["error_code"] == "PREFLIGHT_FAILED", envelope
+    data = envelope["data"]
+    assert isinstance(data, dict), envelope
+    assert data.get("preflight_error_code") == _UNWRITABLE_CODE, envelope
+    assert data.get("preflight_error_codes") == [_UNWRITABLE_CODE], envelope
+    assert "Traceback" not in result.stderr, result.stderr
+    assert ref_shas(mission) == before, f"no branch tip may move. output={output}"
+    assert git(mission.repo, "rev-parse", "develop").stdout.strip() == develop_before, output
+    assert not blob_present_at(mission.repo, "develop", "src/pkg/wp01.py"), output

@@ -42,6 +42,8 @@ from tests.terminus.rollback_harness import flat, ref_shas, reflog_shas
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _REFUSAL_CODE = "PROTECTED_BRANCH_REFUSED"
+#: #5783: a retarget whose recorded target cannot be written.
+_UNWRITABLE_CODE = "TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE"
 _HATCH = "SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"
 # The policy's own remedy for a coordination-less mission (``coordination/policy.py``).
 _REMEDY = "Commit bookkeeping to a non-protected branch"
@@ -352,15 +354,29 @@ def test_control_target_override_within_the_recorded_target_is_not_refused(tmp_p
 
 
 def test_control_target_override_hatch_stands_the_guard_down(tmp_path: Path) -> None:
-    """The operator hatch unprotects the branch for every decision, this guard included."""
+    """The operator hatch unprotects the branch for every decision, this guard included.
+
+    With this guard stood down, the retarget is decided by the #5783 guard: the Mission's
+    bookkeeping still goes to its recorded ``develop``, which the root checkout (on ``main``,
+    as the off-target preflight requires) cannot commit to, so the run is refused up front
+    with that guard's code instead of landing on ``main`` and failing afterwards (#7651:
+    this control never asserted its exit code, which hid that failure).
+    """
     mission = _build_override_fixture(tmp_path, "01M6464H")
+    main_before = git(mission.repo, "rev-parse", _OVERRIDE_TARGET).stdout.strip()
+    before = ref_shas(mission)
 
     result = _consolidate(mission, "--target", _OVERRIDE_TARGET, env={_HATCH: "1"})
 
     output = flat(result)
     assert _REFUSAL_CODE not in output, f"the hatch declares main unprotected; the guard must stand down. output={output}"
-    assert _PREFLIGHT_LINE not in output, output
-    assert "→ main" in output, f"with the hatch the landing proceeds; the guard refused it anyway. output={output}"
+    assert result.returncode == 1, f"the recorded target cannot be written, so the retarget must be refused. output={output}"
+    assert _UNWRITABLE_CODE in output, f"the #5783 guard decides once this one stands down. output={output}"
+    assert _PREFLIGHT_LINE in output, output
+    assert "→ main" not in output, f"the refusal comes before the landing. output={output}"
+    assert ref_shas(mission) == before, output
+    assert git(mission.repo, "rev-parse", _OVERRIDE_TARGET).stdout.strip() == main_before, output
+    assert _merge_records(mission) == [], output
 
 
 @pytest.mark.regression

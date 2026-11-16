@@ -59,6 +59,7 @@ from specify_cli.consolidation.preflight import (
     mission_branch_check_required,
     refuse_protected_status_target,
     refuse_protected_target_override,
+    refuse_unwritable_recorded_target,
 )
 from specify_cli.consolidation.resolve import set_changed_message
 from specify_cli.consolidation.state import ConsolidationStateReadError, load_state, needs_number_assignment
@@ -533,8 +534,13 @@ def _forecast_recorded_target(main_repo: Path, mission_slug: str, *, fallback: s
 
 
 def _refuse_protected_target_override_in_forecast(main_repo: Path, mission_slug: str, *, recorded_target: str, effective_target: str, json_output: bool) -> None:
-    """``--dry-run`` parity for the #6464 override guard: report the policy's own ``error_code``."""
+    """``--dry-run`` parity for the #6464 and #5783 override guards: report the refusal's own ``error_code``."""
     verdict = refuse_protected_target_override(
+        main_repo,
+        mission_slug,
+        recorded_target=recorded_target,
+        effective_target=effective_target,
+    ) or refuse_unwritable_recorded_target(
         main_repo,
         mission_slug,
         recorded_target=recorded_target,
