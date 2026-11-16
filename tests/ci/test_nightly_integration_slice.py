@@ -1,12 +1,13 @@
 """The nightly integration slice is a real lane, and the checkup is non-vacuous.
 
-``tests/characterization/test_trio_json_envelope.py`` is marked ``integration``
-and ``git_repo`` only. It is not under a module ``test_dirs`` root, and the
-interpreter shard that lists ``tests/characterization`` selects
-``fast or unit``. Nothing else runs it. The static gate model still reports
-zero orphans, because ``module-tests.yml``'s pytest line has no static paths
-and the model then treats ``-m "not performance and not stress"`` as the
-whole tree. This file is the checkup that does not trust that reading.
+The slice selects ``integration``-marked files that sit under no module
+``test_dirs`` root, because nothing else runs them. The static gate model
+reports zero orphans, because ``module-tests.yml``'s pytest line has no static
+paths and the model then treats ``-m "not performance and not stress"`` as the
+whole tree. This file is the checkup that does not trust that reading. It pins
+live invariants only, never the membership of one file: a file leaves the slice
+as soon as its directory is covered (#7659 covered ``tests/characterization``,
+#7671).
 
 Charter review (no dead code) is the second half: a public function of the
 selector that the workflow and these tests never name is a finding.
@@ -31,7 +32,6 @@ pytestmark = [pytest.mark.fast]
 _REPO = Path(__file__).resolve().parents[2]
 _SELECTOR = _REPO / "scripts" / "ci" / "integration_slice.py"
 _WORKFLOW = _REPO / ".github" / "workflows" / "ci-nightly.yml"
-_TRIO = "tests/characterization/test_trio_json_envelope.py"
 _JOB = "integration-slice"
 
 
@@ -96,9 +96,8 @@ def test_dead_code_checkup_flags_an_unreferenced_function(tmp_path: Path) -> Non
     assert unreferenced_public_functions(module, [module, caller]) == ["unused"]
 
 
-def test_live_trio_envelope_is_on_the_slice_and_directory_lanes_are_not() -> None:
+def test_live_slice_never_holds_a_covered_directory() -> None:
     files = stranded_integration_files(_REPO)
-    assert _TRIO in files
     assert all(not path.startswith("tests/integration/") for path in files)
     assert all(not path.startswith("tests/next/") for path in files)
     prefixes = covered_prefixes(_REPO)
