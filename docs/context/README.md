@@ -82,13 +82,13 @@ authors; the runtime never parses it. The flow is:
 
 ```mermaid
 %% title: How Charter context reaches an agent
-%% description: The charter interview answers feed charter generate, which writes charter.yaml, and charter synthesize, which writes project doctrine to .kittify/charter-packs/. The runtime resolves charter.yaml, the activation ledger and that doctrine, then injects governed context into the prompt for each mission action.
+%% description: The charter interview answers feed charter generate, which writes charter.yaml, and charter synthesize, which writes project-local doctrine to .kittify/charter-packs/. The runtime resolves charter.yaml, the activation ledger and that doctrine, then injects governed context into the prompt for each mission action.
 flowchart LR
   answers["Interview answers<br/>.kittify/charter/interview/answers.yaml"]
   generate["spec-kitty charter generate"]
   synth["spec-kitty charter synthesize"]
   yaml[".kittify/charter/charter.yaml<br/>+ activation.yaml"]
-  packs[".kittify/charter-packs/<br/>project doctrine"]
+  packs[".kittify/charter-packs/<br/>project-local doctrine"]
   runtime["Runtime: governed prompt and context"]
   answers --> generate --> yaml
   answers --> synth --> packs
@@ -97,7 +97,7 @@ flowchart LR
 ```
 
 In words: the interview answers feed `charter generate`, which writes
-`charter.yaml`, and `charter synthesize`, which writes project doctrine to
+`charter.yaml`, and `charter synthesize`, which writes project-local doctrine to
 `.kittify/charter-packs/`; the runtime resolves `charter.yaml`, the activation
 ledger and that doctrine, and injects governed context into each mission
 action's prompt.
