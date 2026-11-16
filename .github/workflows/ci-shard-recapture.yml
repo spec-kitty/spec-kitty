@@ -187,7 +187,9 @@ jobs:
       #     GIT_CONFIG_COUNT/GIT_CONFIG_KEY_n/GIT_CONFIG_VALUE_n
       #     `http.https://github.com/.extraheader` entry in that subprocess's env
       #     only, `gh` via GH_TOKEN in its env only; `git add`/`git commit` get
-      #     neither.
+      #     neither. Every bot git call that can fire a hook (commit, push,
+      #     fetch, checkout) runs with `-c core.hooksPath=/dev/null`, and
+      #     commit/push add `--no-verify`, so no hook runs near the PAT (#7662).
       # There is no GITHUB_TOKEN fallback anywhere: a missing/empty PAT fails
       # the detect step before any gh/git call -- early, before the long capture.
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0

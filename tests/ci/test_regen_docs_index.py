@@ -193,6 +193,13 @@ def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return root
 
 
+_PUSH_PREFIX = ["git", "-c", "core.hooksPath=/dev/null", "push", "--no-verify"]
+
+
+def _is_push(cmd: list[str]) -> bool:
+    return cmd[:5] == _PUSH_PREFIX
+
+
 class _Recorder:
     """Replaces ``subprocess.run``: real for local git, recorded for push and gh."""
 
@@ -201,7 +208,7 @@ class _Recorder:
         self.open_prs = open_prs
 
     def __call__(self, cmd: list[str], **kwargs: Any) -> Any:
-        if cmd[:2] == ["git", "push"] or cmd[0] == "gh":
+        if _is_push(cmd) or cmd[0] == "gh":
             self.calls.append((cmd, kwargs.get("env")))
             stdout = self.open_prs if cmd[:3] == ["gh", "pr", "list"] else ""
             return subprocess.CompletedProcess(cmd, 0, stdout=stdout, stderr="")
@@ -243,7 +250,7 @@ def test_publish_commits_force_pushes_and_opens_a_pr(repo: Path, monkeypatch: py
     assert _git(repo, "log", "-1", "--format=%an|%s").strip() == f"spec-kitty-ci-bot|{regen.COMMIT_MESSAGE}"
     assert _git(repo, "status", "--porcelain") == ""
     commands = recorder.commands()
-    assert commands[0] == ["git", "push", "--force", "origin", f"HEAD:refs/heads/{regen.REGEN_BRANCH}"]
+    assert commands[0] == [*_PUSH_PREFIX, "--force", "origin", f"HEAD:refs/heads/{regen.REGEN_BRANCH}"]
     assert commands[1][:3] == ["gh", "pr", "list"]
     create = commands[2]
     assert create[:3] == ["gh", "pr", "create"]
@@ -265,7 +272,7 @@ def test_publish_refreshes_an_open_pr_without_creating_another(repo: Path, monke
 
     assert regen.main([regen.PHASE_PUBLISH]) == 0
 
-    assert [cmd[:3] for cmd in recorder.commands()] == [["git", "push", "--force"], ["gh", "pr", "list"]]
+    assert [cmd[:3] for cmd in recorder.commands()] == [["git", "-c", "core.hooksPath=/dev/null"], ["gh", "pr", "list"]]
 
 
 def test_publish_is_a_no_op_when_nothing_changed(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -315,7 +322,7 @@ def test_failed_push_names_the_secret_and_redacts_the_token(repo: Path, monkeypa
     regen.regenerate(repo)
 
     def _fake(cmd: list[str], **kwargs: Any) -> Any:
-        if cmd[:2] == ["git", "push"]:
+        if _is_push(cmd):
             raise subprocess.CalledProcessError(128, cmd, stderr=f"remote: Permission denied for {FAKE_TOKEN} (403)")
         return _REAL_RUN(cmd, **kwargs)
 

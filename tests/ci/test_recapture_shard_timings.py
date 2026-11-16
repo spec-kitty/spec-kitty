@@ -616,7 +616,8 @@ class World:
         self.write_timings(payload)
         return subprocess.CompletedProcess(cmd, 0 if exit_code == 0 else 1)
 
-    def _git(self, cmd: list[str]) -> subprocess.CompletedProcess[str]:
+    def _git(self, full: list[str]) -> subprocess.CompletedProcess[str]:
+        cmd = _without_config(full)
         if cmd[1] == "show":
             return subprocess.CompletedProcess(cmd, 0, stdout=self.proposal_json, stderr="")
         if cmd[1] == "checkout":
@@ -626,8 +627,19 @@ class World:
         if cmd[1:4] == ["diff", "--cached", "--quiet"]:  # exit 1: something is staged
             return subprocess.CompletedProcess(cmd, 0 if self.nothing_staged else 1, stdout="", stderr="")
         if cmd[1] == "push" and self.push_stderr is not None:
-            raise subprocess.CalledProcessError(128, cmd, stderr=self.push_stderr)
-        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+            raise subprocess.CalledProcessError(128, full, stderr=self.push_stderr)
+        return subprocess.CompletedProcess(full, 0, stdout="", stderr="")
+
+
+def _without_config(cmd: list[str]) -> list[str]:
+    """*cmd* with its leading one-shot ``-c key=value`` pairs removed (subcommand at index 1)."""
+    rest = cmd[1:]
+    while rest[:1] == ["-c"]:
+        rest = rest[2:]
+    return [cmd[0], *rest]
+
+
+_NO_HOOKS = ["git", "-c", "core.hooksPath=/dev/null"]
 
 
 @pytest.fixture
@@ -1372,7 +1384,7 @@ def test_an_open_proposal_carries_over_so_only_the_remaining_module_is_captured(
     exit_code, _, result = _capture(world)
 
     assert exit_code == 0
-    assert ["git", "fetch", "origin", RECAPTURE_BRANCH] in world.calls
+    assert [*_NO_HOOKS, "fetch", "origin", RECAPTURE_BRANCH] in world.calls
     assert world.producer_calls() == ["b"]
     assert result["captured"] == ["b"]
     after = world.read_timings()
@@ -1442,7 +1454,8 @@ def test_publish_without_an_open_proposal_pushes_the_branch_and_opens_a_pull_req
     assert git_calls[0] == ["git", "add", str(world.timings_path), str(world.root / ".github" / "ci-module-registry.yml")]
     assert git_calls[1] == ["git", "diff", "--cached", "--quiet"]
     assert recapture.COMMIT_MESSAGE in git_calls[2][-1]
-    assert git_calls[3] == ["git", "push", "--force", "origin", f"HEAD:refs/heads/{RECAPTURE_BRANCH}"]
+    assert git_calls[2][:3] == _NO_HOOKS and "--no-verify" in git_calls[2]
+    assert git_calls[3] == [*_NO_HOOKS, "push", "--no-verify", "--force", "origin", f"HEAD:refs/heads/{RECAPTURE_BRANCH}"]
     create = next(cmd for cmd in _commands(world, "gh") if cmd[1:3] == ["pr", "create"])
     assert create[create.index("--head") + 1] == RECAPTURE_BRANCH
     assert create[create.index("--title") + 1] == recapture.COMMIT_MESSAGE
@@ -1459,13 +1472,13 @@ def test_publish_with_an_open_proposal_adds_a_follow_up_commit_and_never_forces(
     assert recapture.main([PHASE_PUBLISH]) == 0
 
     git_calls = world.git_calls()
-    assert git_calls[0] == ["git", "fetch", "origin", RECAPTURE_BRANCH]
-    assert git_calls[1] == ["git", "checkout", "--force", "--detach", "FETCH_HEAD"]
+    assert git_calls[0] == [*_NO_HOOKS, "fetch", "origin", RECAPTURE_BRANCH]
+    assert git_calls[1] == [*_NO_HOOKS, "checkout", "--force", "--detach", "FETCH_HEAD"]
     assert git_calls[2] == ["git", "add", str(world.timings_path), str(world.root / ".github" / "ci-module-registry.yml")]
     assert git_calls[3] == ["git", "diff", "--cached", "--quiet"]
-    assert "commit" in git_calls[4]
-    assert git_calls[5] == ["git", "push", "origin", f"HEAD:refs/heads/{RECAPTURE_BRANCH}"]
-    assert all("--force" not in cmd and "-f" not in cmd for cmd in git_calls if cmd[1] == "push")
+    assert "commit" in git_calls[4] and git_calls[4][:3] == _NO_HOOKS and "--no-verify" in git_calls[4]
+    assert git_calls[5] == [*_NO_HOOKS, "push", "--no-verify", "origin", f"HEAD:refs/heads/{RECAPTURE_BRANCH}"]
+    assert all("--force" not in cmd and "-f" not in cmd for cmd in git_calls if _without_config(cmd)[1] == "push")
     assert not [cmd for cmd in _commands(world, "gh") if cmd[1:3] == ["pr", "create"]]
     # The tree moved to the proposal tip, yet the commit carries exactly the refreshed data.
     assert world.added_snapshots == [refreshed]
@@ -1513,7 +1526,7 @@ _PUBLISH_PATHS = pytest.mark.parametrize(
 def _call_label(call: list[str]) -> str:
     if call[0] == "gh":
         return " ".join(call[:3])
-    return "git commit" if "commit" in call[1:6] else f"git {call[1]}"
+    return f"git {_without_config(call)[1]}"
 
 
 def _expected_env(kind: str) -> dict[str, str]:
@@ -1599,7 +1612,7 @@ def test_the_publish_commit_carries_the_bot_identity(
     assert len(world.calls) == len(expected_calls)
     commit = next(call for call in world.calls if _call_label(call) == "git commit")
     assert commit[: commit.index("commit")] == [
-        "git",
+        *_NO_HOOKS,
         "-c",
         f"user.name={recapture.COMMIT_AUTHOR_NAME}",
         "-c",
@@ -1659,7 +1672,7 @@ def test_a_refused_follow_up_is_reported_as_not_forced(world: World, monkeypatch
         recapture.main([PHASE_PUBLISH])
 
     assert "NOT forced" in capsys.readouterr().err
-    assert all("--force" not in cmd for cmd in world.git_calls() if cmd[1] == "push")
+    assert all("--force" not in cmd for cmd in world.git_calls() if _without_config(cmd)[1] == "push")
 
 
 def test_a_push_failure_never_echoes_the_credential(world: World, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
@@ -1993,7 +2006,7 @@ def test_an_open_proposal_that_already_carries_the_data_gets_no_empty_commit(wor
     world.nothing_staged = True
 
     assert recapture.main([PHASE_PUBLISH]) == 0
-    assert not [cmd for cmd in world.git_calls() if cmd[1] in ("commit", "push")]
+    assert not [cmd for cmd in world.git_calls() if _without_config(cmd)[1] in ("commit", "push")]
 
 
 def test_staging_reports_whether_anything_changed_against_a_real_repository(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -802,7 +802,7 @@ def _capture_one(module: str, timeout_seconds: float, registry: dict[str, Any], 
 def _fetch_proposal_timings() -> dict[str, Any]:
     """The timings file as it stands on the open proposal branch (no credential needed)."""
     no_credential_env = _scrubbed_env()
-    _run_subprocess_or_die(["git", "fetch", "origin", RECAPTURE_BRANCH], step="git fetch", cwd=REPO_ROOT, env=no_credential_env)
+    _run_subprocess_or_die(bot_pr_publish.git_no_hooks_cmd("fetch", "origin", RECAPTURE_BRANCH), step="git fetch", cwd=REPO_ROOT, env=no_credential_env)
     shown = _run_subprocess_or_die(
         ["git", "show", f"FETCH_HEAD:{_TIMINGS_GIT_PATH}"],
         step="git show",
@@ -1092,7 +1092,7 @@ _git_commit_cmd = bot_pr_publish.git_commit_cmd
 def _push(token: str, *, force: bool) -> None:
     """Push HEAD to the recapture branch; a refusal is reported through
     :func:`push_failure_message`. *force* is only ever True on the no-open-PR path."""
-    cmd = ["git", "push", *(["--force"] if force else []), "origin", f"HEAD:refs/heads/{RECAPTURE_BRANCH}"]
+    cmd = bot_pr_publish.git_push_cmd(RECAPTURE_BRANCH, force=force)
     try:
         subprocess.run(cmd, cwd=REPO_ROOT, env=_push_env(token), capture_output=True, text=True, check=True)
     except subprocess.CalledProcessError as exc:
@@ -1168,8 +1168,10 @@ def _refresh_open_proposal(token: str, result: RecaptureResult) -> None:
     """
     refreshed = TIMINGS_PATH.read_bytes()
     no_credential_env = _scrubbed_env()
-    _run_subprocess_or_die(["git", "fetch", "origin", RECAPTURE_BRANCH], step="git fetch", cwd=REPO_ROOT, env=_push_env(token))
-    _run_subprocess_or_die(["git", "checkout", "--force", "--detach", "FETCH_HEAD"], step="git checkout", cwd=REPO_ROOT, env=no_credential_env)
+    _run_subprocess_or_die(bot_pr_publish.git_no_hooks_cmd("fetch", "origin", RECAPTURE_BRANCH), step="git fetch", cwd=REPO_ROOT, env=_push_env(token))
+    _run_subprocess_or_die(
+        bot_pr_publish.git_no_hooks_cmd("checkout", "--force", "--detach", "FETCH_HEAD"), step="git checkout", cwd=REPO_ROOT, env=no_credential_env
+    )
     TIMINGS_PATH.write_bytes(refreshed)
     # Re-derive on the proposal tip's own registry rather than carrying main's whole file over,
     # so the follow-up commit changes budgets and nothing else (#7115). Always: main's registry
