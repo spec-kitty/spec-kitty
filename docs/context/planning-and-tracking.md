@@ -3,7 +3,12 @@ title: 'Context: Planning & Tracking'
 description: 'Glossary context for planning and tracking: how work is organized, classified, and dispatched across the tracker and execution tiers (companion to the seed).'
 doc_status: active
 kind: Explanation
-updated: '2026-09-30T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
+audience:
+- profile: internal/maintainer
+  guidance_text: Read this to file, type, prioritize and parent tracker issues with the agreed vocabulary.
+- profile: internal/ai-collaboration-agent
+  guidance_text: Read this before triaging or labeling an issue, so the labels, types and parents you use are the agreed ones.
 related:
 - context/execution
 - context/orchestration
@@ -92,7 +97,8 @@ page governs prose. Surfaces are lowercase to match the seed.
 
 | | |
 |---|---|
-| **Definition** | A bounded, doctrine-governed agent action dispatched immediately without mission overhead (the `ask` / `advise` / `do` commands) that still produces a durable, git-tracked record. The execution tier between a full Mission and untracked ad-hoc invocation. An Op is to ask/advise/do what a Mission is to the full planning loop. |
+| **Definition** | A bounded, doctrine-governed agent action dispatched immediately without mission overhead that still produces a durable, git-tracked record. The execution tier between a full Mission and untracked ad-hoc invocation. Today an Op is opened with `spec-kitty dispatch "<request>"` and closed with `spec-kitty profile-invocation complete`; see [Ops vs. Missions](./ops-vs-missions.md). |
+| **Note** | The seed still names `ask` / `advise` / `do` commands, which the CLI no longer has. |
 | **Context** | Planning & Tracking |
 | **Status** | candidate |
 | **Applicable to** | `3.x` |
@@ -111,9 +117,11 @@ enum is `mission_local`, `team_domain`, `audience_domain`, `spec_kitty_core`
 subset to a first-class runtime `GlossaryScope` enum value is intentionally
 deferred. Rationale: mission runs are not yet wired into the issue-tracking
 concepts (epics, triage labels, the Op tier), so a runtime scope would have no
-resolution surface to bind against. Reassess under #1418 once mission runtime
-consumes tracking vocabulary. Until then this subset lives as a seed file
+resolution surface to bind against. #1418 was closed as completed on 2026-07-22,
+after it shipped glossary packs (PR #2852); it did not add this scope, and this page
+knows of no open issue for the deferral. Reassess once mission runtime consumes tracking
+vocabulary. Until then this subset lives as a seed file
 (`.kittify/glossaries/planning-and-tracking.yaml`) and this human-readable page,
 deliberately outside the runtime scope hierarchy.
 
-[#1418]: https://github.com/Priivacy-ai/spec-kitty/issues/1418
+[#1418]: https://github.com/spec-kitty/spec-kitty/issues/1418

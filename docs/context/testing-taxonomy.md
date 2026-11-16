@@ -3,11 +3,18 @@ title: 'Context: Testing Taxonomy'
 description: 'Glossary context for the testing taxonomy: the canonical pytest-marker categories for the tests/ tree and how to choose markers for a new test file.'
 doc_status: active
 kind: Explanation
-updated: '2026-10-08T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
+audience:
+- profile: internal/lead-developer
+  guidance_text: Read this to choose the markers for a new test file and to know which markers CI selects by name.
 ---
 ## Context: Testing Taxonomy
 
-Canonical categories for tests in this project's `tests/` tree. Each category is a pytest marker declared in `pytest.ini` `[pytest] markers`. Every test file MUST declare a module-level `pytestmark = [pytest.mark.<name>]` carrying at least one of these markers (architectural convention enforced by `tests/architectural/test_pytest_marker_convention.py`). CI quality gates and developer-loop profiles select tests by marker (`uv run pytest -m fast`, `-m architectural`, `-m "contract or unit"`, …), so an untagged test is silently invisible to those filters.
+Canonical categories for tests in this project's `tests/` tree. Each category is a pytest marker registered in `pytest.ini` `[pytest] markers`, which registers 41 markers; this page describes the ones a test author chooses most often. The others are `stress`, `timing`, `performance`, `regression`, `p0_repro`, `quarantine`, `corpus`, `agent`, `upgrade`, `docs_scoped` and `no_git_tmp_path`; their meaning is in `pytest.ini`.
+
+Two architectural tests guard markers. `tests/architectural/test_fast_tier_marker_completeness.py` requires every test under the `make test-fast` directories to carry a marker that the fast-tier expression (`FAST_TIER_MARKERS` in the `Makefile`) names, so it is not silently deselected. `tests/architectural/test_marker_job_completeness.py` checks that every registered marker has a CI home. No test requires a module-level `pytestmark` in every file.
+
+**How CI selects tests today.** Per-PR CI runs test modules by path (the module matrix), not by marker. Only nine markers are named by a CI `-m` expression: `corpus`, `e2e`, `fast`, `integration`, `p0_repro`, `performance`, `stress`, `unit` and `windows_ci` (several of them in the nightly only). Other markers are for local selection (`uv run pytest -m <marker>`) and for describing the test; the CI roles below say which.
 
 When choosing a marker for a new test file:
 
@@ -38,8 +45,8 @@ The categories below are listed by the question they answer.
 
 | | |
 |---|---|
-| **Definition** | A test that exercises a feature across module boundaries against real (process-local) collaborators: real filesystem under `tmp_path`, real in-process I/O, real git when explicitly needed. No external network, no spawned long-running services. |
-| **Use when** | The test verifies that two or more modules compose correctly, that a CLI command produces the expected files on disk via `typer.testing.CliRunner`, that a sync pipeline writes the right rows to a tmp SQLite DB, or that a charter resolver loads real YAML from a real `.kittify/`. |
+| **Definition** | A test that exercises behavior across module boundaries against real (process-local) collaborators: real filesystem under `tmp_path`, real in-process I/O, real git when explicitly needed. No external network, no spawned long-running services. |
+| **Use when** | The test verifies that two or more modules compose correctly, that a CLI command produces the expected files on disk via `typer.testing.CliRunner`, or that a charter resolver loads real YAML from a real `.kittify/`. |
 | **Do NOT use when** | The test only inspects a function's return value (use `unit`); the test calls a real external network (use `e2e` or `live_adapter`); the test runs against a real git repo with subprocess calls (also add `git_repo`). |
 | **CI role** | Run in the standard PR gate. Slower than `unit` but still bounded by file/process latency, not network. |
 | **Context** | Testing Taxonomy |
@@ -53,10 +60,10 @@ The categories below are listed by the question they answer.
 
 | | |
 |---|---|
-| **Definition** | A consumer-surface test that pins the shape of an external public API this project depends on (currently `spec-kitty-events` and `spec-kitty-tracker` PyPI packages, and the SaaS HTTP contract). The test fails when an upstream contract changes in a way that would break this CLI's consumption. |
-| **Use when** | You are asserting that a serialized event envelope matches a published schema, that a tracker bind payload carries the right keys, or that a vendored fixture from `contracts/` validates against a Pydantic model from `spec_kitty_events`. |
+| **Definition** | A consumer-surface test that pins the shape of an external public API this project depends on (currently the `spec-kitty-events` and `spec-kitty-tracker` PyPI packages and the pinned service assets). The test fails when an upstream contract changes in a way that would break this CLI's consumption. |
+| **Use when** | You are asserting that a serialized event envelope matches a published schema, that a tracker bind payload carries the right keys, or that a fixture from `contracts/fixtures/` validates against a Pydantic model from `spec_kitty_events`. |
 | **Do NOT use when** | The test exercises *internal* CLI-only behavior with no external contract — that is `unit` or `integration`. The test exercises a runtime end-to-end flow — that is `e2e`. |
-| **CI role** | Always green; a contract failure is by definition a blocking upstream regression. Run as a dedicated CI gate (`-m contract`). |
+| **CI role** | A contract failure is by definition a blocking upstream regression. No CI `-m contract` gate exists today; contract tests run by path in the module matrix. |
 | **Context** | Testing Taxonomy |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
@@ -71,7 +78,7 @@ The categories below are listed by the question they answer.
 | **Definition** | A test that asserts an architectural invariant — layer dependency rules (via pytestarch), import-boundary scans, shared-package boundary, naming conventions, schema enforcement, "this directory may not import that subsystem", "every test file must declare a marker", etc. These tests do not run product code; they introspect the source tree. |
 | **Use when** | You are pinning a rule about the structure of the codebase, not the behavior of any single module. |
 | **Do NOT use when** | The test calls product code (that is `unit` or `integration`). The test only verifies an external contract (that is `contract`). |
-| **CI role** | Dedicated CI gate (`-m architectural`). These tests are the rule book for refactors. |
+| **CI role** | No CI `-m` expression names it; architectural tests run by path, and CI's cross-cutting lane runs `tests/architectural/` in full. These tests are the rule book for refactors. |
 | **Context** | Testing Taxonomy |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
@@ -86,7 +93,7 @@ The categories below are listed by the question they answer.
 | **Definition** | An end-to-end test that drives the full CLI as a subprocess (or via `typer.testing.CliRunner` with maximum integration depth), against a realistic `.kittify/` tree, and asserts the user-visible outcome (files produced, exit code, observable side-effects). May be slow. |
 | **Use when** | You are verifying a whole user journey — `spec-kitty specify` → `plan` → `tasks` → `implement` → `review` — or a multi-command flow that no single module owns. |
 | **Do NOT use when** | A single CLI invocation in-process is sufficient — that is usually `integration`. |
-| **CI role** | Run in a dedicated slow gate (`-m e2e`). Often paired with `-m slow` when wall-clock exceeds the slow threshold. |
+| **CI role** | Selected by `-m e2e` in the nightly run, not per PR. Often paired with `-m slow` when wall-clock exceeds the slow threshold. |
 | **Context** | Testing Taxonomy |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
@@ -116,7 +123,7 @@ The categories below are listed by the question they answer.
 | **Definition** | A smoke or integration test against the charter offering package — verifying that directives, tactics, paradigms, styleguides, toolguides, procedures, agent profiles, and mission step contracts load correctly from `src/charter/offering/`, merge across layers (built-in / org / project), and surface through `CharterOfferingService`. |
 | **Use when** | The test exercises the three-layer charter offering, the DRG (doctrine reference graph) loader, profile resolution, or the offering catalog. |
 | **Do NOT use when** | The test is for charter-side composition (use `unit` and let the file live under `tests/charter/`) or for a single doctrine helper function (use `unit`). |
-| **CI role** | Dedicated `-m doctrine` profile for fast feedback on doctrine drift. |
+| **CI role** | No CI `-m doctrine` gate exists; use `uv run pytest -m doctrine` locally for fast feedback on doctrine drift. |
 | **Context** | Testing Taxonomy |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
@@ -143,8 +150,8 @@ The categories below are listed by the question they answer.
 
 | | |
 |---|---|
-| **Definition** | A performance characterization declaring the test takes >10 seconds wall-clock per item, requires heavy setup (wheel build, distribution install, large fixture tree), or otherwise should not run on every developer save. Orthogonal to category — an `integration` or `e2e` test may also be `slow`. |
-| **Use when** | The test reliably exceeds 10 seconds, builds a wheel, installs a venv, or runs a Docker setup. |
+| **Definition** | A performance characterization declaring the test takes >30 seconds wall-clock per item (`pytest.ini`), requires heavy setup (wheel build, distribution install, large fixture tree), or otherwise should not run on every developer save. Orthogonal to category — an `integration` or `e2e` test may also be `slow`. |
+| **Use when** | The test reliably exceeds 30 seconds, builds a wheel, installs a venv, or runs a Docker setup. |
 | **Do NOT use when** | The test could be made fast by isolating a dependency or by writing a leaner fixture — fix the test first, then re-evaluate the marker. |
 | **CI role** | Excluded from the inner loop (`uv run pytest -m "not slow"`) and run in dedicated slow / nightly gates. |
 | **Context** | Testing Taxonomy |
@@ -161,7 +168,7 @@ The categories below are listed by the question they answer.
 | **Definition** | A test that creates a real git repository (via `git init`, `subprocess.run`, or the `GitRepo` fixture) and exercises real git plumbing — commits, branches, worktrees, refs. |
 | **Use when** | The test calls `git init` / `git commit` / `git worktree add` either directly or through a fixture, and the assertion depends on real git state. |
 | **Do NOT use when** | The test only inspects in-memory git metadata (the bundled `GitRepo` dataclass without `git init`) — that's `unit`. |
-| **CI role** | Run with `-m git_repo` for the git-plumbing gate; useful to isolate when the host's git binary or version is suspect. |
+| **CI role** | No CI `-m git_repo` gate exists; select it locally with `-m git_repo` when the host's git binary or version is suspect. |
 | **Context** | Testing Taxonomy |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
@@ -176,7 +183,7 @@ The categories below are listed by the question they answer.
 | **Definition** | A test that builds a wheel from the working tree, installs it into a temporary venv, and verifies the installed surface (`spec-kitty --version`, CLI commands work from a fresh install with no `SPEC_KITTY_TEMPLATE_ROOT` override, etc.). Catches the "works on developer machine, fails on PyPI install" gap. |
 | **Use when** | The test asserts an invariant about the installed package — packaged data files are present, entry points resolve, templates ship correctly. |
 | **Do NOT use when** | The test runs against the source tree without installing — that's `unit`, `integration`, or `e2e` depending on scope. |
-| **CI role** | Always paired with `slow` (wheel build + install is heavy). Run in the release gate. |
+| **CI role** | Always paired with `slow` (wheel build + install is heavy). Excluded from the `make test-fast` tier; no CI `-m distribution` gate exists. |
 | **Context** | Testing Taxonomy |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
@@ -188,10 +195,10 @@ The categories below are listed by the question they answer.
 
 | | |
 |---|---|
-| **Definition** | A test that asserts OS-specific behavior (case-insensitive FS on macOS, POSIX path semantics on Linux, etc.). Auto-skipped on the wrong platform via conftest. |
+| **Definition** | A test that asserts OS-specific behavior (case-insensitive FS on macOS, POSIX path semantics on Linux, etc.). No conftest skips them automatically, so a carrier must skip itself on the wrong platform. |
 | **Use when** | The test would always fail or always pass on the wrong platform regardless of code correctness. |
 | **Do NOT use when** | The test is cross-platform but happens to be written on one OS — that is the default; no platform marker needed. |
-| **CI role** | Run on matching CI matrix legs; auto-skipped elsewhere. |
+| **CI role** | No collected test carries either marker today (both are in the `CI_INVISIBLE` ledger of `test_marker_job_completeness.py`); the `make test-fast` tier excludes `platform_darwin`. |
 | **Context** | Testing Taxonomy |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
@@ -218,10 +225,10 @@ The categories below are listed by the question they answer.
 
 | | |
 |---|---|
-| **Definition** | A test that needs functioning symlink support on the host filesystem. Auto-skipped where symlinks are unavailable (some Windows configurations, restricted CI runners). |
+| **Definition** | A test that needs functioning symlink support on the host filesystem. The marker itself skips nothing: carriers use a fixture that reports symlink support (for example `symlink_factory` in `tests/adversarial/conftest.py`) and skip themselves where symlinks are unavailable (some Windows configurations, restricted CI runners). |
 | **Use when** | The test creates or follows a symlink as part of its setup or assertion. |
 | **Do NOT use when** | The test uses only hard links, directory junctions, or path resolution. |
-| **CI role** | Skipped on hosts without symlink support; otherwise runs in the standard suite. |
+| **CI role** | Runs by path in the standard suite; the test skips itself on hosts without symlink support. |
 | **Context** | Testing Taxonomy |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
@@ -281,7 +288,7 @@ The categories below are listed by the question they answer.
 | **Definition** | An opt-out from the autouse readiness-stub fixture that the tracker CLI test suite installs by default. The test wires its own readiness machinery and would be perturbed by the stub. Introduced for mission 082 tracker CLI tests. |
 | **Use when** | The test exercises the real readiness path of a tracker CLI command and must not be patched by the default stub. |
 | **Do NOT use when** | The test is fine with the default stubbed readiness — most tests are. |
-| **CI role** | Behavioral opt-out; not used by gate filters. |
+| **CI role** | Not used by gate filters. No autouse readiness-stub fixture exists in `tests/` today and no test carries the marker, so it has no effect. |
 | **Context** | Testing Taxonomy |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
@@ -326,7 +333,7 @@ The categories below are listed by the question they answer.
 | **Definition** | A family of fine-grained markers for the orchestrator test suite. Each marker selects a slice: `orchestrator_smoke` (basic agent invocation), `orchestrator_availability` (agent availability detection), `orchestrator_fixtures` (fixture loading), `orchestrator_happy_path` (E2E happy paths), `orchestrator_review_cycles` (review approval/rejection cycles), `orchestrator_parallel` (parallel execution and dependency graphs). |
 | **Use when** | The test specifically exercises one of these orchestrator concerns and wants to be selectable independently of the broader suite. |
 | **Do NOT use when** | The test is a generic unit/integration test that happens to touch the orchestrator — use the category marker instead. |
-| **CI role** | Dedicated orchestrator gate may filter by these markers. |
+| **CI role** | No collected test carries these markers today; they are listed in the `CI_INVISIBLE` ledger of `test_marker_job_completeness.py`. |
 | **Context** | Testing Taxonomy |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
@@ -353,10 +360,10 @@ The categories below are listed by the question they answer.
 
 | | |
 |---|---|
-| **Definition** | A test intended for human-driven exploration only, not for CI runs. Satisfies the architectural marker-presence convention without obligating CI to execute it. CI workflows opt these out via `-m "not exploratory"`. |
+| **Definition** | A test intended for human-driven exploration only, not for CI runs. Gives the test a marker without obligating CI to execute it. |
 | **Use when** | The test is a scratchpad for a developer to spike a behavior interactively, depends on a particular local state, or is too costly to run on every PR. |
 | **Do NOT use when** | The test is meant to enforce a contract — promote it to a real category marker and stabilise it. |
-| **CI role** | Excluded by default. The marker is the project's escape valve for non-CI tests; do not normalize it. |
+| **CI role** | No CI workflow passes `-m "not exploratory"`; the marker is in the `CI_INVISIBLE` ledger of `test_marker_job_completeness.py` because no collected test carries it. Do not normalize it. |
 | **Context** | Testing Taxonomy |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |

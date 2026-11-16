@@ -3,7 +3,12 @@ title: 'Context: Charter'
 description: 'Glossary context for the canonical Charter governing term (glossary authority 3) plus the Doctrine domain model and artifact taxonomy for governance behavior and constraints.'
 doc_status: active
 kind: Explanation
-updated: '2026-10-31T00:00:00Z'
+updated: '2026-11-13T00:00:00Z'
+audience:
+- profile: internal/maintainer
+  guidance_text: Use these definitions when you set up, activate or change a project's charter and its packs.
+- profile: internal/lead-developer
+  guidance_text: Use this to name charter and doctrine concepts exactly in code and docs.
 related:
 - context/configuration-project-structure
 - context/execution
@@ -29,7 +34,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `2.x`, `3.x` |
-| **Do NOT use when** | The concept is the `.kittify/charter/` directory tree and its files (activation state, DRG cache, synthesis manifest) as a unit — use [Charter Bundle](#charter-bundle). The concept is a distributable bundle of charter components offered to a project — use [Charter Pack](#charter-pack); everything offered to a project, packs and project layer together, is the [Charter offering](#charter-offering). The concept is a named, ready-made set of activations a pack ships (`default`, `minimal`) — use [Activation preset](#activation-preset). The concept is what a project has activated (its `activated_<kind>` keys, `activated_kinds` and `mission_type_activations`) — use [Active charter](#active-charter). The concept is a single artifact's own per-project state (the **Active-Inactive Charter** distinction) — say "an active directive" or "an inactive tactic": "active" and "inactive" alone describe one artifact, "active charter" names the project's activated set as a whole, and the `.kittify/charter/` tree is never called "active" ([ADR 2026-10-06-1](../adr/4.x/2026-10-06-2-charter-offering-active-charter-and-activation-presets.md) §1). The concept is the `src/charter/` Python package (facades, resolver, synthesis, activation engine) — use **the `src/charter/` package**. The concept is the `spec-kitty charter ...` CLI command group (`interview`, `generate`, `context`, `activate`, `deactivate`, `pack`, ...) — use **the `spec-kitty charter` CLI group**. Never use bare "doctrine" for any of these senses; the governing term is `charter`. |
+| **Do NOT use when** | The concept is the `.kittify/charter/` directory tree and its files (activation state, DRG cache, synthesis manifest) as a unit — use [Charter Bundle](#charter-bundle). The concept is a distributable bundle of charter components offered to a project — use [Charter Pack](#charter-pack); everything offered to a project, packs and project layer together, is the [Charter offering](#charter-offering). The concept is a named, ready-made set of activations a pack ships (`default`, `minimal`) — use [Activation preset](#activation-preset). The concept is what a project has activated (its `activated_<kind>` keys, `activated_kinds` and `mission_type_activations`) — use [Active charter](#active-charter). The concept is a single artifact's own per-project state (the **Active-Inactive Charter** distinction) — say "an active directive" or "an inactive tactic": "active" and "inactive" alone describe one artifact, "active charter" names the project's activated set as a whole, and the `.kittify/charter/` tree is never called "active" ([ADR 2026-10-06-2](../adr/4.x/2026-10-06-2-charter-offering-active-charter-and-activation-presets.md) §1). The concept is the `src/charter/` Python package (facades, resolver, synthesis, activation engine) — use **the `src/charter/` package**. The concept is the `spec-kitty charter ...` CLI command group (`interview`, `generate`, `context`, `activate`, `deactivate`, `pack`, ...) — use **the `spec-kitty charter` CLI group**. Never use bare "doctrine" for any of these senses; the governing term is `charter`. |
 | **Related terms** | [Charter offering](#charter-offering), [Charter Pack](#charter-pack), [Activation preset](#activation-preset), [Active charter](#active-charter), [Project layer](#project-layer), [Charter Bundle](#charter-bundle), [Charter-Mediated Selection](#charter-mediated-selection), [Charter Facade](#charter-facade) |
 
 ---
@@ -38,7 +43,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 
 | | |
 |---|---|
-| **Definition** | Everything offered to a project: the [Charter Packs](#charter-pack) it can draw from (the built-in pack and each configured org pack) plus the [Project layer](#project-layer). The offer side of the charter; the activation side is the [Active charter](#active-charter). Defined in [ADR 2026-10-06-1](../adr/4.x/2026-10-06-2-charter-offering-active-charter-and-activation-presets.md) §1. |
+| **Definition** | Everything offered to a project: the [Charter Packs](#charter-pack) it can draw from (the built-in pack and each configured org pack) plus the [Project layer](#project-layer). The offer side of the charter; the activation side is the [Active charter](#active-charter). Defined in [ADR 2026-10-06-2](../adr/4.x/2026-10-06-2-charter-offering-active-charter-and-activation-presets.md) §1. |
 | **Context** | Charter |
 | **Status** | canonical |
 | **Applicable to** | `4.x` |
@@ -94,7 +99,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 
 | | |
 |---|---|
-| **Definition** | What a project has activated: its `activated_<kind>` keys, `activated_kinds` and `mission_type_activations` (plus the `deactivated_<kind>` exclusions), held in the [Activation ledger](#activation-ledger) `.kittify/charter/activation.yaml` ([ADR 2026-10-19-1](../adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md)); list it with `spec-kitty charter list --json`. The activation side of the charter, resolved by `PackContext.from_config` and served by `ActiveCharterService`; an invalid shape fails with `ACTIVE_CHARTER_CONFIG_INVALID`. **The "active" guard** ([ADR 2026-10-06-1](../adr/4.x/2026-10-06-2-charter-offering-active-charter-and-activation-presets.md) §1): "active" and "inactive" alone still describe one artifact ("an active directive"); "active charter" names the project's activated set as a whole; the `.kittify/charter/` tree is never called "active". |
+| **Definition** | What a project has activated: its `activated_<kind>` keys, `activated_kinds` and `mission_type_activations` (plus the `deactivated_<kind>` exclusions), held in the [Activation ledger](#activation-ledger) `.kittify/charter/activation.yaml` ([ADR 2026-10-19-1](../adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md)); list it with `spec-kitty charter list --json`. The activation side of the charter, resolved by `PackContext.from_config` and served by `ActiveCharterService`; an invalid shape fails with `ACTIVE_CHARTER_CONFIG_INVALID`. **The "active" guard** ([ADR 2026-10-06-2](../adr/4.x/2026-10-06-2-charter-offering-active-charter-and-activation-presets.md) §1): "active" and "inactive" alone still describe one artifact ("an active directive"); "active charter" names the project's activated set as a whole; the `.kittify/charter/` tree is never called "active". |
 | **Context** | Charter |
 | **Status** | canonical |
 | **Applicable to** | `4.x` |
@@ -114,7 +119,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 | **Applicable to** | `4.x` |
 | **Location** | `.kittify/charter/activation.yaml`, `src/charter/activation/` |
 | **Related terms** | [Active charter](#active-charter), [Exclusion](#exclusion), [Effective deny](#effective-deny), [Required floor](#required-floor), [activated_&lt;kind&gt;](#activated_kind) |
-| **Do NOT use when** | The concept is the applied-migration record (`.kittify/migration-ledger.jsonl`, which says which upgrade migrations have run) — use the Migration Ledger ([ADR 2026-10-17-1](../adr/4.x/2026-10-17-1-explicit-migration-ledger.md)). The concept is the record of Decision Moments (`decisions/`) — use the decision ledger. The concept is the append-only per-Mission lane history (`status.events.jsonl`) — use the status event log. The concept is the set of artifacts a project has activated, as a whole — use [Active charter](#active-charter); the ledger is the file that stores it. |
+| **Do NOT use when** | The concept is the applied-migration record (`.kittify/migration-ledger.jsonl`, which says which upgrade migrations have run) — use the Migration Ledger ([ADR 2026-10-17-1](../adr/4.x/2026-10-17-1-explicit-migration-ledger.md)). The concept is the record of Decision Moments (`decisions/`) — use the decision ledger. The concept is the append-only per-Mission status-lane history (`status.events.jsonl`) — use the status event log. The concept is the set of artifacts a project has activated, as a whole — use [Active charter](#active-charter); the ledger is the file that stores it. |
 
 ---
 
@@ -448,7 +453,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 
 | | |
 |---|---|
-| **Definition** | Canonical frozenset of agent-action tokens (e.g. `write_comment`, `write_docstring`, `rename_identifier`, `add_dependency`) the prompt builder knows how to emit "when you <token>, …" stanzas for. Any `triggers:` value declared on a shipped doctrine artifact must be a member of this set; the architectural test `test_trigger_registry_coverage.py` enforces no dead triggers. Mission B's WP05 populates the initial set. |
+| **Definition** | Canonical frozenset of agent-action tokens (e.g. `write_comment`, `write_docstring`, `rename_identifier`, `add_dependency`) the prompt builder knows how to emit "when you <token>, …" stanzas for. It is `REGISTERED_TRIGGERS` in `src/charter/activation/activations.py`: the ten `ALLOWED_ACTIONS` tokens plus four fine-grained ones (`write_comment`, `write_docstring`, `rename_identifier`, `add_dependency`). An Activation Registry entry's `action` must be a member or a wildcard (`any`, `generic`). No test checks the `triggers:` values on shipped doctrine artifacts against it today: the architectural test that did, `test_trigger_registry_coverage.py`, was removed in #3285 (2026-08-12). Mission B's WP05 populated the initial set. |
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
@@ -734,7 +739,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 
 | | |
 |---|---|
-| **Definition** | A resolution context (`charter.scope::CharterScope`) that maps a filesystem path to the appropriate charter when multiple charters coexist in a monorepo. Single-project repositories use `CharterScope.default(repo_root)` which returns the root-scoped charter. Monorepos with multiple sub-project charters configure `charter_scopes:` in `.kittify/config.yaml`; `CharterScope.resolve(repo_root, feature_dir)` then finds the nearest-enclosing charter for any given feature directory. The resolved `scope.root` is forwarded to `build_charter_context` (or via `build_with_scope`) so the correct per-package charter governs prompt generation. See ADR-8 (`docs/adr/3.x/2026-05-18-1-monorepo-charter-scope.md`). |
+| **Definition** | A resolution context (`charter.activation.scope::CharterScope`) that maps a filesystem path to the appropriate charter when multiple charters coexist in a monorepo. Single-project repositories use `CharterScope.default(repo_root)` which returns the root-scoped charter. Monorepos with multiple sub-project charters configure `charter_scopes:` in `.kittify/config.yaml`; `CharterScope.resolve(repo_root, feature_dir)` then finds the nearest-enclosing charter for any given Mission directory (`feature_dir`). The resolved `scope.root` is forwarded to `build_charter_context` (or via `build_with_scope`) so the correct per-package charter governs prompt generation. See ADR-8 (`docs/adr/3.x/2026-05-18-1-monorepo-charter-scope.md`). |
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
@@ -770,7 +775,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 
 | | |
 |---|---|
-| **Definition** | A snapshot of a quality metric (failure count, symbol count, dead-module count) recorded in `tests/architectural/ratchet-baseline-*.md` and enforced by the corresponding architectural gate. A ratchet baseline only moves in the decreasing direction during normal development; any increase fails CI. Org packs may declare additional ratchet metrics via governance policies, but cannot lower an existing shipped baseline. |
+| **Definition** | A snapshot of a quality metric (failure count, symbol count, dead-module count) recorded in `tests/architectural/_baselines.yaml` and enforced by the corresponding architectural gate (`tests/architectural/test_ratchet_baselines.py`). A ratchet baseline only moves in the decreasing direction during normal development; any increase fails CI. Org packs may declare additional ratchet metrics via governance policies, but cannot lower an existing shipped baseline. |
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
@@ -782,7 +787,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 
 | | |
 |---|---|
-| **Definition** | A dead-module or dead-symbol violation that has been explicitly classified as category 7 ("deferred — grandfathered") in the remediation tracking spreadsheet. Cat-7 items are excluded from the active failure count tracked by the ratchet baseline but must not be added to the allowlist via side-effect imports (the C2 anti-pattern). Each cat-7 record must carry a deferral reason and a target WP for cleanup. |
+| **Definition** | A dead-module or dead-symbol violation that has been explicitly classified as category 7 ("deferred — grandfathered"): listed in `_CATEGORY_7_GRANDFATHERED_ORPHANS` in `tests/architectural/test_no_dead_modules.py`. Cat-7 items are excluded from the active failure count tracked by the ratchet baseline but must not be added to the allowlist via side-effect imports (the C2 anti-pattern). Each cat-7 record must carry a deferral reason and a target WP for cleanup. |
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
@@ -818,7 +823,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 
 | | |
 |---|---|
-| **Definition** | The project convention that every Python module with a public API must declare an `__all__` list enumerating its exported symbols. The `test_no_dead_symbols.py` architectural gate uses `__all__` as the canonical public surface; symbols absent from `__all__` are not counted as dead even if unreferenced, and symbols present in `__all__` but never imported externally are flagged as candidates for removal. |
+| **Definition** | The project convention that every Python module with a public API must declare an `__all__` list enumerating its exported symbols. The `test_no_dead_symbols.py` architectural gate scans the union of a module's `__all__` members and every public (non-underscore) module-level `def`, `class` and assignment (#470). A public name outside `__all__` that is used inside its own module is not dead; an `__all__` member used only inside its own module still is, because `__all__` claims a cross-module export. |
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
