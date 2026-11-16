@@ -2051,15 +2051,6 @@ def resolve_placement_only(
 
     target_branch = get_feature_target_branch(repo_root, mission_slug)
     topology = _resolve_topology(get_main_repo_root(repo_root), mission_slug, resolver=resolver)
-    _identity, branch_ref, _status_surface, _workspace = _assemble_core_fragments(
-        repo_root,
-        mission_slug=mission_slug,
-        target_branch=target_branch,
-        topology=topology,
-        cwd=None,
-        resolver=resolver,
-        for_write=True,
-    )
     # FR-002 / FR-004 (write-surface-coherence WP01): the projection is
     # kind-aware. A ``_PRIMARY_ARTIFACT_KINDS`` member routes to the primary
     # ``target_branch`` already resolved above (via ``get_feature_target_branch``)
@@ -2070,6 +2061,13 @@ def resolve_placement_only(
     # projections. We return a bare CommitTarget rather than an
     # ArtifactPlacementFragment because planning callers hand it straight to
     # ``safe_commit(target=...)``.
+    #
+    # #7664: this projection runs BEFORE ``_assemble_core_fragments``. A PRIMARY
+    # kind needs only ``target_branch`` and ``topology``; the builder also
+    # resolves the coordination status surface, whose read door raises
+    # ``CoordinationBranchDeleted`` once consolidation tore the coordination
+    # branch down. Assembling first refused every PRIMARY write (a planning
+    # commit, ``_primary_partition_holder`` since #7633) of a landed Mission.
     if kind in _PRIMARY_ARTIFACT_KINDS:
         # WP08 (#5100 FR-007/012): a single_branch mission's protected-target
         # mint redirects even the PRIMARY-kind bypass to `mission_branch` --
@@ -2080,6 +2078,15 @@ def resolve_placement_only(
         # after a ``lanes_with_coord`` settlement.
         primary_kind_ref = default_mission_primary_ref(*_default_mission_facts(get_main_repo_root(repo_root), mission_slug, resolver=resolver), primary_kind_ref)
         return CommitTarget(ref=primary_kind_ref)
+    _identity, branch_ref, _status_surface, _workspace = _assemble_core_fragments(
+        repo_root,
+        mission_slug=mission_slug,
+        target_branch=target_branch,
+        topology=topology,
+        cwd=None,
+        resolver=resolver,
+        for_write=True,
+    )
     return branch_ref.destination_ref
 
 
