@@ -160,7 +160,7 @@
     },
     "WP05": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": null,
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 1,
@@ -175,6 +175,7 @@
         "Review passed: ADR 2026-09-19-1 Amendment 2026-11-17, merge-mission how-to Retarget section and 7692 changelog fragment verified against lane-b code (WP01+WP03+WP02): flag names/help, exit 2 misuse, codes RETARGET_RECORD_UNWRITABLE / RETARGET_WRITE_BRANCH_IS_RECORDED_TARGET / RETARGET_RESUME_MISMATCH / PROTECTED_BRANCH_REFUSED, dry-run retarget {from,to} JSON, HISTORY_CAP=20, default reason text, ConsolidationState.retarget shape + committed flag, re-baseline keeps it committed=False, no-snapshot adoption drops old-target anchors, attestations follow retarget (no ATTESTATION_UNSUPPORTED anywhere), default-topology in scope, orchestrator-api PREFLIGHT_FAILED + CONTRACT_VERSION unchanged, --abort --release-branch/--release-reason syntax, kill-window residual matches plan D. Changelog style 0 errors (no 7692 warning), spelling 0 findings, test_no_legacy_terminology 98 passed."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/consolidate-retarget-01M7M5JA-coord/kitty-specs/consolidate-retarget-01M7M5JA/tasks/WP05-docs-adr-changelog/review-cycle-2.md",
         "reference": "review-cycle://consolidate-retarget-01M7M5JA/WP05-docs-adr-changelog/review-cycle-2.md",
@@ -182,12 +183,12 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 31025,
-      "shell_pid_created_at": "1794914810.93",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T022": "done",
-        "T023": "done",
-        "T024": "done"
+        "T022": "planned",
+        "T023": "planned",
+        "T024": "planned"
       }
     },
     "WP06": {
