@@ -87,3 +87,20 @@ def test_primary_holder_keeps_the_root_when_the_coordination_branch_was_deleted(
     with pytest.raises(ActionContextError) as excinfo:
         placement_seam(mission.root, mission.slug).write_target(MissionArtifactKind.STATUS_STATE)
     assert excinfo.value.code == "COORDINATION_BRANCH_DELETED"
+
+
+@pytest.mark.parametrize("topology", ["lanes", "single_branch"])
+def test_probe_checkout_equals_the_status_write_checkout_without_coordination(tmp_path: Path, topology: str) -> None:
+    """#5783 landing fold: ``write_checkout_refusal`` asks for the PRIMARY (``WORK_PACKAGE_TASK``)
+    checkout, while a coordination-less ``done`` write commits in the ``STATUS_STATE`` checkout
+    (``BookkeepingTransaction.acquire``). They must name the same checkout, or the up-front probe
+    and the real write could disagree.
+    """
+    from mission_runtime import MissionArtifactKind
+
+    mission = make_default_mission(tmp_path, THREE_LANES, standing_on="work", explicit=topology)
+    target = git(mission.root, "branch", "--show-current")
+
+    probe = transaction._primary_partition_holder(mission.root, mission.slug, target)
+    write = transaction.seam_commit_checkout(mission.root, mission.slug, target, MissionArtifactKind.STATUS_STATE)
+    assert probe == write
