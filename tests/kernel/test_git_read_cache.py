@@ -356,3 +356,44 @@ def test_a_linked_checkout_shares_ref_entries_with_its_repository(repo: Path, tm
         _read_tip(repo, read, "refs/heads/main")
         cached_ref_read(linked, "refs/heads/main", "tip", read)
     assert read.calls == 1
+
+
+# --------------------------------------------------------------------------- landing folds (#7689)
+
+
+def test_a_reftable_repository_runs_every_read_uncached(repo: Path) -> None:
+    """The fingerprint models the files ref backend only; a reftable repository bypasses the cache."""
+    config = repo / ".git" / "config"
+    config.write_text(config.read_text(encoding="utf-8") + "[extensions]\n\trefStorage = reftable\n", encoding="utf-8")
+    calls = 0
+
+    def compute() -> str:
+        nonlocal calls
+        calls += 1
+        return "answer"
+
+    with git_read_cache_scope() as stats:
+        assert cached_git_read(repo, "q", compute, depends=Depends(head=True)) == "answer"
+        assert cached_git_read(repo, "q", compute, depends=Depends(head=True)) == "answer"
+    assert calls == 2, "a reftable repository must never answer from the cache"
+    assert stats.bypassed == 2
+
+
+def test_store_if_keeps_a_rejected_answer_out_of_the_cache(repo: Path) -> None:
+    answers = iter([None, None, "main", "never"])
+    calls = 0
+
+    def compute() -> str | None:
+        nonlocal calls
+        calls += 1
+        return next(answers)
+
+    def read() -> str | None:
+        return cached_git_read(repo, "remote-default", compute, depends=Depends(config=True), store_if=lambda value: value is not None)
+
+    with git_read_cache_scope():
+        assert read() is None
+        assert read() is None
+        assert read() == "main"
+        assert read() == "main"
+    assert calls == 3, "None is asked again each time; the first real answer is then reused"
