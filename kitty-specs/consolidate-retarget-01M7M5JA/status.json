@@ -127,7 +127,7 @@
     },
     "WP04": {
       "actor": "claude",
-      "agent": "claude::python-pedro",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -141,6 +141,7 @@
         "Ready for review: e2e acceptance (5 files), forecast/entry retarget-mode fold, T021"
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/consolidate-retarget-01M7M5JA-coord/kitty-specs/consolidate-retarget-01M7M5JA/tasks/WP04-end-to-end-acceptance/review-cycle-1.md",
         "reference": "review-cycle://consolidate-retarget-01M7M5JA/WP04-end-to-end-acceptance/review-cycle-1.md",
@@ -148,13 +149,13 @@
         "verdict": "changes_requested"
       },
       "role": "implementer",
-      "shell_pid": 14314,
-      "shell_pid_created_at": "1794916087.48",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T018": "done",
-        "T019": "done",
-        "T020": "done",
-        "T021": "done"
+        "T018": "planned",
+        "T019": "planned",
+        "T020": "planned",
+        "T021": "planned"
       }
     },
     "WP05": {
