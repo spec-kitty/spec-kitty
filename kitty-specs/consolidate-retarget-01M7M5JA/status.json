@@ -1,7 +1,7 @@
 {
-  "event_count": 2,
-  "last_event_id": "01M7M8WJHATDYM4D8ZPF8BV8KX",
-  "materialized_at": "2026-11-17T08:10:01.642078+00:00",
+  "event_count": 3,
+  "last_event_id": "01M7M8WNYWC6Z303D8ABDNMWHS",
+  "materialized_at": "2026-11-17T08:10:05.148239+00:00",
   "mission_number": "",
   "mission_slug": "consolidate-retarget-01M7M5JA",
   "mission_type": "software-dev",
@@ -15,7 +15,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 2
+    "planned": 3
   },
   "work_packages": {
     "WP01": {
@@ -31,6 +31,13 @@
       "lane": "planned",
       "last_event_id": "01M7M8WJHATDYM4D8ZPF8BV8KX",
       "last_transition_at": "2026-11-17T08:10:01.642078+00:00"
+    },
+    "WP03": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M7M8WNYWC6Z303D8ABDNMWHS",
+      "last_transition_at": "2026-11-17T08:10:05.148239+00:00"
     }
   }
 }
