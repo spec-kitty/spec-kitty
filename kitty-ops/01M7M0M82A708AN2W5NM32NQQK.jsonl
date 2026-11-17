@@ -1,1 +1,2 @@
 {"event": "started", "invocation_id": "01M7M0M82A708AN2W5NM32NQQK", "profile_id": "python-pedro", "action": "generate", "request_text": "Diagnose and fix core P0 #7689: nightly acceptance-bdd Windows consolidate timeout", "actor": "claude", "mode_of_work": "task_execution", "governance_context_hash": "d30e238a1bce52be", "governance_context_available": true, "started_at": "2026-11-17T05:45:43.809969+00:00"}
+{"event": "completed", "invocation_id": "01M7M0M82A708AN2W5NM32NQQK", "completed_at": "2026-11-17T08:20:57.807645+00:00", "outcome": "done", "closed_by": "agent"}
