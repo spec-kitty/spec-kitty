@@ -27,18 +27,51 @@ public final class CliProcessDriver implements SpecKittyDriver {
     /** Hard ceiling on a single CLI invocation; a slower run is a defect, not a wait. */
     static final Duration DEFAULT_TIMEOUT = Duration.ofMinutes(2);
 
+    /**
+     * Ceiling for {@code spec-kitty consolidate} (#7689), a budget tune with evidence, never a retry.
+     *
+     * <p>One consolidate run of a one-work-package Mission timed out at {@link #DEFAULT_TIMEOUT} on
+     * a Windows nightly runner (run 44009807449). That runner was 7-9x slower than Linux on every CLI
+     * step of the scenario, and consolidate takes 15-18 s on Linux, so it needs about 105-165 s
+     * there. The git read cache (#7689) cut its git processes from 671 to 470 but cannot give that
+     * margin alone. Four minutes is about 1.5x the worst estimate. See the #7689 row of
+     * docs/development/testing/testing-flakiness.md; the guard in tests/ci/test_acceptance_cli_ceilings.py
+     * keeps every named ceiling at or below {@link #MAX_COMMAND_TIMEOUT}.
+     */
+    static final Duration CONSOLIDATE_TIMEOUT = Duration.ofMinutes(4);
+
+    /** No named ceiling may exceed this; a command that needs more is a defect to fix, not to wait for. */
+    static final Duration MAX_COMMAND_TIMEOUT = Duration.ofMinutes(5);
+
+    /** Named per-subcommand ceilings; every other command keeps {@link #DEFAULT_TIMEOUT}. */
+    static final Map<String, Duration> COMMAND_TIMEOUTS = Map.of("consolidate", CONSOLIDATE_TIMEOUT);
+
     private final CommandResolver resolver;
     private final Map<String, String> environment;
+    /** A fixed timeout for every command, or {@code null} for the default and named ceilings. */
     private final Duration timeout;
 
     public CliProcessDriver(CommandResolver resolver, Map<String, String> environment) {
-        this(resolver, environment, DEFAULT_TIMEOUT);
+        this.resolver = resolver;
+        this.environment = Map.copyOf(environment);
+        this.timeout = null;
     }
 
     public CliProcessDriver(CommandResolver resolver, Map<String, String> environment, Duration timeout) {
         this.resolver = resolver;
         this.environment = Map.copyOf(environment);
         this.timeout = timeout;
+    }
+
+    /** The ceiling for *args*: the fixed timeout if one was given, else the subcommand's named ceiling or the default. */
+    Duration timeoutFor(List<String> args) {
+        if (timeout != null) {
+            return timeout;
+        }
+        if (args.size() > 1 && "spec-kitty".equals(args.get(0))) {
+            return COMMAND_TIMEOUTS.getOrDefault(args.get(1), DEFAULT_TIMEOUT);
+        }
+        return DEFAULT_TIMEOUT;
     }
 
     @Override
@@ -55,6 +88,7 @@ public final class CliProcessDriver implements SpecKittyDriver {
         builder.environment().putAll(environment);
         builder.redirectErrorStream(false);
 
+        Duration timeout = timeoutFor(args);
         Process process = null;
         try {
             process = builder.start();
