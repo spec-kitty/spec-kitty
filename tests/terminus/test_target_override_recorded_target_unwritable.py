@@ -181,3 +181,22 @@ def test_control_mission_created_for_develop_lands_there(tmp_path: Path, build) 
     assert _CODE not in output, output
     assert blob_present_at(mission.repo, _OVERRIDE, "src/pkg/wp01.py"), output
     assert git(mission.repo, "status", "--porcelain", "--", "kitty-specs").stdout == "", output
+
+
+@pytest.mark.regression
+def test_a_retarget_never_leaves_the_recorded_bookkeeping_uncommitted(tmp_path: Path) -> None:
+    """Proof of the defect the refusal retires (landing fold, #5783).
+
+    Before the guard, ``consolidate --target develop`` on a coord Mission recorded for ``main``
+    was admitted, exited 0, and left the recorded target's bookkeeping (``meta.json``)
+    modified and uncommitted in the repository root checkout. The invariant holds for
+    either outcome: a retarget run, admitted or refused, never leaves ``kitty-specs/``
+    dirty. This test fails on the pre-fix source and passes with the up-front refusal.
+    """
+    mission = _coord(tmp_path, "01M5783P")
+    _check_out_override(mission)
+
+    result = _consolidate(mission, "--target", _OVERRIDE)
+
+    status = git(mission.repo, "status", "--porcelain", "--", "kitty-specs").stdout
+    assert status == "", f"a retarget left the recorded target's bookkeeping uncommitted: {status!r} rc={result.returncode} output={flat(result)}"
