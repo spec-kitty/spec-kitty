@@ -690,7 +690,10 @@ of the run follows it. Naming the recorded target again is not a retarget.
   rewritten. The commit is the run's first mutation: `phase_advance._phase_retarget_record` runs
   inside the rollback door and records its post tips like every other phase. The AST pin's
   `_SPAN_PHASES` (`tests/consolidation/test_single_rollback_authority.py`) gained it. No gate
-  allowlist was added.
+  allowlist was added. On a default-topology Mission the record commit is made on the topic
+  branch, and the default squash landing folds it in. `<b>` then shows no separate retarget
+  commit; `retarget_history` holds exactly one entry
+  (`tests/integration/test_default_mission_consolidate_retarget.py`).
 - **The run record.** `ConsolidationState.retarget` is `{from, to, actor, at, reason, committed}`.
   It is created with the record, before the claim, with `committed=False`, and set to `True` right
   after the `meta.json` commits. A full-restore re-baseline (#6770) keeps it and sets
@@ -708,8 +711,12 @@ of the run follows it. Naming the recorded target again is not a retarget.
   probe is re-pointed at `<b>`, never skipped. `--attest-*` flags follow the retarget too: on a
   Mission without a coordination branch, their status events land on `<b>`.
 - **Refusals, all before any branch moves.** `RETARGET_RECORD_UNWRITABLE`: neither the Mission
-  branch nor `<b>` carries `meta.json`, or `<b>` carries it but the root checkout cannot take the
-  commit (not on `<b>`, or `meta.json` untracked, dirty or skip-worktree).
+  branch nor `<b>` carries `meta.json`; or `<b>` carries it but the root checkout cannot take the
+  commit (not on `<b>`, or `meta.json` untracked or dirty there); or `<b>` carries it and
+  `meta.json` carries the skip-worktree or assume-unchanged bit in the root checkout, even with no
+  edit (`preflight._index_bit`); or `<b>` does not carry it and the root checkout, on `<b>`, holds
+  untracked `kitty-specs/<slug>/` copies the landing would overwrite
+  (`preflight._untracked_mission_copies_refusal`).
   `RETARGET_WRITE_BRANCH_IS_RECORDED_TARGET`: a commit-to-target `single_branch` Mission, whose
   write branch is the recorded target; the run would land that branch and then delete it.
   `PROTECTED_BRANCH_REFUSED`: `<b>` is protected (#6464), or the re-pointed #5385 probe refuses.
@@ -721,10 +728,13 @@ of the run follows it. Naming the recorded target again is not a retarget.
   retarget, because it has no rollback door (#7361). It keeps refusing a differing target with
   `PREFLIGHT_FAILED` and `TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE`. `CONTRACT_VERSION` is
   unchanged.
-- **Residual (named, not closed).** A kill between the record commits and the `committed`
-  persist leaves branches the record cannot explain. The next run refuses with
-  `UNEXPLAINED_BRANCH_MOVE`. This is the same residual as the primary-tree mission-number bake.
-  The remedy is `consolidate --abort --release-branch <b> --release-reason "..."`.
+- **The kill window is not a residual.** The plan named a kill between the record commits and the
+  `committed` persist as a residual that would refuse with `UNEXPLAINED_BRANCH_MOVE`. The
+  end-to-end test does not confirm it. A hard kill at `phase_advance._persist_retarget_committed`,
+  then `consolidate --resume`, exits 0 and lands with exactly one record. The record commits ran
+  inside the door's advance intents, so the resume adopts both moves, and the deduplicating record
+  write leaves both copies unchanged (`tests/terminus/test_consolidate_retarget_resume.py`). No
+  `--release-branch` is needed.
 
 ## Alternatives Considered
 
@@ -747,7 +757,7 @@ of the run follows it. Naming the recorded target again is not a retarget.
 - Follow-up 2026-10-05: #5686, #5666, the deadlock part of #5687; mission `kitty-specs/rollback-anchor-authority-01M45VSA/`; out-of-scope follow-ups #5372, #5667, #5638, #5048, #5784.
 - Follow-up 2026-10-31: #6464; mission `kitty-specs/protected-target-override-refusal-01M68JPV/`; residual: an override onto an unprotected non-recorded branch. Context-only: #3132 (PR-required delivery policy, not implemented here), #5100 (mission-scoped `commit_to_target`), #3080 (`merge` → `consolidate`).
 - Amendment 2026-11-06: #7265 (design, slice S10 of epic #7276), #7198, #7199; sequencing with #7280 (S5), #7264 (S4), #7281 (S6); supersedes PRs #7228 and #7226 (author Ivan-Melck); closes #7271; residuals #7300, #7121, #5460; separate: #7201 / PR #7233.
-- Amendment 2026-11-17: #7692; mission `kitty-specs/consolidate-retarget-01M7M5JA/`; builds on #5783 (#7688) and #6464; orchestrator-api rollback door: #7361; residual: the kill window between the record commits and the `committed` persist.
+- Amendment 2026-11-17: #7692; mission `kitty-specs/consolidate-retarget-01M7M5JA/`; builds on #5783 (#7688) and #6464; orchestrator-api rollback door: #7361; kill window between the record commits and the `committed` persist: resumes once, `tests/terminus/test_consolidate_retarget_resume.py`.
 - Mission: `kitty-specs/terminus-safety-invariant-01M2XFT7/spec.md`; Decision Moments
   `01M2XFVSK8JCCXMXCJNTBB0X5V` (scope), `01M2XFW9B71WKJ4XPCDCH8VYCQ` (warn semantics).
 - Related (separate): #3967 (shared integration view, epic #3894), #4161 (`next` FSM),

@@ -134,11 +134,15 @@ The forecast adds `"retarget": {"from": "main", "to": "develop"}` to its JSON an
 
 **What is recorded.** The first change the run makes is a commit of the Mission's `meta.json`. It sets `target_branch` to the new target and appends one entry to `retarget_history`: `from`, `to`, `actor`, `at` and `reason`. The history keeps the newest 20 entries. The default reason is `operator retarget via spec-kitty consolidate --target <branch> --retarget`. The commit is made on every branch whose tree carries the Mission's `meta.json`: the Mission branch (for a Mission created without `--topology`, its topic branch) and the new target when it carries the file. `lanes.json` is not rewritten.
 
+On a Mission created without `--topology`, the commit is made on the topic branch. The default squash landing folds it into the landing, so the new target shows no separate retarget commit. `retarget_history` holds exactly one entry.
+
 **Refusals.** Each one is reported before any branch moves.
 
 | Code | When | Next step |
 | --- | --- | --- |
-| `RETARGET_RECORD_UNWRITABLE` | Neither the Mission branch nor the new target carries the Mission's `meta.json`. Or the new target carries it, but the repository root checkout is not on the new target, or `meta.json` there is untracked, has an uncommitted edit or is marked skip-worktree. | Consolidate into the recorded target; or integrate the recorded target into the new one first. For a checkout problem: `git checkout <branch>`, commit or discard the edit, then re-run. |
+| `RETARGET_RECORD_UNWRITABLE` | Neither the Mission branch nor the new target carries the Mission's `meta.json`. Or the new target carries it, but the repository root checkout is not on the new target, or `meta.json` there is untracked or has an uncommitted edit. | Consolidate into the recorded target; or integrate the recorded target into the new one first. For a checkout problem: `git checkout <branch>`, commit or discard the edit, then re-run. |
+| `RETARGET_RECORD_UNWRITABLE` | The new target carries the Mission's `meta.json`, and in the repository root checkout the file has the skip-worktree or assume-unchanged bit, even with no edit. | Clear the bit (`git update-index --no-skip-worktree <path>` or `--no-assume-unchanged <path>`), then re-run. |
+| `RETARGET_RECORD_UNWRITABLE` | The new target does not carry the Mission yet, and the repository root checkout, on the new target, has untracked files under `kitty-specs/<slug>/` that the landing would overwrite. | Remove the untracked copies, or move them aside, then re-run. |
 | `RETARGET_WRITE_BRANCH_IS_RECORDED_TARGET` | A `single_branch` Mission created with `--commit-to-target`: its work is written on the recorded target itself. A retarget would land that branch and then delete it. | Consolidate into the recorded target, then integrate it into the new one with git. |
 | `PROTECTED_BRANCH_REFUSED` | The new target is protected (#6464), or the workflow mutation policy would refuse the `done` bookkeeping on the new target (#5385). | Pick an unprotected target. |
 | `RETARGET_RESUME_MISMATCH` | `--resume --target <x> --retarget` names a branch other than the retarget the interrupted run recorded. | Re-run with the recorded branch, or a bare `--resume`; or `--abort` first. |
@@ -147,7 +151,7 @@ A retarget away from a protected recorded target onto an unprotected branch is a
 
 **Scope.** `--retarget` works on Missions with an explicit `lanes` or `lanes_with_coord` topology, and on Missions created without `--topology` once `finalize-tasks` has settled them to `lanes_with_coord` or `single_branch`. `--attest-*` flags given with `--retarget` follow the retarget: on a Mission without a coordination branch, their status events land on the new target. `orchestrator-api consolidate-mission` cannot retarget, because it has no rollback. A target that differs from the record still fails there with `PREFLIGHT_FAILED` and `TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE`.
 
-**Abort and resume.** If the run fails after the retarget commit, it restores the new target and the Mission branch to their tips from before the run. The retarget stays in the run record. A bare `spec-kitty consolidate --resume`, or a re-run, applies it again. `spec-kitty consolidate --abort` drops it. If the run is killed between the retarget commit and saving the run record, the next run refuses with `UNEXPLAINED_BRANCH_MOVE`. Run `spec-kitty consolidate --abort --release-branch <branch> --release-reason "<why>"` for the branch it names, then run `consolidate` again.
+**Abort and resume.** If the run fails after the retarget commit, it restores the new target and the Mission branch to their tips from before the run. The retarget stays in the run record. A bare `spec-kitty consolidate --resume`, or a re-run, applies it again. `spec-kitty consolidate --abort` drops it. If the run is killed between the retarget commit and saving the run record, a bare `spec-kitty consolidate --resume` finishes the run. It exits 0 and lands with exactly one retarget record. No `--release-branch` is needed (`tests/terminus/test_consolidate_retarget_resume.py`).
 
 ## Cleanup Options
 
