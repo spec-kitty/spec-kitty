@@ -309,7 +309,8 @@ def write_checkout_refusal(repo_root: Path, mission_slug: str, destination_ref: 
     The hold check is :meth:`BookkeepingTransaction.acquire`'s own (:func:`_write_checkout_refusal`).
     A PRIMARY kind keeps the probe free of side effects: ``write_dir`` never materializes a
     coordination worktree for it. It reads which branch that checkout holds NOW; a caller that
-    later switches the checkout must not rely on it.
+    later switches the checkout must not rely on it. No ``owned`` checkout is threaded: consolidate's
+    own bookkeeping writes pass none either, so the probe judges the checkout those writes use.
     """
     checkout = _primary_partition_holder(repo_root, mission_slug, destination_ref)
     return _write_checkout_refusal(repo_root, checkout, destination_ref, operation)
