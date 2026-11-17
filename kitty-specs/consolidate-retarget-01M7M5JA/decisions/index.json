@@ -1,0 +1,124 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-17T07:12:15.833053Z",
+      "decision_id": "01M7M5JSYSVTC5R0XHDMKXXAQX",
+      "final_answer": null,
+      "input_key": "retarget_opt_in",
+      "mission_id": "01M7M5JAYR1Q71P022W0EES7ZB",
+      "mission_slug": "consolidate-retarget-01M7M5JA",
+      "opened_by": "cli",
+      "options": [
+        "explicit --retarget (rec)",
+        "implicit on --target",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Is the retarget an explicit opt-in (--retarget requiring --target) or implicit on --target?",
+      "rationale": null,
+      "resolved_at": null,
+      "resolved_by": null,
+      "slot_key": "specify.retarget.opt-in",
+      "status": "open",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-17T07:12:17.809529Z",
+      "decision_id": "01M7M5JVWHNG5ZC6JD0S4CSJ5E",
+      "final_answer": null,
+      "input_key": "retarget_record_timing",
+      "mission_id": "01M7M5JAYR1Q71P022W0EES7ZB",
+      "mission_slug": "consolidate-retarget-01M7M5JA",
+      "opened_by": "cli",
+      "options": [
+        "up front, first mutation, own commit with provenance on the new PRIMARY checkout (rec)",
+        "inside the landing",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "When and where is meta.json target_branch rewritten?",
+      "rationale": null,
+      "resolved_at": null,
+      "resolved_by": null,
+      "slot_key": "specify.retarget.record-timing",
+      "status": "open",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-17T07:12:19.957914Z",
+      "decision_id": "01M7M5JXZNXAB65MPMYC3F4Y6B",
+      "final_answer": null,
+      "input_key": "retarget_rollback",
+      "mission_id": "01M7M5JAYR1Q71P022W0EES7ZB",
+      "mission_slug": "consolidate-retarget-01M7M5JA",
+      "opened_by": "cli",
+      "options": [
+        "persist retarget in run record; one rollback authority restores; resume honours; ADR amendment (rec)",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How do --resume, --abort and the rollback authority treat a retargeted run?",
+      "rationale": null,
+      "resolved_at": null,
+      "resolved_by": null,
+      "slot_key": "specify.retarget.rollback",
+      "status": "open",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-17T07:12:21.991372Z",
+      "decision_id": "01M7M5JZZ79TBGYXD1XZA594CH",
+      "final_answer": null,
+      "input_key": "retarget_protection",
+      "mission_id": "01M7M5JAYR1Q71P022W0EES7ZB",
+      "mission_slug": "consolidate-retarget-01M7M5JA",
+      "opened_by": "cli",
+      "options": [
+        "never bypasses: #6464 + #5385 probes judge the new target up front (rec)",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How does a retarget interact with #6464 and the status-write policy?",
+      "rationale": null,
+      "resolved_at": null,
+      "resolved_by": null,
+      "slot_key": "specify.retarget.protection",
+      "status": "open",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-17T07:12:24.129265Z",
+      "decision_id": "01M7M5K221R8DE5KBNVX5BCPYW",
+      "final_answer": null,
+      "input_key": "retarget_parity",
+      "mission_id": "01M7M5JAYR1Q71P022W0EES7ZB",
+      "mission_slug": "consolidate-retarget-01M7M5JA",
+      "opened_by": "cli",
+      "options": [
+        "dry-run forecasts identically; orchestrator-api refuses retargets (no rollback door) (rec)",
+        "orchestrator-api adds --retarget without rollback",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "--dry-run and orchestrator-api consolidate-mission parity?",
+      "rationale": null,
+      "resolved_at": null,
+      "resolved_by": null,
+      "slot_key": "specify.retarget.parity",
+      "status": "open",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M7M5JAYR1Q71P022W0EES7ZB",
+  "version": 1
+}
