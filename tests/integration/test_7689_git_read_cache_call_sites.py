@@ -143,10 +143,10 @@ def test_origin_head_follows_set_head(repo: Path, spawns: _GitSpawns) -> None:
 
 def test_remote_default_branch_follows_origin_head_and_config(repo: Path, spawns: _GitSpawns) -> None:
     with git_read_cache_scope():
-        assert _no_spawn_on_repeat(spawns, lambda: _remote_default_branch(repo)) is None
+        assert _no_spawn_on_repeat(spawns, lambda: _remote_default_branch(repo)) is None, "no origin is a definitive answer"
         _git(repo, "update-ref", "refs/remotes/origin/trunk", "HEAD")
         _git(repo, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/trunk")
-        assert _remote_default_branch(repo) == "trunk"
+        assert _no_spawn_on_repeat(spawns, lambda: _remote_default_branch(repo)) == "trunk"
         _git(repo, "symbolic-ref", "-d", "refs/remotes/origin/HEAD")
         _git(repo, "config", "--local", "remote.origin.url", str(repo))
         before = spawns.count
@@ -187,3 +187,13 @@ def test_merge_driver_config_read_follows_a_config_write(repo: Path, spawns: _Gi
         assert spawns.count == before
         _git(repo, "config", "--local", key, "v2")
         assert _git_config_get(repo, key) == "v2"
+
+
+def test_a_failed_lookup_of_a_configured_origin_is_asked_again(repo: Path, spawns: _GitSpawns, tmp_path: Path) -> None:
+    """#7689 landing fold: an unreachable configured origin may be transient, so its None is never reused."""
+    _git(repo, "remote", "add", "origin", str(tmp_path / "does-not-exist.git"))
+    with git_read_cache_scope():
+        assert _remote_default_branch(repo) is None
+        before = spawns.count
+        assert _remote_default_branch(repo) is None
+        assert spawns.count > before, "a failed lookup of a configured origin must be asked again, never reused"

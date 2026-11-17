@@ -451,18 +451,28 @@ def _remote_default_branch(repo_root: Path) -> str | None:
     remote) are unchanged. The remote half
     (``git remote show``) is remote state no local mutation of the run can
     change, so one run reads it once per local state instead of contacting the
-    remote on every policy resolution.
+    remote on every policy resolution. A failed lookup of a configured ``origin``
+    (for example an unreachable remote) is not stored, so the next resolution asks
+    again, as it did before the cache. "No ``origin`` configured" is a definitive
+    answer and is stored: the config it depends on is fingerprinted, so adding a
+    remote invalidates it.
     """
-    return cached_git_read(
+    branch, definitive = cached_git_read(
         repo_root,
         ("remote-default-branch", "origin"),
         lambda: _read_remote_default_branch(repo_root),
         depends=Depends(refs=("refs/remotes/origin/HEAD",), config=True),
+        store_if=lambda answer: answer[1],
     )
+    return branch
 
 
-def _read_remote_default_branch(repo_root: Path) -> str | None:
-    """Spawn git for :func:`_remote_default_branch` (uncached)."""
+def _read_remote_default_branch(repo_root: Path) -> tuple[str | None, bool]:
+    """Spawn git for :func:`_remote_default_branch` (uncached).
+
+    Returns ``(branch, definitive)``. Only a remote lookup that failed while ``origin``
+    is configured is not definitive: it may be a transient network failure.
+    """
     import subprocess  # local import keeps module-level deps minimal
 
     def _run(args: list[str]) -> str | None:
@@ -481,8 +491,11 @@ def _read_remote_default_branch(repo_root: Path) -> str | None:
 
     symbolic_ref = _run(["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"])
     if symbolic_ref and "/" in symbolic_ref:
-        return symbolic_ref.rsplit("/", 1)[1]
+        return symbolic_ref.rsplit("/", 1)[1], True
+    if _run(["config", "--get", "remote.origin.url"]) is None:
+        return None, True
 
     # The one remote contact here is the kernel owner's; it adds the timeout and
     # no-prompt environment this call lacked, and yields ``None`` on any failure.
-    return describe_remote_head(repo_root, "origin")
+    branch = describe_remote_head(repo_root, "origin")
+    return branch, branch is not None
