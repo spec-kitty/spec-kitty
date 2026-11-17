@@ -122,7 +122,10 @@ The operator rulings Q1–Q5 are in spec.md. The decisions below are engineering
    - No flag and no contract-version change.
    - The shared #7688 `next_step` text gains "or re-run `spec-kitty consolidate --target <b> --retarget`".
    - Tests assert that text and an unchanged `CONTRACT_VERSION`, and re-pin any golden that carries the old text.
-10. **D10 — Topology scope (flag; C-006).**
+10. **D10 — Topology scope (C-006, operator ruling 2026-11-17: default-topology IN scope).** SUPERSEDED in part by the holder rule (D4) below; the original text is kept for traceability.
+    - **Holder rule:** the record is written on each branch whose tree carries `kitty-specs/<slug>/meta.json`: the Mission branch (for default Missions, the topic branch) and `<b>`. It is refused only when neither carries it. One owner: `preflight.retarget_record_holders`. The default arms are proved by WP06.
+    - **Attestations:** on a coordination-less Mission, `--retarget` combined with `--attest-*` refuses with `RETARGET_WITH_ATTESTATION_UNSUPPORTED`, because the attestation writes go to the status surface (the old target) before the door. This is reported to the operator.
+    - Original text:
     - Supported: explicit `lanes` and `lanes_with_coord` Missions (the #5783 fixtures).
     - Refused with `RETARGET_RECORD_UNWRITABLE` (D1): a Mission whose `meta.json` is not on `<b>`. That is a default-topology Mission before its landing (its record lives on its topic branch) and a `single_branch` commit-to-target Mission.
     - Default-topology support goes to a follow-up issue.

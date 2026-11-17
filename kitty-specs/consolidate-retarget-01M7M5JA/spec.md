@@ -138,7 +138,7 @@ A retarget onto a protected branch is refused exactly as a protected `--target` 
 | C-003 | One rollback authority | The retarget is undone only through the consolidation rollback authority (ADR `2026-09-19-1`); no second restore path is added. | Technical | High | Open |
 | C-004 | No new architectural gate | No new architectural gate is added without operator approval. | Process | High | Open |
 | C-005 | Existing seams | The bookkeeping writes reach the new target by reading the rewritten record through the existing seams. The override is not threaded through each write. | Technical | High | Open |
-| C-006 | Topologies in scope | Lanes and coord (lanes_with_coord) Missions are in scope. A `single_branch` Mission's retarget is refused with a named code unless planning shows it lands with no extra work. | Technical | Medium | Open |
+| C-006 | Topologies in scope | Explicit lanes and coord Missions, and default-topology Missions (`topology_source: default`) settled to `lanes_with_coord` or `single_branch`, are in scope (operator ruling 2026-11-17: no follow-up). `RETARGET_RECORD_UNWRITABLE` is kept only for a shape where no branch the landing reads carries the Mission's record. Each remaining refused shape is named in the PR with evidence. | Technical | High | Open |
 | C-007 | ADR amendment | The rollback-record change is recorded as an amendment to ADR `2026-09-19-1`. | Process | High | Open |
 
 ### Key Entities
@@ -159,7 +159,7 @@ A retarget onto a protected branch is refused exactly as a protected `--target` 
 ## Assumptions
 
 - The root checkout is on the new target for a retarget (the existing off-target preflight already requires this).
-- The new target already carries the Mission directory (the #5783 shape: the new target was cut from the recorded target after the Mission was created). A new target without it is refused (FR-011).
+- The record is written on every branch the landing reads it from: the Mission branch when it carries `meta.json` (always for default-topology Missions, whose record lives on their topic branch), and the new target when it carries it. A Mission whose record is on neither is refused (FR-011).
 - The old recorded target's own copy of `meta.json` is left as it is; it never receives the Mission.
 
 ## Out of Scope

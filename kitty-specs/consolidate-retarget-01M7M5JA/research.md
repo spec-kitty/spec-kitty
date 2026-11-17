@@ -12,7 +12,7 @@ Discovery notes (pre-spec): `research/discovery-tracked-issues.md`, `research/di
 | lanes.json | Not rewritten | Read once and reseeded in memory; no reader after the landing; no merge driver | Rewrite with CAS (extra undo path and squash surface, no reader) |
 | #5385 on a retarget | Probe re-pointed at `<b>` | Keeps the workflow mutation policy's own verdict (C-001) | Skip it and rely on #6464 (only `is_protected`, not the whole policy) |
 | orchestrator-api | Refuses a retarget (no flag); text-only remedy update | Operator ruling Q5; no rollback door | Add `--retarget` without rollback |
-| Default-topology Missions | Refused, follow-up | Record lives on the topic branch; needs its own placement/snapshot proof | Support now (scope risk) |
+| Default-topology Missions | IN scope (operator ruling 2026-11-17, "no follow-up"): the record is written on the topic (Mission) branch and carried by the landing | The landing reads the record from the Mission side | A follow-up issue (rejected by the operator) |
 
 ## Spike (2026-11-17, discarded)
 
