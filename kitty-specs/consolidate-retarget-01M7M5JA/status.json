@@ -162,9 +162,9 @@
     },
     "WP05": {
       "actor": "claude",
-      "agent": null,
-      "agent_profile": "scribe-sally",
-      "agent_profile_version": "1.0",
+      "agent": "claude::scribe-sally",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude",
       "lane": "for_review",
@@ -175,7 +175,8 @@
         "- 2026-11-17T10:54:30Z – claude – shell_pid=10153 – ADR amendment 2026-11-17, merge-mission Retarget section, added changelog fragment; checkers clean (commit 6ccf635d)",
         "Ready for review",
         "Review passed: ADR 2026-09-19-1 Amendment 2026-11-17, merge-mission how-to Retarget section and 7692 changelog fragment verified against lane-b code (WP01+WP03+WP02): flag names/help, exit 2 misuse, codes RETARGET_RECORD_UNWRITABLE / RETARGET_WRITE_BRANCH_IS_RECORDED_TARGET / RETARGET_RESUME_MISMATCH / PROTECTED_BRANCH_REFUSED, dry-run retarget {from,to} JSON, HISTORY_CAP=20, default reason text, ConsolidationState.retarget shape + committed flag, re-baseline keeps it committed=False, no-snapshot adoption drops old-target anchors, attestations follow retarget (no ATTESTATION_UNSUPPORTED anywhere), default-topology in scope, orchestrator-api PREFLIGHT_FAILED + CONTRACT_VERSION unchanged, --abort --release-branch/--release-reason syntax, kill-window residual matches plan D. Changelog style 0 errors (no 7692 warning), spelling 0 findings, test_no_legacy_terminology 98 passed.",
-        "- 2026-11-17T13:43:35Z – claude::scribe-sally – Cycle 1 (04dd54ab): kill-window residual replaced by observed resume-once behaviour (tests/terminus/test_consolidate_retarget_resume.py), --release-branch remedy dropped; two RETARGET_RECORD_UNWRITABLE causes added (index bit; untracked Mission copies) to how-to table and ADR; default-topology squash fold with one retarget_history entry documented."
+        "- 2026-11-17T13:43:35Z – claude::scribe-sally – Cycle 1 (04dd54ab): kill-window residual replaced by observed resume-once behaviour (tests/terminus/test_consolidate_retarget_resume.py), --release-branch remedy dropped; two RETARGET_RECORD_UNWRITABLE causes added (index bit; untracked Mission copies) to how-to table and ADR; default-topology squash fold with one retarget_history entry documented.",
+        "Cycle 1 (04dd54ab): kill-window residual replaced by observed resume-once behaviour (tests/terminus/test_consolidate_retarget_resume.py), --release-branch remedy dropped; two RETARGET_RECORD_UNWRITABLE causes added (index bit; untracked Mission copies) to how-to table and ADR; default-topology squash fold with one retarget_history entry documented."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
