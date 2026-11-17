@@ -48,6 +48,7 @@ owned_files:
 - src/specify_cli/consolidation/phase_advance.py
 - src/specify_cli/consolidation/phase_claim.py
 - src/specify_cli/consolidation/run_state.py
+- tests/consolidation/test_executor_rollback_wiring.py
 - src/specify_cli/consolidation/status_surface.py
 - src/specify_cli/consolidation/rollback.py
 - src/specify_cli/mission_metadata.py
@@ -148,7 +149,7 @@ Worktrees are allocated per lane from `lanes.json`.
      - add accessor helpers `retarget_pending() -> bool` and `retarget_committed() -> bool` if useful.
      - Check `tests/consolidation/test_state_snapshot_fields.py`; if it pins the field set, extend it.
   2. In `resolve.py::_load_or_create_merge_state`, add a keyword `retarget: dict | None = None`. A FRESH record stores it; a resumed record keeps its persisted value. Never overwrite a persisted retarget with `None`.
-  3. In `executor.py::_run_lane_based_consolidation`, add `retarget: bool = False, retarget_reason: str | None = None`.
+  3. In `executor.py::_run_lane_based_consolidation`, add `retarget: bool = False, retarget_reason: str | None = None`. The record is created inside `_run_lane_based_consolidation_locked` (`_load_or_create_merge_state` at about :551), so thread the built dict there as a `retarget_record` keyword. Both entry-preflight functions (`_refuse_protected_status_target_or_continue`, which calls `_refuse_protected_target_override_or_continue` at about :469) take the new keywords.
      - When `retarget` is set and `target_override` differs from the recorded target, build the dict: actor from `done_bookkeeping._resolve_merge_actor()`, `at` from the kernel clock, and `reason` defaulting to `f"operator retarget via spec-kitty consolidate --target {b} --retarget"`.
      - On a resume, the persisted dict wins.
      - The actor helper takes the repository: `done_bookkeeping._resolve_merge_actor(main_repo)`.
@@ -160,7 +161,7 @@ Worktrees are allocated per lane from `lanes.json`.
 - **Purpose**: FR-003, FR-004, NFR-002. This is the first mutation inside the door.
 - **Steps**:
   1. Define `_phase_retarget_record(run)` in `phase_advance.py` next to `_phase_merge_lanes`, decorated with `run_state._records_post_mutation_tips`. Follow how the other recorded phases import and apply the decorator.
-  2. Return immediately when `run.state.retarget` is None or `committed` is True (idempotent resume).
+  2. Return immediately only when `run.state.retarget` is None. Do NOT return early on `committed` (squad: a partial rollback can leave `committed=True` while `<b>` lacks the record). Always run the phase, and let the idempotent mutate return False (`unchanged`) when the copy already names `to` with a matching last history entry. The mutate dedupes the history entry on (`from`, `to`, `at`), so NFR-002 holds on every resume.
   3. Mutate closure: set `target_branch = to`, and append `{"from", "to", "actor", "at", "reason"}` to `retarget_history` through `mission_metadata._append_bounded` (T016). Return True only when something changed.
   4. **Which copies.** Call WP01's `preflight.retarget_record_holders(main_repo, slug, mission_branch=lanes_manifest.mission_branch, effective_target=to)`, the one owner of the rule. It returns the branches whose tree carries the record.
      - Explicit lanes: the Mission branch and `<b>`.
@@ -239,7 +240,8 @@ Worktrees are allocated per lane from `lanes.json`.
      - the claim's status surface on lanes is `develop`, not `main`, and `main` is absent from `pre_mutation_refs` / `unsettled_refs`.
   2b. A `single_branch` commit-to-target Mission (C-006): use `tests/terminus/test_protected_target_preflight.py::_build_commit_to_target_single_branch` as the shape reference. Pin what a retarget does: it lands, or it refuses with a named code. Record which outcome in the WP history and in the test docstring; WP04 and the PR report it to the operator.
   3. `tests/consolidation/test_single_rollback_authority.py`: add `"_phase_retarget_record"` to `_SPAN_PHASES`. The floor rises by one; that is intended and the docstring says why.
-  4. `tests/consolidation/test_executor_phase_boundary.py`: add `"_phase_retarget_record(run)"` before `"_phase_merge_lanes(run)"` in `expected_order`.
+  4. `tests/consolidation/test_executor_rollback_wiring.py` (about :309-323, the parametrised recorder-phase list): add `_phase_retarget_record`.
+  4b. `tests/consolidation/test_executor_phase_boundary.py`: add `"_phase_retarget_record(run)"` before `"_phase_merge_lanes(run)"` in `expected_order`.
   5. Run the wider consolidation and terminus suites that touch the executor:
      ```
      .venv/bin/python -m pytest tests/consolidation -n 6 --dist loadfile -q
@@ -262,6 +264,8 @@ Keep `_run_lane_based_consolidation`'s complexity at or below 15. Extract `_buil
 - **`UNEXPLAINED_BRANCH_MOVE` on the next run.** Every move inside the phase must be recorded: the decorator for the post tips, and `advance_branch_ref` (Mission branch) inside `reporting_advance_intents`. The commit on `<b>` via `commit_merge_bookkeeping` is recorded by the decorator's post-tip capture. Test both with a re-run after a failure.
 - **Kill window.** A kill between the commits and `_persist_retarget_committed` resumes as `UNEXPLAINED_BRANCH_MOVE`. This residual is accepted and is documented by WP05 in the ADR amendment.
 - **Characterization tests** that kill "before the first lane merge" patch `executor._phase_merge_lanes`. The new phase runs before it but is a no-op without a retarget, so those tests are unaffected. Verify.
+- **Lane staleness:** the Mission-branch retarget commit touches `meta.json`. A lane that also touched `meta.json` becomes stale (`stale_check.py:84`) and auto-rebases, and its moved tip then refuses at the gate. Pin in a unit test that the explicit-lanes fixtures do not hit this (lanes there never touch `meta.json`), and note it as a residual otherwise.
+- **`test_no_write_side_rederivation.py`** scans `phase_advance.py`: never walk `.path.parent.parent`; use the composed paths.
 - **Complexity of `entry_preflight` functions.** Extract a `_retarget_mode(...)` helper.
 
 ## Review Guidance

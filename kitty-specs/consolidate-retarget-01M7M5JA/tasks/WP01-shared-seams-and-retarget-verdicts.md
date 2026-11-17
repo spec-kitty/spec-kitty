@@ -165,11 +165,8 @@ Execution worktrees are allocated per computed lane from `lanes.json`. Run:
 
 - **Purpose**: D2 and squad A5. On a retarget, the `done`-bookkeeping policy probe must judge the NEW target with the workflow mutation policy's own verdict, never be skipped.
 - **Steps**:
-  1. In `src/specify_cli/coordination/status_transition.py::status_write_refusal`, add a keyword `destination_ref: str | None = None`. When it is given, pass it to `BookkeepingTransaction.preflight_refusal(destination_ref=...)` instead of `identity.destination_ref`. Default behaviour is unchanged.
-  2. In `preflight.py::refuse_protected_status_target`, add a keyword `retarget_to: str | None = None`.
-     - When it is given and the door's own resolved destination (`identity.destination_ref`) is the Mission's RECORDED target (a coordination-less topology, so the `done` write goes to the target), pass `destination_ref=retarget_to`.
-     - When the resolved destination is the coordination branch, leave it alone.
-     - Simplest: compute the recorded target via `resolve_merge_target_branch(main_repo, mission_slug, None)[0]` and compare it with the destination `status_write_refusal` would use. You may need a tiny helper in `status_transition.py` that exposes the resolved destination for a request (`status_write_destination(request) -> str | None`), reusing `_resolve_transaction_entry`.
+  1. In `src/specify_cli/coordination/status_transition.py::status_write_refusal`, add a keyword `retarget: tuple[str, str] | None = None`. When it is given and `identity.destination_ref == retarget[0]`, pass `retarget[1]` to `BookkeepingTransaction.preflight_refusal(destination_ref=...)`. One resolution; the coordination destination is left alone by construction. Default behaviour is unchanged.
+  2. In `preflight.py::refuse_protected_status_target`, add a keyword `retarget_to: str | None = None`. When it is given, compute `recorded = resolve_merge_target_branch(main_repo, mission_slug, None)[0]` and call `status_write_refusal(request, retarget=(recorded, retarget_to))`.
   3. Document in both docstrings: "a retarget re-points the probe at the new target (#7692); the verdict stays the policy's own (C-001)".
 - **Files**: `src/specify_cli/coordination/status_transition.py`, `src/specify_cli/consolidation/preflight.py`.
 

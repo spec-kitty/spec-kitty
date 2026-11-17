@@ -33,6 +33,7 @@ owned_files:
 - src/specify_cli/cli/commands/consolidate.py
 - src/specify_cli/consolidation/forecast.py
 - src/specify_cli/orchestrator_api/consolidation.py
+- src/specify_cli/consolidation/claim_inputs.py
 - tests/consolidation/test_retarget_cli_and_forecast.py
 - tests/orchestrator_api/test_consolidate_mission_retarget_refusal.py
 role: implementer
@@ -109,6 +110,8 @@ Check `review_ref` in the event log. Any review feedback is your TODO list.
   2. Add the forecast entry parameter `retarget: bool = False`, threaded from the CLI.
   3. When it is a retarget and no refusal fires, add `"retarget": {"from": recorded, "to": effective}` to the JSON payload. Find where the payload dict is assembled and the existing keys (for example `window_gaps`). In human output, print one line: `Retarget: <from> -> <to> (would be recorded first)`.
   4. A refusal uses the same `_emit_dry_run_error(error_msg=..., error_code=...)` path, so `error_code` is the verdict's own code.
+  5. **Claim parity (squad):** `consolidation/claim_inputs.py` builds the forecast's claim on the status surface. For a retarget forecast, pass the same `(from, to)` swap to `status_surface_tip`, using the keyword WP03 adds in `status_surface.py`. The forecast then judges the window the real run will. It stays read-only.
+  6. **Attestations:** the forecast reports `RETARGET_WITH_ATTESTATION_UNSUPPORTED` exactly when the entry preflight does (WP03 T008 step 6). Reuse WP03's predicate.
 - **Files**: `src/specify_cli/consolidation/forecast.py`.
 
 ### Subtask T010 – orchestrator-api through the shared verdict [P]

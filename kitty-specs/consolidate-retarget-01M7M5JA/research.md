@@ -71,3 +71,29 @@ The lenses were architect-alphonso (SOUND-WITH-CHANGES), reviewer-renata (ADEQUA
 - **CLI validation:** `--retarget` alone exits 2; `--retarget-reason` alone exits 2; `--target main --retarget` makes no retarget commit.
 - **Dry-run:** shows a `retarget` object, and gives the same code as the real run for each refusal arm.
 - **Resume mismatch:** `RETARGET_RESUME_MISMATCH`, through a persisted record built with the state API.
+
+## Operator ruling 2026-11-17 (relayed by the core triager) on the plan flags
+
+- Flag 2 (default-topology Missions): **fold in, no follow-up.** Handled by the holder rule (plan D4/D10) and WP06.
+- Flag 1 (a retarget away from a protected recorded target is admitted) and Flag 3 (the kill-window residual): no objection. Both are documented in the PR.
+
+## Post-tasks squad (2026-11-17): planner-priti (READY-WITH-CHANGES), implementer-ivan (REALISTIC-WITH-CHANGES)
+
+| # | Finding | Disposition | Evidence |
+|---|---|---|---|
+| P1 | Frontmatter dependencies empty | changed: finalize-tasks derived them from tasks.md (WP02←WP03←WP01, WP04/WP06←WP02, WP05←WP03) | finalize commit |
+| P2 / I1 | The status-surface read lives in `run_state._capture_coord_checkpoint`, not in WP03's files | accepted | WP03 owned_files, T014 |
+| P3 / I2 | Attestations write to the old target before the door on coordination-less Missions | changed: refuse `RETARGET_WITH_ATTESTATION_UNSUPPORTED` up front (reported to the operator) | WP03 T008.6, WP02 T009.6, contract |
+| P4 | Contradictory owner for raising codes and call sites | accepted | WP01 T002/T003 |
+| P5 | T008 persisted-record source ambiguous | accepted (loaded inside `_retarget_mode`) | WP03 T008.1 |
+| P6 | The kill-arm patch point was only a suggestion | accepted (MUST be module-level) | WP03 T013.6 |
+| P7 | Wrong path and helper names | accepted | WP02 T007, WP03 T012, WP04 T019 |
+| P8 | C-006 single_branch arm missing | accepted | WP03 T017.2b, WP06 T026 |
+| P9 | Parallelism lost | deferred_with_rationale: serial order kept; the executor keyword contract is simpler to keep honest in sequence | tasks.md |
+| P10 | Census gate not named | accepted | WP01 T006.4 |
+| I3 | The `committed` early return is unsafe after a partial rollback | accepted (idempotent mutate + history dedupe) | WP03 T013.2 |
+| I4 | The retarget dict must reach `_locked` | accepted | WP03 T012.3 |
+| I5 | More tests pin phase lists | accepted (`test_executor_rollback_wiring.py` owned by WP03) | WP03 T017.4 |
+| I6 | The forecast's claim uses the old status surface | accepted | WP02 T009.5 (+ `claim_inputs.py` owned) |
+| I7 | Simpler #5385 re-point keyword | accepted | WP01 T004 |
+| I8 | Lane staleness when a lane touched `meta.json` | accepted as a risk with a pinning test | WP03 Risks |
