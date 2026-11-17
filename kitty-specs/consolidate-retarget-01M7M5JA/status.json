@@ -117,9 +117,9 @@
     },
     "WP05": {
       "actor": "claude",
-      "agent": "claude",
-      "agent_profile": "scribe-sally",
-      "agent_profile_version": "1.0",
+      "agent": "claude::scribe-sally",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
       "lane": "for_review",
@@ -127,7 +127,8 @@
       "last_transition_at": "2026-11-17T10:58:16.855270+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "- 2026-11-17T10:54:30Z – claude – shell_pid=10153 – ADR amendment 2026-11-17, merge-mission Retarget section, added changelog fragment; checkers clean (commit 6ccf635d)"
+        "- 2026-11-17T10:54:30Z – claude – shell_pid=10153 – ADR amendment 2026-11-17, merge-mission Retarget section, added changelog fragment; checkers clean (commit 6ccf635d)",
+        "Ready for review"
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
