@@ -63,7 +63,7 @@ from specify_cli.consolidation.preflight import (
 )
 from specify_cli.consolidation.resolve import set_changed_message
 from specify_cli.consolidation.state import ConsolidationStateReadError, load_state, needs_number_assignment
-from mission_runtime import MissionArtifactKind, placement_seam, resolve_artifact_surface
+from mission_runtime import ActionContextError, MissionArtifactKind, placement_seam, resolve_artifact_surface
 from specify_cli.post_merge.review_artifact_consistency import (
     REJECTED_REVIEW_ARTIFACT_CONFLICT,
     ReviewArtifactPreflightResult,
@@ -534,18 +534,29 @@ def _forecast_recorded_target(main_repo: Path, mission_slug: str, *, fallback: s
 
 
 def _refuse_protected_target_override_in_forecast(main_repo: Path, mission_slug: str, *, recorded_target: str, effective_target: str, json_output: bool) -> None:
-    """``--dry-run`` parity for the #6464 and #5783 override guards: report the refusal's own ``error_code``."""
-    verdict = refuse_protected_target_override(
-        main_repo,
-        mission_slug,
-        recorded_target=recorded_target,
-        effective_target=effective_target,
-    ) or refuse_unwritable_recorded_target(
-        main_repo,
-        mission_slug,
-        recorded_target=recorded_target,
-        effective_target=effective_target,
-    )
+    """``--dry-run`` parity for the #6464 and #5783 override guards: report the refusal's own ``error_code``.
+
+    A probe that cannot resolve the Mission (``ActionContextError``) ends the preview with the
+    same message the real run prints (``entry_preflight``), never a traceback.
+    """
+    try:
+        verdict = refuse_protected_target_override(
+            main_repo,
+            mission_slug,
+            recorded_target=recorded_target,
+            effective_target=effective_target,
+        ) or refuse_unwritable_recorded_target(
+            main_repo,
+            mission_slug,
+            recorded_target=recorded_target,
+            effective_target=effective_target,
+        )
+    except ActionContextError as exc:
+        _emit_dry_run_error(
+            error_msg=f"Cannot probe where the recorded target's bookkeeping would be committed: {exc}. Fix the mission's meta.json before consolidating.",
+            json_output=json_output,
+        )
+        raise typer.Exit(1) from exc
     if verdict is None:
         return
     _emit_dry_run_error(
