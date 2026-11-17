@@ -4,8 +4,9 @@
 - **Origin flow:** `specify`
 - **Slot key:** `specify.retarget.opt-in`
 - **Input key:** `retarget_opt_in`
-- **Status:** `open`
+- **Status:** `resolved`
 - **Created:** `2026-11-17T07:12:15.833053+00:00`
+- **Resolved:** `2026-11-17T07:46:05.674605+00:00`
 - **Opened by:** `cli`
 - **Other answer:** `false`
 
@@ -21,7 +22,7 @@ Is the retarget an explicit opt-in (--retarget requiring --target) or implicit o
 
 ## Final answer
 
-_(none)_
+Operator ruling 2026-11-17 (relayed by core triager): explicit --retarget, requires --target; plain --target keeps TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE; its next step names --retarget.
 
 ## Rationale
 
@@ -30,3 +31,4 @@ _(none)_
 ## Change log
 
 - `2026-11-17T07:12:15.833053+00:00` - opened
+- `2026-11-17T07:46:05.674605+00:00` - resolved (final_answer="Operator ruling 2026-11-17 (relayed by core triager): explicit --retarget, requires --target; plain --target keeps TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE; its next step names --retarget.")

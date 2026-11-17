@@ -4,8 +4,9 @@
 - **Origin flow:** `specify`
 - **Slot key:** `specify.retarget.parity`
 - **Input key:** `retarget_parity`
-- **Status:** `open`
+- **Status:** `resolved`
 - **Created:** `2026-11-17T07:12:24.129265+00:00`
+- **Resolved:** `2026-11-17T07:46:14.506949+00:00`
 - **Opened by:** `cli`
 - **Other answer:** `false`
 
@@ -21,7 +22,7 @@
 
 ## Final answer
 
-_(none)_
+Operator ruling 2026-11-17 (relayed by core triager): --dry-run forecasts the retarget with the same codes; orchestrator-api consolidate-mission refuses a retarget (no rollback door), no contract change.
 
 ## Rationale
 
@@ -30,3 +31,4 @@ _(none)_
 ## Change log
 
 - `2026-11-17T07:12:24.129265+00:00` - opened
+- `2026-11-17T07:46:14.506949+00:00` - resolved (final_answer="Operator ruling 2026-11-17 (relayed by core triager): --dry-run forecasts the retarget with the same codes; orchestrator-api consolidate-mission refuses a retarget (no rollback door), no contract change.")
