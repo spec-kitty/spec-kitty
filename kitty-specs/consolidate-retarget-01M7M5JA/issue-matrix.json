@@ -13,7 +13,7 @@
       "wp": null
     },
     "#5783": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Closed by PR #7688; this mission builds on its refusal and keeps it for a plain --target (C-002)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,7 +21,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6464": {
