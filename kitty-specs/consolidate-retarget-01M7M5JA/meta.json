@@ -1,0 +1,21 @@
+{
+  "create_return_branch": "issue-7692-consolidate-retarget",
+  "created_at": "2026-11-17T07:12:03.327431+00:00",
+  "flattened": false,
+  "friendly_name": "Consolidate retarget adopts the override target",
+  "mid8": "01M7M5JA",
+  "mission_base_sha": "06af0c52e5aa863dd7f6834750347671c328588f",
+  "mission_branch": "kitty/mission-consolidate-retarget-01M7M5JA",
+  "mission_id": "01M7M5JAYR1Q71P022W0EES7ZB",
+  "mission_number": null,
+  "mission_slug": "consolidate-retarget-01M7M5JA",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Today consolidate --target <other> is refused whenever the recorded target differs (TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE, #5783), because part of the bookkeeping resolves meta.json's recorded target. This Mission adds an explicit, recorded retarget so the override becomes the Mission's new recorded target and every write lands there, with abort/resume/rollback honouring it.",
+  "purpose_tldr": "Let an operator retarget a Mission at consolidation so the landing and all its bookkeeping land on one new recorded target.",
+  "slug": "consolidate-retarget-01M7M5JA",
+  "target_branch": "issue-7692-consolidate-retarget",
+  "topology": "single_branch",
+  "topology_settled": false,
+  "topology_source": "default"
+}
