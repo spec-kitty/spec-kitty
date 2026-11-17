@@ -1,7 +1,7 @@
 {
   "rows": {
     "#5385": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Constraint honoured: the #5385 probe is re-pointed at the new target, never skipped (plan D2); no change to #5385 itself",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,7 +9,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#5783": {
