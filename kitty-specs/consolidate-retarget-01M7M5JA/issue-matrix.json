@@ -121,7 +121,7 @@
       "wp": null
     },
     "#7692": {
-      "evidence_ref": "This mission implements consolidate --retarget; resolved to fixed before consolidation",
+      "evidence_ref": "WP01-WP06 approved: consolidate --retarget implemented with lanes/coord/default-topology e2e (tests/terminus/test_consolidate_retarget*.py, tests/integration/test_default_mission_consolidate_retarget.py)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -129,7 +129,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP03"
     }
   },
