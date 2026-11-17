@@ -71,6 +71,8 @@ import click
 import typer
 from rich.markup import escape
 
+from kernel.git.read_cache import git_read_cache_scope
+
 from specify_cli.version_utils import cli_version
 from specify_cli.cli.console import console
 from specify_cli.cli.helpers import show_banner
@@ -1280,7 +1282,18 @@ def run_consolidate(options: ConsolidateOptions) -> None:
     :func:`consolidate` (the Typer command) only builds the options object;
     direct callers call this with one, so they never enumerate every option.
     Like ``consolidate.__wrapped__``, this does not apply ``require_main_repo``.
+
+    The whole run reads repeated git queries through one git read cache scope
+    (#7689): a repeat is answered without a process while the repository's git
+    metadata is unchanged, and any ref, checkout, worktree or config write
+    invalidates it (:mod:`kernel.git.read_cache`).
     """
+    with git_read_cache_scope():
+        _run_consolidate_in_scope(options)
+
+
+def _run_consolidate_in_scope(options: ConsolidateOptions) -> None:
+    """The body of :func:`run_consolidate`, run inside its git read cache scope."""
     strategy = options.strategy
     delete_branch = options.delete_branch
     remove_worktree = options.remove_worktree

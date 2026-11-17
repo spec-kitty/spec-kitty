@@ -44,6 +44,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from kernel.git.read_cache import Depends, cached_git_read
 from kernel.git.remote import describe_remote_head
 from ruamel.yaml import YAML
 
@@ -444,7 +445,24 @@ def _remote_default_branch(repo_root: Path) -> str | None:
 
     Mirrors the logic in ``git/commit_helpers._remote_default_branch``; this
     copy is intentional so the resolver is self-contained (FR-007).
+
+    #7689: inside a git read cache scope the answer is reused while
+    ``refs/remotes/origin/HEAD`` and the repository config (which defines the
+    remote) are unchanged. The remote half
+    (``git remote show``) is remote state no local mutation of the run can
+    change, so one run reads it once per local state instead of contacting the
+    remote on every policy resolution.
     """
+    return cached_git_read(
+        repo_root,
+        ("remote-default-branch", "origin"),
+        lambda: _read_remote_default_branch(repo_root),
+        depends=Depends(refs=("refs/remotes/origin/HEAD",), config=True),
+    )
+
+
+def _read_remote_default_branch(repo_root: Path) -> str | None:
+    """Spawn git for :func:`_remote_default_branch` (uncached)."""
     import subprocess  # local import keeps module-level deps minimal
 
     def _run(args: list[str]) -> str | None:

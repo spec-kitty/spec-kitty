@@ -49,6 +49,7 @@ from pathlib import Path
 
 import kernel.paths as kernel_paths
 from kernel.git import GitCommandError, tree_paths
+from kernel.git.read_cache import cached_git_read
 from mission_runtime import (
     CommitTarget,
     MissionArtifactKind,
@@ -464,13 +465,21 @@ def read_worktree_registry(repo_root: Path) -> frozenset[Path]:
     rather than re-shelling per path.
     """
     try:
-        result = subprocess.run(
-            ["git", "-C", str(repo_root), "worktree", "list", "--porcelain"],
-            check=False,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
+        # #7689: the registry is a function of the worktree administrative
+        # files and refs the read cache fingerprints, so inside a run scope a
+        # repeat costs no process; any worktree add/remove/prune or ref move
+        # invalidates it. An OSError raises out of the cached read uncached.
+        result = cached_git_read(
+            repo_root,
+            ("worktree-list-porcelain", str(repo_root)),
+            lambda: subprocess.run(
+                ["git", "-C", str(repo_root), "worktree", "list", "--porcelain"],
+                check=False,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            ),
         )
     except OSError as exc:  # git missing / not executable
         raise WorktreeRegistryUnavailable(repo_root=repo_root, detail=str(exc)) from exc
