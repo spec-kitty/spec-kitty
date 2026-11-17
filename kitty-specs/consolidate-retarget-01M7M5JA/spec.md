@@ -125,7 +125,7 @@ A retarget onto a protected branch is refused exactly as a protected `--target` 
 | ID | Title | Requirement | Category | Priority | Status |
 |----|-------|-------------|----------|----------|--------|
 | NFR-001 | Refusals move nothing | Every refusal this Mission adds or changes leaves 0 branch-tip changes, 0 reflog entries on the old and new targets, 0 merge records and 0 changed paths under `kitty-specs/` in the root checkout. | Reliability | High | Open |
-| NFR-002 | Exactly one retarget commit | A retargeted run, including one `--resume`, adds exactly 1 retarget commit to the new target, and 0 to the old target. | Reliability | High | Open |
+| NFR-002 | Exactly one retarget record | A retargeted run, including one `--resume` or a re-run after a rolled-back failure, leaves exactly 1 `retarget_history` entry on the new target and writes nothing to the old target. Where the new target already carries the record (explicit layouts), it also gains exactly 1 retarget commit; on a default-topology Mission the record commit is folded into the squash landing. | Reliability | High | Open |
 | NFR-003 | Test cost | The new end-to-end tests add at most 60 s of wall time to the targeted terminus and consolidation suites on a developer machine (`-n 6 --dist loadfile`). | Maintainability | Medium | Open |
 | NFR-004 | Quality gates | New and changed code passes `ruff check`, `ruff format --check --force-exclude` and `mypy` with 0 new findings, and keeps every touched function at cyclomatic complexity 15 or below. | Maintainability | High | Open |
 
