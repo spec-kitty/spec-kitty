@@ -463,7 +463,7 @@ def _refuse_protected_status_target_or_continue(main_repo: Path, mission_slug: s
     try:
         verdict = refuse_protected_status_target(main_repo, mission_slug, lanes_manifest)
     except (ActionContextError, MissionMetaReadError) as exc:
-        console.print(f"[red]Error:[/red] Cannot probe the done bookkeeping policy: {exc}. Fix the mission's meta.json / status surface before merging.")
+        console.print(f"[red]Error:[/red] Cannot probe the done bookkeeping policy: {exc}. Fix the mission's meta.json / status surface before consolidating.")
         raise typer.Exit(1) from exc
     if verdict is None:
         _refuse_protected_target_override_or_continue(main_repo, mission_slug, lanes_manifest, canonical_id)
@@ -517,7 +517,7 @@ def _refuse_protected_target_override_or_continue(main_repo: Path, mission_slug:
         )
     except ActionContextError as exc:
         console.print(
-            f"[red]Error:[/red] Cannot probe where the recorded target's bookkeeping would be committed: {exc}. Fix the mission's meta.json before merging."
+            f"[red]Error:[/red] Cannot probe where the recorded target's bookkeeping would be committed: {exc}. Fix the mission's meta.json before consolidating."
         )
         raise typer.Exit(1) from exc
     if verdict is None:
