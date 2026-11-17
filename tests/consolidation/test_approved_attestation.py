@@ -38,7 +38,8 @@ def test_a_work_package_outside_the_approved_claim_is_refused() -> None:
 def test_a_done_work_package_is_attested_with_a_forced_done_self_transition(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     captured: list[TransitionRequest] = []
 
-    def _fake_emit(request: TransitionRequest) -> None:
+    def _fake_emit(request: TransitionRequest, *, retarget: tuple[str, str] | None = None) -> None:
+        assert retarget is None, "#7692: no retarget unless the consolidate run carries one"
         captured.append(request)
 
     monkeypatch.setattr("specify_cli.coordination.status_transition.emit_status_transition_transactional", _fake_emit)

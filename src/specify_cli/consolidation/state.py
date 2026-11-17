@@ -8,6 +8,7 @@ concurrent merge operations.
 from __future__ import annotations
 
 import json
+import logging
 import subprocess
 from collections.abc import Iterable, Mapping
 from dataclasses import asdict, dataclass, field
@@ -48,6 +49,31 @@ __all__ = [
 
 _STATE_FILE = STATE_FILENAME
 _LOCK_FILE = "lock"
+
+_logger = logging.getLogger(__name__)
+
+#: The keys a persisted ``retarget`` record must carry to be honoured (#7692).
+_RETARGET_REQUIRED_KEYS = ("from", "to", "committed")
+
+
+def _retarget_or_none(value: object) -> dict[str, Any] | None:
+    """A persisted ``retarget`` record when well formed, else ``None`` with a logged warning (#7692).
+
+    Well formed: a dict whose ``from`` / ``to`` are non-empty strings and whose ``committed`` is a
+    bool. Anything else is never honoured (a half-read record must not retarget a run), so it loads
+    as ``None``; the warning names what was dropped.
+    """
+    if value is None:
+        return None
+    if (
+        isinstance(value, dict)
+        and all(key in value for key in _RETARGET_REQUIRED_KEYS)
+        and all(isinstance(value[key], str) and value[key] for key in ("from", "to"))
+        and isinstance(value["committed"], bool)
+    ):
+        return dict(value)
+    _logger.warning("Ignoring a malformed retarget record in the consolidation state: %r", value)
+    return None
 
 
 class MergeAmbiguousStateError(Exception):
@@ -328,6 +354,19 @@ class ConsolidationState:
     # (``lane_cleanup.cleanup_expected_tips``). Absent or malformed -> ``{}`` (fail closed: the
     # cleanup expects the snapshot tip and keeps a moved lane).
     lane_rebase_moves: dict[str, list[str]] = field(default_factory=dict)
+    # #7692: ``consolidate --target <b> --retarget``. ``{"from", "to", "actor", "at", "reason",
+    # "committed"}``: written with ``committed=False`` on a fresh retarget run (before the claim),
+    # set to ``committed=True`` by ``phase_advance._phase_retarget_record`` right after it commits
+    # the rewritten ``meta.json``; a full-restore re-baseline keeps it with ``committed=False``, and
+    # ``--abort`` clears the whole record. Absent in older records -> ``None``; a malformed value
+    # loads as ``None`` (never honoured) with a logged warning.
+    retarget: dict[str, Any] | None = None
+
+    def retarget_pair(self) -> tuple[str, str] | None:
+        """``(from, to)`` of the persisted retarget, else ``None`` (#7692)."""
+        if self.retarget is None:
+            return None
+        return str(self.retarget["from"]), str(self.retarget["to"])
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -358,6 +397,8 @@ class ConsolidationState:
             filtered["lane_rebase_moves"] = _intent_chains_or_empty(filtered["lane_rebase_moves"])
         if "cleanup_started" in filtered:
             filtered["cleanup_started"] = filtered["cleanup_started"] is True  # never truthiness-coerced
+        if "retarget" in filtered:
+            filtered["retarget"] = _retarget_or_none(filtered["retarget"])
         return cls(**filtered)
 
     @property

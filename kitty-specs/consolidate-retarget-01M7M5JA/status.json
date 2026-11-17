@@ -1,0 +1,233 @@
+{
+  "event_count": 57,
+  "last_event_id": "01M7MXGZTXSK21GKDVEXQ3RYFK",
+  "materialized_at": "2026-11-17T14:10:42.141122+00:00",
+  "mission_number": "262",
+  "mission_slug": "consolidate-retarget-01M7M5JA",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 6,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M7MXFSEQTPFBJJDYRB6CVT6R",
+      "last_transition_at": "2026-11-17T14:10:02.839598+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-17T08:42:16Z – claude – shell_pid=17482 – Commit 07d677ce. Red-first: test_meta_write.py failed on ImportError (no meta_write); test_retarget_verdict.py 14 failed + 8 errors on missing names; then green. Tests (PYTHONPATH=lane/src, repo venv): [1] test_meta_write+test_retarget_verdict+test_unwritable_recorded_target_verdict+test_remaining_meta_writers: 95 passed. [2] tests/consolidation -k 'bake or mission_number or preflight or target' -n6 loadfile: 607 passed. [3] tests/coordination tests/specify_cli/coordination -k 'status_write_refusal or preflight': 16 passed. [4] test_commit_scope_owner, test_guard_capability_call_sites, test_lifted_root_meta_fail_closed_census, test_meta_fail_closed_full_census_contract, test_mission_resolver_walker_gate, test_exemption_registry_ratchet, test_layer_rules, test_ordering_bake_seam, test_bake_commit_scope_meta_only: 261 passed. [5] bake/4474/4900/preflight_seam/transaction_preflight_refusal/system_actor_6722: 198 passed. test_no_dead_symbols: 2 failed as anticipated by the prompt - preflight::target_override_verdict, RETARGET_RESUME_MISMATCH, RETARGET_WITH_ATTESTATION_UNSUPPORTED have no production caller until WP02/WP03; no allowlist entry added. ruff check + ruff format --check --force-exclude on all 10 files: clean; C901 clean. mypy on changed src + new tests: 0 new errors (2 pre-existing no-any-return at status_transition.py:226 and :827, outside the diff). Outside owned_files (rationale): tests/consolidation/test_ordering_bake_seam.py and test_bake_commit_scope_meta_only.py now patch meta_write.remove_scratch_worktree / advance_branch_ref / status_entries|tree_entry|run_git, because those mechanics moved into meta_write (the bake module binding no longer reaches them). Deviation: the mission-branch scratch worktree is now removed before the #4474 primary-tree fallback runs (previously after); no log string, return value or commit changes.",
+        "Ready for review: meta_write.py extracted (bake routed through it, behaviour-preserving), target_override_verdict, retarget_record_refusal/holders + RETARGET_* codes, #5385 probe re-pointable (status_write_refusal retarget=, refuse_protected_status_target retarget_to=), #5783 remedy names --retarget. Dead-symbol gate red for the new verdict names until WP02/WP03 wire callers.",
+        "Review passed (reviewer-renata): bake extraction behaviour-preserving; one C-005 site; holder rule and #5385 re-point correct; tests green (151+607+83 passed); ruff/format/mypy clean on diff; dead-symbol red for 3 names awaiting WP02/WP03 callers. Non-blocking findings folded into WP03 dispatch."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/consolidate-retarget-01M7M5JA-coord/kitty-specs/consolidate-retarget-01M7M5JA/tasks/WP01-shared-seams-and-retarget-verdicts/review-cycle-1.md",
+        "reference": "review-cycle://consolidate-retarget-01M7M5JA/WP01-shared-seams-and-retarget-verdicts/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 6942,
+      "shell_pid_created_at": "1794905278.64",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M7MXG8EHFPAX7V6J2AXQMQJC",
+      "last_transition_at": "2026-11-17T14:10:18.193735+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-17T11:21:12Z – claude – shell_pid=10153 – WP02 implemented (d31de4f8). ORCHESTRATOR OVERRIDES: (1) RETARGET_WITH_ATTESTATION_UNSUPPORTED dropped (WP03 option A: attestations follow the retarget); T009 step 6 not done, forecast never refuses attestations under a retarget. (2) Forecast reports RETARGET_WRITE_BRANCH_IS_RECORDED_TARGET via preflight.retarget_write_branch_refusal and mirrors entry-preflight order: RETARGET_RESUME_MISMATCH (only with a merge record) -> write-branch refusal -> #5385 re-pointed (retarget_to) -> target_override_verdict(retarget=). A persisted retarget is judged as a retarget without the flag, like _retarget_mode. Forecast does not import entry_preflight; it reads state.retarget_pair() through load_state. (3) Claim parity: ClaimInputContext.retarget -> status_surface_tip(retarget=). T010: dispatch on the verdict's code kept (PROTECTED_BRANCH_REFUSED -> RuntimeError, else CodedPreflightRefused); envelope and CONTRACT_VERSION unchanged. OUT-OF-MAP EDITS: test_merge_cli_golden.py (flag set re-pinned: --retarget, --retarget-reason); test_unwritable_recorded_target_verdict.py and test_merge_target_resolution.py (monkeypatch targets moved to the one verdict / preflight.refuse_unwritable_recorded_target). CONTRACT_VERSION is asserted against the envelope import, not as a literal (test_contract_version.py forbids a second pin). TESTS: new files 30 passed; blast radius (orchestrator_api x2 dirs, merge_target_resolution, merge_cli_golden, terminus override/protected, unwritable verdict, consolidate_options) 389 passed + 8 fixed then 61/61 on rerun; tests/consolidation -k forecast|dry_run|claim_inputs|retarget|unwritable 226 passed 1 xfailed; arch gates -n0 (no_dead_symbols, layer_rules, no_legacy_terminology) 215 passed; make test-fast 3078 passed 7 skipped. ruff check + format --force-exclude clean; mypy 0 new; C901 clean. E2E smoke (#5783 lanes fixture, unprotected main): --dry-run --json --target develop --retarget exit 0 with retarget {from: main, to: develop}; real run exit 0, retarget commit then squash onto develop, meta.json on develop target_branch=develop with retarget_history, main unchanged.",
+        "Ready for review",
+        "Review passed: --retarget/--retarget-reason validated at CLI boundary before any work (exit 2: retarget w/o target, reason w/o retarget, abort+retarget); threaded to executor (fresh+resume) and forecast; forecast entry-preflight order matches entry_preflight (RESUME_MISMATCH -> write-branch -> re-pointed #5385 -> target_override_verdict) using state.load_state, not the executor family; retarget JSON key only on admitted retarget (FR-012 none for equal targets); claim_inputs retarget swap mirrors run_state; orchestrator-api uses target_override_verdict(retarget=False), RuntimeError/CodedPreflightRefused preserved, envelope.py untouched. Out-of-map test edits are re-pointed patches + golden flag-set re-pin, not weakening. Non-blocking: forecast duplicates _retarget_mode/_persisted_retarget_pair (mismatch text omits the bare --resume option). Tests: targeted 388 passed/1 skipped; tests/consolidation 3442 passed/1 skipped/11 xfailed; arch gates 215 passed; ruff/format/C901 clean; mypy 0 new (5 pre-existing)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/consolidate-retarget-01M7M5JA-coord/kitty-specs/consolidate-retarget-01M7M5JA/tasks/WP02-cli-flags-forecast-orchestrator/review-cycle-1.md",
+        "reference": "review-cycle://consolidate-retarget-01M7M5JA/WP02-cli-flags-forecast-orchestrator/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 31025,
+      "shell_pid_created_at": "1794914810.93",
+      "subtasks": {
+        "T007": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M7MXG0QA2FRR03YH04WN8NC6",
+      "last_transition_at": "2026-11-17T14:10:10.283053+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-17T09:49:04Z – claude – shell_pid=4102 – WP03 done (commit a39bcc52). ORCHESTRATOR OVERRIDES APPLIED: (1) attestations under a retarget are ROUTED, not refused (ruling A): emit_status_transition_transactional(retarget=(from,to)) swaps a destination equal to the old recorded target for <b> (_retargeted_identity; coordination destinations untouched); record_{canceled_superseded,approved_reviewed,no_implementation}_attestation and executor._record_*_attestations thread it; own_pre_claim_moves reads status_surface_ref(retarget=). RETARGET_WITH_ATTESTATION_UNSUPPORTED removed from preflight.py (unused; test_retarget_verdict pins its absence). (2) WP01 review folds: test_meta_write asserts kitty-metawrite- (default prefix), meta_write undo note neutral ('after this write'), test_ordering_bake_seam patches meta_write.path_is_under_worktrees. (3) RETARGET_RESUME_MISMATCH and target_override_verdict now have production callers in entry_preflight. T017 2b OUTCOME: single_branch commit-to-target retarget REFUSES with new code RETARGET_WRITE_BRANCH_IS_RECORDED_TARGET (preflight.retarget_write_branch_refusal, called from the entry preflight) -- witnessed before the guard via the real executor: exit 0, landed on develop, then cleanup DELETED main as the mission branch. OUT-OF-MAP EDITS (rationale): coordination/status_transition.py + the 3 attestation modules (ruling A routing seam); preflight.py (remove dead code, add C-006 refusal next to the other RETARGET codes); test_retarget_verdict.py, test_meta_write.py, test_ordering_bake_seam.py (WP01 folds); test_{approved,canceled,no_implementation}_attestation.py and test_executor_option_a_revert_helpers_2711.py (fakes gain the new retarget keyword / run.state). Discrepancy: the explicit-coord fixture's coordination (Mission) branch DOES carry meta.json, so the holder rule writes it too (T017 said <b> only); the <b>-only arm is pinned with a Mission branch whose meta.json was removed. RED-FIRST: new/changed tests run against base src (HEAD before WP03) -> 52 failed/183 passed; green after. TESTS: tests/consolidation full 3401 passed/13 failed (all 13 old-signature fakes, fixed, rerun 221 passed); terminus 6 files 57 passed; arch gates (no_dead_symbols, commit_scope_owner, guard_capability_call_sites, layer_rules, single_rollback_authority, no_write_side_rederivation, no_legacy_terminology) -n0 391 passed; blast radius tests/coordination + meta/acceptance tests + WP01 tests 1111 passed; make test-fast 3078 passed/7 skipped. Real-executor e2e probes: lanes and coord retarget main->develop exit 0, main untouched, one retarget commit; injected _phase_merge_lanes failure -> develop restored, record kept committed=False, bare re-run lands with exactly one retarget commit. LINT: ruff check + format --check clean on all 28 files; mypy 6 errors all pre-existing (identical on base), 0 new.",
+        "Ready for review",
+        "- 2026-11-17T10:31:20Z – unknown – Cycle 2 (commit 2810180b): fixed the blocking finding with fix (1). resolve._adopt_retarget now sets state.target_branch = retarget['to'] (persisted) and drops anchors still naming the old target: pre_mutation_target_sha, pre_mutation_coord_ref/sha + pre_interrupt_lane_tips when the coordination anchor is the old target (coordination-less topology), and the reconciliation PASS anchor; a coordination branch's anchor is kept. Other target-scoped fields (restore_targets, post_mutation_refs, unsettled_refs, advance_intents, released_refs) are already empty on a snapshot-less record (re-baseline drops them; begin_attempt only fills them after the snapshot). Tests added in test_retarget_record.py: (a) test_adopted_retarget_moves_the_records_landing_target_and_drops_old_target_anchors + test_adopted_retarget_keeps_a_coordination_anchor (unit, loaded target_branch=main + retarget main->develop -> develop, persisted agrees); (b) test_retarget_after_a_rebaselined_plain_run_lands_on_the_new_target (real executor in a subprocess: plain run on release fails in _phase_merge_lanes, full restore + re-baseline keeps the record; then --target develop --retarget exits 0, the retarget commit is the first after the pre-run tip, exactly one, the squash landing is on develop, release never moves). RED-FIRST: all 3 failed before the fix (target_branch 'main' != 'develop'; the run went to release and failed in _phase_commit_and_assert). TESTS: tests/consolidation 3417 passed/1 skipped/11 xfailed; six terminus files 57 passed; arch gates -n0 391 passed; make test-fast 3078 passed/7 skipped. ruff check + format clean; mypy resolve.py clean.",
+        "Cycle 2: _adopt_retarget now moves the record's target_branch to the retarget's to and drops old-target anchors; unit + real-executor re-baselined-plain-run tests (red-first); all WP03 suites green",
+        "Review passed (cycle 2): adopted retarget now moves state.target_branch to the new target and drops old-target anchors (fix 2810180b); 3 new tests red without the fix, incl. a real-executor re-baselined-plain-run -> retarget arm landing on the new target with the old target unmoved; consolidation 3417 passed, terminus 57, gates 293, coordination 20; ruff/format/mypy clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/consolidate-retarget-01M7M5JA-coord/kitty-specs/consolidate-retarget-01M7M5JA/tasks/WP03-run-record-and-retarget-phase/review-cycle-2.md",
+        "reference": "review-cycle://consolidate-retarget-01M7M5JA/WP03-run-record-and-retarget-phase/review-cycle-2.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 17816,
+      "shell_pid_created_at": "1794911591.79",
+      "subtasks": {
+        "T008": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M7MXGQZ2YTPVESJSQ4YEHK4T",
+      "last_transition_at": "2026-11-17T14:10:34.082201+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-17T12:39:45Z – claude – shell_pid=14314 – WP04 (claude::python-pedro). Arms (real CLI, #5783 fixtures; split over 5 files + tests/terminus/retarget_support.py so -n6 loadfile spreads them, NFR-003): success [lanes|coord] incl dry-run retarget object; failure-after-record [lanes|coord] (develop + Mission branch restored, record keeps retarget committed=False, re-run lands with 1 retarget commit); abort then plain --target refused #5783; kill at phase_advance._persist_retarget_committed then --resume LANDS with 1 retarget commit (the planned UNEXPLAINED_BRANCH_MOVE residual does NOT reproduce: the advance intents explain both moves, the dedup mutate leaves copies unchanged; release-branch flow therefore not exercised); kill at executor._phase_merge_lanes -> --resume --target other --retarget = RETARGET_RESUME_MISMATCH nothing moved -> --resume lands once; protected develop PROTECTED_BRANCH_REFUSED + dry twin; protected main admitted (D2); FR-011 dirty and untracked(rm --cached) RETARGET_RECORD_UNWRITABLE + dry twins; misuse exit 2 x2; FR-012 no retarget commit; divergent develop keeps its commit; ORCHESTRATOR OVERRIDE 1: attestation arm uses --attest-no-implementation WP01 (approved-reviewed refuses on stamped review approvals) - event lands on develop, main untouched. OVERRIDE 2: RETARGET_WRITE_BRANCH_IS_RECORDED_TARGET skipped, pinned by tests/consolidation/test_retarget_record.py. OVERRIDE 3: record asserted on BOTH holders (Mission branch + develop) in failure (restored) and resume arms. OVERRIDE 4 FOLD (out-of-map src, authorized): preflight.persisted_retarget_pair + RetargetMode + retarget_mode own the decision and the RETARGET_RESUME_MISMATCH Refused (message+next_step incl bare --resume); entry_preflight and forecast both call it, forecast imports no executor family; parity test tests/consolidation/test_retarget_mode_single_owner.py; forecast unit tests now patch preflight.load_state (seam moved). Deviation vs prompt T020.3: develop cut before the Mission is ADMITTED by the D4 holder rule (Mission branch carries meta.json); with no root copy the CLI says Mission not found; with untracked copies the run fails at the landing resync and rolls back fully (pinned: nothing lands, develop unchanged). Residual: --dry-run forecasts a landing for that shape. Observation (not pinned): a skip-worktree BIT with no edit on develop's meta.json is admitted by primary_checkout_refusal (contract lists skip-worktree), and the run then fails mid-landing leaving develop at the squash commit (rollback blocked by the dirty resync) - needs triage. RED at base 06af0c52 (scratch worktree, removed): 27 failed / 12 passed (all 15 e2e red, mostly 'No such option: --retarget'; 10 parity tests red; 2 #5783 tests red on the T021 assertion). GREEN lane: e2e+sibling 26 passed; wall 95s vs sibling-only 68s => +27s (4 cores). tests/consolidation 3455 passed 1 skipped 11 xfailed; terminus protected_target_preflight+rollback_door 40 passed; arch no_dead_symbols+layer_rules 117 passed; make test-fast 3078 passed 7 skipped. ruff/format clean; mypy 0 new.",
+        "Ready for review: e2e acceptance (5 files), forecast/entry retarget-mode fold, T021",
+        "- 2026-11-17T13:38:15Z – unknown – Cycle 1 rework (orchestrator feedback), commit 0ddbe22e. Out-of-map src edit (authorized: the defects are the retarget's own up-front refusal contract FR-011/NFR-001/FR-009): preflight.retarget_record_refusal now refuses RETARGET_RECORD_UNWRITABLE (1) when <b>'s meta.json carries the skip-worktree or assume-unchanged bit (_index_bit via git ls-files -v; message names the bit, next step git update-index --no-skip-worktree/--no-assume-unchanged; retarget path only, bake _primary_checkout_refusal unchanged) and (2) when <b> is not a holder but the root checkout on <b> holds untracked kitty-specs/<slug>/ copies the landing would overwrite (_untracked_mission_copies_refusal). Forecast reads the same verdict. RED first: the 3 new e2e arms (skip-worktree, assume-unchanged, untracked copies) failed before the fix (run admitted, no refusal). Tests: e2e arms with dry-run parity in tests/terminus/test_consolidate_retarget_refusals.py (the former 'rolls back fully' arm is now a refusal arm); unit tests tests/consolidation/test_retarget_record_checkout_hazards.py (7). Kill-window test kept. Plain-run evidence (not fixed): plain consolidate onto main with skip-worktree on root meta.json exits 1; the landing resync fails ('Entry ... meta.json not uptodate. Cannot merge. fatal: Could not reset index file'); the rollback DOES restore the main and Mission branch refs, but leaves the root checkout with staged squash content (M meta.json, M status.events.jsonl, A status.json, A src/pkg/*) and the merge record kept. With assume-unchanged a plain run lands cleanly (exit 0). Default-topology still admitted: WP06 tests/integration/test_default_mission_consolidate_retarget.py (copied from lane-e, run against lane-d src, removed) 5 passed. Green: WP04 e2e + #5783 file 28 passed (wall 78s at -n6, 4 cores); tests/consolidation 3462 passed 1 skipped 11 xfailed; protected_target_preflight+rollback_door 40 passed; arch no_dead_symbols+layer_rules -n0 117 passed; make test-fast 3078 passed 7 skipped; ruff/format/mypy clean on changed files.",
+        "Cycle 1: index-bit and untracked-copy retarget refusals + arms",
+        "Approved (cycle 2). Re-ran: WP04 e2e set 28 passed in 83s (-n 6 loadfile; baseline #5783 file alone 58s, so well under NFR-003's 60s added); tests/consolidation 3462 passed/1 skipped/11 xfailed; arch gates (dead symbols, layer rules, single rollback authority) 140 passed -n0; WP06 default-topology oracle 5 passed (copied temporarily, removed). Mutation witnesses: stubbing _index_bit -> both index-bit arms red; stubbing the untracked-copies refusal -> that arm red (run proceeds to mutate). retarget_mode is the one owner, forecast imports no executor family. ruff/format clean; mypy 0 new (one pre-existing no-any-return at entry_preflight.py:384, untouched line). Non-blocking: the RETARGET_RESUME_MISMATCH e2e arm has no --dry-run twin (parity pinned at unit level in test_retarget_mode_single_owner.py); the untracked-copies arm has no same-fixture admitted control (without the copies the Mission cannot be resolved), the unit control covers it."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/consolidate-retarget-01M7M5JA-coord/kitty-specs/consolidate-retarget-01M7M5JA/tasks/WP04-end-to-end-acceptance/review-cycle-2.md",
+        "reference": "review-cycle://consolidate-retarget-01M7M5JA/WP04-end-to-end-acceptance/review-cycle-2.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 6218,
+      "shell_pid_created_at": "1794922812.3",
+      "subtasks": {
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M7MXGGDGY0NK1G008ZE0ENE6",
+      "last_transition_at": "2026-11-17T14:10:26.352172+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-17T10:54:30Z – claude – shell_pid=10153 – ADR amendment 2026-11-17, merge-mission Retarget section, added changelog fragment; checkers clean (commit 6ccf635d)",
+        "Ready for review",
+        "Review passed: ADR 2026-09-19-1 Amendment 2026-11-17, merge-mission how-to Retarget section and 7692 changelog fragment verified against lane-b code (WP01+WP03+WP02): flag names/help, exit 2 misuse, codes RETARGET_RECORD_UNWRITABLE / RETARGET_WRITE_BRANCH_IS_RECORDED_TARGET / RETARGET_RESUME_MISMATCH / PROTECTED_BRANCH_REFUSED, dry-run retarget {from,to} JSON, HISTORY_CAP=20, default reason text, ConsolidationState.retarget shape + committed flag, re-baseline keeps it committed=False, no-snapshot adoption drops old-target anchors, attestations follow retarget (no ATTESTATION_UNSUPPORTED anywhere), default-topology in scope, orchestrator-api PREFLIGHT_FAILED + CONTRACT_VERSION unchanged, --abort --release-branch/--release-reason syntax, kill-window residual matches plan D. Changelog style 0 errors (no 7692 warning), spelling 0 findings, test_no_legacy_terminology 98 passed.",
+        "- 2026-11-17T13:43:35Z – claude::scribe-sally – Cycle 1 (04dd54ab): kill-window residual replaced by observed resume-once behaviour (tests/terminus/test_consolidate_retarget_resume.py), --release-branch remedy dropped; two RETARGET_RECORD_UNWRITABLE causes added (index bit; untracked Mission copies) to how-to table and ADR; default-topology squash fold with one retarget_history entry documented.",
+        "Cycle 1 (04dd54ab): kill-window residual replaced by observed resume-once behaviour (tests/terminus/test_consolidate_retarget_resume.py), --release-branch remedy dropped; two RETARGET_RECORD_UNWRITABLE causes added (index bit; untracked Mission copies) to how-to table and ADR; default-topology squash fold with one retarget_history entry documented.",
+        "Re-review cycle 1 passed: 04dd54ab (signed, 3 owned files) verified against lane-d/lane-e. Kill-window residual correctly replaced: tests/terminus/test_consolidate_retarget_resume.py kills at phase_advance._persist_retarget_committed, --resume lands once; --release-branch remedy removed. Two new RETARGET_RECORD_UNWRITABLE causes match preflight._index_bit (skip-worktree/assume-unchanged, clear via update-index --no-*) and _untracked_mission_copies_refusal (root checkout on new target, untracked kitty-specs/<slug>/ files, target not a holder). Default-topology 'squash folds the record, one retarget_history entry' matches tests/integration/test_default_mission_consolidate_retarget.py. Changelog style 0 errors (no 7692 warning), spelling 0 findings, test_no_legacy_terminology 98 passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/consolidate-retarget-01M7M5JA-coord/kitty-specs/consolidate-retarget-01M7M5JA/tasks/WP05-docs-adr-changelog/review-cycle-1.md",
+        "reference": "review-cycle://consolidate-retarget-01M7M5JA/WP05-docs-adr-changelog/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1341,
+      "shell_pid_created_at": "1794923056.78",
+      "subtasks": {
+        "T022": "done",
+        "T023": "done",
+        "T024": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M7MXGZTXSK21GKDVEXQ3RYFK",
+      "last_transition_at": "2026-11-17T14:10:42.141122+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-17T12:26:37Z – claude – shell_pid=14314 – Red-first on planning base main@06af0c52: 4 failed, 1 passed (the single_branch plain-consolidate control). The 3 --retarget arms exit 2 'No such option: --retarget'; the plain --target arm refused TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE but its remedy did not name --retarget. Green on lane-e (405e09af): 5/5 new + 7/7 sibling test_default_mission_consolidate_lands_primary. No product change was needed for either default arm. single_branch default: consolidate must run from the root checkout on the topic branch (the product refuses from any other branch with 'lanes.json is not on the current checkout ... git checkout <topic>', plain and retarget alike); the landing then switches the root checkout to develop. Squash folds the topic-branch record commit into the squash merge, so one-record is pinned on retarget_history (exactly one entry).",
+        "Ready for review: default lanes_with_coord + single_branch retarget e2e, failure + plain-override controls; red/green evidence in history",
+        "Review passed (reviewer-renata). 5/5 passed in 483s on lane-e (-n 4 --dist loadfile); ruff check + format --check --force-exclude clean. Both settlement outcomes (lanes_with_coord, single_branch) retarget to develop with exit 0, record on develop (target_branch, 1 retarget_history entry from work to develop), every WP done, work untouched, kitty-specs clean, topic removed. Controls: single_branch plain lands on work; lanes_with_coord plain is cited to the sibling module; plain --target refuses TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE, names --retarget, moves no ref. Injected failure: _phase_retarget_record runs before _phase_merge_lanes, so the topic restore is non-vacuous. The root-on-topic requirement for single_branch is pre-existing (entry_preflight.py:636 on main@06af0c52). The NFR-002 squash deviation is accepted: under squash no separate retarget commit can exist on develop. The operator should reword NFR-002 for the default shape in the PR. Non-blocking nits: _commit_all is copied from the sibling (import it); the failed run does not assert 'Retarget recorded' or that the work tip is unchanged. Red-first is recorded in history (4F/1P on 06af0c52)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/consolidate-retarget-01M7M5JA-coord/kitty-specs/consolidate-retarget-01M7M5JA/tasks/WP06-default-topology-retarget-e2e/review-cycle-1.md",
+        "reference": "review-cycle://consolidate-retarget-01M7M5JA/WP06-default-topology-retarget-e2e/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 14123,
+      "shell_pid_created_at": "1794918925.26",
+      "subtasks": {
+        "T025": "done",
+        "T026": "done",
+        "T027": "done"
+      }
+    }
+  }
+}

@@ -64,6 +64,19 @@ def test_a_retarget_whose_recorded_target_is_unwritable_is_refused_with_its_code
         assert remedy in verdict.next_step, verdict.next_step
 
 
+def test_the_unwritable_recorded_target_remedy_names_the_retarget_opt_in(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7692 FR-002/FR-010: the two pre-existing remedies are kept byte-identical and a third names ``--retarget``."""
+    monkeypatch.setattr(transaction, "write_checkout_refusal", lambda *_a, **_k: _HOLD)
+
+    verdict = preflight.refuse_unwritable_recorded_target(Path("/repo"), "m", recorded_target="main", effective_target="develop")
+
+    assert verdict is not None
+    assert "Drop '--target develop' and consolidate into the recorded target from a checkout of it (`git checkout main`)" in verdict.next_step
+    assert "if the record is wrong, correct 'target_branch' in the mission's meta.json to 'develop', commit it, and re-run without '--target'" in verdict.next_step
+    assert "`spec-kitty consolidate --target develop --retarget` (CLI only)." in verdict.next_step
+    assert verdict.error_code == preflight.TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE, "a plain --target keeps its code (C-002)"
+
+
 def _git(repo: Path, *args: str) -> None:
     subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True)
 
@@ -106,7 +119,7 @@ def test_dry_run_reports_an_unprobeable_mission_without_a_traceback(monkeypatch:
     def _raise(*_a: object, **_k: object) -> None:
         raise ActionContextError("MISSION_NOT_FOUND", "no such mission")
 
-    monkeypatch.setattr(forecast, "refuse_protected_target_override", _raise)
+    monkeypatch.setattr(forecast, "target_override_verdict", _raise)
     with pytest.raises(typer.Exit) as excinfo:
         forecast._refuse_protected_target_override_in_forecast(tmp_path, "m", recorded_target="main", effective_target="develop", json_output=True)
     assert excinfo.value.exit_code == 1

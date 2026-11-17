@@ -1,0 +1,129 @@
+{
+  "mission_slug": "consolidate-retarget-01M7M5JA",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "--retarget requires --target; misuse exits 2 and moves nothing",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_retarget_cli_and_forecast.py; tests/terminus/test_consolidate_retarget_landings.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-17T14:01:45.152300+00:00",
+      "notes": "Verified by the approved WP review runs (reviewer-renata) on the lanes; e2e through the real spec-kitty consolidate CLI."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "A plain --target keeps TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE, remedy names --retarget",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_target_override_recorded_target_unwritable.py; tests/integration/test_default_mission_consolidate_retarget.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-17T14:01:53.553555+00:00",
+      "notes": "Verified by the approved WP review runs (reviewer-renata) on the lanes; e2e through the real spec-kitty consolidate CLI."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "A retargeted lanes/coord/default Mission lands every write on the new target, exit 0, clean tree",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_consolidate_retarget.py; tests/integration/test_default_mission_consolidate_retarget.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-17T14:02:00.665061+00:00",
+      "notes": "Verified by the approved WP review runs (reviewer-renata) on the lanes; e2e through the real spec-kitty consolidate CLI."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "The new target's meta.json names it and carries retarget_history provenance",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_consolidate_retarget.py; tests/consolidation/test_retarget_record.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-17T14:02:07.481848+00:00",
+      "notes": "Verified by the approved WP review runs (reviewer-renata) on the lanes; e2e through the real spec-kitty consolidate CLI."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "--retarget-reason is recorded; default reason otherwise; misuse exits 2",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_consolidate_retarget.py; tests/consolidation/test_retarget_cli_and_forecast.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-17T14:02:14.448107+00:00",
+      "notes": "Verified by the approved WP review runs (reviewer-renata) on the lanes; e2e through the real spec-kitty consolidate CLI."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Failure or --abort after the record commit restores the new target and Mission branch via the rollback authority",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_consolidate_retarget_failure.py; tests/integration/test_default_mission_consolidate_retarget.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-17T14:02:21.323868+00:00",
+      "notes": "Verified by the approved WP review runs (reviewer-renata) on the lanes; e2e through the real spec-kitty consolidate CLI."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "--resume honours a persisted retarget; RETARGET_RESUME_MISMATCH on a different X",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_consolidate_retarget_resume.py; tests/consolidation/test_retarget_entry_preflight.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-17T14:02:27.670213+00:00",
+      "notes": "Verified by the approved WP review runs (reviewer-renata) on the lanes; e2e through the real spec-kitty consolidate CLI."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Protected new target refused (PROTECTED_BRANCH_REFUSED); #5385 probe re-pointed; protected old target admitted",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_consolidate_retarget_refusals.py; tests/consolidation/test_retarget_verdict.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-17T14:02:34.220828+00:00",
+      "notes": "Verified by the approved WP review runs (reviewer-renata) on the lanes; e2e through the real spec-kitty consolidate CLI."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "--dry-run reports the same codes and a retarget {from,to} object",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_consolidate_retarget_refusals.py; tests/terminus/test_consolidate_retarget.py; tests/consolidation/test_retarget_mode_single_owner.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-17T14:02:41.374053+00:00",
+      "notes": "Verified by the approved WP review runs (reviewer-renata) on the lanes; e2e through the real spec-kitty consolidate CLI."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "orchestrator-api still refuses a differing target; message names --retarget; CONTRACT_VERSION unchanged",
+      "proof_type": "automated_test",
+      "evidence": "tests/orchestrator_api/test_consolidate_mission_retarget_refusal.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-17T14:02:47.924772+00:00",
+      "notes": "Verified by the approved WP review runs (reviewer-renata) on the lanes; e2e through the real spec-kitty consolidate CLI."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Unwritable record refused up front (dirty/untracked/skip-worktree/untracked copies) with dry-run parity",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_consolidate_retarget_refusals.py; tests/consolidation/test_retarget_record_checkout_hazards.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-17T14:02:54.629629+00:00",
+      "notes": "Verified by the approved WP review runs (reviewer-renata) on the lanes; e2e through the real spec-kitty consolidate CLI."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "--target <recorded> --retarget is not a retarget",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_consolidate_retarget_landings.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-17T14:03:01.263117+00:00",
+      "notes": "Verified by the approved WP review runs (reviewer-renata) on the lanes; e2e through the real spec-kitty consolidate CLI."
+    }
+  ],
+  "negative_invariants": []
+}

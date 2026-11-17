@@ -309,6 +309,7 @@ def _advance_run_target_only(env: Env) -> None:
 @pytest.mark.parametrize(
     "name",
     [
+        "_phase_retarget_record",
         "_phase_merge_lanes",
         "_phase_bake_and_pre_target_done",
         "_phase_mission_to_target",

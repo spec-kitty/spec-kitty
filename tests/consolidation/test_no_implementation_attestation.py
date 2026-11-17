@@ -58,7 +58,11 @@ def test_a_valid_request_is_de_duplicated_and_an_empty_one_is_nothing() -> None:
 @pytest.mark.parametrize("current_lane", ["approved", "done"])
 def test_the_attestation_is_a_forced_operator_self_transition(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, current_lane: str) -> None:
     captured: list[TransitionRequest] = []
-    monkeypatch.setattr("specify_cli.coordination.status_transition.emit_status_transition_transactional", captured.append)
+    # #7692: the seam also receives the consolidate run's retarget mapping (``None`` here).
+    monkeypatch.setattr(
+        "specify_cli.coordination.status_transition.emit_status_transition_transactional",
+        lambda request, *, retarget=None: captured.append(request),
+    )
 
     nia.record_no_implementation_attestation(
         repo_root=tmp_path,

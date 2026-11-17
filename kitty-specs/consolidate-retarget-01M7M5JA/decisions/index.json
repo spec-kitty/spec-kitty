@@ -1,0 +1,124 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-17T07:12:15.833053Z",
+      "decision_id": "01M7M5JSYSVTC5R0XHDMKXXAQX",
+      "final_answer": "Operator ruling 2026-11-17 (relayed by core triager): explicit --retarget, requires --target; plain --target keeps TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE; its next step names --retarget.",
+      "input_key": "retarget_opt_in",
+      "mission_id": "01M7M5JAYR1Q71P022W0EES7ZB",
+      "mission_slug": "consolidate-retarget-01M7M5JA",
+      "opened_by": "cli",
+      "options": [
+        "explicit --retarget (rec)",
+        "implicit on --target",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Is the retarget an explicit opt-in (--retarget requiring --target) or implicit on --target?",
+      "rationale": null,
+      "resolved_at": "2026-11-17T07:46:05.674605Z",
+      "resolved_by": null,
+      "slot_key": "specify.retarget.opt-in",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-17T07:12:17.809529Z",
+      "decision_id": "01M7M5JVWHNG5ZC6JD0S4CSJ5E",
+      "final_answer": "Operator ruling 2026-11-17 (relayed by core triager): up front: in effect before the pre-mutation snapshot; meta.json target_branch rewrite committed as the first mutation inside the rollback door, with provenance {from,to,actor,at,reason}; --retarget-reason optional with a default.",
+      "input_key": "retarget_record_timing",
+      "mission_id": "01M7M5JAYR1Q71P022W0EES7ZB",
+      "mission_slug": "consolidate-retarget-01M7M5JA",
+      "opened_by": "cli",
+      "options": [
+        "up front, first mutation, own commit with provenance on the new PRIMARY checkout (rec)",
+        "inside the landing",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "When and where is meta.json target_branch rewritten?",
+      "rationale": null,
+      "resolved_at": "2026-11-17T07:46:08.052097Z",
+      "resolved_by": null,
+      "slot_key": "specify.retarget.record-timing",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-17T07:12:19.957914Z",
+      "decision_id": "01M7M5JXZNXAB65MPMYC3F4Y6B",
+      "final_answer": "Operator ruling 2026-11-17 (relayed by core triager): retarget persisted in ConsolidationState; the one rollback authority restores it; --resume honours it and never re-commits; ADR 2026-09-19-1 amendment.",
+      "input_key": "retarget_rollback",
+      "mission_id": "01M7M5JAYR1Q71P022W0EES7ZB",
+      "mission_slug": "consolidate-retarget-01M7M5JA",
+      "opened_by": "cli",
+      "options": [
+        "persist retarget in run record; one rollback authority restores; resume honours; ADR amendment (rec)",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How do --resume, --abort and the rollback authority treat a retargeted run?",
+      "rationale": null,
+      "resolved_at": "2026-11-17T07:46:10.313078Z",
+      "resolved_by": null,
+      "slot_key": "specify.retarget.rollback",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-17T07:12:21.991372Z",
+      "decision_id": "01M7M5JZZ79TBGYXD1XZA594CH",
+      "final_answer": "Operator ruling 2026-11-17 (relayed by core triager): never bypasses: #6464 and #5385 judge the new target before anything is written.",
+      "input_key": "retarget_protection",
+      "mission_id": "01M7M5JAYR1Q71P022W0EES7ZB",
+      "mission_slug": "consolidate-retarget-01M7M5JA",
+      "opened_by": "cli",
+      "options": [
+        "never bypasses: #6464 + #5385 probes judge the new target up front (rec)",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How does a retarget interact with #6464 and the status-write policy?",
+      "rationale": null,
+      "resolved_at": "2026-11-17T07:46:12.436952Z",
+      "resolved_by": null,
+      "slot_key": "specify.retarget.protection",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-17T07:12:24.129265Z",
+      "decision_id": "01M7M5K221R8DE5KBNVX5BCPYW",
+      "final_answer": "Operator ruling 2026-11-17 (relayed by core triager): --dry-run forecasts the retarget with the same codes; orchestrator-api consolidate-mission refuses a retarget (no rollback door), no contract change.",
+      "input_key": "retarget_parity",
+      "mission_id": "01M7M5JAYR1Q71P022W0EES7ZB",
+      "mission_slug": "consolidate-retarget-01M7M5JA",
+      "opened_by": "cli",
+      "options": [
+        "dry-run forecasts identically; orchestrator-api refuses retargets (no rollback door) (rec)",
+        "orchestrator-api adds --retarget without rollback",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "--dry-run and orchestrator-api consolidate-mission parity?",
+      "rationale": null,
+      "resolved_at": "2026-11-17T07:46:14.506949Z",
+      "resolved_by": null,
+      "slot_key": "specify.retarget.parity",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M7M5JAYR1Q71P022W0EES7ZB",
+  "version": 1
+}

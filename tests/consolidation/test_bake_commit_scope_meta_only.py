@@ -334,7 +334,7 @@ def test_primary_bake_refuses_when_meta_is_not_tracked_in_head(tmp_path: Path, i
 
 @pytest.mark.parametrize("probe", ["status_entries", "tree_entry", "run_git"])
 def test_primary_bake_reports_unbaked_when_the_git_probe_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, probe: str) -> None:
-    from specify_cli.consolidation.mission_number import bake
+    from specify_cli.consolidation import meta_write
 
     repo = _coord_repo(tmp_path)
     before = _snapshot(repo)
@@ -342,7 +342,8 @@ def test_primary_bake_reports_unbaked_when_the_git_probe_fails(tmp_path: Path, m
     def _boom(*_a: object, **_k: object) -> None:
         raise RuntimeError("git probe exploded")
 
-    monkeypatch.setattr(bake, probe, _boom)
+    # #7692: the primary-checkout precheck (and its git probes) moved to the shared meta_write module.
+    monkeypatch.setattr(meta_write, probe, _boom)
 
     result, printed = _bake(repo)
 

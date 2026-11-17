@@ -141,6 +141,9 @@ class MissionMetaOptional(TypedDict, total=False):
     create_return_branch: str
     # #7560: the commit the Mission branch was cut from, write-once at create/mint.
     mission_base_sha: str
+    # #7692: ``consolidate --target <b> --retarget`` provenance, newest last, bounded by
+    # ``HISTORY_CAP``: ``{"from", "to", "actor", "at", "reason"}``.
+    retarget_history: list[dict[str, str]]
 
 
 # ---------------------------------------------------------------------------
@@ -1110,14 +1113,22 @@ def record_acceptance(
         if accept_commit is not None:
             meta["accept_commit"] = accept_commit
 
-        # Bounded history
-        history: list[dict[str, Any]] = meta.get("acceptance_history", [])
-        history.append(entry)
-        if len(history) > HISTORY_CAP:
-            history = history[-HISTORY_CAP:]
-        meta["acceptance_history"] = history
+        _append_bounded(meta, "acceptance_history", entry)
 
     return locked_update_meta(feature_dir, mutate)
+
+
+def _append_bounded(meta: dict[str, Any], key: str, entry: dict[str, Any], *, cap: int = HISTORY_CAP) -> None:
+    """Append *entry* to ``meta[key]`` (created when absent), keeping only the newest *cap* entries.
+
+    The one bounded-history rule for ``meta.json`` (``acceptance_history``, and the
+    ``retarget_history`` a consolidate retarget writes, #7692).
+    """
+    history: list[dict[str, Any]] = meta.get(key, [])
+    history.append(entry)
+    if len(history) > cap:
+        history = history[-cap:]
+    meta[key] = history
 
 
 def record_discard(feature_dir: Path) -> dict[str, Any]:

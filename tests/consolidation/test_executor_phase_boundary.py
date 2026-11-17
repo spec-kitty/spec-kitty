@@ -107,6 +107,8 @@ def test_locked_driver_calls_phases_in_frozen_order() -> None:
     src = inspect.getsource(ex._run_lane_based_consolidation_locked)
     expected_order = [
         "_phase_gates_and_state(run)",
+        # #7692: the retarget record is the first mutation inside the rollback door.
+        "_phase_retarget_record(run)",
         "_phase_merge_lanes(run)",
         "_phase_baseline_and_surface(run)",
         "_phase_bake_and_pre_target_done(run)",

@@ -492,15 +492,22 @@ def _refuse_protected_status_target(main_repo_root: Path, mission_slug: str, lan
 
 
 def _refuse_protected_target_override(main_repo_root: Path, mission_slug: str, lanes_manifest: LanesManifest) -> None:
-    """#6464: refuse a ``--target`` override onto a protected branch, before any branch moves.
+    """#6464 / #5783: refuse a ``--target`` override this path cannot land, before any branch moves.
 
-    The recorded-target preflight above reads ``meta.json``; this one reads the target
-    this path would actually commit to (``lanes_manifest.target_branch``, set from the
-    request's ``--target``) and refuses when it is protected and is not the recorded
-    target. Same ``RuntimeError`` shape, so both land in this command's failure
-    envelope with the policy's own code.
+    The recorded-target preflight above reads ``meta.json``; this one reads the target this
+    path would actually commit to (``lanes_manifest.target_branch``, set from the request's
+    ``--target``) and asks the CLI's ONE override verdict
+    (:func:`~specify_cli.consolidation.preflight.target_override_verdict`, #7692). This command
+    has no ``--retarget``, so it asks with ``retarget=False``: today's #6464 then #5783 chain.
+
+    The envelope is unchanged (contract version unchanged): the #6464 refusal
+    (``PROTECTED_BRANCH_REFUSED``) is a plain ``RuntimeError``, as before; the #5783 refusal
+    (``TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE``) is a :class:`CodedPreflightRefused`, whose
+    code travels in ``data.preflight_error_code``. This path has no rollback door, so both
+    refuse before the first lane is consolidated.
     """
-    from specify_cli.consolidation.preflight import refuse_protected_target_override
+    from specify_cli.consolidation.preflight import target_override_verdict
+    from specify_cli.coordination.types import PROTECTED_BRANCH_REFUSED
     from specify_cli.core.paths import MissionMetaReadError, resolve_merge_target_branch
 
     try:
@@ -509,30 +516,19 @@ def _refuse_protected_target_override(main_repo_root: Path, mission_slug: str, l
         # No readable record means no retarget to judge; the recorded-target preflight
         # above (and the rest of the command) own the unreadable meta.json.
         return
-    verdict = refuse_protected_target_override(
+    verdict = target_override_verdict(
         main_repo_root,
         mission_slug,
         recorded_target=recorded_target,
         effective_target=lanes_manifest.target_branch,
+        retarget=False,
     )
-    if verdict is not None:
-        raise RuntimeError(f"{verdict.error_code}: {verdict.message} Next step: {verdict.next_step}")
-    _refuse_unwritable_recorded_target(main_repo_root, mission_slug, recorded_target=recorded_target, effective_target=lanes_manifest.target_branch)
-
-
-def _refuse_unwritable_recorded_target(main_repo_root: Path, mission_slug: str, *, recorded_target: str, effective_target: str) -> None:
-    """#5783: refuse, before any branch moves, a retarget whose recorded target cannot be written.
-
-    This path has no rollback door, so the refusal must come before the first lane is
-    consolidated. The verdict is the CLI's own
-    (:func:`~specify_cli.consolidation.preflight.refuse_unwritable_recorded_target`); its code
-    travels in ``data.preflight_error_code``.
-    """
-    from specify_cli.consolidation.preflight import refuse_unwritable_recorded_target
-
-    verdict = refuse_unwritable_recorded_target(main_repo_root, mission_slug, recorded_target=recorded_target, effective_target=effective_target)
-    if verdict is not None:
-        raise CodedPreflightRefused(f"{verdict.error_code}: {verdict.message} Next step: {verdict.next_step}", error_code=verdict.error_code)
+    if verdict is None:
+        return
+    text = f"{verdict.error_code}: {verdict.message} Next step: {verdict.next_step}"
+    if verdict.error_code == PROTECTED_BRANCH_REFUSED:
+        raise RuntimeError(text)
+    raise CodedPreflightRefused(text, error_code=verdict.error_code)
 
 
 def _orchestrator_refusal_text(refusal: str) -> str:

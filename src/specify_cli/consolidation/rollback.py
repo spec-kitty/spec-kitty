@@ -996,6 +996,9 @@ def rebaseline_after_full_restore(state: ConsolidationState, outcomes: Iterable[
     safe, since the per-lane CAS (``lane_tip_cas_ok``) accepts an equal, descendant or ancestor tip
     and refuses only true divergence (a rewritten lane), failing closed with the abort hint.
 
+    A retarget record (#7692) stays too, re-marked ``committed=False``: the restore undid its
+    ``meta.json`` commits, and the next run re-applies them.
+
     The record, its marker, its strategy/cleanup flags and its ``wp_order`` also stay: after a
     full restore there is nothing to resume, but the record is the Mission's own provenance
     trail, and this repository's contract is that ``--resume`` re-derives its anchors rather than
@@ -1026,6 +1029,12 @@ def rebaseline_after_full_restore(state: ConsolidationState, outcomes: Iterable[
                 setattr(state, field_name, empty)
                 changed = True
     if state.clear_reconciliation_pass():
+        changed = True
+    # #7692 (squad A4): the restore undid the retarget's ``meta.json`` commits, but the operator's
+    # retarget still stands. Keep the record with ``committed=False`` so a bare ``--resume`` or a
+    # re-run re-applies it and is judged as a retarget (never dropped: that would strand it).
+    if state.retarget is not None and state.retarget.get("committed") is not False:
+        state.retarget["committed"] = False
         changed = True
     return changed
 

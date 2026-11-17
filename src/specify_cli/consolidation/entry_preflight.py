@@ -18,6 +18,7 @@ import typer
 from rich.markup import escape
 
 if TYPE_CHECKING:
+    from specify_cli.coordination.types import Refused
     from specify_cli.lanes.models import LanesManifest
 
 from specify_cli.cli.console import console
@@ -58,8 +59,9 @@ from specify_cli.lanes.single_branch_landing import worktree_lanes
 from specify_cli.lanes.persistence import require_lanes_json
 from specify_cli.consolidation.preflight import (
     refuse_protected_status_target,
-    refuse_protected_target_override,
-    refuse_unwritable_recorded_target,
+    retarget_mode,
+    retarget_write_branch_refusal,
+    target_override_verdict,
 )
 from specify_cli.consolidation.state import (
     ConsolidationState,
@@ -448,7 +450,51 @@ def _synthesize_no_lane_manifest(
     )
 
 
-def _refuse_protected_status_target_or_continue(main_repo: Path, mission_slug: str, lanes_manifest: LanesManifest, canonical_id: str) -> None:
+def _recorded_and_effective_targets(main_repo: Path, mission_slug: str, lanes_manifest: LanesManifest) -> tuple[str, str] | None:
+    """``(recorded target, effective target)`` of this run, or ``None`` when there is no override to judge.
+
+    The effective target is ``lanes_manifest.target_branch`` (already retargeted by
+    ``--target``). ``None`` for the duck-typed manifest the preflight-seam tests hand in (no
+    ``target_branch``) and for an unreadable record (the pre-existing preflights own that).
+    """
+    effective_target = getattr(lanes_manifest, "target_branch", None)
+    if not effective_target:
+        # Every production caller passes a real ``LanesManifest`` (whose
+        # ``target_branch`` is required); this only tolerates the duck-typed manifest
+        # the preflight-seam tests hand in, where there is no retarget to judge.
+        return None
+    try:
+        recorded_target, _source = resolve_merge_target_branch(main_repo, mission_slug, None)
+    except MissionMetaReadError:
+        # No readable record means no retarget to judge; the pre-existing preflights own
+        # the unreadable meta.json.
+        return None
+    return recorded_target, str(effective_target)
+
+
+def _exit_retarget_resume_mismatch(mismatch: Refused) -> typer.Exit:
+    """Print ``RETARGET_RESUME_MISMATCH`` (a merge record exists, so the footer names ``--abort``); return the exit."""
+    console.print(f"Error: {mismatch.error_code}: {mismatch.message}", markup=False, soft_wrap=True)
+    console.print(f"  Next step: {mismatch.next_step}", markup=False, soft_wrap=True)
+    console.print(_protected_refusal_footer(True), markup=False)
+    return typer.Exit(1)
+
+
+def _retarget_mode(main_repo: Path, canonical_id: str, *, retarget: bool, recorded: str, effective: str) -> bool:
+    """Whether this run is judged as a retarget (#7692); refuses ``RETARGET_RESUME_MISMATCH`` first.
+
+    The decision is :func:`~specify_cli.consolidation.preflight.retarget_mode`, the one owner
+    the ``--dry-run`` forecast reads too; this caller only renders its mismatch.
+    """
+    mode = retarget_mode(main_repo, canonical_id, retarget=retarget, recorded=recorded, effective=effective)
+    if mode.mismatch is not None:
+        raise _exit_retarget_resume_mismatch(mode.mismatch)
+    return mode.pair is not None
+
+
+def _refuse_protected_status_target_or_continue(
+    main_repo: Path, mission_slug: str, lanes_manifest: LanesManifest, canonical_id: str, *, retarget: bool = False
+) -> tuple[str, str] | None:
     """#5385: refuse, before any branch moves, a consolidation whose ``done`` bookkeeping the policy refuses.
 
     Pre-lock, so a refusal writes no merge record (NFR-001). The verdict is the
@@ -459,22 +505,41 @@ def _refuse_protected_status_target_or_continue(main_repo: Path, mission_slug: s
     re-run after a crash), THIS run moved nothing, but an earlier attempt may
     have: the refusal then points at ``consolidate --abort`` (which restores the
     recorded snapshot) instead of claiming no branch moved.
+
+    #7692: ``retarget`` is ``consolidate --retarget``. The run is judged as a retarget
+    (:func:`_retarget_mode`, which also reads a persisted retarget) and then the #5385 probe
+    is RE-POINTED at the new target (``retarget_to``), never skipped. A Mission whose write
+    branch is its recorded target refuses first (C-006,
+    :func:`~specify_cli.consolidation.preflight.retarget_write_branch_refusal`). Returns the
+    admitted ``(recorded target, new target)`` pair of a retarget, else ``None``.
     """
+    targets = _recorded_and_effective_targets(main_repo, mission_slug, lanes_manifest)
+    is_retarget = targets is not None and _retarget_mode(main_repo, canonical_id, retarget=retarget, recorded=targets[0], effective=targets[1])
     try:
-        verdict = refuse_protected_status_target(main_repo, mission_slug, lanes_manifest)
+        if is_retarget and targets is not None:
+            verdict = retarget_write_branch_refusal(
+                mission_branch=getattr(lanes_manifest, "mission_branch", None), recorded_target=targets[0], effective_target=targets[1]
+            ) or refuse_protected_status_target(main_repo, mission_slug, lanes_manifest, retarget_to=targets[1])
+        else:
+            verdict = refuse_protected_status_target(main_repo, mission_slug, lanes_manifest)
     except (ActionContextError, MissionMetaReadError) as exc:
         console.print(f"[red]Error:[/red] Cannot probe the done bookkeeping policy: {exc}. Fix the mission's meta.json / status surface before consolidating.")
         raise typer.Exit(1) from exc
     if verdict is None:
-        _refuse_protected_target_override_or_continue(main_repo, mission_slug, lanes_manifest, canonical_id)
-        return
+        _refuse_protected_target_override_or_continue(main_repo, mission_slug, lanes_manifest, canonical_id, retarget=is_retarget)
+        if not (is_retarget and targets is not None):
+            return None
+        console.print(f"Retargeting {mission_slug}: {targets[0]} -> {targets[1]} (recorded with this run).", markup=False)
+        return targets
     console.print(f"[red]Error:[/red] {verdict.error_code}: {verdict.message}")
     console.print(f"  Next step: {verdict.next_step}")
     console.print(_protected_refusal_footer(get_state_path(main_repo, canonical_id).exists()), markup=False)
     raise typer.Exit(1)
 
 
-def _refuse_protected_target_override_or_continue(main_repo: Path, mission_slug: str, lanes_manifest: LanesManifest, canonical_id: str) -> None:
+def _refuse_protected_target_override_or_continue(
+    main_repo: Path, mission_slug: str, lanes_manifest: LanesManifest, canonical_id: str, *, retarget: bool = False
+) -> None:
     """#6464: refuse, before any branch moves, a ``--target`` override onto a protected branch.
 
     The recorded-target probe above reads ``meta.json``; this one reads the target the
@@ -488,32 +553,25 @@ def _refuse_protected_target_override_or_continue(main_repo: Path, mission_slug:
     (:func:`~specify_cli.consolidation.preflight.refuse_unwritable_recorded_target`): the
     write target stays the recorded one, so landing on the override would leave it unwritten.
 
+    #7692: the chain is the ONE verdict
+    (:func:`~specify_cli.consolidation.preflight.target_override_verdict`); with
+    ``retarget`` (an admitted retarget) its record check is ``RETARGET_RECORD_UNWRITABLE``
+    against the new target instead of #5783.
+
     Like its sibling this is pre-lock, so a refusal writes no merge record (NFR-001) and
     points at ``consolidate --abort`` when an earlier attempt may have moved a branch.
     """
-    effective_target = getattr(lanes_manifest, "target_branch", None)
-    if not effective_target:
-        # Every production caller passes a real ``LanesManifest`` (whose
-        # ``target_branch`` is required); this only tolerates the duck-typed manifest
-        # the preflight-seam tests hand in, where there is no retarget to judge.
+    targets = _recorded_and_effective_targets(main_repo, mission_slug, lanes_manifest)
+    if targets is None:
         return
+    recorded_target, effective_target = targets
     try:
-        recorded_target, _source = resolve_merge_target_branch(main_repo, mission_slug, None)
-    except MissionMetaReadError:
-        # No readable record means no retarget to judge; the pre-existing preflights own
-        # the unreadable meta.json.
-        return
-    try:
-        verdict = refuse_protected_target_override(
+        verdict = target_override_verdict(
             main_repo,
             mission_slug,
             recorded_target=recorded_target,
             effective_target=effective_target,
-        ) or refuse_unwritable_recorded_target(
-            main_repo,
-            mission_slug,
-            recorded_target=recorded_target,
-            effective_target=effective_target,
+            retarget=retarget,
         )
     except ActionContextError as exc:
         console.print(

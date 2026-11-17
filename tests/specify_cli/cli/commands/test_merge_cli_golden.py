@@ -99,6 +99,9 @@ EXPECTED_PARSER_LONG_FLAGS = frozenset(
         # dependency ref a WP branch brought in (inherited history), recorded on the
         # transaction record and threaded into the claim build and the closed-world forecast.
         "--dependency-ref",
+        # #7692: adopt --target as the mission's new recorded target for this run.
+        "--retarget",
+        "--retarget-reason",
     }
 )
 
