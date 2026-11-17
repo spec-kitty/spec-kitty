@@ -20,6 +20,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+from kernel.git.read_cache import cached_ref_read
 from mission_runtime import CommitTarget, OwnedCheckout
 from specify_cli.coordination.types import (
     Allowed,
@@ -44,15 +45,25 @@ def _normalize_ref(raw: str) -> str:
 
 
 def _local_branch_exists(repo_root: Path, branch: str) -> bool:
-    """Return True iff ``refs/heads/<branch>`` resolves in ``repo_root``."""
-    result = subprocess.run(
-        ["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
+    """Return True iff ``refs/heads/<branch>`` resolves in ``repo_root``.
+
+    #7689: a function of this one ref; a repeat inside the run's git read cache
+    scope spawns nothing until the branch is created, moved or deleted.
+    """
+    ref = f"refs/heads/{branch}"
+    result = cached_ref_read(
+        repo_root,
+        ref,
+        "rev-parse-verify",
+        lambda: subprocess.run(
+            ["git", "rev-parse", "--verify", "--quiet", ref],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        ),
     )
     return result.returncode == 0
 

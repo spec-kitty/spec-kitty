@@ -10,6 +10,7 @@ from collections.abc import Sequence
 from rich.console import Console
 from rich.markup import escape
 
+from kernel.git.read_cache import Depends, cached_git_read, cached_ref_read
 from kernel.git_topology import GitTopologyError, git_common_dir
 from specify_cli.cli.console import sanitize_terminal_text
 
@@ -147,7 +148,14 @@ def get_current_branch(path: Path | None = None) -> str | None:
     inside a git repository.
     """
     repo_path = (path or Path.cwd()).resolve()
+    # #7689: the checked-out branch is a function of the checkout's HEAD file
+    # alone; inside a git read cache scope a repeat spawns nothing until HEAD
+    # changes (a checkout, a branch switch, a detach).
+    return cached_git_read(repo_path, ("current-branch",), lambda: _read_current_branch(repo_path), depends=Depends(head=True))
 
+
+def _read_current_branch(repo_path: Path) -> str | None:
+    """Spawn git for :func:`get_current_branch` (uncached)."""
     # Primary: git branch --show-current (Git 2.22+)
     # Handles unborn branches correctly and returns empty string for detached HEAD.
     try:
@@ -283,15 +291,23 @@ COMMON_PRIMARY_BRANCHES: tuple[str, ...] = ("main", "master", "develop")
 def _origin_head_branch(repo_root: Path) -> str | None:
     """Return the branch ``origin/HEAD`` points at, or ``None`` if unresolved."""
     try:
-        result = subprocess.run(
-            ["git", "symbolic-ref", "refs/remotes/origin/HEAD"],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=5,
-            check=False,
+        # #7689: the answer is a function of ``refs/remotes/origin/HEAD`` alone
+        # (only a fetch or ``remote set-head`` moves it). A timeout raises out
+        # of the cached read, so it is never stored.
+        result = cached_ref_read(
+            repo_root,
+            "refs/remotes/origin/HEAD",
+            "symbolic-ref",
+            lambda: subprocess.run(
+                ["git", "symbolic-ref", "refs/remotes/origin/HEAD"],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=5,
+                check=False,
+            ),
         )
     except subprocess.TimeoutExpired:
         return None

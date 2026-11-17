@@ -28,6 +28,7 @@ import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from kernel.git.read_cache import cached_ref_read
 from mission_runtime.mission_resolver_port import MissionResolver
 
 if TYPE_CHECKING:
@@ -188,12 +189,20 @@ def _target_ref_exists(repo_root: Path, target_branch: str) -> bool:
         # ``target_branch`` cannot be parsed as a git option (Sonar S6350); the
         # ``refs/heads/`` prefix already prevents a leading ``-`` and argv form
         # precludes shell injection, so this is belt-and-suspenders.
-        result = subprocess.run(
-            ["git", "rev-parse", "--verify", "--quiet", "--end-of-options", f"refs/heads/{target_branch}"],
-            cwd=repo_root,
-            capture_output=True,
-            timeout=_GIT_PROBE_TIMEOUT,
-            check=False,
+        # #7689: branch existence is a function of this one ref; inside a git
+        # read cache scope a repeat spawns nothing until the ref is created,
+        # moved or deleted. A timeout raises out of the cached read uncached.
+        result = cached_ref_read(
+            repo_root,
+            f"refs/heads/{target_branch}",
+            "rev-parse-verify",
+            lambda: subprocess.run(
+                ["git", "rev-parse", "--verify", "--quiet", "--end-of-options", f"refs/heads/{target_branch}"],
+                cwd=repo_root,
+                capture_output=True,
+                timeout=_GIT_PROBE_TIMEOUT,
+                check=False,
+            ),
         )
     except subprocess.TimeoutExpired as exc:
         raise LifecyclePhaseProbeError(

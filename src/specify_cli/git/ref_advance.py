@@ -58,6 +58,7 @@ from typing import Protocol
 # *definition* (``decode_meta``/``MetaDecodeError``) and the VCS-lock comparator
 # (absent != present-but-null, C-005) live there and are consumed here.
 from kernel.git import GitCommandError, GitPath, StatusEntry, status_entries, tree_paths
+from kernel.git.read_cache import cached_git_read
 from kernel.meta_decode import MetaDecodeError, decode_meta
 from kernel.vcs_lock import is_vcs_lock_only_change
 
@@ -337,8 +338,18 @@ def _run_git(
 
 
 def _list_worktrees(repo_root: Path, env: dict[str, str] | None) -> list[_WorktreeEntry]:
-    """Parse ``git worktree list --porcelain`` into entries."""
-    result = _run_git(repo_root, ["worktree", "list", "--porcelain"], env=env)
+    """Parse ``git worktree list --porcelain`` into entries.
+
+    #7689: inside the run's git read cache scope a repeat costs no process
+    while the worktree administrative files and refs are unchanged; any
+    worktree add/remove/prune, checkout or ref move invalidates it.
+    """
+    result = cached_git_read(
+        repo_root,
+        ("worktree-list-porcelain", str(repo_root)),
+        lambda: _run_git(repo_root, ["worktree", "list", "--porcelain"], env=env),
+        env=env,
+    )
     if result.returncode != 0:
         raise RefAdvanceError(f"Could not enumerate worktrees of {repo_root}: {result.stderr.strip() or result.stdout.strip()}")
     entries: list[_WorktreeEntry] = []

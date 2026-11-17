@@ -15,6 +15,7 @@ Strategy note (FR-006, FR-007):
 from __future__ import annotations
 
 from kernel.git import GitCommandError, changed_paths, index_entries
+from kernel.git.read_cache import Depends, cached_git_read
 from kernel.git_topology import GitTopologyError, git_toplevel
 from mission_runtime import MissionArtifactKind, placement_seam
 import os
@@ -476,13 +477,24 @@ def _branch_exists(repo_root: Path, branch: str) -> bool:
 
 
 def _git_config_get(repo_root: Path, key: str) -> str | None:
-    """Return a local git config value or ``None`` when unset/unreadable."""
-    result = subprocess.run(
-        ["git", "config", "--local", "--get", key],
-        cwd=str(repo_root),
-        capture_output=True,
-        text=True,
-        env=_make_merge_env(),
+    """Return a local git config value or ``None`` when unset/unreadable.
+
+    #7689: a function of the repository config alone; inside the run's git read
+    cache scope a repeat spawns nothing until a config write changes the file.
+    """
+    env = _make_merge_env()
+    result = cached_git_read(
+        repo_root,
+        ("config-local-get", key),
+        lambda: subprocess.run(
+            ["git", "config", "--local", "--get", key],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            env=env,
+        ),
+        depends=Depends(config=True),
+        env=env,
     )
     if result.returncode != 0:
         return None

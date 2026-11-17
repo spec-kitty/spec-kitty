@@ -81,6 +81,7 @@ from dataclasses import dataclass, replace
 from enum import StrEnum
 from pathlib import Path
 
+from kernel.git.read_cache import cached_ref_read
 from specify_cli.consolidation.landed_coordination import clear_landed_coordination_ref
 from specify_cli.consolidation.state import UNSETTLED_ALL, ConsolidationState, reconciliation_passed_for_tip, save_state
 from specify_cli.coordination.coherence import CheckoutRole, ResidueContext, is_status_state_path
@@ -382,13 +383,25 @@ def _render_outcome_line(outcome: BranchOutcome, width: int) -> str:
 
 
 def _live_tip(repo_root: Path, branch: str) -> str | None:
-    """Commit at ``refs/heads/<branch>`` or ``None`` when it does not resolve."""
-    result = subprocess.run(
-        ["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}^{{commit}}"],
-        cwd=str(repo_root),
-        capture_output=True,
-        text=True,
-        check=False,
+    """Commit at ``refs/heads/<branch>`` or ``None`` when it does not resolve.
+
+    #7689: the answer is a function of this one ref (the peeled commit is an
+    immutable object), so inside the run's git read cache scope a repeat costs
+    no process until the ref moves. The restore itself stays a compare-and-swap
+    ``update-ref``: git, not this read, enforces the expected old value.
+    """
+    ref = f"refs/heads/{branch}"
+    result = cached_ref_read(
+        repo_root,
+        ref,
+        "rev-parse-verify-commit",
+        lambda: subprocess.run(
+            ["git", "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            check=False,
+        ),
     )
     sha = result.stdout.strip()
     return sha if result.returncode == 0 and sha else None
