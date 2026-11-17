@@ -37,7 +37,7 @@
       "wp": null
     },
     "#7301": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Unrelated projection write-order defect; a retarget does not widen it (research.md)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,7 +45,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7329": {
