@@ -1,7 +1,7 @@
 {
-  "event_count": 37,
-  "last_event_id": "01M7MR2W1D50CW29F8JVQH3PQY",
-  "materialized_at": "2026-11-17T12:35:36.621449+00:00",
+  "event_count": 38,
+  "last_event_id": "01M7MRMD6HCHSC9KFTP6SPHS8P",
+  "materialized_at": "2026-11-17T12:45:11.249726+00:00",
   "mission_number": "",
   "mission_slug": "consolidate-retarget-01M7M5JA",
   "mission_type": "software-dev",
@@ -12,8 +12,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 1,
     "planned": 0
   },
@@ -132,10 +132,13 @@
       "agent_profile_version": "1.0",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M7MNCHK2GWPGHKRKSJMYJFEZ",
-      "last_transition_at": "2026-11-17T11:48:27.214396+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M7MRMD6HCHSC9KFTP6SPHS8P",
+      "last_transition_at": "2026-11-17T12:45:11.249726+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-17T12:39:45Z – claude – shell_pid=14314 – WP04 (claude::python-pedro). Arms (real CLI, #5783 fixtures; split over 5 files + tests/terminus/retarget_support.py so -n6 loadfile spreads them, NFR-003): success [lanes|coord] incl dry-run retarget object; failure-after-record [lanes|coord] (develop + Mission branch restored, record keeps retarget committed=False, re-run lands with 1 retarget commit); abort then plain --target refused #5783; kill at phase_advance._persist_retarget_committed then --resume LANDS with 1 retarget commit (the planned UNEXPLAINED_BRANCH_MOVE residual does NOT reproduce: the advance intents explain both moves, the dedup mutate leaves copies unchanged; release-branch flow therefore not exercised); kill at executor._phase_merge_lanes -> --resume --target other --retarget = RETARGET_RESUME_MISMATCH nothing moved -> --resume lands once; protected develop PROTECTED_BRANCH_REFUSED + dry twin; protected main admitted (D2); FR-011 dirty and untracked(rm --cached) RETARGET_RECORD_UNWRITABLE + dry twins; misuse exit 2 x2; FR-012 no retarget commit; divergent develop keeps its commit; ORCHESTRATOR OVERRIDE 1: attestation arm uses --attest-no-implementation WP01 (approved-reviewed refuses on stamped review approvals) - event lands on develop, main untouched. OVERRIDE 2: RETARGET_WRITE_BRANCH_IS_RECORDED_TARGET skipped, pinned by tests/consolidation/test_retarget_record.py. OVERRIDE 3: record asserted on BOTH holders (Mission branch + develop) in failure (restored) and resume arms. OVERRIDE 4 FOLD (out-of-map src, authorized): preflight.persisted_retarget_pair + RetargetMode + retarget_mode own the decision and the RETARGET_RESUME_MISMATCH Refused (message+next_step incl bare --resume); entry_preflight and forecast both call it, forecast imports no executor family; parity test tests/consolidation/test_retarget_mode_single_owner.py; forecast unit tests now patch preflight.load_state (seam moved). Deviation vs prompt T020.3: develop cut before the Mission is ADMITTED by the D4 holder rule (Mission branch carries meta.json); with no root copy the CLI says Mission not found; with untracked copies the run fails at the landing resync and rolls back fully (pinned: nothing lands, develop unchanged). Residual: --dry-run forecasts a landing for that shape. Observation (not pinned): a skip-worktree BIT with no edit on develop's meta.json is admitted by primary_checkout_refusal (contract lists skip-worktree), and the run then fails mid-landing leaving develop at the squash commit (rollback blocked by the dirty resync) - needs triage. RED at base 06af0c52 (scratch worktree, removed): 27 failed / 12 passed (all 15 e2e red, mostly 'No such option: --retarget'; 10 parity tests red; 2 #5783 tests red on the T021 assertion). GREEN lane: e2e+sibling 26 passed; wall 95s vs sibling-only 68s => +27s (4 cores). tests/consolidation 3455 passed 1 skipped 11 xfailed; terminus protected_target_preflight+rollback_door 40 passed; arch no_dead_symbols+layer_rules 117 passed; make test-fast 3078 passed 7 skipped. ruff/format clean; mypy 0 new."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 14314,
