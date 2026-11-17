@@ -36,6 +36,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#7201": {
+      "evidence_ref": "Retrospective already routes to the effective target; cited as a weak red witness only",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#7301": {
       "evidence_ref": "Unrelated projection write-order defect; a retarget does not widen it (research.md)",
       "fr": null,
