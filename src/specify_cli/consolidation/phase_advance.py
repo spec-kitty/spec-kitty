@@ -11,9 +11,9 @@ Moved from ``consolidation/executor.py`` by epic #2026 with no logic change.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Any, Final
 
 import typer
 
@@ -207,6 +207,144 @@ def _record_own_auto_rebase(run: _MergeRunState, branch: str, *, before: str | N
         return
     run.state.lane_rebase_moves[branch] = move
     save_state(run.state, run.main_repo)
+
+
+#: The keys of a ``retarget_history`` entry, in the order the record carries them (#7692).
+_RETARGET_HISTORY_KEYS: Final[tuple[str, ...]] = ("from", "to", "actor", "at", "reason")
+
+
+def _retarget_mutate(record: Mapping[str, Any]) -> Callable[[dict[str, Any]], bool]:
+    """The ``meta.json`` mutate a retarget applies to every copy of the record (#7692).
+
+    Sets ``target_branch`` to the new target and appends one ``retarget_history`` entry
+    (bounded, :func:`~specify_cli.mission_metadata._append_bounded`), deduplicated on
+    ``(from, to, at)``: a copy that already names the new target and carries this run's
+    entry is unchanged (``False``), so a resume never writes it twice (NFR-002). A pure
+    function of the dict, as :func:`~specify_cli.consolidation.meta_write.commit_meta_on_branch`
+    requires.
+    """
+    from specify_cli.mission_metadata import _append_bounded
+
+    entry = {key: str(record.get(key) or "") for key in _RETARGET_HISTORY_KEYS}
+    identity = (entry["from"], entry["to"], entry["at"])
+
+    def mutate(meta: dict[str, Any]) -> bool:
+        changed = False
+        if meta.get("target_branch") != entry["to"]:
+            meta["target_branch"] = entry["to"]
+            changed = True
+        history = meta.get("retarget_history")
+        if not isinstance(history, list):
+            history = []
+            meta["retarget_history"] = history
+        if not any(isinstance(row, dict) and (row.get("from"), row.get("to"), row.get("at")) == identity for row in history):
+            _append_bounded(meta, "retarget_history", dict(entry))
+            changed = True
+        return changed
+
+    return mutate
+
+
+def _refuse_retarget_write(source: str, to: str, reason: str) -> typer.Exit:
+    """Print why a retarget record could not be committed; the caller raises the returned exit into the door."""
+    console.print(f"Error: Cannot record the retarget {source} -> {to}: {reason}", markup=False, soft_wrap=True)
+    return typer.Exit(1)
+
+
+def _write_retarget_on_mission_branch(
+    run: _MergeRunState, mission_branch: str, mutate: Callable[[dict[str, Any]], bool], *, message: str, source: str, to: str
+) -> None:
+    """Commit the rewritten record on the Mission branch (squad A1): the landing takes ``target_branch`` from that side.
+
+    Its ``advance_branch_ref`` runs inside the door's ``reporting_advance_intents``, so the move
+    is an intent the record can explain, and any checkout holding the branch is resynced.
+    """
+    from specify_cli.consolidation.meta_write import MetaBranchOutcome, commit_meta_on_branch
+
+    outcome = commit_meta_on_branch(run.main_repo, mission_branch, run.mission_slug, mutate, message=message)
+    if outcome.outcome in (MetaBranchOutcome.WRITTEN, MetaBranchOutcome.UNCHANGED):
+        return
+    detail = outcome.detail or outcome.outcome.value
+    if outcome.outcome is MetaBranchOutcome.NO_META_ON_BRANCH:
+        detail = f"'{mission_branch}' no longer carries the mission's meta.json"
+    raise _refuse_retarget_write(source, to, f"{mission_branch}: {detail}")
+
+
+def _write_retarget_on_target(run: _MergeRunState, mutate: Callable[[dict[str, Any]], bool], *, message: str, source: str, to: str) -> None:
+    """Commit the rewritten record on the new target in the repository root checkout; a refused commit is undone by CAS."""
+    from specify_cli.consolidation.meta_write import locked_update_meta_capturing, primary_checkout_refusal, undo_meta_write
+    from specify_cli.git.bookkeeping_commit import commit_merge_bookkeeping
+    from specify_cli.git.commit_helpers import SafeCommitError
+    from specify_cli.missions._read_path_resolver import compose_meta_json_path
+
+    meta_path = compose_meta_json_path(run.main_repo, run.mission_slug)
+    rel_meta = meta_path.relative_to(run.main_repo)
+    # The world may have moved since the entry preflight judged the checkout.
+    refusal = primary_checkout_refusal(run.main_repo, rel_meta, to)
+    if refusal is not None:
+        raise _refuse_retarget_write(source, to, refusal)
+    captured = locked_update_meta_capturing(meta_path.parent, mutate, repo_root=run.main_repo)
+    if captured is None:
+        return
+    try:
+        commit_merge_bookkeeping(
+            repo_root=run.main_repo,
+            worktree_root=run.main_repo,
+            mission_slug=run.mission_slug,
+            message=message,
+            paths=(rel_meta,),
+            destination_ref_override=to,
+        )
+    except (SafeCommitError, RuntimeError) as exc:
+        kept_note = undo_meta_write(meta_path, captured[0], captured[1], run.main_repo)
+        raise _refuse_retarget_write(source, to, f"{exc}" + (f" ({kept_note})" if kept_note else "")) from exc
+
+
+def _persist_retarget_committed(run: _MergeRunState) -> None:
+    """Persist ``state.retarget["committed"] = True`` right after the record commits (#7692).
+
+    A module-level function called through this module's global: WP04's kill arm patches
+    it here (``phase_advance._persist_retarget_committed``) to stop the run between the
+    commits and this save.
+    """
+    record = run.state.retarget
+    if record is None or record.get("committed") is True:
+        return
+    record["committed"] = True
+    save_state(run.state, run.main_repo)
+
+
+@_record_post_mutation_tips
+def _phase_retarget_record(run: _MergeRunState) -> None:
+    """Commit the retarget record as the run's first mutation, inside the rollback door (#7692, FR-003/FR-004).
+
+    A no-op without ``run.state.retarget``. Otherwise ``meta.json`` gets ``target_branch = to``
+    plus one ``retarget_history`` entry on every branch whose tree carries it
+    (:func:`~specify_cli.consolidation.preflight.retarget_record_holders`, the one owner of
+    the holder rule): the Mission branch first, then the new target in the repository root
+    checkout. It always runs, even when the record reads ``committed`` (a partial rollback can
+    leave ``committed=True`` with a copy restored): the deduplicating mutate makes a copy that
+    already carries the record ``unchanged`` (NFR-002). The decorator records both post tips;
+    a refusal raises ``typer.Exit(1)`` and the door rolls back. ``lanes.json`` is not rewritten.
+    """
+    from specify_cli.consolidation.preflight import retarget_record_holders
+
+    record = run.state.retarget
+    if record is None:
+        return
+    source, to = str(record["from"]), str(record["to"])
+    mission_branch = run.lanes_manifest.mission_branch
+    holders = retarget_record_holders(run.main_repo, run.mission_slug, mission_branch=mission_branch, effective_target=to)
+    if not holders:
+        raise _refuse_retarget_write(source, to, f"neither '{mission_branch}' nor '{to}' carries the mission's meta.json any more")
+    mutate = _retarget_mutate(record)
+    message = f"chore({run.mission_slug}): retarget {source} -> {to}"
+    if mission_branch in holders and mission_branch != to:
+        _write_retarget_on_mission_branch(run, mission_branch, mutate, message=message, source=source, to=to)
+    if to in holders:
+        _write_retarget_on_target(run, mutate, message=message, source=source, to=to)
+    _persist_retarget_committed(run)
+    console.print(f"Retarget recorded: {source} -> {to}", markup=False)
 
 
 @_record_post_mutation_tips

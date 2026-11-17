@@ -19,7 +19,7 @@ from unittest.mock import patch
 
 import pytest
 
-from specify_cli.consolidation import ordering
+from specify_cli.consolidation import meta_write, ordering
 from specify_cli.consolidation.mission_number import bake
 from specify_cli.consolidation.state import ConsolidationState
 
@@ -36,6 +36,8 @@ def _state(baked: bool = False) -> ConsolidationState:
 def _no_scratch_worktree_removal(monkeypatch: pytest.MonkeyPatch) -> None:
     """These tests fake every ``subprocess.run``; the guarded scratch removal has its own tests (WP04)."""
     monkeypatch.setattr(bake, "remove_scratch_worktree", lambda worktree, **kwargs: True)
+    # #7692: the mission-branch write's scratch worktree is now the shared meta_write helper's.
+    monkeypatch.setattr(meta_write, "remove_scratch_worktree", lambda worktree, **kwargs: True)
 
 
 def test_lazy_imports_stay_lazy() -> None:
@@ -529,8 +531,9 @@ def test_write_commit_argv_names_only_meta(tmp_path: Path) -> None:
 
     with (
         patch.object(bake, "_has_branch_ref", return_value=True),
-        patch.object(bake, "path_is_under_worktrees", return_value=False),
-        patch.object(bake, "advance_branch_ref") as advance_mock,
+        # The branch write's ``.worktrees/`` guard lives in the shared meta_write seam (#7692).
+        patch.object(meta_write, "path_is_under_worktrees", return_value=False),
+        patch.object(meta_write, "advance_branch_ref") as advance_mock,
         patch("subprocess.run", side_effect=_fake_run),
         patch(
             "specify_cli.missions._read_path_resolver.compose_meta_json_path",

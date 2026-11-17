@@ -539,6 +539,37 @@ def _validated_release_flags(branches: object, reason: object, *, abort: bool) -
     return _ReleaseRequest(branches=requested, reason=text)
 
 
+RETARGET_FLAG = "--retarget"
+RETARGET_REASON_FLAG = "--retarget-reason"
+
+
+def _refuse_retarget_usage(message: str) -> NoReturn:
+    """Refuse a misused ``--retarget`` / ``--retarget-reason`` (exit 2); called before anything runs."""
+    console.print(f"[red]Error:[/red] {escape(message)} Nothing was changed.")
+    raise typer.Exit(2)
+
+
+def _validated_retarget_flags(retarget: object, reason: object, target_branch: object, *, abort: bool) -> tuple[bool, str | None]:
+    """CLI-boundary check of the #7692 retarget flags, BEFORE any work runs (exit 2 on misuse).
+
+    Returns ``(retarget, reason)``; a blank reason is absent. Like
+    :func:`_validated_release_flags`, an unresolved ``typer.Option`` sentinel (a direct
+    Python call) counts as "not supplied". Whether ``--target`` names a different branch
+    than the recorded one is the executor's call (FR-012), not a usage error.
+    """
+    requested = retarget is True
+    text = reason.strip() if isinstance(reason, str) else ""
+    if not requested:
+        if text:
+            _refuse_retarget_usage(f"{RETARGET_REASON_FLAG} requires {RETARGET_FLAG} (it is the reason recorded with the retarget).")
+        return False, None
+    if abort:
+        _refuse_retarget_usage(f"{RETARGET_FLAG} does not apply to `spec-kitty consolidate --abort`: an abort has no target to adopt.")
+    if not (isinstance(target_branch, str) and target_branch.strip()):
+        _refuse_retarget_usage(f"{RETARGET_FLAG} requires --target <branch>: the branch to adopt as the mission's new recorded target.")
+    return True, text or None
+
+
 def _check_release_targets(state: ConsolidationState | None, release: _ReleaseRequest) -> None:
     """Refuse a release naming anything but a snapshotted run-movable branch of the record (never a lane)."""
     if not release.branches:
@@ -897,6 +928,8 @@ def _run_real_merge(
     attest_no_implementation: tuple[str, ...] = (),
     origin_check: str | None = None,
     dependency_refs: tuple[str, ...] = (),
+    retarget: bool = False,
+    retarget_reason: str | None = None,
 ) -> None:
     """Run the real lane-based merge + post-merge retrospective / next-step hints."""
     try:
@@ -919,6 +952,8 @@ def _run_real_merge(
             attest_no_implementation=attest_no_implementation,
             origin_check=origin_check,
             dependency_refs=dependency_refs,
+            retarget=retarget,
+            retarget_reason=retarget_reason,
         )
     except SparseCheckoutPreflightError as exc:
         # WP05/T020: surface sparse-checkout preflight as a user-facing error and
@@ -1088,6 +1123,8 @@ class ConsolidateOptions:
     release_reason: str | None = None
     dependency_refs: list[str] | None = None
     origin_check: str | None = None
+    retarget: bool = False
+    retarget_reason: str | None = None
 
 
 @require_main_repo
@@ -1236,6 +1273,20 @@ def consolidate(
             f"warn reports the same findings and continues; off contacts nothing and accepts stale evidence. Overrides {ORIGIN_CHECK_ENV}."
         ),
     ),
+    retarget: bool = typer.Option(
+        False,
+        RETARGET_FLAG,
+        help=(
+            "Adopt --target as the mission's new recorded target for this run, and record it "
+            "(meta.json target_branch + retarget_history) before anything else moves. Requires --target; "
+            "--target naming the recorded target is not a retarget. Not with --abort."
+        ),
+    ),
+    retarget_reason: str | None = typer.Option(
+        None,
+        RETARGET_REASON_FLAG,
+        help="Why the mission is retargeted, recorded in retarget_history with --retarget (requires --retarget).",
+    ),
 ) -> None:
     """Consolidate a lane-based mission into its target branch.
 
@@ -1272,6 +1323,8 @@ def consolidate(
             release_reason=release_reason,
             origin_check=origin_check,
             dependency_refs=dependency_refs,
+            retarget=retarget,
+            retarget_reason=retarget_reason,
         )
     )
 
@@ -1321,6 +1374,7 @@ def _run_consolidate_in_scope(options: ConsolidateOptions) -> None:
     approved_attested_wps = _validated_approved_attestation_flags(options.attest_approved_reviewed, attest_reason)
     no_implementation_wps = _validated_no_implementation_attestation_flags(options.attest_no_implementation, attest_reason)
     release = _validated_release_flags(options.release_branch, options.release_reason, abort=abort)
+    retarget, retarget_reason = _validated_retarget_flags(options.retarget, options.retarget_reason, target_branch, abort=abort)
 
     # #2959 escape hatch — a skip is never silent: refuse it without a reason
     # BEFORE any merge work runs, so the evidence record always carries a note.
@@ -1482,6 +1536,7 @@ def _run_consolidate_in_scope(options: ConsolidateOptions) -> None:
             push=push,
             json_output=json_output,
             dependency_refs=dependency_refs,
+            retarget=retarget,
         )
         return
 
@@ -1508,6 +1563,8 @@ def _run_consolidate_in_scope(options: ConsolidateOptions) -> None:
         attest_no_implementation=no_implementation_wps,
         origin_check=origin_check if isinstance(origin_check, str) else None,
         dependency_refs=dependency_refs,
+        retarget=retarget,
+        retarget_reason=retarget_reason,
     )
 
 

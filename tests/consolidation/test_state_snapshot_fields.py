@@ -175,3 +175,51 @@ def test_malformed_release_maps_load_as_empty(name: str, bad: object) -> None:
     data = _state().to_dict()
     data[name] = bad
     assert getattr(ConsolidationState.from_dict(data), name) == {}
+
+
+# --- #7692: the retarget record -----------------------------------------------------------
+
+_RETARGET = {"from": "main", "to": "develop", "actor": "op", "at": "2026-11-17T09:00:00+00:00", "reason": "r", "committed": False}
+
+
+def test_retarget_round_trips_through_disk(tmp_path: Path) -> None:
+    state = _state()
+    state.retarget = dict(_RETARGET)
+    save_state(state, tmp_path)
+    loaded = load_state(tmp_path, "M1")
+    assert loaded is not None
+    assert loaded.retarget == _RETARGET
+    assert loaded.retarget_pair() == ("main", "develop")
+
+
+def test_older_record_without_retarget_loads_none() -> None:
+    legacy = _state().to_dict()
+    del legacy["retarget"]
+    loaded = ConsolidationState.from_dict(legacy)
+    assert loaded.retarget is None
+    assert loaded.retarget_pair() is None
+
+
+def test_committed_retarget_round_trips() -> None:
+    state = _state()
+    state.retarget = {**_RETARGET, "committed": True}
+    assert ConsolidationState.from_dict(state.to_dict()).retarget == {**_RETARGET, "committed": True}
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "develop",
+        ["main", "develop"],
+        {"from": "main", "to": "develop"},  # no ``committed``
+        {"from": "main", "committed": False},  # no ``to``
+        {"from": 1, "to": "develop", "committed": False},  # non-string branch
+        {"from": "main", "to": "develop", "committed": "yes"},  # non-boolean flag
+    ],
+)
+def test_malformed_retarget_loads_none_with_a_warning(bad: object, caplog: pytest.LogCaptureFixture) -> None:
+    data = _state().to_dict()
+    data["retarget"] = bad
+    with caplog.at_level("WARNING"):
+        assert ConsolidationState.from_dict(data).retarget is None
+    assert "retarget" in caplog.text

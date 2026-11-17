@@ -1,0 +1,47 @@
+{
+  "accept_commit": "00c71793b9e551850a9c46250b6a38fefe043fb0",
+  "acceptance_history": [
+    {
+      "accept_commit": "00c71793b9e551850a9c46250b6a38fefe043fb0",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-17T14:03:12.578579+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "628ec9b0e98a78ac10b58f56a02cdb78e908a0f6"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-17T14:03:12.578579+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "628ec9b0e98a78ac10b58f56a02cdb78e908a0f6",
+  "coordination_branch": "kitty/mission-consolidate-retarget-01M7M5JA",
+  "create_return_branch": "issue-7692-consolidate-retarget",
+  "created_at": "2026-11-17T07:12:03.327431+00:00",
+  "flattened": false,
+  "friendly_name": "Consolidate retarget adopts the override target",
+  "mid8": "01M7M5JA",
+  "mission_base_sha": "06af0c52e5aa863dd7f6834750347671c328588f",
+  "mission_branch": "kitty/mission-consolidate-retarget-01M7M5JA",
+  "mission_id": "01M7M5JAYR1Q71P022W0EES7ZB",
+  "mission_number": 262,
+  "mission_slug": "consolidate-retarget-01M7M5JA",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Today consolidate --target <other> is refused whenever the recorded target differs (TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE, #5783), because part of the bookkeeping resolves meta.json's recorded target. This Mission adds an explicit, recorded retarget so the override becomes the Mission's new recorded target and every write lands there, with abort/resume/rollback honouring it.",
+  "purpose_tldr": "Let an operator retarget a Mission at consolidation so the landing and all its bookkeeping land on one new recorded target.",
+  "slug": "consolidate-retarget-01M7M5JA",
+  "status_phase": "1",
+  "target_branch": "issue-7692-consolidate-retarget",
+  "topology": "lanes_with_coord",
+  "topology_decision": {
+    "code_lane_count": 5,
+    "from": "single_branch",
+    "rule": "lanes_with_coord",
+    "target_protected": false,
+    "to": "lanes_with_coord",
+    "wp_count": 6
+  },
+  "topology_settled": true,
+  "topology_source": "default",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-17T08:12:30.814838+00:00"
+}

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 from specify_cli.core.constants import KITTIFY_DIR
 from specify_cli.core.git_ops import run_command
@@ -260,6 +261,7 @@ def _load_or_create_merge_state(
     delete_branch: bool | None = None,
     remove_worktree: bool | None = None,
     dependency_refs: Sequence[str] = (),
+    retarget: dict[str, Any] | None = None,
 ) -> tuple[ConsolidationState, bool]:
     """Load canonical/legacy merge state, migrating legacy state to canonical.
 
@@ -283,6 +285,14 @@ def _load_or_create_merge_state(
     what the interrupted run exempted, so it is never silently replaced; the remedy is
     ``consolidate --abort`` and a fresh run. Only the LIST is recorded here; each ref is
     verified (and pinned) when the claim is built.
+
+    ``retarget`` (#7692) is this run's retarget record (``{"from", "to", "actor", "at",
+    "reason", "committed": False}``), built only for ``--target <b> --retarget``. A fresh
+    record is born with it, before the claim. A LOADED record keeps its persisted retarget
+    (a ``--resume`` honours it and never commits it twice); a persisted retarget is never
+    overwritten, and never with ``None``. A loaded record WITHOUT one adopts this run's only
+    while it holds no pre-mutation snapshot (zero progress, or re-baselined after a full
+    restore, #6770), so nothing of an earlier attempt is described by another target.
     """
     declared = tuple(dict.fromkeys(ref.strip() for ref in dependency_refs if ref.strip()))
     canonical_state = load_state(main_repo, canonical_id)
@@ -291,6 +301,7 @@ def _load_or_create_merge_state(
         if declared and not canonical_state.dependency_refs:
             canonical_state.dependency_refs = list(declared)
             save_state(canonical_state, main_repo)
+        _adopt_retarget(canonical_state, retarget, main_repo)
         return canonical_state, True
 
     entry = _load_merge_state_entry_for_mission(main_repo, mission_slug)
@@ -315,6 +326,7 @@ def _load_or_create_merge_state(
         if declared and not state.dependency_refs:
             state.dependency_refs = list(declared)
             save_state(state, main_repo)
+        _adopt_retarget(state, retarget, main_repo)
         return state, True
 
     state = ConsolidationState(
@@ -328,6 +340,7 @@ def _load_or_create_merge_state(
         remove_worktree=remove_worktree,
     )
     state.dependency_refs = list(declared)
+    state.retarget = dict(retarget) if retarget is not None else None
     if strategy is not None:
         state.strategy = strategy
     # #5111 / FR-012: the reconciliation marker is part of the fresh transaction
@@ -339,6 +352,35 @@ def _load_or_create_merge_state(
     write_post_fix_marker(main_repo, canonical_id)
     save_state(state, main_repo)
     return state, False
+
+
+def _adopt_retarget(state: ConsolidationState, retarget: dict[str, Any] | None, main_repo: Path) -> None:
+    """Record *retarget* on a LOADED record that has none and holds no snapshot (#7692); else leave it.
+
+    A persisted retarget always wins (never overwritten, never with ``None``). A record that
+    already snapshotted an attempt describes that attempt's branches, so it never adopts one.
+    Adopting moves the record's ``target_branch`` to the retarget's ``to`` (the executor reseeds
+    the landing from it) and drops every anchor that still names the old target: the
+    transaction-start target tip, a coordination anchor that is the old target itself (a
+    coordination-less topology) with its lane tips, and any reconciliation PASS anchor. A
+    coordination branch's anchor stays: it does not depend on the target.
+    """
+    if retarget is None or state.retarget is not None or state.pre_mutation_refs:
+        return
+    old_target = state.target_branch
+    state.retarget = dict(retarget)
+    # Review cycle 1: the record lands where it names; a record left by a plain run on the old
+    # target would otherwise reseed the run's landing onto the branch the operator moved away from.
+    state.target_branch = str(retarget["to"])
+    # Anchors of the old target describe no attempt of the new one (the re-baseline drops them too,
+    # #6770; a zero-progress record may still hold the target tip it froze at the claim).
+    state.pre_mutation_target_sha = None
+    if state.pre_mutation_coord_ref in (None, old_target):
+        state.pre_mutation_coord_ref = None
+        state.pre_mutation_coord_sha = None
+        state.pre_interrupt_lane_tips = {}
+    state.clear_reconciliation_pass()
+    save_state(state, main_repo)
 
 
 def _clear_merge_state_for_mission(repo_root: Path, mission_slug: str | None) -> bool:

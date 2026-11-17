@@ -151,6 +151,9 @@ class ClaimInputContext:
             (#6770), as :func:`record_was_rebaselined` tells it at run start, BEFORE the claim phase
             re-persists the transaction's target tip. Such a resume reads the Mission tip live,
             before its first mutation, as a fresh run does (#7626).
+        retarget: ``LIVE`` only: the forecast's ``(recorded target, new target)`` of a retarget (#7692),
+            so the coordination base is read from the status surface the retargeted run reads
+            (``status_surface_tip(retarget=...)``, as ``run_state._capture_coord_checkpoint`` does).
     """
 
     repo_root: Path
@@ -168,6 +171,7 @@ class ClaimInputContext:
     mission_slug: str | None = None
     prior: ClaimInputs | None = None
     rebaselined: bool = False
+    retarget: tuple[str, str] | None = None
 
 
 def live_lane_tips(repo_root: Path, manifest: LanesManifest, excluded_canceled_wp_ids: frozenset[str]) -> dict[str, str]:
@@ -303,7 +307,7 @@ def _live_coord_base(context: ClaimInputContext) -> str:
     with no SHA it falls back to the ``mission_branch`` name (``coord_base_sha or checkpoint.sha or
     mission_branch``). Read-only: placement resolution and ``rev-parse`` never seed or materialize a surface.
     """
-    tip = status_surface_tip(context.repo_root, _mission_slug(context))
+    tip = status_surface_tip(context.repo_root, _mission_slug(context), retarget=context.retarget)
     if tip is not None:
         # Local annotation re-narrows to ``str`` (the narrow-file mypy override erases the callee's return type).
         sha: str = tip[1]

@@ -13,7 +13,7 @@ Non-vacuous architectural pin (DIRECTIVE_043 / Standing Order #5) that keeps the
    once restored the target itself, with a non-resyncing CAS against the live tip,
    which the resync-only scan could not see.
 3. #5385 (ADR 2026-09-19-1 A3): every driver call to a post-mutation span phase
-   (``_SPAN_PHASES``, from ``_phase_merge_lanes`` through the gate) sits inside the
+   (``_SPAN_PHASES``, from ``_phase_retarget_record`` through the gate) sits inside the
    body of ONE ``try`` whose ``BaseException`` handler calls ``_report_rollback``,
    whose every reporting handler ends in a bare ``raise`` (the original error
    propagates) and whose ``typer.Exit`` handler reports only under an ``if`` on
@@ -66,6 +66,9 @@ _LANE_MERGE_CALLERS: frozenset[str] = frozenset({"specify_cli/consolidation/phas
 # #5385: the post-mutation span the door covers, first mutation through the gate.
 _SPAN_PHASES: frozenset[str] = frozenset(
     {
+        # #7692: the retarget record is the span's first mutation (a no-op without a retarget),
+        # so it sits inside the door like every other phase; the floor rises by one on purpose.
+        "_phase_retarget_record",
         "_phase_merge_lanes",
         "_phase_baseline_and_surface",
         "_phase_bake_and_pre_target_done",

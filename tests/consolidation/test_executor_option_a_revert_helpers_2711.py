@@ -73,6 +73,8 @@ def test_capture_skips_on_unresolvable_placement(monkeypatch: pytest.MonkeyPatch
         mission_slug="slug-01ab",
         pre_target_coord_ref=None,
         pre_target_coord_sha=None,
+        # #7692: the checkpoint reads the run record's retarget mapping (none here).
+        state=SimpleNamespace(retarget_pair=lambda: None),
     )
     _capture_pre_target_coord_ref_sha(run)
     assert run.pre_target_coord_ref is None
@@ -92,6 +94,8 @@ def test_capture_records_ref_and_sha(monkeypatch: pytest.MonkeyPatch) -> None:
         mission_slug="slug-01ab",
         pre_target_coord_ref=None,
         pre_target_coord_sha=None,
+        # #7692: the checkpoint reads the run record's retarget mapping (none here).
+        state=SimpleNamespace(retarget_pair=lambda: None),
     )
     _capture_pre_target_coord_ref_sha(run)
     assert run.pre_target_coord_ref == "kitty/mission-x"

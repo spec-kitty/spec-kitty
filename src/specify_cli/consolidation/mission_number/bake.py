@@ -30,16 +30,23 @@ from specify_cli.core.paths import (
     assert_safe_path_segment,
     load_meta_fail_closed,
 )
-from specify_cli.git.ref_advance import RefAdvanceDirtyWorktreeError, advance_branch_ref
 from specify_cli.consolidation._constants import logger as _merge_logger
 from specify_cli.consolidation.baseline import MissionNumberVerificationError
-from specify_cli.consolidation.git_probes import _has_branch_ref, _is_git_repo, mission_residue_context, path_is_under_worktrees
+from specify_cli.consolidation.git_probes import _has_branch_ref, _is_git_repo, path_is_under_worktrees
 from specify_cli.consolidation.workspace import remove_scratch_worktree
 from specify_cli.consolidation.mission_number import is_assigned_mission_number
 from specify_cli.consolidation.state import ConsolidationState
-from kernel.atomic import observe_writes, stop_observing_writes
-from kernel.git import run_git, status_entries, tree_entry
-from specify_cli.mission_metadata import load_meta, locked_update_meta
+from specify_cli.consolidation.meta_write import (
+    MetaBranchOutcome,
+    MetaBranchRefusal,
+    MetaBranchWrite,
+    MetaMutate,
+    commit_meta_on_branch,
+    locked_update_meta_capturing,
+    primary_checkout_refusal,
+    undo_meta_write,
+)
+from specify_cli.mission_metadata import load_meta
 from specify_cli.meta_keys import MISSION_NUMBER_KEY
 
 __all__ = [
@@ -56,10 +63,6 @@ __all__ = [
 # The cluster's module-logger records keep the logger name they had in
 # ``ordering.py`` (#2600 is a pure move: log labels do not change).
 logger = logging.getLogger("specify_cli.consolidation.ordering")
-
-#: Seconds before the primary ``meta.json`` ``hash-object`` probe is killed: a
-#: clean filter can block on a prompt, and a timeout is a refusal.
-_META_BLOB_PROBE_TIMEOUT_SECONDS = 60.0
 
 
 def assign_next_mission_number(target_branch_path: Path, mission_specs_dir: Path) -> int:
@@ -278,97 +281,39 @@ def _surface_unbaked_mission_number(
     )
 
 
+def _assign_mission_number(number: int) -> MetaMutate:
+    """The ``meta.json`` mutate that records *number*; ``False`` when it is already recorded."""
+
+    def assign(fresh: dict[str, Any]) -> bool:
+        existing = fresh.get("mission_number")
+        if _is_assigned_mission_number(existing) and existing == number:
+            return False
+        fresh[MISSION_NUMBER_KEY] = number
+        return True
+
+    return assign
+
+
 def _locked_assign_mission_number(feature_dir: Path, number: int, *, repo_root: Path | None) -> tuple[bytes, bytes] | None:
     """Record ``mission_number`` in *feature_dir*'s ``meta.json`` under the Mission write lock.
 
-    The read, the idempotency check and the write run in ONE hold of the lock, on a fresh read, so a
-    concurrent writer of another ``meta.json`` field is never overwritten. The lock is held for the
-    ``meta.json`` write only: every ``git`` subprocess of the bake runs after it is released.
+    The shared :func:`~specify_cli.consolidation.meta_write.locked_update_meta_capturing` (#7692):
+    the read, the idempotency check and the write run in ONE hold of the lock, and every ``git``
+    subprocess of the bake runs after it is released.
 
     Returns:
         ``(bytes before, bytes written)``, both read inside the hold; ``None`` when the number was
         already recorded by the time the lock was held (an idempotency hit; nothing written).
     """
-    meta_path = feature_dir / "meta.json"
-    wrote = False
-    before: list[bytes] = []
-    written: list[bytes] = []
-
-    def assign(fresh: dict[str, Any]) -> bool:
-        nonlocal wrote
-        existing = fresh.get("mission_number")
-        if _is_assigned_mission_number(existing) and existing == number:
-            return False
-        before.append(meta_path.read_bytes())
-        fresh[MISSION_NUMBER_KEY] = number
-        wrote = True
-        return True
-
-    token = observe_writes(lambda path, content: written.append(content) if path.name == "meta.json" else None)
-    try:
-        locked_update_meta(feature_dir, assign, repo_root=repo_root, validate=False)
-    finally:
-        stop_observing_writes(token)
-    return (before[-1], written[-1]) if wrote and before and written else None
+    return locked_update_meta_capturing(feature_dir, _assign_mission_number(number), repo_root=repo_root)
 
 
-def _undo_primary_bake(primary_meta_path: Path, original: bytes, written: bytes, repo_root: Path) -> str | None:
-    """Put the primary ``meta.json`` back after a refused bookkeeping commit, only while it still holds what the bake wrote.
+#: The shared CAS undo (#7692): kept bound here so the bake's callers and patches are unchanged.
+_undo_primary_bake = undo_meta_write
 
-    A compare-and-swap inside the Mission write lock (plan A8): a field another writer set since is never
-    erased. Returns a note when the file was left as it is because it changed, else ``None``.
-    """
-    from specify_cli.mission_metadata import restore_meta_text
-
-    restored = restore_meta_text(primary_meta_path.parent, original.decode("utf-8"), expected_current=written.decode("utf-8"), repo_root=repo_root)
-    return None if restored else f"{primary_meta_path} was changed by another writer after the bake wrote it and was left as it is"
-
-
-def _primary_checkout_refusal(main_repo: Path, rel_meta: Path, target_branch: str) -> str | None:
-    """Why the primary checkout must not receive the mission-number commit, or ``None``.
-
-    #5443 / FR-010: the commit may only land on ``target_branch`` and may only
-    carry ``meta.json``. Refuses a detached HEAD, a checkout on another
-    branch, and a ``meta.json`` that is not tracked in HEAD or already differs from it
-    (index or worktree) -- the operator's own edit is never read-modified-written.
-
-    ``git status`` alone cannot prove the worktree side: ``assume-unchanged`` and
-    ``skip-worktree`` hide an edit from it, so the worktree blob, filtered or raw,
-    must equal HEAD's entry (a CRLF blob already in HEAD under ``core.autocrlf``
-    only matches the raw hash).
-    """
-    import subprocess as _subprocess
-
-    head = _subprocess.run(
-        ["git", "symbolic-ref", "--quiet", "--short", "HEAD"],
-        cwd=str(main_repo),
-        capture_output=True,
-        text=True,
-    )
-    branch = head.stdout.strip() if head.returncode == 0 else ""
-    if not branch:
-        return "primary checkout is on a detached HEAD"
-    if branch != target_branch:
-        return f"primary checkout is on {branch!r}, not the merge target {target_branch!r}"
-    # Tracked-in-HEAD AND clean: an untracked (or gitignored) meta.json also
-    # "differs from HEAD" and carries content that is not ours to commit.
-    # A failing probe is a refusal too -- never an exception out of the bake.
-    try:
-        head_entry = tree_entry(main_repo, "HEAD", rel_meta.as_posix())
-        if head_entry is None:
-            return f"{rel_meta} is not tracked on {target_branch!r}"
-        if status_entries(main_repo, pathspecs=(rel_meta.as_posix(),), untracked="no"):
-            return f"{rel_meta} has uncommitted changes on the primary checkout"
-        rel = rel_meta.as_posix()
-        worktree_oids = {
-            run_git(main_repo, *flags, "--", rel, timeout=_META_BLOB_PROBE_TIMEOUT_SECONDS).stdout.decode("ascii").strip()
-            for flags in (("hash-object",), ("hash-object", "--no-filters"))
-        }
-        if head_entry.oid not in worktree_oids:
-            return f"{rel_meta} differs from HEAD on the primary checkout (an assume-unchanged or skip-worktree edit)"
-    except Exception as exc:  # noqa: BLE001 - any probe failure means "do not commit"
-        return f"could not verify {rel_meta} is clean on the primary checkout ({exc})"
-    return None
+#: The shared primary-checkout precheck (#7692). The bake calls it through this module global,
+#: so ``patch.object(bake, "_primary_checkout_refusal", ...)`` still takes effect.
+_primary_checkout_refusal = primary_checkout_refusal
 
 
 def _bake_mission_number_on_primary_tree(
@@ -528,6 +473,10 @@ def _write_mission_number_to_branch(
     """Step 2: write the integer into meta.json on the mission branch, commit,
     and fast-forward the branch ref.
 
+    The scratch-worktree write, the ``commit --only`` and the compare-and-swap advance are
+    the shared :func:`~specify_cli.consolidation.meta_write.commit_meta_on_branch` (#7692);
+    this function keeps the bake's own policy (fail-open) and log lines.
+
     Returns:
         True when a fresh write + commit was applied; False when nothing was
         written because (a) the branch is missing, (b) the worktree could not
@@ -535,9 +484,6 @@ def _write_mission_number_to_branch(
         was already equal (idempotency hit). Never marks
         ``mission_number_baked`` itself (#4900).
     """
-    import subprocess as _subprocess
-    import tempfile as _tempfile
-
     try:
         assert_safe_path_segment(mission_slug)
     except ValueError:
@@ -555,153 +501,78 @@ def _write_mission_number_to_branch(
         )
         return False
 
-    mission_tmp_dir = _tempfile.mkdtemp(prefix="kitty-numwrite-")
-    mission_tmp_path = Path(mission_tmp_dir)
-    try:
-        result = _subprocess.run(
-            ["git", "worktree", "add", "--detach", str(mission_tmp_path), mission_branch],
-            cwd=str(main_repo),
-            capture_output=True,
-            text=True,
+    result = commit_meta_on_branch(
+        main_repo,
+        mission_branch,
+        mission_slug,
+        _assign_mission_number(next_number),
+        message=f"chore({mission_slug}): assign mission_number={next_number}",
+        scratch_prefix="kitty-numwrite-",
+    )
+    if result.outcome is MetaBranchOutcome.NO_META_ON_BRANCH:
+        # #4474 / FR-011: the mission-branch tree lacks meta.json -- on a
+        # coord-topology mission (the "083+ layout" where
+        # ``mission_branch == coordination_branch``, see
+        # ``consolidation/run_state.py``'s ``_CoordCheckpoint`` docstring)
+        # that branch carries only lifecycle surfaces
+        # (status/notes/trace); meta.json is a PRIMARY-partition artifact
+        # that instead lives on the PRIMARY checkout (``main_repo``'s own
+        # on-disk tree -- see ``mission_runtime.resolution.read_dir_for``'s
+        # "repo_root: Absolute repository root (primary checkout)"
+        # contract). Fall through to the primary-tree fallback instead of
+        # failing open.
+        return _bake_mission_number_on_primary_tree(
+            main_repo,
+            mission_slug,
+            mission_branch,
+            next_number,
+            target_branch=target_branch,
         )
-        if result.returncode != 0:
-            _merge_logger.warning(
-                "Skipping mission_number bake for %s: could not create mission worktree for %s (%s)",
-                mission_slug,
-                mission_branch,
-                result.stderr.strip(),
-            )
-            return False
+    return _report_mission_branch_write(result, mission_branch, mission_slug, next_number)
 
-        # FR-037 (#1772 Bug 3, _write_mission_number_to_branch half): resolve the
-        # IN-BRANCH feature dir for the detached mission-branch worktree, not a
-        # nested-worktree meta.json. ``candidate_feature_dir_for_mission`` is
-        # coord-aware and would return a tracked ``.worktrees/<m>-coord/…`` path
-        # when the mission-branch tree carries that pollution — staging it via
-        # ``git add`` then re-pollutes the tree. The mission-branch tree always
-        # carries the canonical mission dir directly under ``kitty-specs/``, so
-        # compose that path by hand and never resolve into ``.worktrees/``.
-        from specify_cli.missions._read_path_resolver import compose_meta_json_path as _compose_meta
 
-        meta_path = _compose_meta(mission_tmp_path, mission_slug)
-        if path_is_under_worktrees(meta_path):
-            _merge_logger.warning(
-                "Refusing to bake mission_number for %s: resolved meta path is under %s (%s)",
-                mission_slug,
-                WORKTREES_DIR,
-                meta_path,
-            )
-            return False
-        if not meta_path.exists():
-            # #4474 / FR-011: the mission-branch tree lacks meta.json -- on a
-            # coord-topology mission (the "083+ layout" where
-            # ``mission_branch == coordination_branch``, see
-            # ``consolidation/run_state.py``'s ``_CoordCheckpoint`` docstring)
-            # that branch carries only lifecycle surfaces
-            # (status/notes/trace); meta.json is a PRIMARY-partition artifact
-            # that instead lives on the PRIMARY checkout (``main_repo``'s own
-            # on-disk tree -- see ``mission_runtime.resolution.read_dir_for``'s
-            # "repo_root: Absolute repository root (primary checkout)"
-            # contract). Pre-fix this branch silently ``return False``d here,
-            # losing the number forever. Make the write-back topology-aware:
-            # fall through to the primary-tree fallback instead of failing
-            # open.
-            return _bake_mission_number_on_primary_tree(
-                main_repo,
-                mission_slug,
-                mission_branch,
-                next_number,
-                target_branch=target_branch,
-            )
-
-        # Canonical reader (FR-005/WP12): on_malformed="none" absorbs BOTH a
-        # JSON-syntax error AND a non-dict top level to None, so a corrupt
-        # meta.json degrades to the same "cannot bake mission_number" skip as
-        # the pre-existing non-dict branch below, instead of crashing the merge
-        # with an uncaught JSONDecodeError (not a #2091 identity guard site).
-        meta_data = load_meta(meta_path.parent, on_malformed="none")
-        if not isinstance(meta_data, dict):
-            _merge_logger.warning(
-                "meta.json for %s is not a JSON object; cannot bake mission_number",
-                mission_slug,
-            )
-            return False
-
-        # T025 / FR-010 — idempotency check INSIDE the merge-state lock.
-        existing_on_mission = meta_data.get("mission_number")
-        if _is_assigned_mission_number(existing_on_mission) and existing_on_mission == next_number:
+def _report_mission_branch_write(result: MetaBranchWrite, mission_branch: str, mission_slug: str, next_number: int) -> bool:
+    """Log the bake's own line for a mission-branch write outcome; ``True`` only for a fresh write."""
+    if result.outcome is MetaBranchOutcome.WRITTEN:
+        return True
+    if result.outcome is MetaBranchOutcome.UNCHANGED:
+        if result.unchanged_on_read:
+            # T025 / FR-010 idempotency hit. #4900: never marks ``mission_number_baked`` here.
             _merge_logger.info(
                 "mission_number=%d already present on mission branch %s for %s; skipping write (idempotency check)",
                 next_number,
                 mission_branch,
                 mission_slug,
             )
-            # #4900: never marks ``mission_number_baked`` here --
-            # see the executor-side NOTE on this function's docstring.
-            return False
-
-        # Route all meta.json mutations through the locked canonical writer API: the scratch
-        # checkout's write locks the Mission's PRIMARY key: ``repo_root=main_repo`` makes the key
-        # come from the main repository's primary meta.json (``main_repo/.git`` is a directory),
-        # never from the scratch copy. The lock is released before any ``git`` subprocess below runs.
-        # validate=False preserves merge-time tolerance for legacy/partial mission
-        # metadata while still enforcing atomic writes + standard format.
-        if not _locked_assign_mission_number(meta_path.parent, next_number, repo_root=main_repo):
-            return False
-
-        rel_meta = meta_path.relative_to(mission_tmp_path)
-        if path_is_under_worktrees(rel_meta):
-            # FR-035: never stage a path under .worktrees/ (defense in depth).
-            _merge_logger.warning(
-                "Refusing to stage %s for %s: path is under %s",
-                rel_meta,
-                mission_slug,
-                WORKTREES_DIR,
-            )
-            return False
-        # C-005 recorded exception: "the mission-number commit in a fresh detached
-        # temp worktree (`commit --only -- <rel_meta>`)"; safe_commit refuses a
-        # detached HEAD. ``--only`` needs no prior ``git add``; hooks still run.
-        commit_msg = f"chore({mission_slug}): assign mission_number={next_number}"
-        _subprocess.run(
-            ["git", "-c", "commit.gpgsign=false", "commit", "--only", "-m", commit_msg, "--", rel_meta.as_posix()],
-            cwd=str(mission_tmp_path),
-            capture_output=True,
-            check=True,
+        return False
+    if result.refusal is MetaBranchRefusal.WORKTREE_UNAVAILABLE:
+        _merge_logger.warning(
+            "Skipping mission_number bake for %s: could not create mission worktree for %s (%s)",
+            mission_slug,
+            mission_branch,
+            result.detail,
         )
-
-        new_sha = _subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=str(mission_tmp_path),
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.strip()
-        # Fast-forward the mission branch ref, resyncing any worktree (e.g.
-        # the coordination worktree) that has it checked out (#1826 / AC-B2).
-        # Toolchain-generated churn (coordination status/matrix residue,
-        # spec-kitty's own bookkeeping) on the primary checkout is legitimate,
-        # so exclude it from the dirty gate via the single canonical churn
-        # owner (#1878 / #2795 / FR-012 / WP13-IC-07c) rather than abort the
-        # post-write ff-advance.
-        try:
-            advance_branch_ref(
-                main_repo,
-                mission_branch,
-                new_sha,
-                context=mission_residue_context(main_repo, mission_slug),
-            )
-        except RefAdvanceDirtyWorktreeError as exc:
-            # #7600 fold: the error names only the blocker; this is a consolidate step, so
-            # append its next step (the lane/Mission merge text) and keep the type.
-            from specify_cli.lanes.consolidation import lane_merge_error_text
-
-            exc.args = (lane_merge_error_text(exc),)
-            raise
-        return True
-    finally:
-        # The numbering worktree is this function's own scratch checkout (tool-owned, #5965).
-        remove_scratch_worktree(mission_tmp_path)
+    elif result.refusal is MetaBranchRefusal.META_PATH_UNDER_WORKTREES:
+        _merge_logger.warning(
+            "Refusing to bake mission_number for %s: resolved meta path is under %s (%s)",
+            mission_slug,
+            WORKTREES_DIR,
+            result.detail,
+        )
+    elif result.refusal is MetaBranchRefusal.NOT_A_JSON_OBJECT:
+        _merge_logger.warning(
+            "meta.json for %s is not a JSON object; cannot bake mission_number",
+            mission_slug,
+        )
+    elif result.refusal is MetaBranchRefusal.STAGE_PATH_UNDER_WORKTREES:
+        # FR-035: never stage a path under .worktrees/ (defense in depth).
+        _merge_logger.warning(
+            "Refusing to stage %s for %s: path is under %s",
+            result.detail,
+            mission_slug,
+            WORKTREES_DIR,
+        )
+    return False
 
 
 def _refuse_unassignable_mission_slug(mission_slug: str) -> None:

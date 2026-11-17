@@ -174,6 +174,7 @@ def record_no_implementation_attestation(
     current_lane: str,
     reason: str,
     actor: str,
+    retarget: tuple[str, str] | None = None,
 ) -> StatusEvent | None:
     """Append ONE no-implementation attestation for *wp_id* through the canonical transactional seam.
 
@@ -181,6 +182,10 @@ def record_no_implementation_attestation(
     commits to the coordination branch itself). *current_lane* is the work package's lane now:
     the transition is forced from it to itself. Returns the persisted event (``None`` only for the
     seam's alias-collapse no-op arm).
+
+    *retarget* (#7692): a consolidate retarget's ``(recorded, new)`` pair; the seam then lands
+    the attestation on the new target where it would land on the old one (a coordination-less
+    topology). ``None`` keeps today's destination.
     """
     from specify_cli.coordination.status_transition import emit_status_transition_transactional
 
@@ -197,7 +202,7 @@ def record_no_implementation_attestation(
         evidence={"review": {"reviewer": actor, "verdict": "approved", "reference": f"{_REFERENCE_PREFIX}{wp_id}"}},
         policy_metadata={ATTESTATION_KEY: NO_IMPLEMENTATION},
     )
-    event: StatusEvent | None = emit_status_transition_transactional(request)
+    event: StatusEvent | None = emit_status_transition_transactional(request, retarget=retarget)
     return event
 
 

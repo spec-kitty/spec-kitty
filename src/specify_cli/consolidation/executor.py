@@ -119,6 +119,7 @@ from specify_cli.consolidation.phase_advance import (
     _phase_baseline_and_surface,
     _phase_merge_lanes,
     _phase_mission_to_target,
+    _phase_retarget_record,
     _switch_write_checkout_after_single_branch_landing,
 )
 from specify_cli.consolidation.phase_bookkeeping import (
@@ -255,6 +256,7 @@ def _record_operator_attestations(
     lanes_manifest: LanesManifest | None = None,
     no_implementation_wp_ids: tuple[str, ...] = (),
     frozen_dependency_tips: Mapping[str, str] | None,
+    retarget: tuple[str, str] | None = None,
 ) -> tuple[str, ...]:
     """Validate and record the operator attestations of the run, before any mutation.
 
@@ -274,6 +276,11 @@ def _record_operator_attestations(
 
     *frozen_dependency_tips* (FR-015) is a ``--resume``'s frozen anchor set
     (:func:`_resume_claim_inputs`), read by the approved-reviewed repeat check.
+
+    *retarget* (#7692) is the run's ``(recorded target, new target)`` pair: on a
+    coordination-less Mission each attestation lands on the new target (the status door
+    swaps a destination equal to the recorded target), where the run's checkout and every
+    later write are; a coordination destination is unaffected.
     """
     if not (wp_ids or approved_wp_ids or no_implementation_wp_ids):
         return ()
@@ -281,9 +288,9 @@ def _record_operator_attestations(
         main_repo, feature_dir, lanes_manifest, approved_wp_ids, reason, acceptably_canceled, frozen_dependency_tips=frozen_dependency_tips
     )
     no_implementation_plan = _plan_no_implementation_attestations(main_repo, feature_dir, lanes_manifest, no_implementation_wp_ids, reason, acceptably_canceled)
-    canceled = _record_canceled_attestations(main_repo, mission_slug, wp_ids=wp_ids, reason=reason, acceptably_canceled=acceptably_canceled)
-    approved = _record_approved_attestations(main_repo, mission_slug, approved_plan, reason)
-    return canceled + approved + _record_no_implementation_attestations(main_repo, mission_slug, no_implementation_plan, reason)
+    canceled = _record_canceled_attestations(main_repo, mission_slug, wp_ids=wp_ids, reason=reason, acceptably_canceled=acceptably_canceled, retarget=retarget)
+    approved = _record_approved_attestations(main_repo, mission_slug, approved_plan, reason, retarget=retarget)
+    return canceled + approved + _record_no_implementation_attestations(main_repo, mission_slug, no_implementation_plan, reason, retarget=retarget)
 
 
 def _resume_claim_inputs(
@@ -328,6 +335,7 @@ def _record_canceled_attestations(
     wp_ids: tuple[str, ...],
     reason: str | None,
     acceptably_canceled: frozenset[str],
+    retarget: tuple[str, str] | None = None,
 ) -> tuple[str, ...]:
     """Validate and record ``--attest-canceled-superseded`` (FR-012); ``()`` when none was requested."""
     if not wp_ids:
@@ -354,6 +362,7 @@ def _record_canceled_attestations(
             wp_id=wp_id,
             reason=reason or "",
             actor=actor,
+            retarget=retarget,
         )
         console.print(f"[yellow]⚠️  Operator attestation recorded for canceled {wp_id} by {actor}:[/yellow] {(reason or '').strip()}")
     return requested
@@ -391,7 +400,9 @@ def _plan_approved_attestations(
     return plan
 
 
-def _record_approved_attestations(main_repo: Path, mission_slug: str, plan: dict[str, str], reason: str | None) -> tuple[str, ...]:
+def _record_approved_attestations(
+    main_repo: Path, mission_slug: str, plan: dict[str, str], reason: str | None, *, retarget: tuple[str, str] | None = None
+) -> tuple[str, ...]:
     """Record the validated ``--attest-approved-reviewed`` requests (#5668); ``()`` when there are none."""
     if not plan:
         return ()
@@ -409,6 +420,7 @@ def _record_approved_attestations(main_repo: Path, mission_slug: str, plan: dict
             current_lane=current_lane,
             reason=reason or "",
             actor=actor,
+            retarget=retarget,
         )
         console.print(f"[yellow]⚠️  Operator attestation recorded for approved {wp_id} by {actor}:[/yellow] {(reason or '').strip()}")
     return tuple(plan)
@@ -437,7 +449,9 @@ def _plan_no_implementation_attestations(
         raise typer.Exit(1) from exc
 
 
-def _record_no_implementation_attestations(main_repo: Path, mission_slug: str, plan: dict[str, str], reason: str | None) -> tuple[str, ...]:
+def _record_no_implementation_attestations(
+    main_repo: Path, mission_slug: str, plan: dict[str, str], reason: str | None, *, retarget: tuple[str, str] | None = None
+) -> tuple[str, ...]:
     """Record the validated ``--attest-no-implementation`` requests (#6715); ``()`` when there are none."""
     if not plan:
         return ()
@@ -455,9 +469,42 @@ def _record_no_implementation_attestations(main_repo: Path, mission_slug: str, p
             current_lane=current_lane,
             reason=reason or "",
             actor=actor,
+            retarget=retarget,
         )
         console.print(f"[yellow]⚠️  Operator attestation recorded for {wp_id} (no implementation owed) by {actor}:[/yellow] {(reason or '').strip()}")
     return tuple(plan)
+
+
+def _run_retarget_pair(main_repo: Path, canonical_id: str, retarget_record: Mapping[str, Any] | None) -> tuple[str, str] | None:
+    """``(from, to)`` of the retarget this run carries: a persisted one wins, else this run's own (#7692)."""
+    state = load_state(main_repo, canonical_id)
+    persisted = state.retarget_pair() if state is not None else None
+    if persisted is not None:
+        return persisted
+    if retarget_record is None:
+        return None
+    return str(retarget_record["from"]), str(retarget_record["to"])
+
+
+def _build_retarget_record(main_repo: Path, pair: tuple[str, str] | None, reason: str | None) -> dict[str, Any] | None:
+    """The run record's ``retarget`` for an admitted retarget, else ``None`` (#7692, FR-012: equal targets give none).
+
+    ``actor`` is the merge actor, ``at`` the kernel clock, and ``reason`` defaults to the
+    command that asked for it. ``committed`` starts ``False``; the retarget phase sets it.
+    """
+    if pair is None or pair[0] == pair[1]:
+        return None
+    from kernel.clock import now_utc_iso
+
+    source, to = pair
+    return {
+        "from": source,
+        "to": to,
+        "actor": _resolve_merge_actor(main_repo),
+        "at": now_utc_iso(),
+        "reason": (reason or "").strip() or f"operator retarget via spec-kitty consolidate --target {to} --retarget",
+        "committed": False,
+    }
 
 
 def _run_lane_based_consolidation_locked(
@@ -482,12 +529,17 @@ def _run_lane_based_consolidation_locked(
     attest_approved_reviewed: tuple[str, ...] = (),
     attest_no_implementation: tuple[str, ...] = (),
     dependency_refs: tuple[str, ...] = (),
+    retarget_record: dict[str, Any] | None = None,
 ) -> None:
     """Inner merge flow, called with the global merge lock held.
 
     Linear phase caller: each phase mutates the shared :class:`_MergeRunState`.
     The #1827 ordering (INV-5) and the snapshot-restore-on-exception sites (INV-6)
     are preserved exactly within and across the phase boundaries.
+
+    ``retarget_record`` (#7692) is the retarget this run admitted
+    (:func:`_build_retarget_record`); a fresh record is born with it, a resumed one keeps
+    its own (``resolve._load_or_create_merge_state``).
     """
     from specify_cli.lanes.compute import is_planning_artifact_only
     from specify_cli.lanes.single_branch_landing import lands_mission_branch
@@ -517,6 +569,9 @@ def _run_lane_based_consolidation_locked(
     # the claim phase both read their one frozen anchor set.
     resume_inputs = _resume_claim_inputs(main_repo, canonical_id, feature_dir, lanes_manifest, excluded_canceled_wp_ids)
     frozen_dependency_tips = frozen_dependency_tips_of(resume_inputs) if resume_inputs is not None else None
+    # #7692: the retarget the run carries (this run's, else a persisted one): the attestations
+    # and the status surface they move follow the new target.
+    retarget_pair = _run_retarget_pair(main_repo, canonical_id, retarget_record)
     # FR-012: record any operator attestation BEFORE the claim is captured, so
     # the reconciliation gate reads it from the event log it already reads.
     recorded_attestations = _record_operator_attestations(
@@ -530,9 +585,12 @@ def _run_lane_based_consolidation_locked(
         lanes_manifest=lanes_manifest,
         no_implementation_wp_ids=attest_no_implementation,
         frozen_dependency_tips=frozen_dependency_tips,
+        retarget=retarget_pair,
     )
     # P1: only the status-surface branch the attestations write, and only when its tip changed across them, is this process's own move.
-    own_pre_claim_moves = _own_moves_after_step(main_repo, {}, start_tips if recorded_attestations else {}, writes=(status_surface_ref(main_repo, mission_slug),))
+    own_pre_claim_moves = _own_moves_after_step(
+        main_repo, {}, start_tips if recorded_attestations else {}, writes=(status_surface_ref(main_repo, mission_slug, retarget=retarget_pair),)
+    )
 
     # INV (ordering preserved from the pre-refactor monolith): the review-artifact
     # consistency gate runs BEFORE merge-state is loaded/created, so a rejected
@@ -560,6 +618,7 @@ def _run_lane_based_consolidation_locked(
             delete_branch=delete_branch,
             remove_worktree=remove_worktree,
             dependency_refs=dependency_refs,
+            retarget=retarget_record,
         )
     except DependencyRefSetChanged as refusal:
         console.print(str(refusal), markup=False, soft_wrap=True)
@@ -673,6 +732,8 @@ def _run_lane_based_consolidation_locked(
     with reporting_advance_intents(functools.partial(_note_advance_intent, run)):
         try:
             if not _resume_reconciliation_already_passed(run):
+                # #7692: the retarget record is the first mutation inside the door (a no-op without one).
+                _phase_retarget_record(run)
                 _phase_merge_lanes(run)
                 _phase_baseline_and_surface(run)
                 _phase_bake_and_pre_target_done(run)
@@ -918,6 +979,8 @@ def _run_lane_based_consolidation(
     origin_check: str | None = None,
     origin_gated: bool = False,
     dependency_refs: tuple[str, ...] = (),
+    retarget: bool = False,
+    retarget_reason: str | None = None,
 ) -> None:
     """Execute the lane-only merge flow with ConsolidationState lifecycle for recovery.
 
@@ -947,6 +1010,14 @@ def _run_lane_based_consolidation(
         origin_gated: ``True`` when the caller already ran the origin freshness gate
             with its own resolved setting (``orchestrator-api consolidate-mission``),
             so this entry neither re-checks nor contacts the remote a second time.
+        retarget: #7692 — ``consolidate --target <b> --retarget``: make ``target_override``
+            the Mission's recorded target in this run. Judged up front against the new
+            target (entry preflight); the rewritten ``meta.json`` is committed as the
+            first mutation inside the rollback door (``_phase_retarget_record``). ``False``
+            keeps a plain ``--target`` byte-identical. A persisted retarget is honoured on
+            a resume whatever this flag says.
+        retarget_reason: #7692 — the operator's reason recorded in ``retarget_history``;
+            defaults to the command that asked for the retarget.
         dependency_refs: #6771 — the operator's declared external dependency refs
             (``consolidate --dependency-ref``). Persisted on the transaction record and
             threaded into the reconciliation claim, where each ref is VERIFIED before its
@@ -1101,7 +1172,7 @@ def _run_lane_based_consolidation(
     # below (a provably-non-destructive ``git reset --hard HEAD`` over phantom
     # staged deletions); every other outcome remains refuse (byte-identical) or
     # proceed.
-    _refuse_protected_status_target_or_continue(main_repo, mission_slug, lanes_manifest, canonical_id)
+    retarget_pair = _refuse_protected_status_target_or_continue(main_repo, mission_slug, lanes_manifest, canonical_id, retarget=retarget)
     _pre_mutation_safety_preflight_with_recovery(
         main_repo,
         mission_slug,
@@ -1145,6 +1216,7 @@ def _run_lane_based_consolidation(
             attest_approved_reviewed=attest_approved_reviewed,
             attest_no_implementation=attest_no_implementation,
             dependency_refs=dependency_refs,
+            retarget_record=_build_retarget_record(main_repo, retarget_pair, retarget_reason),
         )
     finally:
         release_merge_lock(_GLOBAL_MERGE_LOCK_ID, main_repo)

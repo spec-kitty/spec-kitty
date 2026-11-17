@@ -116,8 +116,9 @@ def _patch_merge_environment(
     # The fake repository's checkout holds no recorded target, so a retarget now forecasts
     # TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE like the real run (#5783, pinned through real
     # git in tests/terminus/test_target_override_recorded_target_unwritable.py). These tests
-    # are about target RESOLUTION, so model the recorded target as writable.
-    monkeypatch.setattr("specify_cli.consolidation.forecast.refuse_unwritable_recorded_target", lambda *_a, **_k: None)
+    # are about target RESOLUTION, so model the recorded target as writable (patched where
+    # the one override verdict, ``preflight.target_override_verdict``, looks it up; #7692).
+    monkeypatch.setattr("specify_cli.consolidation.preflight.refuse_unwritable_recorded_target", lambda *_a, **_k: None)
     for _target in (
         "specify_cli.consolidation.run_state.run_command",
         "specify_cli.consolidation.status_surface.run_command",

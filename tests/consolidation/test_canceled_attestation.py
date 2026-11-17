@@ -104,7 +104,8 @@ def test_validate_dedupes_and_allows_empty() -> None:
 def test_record_goes_through_the_transactional_seam(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     captured: list[TransitionRequest] = []
 
-    def _fake_emit(request: TransitionRequest) -> None:
+    def _fake_emit(request: TransitionRequest, *, retarget: tuple[str, str] | None = None) -> None:
+        assert retarget is None, "#7692: no retarget unless the consolidate run carries one"
         captured.append(request)
 
     monkeypatch.setattr("specify_cli.coordination.status_transition.emit_status_transition_transactional", _fake_emit)

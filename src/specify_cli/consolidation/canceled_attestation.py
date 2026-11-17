@@ -149,12 +149,17 @@ def record_canceled_superseded_attestation(
     wp_id: str,
     reason: str,
     actor: str,
+    retarget: tuple[str, str] | None = None,
 ) -> StatusEvent | None:
     """Append ONE attestation for *wp_id* through the canonical transactional seam.
 
     *feature_dir* is the PRIMARY, meta-bearing mission dir (the transactional
     shell resolves and commits to the coordination branch itself). Returns the
     persisted event (``None`` only for the seam's alias-collapse no-op arm).
+
+    *retarget* (#7692): a consolidate retarget's ``(recorded, new)`` pair; the seam then lands
+    the attestation on the new target where it would land on the old one (a coordination-less
+    topology). ``None`` keeps today's destination.
     """
     from specify_cli.coordination.status_transition import emit_status_transition_transactional
     from specify_cli.status import build_system_actor
@@ -171,7 +176,7 @@ def record_canceled_superseded_attestation(
         reason_source=OPERATOR_REASON_SOURCE,
         policy_metadata={ATTESTATION_KEY: CANCELED_SUPERSEDED},
     )
-    return emit_status_transition_transactional(request)
+    return emit_status_transition_transactional(request, retarget=retarget)
 
 
 def dry_run_attestation_notice(

@@ -1,0 +1,75 @@
+"""``consolidate --target develop --retarget``: a failure after the record commit, a re-run, ``--abort`` (#7692, WP04 T019).
+
+The failure is a ``RuntimeError`` raised from ``executor._phase_merge_lanes``, the phase right
+after ``_phase_retarget_record``, through a ``-c`` wrapper (``retarget_support.run_patched``), so
+it lands inside the one rollback door. Scenario and fixtures: ``test_consolidate_retarget.py``.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+from tests.terminus.retarget_support import NEW, OLD, RETARGET, assert_landed_on_new_target, merge_record, meta_at, run_patched, tip
+from tests.terminus.rollback_harness import assert_report_is_truthful, flat
+from tests.terminus.conftest import run_terminus
+from tests.terminus.test_target_override_recorded_target_unwritable import (
+    _assert_refused_before_any_mutation,
+    _branches,
+    _check_out_override,
+    _consolidate,
+    _coord,
+    _lanes,
+    _merge_records,
+    _reflogs,
+)
+
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
+
+@pytest.mark.parametrize("build", [_lanes, _coord], ids=["lanes", "coord"])
+def test_failure_after_the_retarget_commit_rolls_it_back_and_a_rerun_lands_once(tmp_path: Path, build) -> None:  # type: ignore[no-untyped-def]
+    """SC-003 + NFR-002: a failure inside the door undoes the record on every holder; the re-run commits it once."""
+    mission = build(tmp_path, "01M7692F")
+    _check_out_override(mission)
+    pre_new, pre_mission = tip(mission, NEW), tip(mission, mission.coord_branch)
+
+    failed = run_patched(mission, "executor", "_phase_merge_lanes", *RETARGET, kill=False)
+
+    output = flat(failed)
+    assert failed.returncode != 0, output
+    assert "Retarget recorded: main -> develop" in output, f"the failure must come after the retarget commit. output={output}"
+    assert_report_is_truthful(output)
+    assert tip(mission, NEW) == pre_new, f"the new target is back at its pre-run tip. output={output}"
+    assert meta_at(mission, NEW)["target_branch"] == OLD, output
+    # Both holders took the record (the coord Mission branch carries meta.json too): both are restored.
+    assert tip(mission, mission.coord_branch) == pre_mission, output
+    assert meta_at(mission, mission.coord_branch)["target_branch"] == OLD, output
+    record = merge_record(mission)
+    assert record is not None and isinstance(record.get("retarget"), dict), record
+    assert (record["retarget"]["from"], record["retarget"]["to"], record["retarget"]["committed"]) == (OLD, NEW, False), record
+
+    rerun = _consolidate(mission, *RETARGET)
+
+    assert_landed_on_new_target(mission, rerun, pre_new)
+
+
+def test_abort_after_a_failed_retarget_restores_and_a_plain_override_is_refused_again(tmp_path: Path) -> None:
+    """``--abort`` leaves no record and ``develop`` at its pre-run tip; without ``--retarget`` the #5783 refusal stands."""
+    mission = _lanes(tmp_path, "01M7692A")
+    _check_out_override(mission)
+    pre_new = tip(mission, NEW)
+    failed = run_patched(mission, "executor", "_phase_merge_lanes", *RETARGET, kill=False)
+    assert failed.returncode != 0, flat(failed)
+
+    aborted = run_terminus(mission, ["consolidate", "--abort", "--mission", mission.slug])
+
+    assert aborted.returncode == 0, flat(aborted)
+    assert _merge_records(mission) == [], flat(aborted)
+    assert tip(mission, NEW) == pre_new, flat(aborted)
+    before, reflogs_before = _branches(mission), _reflogs(mission)
+
+    plain = _consolidate(mission, "--target", NEW)
+
+    _assert_refused_before_any_mutation(mission, plain, before, reflogs_before)

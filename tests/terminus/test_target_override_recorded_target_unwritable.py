@@ -102,6 +102,7 @@ def _assert_refused_before_any_mutation(
     assert _PREFLIGHT_LINE in output, f"the refusal must come from the up-front preflight. output={output}"
     assert f"--target {_OVERRIDE}" in output and f"'{_RECORDED}'" in output, f"the remedy must name the override and the recorded target. output={output}"
     assert "meta.json" in output, f"the remedy must offer correcting the record. output={output}"
+    assert "--retarget" in output, f"the remedy must name the --retarget opt-in (#7692 FR-002). output={output}"
     assert "Traceback" not in result.stderr, f"a refusal is not a crash. stderr={result.stderr}"
     assert _branches(mission) == before, f"no branch tip may move. output={output}"
     assert _reflogs(mission) == reflogs_before, f"no branch may move and come back either. output={output}"

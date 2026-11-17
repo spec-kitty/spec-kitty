@@ -1566,6 +1566,7 @@ def status_write_refusal(
     *,
     capability: GuardCapability = GuardCapability.STANDARD,
     operation: str | None = None,
+    retarget: tuple[str, str] | None = None,
 ) -> Refused | None:
     """The policy ``Refused`` the transactional door would raise for ``request``, else ``None``.
 
@@ -1575,6 +1576,11 @@ def status_write_refusal(
     exact acquire shape :func:`_acquire_status_transaction` uses. The
     non-transactional fallback never consults the policy, so it yields ``None``.
     No lock, no worktree creation, no writes.
+
+    ``retarget=(recorded, new)``: a retarget re-points the probe at the new target
+    (#7692); the verdict stays the policy's own (C-001). Only a resolved destination
+    equal to ``recorded`` is swapped for ``new`` (one resolution), so a coordination
+    destination is left alone by construction. ``None`` keeps today's behaviour.
     """
     mission_slug = request.mission_slug or request._legacy_mission_slug
     if mission_slug is None or request.wp_id is None:
@@ -1585,15 +1591,30 @@ def status_write_refusal(
     # WP07/T033: the owned root rides the ``owned`` carrier, never a bare path.
     # ``preflight_refusal`` threads it into the policy gate, so an owned mission
     # resolves protection via ``resolve_for_owned`` exactly as its real write does.
+    destination_ref = identity.destination_ref
+    if retarget is not None and destination_ref == retarget[0]:
+        destination_ref = retarget[1]
     return BookkeepingTransaction.preflight_refusal(
         repo_root=identity.repo_root,
         mission_slug=mission_slug,
         mid8=identity.mid8,
-        destination_ref=identity.destination_ref,
+        destination_ref=destination_ref,
         operation=operation or f"status transition {request.wp_id}",
         capability=capability,
         owned=identity.owned,
     )
+
+
+def _retargeted_identity(identity: _TransactionIdentity, retarget: tuple[str, str] | None) -> _TransactionIdentity:
+    """*identity* with a destination equal to ``retarget[0]`` swapped for ``retarget[1]`` (#7692).
+
+    The same one-resolution swap :func:`status_write_refusal` applies: only a resolved
+    destination equal to the old recorded target (a coordination-less topology) moves; a
+    coordination destination is left alone by construction. ``None`` returns *identity*.
+    """
+    if retarget is None or identity.destination_ref != retarget[0]:
+        return identity
+    return replace(identity, destination_ref=retarget[1])
 
 
 def emit_status_transition_transactional(
@@ -1601,6 +1622,7 @@ def emit_status_transition_transactional(
     *,
     operation: str | None = None,
     capability: GuardCapability = GuardCapability.STANDARD,
+    retarget: tuple[str, str] | None = None,
 ) -> StatusEvent:
     """The single transactional door (contract §2, transactional column).
 
@@ -1612,6 +1634,12 @@ def emit_status_transition_transactional(
     pinned by ``test_transactional_emit_fails_closed_when_coordination_branch_
     missing``); a pipeline refusal (``TransitionError``) raises before any
     append; the alias-collapse no-op arm appends nothing.
+
+    ``retarget=(recorded, new)`` (#7692): a consolidate retarget's pre-claim
+    operator attestations land on the new target, not the old recorded one:
+    a resolved destination equal to ``recorded`` is swapped for ``new``
+    (:func:`_retargeted_identity`, the swap :func:`status_write_refusal` probes).
+    ``None`` keeps today's behaviour.
     """
     feature_dir = request.feature_dir or request.mission_dir
     mission_slug = request.mission_slug or request._legacy_mission_slug
@@ -1619,6 +1647,7 @@ def emit_status_transition_transactional(
         raise TypeError("transactional status emit requires feature_dir, mission_slug, and wp_id")
 
     identity, topology_available = _resolve_transaction_entry(request, mission_slug)
+    identity = _retargeted_identity(identity, retarget)
     if not topology_available:
         # WP04/FR-004 (rows 7-8): coord topology commits to the coord worktree;
         # coord-less topologies keep the primary-uncommitted write path. The

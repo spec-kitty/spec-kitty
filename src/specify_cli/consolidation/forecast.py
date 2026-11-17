@@ -58,8 +58,9 @@ from specify_cli.consolidation.preflight import (
     _check_mission_branch,
     mission_branch_check_required,
     refuse_protected_status_target,
-    refuse_protected_target_override,
-    refuse_unwritable_recorded_target,
+    retarget_mode,
+    retarget_write_branch_refusal,
+    target_override_verdict,
 )
 from specify_cli.consolidation.resolve import set_changed_message
 from specify_cli.consolidation.state import ConsolidationStateReadError, load_state, needs_number_assignment
@@ -268,9 +269,22 @@ def _scan_would_assign_mission_number(repo_root: Path, feature_dir_for_preview: 
         return None
 
 
-def _refuse_protected_status_target_in_forecast(main_repo: Path, mission_slug: str, lanes_manifest: LanesManifest, *, json_output: bool) -> None:
-    """``--dry-run`` parity for the #5385 preflight: report the policy's refusal with its own ``error_code``."""
-    verdict = refuse_protected_status_target(main_repo, mission_slug, lanes_manifest)
+def _refuse_protected_status_target_in_forecast(
+    main_repo: Path, mission_slug: str, lanes_manifest: LanesManifest, *, json_output: bool, retarget_pair: tuple[str, str] | None = None
+) -> None:
+    """``--dry-run`` parity for the #5385 preflight: report the policy's refusal with its own ``error_code``.
+
+    #7692: a retarget forecast (*retarget_pair* ``(recorded, new)``) mirrors the entry
+    preflight: the write-branch refusal first
+    (:func:`~specify_cli.consolidation.preflight.retarget_write_branch_refusal`), then the
+    #5385 probe RE-POINTED at the new target (``retarget_to``), never skipped.
+    """
+    if retarget_pair is None:
+        verdict = refuse_protected_status_target(main_repo, mission_slug, lanes_manifest)
+    else:
+        verdict = retarget_write_branch_refusal(
+            mission_branch=lanes_manifest.mission_branch, recorded_target=retarget_pair[0], effective_target=retarget_pair[1]
+        ) or refuse_protected_status_target(main_repo, mission_slug, lanes_manifest, retarget_to=retarget_pair[1])
     if verdict is None:
         return
     _emit_dry_run_error(
@@ -403,6 +417,7 @@ def _refuse_unattributable_in_forecast(
     json_output: bool,
     squashed_tree: str | None = None,
     strategy: MergeStrategy = MergeStrategy.SQUASH,
+    retarget: tuple[str, str] | None = None,
 ) -> ApprovedWpCommitSet | None:
     """Run the content check the real run will run, before any ref moves (#6771, #7244); return the claim it built.
 
@@ -423,7 +438,8 @@ def _refuse_unattributable_in_forecast(
     landing exists. A refusal calls :func:`_emit_dry_run_error` (so ``--json`` stays valid
     JSON) and exits 1; a refusal after the claim build carries its window gaps (FR-010). Nothing
     is mutated: the claim build and the checks are read-only. Returns ``None`` when the target
-    does not resolve (no claim is built).
+    does not resolve (no claim is built). *retarget* ``(from, to)`` (#7692) swaps the status
+    surface the claim's coordination base is read from, as the retargeted run's claim phase does.
     """
     main_repo = get_main_repo_root(repo_root)
     dependency_refs, dependency_pins = _declared_with_recorded(main_repo, lanes_manifest, resolved_feature, dependency_refs, json_output=json_output)
@@ -453,6 +469,7 @@ def _refuse_unattributable_in_forecast(
                 dependency_refs=dependency_refs,
                 dependency_pins=dependency_pins,
                 mission_slug=resolved_feature,
+                retarget=retarget,
             ),
         )
         claim = build_claim(main_repo, lanes_manifest, inputs)
@@ -533,23 +550,52 @@ def _forecast_recorded_target(main_repo: Path, mission_slug: str, *, fallback: s
     return recorded_target
 
 
-def _refuse_protected_target_override_in_forecast(main_repo: Path, mission_slug: str, *, recorded_target: str, effective_target: str, json_output: bool) -> None:
+def _forecast_retarget_pair(
+    main_repo: Path,
+    mission_slug: str,
+    lanes_manifest: LanesManifest,
+    *,
+    retarget: bool,
+    recorded_target: str,
+    effective_target: str,
+    json_output: bool,
+) -> tuple[str, str] | None:
+    """The ``(recorded, new)`` pair the real run would judge as a retarget, else ``None`` (#7692, FR-009).
+
+    The decision is :func:`~specify_cli.consolidation.preflight.retarget_mode`, the one owner the
+    entry preflight reads too; this caller only renders its ``RETARGET_RESUME_MISMATCH`` as a
+    dry-run error with the same message and next step the real run prints.
+    """
+    mode = retarget_mode(main_repo, lanes_manifest.mission_id or mission_slug, retarget=retarget, recorded=recorded_target, effective=effective_target)
+    if mode.mismatch is not None:
+        _emit_dry_run_error(
+            error_msg=f"{mode.mismatch.error_code}: {mode.mismatch.message} Next step: {mode.mismatch.next_step}",
+            json_output=json_output,
+            error_code=mode.mismatch.error_code,
+        )
+        raise typer.Exit(1)
+    return mode.pair
+
+
+def _refuse_protected_target_override_in_forecast(
+    main_repo: Path, mission_slug: str, *, recorded_target: str, effective_target: str, json_output: bool, retarget: bool = False
+) -> None:
     """``--dry-run`` parity for the #6464 and #5783 override guards: report the refusal's own ``error_code``.
+
+    The ONE verdict (:func:`~specify_cli.consolidation.preflight.target_override_verdict`); with
+    ``retarget`` (#7692) its record check is ``RETARGET_RECORD_UNWRITABLE`` against the new target,
+    exactly as the entry preflight asks it.
 
     A probe that cannot resolve the Mission (``ActionContextError``) ends the preview with the
     same message the real run prints (``entry_preflight``), never a traceback.
     """
     try:
-        verdict = refuse_protected_target_override(
+        verdict = target_override_verdict(
             main_repo,
             mission_slug,
             recorded_target=recorded_target,
             effective_target=effective_target,
-        ) or refuse_unwritable_recorded_target(
-            main_repo,
-            mission_slug,
-            recorded_target=recorded_target,
-            effective_target=effective_target,
+            retarget=retarget,
         )
     except ActionContextError as exc:
         _emit_dry_run_error(
@@ -567,6 +613,37 @@ def _refuse_protected_target_override_in_forecast(main_repo: Path, mission_slug:
     raise typer.Exit(1)
 
 
+#: The ``--dry-run --json`` key a retarget forecast adds (#7692): ``{"from": <recorded>, "to": <new>}``.
+RETARGET_KEY = "retarget"
+
+
+def _entry_preflights_in_forecast(
+    main_repo: Path, mission_slug: str, lanes_manifest: LanesManifest, *, effective_target: str, retarget: bool, json_output: bool
+) -> tuple[str, str] | None:
+    """The entry preflight's refusals, in its order, for ``--dry-run`` (FR-009); returns the admitted retarget pair.
+
+    ``RETARGET_RESUME_MISMATCH`` -> write-branch refusal -> #5385 (re-pointed under a retarget)
+    -> :func:`~specify_cli.consolidation.preflight.target_override_verdict`. The forecast holds the
+    UN-retargeted manifest, so the recorded target is resolved from ``meta.json`` (falling back to its
+    ``target_branch``) while the effective one is the resolved ``--target`` (#6464).
+    """
+    recorded_target = _forecast_recorded_target(main_repo, mission_slug, fallback=lanes_manifest.target_branch)
+    pair = _forecast_retarget_pair(
+        main_repo,
+        mission_slug,
+        lanes_manifest,
+        retarget=retarget,
+        recorded_target=recorded_target,
+        effective_target=effective_target,
+        json_output=json_output,
+    )
+    _refuse_protected_status_target_in_forecast(main_repo, mission_slug, lanes_manifest, json_output=json_output, retarget_pair=pair)
+    _refuse_protected_target_override_in_forecast(
+        main_repo, mission_slug, recorded_target=recorded_target, effective_target=effective_target, json_output=json_output, retarget=pair is not None
+    )
+    return pair
+
+
 def run_dry_run_forecast(
     *,
     repo_root: Path,
@@ -578,6 +655,7 @@ def run_dry_run_forecast(
     push: bool,
     json_output: bool,
     dependency_refs: tuple[str, ...] = (),
+    retarget: bool = False,
 ) -> None:
     """Render the ``merge --dry-run`` forecast and exit.
 
@@ -592,6 +670,10 @@ def run_dry_run_forecast(
     contract.md, consumption contract item 2) -- the SAME resolver the merge
     executor uses -- so the forecast reports the RESOLVED cleanup decision
     instead of echoing raw flags.
+
+    ``retarget`` (#7692) is ``--retarget``: the preflights are judged the way the entry preflight
+    judges a retarget (:func:`_entry_preflights_in_forecast`), the claim reads the retargeted status
+    surface, and a clean forecast adds ``"retarget": {"from", "to"}`` to the payload.
     """
     if not resolved_feature:
         _emit_dry_run_error(
@@ -624,19 +706,8 @@ def run_dry_run_forecast(
     # manifest's recorded ``mission_branch`` — and before every status read, so a
     # deleted branch cannot surface as an unhandled status-read error either.
     _refuse_missing_mission_branch_in_forecast(get_main_repo_root(repo_root), resolved_feature, lanes_manifest, json_output=json_output)
-    _refuse_protected_status_target_in_forecast(get_main_repo_root(repo_root), resolved_feature, lanes_manifest, json_output=json_output)
-    # #6464: the forecast holds the UN-retargeted manifest, so the recorded target is its
-    # ``target_branch`` while the effective one is the resolved ``--target``.
-    _refuse_protected_target_override_in_forecast(
-        get_main_repo_root(repo_root),
-        resolved_feature,
-        recorded_target=_forecast_recorded_target(
-            get_main_repo_root(repo_root),
-            resolved_feature,
-            fallback=lanes_manifest.target_branch,
-        ),
-        effective_target=resolved_target_branch,
-        json_output=json_output,
+    retarget_pair = _entry_preflights_in_forecast(
+        get_main_repo_root(repo_root), resolved_feature, lanes_manifest, effective_target=resolved_target_branch, retarget=retarget, json_output=json_output
     )
 
     # FR-007/FR-008/FR-009: Run the same review-artifact consistency gate
@@ -699,6 +770,7 @@ def run_dry_run_forecast(
         json_output=json_output,
         squashed_tree=integration_preview.squashed_tree if resolved_strategy is MergeStrategy.SQUASH else None,
         strategy=resolved_strategy,
+        retarget=retarget_pair,
     )
 
     would_assign_number = _scan_would_assign_mission_number(repo_root, feature_dir_for_preview)
@@ -740,6 +812,11 @@ def run_dry_run_forecast(
         # FR-010: always present; ``[]`` when no work package was judged by its approval-stamp bound.
         WINDOW_GAPS_KEY: gap_report_json(claim.window_gaps) if claim is not None else [],
     }
+    if retarget_pair is not None:
+        # #7692 FR-009: only a retarget forecast carries the key (FR-012: none for equal targets).
+        payload[RETARGET_KEY] = {"from": retarget_pair[0], "to": retarget_pair[1]}
+        if not json_output:
+            console.print(f"Retarget: {retarget_pair[0]} -> {retarget_pair[1]} (would be recorded first)", markup=False)
     if dependency_refs and not json_output:
         console.print(f"[cyan]declared dependency ref(s)[/cyan] {', '.join(dependency_refs)} — their commits are attributed as inherited history.")
     if would_assign_number is not None and not json_output:

@@ -451,11 +451,14 @@ def _capture_coord_checkpoint(run: _MergeRunState) -> _CoordCheckpoint | None:
     (:func:`~specify_cli.consolidation.status_surface.status_surface_tip`, the
     read the dry-run forecast shares) — NOT an inline
     ``meta.get("coordination_branch")`` (the retired D-2 CWD-divergence
-    class). Returns ``None`` when the placement cannot be resolved (a
+    class). A retarget run (``run.state.retarget``) maps the old recorded target to the
+    new one (#7692). Returns ``None`` when the placement cannot be resolved (a
     non-coord topology, or a legacy mission) — every checkpoint built from
     ``None`` is a proven no-op wherever it is later consumed.
     """
-    tip = status_surface_tip(run.main_repo, run.mission_slug)
+    # #7692 (squad A2): a retarget run's status surface is the new target, never the old
+    # recorded one, so the old target never enters the snapshot or the unsettled set.
+    tip = status_surface_tip(run.main_repo, run.mission_slug, retarget=run.state.retarget_pair())
     if tip is None:
         return None
     return _CoordCheckpoint(ref=tip[0], sha=tip[1])
