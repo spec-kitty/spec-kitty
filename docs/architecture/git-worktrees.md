@@ -3,7 +3,7 @@ title: Git Worktrees Explained
 description: "What git worktrees are and why Spec Kitty gives each execution lane its own: what worktrees share and keep separate, plus lifecycle commands and crash recovery."
 doc_status: active
 kind: Explanation
-updated: '2026-11-07T00:00:00Z'
+updated: '2026-11-17T00:00:00Z'
 audience:
 - profile: internal/lead-developer
   guidance_text: Written for the Lead Developer reader.
@@ -244,6 +244,23 @@ Lane worktrees that already exist are brought in line by the clone-local migrati
 | `skipped_legacy_mission` | A genuinely-legacy Mission (no coordination branch, no stored topology, not flattened) writes its status into the lane checkout, so the lane is left untouched |
 
 While any lane is `refused_lane_only_events` or `skipped_mid_operation`, the migration is skipped and selected again on the next upgrade. `spec-kitty doctor sparse-checkout` reports each such lane as `LANE_STATUS_NOT_EXCLUDED` with its remedy: for lane-only events, record each transition on the status surface with `spec-kitty agent tasks move-task`, discard the lane copy's change to the two status files, then run `spec-kitty upgrade`.
+
+## Consolidate reads git state through a run-scoped cache
+
+A consolidation run asks git the same questions many times across the repository root checkout, the coordination worktree and the lane worktrees. Examples are which branch a checkout holds, which worktree holds a branch, a branch's tip, and the remote's default branch. Since #7689, `spec-kitty consolidate` answers repeats from a cache that lives only for that one run (`kernel/git/read_cache.py`, entered by `run_consolidate`). No other command turns it on, and outside the run every read spawns git as before.
+
+**What decides whether an answer is reused.** Each cached read declares which git files its answer depends on: one ref, the checkout's `HEAD`, the repository config, or, for `git worktree list`, the whole metadata tree. Before reusing an answer, the cache re-reads those files' bytes without spawning git. It reuses the answer only if the bytes are identical, comparing content and never timestamps. Any ref update, branch switch, worktree add or remove, config write or `pack-refs` therefore changes the bytes and forces git to run again, whoever made the change.
+
+**What may be cached.** Only a read whose answer is a pure function of git metadata files may use the cache. Never cache a read of the working tree or the index (`git status`, `git diff`, file contents): their answer is not in the files the cache watches.
+
+**When the cache stands aside.** Every read runs uncached, exactly as without the cache, in these cases:
+
+- outside a consolidate run;
+- when a `GIT_DIR`, `GIT_COMMON_DIR`, `GIT_WORK_TREE`, `GIT_NAMESPACE`, `GIT_OBJECT_DIRECTORY` or `GIT_CONFIG` variable redirects git;
+- when the repository cannot be located from the read's directory;
+- when the repository stores refs in **reftable** (`extensions.refStorage = reftable`), whose layout the cache does not model yet.
+
+**Safety-relevant reads.** Rollback's read of a branch's live tip may be answered from the cache, but the restore itself is a compare-and-swap `update-ref`: git, not the cache, enforces the expected old value. A failed lookup of the remote's default branch (an unreachable remote) is never stored, so the next protection-policy resolution asks again.
 
 ## Common Issues
 
