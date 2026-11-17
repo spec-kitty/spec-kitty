@@ -1,0 +1,146 @@
+{
+  "version": 1,
+  "mission_slug": "consolidate-retarget-01M7M5JA",
+  "mission_id": "01M7M5JAYR1Q71P022W0EES7ZB",
+  "mission_branch": "kitty/mission-consolidate-retarget-01M7M5JA",
+  "target_branch": "issue-7692-consolidate-retarget",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/meta_write.py",
+        "src/specify_cli/consolidation/mission_number/bake.py",
+        "src/specify_cli/consolidation/preflight.py",
+        "src/specify_cli/coordination/status_transition.py",
+        "tests/architectural/_load_meta_census.py",
+        "tests/consolidation/test_meta_write.py",
+        "tests/consolidation/test_retarget_verdict.py",
+        "tests/consolidation/test_unwritable_recorded_target_verdict.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/entry_preflight.py",
+        "src/specify_cli/consolidation/executor.py",
+        "src/specify_cli/consolidation/phase_advance.py",
+        "src/specify_cli/consolidation/phase_claim.py",
+        "src/specify_cli/consolidation/resolve.py",
+        "src/specify_cli/consolidation/rollback.py",
+        "src/specify_cli/consolidation/run_state.py",
+        "src/specify_cli/consolidation/state.py",
+        "src/specify_cli/consolidation/status_surface.py",
+        "src/specify_cli/mission_metadata.py",
+        "tests/consolidation/test_executor_phase_boundary.py",
+        "tests/consolidation/test_retarget_entry_preflight.py",
+        "tests/consolidation/test_retarget_record.py",
+        "tests/consolidation/test_single_rollback_authority.py",
+        "tests/consolidation/test_state_snapshot_fields.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/consolidate.py",
+        "src/specify_cli/consolidation/forecast.py",
+        "src/specify_cli/orchestrator_api/consolidation.py",
+        "tests/consolidation/test_retarget_cli_and_forecast.py",
+        "tests/orchestrator_api/test_consolidate_mission_retarget_refusal.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/2026-09-19-1-terminus-safety-invariant.md",
+        "docs/changelog/unreleased/7692-consolidate-retarget.added.md",
+        "docs/guides/how-to/missions/merge-mission.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/terminus/test_consolidate_retarget.py",
+        "tests/terminus/test_target_override_recorded_target_unwritable.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "tests/integration/test_default_mission_consolidate_retarget.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-11-17T08:10:16.425935+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP05"
+  ],
+  "planning_commit_sha": "06af0c52e5aa863dd7f6834750347671c328588f"
+}
