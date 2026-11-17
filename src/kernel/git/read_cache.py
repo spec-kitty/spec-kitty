@@ -55,11 +55,9 @@ from typing import TypeVar, cast
 
 __all__ = [
     "Depends",
-    "GitReadCacheStats",
     "cached_git_read",
     "cached_ref_read",
     "git_read_cache_scope",
-    "git_read_cache_stats",
 ]
 
 T = TypeVar("T")
@@ -117,7 +115,7 @@ EVERYTHING = Depends(everything=True)
 
 
 @dataclass
-class GitReadCacheStats:
+class _GitReadCacheStats:
     """Lookup counters of the active scope (for tests and diagnostics)."""
 
     hits: int = 0
@@ -128,7 +126,7 @@ class GitReadCacheStats:
 @dataclass
 class _Scope:
     entries: dict[Hashable, tuple[bytes, object]] = field(default_factory=dict)
-    stats: GitReadCacheStats = field(default_factory=GitReadCacheStats)
+    stats: _GitReadCacheStats = field(default_factory=_GitReadCacheStats)
     lock: threading.Lock = field(default_factory=threading.Lock)
 
 
@@ -142,7 +140,7 @@ _ACTIVE: ContextVar[_Scope | None] = ContextVar("kernel_git_read_cache", default
 
 
 @contextmanager
-def git_read_cache_scope() -> Iterator[GitReadCacheStats]:
+def git_read_cache_scope() -> Iterator[_GitReadCacheStats]:
     """Enable the cache for the enclosed block; a nested scope reuses the outer one."""
     outer = _ACTIVE.get()
     if outer is not None:
@@ -154,12 +152,6 @@ def git_read_cache_scope() -> Iterator[GitReadCacheStats]:
         yield scope.stats
     finally:
         _ACTIVE.reset(token)
-
-
-def git_read_cache_stats() -> GitReadCacheStats | None:
-    """Counters of the active scope, or ``None`` outside any scope."""
-    scope = _ACTIVE.get()
-    return None if scope is None else scope.stats
 
 
 def cached_git_read(

@@ -19,7 +19,6 @@ from kernel.git.read_cache import (
     cached_git_read,
     cached_ref_read,
     git_read_cache_scope,
-    git_read_cache_stats,
 )
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
@@ -79,7 +78,6 @@ def test_outside_a_scope_every_read_runs_git(repo: Path) -> None:
     _read_tip(repo, read, "refs/heads/main")
     _read_tip(repo, read, "refs/heads/main")
     assert read.calls == 2
-    assert git_read_cache_stats() is None
 
 
 def test_a_repeat_inside_a_scope_spawns_nothing(repo: Path) -> None:
