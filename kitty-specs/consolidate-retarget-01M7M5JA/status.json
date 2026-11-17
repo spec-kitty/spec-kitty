@@ -188,9 +188,9 @@
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
-        "T022": "planned",
-        "T023": "planned",
-        "T024": "planned"
+        "T022": "done",
+        "T023": "done",
+        "T024": "done"
       }
     },
     "WP06": {
