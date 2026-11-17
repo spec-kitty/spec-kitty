@@ -138,7 +138,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-17T10:54:30Z – claude – shell_pid=10153 – ADR amendment 2026-11-17, merge-mission Retarget section, added changelog fragment; checkers clean (commit 6ccf635d)",
-        "Ready for review"
+        "Ready for review",
+        "Review passed: ADR 2026-09-19-1 Amendment 2026-11-17, merge-mission how-to Retarget section and 7692 changelog fragment verified against lane-b code (WP01+WP03+WP02): flag names/help, exit 2 misuse, codes RETARGET_RECORD_UNWRITABLE / RETARGET_WRITE_BRANCH_IS_RECORDED_TARGET / RETARGET_RESUME_MISMATCH / PROTECTED_BRANCH_REFUSED, dry-run retarget {from,to} JSON, HISTORY_CAP=20, default reason text, ConsolidationState.retarget shape + committed flag, re-baseline keeps it committed=False, no-snapshot adoption drops old-target anchors, attestations follow retarget (no ATTESTATION_UNSUPPORTED anywhere), default-topology in scope, orchestrator-api PREFLIGHT_FAILED + CONTRACT_VERSION unchanged, --abort --release-branch/--release-reason syntax, kill-window residual matches plan D. Changelog style 0 errors (no 7692 warning), spelling 0 findings, test_no_legacy_terminology 98 passed."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
