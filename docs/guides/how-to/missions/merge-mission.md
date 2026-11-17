@@ -117,7 +117,37 @@ By default `consolidate` lands on the Mission's recorded target branch. Override
 spec-kitty consolidate --mission 015-user-authentication --target develop
 ```
 
-`--target` moves only the landing. The rest of the run still writes its bookkeeping (the work packages' `done` transitions on a Mission without a coordination branch, and the coordination flatten) to the recorded target, from the repository root checkout. That checkout must be on the `--target` branch, so it cannot commit to the recorded one. The run is then refused before anything moves, with `TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE`. `--dry-run` reports the same code (#5783). To land on a branch other than the recorded one, change `target_branch` in the Mission's `meta.json`, commit that, and run `consolidate` without `--target`.
+`--target` moves only the landing. The rest of the run still writes its bookkeeping (the work packages' `done` transitions on a Mission without a coordination branch, and the coordination flatten) to the recorded target, from the repository root checkout. That checkout must be on the `--target` branch, so it cannot commit to the recorded one. The run is then refused before anything moves, with `TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE`. `--dry-run` reports the same code (#5783). To land on a branch other than the recorded one, make it the Mission's recorded target with `--retarget` (see below). You can still change `target_branch` in the Mission's `meta.json` by hand, commit that, and run `consolidate` without `--target`.
+
+### Retarget the Mission
+
+`--retarget` makes the `--target` branch the Mission's recorded target in this run. Every write of the run then lands there: the landing, the work packages' `done` transitions and the coordination flatten. Use it when the branch you deliver to changed after the Mission was created, for example a `develop` branch cut from `main`.
+
+```bash
+git checkout develop
+spec-kitty consolidate --mission 015-user-authentication --dry-run --json --target develop --retarget
+spec-kitty consolidate --mission 015-user-authentication --target develop --retarget --retarget-reason "release train moved"
+git show develop:kitty-specs/015-user-authentication/meta.json
+```
+
+The forecast adds `"retarget": {"from": "main", "to": "develop"}` to its JSON and reports the same refusal codes as the real run. `--retarget` needs `--target`, and `--retarget-reason` needs `--retarget`. Either one alone is a usage error: exit 2, nothing moves. Naming the recorded target again is not a retarget.
+
+**What is recorded.** The first change the run makes is a commit of the Mission's `meta.json`. It sets `target_branch` to the new target and appends one entry to `retarget_history`: `from`, `to`, `actor`, `at` and `reason`. The history keeps the newest 20 entries. The default reason is `operator retarget via spec-kitty consolidate --target <branch> --retarget`. The commit is made on every branch whose tree carries the Mission's `meta.json`: the Mission branch (for a Mission created without `--topology`, its topic branch) and the new target when it carries the file. `lanes.json` is not rewritten.
+
+**Refusals.** Each one is reported before any branch moves.
+
+| Code | When | Next step |
+| --- | --- | --- |
+| `RETARGET_RECORD_UNWRITABLE` | Neither the Mission branch nor the new target carries the Mission's `meta.json`. Or the new target carries it, but the repository root checkout is not on the new target, or `meta.json` there is untracked, has an uncommitted edit or is marked skip-worktree. | Consolidate into the recorded target; or integrate the recorded target into the new one first. For a checkout problem: `git checkout <branch>`, commit or discard the edit, then re-run. |
+| `RETARGET_WRITE_BRANCH_IS_RECORDED_TARGET` | A `single_branch` Mission created with `--commit-to-target`: its work is written on the recorded target itself. A retarget would land that branch and then delete it. | Consolidate into the recorded target, then integrate it into the new one with git. |
+| `PROTECTED_BRANCH_REFUSED` | The new target is protected (#6464), or the workflow mutation policy would refuse the `done` bookkeeping on the new target (#5385). | Pick an unprotected target. |
+| `RETARGET_RESUME_MISMATCH` | `--resume --target <x> --retarget` names a branch other than the retarget the interrupted run recorded. | Re-run with the recorded branch, or a bare `--resume`; or `--abort` first. |
+
+A retarget away from a protected recorded target onto an unprotected branch is allowed: the old target receives nothing. A plain `--target` without `--retarget` keeps refusing with `TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE`, and its next step now names `--retarget`.
+
+**Scope.** `--retarget` works on Missions with an explicit `lanes` or `lanes_with_coord` topology, and on Missions created without `--topology` once `finalize-tasks` has settled them to `lanes_with_coord` or `single_branch`. `--attest-*` flags given with `--retarget` follow the retarget: on a Mission without a coordination branch, their status events land on the new target. `orchestrator-api consolidate-mission` cannot retarget, because it has no rollback. A target that differs from the record still fails there with `PREFLIGHT_FAILED` and `TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE`.
+
+**Abort and resume.** If the run fails after the retarget commit, it restores the new target and the Mission branch to their tips from before the run. The retarget stays in the run record. A bare `spec-kitty consolidate --resume`, or a re-run, applies it again. `spec-kitty consolidate --abort` drops it. If the run is killed between the retarget commit and saving the run record, the next run refuses with `UNEXPLAINED_BRANCH_MOVE`. Run `spec-kitty consolidate --abort --release-branch <branch> --release-reason "<why>"` for the branch it names, then run `consolidate` again.
 
 ## Cleanup Options
 
@@ -195,6 +225,8 @@ Before you call the Mission done, run the mission review, check the retrospectiv
 | `--mission <slug>` | Names the Mission | Resolved from the current branch when possible; otherwise the command asks for `--mission` |
 | `--strategy` | `merge`, `squash` or `rebase` | `squash` |
 | `--target <branch>` | Target branch for the landing | The Mission's recorded target branch |
+| `--retarget` | With `--target`: make that branch the Mission's recorded target in this run. See [Retarget the Mission](#retarget-the-mission) | Off |
+| `--retarget-reason "<why>"` | With `--retarget`: the reason recorded in `retarget_history` | `operator retarget via spec-kitty consolidate --target <branch> --retarget` |
 | `--delete-branch` / `--keep-branch` | Delete or keep lane branches | The retention policy, else delete |
 | `--remove-worktree` / `--keep-worktree` | Remove or keep lane worktrees | The retention policy, else remove |
 | `--push` | Publish to origin after the local landing | No push |

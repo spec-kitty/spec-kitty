@@ -673,6 +673,59 @@ next bookkeeping phase tripped `SafeCommitHeadMismatch` against the recorded tar
   checkout HEAD mismatch, rolling back through the one door. That is a coherence defect, not a
   protection bypass, and it is out of this follow-up's scope.
 
+### Amendment 2026-11-17 — a retarget is a recorded run mutation inside the one door (#7692)
+
+Issue #7692, mission `kitty-specs/consolidate-retarget-01M7M5JA/`. #5783 (#7688) refuses a plain
+`--target` whose recorded target cannot be written, with `TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE`.
+That left no way to move a Mission to a new target in one run. `spec-kitty consolidate --target <b>
+--retarget` (with an optional `--retarget-reason`) makes `<b>` the recorded target, and every write
+of the run follows it. Naming the recorded target again is not a retarget.
+
+- **The record.** `meta.json` gets `target_branch = <b>` and one `retarget_history` entry
+  (`from`, `to`, `actor`, `at`, `reason`), bounded by the shared `meta.json` history cap. It is
+  committed on every branch whose tree carries the Mission's `meta.json`
+  (`preflight.retarget_record_holders`, the one owner of that rule): the Mission branch, which for
+  a default-topology Mission is its topic branch and is where the landing reads the record from,
+  and `<b>` when it carries the file, from the repository root checkout. `lanes.json` is not
+  rewritten. The commit is the run's first mutation: `phase_advance._phase_retarget_record` runs
+  inside the rollback door and records its post tips like every other phase. The AST pin's
+  `_SPAN_PHASES` (`tests/consolidation/test_single_rollback_authority.py`) gained it. No gate
+  allowlist was added.
+- **The run record.** `ConsolidationState.retarget` is `{from, to, actor, at, reason, committed}`.
+  It is created with the record, before the claim, with `committed=False`, and set to `True` right
+  after the `meta.json` commits. A full-restore re-baseline (#6770) keeps it and sets
+  `committed=False`, so a bare `--resume` or a re-run applies it again. A loaded record with no
+  snapshot adopts a new retarget: its `target_branch` moves to `<b>` and the anchors that name the
+  old target are dropped (the target tip, a coordination anchor that is the old target, and the
+  reconciliation PASS anchor). A record with a snapshot never adopts one. `--abort` clears the
+  record and the retarget with it. `--resume --target <x> --retarget` with an `<x>` other than
+  the persisted one refuses with `RETARGET_RESUME_MISMATCH`.
+- **Undo.** The retarget commits are undone ONLY by the one rollback authority
+  (`rollback.rollback_to_snapshot`), which restores `<b>` and the Mission branch to their snapshot
+  tips. There is no second undo path.
+- **Status surface.** The claim's status surface follows the effective target: on a retarget run
+  the old recorded target maps to `<b>` (`run_state`, `status_surface`). The #5385 status-write
+  probe is re-pointed at `<b>`, never skipped. `--attest-*` flags follow the retarget too: on a
+  Mission without a coordination branch, their status events land on `<b>`.
+- **Refusals, all before any branch moves.** `RETARGET_RECORD_UNWRITABLE`: neither the Mission
+  branch nor `<b>` carries `meta.json`, or `<b>` carries it but the root checkout cannot take the
+  commit (not on `<b>`, or `meta.json` untracked, dirty or skip-worktree).
+  `RETARGET_WRITE_BRANCH_IS_RECORDED_TARGET`: a commit-to-target `single_branch` Mission, whose
+  write branch is the recorded target; the run would land that branch and then delete it.
+  `PROTECTED_BRANCH_REFUSED`: `<b>` is protected (#6464), or the re-pointed #5385 probe refuses.
+  `RETARGET_RESUME_MISMATCH` (above). A retarget away from a protected recorded target onto an
+  unprotected branch is admitted: the old target receives nothing. A plain `--target` keeps
+  `TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE`; its next step now names `--retarget`.
+- **Scope.** Explicit `lanes` and `lanes_with_coord` Missions, and default-topology Missions
+  settled to `lanes_with_coord` or `single_branch`. `orchestrator-api consolidate-mission` cannot
+  retarget, because it has no rollback door (#7361). It keeps refusing a differing target with
+  `PREFLIGHT_FAILED` and `TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE`. `CONTRACT_VERSION` is
+  unchanged.
+- **Residual (named, not closed).** A kill between the record commits and the `committed`
+  persist leaves branches the record cannot explain. The next run refuses with
+  `UNEXPLAINED_BRANCH_MOVE`. This is the same residual as the primary-tree mission-number bake.
+  The remedy is `consolidate --abort --release-branch <b> --release-reason "..."`.
+
 ## Alternatives Considered
 
 - **Two independent point-fixes for #4764 and #4765 only.** Rejected (D1): leaves #4474/#2745
@@ -694,6 +747,7 @@ next bookkeeping phase tripped `SafeCommitHeadMismatch` against the recorded tar
 - Follow-up 2026-10-05: #5686, #5666, the deadlock part of #5687; mission `kitty-specs/rollback-anchor-authority-01M45VSA/`; out-of-scope follow-ups #5372, #5667, #5638, #5048, #5784.
 - Follow-up 2026-10-31: #6464; mission `kitty-specs/protected-target-override-refusal-01M68JPV/`; residual: an override onto an unprotected non-recorded branch. Context-only: #3132 (PR-required delivery policy, not implemented here), #5100 (mission-scoped `commit_to_target`), #3080 (`merge` → `consolidate`).
 - Amendment 2026-11-06: #7265 (design, slice S10 of epic #7276), #7198, #7199; sequencing with #7280 (S5), #7264 (S4), #7281 (S6); supersedes PRs #7228 and #7226 (author Ivan-Melck); closes #7271; residuals #7300, #7121, #5460; separate: #7201 / PR #7233.
+- Amendment 2026-11-17: #7692; mission `kitty-specs/consolidate-retarget-01M7M5JA/`; builds on #5783 (#7688) and #6464; orchestrator-api rollback door: #7361; residual: the kill window between the record commits and the `committed` persist.
 - Mission: `kitty-specs/terminus-safety-invariant-01M2XFT7/spec.md`; Decision Moments
   `01M2XFVSK8JCCXMXCJNTBB0X5V` (scope), `01M2XFW9B71WKJ4XPCDCH8VYCQ` (warn semantics).
 - Related (separate): #3967 (shared integration view, epic #3894), #4161 (`next` FSM),
