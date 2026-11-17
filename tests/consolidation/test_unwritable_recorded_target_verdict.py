@@ -94,3 +94,22 @@ def test_write_checkout_refusal_reads_the_seam_checkout_branch(repo_on_develop: 
     assert refused is not None and refused.error_code == STATUS_WRITE_CHECKOUT_NOT_ON_WRITE_BRANCH
     assert "'develop'" in refused.message and "'main'" in refused.message
     assert held is None
+
+
+def test_dry_run_reports_an_unprobeable_mission_without_a_traceback(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
+    """#5783 landing fold: ``--dry-run`` gives the real run's clean error when the probe cannot resolve the Mission."""
+    import typer
+    from mission_runtime import ActionContextError
+
+    from specify_cli.consolidation import forecast
+
+    def _raise(*_a: object, **_k: object) -> None:
+        raise ActionContextError("MISSION_NOT_FOUND", "no such mission")
+
+    monkeypatch.setattr(forecast, "refuse_protected_target_override", _raise)
+    with pytest.raises(typer.Exit) as excinfo:
+        forecast._refuse_protected_target_override_in_forecast(tmp_path, "m", recorded_target="main", effective_target="develop", json_output=True)
+    assert excinfo.value.exit_code == 1
+    out = capsys.readouterr().out
+    assert "Cannot probe where the recorded target's bookkeeping would be committed" in out
+    assert "before consolidating" in out
