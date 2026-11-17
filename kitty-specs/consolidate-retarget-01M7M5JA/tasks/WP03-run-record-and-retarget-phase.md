@@ -21,6 +21,9 @@ requirement_refs:
 planning_base_branch: issue-7692-consolidate-retarget
 merge_target_branch: issue-7692-consolidate-retarget
 branch_strategy: Planning artifacts for this mission were generated on issue-7692-consolidate-retarget. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-7692-consolidate-retarget unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-consolidate-retarget-01M7M5JA
+base_commit: 2c67319e1c619216b32fabe3c62954df17aabaca
+created_at: '2026-11-17T09:01:40.981455+00:00'
 subtasks:
 - T008
 - T012
