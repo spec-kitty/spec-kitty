@@ -45,6 +45,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import threading
 from collections.abc import Callable, Hashable, Iterator, Mapping
 from contextlib import contextmanager
@@ -161,8 +162,13 @@ def cached_git_read(
     *,
     depends: Depends = EVERYTHING,
     env: Mapping[str, str] | None = None,
+    store_if: Callable[[T], bool] | None = None,
 ) -> T:
     """Return ``compute()``, reusing an earlier answer while *depends* is unchanged.
+
+    *store_if*, when given, decides whether an answer may be reused: an answer it
+    rejects is returned but not stored, so the next call runs the read again (for
+    example a lookup that failed for a transient reason).
 
     *cwd* is where the read runs (it locates the repository); *key* names the
     query and must include every argument that shapes its answer. *env* is the
@@ -188,6 +194,8 @@ def cached_git_read(
             return cast(T, cached[1])
         scope.stats.misses += 1
     value = compute()
+    if store_if is not None and not store_if(value):
+        return value
     if _fingerprint(repo, depends) == before:
         with scope.lock:
             scope.entries[scoped_key] = (before, value)
@@ -254,7 +262,28 @@ def _repo_from_git_dir(git_dir: Path) -> _Repo | None:
         return None
     if not (git_dir / "HEAD").is_file() or not (common / "HEAD").is_file():
         return None
+    if _uses_reftable(common):
+        return None
     return _Repo(git_dir=git_dir, common_dir=common)
+
+
+#: ``extensions.refStorage = reftable`` in a git config file (section headers and keys are case-insensitive).
+_REFTABLE_RE = re.compile(r"^\s*refstorage\s*=\s*reftable\s*$", re.IGNORECASE | re.MULTILINE)
+
+
+def _uses_reftable(common_dir: Path) -> bool:
+    """Whether the repository stores refs in reftable (#7689 landing fold).
+
+    The fingerprint models the files backend (loose refs, ``packed-refs``). Under reftable a
+    linked worktree keeps its ``HEAD`` in ``worktrees/<id>/reftable/``, which the fingerprint
+    does not read, so a checkout there would go unseen. Until reftable is modelled, such a
+    repository runs every read uncached. An unreadable config is treated the same way.
+    """
+    try:
+        text = (common_dir / "config").read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return True
+    return _REFTABLE_RE.search(text) is not None
 
 
 # ---------------------------------------------------------------------------
