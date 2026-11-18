@@ -197,6 +197,11 @@ def _is_placeholder_new_cycle(event: StatusEvent) -> bool:
     return key is None or key in GENERIC_IMPLEMENTATION_ACTORS
 
 
+def _adds_nothing(record: str, identity: str) -> bool:
+    """Whether *identity* is the record or a less specific spelling of it (not independent, refines nothing)."""
+    return not actor_identities_independent(record, identity) and refine_actor_identity(record, identity) == record
+
+
 def _is_review_claim(event: StatusEvent) -> bool:
     """A move into ``in_review``: its actor is the review claimant."""
     return Lane(event.to_lane).value == Lane.IN_REVIEW.value and _submission_actor_ok(event)
@@ -241,8 +246,9 @@ def implementer_identities(events: Sequence[StatusEvent], wp_id: str) -> tuple[s
       implementer, since whoever moved the work package into an implementing lane may have
       reworked it (#6955);
     * an unforced ``planned -> claimed`` by a placeholder actor starts a new cycle whose first
-      real claim names the implementer of record; until then the previous record stands;
-    * the recorded implementer's own forced move back into an implementing lane adds nothing;
+      unforced real claim names the implementer of record; until then the previous record stands;
+    * a claim whose identity adds nothing to the record (the record itself, or a less specific
+      spelling of it, such as the implementer's own forced pull-back) changes nothing;
     * a submission refines the record (#7159), unless its submitter may be an identity kept
       beside the record or, for an ``--as-implementer`` re-submission, the review claimant.
 
@@ -264,9 +270,9 @@ def implementer_identities(events: Sequence[StatusEvent], wp_id: str) -> tuple[s
             identity = actor_full_identity(event.actor)
             if identity is None:
                 continue
-            if record is None or cycle_pending or _is_new_claim_cycle(event):
+            if record is None or _is_new_claim_cycle(event) or (cycle_pending and not event.force):
                 record, others, cycle_pending = identity, [], False
-            elif identity == record:
+            elif _adds_nothing(record, identity):
                 continue  # the recorded implementer moving its own work back: nothing new
             elif not event.force and not actor_identities_independent(record, identity):
                 record = refine_actor_identity(record, identity)

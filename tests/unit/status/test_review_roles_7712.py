@@ -368,3 +368,30 @@ def test_the_implementer_completes_its_bare_claim_after_pulling_its_work_back() 
     ]
     assert implementer_identities(events, "WP03") == ("claude:sonnet:implementer-ivan",)
     assert independent_of_implementers(implementer_identities(events, "WP03"), actor_full_identity(RENATA))
+
+
+def test_a_forced_claim_never_ends_a_pending_cycle() -> None:
+    """P8: after an agent-less re-claim, a forced rewind by X is kept beside the record, never the record."""
+    a = _actor("claude", "python-pedro", "implementer")
+    x = _actor("codex", "operator-olga", "implementer")
+    events = [
+        _ev(Lane.PLANNED, Lane.CLAIMED, a),
+        _ev(Lane.IN_REVIEW, Lane.PLANNED, RENATA, review_ref="review-cycle-1.md"),
+        _ev(Lane.PLANNED, Lane.CLAIMED, "implement-command"),
+        _ev(Lane.CLAIMED, Lane.IN_PROGRESS, "implement-command"),
+        _ev(Lane.IN_PROGRESS, Lane.FOR_REVIEW, a),
+        _ev(Lane.IN_REVIEW, Lane.IN_PROGRESS, x, force=True, review_ref="force-override"),
+    ]
+    identities = implementer_identities(events, "WP03")
+    assert identities == ("claude::python-pedro", "codex::operator-olga")
+    assert not independent_of_implementers(identities, "claude::python-pedro")
+
+
+def test_a_less_specific_pull_back_by_the_implementer_adds_nothing() -> None:
+    """P6: the completed implementer pulling its work back as the bare tool is not a second implementer."""
+    events = [
+        _ev(Lane.PLANNED, Lane.CLAIMED, BARE_IMPL),
+        _ev(Lane.IN_PROGRESS, Lane.FOR_REVIEW, "claude:sonnet:implementer-ivan"),
+        _ev(Lane.FOR_REVIEW, Lane.IN_PROGRESS, BARE_IMPL, force=True, review_ref="force-override"),
+    ]
+    assert implementer_identities(events, "WP03") == ("claude:sonnet:implementer-ivan",)
