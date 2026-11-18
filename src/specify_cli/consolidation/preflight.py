@@ -55,10 +55,10 @@ from specify_cli.status import (
     REVIEWER_SELF_APPROVAL,
     _actor_key,
     actor_full_identity,
-    actor_identities_independent,
+    implementer_identities,
+    independent_of_implementers,
     build_system_actor,
     is_migration_actor,
-    latest_implementer_identity,
     read_events_lenient,
 )
 
@@ -638,17 +638,17 @@ def _is_operator_attestation(policy_metadata: dict[str, Any] | None) -> bool:
     return attested
 
 
-def _latest_implementer_identity(feature_dir: Path, wp_id: str) -> str | None:
-    """Full recorded identity of the WP's implementer of record (#5340).
+def _implementer_identities(feature_dir: Path, wp_id: str) -> tuple[str, ...]:
+    """Full recorded identities of the WP's implementers, implementer of record first (#5340, #7712).
 
     Delegates to the one projection in ``status.review_roles`` (a reviewer's
-    rework verdict is not an implementation claim; the implementer's own
-    ``for_review`` submissions refine the claim, #7159) and keeps the full-identity
-    string, not the tool-scoped key, so same-tool/different-profile pairs stay
-    distinct.
+    rework verdict is not an implementation claim; ``for_review`` submissions refine
+    the claim, #7159; a forced claim refines it or is kept beside it, never replaces
+    it, #7712) and keeps full-identity strings, not tool-scoped keys, so
+    same-tool/different-profile pairs stay distinct.
     """
-    identity: str | None = latest_implementer_identity(read_events_lenient(feature_dir), wp_id)
-    return identity
+    identities: tuple[str, ...] = implementer_identities(read_events_lenient(feature_dir), wp_id)
+    return identities
 
 
 def _independent_reviewer_confirmed(feature_dir: Path, wp_id: str) -> bool:
@@ -664,11 +664,14 @@ def _independent_reviewer_confirmed(feature_dir: Path, wp_id: str) -> bool:
     absence of evidence is not evidence of an independent review. The two
     identities compare segment-wise (:func:`~specify_cli.status.actor_identities_independent`,
     operator ruling R1, #6715): a model or profile recorded on one side only
-    never proves they differ.
+    never proves they differ. The approver must be independent of EVERY identity that implemented
+    the work package in its claim cycle (``status.implementer_identities``, #7712): an identity
+    that forced a rewind into an implementing lane without refining the implementer of record
+    counts too.
     """
-    implementer = _latest_implementer_identity(feature_dir, wp_id)
+    implementers = _implementer_identities(feature_dir, wp_id)
     reviewer = _latest_actor_for_transition(feature_dir, wp_id, "approved")
-    independent: bool = actor_identities_independent(implementer, reviewer)
+    independent: bool = independent_of_implementers(implementers, reviewer)
     return independent
 
 

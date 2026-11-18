@@ -1313,22 +1313,29 @@ def _mt_require_lane_evidence(st: _MoveTaskState, manifest: LanesManifest) -> No
         )
 
 
-def _mt_implementer_identity(st: _MoveTaskState) -> str | None:
-    """Full ``tool:model:profile`` identity of the WP's implementer of record, or ``None`` (#5939 identity).
+def _mt_implementer_identities(st: _MoveTaskState) -> tuple[str, ...]:
+    """Full ``tool:model:profile`` identities of the WP's implementers, implementer of record first (#7712).
 
-    The projection ``consolidation.preflight._latest_implementer_identity`` reads
-    (``status.latest_implementer_identity``: the claim, refined by the implementer's own
-    ``for_review`` submissions, #7159), over the routed event log the move itself reads.
-    ``None`` without a resolved Mission slug.
+    The projection ``consolidation.preflight._implementer_identities`` reads
+    (``status.implementer_identities``: the claim, refined by ``for_review`` submissions,
+    #7159, and by forced claims that agree with it; a forced claim that does not is kept
+    beside it, never in its place), over the routed event log the move itself reads.
+    Empty without a resolved Mission slug.
     """
     if not st.mission_slug:
-        return None
+        return ()
     from specify_cli.cli.commands.agent import tasks as _tasks
-    from specify_cli.status import latest_implementer_identity
+    from specify_cli.status import implementer_identities
 
     events = _tasks.read_events_transactional(feature_dir=st.feature_dir, mission_slug=st.mission_slug, repo_root=st.main_repo_root, owned=st.owned)
-    identity: str | None = latest_implementer_identity(events, st.task_id)
-    return identity
+    identities: tuple[str, ...] = implementer_identities(events, st.task_id)
+    return identities
+
+
+def _mt_implementer_identity(st: _MoveTaskState) -> str | None:
+    """Full ``tool:model:profile`` identity of the WP's implementer of record, or ``None`` (#5939 identity)."""
+    identities = _mt_implementer_identities(st)
+    return identities[0] if identities else None
 
 
 #: The actor ``move-task`` records when nobody asserted one (``tasks_move_task_hops._mt_hop_actor``).
@@ -1372,7 +1379,8 @@ def _mt_require_independent_approval(st: _MoveTaskState) -> None:
       names no reviewer, and accept / consolidate read it as unknown (operator ruling A,
       2026-10-29). The message asks for ``--agent``;
     * the approver's ``tool:model:profile`` (the #5939 identity; the role is lane-stamped, never
-      compared) is not provably independent of the implementer of record
+      compared) is not provably independent of the implementer of record, or of an identity that
+      forced a rewind into an implementing lane beside it (``status.implementer_identities``, #7712)
       (:func:`~specify_cli.status.actor_identities_independent`, operator ruling R1): another tool,
       or a model or profile recorded on both sides that differs, is independent; a segment
       recorded on one side only is not. An unknown implementer passes here (accept and
@@ -1394,8 +1402,8 @@ def _mt_require_independent_approval(st: _MoveTaskState) -> None:
             f"placeholder '{key or _PLACEHOLDER_HOP_ACTOR}'. Pass --agent <your identity> (a reviewer other than the implementer).",
         )
     approver = actor_full_identity(actor)
-    implementer = _mt_implementer_identity(st)
-    if implementer is None or actor_identities_independent(implementer, approver):
+    implementer = next((identity for identity in _mt_implementer_identities(st) if not actor_identities_independent(identity, approver)), None)
+    if implementer is None:
         return
     code = _mt_review_code(st)
     raise ActionContextError(

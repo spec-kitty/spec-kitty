@@ -548,9 +548,13 @@ def emit(
             )
 
         from specify_cli.consolidation.approved_bound import approval_warnings
+        from specify_cli.status import profileless_claim_warning
 
         for warning in approval_warnings(event, lambda: _read_mission_events(reloaded), repo_root=main_repo_root, mission_slug=mission_slug):
             typer.echo(warning, err=True)
+        claim_warning = profileless_claim_warning(event)
+        if claim_warning is not None:
+            typer.echo(claim_warning, err=True)
 
         # Build result
         result = {

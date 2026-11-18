@@ -283,7 +283,7 @@ def test_the_owned_matcher_is_the_evidence_matcher() -> None:
 def implementer(monkeypatch: pytest.MonkeyPatch) -> list[str | None]:
     """The implementer of record the gate reads (``[identity]``)."""
     recorded: list[str | None] = ["claude::"]
-    monkeypatch.setattr(move_task_module, "_mt_implementer_identity", lambda _st: recorded[0])
+    monkeypatch.setattr(move_task_module, "_mt_implementer_identities", lambda _st: (recorded[0],) if recorded[0] else ())
     return recorded
 
 
@@ -316,6 +316,18 @@ def test_the_same_agent_with_another_profile_is_independent(implementer: list[st
     st.resolved_binding = ResolvedBinding(agent_profile="reviewer-renata")
 
     move_task_module._mt_require_independent_approval(st)
+
+
+def test_a_forced_reopener_beside_the_implementer_of_record_cannot_approve(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7712: an identity that forced a rewind into an implementing lane is an implementer too."""
+    monkeypatch.setattr(move_task_module, "_mt_implementer_identities", lambda _st: ("claude::python-pedro", "codex::operator-olga"))
+
+    with pytest.raises(ActionContextError) as refused:
+        move_task_module._mt_require_independent_approval(_state(Lane.APPROVED, agent="codex::operator-olga"))
+
+    assert refused.value.code == "REVIEW_NOT_INDEPENDENT"
+    assert "cannot be approved by its implementer (codex::operator-olga)" in str(refused.value)
+    move_task_module._mt_require_independent_approval(_state(Lane.APPROVED, agent="gemini::reviewer-renata"))
 
 
 def test_the_compact_agent_profile_segment_counts(implementer: list[str | None]) -> None:

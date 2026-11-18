@@ -1045,6 +1045,15 @@ def _implementer_actor(
     return actor
 
 
+def _warn_profileless_claim(wp_id: str, actor: object) -> None:
+    """Warn on stderr when the recorded implementer identity is the tool alone (#7712)."""
+    from specify_cli.status import profileless_identity_warning
+
+    warning = profileless_identity_warning(wp_id, actor)
+    if warning is not None:
+        typer.echo(warning, err=True)
+
+
 def implementer_claim_identity(
     agent: str | None,
     wp_agent_assignment: AgentAssignment,
@@ -1265,6 +1274,7 @@ def _implement_claim_transition_body(
         )
 
         print(f"✓ Claimed {normalized_wp_id} (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
+        _warn_profileless_claim(normalized_wp_id, implementer_claim_identity(agent, wp_agent_assignment, resolved_binding).actor)
 
         # Reload to get updated content
         wp = _locate_wp(repo_root, mission_slug, normalized_wp_id)

@@ -307,6 +307,18 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
     st.event = event
     st.final_hop_actor = final_hop_actor
     _mt_warn_approval(st)
+    _mt_warn_profileless_claim(st)
+
+
+def _mt_warn_profileless_claim(st: _MoveTaskState) -> None:
+    """Tell the operator now when this claim recorded no profile or model (#7712)."""
+    import typer
+
+    from specify_cli.status import profileless_claim_warning
+
+    warning = profileless_claim_warning(st.event)
+    if warning is not None:
+        typer.echo(warning, err=True)
 
 
 def _mt_warn_approval(st: _MoveTaskState) -> None:
