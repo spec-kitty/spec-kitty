@@ -105,7 +105,7 @@ from specify_cli.status import (
 
 # ``RangeCommit`` stays a public module-level name outside ``__all__`` until a ``src/`` caller
 # imports it: the dead-symbol gate counts an ``__all__`` member only through a caller outside this module.
-__all__ = ["FileChange", "RangeSource", "RangeStatus", "WpReviewRange", "resolve_wp_review_range"]
+__all__ = ["FileChange", "RangeSource", "RangeStatus", "WpReviewRange", "bookkeeping_pathspecs", "resolve_wp_review_range"]
 
 logger = logging.getLogger(__name__)
 
@@ -255,6 +255,15 @@ def _bookkeeping_excludes(mission_slug: str) -> tuple[str, ...]:
     """``:(exclude)`` pathspecs for the status-only prefixes and the task index (git's default, non-literal matching)."""
     prefixes = tuple(f"{_EXCLUDE}{prefix}*" for prefix in status_only_excluded_prefixes(mission_slug))
     return (*prefixes, f"{_EXCLUDE}{mission_tasks_index_path(mission_slug)}")
+
+
+def bookkeeping_pathspecs(mission_dir_name: str) -> tuple[str, ...]:
+    """The ``:(exclude)`` pathspecs of the Mission's own bookkeeping, as every range carries them.
+
+    For a caller that diffs a window of its own (the bulk-edit gate's planning-lane window, #7726)
+    and must leave out exactly what the review range leaves out.
+    """
+    return _bookkeeping_excludes(mission_dir_name)
 
 
 def _listing_scope(owned_pathspecs: tuple[str, ...], bookkeeping: tuple[str, ...]) -> tuple[str, ...]:

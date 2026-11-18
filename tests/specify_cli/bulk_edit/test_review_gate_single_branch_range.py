@@ -296,3 +296,73 @@ def test_mission_bookkeeping_never_blocks_its_own_review(templates: _Templates, 
     sb.git(m.repo, "commit", "-qam", "chore: tick WP01 subtask")
     sb.emit(m, "WP01", "for_review", "alice", "--force", "--reason", "handed to review")
     _gate(m)
+
+
+# --------------------------------------------------------------------------- the move-task path into review
+
+
+@pytest.mark.parametrize("flavour", ["minted", "ctt"])
+def test_unforced_move_task_into_review_then_the_gate_judges_the_work(
+    templates: _Templates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], flavour: str
+) -> None:
+    """The operator's path: an unforced ``move-task --to for_review`` (every move-task gate runs), then review.
+
+    Red on main: the gate then diffed ``X..X`` and passed. A minted Mission's status is written to
+    its Mission branch, so that branch must exist locally for any status move (``DESTINATION_REF_NOT_FOUND``
+    otherwise); with it present, the gate now judges the work instead of passing vacuously.
+    """
+    from specify_cli.lanes.claim_base import record_claim_base
+
+    m = _checkout(templates, flavour, tmp_path, monkeypatch)
+    sb.claim(m, "WP01")
+    record_claim_base(m.repo, m.repo, m.slug, "WP01")  # what ``implement`` records at the claim
+    sb.implement(m, "WP01")
+    sb.commit_file(m, "config.yaml", "oldName: false\n", "feat(WP01): touch a do_not_change key")
+
+    sb.move(m, "WP01", "for_review", "alice")
+
+    with pytest.raises(typer.Exit):
+        _gate(m)
+    output = " ".join(capsys.readouterr().out.split())
+    assert "config.yaml" in output and "do_not_change" in output, output
+
+
+# --------------------------------------------------------------------------- planning lane on lanes_with_coord
+
+
+@pytest.fixture(scope="module")
+def review_templates(tmp_path_factory: pytest.TempPathFactory) -> object:
+    from tests.integration.review.review_range_fixtures import ReviewTemplates
+
+    return ReviewTemplates(tmp_path_factory.mktemp("bulk-edit-coord-planning"))
+
+
+@pytest.mark.parametrize("forbidden_edit", [False, True])
+def test_coord_planning_lane_wp_is_judged_from_its_claim_base(
+    review_templates: object, tmp_path: Path, capsys: pytest.CaptureFixture[str], forbidden_edit: bool
+) -> None:
+    """Ruling Q10's case: the range owner records no range (events on the coordination branch).
+
+    Before the fold the gate always refused (no range); the planning-lane window (claim base to
+    the planning write branch head) judges the work instead.
+    """
+    from specify_cli.lanes.claim_base import record_claim_base
+    from tests.integration.review.review_range_fixtures import ReviewTemplates, submitted_coord_planning_lane_wp
+
+    assert isinstance(review_templates, ReviewTemplates)
+    fx = review_templates.checkout("lanes_with_coord", tmp_path)
+    with fx.environment():
+        _make_bulk_edit(fx.repo, fx.mission_slug)
+        record_claim_base(fx.repo, fx.repo, fx.mission_slug, "WP03")
+        submitted = submitted_coord_planning_lane_wp(fx)
+        if forbidden_edit:
+            (fx.repo / "config.yaml").write_text("oldName: false\n", encoding="utf-8")
+            sb.git(fx.repo, "commit", "-qam", "docs(WP03): touch a do_not_change key")
+        m = sb.Mission(fx.repo, fx.mission_slug, tmp_path)
+        if forbidden_edit:
+            with pytest.raises(typer.Exit):
+                workflow_executor.review_enforce_bulk_edit_gate(feature_dir=fx.feature_dir, main_repo_root=m.repo, mission_slug=m.slug, wp_id=submitted.wp_id)
+            output = " ".join(capsys.readouterr().out.split())
+            assert "config.yaml" in output and BULK_EDIT_REVIEW_RANGE_UNAVAILABLE not in output, output
+        else:
+            workflow_executor.review_enforce_bulk_edit_gate(feature_dir=fx.feature_dir, main_repo_root=m.repo, mission_slug=m.slug, wp_id=submitted.wp_id)

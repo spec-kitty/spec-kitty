@@ -285,9 +285,7 @@ def resubmit_command(wp_id: str, mission_slug: str) -> str:
 class ReviewRangeFacts:
     """What the gate needs of a ``WpReviewRange`` (kept primitive so this module stays free of the review package).
 
-    ``commit_count`` counts the range's commits outside Mission bookkeeping. ``planning_lane`` is a
-    work package no lane branch stamps (``status.read_lane_head`` not applicable) on a topology that
-    does not use its event commits, where a re-submission cannot record a range.
+    ``commit_count`` counts the range's commits outside Mission bookkeeping.
     """
 
     base: str | None
@@ -296,7 +294,6 @@ class ReviewRangeFacts:
     commit_count: int
     listing_gap: str | None
     tip_off_branch: bool = False
-    planning_lane: bool = False
 
 
 def _unavailable_remedy(facts: ReviewRangeFacts, wp_id: str, mission_slug: str) -> str:
@@ -305,12 +302,6 @@ def _unavailable_remedy(facts: ReviewRangeFacts, wp_id: str, mission_slug: str) 
         return f"Hand the work package to review first: {to_review}"
     if facts.gap == "status_unreadable":
         return f"Run `spec-kitty agent tasks status --mission {mission_slug}` to see why the status surface cannot be read, fix it, then retry."
-    if facts.planning_lane:
-        return (
-            "This work package runs on the planning lane of a Mission whose status events live on a separate "
-            "coordination branch, so no review range is recorded for it and a re-submission cannot record one. "
-            "Move its bulk edit to a code lane, or ask the operator to rule on it (#7726)."
-        )
     return (
         "The recorded window open or submission does not resolve to a commit here. Fetch the commits the "
         "work package was written on (for a pull request, its head), then retry; if they no longer exist, "

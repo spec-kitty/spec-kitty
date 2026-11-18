@@ -166,6 +166,26 @@ _STATUS_FILENAME = "status.json"
 _WORKFLOW_COMMIT_RECEIPTS: list[dict[str, object]] = []
 
 
+class _GateTopology(NamedTuple):
+    """What the bulk-edit gate reads of the Mission beside the review range (#7726)."""
+
+    single_branch: bool
+    #: ``False`` for a planning-lane work package (no lane branch stamps it).
+    lane_stamped: bool
+    #: The lane branch's (or ``single_branch`` write branch's) live head, ``None`` when it has none.
+    live_head: str | None
+    mission_dir_name: str
+
+
+class _GateWindow(NamedTuple):
+    """The commits the gate judges: ``base..head`` without ``excludes``, plus notes on what it did not judge."""
+
+    base: str
+    head: str
+    excludes: tuple[str, ...]
+    notes: tuple[str, ...] = ()
+
+
 def _enforce_bulk_edit_diff_compliance(
     *,
     feature_dir: Path,
@@ -183,48 +203,32 @@ def _enforce_bulk_edit_diff_compliance(
     (#7726). Before, the base was ``lanes.json``'s ``mission_branch`` and the head the review
     workspace branch: on ``single_branch`` both are the same branch, so the gate diffed ``X..X``
     and passed having checked nothing, and a missing local Mission branch refused on
-    ``rev-parse``. The range ends are recorded commits, never a local branch name.
+    ``rev-parse``. The range ends are recorded commits, never a local Mission branch name.
 
     The head is the submission on ``single_branch`` (commits past it can be another work
-    package's) and the lane's live head on a lane topology, as before (#7726 review), so a
-    commit added to a lane after its submission is still judged. The diff leaves out the Mission
-    bookkeeping the range excludes.
+    package's) and the lane's live head on a lane topology, as before, so a commit added to a
+    lane after its submission is still judged. A planning-lane work package whose range the
+    owner cannot record (its status events live on a separate coordination branch, ruling Q10)
+    is judged from its recorded claim base, else the Mission's planning commit, to the planning
+    write branch's head. The diff leaves out the Mission bookkeeping the range excludes.
 
-    Raises ``typer.Exit(1)`` on a violation, and on a range it cannot judge
+    Raises ``typer.Exit(1)`` on a violation, and on a window it cannot judge
     (``BULK_EDIT_REVIEW_RANGE_UNAVAILABLE`` / ``_EMPTY`` / ``BULK_EDIT_REVIEW_TIP_REWRITTEN``): a
     gate with nothing to judge refuses, it never passes. Surfaces ``manual_review`` warnings
     without blocking.
     """
     from rich.markup import escape
 
-    from specify_cli.bulk_edit.gate import ReviewRangeFacts, review_range_refusal
-    from specify_cli.review.wp_range import resolve_wp_review_range
-
-    # No owned_files: the ends do not depend on them, the occurrence map judges every path the
-    # range touches, and the unscoped commit listing (bookkeeping excluded) is what "empty" means.
-    review_range = resolve_wp_review_range(main_repo_root, mission_slug, wp_id, owned_files=())
-    single_branch, lane_stamped, live_head = _review_gate_topology(main_repo_root, mission_slug, wp_id)
-    facts = ReviewRangeFacts(
-        base=review_range.base,
-        tip=review_range.tip,
-        gap=review_range.gap,
-        commit_count=len(review_range.commits),
-        listing_gap=review_range.listing_gap,
-        tip_off_branch=review_range.tip_off_branch,
-        planning_lane=not single_branch and not lane_stamped,
-    )
-    refusal = review_range_refusal(facts, wp_id=wp_id, mission_slug=mission_slug)
-    base, tip = review_range.base, review_range.tip
-    if refusal is not None or base is None or tip is None:
-        rich_console.print(f"[red]Bulk Edit Review: Diff Compliance[/] {escape(refusal or '')}")
+    window = _bulk_edit_review_window(main_repo_root, mission_slug, wp_id)
+    if isinstance(window, str):
+        rich_console.print(f"[red]Bulk Edit Review: Diff Compliance[/] {escape(window)}")
         raise typer.Exit(1)
-    head = tip if single_branch or live_head is None else live_head
     _diff_result = check_review_diff_compliance(
         feature_dir=feature_dir,
         repo_root=main_repo_root,
-        base_ref=base,
-        head_ref=head,
-        exclude_pathspecs=review_range.bookkeeping_pathspecs,
+        base_ref=window.base,
+        head_ref=window.head,
+        exclude_pathspecs=window.excludes,
     )
     if _diff_result is None:
         # Non-bulk-edit mission — skip silently. check_review_diff_compliance
@@ -236,16 +240,45 @@ def _enforce_bulk_edit_diff_compliance(
         raise typer.Exit(1)
     elif _diff_result.warnings:
         _render_diff_check_warnings(_diff_result, rich_console)
-    if single_branch:
-        _note_unjudged_commits(review_range, wp_id, mission_slug, rich_console)
+    for note in window.notes:
+        rich_console.print(f"[yellow]Bulk-edit review gate:[/] {escape(note)}")
 
 
-def _review_gate_topology(repo_root: Path, mission_slug: str, wp_id: str) -> tuple[bool, bool, str | None]:
-    """``(single_branch, lane_stamped, live lane head)`` for the bulk-edit gate (#7726).
+def _bulk_edit_review_window(repo_root: Path, mission_slug: str, wp_id: str) -> _GateWindow | str:
+    """The window the bulk-edit gate judges for *wp_id*, or its refusal text (#7726)."""
+    from specify_cli.bulk_edit.gate import ReviewRangeFacts, review_range_refusal
+    from specify_cli.review.wp_range import resolve_wp_review_range
 
-    ``lane_stamped`` is ``False`` for a planning-lane work package (no lane branch stamps it); the
-    live head is ``None`` then, or when the lane branch is missing. A status surface that cannot be read reads as not
-    ``single_branch`` with no head: the range is then unavailable and the gate refuses anyway.
+    # No owned_files: the ends do not depend on them, the occurrence map judges every path the
+    # range touches, and the unscoped commit listing (bookkeeping excluded) is what "empty" means.
+    review_range = resolve_wp_review_range(repo_root, mission_slug, wp_id, owned_files=())
+    topology = _review_gate_topology(repo_root, mission_slug, wp_id)
+    planning_lane = topology is not None and not topology.single_branch and not topology.lane_stamped
+    if review_range.base is None and planning_lane and topology is not None:
+        return _planning_lane_window(repo_root, topology.mission_dir_name, mission_slug, wp_id)
+    facts = ReviewRangeFacts(
+        base=review_range.base,
+        tip=review_range.tip,
+        gap=review_range.gap,
+        commit_count=len(review_range.commits),
+        listing_gap=review_range.listing_gap,
+        tip_off_branch=review_range.tip_off_branch,
+    )
+    refusal = review_range_refusal(facts, wp_id=wp_id, mission_slug=mission_slug)
+    base, tip = review_range.base, review_range.tip
+    if refusal is not None or base is None or tip is None:
+        return refusal or ""
+    single_branch = topology is not None and topology.single_branch
+    live_head = topology.live_head if topology is not None else None
+    head = tip if single_branch or live_head is None else live_head
+    notes = _unjudged_commit_notes(review_range, wp_id, mission_slug) if single_branch else ()
+    return _GateWindow(base=base, head=head, excludes=review_range.bookkeeping_pathspecs, notes=notes)
+
+
+def _review_gate_topology(repo_root: Path, mission_slug: str, wp_id: str) -> _GateTopology | None:
+    """The Mission facts the gate reads beside the range, or ``None`` when the status surface cannot be read.
+
+    ``None`` never passes: the range resolution reports the same failure, so the gate refuses.
     """
     from mission_runtime import is_single_branch
     from specify_cli.status import read_lane_head, resolve_status_read
@@ -254,29 +287,110 @@ def _review_gate_topology(repo_root: Path, mission_slug: str, wp_id: str) -> tup
         surface = resolve_status_read(repo_root, mission_slug)
     except Exception:  # the door raises several types; the range resolution reports the same failure as a refusal
         logger.debug("bulk-edit gate: status surface of %s unreadable", mission_slug, exc_info=True)
-        return False, False, None
+        return None
     reading = read_lane_head(repo_root=repo_root, mission_slug=surface.mission_dir_name, wp_id=wp_id)
-    return is_single_branch(surface.topology), bool(reading.applicable), reading.sha
+    return _GateTopology(
+        single_branch=is_single_branch(surface.topology),
+        lane_stamped=bool(reading.applicable),
+        live_head=reading.sha,
+        mission_dir_name=surface.mission_dir_name,
+    )
 
 
-def _note_unjudged_commits(review_range: WpReviewRange, wp_id: str, mission_slug: str, console: Console) -> None:
-    """On ``single_branch``, say which commits of the write branch the gate did not judge (the range ends at the submission)."""
-    from rich.markup import escape
+def _planning_lane_window(repo_root: Path, mission_dir_name: str, mission_slug: str, wp_id: str) -> _GateWindow | str:
+    """A planning-lane work package's window when the review range has none (#7726, ruling Q10 case).
 
+    Its status events sit on the coordination branch, apart from its work, so the range owner
+    records no range. Its work is on the planning write branch, from its recorded claim base
+    (``refs/.../wp-base``), else from the Mission's recorded planning commit, to that branch's
+    head. Both ends are recorded or checked-out commits; the refusal names what is missing.
+    """
+    from specify_cli.bulk_edit.gate import BULK_EDIT_REVIEW_RANGE_EMPTY, BULK_EDIT_REVIEW_RANGE_UNAVAILABLE
+    from specify_cli.lanes.claim_base import read_claim_base
+    from specify_cli.review.wp_range import bookkeeping_pathspecs
+
+    base = read_claim_base(repo_root, mission_dir_name, wp_id) or _planning_commit(repo_root, mission_slug)
+    head = _planning_write_head(repo_root, mission_slug, wp_id)
+    unavailable = (
+        f"{BULK_EDIT_REVIEW_RANGE_UNAVAILABLE}: the bulk-edit review gate cannot judge planning-lane work package "
+        f"{wp_id}: no claim base or planning commit is recorded that the checked-out planning branch descends from. "
+        f"Check out the Mission's planning branch with the work package's commits, or claim it again with "
+        f"`spec-kitty agent action implement {wp_id} --mission {mission_slug}` to record its claim base, then retry."
+    )
+    if base is None or head is None or not _is_ancestor(repo_root, base, head):
+        return unavailable
+    excludes = bookkeeping_pathspecs(mission_dir_name)
+    if _count_commits(repo_root, base, head, excludes) == 0:
+        return (
+            f"{BULK_EDIT_REVIEW_RANGE_EMPTY}: the bulk-edit review gate has nothing to judge for {wp_id}: "
+            f"{base[:12]}..{head[:12]} on its planning branch holds no commit outside Mission bookkeeping."
+        )
+    return _GateWindow(base=base, head=head, excludes=excludes)
+
+
+def _planning_commit(repo_root: Path, mission_slug: str) -> str | None:
+    """``lanes.json`` ``planning_commit_sha``, read through the placement seam; ``None`` when absent."""
+    from mission_runtime import MissionArtifactKind, placement_seam
+
+    from specify_cli.lanes.persistence import read_lanes_json
+
+    try:
+        manifest = read_lanes_json(placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.LANE_STATE))
+    except Exception:  # an unreadable manifest is "no planning commit": the caller refuses
+        logger.debug("bulk-edit gate: lanes.json of %s unreadable", mission_slug, exc_info=True)
+        return None
+    return manifest.planning_commit_sha if manifest is not None else None
+
+
+def _planning_write_head(repo_root: Path, mission_slug: str, wp_id: str) -> str | None:
+    """The head of the branch *wp_id*'s planning work is written to, as a SHA; ``None`` when it does not resolve."""
+    try:
+        branch = resolve_workspace_for_wp(repo_root, mission_slug, wp_id).branch_name or "HEAD"
+        result = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "--verify", "--quiet", f"{branch}^{{commit}}"],
+            capture_output=True, text=True, check=False, timeout=30,
+        )
+    except Exception:  # the resolver raises several types; an unresolvable head is a refusal, never a raise
+        logger.debug("bulk-edit gate: planning write branch of %s unresolved", wp_id, exc_info=True)
+        return None
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip() or None
+
+
+def _is_ancestor(repo_root: Path, ancestor: str, descendant: str) -> bool:
+    result = subprocess.run(
+        ["git", "-C", str(repo_root), "merge-base", "--is-ancestor", ancestor, descendant],
+        capture_output=True, check=False, timeout=30,
+    )
+    return result.returncode == 0
+
+
+def _count_commits(repo_root: Path, base: str, head: str, excludes: tuple[str, ...]) -> int:
+    """Commits in ``base..head`` that touch a path outside *excludes*; a git failure counts as 0 (the caller refuses)."""
+    result = subprocess.run(
+        ["git", "-C", str(repo_root), "rev-list", "--count", f"{base}..{head}", "--", ".", *excludes],
+        capture_output=True, text=True, check=False, timeout=30,
+    )
+    return int(result.stdout.strip() or "0") if result.returncode == 0 else 0
+
+
+def _unjudged_commit_notes(review_range: WpReviewRange, wp_id: str, mission_slug: str) -> tuple[str, ...]:
+    """On ``single_branch``, which commits of the write branch the gate did not judge (the range ends at the submission)."""
     from specify_cli.bulk_edit.gate import resubmit_command
 
-    to_review = escape(resubmit_command(wp_id, mission_slug))
-    failed = (review_range.listing_gap or "").split(", ")
-    if "moved-past" in failed:
-        console.print(
-            f"[yellow]Bulk-edit review gate:[/] could not count the commits past {wp_id}'s submitted tip; the gate "
-            f"judged the submitted range only. Re-submit to judge later commits: {to_review}"
+    to_review = resubmit_command(wp_id, mission_slug)
+    if "moved-past" in (review_range.listing_gap or "").split(", "):
+        return (
+            f"could not count the commits past {wp_id}'s submitted tip; the gate judged the submitted range only. "
+            f"Re-submit to judge later commits: {to_review}",
         )
-    elif review_range.moved_past:
-        console.print(
-            f"[yellow]Bulk-edit review gate:[/] the branch moved {review_range.moved_past} commit(s) past {wp_id}'s "
-            f"submitted tip; the gate judged the submitted range only. Re-submit to judge them: {to_review}"
+    if review_range.moved_past:
+        return (
+            f"the branch moved {review_range.moved_past} commit(s) past {wp_id}'s submitted tip; the gate judged "
+            f"the submitted range only. Re-submit to judge them: {to_review}",
         )
+    return ()
 
 
 # Informational note kinds: nothing here asks for a decision. Each is shown
