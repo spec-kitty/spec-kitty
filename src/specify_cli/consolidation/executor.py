@@ -78,6 +78,7 @@ from specify_cli.consolidation.done_bookkeeping import (
 from specify_cli.consolidation.origin_gate import check_origin_before_status_dir
 from specify_cli.git.origin_freshness import OriginFreshnessRefused
 from specify_cli.consolidation.preflight import (
+    record_key_for_identity,
     _check_mission_branch,
     _effective_push_requested,
     _enforce_planning_artifact_target_branch,
@@ -1126,7 +1127,7 @@ def _run_lane_based_consolidation(
     # canonical_id: for path-based workspace management — explicit slug fallback for
     # legacy missions without a backfilled ULID (NOT a mission_id field value).
     canonical_mission_id = identity.mission_id
-    canonical_id = identity.mission_id if identity.mission_id is not None else mission_slug
+    canonical_id = record_key_for_identity(identity.mission_id, mission_slug)
 
     existing_state = load_state(main_repo, canonical_id)
     if existing_state is None:
