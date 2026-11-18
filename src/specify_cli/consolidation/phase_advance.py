@@ -340,14 +340,14 @@ def _phase_retarget_record(run: _MergeRunState) -> None:
 
     A no-op without ``run.state.retarget``. Otherwise ``meta.json`` gets ``target_branch = to``
     plus one ``retarget_history`` entry on every branch whose tree carries it
-    (:func:`~specify_cli.consolidation.preflight.retarget_record_holders`, the one owner of
+    (:func:`~specify_cli.consolidation.preflight_retarget.retarget_record_holders`, the one owner of
     the holder rule): the Mission branch first, then the new target in the repository root
     checkout. It always runs, even when the record reads ``committed`` (a partial rollback can
     leave ``committed=True`` with a copy restored): the deduplicating mutate makes a copy that
     already carries the record ``unchanged`` (NFR-002). The decorator records both post tips;
     a refusal raises ``typer.Exit(1)`` and the door rolls back. ``lanes.json`` is not rewritten.
     """
-    from specify_cli.consolidation.preflight import retarget_record_holders
+    from specify_cli.consolidation.preflight_retarget import retarget_record_holders
 
     record = run.state.retarget
     if record is None:

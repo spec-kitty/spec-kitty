@@ -684,7 +684,7 @@ of the run follows it. Naming the recorded target again is not a retarget.
 - **The record.** `meta.json` gets `target_branch = <b>` and one `retarget_history` entry
   (`from`, `to`, `actor`, `at`, `reason`), bounded by the shared `meta.json` history cap. It is
   committed on every branch whose tree carries the Mission's `meta.json`
-  (`preflight.retarget_record_holders`, the one owner of that rule): the Mission branch, which for
+  (`preflight_retarget.retarget_record_holders`, the one owner of that rule): the Mission branch, which for
   a default-topology Mission is its topic branch and is where the landing reads the record from,
   and `<b>` when it carries the file, from the repository root checkout. `lanes.json` is not
   rewritten. The commit is the run's first mutation: `phase_advance._phase_retarget_record` runs
@@ -703,7 +703,7 @@ of the run follows it. Naming the recorded target again is not a retarget.
   reconciliation PASS anchor). A record with a snapshot never adopts one. `--abort` clears the
   record and the retarget with it. While the record holds a retarget, a run whose target is not
   the persisted `to` refuses with `RETARGET_RESUME_MISMATCH`, with or without `--retarget`
-  (`preflight.retarget_mode`, read by the entry preflight and `--dry-run`). `--target <old
+  (`preflight_retarget.retarget_mode`, read by the entry preflight and `--dry-run`). `--target <old
   target>` is included: before the mission review it passed the entry preflight, and the locked
   run then applied the persisted retarget anyway.
 - **Undo.** The retarget commits are undone ONLY by the one rollback authority
@@ -748,7 +748,7 @@ of the run follows it. Naming the recorded target again is not a retarget.
   retarget, because it has no rollback door (#7361). It keeps refusing a differing target with
   `PREFLIGHT_FAILED` and `TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE`. While the run record holds
   a retarget, it refuses any target with `PREFLIGHT_FAILED` and `RETARGET_RESUME_MISMATCH`
-  (`preflight.persisted_retarget_refusal`), so it never finishes or overrides a retarget. `CONTRACT_VERSION` is
+  (`preflight_retarget.persisted_retarget_refusal`), so it never finishes or overrides a retarget. `CONTRACT_VERSION` is
   unchanged.
 - **The kill window is not a residual.** The plan named a kill between the record commits and the
   `committed` persist as a residual that would refuse with `UNEXPLAINED_BRANCH_MOVE`. The
@@ -768,7 +768,7 @@ to commit"), the baseline validation failed (`baseline_merge_commit` missing), a
 resync back to the snapshot failed on the now-edited file (git refuses to reset the entry). The branch tips were
 restored, but the root checkout's index kept the landing and the merge record stayed. The resync
 contract and the rollback authority are unchanged. Instead the run refuses before the lock and
-before any snapshot, with `CHECKOUT_SKIP_WORKTREE_ENTRIES` (`preflight.skip_worktree_landing_refusal`,
+before any snapshot, with `CHECKOUT_SKIP_WORKTREE_ENTRIES` (`preflight_skip_worktree.skip_worktree_landing_refusal`,
 read by the entry preflight, `--dry-run` and `orchestrator-api consolidate-mission`), when a
 checkout holding the target or the Mission branch has an entry tagged `S` or `s` whose path is
 present (`lexists`; never a sparse-checkout exclusion) under the Mission directory or on a path

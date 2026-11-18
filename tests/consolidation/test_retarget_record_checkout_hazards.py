@@ -1,8 +1,8 @@
 """#7692 FR-011 (WP04 rework): the two root-checkout hazards a retarget record check refuses up front.
 
-* :func:`preflight._index_bit`: a skip-worktree or assume-unchanged bit on the new target's
+* :func:`preflight_skip_worktree._index_bit`: a skip-worktree or assume-unchanged bit on the new target's
   ``meta.json`` (refused even with no edit; the bake's own precheck is unchanged);
-* :func:`preflight._untracked_mission_copies_refusal`: untracked copies of the Mission directory
+* :func:`preflight_retarget._untracked_mission_copies_refusal`: untracked copies of the Mission directory
   in a root checkout on a new target that is not a holder.
 
 The end-to-end arms are in ``tests/terminus/test_consolidate_retarget_refusals.py``.
@@ -15,7 +15,8 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.consolidation import preflight
+from specify_cli.consolidation import preflight_skip_worktree
+from specify_cli.consolidation import preflight_retarget
 
 pytestmark = pytest.mark.fast
 
@@ -49,7 +50,7 @@ def _track_meta(repo: Path) -> None:
 
 def test_no_bit_reads_as_none(repo: Path) -> None:
     _track_meta(repo)
-    assert preflight._index_bit(repo, _REL_META) is None
+    assert preflight_skip_worktree._index_bit(repo, _REL_META) is None
 
 
 @pytest.mark.parametrize(
@@ -62,29 +63,29 @@ def test_no_bit_reads_as_none(repo: Path) -> None:
 def test_each_bit_is_named_with_the_command_that_clears_it(repo: Path, flag: str, expected: tuple[str, str]) -> None:
     _track_meta(repo)
     _git(repo, "update-index", flag, _REL_META.as_posix())
-    assert preflight._index_bit(repo, _REL_META) == expected
+    assert preflight_skip_worktree._index_bit(repo, _REL_META) == expected
 
 
 def test_an_untracked_path_reads_as_no_bit(repo: Path) -> None:
-    assert preflight._index_bit(repo, _REL_META) is None
+    assert preflight_skip_worktree._index_bit(repo, _REL_META) is None
 
 
 def test_untracked_mission_copies_on_the_new_target_are_refused(repo: Path) -> None:
     (repo / _REL_META).parent.mkdir(parents=True)
     (repo / _REL_META).write_text("{}\n", encoding="utf-8")
 
-    refusal = preflight._untracked_mission_copies_refusal(repo, _REL_META, recorded_target="main", effective_target="develop")
+    refusal = preflight_retarget._untracked_mission_copies_refusal(repo, _REL_META, recorded_target="main", effective_target="develop")
 
-    assert refusal is not None and refusal.error_code == preflight.RETARGET_RECORD_UNWRITABLE
+    assert refusal is not None and refusal.error_code == preflight_retarget.RETARGET_RECORD_UNWRITABLE
     assert "kitty-specs/m/meta.json" in refusal.message and "overwrite" in refusal.message
     assert "Remove the untracked copies under kitty-specs/m/" in refusal.next_step
 
 
 def test_no_untracked_copies_admit(repo: Path) -> None:
-    assert preflight._untracked_mission_copies_refusal(repo, _REL_META, recorded_target="main", effective_target="develop") is None
+    assert preflight_retarget._untracked_mission_copies_refusal(repo, _REL_META, recorded_target="main", effective_target="develop") is None
 
 
 def test_a_root_checkout_on_another_branch_is_not_judged_here(repo: Path) -> None:
     (repo / _REL_META).parent.mkdir(parents=True)
     (repo / _REL_META).write_text("{}\n", encoding="utf-8")
-    assert preflight._untracked_mission_copies_refusal(repo, _REL_META, recorded_target="main", effective_target="release") is None
+    assert preflight_retarget._untracked_mission_copies_refusal(repo, _REL_META, recorded_target="main", effective_target="release") is None

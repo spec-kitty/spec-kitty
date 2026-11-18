@@ -392,7 +392,7 @@ def test_single_branch_commit_to_target_retarget_refuses_before_anything_moves(t
     """
     from tests.terminus.test_protected_target_preflight import _build_commit_to_target_single_branch
 
-    from specify_cli.consolidation import preflight
+    from specify_cli.consolidation import preflight_retarget
 
     m = _build_commit_to_target_single_branch(tmp_path, "01M7692S")
     _git(m.repo, "branch", "develop", "main")
@@ -406,7 +406,7 @@ def test_single_branch_commit_to_target_retarget_refuses_before_anything_moves(t
         executor._refuse_protected_status_target_or_continue(m.repo, m.slug, manifest, m.mission_id, retarget=True)
 
     assert excinfo.value.exit_code == 1
-    assert preflight.RETARGET_WRITE_BRANCH_IS_RECORDED_TARGET in " ".join(capsys.readouterr().out.split())
+    assert preflight_retarget.RETARGET_WRITE_BRANCH_IS_RECORDED_TARGET in " ".join(capsys.readouterr().out.split())
     assert {b: _rev(m.repo, b) for b in ("main", "develop")} == tips
     assert load_state(m.repo, m.mission_id) is None, "no merge record is written"
 

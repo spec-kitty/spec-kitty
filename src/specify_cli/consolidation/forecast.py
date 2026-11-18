@@ -58,12 +58,14 @@ from specify_cli.consolidation.preflight import (
     _check_mission_branch,
     mission_branch_check_required,
     refuse_protected_status_target,
+)
+from specify_cli.consolidation.preflight_retarget import (
     merge_record_key,
     retarget_mode,
-    skip_worktree_landing_refusal,
     retarget_write_branch_refusal,
     target_override_verdict,
 )
+from specify_cli.consolidation.preflight_skip_worktree import skip_worktree_landing_refusal
 from specify_cli.consolidation.resolve import set_changed_message
 from specify_cli.consolidation.state import ConsolidationStateReadError, load_state, needs_number_assignment
 from mission_runtime import ActionContextError, MissionArtifactKind, placement_seam, resolve_artifact_surface
@@ -278,7 +280,7 @@ def _refuse_protected_status_target_in_forecast(
 
     #7692: a retarget forecast (*retarget_pair* ``(recorded, new)``) mirrors the entry
     preflight: the write-branch refusal first
-    (:func:`~specify_cli.consolidation.preflight.retarget_write_branch_refusal`), then the
+    (:func:`~specify_cli.consolidation.preflight_retarget.retarget_write_branch_refusal`), then the
     #5385 probe RE-POINTED at the new target (``retarget_to``), never skipped.
     """
     if retarget_pair is None:
@@ -562,7 +564,7 @@ def _forecast_retarget_pair(
 ) -> tuple[str, str] | None:
     """The ``(recorded, new)`` pair the real run would judge as a retarget, else ``None`` (#7692, FR-009).
 
-    The decision is :func:`~specify_cli.consolidation.preflight.retarget_mode`, the one owner the
+    The decision is :func:`~specify_cli.consolidation.preflight_retarget.retarget_mode`, the one owner the
     entry preflight reads too; this caller only renders its ``RETARGET_RESUME_MISMATCH`` as a
     dry-run error with the same message and next step the real run prints.
     """
@@ -583,7 +585,7 @@ def _refuse_protected_target_override_in_forecast(
 ) -> None:
     """``--dry-run`` parity for the #6464 and #5783 override guards: report the refusal's own ``error_code``.
 
-    The ONE verdict (:func:`~specify_cli.consolidation.preflight.target_override_verdict`); with
+    The ONE verdict (:func:`~specify_cli.consolidation.preflight_retarget.target_override_verdict`); with
     ``retarget`` (#7692) its record check is ``RETARGET_RECORD_UNWRITABLE`` against the new target,
     exactly as the entry preflight asks it.
 
@@ -624,7 +626,7 @@ def _entry_preflights_in_forecast(
     """The entry preflight's refusals, in its order, for ``--dry-run`` (FR-009); returns the admitted retarget pair.
 
     ``RETARGET_RESUME_MISMATCH`` -> write-branch refusal -> #5385 (re-pointed under a retarget)
-    -> :func:`~specify_cli.consolidation.preflight.target_override_verdict`. The forecast holds the
+    -> :func:`~specify_cli.consolidation.preflight_retarget.target_override_verdict`. The forecast holds the
     UN-retargeted manifest, so the recorded target is resolved from ``meta.json`` (falling back to its
     ``target_branch``) while the effective one is the resolved ``--target`` (#6464).
     """

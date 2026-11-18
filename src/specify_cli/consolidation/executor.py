@@ -77,8 +77,8 @@ from specify_cli.consolidation.done_bookkeeping import (
 )
 from specify_cli.consolidation.origin_gate import check_origin_before_status_dir
 from specify_cli.git.origin_freshness import OriginFreshnessRefused
+from specify_cli.consolidation.preflight_retarget import record_key_for_identity
 from specify_cli.consolidation.preflight import (
-    record_key_for_identity,
     _check_mission_branch,
     _effective_push_requested,
     _enforce_planning_artifact_target_branch,

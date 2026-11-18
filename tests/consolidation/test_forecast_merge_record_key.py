@@ -1,6 +1,6 @@
 """The ``--dry-run`` forecast reads the merge record under the executor's key (#7692 re-review LOW-3).
 
-The executor keys the record by ``meta.json`` identity (``preflight.merge_record_key``). A legacy
+The executor keys the record by ``meta.json`` identity (``preflight_retarget.merge_record_key``). A legacy
 ``lanes.json`` without ``mission_id`` made the forecast's mission-branch check and its recorded
 ``--dependency-ref`` read key on the slug and miss the record.
 """

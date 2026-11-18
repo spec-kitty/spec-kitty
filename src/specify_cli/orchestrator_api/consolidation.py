@@ -497,7 +497,7 @@ def _refuse_protected_target_override(main_repo_root: Path, mission_slug: str, l
     The recorded-target preflight above reads ``meta.json``; this one reads the target this
     path would actually commit to (``lanes_manifest.target_branch``, set from the request's
     ``--target``) and asks the CLI's ONE override verdict
-    (:func:`~specify_cli.consolidation.preflight.target_override_verdict`, #7692). This command
+    (:func:`~specify_cli.consolidation.preflight_retarget.target_override_verdict`, #7692). This command
     has no ``--retarget``, so it asks with ``retarget=False``: today's #6464 then #5783 chain.
 
     The envelope is unchanged (contract version unchanged): the #6464 refusal
@@ -506,7 +506,7 @@ def _refuse_protected_target_override(main_repo_root: Path, mission_slug: str, l
     code travels in ``data.preflight_error_code``. This path has no rollback door, so both
     refuse before the first lane is consolidated.
     """
-    from specify_cli.consolidation.preflight import target_override_verdict
+    from specify_cli.consolidation.preflight_retarget import target_override_verdict
     from specify_cli.coordination.types import PROTECTED_BRANCH_REFUSED
     from specify_cli.core.paths import MissionMetaReadError, resolve_merge_target_branch
 
@@ -536,11 +536,14 @@ def _refuse_persisted_retarget(main_repo_root: Path, mission_slug: str) -> None:
 
     This command has no ``--retarget`` and no rollback door, so it never finishes nor overrides a
     retarget an interrupted ``spec-kitty consolidate`` persisted
-    (:func:`~specify_cli.consolidation.preflight.persisted_retarget_refusal`). A
+    (:func:`~specify_cli.consolidation.preflight_retarget.persisted_retarget_refusal`). A
     :class:`CodedPreflightRefused` (``RETARGET_RESUME_MISMATCH``) before any branch moves, on the
     code-lane and the planning-artifact-only paths alike; the envelope is unchanged.
     """
-    from specify_cli.consolidation.preflight import merge_record_key, persisted_retarget_refusal
+    from specify_cli.consolidation.preflight_retarget import (
+        merge_record_key,
+        persisted_retarget_refusal,
+    )
 
     # Review OA-1: keyed like the executor (meta.json identity), never by the lanes.json copy.
     verdict = persisted_retarget_refusal(main_repo_root, merge_record_key(main_repo_root, mission_slug), mission_slug)
@@ -551,12 +554,12 @@ def _refuse_persisted_retarget(main_repo_root: Path, mission_slug: str) -> None:
 def _refuse_skip_worktree_landing(main_repo_root: Path, mission_slug: str, lanes_manifest: LanesManifest) -> None:
     """#7692: refuse, before any branch moves, a run whose checkout marks a file it writes as skip-worktree.
 
-    The CLI's one verdict (:func:`~specify_cli.consolidation.preflight.skip_worktree_landing_refusal`).
+    The CLI's one verdict (:func:`~specify_cli.consolidation.preflight_skip_worktree.skip_worktree_landing_refusal`).
     Witnessed before it: with the bit on ``status.events.jsonl`` this command squashed onto the
     target and then crashed in its ``done`` status commit, and this path has no rollback door. A
     :class:`CodedPreflightRefused` (``CHECKOUT_SKIP_WORKTREE_ENTRIES``, contract 1.29.0).
     """
-    from specify_cli.consolidation.preflight import skip_worktree_landing_refusal
+    from specify_cli.consolidation.preflight_skip_worktree import skip_worktree_landing_refusal
 
     verdict = skip_worktree_landing_refusal(main_repo_root, mission_slug, lanes_manifest, target_branch=lanes_manifest.target_branch)
     if verdict is not None:
