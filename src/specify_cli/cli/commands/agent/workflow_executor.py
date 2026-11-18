@@ -1049,7 +1049,12 @@ def _warn_profileless_claim(wp_id: str, actor: object) -> None:
     """Warn on stderr when the recorded implementer identity is the tool alone (#7712)."""
     from specify_cli.status import profileless_identity_warning
 
-    warning = profileless_identity_warning(wp_id, actor)
+    try:
+        warning = profileless_identity_warning(wp_id, actor)
+    except Exception:
+        # Advisory only, printed after the claim landed: never turns a recorded claim into a failure.
+        logger.debug("could not classify the claim warning for %s", wp_id, exc_info=True)
+        return
     if warning is not None:
         typer.echo(warning, err=True)
 
