@@ -16,6 +16,19 @@ import pytest
 
 pytestmark = pytest.mark.git_repo
 
+
+def _configure_claude(project: Path) -> None:
+    """Record ``agents.available: [claude]`` the way ``init --ai claude`` does (#7235).
+
+    ``.kittify/config.yaml`` is the single source of truth for agents: without an
+    ``available`` list, ``generate_all_shims`` writes shims only for agent surfaces
+    that already exist, so a bare project correctly gets none.
+    """
+    from specify_cli.core.agent_config import AgentConfig, save_agent_config
+
+    save_agent_config(project, AgentConfig(available=["claude"]))
+
+
 # ---------------------------------------------------------------------------
 # Helpers for setting up a fake global runtime
 # ---------------------------------------------------------------------------
@@ -207,6 +220,7 @@ class TestInitCreatesMinimalProject:
         assert pkg_templates is not None
 
         # WP10: Shim generation replaces the old command-template copy + render flow.
+        _configure_claude(project)
         generate_all_shims(project)
 
         # Verify project-specific files exist
@@ -517,6 +531,7 @@ class TestScratchDirNotLegacy:
         from specify_cli.shims.generator import generate_all_shims
 
         _prepare_project_minimal(project)
+        _configure_claude(project)
         generate_all_shims(project)
 
         # WP10: No scratch directory should exist
@@ -535,6 +550,7 @@ class TestScratchDirNotLegacy:
 
         from specify_cli.shims.generator import generate_all_shims
 
+        _configure_claude(project)
         generate_all_shims(project)
 
         # Verify shim files were written to agent directories
@@ -565,6 +581,7 @@ class TestScratchDirNotLegacy:
 
         # WP10: Shim generation replaces the old command-template copy + render flow.
         # No scratch directory is created.
+        _configure_claude(project)
         generate_all_shims(project)
 
         # Verify no scratch or command-templates dirs exist (WP10: nothing to clean up)
