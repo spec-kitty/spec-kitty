@@ -4,7 +4,6 @@ These tests verify the end-to-end glossary middleware pipeline flow:
 term extraction -> semantic check -> generation gate -> clarification -> resume.
 """
 
-import time
 
 import pytest
 
@@ -18,6 +17,7 @@ from glossary.pipeline import (
 )
 from glossary.strictness import Strictness
 from specify_cli.missions import PrimitiveExecutionContext
+from tests._perf_helpers import median_in_process_seconds
 
 pytestmark = pytest.mark.fast
 
@@ -534,83 +534,83 @@ class TestPipelineSeedFileEdgeCases:
 # ---------------------------------------------------------------------------
 
 
+#: Steady-state budget for one pipeline step (the <200ms requirement). Nightly
+#: CI measured 0.005-0.103 s for these workloads over eight green runs (runs
+#: 40626642957 to 44009807449), so 0.2 s keeps about 2x headroom over the
+#: slowest clean figure. #7704: the figure is the median of
+#: ``IN_PROCESS_SAMPLE_RUNS`` steps after one untimed warm-up step. A single
+#: step was red twice over: alone, any of these tests paid the process's
+#: first ``jsonschema`` import (about 1 s) and failed; and run 44230080019
+#: stalled one step for 4.295 s while the identical-workload
+#: ``test_hundred_watch_terms_under_200ms`` passed minutes earlier in the
+#: same process. The budget is unchanged; no retry.
+_PIPELINE_STEP_BUDGET_S = 0.2
+
+_SEED_TERMS_YAML = (
+    "terms:\n"
+    "  - surface: workspace\n"
+    "    definition: Git worktree directory\n"
+    "    confidence: 1.0\n"
+    "    status: active\n"
+    "  - surface: mission\n"
+    "    definition: Purpose-specific workflow\n"
+    "    confidence: 1.0\n"
+    "    status: active\n"
+)
+
+
+def _median_step_seconds(tmp_path, *, seed_yaml=None, pipeline_kwargs=None, **context_overrides):
+    """Median seconds of one ``pipeline.process`` step, each on a fresh repository."""
+
+    def prepare(label):
+        repo = tmp_path / label
+        (repo / ".kittify").mkdir(parents=True)
+        if seed_yaml is not None:
+            _create_seed_file(repo, "team_domain", seed_yaml)
+        pipeline = create_standard_pipeline(repo, **(pipeline_kwargs or {}))
+        ctx = _make_context(**context_overrides)
+        return lambda: pipeline.process(ctx)
+
+    return median_in_process_seconds(prepare)
+
+
 class TestPipelinePerformance:
     """Verify pipeline execution time meets the <200ms requirement."""
 
     @pytest.mark.performance
     def test_pipeline_performance_simple(self, tmp_path):
         """Full pipeline execution should complete in <200ms for simple input."""
-        (tmp_path / ".kittify").mkdir()
-
-        ctx = _make_context(
+        elapsed = _median_step_seconds(
+            tmp_path,
             inputs={"description": "Test with some technical terms"},
         )
 
-        pipeline = create_standard_pipeline(tmp_path)
-
-        start = time.perf_counter()
-        pipeline.process(ctx)
-        elapsed = time.perf_counter() - start
-
-        assert elapsed < 0.2, f"Pipeline too slow: {elapsed:.3f}s"
+        assert elapsed < _PIPELINE_STEP_BUDGET_S, f"Pipeline too slow: {elapsed:.3f}s"
 
     @pytest.mark.performance
     def test_pipeline_performance_with_seed_file(self, tmp_path):
         """Pipeline with seed files still completes within budget."""
-        _create_seed_file(
+        elapsed = _median_step_seconds(
             tmp_path,
-            "team_domain",
-            (
-                "terms:\n"
-                "  - surface: workspace\n"
-                "    definition: Git worktree directory\n"
-                "    confidence: 1.0\n"
-                "    status: active\n"
-                "  - surface: mission\n"
-                "    definition: Purpose-specific workflow\n"
-                "    confidence: 1.0\n"
-                "    status: active\n"
-            ),
-        )
-
-        ctx = _make_context(
+            seed_yaml=_SEED_TERMS_YAML,
+            pipeline_kwargs={"runtime_strictness": Strictness.OFF},
             inputs={"description": "The workspace and mission are configured"},
             metadata={"glossary_watch_terms": ["workspace", "mission"]},
         )
 
-        pipeline = create_standard_pipeline(
-            tmp_path,
-            runtime_strictness=Strictness.OFF,
-        )
-
-        start = time.perf_counter()
-        pipeline.process(ctx)
-        elapsed = time.perf_counter() - start
-
-        assert elapsed < 0.2, f"Pipeline too slow: {elapsed:.3f}s"
+        assert elapsed < _PIPELINE_STEP_BUDGET_S, f"Pipeline too slow: {elapsed:.3f}s"
 
     @pytest.mark.performance
     def test_pipeline_performance_100_terms(self, tmp_path):
         """Pipeline with 100+ extracted terms still completes within budget."""
-        (tmp_path / ".kittify").mkdir()
-
-        # Create metadata with 100 watch terms
-        terms = [f"term{i}" for i in range(100)]
-        ctx = _make_context(
-            inputs={"description": "test"},
-            metadata={"glossary_watch_terms": terms},
-        )
-
-        pipeline = create_standard_pipeline(
+        elapsed = _median_step_seconds(
             tmp_path,
-            runtime_strictness=Strictness.OFF,
+            pipeline_kwargs={"runtime_strictness": Strictness.OFF},
+            inputs={"description": "test"},
+            metadata={"glossary_watch_terms": [f"term{i}" for i in range(100)]},
         )
 
-        start = time.perf_counter()
-        pipeline.process(ctx)
-        elapsed = time.perf_counter() - start
-
-        assert elapsed < 0.2, f"Pipeline too slow: {elapsed:.3f}s"
+        assert elapsed < _PIPELINE_STEP_BUDGET_S, f"Pipeline too slow: {elapsed:.3f}s"
 
 
 # ---------------------------------------------------------------------------

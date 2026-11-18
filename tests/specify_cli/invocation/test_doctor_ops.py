@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 import json
 import subprocess
 import time
@@ -12,7 +13,7 @@ from typing import Literal
 import pytest
 from typer.testing import CliRunner
 
-from tests._perf_helpers import assert_timing_budget
+from tests._perf_helpers import assert_timing_budget, median_in_process_seconds
 from tests.specify_cli.invocation._op_git import checkout_issue_branch, track_op_record_on_current_branch
 
 from specify_cli import app as cli_app
@@ -717,6 +718,30 @@ def test_sweep_10k_files_sweeps_all(
     assert report.swept == 10_000
 
 
+#: NFR-002 (spec ``do-dispatch-open-op-lifecycle-01KTSJ2H``): ``doctor ops
+#: --close-stale`` completes in under 5 s on 10,000 Op files. Re-derived from
+#: evidence for #7704, and kept at the requirement itself:
+#:
+#: * eight green nightly runs (40626642957 to 44009807449) measured the single
+#:   sweep at 0.731-1.625 s, so 5.0 s is 3.1x the slowest clean figure and
+#:   6.8x the latest; a doubling of the per-file cost still leaves it green,
+#:   but an order-of-magnitude regression (the class NFR-002 exists for) does not;
+#: * the one red, 5.088 s on run 44230080019, was a runner-wide stall, not code:
+#:   nothing on the sweep's path changed between the green run 44009807449
+#:   (0.733 s) and the red one, the whole suite ran 1.76x longer (2008 s against
+#:   1143 s) with rmtree teardowns 12x slower, and the same run stalled an
+#:   unrelated glossary step 72x (#7704);
+#: * widening the number to absorb that stall (about 7x clean) would put it above
+#:   the requirement, so the test would stop checking NFR-002.
+#:
+#: So the number stays and the statistic changes: the figure is the median of
+#: ``IN_PROCESS_SAMPLE_RUNS`` sweeps over the same 10,000 files (the close is
+#: mocked, so a sweep writes nothing and every sweep sees the same input). A
+#: one-off stall lands in a minority of the samples; a slower sweep moves all of
+#: them. No retry.
+_NFR_002_BUDGET_S = 5.0
+
+
 @pytest.mark.slow
 @pytest.mark.performance
 def test_sweep_nfr_002_10k_files_under_5s(
@@ -731,8 +756,9 @@ def test_sweep_nfr_002_10k_files_under_5s(
         lambda self, invocation_id, *a, **k: None,
     )
 
-    start = time.perf_counter()
-    close_stale_ops(tmp_path, threshold_hours=24.0, now=_NOW)
-    elapsed = time.perf_counter() - start
+    def prepare(_label: str) -> Callable[[], object]:
+        return lambda: close_stale_ops(tmp_path, threshold_hours=24.0, now=_NOW)
 
-    assert_timing_budget(elapsed, 5.0, name="10k-file sweep (NFR-002)")
+    elapsed = median_in_process_seconds(prepare, warmups=0)
+
+    assert_timing_budget(elapsed, _NFR_002_BUDGET_S, name="10k-file sweep (NFR-002), median")

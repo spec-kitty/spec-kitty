@@ -23,7 +23,7 @@ from glossary.pipeline import (
 )
 from glossary.strictness import Strictness
 from specify_cli.missions import PrimitiveExecutionContext
-from tests._perf_helpers import assert_timing_budget
+from tests._perf_helpers import assert_timing_budget, median_in_process_seconds
 
 pytestmark = pytest.mark.fast
 # ---------------------------------------------------------------------------
@@ -1342,31 +1342,44 @@ _PERF_EDGE_WINDOW = 3
 #: bind it (cf. tests/consolidation/test_canceled_content_benchmark.py's _BUDGET_SECONDS).
 _PERF_ACCUMULATION_RATIO_LIMIT = 3.0
 
+#: Steady-state budget for one pipeline step (the < 200ms requirement), judged on
+#: the median of ``IN_PROCESS_SAMPLE_RUNS`` steps after one untimed warm-up
+#: (#7704). Nightly CI measured 0.011-0.134 s for these two workloads over eight
+#: green runs; a single step run alone paid the process's first ``jsonschema``
+#: import (about 1 s) and failed, and one stalled step reached 4.295 s on run
+#: 44230080019. The budget is unchanged; no retry.
+_PIPELINE_STEP_BUDGET_S = 0.2
+
 
 class TestIntegrationPerformance:
     """Verify integration test workflows complete within performance budget."""
 
     @pytest.mark.performance
     def test_full_pipeline_under_200ms(self, tmp_path):
-        """Full pipeline execution (no conflict) completes in < 200ms."""
-        _setup_multi_scope_repo(tmp_path)
+        """Full pipeline execution (no conflict) completes in < 200ms.
 
-        ctx = PrimitiveExecutionContext(
-            step_id="perf-001",
-            mission_id="test",
-            run_id="run-perf-001",
-            inputs={"description": "Simple test with no special terms"},
-            metadata={},
-            config={},
-        )
+        #7704: median of ``IN_PROCESS_SAMPLE_RUNS`` steps after an untimed
+        warm-up, each on a fresh repository; see ``_PIPELINE_STEP_BUDGET_S``.
+        """
 
-        pipeline = create_standard_pipeline(tmp_path)
+        def prepare(label):
+            repo = tmp_path / label
+            repo.mkdir()
+            _setup_multi_scope_repo(repo)
+            pipeline = create_standard_pipeline(repo)
+            ctx = PrimitiveExecutionContext(
+                step_id="perf-001",
+                mission_id="test",
+                run_id="run-perf-001",
+                inputs={"description": "Simple test with no special terms"},
+                metadata={},
+                config={},
+            )
+            return lambda: pipeline.process(ctx)
 
-        start = time.perf_counter()
-        pipeline.process(ctx)
-        elapsed = time.perf_counter() - start
+        elapsed = median_in_process_seconds(prepare)
 
-        assert elapsed < 0.2, f"Pipeline too slow: {elapsed:.3f}s (expected < 0.2s)"
+        assert elapsed < _PIPELINE_STEP_BUDGET_S, f"Pipeline too slow: {elapsed:.3f}s (expected < 0.2s)"
 
     @pytest.mark.performance
     def test_repeated_conflict_resolution_has_no_runaway_accumulation(self, tmp_path, monkeypatch, record_property):
@@ -1444,23 +1457,27 @@ class TestIntegrationPerformance:
 
     @pytest.mark.performance
     def test_hundred_watch_terms_under_200ms(self, tmp_path):
-        """Pipeline with 100 metadata watch terms completes in < 200ms."""
-        (tmp_path / ".kittify").mkdir()
+        """Pipeline with 100 metadata watch terms completes in < 200ms.
 
+        #7704: median of ``IN_PROCESS_SAMPLE_RUNS`` steps after an untimed
+        warm-up, each on a fresh repository; see ``_PIPELINE_STEP_BUDGET_S``.
+        """
         terms = [f"term{i}" for i in range(100)]
-        ctx = PrimitiveExecutionContext(
-            step_id="perf-100",
-            mission_id="perf-test",
-            run_id="run-perf-100",
-            inputs={"description": "test"},
-            metadata={"glossary_watch_terms": terms},
-            config={},
-        )
 
-        pipeline = create_standard_pipeline(tmp_path, runtime_strictness=Strictness.OFF)
+        def prepare(label):
+            repo = tmp_path / label
+            (repo / ".kittify").mkdir(parents=True)
+            pipeline = create_standard_pipeline(repo, runtime_strictness=Strictness.OFF)
+            ctx = PrimitiveExecutionContext(
+                step_id="perf-100",
+                mission_id="perf-test",
+                run_id="run-perf-100",
+                inputs={"description": "test"},
+                metadata={"glossary_watch_terms": terms},
+                config={},
+            )
+            return lambda: pipeline.process(ctx)
 
-        start = time.perf_counter()
-        pipeline.process(ctx)
-        elapsed = time.perf_counter() - start
+        elapsed = median_in_process_seconds(prepare)
 
-        assert elapsed < 0.2, f"Pipeline too slow with 100 terms: {elapsed:.3f}s"
+        assert elapsed < _PIPELINE_STEP_BUDGET_S, f"Pipeline too slow with 100 terms: {elapsed:.3f}s"
