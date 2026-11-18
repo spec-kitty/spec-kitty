@@ -810,6 +810,16 @@ def move_task(
             help="Record that approval is a self-review fallback after the intended reviewer failed.",
         ),
     ] = False,
+    as_implementer: Annotated[
+        bool,
+        typer.Option(
+            "--as-implementer",
+            help=(
+                "With --to for_review out of in_review: record this re-submission as the implementer's own act "
+                "(role implementer), so its --agent identity completes a claim that recorded no profile or model."
+            ),
+        ),
+    ] = False,
     intended_reviewer: Annotated[
         str | None,
         typer.Option("--intended-reviewer", help="Reviewer that should have reviewed this WP before fallback."),
@@ -928,6 +938,7 @@ def move_task(
             approval_ref=approval_ref,
             reviewer=reviewer,
             self_review_fallback=self_review_fallback,
+            as_implementer=as_implementer,
             intended_reviewer=intended_reviewer,
             reviewer_failure_reason=reviewer_failure_reason,
             done_override_reason=done_override_reason,

@@ -467,3 +467,43 @@ def test_a_bare_approval_out_of_a_placeholder_review_claim_refuses(implementer: 
         move_task_module._mt_require_independent_approval(_state(Lane.APPROVED, old_lane=Lane.IN_REVIEW, agent=None))
 
     assert str(refused.value) == _PLACEHOLDER_MESSAGE
+
+
+# ---------------------------------------------------------------- --as-implementer (#7712)
+
+
+def test_as_implementer_records_the_resubmission_hop_as_the_implementers_act() -> None:
+    from specify_cli.cli.commands.agent.tasks_move_task_hops import _mt_hop_structured_actor
+
+    st = _state(Lane.FOR_REVIEW, old_lane=Lane.IN_REVIEW, force=True, agent="claude::curator-carla")
+    assert _mt_hop_structured_actor(st, Lane.IN_REVIEW, Lane.FOR_REVIEW, "claude::curator-carla")["role"] == "reviewer"
+    st.as_implementer = True
+    actor = _mt_hop_structured_actor(st, Lane.IN_REVIEW, Lane.FOR_REVIEW, "claude::curator-carla")
+    assert (actor["tool"], actor["profile"], actor["role"]) == ("claude", "curator-carla", "implementer")
+    # Every other hop keeps the role role_for_hop gives it.
+    assert _mt_hop_structured_actor(st, Lane.IN_REVIEW, Lane.APPROVED, "claude::curator-carla")["role"] == "reviewer"
+
+
+@pytest.mark.parametrize(
+    ("old_lane", "target_lane", "agent"),
+    [
+        (Lane.IN_PROGRESS, Lane.FOR_REVIEW, "claude::curator-carla"),  # not out of in_review
+        (Lane.IN_REVIEW, Lane.APPROVED, "claude::curator-carla"),  # not into for_review
+        (Lane.IN_REVIEW, Lane.FOR_REVIEW, None),  # no identity to record
+    ],
+)
+def test_as_implementer_is_refused_where_it_does_not_apply(old_lane: Lane, target_lane: Lane, agent: str | None) -> None:
+    st = _state(target_lane, old_lane=old_lane, force=True, agent=agent)
+    st.as_implementer = True
+
+    with pytest.raises(ActionContextError) as refused:
+        move_task_module._mt_require_as_implementer_hop(st)
+
+    assert refused.value.code == "AS_IMPLEMENTER_HOP_INVALID"
+
+
+def test_as_implementer_passes_on_the_resubmission_and_is_a_no_op_when_unset() -> None:
+    st = _state(Lane.FOR_REVIEW, old_lane=Lane.IN_REVIEW, force=True, agent="claude::curator-carla")
+    move_task_module._mt_require_as_implementer_hop(st)
+    st.as_implementer = True
+    move_task_module._mt_require_as_implementer_hop(st)

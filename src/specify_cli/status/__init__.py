@@ -359,6 +359,8 @@ from .views import (
     format_post_mission_events,
 )
 from .review_roles import (
+    IMPLEMENTER_RESUBMISSION_ROLE,
+    is_implementer_resubmission_hop,
     implementer_identities,
     independent_of_implementers,
     is_latest_implementer,
@@ -712,7 +714,9 @@ __all__ = [
     "SEED_SHAPED_IDENTITY_REFUSAL",
     "refuse_seed_shaped_identity",
     "GENERIC_IMPLEMENTATION_ACTORS",
+    "IMPLEMENTER_RESUBMISSION_ROLE",
     "implementer_identities",
+    "is_implementer_resubmission_hop",
     "independent_of_implementers",
     "is_latest_implementer",
     "latest_implementer_actor",

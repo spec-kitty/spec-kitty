@@ -40,6 +40,7 @@ Options
 --approval-ref <str> Approval reference for approval/done transitions (e.g., PR#42)
 --reviewer <str> Reviewer name (auto-detected from git if omitted)
 --self-review-fallback Record that approval is a self-review fallback after the intended reviewer failed.
+--as-implementer With --to for_review out of in_review: record this re-submission as the implementer's own act (role implementer), so its --agent identity completes a claim that recorded no profile or model.
 --intended-reviewer <str> Reviewer that should have reviewed this WP before fallback.
 --reviewer-failure-reason <str> Reason the intended reviewer failed.
 --done-override-reason <str> Required when --to done and merge ancestry cannot be verified; recorded in history/event reason
