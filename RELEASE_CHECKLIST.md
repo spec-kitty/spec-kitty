@@ -25,8 +25,9 @@ Use this checklist for releases from `main`.
   `ci-nightly` for the exact release SHA** — it dispatches the nightly by the
   release tag and blocks publishing until that run is green (fail-closed on a
   missing, stale, red, or in-progress nightly). Because the `performance` job
-  runs weekly (#7704), the gate also requires a green `ci-nightly` run from the
-  **last 7 days in which the `performance` job executed** (skipped does not
+  runs weekly (#7704), the gate also requires a `ci-nightly` run from the
+  **last 7 days in which the `performance` job executed and passed** (the
+  performance job alone decides; other jobs of that run do not; skipped does not
   count; the newest such run is the verdict, so a newer red outvotes an older
   green), on the release SHA or a `main` ancestor of it; without one it
   dispatches the nightly by the tag, which always runs that job. To have the

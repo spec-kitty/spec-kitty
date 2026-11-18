@@ -22,10 +22,11 @@ Contract (research.md D7 / contracts/ci-workflow-contract.md release section):
 - **Performance verdict (#7704)**: the ``performance`` job runs weekly (the
   Sunday ``ci-nightly.yml`` run, or any ``workflow_dispatch``), so a green run
   on the release SHA no longer implies it ran. The gate also requires a
-  ``success`` ``ci-nightly.yml`` run created in the last
-  :data:`PERFORMANCE_VERDICT_MAX_AGE` whose performance job EXECUTED and
-  concluded ``success`` (``skipped`` does not count), on the release SHA or on
-  a ``main`` commit that is an ancestor of it. Without one, ``--dispatch``
+  ``ci-nightly.yml`` run created in the last :data:`PERFORMANCE_VERDICT_MAX_AGE`
+  whose performance job EXECUTED and concluded ``success`` (``skipped`` does
+  not count), on the release SHA or on a ``main`` commit that is an ancestor of
+  it. The performance job alone decides that verdict: a red stress or e2e job
+  in the same run does not make it red. Without one, ``--dispatch``
   dispatches by the tag (a dispatched run always runs the performance job) and
   waits for both verdicts; without ``--dispatch`` the gate refuses and names
   the remedy.
@@ -196,6 +197,8 @@ class PerformanceVerdict:
 
     It is the verdict whatever its conclusion: an older green run never outvotes
     a newer red one, so a release cannot publish past an open performance red.
+    Only the performance job's conclusion decides ``green``; the run's own
+    conclusion is kept for display (another job may have failed in that run).
     """
 
     run: dict[str, Any]
@@ -203,7 +206,7 @@ class PerformanceVerdict:
 
     @property
     def green(self) -> bool:
-        return _is_success(self.run) and self.job_conclusion == _JOB_EXECUTED_CONCLUSION
+        return self.job_conclusion == _JOB_EXECUTED_CONCLUSION
 
 
 def find_performance_verdict(client: NightlyGateClient, release_sha: str, *, now: datetime) -> PerformanceVerdict | None:
@@ -237,17 +240,16 @@ def _red_performance_summary(release_sha: str, tag: str, verdict: PerformanceVer
             f"ci-nightly again by the release tag (gh workflow run {_WORKFLOW_FILE} --ref {tag}), or run this gate with --dispatch"
         )
     return (
-        f"the newest performance verdict covering {release_sha} is red: run {run.get('id')} "
-        f"({run.get('head_sha')}, {run.get('created_at')}) concluded {run.get('conclusion')!r} with the performance job "
-        f"{verdict.job_conclusion!r}; an older green run does not outvote it. Fix the red, then dispatch ci-nightly "
-        f"by the release tag (gh workflow run {_WORKFLOW_FILE} --ref {tag}), or run this gate with --dispatch"
+        f"the newest performance verdict covering {release_sha} is red: the performance job of run {run.get('id')} "
+        f"({run.get('head_sha')}, {run.get('created_at')}) concluded {verdict.job_conclusion!r}; an older green run does not outvote it. "
+        f"Fix the red, then dispatch ci-nightly by the release tag (gh workflow run {_WORKFLOW_FILE} --ref {tag}), or run this gate with --dispatch"
     )
 
 
 def _missing_performance_summary(release_sha: str, tag: str) -> str:
     days = PERFORMANCE_VERDICT_MAX_AGE.days
     return (
-        f"no green ci-nightly run in the last {days} days in which the performance job executed and passed, "
+        f"no ci-nightly run in the last {days} days in which the performance job executed and passed, "
         f"on {release_sha} or a main ancestor of it (the performance job runs weekly, Sundays); "
         f"remedy: dispatch ci-nightly by the release tag (gh workflow run {_WORKFLOW_FILE} --ref {tag}), "
         "or run this gate with --dispatch"
