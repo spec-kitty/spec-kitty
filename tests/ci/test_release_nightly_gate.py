@@ -23,7 +23,9 @@ from __future__ import annotations
 import importlib.util
 import sys
 from collections.abc import Iterator
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from collections.abc import Sequence
 from types import ModuleType
 from typing import Any
 
@@ -38,6 +40,10 @@ _SCRIPT_MODULE_NAME = "release_nightly_gate"
 _FAKE_TOKEN = "ghs_faketoken_should_never_be_printed"  # noqa: S105 - test sentinel, not a real credential
 _TAG = "v3.2.0rc42"
 _SHA = "0123456789abcdef0123456789abcdef01234567"
+_ANCESTOR_SHA = "1111111111111111111111111111111111111111"
+_UNRELATED_SHA = "2222222222222222222222222222222222222222"
+_NOW = datetime(2026, 11, 18, 12, 0, tzinfo=UTC)
+_PERF_JOB_NAME = "Performance suite (weekly, #3595, #7704)"
 
 #: Populated by the autouse ``_release_nightly_gate_module`` fixture below.
 mod: ModuleType
@@ -69,6 +75,21 @@ def _run(run_id: int, status: str, conclusion: str | None = None) -> dict[str, A
     return {"id": run_id, "status": status, "conclusion": conclusion}
 
 
+def _perf_run(run_id: int, *, sha: str = _SHA, age: timedelta = timedelta(days=1), branch: str = "main") -> dict[str, Any]:
+    """A green ci-nightly run as the runs-listing API reports it (#7704)."""
+    created = (_NOW - age).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return {"id": run_id, "status": "completed", "conclusion": "success", "head_sha": sha, "head_branch": branch, "created_at": created}
+
+
+def _jobs(perf_conclusion: str) -> list[dict[str, Any]]:
+    return [{"name": "Heavy e2e suite (nightly-only, #3595)", "conclusion": "success"}, {"name": _PERF_JOB_NAME, "conclusion": perf_conclusion}]
+
+
+#: The default recent performance verdict: run 900, one day old, on the release SHA, perf executed.
+_DEFAULT_PERF_RUNS = (_perf_run(900),)
+_DEFAULT_JOBS = {900: _jobs("success")}
+
+
 class FakeClock:
     """A deterministic monotonic clock whose ``sleep`` advances virtual time."""
 
@@ -90,12 +111,25 @@ class FakeClient:
     modelling runs that appear / progress over time. The last snapshot repeats.
     """
 
-    def __init__(self, run_batches: list[list[dict[str, Any]]], *, sha: str = _SHA) -> None:
+    def __init__(
+        self,
+        run_batches: list[list[dict[str, Any]]],
+        *,
+        sha: str = _SHA,
+        perf_runs: Sequence[dict[str, Any]] = _DEFAULT_PERF_RUNS,
+        jobs: dict[int, list[dict[str, Any]]] | None = None,
+        ancestors: frozenset[str] = frozenset({_ANCESTOR_SHA}),
+        perf_runs_after_dispatch: Sequence[dict[str, Any]] | None = None,
+    ) -> None:
         self._run_batches = run_batches
         self._sha = sha
         self._list_index = 0
         self.calls: list[tuple[str, tuple[Any, ...]]] = []
         self.dispatched: list[dict[str, Any]] = []
+        self._perf_runs = list(perf_runs)
+        self._jobs = dict(_DEFAULT_JOBS if jobs is None else jobs)
+        self._ancestors = ancestors
+        self._perf_runs_after_dispatch = perf_runs_after_dispatch
 
     def resolve_tag_sha(self, tag: str) -> str:
         self.calls.append(("resolve", (tag,)))
@@ -110,6 +144,32 @@ class FakeClient:
     def dispatch_nightly(self, *, ref: str, mode: str) -> None:
         self.calls.append(("dispatch", (ref, mode)))
         self.dispatched.append({"ref": ref, "mode": mode})
+        if self._perf_runs_after_dispatch is not None:
+            self._perf_runs = list(self._perf_runs_after_dispatch)
+
+    def list_recent_nightly_runs(self, since: datetime) -> list[dict[str, Any]]:
+        self.calls.append(("recent", (since,)))
+        return list(self._perf_runs)
+
+    def list_run_jobs(self, run_id: int) -> list[dict[str, Any]]:
+        self.calls.append(("jobs", (run_id,)))
+        return self._jobs.get(run_id, [])
+
+    def is_ancestor(self, ancestor_sha: str, descendant_sha: str) -> bool:
+        self.calls.append(("ancestor", (ancestor_sha, descendant_sha)))
+        return descendant_sha == self._sha and ancestor_sha in self._ancestors
+
+
+@pytest.fixture(autouse=True)
+def _fixed_now(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin the gate's wall clock so the 7-day window is deterministic."""
+    original = mod.run_release_gate
+
+    def _gate(*args: Any, **kwargs: Any) -> Any:
+        kwargs.setdefault("now", lambda: _NOW)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(mod, "run_release_gate", _gate)
 
 
 def _call_names(client: FakeClient) -> list[str]:
@@ -331,6 +391,8 @@ def test_main_passes_returns_zero_on_existing_green(monkeypatch: pytest.MonkeyPa
 
     monkeypatch.setattr(mod.GitHubActionsClient, "resolve_tag_sha", lambda self, tag: _SHA)
     monkeypatch.setattr(mod.GitHubActionsClient, "list_nightly_runs", lambda self, sha: [_run(1, "completed", "success")])
+    monkeypatch.setattr(mod.GitHubActionsClient, "list_recent_nightly_runs", lambda self, since: [_perf_run(900)])
+    monkeypatch.setattr(mod.GitHubActionsClient, "list_run_jobs", lambda self, run_id: _jobs("success"))
     rc = mod.main(["--tag", _TAG, "--repo", "spec-kitty/spec-kitty"])
 
     assert rc == mod.EXIT_OK
@@ -427,3 +489,192 @@ def test_resolve_token_returns_none_when_absent(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.delenv("GH_TOKEN", raising=False)
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
     assert mod.resolve_token() is None
+
+
+# ---------------------------------------------------------------------------
+# performance verdict (#7704): the performance job runs weekly, so a green run on
+# the release SHA no longer proves it ran. The gate needs a green run within 7
+# days whose performance job EXECUTED, on the release SHA or a main ancestor.
+# ---------------------------------------------------------------------------
+def test_a_recent_performance_run_on_a_main_ancestor_passes() -> None:
+    client = FakeClient(
+        [[_run(1, "completed", "success")]],
+        perf_runs=[_perf_run(800, sha=_ANCESTOR_SHA, age=timedelta(days=3))],
+        jobs={800: _jobs("success")},
+    )
+    result = mod.run_release_gate(client, tag=_TAG, dispatch=False, timeout=100, poll_interval=10)
+
+    assert result.passed is True
+    assert "run 800" in result.summary
+    assert ("ancestor", (_ANCESTOR_SHA, _SHA)) in client.calls
+
+
+def test_a_performance_job_that_was_only_skipped_refuses_and_names_the_dispatch_remedy() -> None:
+    # The same-SHA run is green, but its performance job was skipped (a Mon-Sat run).
+    client = FakeClient(
+        [[_run(1, "completed", "success")]],
+        perf_runs=[_perf_run(1)],
+        jobs={1: _jobs("skipped")},
+    )
+    result = mod.run_release_gate(client, tag=_TAG, dispatch=False, timeout=100, poll_interval=10)
+
+    assert result.passed is False
+    assert "performance job executed" in result.summary
+    assert f"gh workflow run ci-nightly.yml --ref {_TAG}" in result.summary
+    assert "--dispatch" in result.summary
+    assert "dispatch" not in _call_names(client)
+
+
+def test_a_performance_run_older_than_seven_days_refuses() -> None:
+    client = FakeClient(
+        [[_run(1, "completed", "success")]],
+        perf_runs=[_perf_run(700, age=timedelta(days=7, minutes=1))],
+        jobs={700: _jobs("success")},
+    )
+    result = mod.run_release_gate(client, tag=_TAG, dispatch=False, timeout=100, poll_interval=10)
+
+    assert result.passed is False
+    assert "last 7 days" in result.summary
+
+
+def test_a_performance_run_on_a_commit_that_is_not_an_ancestor_refuses() -> None:
+    client = FakeClient(
+        [[_run(1, "completed", "success")]],
+        perf_runs=[_perf_run(600, sha=_UNRELATED_SHA)],
+        jobs={600: _jobs("success")},
+    )
+    result = mod.run_release_gate(client, tag=_TAG, dispatch=False, timeout=100, poll_interval=10)
+
+    assert result.passed is False
+    assert "jobs" not in _call_names(client)
+
+
+def test_a_performance_run_off_main_does_not_count_even_on_an_ancestor() -> None:
+    client = FakeClient(
+        [[_run(1, "completed", "success")]],
+        perf_runs=[_perf_run(500, sha=_ANCESTOR_SHA, branch="feature-x")],
+        jobs={500: _jobs("success")},
+    )
+    result = mod.run_release_gate(client, tag=_TAG, dispatch=False, timeout=100, poll_interval=10)
+
+    assert result.passed is False
+    assert "ancestor" not in _call_names(client)
+
+
+def test_a_failed_performance_job_does_not_count() -> None:
+    client = FakeClient([[_run(1, "completed", "success")]], perf_runs=[_perf_run(1)], jobs={1: _jobs("failure")})
+    result = mod.run_release_gate(client, tag=_TAG, dispatch=False, timeout=100, poll_interval=10)
+
+    assert result.passed is False
+
+
+def test_dispatch_when_only_the_performance_verdict_is_missing_then_passes_on_the_new_run() -> None:
+    # Same-SHA run 1 is green with perf skipped; --dispatch runs the nightly by tag,
+    # and the dispatched run 2 executes the performance job.
+    clock = FakeClock()
+    client = FakeClient(
+        [
+            [_run(1, "completed", "success")],
+            [_run(1, "completed", "success"), _run(2, "in_progress")],
+            [_run(1, "completed", "success"), _run(2, "completed", "success")],
+        ],
+        perf_runs=[_perf_run(1)],
+        jobs={1: _jobs("skipped"), 2: _jobs("success")},
+        perf_runs_after_dispatch=[_perf_run(1), _perf_run(2, age=timedelta(minutes=5))],
+    )
+    result = mod.run_release_gate(client, tag=_TAG, dispatch=True, timeout=1000, poll_interval=10, sleep=clock.sleep, monotonic=clock.monotonic)
+
+    assert result.passed is True
+    assert client.dispatched == [{"ref": _TAG, "mode": "full"}]
+    assert "run 2" in result.summary
+
+
+def test_dispatch_whose_run_still_lacks_a_performance_verdict_refuses_with_the_remedy() -> None:
+    clock = FakeClock()
+    client = FakeClient(
+        [
+            [_run(1, "completed", "success")],
+            [_run(1, "completed", "success"), _run(2, "completed", "success")],
+        ],
+        perf_runs=[_perf_run(1)],
+        jobs={1: _jobs("skipped"), 2: _jobs("skipped")},
+        perf_runs_after_dispatch=[_perf_run(1), _perf_run(2, age=timedelta(minutes=5))],
+    )
+    result = mod.run_release_gate(client, tag=_TAG, dispatch=True, timeout=1000, poll_interval=10, sleep=clock.sleep, monotonic=clock.monotonic)
+
+    assert result.passed is False
+    assert "remedy: dispatch ci-nightly" in result.summary
+
+
+def test_performance_job_executed_requires_the_prefix_and_success() -> None:
+    assert mod._performance_job_executed(_jobs("success")) is True
+    assert mod._performance_job_executed(_jobs("skipped")) is False
+    assert mod._performance_job_executed([{"name": "Stress suite", "conclusion": "success"}]) is False
+
+
+def test_parse_timestamp_handles_zulu_naive_and_garbage() -> None:
+    assert mod._parse_timestamp("2026-11-18T03:17:00Z") == datetime(2026, 11, 18, 3, 17, tzinfo=UTC)
+    assert mod._parse_timestamp("2026-11-18T03:17:00") == datetime(2026, 11, 18, 3, 17, tzinfo=UTC)
+    assert mod._parse_timestamp("not a time") is None
+    assert mod._parse_timestamp(None) is None
+
+
+def test_the_performance_job_name_prefix_matches_the_workflow() -> None:
+    import yaml
+
+    workflow = yaml.safe_load((_REPO_ROOT / ".github" / "workflows" / "ci-nightly.yml").read_text(encoding="utf-8"))
+    assert str(workflow["jobs"]["performance"]["name"]).startswith(mod.PERFORMANCE_JOB_NAME_PREFIX)
+
+
+def test_real_client_lists_recent_green_runs_since_the_window(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = mod.GitHubActionsClient("spec-kitty/spec-kitty", _FAKE_TOKEN)
+    urls: list[str] = []
+
+    def _fake_request(self: Any, method: str, url: str, payload: dict[str, Any] | None = None) -> Any:
+        urls.append(url)
+        return {"workflow_runs": [{"id": 1}, "garbage"]}
+
+    monkeypatch.setattr(mod.GitHubActionsClient, "_request", _fake_request)
+    runs = client.list_recent_nightly_runs(_NOW - timedelta(days=7))
+
+    assert runs == [{"id": 1}]
+    assert "workflows/ci-nightly.yml/runs" in urls[0]
+    assert "created=%3E%3D2026-11-11T12%3A00%3A00Z" in urls[0]
+    assert "status=success" in urls[0]
+
+
+def test_real_client_pages_through_jobs_and_refuses_a_truncated_listing(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = mod.GitHubActionsClient("spec-kitty/spec-kitty", _FAKE_TOKEN)
+    full_page = [{"name": f"job {i}"} for i in range(100)]
+
+    def _two_pages(self: Any, method: str, url: str, payload: dict[str, Any] | None = None) -> Any:
+        assert "/actions/runs/42/jobs" in url
+        return {"jobs": full_page if url.endswith("page=1") else [{"name": "last"}]}
+
+    monkeypatch.setattr(mod.GitHubActionsClient, "_request", _two_pages)
+    assert len(client.list_run_jobs(42)) == 101
+
+    monkeypatch.setattr(mod.GitHubActionsClient, "_request", lambda self, method, url, payload=None: {"jobs": full_page})
+    with pytest.raises(mod.ReleaseGateError, match="truncated"):
+        client.list_run_jobs(42)
+
+
+@pytest.mark.parametrize(("status", "expected"), [("ahead", True), ("identical", True), ("behind", False), ("diverged", False)])
+def test_real_client_reads_ancestry_from_the_compare_status(monkeypatch: pytest.MonkeyPatch, status: str, expected: bool) -> None:
+    client = mod.GitHubActionsClient("spec-kitty/spec-kitty", _FAKE_TOKEN)
+
+    def _fake_request(self: Any, method: str, url: str, payload: dict[str, Any] | None = None) -> Any:
+        assert url.endswith(f"/compare/{_ANCESTOR_SHA}...{_SHA}")
+        return {"status": status}
+
+    monkeypatch.setattr(mod.GitHubActionsClient, "_request", _fake_request)
+    assert client.is_ancestor(_ANCESTOR_SHA, _SHA) is expected
+
+
+def test_real_client_ancestry_fails_closed_on_bad_input_or_reply(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = mod.GitHubActionsClient("spec-kitty/spec-kitty", _FAKE_TOKEN)
+    with pytest.raises(mod.ReleaseGateError):
+        client.is_ancestor("main", _SHA)
+    monkeypatch.setattr(mod.GitHubActionsClient, "_request", lambda self, method, url, payload=None: {})
+    with pytest.raises(mod.ReleaseGateError):
+        client.is_ancestor(_ANCESTOR_SHA, _SHA)

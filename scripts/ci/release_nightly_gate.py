@@ -19,6 +19,16 @@ Contract (research.md D7 / contracts/ci-workflow-contract.md release section):
   if that run concluded ``success``, else non-zero.
 - An in-flight nightly for the SHA -> wait for its terminal result (don't race),
   then decide -- regardless of ``--dispatch``.
+- **Performance verdict (#7704)**: the ``performance`` job runs weekly (the
+  Sunday ``ci-nightly.yml`` run, or any ``workflow_dispatch``), so a green run
+  on the release SHA no longer implies it ran. The gate also requires a
+  ``success`` ``ci-nightly.yml`` run created in the last
+  :data:`PERFORMANCE_VERDICT_MAX_AGE` whose performance job EXECUTED and
+  concluded ``success`` (``skipped`` does not count), on the release SHA or on
+  a ``main`` commit that is an ancestor of it. Without one, ``--dispatch``
+  dispatches by the tag (a dispatched run always runs the performance job) and
+  waits for both verdicts; without ``--dispatch`` the gate refuses and names
+  the remedy.
 - **Fail closed**: this is the OPPOSITE of the nightly-escalation degrade. A
   release runs in-repo with a token, so a missing token / repository / API error
   / red / missing / timed-out nightly all mean **do not publish** (non-zero).
@@ -49,6 +59,7 @@ import urllib.parse
 import urllib.request
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 
 _API_ROOT = "https://api.github.com"
@@ -65,9 +76,24 @@ _IN_FLIGHT_STATUSES = frozenset({"queued", "in_progress", "requested", "waiting"
 _COMPLETED_STATUS = "completed"
 _SUCCESS_CONCLUSION = "success"
 
+# The performance verdict (#7704). The `performance` job's `name:` in
+# ci-nightly.yml starts with this prefix (pinned by
+# tests/ci/test_performance_weekly_cadence.py); the Actions jobs API reports
+# that name. A weekly cadence leaves at most 7 days between scheduled runs.
+PERFORMANCE_JOB_NAME_PREFIX = "Performance suite"
+PERFORMANCE_VERDICT_MAX_AGE = timedelta(days=7)
+_MAINLINE_BRANCH = "main"
+_JOB_EXECUTED_CONCLUSION = "success"
+# Compare statuses meaning the base commit is reachable from the head commit.
+_ANCESTOR_COMPARE_STATUSES = frozenset({"ahead", "identical"})
+
 # Poll cadence / ceiling defaults (seconds). Both overridable via the CLI.
 _DEFAULT_POLL_INTERVAL_SECONDS = 30
 _DEFAULT_TIMEOUT_SECONDS = 60 * 60
+
+# Listing pagination for the performance verdict.
+_PAGE_SIZE = 100
+_MAX_PAGES = 10
 
 
 class ReleaseGateError(RuntimeError):
@@ -92,6 +118,12 @@ class NightlyGateClient(Protocol):
 
     def dispatch_nightly(self, *, ref: str, mode: str) -> None: ...
 
+    def list_recent_nightly_runs(self, since: datetime) -> list[dict[str, Any]]: ...
+
+    def list_run_jobs(self, run_id: int) -> list[dict[str, Any]]: ...
+
+    def is_ancestor(self, ancestor_sha: str, descendant_sha: str) -> bool: ...
+
 
 def _is_completed(run: dict[str, Any]) -> bool:
     return run.get("status") == _COMPLETED_STATUS
@@ -109,6 +141,81 @@ def _first_success(runs: Sequence[dict[str, Any]]) -> dict[str, Any] | None:
     return next((run for run in runs if _is_success(run)), None)
 
 
+def _parse_timestamp(value: object) -> datetime | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
+
+
+def _performance_job_executed(jobs: Sequence[dict[str, Any]]) -> bool:
+    """True when the run's performance job ran and passed (``skipped`` does not count)."""
+    return any(str(job.get("name", "")).startswith(PERFORMANCE_JOB_NAME_PREFIX) and job.get("conclusion") == _JOB_EXECUTED_CONCLUSION for job in jobs)
+
+
+def _covers_release(client: NightlyGateClient, run: dict[str, Any], release_sha: str) -> bool:
+    """The run's commit is the release SHA, or a ``main`` commit the release SHA descends from."""
+    head_sha = run.get("head_sha")
+    if head_sha == release_sha:
+        return True
+    if not isinstance(head_sha, str) or run.get("head_branch") != _MAINLINE_BRANCH:
+        return False
+    return client.is_ancestor(head_sha, release_sha)
+
+
+def find_performance_verdict(client: NightlyGateClient, release_sha: str, *, now: datetime) -> dict[str, Any] | None:
+    """Newest green nightly within the age limit whose performance job executed and covers the release."""
+    since = now - PERFORMANCE_VERDICT_MAX_AGE
+    recent = []
+    for run in client.list_recent_nightly_runs(since):
+        created = _parse_timestamp(run.get("created_at"))
+        if _is_success(run) and created is not None and created >= since:
+            recent.append((created, run))
+    recent.sort(key=lambda pair: pair[0], reverse=True)
+    for _, run in recent:
+        if not _covers_release(client, run, release_sha):
+            continue
+        if _performance_job_executed(client.list_run_jobs(int(run["id"]))):
+            return run
+    return None
+
+
+def _missing_performance_summary(release_sha: str, tag: str) -> str:
+    days = PERFORMANCE_VERDICT_MAX_AGE.days
+    return (
+        f"no green ci-nightly run in the last {days} days in which the performance job executed and passed, "
+        f"on {release_sha} or a main ancestor of it (the performance job runs weekly, Sundays); "
+        f"remedy: dispatch ci-nightly by the release tag (gh workflow run {_WORKFLOW_FILE} --ref {tag}), "
+        "or run this gate with --dispatch"
+    )
+
+
+@dataclass(frozen=True)
+class _Verdicts:
+    """Both release preconditions, evaluated on one snapshot."""
+
+    same_sha_green: bool
+    performance_run: dict[str, Any] | None
+
+    @property
+    def passed(self) -> bool:
+        return self.same_sha_green and self.performance_run is not None
+
+
+def _evaluate(client: NightlyGateClient, release_sha: str, runs: Sequence[dict[str, Any]], now: Callable[[], datetime]) -> _Verdicts:
+    if _first_success(runs) is None:
+        return _Verdicts(False, None)
+    return _Verdicts(True, find_performance_verdict(client, release_sha, now=now()))
+
+
+def _pass_summary(release_sha: str, verdicts: _Verdicts) -> str:
+    perf = verdicts.performance_run or {}
+    return f"nightly for {release_sha} concluded success; performance verdict from run {perf.get('id')} ({perf.get('head_sha')}, {perf.get('created_at')})"
+
+
 def _poll_to_terminal(
     client: NightlyGateClient,
     release_sha: str,
@@ -118,6 +225,8 @@ def _poll_to_terminal(
     sleep: Callable[[float], None],
     monotonic: Callable[[], float],
     baseline_ids: frozenset[int] | None,
+    tag: str,
+    now: Callable[[], datetime],
 ) -> ReleaseGateResult:
     """Wait until a nightly for ``release_sha`` concludes, then decide.
 
@@ -130,11 +239,14 @@ def _poll_to_terminal(
     """
     while True:
         runs = client.list_nightly_runs(release_sha)
-        if _first_success(runs) is not None:
-            return ReleaseGateResult(True, f"nightly for {release_sha} concluded success", release_sha)
+        verdicts = _evaluate(client, release_sha, runs, now)
+        if verdicts.passed:
+            return ReleaseGateResult(True, _pass_summary(release_sha, verdicts), release_sha)
 
         candidates = runs if baseline_ids is None else [run for run in runs if int(run.get("id", 0)) not in baseline_ids]
         if any(_is_completed(run) for run in candidates) and not any(_is_in_flight(run) for run in candidates):
+            if verdicts.same_sha_green:
+                return ReleaseGateResult(False, _missing_performance_summary(release_sha, tag), release_sha)
             return ReleaseGateResult(False, f"nightly for {release_sha} concluded non-success", release_sha)
 
         if monotonic() >= deadline:
@@ -151,6 +263,7 @@ def run_release_gate(
     poll_interval: float = _DEFAULT_POLL_INTERVAL_SECONDS,
     sleep: Callable[[float], None] = time.sleep,
     monotonic: Callable[[], float] = time.monotonic,
+    now: Callable[[], datetime] = lambda: datetime.now(UTC),
 ) -> ReleaseGateResult:
     """Decide whether the release for ``tag`` may publish (pure orchestration).
 
@@ -161,8 +274,9 @@ def run_release_gate(
     release_sha = client.resolve_tag_sha(tag)
     runs = client.list_nightly_runs(release_sha)
 
-    if _first_success(runs) is not None:
-        return ReleaseGateResult(True, f"nightly for {release_sha} already green; gate passes", release_sha)
+    verdicts = _evaluate(client, release_sha, runs, now)
+    if verdicts.passed:
+        return ReleaseGateResult(True, f"{_pass_summary(release_sha, verdicts)}; gate passes", release_sha)
 
     # An in-flight nightly for the SHA: wait for its terminal result rather than
     # racing it with a fresh dispatch (contract), regardless of --dispatch.
@@ -175,9 +289,13 @@ def run_release_gate(
             sleep=sleep,
             monotonic=monotonic,
             baseline_ids=None,
+            tag=tag,
+            now=now,
         )
 
     if not dispatch:
+        if verdicts.same_sha_green:
+            return ReleaseGateResult(False, _missing_performance_summary(release_sha, tag), release_sha)
         return ReleaseGateResult(
             False,
             f"no green nightly for {release_sha} and --dispatch not set; refusing to publish",
@@ -194,6 +312,8 @@ def run_release_gate(
         sleep=sleep,
         monotonic=monotonic,
         baseline_ids=baseline_ids,
+        tag=tag,
+        now=now,
     )
 
 
@@ -257,6 +377,37 @@ class GitHubActionsClient:
     def dispatch_nightly(self, *, ref: str, mode: str) -> None:
         url = f"{_API_ROOT}/repos/{self._repository}/actions/workflows/{_WORKFLOW_FILE}/dispatches"
         self._request("POST", url, {"ref": ref, "inputs": {"mode": mode}})
+
+    def _paged(self, url_without_page: str, key: str) -> list[dict[str, Any]]:
+        items: list[dict[str, Any]] = []
+        for page in range(1, _MAX_PAGES + 1):
+            result = self._request("GET", f"{url_without_page}&page={page}")
+            batch = result.get(key, []) if isinstance(result, dict) else []
+            items.extend(item for item in batch if isinstance(item, dict))
+            if len(batch) < _PAGE_SIZE:
+                return items
+        raise ReleaseGateError(f"more than {_MAX_PAGES} pages of {key}; refusing to judge a truncated listing")
+
+    def list_recent_nightly_runs(self, since: datetime) -> list[dict[str, Any]]:
+        stamp = since.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+        query = urllib.parse.urlencode({"created": f">={stamp}", "status": _SUCCESS_CONCLUSION, "per_page": _PAGE_SIZE})
+        url = f"{_API_ROOT}/repos/{self._repository}/actions/workflows/{_WORKFLOW_FILE}/runs?{query}"
+        return self._paged(url, "workflow_runs")
+
+    def list_run_jobs(self, run_id: int) -> list[dict[str, Any]]:
+        query = urllib.parse.urlencode({"filter": "latest", "per_page": _PAGE_SIZE})
+        return self._paged(f"{_API_ROOT}/repos/{self._repository}/actions/runs/{int(run_id)}/jobs?{query}", "jobs")
+
+    def is_ancestor(self, ancestor_sha: str, descendant_sha: str) -> bool:
+        for sha in (ancestor_sha, descendant_sha):
+            if not re.fullmatch(r"[0-9a-f]{7,40}", sha):
+                raise ReleaseGateError(f"not a commit SHA: {sha!r}")
+        url = f"{_API_ROOT}/repos/{self._repository}/compare/{ancestor_sha}...{descendant_sha}"
+        result = self._request("GET", url)
+        status = result.get("status") if isinstance(result, dict) else None
+        if not isinstance(status, str):
+            raise ReleaseGateError(f"could not compare {ancestor_sha} with {descendant_sha}")
+        return status in _ANCESTOR_COMPARE_STATUSES
 
 
 def resolve_token() -> str | None:
