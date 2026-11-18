@@ -24,6 +24,9 @@ def test_installed_wheel_full_preview_has_no_source_leak(installed_wheel_venv: d
     project = tmp_path / "project"
     project.mkdir()
     subprocess.run(["git", "init", "-q", "-b", "wheel"], cwd=project, check=True, env=env)
+    # init makes this unborn repository's root commit (#7612), which needs an identity.
+    for key, value in (("user.name", "QA"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false")):
+        subprocess.run(["git", "config", key, value], cwd=project, check=True, env=env)
     initialized = subprocess.run(
         [str(executable), "init", "--ai", "claude,codex", "--non-interactive"],
         cwd=project,

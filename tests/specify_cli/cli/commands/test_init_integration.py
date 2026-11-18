@@ -268,6 +268,10 @@ def test_init_in_existing_git_repo_effectively_ignores_worktrees_root(
     project = tmp_path / "existing-repo"
     project.mkdir()
     subprocess.run(["git", "init", "-q"], cwd=project, check=True)
+    # init makes this unborn repository's root commit (#7612), which needs an identity.
+    subprocess.run(["git", "config", "user.name", "QA"], cwd=project, check=True)
+    subprocess.run(["git", "config", "user.email", "qa@example.invalid"], cwd=project, check=True)
+    subprocess.run(["git", "config", "commit.gpgsign", "false"], cwd=project, check=True)
     # Reproduce the false-safe shape from the adversarial review: textual
     # presence alone is insufficient when a later rule negates it.
     project.joinpath(".gitignore").write_text(
