@@ -40,7 +40,7 @@ and regenerates the page-inventory lockfile and the docs retrieval index.
 
 ## Template
 
-Use the shared template at [`docs/architecture/adr-template.md`](../../architecture/adr-template.md).
+Use the shared template at [`docs/architecture/adr-template.md`](https://github.com/spec-kitty/spec-kitty/blob/main/docs/architecture/adr-template.md) (kept in the repository, not published on the site).
 
 ## Index
 
