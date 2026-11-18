@@ -552,7 +552,13 @@ def emit(
 
         for warning in approval_warnings(event, lambda: _read_mission_events(reloaded), repo_root=main_repo_root, mission_slug=mission_slug):
             typer.echo(warning, err=True)
-        claim_warning = profileless_claim_warning(event)
+        try:
+            claim_warning = profileless_claim_warning(event)
+        except Exception:
+            # Advisory only, printed after the transition landed (#7712): an event the
+            # shell cannot classify never turns a recorded transition into a failed command.
+            logger.debug("could not classify the claim warning for a persisted event", exc_info=True)
+            claim_warning = None
         if claim_warning is not None:
             typer.echo(claim_warning, err=True)
 

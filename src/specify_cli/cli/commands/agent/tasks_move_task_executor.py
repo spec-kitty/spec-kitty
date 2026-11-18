@@ -316,7 +316,12 @@ def _mt_warn_profileless_claim(st: _MoveTaskState) -> None:
 
     from specify_cli.status import profileless_claim_warning
 
-    warning = profileless_claim_warning(st.event)
+    try:
+        warning = profileless_claim_warning(st.event)
+    except Exception:
+        # Advisory only, printed after the move landed: never turns a recorded move into a failure.
+        logging.getLogger(__name__).debug("could not classify the claim warning for a persisted event", exc_info=True)
+        return
     if warning is not None:
         typer.echo(warning, err=True)
 

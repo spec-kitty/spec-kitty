@@ -522,3 +522,38 @@ def test_as_implementer_is_refused_for_the_review_claimant(monkeypatch: pytest.M
     assert "review was claimed by claude::reviewer-renata" in str(refused.value)
     st.agent = "claude::curator-carla"
     move_task_module._mt_require_as_implementer_hop(st)
+
+
+# ---------------------------------------------------------------- claim-time warning (#7712)
+
+
+def test_move_task_prints_the_profileless_claim_warning(capsys: pytest.CaptureFixture[str]) -> None:
+    from specify_cli.cli.commands.agent.tasks_move_task_executor import _mt_warn_profileless_claim
+
+    st = _state(Lane.CLAIMED, old_lane=Lane.PLANNED)
+    st.event = StatusEvent(
+        event_id="01M7PS0000000000000000WARN",
+        mission_slug="fx",
+        wp_id="WP02",
+        from_lane=Lane.PLANNED,
+        to_lane=Lane.CLAIMED,
+        at="2026-11-18T06:29:45+00:00",
+        actor={"tool": "claude", "model": None, "profile": None, "role": "implementer"},
+        force=False,
+        execution_mode="direct_repo",
+    )
+    _mt_warn_profileless_claim(st)
+
+    assert capsys.readouterr().err.startswith("Warning: WP02 was claimed as 'claude' with no profile or model recorded")
+
+
+def test_an_unclassifiable_event_never_fails_the_move(capsys: pytest.CaptureFixture[str]) -> None:
+    from types import SimpleNamespace
+
+    from specify_cli.cli.commands.agent.tasks_move_task_executor import _mt_warn_profileless_claim
+
+    st = _state(Lane.CLAIMED, old_lane=Lane.PLANNED)
+    st.event = cast(StatusEvent, SimpleNamespace(wp_id="WP02", actor="claude", to_lane="claimed", from_lane="planned"))
+    _mt_warn_profileless_claim(st)
+
+    assert capsys.readouterr().err == ""
