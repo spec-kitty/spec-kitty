@@ -282,9 +282,7 @@ def test_lane_commit_after_the_submission_is_still_judged(tmp_path: Path, monkey
     assert "config.yaml" in output, output
 
 
-def test_mission_bookkeeping_never_blocks_its_own_review(
-    templates: _Templates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_mission_bookkeeping_never_blocks_its_own_review(templates: _Templates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """single_branch: the window holds Mission bookkeeping (a ticked task file); the gate leaves it out.
 
     The map protects user-facing text, where the task file is classified by path, so a gate that
