@@ -647,42 +647,55 @@ log keeps the stamps; only consolidation ignores them.
 
 ## Amendment 2026-11-18 (#7726): the bulk-edit review gate reads the review range
 
-**Status:** Proposed (pending operator review on the pull request closing #7726).
+**Status:** Accepted (operator rulings A and B, 2026-11-18).
 
 **What changes.** The bulk-edit review gate (`agent action review`,
-`cli/commands/agent/workflow.py::_enforce_bulk_edit_diff_compliance`) diffs the work package's review
-range, `review/wp_range.py::resolve_wp_review_range` (window open to the newest `for_review`
-submission), on every topology. It no longer derives its own base (`lanes.json` `mission_branch`) and
-head (the review workspace branch). On `single_branch` those two named the same branch, so the gate
-diffed `X..X` and passed having checked nothing; with that branch absent locally it refused on
-`rev-parse`. The range's ends are recorded commits, so no local Mission branch is read.
+`cli/commands/agent/workflow.py::_enforce_bulk_edit_diff_compliance`) diffs from the work package's
+review range, `review/wp_range.py::resolve_wp_review_range`, on every topology. It no longer derives
+its own base (`lanes.json` `mission_branch`) and head (the review workspace branch). On
+`single_branch` those two named the same branch, so the gate diffed `X..X` and passed having checked
+nothing.
 
-**Head.** On `single_branch` the gate judges up to the submission: commits past it can be another
-work package's, so they are named as not judged (re-submitting judges them). On a lane topology it
+**Head.** On `single_branch` the gate judges up to the submission. Commits past it can be another
+work package's, so they are named as not judged; re-submitting judges them. On a lane topology it
 judges up to the lane's live head, as the gate did before, so a commit added to a lane after its
 submission is still judged. The diff leaves out the Mission bookkeeping the range excludes
 (`WpReviewRange.bookkeeping_pathspecs`), so a ticked task file never blocks the Mission's own review.
 
-**Refusals** (`bulk_edit/gate.py::review_range_refusal`), none of them a pass:
+**Planning lane in ruling Q10's case.** A planning-lane work package of a `lanes_with_coord` Mission
+whose coordination branch is not its planning branch has no review range: its status events sit
+apart from its work. The gate judges it from its recorded claim base
+(`refs/spec-kitty/wp-base/<mission>/<wp>`) to the head of its planning branch, named from `meta.json`
+(`review.wp_range.planning_branch_apart_from_status`), never the reviewer's checkout. It applies only
+in that case (gap `not_recorded`, no lane stamp, branches apart); every other missing range keeps the
+range owner's refusal. A missing claim base refuses: a claim base exists only in the clone that
+claimed the work package, and no wider base stands in for it. The review context keeps ruling Q10
+and shows no range.
+
+**Branches others commit to (ruling B).** On a commit-to-target `single_branch` Mission and in the
+planning-lane window, the gate judges only the paths that the non-merge first-parent commits of the
+window touched, each with its net change over the window (`bulk_edit/gate.py::_first_parent_paths`).
+A foreign commit that a merge brings in is not judged. A foreign commit that a rebase or a
+fast-forward puts on the first-parent chain cannot be told apart from the work package's own commits,
+so it is judged (fail-closed).
+
+**Refusals** (`bulk_edit/gate.py::review_range_refusal`, `workflow.py::_planning_lane_window`), none
+of them a pass:
 - `BULK_EDIT_REVIEW_RANGE_UNAVAILABLE`: an `UNAVAILABLE` range, with its gap and a remedy, or a
-  commit listing that failed;
-- `BULK_EDIT_REVIEW_RANGE_EMPTY`: a range with no commit outside Mission bookkeeping;
+  commit listing that failed, or a planning-lane window without a claim base or planning branch;
+- `BULK_EDIT_REVIEW_RANGE_EMPTY`: no commit outside Mission bookkeeping;
 - `BULK_EDIT_REVIEW_TIP_REWRITTEN`: the submitted tip is no longer on its branch.
 
-**Planning lane without a range.** A planning-lane work package of a `lanes_with_coord` Mission whose
-coordination branch is not its planning branch has no review range (ruling Q10: its status events
-sit apart from its work). The gate judges it from its recorded claim base (`refs/.../wp-base`), else
-the Mission's recorded planning commit, to the head of its planning write branch, without Mission
-bookkeeping (`review.wp_range.bookkeeping_pathspecs`). The review context keeps ruling Q10 and shows
-no range.
+**Status moves need the local Mission branch (ruling A).** A minted `single_branch` Mission writes
+its status to its Mission branch, so a status move without that branch locally refuses
+`DESTINATION_REF_NOT_FOUND` (status routing, ADR `2026-11-06-2`, unchanged). Both that refusal and
+move-task's `SINGLE_BRANCH_IMPLEMENTATION_UNREADABLE` now print the command that restores it:
+`git branch <mission_branch> <commit holding the work>`. Recreating it is safe now, because the gate
+judges the work.
 
-**Residuals.**
-- On a commit-to-target `single_branch` Mission, and on the planning-lane window above, commits that
-  others land on the same branch inside the window are judged against the occurrence map. Pending an
-  operator ruling.
-- A minted `single_branch` Mission writes its status to its Mission branch, so a status move without
-  that branch locally refuses `DESTINATION_REF_NOT_FOUND` (status routing, ADR `2026-11-06-2`, not
-  the review range). Recreating the branch at the work's head is safe now: the gate judges the work.
+**Residual.** A work package's own merge commit is not judged under ruling B: conflict-resolution
+edits inside it escape the first-parent, non-merge filter. This is the same residual the approved
+bound names for content inside a merge commit (ADR `2026-10-04-5`, its residuals list).
 
 ## References
 

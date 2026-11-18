@@ -1245,7 +1245,8 @@ def _mt_require_single_branch_evidence(st: _MoveTaskState, manifest: LanesManife
             wp_evidence.SINGLE_BRANCH_IMPLEMENTATION_UNREADABLE,
             f"Could not read the single_branch implementation window {base}..{tip} in "
             f"{st.main_repo_root}; cannot verify {st.task_id} has a committed implementation. Make sure the "
-            "mission branch is checked out and its planning commit is reachable, then retry.",
+            "mission branch exists locally and its planning commit is reachable, then retry. If the branch is "
+            f"absent (a fresh clone or a pull-request checkout), create it: git branch {tip} <commit holding the work>",
         ) from exc
     if not wp_evidence.has_owned_change(changed, _mt_owned_file_patterns(st)):
         raise ActionContextError(

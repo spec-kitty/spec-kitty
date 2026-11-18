@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -33,6 +34,7 @@ from specify_cli.bulk_edit.gate import (
     BULK_EDIT_REVIEW_RANGE_UNAVAILABLE,
 )
 from specify_cli.cli.commands.agent import workflow_executor
+from specify_cli.cli.commands.agent.tasks import app as tasks_app
 from tests.integration import single_branch_window_support as sb
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -337,14 +339,33 @@ def review_templates(tmp_path_factory: pytest.TempPathFactory) -> object:
     return ReviewTemplates(tmp_path_factory.mktemp("bulk-edit-coord-planning"))
 
 
-@pytest.mark.parametrize("forbidden_edit", [False, True])
-def test_coord_planning_lane_wp_is_judged_from_its_claim_base(
-    review_templates: object, tmp_path: Path, capsys: pytest.CaptureFixture[str], forbidden_edit: bool
-) -> None:
+def _merge_foreign_forbidden_edit(repo: Path, branch: str) -> None:
+    """Someone else's commit (a do_not_change edit) reaches *branch* through a merge commit (ruling B)."""
+    sb.git(repo, "checkout", "-q", "-b", "foreign", f"{branch}~1")
+    (repo / "config.yaml").write_text("oldName: false\n", encoding="utf-8")
+    sb.git(repo, "commit", "-qam", "foreign: touch a do_not_change key")
+    sb.git(repo, "checkout", "-q", branch)
+    sb.git(repo, "merge", "-q", "--no-ff", "--no-edit", "foreign")
+
+
+#: scenario -> what the gate does (``None`` passes, else the text the refusal holds).
+_PLANNING_SCENARIOS = {
+    "compliant": None,
+    "own_forbidden_edit": "config.yaml",
+    "foreign_merge": None,
+    "no_claim_base": "no claim base is recorded",
+    "empty": "BULK_EDIT_REVIEW_RANGE_EMPTY",
+}
+
+
+@pytest.mark.parametrize("scenario", sorted(_PLANNING_SCENARIOS))
+def test_coord_planning_lane_wp_is_judged_from_its_claim_base(review_templates: object, tmp_path: Path, capsys: pytest.CaptureFixture[str], scenario: str) -> None:
     """Ruling Q10's case: the range owner records no range (events on the coordination branch).
 
-    Before the fold the gate always refused (no range); the planning-lane window (claim base to
-    the planning write branch head) judges the work instead.
+    Before the fold the gate always refused. The planning-lane window runs from the claim base to
+    the planning branch named in ``meta.json`` (never the reviewer's checkout), judging only the
+    non-merge first-parent commits (ruling B): a foreign edit merged in is not judged, the work
+    package's own edit is. A missing claim base refuses rather than widening to the Mission.
     """
     from specify_cli.lanes.claim_base import record_claim_base
     from tests.integration.review.review_range_fixtures import ReviewTemplates, submitted_coord_planning_lane_wp
@@ -353,16 +374,95 @@ def test_coord_planning_lane_wp_is_judged_from_its_claim_base(
     fx = review_templates.checkout("lanes_with_coord", tmp_path)
     with fx.environment():
         _make_bulk_edit(fx.repo, fx.mission_slug)
-        record_claim_base(fx.repo, fx.repo, fx.mission_slug, "WP03")
+        if scenario not in {"no_claim_base", "empty"}:
+            record_claim_base(fx.repo, fx.repo, fx.mission_slug, "WP03")
         submitted = submitted_coord_planning_lane_wp(fx)
-        if forbidden_edit:
+        branch = sb.git(fx.repo, "rev-parse", "--abbrev-ref", "HEAD")
+        if scenario == "empty":
+            record_claim_base(fx.repo, fx.repo, fx.mission_slug, "WP03")  # at the tip: nothing after it
+        elif scenario == "own_forbidden_edit":
             (fx.repo / "config.yaml").write_text("oldName: false\n", encoding="utf-8")
             sb.git(fx.repo, "commit", "-qam", "docs(WP03): touch a do_not_change key")
-        m = sb.Mission(fx.repo, fx.mission_slug, tmp_path)
-        if forbidden_edit:
-            with pytest.raises(typer.Exit):
-                workflow_executor.review_enforce_bulk_edit_gate(feature_dir=fx.feature_dir, main_repo_root=m.repo, mission_slug=m.slug, wp_id=submitted.wp_id)
-            output = " ".join(capsys.readouterr().out.split())
-            assert "config.yaml" in output and BULK_EDIT_REVIEW_RANGE_UNAVAILABLE not in output, output
+        elif scenario == "foreign_merge":
+            _merge_foreign_forbidden_edit(fx.repo, branch)
+        sb.git(fx.repo, "checkout", "-q", "--detach")  # the gate reads the planning branch by name, not HEAD
+
+        expected = _PLANNING_SCENARIOS[scenario]
+        gate = _bound_gate(fx.feature_dir, fx.repo, fx.mission_slug, submitted.wp_id)
+        if expected is None:
+            gate()
         else:
-            workflow_executor.review_enforce_bulk_edit_gate(feature_dir=fx.feature_dir, main_repo_root=m.repo, mission_slug=m.slug, wp_id=submitted.wp_id)
+            with pytest.raises(typer.Exit):
+                gate()
+            output = " ".join(capsys.readouterr().out.split())
+            assert expected in output, output
+
+
+def _bound_gate(feature_dir: Path, repo: Path, mission_slug: str, wp_id: str) -> Callable[[], None]:
+    def _run() -> None:
+        workflow_executor.review_enforce_bulk_edit_gate(feature_dir=feature_dir, main_repo_root=repo, mission_slug=mission_slug, wp_id=wp_id)
+
+    return _run
+
+
+# --------------------------------------------------------------------------- ruling B on commit-to-target
+
+
+def test_ctt_foreign_commit_merged_into_the_target_is_not_judged(templates: _Templates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ruling B: on a commit-to-target Mission only the non-merge first-parent commits' paths are judged.
+
+    A forbidden edit someone else made reaches the target through a merge inside the window: not judged.
+    """
+    m = _checkout(templates, "ctt", tmp_path, monkeypatch)
+    sb.claim(m, "WP01")
+    sb.implement(m, "WP01")
+    _merge_foreign_forbidden_edit(m.repo, "main")
+    sb.emit(m, "WP01", "for_review", "alice", "--force", "--reason", "handed to review")
+    _gate(m)
+
+
+def test_ctt_foreign_commit_rebased_onto_the_target_is_still_judged(
+    templates: _Templates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The documented limit of ruling B: a rebased or fast-forwarded foreign commit lands on the
+    first-parent chain and is indistinguishable from the work package's own, so it is judged (fail-closed)."""
+    m = _checkout(templates, "ctt", tmp_path, monkeypatch)
+    sb.claim(m, "WP01")
+    sb.implement(m, "WP01")
+    sb.git(m.repo, "checkout", "-q", "-b", "foreign", "main~1")
+    (m.repo / "config.yaml").write_text("oldName: false\n", encoding="utf-8")
+    sb.git(m.repo, "commit", "-qam", "foreign: touch a do_not_change key")
+    sb.git(m.repo, "checkout", "-q", "main")
+    sb.git(m.repo, "cherry-pick", "foreign")  # what a rebase-pull does to the target
+    sb.emit(m, "WP01", "for_review", "alice", "--force", "--reason", "handed to review")
+    with pytest.raises(typer.Exit):
+        _gate(m)
+    assert "config.yaml" in " ".join(capsys.readouterr().out.split())
+
+
+# --------------------------------------------------------------------------- the absent Mission branch remedy
+
+
+@pytest.mark.parametrize("force", [False, True])
+def test_an_absent_mission_branch_names_the_command_that_restores_it(templates: _Templates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, force: bool) -> None:
+    """Operator ruling A (#7726): the local Mission branch stays a precondition for a minted Mission's status moves.
+
+    Both refusals an operator meets without it print the one command that restores it: the
+    implementation-evidence gate (unforced) and the status write itself (``--force`` skips the
+    evidence gate, so the move reaches ``DESTINATION_REF_NOT_FOUND``).
+    """
+    m = _checkout(templates, "minted", tmp_path, monkeypatch)
+    sb.claim(m, "WP01")
+    sb.implement(m, "WP01")
+    branch = m.mission_branch
+    sb.git(m.repo, "branch", "-m", branch, "pr-head")
+
+    extra = ["--force"] if force else []
+    code, out = sb._invoke(
+        tasks_app,
+        ["move-task", "WP01", "--to", "for_review", "--agent", "alice", "--note", "x", "--mission", m.slug, *extra],
+    )
+    flat = " ".join(out.split())
+    assert code != 0, flat
+    assert ("DESTINATION_REF_NOT_FOUND" if force else "implementation window") in flat, flat
+    assert f"git branch {branch} <commit holding the work>" in flat, flat

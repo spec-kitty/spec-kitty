@@ -105,7 +105,7 @@ from specify_cli.status import (
 
 # ``RangeCommit`` stays a public module-level name outside ``__all__`` until a ``src/`` caller
 # imports it: the dead-symbol gate counts an ``__all__`` member only through a caller outside this module.
-__all__ = ["FileChange", "RangeSource", "RangeStatus", "WpReviewRange", "bookkeeping_pathspecs", "resolve_wp_review_range"]
+__all__ = ["FileChange", "RangeSource", "RangeStatus", "WpReviewRange", "bookkeeping_pathspecs", "planning_branch_apart_from_status", "resolve_wp_review_range"]
 
 logger = logging.getLogger(__name__)
 
@@ -507,23 +507,42 @@ def _listing(request: _ListingRequest) -> _Listing:
 _COORD_SOURCES = frozenset({StatusReadSource.COORD_WORKTREE, StatusReadSource.COORD_BRANCH_REF})
 
 
-def _status_shares_planning_branch(surface: StatusReadSurface) -> bool:
-    """Whether a coordination Mission's status events are committed on the branch its planning work is written to.
+def _coordination_and_planning(surface: StatusReadSurface) -> tuple[str, str] | None:
+    """``(coordination branch, planning write branch)`` of a coordination Mission read from it, else ``None``.
 
     The events are on the coordination branch (``meta.coordination_branch``); the planning lane
     writes the PRIMARY partition, whose branch is :func:`mission_runtime.default_mission_primary_ref`
-    (a default Mission's topic branch before its landing, else the target). Only a default-settled
-    Mission makes them one branch. Any other source (a landed Mission, the pre-seed fallback) or a
-    ``meta.json`` that does not name both branches reads as "not shared": no git call, never a raise.
+    (a default Mission's topic branch before its landing, else the target). Any other source (a
+    landed Mission, the pre-seed fallback) or a ``meta.json`` that does not name both branches reads
+    as ``None``: no git call, never a raise.
     """
     if surface.source not in _COORD_SOURCES:
-        return False
+        return None
     meta = load_meta_or_empty(surface.parser_dir)
     coordination, target = meta.get("coordination_branch"), meta.get("target_branch")
     if not (isinstance(coordination, str) and coordination and isinstance(target, str) and target):
-        return False
+        return None
     planning: str = default_mission_primary_ref(meta.get("topology_source"), meta.get("mission_branch"), False, target)
-    return coordination == planning
+    return coordination, planning
+
+
+def _status_shares_planning_branch(surface: StatusReadSurface) -> bool:
+    """Whether a coordination Mission's status events are committed on the branch its planning work is written to.
+
+    Only a default-settled Mission makes them one branch.
+    """
+    pair = _coordination_and_planning(surface)
+    return pair is not None and pair[0] == pair[1]
+
+
+def planning_branch_apart_from_status(surface: StatusReadSurface) -> str | None:
+    """The planning lane's write branch when the status events sit on another branch (ruling Q10's case), else ``None``.
+
+    No review range is recorded for a planning-lane work package there; the bulk-edit gate (#7726)
+    judges it on the returned branch.
+    """
+    pair = _coordination_and_planning(surface)
+    return pair[1] if pair is not None and pair[0] != pair[1] else None
 
 
 def _read_context(repo_root: Path, mission_slug: str, wp_id: str, owned: OwnedCheckout | None) -> _Context | None:
