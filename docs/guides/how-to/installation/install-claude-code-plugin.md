@@ -24,9 +24,9 @@ agent profiles directly inside Claude Code.
 If you have neither, install the CLI:
 
 ```bash
-uv tool install spec-kitty-cli
+uv tool install --prerelease=allow spec-kitty-cli
 # or
-pipx install spec-kitty-cli
+pipx install --pip-args=--pre spec-kitty-cli
 ```
 
 ---
@@ -80,9 +80,9 @@ The runtime wrapper could not find a CLI it may run. The message names the
 release series the bundle was built for. Either install that series:
 
 ```bash
-uv tool install spec-kitty-cli
+uv tool install --prerelease=allow spec-kitty-cli
 # or
-pipx install spec-kitty-cli
+pipx install --pip-args=--pre spec-kitty-cli
 ```
 
 or install `uv` so the wrapper can run the pinned version on demand:

@@ -22,7 +22,7 @@ After upgrading the CLI, existing projects may need a one-time migration to matc
 
 Run a project upgrade when:
 
-- You just upgraded the CLI (`pipx upgrade spec-kitty-cli` or equivalent).
+- You just upgraded the CLI (`pipx upgrade --pip-args=--pre spec-kitty-cli` or equivalent).
 - A spec-kitty command exits with code **4** and says `This project needs Spec Kitty project migrations`.
 - You opened an older project on a newer CLI for the first time.
 
@@ -139,7 +139,7 @@ A Mission folder outside any git checkout gets its identity normally, even when 
 | 0    | Success / nothing to do | Continue working. |
 | 2    | Usage error (e.g. `--cli` with `--project`) | Fix command-line flags. |
 | 4    | Project needs migration | Run `spec-kitty upgrade` (this command). |
-| 5    | Project too new for CLI | Upgrade the CLI first (`pipx upgrade spec-kitty-cli`). |
+| 5    | Project too new for CLI | Upgrade the CLI first (`pipx upgrade --pip-args=--pre spec-kitty-cli`). |
 | 6    | Project metadata corrupt | Check `.kittify/metadata.yaml` exists and is valid YAML. |
 
 For legacy `--dry-run --json`, a target refusal has semantic exit code 2 in the
@@ -152,7 +152,7 @@ document but process code 0; the too-new-project exception remains process code
 
 **My agent command directories changed but I want the old templates** — Run `git diff .claude/` (or the relevant agent path) to inspect. If you maintained local customizations on top of generated files, restore them and consider opening an issue so the upstream templates can incorporate the change.
 
-**`spec-kitty upgrade` says my project schema is too new** — The installed CLI is older than the schema in `.kittify/metadata.yaml`. Upgrade the CLI: `pipx upgrade spec-kitty-cli`.
+**`spec-kitty upgrade` says my project schema is too new** — The installed CLI is older than the schema in `.kittify/metadata.yaml`. Upgrade the CLI: `pipx upgrade --pip-args=--pre spec-kitty-cli`.
 
 **I want to skip a specific migration** — Migrations are non-optional; they exist because the runtime depends on the new layout. Investigate the root cause instead.
 

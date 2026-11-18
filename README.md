@@ -88,19 +88,21 @@ The primary standalone governance command is:
 Install the CLI:
 
 ```bash
-pipx install spec-kitty-cli
+pipx install --pip-args=--pre spec-kitty-cli
 ```
 
 `pipx` is the preferred installer for the CLI because it keeps Spec Kitty in its
 own virtual environment and avoids the `externally-managed-environment` errors
 common on modern Linux distributions.
 
+> **4.x is in release candidate.** Until 4.0.0 is released, a plain install gets the latest stable 3.x release, which has no `consolidate` command. The pre-release flag in each install command on this page (`--pip-args=--pre` for pipx, `--prerelease=allow` for uv, `--pre` for pip) installs the latest 4.x release candidate.
+
 Other supported install methods:
 
 ```bash
-uv tool install spec-kitty-cli
+uv tool install --prerelease=allow spec-kitty-cli
 # or, inside an activated virtual environment
-python -m pip install spec-kitty-cli
+python -m pip install --pre spec-kitty-cli
 ```
 
 Create or initialize a project:

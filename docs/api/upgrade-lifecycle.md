@@ -22,7 +22,7 @@ Spec Kitty has two distinct upgrade concepts:
 
 | Scope | What it changes | How |
 |---|---|---|
-| **CLI** | The `spec-kitty-cli` Python package on PATH. | `pipx upgrade spec-kitty-cli`, `uv tool upgrade spec-kitty-cli`, or `pip install --upgrade spec-kitty-cli`. |
+| **CLI** | The `spec-kitty-cli` Python package on PATH. | `pipx upgrade --pip-args=--pre spec-kitty-cli`, `uv tool upgrade --prerelease=allow spec-kitty-cli`, or `pip install --upgrade --pre spec-kitty-cli`. |
 | **Project** | One project's `.kittify/` + agent surfaces, to match the schema the installed CLI expects. | `spec-kitty upgrade` inside the project root. |
 
 The CLI never silently upgrades a project. Projects never silently upgrade the CLI.
@@ -141,7 +141,7 @@ When the project schema does not match the installed CLI, commands like `spec-ki
 |---|---|---|
 | Up to date | 0 | None. |
 | Project older than CLI | 4 | `spec-kitty upgrade` |
-| Project newer than CLI | 5 | Upgrade the CLI (`pipx upgrade spec-kitty-cli`). `--yes` does **not** bypass this. |
+| Project newer than CLI | 5 | Upgrade the CLI (`pipx upgrade --pip-args=--pre spec-kitty-cli`). `--yes` does **not** bypass this. |
 | Metadata corrupt | 6 | Check `.kittify/metadata.yaml` exists and is valid YAML. |
 
 Commands that are always allowed regardless of schema:
