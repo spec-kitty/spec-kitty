@@ -193,6 +193,7 @@ def _git_diff_files(
     repo_root: Path,
     base_ref: str,
     head_ref: str,
+    exclude_pathspecs: tuple[str, ...] = (),
 ) -> GitDiffFilesResult:
     """Return the files changed between *base_ref* and *head_ref*, with status.
 
@@ -242,7 +243,13 @@ def _git_diff_files(
         # NUL-delimited, so a quoted path is exact. ``changed_entries``
         # carries each path's status alongside it, which the occurrence
         # check needs to tell creation from modification.
-        entries = changed_entries(repo_root, f"{base_ref}..{head_ref}", renames=True, timeout=30)
+        # ``exclude_pathspecs`` (#7726) drops the Mission's own bookkeeping, the same set the
+        # review range excludes, so the gate and the range agree on what the work package changed.
+        # ``glob=True`` keeps git's default (non-literal) matching, which the excludes need.
+        pathspecs = (".", *exclude_pathspecs) if exclude_pathspecs else ()
+        entries = changed_entries(
+            repo_root, f"{base_ref}..{head_ref}", renames=True, pathspecs=pathspecs, glob=True, timeout=30
+        )
     except GitCommandError as exc:
         return GitDiffFilesResult(
             ok=False,
@@ -266,57 +273,80 @@ def _git_diff_files(
 #: no commit, leaves the gate nothing to judge, so it refuses instead of passing.
 BULK_EDIT_REVIEW_RANGE_UNAVAILABLE = "BULK_EDIT_REVIEW_RANGE_UNAVAILABLE"
 BULK_EDIT_REVIEW_RANGE_EMPTY = "BULK_EDIT_REVIEW_RANGE_EMPTY"
-
-#: Range gaps (``review.wp_range.RangeGap`` values) whose remedy is a fresh submission.
-_RESUBMIT_GAPS = frozenset({"no_submission"})
-_STATUS_GAPS = frozenset({"status_unreadable"})
+BULK_EDIT_REVIEW_TIP_REWRITTEN = "BULK_EDIT_REVIEW_TIP_REWRITTEN"
 
 
-def review_range_refusal(
-    *,
-    wp_id: str,
-    mission_slug: str,
-    base: str | None,
-    tip: str | None,
-    gap: str | None,
-    commit_count: int,
-    listing_gap: str | None,
-) -> str | None:
-    """The gate's refusal for a review range it cannot judge, or ``None`` when *base..tip* is judgeable.
+def resubmit_command(wp_id: str, mission_slug: str) -> str:
+    """The command that hands *wp_id* to review again, so its submission is recorded afresh."""
+    return f"spec-kitty agent tasks move-task {wp_id} --to for_review --mission {mission_slug}"
 
-    Takes the range's fields (``WpReviewRange.base`` / ``.tip`` / ``.gap`` / ``len(.commits)`` /
-    ``.listing_gap``) rather than the value itself, so this module stays free of the review
-    package. *commit_count* counts the range's commits outside Mission bookkeeping: a range of
-    status commits only is empty (the claim and the submission commit bookkeeping, so ``base``
-    rarely equals ``tip``). Never demands a local branch: every end is a recorded commit, and the
-    remedies name status moves or a fetch.
+
+@dataclass(frozen=True)
+class ReviewRangeFacts:
+    """What the gate needs of a ``WpReviewRange`` (kept primitive so this module stays free of the review package).
+
+    ``commit_count`` counts the range's commits outside Mission bookkeeping. ``planning_lane`` is a
+    work package no lane branch stamps (``status.read_lane_head`` not applicable) on a topology that
+    does not use its event commits, where a re-submission cannot record a range.
     """
-    to_review = f"spec-kitty agent tasks move-task {wp_id} --to for_review --mission {mission_slug}"
+
+    base: str | None
+    tip: str | None
+    gap: str | None
+    commit_count: int
+    listing_gap: str | None
+    tip_off_branch: bool = False
+    planning_lane: bool = False
+
+
+def _unavailable_remedy(facts: ReviewRangeFacts, wp_id: str, mission_slug: str) -> str:
+    to_review = resubmit_command(wp_id, mission_slug)
+    if facts.gap == "no_submission":
+        return f"Hand the work package to review first: {to_review}"
+    if facts.gap == "status_unreadable":
+        return f"Run `spec-kitty agent tasks status --mission {mission_slug}` to see why the status surface cannot be read, fix it, then retry."
+    if facts.planning_lane:
+        return (
+            "This work package runs on the planning lane of a Mission whose status events live on a separate "
+            "coordination branch, so no review range is recorded for it and a re-submission cannot record one. "
+            "Move its bulk edit to a code lane, or ask the operator to rule on it (#7726)."
+        )
+    return (
+        "The recorded window open or submission does not resolve to a commit here. Fetch the commits the "
+        "work package was written on (for a pull request, its head), then retry; if they no longer exist, "
+        f"move the work package back to in_progress and re-submit it ({to_review}) so the submission is recorded again."
+    )
+
+
+def review_range_refusal(facts: ReviewRangeFacts, *, wp_id: str, mission_slug: str) -> str | None:
+    """The gate's refusal for a review range it cannot judge, or ``None`` when the range is judgeable.
+
+    A range of status commits only is empty (the claim and the submission commit bookkeeping, so
+    ``base`` rarely equals ``tip``). Never demands a local branch: every end is a recorded commit,
+    and the remedies name status moves or a fetch.
+    """
+    base, tip = facts.base, facts.tip
     if base is None or tip is None:
-        reason = gap or "unknown"
-        if reason in _RESUBMIT_GAPS:
-            remedy = f"Hand the work package to review first: {to_review}"
-        elif reason in _STATUS_GAPS:
-            remedy = f"Run `spec-kitty agent tasks status --mission {mission_slug}` to see why the status surface cannot be read, fix it, then retry."
-        else:
-            remedy = (
-                "The recorded window open or submission does not resolve to a commit here. Fetch the commits the "
-                "work package was written on (for a pull request, its head), then retry; if they no longer exist, "
-                f"move the work package back to in_progress and re-submit it ({to_review}) so the submission is recorded again."
-            )
         return (
             f"{BULK_EDIT_REVIEW_RANGE_UNAVAILABLE}: the bulk-edit review gate cannot judge {wp_id}: its review range "
-            f"is unavailable (gap: {reason}). {remedy}"
+            f"is unavailable (gap: {facts.gap or 'unknown'}). {_unavailable_remedy(facts, wp_id, mission_slug)}"
         )
-    if listing_gap is not None and "commits" in listing_gap.split(", "):
+    if facts.listing_gap is not None and "commits" in facts.listing_gap.split(", "):
         return (
             f"{BULK_EDIT_REVIEW_RANGE_UNAVAILABLE}: the bulk-edit review gate cannot judge {wp_id}: the commits of its "
             f"review range {base[:12]}..{tip[:12]} could not be listed. Check that the repository is readable, then retry."
         )
-    if base == tip or commit_count == 0:
+    if facts.tip_off_branch:
+        return (
+            f"{BULK_EDIT_REVIEW_TIP_REWRITTEN}: {wp_id}'s submitted tip {tip[:12]} is no longer on its branch (the branch "
+            f"was rewritten after the submission), so the work under review is not the work submitted. Re-submit it: "
+            f"{resubmit_command(wp_id, mission_slug)}"
+        )
+    if base == tip or facts.commit_count == 0:
         return (
             f"{BULK_EDIT_REVIEW_RANGE_EMPTY}: the bulk-edit review gate has nothing to judge for {wp_id}: its review "
-            f"range {base[:12]}..{tip[:12]} holds no commit outside Mission bookkeeping. Commit the work package's change, then re-submit it: {to_review}"
+            f"range {base[:12]}..{tip[:12]} holds no commit outside Mission bookkeeping. Commit the work package's "
+            f"change, then re-submit it: {resubmit_command(wp_id, mission_slug)}"
         )
     return None
 
@@ -326,8 +356,12 @@ def check_review_diff_compliance(
     repo_root: Path,
     base_ref: str,
     head_ref: str,
+    exclude_pathspecs: tuple[str, ...] = (),
 ) -> DiffCheckResult | None:
     """Run the review-time diff compliance check (FR-007 + FR-008).
+
+    *exclude_pathspecs* (``:(exclude)`` pathspecs, #7726) leave paths out of the diff: the review
+    gate passes the review range's bookkeeping excludes.
 
     Returns ``None`` when the mission is not a bulk_edit — callers should
     skip any further review-time checks in that case.
@@ -354,7 +388,7 @@ def check_review_diff_compliance(
             ],
         )
 
-    diff_files = _git_diff_files(repo_root, base_ref, head_ref)
+    diff_files = _git_diff_files(repo_root, base_ref, head_ref, exclude_pathspecs)
     if not diff_files.ok:
         details = [
             "Review diff check cannot run: git diff failed.",

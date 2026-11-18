@@ -65,14 +65,19 @@ categories:
 """
 
 
-def _make_bulk_edit(repo: Path, slug: str) -> None:
+#: A map that also protects user-facing text: the Mission's own ``tasks.md`` and task files are
+#: classified there by path, so a gate that read Mission bookkeeping would block its own review.
+_DOCS_PROTECTED_MAP = _OCCURRENCE_MAP.replace("  user_facing_strings:\n    action: rename", "  user_facing_strings:\n    action: do_not_change")
+
+
+def _make_bulk_edit(repo: Path, slug: str, occurrence_map: str = _OCCURRENCE_MAP) -> None:
     """Declare the Mission bulk_edit, add its occurrence map and a protected file, before any WP opens."""
     feature_dir = repo / "kitty-specs" / slug
     meta_path = feature_dir / "meta.json"
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
     meta["change_mode"] = "bulk_edit"
     meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    (feature_dir / "occurrence_map.yaml").write_text(_OCCURRENCE_MAP, encoding="utf-8")
+    (feature_dir / "occurrence_map.yaml").write_text(occurrence_map, encoding="utf-8")
     (repo / "config.yaml").write_text("oldName: true\n", encoding="utf-8")
     sb.git(repo, "add", "-A")
     sb.git(repo, "commit", "-qm", "test: declare the Mission bulk_edit")
@@ -92,7 +97,7 @@ class _Templates:
                 for key in _HARNESS_VARIABLES:
                     patch.delenv(key, raising=False)
                 repo, slug = sb.build_template(base, commit_to_target=flavour == "ctt")
-                _make_bulk_edit(repo, slug)
+                _make_bulk_edit(repo, slug, _DOCS_PROTECTED_MAP if flavour == "docs" else _OCCURRENCE_MAP)
             self._built[flavour] = (repo, slug)
         return self._built[flavour]
 
@@ -221,7 +226,7 @@ def test_an_unavailable_range_is_a_named_refusal(
 # --------------------------------------------------------------------------- lanes_with_coord
 
 
-def _lane_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, forbidden_edit: bool) -> tuple[Path, str]:
+def _lane_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, forbidden_edit: bool, after_submission: bool = False) -> tuple[Path, str]:
     """A one-lane coordination Mission (bulk_edit), WP01 worked on its lane and handed to review."""
     from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
     from tests.consolidation import characterization_support as cs
@@ -242,9 +247,11 @@ def _lane_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, forbidden_
     for lane in ("planned", "claimed", "in_progress"):
         transition(mission, "WP01", lane, actor=ACTOR)
     _commit_in(tree, "src/pkg/wp01.py", "def wp01() -> int:\n    return 1\n", "feat: WP01 work")
-    if forbidden_edit:
+    if forbidden_edit and not after_submission:
         _commit_in(tree, "config.yaml", "oldName: false\n", "feat: touch a do_not_change key")
     transition(mission, "WP01", "for_review", actor=ACTOR, subtasks_complete=True)
+    if forbidden_edit and after_submission:
+        _commit_in(tree, "config.yaml", "oldName: false\n", "feat: touch a do_not_change key after submission")
     monkeypatch.chdir(mission.repo)
     return mission.repo, mission.slug
 
@@ -264,3 +271,30 @@ def test_lane_gate_judges_the_lane_work_through_the_shared_range(
         assert "config.yaml" in output and BULK_EDIT_REVIEW_RANGE_UNAVAILABLE not in output, output
     else:
         _gate(m)
+
+
+def test_lane_commit_after_the_submission_is_still_judged(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """A lane topology keeps judging up to the live lane head: a later forbidden commit is refused."""
+    repo, slug = _lane_mission(tmp_path, monkeypatch, forbidden_edit=True, after_submission=True)
+    with pytest.raises(typer.Exit):
+        _gate(sb.Mission(repo, slug, tmp_path))
+    output = " ".join(capsys.readouterr().out.split())
+    assert "config.yaml" in output, output
+
+
+def test_mission_bookkeeping_never_blocks_its_own_review(
+    templates: _Templates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """single_branch: the window holds Mission bookkeeping (a ticked task file); the gate leaves it out.
+
+    The map protects user-facing text, where the task file is classified by path, so a gate that
+    read the bookkeeping the review range excludes would block the Mission's own review.
+    """
+    m = _checkout(templates, "docs", tmp_path, monkeypatch)
+    sb.claim(m, "WP01")
+    sb.implement(m, "WP01")
+    task_file = m.repo / "kitty-specs" / m.slug / "tasks" / "WP01-m1.md"
+    task_file.write_text(task_file.read_text(encoding="utf-8").replace("- [ ] T1", "- [x] T1"), encoding="utf-8")
+    sb.git(m.repo, "commit", "-qam", "chore: tick WP01 subtask")
+    sb.emit(m, "WP01", "for_review", "alice", "--force", "--reason", "handed to review")
+    _gate(m)

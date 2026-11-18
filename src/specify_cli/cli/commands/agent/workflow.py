@@ -185,36 +185,46 @@ def _enforce_bulk_edit_diff_compliance(
     and passed having checked nothing, and a missing local Mission branch refused on
     ``rev-parse``. The range ends are recorded commits, never a local branch name.
 
-    Raises ``typer.Exit(1)`` on a violation, and on a range that is unavailable or empty
-    (``BULK_EDIT_REVIEW_RANGE_UNAVAILABLE`` / ``BULK_EDIT_REVIEW_RANGE_EMPTY``): a gate with
-    nothing to judge refuses, it never passes. Surfaces ``manual_review`` warnings without blocking.
+    The head is the submission on ``single_branch`` (commits past it can be another work
+    package's) and the lane's live head on a lane topology, as before (#7726 review), so a
+    commit added to a lane after its submission is still judged. The diff leaves out the Mission
+    bookkeeping the range excludes.
+
+    Raises ``typer.Exit(1)`` on a violation, and on a range it cannot judge
+    (``BULK_EDIT_REVIEW_RANGE_UNAVAILABLE`` / ``_EMPTY`` / ``BULK_EDIT_REVIEW_TIP_REWRITTEN``): a
+    gate with nothing to judge refuses, it never passes. Surfaces ``manual_review`` warnings
+    without blocking.
     """
     from rich.markup import escape
 
-    from specify_cli.bulk_edit.gate import review_range_refusal
+    from specify_cli.bulk_edit.gate import ReviewRangeFacts, review_range_refusal
     from specify_cli.review.wp_range import resolve_wp_review_range
 
     # No owned_files: the ends do not depend on them, the occurrence map judges every path the
     # range touches, and the unscoped commit listing (bookkeeping excluded) is what "empty" means.
     review_range = resolve_wp_review_range(main_repo_root, mission_slug, wp_id, owned_files=())
-    base, tip = review_range.base, review_range.tip
-    refusal = review_range_refusal(
-        wp_id=wp_id,
-        mission_slug=mission_slug,
-        base=base,
-        tip=tip,
+    single_branch, lane_stamped, live_head = _review_gate_topology(main_repo_root, mission_slug, wp_id)
+    facts = ReviewRangeFacts(
+        base=review_range.base,
+        tip=review_range.tip,
         gap=review_range.gap,
         commit_count=len(review_range.commits),
         listing_gap=review_range.listing_gap,
+        tip_off_branch=review_range.tip_off_branch,
+        planning_lane=not single_branch and not lane_stamped,
     )
+    refusal = review_range_refusal(facts, wp_id=wp_id, mission_slug=mission_slug)
+    base, tip = review_range.base, review_range.tip
     if refusal is not None or base is None or tip is None:
         rich_console.print(f"[red]Bulk Edit Review: Diff Compliance[/] {escape(refusal or '')}")
         raise typer.Exit(1)
+    head = tip if single_branch or live_head is None else live_head
     _diff_result = check_review_diff_compliance(
         feature_dir=feature_dir,
         repo_root=main_repo_root,
         base_ref=base,
-        head_ref=tip,
+        head_ref=head,
+        exclude_pathspecs=review_range.bookkeeping_pathspecs,
     )
     if _diff_result is None:
         # Non-bulk-edit mission — skip silently. check_review_diff_compliance
@@ -226,23 +236,46 @@ def _enforce_bulk_edit_diff_compliance(
         raise typer.Exit(1)
     elif _diff_result.warnings:
         _render_diff_check_warnings(_diff_result, rich_console)
-    _note_unjudged_commits(review_range, wp_id, mission_slug, rich_console)
+    if single_branch:
+        _note_unjudged_commits(review_range, wp_id, mission_slug, rich_console)
+
+
+def _review_gate_topology(repo_root: Path, mission_slug: str, wp_id: str) -> tuple[bool, bool, str | None]:
+    """``(single_branch, lane_stamped, live lane head)`` for the bulk-edit gate (#7726).
+
+    ``lane_stamped`` is ``False`` for a planning-lane work package (no lane branch stamps it); the
+    live head is ``None`` then, or when the lane branch is missing. A status surface that cannot be read reads as not
+    ``single_branch`` with no head: the range is then unavailable and the gate refuses anyway.
+    """
+    from mission_runtime import is_single_branch
+    from specify_cli.status import read_lane_head, resolve_status_read
+
+    try:
+        surface = resolve_status_read(repo_root, mission_slug)
+    except Exception:  # the door raises several types; the range resolution reports the same failure as a refusal
+        logger.debug("bulk-edit gate: status surface of %s unreadable", mission_slug, exc_info=True)
+        return False, False, None
+    reading = read_lane_head(repo_root=repo_root, mission_slug=surface.mission_dir_name, wp_id=wp_id)
+    return is_single_branch(surface.topology), bool(reading.applicable), reading.sha
 
 
 def _note_unjudged_commits(review_range: WpReviewRange, wp_id: str, mission_slug: str, console: Console) -> None:
-    """Say which commits of the write branch the gate did not judge (the range ends at the submission)."""
+    """On ``single_branch``, say which commits of the write branch the gate did not judge (the range ends at the submission)."""
     from rich.markup import escape
 
-    to_review = f"spec-kitty agent tasks move-task {wp_id} --to for_review --mission {mission_slug}"
-    if review_range.tip_off_branch:
+    from specify_cli.bulk_edit.gate import resubmit_command
+
+    to_review = escape(resubmit_command(wp_id, mission_slug))
+    failed = (review_range.listing_gap or "").split(", ")
+    if "moved-past" in failed:
         console.print(
-            f"[yellow]Bulk-edit review gate:[/] {wp_id}'s submitted tip is no longer on its branch (rewritten); the gate "
-            f"judged the submitted range only. Re-submit to judge the current work: {escape(to_review)}"
+            f"[yellow]Bulk-edit review gate:[/] could not count the commits past {wp_id}'s submitted tip; the gate "
+            f"judged the submitted range only. Re-submit to judge later commits: {to_review}"
         )
     elif review_range.moved_past:
         console.print(
             f"[yellow]Bulk-edit review gate:[/] the branch moved {review_range.moved_past} commit(s) past {wp_id}'s "
-            f"submitted tip; the gate judged the submitted range only. Re-submit to judge them: {escape(to_review)}"
+            f"submitted tip; the gate judged the submitted range only. Re-submit to judge them: {to_review}"
         )
 
 
