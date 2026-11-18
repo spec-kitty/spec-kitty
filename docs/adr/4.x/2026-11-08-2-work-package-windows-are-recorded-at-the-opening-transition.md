@@ -688,10 +688,12 @@ of them a pass:
 
 **Status moves need the local Mission branch (ruling A).** A minted `single_branch` Mission writes
 its status to its Mission branch, so a status move without that branch locally refuses
-`DESTINATION_REF_NOT_FOUND` (status routing, ADR `2026-11-06-2`, unchanged). Both that refusal and
-move-task's `SINGLE_BRANCH_IMPLEMENTATION_UNREADABLE` now print the command that restores it:
-`git branch <mission_branch> <commit holding the work>`. Recreating it is safe now, because the gate
-judges the work.
+`DESTINATION_REF_NOT_FOUND` (status routing, ADR `2026-11-06-2`, unchanged). That refusal now prints
+the command that restores the branch: `git fetch origin <b>:<b>` when this clone's view of origin
+holds it (`refs/remotes/origin/<b>`; the pre-flight contacts no remote), else
+`git branch <b> <commit holding the work>`. Move-task's `SINGLE_BRANCH_IMPLEMENTATION_UNREADABLE`
+prints the `git branch` form. Recreating the branch is safe now, because the gate judges the work.
+Fetching it automatically is out of scope (a separate follow-up).
 
 **Residual.** A work package's own merge commit is not judged under ruling B: conflict-resolution
 edits inside it escape the first-parent, non-merge filter. This is the same residual the approved

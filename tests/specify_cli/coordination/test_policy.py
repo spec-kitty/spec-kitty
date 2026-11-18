@@ -108,6 +108,19 @@ def test_refused_not_found(repo: Path) -> None:
     assert remedy in verdict.next_step
 
 
+def test_refused_not_found_names_a_fetch_when_origin_holds_the_branch(repo: Path) -> None:
+    """#7726 ruling A: this clone's view of origin holds the branch, so the remedy fetches it."""
+    head_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
+    subprocess.run(["git", "update-ref", "refs/remotes/origin/kitty/mission-x", head_sha], cwd=repo, check=True)
+    verdict = WorkflowMutationPolicy.assert_allowed(_change(repo, "kitty/mission-x"))
+    assert isinstance(verdict, Refused)
+    assert verdict.error_code == "DESTINATION_REF_NOT_FOUND"
+    remedy = "git fetch origin kitty/mission-x:kitty/mission-x"
+    assert remedy in verdict.message
+    assert remedy in verdict.next_step
+    assert "git branch" not in verdict.message
+
+
 def test_refused_protected_main(repo: Path) -> None:
     verdict = WorkflowMutationPolicy.assert_allowed(
         _change(repo, "main", operation="emit_status_transition"),
