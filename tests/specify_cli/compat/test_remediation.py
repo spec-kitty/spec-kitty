@@ -18,7 +18,7 @@ Covers:
 
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import PurePosixPath, PureWindowsPath
 from typing import Literal
 from unittest import mock
 
@@ -55,20 +55,40 @@ _SAFE_METHODS = frozenset({
 })
 
 
+def _path_cls(
+    platform: Literal["posix", "windows"],
+) -> type[PurePosixPath] | type[PureWindowsPath]:
+    """Return the PurePath flavor of the DECLARED platform (issue #4058).
+
+    The fixtures below build ``InstalledCliRuntime`` path fields from raw
+    path text with this flavor, never with a host ``Path``. On a Windows
+    host ``str(Path("/opt/uv"))`` is ``\\opt\\uv``; the backslash falls
+    outside CHK028's character allowlist (compat/remediation.py
+    ``_COMMAND_RE``), so ``plan_remediation()`` on a mocked POSIX runtime
+    composed ``UV_TOOL_DIR=\\opt\\uv ...`` and ``render("posix")`` raised
+    ``ValueError`` instead of producing the exact-match string the tests
+    assert. ``InstalledCliRuntime``'s consumers only None-check / ``str()``
+    these fields (same reasoning as #3726), so a pure path of the declared
+    platform's flavor is safe on any host.
+    """
+    return PurePosixPath if platform == "posix" else PureWindowsPath
+
+
 def _make_runtime(
     install_method: InstallMethod,
     *,
-    tool_dir: Path | None = None,
+    tool_dir: str | None = None,
     is_default_tool_dir: bool | None = None,
     is_default_bin_dir: bool | None = None,
     python: str | None = None,
     platform: Literal["posix", "windows"] = "posix",
 ) -> InstalledCliRuntime:
+    path_cls = _path_cls(platform)
     return InstalledCliRuntime(
         install_method=install_method,
         executable="/usr/local/bin/python3",
         receipt_path=None,
-        tool_dir=tool_dir,
+        tool_dir=path_cls(tool_dir) if tool_dir is not None else None,
         bin_dir=None,
         is_default_tool_dir=is_default_tool_dir,
         is_default_bin_dir=is_default_bin_dir,
@@ -86,7 +106,7 @@ def _uv_default_runtime(
     """UV_TOOL runtime with default tool directory (no env var needed)."""
     return _make_runtime(
         InstallMethod.UV_TOOL,
-        tool_dir=Path.home() / ".local/share/uv/tools",
+        tool_dir="/home/user/.local/share/uv/tools",
         is_default_tool_dir=True,
         platform=platform,
     )
@@ -97,10 +117,10 @@ def _uv_custom_runtime(
     python: str | None = None,
     platform: Literal["posix", "windows"] = "posix",
 ) -> InstalledCliRuntime:
-    """UV_TOOL runtime with a non-default tool directory."""
+    """UV_TOOL runtime with a non-default tool directory (raw path text)."""
     return _make_runtime(
         InstallMethod.UV_TOOL,
-        tool_dir=Path(tool_dir),
+        tool_dir=tool_dir,
         is_default_tool_dir=False,
         python=python,
         platform=platform,
@@ -138,21 +158,26 @@ def _req(
 def _uv_runtime_with_reqs(
     requirements: tuple[UvRequirement, ...],
     *,
-    tool_dir: Path | None = None,
+    tool_dir: str | None = None,
     is_default_tool_dir: bool | None = True,
-    bin_dir: Path | None = None,
+    bin_dir: str | None = None,
     is_default_bin_dir: bool | None = None,
     python: str | None = None,
-    receipt_path: Path | None = None,
+    receipt_path: str | None = None,
     platform: Literal["posix", "windows"] = "posix",
 ) -> InstalledCliRuntime:
-    """A UV_TOOL runtime carrying a provenance-rich requirements tuple."""
+    """A UV_TOOL runtime carrying a provenance-rich requirements tuple.
+
+    Path arguments are raw path text, built with the declared platform's
+    PurePath flavor (see ``_path_cls``).
+    """
+    path_cls = _path_cls(platform)
     return InstalledCliRuntime(
         install_method=InstallMethod.UV_TOOL,
         executable="/usr/local/bin/python3",
-        receipt_path=receipt_path,
-        tool_dir=tool_dir,
-        bin_dir=bin_dir,
+        receipt_path=path_cls(receipt_path) if receipt_path is not None else None,
+        tool_dir=path_cls(tool_dir) if tool_dir is not None else None,
+        bin_dir=path_cls(bin_dir) if bin_dir is not None else None,
         is_default_tool_dir=is_default_tool_dir,
         is_default_bin_dir=is_default_bin_dir,
         python=python,
@@ -163,11 +188,54 @@ def _uv_runtime_with_reqs(
     )
 
 
-_RECEIPT = Path("/t/uv-receipt.toml")
+_RECEIPT = "/t/uv-receipt.toml"
 
 
 def _reinstall(runtime: InstalledCliRuntime) -> RemediationCommand:
     return plan_remediation(runtime, RemediationIntent.REINSTALL_WITH_TEST, None)
+
+
+# ---------------------------------------------------------------------------
+# Fixture guard (issue #4058)
+# ---------------------------------------------------------------------------
+
+
+class TestRuntimeFixturePathFlavor:
+    """Issue #4058 regression: fixture path fields use the DECLARED platform's flavor.
+
+    On a Windows host a bare host ``Path("/opt/uv")`` renders ``\\opt\\uv``, so a
+    mocked POSIX runtime composed a CHK028-violating ``UV_TOOL_DIR`` and the
+    module's exact-match ``render("posix")`` assertions raised instead. These
+    guards fail on a Windows host the moment a host-flavored ``Path`` sneaks
+    back into ``_make_runtime`` / ``_uv_runtime_with_reqs``.
+    """
+
+    def test_posix_runtime_paths_render_posix(self) -> None:
+        runtime = _uv_runtime_with_reqs(
+            (_req(),),
+            tool_dir="/opt/uv",
+            is_default_tool_dir=False,
+            bin_dir="/opt/bin",
+            is_default_bin_dir=False,
+            receipt_path=_RECEIPT,
+        )
+        assert str(runtime.tool_dir) == "/opt/uv"
+        assert str(runtime.bin_dir) == "/opt/bin"
+        assert str(runtime.receipt_path) == "/t/uv-receipt.toml"
+        assert str(_uv_custom_runtime(tool_dir="/opt/tools").tool_dir) == "/opt/tools"
+
+    def test_windows_runtime_paths_render_windows(self) -> None:
+        runtime = _make_runtime(
+            InstallMethod.UV_TOOL,
+            tool_dir="C:\\uv-tools",
+            is_default_tool_dir=False,
+            platform="windows",
+        )
+        assert str(runtime.tool_dir) == "C:\\uv-tools"
+        with_reqs = _uv_runtime_with_reqs(
+            (_req(),), receipt_path="C:\\uv-tools\\uv-receipt.toml", platform="windows"
+        )
+        assert str(with_reqs.receipt_path) == "C:\\uv-tools\\uv-receipt.toml"
 
 
 class TestUvToolReinstallProvenance:
@@ -265,9 +333,9 @@ class TestUvToolReinstallProvenance:
         cmd = _reinstall(
             _uv_runtime_with_reqs(
                 (_req(specifier="==3.2.0rc25"),),
-                tool_dir=Path("/opt/uv"),
+                tool_dir="/opt/uv",
                 is_default_tool_dir=False,
-                bin_dir=Path("/opt/bin"),
+                bin_dir="/opt/bin",
                 is_default_bin_dir=False,
                 receipt_path=_RECEIPT,
             )
@@ -716,7 +784,7 @@ class TestPlanRemediationEdgeCases:
         receipt-absent PyPI fallback (FR-019 / SC-003).
         """
         runtime = _uv_runtime_with_reqs(
-            (_req(specifier="==3.2.0rc25"),), receipt_path=Path("/t/uv-receipt.toml")
+            (_req(specifier="==3.2.0rc25"),), receipt_path=_RECEIPT
         )
         cmd = plan_remediation(runtime, RemediationIntent.REINSTALL_WITH_TEST, "9.9.9")
         assert cmd.render("posix") == (
