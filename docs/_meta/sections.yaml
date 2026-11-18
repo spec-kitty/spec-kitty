@@ -4,7 +4,8 @@
 # folder of docs/, with `id` (the folder name), `label` and `order`; `feeds` limits which generated
 # feeds (sitemap, rss, llms, agent) carry the section, and an absent `feeds` means all four.
 # Authored content, not generated. Folders the site leaves out (scripts/docs/_dockitty_contract.py
-# EXCLUDED_FOLDERS: archive, reports, convergence) are not registered. Pinned by
+# EXCLUDED_FOLDERS: archive, reports, convergence) are not registered, nor are folders with no
+# published page (assets, security and integrations hold only drafts, #7681). Pinned by
 # tests/docs/test_site_scaffold.py. Publication rules beyond what the build needs are #6932's.
 version: 1
 sections:
@@ -24,10 +25,6 @@ sections:
     label: Reference
     order: 40
     purpose: Command-line and API reference.
-  - id: integrations
-    label: Integrations
-    order: 50
-    purpose: How Spec Kitty works with agent harnesses and other tools.
   - id: migrations
     label: Migrations
     order: 60
@@ -36,10 +33,6 @@ sections:
     label: Operations
     order: 70
     purpose: Operating Spec Kitty in a repository and in CI.
-  - id: security
-    label: Security
-    order: 80
-    purpose: Security model and reporting.
   - id: architecture
     label: Architecture
     order: 90
@@ -48,25 +41,29 @@ sections:
     label: Decisions
     order: 100
     purpose: Architecture decision records.
+    # Restricted feeds (ADR D-8, #7681): maintainer decision records; no llms, agent or rss feed.
+    feeds: [sitemap]
   - id: development
     label: Development
     order: 110
     purpose: How the Spec Kitty core team develops, tests and releases Spec Kitty.
+    # Restricted feeds (ADR D-8, #7681): core-team material; no llms, agent or rss feed.
+    feeds: [sitemap]
   - id: changelog
     label: Changelog
     order: 120
     purpose: Release notes.
+    # Restricted feeds (ADR D-8, #7681): release notes stay in rss; no llms or agent feed.
+    feeds: [sitemap, rss]
   - id: contracts
     label: Contracts
     order: 130
     purpose: Published contracts and their registry.
+    # Restricted feeds (ADR D-8, #7681): maintainer contract registry; no llms, agent or rss feed.
+    feeds: [sitemap]
   - id: plans
     label: Plans
     order: 140
     purpose: Roadmaps and plans.
     # Restricted feeds (ADR D-8): no llms, no agent, no rss.
     feeds: [sitemap]
-  - id: assets
-    label: Assets
-    order: 160
-    purpose: Static assets for the documentation site.

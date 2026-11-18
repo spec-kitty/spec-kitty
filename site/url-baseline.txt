@@ -976,6 +976,7 @@
 /reference/supported-harnesses.html
 /reference/terminology.html
 /reference/upgrade-lifecycle.html
+/retrospective-learning-loop.html
 /security/index.html
 /status-model.html
 /trail-model.html

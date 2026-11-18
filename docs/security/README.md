@@ -1,7 +1,7 @@
 ---
 title: Security
 description: 'Security posture for Spec Kitty: credential handling, secrets, and authentication. This forward-looking section collects security guidance.'
-doc_status: active
+doc_status: draft
 kind: Hub
 updated: '2026-06-27T00:00:00Z'
 related:
