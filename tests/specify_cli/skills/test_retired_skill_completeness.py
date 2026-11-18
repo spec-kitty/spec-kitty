@@ -96,10 +96,11 @@ EVER_SHIPPED_SKILL_NAMES = frozenset(
 
 #: A concrete ``spk-*`` skill name: two or more segments after ``spk``, not a
 #: family glob (``spk-gate-*``) and not a reference file name (``spk-skill-map.md``).
-_SPK_NAME = re.compile(r"(?<![\w-])spk(?:-[a-z0-9]+){2,}(?![\w*.-])")
-#: Any ``spec-kitty-*`` token; command skills (``spec-kitty-plan``) are legitimate,
-#: so these are checked only against the retired list.
-_LEGACY_NAME = re.compile(r"(?<![\w-])spec-kitty(?:-[a-z0-9]+)+(?![\w*-])")
+_SPK_NAME = re.compile(r"(?<![\w-])spk(?:-[a-z0-9]+){2,}(?![\w*-]|\.\w)")
+
+
+#: Retired skill names that are also live agent-profile ids: skill text may name the profile.
+_LIVE_AGENT_PROFILE_IDS = frozenset({"debugger-debbie", "paula-patterns"})
 
 
 def _registry() -> SkillRegistry:
@@ -148,10 +149,12 @@ def test_shipped_skill_text_names_only_shipped_spk_skills() -> None:
     assert not dangling, f"shipped skill text routes to unshipped skills: {dangling}"
 
 
-def test_shipped_skill_text_names_no_retired_legacy_skill() -> None:
-    hits = _scan(_LEGACY_NAME)
-    retired = {name: sorted(files) for name, files in hits.items() if name in RETIRED_CANONICAL_SKILL_NAMES}
-    assert not retired, f"shipped skill text names retired skills: {retired}"
+def test_shipped_skill_text_names_no_retired_skill() -> None:
+    names = RETIRED_CANONICAL_SKILL_NAMES - RETIRED_STANDALONE_SKILL_NAMES - _LIVE_AGENT_PROFILE_IDS
+    retired_names = sorted(names, key=len, reverse=True)
+    pattern = re.compile(r"(?<![\w-])(" + "|".join(map(re.escape, retired_names)) + r")(?![\w*-]|\.\w)")
+    hits = _scan(pattern)
+    assert not hits, f"shipped skill text names retired skills: { {n: sorted(f) for n, f in hits.items()} }"
 
 
 @pytest.mark.parametrize(
@@ -162,6 +165,7 @@ def test_shipped_skill_text_names_no_retired_legacy_skill() -> None:
         ("`references/spk-skill-map.md`", []),
         ("use the `spk-charter-*` family", []),
         ("then `spk-run-next`, then", ["spk-run-next"]),
+        ("Then use spk-gate-merge.", ["spk-gate-merge"]),
     ],
 )
 def test_spk_name_pattern(text: str, expected: list[str]) -> None:

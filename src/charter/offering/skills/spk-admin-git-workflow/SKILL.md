@@ -1,12 +1,12 @@
 ---
 name: spk-admin-git-workflow
-description: "Operate Spec Kitty git workflows, worktrees, safe commits, merge preflights, stale state checks, and recovery."
+description: "Operate Spec Kitty git workflows, worktrees, safe commits, consolidation preflights, stale state checks, and recovery."
 ---
 
 # spk-admin-git-workflow
 
 Use this skill when Spec Kitty work involves git operations, worktree lifecycle,
-branch state, commits, merge blockers, or stale repository state.
+branch state, commits, consolidation blockers, or stale repository state.
 
 ## Flow
 

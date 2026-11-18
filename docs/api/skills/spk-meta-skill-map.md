@@ -29,9 +29,8 @@ equivalent.
 
 Skills follow `spk-<family>-<action-or-topic>`. Families: `spk-start-*`
 (onboarding), `spk-mission-*` (authoring mission artifacts), `spk-run-*`
-(runtime advancement/orchestration), `spk-gate-*` (accept/merge/review/
-retrospective), `spk-admin-*` (setup/config/upgrade),
-`spk-team-*` (auth/sync/tracker/connectors), `spk-charter-*`
+(runtime advancement/orchestration), `spk-gate-*` (accept/consolidate/review/
+retrospective), `spk-admin-*` (setup/config/upgrade), `spk-charter-*`
 (charter governance/glossary/SPDD/profiles), `spk-practice-*`
 (bulk-edit/visuals/semantic compression), `spk-integrate-*` (external
 APIs/CI), and `spk-meta-*` (skill discovery and authoring, this skill's own
@@ -47,7 +46,7 @@ or which skill fits a request.
 
 When more than one skill matches, it picks the narrowest matching skill,
 starting from the earliest lifecycle family in order: start, mission, run,
-gate, admin/team, doctrine, integrate, meta.
+gate, admin, charter, practice, integrate, meta.
 
 ## See also
 

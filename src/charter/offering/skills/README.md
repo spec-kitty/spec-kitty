@@ -65,7 +65,7 @@ Families:
 - `spk-mission-*`: specify, research, plan, tasks, documentation, mission
   type selection.
 - `spk-run-*`: runtime-next, program orchestration, implementation/review
-  loops, single-WP review, blocked recovery.
+  loops, single-WP review, verdict capture, blocked recovery.
 - `spk-gate-*`: accept, consolidate, mission review, retrospective.
 - `spk-admin-*`: setup, agent config, upgrade.
 - `spk-charter-*`: charter governance, glossary, SPDD, profile load.

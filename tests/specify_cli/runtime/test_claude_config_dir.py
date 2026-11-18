@@ -73,27 +73,35 @@ def test_redirected_claude_skill_root_keeps_native_projection(claude_root: Path)
     assert get_project_skill_root_for_global_root(claude_root / "elsewhere") is None
 
 
-def test_skill_sync_writes_to_claude_config_dir_and_leaves_home_copy(home: Path, claude_root: Path) -> None:
-    legacy = home / ".claude" / "skills" / "spk-start-here"
-    legacy.mkdir(parents=True)
-    (legacy / "SKILL.md").write_text("old copy\n", encoding="utf-8")
+def _tree_bytes(root: Path) -> dict[str, bytes]:
+    return {p.relative_to(root).as_posix(): p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file()}
 
+
+def test_switching_to_claude_config_dir_leaves_owned_home_copies_untouched(home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Copies the sync owns under ``~/.claude`` (inventory-recorded) are neither migrated nor retired."""
     agent_skills.ensure_global_agent_skills()
+    ensure_global_agent_commands(agent_keys=["claude"])
+    legacy_root = home / ".claude"
+    assert (legacy_root / "skills" / "spk-gate-consolidate" / "SKILL.md").is_file(), "control: the sync owns ~/.claude"
+    assert (legacy_root / "commands" / "spec-kitty.plan.md").is_file(), "control: the sync owns ~/.claude"
+    before = _tree_bytes(legacy_root)
 
-    assert (claude_root / "skills" / "spk-start-here" / "SKILL.md").is_file()
-    assert (claude_root / "skills" / "spk-gate-consolidate" / "SKILL.md").is_file()
-    assert (legacy / "SKILL.md").read_text(encoding="utf-8") == "old copy\n", "the ~/.claude copy is not migrated"
-
-
-def test_command_sync_writes_to_claude_config_dir_and_leaves_home_copy(home: Path, claude_root: Path) -> None:
-    legacy = home / ".claude" / "commands" / "spec-kitty.plan.md"
-    legacy.parent.mkdir(parents=True)
-    legacy.write_text("old copy\n", encoding="utf-8")
-
+    claude_root = tmp_path / "claude-alt"
+    monkeypatch.setenv(CLAUDE_CONFIG_DIR_ENV, str(claude_root))
+    agent_skills.ensure_global_agent_skills()
     ensure_global_agent_commands(agent_keys=["claude"])
 
+    assert (claude_root / "skills" / "spk-gate-consolidate" / "SKILL.md").is_file()
     assert (claude_root / "commands" / "spec-kitty.plan.md").is_file()
-    assert legacy.read_text(encoding="utf-8") == "old copy\n", "the ~/.claude copy is not migrated"
+    assert _tree_bytes(legacy_root) == before, "the ~/.claude tree is not migrated, retired or rewritten"
+
+
+def test_skill_identity_tracks_the_claude_root(home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.skills.installer import _agent_config_identity
+
+    default = _agent_config_identity()
+    monkeypatch.setenv(CLAUDE_CONFIG_DIR_ENV, str(tmp_path / "claude-alt"))
+    assert _agent_config_identity() != default, "a root change must invalidate the skill assessment"
 
 
 def _claude_project(tmp_path: Path) -> Path:

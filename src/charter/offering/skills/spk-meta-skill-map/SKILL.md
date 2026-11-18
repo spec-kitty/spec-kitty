@@ -37,5 +37,5 @@ Use the reference map for the complete inventory:
 ## Rule
 
 Choose the narrowest matching skill. If multiple skills match, start at the
-earliest lifecycle family: start, mission, run, gate, admin/team, charter,
+earliest lifecycle family: start, mission, run, gate, admin, charter,
 practice, integrate, meta.
