@@ -1282,14 +1282,12 @@ def test_ci_request_never_suggests_the_minutes_profile(tmp_path: Path) -> None:
         assert "--profile <id>" in envelope["suggestion"]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "#7697: CI/workflow vocabulary for implementer-ivan must be authored in "
-        "spec-kitty-open-packs and the built-in pin bumped; until then this request "
-        "has no routing signal in the shipped catalog."
-    ),
+_PIN_REASON = (
+    "#7697: the CI/workflow keywords for implementer-ivan land in spec-kitty-open-packs #302; this passes once core's packs/built-in pin is bumped to that commit."
 )
+
+
+@pytest.mark.xfail(strict=True, reason=_PIN_REASON)
 def test_ci_request_routes_to_an_implementer(tmp_path: Path) -> None:
     """#7697: a single-file `.github/workflows` change is ordinary implementation work."""
     project = _setup_shipped_project(tmp_path)
@@ -1300,3 +1298,25 @@ def test_ci_request_routes_to_an_implementer(tmp_path: Path) -> None:
     envelope = json.loads(result.output)
     assert envelope["profile_id"] == "implementer-ivan"
     assert envelope["router_confidence"] == "domain_keyword"
+
+
+@pytest.mark.xfail(strict=True, reason=_PIN_REASON)
+@pytest.mark.parametrize(
+    ("request_text", "confidence"),
+    [
+        # Canonical-verb tie among the language implementers, broken by domain keywords.
+        ("fix the github actions ci matrix", "canonical_verb"),
+        # Generic profile's folded `update`, outranked by the domain owner.
+        ("update the github actions workflow matrix", "domain_keyword"),
+    ],
+)
+def test_ci_vocabulary_decides_verb_ties_and_generic_routes(tmp_path: Path, request_text: str, confidence: str) -> None:
+    """#7697 operator ruling: domain keywords decide verb ties and generic routes."""
+    project = _setup_shipped_project(tmp_path)
+
+    result = _run(project, ["dispatch", request_text, "--dry-run", "--json"])
+
+    assert result.exit_code == 0, result.output
+    envelope = json.loads(result.output)
+    assert envelope["profile_id"] == "implementer-ivan"
+    assert envelope["router_confidence"] == confidence
