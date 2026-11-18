@@ -145,8 +145,13 @@ def isolated_env(home: Path, base: Mapping[str, str]) -> dict[str, str]:
 
 
 def init_command(executable: str = sys.executable) -> list[str]:
-    """The ``spec-kitty init`` invocation for the scratch project (run from inside it)."""
-    return [executable, "-m", "specify_cli", "init", ".", "--ai", INIT_AGENTS, "--non-interactive"]
+    """The ``spec-kitty init`` invocation for the scratch project (run from inside it).
+
+    ``--no-commit``: the scratch repository is unborn and a CI runner has no git
+    identity, so the root commit init would make there is refused (#7612); the
+    validator reads only the skill files init writes.
+    """
+    return [executable, "-m", "specify_cli", "init", ".", "--ai", INIT_AGENTS, "--non-interactive", "--no-commit"]
 
 
 def generate_project(workdir: Path, run: CommandRunner | None = None) -> tuple[Path, Path]:
@@ -157,9 +162,10 @@ def generate_project(workdir: Path, run: CommandRunner | None = None) -> tuple[P
     env = isolated_env(home, os.environ)
     runner = run or _subprocess_runner(cwd=project, env=env)
     for argv in (["git", "init", "-q"], init_command()):
-        code, _stdout, stderr = runner(argv)
+        code, stdout, stderr = runner(argv)
         if code != 0:
-            raise EnvironmentPreparationError(f"`{' '.join(argv)}` exited {code}: {stderr.strip()}")
+            # init reports through its console on stdout, so stderr alone can be empty.
+            raise EnvironmentPreparationError(f"`{' '.join(argv)}` exited {code}: {(stderr.strip() or stdout.strip())}")
     return project, home
 
 
