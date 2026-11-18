@@ -54,9 +54,12 @@ def test_no_bit_reads_as_none(repo: Path) -> None:
 
 @pytest.mark.parametrize(
     ("flag", "expected"),
-    [("--skip-worktree", ("skip-worktree", "--no-skip-worktree")), ("--assume-unchanged", ("assume-unchanged", "--no-assume-unchanged"))],
+    [
+        ("--skip-worktree", ("skip-worktree", f"git update-index --no-skip-worktree {_REL_META.as_posix()}")),
+        ("--assume-unchanged", ("assume-unchanged", f"git update-index --no-assume-unchanged {_REL_META.as_posix()}")),
+    ],
 )
-def test_each_bit_is_named_with_the_flag_that_clears_it(repo: Path, flag: str, expected: tuple[str, str]) -> None:
+def test_each_bit_is_named_with_the_command_that_clears_it(repo: Path, flag: str, expected: tuple[str, str]) -> None:
     _track_meta(repo)
     _git(repo, "update-index", flag, _REL_META.as_posix())
     assert preflight._index_bit(repo, _REL_META) == expected

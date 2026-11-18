@@ -100,7 +100,6 @@ from specify_cli.lanes.models import LanesManifest
 # ``snapshot_branches`` stay public (tests and typed callers import them by name)
 # but are implementation surface of these entry points, not a separate export.
 __all__ = [
-    "ATTESTATION_UNDO_KEY",
     "OwnMove",
     "RollbackFollowUp",
     "begin_attempt",
@@ -603,7 +602,15 @@ def _classify_own_move(state: ConsolidationState, branch: str, own: OwnMove, liv
 #: The key, inside the merge record's ``retarget``, of a retarget run's pre-claim attestation move
 #: (#7692 review R2-a): ``{"branch", "before", "after"}``, persisted before the claim so a run killed
 #: before its snapshot or its attempt start still undoes it (:func:`attestation_undo_seed`).
-ATTESTATION_UNDO_KEY = "attestation_undo"
+_ATTESTATION_UNDO_KEY = "attestation_undo"
+
+
+def _persisted_attestation_undo(state: ConsolidationState) -> tuple[str, str, str] | None:
+    """``(branch, before, after)`` of the record's persisted attestation undo, else ``None`` (malformed: ignored)."""
+    undo = (state.retarget or {}).get(_ATTESTATION_UNDO_KEY)
+    if isinstance(undo, dict) and all(isinstance(undo.get(key), str) and undo.get(key) for key in ("branch", "before", "after")):
+        return str(undo["branch"]), str(undo["before"]), str(undo["after"])
+    return None
 
 
 def attestation_undo_seed(state: ConsolidationState, own_moves: Mapping[str, OwnMove]) -> dict[str, tuple[str, str]]:
@@ -612,20 +619,32 @@ def attestation_undo_seed(state: ConsolidationState, own_moves: Mapping[str, Own
     A malformed persisted entry is ignored (it can only make the attestation survive, never move a branch).
     """
     seed = {branch: (move.before, move.after) for branch, move in own_moves.items() if move.undo}
-    undo = (state.retarget or {}).get(ATTESTATION_UNDO_KEY)
-    if isinstance(undo, dict) and all(isinstance(undo.get(key), str) and undo.get(key) for key in ("branch", "before", "after")):
-        seed.setdefault(str(undo["branch"]), (str(undo["before"]), str(undo["after"])))
+    persisted = _persisted_attestation_undo(state)
+    if persisted is not None:
+        seed.setdefault(persisted[0], (persisted[1], persisted[2]))
     return seed
 
 
-def persist_attestation_undo(repo_root: Path, state: ConsolidationState, own_moves: Mapping[str, OwnMove]) -> None:
-    """Persist this run's undoable pre-claim move into the record's ``retarget`` (review R2-a); a no-op without one."""
-    undoable = [(branch, move) for branch, move in own_moves.items() if move.undo]
+def persist_attestation_undo(repo_root: Path, state: ConsolidationState, own_moves: Mapping[str, OwnMove]) -> dict[str, OwnMove]:
+    """Persist this run's undoable pre-claim move into the record's ``retarget`` (review R2-a); return the own moves to use.
+
+    An undoable own move that CONTINUES the record's persisted one (its ``before`` is the persisted
+    ``after``: a re-run after a kill attested again) starts from the persisted origin, in the
+    returned own moves and in the record alike, so the earlier attestation is undone with the run
+    too (re-review MEDIUM-1). Without a retarget record or an undoable move: unchanged, nothing saved.
+    """
+    moves = dict(own_moves)
+    undoable = [(branch, move) for branch, move in moves.items() if move.undo]
     if state.retarget is None or not undoable:
-        return
+        return moves
     branch, move = undoable[0]
-    state.retarget[ATTESTATION_UNDO_KEY] = {"branch": branch, "before": move.before, "after": move.after}
+    persisted = _persisted_attestation_undo(state)
+    if persisted is not None and persisted[0] == branch and persisted[2] == move.before:
+        move = OwnMove(persisted[1], move.after, undo=True)
+        moves[branch] = move
+    state.retarget[_ATTESTATION_UNDO_KEY] = {"branch": branch, "before": move.before, "after": move.after}
     save_state(state, repo_root)
+    return moves
 
 
 @dataclass(frozen=True)
@@ -1060,7 +1079,8 @@ def rebaseline_after_full_restore(state: ConsolidationState, outcomes: Iterable[
     and refuses only true divergence (a rewritten lane), failing closed with the abort hint.
 
     A retarget record (#7692) stays too, re-marked ``committed=False``: the restore undid its
-    ``meta.json`` commits, and the next run re-applies them.
+    ``meta.json`` commits, and the next run re-applies them. Its spent ``attestation_undo`` seed
+    (review R2-a) is dropped.
 
     The record, its marker, its strategy/cleanup flags and its ``wp_order`` also stay: after a
     full restore there is nothing to resume, but the record is the Mission's own provenance
@@ -1098,9 +1118,9 @@ def rebaseline_after_full_restore(state: ConsolidationState, outcomes: Iterable[
     # re-run re-applies it and is judged as a retarget (never dropped: that would strand it).
     if state.retarget is not None and state.retarget.get("committed") is not False:
         state.retarget["committed"] = False
+        changed = True
     # Review R2-a: the restore undid the attestations this pre-claim undo seed named; it is spent.
-    if state.retarget is not None:
-        state.retarget.pop(ATTESTATION_UNDO_KEY, None)
+    if state.retarget is not None and state.retarget.pop(_ATTESTATION_UNDO_KEY, None) is not None:
         changed = True
     return changed
 

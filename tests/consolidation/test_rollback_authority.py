@@ -1295,7 +1295,7 @@ def test_a_seed_whose_branch_moved_since_is_not_applied(tmp_path: Path) -> None:
 
 def test_the_persisted_attestation_undo_seeds_a_later_process(tmp_path: Path) -> None:
     """Review R2-a: the undo persisted before the claim seeds a resume that has no own moves."""
-    from specify_cli.consolidation.rollback import ATTESTATION_UNDO_KEY, attestation_undo_seed, persist_attestation_undo
+    from specify_cli.consolidation.rollback import attestation_undo_seed, persist_attestation_undo
 
     env = make_env(tmp_path)
     env.state.retarget = {"from": "main", "to": _TARGET, "committed": False}
@@ -1303,8 +1303,23 @@ def test_the_persisted_attestation_undo_seeds_a_later_process(tmp_path: Path) ->
 
     reloaded = load_state(env.repo, env.state.mission_id)
     assert reloaded is not None and reloaded.retarget is not None
-    assert reloaded.retarget[ATTESTATION_UNDO_KEY] == {"branch": _TARGET, "before": "b0", "after": "a1"}
+    assert reloaded.retarget["attestation_undo"] == {"branch": _TARGET, "before": "b0", "after": "a1"}
     assert attestation_undo_seed(reloaded, {}) == {_TARGET: ("b0", "a1")}
-    reloaded.retarget[ATTESTATION_UNDO_KEY] = {"branch": _TARGET}
+    reloaded.retarget["attestation_undo"] = {"branch": _TARGET}
     assert attestation_undo_seed(reloaded, {}) == {}, "a malformed entry is ignored"
     assert attestation_undo_seed(reloaded, {_TARGET: OwnMove("x", "y")}) == {}, "a plain own move never seeds"
+
+
+def test_a_continued_attestation_undo_chains_to_the_persisted_origin(tmp_path: Path) -> None:
+    """Re-review MEDIUM-1: a re-run's attestation (a1 -> a2) continues the persisted (b0 -> a1)."""
+    from specify_cli.consolidation.rollback import persist_attestation_undo
+
+    env = make_env(tmp_path)
+    env.state.retarget = {"from": "main", "to": _TARGET, "committed": False, "attestation_undo": {"branch": _TARGET, "before": "b0", "after": "a1"}}
+
+    moves = persist_attestation_undo(env.repo, env.state, {_TARGET: OwnMove("a1", "a2", undo=True)})
+
+    assert moves == {_TARGET: OwnMove("b0", "a2", undo=True)}
+    assert env.state.retarget["attestation_undo"] == {"branch": _TARGET, "before": "b0", "after": "a2"}
+    unrelated = persist_attestation_undo(env.repo, env.state, {_TARGET: OwnMove("x1", "x2", undo=True)})
+    assert unrelated == {_TARGET: OwnMove("x1", "x2", undo=True)}, "a move that does not continue it starts from its own origin"

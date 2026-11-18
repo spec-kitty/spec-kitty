@@ -337,7 +337,7 @@ def _refuse_missing_mission_branch_in_forecast(
     creates its recorded branch, and a resume after a verified landing are not refused.
     """
     try:
-        existing_state = load_state(main_repo, lanes_manifest.mission_id or resolved_feature)
+        existing_state = load_state(main_repo, merge_record_key(main_repo, resolved_feature))
     except ConsolidationStateReadError:
         logger.debug("an unreadable consolidation record is read as no record by the forecast's mission-branch check", exc_info=True)
         existing_state = None
@@ -362,7 +362,6 @@ def _refuse_missing_mission_branch_in_forecast(
 
 def _declared_with_recorded(
     main_repo: Path,
-    lanes_manifest: LanesManifest,
     resolved_feature: str,
     cli_refs: tuple[str, ...],
     *,
@@ -374,7 +373,7 @@ def _declared_with_recorded(
     persisted declaration; reading only the CLI would preview a verdict the run does not reach.
     """
     try:
-        recorded = load_state(main_repo, lanes_manifest.mission_id or resolved_feature)
+        recorded = load_state(main_repo, merge_record_key(main_repo, resolved_feature))
     except ConsolidationStateReadError:
         logger.debug("an unreadable consolidation record contributes no recorded dependency refs to the forecast", exc_info=True)
         recorded = None
@@ -444,7 +443,7 @@ def _refuse_unattributable_in_forecast(
     surface the claim's coordination base is read from, as the retargeted run's claim phase does.
     """
     main_repo = get_main_repo_root(repo_root)
-    dependency_refs, dependency_pins = _declared_with_recorded(main_repo, lanes_manifest, resolved_feature, dependency_refs, json_output=json_output)
+    dependency_refs, dependency_pins = _declared_with_recorded(main_repo, resolved_feature, dependency_refs, json_output=json_output)
     try:
         window_base = resolve_commit(main_repo, resolved_target_branch)
     except GitProbeError:

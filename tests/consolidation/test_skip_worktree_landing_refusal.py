@@ -7,6 +7,7 @@ one the Mission branch changes. End to end: ``tests/terminus/test_consolidate_sk
 
 from __future__ import annotations
 
+import shlex
 import subprocess
 from pathlib import Path
 
@@ -139,3 +140,24 @@ def test_an_edited_skip_worktree_code_file_the_landing_writes_refuses(repo: Path
     assert _git(repo, "status", "--porcelain") == ""
     verdict = _verdict(repo)
     assert verdict is not None and "src/b.py" in verdict.message
+
+
+@pytest.mark.parametrize(
+    ("bits", "name"),
+    [
+        (("--skip-worktree",), "skip-worktree"),
+        (("--assume-unchanged",), "assume-unchanged"),
+        (("--skip-worktree", "--assume-unchanged"), "skip-worktree and assume-unchanged"),
+    ],
+)
+def test_the_retarget_index_bit_names_every_bit_and_its_remedy_clears_them(repo: Path, bits: tuple[str, ...], name: str) -> None:
+    """Re-review LOW-4: ``s`` (both bits) is named as both, and the printed remedy clears both in one step."""
+    for bit in bits:
+        _git(repo, "update-index", bit, _META)
+    found = preflight._index_bit(repo, Path(_META))
+    assert found is not None
+    bit_name, remedy = found
+    assert bit_name == name
+    for command in remedy.split(" && "):  # the printed remedy, verbatim
+        subprocess.run(shlex.split(command), cwd=repo, check=True)
+    assert _git(repo, "ls-files", "-v", _META).startswith("H ")

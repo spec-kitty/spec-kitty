@@ -662,7 +662,7 @@ def _run_lane_based_consolidation_locked(
     lanes_manifest.target_branch = state.target_branch
     # #7692 review R2-a: an undoable attestation move is persisted before the claim, so a kill
     # before the snapshot or the attempt start still lets a resume or ``--abort`` undo it.
-    rollback.persist_attestation_undo(main_repo, state, own_pre_claim_moves)
+    own_pre_claim_moves = rollback.persist_attestation_undo(main_repo, state, own_pre_claim_moves)
 
     run = _MergeRunState(
         main_repo=main_repo,

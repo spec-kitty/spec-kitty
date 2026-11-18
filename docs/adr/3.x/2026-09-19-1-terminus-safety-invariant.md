@@ -714,14 +714,18 @@ of the run follows it. Naming the recorded target again is not a retarget.
   the snapshot takes `<b>`'s tip from before the attestations (`capture_pre_mutation_snapshot`'s
   `seed`), and `begin_attempt` carries the attested tip as this run's post tip. The move is also
   persisted in the record's `retarget` (`attestation_undo`) as soon as the record is loaded or
-  created, and the seeded snapshot records the attested tip as the post tip in the same save, so a
-  SIGKILL before the snapshot or before `begin_attempt` still lets a `--resume` (then a failure) or
-  `--abort` restore `<b>` (review R2-a). A rollback or `--abort` leaves `<b>` at its pre-run tip,
+  created, and the seeded snapshot records the attested tip as the post tip in the same save, so
+  after a SIGKILL before the snapshot or before `begin_attempt`, a `--resume` or re-run that then
+  fails restores `<b>`, and so does `--abort` once the killed run had taken its snapshot (review
+  R2-a). A re-run that attests again continues the persisted move (its `before` is the persisted
+  `after`), so `persist_attestation_undo` chains it to the first attestation's origin and both are
+  undone (re-review MEDIUM-1). A rollback or `--abort` leaves `<b>` at its pre-run tip,
   and a re-run with the same `--attest-*` flags records the attestation once (a bare `--resume`
   records none and fails the same claim check). A plain run's attestations still re-anchor and
   survive, as before. Residuals: a claim-time refusal, which comes before the snapshot, still
   keeps them (F4); a kill between the attestation commit and the record save (the review-artifact
-  gate in between is read-only), or `--abort` after a kill before the snapshot, keeps them too.
+  gate in between is read-only) keeps them; `--abort` after a kill before the snapshot finds no
+  snapshot (`_NO_SNAPSHOT_REASON`), restores nothing and clears the record, so it keeps them too.
 - **Status surface.** The claim's status surface follows the effective target: on a retarget run
   the old recorded target maps to `<b>` (`run_state`, `status_surface`). The #5385 status-write
   probe is re-pointed at `<b>`, never skipped. `--attest-*` flags follow the retarget too: on a
