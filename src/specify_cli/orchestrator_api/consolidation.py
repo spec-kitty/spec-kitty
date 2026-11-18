@@ -531,6 +531,22 @@ def _refuse_protected_target_override(main_repo_root: Path, mission_slug: str, l
     raise CodedPreflightRefused(text, error_code=verdict.error_code)
 
 
+def _refuse_persisted_retarget(main_repo_root: Path, mission_slug: str, lanes_manifest: LanesManifest) -> None:
+    """#7692 (mission review RISK-1): refuse a Mission whose merge record persisted a retarget.
+
+    This command has no ``--retarget`` and no rollback door, so it never finishes nor overrides a
+    retarget an interrupted ``spec-kitty consolidate`` persisted
+    (:func:`~specify_cli.consolidation.preflight.persisted_retarget_refusal`). A
+    :class:`CodedPreflightRefused` (``RETARGET_RESUME_MISMATCH``) before any branch moves, on the
+    code-lane and the planning-artifact-only paths alike; the envelope is unchanged.
+    """
+    from specify_cli.consolidation.preflight import persisted_retarget_refusal
+
+    verdict = persisted_retarget_refusal(main_repo_root, lanes_manifest.mission_id or mission_slug, mission_slug)
+    if verdict is not None:
+        raise CodedPreflightRefused(f"{verdict.error_code}: {verdict.message} Next step: {verdict.next_step}", error_code=verdict.error_code)
+
+
 def _orchestrator_refusal_text(refusal: str) -> str:
     """The lane-check refusal for this command's envelope: ``consolidate-mission`` has no attestation flag.
 
@@ -663,6 +679,7 @@ def _execute_lane_merge(
     lanes_manifest = require_lanes_json(_planning_read_dir(main_repo_root, mission_slug))
     lanes_manifest.target_branch = target_branch
     merge_strategy = MergeStrategy(strategy)
+    _refuse_persisted_retarget(main_repo_root, mission_slug, lanes_manifest)
     _refuse_protected_status_target(main_repo_root, mission_slug, lanes_manifest)
     _refuse_protected_target_override(main_repo_root, mission_slug, lanes_manifest)
     # #5939 / #6715: fail-closed evidence + independence backstop on every topology, before the

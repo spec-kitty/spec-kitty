@@ -97,3 +97,9 @@ The lenses were architect-alphonso (SOUND-WITH-CHANGES), reviewer-renata (ADEQUA
 | I6 | The forecast's claim uses the old status surface | accepted | WP02 T009.5 (+ `claim_inputs.py` owned) |
 | I7 | Simpler #5385 re-point keyword | accepted | WP01 T004 |
 | I8 | Lane staleness when a lane touched `meta.json` | accepted as a risk with a pinning test | WP03 Risks |
+
+## Operator ruling on P3 (attestations under a retarget), and the post-merge review folds
+
+- **P3, superseded: option A.** The operator ruled that `--attest-*` flags follow the retarget instead of being refused. `RETARGET_WITH_ATTESTATION_UNSUPPORTED` was never defined; the plan (D10), the WP prompts and the analysis report that name it describe the rejected disposition. On a Mission without a coordination branch the attestation status events land on `<b>` (`contracts/cli-retarget.md`, Attestations).
+- **Mission review RISK-2 (folded).** Those attestations are undone with the run: the one rollback authority restores `<b>` below them (`rollback.OwnMove.undo`, the snapshot `seed`).
+- **Mission review RISK-1 (folded).** A persisted retarget binds every later run: any other target refuses `RETARGET_RESUME_MISMATCH`, with or without `--retarget`, and `orchestrator-api consolidate-mission` refuses every persisted retarget with the same code.

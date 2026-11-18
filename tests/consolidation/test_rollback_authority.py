@@ -39,6 +39,7 @@ from specify_cli.consolidation.rollback import (
     clear_advance_intents,
     missing_snapshot_branches,
     note_advance_intent,
+    own_moves_across,
     rebaseline_after_full_restore,
     record_post_mutation_tips,
     release_branch,
@@ -1235,3 +1236,45 @@ def test_an_unsettled_branch_that_moved_with_no_recorded_post_tip_is_never_rebas
     assert report.rebaselineable is False
     assert _rev(env.repo, _TARGET) == moved
     assert env.state.pre_mutation_refs, "the snapshot survives so the next run can refuse the unexplained move"
+
+
+# --- #7692 mission review RISK-2: an undoable own move (a retarget run's attestations) ----------
+
+
+def test_an_undoable_own_move_is_snapshotted_at_its_origin_and_undone_by_the_rollback(tmp_path: Path) -> None:
+    """A fresh run: the attestation commit on the target is the run's; the one authority restores below it."""
+    env = make_env(tmp_path)
+    before = _commit_on(env.repo, _TARGET, "pre-run")
+    attested = _commit_on(env.repo, _TARGET, "attestation")
+    own = {_TARGET: OwnMove(before, attested, undo=True)}
+
+    snap = capture_pre_mutation_snapshot(env.repo, env.state, env.manifest, coord_ref=None, seed={b: m.before for b, m in own.items() if m.undo})
+    assert snap[_TARGET] == before
+    assert begin_attempt(env.repo, env.state, own_moves=own) == []
+    assert env.state.restore_targets[_TARGET] == before
+    assert env.state.post_mutation_refs[_TARGET] == attested
+
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+
+    assert report.fully_restored, report.render()
+    assert subprocess.run(["git", "-C", str(env.repo), "rev-parse", _TARGET], capture_output=True, text=True, check=True).stdout.strip() == before
+
+
+def test_a_plain_own_move_still_re_anchors_and_survives_the_rollback(tmp_path: Path) -> None:
+    """Non-retarget runs are unchanged: the attestation re-anchors the restore target."""
+    env = make_env(tmp_path)
+    snap = _snapshot_and_begin(env)
+    attested = _commit_on(env.repo, _TARGET, "attestation")
+
+    assert begin_attempt(env.repo, env.state, own_moves={_TARGET: OwnMove(snap[_TARGET], attested)}) == []
+
+    assert env.state.restore_targets[_TARGET] == attested
+    assert _TARGET not in env.state.post_mutation_refs
+
+
+def test_own_moves_across_marks_and_keeps_undo() -> None:
+    first = own_moves_across({}, {_TARGET: "a"}, {_TARGET: "b"}, writes=[_TARGET], undo=True)
+    assert first == {_TARGET: OwnMove("a", "b", undo=True)}
+    continued = own_moves_across(first, {_TARGET: "b"}, {_TARGET: "c"}, writes=[_TARGET])
+    assert continued == {_TARGET: OwnMove("a", "c", undo=True)}
+    assert own_moves_across({}, {_TARGET: "a"}, {_TARGET: "b"}, writes=[_TARGET]) == {_TARGET: OwnMove("a", "b")}

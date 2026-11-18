@@ -701,11 +701,21 @@ of the run follows it. Naming the recorded target again is not a retarget.
   snapshot adopts a new retarget: its `target_branch` moves to `<b>` and the anchors that name the
   old target are dropped (the target tip, a coordination anchor that is the old target, and the
   reconciliation PASS anchor). A record with a snapshot never adopts one. `--abort` clears the
-  record and the retarget with it. `--resume --target <x> --retarget` with an `<x>` other than
-  the persisted one refuses with `RETARGET_RESUME_MISMATCH`.
+  record and the retarget with it. While the record holds a retarget, a run whose target is not
+  the persisted `to` refuses with `RETARGET_RESUME_MISMATCH`, with or without `--retarget`
+  (`preflight.retarget_mode`, read by the entry preflight and `--dry-run`). `--target <old
+  target>` is included: before the mission review it passed the entry preflight, and the locked
+  run then applied the persisted retarget anyway.
 - **Undo.** The retarget commits are undone ONLY by the one rollback authority
   (`rollback.rollback_to_snapshot`), which restores `<b>` and the Mission branch to their snapshot
-  tips. There is no second undo path.
+  tips. There is no second undo path. On a Mission without a coordination branch, the `--attest-*`
+  status events a retarget run records on `<b>` before the claim are part of the run (mission
+  review RISK-2): the executor marks that move as an undoable own move (`rollback.OwnMove.undo`),
+  the snapshot takes `<b>`'s tip from before the attestations (`capture_pre_mutation_snapshot`'s
+  `seed`), and `begin_attempt` carries the attested tip as this run's post tip. A rollback or
+  `--abort` then leaves `<b>` at its pre-run tip, and a re-run records the attestation once. A
+  plain run's attestations still re-anchor and survive, as before. A claim-time refusal, which
+  comes before the snapshot, still keeps them (F4).
 - **Status surface.** The claim's status surface follows the effective target: on a retarget run
   the old recorded target maps to `<b>` (`run_state`, `status_surface`). The #5385 status-write
   probe is re-pointed at `<b>`, never skipped. `--attest-*` flags follow the retarget too: on a
@@ -726,7 +736,9 @@ of the run follows it. Naming the recorded target again is not a retarget.
 - **Scope.** Explicit `lanes` and `lanes_with_coord` Missions, and default-topology Missions
   settled to `lanes_with_coord` or `single_branch`. `orchestrator-api consolidate-mission` cannot
   retarget, because it has no rollback door (#7361). It keeps refusing a differing target with
-  `PREFLIGHT_FAILED` and `TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE`. `CONTRACT_VERSION` is
+  `PREFLIGHT_FAILED` and `TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE`. While the run record holds
+  a retarget, it refuses any target with `PREFLIGHT_FAILED` and `RETARGET_RESUME_MISMATCH`
+  (`preflight.persisted_retarget_refusal`), so it never finishes or overrides a retarget. `CONTRACT_VERSION` is
   unchanged.
 - **The kill window is not a residual.** The plan named a kill between the record commits and the
   `committed` persist as a residual that would refuse with `UNEXPLAINED_BRANCH_MOVE`. The

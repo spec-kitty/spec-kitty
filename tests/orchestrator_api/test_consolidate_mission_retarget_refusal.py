@@ -104,3 +104,68 @@ def test_a_differing_target_keeps_the_envelope_and_names_retarget(tmp_path: Path
     assert "spec-kitty consolidate --target develop --retarget" in " ".join(str(error) for error in data.get("errors", [])), envelope
     assert ref_shas(mission) == before, f"no branch tip may move. output={output}"
     assert not blob_present_at(mission.repo, "develop", "src/pkg/wp01.py"), output
+
+
+# --- mission review RISK-1: a persisted retarget is never executed by this command ---------------
+
+_MISMATCH = preflight.RETARGET_RESUME_MISMATCH
+_MISSION_ID = "01M7M5JA00000000000000000Q"
+
+
+def _persist_retarget(repo: Path) -> None:
+    from specify_cli.consolidation.state import ConsolidationState, save_state
+
+    state = ConsolidationState(mission_id=_MISSION_ID, mission_slug="m", target_branch="develop", wp_order=["WP01"])
+    state.retarget = {"from": "main", "to": "develop", "actor": "op", "at": "2026-11-17T09:00:00+00:00", "reason": "r", "committed": False}
+    save_state(state, repo)
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize("target", ["main", "develop", "release"])
+def test_a_persisted_retarget_is_refused_whatever_the_target(tmp_path: Path, target: str) -> None:
+    """``consolidate-mission`` has no ``--retarget``: it neither re-lands nor silently finishes a persisted one."""
+    _persist_retarget(tmp_path)
+    manifest = cast("LanesManifest", SimpleNamespace(target_branch=target, mission_id=_MISSION_ID))
+    with pytest.raises(CodedPreflightRefused) as excinfo:
+        orch._refuse_persisted_retarget(tmp_path, "m", manifest)
+    assert excinfo.value.error_code == _MISMATCH
+    text = str(excinfo.value)
+    assert "'main' to 'develop'" in text and "spec-kitty consolidate --mission m --resume" in text and "--abort" in text, text
+
+
+@pytest.mark.fast
+def test_no_persisted_retarget_is_not_refused(tmp_path: Path) -> None:
+    orch._refuse_persisted_retarget(tmp_path, "m", cast("LanesManifest", SimpleNamespace(target_branch="main", mission_id=_MISSION_ID)))
+
+
+@pytest.mark.integration
+@pytest.mark.git_repo
+@pytest.mark.regression
+def test_a_failed_retarget_is_not_executed_by_consolidate_mission(tmp_path: Path) -> None:
+    """After a failed ``consolidate --target develop --retarget``, the command refuses before any branch moves."""
+    from tests.terminus.retarget_support import RETARGET, merge_record, run_patched
+    from tests.terminus.rollback_harness import reflog_shas
+
+    mission = _unprotected_main_mission(tmp_path, "01M7692Q", "lanes")
+    git(mission.repo, "checkout", "-qb", "develop", "main")
+    failed = run_patched(mission, "executor", "_phase_merge_lanes", *RETARGET, kill=False)
+    assert failed.returncode != 0, flat(failed)
+    record = merge_record(mission)
+    assert record is not None and record["retarget"]["to"] == "develop", record
+    git(mission.repo, "checkout", "-q", "main")
+    before = ref_shas(mission)
+    reflogs = {b: reflog_shas(mission, b) for b in ("main", "develop", mission.coord_branch)}
+
+    result = run_terminus(mission, ["orchestrator-api", "consolidate-mission", "--mission", mission.slug, "--strategy", "squash"])
+
+    envelope = _envelope(result)
+    assert envelope["success"] is False and envelope["error_code"] == "PREFLIGHT_FAILED", envelope
+    assert envelope["contract_version"] == CONTRACT_VERSION, envelope
+    data = envelope["data"]
+    assert isinstance(data, dict), envelope
+    assert data.get("preflight_error_code") == _MISMATCH and data.get("preflight_error_codes") == [_MISMATCH], envelope
+    assert ref_shas(mission) == before, flat(result)
+    assert {b: reflog_shas(mission, b) for b in ("main", "develop", mission.coord_branch)} == reflogs, flat(result)
+    assert merge_record(mission) == record
+    assert not blob_present_at(mission.repo, "main", "src/pkg/wp01.py")
+    assert not blob_present_at(mission.repo, "develop", "src/pkg/wp01.py")

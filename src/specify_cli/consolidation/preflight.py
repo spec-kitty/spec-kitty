@@ -1694,28 +1694,28 @@ class RetargetMode:
     """How a run is judged against a retarget (#7692): the ONE decision the entry preflight and the forecast share.
 
     ``pair`` is the ``(recorded, new)`` target pair when the run is a retarget, else ``None``.
-    ``mismatch`` is the ``RETARGET_RESUME_MISMATCH`` refusal when ``--retarget`` names a target
-    other than the one a merge record persisted; each caller renders it its own way.
+    ``mismatch`` is the ``RETARGET_RESUME_MISMATCH`` refusal when a merge record persisted a
+    retarget and this run's target is not that retarget's new target; each caller renders it its
+    own way.
     """
 
     pair: tuple[str, str] | None
     mismatch: Refused | None = None
 
 
-def _retarget_resume_mismatch(persisted: tuple[str, str], effective_target: str) -> Refused:
+def _retarget_resume_mismatch(persisted: tuple[str, str], effective_target: str, *, retarget: bool) -> Refused:
     from specify_cli.coordination.types import Refused
 
     recorded, persisted_to = persisted
+    asked = f"'--target {effective_target} --retarget'" if retarget else f"'--target {effective_target}'"
+    instead = f"retarget onto '{effective_target}'" if retarget else f"consolidate into '{effective_target}'"
     return Refused(
         error_code=RETARGET_RESUME_MISMATCH,
-        message=(
-            f"this mission's interrupted consolidation retargets it from '{recorded}' to '{persisted_to}', "
-            f"but this run asks for '--target {effective_target} --retarget'."
-        ),
+        message=(f"this mission's interrupted consolidation retargets it from '{recorded}' to '{persisted_to}', but this run asks for {asked}."),
         destination_ref=effective_target,
         next_step=(
             f"re-run with '--target {persisted_to} --retarget' (or a bare `spec-kitty consolidate --resume`) to finish "
-            f"that retarget, or run `spec-kitty consolidate --abort` first to retarget onto '{effective_target}' instead."
+            f"that retarget, or run `spec-kitty consolidate --abort` first to {instead} instead."
         ),
     )
 
@@ -1723,19 +1723,46 @@ def _retarget_resume_mismatch(persisted: tuple[str, str], effective_target: str)
 def retarget_mode(main_repo: Path, canonical_id: str, *, retarget: bool, recorded: str, effective: str) -> RetargetMode:
     """Judge whether this run is a retarget (#7692); the single owner both the run and ``--dry-run`` read.
 
-    ``--retarget`` naming a target other than a persisted retarget's ``to`` is a mismatch
-    (only when a merge record exists). Equal targets are never a retarget (FR-012). Otherwise
-    the run is a retarget when ``--retarget`` asks for one, or when the merge record persisted
-    this very retarget (a bare ``--resume``, or a re-run after a re-baselined failure).
+    A merge record that persisted a retarget binds every later run: a target other than that
+    retarget's new target is a mismatch, with or without ``--retarget`` (mission review RISK-1:
+    ``--target <recorded>`` used to pass this check and then have the locked run re-apply the
+    persisted retarget anyway). Equal targets are never a retarget (FR-012). Otherwise the run is a
+    retarget when ``--retarget`` asks for one, or when the merge record persisted this very
+    retarget (a bare ``--resume``, or a re-run after a re-baselined failure).
     """
     persisted = persisted_retarget_pair(main_repo, canonical_id)
-    if retarget and persisted is not None and persisted[1] != effective:
-        return RetargetMode(pair=None, mismatch=_retarget_resume_mismatch(persisted, effective))
+    if persisted is not None and persisted[1] != effective:
+        return RetargetMode(pair=None, mismatch=_retarget_resume_mismatch(persisted, effective, retarget=retarget))
     if recorded == effective:
         return RetargetMode(pair=None)
     if retarget or persisted == (recorded, effective):
         return RetargetMode(pair=(recorded, effective))
     return RetargetMode(pair=None)
+
+
+def persisted_retarget_refusal(main_repo: Path, canonical_id: str, mission_slug: str) -> Refused | None:
+    """``RETARGET_RESUME_MISMATCH`` for a command with no ``--retarget`` facing a persisted retarget, else ``None`` (#7692).
+
+    ``orchestrator-api consolidate-mission`` can neither finish a persisted retarget (it runs no
+    retarget preflight and has no rollback door) nor land on any target while the merge record
+    names one (mission review RISK-1), so every persisted retarget refuses there, whatever its
+    ``--target``. The next step names the ``spec-kitty consolidate`` commands that can.
+    """
+    persisted = persisted_retarget_pair(main_repo, canonical_id)
+    if persisted is None:
+        return None
+    from specify_cli.coordination.types import Refused
+
+    source, to = persisted
+    return Refused(
+        error_code=RETARGET_RESUME_MISMATCH,
+        message=(f"this mission's interrupted consolidation retargets it from '{source}' to '{to}', and only `spec-kitty consolidate` can finish a retarget."),
+        destination_ref=to,
+        next_step=(
+            f"run `spec-kitty consolidate --mission {mission_slug} --resume` to finish that retarget, or "
+            f"`spec-kitty consolidate --mission {mission_slug} --abort` first to drop it."
+        ),
+    )
 
 
 def target_override_verdict(

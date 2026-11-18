@@ -226,12 +226,35 @@ def _own_moves_after_step(
     before: Mapping[str, str | None],
     *,
     writes: Iterable[str | None],
+    undo: bool = False,
 ) -> dict[str, rollback.OwnMove]:
-    """Fold one pre-claim step into this process's own moves: only a branch the step writes whose tip changed since ``before``."""
+    """Fold one pre-claim step into this process's own moves: only a branch the step writes whose tip changed since ``before``.
+
+    ``undo`` marks the step's moves as run content the rollback undoes (:class:`rollback.OwnMove`).
+    """
     branches = [branch for branch in writes if branch is not None and branch in before]
     if not branches:
         return dict(own_moves)
-    return rollback.own_moves_across(own_moves, before, rollback.branch_tips(main_repo, branches), writes=branches)
+    return rollback.own_moves_across(own_moves, before, rollback.branch_tips(main_repo, branches), writes=branches, undo=undo)
+
+
+def _attestation_surface(
+    main_repo: Path, mission_slug: str, retarget: tuple[str, str] | None, start_tips: Mapping[str, str]
+) -> tuple[str | None, dict[str, str], bool]:
+    """``(surface, before tips, undo)`` for the operator attestations' own-move bookkeeping (#5686, #7692).
+
+    ``surface`` is the status-surface branch the attestations write. ``undo`` is true when a retarget
+    run writes them on the new target (a Mission without a coordination branch): they belong to the
+    run, so the one rollback authority must undo them with it (mission review RISK-2). Their
+    pre-attestation tip is then read here even on a fresh run, which has no record to supply
+    ``start_tips``; any other run keeps today's ``start_tips`` only.
+    """
+    surface = status_surface_ref(main_repo, mission_slug, retarget=retarget)
+    undo = retarget is not None and surface == retarget[1]
+    if not undo or surface is None:
+        return surface, dict(start_tips), False
+    own_tip = {branch: tip for branch, tip in rollback.branch_tips(main_repo, [surface]).items() if tip is not None}
+    return surface, {**own_tip, **start_tips}, True
 
 
 def _tips_before_heal(run: _MergeRunState, marker: Mapping[str, Any] | None) -> dict[str, str | None]:
@@ -572,6 +595,7 @@ def _run_lane_based_consolidation_locked(
     # #7692: the retarget the run carries (this run's, else a persisted one): the attestations
     # and the status surface they move follow the new target.
     retarget_pair = _run_retarget_pair(main_repo, canonical_id, retarget_record)
+    attestation_surface, attestation_before, undo_attestations = _attestation_surface(main_repo, mission_slug, retarget_pair, start_tips)
     # FR-012: record any operator attestation BEFORE the claim is captured, so
     # the reconciliation gate reads it from the event log it already reads.
     recorded_attestations = _record_operator_attestations(
@@ -588,8 +612,9 @@ def _run_lane_based_consolidation_locked(
         retarget=retarget_pair,
     )
     # P1: only the status-surface branch the attestations write, and only when its tip changed across them, is this process's own move.
+    # #7692 (RISK-2): under a retarget onto a coordination-less status surface the move is undoable run content.
     own_pre_claim_moves = _own_moves_after_step(
-        main_repo, {}, start_tips if recorded_attestations else {}, writes=(status_surface_ref(main_repo, mission_slug, retarget=retarget_pair),)
+        main_repo, {}, attestation_before if recorded_attestations else {}, writes=(attestation_surface,), undo=undo_attestations
     )
 
     # INV (ordering preserved from the pre-refactor monolith): the review-artifact

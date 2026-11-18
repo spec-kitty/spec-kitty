@@ -572,3 +572,49 @@ def test_retarget_after_a_rebaselined_plain_run_lands_on_the_new_target(tmp_path
     assert any("squash merge of mission" in subject for subject in subjects), "the landing is on develop"
     meta = _meta_on(m, "develop")
     assert meta["target_branch"] == "develop" and len(meta["retarget_history"]) == 1
+
+
+# --- mission review LOW-2: a git error on the Mission-branch write is the named refusal -------
+
+
+def test_a_hook_rejecting_the_mission_branch_commit_is_the_named_refusal(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    m = _lanes_onto_develop(tmp_path)
+    run = _run(m)
+    hook = m.repo / ".git" / "hooks" / "pre-commit"
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    hook.write_text("#!/bin/sh\necho 'policy hook says no' >&2\nexit 1\n", encoding="utf-8")
+    hook.chmod(0o755)
+    tips = (_rev(m.repo, m.coord_branch), _rev(m.repo, "develop"))
+
+    with pytest.raises(typer.Exit) as excinfo:
+        phase_advance._phase_retarget_record(run)
+
+    assert excinfo.value.exit_code == 1
+    out = " ".join(capsys.readouterr().out.split())
+    assert f"Error: Cannot record the retarget main -> develop: {m.coord_branch}:" in out, out
+    assert "policy hook says no" in out, out
+    assert (_rev(m.repo, m.coord_branch), _rev(m.repo, "develop")) == tips
+    persisted = load_state(m.repo, m.mission_id)
+    assert persisted is not None and persisted.retarget is not None and persisted.retarget["committed"] is False
+
+
+def test_a_dirty_checkout_holding_the_mission_branch_is_the_named_refusal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from specify_cli.consolidation import meta_write
+    from specify_cli.git.ref_advance import RefAdvanceDirtyWorktreeError
+
+    m = _lanes_onto_develop(tmp_path)
+    run = _run(m)
+
+    def _dirty(_repo: Path, branch: str, new_sha: str, **_kwargs: object) -> None:
+        raise RefAdvanceDirtyWorktreeError(worktree_path=m.repo / "wt", branch=branch, old_sha="a" * 40, new_sha=new_sha, dirty_entries=[" M x.py"])
+
+    monkeypatch.setattr(meta_write, "advance_branch_ref", _dirty)
+
+    with pytest.raises(typer.Exit) as excinfo:
+        phase_advance._phase_retarget_record(run)
+
+    assert excinfo.value.exit_code == 1
+    out = " ".join(capsys.readouterr().out.split())
+    assert f"Error: Cannot record the retarget main -> develop: {m.coord_branch}: Refusing to advance branch" in out, out
