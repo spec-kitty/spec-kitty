@@ -3,12 +3,12 @@
 Witnessed while building the retarget refusals (WP04): a PLAIN ``spec-kitty consolidate`` onto
 ``main``, with the skip-worktree bit set (and no edit) on the root checkout's
 ``kitty-specs/<slug>/meta.json``, landed, then failed the checkout resync ("Entry ... not
-uptodate. Cannot merge"). The rollback restored the branch tips but left the root checkout's
+uptodate. Cannot merge") after the run's own ``meta.json`` write was left out of its bookkeeping
+commit by the bit and the baseline validation failed. The rollback restored the branch tips but left the root checkout's
 index holding the squash content and kept the merge record. The checkout resync contract is not
 changed: the run now refuses up front, pre-lock and before any snapshot, with
-``CHECKOUT_SKIP_WORKTREE_ENTRIES``, and ``--dry-run`` reports the same code. An assume-unchanged
-bit lands fine and is not refused; ``orchestrator-api consolidate-mission`` lands through its own
-path, which this resync never fails, and is left unrefused.
+``CHECKOUT_SKIP_WORKTREE_ENTRIES``; ``--dry-run`` and ``orchestrator-api consolidate-mission``
+(contract 1.29.0) report the same code. An assume-unchanged bit lands fine and is not refused.
 """
 
 from __future__ import annotations
@@ -69,23 +69,34 @@ def test_a_skip_worktree_meta_json_is_refused_before_any_branch_moves(tmp_path: 
     assert blob_present_at(mission.repo, _TARGET, CODE_FILE)
 
 
-def test_consolidate_mission_lands_with_the_bit_set_and_is_not_refused(tmp_path: Path) -> None:
-    """``orchestrator-api consolidate-mission`` lands through its own path, which never fails this resync.
+@pytest.mark.parametrize("name", ["meta.json", "status.events.jsonl"])
+def test_consolidate_mission_refuses_with_the_same_code(tmp_path: Path, name: str) -> None:
+    """``orchestrator-api consolidate-mission`` refuses too (contract 1.29.0), before any branch moves.
 
-    Witnessed before the refusal was added: exit 0, landed, clean index, no merge record. Refusing it
-    would turn a working call into a refusal (a contract change), so the command is left as it is.
+    Witnessed before the refusal: with the bit on ``status.events.jsonl`` the command squashed onto
+    ``main``, then its ``done`` status commit failed (``BookkeepingCommitFailed`` traceback, empty
+    stdout, exit 1) and, with no rollback door, the landing stayed without its bookkeeping. With the
+    bit on ``meta.json`` (which this path never writes) it landed; the one helper refuses both.
     """
+    from specify_cli.orchestrator_api.envelope import CONTRACT_VERSION
     from tests.orchestrator_api.test_consolidate_mission_protected_target import _envelope
 
     mission = _lanes(tmp_path, "01M7692X")
-    git(mission.repo, "update-index", "--skip-worktree", _meta(mission))
+    path = f"kitty-specs/{mission.slug}/{name}"
+    git(mission.repo, "update-index", "--skip-worktree", path)
+    before = _snapshot(mission)
 
     result = run_terminus(mission, ["orchestrator-api", "consolidate-mission", "--mission", mission.slug, "--strategy", "squash"])
 
     envelope = _envelope(result)
-    assert envelope["success"] is True, envelope
-    assert blob_present_at(mission.repo, _TARGET, CODE_FILE)
-    assert _merge_records(mission) == []
+    assert envelope["success"] is False and envelope["error_code"] == "PREFLIGHT_FAILED", envelope
+    assert envelope["contract_version"] == CONTRACT_VERSION, envelope
+    data = envelope["data"]
+    assert isinstance(data, dict), envelope
+    assert data.get("preflight_error_code") == _CODE and data.get("preflight_error_codes") == [_CODE], envelope
+    assert path in " ".join(str(error) for error in data.get("errors", [])), envelope
+    assert _snapshot(mission) == before, flat(result)
+    assert not blob_present_at(mission.repo, _TARGET, CODE_FILE)
     assert _index_clean(mission)
 
 

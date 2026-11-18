@@ -531,7 +531,7 @@ def _refuse_protected_target_override(main_repo_root: Path, mission_slug: str, l
     raise CodedPreflightRefused(text, error_code=verdict.error_code)
 
 
-def _refuse_persisted_retarget(main_repo_root: Path, mission_slug: str, lanes_manifest: LanesManifest) -> None:
+def _refuse_persisted_retarget(main_repo_root: Path, mission_slug: str) -> None:
     """#7692 (mission review RISK-1): refuse a Mission whose merge record persisted a retarget.
 
     This command has no ``--retarget`` and no rollback door, so it never finishes nor overrides a
@@ -540,9 +540,25 @@ def _refuse_persisted_retarget(main_repo_root: Path, mission_slug: str, lanes_ma
     :class:`CodedPreflightRefused` (``RETARGET_RESUME_MISMATCH``) before any branch moves, on the
     code-lane and the planning-artifact-only paths alike; the envelope is unchanged.
     """
-    from specify_cli.consolidation.preflight import persisted_retarget_refusal
+    from specify_cli.consolidation.preflight import merge_record_key, persisted_retarget_refusal
 
-    verdict = persisted_retarget_refusal(main_repo_root, lanes_manifest.mission_id or mission_slug, mission_slug)
+    # Review OA-1: keyed like the executor (meta.json identity), never by the lanes.json copy.
+    verdict = persisted_retarget_refusal(main_repo_root, merge_record_key(main_repo_root, mission_slug), mission_slug)
+    if verdict is not None:
+        raise CodedPreflightRefused(f"{verdict.error_code}: {verdict.message} Next step: {verdict.next_step}", error_code=verdict.error_code)
+
+
+def _refuse_skip_worktree_landing(main_repo_root: Path, mission_slug: str, lanes_manifest: LanesManifest) -> None:
+    """#7692: refuse, before any branch moves, a run whose checkout marks a file it writes as skip-worktree.
+
+    The CLI's one verdict (:func:`~specify_cli.consolidation.preflight.skip_worktree_landing_refusal`).
+    Witnessed before it: with the bit on ``status.events.jsonl`` this command squashed onto the
+    target and then crashed in its ``done`` status commit, and this path has no rollback door. A
+    :class:`CodedPreflightRefused` (``CHECKOUT_SKIP_WORKTREE_ENTRIES``, contract 1.29.0).
+    """
+    from specify_cli.consolidation.preflight import skip_worktree_landing_refusal
+
+    verdict = skip_worktree_landing_refusal(main_repo_root, mission_slug, lanes_manifest, target_branch=lanes_manifest.target_branch)
     if verdict is not None:
         raise CodedPreflightRefused(f"{verdict.error_code}: {verdict.message} Next step: {verdict.next_step}", error_code=verdict.error_code)
 
@@ -679,7 +695,8 @@ def _execute_lane_merge(
     lanes_manifest = require_lanes_json(_planning_read_dir(main_repo_root, mission_slug))
     lanes_manifest.target_branch = target_branch
     merge_strategy = MergeStrategy(strategy)
-    _refuse_persisted_retarget(main_repo_root, mission_slug, lanes_manifest)
+    _refuse_persisted_retarget(main_repo_root, mission_slug)
+    _refuse_skip_worktree_landing(main_repo_root, mission_slug, lanes_manifest)
     _refuse_protected_status_target(main_repo_root, mission_slug, lanes_manifest)
     _refuse_protected_target_override(main_repo_root, mission_slug, lanes_manifest)
     # #5939 / #6715: fail-closed evidence + independence backstop on every topology, before the

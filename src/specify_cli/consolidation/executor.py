@@ -660,6 +660,9 @@ def _run_lane_based_consolidation_locked(
     # passed in above, so this reseed is an identity no-op (proven safe for
     # NFR-004) that establishes the consumption seam. Flagged to WP09.
     lanes_manifest.target_branch = state.target_branch
+    # #7692 review R2-a: an undoable attestation move is persisted before the claim, so a kill
+    # before the snapshot or the attempt start still lets a resume or ``--abort`` undo it.
+    rollback.persist_attestation_undo(main_repo, state, own_pre_claim_moves)
 
     run = _MergeRunState(
         main_repo=main_repo,

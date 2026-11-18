@@ -31,7 +31,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.28.0`
+- `CONTRACT_VERSION`: `1.29.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -270,6 +270,13 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   `TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE`. A call that could answer `success: true` with the
   bookkeeping uncommitted now refuses, so a minor bump; no field or `error_code` is removed or
   renamed.
+- `1.29.0` — `consolidate-mission` can newly refuse before it consolidates any lane when a checkout
+  holding the target or the Mission branch marks a file the run writes as skip-worktree (#7692).
+  With the bit on `status.events.jsonl` the command used to land and then fail its `done` status
+  commit with a traceback and no rollback. The envelope `error_code` stays `PREFLIGHT_FAILED`;
+  `data.preflight_error_code` / `data.preflight_error_codes` carry `CHECKOUT_SKIP_WORKTREE_ENTRIES`.
+  A call that could answer `success: true` (the bit on a file this path never writes) now refuses
+  too, so a minor bump; no field or `error_code` is removed or renamed.
 
 ## Response Envelope
 
@@ -277,7 +284,7 @@ Every command returns exactly one JSON object with these 7 top-level keys:
 
 ```json
 {
-  "contract_version": "1.28.0",
+  "contract_version": "1.29.0",
   "command": "orchestrator-api.mission-state",
   "timestamp": "2026-04-08T12:00:00+00:00",
   "correlation_id": "corr-0123456789abcdef",
@@ -1186,6 +1193,7 @@ envelope code, puts the message in `data.errors`, and carries a stable code in
 | `SINGLE_BRANCH_IMPLEMENTATION_MISSING`, `SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT`, `SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE` | (#5939) The same three meanings on a `single_branch` Mission, which keeps emitting these aliases. | As for the neutral code. |
 | `TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE` | (1.28.0, #5783) `--target` names a branch other than the Mission's recorded target, and the recorded target's bookkeeping (the `done` transitions on a Mission without a coordination branch, the coordination flatten) cannot be committed in this run: the checkout it commits in is on the `--target` branch. | Drop `--target` and consolidate into the recorded target from a checkout of it, or correct `target_branch` in the Mission's `meta.json`, commit it, and re-run without `--target`. |
 | `RETARGET_RESUME_MISMATCH` | (#7692) The Mission's merge record holds a retarget that an interrupted `spec-kitty consolidate --target <b> --retarget` persisted. This command has no `--retarget` and no rollback, so it neither finishes that retarget nor lands on any other target while it is recorded. Before #7692 such a record could not exist; no contract bump. | Finish the retarget with `spec-kitty consolidate --mission <slug> --resume`, or drop it with `spec-kitty consolidate --mission <slug> --abort`, then re-run. |
+| `CHECKOUT_SKIP_WORKTREE_ENTRIES` | (1.29.0, #7692) A checkout holding the target or the Mission branch marks a file this run writes (under the Mission directory, or a path the Mission and lane branches change) as skip-worktree, so git would leave the write out of the run's commits and could not resync the checkout. | Clear the bit with the `git update-index --no-skip-worktree <paths>` command the message names, then re-run. |
 | `SINGLE_BRANCH_EVIDENCE_UNREADABLE` | (#5939) The `single_branch` alias of `IMPLEMENTATION_UNREADABLE`, as `consolidate-mission`, `accept-mission`, `accept` and `consolidate` emit it. (`move-task` emits the other alias, `SINGLE_BRANCH_IMPLEMENTATION_UNREADABLE`, for the same meaning.) | As for `IMPLEMENTATION_UNREADABLE`. |
 
 `data.preflight_error_code` is the first code the message names. `data.preflight_error_codes`

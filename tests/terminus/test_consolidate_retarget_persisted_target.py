@@ -59,3 +59,23 @@ def test_target_naming_the_recorded_target_after_a_failed_retarget_is_refused_up
     assert kitty_specs_status(mission) == status_before, output
     assert not blob_present_at(mission.repo, OLD, CODE_FILE) and not blob_present_at(mission.repo, NEW, CODE_FILE), output
     assert tip(mission, NEW) == before[NEW]
+
+
+def test_abort_is_the_escape_route_back_to_the_old_target(tmp_path: Path) -> None:
+    """Review item 6: after the refusal, ``--abort`` drops the persisted retarget and ``--target main`` lands there."""
+    mission = _lanes(tmp_path, "01M7692E")
+    _check_out_override(mission)
+    pre_new = tip(mission, NEW)
+    failed = run_patched(mission, "executor", "_phase_merge_lanes", *RETARGET, kill=False)
+    assert failed.returncode != 0, flat(failed)
+    git(mission.repo, "checkout", "-q", OLD)
+
+    aborted = run_terminus(mission, ["consolidate", "--abort", "--mission", mission.slug])
+    assert aborted.returncode == 0, flat(aborted)
+    assert merge_record(mission) is None
+
+    landed = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--yes", "--target", OLD])
+
+    assert landed.returncode == 0, flat(landed)
+    assert blob_present_at(mission.repo, OLD, CODE_FILE), flat(landed)
+    assert tip(mission, NEW) == pre_new and not blob_present_at(mission.repo, NEW, CODE_FILE)

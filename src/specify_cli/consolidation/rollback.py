@@ -100,6 +100,7 @@ from specify_cli.lanes.models import LanesManifest
 # ``snapshot_branches`` stay public (tests and typed callers import them by name)
 # but are implementation surface of these entry points, not a separate export.
 __all__ = [
+    "ATTESTATION_UNDO_KEY",
     "OwnMove",
     "RollbackFollowUp",
     "begin_attempt",
@@ -109,7 +110,9 @@ __all__ = [
     "missing_snapshot_branches",
     "movable_branch_tips",
     "note_advance_intent",
+    "attestation_undo_seed",
     "own_moves_across",
+    "persist_attestation_undo",
     "rebaseline_after_full_restore",
     "record_post_mutation_tips",
     "record_restore_target",
@@ -448,7 +451,7 @@ def capture_pre_mutation_snapshot(
     *,
     coord_ref: str | None,
     is_resume: bool = False,
-    seed: Mapping[str, str] | None = None,
+    seed: Mapping[str, tuple[str, str]] | None = None,
 ) -> dict[str, str]:
     """Capture (and persist) the pre-mutation snapshot ONCE; never recapture.
 
@@ -460,14 +463,17 @@ def capture_pre_mutation_snapshot(
     captured live, after the earlier attempt ran; it is listed in
     ``state.resume_seeded_refs`` so the report does not call it pre-consolidation.
 
-    ``seed`` (#7692, mission review RISK-2) maps a branch this process moved itself before the
-    claim, in a step that belongs to the run (an undoable :class:`OwnMove`), to its tip before
-    that step; it wins over the live tip and the legacy target anchor, so the rollback restores
-    the branch to where it was before the step. Applied only when the snapshot is captured.
+    ``seed`` (#7692, mission review RISK-2 / R2-a) maps a branch moved before the claim by a step
+    that belongs to the run (the retarget run's attestations) to its ``(before, after)`` tips.
+    While the branch is still at ``after``, ``before`` wins over the live tip and the legacy target
+    anchor, and ``after`` is recorded as this run's post tip in the same save, so the rollback (a
+    failure, ``--resume`` then a failure, or ``--abort``) restores the branch to ``before`` even
+    when a kill lands before :func:`begin_attempt`. Applied only when the snapshot is captured.
     """
     if state.pre_mutation_refs:
         return dict(state.pre_mutation_refs)
     refs = snapshot_branches(repo_root, lanes_manifest, coord_ref=coord_ref)
+    live = dict(refs)
     seeded: set[str] = set()
     if state.pre_mutation_target_sha:
         refs[lanes_manifest.target_branch] = state.pre_mutation_target_sha
@@ -475,9 +481,10 @@ def capture_pre_mutation_snapshot(
     if coord_ref is not None and state.pre_mutation_coord_sha and state.pre_mutation_coord_ref in (None, coord_ref):
         refs[coord_ref] = state.pre_mutation_coord_sha
         seeded.add(coord_ref)
-    for branch, tip in (seed or {}).items():
-        if branch in refs:
-            refs[branch] = tip
+    for branch, (before, after) in (seed or {}).items():
+        if live.get(branch) == after:
+            refs[branch] = before
+            state.post_mutation_refs[branch] = after
             seeded.add(branch)
     state.pre_mutation_refs = refs
     state.snapshot_lane_branches = [b for b in _lane_branches(lanes_manifest, coord_ref) if b in refs]
@@ -591,6 +598,34 @@ def _classify_own_move(state: ConsolidationState, branch: str, own: OwnMove, liv
     if not unsettled:
         return _AttemptStart(live, live)  # a settled branch's between-attempts move (ADR A2)
     return _AttemptStart(live, previous, unexplained=True)
+
+
+#: The key, inside the merge record's ``retarget``, of a retarget run's pre-claim attestation move
+#: (#7692 review R2-a): ``{"branch", "before", "after"}``, persisted before the claim so a run killed
+#: before its snapshot or its attempt start still undoes it (:func:`attestation_undo_seed`).
+ATTESTATION_UNDO_KEY = "attestation_undo"
+
+
+def attestation_undo_seed(state: ConsolidationState, own_moves: Mapping[str, OwnMove]) -> dict[str, tuple[str, str]]:
+    """The snapshot ``seed`` of undoable pre-claim moves: this process's own, else the record's persisted one.
+
+    A malformed persisted entry is ignored (it can only make the attestation survive, never move a branch).
+    """
+    seed = {branch: (move.before, move.after) for branch, move in own_moves.items() if move.undo}
+    undo = (state.retarget or {}).get(ATTESTATION_UNDO_KEY)
+    if isinstance(undo, dict) and all(isinstance(undo.get(key), str) and undo.get(key) for key in ("branch", "before", "after")):
+        seed.setdefault(str(undo["branch"]), (str(undo["before"]), str(undo["after"])))
+    return seed
+
+
+def persist_attestation_undo(repo_root: Path, state: ConsolidationState, own_moves: Mapping[str, OwnMove]) -> None:
+    """Persist this run's undoable pre-claim move into the record's ``retarget`` (review R2-a); a no-op without one."""
+    undoable = [(branch, move) for branch, move in own_moves.items() if move.undo]
+    if state.retarget is None or not undoable:
+        return
+    branch, move = undoable[0]
+    state.retarget[ATTESTATION_UNDO_KEY] = {"branch": branch, "before": move.before, "after": move.after}
+    save_state(state, repo_root)
 
 
 @dataclass(frozen=True)
@@ -1063,6 +1098,9 @@ def rebaseline_after_full_restore(state: ConsolidationState, outcomes: Iterable[
     # re-run re-applies it and is judged as a retarget (never dropped: that would strand it).
     if state.retarget is not None and state.retarget.get("committed") is not False:
         state.retarget["committed"] = False
+    # Review R2-a: the restore undid the attestations this pre-claim undo seed named; it is spent.
+    if state.retarget is not None:
+        state.retarget.pop(ATTESTATION_UNDO_KEY, None)
         changed = True
     return changed
 

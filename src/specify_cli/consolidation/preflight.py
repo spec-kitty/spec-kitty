@@ -9,6 +9,7 @@ remediation). One-way import: this module never imports the command shim.
 from __future__ import annotations
 
 import json
+import os
 import shlex
 import subprocess
 import zlib
@@ -1590,6 +1591,9 @@ def _index_bit(main_repo: Path, rel_path: Path) -> tuple[str, str] | None:
     return None
 
 
+#: ``ls-files -v`` tags of a skip-worktree entry: ``S``, or ``s`` when it also carries assume-unchanged (review SW-2).
+_SKIP_WORKTREE_TAGS = frozenset({_SKIP_WORKTREE_TAG, _SKIP_WORKTREE_TAG.lower()})
+
 #: A checkout the landing resyncs holds a skip-worktree index entry, its file present in the working
 #: tree, at a path the landing writes: the resync's ``git reset --hard`` cannot update it.
 CHECKOUT_SKIP_WORKTREE_ENTRIES = "CHECKOUT_SKIP_WORKTREE_ENTRIES"
@@ -1605,8 +1609,8 @@ def _present_skip_worktree_paths(checkout: Path) -> list[str]:
         entries = index_entries(checkout, tags=True)
     except GitCommandError:
         return []
-    flagged = (entry.path.as_posix() for entry in entries if entry.tag == _SKIP_WORKTREE_TAG)
-    return [path for path in dict.fromkeys(flagged) if (checkout / path).exists()]
+    flagged = (entry.path.as_posix() for entry in entries if entry.tag in _SKIP_WORKTREE_TAGS)
+    return [path for path in dict.fromkeys(flagged) if os.path.lexists(checkout / path)]
 
 
 def _landing_paths(main_repo: Path, target_branch: str, branches: list[str]) -> set[str]:
@@ -1621,54 +1625,67 @@ def _landing_paths(main_repo: Path, target_branch: str, branches: list[str]) -> 
 
 
 def skip_worktree_landing_refusal(main_repo: Path, mission_slug: str, lanes_manifest: LanesManifest, *, target_branch: str) -> Refused | None:
-    """``CHECKOUT_SKIP_WORKTREE_ENTRIES`` when a checkout the landing resyncs cannot take it, else ``None``.
+    """``CHECKOUT_SKIP_WORKTREE_ENTRIES`` when a checkout the run resyncs holds a skip-worktree entry it writes, else ``None``.
 
-    The landing advances *target_branch* and then resyncs every checkout that holds it with
-    ``git reset --hard`` (:func:`~specify_cli.git.ref_advance.advance_branch_ref`). Git refuses to
-    reset an index entry that carries the skip-worktree bit while its file is present ("Entry ...
-    not uptodate. Cannot merge"), even with no edit, so the run would land, fail the resync, and
-    leave that checkout's index holding the landing after the rollback restored the branch tips.
-    The resync contract is unchanged: such a run is refused here, before any branch moves.
+    The run moves the Mission branch (lane merges) and *target_branch* (the landing) with
+    :func:`~specify_cli.git.ref_advance.advance_branch_ref`, which resyncs every checkout holding
+    the branch, and writes its bookkeeping (``meta.json``, the status files) into the Mission
+    directory of the checkout on the target. A skip-worktree entry there hides the run's own write
+    from the bookkeeping commit: the post-merge ``meta.json`` (``baseline_merge_commit``) is left out
+    ("No post-merge bookkeeping changes to commit"), the baseline validation fails, and the
+    rollback's resync back to the snapshot then fails on the now-edited file ("not uptodate"),
+    leaving the landing staged in the checkout and the merge record behind. Refusing Mission
+    directory entries is the real fix. Entries on paths the Mission and lane branches change are
+    refused conservatively: an EDITED skip-worktree file is invisible to ``git status`` and to the
+    dirty-checkout gate, so the resync would overwrite or trip on it; an unedited one would land,
+    and is refused anyway. The resync contract is unchanged.
 
-    Judged per checkout holding *target_branch*: its skip-worktree entries whose file exists
-    (never a sparse-checkout exclusion, :func:`_present_skip_worktree_paths`) under the Mission
-    directory (the run's bookkeeping writes) or among the paths the Mission and lane branches
-    change (:func:`_landing_paths`, read only when such an entry exists). An assume-unchanged bit
-    is not refused: the resync rewrites it. Read-only and lock-free; a probe that cannot run is
-    left to the run's own refusals.
+    Judged per checkout holding *target_branch* or the Mission branch: its entries tagged ``S`` or
+    ``s`` (skip-worktree, alone or with assume-unchanged) whose path exists in the working tree
+    (``lexists``: a dangling symlink counts; a sparse-checkout exclusion has no file and never
+    does), under the Mission directory or among the paths the Mission and lane branches change
+    (:func:`_landing_paths`, read only when such an entry exists). An assume-unchanged bit alone is
+    not refused: the bookkeeping commit stages its write. The index listing is ``ls-files``, which
+    expands a sparse index in memory (git >= 2.35's ``--sparse`` is above the git floor). Read-only
+    and lock-free; a probe that cannot run is left to the run's own refusals.
     """
     from specify_cli.coordination.types import Refused
     from specify_cli.git.ref_advance import RefAdvanceError, worktrees_with_branch_checked_out
     from specify_cli.lanes.compute import lane_created_branch
 
-    try:
-        checkouts = worktrees_with_branch_checked_out(main_repo, target_branch)
-    except RefAdvanceError:
-        return None
     mission_prefix = f"{KITTY_SPECS_DIR}/{mission_slug}/"
     written: set[str] | None = None
-    for checkout in checkouts:
-        flagged = _present_skip_worktree_paths(checkout)
-        if not flagged:
+    for branch in dict.fromkeys(b for b in (target_branch, lanes_manifest.mission_branch) if b):
+        try:
+            checkouts = worktrees_with_branch_checked_out(main_repo, branch)
+        except RefAdvanceError:
             continue
-        if written is None:
-            branches = [lanes_manifest.mission_branch, *(lane_created_branch(lanes_manifest, lane.lane_id) for lane in lanes_manifest.lanes)]
-            written = _landing_paths(main_repo, target_branch, [b for b in dict.fromkeys(branches) if b and b != target_branch])
-        hits = [path for path in flagged if path.startswith(mission_prefix) or path in written]
-        if not hits:
-            continue
-        quoted = " ".join(shlex.quote(path) for path in hits)
-        git = "git" if checkout.resolve() == main_repo.resolve() else f"git -C {shlex.quote(str(checkout))}"
-        return Refused(
-            error_code=CHECKOUT_SKIP_WORKTREE_ENTRIES,
-            message=(
-                f"the checkout at {checkout} holds '{target_branch}' and marks {len(hits)} file(s) the landing writes as "
-                f"skip-worktree ({', '.join(hits[:5])}{', ...' if len(hits) > 5 else ''}); git cannot resync it after the landing."
-            ),
-            destination_ref=target_branch,
-            next_step=f"Clear the bit (`{git} update-index --no-skip-worktree {quoted}`), then re-run.",
-        )
+        for checkout in checkouts:
+            flagged = _present_skip_worktree_paths(checkout)
+            if not flagged:
+                continue
+            if written is None:
+                branches = [lanes_manifest.mission_branch, *(lane_created_branch(lanes_manifest, lane.lane_id) for lane in lanes_manifest.lanes)]
+                written = _landing_paths(main_repo, target_branch, [b for b in dict.fromkeys(branches) if b and b != target_branch])
+            hits = [path for path in flagged if path.startswith(mission_prefix) or path in written]
+            if hits:
+                return _skip_worktree_refused(main_repo, checkout, branch, hits, Refused)
     return None
+
+
+def _skip_worktree_refused(main_repo: Path, checkout: Path, branch: str, hits: list[str], refused: type[Refused]) -> Refused:
+    quoted = " ".join(shlex.quote(path) for path in hits)
+    git = "git" if checkout.resolve() == main_repo.resolve() else f"git -C {shlex.quote(str(checkout))}"
+    return refused(
+        error_code=CHECKOUT_SKIP_WORKTREE_ENTRIES,
+        message=(
+            f"the checkout at {checkout} holds '{branch}' and marks {len(hits)} file(s) this consolidation writes as "
+            f"skip-worktree ({', '.join(hits[:5])}{', ...' if len(hits) > 5 else ''}); git would leave the run's writes "
+            "out of its commits and could not resync the checkout."
+        ),
+        destination_ref=branch,
+        next_step=f"Clear the bit (`{git} update-index --no-skip-worktree {quoted}`), then re-run.",
+    )
 
 
 def _untracked_mission_copies_refusal(main_repo: Path, rel_meta: Path, *, recorded_target: str, effective_target: str) -> Refused | None:
@@ -1763,6 +1780,25 @@ def retarget_write_branch_refusal(*, mission_branch: str | None, recorded_target
             f"then integrate '{recorded_target}' into '{effective_target}' with git."
         ),
     )
+
+
+def merge_record_key(main_repo: Path, mission_slug: str) -> str:
+    """The key the executor stores this Mission's merge record under: the ``meta.json`` ``mission_id``, else the slug.
+
+    The same rule as ``executor._run_lane_based_consolidation`` (``resolve_mission_identity`` on the
+    PRIMARY_METADATA directory), so a caller holding a legacy ``lanes.json`` without ``mission_id``
+    still finds the record (#7692 review OA-1). An unreadable ``meta.json`` keys on the slug, as the
+    executor's own fallback does for a Mission with no identity.
+    """
+    from mission_runtime import ActionContextError, MissionArtifactKind, placement_seam
+    from specify_cli.core.paths import MissionMetaReadError
+    from specify_cli.mission_metadata import resolve_mission_identity
+
+    try:
+        identity = resolve_mission_identity(placement_seam(main_repo, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA))
+    except (ActionContextError, MissionMetaReadError, ValueError):
+        return mission_slug
+    return identity.mission_id or mission_slug
 
 
 def persisted_retarget_pair(main_repo: Path, canonical_id: str) -> tuple[str, str] | None:

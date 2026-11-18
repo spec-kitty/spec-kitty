@@ -694,7 +694,7 @@ def _capture_snapshot_and_begin_attempt(run: _MergeRunState) -> None:
     """
     coord_ref = run.coord_checkpoint.ref if run.coord_checkpoint is not None else None
     # #7692 (RISK-2): an undoable own move is snapshotted at its pre-move tip, so the rollback undoes it.
-    seed = {branch: move.before for branch, move in run.own_pre_claim_moves.items() if move.undo}
+    seed = rollback.attestation_undo_seed(run.state, run.own_pre_claim_moves)
     rollback.capture_pre_mutation_snapshot(run.main_repo, run.state, run.lanes_manifest, coord_ref=coord_ref, is_resume=run.is_resume, seed=seed)
     for branch in rollback.missing_snapshot_branches(run.main_repo, run.lanes_manifest, coord_ref=coord_ref):
         console.print(f"[yellow]Warning:[/yellow] branch {branch!r} does not exist and is not snapshotted; a rollback will not cover it.")

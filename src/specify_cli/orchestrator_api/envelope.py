@@ -220,7 +220,14 @@ from kernel.clock import now_utc_iso
 # ``preflight_error_codes`` carry ``TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE``. A call that
 # could answer ``success: true`` with the bookkeeping uncommitted now refuses, so a minor bump;
 # no field or ``error_code`` is removed or renamed.
-CONTRACT_VERSION = "1.28.0"
+# 1.29.0: ``consolidate-mission`` can newly refuse before it consolidates any lane when a checkout
+# holding the target or the Mission branch marks a file the run writes as skip-worktree (#7692):
+# the run's status commit could not stage it (with the bit on ``status.events.jsonl`` the command
+# landed, then crashed in its ``done`` commit with no rollback). ``PREFLIGHT_FAILED`` with
+# ``data.preflight_error_code`` / ``preflight_error_codes`` = ``CHECKOUT_SKIP_WORKTREE_ENTRIES``.
+# A call that could answer ``success: true`` (the bit on a file this path never writes, such as
+# ``meta.json``) now refuses too, so a minor bump; no field or ``error_code`` is removed or renamed.
+CONTRACT_VERSION = "1.29.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose
