@@ -21,7 +21,7 @@ from typing import Any
 import pytest
 import typer
 
-from specify_cli.consolidation import entry_preflight, executor, preflight
+from specify_cli.consolidation import entry_preflight, executor, preflight, preflight_retarget
 from specify_cli.consolidation.state import ConsolidationState, save_state
 from specify_cli.coordination.types import Refused
 
@@ -31,7 +31,10 @@ _MISSION_ID = "01M7M5JA00000000000000000R"
 _SLUG = "m"
 _PROTECTED = Refused(error_code="PROTECTED_BRANCH_REFUSED", message="'develop' is protected.", destination_ref="develop", next_step="Use another target.")
 _UNWRITABLE = Refused(
-    error_code=preflight.RETARGET_RECORD_UNWRITABLE, message="meta.json is dirty on 'develop'.", destination_ref="develop", next_step="Commit or discard it."
+    error_code=preflight_retarget.RETARGET_RECORD_UNWRITABLE,
+    message="meta.json is dirty on 'develop'.",
+    destination_ref="develop",
+    next_step="Commit or discard it.",
 )
 _OLD_UNWRITABLE = Refused(
     error_code=preflight.TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE, message="'main' cannot be written.", destination_ref="main", next_step="Drop --target."
@@ -100,7 +103,7 @@ def test_retarget_record_unwritable_refuses_with_the_footer(monkeypatch: pytest.
 
     assert excinfo.value.exit_code == 1
     out = _out(capsys)
-    assert f"Error: {preflight.RETARGET_RECORD_UNWRITABLE}: meta.json is dirty on 'develop'." in out
+    assert f"Error: {preflight_retarget.RETARGET_RECORD_UNWRITABLE}: meta.json is dirty on 'develop'." in out
     assert "Next step: Commit or discard it." in out
     assert "Consolidation refused before any branch moved." in out
     assert "Retargeting" not in out
@@ -202,7 +205,7 @@ def test_retarget_resume_mismatch_refuses(monkeypatch: pytest.MonkeyPatch, capsy
     assert excinfo.value.exit_code == 1
     assert probes.status_calls == [] and probes.override_calls == [], "refused before any probe"
     out = _out(capsys)
-    assert f"Error: {preflight.RETARGET_RESUME_MISMATCH}:" in out
+    assert f"Error: {preflight_retarget.RETARGET_RESUME_MISMATCH}:" in out
     assert "'main'" in out and "'develop'" in out and "'--target release --retarget'" in out
     assert "--target develop --retarget" in out and "spec-kitty consolidate --abort" in out
     assert "an earlier attempt may have" in out
@@ -246,7 +249,7 @@ def test_retarget_of_a_mission_written_on_its_recorded_target_refuses(monkeypatc
     assert excinfo.value.exit_code == 1
     assert probes.status_calls == [] and probes.override_calls == []
     out = _out(capsys)
-    assert f"Error: {preflight.RETARGET_WRITE_BRANCH_IS_RECORDED_TARGET}:" in out
+    assert f"Error: {preflight_retarget.RETARGET_WRITE_BRANCH_IS_RECORDED_TARGET}:" in out
     assert "drop '--target develop --retarget'" in out
     assert "Consolidation refused before any branch moved." in out
 
@@ -261,8 +264,8 @@ def test_retarget_of_a_mission_written_on_its_recorded_target_refuses(monkeypatc
     ],
 )
 def test_retarget_write_branch_refusal_truth_table(mission_branch: str | None, recorded: str, effective: str, refused: bool) -> None:
-    verdict = preflight.retarget_write_branch_refusal(mission_branch=mission_branch, recorded_target=recorded, effective_target=effective)
+    verdict = preflight_retarget.retarget_write_branch_refusal(mission_branch=mission_branch, recorded_target=recorded, effective_target=effective)
     assert (verdict is not None) is refused
     if verdict is not None:
-        assert verdict.error_code == preflight.RETARGET_WRITE_BRANCH_IS_RECORDED_TARGET
+        assert verdict.error_code == preflight_retarget.RETARGET_WRITE_BRANCH_IS_RECORDED_TARGET
         assert verdict.destination_ref == effective

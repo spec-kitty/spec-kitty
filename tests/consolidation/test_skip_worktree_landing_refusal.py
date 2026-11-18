@@ -1,4 +1,4 @@
-"""``preflight.skip_worktree_landing_refusal``: which skip-worktree entries refuse a landing up front.
+"""``preflight_skip_worktree.skip_worktree_landing_refusal``: which skip-worktree entries refuse a landing up front.
 
 Only an entry the landing's checkout resync would have to rewrite refuses: the bit set by hand
 (its file present; a sparse-checkout exclusion has none), on a path under the Mission directory or
@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.consolidation import preflight
+from specify_cli.consolidation import preflight_skip_worktree
 from specify_cli.coordination.types import Refused
 from specify_cli.lanes.models import LanesManifest
 
@@ -66,7 +66,7 @@ def _manifest() -> LanesManifest:
 
 
 def _verdict(repo: Path) -> Refused | None:
-    return preflight.skip_worktree_landing_refusal(repo, _SLUG, _manifest(), target_branch="main")
+    return preflight_skip_worktree.skip_worktree_landing_refusal(repo, _SLUG, _manifest(), target_branch="main")
 
 
 def test_no_bit_is_no_refusal(repo: Path) -> None:
@@ -77,7 +77,7 @@ def test_no_bit_is_no_refusal(repo: Path) -> None:
 def test_a_skip_worktree_entry_the_landing_writes_refuses(repo: Path, path: str) -> None:
     _git(repo, "update-index", "--skip-worktree", path)
     verdict = _verdict(repo)
-    assert verdict is not None and verdict.error_code == preflight.CHECKOUT_SKIP_WORKTREE_ENTRIES
+    assert verdict is not None and verdict.error_code == preflight_skip_worktree.CHECKOUT_SKIP_WORKTREE_ENTRIES
     assert path in verdict.message and "'main'" in verdict.message
     assert verdict.next_step.startswith(f"Clear the bit (`git update-index --no-skip-worktree {path}`), then re-run.")
     # #7692 landing fold: a sparse-checkout exclusion is named as a possible cause, with its own remedy.
@@ -102,7 +102,7 @@ def test_an_assume_unchanged_bit_is_left_alone(repo: Path) -> None:
 
 def test_a_checkout_on_another_branch_is_not_judged(repo: Path) -> None:
     _git(repo, "update-index", "--skip-worktree", _META)
-    assert preflight.skip_worktree_landing_refusal(repo, _SLUG, _manifest(), target_branch="develop") is None
+    assert preflight_skip_worktree.skip_worktree_landing_refusal(repo, _SLUG, _manifest(), target_branch="develop") is None
 
 
 def test_skip_worktree_with_assume_unchanged_too_refuses(repo: Path) -> None:
@@ -111,7 +111,7 @@ def test_skip_worktree_with_assume_unchanged_too_refuses(repo: Path) -> None:
     _git(repo, "update-index", "--assume-unchanged", _META)
     assert _git(repo, "ls-files", "-v", _META).startswith("s ")
     verdict = _verdict(repo)
-    assert verdict is not None and verdict.error_code == preflight.CHECKOUT_SKIP_WORKTREE_ENTRIES
+    assert verdict is not None and verdict.error_code == preflight_skip_worktree.CHECKOUT_SKIP_WORKTREE_ENTRIES
 
 
 def test_a_skip_worktree_dangling_symlink_refuses(repo: Path) -> None:
@@ -131,7 +131,7 @@ def test_a_checkout_of_the_mission_branch_is_scanned_too(repo: Path, tmp_path: P
     _git(repo, "worktree", "add", "-q", str(wt), _MISSION_BRANCH)
     _git(wt, "update-index", "--skip-worktree", _META)
     verdict = _verdict(repo)
-    assert verdict is not None and verdict.error_code == preflight.CHECKOUT_SKIP_WORKTREE_ENTRIES
+    assert verdict is not None and verdict.error_code == preflight_skip_worktree.CHECKOUT_SKIP_WORKTREE_ENTRIES
     assert f"git -C {wt}" in verdict.next_step and _MISSION_BRANCH in verdict.message
 
 
@@ -156,7 +156,7 @@ def test_the_retarget_index_bit_names_every_bit_and_its_remedy_clears_them(repo:
     """Re-review LOW-4: ``s`` (both bits) is named as both, and the printed remedy clears both in one step."""
     for bit in bits:
         _git(repo, "update-index", bit, _META)
-    found = preflight._index_bit(repo, Path(_META))
+    found = preflight_skip_worktree._index_bit(repo, Path(_META))
     assert found is not None
     bit_name, remedy = found
     assert bit_name == name
@@ -169,9 +169,9 @@ def test_the_merge_record_key_rule_is_shared_by_the_executor_and_its_readers() -
     """#7692 landing fold: one rule keys the merge record, so the stored and looked-up keys cannot drift."""
     import inspect
 
-    from specify_cli.consolidation import executor, preflight
+    from specify_cli.consolidation import executor, preflight_retarget
 
-    assert preflight.record_key_for_identity("01M7M5JAXXXXXXXXXXXXXXXXXX", "slug") == "01M7M5JAXXXXXXXXXXXXXXXXXX"
-    assert preflight.record_key_for_identity(None, "slug") == "slug"
+    assert preflight_retarget.record_key_for_identity("01M7M5JAXXXXXXXXXXXXXXXXXX", "slug") == "01M7M5JAXXXXXXXXXXXXXXXXXX"
+    assert preflight_retarget.record_key_for_identity(None, "slug") == "slug"
     assert "record_key_for_identity(identity.mission_id, mission_slug)" in inspect.getsource(executor._run_lane_based_consolidation)
-    assert "record_key_for_identity(" in inspect.getsource(preflight.merge_record_key)
+    assert "record_key_for_identity(" in inspect.getsource(preflight_retarget.merge_record_key)

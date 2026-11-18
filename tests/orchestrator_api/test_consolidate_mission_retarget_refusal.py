@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any, cast
 import pytest
 
 from specify_cli.consolidation import preflight
+from specify_cli.consolidation import preflight_retarget
 from specify_cli.coordination.types import Refused
 from specify_cli.orchestrator_api import consolidation as orch
 from specify_cli.orchestrator_api.consolidation import CodedPreflightRefused
@@ -49,7 +50,7 @@ def _ask(monkeypatch: pytest.MonkeyPatch, verdict: Refused | None) -> list[dict[
         return verdict
 
     monkeypatch.setattr("specify_cli.core.paths.resolve_merge_target_branch", lambda *_a, **_k: ("main", "meta"))
-    monkeypatch.setattr(preflight, "target_override_verdict", _verdict)
+    monkeypatch.setattr(preflight_retarget, "target_override_verdict", _verdict)
     return calls
 
 
@@ -108,7 +109,7 @@ def test_a_differing_target_keeps_the_envelope_and_names_retarget(tmp_path: Path
 
 # --- mission review RISK-1: a persisted retarget is never executed by this command ---------------
 
-_MISMATCH = preflight.RETARGET_RESUME_MISMATCH
+_MISMATCH = preflight_retarget.RETARGET_RESUME_MISMATCH
 _MISSION_ID = "01M7M5JA00000000000000000Q"
 
 
@@ -181,5 +182,5 @@ def test_a_failed_retarget_is_not_executed_by_consolidate_mission(tmp_path: Path
 def test_the_record_is_found_by_meta_identity_not_a_legacy_lanes_json(tmp_path: Path) -> None:
     """Review OA-1: the merge record is keyed by meta.json's mission_id, as the executor keys it."""
     _persist_retarget(tmp_path)
-    assert preflight.merge_record_key(tmp_path, "m") == _MISSION_ID
-    assert preflight.merge_record_key(tmp_path / "elsewhere", "m") == "m"
+    assert preflight_retarget.merge_record_key(tmp_path, "m") == _MISSION_ID
+    assert preflight_retarget.merge_record_key(tmp_path / "elsewhere", "m") == "m"

@@ -57,13 +57,13 @@ from specify_cli.lanes.compute import lane_created_branch as _created_lane_branc
 from specify_cli.lanes.single_branch_landing import worktree_lanes
 
 from specify_cli.lanes.persistence import require_lanes_json
-from specify_cli.consolidation.preflight import (
-    refuse_protected_status_target,
+from specify_cli.consolidation.preflight import refuse_protected_status_target
+from specify_cli.consolidation.preflight_retarget import (
     retarget_mode,
-    skip_worktree_landing_refusal,
     retarget_write_branch_refusal,
     target_override_verdict,
 )
+from specify_cli.consolidation.preflight_skip_worktree import skip_worktree_landing_refusal
 from specify_cli.consolidation.state import (
     ConsolidationState,
     get_state_path,
@@ -484,7 +484,7 @@ def _exit_retarget_resume_mismatch(mismatch: Refused) -> typer.Exit:
 def _retarget_mode(main_repo: Path, canonical_id: str, *, retarget: bool, recorded: str, effective: str) -> bool:
     """Whether this run is judged as a retarget (#7692); refuses ``RETARGET_RESUME_MISMATCH`` first.
 
-    The decision is :func:`~specify_cli.consolidation.preflight.retarget_mode`, the one owner
+    The decision is :func:`~specify_cli.consolidation.preflight_retarget.retarget_mode`, the one owner
     the ``--dry-run`` forecast reads too; this caller only renders its mismatch.
     """
     mode = retarget_mode(main_repo, canonical_id, retarget=retarget, recorded=recorded, effective=effective)
@@ -511,7 +511,7 @@ def _refuse_protected_status_target_or_continue(
     (:func:`_retarget_mode`, which also reads a persisted retarget) and then the #5385 probe
     is RE-POINTED at the new target (``retarget_to``), never skipped. A Mission whose write
     branch is its recorded target refuses first (C-006,
-    :func:`~specify_cli.consolidation.preflight.retarget_write_branch_refusal`). Returns the
+    :func:`~specify_cli.consolidation.preflight_retarget.retarget_write_branch_refusal`). Returns the
     admitted ``(recorded target, new target)`` pair of a retarget, else ``None``.
     """
     targets = _recorded_and_effective_targets(main_repo, mission_slug, lanes_manifest)
@@ -541,7 +541,7 @@ def _refuse_protected_status_target_or_continue(
 def _refuse_skip_worktree_landing_or_continue(main_repo: Path, mission_slug: str, lanes_manifest: LanesManifest, canonical_id: str) -> None:
     """Refuse, before any branch moves, a landing whose checkout resync git would refuse (``CHECKOUT_SKIP_WORKTREE_ENTRIES``).
 
-    The verdict is :func:`~specify_cli.consolidation.preflight.skip_worktree_landing_refusal`, which
+    The verdict is :func:`~specify_cli.consolidation.preflight_skip_worktree.skip_worktree_landing_refusal`, which
     the ``--dry-run`` forecast reads too. Pre-lock, so a refusal writes no merge record (NFR-001).
     """
     verdict = skip_worktree_landing_refusal(main_repo, mission_slug, lanes_manifest, target_branch=lanes_manifest.target_branch)
@@ -570,7 +570,7 @@ def _refuse_protected_target_override_or_continue(
     write target stays the recorded one, so landing on the override would leave it unwritten.
 
     #7692: the chain is the ONE verdict
-    (:func:`~specify_cli.consolidation.preflight.target_override_verdict`); with
+    (:func:`~specify_cli.consolidation.preflight_retarget.target_override_verdict`); with
     ``retarget`` (an admitted retarget) its record check is ``RETARGET_RECORD_UNWRITABLE``
     against the new target instead of #5783.
 

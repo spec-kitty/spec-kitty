@@ -27,6 +27,7 @@ from specify_cli.cli.commands import consolidate as consolidate_mod
 from specify_cli.cli.commands.consolidate import ConsolidateOptions, _validated_retarget_flags, run_consolidate
 from specify_cli.consolidation import claim_inputs as claim_inputs_mod
 from specify_cli.consolidation import forecast, preflight
+from specify_cli.consolidation import preflight_retarget
 from specify_cli.consolidation.claim_inputs import ClaimInputContext
 from specify_cli.consolidation.state import ConsolidationState
 from specify_cli.coordination.types import Refused
@@ -37,7 +38,10 @@ from tests.specify_cli.cli.commands.test_merge_cli_golden import _build_merge_ap
 pytestmark = pytest.mark.fast
 
 _UNWRITABLE = Refused(
-    error_code=preflight.RETARGET_RECORD_UNWRITABLE, message="meta.json is dirty on 'develop'.", destination_ref="develop", next_step="Commit or discard it."
+    error_code=preflight_retarget.RETARGET_RECORD_UNWRITABLE,
+    message="meta.json is dirty on 'develop'.",
+    destination_ref="develop",
+    next_step="Commit or discard it.",
 )
 _PROTECTED = Refused(error_code="PROTECTED_BRANCH_REFUSED", message="'main' is protected.", destination_ref="main", next_step="Open a PR.")
 
@@ -304,7 +308,7 @@ def _persist(monkeypatch: pytest.MonkeyPatch, pair: tuple[str, str] | None) -> N
     state = ConsolidationState(mission_id="01M7M5JA00000000000000000F", mission_slug="m", target_branch="main", wp_order=[])
     if pair is not None:
         state.retarget = {"from": pair[0], "to": pair[1], "actor": "op", "at": "2026-11-17T09:00:00+00:00", "reason": "r", "committed": False}
-    monkeypatch.setattr(preflight, "load_state", lambda *_a, **_k: state)
+    monkeypatch.setattr(preflight_retarget, "load_state", lambda *_a, **_k: state)
 
 
 def _pair(tmp_path: Path, *, retarget: bool, effective: str = "develop") -> tuple[str, str] | None:
@@ -324,7 +328,7 @@ def test_a_retarget_naming_another_target_than_the_persisted_one_refuses_resume_
 
     assert excinfo.value.exit_code == 1
     payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
-    assert payload["error_code"] == preflight.RETARGET_RESUME_MISMATCH
+    assert payload["error_code"] == preflight_retarget.RETARGET_RESUME_MISMATCH
     assert "'release'" in payload["error"] and "'develop'" in payload["error"]
 
 
@@ -334,7 +338,7 @@ def test_a_persisted_retarget_is_judged_as_a_retarget_without_the_flag(tmp_path:
 
 
 def test_no_merge_record_means_no_resume_mismatch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(preflight, "load_state", lambda *_a, **_k: None)
+    monkeypatch.setattr(preflight_retarget, "load_state", lambda *_a, **_k: None)
     assert _pair(tmp_path, retarget=True) == ("main", "develop")
     assert _pair(tmp_path, retarget=False) is None
     assert _pair(tmp_path, retarget=True, effective="main") is None
@@ -346,7 +350,7 @@ def test_an_unreadable_merge_record_reads_as_no_persisted_retarget(tmp_path: Pat
     def _raise(*_a: object, **_k: object) -> None:
         raise ConsolidationStateReadError("corrupt")
 
-    monkeypatch.setattr(preflight, "load_state", _raise)
+    monkeypatch.setattr(preflight_retarget, "load_state", _raise)
     assert _pair(tmp_path, retarget=True) == ("main", "develop")
 
 
@@ -359,7 +363,7 @@ def test_the_write_branch_refusal_comes_before_the_status_probe(tmp_path: Path, 
         forecast._refuse_protected_status_target_in_forecast(tmp_path, "m", _manifest(mission_branch="main"), json_output=True, retarget_pair=("main", "develop"))
 
     payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
-    assert payload["error_code"] == preflight.RETARGET_WRITE_BRANCH_IS_RECORDED_TARGET
+    assert payload["error_code"] == preflight_retarget.RETARGET_WRITE_BRANCH_IS_RECORDED_TARGET
     assert probed == []
 
 
