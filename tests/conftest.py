@@ -93,6 +93,7 @@ _XDG_ENV_SUBDIRS = {
 }
 # Agent config-root overrides that redirect a user-global write away from the
 # isolated home (#7701): a developer's own value must never reach the real tree.
+# Resolved at call time only, so the per-test autouse fixture unsets them.
 _AGENT_CONFIG_ROOT_ENV_VARS = ("CLAUDE_CONFIG_DIR", "OPENCODE_CONFIG_DIR", "LLXPRT_CONFIG_HOME")
 _REAL_HOME_ENV_VAR = "SPEC_KITTY_REAL_HOME_FOR_TESTS"
 # Stash the resolved per-worker home base on the pytest Config so the autouse
@@ -151,8 +152,6 @@ def _apply_home_env(home_base: Path) -> None:
         target = home_base / subdir
         target.mkdir(parents=True, exist_ok=True)
         os.environ[var] = str(target)
-    for var in _AGENT_CONFIG_ROOT_ENV_VARS:
-        os.environ.pop(var, None)
 
 
 # ---------------------------------------------------------------------------
