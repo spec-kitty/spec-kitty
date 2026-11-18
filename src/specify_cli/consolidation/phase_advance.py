@@ -11,6 +11,7 @@ Moved from ``consolidation/executor.py`` by epic #2026 with no logic change.
 
 from __future__ import annotations
 
+import subprocess
 from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final
@@ -251,6 +252,15 @@ def _refuse_retarget_write(source: str, to: str, reason: str) -> typer.Exit:
     return typer.Exit(1)
 
 
+def _git_failure_text(exc: subprocess.CalledProcessError) -> str:
+    """The stderr (else stdout, else the exit status) of a failed git command, as text."""
+    for stream in (exc.stderr, exc.output):
+        text = stream.decode("utf-8", "replace") if isinstance(stream, bytes) else (stream or "")
+        if text.strip():
+            return " ".join(text.split())
+    return f"git exited {exc.returncode}"
+
+
 def _write_retarget_on_mission_branch(
     run: _MergeRunState, mission_branch: str, mutate: Callable[[dict[str, Any]], bool], *, message: str, source: str, to: str
 ) -> None:
@@ -258,10 +268,20 @@ def _write_retarget_on_mission_branch(
 
     Its ``advance_branch_ref`` runs inside the door's ``reporting_advance_intents``, so the move
     is an intent the record can explain, and any checkout holding the branch is resynced.
+
+    A git error from the write (a hook rejecting the commit, a dirty checkout holding the branch)
+    is the named "Cannot record the retarget" refusal with its reason, raised into the door like
+    every other refusal here (mission review LOW-2).
     """
     from specify_cli.consolidation.meta_write import MetaBranchOutcome, commit_meta_on_branch
+    from specify_cli.git.ref_advance import RefAdvanceDirtyWorktreeError
 
-    outcome = commit_meta_on_branch(run.main_repo, mission_branch, run.mission_slug, mutate, message=message)
+    try:
+        outcome = commit_meta_on_branch(run.main_repo, mission_branch, run.mission_slug, mutate, message=message)
+    except subprocess.CalledProcessError as exc:
+        raise _refuse_retarget_write(source, to, f"{mission_branch}: {_git_failure_text(exc)}") from exc
+    except RefAdvanceDirtyWorktreeError as exc:
+        raise _refuse_retarget_write(source, to, f"{mission_branch}: {exc}") from exc
     if outcome.outcome in (MetaBranchOutcome.WRITTEN, MetaBranchOutcome.UNCHANGED):
         return
     detail = outcome.detail or outcome.outcome.value

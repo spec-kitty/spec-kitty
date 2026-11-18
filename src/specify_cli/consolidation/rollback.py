@@ -448,6 +448,7 @@ def capture_pre_mutation_snapshot(
     *,
     coord_ref: str | None,
     is_resume: bool = False,
+    seed: Mapping[str, str] | None = None,
 ) -> dict[str, str]:
     """Capture (and persist) the pre-mutation snapshot ONCE; never recapture.
 
@@ -458,6 +459,11 @@ def capture_pre_mutation_snapshot(
     On a resume (``is_resume``) every entry NOT seeded from those anchors was
     captured live, after the earlier attempt ran; it is listed in
     ``state.resume_seeded_refs`` so the report does not call it pre-consolidation.
+
+    ``seed`` (#7692, mission review RISK-2) maps a branch this process moved itself before the
+    claim, in a step that belongs to the run (an undoable :class:`OwnMove`), to its tip before
+    that step; it wins over the live tip and the legacy target anchor, so the rollback restores
+    the branch to where it was before the step. Applied only when the snapshot is captured.
     """
     if state.pre_mutation_refs:
         return dict(state.pre_mutation_refs)
@@ -469,6 +475,10 @@ def capture_pre_mutation_snapshot(
     if coord_ref is not None and state.pre_mutation_coord_sha and state.pre_mutation_coord_ref in (None, coord_ref):
         refs[coord_ref] = state.pre_mutation_coord_sha
         seeded.add(coord_ref)
+    for branch, tip in (seed or {}).items():
+        if branch in refs:
+            refs[branch] = tip
+            seeded.add(branch)
     state.pre_mutation_refs = refs
     state.snapshot_lane_branches = [b for b in _lane_branches(lanes_manifest, coord_ref) if b in refs]
     state.resume_seeded_refs = [b for b in refs if b not in seeded] if is_resume else []
@@ -564,10 +574,17 @@ def _classify_live(state: ConsolidationState, branch: str, live: str, unsettled:
     return _AttemptStart(live, target, carried, unexplained)
 
 
-def _classify_own_move(state: ConsolidationState, branch: str, origin: str, live: str, unsettled: bool) -> _AttemptStart:
-    """A branch this process moved itself before the claim (heal, attestations), judged by its pre-move tip."""
+def _classify_own_move(state: ConsolidationState, branch: str, own: OwnMove, live: str, unsettled: bool) -> _AttemptStart:
+    """A branch this process moved itself before the claim (heal, attestations), judged by its pre-move tip.
+
+    An undoable own move (``own.undo``, #7692) is run content: from the restore target it keeps
+    the target and carries the live tip as this run's post, so the rollback undoes it.
+    """
+    origin = own.before
     previous = _record_restore_target(state, branch)
     if origin == previous:
+        if own.undo:
+            return _AttemptStart(live, previous, live)  # keep the target: the own move is undone with the run
         return _AttemptStart(live, live)  # re-anchor: no run content under the own move
     if origin == _effective_post(state, branch, origin):
         return _AttemptStart(live, previous, live)  # keep the target; the run content stays restorable
@@ -578,10 +595,17 @@ def _classify_own_move(state: ConsolidationState, branch: str, origin: str, live
 
 @dataclass(frozen=True)
 class OwnMove:
-    """A run-movable branch this process moved itself before the claim: its tips immediately before and after those steps."""
+    """A run-movable branch this process moved itself before the claim: its tips immediately before and after those steps.
+
+    ``undo`` (#7692, mission review RISK-2) marks a move that belongs to the run, so the rollback
+    undoes it: the operator attestations of a retarget run on a Mission without a coordination
+    branch, which land on the new target the run has not yet made the recorded one. Any other own
+    move (the coord-strand heal, a plain run's attestations) re-anchors and survives a rollback.
+    """
 
     before: str
     after: str
+    undo: bool = False
 
 
 def own_moves_across(
@@ -590,6 +614,7 @@ def own_moves_across(
     after: Mapping[str, str | None],
     *,
     writes: Iterable[str],
+    undo: bool = False,
 ) -> dict[str, OwnMove]:
     """Fold one pre-claim step of this process into ``own_moves``: ``before`` / ``after`` are the tips around that step.
 
@@ -599,7 +624,8 @@ def own_moves_across(
     process's. A branch counts as moved by the step only when its tip changed across it.
     A move that continues an earlier own move (the earlier ``after`` is this
     step's ``before``) keeps the earlier origin; any other move starts from this
-    step's ``before`` (a move in between was not this process's).
+    step's ``before`` (a move in between was not this process's). ``undo`` marks the step's
+    moves as run content (:class:`OwnMove`); a continued move keeps an earlier ``undo``.
     """
     merged = dict(own_moves)
     writable = set(writes)
@@ -610,7 +636,9 @@ def own_moves_across(
         if tip is None or start is None or tip == start:
             continue
         prior = merged.get(branch)
-        merged[branch] = OwnMove(prior.before if prior is not None and prior.after == start else start, tip)
+        continues = prior is not None and prior.after == start
+        origin = prior.before if prior is not None and continues else start
+        merged[branch] = OwnMove(origin, tip, undo or (prior is not None and continues and prior.undo))
     return merged
 
 
@@ -633,7 +661,7 @@ def _attempt_starts(repo_root: Path, state: ConsolidationState, own_moves: Mappi
         elif branch in lanes:
             starts[branch] = _lane_attempt_start(state, branch, snapshot, live)
         elif own is not None and own.after == live:
-            starts[branch] = _classify_own_move(state, branch, own.before, live, branch in unsettled)
+            starts[branch] = _classify_own_move(state, branch, own, live, branch in unsettled)
         else:
             starts[branch] = _classify_live(state, branch, live, branch in unsettled)
     return starts

@@ -80,7 +80,6 @@ def test_the_forecast_never_imports_the_executor_family() -> None:
         (("main", "develop"), False, "develop"),
         (("main", "develop"), True, "develop"),
         (("release", "develop"), False, "develop"),
-        (("main", "develop"), False, "main"),
     ],
 )
 def test_the_two_surfaces_judge_the_same_record_identically(
@@ -112,6 +111,32 @@ def test_the_mismatch_carries_one_message_and_next_step_on_both_surfaces(tmp_pat
     assert f"Next step: {verdict.next_step}" in entry_out
     assert payload["error_code"] == verdict.error_code
     assert payload["error"] == f"{verdict.error_code}: {verdict.message} Next step: {verdict.next_step}"
+
+
+@pytest.mark.parametrize(("retarget", "effective"), [(False, "main"), (False, "release"), (True, "main")])
+def test_a_target_other_than_the_persisted_retarget_is_a_mismatch_with_or_without_the_flag(
+    tmp_path: Path, retarget: bool, effective: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """RISK-1: a persisted retarget binds every run; ``--target <recorded>`` must not silently re-land it."""
+    _persist(tmp_path, ("main", "develop"))
+    verdict = preflight.retarget_mode(tmp_path, _MISSION_ID, retarget=retarget, recorded="main", effective=effective).mismatch
+    assert verdict is not None and verdict.error_code == preflight.RETARGET_RESUME_MISMATCH
+    asked = f"'--target {effective} --retarget'" if retarget else f"'--target {effective}'"
+    assert asked in verdict.message, verdict.message
+    assert "'--target develop --retarget'" in verdict.next_step and "--abort" in verdict.next_step
+
+    with pytest.raises(typer.Exit):
+        _entry(tmp_path, retarget=retarget, effective=effective)
+    capsys.readouterr()
+    with pytest.raises(typer.Exit):
+        _forecast(tmp_path, retarget=retarget, effective=effective)
+    payload: dict[str, Any] = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert payload["error_code"] == preflight.RETARGET_RESUME_MISMATCH
+
+
+def test_no_persisted_retarget_never_mismatches(tmp_path: Path) -> None:
+    for retarget, effective in ((False, "main"), (True, "develop"), (False, "develop")):
+        assert preflight.retarget_mode(tmp_path, _MISSION_ID, retarget=retarget, recorded="main", effective=effective).mismatch is None
 
 
 def test_an_unreadable_record_contributes_no_persisted_retarget(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

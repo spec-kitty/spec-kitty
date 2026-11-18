@@ -73,3 +73,63 @@ def test_abort_after_a_failed_retarget_restores_and_a_plain_override_is_refused_
     plain = _consolidate(mission, "--target", NEW)
 
     _assert_refused_before_any_mutation(mission, plain, before, reflogs_before)
+
+
+def _attestations(mission, ref: str) -> int:  # type: ignore[no-untyped-def]
+    from tests.terminus.retarget_support import events_at
+
+    return sum(1 for event in events_at(mission, ref) if (event.get("policy_metadata") or {}).get("attestation") == "no_implementation")
+
+
+def test_a_retargeted_attestation_is_undone_with_the_failed_run_and_recorded_once_on_the_rerun(tmp_path: Path) -> None:
+    """Mission review RISK-2: on a coordination-less Mission the attestation lands on ``develop``.
+
+    It is part of the run, so the one rollback authority undoes it with the run: ``develop`` is
+    back at its pre-run tip after the failure and stays there after ``--abort``; the re-run then
+    records the attestation exactly once and lands.
+    """
+    from tests.terminus.retarget_support import REASON, log_subjects
+
+    attest = ("--attest-no-implementation", "WP01", "--attest-reason", REASON)
+    mission = _lanes(tmp_path, "01M7692W")
+    _check_out_override(mission)
+    pre_new = tip(mission, NEW)
+    assert _attestations(mission, NEW) == 0
+
+    failed = run_patched(mission, "executor", "_phase_merge_lanes", *RETARGET, *attest, kill=False)
+
+    output = flat(failed)
+    assert failed.returncode != 0, output
+    assert "Retarget recorded: main -> develop" in output, output
+    assert_report_is_truthful(output)
+    assert tip(mission, NEW) == pre_new, f"the attestation is undone with the run. log={log_subjects(mission, f'{pre_new}..{NEW}')} output={output}"
+    assert _attestations(mission, NEW) == 0, output
+    assert meta_at(mission, NEW)["target_branch"] == OLD, output
+
+    aborted = run_terminus(mission, ["consolidate", "--abort", "--mission", mission.slug])
+
+    assert aborted.returncode == 0, flat(aborted)
+    assert _merge_records(mission) == [], flat(aborted)
+    assert tip(mission, NEW) == pre_new, flat(aborted)
+
+    rerun = _consolidate(mission, *RETARGET, *attest)
+
+    assert_landed_on_new_target(mission, rerun, pre_new)
+    assert _attestations(mission, NEW) == 1, flat(rerun)
+
+
+def test_a_retargeted_attestation_is_undone_on_a_rerun_after_the_failure(tmp_path: Path) -> None:
+    """The same attestation undone by the failure, then the re-run (no ``--abort``) records it once and lands."""
+    from tests.terminus.retarget_support import REASON
+
+    attest = ("--attest-no-implementation", "WP01", "--attest-reason", REASON)
+    mission = _lanes(tmp_path, "01M7692V")
+    _check_out_override(mission)
+    pre_new = tip(mission, NEW)
+    failed = run_patched(mission, "executor", "_phase_merge_lanes", *RETARGET, *attest, kill=False)
+    assert failed.returncode != 0 and tip(mission, NEW) == pre_new, flat(failed)
+
+    rerun = _consolidate(mission, *RETARGET, *attest)
+
+    assert_landed_on_new_target(mission, rerun, pre_new)
+    assert _attestations(mission, NEW) == 1, flat(rerun)
