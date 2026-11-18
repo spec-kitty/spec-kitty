@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -480,10 +479,10 @@ class TestByteIdenticalOutput:
             ),
         ]
 
-        fixed_time = "2026-02-08T15:00:00+00:00"
-        with patch("kernel.clock.now_utc_iso", return_value=fixed_time):
-            snapshot_a = reduce(events)
-            snapshot_b = reduce(events)
+        # ``reduce`` reads no clock: ``materialized_at`` derives from the last
+        # transition's ``at``, so no clock patch is needed (#7703 sweep).
+        snapshot_a = reduce(events)
+        snapshot_b = reduce(events)
 
         json_a = materialize_to_json(snapshot_a)
         json_b = materialize_to_json(snapshot_b)
@@ -619,11 +618,7 @@ class TestRealisticEventLog:
         """A realistic event log produces the expected lane summary."""
         events = self._build_realistic_event_log()
 
-        with patch(
-            "kernel.clock.now_utc_iso",
-            return_value="2026-02-08T18:00:00+00:00",
-        ):
-            snap = reduce(events)
+        snap = reduce(events)
 
         assert snap.event_count == 8
         assert snap.work_packages["WP01"]["lane"] == "done"
@@ -644,9 +639,7 @@ class TestRealisticEventLog:
         """Serialize -> parse -> re-serialize is stable for realistic log."""
         events = self._build_realistic_event_log()
 
-        fixed_time = "2026-02-08T18:00:00+00:00"
-        with patch("kernel.clock.now_utc_iso", return_value=fixed_time):
-            snap = reduce(events)
+        snap = reduce(events)
 
         json_1 = materialize_to_json(snap)
         parsed = json.loads(json_1)
