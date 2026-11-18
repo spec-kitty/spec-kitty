@@ -26,10 +26,27 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from specify_cli.status.models import Lane, StatusEvent, actor_full_identity, actor_identity_str, is_migration_actor, refine_actor_identity
+from specify_cli.status.models import (
+    Lane,
+    StatusEvent,
+    actor_full_identity,
+    actor_identities_independent,
+    actor_identity_str,
+    is_migration_actor,
+    refine_actor_identity,
+)
 from specify_cli.status.work_package_lifecycle import GENERIC_IMPLEMENTATION_ACTORS, _actor_key
 
-__all__ = ["is_latest_implementer", "latest_implementer_actor", "latest_implementer_event", "latest_implementer_identity"]
+__all__ = [
+    "implementer_identities",
+    "independent_of_implementers",
+    "is_latest_implementer",
+    "latest_implementer_actor",
+    "latest_implementer_event",
+    "latest_implementer_identity",
+    "profileless_claim_warning",
+    "profileless_identity_warning",
+]
 
 _IMPLEMENTING_LANES: frozenset[str] = frozenset({Lane.CLAIMED.value, Lane.IN_PROGRESS.value})
 _REVIEWER_SOURCE_LANES: frozenset[str] = frozenset({Lane.FOR_REVIEW.value, Lane.IN_REVIEW.value, Lane.APPROVED.value})
@@ -91,45 +108,135 @@ def latest_implementer_event(events: Sequence[StatusEvent], wp_id: str) -> Statu
     return None
 
 
-def _is_implementer_submission(event: StatusEvent) -> bool:
-    """An unforced ``in_progress -> for_review`` submission by a real, non-generic actor (#7159).
-
-    The submitter hands the work to review, so it is an implementer act. A migration
-    seed, a placeholder actor (``user``) or a forced move (an operator override) never is.
-    """
-    if event.force or is_migration_actor(event.actor):
-        return False
-    if (Lane(event.from_lane).value, Lane(event.to_lane).value) != (Lane.IN_PROGRESS.value, Lane.FOR_REVIEW.value):
+def _submission_actor_ok(event: StatusEvent) -> bool:
+    """A real, non-generic, non-seed actor: the only kind whose identity may refine the record."""
+    if is_migration_actor(event.actor):
         return False
     key = _actor_key(event.actor)
     return key is not None and key not in GENERIC_IMPLEMENTATION_ACTORS
 
 
+def _is_implementer_submission(event: StatusEvent) -> bool:
+    """A hand-over into ``for_review`` whose identity refines the implementer of record (#7159, #7712).
+
+    Two hops qualify, each by a real, non-generic actor:
+
+    * an unforced ``in_progress -> for_review`` submission (#7159); a forced one never does;
+    * an ``in_review -> for_review`` re-submission (#7712). The transition matrix admits that
+      edge only forced, so its force is not an override of anything the refinement could
+      change: :func:`~specify_cli.status.models.refine_actor_identity` only fills segments the
+      record left empty and ignores an identity that names another tool or contradicts a
+      recorded segment. This is the route an implementer whose claim recorded no profile
+      takes to complete it without a forced rewind into ``in_progress``. The hop's role is
+      stamped ``reviewer`` (``role_for_hop``); the role is never part of an identity.
+    """
+    hop = (Lane(event.from_lane).value, Lane(event.to_lane).value)
+    if hop == (Lane.IN_PROGRESS.value, Lane.FOR_REVIEW.value):
+        return not event.force and _submission_actor_ok(event)
+    if hop == (Lane.IN_REVIEW.value, Lane.FOR_REVIEW.value):
+        return _submission_actor_ok(event)
+    return False
+
+
+def implementer_identities(events: Sequence[StatusEvent], wp_id: str) -> tuple[str, ...]:
+    """Every identity that implemented ``wp_id`` in its current claim cycle, implementer of record first (#7712).
+
+    One forward pass over the work package's events:
+
+    * an unforced qualifying claim into ``claimed``/``in_progress`` (:func:`_qualifies`) is a new
+      claim, an explicit recorded act: its identity becomes the implementer of record and the
+      cycle restarts;
+    * a forced qualifying claim *refines* the record under the #7159 rule when it agrees with it
+      (same tool, no segment recorded on both sides that differs); otherwise it never replaces
+      the record and is kept as a further implementer, since whoever forced a rewind into an
+      implementing lane may have reworked the work package (#6955). With no record yet, it is
+      the record;
+    * a submission into ``for_review`` (:func:`_is_implementer_submission`) refines the record.
+
+    An approval must be independent of every identity returned
+    (:func:`independent_of_implementers`). Empty when no qualifying claim exists.
+    """
+    record: str | None = None
+    others: list[str] = []
+    for event in events:
+        if event.wp_id != wp_id:
+            continue
+        if _qualifies(event):
+            identity = actor_full_identity(event.actor)
+            if identity is None:
+                continue
+            if not event.force or record is None:
+                record, others = identity, []
+            elif not actor_identities_independent(record, identity):
+                record = refine_actor_identity(record, identity)
+            elif identity not in others:
+                others.append(identity)
+        elif record is not None and _is_implementer_submission(event):
+            record = refine_actor_identity(record, actor_full_identity(event.actor))
+    if record is None:
+        return ()
+    return (record, *(other for other in others if other != record))
+
+
 def latest_implementer_identity(events: Sequence[StatusEvent], wp_id: str) -> str | None:
     """Full ``tool:model:profile`` identity of ``wp_id``'s implementer of record, or ``None``.
 
-    The identity of :func:`latest_implementer_event`'s claim, refined by every later
-    unforced ``in_progress -> for_review`` submission of the work package (operator
-    ruling on #7159): a submission by the claim's tool fills the model or profile the
-    claim did not record, and is ignored when it contradicts one. A bare ``claude`` claim followed by a
-    ``claude:<model>:implementer-ivan`` submission is therefore that full identity,
-    while a ``claude::python-pedro`` claim keeps its profile whoever submits. The one
-    implementer identity the move-time and accept/consolidate independence checks read
-    (:func:`~specify_cli.status.actor_identities_independent` compares it).
+    The identity of the latest unforced qualifying claim, refined by every later submission
+    into ``for_review`` (operator ruling on #7159; ``in_review -> for_review`` since #7712) and
+    by every later forced claim that agrees with it: a hop by the claim's tool fills the model
+    or profile the claim did not record, and is ignored when it contradicts one. A forced
+    claim never replaces the implementer of record (#7712). A bare ``claude`` claim followed
+    by a ``claude:<model>:implementer-ivan`` submission is therefore that full identity, while
+    a ``claude::python-pedro`` claim keeps its profile whoever submits. The first element of
+    :func:`implementer_identities`.
     """
-    for index in range(len(events) - 1, -1, -1):
-        claim = events[index]
-        if claim.wp_id == wp_id and _qualifies(claim):
-            break
-    else:
+    identities = implementer_identities(events, wp_id)
+    return identities[0] if identities else None
+
+
+def independent_of_implementers(implementers: Sequence[str], approver: str | None) -> bool:
+    """True only when *approver* is provably independent of every implementer identity (#6715 R1, #7712).
+
+    *implementers* is :func:`implementer_identities`. No known implementer is independent of
+    nothing, as :func:`~specify_cli.status.actor_identities_independent` treats an unknown identity.
+    """
+    return bool(implementers) and all(actor_identities_independent(implementer, approver) for implementer in implementers)
+
+
+def profileless_claim_warning(event: StatusEvent | None) -> str | None:
+    """The claim-time warning for a claim that recorded neither a profile nor a model (#7712).
+
+    ``None`` unless *event* is a qualifying claim (:func:`_qualifies`); otherwise
+    :func:`profileless_identity_warning` of its actor.
+    """
+    if event is None or not _qualifies(event):
         return None
-    identity: str | None = actor_full_identity(claim.actor)
-    if identity is None:
+    return profileless_identity_warning(event.wp_id, event.actor)
+
+
+def profileless_identity_warning(wp_id: str, actor: object) -> str | None:
+    """The warning for an implementer identity that is the tool alone, or ``None`` (#7712).
+
+    Such an implementer is provably independent of no other identity of its tool (ruling R1),
+    so ``accept`` and ``consolidate`` refuse every same-tool approval. The line names that
+    refusal and the remedy. A placeholder or a migration seed names no implementer and gets none.
+    """
+    key = _actor_key(actor)
+    if key is None or key in GENERIC_IMPLEMENTATION_ACTORS or is_migration_actor(actor):
         return None
-    for event in events[index + 1 :]:
-        if event.wp_id == wp_id and _is_implementer_submission(event):
-            identity = refine_actor_identity(identity, actor_full_identity(event.actor))
-    return identity
+    identity = actor_full_identity(actor)
+    if identity is None or identity.count(":") != 2:
+        return None
+    tool, model, profile = identity.split(":")
+    if not tool or model or profile:
+        return None
+    return (
+        f"Warning: {wp_id} was claimed as '{tool}' with no profile or model recorded, so `spec-kitty accept` and "
+        f"`spec-kitty consolidate` will refuse an approval by another '{tool}' identity with REVIEW_NOT_INDEPENDENT "
+        "(SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT on a single_branch Mission). Record your identity: claim with "
+        f"--agent {tool}:<model>:<profile> (or --profile <profile>), or submit with "
+        f"`spec-kitty agent tasks move-task {wp_id} --to for_review --agent {tool}::<profile>`."
+    )
 
 
 def latest_implementer_actor(events: Sequence[StatusEvent], wp_id: str) -> str | None:

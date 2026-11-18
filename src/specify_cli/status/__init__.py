@@ -359,10 +359,14 @@ from .views import (
     format_post_mission_events,
 )
 from .review_roles import (
+    implementer_identities,
+    independent_of_implementers,
     is_latest_implementer,
     latest_implementer_actor,
     latest_implementer_event,
     latest_implementer_identity,
+    profileless_claim_warning,
+    profileless_identity_warning,
 )
 from .work_package_lifecycle import (
     GENERIC_IMPLEMENTATION_ACTORS,
@@ -708,10 +712,14 @@ __all__ = [
     "SEED_SHAPED_IDENTITY_REFUSAL",
     "refuse_seed_shaped_identity",
     "GENERIC_IMPLEMENTATION_ACTORS",
+    "implementer_identities",
+    "independent_of_implementers",
     "is_latest_implementer",
     "latest_implementer_actor",
     "latest_implementer_event",
     "latest_implementer_identity",
+    "profileless_claim_warning",
+    "profileless_identity_warning",
     "WorkPackageClaimConflict",
     # #6400: the structured actor for a free-text --actor option.
     "actor_from_option",

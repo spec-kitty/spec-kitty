@@ -584,7 +584,7 @@ _LENIENT_READER_ADVISORY_SITES: frozenset[tuple[str, str]] = frozenset(
     {
         ("specify_cli/consolidation/preflight.py", "<module>"),  # the facade import
         ("specify_cli/consolidation/preflight.py", "_latest_actor_for_transition"),
-        ("specify_cli/consolidation/preflight.py", "_latest_implementer_identity"),
+        ("specify_cli/consolidation/preflight.py", "_implementer_identities"),
     }
 )
 

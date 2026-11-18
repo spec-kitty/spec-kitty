@@ -341,3 +341,24 @@ Every non-migration move of a lane-mapped work package into `claimed` or `in_pro
 - The refusal text of the review-lane exit (`work_package_lifecycle`) still names the unrefined claim.
 
 **Confirmation.** `tests/integration/test_7159_implement_claim_profile.py` (the fresh-lane claim on coord and lanes; the agent-less placeholder; a refusal before any lane exists; a bare claim refined by a submission), `tests/cli/commands/test_dispatched_claim_identity_7159.py` (the seam) and the `latest_implementer_identity` truth table in `tests/unit/status/test_review_roles.py`.
+
+## Amendment 2026-11-18: a forced claim refines the implementer of record, and a re-submission out of review completes it (#7712)
+
+**Reader:** a maintainer who needs to know why a bare `claude` claim no longer needs a forced rewind before a same-tool reviewer under another profile can approve, and why a forced rewind no longer changes who the implementer of record is.
+
+**Problem.** [#7712](https://github.com/spec-kitty/spec-kitty/issues/7712), WP03 of an open-packs `single_branch` Mission. The claim recorded the bare actor `claude`, so under ruling 7 no `claude::<profile>` reviewer was independent of it. The implementer re-submitted out of `in_review` with its profile, but that hop (`in_review -> for_review`, forced: the matrix has no unforced edge) was neither a claim nor a #7159 submission, so its identity was ignored. What worked was a forced `for_review -> in_progress` rewind, and `latest_implementer_event` read it as a new claim: its identity *replaced* the implementer of record. Anyone who forced a rewind under a new identity became the implementer, and independence was judged against them, not against the agent that did the work.
+
+**Decision.**
+
+- **Re-submission out of review refines (option chosen over an identity-annotation step).** An `in_review -> for_review` hop by a real, non-generic, non-seed actor refines the implementer of record under the #7159 rule (`refine_actor_identity`: fill only, never another tool, never a contradicted segment). Its force adds nothing the refinement could use, since that edge exists only forced. A dedicated annotation step would need a new command and a new event shape for an act that the existing hop already records, with the same self-asserted identity.
+- **A forced claim refines, never replaces.** `status.implementer_identities` walks the work package's events once. An unforced qualifying claim into `claimed`/`in_progress` is the explicit, recorded act that names a new implementer of record and restarts the cycle. A forced qualifying claim that agrees with the record (not provably independent of it, ruling 7) refines it; one that does not is kept *beside* it as a further implementer; with no record yet it is the record. `latest_implementer_identity` is the first of these identities.
+- **An approval must be independent of every implementer.** `status.independent_of_implementers` applies `actor_identities_independent` to each identity; `move-task`'s approval check and `consolidation.preflight._independent_reviewer_confirmed` (the accept/consolidate evidence axis and the hollow-review warning) read it. So the original implementer still cannot approve after someone else forced a rewind, and the identity that forced it, who may have reworked the work package, cannot approve either (#6955).
+- **Claim-time warning.** A claim whose identity is the tool alone prints one line on stderr (`status.profileless_claim_warning`) from `move-task`, `agent status emit` and `agent action implement`, naming the `REVIEW_NOT_INDEPENDENT` refusal and the remedy (`--agent <tool>:<model>:<profile>` or `--profile`, or a submission with `--agent <tool>::<profile>`).
+- **Unchanged.** `actor_identities_independent` (one-sided segments still prove nothing), the refusal codes and their text, the ownership guard's `latest_implementer_event` / `latest_implementer_actor`, and the hop role stamping (`in_review -> for_review` stays `reviewer`; the role is never compared).
+
+**Residuals.**
+
+- A reviewer who hands a review back with `in_review -> for_review` under its own profile fills a bare claim with that profile, the #7159 residual "any same-tool submitter fills what a bare claim left empty" on one more hop.
+- The status-log race seen in the same run (a `migration:backfill_runtime_state` row stamped 06:21 appended after the 06:54 `done` row) is the union merge of two clones' pushes of `status.events.jsonl`; the reducer orders by `at`, so the fold is correct. The coordination status-write guard (#5572) compares one worktree with its own `HEAD` and cannot see a cross-clone race. Tracked under #1795 and #4955, not a `single_branch` gap of that guard.
+
+**Confirmation.** `tests/unit/status/test_review_roles_7712.py` (WP03's sequence, the third-identity rewind, the claim-time warning) and `tests/specify_cli/cli/commands/agent/test_move_task_evidence_gate.py` (a forced re-opener refused at the move).
