@@ -1801,7 +1801,17 @@ def merge_record_key(main_repo: Path, mission_slug: str) -> str:
         identity = resolve_mission_identity(placement_seam(main_repo, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA))
     except (ActionContextError, MissionMetaReadError, ValueError):
         return mission_slug
-    return identity.mission_id or mission_slug
+    return record_key_for_identity(identity.mission_id, mission_slug)
+
+
+def record_key_for_identity(mission_id: str | None, mission_slug: str) -> str:
+    """The one rule for the merge-record key: the ``mission_id`` when the Mission has one, else the slug.
+
+    ``executor._run_lane_based_consolidation`` (which resolves the identity itself) and
+    :func:`merge_record_key` (forecast, orchestrator-api) both call this, so the key a record is
+    stored under and the key it is looked up by cannot drift apart (#7692 landing fold).
+    """
+    return mission_id if mission_id is not None else mission_slug
 
 
 def persisted_retarget_pair(main_repo: Path, canonical_id: str) -> tuple[str, str] | None:
