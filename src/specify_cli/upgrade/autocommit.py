@@ -506,9 +506,12 @@ def commit_touched_checkout(
     ``message`` replaces the default upgrade subject; ``spec-kitty init`` uses
     the same baseline-diff commit for the project files it writes (#7555).
     ``allow_root_commit`` lets that commit be the root commit of an unborn branch
-    (#7612, see ``safe_commit``). ``raise_commit_failure`` re-raises a failed
-    ``safe_commit`` instead of flattening it to the generic skip warning, so the
-    caller can name the reason (a missing git identity, a rejecting hook).
+    (#7612, see ``safe_commit``). ``raise_commit_failure`` re-raises ANY failure of
+    ``safe_commit`` instead of flattening it to the generic skip warning, which
+    changes this function's ``(committed, paths, warning)`` contract: pass it only
+    with ``allow_root_commit``, from a caller that renders every exception itself
+    (init's root commit). The skip returns before ``safe_commit`` (no mutation
+    history, branch detection, detached HEAD) still return a warning.
 
     The commit-set is the porcelain diff against *baseline_paths* (captured
     before any upgrade write to this checkout), filtered through the

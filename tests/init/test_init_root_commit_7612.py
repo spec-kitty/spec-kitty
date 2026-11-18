@@ -15,11 +15,18 @@ init commit what it wrote, but only on a branch that already had a commit. Now:
 
 from __future__ import annotations
 
+import io
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+import typer
+from rich.console import Console
 
+from specify_cli.cli.commands import init as init_module
+from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
+from specify_cli.upgrade import autocommit
 from tests.integration.cli_mission_fixture_7545 import dirty, flat, git, isolated_env, run_sk
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.timeout(600)]
@@ -137,3 +144,72 @@ def test_rejecting_hook_refuses_with_a_named_code_and_keeps_staging(tmp_path: Pa
     # The failed commit left init's files unstaged and the operator's staging as it was.
     assert git(repo, "diff", "--cached", "--name-only").split() == ["staged.txt"]
     assert (repo / ".kittify" / "config.yaml").is_file()
+
+
+def test_a_hook_that_stages_extra_paths_is_named_after_the_root_commit_lands(tmp_path: Path) -> None:
+    """Squad review of #7708: a hook running `git add -A` sweeps the operator's file in; say so."""
+    repo, env = _unborn_repo(tmp_path)
+    hook = repo / ".git" / "hooks" / "pre-commit"
+    hook.write_text("#!/bin/sh\ngit add -A\n", encoding="utf-8")
+    hook.chmod(0o755)
+    (repo / "notes.txt").write_text("operator scratch\n", encoding="utf-8")
+
+    proc = run_sk(repo, env, *_INIT)
+
+    assert proc.returncode == 0, flat(proc)[-2000:]
+    out = flat(proc)
+    assert "first commit" in out
+    assert "did not write" in out
+    assert "notes.txt" in out
+    assert "notes.txt" in git(repo, "ls-tree", "-r", "--name-only", "HEAD").splitlines()
+
+
+# ---------------------------------------------------------------------------
+# Unit: every root-commit failure is named (squad review of #7708)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def console(monkeypatch: pytest.MonkeyPatch) -> io.StringIO:
+    buffer = io.StringIO()
+    monkeypatch.setattr(init_module, "_console", Console(file=buffer, width=400, no_color=True))
+    monkeypatch.setattr(init_module, "_init_written_paths_summary", lambda _project, _baseline: ".kittify/ (2 files)")
+    return buffer
+
+
+def _raising(exc: BaseException) -> Callable[..., object]:
+    def _raise(*_args: object, **_kwargs: object) -> object:
+        raise exc
+
+    return _raise
+
+
+@pytest.mark.parametrize(
+    "exc",
+    [ValueError("a root commit has no parent"), OSError("disk gone"), SafeCommitRecoveryFailed("restore failed", commit_sha=None)],
+    ids=["value-error", "os-error", "recovery-failed-nothing-landed"],
+)
+def test_a_root_commit_that_did_not_land_exits_1_named(exc: BaseException, console: io.StringIO, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(autocommit, "commit_touched_checkout", _raising(exc))
+
+    with pytest.raises(typer.Exit) as exit_info:
+        init_module._commit_init_root(tmp_path, set())
+
+    assert exit_info.value.exit_code == 1
+    assert "INIT_ROOT_COMMIT_FAILED" in console.getvalue()
+    assert str(exc) in console.getvalue()
+
+
+def test_a_root_commit_that_landed_but_could_not_restore_staging_is_a_note(console: io.StringIO, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(autocommit, "commit_touched_checkout", _raising(SafeCommitRecoveryFailed("restore failed", commit_sha="abc1234")))
+
+    assert init_module._commit_init_root(tmp_path, set()) == (False, [], None)
+    assert "Commit abc1234 did land" in console.getvalue()
+    assert "INIT_ROOT_COMMIT_FAILED" not in console.getvalue()
+
+
+def test_the_written_paths_summary_pluralizes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    files = [Path(".kittify/a"), Path(".kittify/b"), Path(".claude/x"), Path(".gitignore")]
+    monkeypatch.setattr(autocommit, "prepare_upgrade_commit_files", lambda _project, _baseline: files)
+
+    assert init_module._init_written_paths_summary(tmp_path, set()) == ".claude/ (1 file), .gitignore, .kittify/ (2 files)"

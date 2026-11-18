@@ -190,7 +190,7 @@ DEPENDENCY_MODULE_FANOUT: dict[str, frozenset[str]]
 # FANOUT_GROUPS member to derive >=1 census module, which a src-path group never would).
 #
 # The defect (#6221, #6166 residue): a change under cli/commands/** matches only the broad `cli` group
-# -> the `cli` module, whose shard runs tests/cli alone. But the command modules DELEGATE into domain
+# -> the `cli` module, whose shard runs tests/cli (and, since #7235, tests/init) alone. But the command modules DELEGATE into domain
 # packages whose tests live in OTHER modules, so a PR that breaks a command went green per-PR and first
 # red the nightly. cli_lifecycle (GROUP_MODULE_FANOUT) closed this for lifecycle.py only; these groups
 # generalise it to the rest of the command surface, per the #6166/#6174 maintainer inventory table.
@@ -290,6 +290,9 @@ FANOUT_ALLOWLIST: dict[str, dict[str, str]] = {
         "upgrade": _INCIDENTAL_DOSSIER,
     },
     "mission_pack_content": {
+        # #7235: tests/init (now in the cli module) resolves the documentation mission's
+        # templates via test_init_minimal_integration.py's template_repository fixture.
+        "cli": _INCIDENTAL_TEMPLATES,
         "core_misc": _INCIDENTAL_TEMPLATES,
         "status": _INCIDENTAL_TEMPLATES,
         "unit": _INCIDENTAL_TEMPLATES,
