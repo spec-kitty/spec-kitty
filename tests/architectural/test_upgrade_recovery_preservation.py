@@ -130,6 +130,7 @@ def test_unchanged_outside_root_gitlink_passes_old_and_current_gate(archive_repo
     git(archive_repo, "commit", "-m", "Unchanged outside-root Gitlink baseline")
     git(archive_repo, "update-ref", "refs/remotes/origin/main", "HEAD")
     assert git(archive_repo, "diff", "--name-only", "origin/main", "--", "vendor/example") == b""
+    require_full_history()  # the old gate source below is a pinned historical blob
     old_source = git(
         REPO_ROOT,
         "show",
@@ -337,9 +338,16 @@ def test_empty_baseline_cannot_pass(archive_repo: Path, monkeypatch: pytest.Monk
         run_gate(archive_repo, monkeypatch)
 
 
-def export_tree(repo: Path, rev: str, *paths: str) -> None:
-    """Restore concrete regular Git entries in a disposable copy only."""
-    payload = git(REPO_ROOT, "archive", rev, "--", *paths)
+def export_tree(repo: Path, rev: str, *paths: str, source: Path = REPO_ROOT) -> None:
+    """Restore concrete regular Git entries in a disposable copy only.
+
+    ``rev`` is a pinned historical revision a shallow ``source`` may not hold,
+    so the shallow-clone guard runs first: otherwise ``git archive`` exits 128
+    and every caller (here, ``test_dead_port_snapshot_recovery`` and
+    ``tests/upgrade/test_mission_corpus_recovery``) reads it as a product failure.
+    """
+    require_full_history(source)
+    payload = git(source, "archive", rev, "--", *paths)
     with tarfile.open(fileobj=io.BytesIO(payload)) as archive:
         for member in archive:
             if not member.isfile():
@@ -431,7 +439,7 @@ def require_full_history(repo: Path = REPO_ROOT) -> None:
 
 
 def build_recovery_repo(tmp_path: Path, *, full: bool = False) -> Path:
-    require_full_history()
+    # The shallow-clone guard runs in export_tree, before the first pinned read.
     repo = tmp_path / "corpus"
     # Shared clone reads pinned objects; all refs/index/worktree mutations are local.
     subprocess.run(
@@ -937,3 +945,16 @@ def test_require_full_history_fails_shallow_clone_under_ci(_shallow_history_repo
     monkeypatch.setenv("CI", "true")
     with pytest.raises(pytest.fail.Exception, match="shallow clone"):
         require_full_history(_shallow_history_repo)
+
+
+def test_export_tree_skips_shallow_clone_locally(_shallow_history_repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # HEAD~1 is outside the depth-1 history, like the pinned recovery revisions.
+    monkeypatch.delenv("CI", raising=False)
+    with pytest.raises(pytest.skip.Exception, match="git fetch --unshallow"):
+        export_tree(tmp_path / "out", "HEAD~1", source=_shallow_history_repo)
+
+
+def test_export_tree_fails_shallow_clone_under_ci(_shallow_history_repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CI", "true")
+    with pytest.raises(pytest.fail.Exception, match="shallow clone"):
+        export_tree(tmp_path / "out", "HEAD~1", source=_shallow_history_repo)
