@@ -39,11 +39,11 @@ permissions:
   pull-requests: write
 
 # Fork guard: automated runs (schedule, push to main, workflow_run) are core-repo
-# only. On a fork the guarded jobs skip; pull_request and workflow_dispatch still
-# run everywhere. Pinned by tests/ci/test_fork_guard.py.
+# only. On a fork the guarded jobs skip; workflow_dispatch still runs everywhere. The guard
+# names only events this workflow is triggered by (#7704). Pinned by tests/ci/test_fork_guard.py.
 jobs:
   sweep:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:

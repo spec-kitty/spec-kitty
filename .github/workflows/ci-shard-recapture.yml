@@ -142,12 +142,12 @@ permissions:
   contents: read
 
 # Fork guard: automated runs (schedule, push to main, workflow_run) are core-repo
-# only. On a fork the guarded jobs skip; pull_request and workflow_dispatch still
-# run everywhere. Pinned by tests/ci/test_fork_guard.py.
+# only. On a fork the guarded jobs skip; workflow_dispatch still runs everywhere. The guard
+# names only events this workflow is triggered by (#7704). Pinned by tests/ci/test_fork_guard.py.
 jobs:
   recapture-shard-timings:
     # F4: never publish a topic branch's capture -- see the header comment.
-    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
+    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-24.04
     # `actions: read` lets the read-only workflow token list the nightly runs and
     # download their battery junit artefact (the battery refresh step only).
@@ -291,7 +291,7 @@ jobs:
   # the read-only workflow token with `pull-requests: read` is sufficient.
   strict-shard-timings-check:
     needs: recapture-shard-timings
-    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !cancelled() }}
+    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch') && !cancelled() }}
     runs-on: ubuntu-24.04
     permissions:
       contents: read

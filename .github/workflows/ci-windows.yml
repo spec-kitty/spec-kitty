@@ -14,8 +14,8 @@ concurrency:
 # tests/auth/secure_storage/test_file_fallback_windows_root.py.
 #
 # Fork guard: automated runs (schedule, push to main, workflow_run) are core-repo
-# only. On a fork the guarded jobs skip; pull_request and workflow_dispatch still
-# run everywhere. Pinned by tests/ci/test_fork_guard.py.
+# only. On a fork the guarded jobs skip; pull_request still runs everywhere. The guard
+# names only events this workflow is triggered by (#7704). Pinned by tests/ci/test_fork_guard.py.
 jobs:
   changes:
     name: Detect Windows-critical changes
@@ -23,7 +23,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci') }}
+    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request') && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci') }}
     outputs:
       windows_critical: ${{ steps.filter.outputs.windows_critical }}
     steps:

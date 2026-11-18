@@ -170,3 +170,16 @@ def test_fleet_verdict_is_core_only_even_for_fork_pull_requests() -> None:
 def test_guard_evaluator_rejects_unknown_atoms() -> None:
     with pytest.raises(AssertionError, match="unmodeled"):
         _guard_allows("(github.ref == 'refs/heads/main')", repository=CORE_REPOSITORY, event_name="push", run_event=None)
+
+
+@pytest.mark.parametrize("workflow", [p.name for p in _automated_workflows()])
+def test_a_fork_guard_names_no_event_its_workflow_is_not_triggered_by(workflow: str) -> None:
+    """A guard atom for an event the workflow never receives is dead code (#7704)."""
+    data = _load(WORKFLOWS_DIR / workflow)
+    triggers = _triggers(data)
+    dead = set()
+    for name, job in _self_starting_jobs(data):
+        for event in re.findall(r"github\.event_name == '(\w+)'", _leading_guard(str(job["if"]))):
+            if event not in triggers:
+                dead.add((name, event))
+    assert not dead, f"{workflow}: fork-guard atoms for events this workflow is not triggered by: {sorted(dead)}"
