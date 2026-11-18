@@ -143,8 +143,10 @@ def load_checkpoint(
     """Load latest checkpoint for step_id from event log.
 
     Reads StepCheckpointed events from event log and returns the most recent
-    checkpoint for the given step_id. Scans all mission event logs in the
-    glossary events directory.
+    checkpoint for the given step_id. With a ``mission_id`` only that mission's
+    own log is read; on a miss there (or without a ``mission_id``) every
+    mission event log in the glossary events directory is scanned, which also
+    covers logs written under a legacy filename.
 
     Args:
         project_root: Repository root (contains .kittify/events/)
@@ -155,7 +157,7 @@ def load_checkpoint(
     Returns:
         Latest StepCheckpoint for step_id, or None if not found
     """
-    from .events import read_events
+    from .events import EVENT_LOG_SUFFIX, sanitize_mission_id
 
     events_dir = project_root / ".kittify" / "events" / "glossary"
     if not events_dir.exists():
@@ -163,25 +165,24 @@ def load_checkpoint(
         return None
 
     latest: StepCheckpoint | None = None
+    own_log: Path | None = None
+    if isinstance(mission_id, str):
+        # The writer names a mission's log through the same sanitizer
+        # (``events.get_event_log_path``, which is not called here because it
+        # creates directories), so the mission's checkpoints live in one file.
+        own_log = events_dir / f"{sanitize_mission_id(mission_id)}{EVENT_LOG_SUFFIX}"
+        if own_log.is_file():
+            latest = _latest_checkpoint_in(own_log, step_id, mission_id, retry_token)
 
-    # Scan all mission event logs in the glossary events directory
-    for event_log_path in events_dir.glob("*.events.jsonl"):
-        for event_payload in read_events(event_log_path, event_type="StepCheckpointed"):
-            if event_payload.get("step_id") != step_id:
+    if latest is None:
+        # No mission filter, or a miss in the mission's own log: scan every log,
+        # which covers logs written under a legacy filename.
+        for event_log_path in sorted(events_dir.glob(f"*{EVENT_LOG_SUFFIX}")):
+            if event_log_path == own_log:
                 continue
-            if mission_id is not None and event_payload.get("mission_id") != mission_id:
-                continue
-            if retry_token is not None and event_payload.get("retry_token") != retry_token:
-                continue
-
-            try:
-                checkpoint = parse_checkpoint_event(event_payload)
-            except ValueError as exc:
-                logger.warning("Invalid checkpoint event in %s: %s", event_log_path.name, exc)
-                continue
-
-            if latest is None or checkpoint.timestamp > latest.timestamp:
-                latest = checkpoint
+            found = _latest_checkpoint_in(event_log_path, step_id, mission_id, retry_token)
+            if found is not None and (latest is None or found.timestamp > latest.timestamp):
+                latest = found
 
     if latest is not None:
         logger.info(
@@ -198,6 +199,35 @@ def load_checkpoint(
             "set" if retry_token else "unset",
         )
 
+    return latest
+
+
+def _latest_checkpoint_in(
+    event_log_path: Path,
+    step_id: str,
+    mission_id: str | None,
+    retry_token: str | None,
+) -> StepCheckpoint | None:
+    """Return the latest matching checkpoint in one event log, or None."""
+    from .events import read_events
+
+    latest: StepCheckpoint | None = None
+    for event_payload in read_events(event_log_path, event_type="StepCheckpointed"):
+        if event_payload.get("step_id") != step_id:
+            continue
+        if mission_id is not None and event_payload.get("mission_id") != mission_id:
+            continue
+        if retry_token is not None and event_payload.get("retry_token") != retry_token:
+            continue
+
+        try:
+            checkpoint = parse_checkpoint_event(event_payload)
+        except ValueError as exc:
+            logger.warning("Invalid checkpoint event in %s: %s", event_log_path.name, exc)
+            continue
+
+        if latest is None or checkpoint.timestamp > latest.timestamp:
+            latest = checkpoint
     return latest
 
 
@@ -340,11 +370,7 @@ def prompt_context_change_confirmation(
     """
     import typer
 
-    typer.echo(
-        f"\nContext has changed since checkpoint was created.\n"
-        f"  Checkpoint hash: {old_hash}...\n"
-        f"  Current hash:    {new_hash}...\n"
-    )
+    typer.echo(f"\nContext has changed since checkpoint was created.\n  Checkpoint hash: {old_hash}...\n  Current hash:    {new_hash}...\n")
     result: bool = typer.confirm(
         "Resume despite context change?",
         default=False,

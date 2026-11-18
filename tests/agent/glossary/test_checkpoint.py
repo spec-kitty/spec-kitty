@@ -810,3 +810,94 @@ class TestHandleContextChange:
         )
         assert len(received["old"]) == 16
         assert len(received["new"]) == 16
+
+
+# ---------------------------------------------------------------------------
+# #7669: a mission_id reads only that mission's own log
+# ---------------------------------------------------------------------------
+
+
+def _checkpoint_event(mission_id: str, step_id: str = "step-001", ts: str = "2026-02-16T10:00:00+00:00") -> dict:
+    return {
+        "event_type": "StepCheckpointed",
+        "mission_id": mission_id,
+        "run_id": "r",
+        "step_id": step_id,
+        "strictness": "medium",
+        "scope_refs": [],
+        "input_hash": "c" * 64,
+        "cursor": "pre_generation_gate",
+        "retry_token": str(uuid.uuid4()),
+        "timestamp": ts,
+    }
+
+
+@pytest.fixture
+def opened_logs(monkeypatch):
+    """Record every event log ``load_checkpoint`` opens."""
+    import glossary.events as events_module
+
+    real_read_events = events_module.read_events
+    opened: list[str] = []
+
+    def spy(event_log_path, event_type=None):
+        opened.append(event_log_path.name)
+        return real_read_events(event_log_path, event_type=event_type)
+
+    monkeypatch.setattr(events_module, "read_events", spy)
+    return opened
+
+
+class TestLoadCheckpointSingleLog:
+    """load_checkpoint derives the mission's log path instead of globbing (#7669)."""
+
+    @staticmethod
+    def _seed(tmp_path, name: str, *events: dict) -> None:
+        events_dir = tmp_path / ".kittify" / "events" / "glossary"
+        events_dir.mkdir(parents=True, exist_ok=True)
+        (events_dir / name).write_text("".join(json.dumps(e, sort_keys=True) + "\n" for e in events))
+
+    def test_mission_id_opens_only_its_own_log(self, tmp_path, opened_logs):
+        self._seed(tmp_path, "mission-a.events.jsonl", _checkpoint_event("mission-a"))
+        self._seed(tmp_path, "mission-b.events.jsonl", _checkpoint_event("mission-b"))
+
+        result = load_checkpoint(tmp_path, "step-001", mission_id="mission-a")
+
+        assert result is not None and result.mission_id == "mission-a"
+        assert opened_logs == ["mission-a.events.jsonl"]
+
+    def test_mission_id_path_goes_through_the_writer_sanitizer(self, tmp_path, opened_logs):
+        self._seed(tmp_path, "team-x-041.events.jsonl", _checkpoint_event("team/x:041"))
+        self._seed(tmp_path, "other.events.jsonl", _checkpoint_event("other"))
+
+        result = load_checkpoint(tmp_path, "step-001", mission_id="team/x:041")
+
+        assert result is not None and result.mission_id == "team/x:041"
+        assert opened_logs == ["team-x-041.events.jsonl"]
+
+    def test_miss_in_own_log_falls_back_to_legacy_filename(self, tmp_path, opened_logs):
+        self._seed(tmp_path, "mission-a.events.jsonl", _checkpoint_event("mission-a", step_id="other-step"))
+        self._seed(tmp_path, "legacy-name.events.jsonl", _checkpoint_event("mission-a"))
+
+        result = load_checkpoint(tmp_path, "step-001", mission_id="mission-a")
+
+        assert result is not None and result.mission_id == "mission-a"
+        # The own log is read once and is not re-read by the fallback scan.
+        assert sorted(opened_logs) == ["legacy-name.events.jsonl", "mission-a.events.jsonl"]
+
+    def test_absent_own_log_falls_back_to_glob(self, tmp_path, opened_logs):
+        self._seed(tmp_path, "legacy-name.events.jsonl", _checkpoint_event("mission-a"))
+
+        result = load_checkpoint(tmp_path, "step-001", mission_id="mission-a")
+
+        assert result is not None
+        assert opened_logs == ["legacy-name.events.jsonl"]
+
+    def test_without_mission_id_every_log_is_scanned(self, tmp_path, opened_logs):
+        self._seed(tmp_path, "mission-a.events.jsonl", _checkpoint_event("mission-a", ts="2026-02-16T10:00:00+00:00"))
+        self._seed(tmp_path, "mission-b.events.jsonl", _checkpoint_event("mission-b", ts="2026-02-16T12:00:00+00:00"))
+
+        result = load_checkpoint(tmp_path, "step-001")
+
+        assert result is not None and result.mission_id == "mission-b"
+        assert sorted(opened_logs) == ["mission-a.events.jsonl", "mission-b.events.jsonl"]
