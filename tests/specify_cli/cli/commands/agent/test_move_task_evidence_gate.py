@@ -561,3 +561,68 @@ def test_an_unclassifiable_event_never_fails_the_move(capsys: pytest.CaptureFixt
     _mt_warn_profileless_claim(st)
 
     assert capsys.readouterr().err == ""
+
+
+# ---------------------------------------------------------------- review claimant re-submission (#7712 landing fold)
+
+
+def _event_from_move(st: move_task_module._MoveTaskState, n: int) -> StatusEvent:
+    """The event a move-task hop records, with the actor ``move-task`` stamps on it."""
+    from specify_cli.cli.commands.agent.tasks_move_task_hops import _mt_hop_structured_actor
+
+    return StatusEvent(
+        event_id=f"01M7FD{n:020d}",
+        mission_slug="fx",
+        wp_id="WP02",
+        from_lane=st.old_lane,
+        to_lane=st.target_lane,
+        at=f"2026-11-18T07:{n:02d}:00+00:00",
+        actor=_mt_hop_structured_actor(st, st.old_lane, st.target_lane, st.agent),
+        force=st.force,
+        execution_mode="direct_repo",
+    )
+
+
+def _drive_resubmission(monkeypatch: pytest.MonkeyPatch, reviewer: str, resubmitter: str) -> list[StatusEvent]:
+    """Bare ``claude`` claim and submission, *reviewer* claims the review, then ``--as-implementer --agent <resubmitter>``."""
+    from specify_cli.cli.commands.agent import tasks as tasks_module
+
+    log: list[StatusEvent] = []
+    monkeypatch.setattr(tasks_module, "read_events_transactional", lambda **_kw: list(log))
+    hops = [
+        (Lane.PLANNED, Lane.CLAIMED, "claude", False),
+        (Lane.CLAIMED, Lane.IN_PROGRESS, "claude", False),
+        (Lane.IN_PROGRESS, Lane.FOR_REVIEW, "claude", False),
+        (Lane.FOR_REVIEW, Lane.IN_REVIEW, reviewer, False),
+    ]
+    for n, (old, new, agent, force) in enumerate(hops):
+        log.append(_event_from_move(_state(new, old_lane=old, agent=agent, force=force), n))
+    st = _state(Lane.FOR_REVIEW, old_lane=Lane.IN_REVIEW, force=True, agent=resubmitter)
+    st.mission_slug = "fx"
+    st.as_implementer = True
+    move_task_module._mt_require_as_implementer_hop(st)
+    log.append(_event_from_move(st, len(log)))
+    log.append(_event_from_move(_state(Lane.IN_REVIEW, old_lane=Lane.FOR_REVIEW, agent=reviewer), len(log)))
+    return log
+
+
+def test_the_review_claimant_resubmitting_under_another_profile_cannot_approve(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The reviewer claims, re-submits ``--as-implementer --agent claude::impl``, and its approval stays refused."""
+    _drive_resubmission(monkeypatch, reviewer="claude::rev", resubmitter="claude::impl")
+    st = _state(Lane.APPROVED, old_lane=Lane.IN_REVIEW, agent="claude::rev")
+    st.mission_slug = "fx"
+
+    assert move_task_module._mt_implementer_identities(st) == ("claude::",)
+    with pytest.raises(ActionContextError) as refused:
+        move_task_module._mt_require_independent_approval(st)
+    assert refused.value.code == "REVIEW_NOT_INDEPENDENT"
+
+
+def test_a_different_implementers_resubmission_still_completes_the_bare_claim(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Control: under a review claimant provably not the bare ``claude`` implementer, the re-submission completes it."""
+    _drive_resubmission(monkeypatch, reviewer="codex::rev", resubmitter="claude::impl")
+    st = _state(Lane.APPROVED, old_lane=Lane.IN_REVIEW, agent="codex::rev")
+    st.mission_slug = "fx"
+
+    assert move_task_module._mt_implementer_identities(st) == ("claude::impl",)
+    move_task_module._mt_require_independent_approval(st)

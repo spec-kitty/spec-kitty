@@ -145,10 +145,7 @@ def resubmitter_may_be_implementer(review_claimant: str | None, resubmitter: str
     complete the implementer's identity with its own. A bare or unknown review claimant
     proves nothing either way, so the explicit assertion stands.
     """
-    if not review_claimant or not review_claimant.strip(":"):
-        return True
-    tool, _, rest = review_claimant.partition(":")
-    if not rest.strip(":"):
+    if not _records_more_than_tool(review_claimant):
         return True
     independent: bool = actor_identities_independent(review_claimant, resubmitter)
     return independent
@@ -207,16 +204,39 @@ def _is_review_claim(event: StatusEvent) -> bool:
     return Lane(event.to_lane).value == Lane.IN_REVIEW.value and _submission_actor_ok(event)
 
 
-def _submission_may_refine(event: StatusEvent, submitter: str | None, others: Sequence[str], review_claimant: str | None) -> bool:
+def _records_more_than_tool(identity: str | None) -> bool:
+    """Whether *identity* recorded a model or profile beside its tool."""
+    if not identity:
+        return False
+    _tool, _, rest = identity.partition(":")
+    return bool(rest.strip(":"))
+
+
+def _review_claimant_may_be_record(record: str, review_claimant: str | None) -> bool:
+    """Whether the cycle's review claimant, under a recorded model or profile, may be the implementer of record (#7712).
+
+    A profiled review claimant not provably independent of the record (``claude::rev`` beside a
+    bare ``claude`` claim) may hold the record itself: an ``--as-implementer`` re-submission that
+    completed the record would then only make that claimant look independent of its own work,
+    since the identity a re-submission declares is self-asserted. A bare review claimant
+    proves nothing either way, so the explicit assertion stands for it.
+    """
+    return _records_more_than_tool(review_claimant) and not actor_identities_independent(record, review_claimant)
+
+
+def _submission_may_refine(event: StatusEvent, submitter: str | None, others: Sequence[str], review_claimant: str | None, record: str) -> bool:
     """Whether a submission's identity may complete the implementer of record (#7712).
 
     Never when the submitter is not provably independent of an identity kept beside the record
     (whoever forced a rewind or took over must not fill the original claim with its own
-    identity), nor, for an ``--as-implementer`` re-submission, when it may be the review claimant.
+    identity), nor, for an ``--as-implementer`` re-submission, when it may be the review claimant
+    or the review claimant may be the implementer of record.
     """
     if any(not actor_identities_independent(other, submitter) for other in others):
         return False
     if Lane(event.from_lane).value == Lane.IN_REVIEW.value:
+        if _review_claimant_may_be_record(record, review_claimant):
+            return False
         return resubmitter_may_be_implementer(review_claimant, submitter)
     return True
 
@@ -250,7 +270,8 @@ def implementer_identities(events: Sequence[StatusEvent], wp_id: str) -> tuple[s
     * a claim whose identity adds nothing to the record (the record itself, or a less specific
       spelling of it, such as the implementer's own forced pull-back) changes nothing;
     * a submission refines the record (#7159), unless its submitter may be an identity kept
-      beside the record or, for an ``--as-implementer`` re-submission, the review claimant.
+      beside the record or, for an ``--as-implementer`` re-submission, the review claimant, or
+      the review claimant may itself be the implementer of record (not provably independent of it).
 
     An approval must be independent of every identity returned
     (:func:`independent_of_implementers`). Empty when no qualifying claim exists.
@@ -282,7 +303,7 @@ def implementer_identities(events: Sequence[StatusEvent], wp_id: str) -> tuple[s
             review_claimant = actor_full_identity(event.actor)
         elif record is not None and _is_implementer_submission(event):
             submitter = actor_full_identity(event.actor)
-            if _submission_may_refine(event, submitter, others, review_claimant):
+            if _submission_may_refine(event, submitter, others, review_claimant, record):
                 record = refine_actor_identity(record, submitter)
     if record is None:
         return ()
