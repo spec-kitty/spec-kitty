@@ -178,3 +178,42 @@ def test_opencode_root_falls_back_to_xdg_then_home(home: Path, tmp_path: Path, m
     assert agent_user_config_root("opencode") == home / ".config" / "opencode"
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
     assert agent_user_config_root("opencode") == tmp_path / "xdg" / "opencode"
+
+
+@pytest.mark.parametrize("name", [CLAUDE_CONFIG_DIR_ENV, OPENCODE_CONFIG_DIR_ENV, "LLXPRT_CONFIG_HOME"])
+def test_relative_config_root_is_refused(home: Path, monkeypatch: pytest.MonkeyPatch, name: str) -> None:
+    from kernel.errors import GuardedReadError
+    from specify_cli.core.config import RelativeAgentConfigRootError
+
+    monkeypatch.setenv(name, "cfg")
+    agent = {"CLAUDE_CONFIG_DIR": "claude", "OPENCODE_CONFIG_DIR": "opencode", "LLXPRT_CONFIG_HOME": "llxprt"}[name]
+    with pytest.raises(RelativeAgentConfigRootError) as excinfo:
+        agent_user_config_root(agent)
+    assert isinstance(excinfo.value, GuardedReadError)
+    assert name in str(excinfo.value)
+    assert "absolute path" in str(excinfo.value)
+
+
+def test_tilde_config_root_is_accepted(home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(CLAUDE_CONFIG_DIR_ENV, "~/alt-claude")
+    assert agent_user_config_root("claude") == home / "alt-claude"
+
+
+def test_relative_config_root_cli_prints_clean_error(home: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    import subprocess
+    import sys
+
+    monkeypatch.setenv(CLAUDE_CONFIG_DIR_ENV, "cfg")
+    work = tmp_path / "work"
+    work.mkdir()
+    result = subprocess.run(
+        [sys.executable, "-c", "import sys; from specify_cli import main; sys.argv=['spec-kitty','agent','tasks','status']; main()"],
+        cwd=work,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 1
+    assert "Traceback" not in result.stderr
+    assert "CLAUDE_CONFIG_DIR is set to the relative path 'cfg'" in result.stderr
+    assert not (work / "cfg").exists()
