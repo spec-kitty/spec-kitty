@@ -10,7 +10,7 @@ import subprocess
 from kernel.clock import now_utc
 from pathlib import Path
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, NoReturn
 
 import typer
 from rich.markup import escape
@@ -865,7 +865,7 @@ def _git_identity_problem(project_path: Path) -> str | None:
     """
     for ident in ("GIT_AUTHOR_IDENT", "GIT_COMMITTER_IDENT"):
         try:
-            result = subprocess.run(["git", "var", ident], cwd=str(project_path), check=False, capture_output=True, text=True)
+            result = subprocess.run(["git", "var", ident], cwd=str(project_path), check=False, capture_output=True, text=True, encoding="utf-8", errors="replace")
         except OSError as exc:
             return str(exc)
         if result.returncode != 0:
@@ -889,8 +889,8 @@ def _note_root_commit_skipped_for_identity(project_path: Path, baseline: set[str
         f"git said: {escape(problem)}\n"
         f"Files init wrote: {escape(written) if written else '(none found)'}\n"
         'Remedy: set an identity (`git config user.name "Your Name"` and `git config user.email you@example.com`), '
-        f"then commit exactly those files as your first commit (for example `{_INIT_COMMIT_MESSAGE}`) "
-        "before running other spec-kitty commands."
+        f"then commit exactly the files init wrote as your first commit (`git status` lists them; for example "
+        f"`{_INIT_COMMIT_MESSAGE}`) before running other spec-kitty commands."
     )
 
 
@@ -966,34 +966,72 @@ def _commit_init_writes(project_path: Path, baseline: set[str] | None) -> None:
         if identity_problem is not None:
             _note_root_commit_skipped_for_identity(project_path, baseline, identity_problem)
             return
+    if root_commit:
+        # #7612: on an unborn branch init's commit is the repository's root commit.
+        committed, paths, warning = _commit_init_root(project_path, baseline)
+        _report_init_commit(committed, paths, warning, baseline)
+        return
     try:
-        committed, paths, warning = commit_touched_checkout(
-            project_path,
-            baseline,
-            __version__,
-            __version__,
-            message=_INIT_COMMIT_MESSAGE,
-            # #7612: on an unborn branch init's commit is the repository's root commit.
-            allow_root_commit=root_commit,
-            raise_commit_failure=root_commit,
-        )
+        committed, paths, warning = commit_touched_checkout(project_path, baseline, __version__, __version__, message=_INIT_COMMIT_MESSAGE)
     except SafeCommitRecoveryFailed as exc:
         _console.print(f"[yellow]Note:[/yellow] {escape(_render_init_recovery_failed(exc))}")
         return
     except SafeCommitError as exc:
-        if root_commit:
-            _refuse_failed_root_commit(project_path, baseline, str(exc))
         _console.print(f"[yellow]Note:[/yellow] {escape(f'Could not commit the files init wrote: {exc}')}")
         return
-    except RuntimeError as exc:
-        # Only reached for a root commit (``raise_commit_failure``): git refused it.
-        _refuse_failed_root_commit(project_path, baseline, str(exc))
+    _report_init_commit(committed, paths, warning, baseline)
+
+
+def _report_init_commit(committed: bool, paths: list[str], warning: str | None, baseline: set[str]) -> None:
+    """Print the outcome of init's commit (#7555)."""
+    assert _console is not None
     if committed:
         _console.print(f"[green]Committed {len(paths)} spec-kitty project files[/green] [dim](`{_INIT_COMMIT_MESSAGE}`; pass --no-commit to skip)[/dim]")
         if baseline:
             _console.print(f"[dim]{len(baseline)} path(s) that already had uncommitted changes before init were left out of that commit.[/dim]")
     if warning:
         _console.print(f"[yellow]Note:[/yellow] {escape(_init_commit_warning(warning))}")
+
+
+def _commit_init_root(project_path: Path, baseline: set[str]) -> tuple[bool, list[str], str | None]:
+    """Make the root commit of init's writes on an unborn branch (#7612).
+
+    Every failure is named: a commit that did not land exits 1 with
+    ``INIT_ROOT_COMMIT_FAILED`` whatever raised it (a rejecting hook, a failed
+    staging restore, an unexpected error), and a commit that landed carrying paths
+    a hook staged is reported as such (squad review of #7708).
+    """
+    from specify_cli import __version__
+    from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed, SafeCommitUnrequestedPaths
+    from specify_cli.upgrade.autocommit import commit_touched_checkout
+
+    assert _console is not None
+    try:
+        return commit_touched_checkout(
+            project_path,
+            baseline,
+            __version__,
+            __version__,
+            message=_INIT_COMMIT_MESSAGE,
+            allow_root_commit=True,
+            raise_commit_failure=True,
+        )
+    except SafeCommitUnrequestedPaths as exc:
+        extra = ", ".join(exc.extra_paths)
+        _console.print(
+            f"[yellow]Note:[/yellow] init made this repository's first commit ({exc.commit_sha}), but a pre-commit hook "
+            f"also staged path(s) init did not write, and they are in that commit: {escape(extra)}. "
+            "If they do not belong there, remove them from the index and record that in your next commit."
+        )
+        return False, [], None
+    except SafeCommitRecoveryFailed as exc:
+        if exc.commit_sha:
+            _console.print(f"[yellow]Note:[/yellow] {escape(_render_init_recovery_failed(exc))}")
+            return False, [], None
+        _refuse_failed_root_commit(project_path, baseline, str(exc))
+    except Exception as exc:
+        # Every root-commit failure is rendered as INIT_ROOT_COMMIT_FAILED, never a traceback.
+        _refuse_failed_root_commit(project_path, baseline, str(exc))
 
 
 def _init_written_paths_summary(project_path: Path, baseline: set[str]) -> str:
@@ -1005,10 +1043,10 @@ def _init_written_paths_summary(project_path: Path, baseline: set[str]) -> str:
         parts = path.as_posix().split("/")
         key = f"{parts[0]}/" if len(parts) > 1 else parts[0]
         groups[key] = groups.get(key, 0) + 1
-    return ", ".join(f"{key} ({count} files)" if key.endswith("/") else key for key, count in sorted(groups.items()))
+    return ", ".join(f"{key} ({count} {'file' if count == 1 else 'files'})" if key.endswith("/") else key for key, count in sorted(groups.items()))
 
 
-def _refuse_failed_root_commit(project_path: Path, baseline: set[str], detail: str) -> None:
+def _refuse_failed_root_commit(project_path: Path, baseline: set[str], detail: str) -> NoReturn:
     """git refused init's root commit (#7612): name the reason and the way out, exit 1.
 
     The files are already on disk and nothing was committed. Without a first commit
@@ -1023,8 +1061,9 @@ def _refuse_failed_root_commit(project_path: Path, baseline: set[str], detail: s
         f"init made for its files (`{_INIT_COMMIT_MESSAGE}`). Nothing was committed; the files are on disk.\n"
         f"git said: {escape(detail)}\n"
         f"Files init wrote: {escape(written) if written else '(none found)'}\n"
-        "Remedy: fix what refused the commit (usually a pre-commit or commit-msg hook), then commit exactly those files "
-        "as your first commit before running other spec-kitty commands."
+        "Remedy: fix what refused the commit (for example a pre-commit or commit-msg hook, or branch protection), then "
+        "commit exactly the files init wrote as your first commit (`git status` lists them) before running other "
+        "spec-kitty commands."
     )
     raise typer.Exit(1)
 

@@ -65,6 +65,7 @@ def test_without_the_opt_in_an_unborn_branch_is_skipped_with_the_generic_warning
 
     assert committed is False
     assert warning == UPGRADE_COMMIT_SKIP_WARNING
+    assert subprocess.run(["git", "rev-parse", "--verify", "-q", "HEAD"], cwd=unborn, check=False).returncode != 0
 
 
 def test_raise_commit_failure_surfaces_a_rejecting_hook(unborn: Path) -> None:
