@@ -42,7 +42,6 @@ from specify_cli.skills.manifest import (
     _parse_manifest,
 )
 from specify_cli.skills.paths import (
-    get_claude_user_config_root,
     get_primary_global_skill_root,
     get_primary_project_skill_root,
     SkillPathObservation,
@@ -486,7 +485,11 @@ def _command_parent_receipts(assessment: OwnerAssessment) -> dict[Path, SkillPat
 
 def _agent_config_identity() -> str:
     return json.dumps(
-        {"agents": AGENT_SKILL_CONFIG, "global_home": str(Path.home()), "claude_config_root": str(get_claude_user_config_root())},
+        {
+            "agents": AGENT_SKILL_CONFIG,
+            "global_home": str(Path.home()),
+            "agent_roots": {key: str(get_primary_global_skill_root(key)) for key in sorted(AGENT_SKILL_CONFIG)},
+        },
         sort_keys=True,
         separators=(",", ":"),
     )

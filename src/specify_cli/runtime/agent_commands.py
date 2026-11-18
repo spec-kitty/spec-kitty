@@ -128,44 +128,13 @@ def get_global_command_dir(agent_key: str) -> Path:
         "opencode" → ~/.config/opencode/commands/
         "llxprt" → ~/Library/Preferences/llxprt-code/commands/ (macOS)
     """
-    from specify_cli.core.config import AGENT_COMMAND_CONFIG
+    from specify_cli.core.config import AGENT_COMMAND_CONFIG, agent_user_config_root
 
-    if agent_key == "claude":
-        from specify_cli.skills.paths import get_claude_user_config_root
-
-        return get_claude_user_config_root() / "commands"
-
-    if agent_key == "opencode":
-        custom_config_dir = os.environ.get("OPENCODE_CONFIG_DIR")
-        if custom_config_dir:
-            return Path(custom_config_dir).expanduser() / "commands"
-
-        xdg_config_home = os.environ.get("XDG_CONFIG_HOME")
-        if xdg_config_home:
-            return Path(xdg_config_home).expanduser() / "opencode" / "commands"
-
-        return Path.home() / ".config" / "opencode" / "commands"
-
-    if agent_key == "llxprt":
-        # LLxprt resolves its user-global config root via envPaths('llxprt-code')
-        # (packages/storage/src/config/path-resolver.ts); the legacy ~/.llxprt
-        # tree is migrated to that layout at startup and is no longer read.
-        custom_config_home = os.environ.get("LLXPRT_CONFIG_HOME")
-        if custom_config_home:
-            return Path(custom_config_home).expanduser() / "commands"
-
-        if sys.platform == "darwin":
-            return Path.home() / "Library" / "Preferences" / "llxprt-code" / "commands"
-
-        if is_windows():
-            app_data = os.environ.get("APPDATA", str(Path.home() / "AppData" / "Roaming"))
-            return Path(app_data) / "llxprt-code" / "Config" / "commands"
-
-        xdg_config_home = os.environ.get("XDG_CONFIG_HOME")
-        if xdg_config_home:
-            return Path(xdg_config_home).expanduser() / "llxprt-code" / "commands"
-
-        return Path.home() / ".config" / "llxprt-code" / "commands"
+    # Every agent with a documented config root keeps its global commands in
+    # ``<root>/commands`` (the single authority, ``agent_user_config_root``).
+    root = agent_user_config_root(agent_key)
+    if root is not None:
+        return root / "commands"
 
     config = AGENT_COMMAND_CONFIG[agent_key]
     return Path.home() / str(config["dir"])

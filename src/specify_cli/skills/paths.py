@@ -10,21 +10,7 @@ import stat
 
 from specify_cli.tool_surface.operations import FileState
 
-from specify_cli.core.config import AGENT_SKILL_CONFIG, SKILL_CLASS_WRAPPER
-
-#: Claude Code reads its user configuration from this directory when it is set
-#: (default ``~/.claude``), so user-global commands and skills must land there (#7701).
-CLAUDE_CONFIG_DIR_ENV = "CLAUDE_CONFIG_DIR"
-_CLAUDE_AGENT_KEY = "claude"
-_CLAUDE_PROJECT_DIR = ".claude"
-
-
-def get_claude_user_config_root() -> Path:
-    """Return Claude Code's user-global config root: ``$CLAUDE_CONFIG_DIR`` when set, else ``~/.claude``."""
-    custom = os.environ.get(CLAUDE_CONFIG_DIR_ENV)
-    if custom:
-        return Path(custom).expanduser()
-    return Path.home() / _CLAUDE_PROJECT_DIR
+from specify_cli.core.config import AGENT_SKILL_CONFIG, SKILL_CLASS_WRAPPER, user_global_path_for_project_path
 
 
 def get_primary_project_skill_root(agent_key: str) -> str | None:
@@ -50,19 +36,14 @@ def get_primary_global_skill_root(agent_key: str) -> Path | None:
     - ``.claude/skills`` -> ``~/.claude/skills``
     - ``.agents/skills`` -> ``~/.agents/skills``
 
-    Claude Code's root follows ``$CLAUDE_CONFIG_DIR`` when it is set
-    (``.claude/skills`` -> ``$CLAUDE_CONFIG_DIR/skills``).
+    A root beneath the agent's own config directory follows that agent's
+    documented user-global root (``.claude/skills`` -> ``$CLAUDE_CONFIG_DIR/skills``,
+    see ``agent_user_config_root``); a shared root stays under ``$HOME``.
     """
     root = get_primary_project_skill_root(agent_key)
     if root is None:
         return None
-
-    normalized = root.strip("/")
-    if agent_key == _CLAUDE_AGENT_KEY:
-        parts = Path(normalized).parts
-        if parts and parts[0] == _CLAUDE_PROJECT_DIR:
-            return get_claude_user_config_root().joinpath(*parts[1:])
-    return Path.home() / normalized
+    return user_global_path_for_project_path(agent_key, root)
 
 
 def get_project_skill_root_for_global_root(global_root: Path) -> str | None:

@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+import os
+import sys
 from collections.abc import Iterable
+from pathlib import Path
+
+from kernel.paths import is_windows
 
 AI_CHOICES = {
     "copilot": "GitHub Copilot",
@@ -72,6 +77,84 @@ AGENT_COMMAND_CONFIG: dict[str, dict[str, str]] = {
     # .agents/skills/ and keeps its AI_CHOICES / IDE_AGENTS / AGENT_SKILL_CONFIG rows.
     "llxprt": {"dir": ".llxprt/commands", "ext": "toml", "arg_format": "{{args}}"},
 }
+
+
+#: Project-local config directory of each agent that documents its own
+#: user-global config root. Only paths beneath this directory move with the
+#: root; a shared root such as ``.agents/skills`` always stays under ``$HOME``.
+AGENT_PROJECT_CONFIG_DIRS: dict[str, str] = {
+    "claude": ".claude",
+    "opencode": ".opencode",
+    "llxprt": ".llxprt",
+}
+CLAUDE_CONFIG_DIR_ENV = "CLAUDE_CONFIG_DIR"
+OPENCODE_CONFIG_DIR_ENV = "OPENCODE_CONFIG_DIR"
+LLXPRT_CONFIG_HOME_ENV = "LLXPRT_CONFIG_HOME"
+_XDG_CONFIG_HOME_ENV = "XDG_CONFIG_HOME"
+
+
+def _env_dir(name: str) -> Path | None:
+    value = os.environ.get(name)
+    return Path(value).expanduser() if value else None
+
+
+def _llxprt_user_config_root() -> Path:
+    # LLxprt resolves its root via envPaths('llxprt-code')
+    # (packages/storage/src/config/path-resolver.ts); ~/.llxprt is migrated away.
+    custom = _env_dir(LLXPRT_CONFIG_HOME_ENV)
+    if custom is not None:
+        return custom
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Preferences" / "llxprt-code"
+    if is_windows():
+        return Path(os.environ.get("APPDATA", str(Path.home() / "AppData" / "Roaming"))) / "llxprt-code" / "Config"
+    xdg = _env_dir(_XDG_CONFIG_HOME_ENV)
+    return (xdg if xdg is not None else Path.home() / ".config") / "llxprt-code"
+
+
+def _opencode_user_config_root() -> Path:
+    custom = _env_dir(OPENCODE_CONFIG_DIR_ENV)
+    if custom is not None:
+        return custom
+    xdg = _env_dir(_XDG_CONFIG_HOME_ENV)
+    return (xdg if xdg is not None else Path.home() / ".config") / "opencode"
+
+
+def agent_user_config_root(agent_key: str) -> Path | None:
+    """Return the agent's documented user-global config root, or ``None`` when it has none.
+
+    The single authority for these roots (#7701): user-global commands and the
+    agent's own skill roots resolve beneath it.
+
+    - ``claude``: ``$CLAUDE_CONFIG_DIR``, else ``~/.claude``
+    - ``opencode``: ``$OPENCODE_CONFIG_DIR``, else ``$XDG_CONFIG_HOME/opencode``, else ``~/.config/opencode``
+    - ``llxprt``: ``$LLXPRT_CONFIG_HOME``, else the platform config directory for ``llxprt-code``
+
+    An empty variable counts as unset. Agents without a documented root
+    return ``None``; their user-global paths mirror the project path under ``$HOME``.
+    """
+    if agent_key == "claude":
+        custom = _env_dir(CLAUDE_CONFIG_DIR_ENV)
+        return custom if custom is not None else Path.home() / AGENT_PROJECT_CONFIG_DIRS["claude"]
+    if agent_key == "opencode":
+        return _opencode_user_config_root()
+    if agent_key == "llxprt":
+        return _llxprt_user_config_root()
+    return None
+
+
+def user_global_path_for_project_path(agent_key: str, project_rel: str) -> Path:
+    """Map an agent's project-relative path (``.claude/skills``) to its user-global location.
+
+    A path beneath the agent's own project config directory moves under
+    :func:`agent_user_config_root`; any other path (a shared root such as
+    ``.agents/skills``) mirrors the project path under ``$HOME``.
+    """
+    parts = Path(project_rel.strip("/")).parts
+    root = agent_user_config_root(agent_key)
+    if root is not None and parts and parts[0] == AGENT_PROJECT_CONFIG_DIRS.get(agent_key):
+        return root.joinpath(*parts[1:])
+    return Path.home().joinpath(*parts)
 
 
 def configured_slash_agents(agent_keys: Iterable[str]) -> tuple[str, ...]:

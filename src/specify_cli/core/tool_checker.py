@@ -13,6 +13,10 @@ if TYPE_CHECKING:
 
 from specify_cli.core.config import AGENT_TOOL_REQUIREMENTS, IDE_AGENTS
 
+# Deliberately outside ``agent_user_config_root`` (#7709, D3): Claude Code's docs say
+# CLAUDE_CONFIG_DIR moves "settings, session history, and plugins"
+# (code.claude.com/docs/en/settings) and name no local-install location under it;
+# the native launcher is ~/.local/bin/claude (code.claude.com/docs/en/setup).
 CLAUDE_LOCAL_PATH = Path.home() / ".claude" / "local" / "claude"
 
 
