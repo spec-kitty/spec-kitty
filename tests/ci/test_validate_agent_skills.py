@@ -98,7 +98,7 @@ def test_isolated_env_points_home_and_xdg_into_scratch(tmp_path: Path) -> None:
 
 
 def test_init_command_runs_the_shared_and_a_native_agent() -> None:
-    assert vas.init_command("py") == ["py", "-m", "specify_cli", "init", ".", "--ai", "codex,claude", "--non-interactive"]
+    assert vas.init_command("py") == ["py", "-m", "specify_cli", "init", ".", "--ai", "codex,claude", "--non-interactive", "--no-commit"]
 
 
 def test_generate_project_runs_git_init_then_spec_kitty_init(tmp_path: Path) -> None:
@@ -112,12 +112,18 @@ def test_generate_project_runs_git_init_then_spec_kitty_init(tmp_path: Path) -> 
 
     assert (project, home) == (tmp_path / "project", tmp_path / "home")
     assert project.is_dir() and home.is_dir()
-    assert calls[0] == ["git", "init", "-q"] and calls[1][-3:] == ["--ai", "codex,claude", "--non-interactive"]
+    assert calls[0] == ["git", "init", "-q"] and calls[1][-4:] == ["--ai", "codex,claude", "--non-interactive", "--no-commit"]
 
 
 def test_generate_project_refuses_a_failed_init(tmp_path: Path) -> None:
     with pytest.raises(vas.EnvironmentPreparationError, match="exited 3: nope"):
         vas.generate_project(tmp_path, lambda argv: (3, "", "nope"))
+
+
+def test_generate_project_reports_stdout_when_stderr_is_empty(tmp_path: Path) -> None:
+    """init reports through its console on stdout (#7612 surfaced as a bare `exited 1:`)."""
+    with pytest.raises(vas.EnvironmentPreparationError, match="exited 1: Error \\(INIT_GIT_IDENTITY_MISSING\\)"):
+        vas.generate_project(tmp_path, lambda argv: (1, "Error (INIT_GIT_IDENTITY_MISSING): no identity", ""))
 
 
 # --- validation: the seeded bad skills fail, a good one passes (T033) -----------------------
