@@ -180,3 +180,25 @@ def test_abort_after_a_kill_past_the_snapshot_undoes_the_attestation(tmp_path: P
     assert aborted.returncode == 0, flat(aborted)
     assert tip(mission, NEW) == pre_new, flat(aborted)
     assert _merge_records(mission) == []
+
+
+def test_a_rerun_with_the_flags_after_a_kill_undoes_both_attestations(tmp_path: Path) -> None:
+    """Re-review MEDIUM-1: kill before the snapshot, re-run WITH the ``--attest-*`` flags, then fail.
+
+    The re-run attests again (a1 -> a2); the undo must chain to the first attestation's origin, so
+    the rollback leaves ``develop`` at its pre-run tip with no attestation event.
+    """
+    from tests.terminus.retarget_support import REASON, kill
+
+    attest = ("--attest-no-implementation", "WP01", "--attest-reason", REASON)
+    mission = _lanes(tmp_path, "01M7692G")
+    _check_out_override(mission)
+    pre_new = tip(mission, NEW)
+    killed = kill(mission, "phase_claim", "_capture_snapshot_and_begin_attempt", *RETARGET, *attest)
+    assert killed.returncode != 0 and _attestations(mission, NEW) == 1, flat(killed)
+
+    rerun = run_patched(mission, "executor", "_phase_merge_lanes", *RETARGET, *attest, kill=False)
+
+    assert rerun.returncode != 0, flat(rerun)
+    assert tip(mission, NEW) == pre_new, f"both attestations are undone. output={flat(rerun)}"
+    assert _attestations(mission, NEW) == 0

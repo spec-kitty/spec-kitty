@@ -1574,21 +1574,24 @@ _SKIP_WORKTREE_TAG = "S"
 
 
 def _index_bit(main_repo: Path, rel_path: Path) -> tuple[str, str] | None:
-    """``(bit name, the flag that clears it)`` when *rel_path* carries skip-worktree or assume-unchanged, else ``None``.
+    """``(bit name, the command that clears it)`` when *rel_path* carries skip-worktree and/or assume-unchanged, else ``None``.
 
-    A probe that cannot run reads as no bit: the primary-checkout precheck that follows
-    refuses any probe failure on its own.
+    ``ls-files -v`` tags ``S`` (skip-worktree), a lowercase letter (assume-unchanged) and ``s``
+    (both). One ``update-index`` call clears only one of the two bits, so for ``s`` the command is
+    two calls joined by ``&&`` (re-review LOW-4). A probe that cannot run reads as no bit: the
+    primary-checkout precheck that follows refuses any probe failure on its own.
     """
     try:
         entries = index_entries(main_repo, pathspecs=(rel_path.as_posix(),), tags=True)
     except GitCommandError:
         return None
     tag = (entries[0].tag or "") if entries else ""
-    if tag == _SKIP_WORKTREE_TAG:
-        return "skip-worktree", "--no-skip-worktree"
-    if tag.islower():
-        return "assume-unchanged", "--no-assume-unchanged"
-    return None
+    path = shlex.quote(rel_path.as_posix())
+    flags = [flag for flag, present in (("--no-skip-worktree", tag.upper() == _SKIP_WORKTREE_TAG), ("--no-assume-unchanged", tag.islower())) if present]
+    if not flags:
+        return None
+    names = {"--no-skip-worktree": "skip-worktree", "--no-assume-unchanged": "assume-unchanged"}
+    return " and ".join(names[flag] for flag in flags), " && ".join(f"git update-index {flag} {path}" for flag in flags)
 
 
 #: ``ls-files -v`` tags of a skip-worktree entry: ``S``, or ``s`` when it also carries assume-unchanged (review SW-2).
@@ -1627,7 +1630,7 @@ def _landing_paths(main_repo: Path, target_branch: str, branches: list[str]) -> 
 def skip_worktree_landing_refusal(main_repo: Path, mission_slug: str, lanes_manifest: LanesManifest, *, target_branch: str) -> Refused | None:
     """``CHECKOUT_SKIP_WORKTREE_ENTRIES`` when a checkout the run resyncs holds a skip-worktree entry it writes, else ``None``.
 
-    The run moves the Mission branch (lane merges) and *target_branch* (the landing) with
+    The run moves the Mission branch (each lane is consolidated into it) and *target_branch* (the landing) with
     :func:`~specify_cli.git.ref_advance.advance_branch_ref`, which resyncs every checkout holding
     the branch, and writes its bookkeeping (``meta.json``, the status files) into the Mission
     directory of the checkout on the target. A skip-worktree entry there hides the run's own write
@@ -1738,7 +1741,7 @@ def _new_target_checkout_refusal(main_repo: Path, mission_slug: str, rel_meta: P
             recorded_target,
             effective_target,
             f"{rel_meta.as_posix()} carries the {name} bit in the repository root checkout, so git cannot be trusted to read or rewrite it",
-            next_step=f"Clear the bit (`git update-index {clear} {rel_meta.as_posix()}`), then re-run with '--target {effective_target} --retarget'.",
+            next_step=f"Clear the bit (`{clear}`), then re-run with '--target {effective_target} --retarget'.",
         )
     reason = primary_checkout_refusal(main_repo, rel_meta, effective_target)
     if reason is None:

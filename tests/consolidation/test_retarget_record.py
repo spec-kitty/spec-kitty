@@ -618,3 +618,13 @@ def test_a_dirty_checkout_holding_the_mission_branch_is_the_named_refusal(
     assert excinfo.value.exit_code == 1
     out = " ".join(capsys.readouterr().out.split())
     assert f"Error: Cannot record the retarget main -> develop: {m.coord_branch}: Refusing to advance branch" in out, out
+
+
+def test_rebaseline_drops_a_spent_attestation_undo_seed() -> None:
+    """Review R2-a: the full restore undid the attestations the seed named; the seed is spent."""
+    state = ConsolidationState(mission_id="M", mission_slug="m", target_branch="develop", wp_order=[])
+    state.retarget = {**_retarget_record(committed=False), "attestation_undo": {"branch": "develop", "before": "b0", "after": "a1"}}
+
+    assert rollback.rebaseline_after_full_restore(state, ()) is True
+    assert state.retarget == _retarget_record(committed=False)
+    assert rollback.rebaseline_after_full_restore(state, ()) is False, "idempotent"
