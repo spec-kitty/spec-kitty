@@ -1282,7 +1282,7 @@ def test_ci_request_never_suggests_the_minutes_profile(tmp_path: Path) -> None:
         assert "--profile <id>" in envelope["suggestion"]
 
 
-_PIN_REASON = "built-in CI keywords arrive with the charter-service cutover; open-packs #302"
+_PIN_REASON = "#7714: built-in CI keywords arrive with the charter-service cutover (open-packs #302)"
 
 
 @pytest.mark.xfail(strict=True, reason=_PIN_REASON)
