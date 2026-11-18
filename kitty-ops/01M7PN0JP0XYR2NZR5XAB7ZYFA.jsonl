@@ -1,0 +1,4 @@
+{"event": "started", "invocation_id": "01M7PN0JP0XYR2NZR5XAB7ZYFA", "profile_id": "python-pedro", "action": "generate", "request_text": "Fix core #7704 P0 nightly perf red: doctor_ops 10k sweep budget and glossary test_pipeline_performance_100_terms 21x over budget; investigate root cause", "actor": "claude", "mode_of_work": "task_execution", "governance_context_hash": "d30e238a1bce52be", "governance_context_available": true, "started_at": "2026-11-18T06:20:30.029292+00:00"}
+{"event": "completed", "invocation_id": "01M7PN0JP0XYR2NZR5XAB7ZYFA", "completed_at": "2026-11-18T06:48:00.515259+00:00", "outcome": "done", "closed_by": "agent"}
+{"event": "artifact_link", "invocation_id": "01M7PN0JP0XYR2NZR5XAB7ZYFA", "at": "2026-11-18T06:48:00.521928+00:00", "kind": "artifact", "ref": "tests/_perf_helpers.py"}
+{"event": "commit_link", "invocation_id": "01M7PN0JP0XYR2NZR5XAB7ZYFA", "at": "2026-11-18T06:48:00.523225+00:00", "sha": "ac416881ee6b13eb4ba8c0605e2e12f8c27cf9c7"}
