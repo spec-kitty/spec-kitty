@@ -43,7 +43,6 @@ the smallest useful workflow.
 - Existing mission needs advancement: use `spk-run-next`.
 - Multi-mission or multi-repo program: use `spk-run-program-orchestrate`.
 - Review or approval work: use `spk-run-review-wp`, then `spk-gate-accept`.
-- Team, SaaS, tracker, or sync concern: use `spk-team-sync` or `spk-team-tracker`.
 - Charter or governance concern: use the `spk-charter-*` family.
 - Engineering practice (bulk edit, visuals, code reduction): use the `spk-practice-*` family.
 - Visual explanation or diagram request: use `spk-practice-show-me`.

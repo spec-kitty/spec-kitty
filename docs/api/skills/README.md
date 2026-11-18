@@ -65,6 +65,7 @@ re-listing it here.
 | `spk-run-program-orchestrate` | Multi-mission program orchestration | `spec-kitty-program-orchestrate` | — |
 | `spk-run-implement-review` | WP implementation/review orchestration | `spec-kitty-implement-review` | [spk-run-implement-review](spk-run-implement-review.md) |
 | `spk-run-review-wp` | Single-WP review | `spec-kitty-runtime-review` | — |
+| `spk-run-verdict-capture` | Record a WP review verdict via the event-log seam | — | — |
 | `spk-run-blocked-recovery` | Blocked-state recovery | — | — |
 
 ## spk-gate-*
@@ -72,7 +73,7 @@ re-listing it here.
 | Skill ID | Purpose | Legacy Alias | Deep Page |
 |---|---|---|---|
 | `spk-gate-accept` | Accept gate | — | — |
-| `spk-gate-merge` | Merge gate | — | — |
+| `spk-gate-consolidate` | Consolidation gate | — | — |
 | `spk-gate-mission-review` | Post-merge mission review | `spec-kitty-mission-review` | [spk-gate-mission-review](spk-gate-mission-review.md) |
 | `spk-gate-retrospective` | Post-merge retrospective | — | — |
 
@@ -84,15 +85,6 @@ re-listing it here.
 | `spk-admin-agent-config` | Agent setup | — | — |
 | `spk-admin-upgrade` | Upgrade and migrations | — | — |
 | `spk-admin-git-workflow` | Git and worktree workflows | `spec-kitty-git-workflow` | — |
-
-## spk-team-*
-
-| Skill ID | Purpose | Legacy Alias | Deep Page |
-|---|---|---|---|
-| `spk-team-auth` | Auth and accounts | — | — |
-| `spk-team-sync` | Hosted/team sync | — | — |
-| `spk-team-tracker` | Tracker workflows | — | — |
-| `spk-team-connectors` | Connector integrations | — | — |
 
 ## spk-charter-*
 

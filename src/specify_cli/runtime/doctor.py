@@ -192,6 +192,28 @@ def check_governance_resolution(project_dir: Path) -> DoctorCheck:
 _VERSION_MARKER_HEAD_LINES = 15
 
 
+def resolve_command_file_dirs(project_path: Path) -> dict[str, Path]:
+    """Return ``{agent_key: user-global command directory}`` for the project's configured agents.
+
+    The directory ``check_command_file_health`` inspects, resolved through
+    ``get_global_command_dir`` (so ``$CLAUDE_CONFIG_DIR`` and the other
+    documented config roots are honoured, #7701). Unknown directories are skipped.
+    """
+    from specify_cli.agent_utils.directories import AGENT_DIR_TO_KEY, get_agent_dirs_for_project
+    from specify_cli.runtime.agent_commands import get_global_command_dir
+
+    resolved: dict[str, Path] = {}
+    for agent_root, _subdir in get_agent_dirs_for_project(project_path):
+        agent_key = AGENT_DIR_TO_KEY.get(agent_root)
+        if agent_key is None or agent_key in resolved:
+            continue
+        try:
+            resolved[agent_key] = get_global_command_dir(agent_key)
+        except KeyError:
+            continue
+    return resolved
+
+
 def check_command_file_health(project_path: Path) -> list[dict[str, str]]:
     """Check all agent command files for correctness.
 

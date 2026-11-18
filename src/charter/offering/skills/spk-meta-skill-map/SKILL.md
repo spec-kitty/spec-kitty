@@ -21,9 +21,8 @@ Families:
 - `spk-mission-*`: authoring mission artifacts before runtime execution.
 - `spk-run-*`: runtime advancement, program orchestration, implementation,
   review, and blockers.
-- `spk-gate-*`: accept, merge, mission review, and retrospectives.
+- `spk-gate-*`: accept, consolidate, mission review, and retrospectives.
 - `spk-admin-*`: setup, configuration, upgrades.
-- `spk-team-*`: auth, sync, tracker, connectors.
 - `spk-charter-*`: charter governance, glossary, SPDD, profiles.
 - `spk-practice-*`: bulk-edit policy, visual communication, semantic
   compression.

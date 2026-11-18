@@ -14,7 +14,7 @@ branch state, commits, merge blockers, or stale repository state.
 2. Let Spec Kitty-managed git operations run through the CLI when available.
 3. Perform manual git operations only when the workflow explicitly requires it.
 4. Preserve user changes and avoid destructive repair.
-5. Return to `spk-gate-merge` or `spk-run-blocked-recovery` after repair.
+5. Return to `spk-gate-consolidate` or `spk-run-blocked-recovery` after repair.
 
 ## Legacy Alias
 

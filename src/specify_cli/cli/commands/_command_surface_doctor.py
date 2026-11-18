@@ -732,10 +732,20 @@ def run_command_files(json_output: bool) -> None:
             console.print(f"[green]Command Files[/green]: {empty_line}")
             raise typer.Exit(0)
         console.print("[green]Command Files[/green]: all files healthy")
+        _print_command_file_dirs(project_path)
         raise typer.Exit(0)
 
     _print_command_files_table(issues)
+    _print_command_file_dirs(project_path)
     raise typer.Exit(1)
+
+
+def _print_command_file_dirs(project_path: Path) -> None:
+    """Name the directory each configured agent's command files were checked in (#7701)."""
+    from specify_cli.runtime.doctor import resolve_command_file_dirs
+
+    for agent_key, directory in resolve_command_file_dirs(project_path).items():
+        console.print(f"  {agent_key}: {directory}", highlight=False, soft_wrap=True)
 
 
 # --- skills ------------------------------------------------------------------

@@ -122,13 +122,18 @@ def get_global_command_dir(agent_key: str) -> Path:
     beneath the user's home directory unless the agent has a documented
     user-global config root.  For example::
 
-        "claude" → ~/.claude/commands/
+        "claude" → ~/.claude/commands/ ($CLAUDE_CONFIG_DIR/commands/ when set)
         "gemini" → ~/.gemini/commands/
         "copilot" → ~/.github/prompts/
         "opencode" → ~/.config/opencode/commands/
         "llxprt" → ~/Library/Preferences/llxprt-code/commands/ (macOS)
     """
     from specify_cli.core.config import AGENT_COMMAND_CONFIG
+
+    if agent_key == "claude":
+        from specify_cli.skills.paths import get_claude_user_config_root
+
+        return get_claude_user_config_root() / "commands"
 
     if agent_key == "opencode":
         custom_config_dir = os.environ.get("OPENCODE_CONFIG_DIR")

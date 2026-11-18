@@ -13,6 +13,8 @@ RETIRED_CANONICAL_SKILL_NAMES = frozenset({
     "spk-team-upsun-cli-sync",
     # Removed with the bundled dashboard (#5530).
     "spk-admin-dashboard",
+    # Renamed to spk-gate-consolidate by the merge -> consolidate rename (#3080, #7702).
+    "spk-gate-merge",
     # Retired with the hosted Team Kitty surface (ADR 2026-10-06-1).
     "spk-team-auth",
     "spk-team-connectors",
