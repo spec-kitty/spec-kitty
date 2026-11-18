@@ -876,3 +876,24 @@ def test_a_cancelled_performance_verdict_names_a_redispatch_not_a_fix() -> None:
     assert result.passed is False
     assert "was cancelled" in result.summary
     assert "Fix the red" not in result.summary
+
+
+def test_a_green_performance_job_in_a_red_run_is_a_green_verdict() -> None:
+    # The Sunday run on a main ancestor went red on stress/e2e, but its performance
+    # job passed: the performance job alone decides the performance verdict.
+    red_run = _perf_run(800, sha=_ANCESTOR_SHA, age=timedelta(days=2)) | {"conclusion": "failure"}
+    jobs = [{"name": "Stress suite", "conclusion": "failure"}, {"name": _PERF_JOB_NAME, "conclusion": "success"}]
+    client = FakeClient([[_run(1, "completed", "success")]], perf_runs=[red_run], jobs={800: jobs})
+    result = mod.run_release_gate(client, tag=_TAG, dispatch=False, timeout=100, poll_interval=10)
+
+    assert result.passed is True
+    assert "run 800" in result.summary
+
+
+def test_a_red_performance_job_refuses_and_names_the_performance_job() -> None:
+    client = FakeClient([[_run(1, "completed", "success")]], perf_runs=[_perf_run(1)], jobs={1: _jobs("failure")})
+    result = mod.run_release_gate(client, tag=_TAG, dispatch=False, timeout=100, poll_interval=10)
+
+    assert result.passed is False
+    assert "the performance job of run 1" in result.summary
+    assert "concluded 'failure'" in result.summary
