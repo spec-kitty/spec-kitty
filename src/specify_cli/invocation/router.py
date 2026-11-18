@@ -254,6 +254,12 @@ DOCUMENTATION_DOMAIN_ALIASES: dict[str, frozenset[str]] = {
 #: NFR-002). Bounded so the message stays readable for a catalog of any size.
 _NEAREST_PROFILE_LIMIT = 3
 
+#: How many distinct role-defining keywords a profile must share with a request
+#: before a ``ROUTER_NO_MATCH`` refusal may name it (#7697). One shared word is
+#: incidental: ``actions`` and ``minutes`` in a CI request made the meeting-minutes
+#: profile the printed ``--profile`` remedy.
+_NEAREST_MIN_KEYWORD_HITS = 2
+
 
 # ---------------------------------------------------------------------------
 # Profile vocabulary helpers (pure)
@@ -343,30 +349,47 @@ def _collect_keyword_matches(
     return matches
 
 
+def _role_keywords(profile: object) -> list[str]:
+    """The role-defining vocabulary of one profile: its declared domain keywords.
+
+    Canonical verbs are left out on purpose (#7697): they name actions, not the
+    role, and a hyphenated verb splits into homonyms (``attribute-actions`` gives
+    ``actions``, ``transcribe-minutes`` gives ``minutes``).
+    """
+    sc = getattr(profile, "specialization_context", None)
+    return list(sc.domain_keywords) if sc and sc.domain_keywords else []
+
+
 def _nearest_profiles(profiles: list[object], tokens: list[str]) -> list[tuple[object, str, list[str]]]:
-    """Rank the profiles a refusal could have named (#6970 FR-004).
+    """Rank the profiles a refusal could have named (#6970 FR-004, #7697).
 
-    Overlap is the number of the request's normalized tokens that appear in the
-    profile's own normalized keyword/verb vocabulary. The order is total — overlap
-    desc, ``routing_priority`` desc, ``profile_id`` asc — so two identical calls
-    return identical candidates for any catalog order (NFR-001).
+    A profile qualifies only when at least ``_NEAREST_MIN_KEYWORD_HITS`` distinct
+    role-defining keywords (see :func:`_role_keywords`) share a normalized token
+    with the request. The order is total — keyword hits desc, shared tokens desc,
+    ``routing_priority`` desc, ``profile_id`` asc — so two identical calls return
+    identical candidates for any catalog order (NFR-001).
 
-    A profile with zero overlap is never listed: the refusal must not invent a
-    closest match that does not exist (FR-005).
+    A profile below the threshold is never listed: the refusal must not invent a
+    closest match that does not exist (FR-005), and an incidental one-word overlap
+    is not a match (#7697).
     """
     token_set = set(tokens)
-    scored: list[tuple[int, int, str, object, list[str]]] = []
+    scored: list[tuple[int, int, int, str, object, list[str]]] = []
     for profile in profiles:
-        vocabulary: set[str] = set()
-        for keyword in _profile_keywords(profile):
-            vocabulary.update(_keyword_tokens(keyword))
-        shared = sorted(token_set & vocabulary)
-        if not shared:
+        hits = 0
+        shared_tokens: set[str] = set()
+        for keyword in _role_keywords(profile):
+            overlap = token_set.intersection(_keyword_tokens(keyword))
+            if overlap:
+                hits += 1
+                shared_tokens.update(overlap)
+        if hits < _NEAREST_MIN_KEYWORD_HITS:
             continue
         priority = getattr(profile, "routing_priority", 0)
-        scored.append((len(shared), priority if isinstance(priority, int) else 0, str(getattr(profile, "profile_id", "")), profile, shared))
-    scored.sort(key=lambda entry: (-entry[0], -entry[1], entry[2]))
-    return [(profile, _default_action_for_role(getattr(profile, "role", None)), shared) for _, _, _, profile, shared in scored[:_NEAREST_PROFILE_LIMIT]]
+        shared = sorted(shared_tokens)
+        scored.append((hits, len(shared), priority if isinstance(priority, int) else 0, str(getattr(profile, "profile_id", "")), profile, shared))
+    scored.sort(key=lambda entry: (-entry[0], -entry[1], -entry[2], entry[3]))
+    return [(profile, _default_action_for_role(getattr(profile, "role", None)), shared) for _, _, _, _, profile, shared in scored[:_NEAREST_PROFILE_LIMIT]]
 
 
 def _quote_request(request_text: str) -> str:
@@ -403,8 +426,9 @@ def _no_match_suggestion(request_text: str, nearest: list[tuple[object, str, lis
 
     #6970 FR-004/FR-005: the reported session saw only ``ROUTER_NO_MATCH`` and had to
     guess a profile id. The suggestion now carries a runnable ``--profile`` command
-    naming a real candidate; when nothing overlaps it points at ``profiles list``
-    instead of inventing an id.
+    naming a real candidate; when no profile clears the #7697 keyword threshold it
+    says there is no close match and points at ``profiles list`` instead of
+    inventing an id.
     """
     quoted = _quote_request(request_text)
     if nearest:
@@ -416,7 +440,8 @@ def _no_match_suggestion(request_text: str, nearest: list[tuple[object, str, lis
             "or run 'spec-kitty profiles list' for the full catalog."
         )
     return (
-        "No profile matched and no profile shares a keyword with this request. "
+        "No profile matched and there is no close match: no profile shares "
+        f"{_NEAREST_MIN_KEYWORD_HITS} or more of its role keywords with this request. "
         "Run 'spec-kitty profiles list' to choose one, then retry with "
         f"'spec-kitty dispatch {quoted} --profile <id>'."
     )

@@ -943,25 +943,27 @@ def test_hyphenated_canonical_verb_matches_its_words() -> None:
 
 
 # Two-word keywords, so a request containing one word of a phrase produces a PARTIAL
-# overlap (the refusal path) rather than a keyword match (the decision path).
+# overlap (the refusal path) rather than a keyword match (the decision path). The
+# three named fixtures share a word with two distinct keywords each, which clears the
+# #7697 threshold for naming a profile in the remedy.
 _NO_MATCH_PROFILES: tuple[dict[str, Any], ...] = (
     {
         "profile_id": "python-fixture",
         "role_value": "implementer",
         "routing_priority": 80,
-        "domain_keywords": ["splines algorithm"],
+        "domain_keywords": ["splines algorithm", "reticulate mesh"],
     },
     {
         "profile_id": "java-fixture",
         "role_value": "implementer",
         "routing_priority": 80,
-        "domain_keywords": ["splines widget"],
+        "domain_keywords": ["splines widget", "reticulate grid"],
     },
     {
         "profile_id": "docs-fixture",
         "role_value": "curator",
         "routing_priority": 40,
-        "domain_keywords": ["splines gadget"],
+        "domain_keywords": ["splines gadget", "reticulate pattern"],
     },
     {
         "profile_id": "unrelated-fixture",
@@ -1026,6 +1028,59 @@ def test_no_match_refusal_is_bounded_and_deterministic() -> None:
 
     assert first == second
     assert len(first[0]) == 3
+
+
+def test_no_match_does_not_name_a_profile_on_one_incidental_keyword() -> None:
+    """#7697: one shared role keyword is not a close match; no `--profile` is printed."""
+    registry = _make_mock_registry(
+        [
+            {
+                "profile_id": "python-fixture",
+                "role_value": "implementer",
+                "routing_priority": 80,
+                "domain_keywords": ["splines algorithm", "mesh solver"],
+            },
+        ]
+    )
+
+    with pytest.raises(RouterAmbiguityError) as exc_info:
+        ActionRouter(registry).route("reticulate the splines")
+
+    err = exc_info.value
+    assert err.error_code == "ROUTER_NO_MATCH"
+    assert err.candidates == []
+    assert "no close match" in err.suggestion
+    assert "--profile <id>" in err.suggestion
+    assert "--profile python-fixture" not in err.suggestion
+    assert "profiles list" in err.suggestion
+
+
+def test_no_match_ignores_canonical_verb_fragments() -> None:
+    """#7697 repro shape: hyphenated verbs split into homonyms and never count as hits.
+
+    The meeting-minutes profile declares ``attribute-actions`` and ``transcribe-minutes``;
+    a CI request about "GitHub Actions minutes" shares ``actions`` and ``minutes`` with
+    them and must not be offered as the remedy.
+    """
+    registry = _make_mock_registry(
+        [
+            {
+                "profile_id": "minutes-fixture",
+                "role_value": "reviewer",
+                "routing_priority": 50,
+                "domain_keywords": [],
+                "collab_verbs": ["transcribe-minutes", "attribute-actions"],
+            },
+        ]
+    )
+
+    with pytest.raises(RouterAmbiguityError) as exc_info:
+        ActionRouter(registry).route("cut the GitHub Actions minutes")
+
+    err = exc_info.value
+    assert err.error_code == "ROUTER_NO_MATCH"
+    assert err.candidates == []
+    assert "minutes-fixture" not in err.suggestion
 
 
 def test_refusal_quoting_survives_a_quote_in_the_request() -> None:
