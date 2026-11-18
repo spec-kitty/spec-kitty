@@ -52,9 +52,10 @@ from typing import Any, cast
 
 import pytest
 import typer
-from click.testing import Result
-from typer.testing import CliRunner
+from typer.testing import CliRunner, Result
 
+import kernel.clock as clock_module
+from kernel.clock import UTC, UTC_SECOND_TIMESTAMP_FORMAT, FrozenClock, datetime
 from specify_cli.orchestrator_api.commands import app
 from tests._factories import provision_test_charter
 from tests._perf_helpers import assert_timing_budget
@@ -62,6 +63,9 @@ from tests._perf_helpers import assert_timing_budget
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 runner = CliRunner()
+
+_FROZEN_INSTANT = datetime(2026, 9, 3, tzinfo=UTC)
+_FROZEN_STAMP = _FROZEN_INSTANT.strftime(UTC_SECOND_TIMESTAMP_FORMAT)
 
 _POLICY = json.dumps(
     {
@@ -240,10 +244,14 @@ def _record_analysis(repo: Path, mission_slug: str, body: str, *, tmp_path: Path
 def test_check_prerequisites_field_parity_with_host_cli(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo = _init_repo(tmp_path)
     mission_slug, _feature_dir = _build_mission(repo, "wp04-scenario1")
-    monkeypatch.setattr(
-        "specify_cli.context.resolver.now_utc_iso",
-        lambda: "2026-09-03T00:00:00Z",
-    )
+    # Freeze the ONE clock door both calls read (#7703). ``NOW_UTC_ISO`` /
+    # ``runtime_vars.now_utc_iso`` come from ``mission_branch_context._utc_now_iso``
+    # -> ``kernel.clock.now_utc_stamp`` -> ``DEFAULT_CLOCK``; the orchestrator-api
+    # verb runs in-process (``CliRunner``), so this one injection freezes the
+    # host call and the verb alike. Patching a module-local alias (the former
+    # ``specify_cli.context.resolver.now_utc_iso`` patch) never reached the
+    # payload, so the two calls straddling a second boundary went red.
+    monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=_FROZEN_INSTANT))
 
     import contextlib
     import io
@@ -274,6 +282,13 @@ def test_check_prerequisites_field_parity_with_host_cli(tmp_path: Path, monkeypa
     for key, value in host_payload.items():
         assert key in data, f"missing field {key!r} from orchestrator-api check-prerequisites payload"
         assert data[key] == value, f"field {key!r} diverges: host={value!r} orch={data[key]!r}"
+
+    # The freeze must actually reach both payloads: a patch that misses the
+    # clock the payload reads would otherwise pass whenever both calls land in
+    # the same wall-clock second, and flake when they do not (#7703).
+    assert host_payload["NOW_UTC_ISO"] == _FROZEN_STAMP
+    assert data["NOW_UTC_ISO"] == _FROZEN_STAMP
+    assert data["runtime_vars"]["now_utc_iso"] == _FROZEN_STAMP
 
     # Transport-contract identity field.
     assert data["mission_slug"] == mission_slug
