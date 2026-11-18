@@ -854,6 +854,10 @@ _INIT_COMMIT_MESSAGE = "chore: initialize spec-kitty project"
 INIT_GIT_IDENTITY_MISSING = "INIT_GIT_IDENTITY_MISSING"
 #: git refused init's root commit on an unborn branch (typically a rejecting hook) (#7612).
 INIT_ROOT_COMMIT_FAILED = "INIT_ROOT_COMMIT_FAILED"
+#: init's root commit landed, but a pre-commit hook staged paths init did not write into it (#7612).
+INIT_ROOT_COMMIT_EXTRA_PATHS = "INIT_ROOT_COMMIT_EXTRA_PATHS"
+#: init's root commit landed, but the operator's staging could not be restored afterwards (#7612).
+INIT_ROOT_COMMIT_RECOVERY_FAILED = "INIT_ROOT_COMMIT_RECOVERY_FAILED"
 
 
 def _git_identity_problem(project_path: Path) -> str | None:
@@ -1019,14 +1023,17 @@ def _commit_init_root(project_path: Path, baseline: set[str]) -> tuple[bool, lis
     except SafeCommitUnrequestedPaths as exc:
         extra = ", ".join(exc.extra_paths)
         _console.print(
-            f"[yellow]Note:[/yellow] init made this repository's first commit ({exc.commit_sha}), but a pre-commit hook "
-            f"also staged path(s) init did not write, and they are in that commit: {escape(extra)}. "
-            "If they do not belong there, remove them from the index and record that in your next commit."
+            f"[yellow]Note ({INIT_ROOT_COMMIT_EXTRA_PATHS}):[/yellow] init made this repository's first commit ({exc.commit_sha}), "
+            f"but a pre-commit hook also staged path(s) init did not write, and they are in that commit: {escape(extra)}. "
+            "If they do not belong there, remove them from the index (`git rm --cached <path>`) and record that in your next commit."
         )
         return False, [], None
     except SafeCommitRecoveryFailed as exc:
         if exc.commit_sha:
-            _console.print(f"[yellow]Note:[/yellow] {escape(_render_init_recovery_failed(exc))}")
+            _console.print(
+                f"[yellow]Note ({INIT_ROOT_COMMIT_RECOVERY_FAILED}):[/yellow] init made this repository's first commit, "
+                f"{escape(_render_init_recovery_failed(exc))} Check `git status` and re-stage anything missing before your next commit."
+            )
             return False, [], None
         _refuse_failed_root_commit(project_path, baseline, str(exc))
     except Exception as exc:

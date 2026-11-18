@@ -25,7 +25,7 @@ import typer
 from rich.console import Console
 
 from specify_cli.cli.commands import init as init_module
-from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
+from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed, SafeCommitUnrequestedPaths
 from specify_cli.upgrade import autocommit
 from tests.integration.cli_mission_fixture_7545 import dirty, flat, git, isolated_env, run_sk
 
@@ -161,6 +161,7 @@ def test_a_hook_that_stages_extra_paths_is_named_after_the_root_commit_lands(tmp
     assert "first commit" in out
     assert "did not write" in out
     assert "notes.txt" in out
+    assert "INIT_ROOT_COMMIT_EXTRA_PATHS" in out
     assert "notes.txt" in git(repo, "ls-tree", "-r", "--name-only", "HEAD").splitlines()
 
 
@@ -205,7 +206,20 @@ def test_a_root_commit_that_landed_but_could_not_restore_staging_is_a_note(conso
 
     assert init_module._commit_init_root(tmp_path, set()) == (False, [], None)
     assert "Commit abc1234 did land" in console.getvalue()
+    assert "INIT_ROOT_COMMIT_RECOVERY_FAILED" in console.getvalue()
     assert "INIT_ROOT_COMMIT_FAILED" not in console.getvalue()
+
+
+def test_a_hook_staged_extra_path_root_commit_is_a_named_note(console: io.StringIO, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    exc = SafeCommitUnrequestedPaths(extra_paths=["notes.txt"], commit_sha="def5678", worktree_root=tmp_path)
+    monkeypatch.setattr(autocommit, "commit_touched_checkout", _raising(exc))
+
+    assert init_module._commit_init_root(tmp_path, set()) == (False, [], None)
+    out = console.getvalue()
+    assert "INIT_ROOT_COMMIT_EXTRA_PATHS" in out
+    assert "def5678" in out
+    assert "notes.txt" in out
+    assert "INIT_ROOT_COMMIT_FAILED" not in out
 
 
 def test_the_written_paths_summary_pluralizes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
