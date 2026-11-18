@@ -1115,3 +1115,12 @@ def test_recurrence_does_not_record_ids_when_the_report_is_unreadable() -> None:
     assert "update_body" not in _call_names(client)
     assert "Could not read the xunit report" in _call_args(client, "comment")[1]
     assert "The previous failure did not record test ids." not in _call_args(client, "comment")[1]
+
+
+def test_a_performance_escalation_explains_the_weekly_cadence_and_the_main_dispatch() -> None:
+    """#7704: the performance suite runs weekly, and only a run on main closes its P0."""
+    body = mod.issue_body("performance", "https://example.invalid/run/1")
+    assert "runs weekly" in body
+    assert "gh workflow run ci-nightly.yml --ref main" in body
+    assert body.index("runs weekly") < body.index(mod.escalation_marker("performance"))
+    assert "runs weekly" not in mod.issue_body("e2e", "https://example.invalid/run/1")

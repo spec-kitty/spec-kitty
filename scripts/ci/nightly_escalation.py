@@ -160,6 +160,21 @@ def job_result_note(job_result: str | None, report: XunitRead | None) -> str:
     return ""
 
 
+#: Suites that do not run every night (#7704). The note tells a fix's author how to
+#: get the closing verdict, since escalation only acts on runs of ``main``.
+_WEEKLY_SUITE_NOTES: dict[str, str] = {
+    "performance": (
+        "The `performance` suite runs weekly (the Sunday nightly), so the next green run may be days away. "
+        "To verify a fix sooner, dispatch the nightly on `main` "
+        "(`gh workflow run ci-nightly.yml --ref main`); a run on any other ref never closes this issue.\n\n"
+    ),
+}
+
+
+def _cadence_note(suite_key: str) -> str:
+    return _WEEKLY_SUITE_NOTES.get(suite_key, "")
+
+
 def issue_body(suite_key: str, run_url: str | None, *, report: XunitRead | None = None, job_result: str | None = None) -> str:
     """Return the body for a freshly created escalation issue (carries the marker)."""
     marker = escalation_marker(suite_key)
@@ -170,6 +185,7 @@ def issue_body(suite_key: str, run_url: str | None, *, report: XunitRead | None 
         "(`scripts/ci/nightly_escalation.py`, FR-007). It is deduped by the hidden "
         "marker below; a later failure comments here instead of opening a duplicate, "
         "and the next green nightly for this suite closes it automatically.\n\n"
+        f"{_cadence_note(suite_key)}"
         f"{marker}\n"
     )
     if report is not None:

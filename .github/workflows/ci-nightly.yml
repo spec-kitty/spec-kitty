@@ -116,6 +116,8 @@ jobs:
     runs-on: ubuntu-24.04
     # #6787: the 35-minute cap above left 2 minutes over the 32:51 suite of run 42442477189; the cap
     # now follows the #5378 record over the last 20 nightlies (17:25..32:51 suite wall-clock).
+    # Since #7704 the job runs weekly: a re-record takes the last 20 runs in which it EXECUTED
+    # (skipped Monday-Saturday runs carry no suite time), not the last 20 nightlies.
     # headroom (#5378): max-suite=32:51 runs=42442477189,42333589392,42156135564,41961190305,41766680757,41614103305,41609080994,41571798610,41382886325,41269035017,41163976364,40997330123,40812120655,40626642957,40444964589,40265057570,40158726274,40058682364,39895676431,39860951979 formula=ceil((max+0:30)*1.5)
     timeout-minutes: 51
     # `issues: write` is for the nightly red -> deduped-P0 escalation step

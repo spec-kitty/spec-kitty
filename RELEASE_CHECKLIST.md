@@ -27,7 +27,8 @@ Use this checklist for releases from `main`.
   missing, stale, red, or in-progress nightly). Because the `performance` job
   runs weekly (#7704), the gate also requires a green `ci-nightly` run from the
   **last 7 days in which the `performance` job executed** (skipped does not
-  count), on the release SHA or a `main` ancestor of it; without one it
+  count; the newest such run is the verdict, so a newer red outvotes an older
+  green), on the release SHA or a `main` ancestor of it; without one it
   dispatches the nightly by the tag, which always runs that job. To have the
   verdict before tagging, dispatch it yourself:
   `gh workflow run ci-nightly.yml --ref main`. That dispatch requires repo
