@@ -1101,13 +1101,13 @@ _PARTIAL_OVERLAP_PROFILES: tuple[dict[str, object], ...] = (
         "profile_id": "python-fixture",
         "role_value": "implementer",
         "routing_priority": 80,
-        "domain_keywords": ["splines algorithm"],
+        "domain_keywords": ["splines algorithm", "reticulate mesh"],
     },
     {
         "profile_id": "docs-fixture",
         "role_value": "curator",
         "routing_priority": 40,
-        "domain_keywords": ["splines gadget"],
+        "domain_keywords": ["splines gadget", "reticulate pattern"],
     },
 )
 
@@ -1256,3 +1256,47 @@ def test_issue_request_routes_through_the_dispatch_command(tmp_path: Path) -> No
     assert envelope["profile_id"] == "curator-carla"
     assert envelope["router_confidence"] == "domain_keyword"
     assert isinstance(envelope["alternatives"], list)
+
+
+# ---------------------------------------------------------------------------
+# #7697: a CI-workflow request against the REAL shipped catalog
+# ---------------------------------------------------------------------------
+
+_ISSUE_7697_REQUEST = (
+    "Trim the private dev repo CI matrix to Ubuntu only (Go 1.16.x and stable) to cut "
+    "GitHub Actions minutes; macOS and Windows coverage stays in the public CI. "
+    "Single-file change to .github/workflows/ci.yml, delivered as a PR."
+)
+
+
+def test_ci_request_never_suggests_the_minutes_profile(tmp_path: Path) -> None:
+    """#7697: incidental `actions`/`minutes` overlap never makes `minutes-mahad` the remedy."""
+    project = _setup_shipped_project(tmp_path)
+
+    result = _run(project, ["dispatch", _ISSUE_7697_REQUEST, "--dry-run", "--json"])
+
+    assert "minutes-mahad" not in result.output
+    envelope = json.loads(result.output)
+    if result.exit_code != 0:
+        assert envelope["error_code"] == "ROUTER_NO_MATCH"
+        assert "--profile <id>" in envelope["suggestion"]
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "#7697: CI/workflow vocabulary for implementer-ivan must be authored in "
+        "spec-kitty-open-packs and the built-in pin bumped; until then this request "
+        "has no routing signal in the shipped catalog."
+    ),
+)
+def test_ci_request_routes_to_an_implementer(tmp_path: Path) -> None:
+    """#7697: a single-file `.github/workflows` change is ordinary implementation work."""
+    project = _setup_shipped_project(tmp_path)
+
+    result = _run(project, ["dispatch", _ISSUE_7697_REQUEST, "--dry-run", "--json"])
+
+    assert result.exit_code == 0, result.output
+    envelope = json.loads(result.output)
+    assert envelope["profile_id"] == "implementer-ivan"
+    assert envelope["router_confidence"] == "domain_keyword"
