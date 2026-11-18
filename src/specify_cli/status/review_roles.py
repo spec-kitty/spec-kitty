@@ -47,8 +47,10 @@ __all__ = [
     "latest_implementer_actor",
     "latest_implementer_event",
     "latest_implementer_identity",
+    "latest_review_claimant",
     "profileless_claim_warning",
     "profileless_identity_warning",
+    "resubmitter_may_be_implementer",
 ]
 
 #: The actor role an ``in_review -> for_review`` re-submission records when the implementer
@@ -123,13 +125,33 @@ def _submission_actor_ok(event: StatusEvent) -> bool:
 
 
 def _recorded_role(actor: object) -> str | None:
-    """The role the event recorded for its actor: a structured actor's ``role``, or a compact string's fourth segment."""
-    if isinstance(actor, dict):
-        role = actor.get("role")
-        return str(role).strip() or None if role else None
-    text = str(actor).strip() if actor else ""
-    segments = text.split(":")
-    return segments[3].strip() or None if len(segments) == 4 else None
+    """The role a structured actor recorded, or ``None``.
+
+    Only a structured (dict) actor counts: ``move-task`` writes one, and a compact string's
+    role segment is discarded by every writer (ruling 1), so an older log's fourth segment
+    never asserts an implementer act retroactively (#7712).
+    """
+    if not isinstance(actor, dict):
+        return None
+    role = actor.get("role")
+    return str(role).strip() or None if role else None
+
+
+def resubmitter_may_be_implementer(review_claimant: str | None, resubmitter: str | None) -> bool:
+    """Whether an ``--as-implementer`` re-submission may be the implementer's act, given the review claim (#7712).
+
+    ``False`` when the review claim recorded a model or profile and *resubmitter* is not
+    provably another identity (ruling 7): the reviewer handing its own review back must not
+    complete the implementer's identity with its own. A bare or unknown review claimant
+    proves nothing either way, so the explicit assertion stands.
+    """
+    if not review_claimant or not review_claimant.strip(":"):
+        return True
+    tool, _, rest = review_claimant.partition(":")
+    if not rest.strip(":"):
+        return True
+    independent: bool = actor_identities_independent(review_claimant, resubmitter)
+    return independent
 
 
 def _is_implementer_submission(event: StatusEvent) -> bool:
@@ -167,6 +189,42 @@ def _is_new_claim_cycle(event: StatusEvent) -> bool:
     return not event.force and (Lane(event.from_lane).value, Lane(event.to_lane).value) == (Lane.PLANNED.value, Lane.CLAIMED.value)
 
 
+def _is_placeholder_new_cycle(event: StatusEvent) -> bool:
+    """An unforced ``planned -> claimed`` by a placeholder actor: a new cycle whose implementer is not yet known."""
+    if not _is_new_claim_cycle(event) or is_migration_actor(event.actor):
+        return False
+    key = _actor_key(event.actor)
+    return key is None or key in GENERIC_IMPLEMENTATION_ACTORS
+
+
+def _is_review_claim(event: StatusEvent) -> bool:
+    """A move into ``in_review``: its actor is the review claimant."""
+    return Lane(event.to_lane).value == Lane.IN_REVIEW.value and _submission_actor_ok(event)
+
+
+def _submission_may_refine(event: StatusEvent, submitter: str | None, others: Sequence[str], review_claimant: str | None) -> bool:
+    """Whether a submission's identity may complete the implementer of record (#7712).
+
+    Never when the submitter is not provably independent of an identity kept beside the record
+    (whoever forced a rewind or took over must not fill the original claim with its own
+    identity), nor, for an ``--as-implementer`` re-submission, when it may be the review claimant.
+    """
+    if any(not actor_identities_independent(other, submitter) for other in others):
+        return False
+    if Lane(event.from_lane).value == Lane.IN_REVIEW.value:
+        return resubmitter_may_be_implementer(review_claimant, submitter)
+    return True
+
+
+def latest_review_claimant(events: Sequence[StatusEvent], wp_id: str) -> str | None:
+    """Full identity of ``wp_id``'s latest review claim (a move into ``in_review``), or ``None``."""
+    for event in reversed(events):
+        if event.wp_id == wp_id and _is_review_claim(event):
+            claimant: str | None = actor_full_identity(event.actor)
+            return claimant
+    return None
+
+
 def implementer_identities(events: Sequence[StatusEvent], wp_id: str) -> tuple[str, ...]:
     """Every identity that implemented ``wp_id`` in its current claim cycle, implementer of record first (#7712).
 
@@ -182,17 +240,23 @@ def implementer_identities(events: Sequence[StatusEvent], wp_id: str) -> tuple[s
       unblock), never changes the record: its identity is kept beside it as a further
       implementer, since whoever moved the work package into an implementing lane may have
       reworked it (#6955);
-    * a submission refines the record (#7159).
+    * an unforced ``planned -> claimed`` by a placeholder actor starts a new cycle with no
+      implementer known yet;
+    * a submission refines the record (#7159), unless its submitter may be an identity kept
+      beside the record or, for an ``--as-implementer`` re-submission, the review claimant.
 
     An approval must be independent of every identity returned
     (:func:`independent_of_implementers`). Empty when no qualifying claim exists.
     """
     record: str | None = None
     others: list[str] = []
+    review_claimant: str | None = None
     for event in events:
         if event.wp_id != wp_id:
             continue
-        if _qualifies(event):
+        if _is_placeholder_new_cycle(event):
+            record, others = None, []
+        elif _qualifies(event):
             identity = actor_full_identity(event.actor)
             if identity is None:
                 continue
@@ -202,8 +266,12 @@ def implementer_identities(events: Sequence[StatusEvent], wp_id: str) -> tuple[s
                 record = refine_actor_identity(record, identity)
             elif identity not in others:
                 others.append(identity)
+        elif _is_review_claim(event):
+            review_claimant = actor_full_identity(event.actor)
         elif record is not None and _is_implementer_submission(event):
-            record = refine_actor_identity(record, actor_full_identity(event.actor))
+            submitter = actor_full_identity(event.actor)
+            if _submission_may_refine(event, submitter, others, review_claimant):
+                record = refine_actor_identity(record, submitter)
     if record is None:
         return ()
     return (record, *(other for other in others if other != record))

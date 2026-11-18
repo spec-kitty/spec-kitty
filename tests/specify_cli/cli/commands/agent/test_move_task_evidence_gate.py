@@ -507,3 +507,18 @@ def test_as_implementer_passes_on_the_resubmission_and_is_a_no_op_when_unset() -
     move_task_module._mt_require_as_implementer_hop(st)
     st.as_implementer = True
     move_task_module._mt_require_as_implementer_hop(st)
+
+
+def test_as_implementer_is_refused_for_the_review_claimant(monkeypatch: pytest.MonkeyPatch) -> None:
+    """S1b: the reviewer handing its own review back cannot record the implementer's identity."""
+    monkeypatch.setattr(move_task_module, "_mt_review_claimant", lambda _st: "claude::reviewer-renata")
+    st = _state(Lane.FOR_REVIEW, old_lane=Lane.IN_REVIEW, force=True, agent="claude::reviewer-renata")
+    st.as_implementer = True
+
+    with pytest.raises(ActionContextError) as refused:
+        move_task_module._mt_require_as_implementer_hop(st)
+
+    assert refused.value.code == "AS_IMPLEMENTER_HOP_INVALID"
+    assert "review was claimed by claude::reviewer-renata" in str(refused.value)
+    st.agent = "claude::curator-carla"
+    move_task_module._mt_require_as_implementer_hop(st)
