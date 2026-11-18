@@ -810,3 +810,69 @@ def test_the_default_clock_is_the_kernel_clock_door() -> None:
 
     signature = inspect.signature(inspect.unwrap(mod.run_release_gate), follow_wrapped=False)
     assert signature.parameters["now"].default is now_utc
+
+
+def test_the_gate_runs_under_a_bare_isolated_python3() -> None:
+    """The release job runs the script with a bare ``python3``: the kernel.clock door must stay stdlib-only."""
+    import subprocess
+
+    completed = subprocess.run(
+        [sys.executable, "-I", "-S", str(_SCRIPT_PATH), "--help"],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert "--dispatch" in completed.stdout
+
+
+def test_an_older_red_run_on_the_same_commit_does_not_stand_in_for_the_awaited_one() -> None:
+    # Squad re-check (renata, finding 1): run 0 on the release commit is an older red;
+    # run 1 is in flight, then green with the performance job skipped. The awaited
+    # run went green, so --dispatch must still supply the performance verdict.
+    clock = FakeClock()
+    batches = [
+        [_run(0, "completed", "failure"), _run(1, "in_progress")],
+        [_run(0, "completed", "failure"), _run(1, "completed", "success")],
+        [_run(0, "completed", "failure"), _run(1, "completed", "success")],
+        [_run(0, "completed", "failure"), _run(1, "completed", "success"), _run(2, "completed", "success")],
+    ]
+    client = FakeClient(
+        batches,
+        jobs={1: _jobs("skipped"), 2: _jobs("success")},
+        recent_by_poll=[[], [_perf_run(1)], [_perf_run(1)], [_perf_run(1), _perf_run(2, age=timedelta(minutes=5))]],
+    )
+    result = mod.run_release_gate(client, tag=_TAG, dispatch=True, timeout=1000, poll_interval=10, sleep=clock.sleep, monotonic=clock.monotonic)
+
+    assert result.passed is True
+    assert client.dispatched == [{"ref": _TAG, "mode": "full"}]
+
+
+def test_one_deadline_bounds_the_wait_and_the_dispatch_together() -> None:
+    # Squad re-check (renata, finding 2): an in-flight wait followed by a dispatch
+    # must not take twice --timeout.
+    clock = FakeClock()
+    client = FakeClient(
+        [[_run(1, "in_progress")]] * 30 + [[_run(1, "completed", "success")]],
+        jobs={1: _jobs("skipped")},
+        recent_by_poll=[[]] * 30 + [[_perf_run(1)]],
+    )
+    result = mod.run_release_gate(client, tag=_TAG, dispatch=True, timeout=1000, poll_interval=10, sleep=clock.sleep, monotonic=clock.monotonic)
+
+    assert result.passed is False
+    assert "timed out" in result.summary
+    assert clock.monotonic() <= 1000 + 10
+
+
+def test_a_cancelled_performance_verdict_names_a_redispatch_not_a_fix() -> None:
+    client = FakeClient(
+        [[_run(1, "completed", "success")]],
+        perf_runs=[_perf_run(11) | {"conclusion": "cancelled"}],
+        jobs={11: _jobs("cancelled")},
+    )
+    result = mod.run_release_gate(client, tag=_TAG, dispatch=False, timeout=100, poll_interval=10)
+
+    assert result.passed is False
+    assert "was cancelled" in result.summary
+    assert "Fix the red" not in result.summary
