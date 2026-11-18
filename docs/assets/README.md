@@ -1,7 +1,7 @@
 ---
 title: Documentation assets
 description: 'Static assets for the Spec Kitty documentation site: stylesheets, images, and the standalone backlog and evolution HTML views.'
-doc_status: active
+doc_status: draft
 kind: Hub
 updated: '2026-06-27T00:00:00Z'
 related:

@@ -126,11 +126,8 @@ def test_an_ssh_lockfile_repo_is_caught() -> None:
 
 
 def _published_top_level_folders() -> set[str]:
-    folders = set()
-    for path in DOCS.iterdir():
-        if path.is_dir() and not path.name.startswith(("_", ".")) and not contract.is_excluded(path.name) and any(path.rglob("*.md")):
-            folders.add(path.name)
-    return folders
+    """Top-level folders holding at least one published page; a drafts-only folder is not a section (#7681)."""
+    return {page.split("/", 1)[0] for page in contract.published_pages(DOCS) if "/" in page and not page.startswith("_")}
 
 
 def test_every_published_section_is_registered() -> None:
@@ -148,6 +145,58 @@ def test_plans_has_restricted_feeds() -> None:
     sections = {section["id"]: section for section in yaml.safe_load(_read(SECTIONS))["sections"]}
 
     assert sections["plans"]["feeds"] == ["sitemap"], "plans: no llms, agent or rss feed (ADR D-8)"
+
+
+#: Maintainer sections kept out of llms.txt and the agent feed (#7681, ADR D-8).
+_RESTRICTED_FEEDS = {
+    "plans": ["sitemap"],
+    "adr": ["sitemap"],
+    "development": ["sitemap"],
+    "contracts": ["sitemap"],
+    "changelog": ["sitemap", "rss"],
+}
+
+
+@pytest.mark.parametrize(("section_id", "feeds"), sorted(_RESTRICTED_FEEDS.items()))
+def test_maintainer_sections_leave_llms_and_agent_feeds(section_id: str, feeds: list[str]) -> None:
+    sections = {section["id"]: section for section in yaml.safe_load(_read(SECTIONS))["sections"]}
+
+    assert sections[section_id]["feeds"] == feeds
+    assert not {"llms", "agent"} & set(sections[section_id]["feeds"])
+
+
+#: Pages the site no longer publishes (#7681): the ADR template, the moved-stub at the docs
+#: root and the hubs of the drafts-only placeholder and asset folders.
+_UNPUBLISHED = (
+    "architecture/adr-template.md",
+    "retrospective-learning-loop.md",
+    "security/README.md",
+    "integrations/README.md",
+    "assets/README.md",
+)
+
+
+def test_template_stub_and_placeholder_pages_are_not_published() -> None:
+    published = contract.published_pages(DOCS)
+
+    for page in _UNPUBLISHED:
+        assert (DOCS / page).is_file(), f"{page} stays in the tree"
+        assert page not in published, f"{page} must not be published"
+
+
+def test_drafts_only_folders_are_not_registered_sections() -> None:
+    ids = {section["id"] for section in yaml.safe_load(_read(SECTIONS))["sections"]}
+
+    assert not {"assets", "security", "integrations"} & ids
+
+
+def test_previously_published_routes_still_redirect() -> None:
+    redirects = json.loads(_read(SITE / "legacy-redirects.json"))
+
+    assert redirects["/architecture/adr-template.html"] == "/architecture/"
+    assert redirects["/security/index.html"] == "/"
+    assert redirects["/integrations/index.html"] == "/"
+    assert redirects["/retrospective-learning-loop.html"] == "/architecture/retrospective-learning-loop/"
 
 
 # --- working-note folders are drafts (#6932, FR-001) --------------------------------------------

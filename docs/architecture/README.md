@@ -217,7 +217,7 @@ Every page in `docs/architecture/`. These pages capture design rationale and mod
 
 ### Templates & reference
 
-- [ADR template](adr-template.md) — the shared ADR authoring template used by all eras.
+- [ADR template](https://github.com/spec-kitty/spec-kitty/blob/main/docs/architecture/adr-template.md) — the shared ADR authoring template used by all eras (kept in the repository, not published on the site).
 - [Pip vs pipx vs uv](pip-vs-pipx-vs-uv.md) — which installer to use for the Spec Kitty CLI.
 
 ### Historical / prior cycle

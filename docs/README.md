@@ -77,22 +77,12 @@ Already using Spec Kitty? Head to [Migrations](migrations/README.md) if you're u
   <a class="sk-doc-card" href="api">
     <span class="sk-card-kicker">Reference</span>
     <strong>Reference</strong>
-    <span>API, configuration, integrations, and security — exact behavior, no narrative.</span>
+    <span>API and configuration — exact behavior, no narrative.</span>
   </a>
   <a class="sk-doc-card" href="configuration">
     <span class="sk-card-kicker">Configuration</span>
     <strong>Configuration</strong>
     <span>Configuration files, flags, and environment variables.</span>
-  </a>
-  <a class="sk-doc-card" href="integrations">
-    <span class="sk-card-kicker">Integrations</span>
-    <strong>Integrations</strong>
-    <span>AI harness and external-system integration.</span>
-  </a>
-  <a class="sk-doc-card" href="security">
-    <span class="sk-card-kicker">Security</span>
-    <strong>Security</strong>
-    <span>Security posture, credentials, and secrets handling.</span>
   </a>
   <a class="sk-doc-card" href="guides">
     <span class="sk-card-kicker">Guides</span>
@@ -139,8 +129,6 @@ Already using Spec Kitty? Head to [Migrations](migrations/README.md) if you're u
 | API | [api/index.md](api/README.md) |
 | Reference | [reference/index.md](api/README.md) |
 | Configuration | [configuration/index.md](configuration/README.md) |
-| Integrations | [integrations/index.md](integrations/README.md) |
-| Security | [security/index.md](security/README.md) |
 | Guides | [guides/index.md](guides/README.md) |
 | Operations | [operations/index.md](operations/README.md) |
 | Migrations | [migrations/index.md](migrations/README.md) |

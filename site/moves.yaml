@@ -423,3 +423,4 @@ moves:
   - {from: /plans/testing/index.html, to: /plans/testing/README.html, ref: "#6939"}
   - {from: /plans/user_journey/index.html, to: /plans/user_journey/README.html, ref: "#6939"}
   - {from: /security/index.html, to: /security/README.html, ref: "#6939"}
+  - {from: /retrospective-learning-loop.html, to: /architecture/retrospective-learning-loop.html, ref: "#7681"}
