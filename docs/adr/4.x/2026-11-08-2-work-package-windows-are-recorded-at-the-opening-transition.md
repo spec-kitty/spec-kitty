@@ -693,7 +693,7 @@ the command that restores the branch: `git fetch origin <b>:<b>` when this clone
 holds it (`refs/remotes/origin/<b>`; the pre-flight contacts no remote), else
 `git branch <b> <commit holding the work>`. Move-task's `SINGLE_BRANCH_IMPLEMENTATION_UNREADABLE`
 prints the `git branch` form. Recreating the branch is safe now, because the gate judges the work.
-Fetching it automatically is out of scope (a separate follow-up).
+Fetching it automatically, through `kernel.git.remote`, is #7730.
 
 **Residual.** A work package's own merge commit is not judged under ruling B: conflict-resolution
 edits inside it escape the first-parent, non-merge filter. This is the same residual the approved

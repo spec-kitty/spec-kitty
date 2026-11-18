@@ -133,7 +133,8 @@ def _missing_destination_remedy(repo_root: Path, branch: str) -> str:
     When this clone's view of ``origin`` holds the branch, fetch it into a local branch;
     otherwise create it at the commit that holds the work. "Origin holds it" is read from the
     remote-tracking ref, never by contacting the remote: a policy pre-flight makes no network
-    call (remote reads belong to ``kernel.git.remote``).
+    call (remote reads belong to ``kernel.git.remote``). A live check of origin, or fetching the
+    branch automatically, is #7730.
     """
     if _origin_tracking_ref_exists(repo_root, branch):
         return f"Fetch it from origin, then retry: git fetch origin {branch}:{branch}"
