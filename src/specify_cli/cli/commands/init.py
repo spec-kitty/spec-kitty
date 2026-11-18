@@ -970,7 +970,6 @@ def _commit_init_writes(project_path: Path, baseline: set[str] | None) -> None:
         if identity_problem is not None:
             _note_root_commit_skipped_for_identity(project_path, baseline, identity_problem)
             return
-    if root_commit:
         # #7612: on an unborn branch init's commit is the repository's root commit.
         committed, paths, warning = _commit_init_root(project_path, baseline)
         _report_init_commit(committed, paths, warning, baseline)
