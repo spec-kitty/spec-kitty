@@ -95,6 +95,7 @@ _MAINLINE_BRANCH = "main"
 _JOB_EXECUTED_CONCLUSION = "success"
 # Job conclusions meaning the job did not run (a skipped job carries "skipped").
 _NOT_EXECUTED_CONCLUSIONS = frozenset({"skipped"})
+_CANCELLED_CONCLUSION = "cancelled"
 # Compare statuses meaning the base commit is reachable from the head commit.
 _ANCESTOR_COMPARE_STATUSES = frozenset({"ahead", "identical"})
 
@@ -229,6 +230,12 @@ def find_performance_verdict(client: NightlyGateClient, release_sha: str, *, now
 
 def _red_performance_summary(release_sha: str, tag: str, verdict: PerformanceVerdict) -> str:
     run = verdict.run
+    if verdict.job_conclusion == _CANCELLED_CONCLUSION:
+        return (
+            f"the newest performance verdict covering {release_sha} was cancelled: run {run.get('id')} "
+            f"({run.get('head_sha')}, {run.get('created_at')}); an older green run does not outvote it. Dispatch "
+            f"ci-nightly again by the release tag (gh workflow run {_WORKFLOW_FILE} --ref {tag}), or run this gate with --dispatch"
+        )
     return (
         f"the newest performance verdict covering {release_sha} is red: run {run.get('id')} "
         f"({run.get('head_sha')}, {run.get('created_at')}) concluded {run.get('conclusion')!r} with the performance job "
@@ -289,11 +296,11 @@ def _poll_to_terminal(
 ) -> ReleaseGateResult:
     """Wait until a nightly for ``release_sha`` concludes, then decide.
 
-    Any ``success`` run for the SHA passes the gate immediately. When
-    ``baseline_ids`` is given (the dispatch path) only runs OUTSIDE that set --
-    the freshly dispatched run -- can drive a negative verdict, so a pre-existing
-    red run never short-circuits a dispatch, and a run that has not yet appeared
-    keeps the gate waiting. A negative verdict is drawn only once the relevant
+    Both verdicts passing ends the wait. When ``baseline_ids`` is given, only runs
+    OUTSIDE that set can drive a negative verdict -- on the dispatch path the
+    freshly dispatched run, on the in-flight path the runs that were still in
+    flight when the wait began -- so a pre-existing red run never stands in for
+    the awaited one, and a run that has not yet appeared keeps the gate waiting. A negative verdict is drawn only once the relevant
     run(s) are terminal with nothing still in flight; the deadline fails closed.
     """
     while True:
@@ -341,15 +348,21 @@ def run_release_gate(
 
     # An in-flight nightly for the SHA: wait for its terminal result rather than
     # racing it with a fresh dispatch (contract), regardless of --dispatch.
+    # One deadline bounds the whole gate, so a wait followed by a dispatch never
+    # takes twice ``timeout``.
+    deadline = monotonic() + timeout
     if any(_is_in_flight(run) for run in runs):
+        # Runs already completed before the wait are not what is being waited for:
+        # an older red run on the same commit must not stand in for the awaited one.
+        already_completed = frozenset(int(run.get("id", 0)) for run in runs if _is_completed(run))
         waited = _poll_to_terminal(
             client,
             release_sha,
-            deadline=monotonic() + timeout,
+            deadline=deadline,
             poll_interval=poll_interval,
             sleep=sleep,
             monotonic=monotonic,
-            baseline_ids=None,
+            baseline_ids=already_completed,
             tag=tag,
             now=now,
         )
@@ -373,7 +386,7 @@ def run_release_gate(
     return _poll_to_terminal(
         client,
         release_sha,
-        deadline=monotonic() + timeout,
+        deadline=deadline,
         poll_interval=poll_interval,
         sleep=sleep,
         monotonic=monotonic,
@@ -409,6 +422,7 @@ class _CachingClient:
 
     def list_run_jobs(self, run_id: int) -> list[dict[str, Any]]:
         # Only completed runs reach this call (find_performance_verdict), so their jobs are final.
+        # A re-run of that run during the wait is not seen; a cached red then errs toward no publish.
         if run_id not in self._jobs:
             self._jobs[run_id] = self._inner.list_run_jobs(run_id)
         return self._jobs[run_id]
