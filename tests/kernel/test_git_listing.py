@@ -233,6 +233,13 @@ def test_log_paths_dedups_in_first_seen_order(tmp_path: Path) -> None:
     assert _argv(run) == ("-c", "diff.relative=false", "log", "-z", "--name-only", "--format=", "--no-renames", "main..HEAD", "--")
 
 
+def test_log_paths_first_parent_walks_only_the_first_parent_chain(tmp_path: Path) -> None:
+    """#7726: ``first_parent`` adds ``--first-parent``, so commits a merge brought in are not listed."""
+    with _stub(b"a\x00") as run:
+        assert listing.log_paths(tmp_path, "main..HEAD", first_parent=True) == (P("a"),)
+    assert _argv(run) == ("-c", "diff.relative=false", "log", "-z", "--name-only", "--format=", "--no-renames", "--first-parent", "main..HEAD", "--")
+
+
 def test_tracked_paths_and_index_entries(tmp_path: Path) -> None:
     with _stub(b"a b/f\x00") as run:
         assert listing.tracked_paths(tmp_path, pathspecs=("a b",)) == (P("a b/f"),)

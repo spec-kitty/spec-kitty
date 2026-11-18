@@ -505,6 +505,7 @@ def log_paths(
     pathspecs: Sequence[str] = (),
     glob: bool = False,
     remerge_merges: bool = False,
+    first_parent: bool = False,
     env: Env = None,
     timeout: float | None = None,
 ) -> tuple[GitPath, ...]:
@@ -515,10 +516,12 @@ def log_paths(
     without it a merge lists nothing (git's default for ``log``). git skips an octopus
     merge (3 or more parents) under ``remerge``, so with *remerge_merges* each octopus
     merge contributes its full diff against its first parent instead: a superset of its
-    own changes, never an under-count.
+    own changes, never an under-count. With *first_parent* only the first-parent chain of
+    *rev_range* is walked, so the commits a merge brought in are not listed (#7726).
     """
     merges = ["--diff-merges=remerge"] if remerge_merges else []
-    base = [*_REPO_RELATIVE_DIFF, "log", "-z", "--name-only", "--format=", "--no-renames"]
+    walk = ["--first-parent"] if first_parent else []
+    base = [*_REPO_RELATIVE_DIFF, "log", "-z", "--name-only", "--format=", "--no-renames", *walk]
     raw = _git(cwd, [*base, *merges, rev_range], pathspecs, glob=glob, env=env, timeout=timeout)
     if remerge_merges:
         octopus = ["--min-parents=3", "--diff-merges=first-parent"]

@@ -466,3 +466,62 @@ def test_an_absent_mission_branch_names_the_command_that_restores_it(templates: 
     assert code != 0, flat
     assert ("DESTINATION_REF_NOT_FOUND" if force else "implementation window") in flat, flat
     assert f"git branch {branch} <commit holding the work>" in flat, flat
+
+
+def test_ctt_rename_then_rewrite_keeps_the_old_path_judged(
+    templates: _Templates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Renames are split in the first-parent listing, so a moved protected file's old path is still judged."""
+    m = _checkout(templates, "ctt", tmp_path, monkeypatch)
+    sb.claim(m, "WP01")
+    sb.implement(m, "WP01")
+    sb.git(m.repo, "mv", "config.yaml", "settings.yaml")
+    sb.git(m.repo, "commit", "-qm", "feat(WP01): move config")
+    (m.repo / "settings.yaml").write_text("entirely: different\ncontent: here\n", encoding="utf-8")
+    sb.git(m.repo, "commit", "-qam", "feat(WP01): rewrite the moved config")
+    sb.emit(m, "WP01", "for_review", "alice", "--force", "--reason", "handed to review")
+    with pytest.raises(typer.Exit):
+        _gate(m)
+    assert "config.yaml" in " ".join(capsys.readouterr().out.split())
+
+
+def test_ctt_work_that_arrives_only_through_a_merge_is_refused_not_passed(
+    templates: _Templates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Every changed path is behind a merge: nothing the work package committed itself can be judged, so it refuses."""
+    m = _checkout(templates, "ctt", tmp_path, monkeypatch)
+    sb.claim(m, "WP01")
+    sb.git(m.repo, "checkout", "-q", "-b", "side")
+    (m.repo / "src" / "m1").mkdir(parents=True, exist_ok=True)
+    (m.repo / "src" / "m1" / "real.py").write_text("VALUE = 1\n", encoding="utf-8")
+    sb.git(m.repo, "add", "-A", "src")
+    sb.git(m.repo, "commit", "-qm", "feat(WP01): work on a side branch")
+    sb.git(m.repo, "checkout", "-q", "main")
+    sb.git(m.repo, "merge", "-q", "--no-ff", "--no-edit", "side")
+    sb.emit(m, "WP01", "for_review", "alice", "--force", "--reason", "handed to review")
+    with pytest.raises(typer.Exit):
+        _gate(m)
+    assert "BULK_EDIT_REVIEW_RANGE_EMPTY" in " ".join(capsys.readouterr().out.split())
+
+
+def test_ctt_edit_folded_into_the_work_package_merge_is_judged(
+    templates: _Templates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A merge on the first-parent chain contributes what its own resolution introduced (remerge diff)."""
+    m = _checkout(templates, "ctt", tmp_path, monkeypatch)
+    sb.claim(m, "WP01")
+    sb.implement(m, "WP01")
+    sb.git(m.repo, "checkout", "-q", "-b", "foreign", "main~1")
+    (m.repo / "notes.md").write_text("foreign\n", encoding="utf-8")
+    sb.git(m.repo, "add", "notes.md")
+    sb.git(m.repo, "commit", "-qm", "foreign: notes")
+    sb.git(m.repo, "checkout", "-q", "main")
+    sb.git(m.repo, "merge", "-q", "--no-ff", "--no-commit", "foreign")
+    (m.repo / "config.yaml").write_text("oldName: false\n", encoding="utf-8")
+    sb.git(m.repo, "add", "config.yaml")
+    sb.git(m.repo, "commit", "-qm", "merge foreign, folding in a do_not_change edit")
+    sb.emit(m, "WP01", "for_review", "alice", "--force", "--reason", "handed to review")
+    with pytest.raises(typer.Exit):
+        _gate(m)
+    output = " ".join(capsys.readouterr().out.split())
+    assert "config.yaml" in output and "notes.md" not in output, output

@@ -21,6 +21,11 @@ def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, check=False)
 
 
+def local_branch_exists(repo: Path, branch: str) -> bool:
+    """Whether ``refs/heads/<branch>`` resolves in *repo* (no network)."""
+    return _git(repo, "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}").returncode == 0
+
+
 def switch_checkout_to_target(repo: Path, mission_branch: str, target_branch: str) -> None:
     """Return the write checkout to *target_branch* after *mission_branch* landed.
 

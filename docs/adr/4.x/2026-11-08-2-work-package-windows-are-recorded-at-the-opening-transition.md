@@ -673,11 +673,15 @@ claimed the work package, and no wider base stands in for it. The review context
 and shows no range.
 
 **Branches others commit to (ruling B).** On a commit-to-target `single_branch` Mission and in the
-planning-lane window, the gate judges only the paths that the non-merge first-parent commits of the
-window touched, each with its net change over the window (`bulk_edit/gate.py::_first_parent_paths`).
-A foreign commit that a merge brings in is not judged. A foreign commit that a rebase or a
-fast-forward puts on the first-parent chain cannot be told apart from the work package's own commits,
-so it is judged (fail-closed).
+planning-lane window, the gate judges only the paths that the window's first-parent chain changed
+itself, each with its net change over the window (`bulk_edit/gate.py::_first_parent_paths`, through
+`kernel.git.listing.log_paths(first_parent=True, remerge_merges=True)`). Renames are split, so a moved
+file's old path stays judged. A merge on the chain contributes only what its own resolution
+introduced (its diff against git's automatic re-merge), never the commits it brought in. A foreign
+commit that a rebase or a fast-forward puts on the first-parent chain cannot be told apart from the
+work package's own commits, so it is judged (fail-closed). When every changed path came in only
+through merges, nothing the work package committed itself can be judged, and the gate refuses
+`BULK_EDIT_REVIEW_RANGE_EMPTY`.
 
 **Refusals** (`bulk_edit/gate.py::review_range_refusal`, `workflow.py::_planning_lane_window`), none
 of them a pass:
@@ -695,9 +699,13 @@ holds it (`refs/remotes/origin/<b>`; the pre-flight contacts no remote), else
 prints the `git branch` form. Recreating the branch is safe now, because the gate judges the work.
 Fetching it automatically, through `kernel.git.remote`, is #7730.
 
-**Residual.** A work package's own merge commit is not judged under ruling B: conflict-resolution
-edits inside it escape the first-parent, non-merge filter. This is the same residual the approved
-bound names for content inside a merge commit (ADR `2026-10-04-5`, its residuals list).
+**Residuals.**
+- The ruling named a work package's own merge commit as a fail-open edge (the approved bound's
+  "content inside a merge commit", ADR `2026-10-04-5`). The remerge diff closes it for a two-parent
+  merge: an edit folded into the merge is judged. An octopus merge (3 or more parents) contributes its
+  full first-parent diff instead, a superset that can include foreign content (fail-closed).
+- `--diff-merges=remerge` needs git 2.36 or later; an older git refuses the window rather than
+  judging less.
 
 ## References
 
