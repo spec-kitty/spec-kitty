@@ -6,8 +6,9 @@ init commit what it wrote, but only on a branch that already had a commit. Now:
 * the root commit holds exactly the files init wrote; a file the operator already
   had (untracked or staged) stays out of it, and their staging is kept;
 * ``--no-commit`` still opts out;
-* with no git identity, init refuses before writing anything
-  (``INIT_GIT_IDENTITY_MISSING``);
+* with no git identity, init writes its files, skips the root commit and exits 0
+  with the named note ``INIT_GIT_IDENTITY_MISSING`` (operator ruling: a note, not
+  a refusal, as before #7612);
 * when git refuses the commit (a rejecting hook), init exits 1 naming
   ``INIT_ROOT_COMMIT_FAILED``, the files it wrote, and the remedy.
 """
@@ -90,19 +91,21 @@ def test_no_commit_leaves_the_branch_unborn(tmp_path: Path) -> None:
     assert ".kittify/config.yaml" in dirty(repo)
 
 
-def test_missing_identity_refuses_before_writing_anything(tmp_path: Path) -> None:
+def test_missing_identity_writes_the_files_and_skips_the_commit_with_a_named_note(tmp_path: Path) -> None:
     repo, env = _unborn_repo(tmp_path, identity=False)
     # The precondition this test relies on: git really refuses to commit here.
     assert _git_env(repo, env, "var", "GIT_COMMITTER_IDENT").returncode != 0
 
     proc = run_sk(repo, env, *_INIT)
 
-    assert proc.returncode == 1, flat(proc)[-2000:]
+    assert proc.returncode == 0, flat(proc)[-2000:]
     out = flat(proc)
     assert "INIT_GIT_IDENTITY_MISSING" in out
     assert "git config user.email" in out
-    assert "--no-commit" in out
-    assert sorted(p.name for p in repo.iterdir()) == [".git"]
+    assert ".kittify/" in out
+    assert (repo / ".kittify" / "config.yaml").is_file()
+    assert _git_env(repo, env, "rev-parse", "--verify", "-q", "HEAD").returncode != 0
+    assert ".kittify/config.yaml" in dirty(repo)
 
 
 def test_missing_identity_does_not_block_no_commit(tmp_path: Path) -> None:
