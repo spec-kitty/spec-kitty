@@ -27,6 +27,7 @@ from tests.architectural.test_upgrade_recovery_preservation import (
     export_tree,
     git,
     recover,
+    require_full_history,
     run_gate,
 )
 
@@ -432,6 +433,7 @@ def test_real_upgrade_yes_leaves_a_damaged_corpus_untouched(tmp_path: Path) -> N
     default) readiness is not even evaluated; ``doctor mission-state --fix``
     is the only consent path.
     """
+    require_full_history()  # skip before the slow init, not at export_tree
     repo = tmp_path / "upgrade-project"
     repo.mkdir()
     env = isolated_env(tmp_path / "upgrade-home")

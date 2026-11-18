@@ -343,8 +343,7 @@ def export_tree(repo: Path, rev: str, *paths: str, source: Path = REPO_ROOT) -> 
 
     ``rev`` is a pinned historical revision a shallow ``source`` may not hold,
     so the shallow-clone guard runs first: otherwise ``git archive`` exits 128
-    and every caller (here, ``test_dead_port_snapshot_recovery`` and
-    ``tests/upgrade/test_mission_corpus_recovery``) reads it as a product failure.
+    and the caller reads it as a product failure.
     """
     require_full_history(source)
     payload = git(source, "archive", rev, "--", *paths)
@@ -948,7 +947,8 @@ def test_require_full_history_fails_shallow_clone_under_ci(_shallow_history_repo
 
 
 def test_export_tree_skips_shallow_clone_locally(_shallow_history_repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    # HEAD~1 is outside the depth-1 history, like the pinned recovery revisions.
+    # HEAD~1 is outside the depth-1 history, like the pinned recovery revisions:
+    # without the guard, git archive raises CalledProcessError instead.
     monkeypatch.delenv("CI", raising=False)
     with pytest.raises(pytest.skip.Exception, match="git fetch --unshallow"):
         export_tree(tmp_path / "out", "HEAD~1", source=_shallow_history_repo)
