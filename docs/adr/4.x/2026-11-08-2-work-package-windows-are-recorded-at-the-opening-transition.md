@@ -669,12 +669,20 @@ submission is still judged. The diff leaves out the Mission bookkeeping the rang
 - `BULK_EDIT_REVIEW_RANGE_EMPTY`: a range with no commit outside Mission bookkeeping;
 - `BULK_EDIT_REVIEW_TIP_REWRITTEN`: the submitted tip is no longer on its branch.
 
+**Planning lane without a range.** A planning-lane work package of a `lanes_with_coord` Mission whose
+coordination branch is not its planning branch has no review range (ruling Q10: its status events
+sit apart from its work). The gate judges it from its recorded claim base (`refs/.../wp-base`), else
+the Mission's recorded planning commit, to the head of its planning write branch, without Mission
+bookkeeping (`review.wp_range.bookkeeping_pathspecs`). The review context keeps ruling Q10 and shows
+no range.
+
 **Residuals.**
-- On a commit-to-target `single_branch` Mission, foreign commits that land on the target between the
-  claim and the submission fall inside the range and are judged against the occurrence map.
-- A planning-lane work package of a `lanes_with_coord` Mission whose coordination branch is not its
-  planning branch has no range (ruling Q10), so a bulk-edit gate on it always refuses. The refusal
-  says so; re-submitting cannot help. This needs an operator ruling.
+- On a commit-to-target `single_branch` Mission, and on the planning-lane window above, commits that
+  others land on the same branch inside the window are judged against the occurrence map. Pending an
+  operator ruling.
+- A minted `single_branch` Mission writes its status to its Mission branch, so a status move without
+  that branch locally refuses `DESTINATION_REF_NOT_FOUND` (status routing, ADR `2026-11-06-2`, not
+  the review range). Recreating the branch at the work's head is safe now: the gate judges the work.
 
 ## References
 
