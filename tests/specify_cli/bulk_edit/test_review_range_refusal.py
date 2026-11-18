@@ -4,6 +4,7 @@ and names the commits it did not judge (``_note_unjudged_commits``)."""
 from __future__ import annotations
 
 from io import StringIO
+from pathlib import Path
 
 import pytest
 from rich.console import Console
@@ -11,6 +12,9 @@ from rich.console import Console
 from specify_cli.bulk_edit.gate import (
     BULK_EDIT_REVIEW_RANGE_EMPTY,
     BULK_EDIT_REVIEW_RANGE_UNAVAILABLE,
+    BULK_EDIT_REVIEW_TIP_REWRITTEN,
+    ReviewRangeFacts,
+    resubmit_command,
     review_range_refusal,
 )
 from specify_cli.cli.commands.agent.workflow import _note_unjudged_commits
@@ -29,16 +33,19 @@ def _refusal(
     gap: str | None = None,
     commit_count: int = 1,
     listing_gap: str | None = None,
+    tip_off_branch: bool = False,
+    planning_lane: bool = False,
 ) -> str | None:
-    refusal: str | None = review_range_refusal(
-        wp_id="WP01",
-        mission_slug="m-01M7",
+    facts = ReviewRangeFacts(
         base=base,
         tip=tip,
         gap=gap,
         commit_count=commit_count,
         listing_gap=listing_gap,
+        tip_off_branch=tip_off_branch,
+        planning_lane=planning_lane,
     )
+    refusal: str | None = review_range_refusal(facts, wp_id="WP01", mission_slug="m-01M7")
     return refusal
 
 
@@ -85,7 +92,21 @@ def test_an_empty_range_is_refused(base: str, commit_count: int) -> None:
     assert "--to for_review" in message
 
 
-def _range(*, moved_past: int = 0, tip_off_branch: bool = False) -> WpReviewRange:
+def test_a_rewritten_tip_is_refused() -> None:
+    message = _refusal(tip_off_branch=True)
+    assert message is not None
+    assert message.startswith(BULK_EDIT_REVIEW_TIP_REWRITTEN)
+    assert resubmit_command("WP01", "m-01M7") in message
+
+
+def test_a_planning_lane_without_a_range_names_why_resubmitting_cannot_help() -> None:
+    message = _refusal(base=None, tip=None, gap="not_recorded", planning_lane=True)
+    assert message is not None and BULK_EDIT_REVIEW_RANGE_UNAVAILABLE in message
+    assert "planning lane" in message
+    assert "Fetch the commits" not in message
+
+
+def _range(*, moved_past: int = 0, listing_gap: str | None = None) -> WpReviewRange:
     return WpReviewRange(
         wp_id="WP01",
         base=_BASE,
@@ -95,7 +116,7 @@ def _range(*, moved_past: int = 0, tip_off_branch: bool = False) -> WpReviewRang
         gap=None,
         status=RangeStatus.RECORDED,
         moved_past=moved_past,
-        tip_off_branch=tip_off_branch,
+        listing_gap=listing_gap,
     )
 
 
@@ -115,7 +136,18 @@ def test_commits_past_the_submission_are_named_as_unjudged() -> None:
     assert "move-task WP01 --to for_review --mission m-01M7" in notes
 
 
-def test_a_rewritten_branch_is_named_as_unjudged() -> None:
-    notes = _notes(_range(moved_past=3, tip_off_branch=True))
-    assert "no longer on its branch" in notes
-    assert "moved 3" not in notes
+def test_a_failed_moved_past_count_is_named() -> None:
+    notes = _notes(_range(listing_gap="numstat, moved-past"))
+    assert "could not count the commits past WP01's submitted tip" in notes
+
+
+def test_an_unreadable_status_surface_reads_as_no_lane_head(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The gate's topology probe never raises; the range resolution reports the same failure as a refusal."""
+    import specify_cli.status as status
+    from specify_cli.cli.commands.agent.workflow import _review_gate_topology
+
+    def _broken(*_args: object, **_kwargs: object) -> object:
+        raise RuntimeError("status surface unreadable")
+
+    monkeypatch.setattr(status, "resolve_status_read", _broken)
+    assert _review_gate_topology(Path("."), "m-01M7", "WP01") == (False, False, None)

@@ -657,14 +657,24 @@ head (the review workspace branch). On `single_branch` those two named the same 
 diffed `X..X` and passed having checked nothing; with that branch absent locally it refused on
 `rev-parse`. The range's ends are recorded commits, so no local Mission branch is read.
 
-**Refusals.** An `UNAVAILABLE` range refuses with `BULK_EDIT_REVIEW_RANGE_UNAVAILABLE` and its gap; a
-range with no commit outside Mission bookkeeping refuses with `BULK_EDIT_REVIEW_RANGE_EMPTY`
-(`bulk_edit/gate.py::review_range_refusal`). Neither is a pass.
+**Head.** On `single_branch` the gate judges up to the submission: commits past it can be another
+work package's, so they are named as not judged (re-submitting judges them). On a lane topology it
+judges up to the lane's live head, as the gate did before, so a commit added to a lane after its
+submission is still judged. The diff leaves out the Mission bookkeeping the range excludes
+(`WpReviewRange.bookkeeping_pathspecs`), so a ticked task file never blocks the Mission's own review.
 
-**Residual.** The range ends at the submission. Commits after it (`moved_past`), or a rewritten lane
-(`tip_off_branch`), are named as not judged, not refused: on `single_branch` the commits past a
-submission can be another work package's. On `lanes` and `lanes_with_coord` this narrows the gate
-from the live lane tip to the submitted tip; re-submitting judges the later commits.
+**Refusals** (`bulk_edit/gate.py::review_range_refusal`), none of them a pass:
+- `BULK_EDIT_REVIEW_RANGE_UNAVAILABLE`: an `UNAVAILABLE` range, with its gap and a remedy, or a
+  commit listing that failed;
+- `BULK_EDIT_REVIEW_RANGE_EMPTY`: a range with no commit outside Mission bookkeeping;
+- `BULK_EDIT_REVIEW_TIP_REWRITTEN`: the submitted tip is no longer on its branch.
+
+**Residuals.**
+- On a commit-to-target `single_branch` Mission, foreign commits that land on the target between the
+  claim and the submission fall inside the range and are judged against the occurrence map.
+- A planning-lane work package of a `lanes_with_coord` Mission whose coordination branch is not its
+  planning branch has no range (ruling Q10), so a bulk-edit gate on it always refuses. The refusal
+  says so; re-submitting cannot help. This needs an operator ruling.
 
 ## References
 
