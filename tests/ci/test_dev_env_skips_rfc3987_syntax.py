@@ -37,8 +37,16 @@ _RELEASE_ONLY_GROUP = "sbom"
 
 
 def _lock() -> dict[str, dict[str, Any]]:
+    """Packages by name; a name locked at several versions gets the union of their edges."""
     data = tomllib.loads((_REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
-    return {package["name"]: package for package in data["package"]}
+    packages: dict[str, dict[str, Any]] = {}
+    for package in data["package"]:
+        merged = packages.setdefault(package["name"], {"dependencies": [], "optional-dependencies": {}, "dev-dependencies": {}})
+        merged["dependencies"] = [*merged["dependencies"], *package.get("dependencies", ())]
+        for key in ("optional-dependencies", "dev-dependencies"):
+            for extra, deps in package.get(key, {}).items():
+                merged[key][extra] = [*merged[key].get(extra, ()), *deps]
+    return packages
 
 
 def _edges(entries: Iterable[dict[str, Any]]) -> list[tuple[str, tuple[str, ...]]]:

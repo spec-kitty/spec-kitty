@@ -174,9 +174,17 @@ def test_guard_evaluator_rejects_unknown_atoms() -> None:
 
 @pytest.mark.parametrize("workflow", [p.name for p in _automated_workflows()])
 def test_a_fork_guard_names_no_event_its_workflow_is_not_triggered_by(workflow: str) -> None:
-    """A guard atom for an event the workflow never receives is dead code (#7704)."""
+    """A guard atom for an event the workflow never receives is dead code (#7704).
+
+    Scope: the leading fork guard of each self-starting job, the same jobs and
+    conjunct the guard tests above pin. A reusable workflow (``workflow_call``)
+    sees its CALLER's event, so its atoms cannot be judged from its own triggers
+    and it is skipped.
+    """
     data = _load(WORKFLOWS_DIR / workflow)
     triggers = _triggers(data)
+    if "workflow_call" in triggers:
+        pytest.skip(f"{workflow} is reusable; github.event_name is the caller's event")
     dead = set()
     for name, job in _self_starting_jobs(data):
         for event in re.findall(r"github\.event_name == '(\w+)'", _leading_guard(str(job["if"]))):

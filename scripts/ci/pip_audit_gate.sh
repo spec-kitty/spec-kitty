@@ -5,7 +5,9 @@
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 req="${1:-${RUNNER_TEMP:-/tmp}/pip-audit-requirements.txt}"
-uv export --frozen --no-hashes --all-extras --no-emit-project --no-emit-workspace -o "$req" >/dev/null
+# --all-groups as well as --all-extras: the release job installs the non-default
+# `sbom` group (cyclonedx-bom and its closure, #7704), so it must be audited too.
+uv export --frozen --no-hashes --all-extras --all-groups --no-emit-project --no-emit-workspace -o "$req" >/dev/null
 ignores=()
 while read -r line; do
   id="${line%%#*}"
