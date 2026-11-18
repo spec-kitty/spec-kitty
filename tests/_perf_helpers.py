@@ -243,6 +243,47 @@ def assert_timing_budget(measured: float, budget: float, *, name: str = "elapsed
     assert measured <= budget, f"{name} budget exceeded: measured={measured!r} > budget={budget!r}"
 
 
+#: Timed calls per in-process measurement (:func:`median_in_process_seconds`).
+#: Five, as for the spawned series (:data:`SAMPLE_RUNS`): a one-off stall of the
+#: shared runner lands in at most a minority of them, so it cannot decide the
+#: median, while a real regression slows every call and still moves it (#7704).
+IN_PROCESS_SAMPLE_RUNS = 5
+
+
+def median_in_process_seconds(
+    prepare: Callable[[str], Callable[[], object]],
+    *,
+    runs: int = IN_PROCESS_SAMPLE_RUNS,
+    warmups: int = 1,
+    clock: Callable[[], float] = time.perf_counter,
+) -> float:
+    """Median wall clock of *runs* timed in-process calls, after *warmups* untimed ones (#7704).
+
+    ``prepare(label)`` builds one fresh, untimed fixture (a repository, a
+    pipeline, a context) and returns the zero-argument call to time. Labels are
+    ``"warmup-<n>"`` and ``"sample-<n>"``, so a caller can give every call its own
+    directory.
+
+    The warm-up keeps a once-per-process cost out of the figure: the first
+    glossary event of a process imports ``jsonschema`` (about 1 s in the dev
+    environment, where the ``lint`` extra pulls in ``rfc3987-syntax``), so a
+    single-shot test measured whichever test ran first in the process, not the
+    code. Every timed call counts: this is a fixed sampling design, not a retry,
+    and a slower code path moves every sample.
+    """
+    if runs < 1:
+        raise ValueError(f"runs must be at least 1, got {runs}")
+    for index in range(warmups):
+        prepare(f"warmup-{index}")()
+    timings: list[float] = []
+    for index in range(runs):
+        call = prepare(f"sample-{index}")
+        start = clock()
+        call()
+        timings.append(clock() - start)
+    return statistics.median(timings)
+
+
 def expect_budget_exceeded(measured: float, budget: float, *, name: str) -> None:
     """Assert that *measured* is over *budget*: the planted-work counterpart of :func:`assert_timing_budget`.
 

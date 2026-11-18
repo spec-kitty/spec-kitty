@@ -36,6 +36,7 @@ from pathlib import Path
 import pytest
 
 from tests._perf_helpers import (
+    IN_PROCESS_SAMPLE_RUNS,
     OWNED_CHECKOUT_RATIO_LIMIT,
     OWNED_LOWEST_CLEAN_RATIO,
     OWNED_PLANT_MAX_FRACTION_OF_FLOOR,
@@ -53,6 +54,7 @@ from tests._perf_helpers import (
     fixed_workload_argv,
     measure_group,
     measure_interleaved,
+    median_in_process_seconds,
     plant_source,
     spawn_timed,
     with_plant,
@@ -112,6 +114,56 @@ def test_default_sample_count_is_the_documented_five() -> None:
     log: list[str] = []
     measure_interleaved(_scripted([1.0] * 5, log=log, tag="c"), _scripted([1.0] * 5, log=log, tag="f"))
     assert (log.count("c"), log.count("f")) == (5, 5)
+
+
+class _StepClock:
+    """A clock that advances by the duration the running call scripts, never on its own."""
+
+    def __init__(self) -> None:
+        self.now = 0.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
+def _scripted_calls(clock: _StepClock, durations: list[float], log: list[str]):
+    pending = iter(durations)
+
+    def prepare(label: str):
+        log.append(f"prepare:{label}")
+
+        def call() -> None:
+            log.append(f"call:{label}")
+            if label.startswith("sample-"):
+                clock.now += next(pending)
+
+        return call
+
+    return prepare
+
+
+def test_in_process_median_ignores_one_stalled_call_and_skips_the_warmup() -> None:
+    """#7704: one stalled call (4.3 s against ~0.06 s) cannot decide the figure."""
+    clock = _StepClock()
+    log: list[str] = []
+    median = median_in_process_seconds(_scripted_calls(clock, [0.06, 4.3, 0.07, 0.06, 0.08], log), clock=clock)
+    assert median == pytest.approx(0.07)
+    assert log[:2] == ["prepare:warmup-0", "call:warmup-0"]
+    assert log.count("call:warmup-0") == 1
+    assert [entry for entry in log if entry.startswith("call:sample-")] == [f"call:sample-{i}" for i in range(5)]
+
+
+def test_in_process_median_moves_when_every_call_is_slower() -> None:
+    """A real regression slows every sample, so the median still crosses a budget."""
+    clock = _StepClock()
+    median = median_in_process_seconds(_scripted_calls(clock, [0.5] * 5, []), clock=clock)
+    assert median == pytest.approx(0.5)
+
+
+def test_in_process_default_sample_count_is_five_and_rejects_zero() -> None:
+    assert IN_PROCESS_SAMPLE_RUNS == 5
+    with pytest.raises(ValueError, match="at least 1"):
+        median_in_process_seconds(lambda label: lambda: None, runs=0)
 
 
 def test_group_measurement_interleaves_every_variant_with_the_floor() -> None:
