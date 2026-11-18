@@ -311,7 +311,13 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
 
 
 def _mt_warn_profileless_claim(st: _MoveTaskState) -> None:
-    """Tell the operator now when this claim recorded no profile or model (#7712)."""
+    """Tell the operator now when this claim recorded no profile or model (#7712).
+
+    Not under ``--json``: a machine caller reads one JSON document, and harnesses often merge
+    stderr into it. ``agent action implement``, the canonical claim path, always prints it.
+    """
+    if st.json_output:
+        return
     import typer
 
     from specify_cli.status import profileless_claim_warning

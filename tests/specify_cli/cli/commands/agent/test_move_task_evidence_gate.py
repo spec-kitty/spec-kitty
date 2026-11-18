@@ -543,7 +543,10 @@ def test_move_task_prints_the_profileless_claim_warning(capsys: pytest.CaptureFi
         execution_mode="direct_repo",
     )
     _mt_warn_profileless_claim(st)
+    assert capsys.readouterr().err == "", "a --json run keeps its output one JSON document"
 
+    st.json_output = False
+    _mt_warn_profileless_claim(st)
     assert capsys.readouterr().err.startswith("Warning: WP02 was claimed as 'claude' with no profile or model recorded")
 
 
@@ -553,6 +556,7 @@ def test_an_unclassifiable_event_never_fails_the_move(capsys: pytest.CaptureFixt
     from specify_cli.cli.commands.agent.tasks_move_task_executor import _mt_warn_profileless_claim
 
     st = _state(Lane.CLAIMED, old_lane=Lane.PLANNED)
+    st.json_output = False
     st.event = cast(StatusEvent, SimpleNamespace(wp_id="WP02", actor="claude", to_lane="claimed", from_lane="planned"))
     _mt_warn_profileless_claim(st)
 
