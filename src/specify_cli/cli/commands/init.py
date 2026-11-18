@@ -849,6 +849,58 @@ def _display_vcs_info(_detected_vcs: VCSBackend, console: Console) -> None:
 
 _INIT_COMMIT_MESSAGE = "chore: initialize spec-kitty project"
 
+#: init refused before writing anything: the repository has no commit yet and git has
+#: no author/committer identity, so the root commit init would make cannot be made (#7612).
+INIT_GIT_IDENTITY_MISSING = "INIT_GIT_IDENTITY_MISSING"
+#: git refused init's root commit on an unborn branch (typically a rejecting hook) (#7612).
+INIT_ROOT_COMMIT_FAILED = "INIT_ROOT_COMMIT_FAILED"
+_INIT_NO_COMMIT_HINT = "or pass --no-commit to leave the files uncommitted"
+
+
+def _git_identity_problem(project_path: Path) -> str | None:
+    """git's own complaint when it has no usable author or committer identity, else ``None``.
+
+    ``git var`` resolves identity with the same strict rules ``git commit`` uses, so
+    it answers "would a commit here be refused for want of a name or email?" without
+    writing anything.
+    """
+    for ident in ("GIT_AUTHOR_IDENT", "GIT_COMMITTER_IDENT"):
+        try:
+            result = subprocess.run(["git", "var", ident], cwd=str(project_path), check=False, capture_output=True, text=True)
+        except OSError as exc:
+            return str(exc)
+        if result.returncode != 0:
+            # git prints a multi-line how-to before the one-line reason; keep the reason.
+            lines = [line.strip() for line in (result.stderr or result.stdout).splitlines() if line.strip()]
+            return lines[-1] if lines else f"git var {ident} failed"
+    return None
+
+
+def _refuse_root_commit_without_identity(project_path: Path, *, enabled: bool) -> None:
+    """Refuse before any write when init would make a root commit git cannot record (#7612).
+
+    Only a repository with no commit yet is checked: there the commit init makes is
+    the repository's first, and leaving it unmade leaves a branch every later
+    spec-kitty command needs. Checking first means a refusal leaves the directory
+    untouched, so the remedy is simply to fix the identity and run init again.
+    """
+    from specify_cli.core.git_ops import has_unborn_head
+
+    if not enabled or not (project_path / ".git").exists() or not has_unborn_head(project_path):
+        return
+    problem = _git_identity_problem(project_path)
+    if problem is None:
+        return
+    assert _console is not None
+    _console.print(
+        f"[red]Error ({INIT_GIT_IDENTITY_MISSING}):[/red] this repository has no commits yet, so init would make its "
+        "first commit, but git has no author identity to record it with. Nothing was written.\n"
+        f"git said: {escape(problem)}\n"
+        'Remedy: set an identity (`git config user.name "Your Name"` and `git config user.email you@example.com`) '
+        f"and run init again, {_INIT_NO_COMMIT_HINT}."
+    )
+    raise typer.Exit(1)
+
 
 def _capture_init_commit_baseline(project_path: Path, *, enabled: bool) -> set[str] | None:
     """The pre-write git baseline for init's own commit, or ``None`` when init will not commit (#7555).
@@ -916,29 +968,68 @@ def _commit_init_writes(project_path: Path, baseline: set[str] | None) -> None:
     from specify_cli.upgrade.autocommit import commit_touched_checkout
 
     assert _console is not None
-    if has_unborn_head(project_path):
-        # safe_commit lands only on an existing branch, so the repository's first
-        # commit is the operator's to make (a residual of #7555).
-        _console.print(
-            "[yellow]Note:[/yellow] this repository has no commits yet, so init did not commit its files. "
-            "Review `git status`, stage the files init created, and commit them as your first commit "
-            f"(for example `{_INIT_COMMIT_MESSAGE}`) before running other spec-kitty commands."
-        )
-        return
+    root_commit = has_unborn_head(project_path)
     try:
-        committed, paths, warning = commit_touched_checkout(project_path, baseline, __version__, __version__, message=_INIT_COMMIT_MESSAGE)
+        committed, paths, warning = commit_touched_checkout(
+            project_path,
+            baseline,
+            __version__,
+            __version__,
+            message=_INIT_COMMIT_MESSAGE,
+            # #7612: on an unborn branch init's commit is the repository's root commit.
+            allow_root_commit=root_commit,
+            raise_commit_failure=root_commit,
+        )
     except SafeCommitRecoveryFailed as exc:
         _console.print(f"[yellow]Note:[/yellow] {escape(_render_init_recovery_failed(exc))}")
         return
     except SafeCommitError as exc:
+        if root_commit:
+            _refuse_failed_root_commit(project_path, baseline, str(exc))
         _console.print(f"[yellow]Note:[/yellow] {escape(f'Could not commit the files init wrote: {exc}')}")
         return
+    except RuntimeError as exc:
+        # Only reached for a root commit (``raise_commit_failure``): git refused it.
+        _refuse_failed_root_commit(project_path, baseline, str(exc))
     if committed:
         _console.print(f"[green]Committed {len(paths)} spec-kitty project files[/green] [dim](`{_INIT_COMMIT_MESSAGE}`; pass --no-commit to skip)[/dim]")
         if baseline:
             _console.print(f"[dim]{len(baseline)} path(s) that already had uncommitted changes before init were left out of that commit.[/dim]")
     if warning:
         _console.print(f"[yellow]Note:[/yellow] {escape(_init_commit_warning(warning))}")
+
+
+def _init_written_paths_summary(project_path: Path, baseline: set[str]) -> str:
+    """init's uncommitted files grouped by top-level entry, e.g. ``.kittify/ (12 files), .gitignore``."""
+    from specify_cli.upgrade.autocommit import prepare_upgrade_commit_files
+
+    groups: dict[str, int] = {}
+    for path in prepare_upgrade_commit_files(project_path, baseline):
+        parts = path.as_posix().split("/")
+        key = f"{parts[0]}/" if len(parts) > 1 else parts[0]
+        groups[key] = groups.get(key, 0) + 1
+    return ", ".join(f"{key} ({count} files)" if key.endswith("/") else key for key, count in sorted(groups.items()))
+
+
+def _refuse_failed_root_commit(project_path: Path, baseline: set[str], detail: str) -> None:
+    """git refused init's root commit (#7612): name the reason and the way out, exit 1.
+
+    The files are already on disk and nothing was committed. Without a first commit
+    the branch does not exist yet, so later spec-kitty commands cannot work; that is
+    why this is a refusal rather than the non-fatal note of a failed commit on an
+    existing branch.
+    """
+    assert _console is not None
+    written = _init_written_paths_summary(project_path, baseline)
+    _console.print(
+        f"[red]Error ({INIT_ROOT_COMMIT_FAILED}):[/red] this repository has no commits yet and git refused the first commit "
+        f"init made for its files (`{_INIT_COMMIT_MESSAGE}`). Nothing was committed; the files are on disk.\n"
+        f"git said: {escape(detail)}\n"
+        f"Files init wrote: {escape(written) if written else '(none found)'}\n"
+        "Remedy: fix what refused the commit (usually a pre-commit or commit-msg hook), then commit exactly those files "
+        "as your first commit before running other spec-kitty commands."
+    )
+    raise typer.Exit(1)
 
 
 def _save_vcs_config(config_path: Path, _detected_vcs: VCSBackend) -> None:
@@ -1193,6 +1284,7 @@ def init(  # noqa: C901
 
     # #7555: the git state before init's first write, so its own commit at the end holds
     # exactly what this run wrote and never a file that was already uncommitted (#5905).
+    _refuse_root_commit_without_identity(project_path, enabled=not no_commit)
     init_commit_baseline = _capture_init_commit_baseline(project_path, enabled=not no_commit)
 
     if not here and not project_path.exists():

@@ -498,11 +498,17 @@ def commit_touched_checkout(
     to_version: str,
     *,
     message: str | None = None,
+    allow_root_commit: bool = False,
+    raise_commit_failure: bool = False,
 ) -> tuple[bool, list[str], str | None]:
     """Auto-commit the upgrade churn a run introduced in *checkout*.
 
     ``message`` replaces the default upgrade subject; ``spec-kitty init`` uses
     the same baseline-diff commit for the project files it writes (#7555).
+    ``allow_root_commit`` lets that commit be the root commit of an unborn branch
+    (#7612, see ``safe_commit``). ``raise_commit_failure`` re-raises a failed
+    ``safe_commit`` instead of flattening it to the generic skip warning, so the
+    caller can name the reason (a missing git identity, a rejecting hook).
 
     The commit-set is the porcelain diff against *baseline_paths* (captured
     before any upgrade write to this checkout), filtered through the
@@ -553,6 +559,8 @@ def commit_touched_checkout(
     # FR-022: the migration's own `git rm --cached` rides in the same commit, through
     # safe_commit's temp index, so the file never leaves the disk.
     index_deletion_kwargs: dict[str, Any] = {"index_deletions": tuple(index_deletions)} if index_deletions else {}
+    # #7612: passed only when set, so a born-branch commit calls safe_commit exactly as before.
+    root_commit_kwargs: dict[str, Any] = {"allow_root_commit": True} if allow_root_commit else {}
 
     try:
         safe_commit(
@@ -563,6 +571,7 @@ def commit_touched_checkout(
             paths=tuple(files_to_commit),
             capability=GuardCapability.UPGRADE_BOOKKEEPING,
             **index_deletion_kwargs,
+            **root_commit_kwargs,
         )
     except SafeCommitRecoveryFailed:
         # #4888/FR-012 (defense-in-depth): unlike every other exception below,
@@ -577,6 +586,8 @@ def commit_touched_checkout(
         # CLI layer (``cli.commands.upgrade``) renders it honestly.
         raise
     except Exception:
+        if raise_commit_failure:
+            raise
         return (
             False,
             committed_paths,
