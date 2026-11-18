@@ -1687,7 +1687,12 @@ def _skip_worktree_refused(main_repo: Path, checkout: Path, branch: str, hits: l
             "out of its commits and could not resync the checkout."
         ),
         destination_ref=branch,
-        next_step=f"Clear the bit (`{git} update-index --no-skip-worktree {quoted}`), then re-run.",
+        next_step=(
+            f"Clear the bit (`{git} update-index --no-skip-worktree {quoted}`), then re-run. If the checkout uses "
+            f"sparse-checkout and these paths are excluded by its patterns (`{git} sparse-checkout list`), include them "
+            f"instead (`{git} sparse-checkout add <dir>` or `{git} sparse-checkout disable`): git sets the bit again "
+            "on the next checkout otherwise."
+        ),
     )
 
 
