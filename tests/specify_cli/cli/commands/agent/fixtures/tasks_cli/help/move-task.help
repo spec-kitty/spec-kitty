@@ -1,11 +1,12 @@
 Usage: tasks move-task [OPTIONS] {task_id}
-Move task between lanes (planned → doing → for_review → approved → done).
+Move task between lanes (planned → claimed → in_progress → for_review → in_review → approved → done).
+``blocked`` and ``canceled`` are reachable from the other lanes. ``doing`` is
+accepted as an input alias of ``in_progress`` and is never recorded.
 Review-rejection edges (a backward move out of review — ``--to planned`` from
 in_progress/for_review/in_review/approved, or ``in_review → in_progress``) MUST
 carry a rationale: pass ``--review-feedback-file`` (or ``--note``/``--reason``).
 That rationale is emitted as the status event's ``review_ref``/reason and is
-required by the shared status contract; a rejection emitted without it is
-accepted locally but silently rejected by hosted sync, so it never propagates.
+required by the shared status contract; the move is refused without it.
 ``--actor``/``--reason`` are accepted as aliases of ``--agent``/``--note``
 (matching ``issue-verdict``'s vocabulary, #3469) — use whichever spelling
 reads naturally; both apply the same value.
@@ -15,7 +16,7 @@ a subtask done with ``spec-kitty agent tasks mark-status T0NN --status done
 --mission <handle>`` (#2816). Ticking a checkbox alone will not clear the
 unchecked-subtasks gate on a ``--to for_review`` move.
 Examples:
-spec-kitty agent tasks move-task WP01 --to doing --assignee claude --json
+spec-kitty agent tasks move-task WP01 --to in_progress --assignee claude --json
 spec-kitty agent tasks move-task WP02 --to for_review --agent claude --shell-pid $$
 spec-kitty agent tasks move-task WP02 --to for_review --actor claude --shell-pid $$
 spec-kitty agent tasks move-task WP03 --to approved --note "Review passed"
@@ -26,13 +27,13 @@ spec-kitty agent tasks move-task WP03 --to planned --review-feedback-file feedba
 Arguments
 * task_id <str> Task ID (e.g., WP01) [required]
 Options
-* --to <str> Target lane (planned/doing/for_review/approved/done) [required]
+* --to <str> Target lane (planned/claimed/in_progress/for_review/in_review/approved/done/blocked/canceled; doing is accepted as an alias of in_progress) [required]
 --mission <str> Mission slug
 --agent,--actor <str> Agent name (alias: --actor, matching issue-verdict's vocabulary). When the move hands the WP back for work (a rejection, a reopen, for_review -> in_progress) it records only who acted and does not reassign the WP; use --assignee for that. If both --agent and --actor are given, the one supplied LAST on the command line wins.
 --model <str> Refused: the dispatch Op carries no model identifier (#7013); omit it
 --profile <str> Dispatch-resolved agent profile actual
 --invocation-id <str> Authoritative dispatch Op record id
---assignee <str> Assignee name, recorded on this transition regardless of the target lane (not limited to --to doing). When the move hands the WP back for work it also reassigns the WP to this agent.
+--assignee <str> Assignee name, recorded on this transition regardless of the target lane (not limited to --to in_progress). When the move hands the WP back for work it also reassigns the WP to this agent.
 --shell-pid <str> Shell PID
 --note,--reason <str> History note (alias: --reason, matching issue-verdict's vocabulary). If both --note and --reason are given, the one supplied LAST on the command line wins.
 --review-feedback-file <path> Path to review feedback file. Required for review-rejection edges (--to planned, incl. with --force; and in_review->in_progress); omitting it there makes the status event contract-invalid. On --to approved/done its content is recorded when the move writes a new approval review-cycle record; otherwise a warning on stderr says it was not recorded (JSON stdout is unchanged). Refused (exit 1) on every other edge: those edges write no review cycle, so the file would be validated and then dropped.
