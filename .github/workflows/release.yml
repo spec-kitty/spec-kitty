@@ -155,7 +155,7 @@ jobs:
 
       - name: Install tooling
         run: |
-          uv sync --frozen --python "$(which python)" --extra test --extra lint
+          uv sync --frozen --python "$(which python)" --extra test --extra lint --group sbom
           PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
           .venv/bin/pip install twine==6.2.0 tomli==2.4.1

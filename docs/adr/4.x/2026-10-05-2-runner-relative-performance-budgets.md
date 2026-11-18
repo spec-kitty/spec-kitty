@@ -259,5 +259,13 @@ Nightly workload medians are now 0.64 to 0.72 s (0.44 to 0.49 s at calibration t
 ## Note 2026-11-18 — weekly cadence and the in-process median (#7704)
 
 - **Cadence.** The nightly `performance` job now runs weekly (the Sunday `ci-nightly.yml` run, or a `workflow_dispatch`). Where this record says "nightly", read "the runs in which the job executed". A recalibration takes its samples from those runs.
-- **In-process budgets.** These are tests that time a function call in the test process, not a spawned CLI. They are outside this ADR's ratio rule, because they pay no interpreter cold start. They keep an absolute budget, but are now judged on the median of `IN_PROCESS_SAMPLE_RUNS` (5) fresh samples after optional untimed warm-ups (`median_in_process_seconds` in `tests/_perf_helpers.py`). The operator accepted that as tuning the gate, not a retry: every sample counts, and a uniformly slower call still moves the median. A once-per-process cost (here, the first `jsonschema` import, about 1 s in the dev environment) is kept out of the step budget by the warm-up. It is a real cold-start cost for a one-shot CLI process, and no suite budgets it today.
+- **In-process budgets.** These are tests that time a function call in the test process, not a spawned CLI. They are outside this ADR's ratio rule, because they pay no interpreter cold start. They keep an absolute budget, but are now judged on the median of `IN_PROCESS_SAMPLE_RUNS` (5) fresh samples after optional untimed warm-ups (`median_in_process_seconds` in `tests/_perf_helpers.py`). The operator accepted that as tuning the gate, not a retry: every sample counts, and a uniformly slower call still moves the median. A once-per-process cost is kept out of the step budget by the warm-up.
+- **The cold-start cost behind #7704 is removed, not budgeted (operator ruling).**
+  - **Cause.** The first glossary event imports `jsonschema`, which loads `rfc3987_syntax` when present (about 0.9 s building a Lark grammar). Only `cyclonedx-bom` in the `lint` extra installed it.
+  - **Fix.** `cyclonedx-bom` now lives in the non-default `sbom` dependency group, which only `release.yml` installs.
+  - **Measured.** The cold first step, one fresh process per sample, five samples each:
+    - consumer wheel install: 0.11-0.14 s;
+    - dev `--all-extras` env before the move: 1.10-1.26 s;
+    - dev `--all-extras` env after the move: 0.11-0.16 s.
+  - **Guard.** `tests/ci/test_dev_env_skips_rfc3987_syntax.py` walks `uv.lock` so it cannot return through another extra or default group.
 

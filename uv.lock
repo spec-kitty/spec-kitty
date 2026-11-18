@@ -2208,7 +2208,6 @@ dependencies = [
 [package.optional-dependencies]
 lint = [
     { name = "bandit" },
-    { name = "cyclonedx-bom" },
     { name = "msgpack" },
     { name = "mypy" },
     { name = "pip-audit" },
@@ -2252,6 +2251,9 @@ dev = [
     { name = "types-requests" },
     { name = "types-toml" },
 ]
+sbom = [
+    { name = "cyclonedx-bom" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -2261,7 +2263,6 @@ requires-dist = [
     { name = "charset-normalizer", specifier = ">=3.4,<4" },
     { name = "click", specifier = ">=8.2.1" },
     { name = "cryptography", specifier = ">=50.0.0" },
-    { name = "cyclonedx-bom", marker = "extra == 'lint'", specifier = ">=4.0" },
     { name = "diff-cover", marker = "extra == 'test'", specifier = ">=10.0.0" },
     { name = "google-re2", specifier = ">=1.1" },
     { name = "hatchling", marker = "extra == 'test'", specifier = ">=1.27.0" },
@@ -2319,6 +2320,7 @@ dev = [
     { name = "types-requests", specifier = ">=2.33.0" },
     { name = "types-toml", specifier = ">=0.10.0" },
 ]
+sbom = [{ name = "cyclonedx-bom", specifier = ">=4.0" }]
 
 [[package]]
 name = "spec-kitty-events"

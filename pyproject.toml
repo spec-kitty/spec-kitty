@@ -128,7 +128,11 @@ lint = [
     "types-toml>=0.10.0",
     "bandit>=1.7.0",
     "pip-audit>=2.7.0",
-    "cyclonedx-bom>=4.0",  # SBOM generation for release pipeline
+    # cyclonedx-bom (SBOM generation) lives in the non-default `sbom` dependency
+    # group below, not here: it requires cyclonedx-python-lib[validation], which
+    # pulls jsonschema[format-nongpl] -> rfc3987-syntax, whose import builds a Lark
+    # grammar (~0.9 s). jsonschema imports it on load when present, so every dev
+    # and CI process paid that on its first glossary event (#7704).
 ]
 
 [project.scripts]
@@ -2525,6 +2529,12 @@ module = [
 ignore_errors = true
 
 [dependency-groups]
+# SBOM generation for the release pipeline only (#7704). Not a default group and
+# not an extra, so `uv sync` / `uv sync --all-extras` (dev, CI) never install it;
+# release.yml installs it with `--group sbom`. See the note in the `lint` extra.
+sbom = [
+    "cyclonedx-bom>=4.0",
+]
 dev = [
     # Type stubs for dev tooling (mypy --strict gate).
     # These mirror the entries in [project.optional-dependencies] lint so that
