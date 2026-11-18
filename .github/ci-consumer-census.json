@@ -58,9 +58,34 @@
     "cli": {
       "consumes": [
         {
+          "path": "packs/built-in/missions/documentation/actions/accept/index.yaml",
+          "provenance": "runtime",
+          "via": "tests/init/test_init_minimal_integration.py [template_repository]"
+        },
+        {
           "path": "packs/built-in/missions/documentation/expected-artifacts.yaml",
           "provenance": "runtime",
           "via": "tests/cli/commands/test_reconcile.py [dossier_manifest]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/mission-runtime.yaml",
+          "provenance": "runtime",
+          "via": "tests/init/test_init_minimal_integration.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/mission.yaml",
+          "provenance": "runtime",
+          "via": "tests/init/test_init_minimal_integration.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/templates/documentation-plan-template.md",
+          "provenance": "runtime",
+          "via": "tests/init/test_init_minimal_integration.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/mission-steps/documentation/accept/guidelines.md",
+          "provenance": "runtime",
+          "via": "tests/init/test_init_minimal_integration.py [template_repository]"
         },
         {
           "path": "packs/built-in/missions/mission_types/documentation.yaml",
