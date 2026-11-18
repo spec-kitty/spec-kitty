@@ -467,7 +467,6 @@ exclude = [
     "src/charter/offering/styleguides/repository.py",
     "src/charter/offering/template_catalog.py",
     "src/charter/offering/versioning.py",
-    "src/glossary/checkpoint.py",
     "src/glossary/chokepoint.py",
     "src/glossary/clarification.py",
     "src/glossary/conflict.py",
