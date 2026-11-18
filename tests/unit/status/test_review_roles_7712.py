@@ -336,3 +336,35 @@ def test_no_claim_warning_for_a_non_claim_or_a_review_verdict() -> None:
     assert profileless_claim_warning(_ev(Lane.IN_PROGRESS, Lane.FOR_REVIEW, BARE_IMPL)) is None
     assert profileless_claim_warning(_ev(Lane.IN_REVIEW, Lane.IN_PROGRESS, BARE_REVIEW, review_ref="review-cycle-1.md")) is None
     assert profileless_claim_warning(None) is None
+
+
+def test_a_placeholder_reclaim_keeps_the_record_until_a_real_claim() -> None:
+    """P1: ``implement`` without --agent re-claims; the implementer of record still cannot self-approve."""
+    a = _actor("claude", "python-pedro", "implementer")
+    events = [
+        _ev(Lane.PLANNED, Lane.CLAIMED, a),
+        _ev(Lane.CLAIMED, Lane.IN_PROGRESS, a),
+        _ev(Lane.IN_PROGRESS, Lane.FOR_REVIEW, a),
+        _ev(Lane.FOR_REVIEW, Lane.IN_REVIEW, RENATA),
+        _ev(Lane.IN_REVIEW, Lane.PLANNED, RENATA, review_ref="review-cycle-1.md"),
+        _ev(Lane.PLANNED, Lane.CLAIMED, "implement-command"),
+        _ev(Lane.CLAIMED, Lane.IN_PROGRESS, "implement-command"),
+        _ev(Lane.IN_PROGRESS, Lane.FOR_REVIEW, a),
+    ]
+    identities = implementer_identities(events, "WP03")
+    assert identities == ("claude::python-pedro",)
+    assert not independent_of_implementers(identities, "claude::python-pedro")
+    assert independent_of_implementers(identities, actor_full_identity(RENATA))
+
+
+def test_the_implementer_completes_its_bare_claim_after_pulling_its_work_back() -> None:
+    """P5: the bare implementer's own forced pull-back is not a second implementer, so its submission completes the claim."""
+    events = [
+        _ev(Lane.PLANNED, Lane.CLAIMED, BARE_IMPL),
+        _ev(Lane.CLAIMED, Lane.IN_PROGRESS, BARE_IMPL),
+        _ev(Lane.IN_PROGRESS, Lane.FOR_REVIEW, BARE_IMPL),
+        _ev(Lane.FOR_REVIEW, Lane.IN_PROGRESS, BARE_IMPL, force=True, review_ref="force-override"),
+        _ev(Lane.IN_PROGRESS, Lane.FOR_REVIEW, "claude:sonnet:implementer-ivan"),
+    ]
+    assert implementer_identities(events, "WP03") == ("claude:sonnet:implementer-ivan",)
+    assert independent_of_implementers(implementer_identities(events, "WP03"), actor_full_identity(RENATA))

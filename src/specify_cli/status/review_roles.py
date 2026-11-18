@@ -240,8 +240,9 @@ def implementer_identities(events: Sequence[StatusEvent], wp_id: str) -> tuple[s
       unblock), never changes the record: its identity is kept beside it as a further
       implementer, since whoever moved the work package into an implementing lane may have
       reworked it (#6955);
-    * an unforced ``planned -> claimed`` by a placeholder actor starts a new cycle with no
-      implementer known yet;
+    * an unforced ``planned -> claimed`` by a placeholder actor starts a new cycle whose first
+      real claim names the implementer of record; until then the previous record stands;
+    * the recorded implementer's own forced move back into an implementing lane adds nothing;
     * a submission refines the record (#7159), unless its submitter may be an identity kept
       beside the record or, for an ``--as-implementer`` re-submission, the review claimant.
 
@@ -251,17 +252,22 @@ def implementer_identities(events: Sequence[StatusEvent], wp_id: str) -> tuple[s
     record: str | None = None
     others: list[str] = []
     review_claimant: str | None = None
+    cycle_pending = False
     for event in events:
         if event.wp_id != wp_id:
             continue
         if _is_placeholder_new_cycle(event):
-            record, others = None, []
+            # The previous record stands until a real actor claims (#7712): emptying the set
+            # would leave move-task with no implementer and accept with nobody to be independent of.
+            cycle_pending = True
         elif _qualifies(event):
             identity = actor_full_identity(event.actor)
             if identity is None:
                 continue
-            if record is None or _is_new_claim_cycle(event):
-                record, others = identity, []
+            if record is None or cycle_pending or _is_new_claim_cycle(event):
+                record, others, cycle_pending = identity, [], False
+            elif identity == record:
+                continue  # the recorded implementer moving its own work back: nothing new
             elif not event.force and not actor_identities_independent(record, identity):
                 record = refine_actor_identity(record, identity)
             elif identity not in others:
