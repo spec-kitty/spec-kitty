@@ -3,7 +3,8 @@
 # Mission ci-pipeline-reinstatement-01M1X35E, WP13 (FR-020/021; SC-011).
 #
 # This is the ONLY home for the performance / heavy-e2e / stress test cadence
-# (#3595; stress reinstated #4698) and the above-3.12 interpreter matrix
+# (#3595; stress reinstated #4698; performance runs weekly, Sundays, since
+# #7704) and the above-3.12 interpreter matrix
 # (FR-021) -- all stay OFF the per-PR blocking path (SC-011: a per-PR run
 # executes 0 of these jobs). This
 # workflow triggers on `schedule` (nightly) + `workflow_dispatch` ONLY: it
@@ -44,8 +45,13 @@ name: CI Nightly
 
 on:
   schedule:
-    # 03:17 UTC daily -- off-peak, deliberately not a round hour.
-    - cron: '17 3 * * *'
+    # 03:17 UTC daily -- off-peak, deliberately not a round hour. Two entries
+    # make ONE run a day (#7704): Monday-Saturday, and Sunday. Only the Sunday
+    # entry runs the `performance` job (weekly cadence; see that job's `if:`);
+    # every other job runs on both. Keep the Sunday string identical to the one
+    # in the `performance` job's `if:`.
+    - cron: '17 3 * * 1-6'
+    - cron: '17 3 * * 0'
   workflow_dispatch:
     inputs:
       mode:
@@ -100,9 +106,13 @@ jobs:
   # PWHEADLESS keeps any UI-touching test headless. The cap was kept at 35
   # until #6787 measured 32:51 (run 42442477189); it now follows the #5378
   # headroom record on the job below.
+  # Weekly cadence (#7704, operator ruling): on a schedule the job runs only for
+  # the Sunday cron; a `workflow_dispatch` (on-demand, and the release gate's
+  # dispatch by tag) always runs it. Its red -> P0 escalation steps are
+  # unchanged, so the weekly run opens, bumps and closes the `performance` P0.
   performance:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
-    name: Performance suite (nightly-only, #3595)
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && (github.event_name != 'schedule' || github.event.schedule == '17 3 * * 0')
+    name: Performance suite (weekly, #3595, #7704)
     runs-on: ubuntu-24.04
     # #6787: the 35-minute cap above left 2 minutes over the 32:51 suite of run 42442477189; the cap
     # now follows the #5378 record over the last 20 nightlies (17:25..32:51 suite wall-clock).

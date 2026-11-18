@@ -356,15 +356,16 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     # Performance chokepoint (env-gated, mirrors quarantine). A single-shot
     # wall-clock budget test is cold-start / shared-runner bound, so it is held
     # out of every normal PR/blocking run — it can never turn main red or block
-    # an unrelated PR. The live out-of-band harness is the nightly performance
-    # job (`.github/workflows/ci-nightly.yml`), which sets
+    # an unrelated PR. The live out-of-band harness is the weekly performance
+    # job (`.github/workflows/ci-nightly.yml`, Sunday cron or a manual
+    # workflow_dispatch, #7704), which sets
     # SPEC_KITTY_RUN_PERFORMANCE=1 at job level to run these for real
     # (#3595, closed, is the historical provenance for this chokepoint).
     apply_performance_skip = os.environ.get("SPEC_KITTY_RUN_PERFORMANCE") != "1"
     skip_performance = pytest.mark.skip(
         reason="performance: single-shot wall-clock budget test held out of "
         "normal runs (cold-start/runner-bound). Set SPEC_KITTY_RUN_PERFORMANCE=1 "
-        "to run it; the nightly performance job "
+        "to run it; the weekly performance job "
         "(.github/workflows/ci-nightly.yml) is the live out-of-band harness."
     )
     for item in items:

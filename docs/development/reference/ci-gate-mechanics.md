@@ -32,7 +32,9 @@ CI runs as a lean modular pipeline: a path router (`ci-router.yml`) decides whic
 module and data shards are affected, per-module test jobs run
 (`module-tests.yml` / `ci-modules.yml`), and results aggregate with a coverage
 and diff-cover gate (`ci-aggregate.yml`); a nightly full run (`ci-nightly.yml`)
-and a fork-safe Sonar scan (`sonar.yml`) sit alongside. The trap is structural:
+and a fork-safe Sonar scan (`sonar.yml`) sit alongside. The nightly's `performance`
+job runs weekly, on the Sunday run only, or on a manual `workflow_dispatch` (#7704);
+its red still opens the deduped `performance` P0, and the next green weekly run closes it. The trap is structural:
 **a passing `pytest <file>` locally does not mean a gate will be green**, because
 the gate that fails may run in a different shard, under a different marker
 selection, or only over paths your diff happened to touch.
