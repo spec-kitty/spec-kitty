@@ -79,7 +79,9 @@ def test_a_skip_worktree_entry_the_landing_writes_refuses(repo: Path, path: str)
     verdict = _verdict(repo)
     assert verdict is not None and verdict.error_code == preflight.CHECKOUT_SKIP_WORKTREE_ENTRIES
     assert path in verdict.message and "'main'" in verdict.message
-    assert verdict.next_step == f"Clear the bit (`git update-index --no-skip-worktree {path}`), then re-run."
+    assert verdict.next_step.startswith(f"Clear the bit (`git update-index --no-skip-worktree {path}`), then re-run.")
+    # #7692 landing fold: a sparse-checkout exclusion is named as a possible cause, with its own remedy.
+    assert "git sparse-checkout list" in verdict.next_step and "git sparse-checkout add <dir>" in verdict.next_step
 
 
 def test_a_skip_worktree_entry_the_landing_does_not_write_is_left_alone(repo: Path) -> None:
@@ -161,3 +163,15 @@ def test_the_retarget_index_bit_names_every_bit_and_its_remedy_clears_them(repo:
     for command in remedy.split(" && "):  # the printed remedy, verbatim
         subprocess.run(shlex.split(command), cwd=repo, check=True)
     assert _git(repo, "ls-files", "-v", _META).startswith("H ")
+
+
+def test_the_merge_record_key_rule_is_shared_by_the_executor_and_its_readers() -> None:
+    """#7692 landing fold: one rule keys the merge record, so the stored and looked-up keys cannot drift."""
+    import inspect
+
+    from specify_cli.consolidation import executor, preflight
+
+    assert preflight.record_key_for_identity("01M7M5JAXXXXXXXXXXXXXXXXXX", "slug") == "01M7M5JAXXXXXXXXXXXXXXXXXX"
+    assert preflight.record_key_for_identity(None, "slug") == "slug"
+    assert "record_key_for_identity(identity.mission_id, mission_slug)" in inspect.getsource(executor._run_lane_based_consolidation)
+    assert "record_key_for_identity(" in inspect.getsource(preflight.merge_record_key)
