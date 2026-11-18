@@ -24,7 +24,13 @@ Use this checklist for releases from `main`.
   (`Publish Release`) gates `build-release` / `publish-pypi` on a **green
   `ci-nightly` for the exact release SHA** — it dispatches the nightly by the
   release tag and blocks publishing until that run is green (fail-closed on a
-  missing, stale, red, or in-progress nightly). That dispatch requires repo
+  missing, stale, red, or in-progress nightly). Because the `performance` job
+  runs weekly (#7704), the gate also requires a green `ci-nightly` run from the
+  **last 7 days in which the `performance` job executed** (skipped does not
+  count), on the release SHA or a `main` ancestor of it; without one it
+  dispatches the nightly by the tag, which always runs that job. To have the
+  verdict before tagging, dispatch it yourself:
+  `gh workflow run ci-nightly.yml --ref main`. That dispatch requires repo
   secret **`RELEASE_NIGHTLY_DISPATCH_TOKEN`** (a PAT or GitHub App token); the
   default `GITHUB_TOKEN` cannot trigger a nested `workflow_dispatch`, so
   **without this secret the release gate fails closed and nothing publishes**

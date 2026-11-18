@@ -570,7 +570,7 @@ For larger releases with multiple changes:
 
 Pushing a `v*.*.*` tag triggers `.github/workflows/release.yml`, which:
 
-1. Requires a green nightly run for the exact tagged commit (fail-closed; no green nightly, no publish)
+1. Requires a green nightly run for the exact tagged commit, plus a green nightly from the last 7 days in which the weekly `performance` job executed, on that commit or a `main` ancestor of it (fail-closed; without either, the gate dispatches the nightly by the tag and waits, and publishes nothing unless it goes green)
 2. Installs dependencies with `uv sync --frozen` (the shared packages come from PyPI; no SSH key is involved)
 3. Verifies test isolation (no version mismatch between source and installed package)
 4. Runs the release-specific tests (`tests/release`); the broad module matrix stays owned by main CI

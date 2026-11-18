@@ -38,6 +38,12 @@ jobs:
   # timed-out nightly all block publication (the OPPOSITE of the nightly
   # escalation degrade). See scripts/ci/release_nightly_gate.py.
   #
+  # Performance verdict (#7704): ci-nightly.yml runs its `performance` job weekly
+  # (Sundays) or on any workflow_dispatch, so the gate ALSO requires a green run
+  # from the last 7 days in which that job executed (skipped does not count), on
+  # the release SHA or a main ancestor of it. Missing -> the same --dispatch by
+  # the tag supplies it, since a dispatched run always runs the job.
+  #
   # `actions: write` is required to issue the workflow_dispatch. The dispatch
   # uses a DEDICATED token (secret RELEASE_NIGHTLY_DISPATCH_TOKEN, a PAT or
   # GitHub App token): a workflow_dispatch issued with the default GITHUB_TOKEN
