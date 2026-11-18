@@ -153,6 +153,16 @@ A retarget away from a protected recorded target onto an unprotected branch is a
 
 **Abort and resume.** If the run fails after the retarget commit, it restores the new target and the Mission branch to their tips from before the run. That includes the status events of `--attest-*` flags given with `--retarget` on a Mission without a coordination branch: they are part of the run, so they are undone with it, and the re-run records them again. A refusal before the first branch moves (for example a claim-time refusal) keeps them, as on any run. The retarget stays in the run record. A bare `spec-kitty consolidate --resume`, or a re-run, applies it again. `spec-kitty consolidate --abort` drops it. If the run is killed between the retarget commit and saving the run record, a bare `spec-kitty consolidate --resume` finishes the run. It exits 0 and lands with exactly one retarget record. No `--release-branch` is needed (`tests/terminus/test_consolidate_retarget_resume.py`).
 
+### Skip-worktree entries in the target's checkout
+
+After the landing, `consolidate` resyncs every checkout that has the target branch checked out. Git cannot resync an index entry with the skip-worktree bit while its file is present, even with no edit. So a run is refused before any branch moves, with `CHECKOUT_SKIP_WORKTREE_ENTRIES`, when such a checkout has a skip-worktree entry under `kitty-specs/<slug>/` or on a path the Mission's branches change. `--dry-run` reports the same code. Clear the bit, then re-run:
+
+```bash
+git update-index --no-skip-worktree kitty-specs/015-user-authentication/meta.json
+```
+
+Entries a sparse checkout excludes have no file and are not refused. The assume-unchanged bit is not refused either, except under `--retarget`, where the record commit refuses it (`RETARGET_RECORD_UNWRITABLE`). `orchestrator-api consolidate-mission` lands through its own path, which does not hit this, and is not refused.
+
 ## Cleanup Options
 
 After a successful landing, `consolidate` removes the lane worktrees and deletes the lane branches. Each flag pair overrides that default for one resource:

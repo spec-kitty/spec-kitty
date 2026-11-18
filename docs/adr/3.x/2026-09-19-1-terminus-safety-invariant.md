@@ -748,6 +748,23 @@ of the run follows it. Naming the recorded target again is not a retarget.
   write leaves both copies unchanged (`tests/terminus/test_consolidate_retarget_resume.py`). No
   `--release-branch` is needed.
 
+#### Follow-up 2026-11-17 — a skip-worktree entry the landing writes is refused up front
+
+Found while building the retarget refusals, on every `consolidate`, not only a retarget: with the
+skip-worktree bit set (no edit) on the root checkout's `kitty-specs/<slug>/meta.json`, a plain run
+landed, and the landing's checkout resync (`git reset --hard`) failed: git does not reset a
+skip-worktree entry whose file is present. The rollback restored the branch tips, but the root checkout's index kept the
+landing's content and the merge record stayed. The resync contract and the rollback authority are
+unchanged. Instead the run refuses before the lock and before any snapshot, with
+`CHECKOUT_SKIP_WORKTREE_ENTRIES` (`preflight.skip_worktree_landing_refusal`, read by the entry
+preflight and `--dry-run`), when a checkout holding the target has a skip-worktree entry whose
+file is present (never a sparse-checkout exclusion) under the Mission directory or on a path the
+Mission and lane branches change. An assume-unchanged bit landed fine and is not refused; the
+retarget's stricter rule for its record commit (`RETARGET_RECORD_UNWRITABLE`, either bit) stays.
+`orchestrator-api consolidate-mission` lands through its own path, which was witnessed landing
+cleanly with the bit set, so it is not refused and `CONTRACT_VERSION` is unchanged
+(`tests/terminus/test_consolidate_skip_worktree_checkout.py`).
+
 ## Alternatives Considered
 
 - **Two independent point-fixes for #4764 and #4765 only.** Rejected (D1): leaves #4474/#2745

@@ -22,6 +22,7 @@ import typer
 
 from kernel.git import GitCommandError, GitPath
 from kernel.git import changed_paths as git_changed_paths
+from kernel.git import index_entries, status_entries
 from kernel.git_topology import GitTopologyError, git_common_dir
 
 from specify_cli.version_utils import cli_version
@@ -1577,12 +1578,96 @@ def _index_bit(main_repo: Path, rel_path: Path) -> tuple[str, str] | None:
     A probe that cannot run reads as no bit: the primary-checkout precheck that follows
     refuses any probe failure on its own.
     """
-    ret, out, _err = run_command(["git", "ls-files", "-v", "--", rel_path.as_posix()], capture=True, check_return=False, cwd=main_repo)
-    tag = out[:1] if ret == 0 else ""
+    try:
+        entries = index_entries(main_repo, pathspecs=(rel_path.as_posix(),), tags=True)
+    except GitCommandError:
+        return None
+    tag = (entries[0].tag or "") if entries else ""
     if tag == _SKIP_WORKTREE_TAG:
         return "skip-worktree", "--no-skip-worktree"
     if tag.islower():
         return "assume-unchanged", "--no-assume-unchanged"
+    return None
+
+
+#: A checkout the landing resyncs holds a skip-worktree index entry, its file present in the working
+#: tree, at a path the landing writes: the resync's ``git reset --hard`` cannot update it.
+CHECKOUT_SKIP_WORKTREE_ENTRIES = "CHECKOUT_SKIP_WORKTREE_ENTRIES"
+
+
+def _present_skip_worktree_paths(checkout: Path) -> list[str]:
+    """Index entries of *checkout* carrying the skip-worktree bit whose file EXISTS in its working tree.
+
+    A sparse-checkout exclusion sets the same bit but leaves no file, so it is never listed: only a
+    bit set by hand (``git update-index --skip-worktree``) is. A probe that cannot run lists nothing.
+    """
+    try:
+        entries = index_entries(checkout, tags=True)
+    except GitCommandError:
+        return []
+    flagged = (entry.path.as_posix() for entry in entries if entry.tag == _SKIP_WORKTREE_TAG)
+    return [path for path in dict.fromkeys(flagged) if (checkout / path).exists()]
+
+
+def _landing_paths(main_repo: Path, target_branch: str, branches: list[str]) -> set[str]:
+    """Every path the Mission and lane branches change since they left *target_branch* (``<target>...<branch>``)."""
+    paths: set[str] = set()
+    for branch in branches:
+        try:
+            paths.update(path.as_posix() for path in git_changed_paths(main_repo, f"{target_branch}...{branch}"))
+        except GitCommandError:
+            continue
+    return paths
+
+
+def skip_worktree_landing_refusal(main_repo: Path, mission_slug: str, lanes_manifest: LanesManifest, *, target_branch: str) -> Refused | None:
+    """``CHECKOUT_SKIP_WORKTREE_ENTRIES`` when a checkout the landing resyncs cannot take it, else ``None``.
+
+    The landing advances *target_branch* and then resyncs every checkout that holds it with
+    ``git reset --hard`` (:func:`~specify_cli.git.ref_advance.advance_branch_ref`). Git refuses to
+    reset an index entry that carries the skip-worktree bit while its file is present ("Entry ...
+    not uptodate. Cannot merge"), even with no edit, so the run would land, fail the resync, and
+    leave that checkout's index holding the landing after the rollback restored the branch tips.
+    The resync contract is unchanged: such a run is refused here, before any branch moves.
+
+    Judged per checkout holding *target_branch*: its skip-worktree entries whose file exists
+    (never a sparse-checkout exclusion, :func:`_present_skip_worktree_paths`) under the Mission
+    directory (the run's bookkeeping writes) or among the paths the Mission and lane branches
+    change (:func:`_landing_paths`, read only when such an entry exists). An assume-unchanged bit
+    is not refused: the resync rewrites it. Read-only and lock-free; a probe that cannot run is
+    left to the run's own refusals.
+    """
+    from specify_cli.coordination.types import Refused
+    from specify_cli.git.ref_advance import RefAdvanceError, worktrees_with_branch_checked_out
+    from specify_cli.lanes.compute import lane_created_branch
+
+    try:
+        checkouts = worktrees_with_branch_checked_out(main_repo, target_branch)
+    except RefAdvanceError:
+        return None
+    mission_prefix = f"{KITTY_SPECS_DIR}/{mission_slug}/"
+    written: set[str] | None = None
+    for checkout in checkouts:
+        flagged = _present_skip_worktree_paths(checkout)
+        if not flagged:
+            continue
+        if written is None:
+            branches = [lanes_manifest.mission_branch, *(lane_created_branch(lanes_manifest, lane.lane_id) for lane in lanes_manifest.lanes)]
+            written = _landing_paths(main_repo, target_branch, [b for b in dict.fromkeys(branches) if b and b != target_branch])
+        hits = [path for path in flagged if path.startswith(mission_prefix) or path in written]
+        if not hits:
+            continue
+        quoted = " ".join(shlex.quote(path) for path in hits)
+        git = "git" if checkout.resolve() == main_repo.resolve() else f"git -C {shlex.quote(str(checkout))}"
+        return Refused(
+            error_code=CHECKOUT_SKIP_WORKTREE_ENTRIES,
+            message=(
+                f"the checkout at {checkout} holds '{target_branch}' and marks {len(hits)} file(s) the landing writes as "
+                f"skip-worktree ({', '.join(hits[:5])}{', ...' if len(hits) > 5 else ''}); git cannot resync it after the landing."
+            ),
+            destination_ref=target_branch,
+            next_step=f"Clear the bit (`{git} update-index --no-skip-worktree {quoted}`), then re-run.",
+        )
     return None
 
 
@@ -1598,8 +1683,11 @@ def _untracked_mission_copies_refusal(main_repo: Path, rel_meta: Path, *, record
     if checked_out_branch(main_repo) != effective_target:
         return None
     mission_dir = rel_meta.parent.as_posix()
-    ret, out, _err = run_command(["git", "status", "--porcelain", "--untracked-files=all", "--", mission_dir], capture=True, check_return=False, cwd=main_repo)
-    untracked = [line[3:] for line in out.splitlines() if line.startswith("?? ")] if ret == 0 else []
+    try:
+        entries = status_entries(main_repo, pathspecs=(mission_dir,), untracked="all")
+    except GitCommandError:
+        entries = ()
+    untracked = [entry.path.as_posix() for entry in entries if entry.is_untracked]
     if not untracked:
         return None
     return _retarget_record_unwritable(
