@@ -260,6 +260,11 @@ _NEAREST_PROFILE_LIMIT = 3
 #: profile the printed ``--profile`` remedy.
 _NEAREST_MIN_KEYWORD_HITS = 2
 
+#: The built-in general-purpose profile. A route that lands on it, or a
+#: canonical-verb tie, is decided by domain-keyword hits when one profile leads
+#: them (#7697, operator ruling 2026-11-18). ``empty_charter`` re-exports it.
+GENERIC_PROFILE_ID = "generic-agent"
+
 
 # ---------------------------------------------------------------------------
 # Profile vocabulary helpers (pure)
@@ -390,6 +395,50 @@ def _nearest_profiles(profiles: list[object], tokens: list[str]) -> list[tuple[o
         scored.append((hits, len(shared), priority if isinstance(priority, int) else 0, str(getattr(profile, "profile_id", "")), profile, shared))
     scored.sort(key=lambda entry: (-entry[0], -entry[1], -entry[2], entry[3]))
     return [(profile, _default_action_for_role(getattr(profile, "role", None)), shared) for _, _, _, _, profile, shared in scored[:_NEAREST_PROFILE_LIMIT]]
+
+
+def _domain_keyword_hits(profile: object, tokens: list[str], token_set: frozenset[str]) -> list[str]:
+    """The declared domain keywords of *profile* the request contains whole (#7697).
+
+    A hit is a literal single token or a contiguous phrase (tiers 2 and 3). The
+    documentation aliases (tier 4) and the folded canonical verbs never count:
+    they name what to do, not whose domain the work is in.
+    """
+    hits: list[str] = []
+    for keyword in _role_keywords(profile):
+        keyword_tokens = _keyword_tokens(keyword)
+        if keyword_tokens and (_is_single_token_match(keyword_tokens, token_set) or _is_phrase_match(keyword_tokens, tokens)):
+            hits.append(keyword)
+    return hits
+
+
+def _domain_keyword_leader(pool: list[object], tokens: list[str]) -> tuple[object, list[str]] | None:
+    """The one profile in *pool* with the most domain-keyword hits, if it is unique.
+
+    ``None`` when no profile has a hit, or when two or more share the top count:
+    the router never invents a winner (#6970 FR-006).
+    """
+    token_set = frozenset(tokens)
+    scored = [(profile, hits) for profile in pool if (hits := _domain_keyword_hits(profile, tokens, token_set))]
+    if not scored:
+        return None
+    best = max(len(hits) for _, hits in scored)
+    leaders = [entry for entry in scored if len(entry[1]) == best]
+    return leaders[0] if len(leaders) == 1 else None
+
+
+def _public_candidate(candidate: dict[str, str]) -> dict[str, str]:
+    """A candidate as it is reported in ``alternatives``."""
+    return {
+        "profile_id": candidate["profile_id"],
+        "action": candidate["action"],
+        "confidence": candidate["_confidence"],
+        "match_reason": candidate["match_reason"],
+    }
+
+
+def _quoted_hits(hits: list[str]) -> str:
+    return ", ".join(f"'{hit}'" for hit in hits)
 
 
 def _quote_request(request_text: str) -> str:
@@ -632,6 +681,20 @@ class ActionRouter:
                 _no_match_suggestion(request_text, nearest),
             )
 
+        # #7697 (operator ruling 2026-11-18): domain keywords decide a
+        # canonical-verb tie, and outrank a route that landed on the generic
+        # profile, when exactly one profile leads the domain-keyword hits.
+        try:
+            decision = self._select_candidate(request_text, candidates)
+        except RouterAmbiguityError as err:
+            broken = self._break_verb_tie(err, candidates, tokens)
+            if broken is None:
+                raise
+            return broken
+        return self._prefer_domain_specialist(decision, candidates, profiles, tokens)
+
+    def _select_candidate(self, request_text: str, candidates: list[dict[str, str]]) -> RouterDecision:
+        """Pick one candidate by tier, then ``routing_priority`` (WP3/#3840)."""
         # ------------------------------------------------------------------
         # WP3/#3840 (FR-006, SK-08 rerank -- narrowed by operator ruling on
         # top of the original WP03 commit): partition candidates into the
@@ -755,6 +818,74 @@ class ActionRouter:
                 for c in sorted(top_candidates, key=lambda candidate: candidate["profile_id"])
             ],
             _ambiguous_suggestion(request_text, sorted(top_candidates, key=lambda candidate: candidate["profile_id"])),
+        )
+
+    def _break_verb_tie(
+        self,
+        err: RouterAmbiguityError,
+        candidates: list[dict[str, str]],
+        tokens: list[str],
+    ) -> RouterDecision | None:
+        """Resolve a canonical-verb tie by domain-keyword hits (#7697).
+
+        Only a ``ROUTER_AMBIGUOUS`` refusal inside the canonical-verb tier is
+        considered. The pool is the whole verb tier, not only the top-priority
+        ties: a lower-priority profile whose domain the request names is a better
+        owner than five equally ranked generalists. ``None`` keeps the refusal.
+        """
+        if err.error_code != "ROUTER_AMBIGUOUS":
+            return None
+        verb_tier = [c for c in candidates if c["_confidence"] == "canonical_verb"]
+        by_id = {c["profile_id"]: c for c in verb_tier}
+        pool = [profile for profile_id in by_id if (profile := self._registry.get(profile_id)) is not None]
+        leader = _domain_keyword_leader(pool, tokens)
+        if leader is None:
+            return None
+        profile, hits = leader
+        winner = by_id[str(getattr(profile, "profile_id", ""))]
+        return RouterDecision(
+            profile_id=winner["profile_id"],
+            action=winner["action"],
+            confidence="canonical_verb",
+            match_reason=f"{winner['match_reason']}; tie broken by domain keyword {_quoted_hits(hits)}",
+            alternatives=[_public_candidate(other) for other in candidates if other is not winner],
+        )
+
+    def _prefer_domain_specialist(
+        self,
+        decision: RouterDecision,
+        candidates: list[dict[str, str]],
+        profiles: list[object],
+        tokens: list[str],
+    ) -> RouterDecision:
+        """Hand a route that landed on the generic profile to the domain owner (#7697).
+
+        The generic profile declares no domain; its folded verbs (``update``,
+        ``fix``) say what to do, not whose work it is. When exactly one other
+        profile leads the request's domain-keyword hits, it takes the route.
+        """
+        if decision.profile_id != GENERIC_PROFILE_ID:
+            return decision
+        pool = [profile for profile in profiles if getattr(profile, "profile_id", "") != GENERIC_PROFILE_ID]
+        leader = _domain_keyword_leader(pool, tokens)
+        if leader is None:
+            return decision
+        profile, hits = leader
+        profile_id = str(getattr(profile, "profile_id", ""))
+        action = decision.action if decision.confidence == "canonical_verb" else _default_action_for_role(getattr(profile, "role", None))
+        generic = {
+            "profile_id": decision.profile_id,
+            "action": decision.action,
+            "confidence": decision.confidence,
+            "match_reason": decision.match_reason,
+        }
+        others = [_public_candidate(c) for c in candidates if c["profile_id"] not in (profile_id, GENERIC_PROFILE_ID)]
+        return RouterDecision(
+            profile_id=profile_id,
+            action=action,
+            confidence="domain_keyword",
+            match_reason=f"domain keyword {_quoted_hits(hits)} matched; outranks the generic profile '{GENERIC_PROFILE_ID}'",
+            alternatives=[generic, *others],
         )
 
     def _derive_action_from_tokens(self, request_text: str, role: object) -> str:

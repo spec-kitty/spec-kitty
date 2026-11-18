@@ -1126,3 +1126,67 @@ def test_ambiguous_suggestion_names_every_tied_profile() -> None:
     assert [candidate["profile_id"] for candidate in err.candidates] == ["implementer-a", "implementer-b"]
     assert "--profile implementer-a" in err.suggestion
     assert "--profile implementer-b" in err.suggestion
+
+
+# ---------------------------------------------------------------------------
+# #7697 (operator ruling 2026-11-18): domain keywords decide a canonical-verb tie
+# and outrank a route that landed on the generic profile.
+# ---------------------------------------------------------------------------
+
+_TIE_PROFILES: list[dict[str, Any]] = [
+    {"profile_id": "lang-a", "role_value": "implementer", "routing_priority": 80, "domain_keywords": ["widget"]},
+    {"profile_id": "lang-b", "role_value": "implementer", "routing_priority": 80, "domain_keywords": ["gadget"]},
+    {"profile_id": "ci-owner", "role_value": "implementer", "routing_priority": 50, "domain_keywords": ["ci", "ci matrix", "github actions"]},
+    {"profile_id": "generic-agent", "role_value": "implementer", "routing_priority": 10, "collab_verbs": ["update"]},
+]
+
+
+def test_verb_tie_is_decided_by_the_domain_keyword_leader() -> None:
+    """A lower-priority profile that owns the request's domain breaks a verb tie."""
+    decision = ActionRouter(_make_mock_registry(_TIE_PROFILES)).route("fix the github actions ci matrix")
+
+    assert decision.profile_id == "ci-owner"
+    assert decision.confidence == "canonical_verb"
+    assert decision.action == "implement"
+    assert "tie broken by domain keyword" in decision.match_reason
+    assert "ci-owner" not in [alt["profile_id"] for alt in decision.alternatives]
+    assert {"lang-a", "lang-b"} <= {alt["profile_id"] for alt in decision.alternatives}
+
+
+def test_verb_tie_stays_ambiguous_without_a_domain_keyword_leader() -> None:
+    """No hit, or a tied hit count, keeps the refusal: the router invents no winner."""
+    router = ActionRouter(_make_mock_registry(_TIE_PROFILES))
+
+    for request in ("fix the flaky thing", "fix the widget gadget"):
+        with pytest.raises(RouterAmbiguityError) as exc_info:
+            router.route(request)
+        assert exc_info.value.error_code == "ROUTER_AMBIGUOUS", request
+
+
+def test_generic_route_is_taken_by_the_domain_keyword_leader() -> None:
+    """A folded generic verb (`update`) yields to the profile whose domain is named."""
+    decision = ActionRouter(_make_mock_registry(_TIE_PROFILES)).route("update the github actions workflow matrix")
+
+    assert decision.profile_id == "ci-owner"
+    assert decision.confidence == "domain_keyword"
+    assert "outranks the generic profile" in decision.match_reason
+    assert decision.alternatives[0]["profile_id"] == "generic-agent"
+
+
+def test_generic_route_stays_without_a_domain_keyword_hit() -> None:
+    """With no domain keyword in the request, the generic route is unchanged."""
+    decision = ActionRouter(_make_mock_registry(_TIE_PROFILES)).route("update the readme")
+
+    assert decision.profile_id == "generic-agent"
+
+
+def test_documentation_alias_never_counts_as_a_domain_hit() -> None:
+    """Tier-4 aliases stay out of the decider, so `update the ADR index` keeps its route."""
+    registry = _make_mock_registry(
+        [
+            {"profile_id": "generic-agent", "role_value": "implementer", "routing_priority": 10, "collab_verbs": ["update"]},
+            {"profile_id": "docs-owner", "role_value": "curator", "routing_priority": 50, "domain_keywords": ["documentation"]},
+        ]
+    )
+
+    assert ActionRouter(registry).route("update the ADR index").profile_id == "generic-agent"

@@ -49,10 +49,10 @@ from pathlib import Path
 from charter.activation.pack_context import PackContext
 from charter.drg import ArtifactKind
 from charter.profiles import DEFAULT_ROLE_CAPABILITIES, Role
-from specify_cli.invocation.router import CANONICAL_VERB_MAP, RouterDecision, _normalize_tokens
+from specify_cli.invocation.router import CANONICAL_VERB_MAP, GENERIC_PROFILE_ID, RouterDecision, _normalize_tokens
 
 #: Built-in profile pinned when the charter is wholly empty (Decision 2/3).
-GENERIC_AGENT_ID = "generic-agent"
+GENERIC_AGENT_ID = GENERIC_PROFILE_ID
 
 #: Repo-relative path to the compiled charter bundle (the read authority --
 #: see ``charter.bundle.CHARTER_YAML``, not imported directly here to avoid
