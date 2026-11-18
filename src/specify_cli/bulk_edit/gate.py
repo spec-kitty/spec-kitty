@@ -261,6 +261,66 @@ def _git_diff_files(
     )
 
 
+#: #7726: the review gate's range refusals. The range comes from the one review-range owner
+#: (``review.wp_range.resolve_wp_review_range``): a range that cannot be determined, or that holds
+#: no commit, leaves the gate nothing to judge, so it refuses instead of passing.
+BULK_EDIT_REVIEW_RANGE_UNAVAILABLE = "BULK_EDIT_REVIEW_RANGE_UNAVAILABLE"
+BULK_EDIT_REVIEW_RANGE_EMPTY = "BULK_EDIT_REVIEW_RANGE_EMPTY"
+
+#: Range gaps (``review.wp_range.RangeGap`` values) whose remedy is a fresh submission.
+_RESUBMIT_GAPS = frozenset({"no_submission"})
+_STATUS_GAPS = frozenset({"status_unreadable"})
+
+
+def review_range_refusal(
+    *,
+    wp_id: str,
+    mission_slug: str,
+    base: str | None,
+    tip: str | None,
+    gap: str | None,
+    commit_count: int,
+    listing_gap: str | None,
+) -> str | None:
+    """The gate's refusal for a review range it cannot judge, or ``None`` when *base..tip* is judgeable.
+
+    Takes the range's fields (``WpReviewRange.base`` / ``.tip`` / ``.gap`` / ``len(.commits)`` /
+    ``.listing_gap``) rather than the value itself, so this module stays free of the review
+    package. *commit_count* counts the range's commits outside Mission bookkeeping: a range of
+    status commits only is empty (the claim and the submission commit bookkeeping, so ``base``
+    rarely equals ``tip``). Never demands a local branch: every end is a recorded commit, and the
+    remedies name status moves or a fetch.
+    """
+    to_review = f"spec-kitty agent tasks move-task {wp_id} --to for_review --mission {mission_slug}"
+    if base is None or tip is None:
+        reason = gap or "unknown"
+        if reason in _RESUBMIT_GAPS:
+            remedy = f"Hand the work package to review first: {to_review}"
+        elif reason in _STATUS_GAPS:
+            remedy = f"Run `spec-kitty agent tasks status --mission {mission_slug}` to see why the status surface cannot be read, fix it, then retry."
+        else:
+            remedy = (
+                "The recorded window open or submission does not resolve to a commit here. Fetch the commits the "
+                "work package was written on (for a pull request, its head), then retry; if they no longer exist, "
+                f"move the work package back to in_progress and re-submit it ({to_review}) so the submission is recorded again."
+            )
+        return (
+            f"{BULK_EDIT_REVIEW_RANGE_UNAVAILABLE}: the bulk-edit review gate cannot judge {wp_id}: its review range "
+            f"is unavailable (gap: {reason}). {remedy}"
+        )
+    if listing_gap is not None and "commits" in listing_gap.split(", "):
+        return (
+            f"{BULK_EDIT_REVIEW_RANGE_UNAVAILABLE}: the bulk-edit review gate cannot judge {wp_id}: the commits of its "
+            f"review range {base[:12]}..{tip[:12]} could not be listed. Check that the repository is readable, then retry."
+        )
+    if base == tip or commit_count == 0:
+        return (
+            f"{BULK_EDIT_REVIEW_RANGE_EMPTY}: the bulk-edit review gate has nothing to judge for {wp_id}: its review "
+            f"range {base[:12]}..{tip[:12]} holds no commit outside Mission bookkeeping. Commit the work package's change, then re-submit it: {to_review}"
+        )
+    return None
+
+
 def check_review_diff_compliance(
     feature_dir: Path,
     repo_root: Path,

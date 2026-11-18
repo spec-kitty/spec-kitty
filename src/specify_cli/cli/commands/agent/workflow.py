@@ -74,6 +74,7 @@ if TYPE_CHECKING:
 
     from mission_runtime import PlacementSeam
     from specify_cli.bulk_edit.gate import DiffCheckResult
+    from specify_cli.review.wp_range import WpReviewRange
     from specify_cli.coordination.transaction import BookkeepingTransaction
     from specify_cli.git.origin_freshness import ReviewLaneAction
     from specify_cli.invocation.record import OpStartedEvent
@@ -170,57 +171,50 @@ def _enforce_bulk_edit_diff_compliance(
     feature_dir: Path,
     main_repo_root: Path,
     mission_slug: str,
-    target_branch: str,
-    review_workspace: ResolvedWorkspace,
+    wp_id: str,
     check_review_diff_compliance: Callable[..., DiffCheckResult | None],
     render_diff_check_failure: Callable[..., None],
     rich_console: Console,
 ) -> None:
     """Enforce per-file bulk-edit diff compliance for a WP under review (FR-007/8).
 
-    Inspects the WP's diff against its lane base branch and rejects modifications
-    to forbidden or unclassified surfaces. Raises ``typer.Exit(1)`` on failure;
-    surfaces ``manual_review`` warnings without blocking.
+    Judges the work package's own review range, window open .. ``for_review`` submission, from
+    the one review-range owner (``review.wp_range.resolve_wp_review_range``) on every topology
+    (#7726). Before, the base was ``lanes.json``'s ``mission_branch`` and the head the review
+    workspace branch: on ``single_branch`` both are the same branch, so the gate diffed ``X..X``
+    and passed having checked nothing, and a missing local Mission branch refused on
+    ``rev-parse``. The range ends are recorded commits, never a local branch name.
+
+    Raises ``typer.Exit(1)`` on a violation, and on a range that is unavailable or empty
+    (``BULK_EDIT_REVIEW_RANGE_UNAVAILABLE`` / ``BULK_EDIT_REVIEW_RANGE_EMPTY``): a gate with
+    nothing to judge refuses, it never passes. Surfaces ``manual_review`` warnings without blocking.
     """
-    # The mission branch is the canonical base for a WP lane diff. If the
-    # review is running from the main repo (not a lane worktree), this
-    # still resolves because the mission branch exists until merge
-    # cleanup. If the branch cannot be resolved, fall back to the
-    # target_branch captured earlier in this function.
-    #
-    # #3439 / FR-004 / C-001: LANE_STATE is a PRIMARY-partition kind. On a
-    # coord-topology mission ``feature_dir`` is the STATUS-only ``-coord`` husk,
-    # which carries no ``lanes.json`` — a direct ``read_lanes_json(feature_dir)``
-    # returned ``None`` and silently fell back to ``target_branch``, diffing the
-    # entire target-branch delta and false-blocking the gate. Route the read
-    # through the placement seam (the existing SSOT — no predicate fork) so the
-    # canonical mission_branch base is resolved on every topology.
-    try:
-        from mission_runtime import MissionArtifactKind, placement_seam
+    from rich.markup import escape
 
-        from specify_cli.lanes.persistence import read_lanes_json as _read_lanes_json
+    from specify_cli.bulk_edit.gate import review_range_refusal
+    from specify_cli.review.wp_range import resolve_wp_review_range
 
-        _lane_state_dir = placement_seam(main_repo_root, mission_slug).read_dir(
-            MissionArtifactKind.LANE_STATE
-        )
-        _lanes_manifest = _read_lanes_json(_lane_state_dir)
-        _base_ref = _lanes_manifest.mission_branch if _lanes_manifest is not None else target_branch
-    except Exception:
-        _base_ref = target_branch
-    # The WP diff must be the lane branch's changes on top of the mission
-    # branch, NOT `HEAD`. When review runs from the main repo checkout,
-    # `HEAD` is the mission's *target* branch (e.g. feat/...), so diffing
-    # base..HEAD surfaces the entire target-branch delta (hundreds of
-    # unrelated files) and the bulk-edit gate false-blocks. Use the WP's
-    # resolved lane branch as head; fall back to HEAD only for repo_root
-    # (direct-to-target / planning) workspaces where the changes really
-    # are on the current HEAD.
-    _head_ref = review_workspace.branch_name or "HEAD"
+    # No owned_files: the ends do not depend on them, the occurrence map judges every path the
+    # range touches, and the unscoped commit listing (bookkeeping excluded) is what "empty" means.
+    review_range = resolve_wp_review_range(main_repo_root, mission_slug, wp_id, owned_files=())
+    base, tip = review_range.base, review_range.tip
+    refusal = review_range_refusal(
+        wp_id=wp_id,
+        mission_slug=mission_slug,
+        base=base,
+        tip=tip,
+        gap=review_range.gap,
+        commit_count=len(review_range.commits),
+        listing_gap=review_range.listing_gap,
+    )
+    if refusal is not None or base is None or tip is None:
+        rich_console.print(f"[red]Bulk Edit Review: Diff Compliance[/] {escape(refusal or '')}")
+        raise typer.Exit(1)
     _diff_result = check_review_diff_compliance(
         feature_dir=feature_dir,
         repo_root=main_repo_root,
-        base_ref=_base_ref,
-        head_ref=_head_ref,
+        base_ref=base,
+        head_ref=tip,
     )
     if _diff_result is None:
         # Non-bulk-edit mission — skip silently. check_review_diff_compliance
@@ -232,6 +226,24 @@ def _enforce_bulk_edit_diff_compliance(
         raise typer.Exit(1)
     elif _diff_result.warnings:
         _render_diff_check_warnings(_diff_result, rich_console)
+    _note_unjudged_commits(review_range, wp_id, mission_slug, rich_console)
+
+
+def _note_unjudged_commits(review_range: WpReviewRange, wp_id: str, mission_slug: str, console: Console) -> None:
+    """Say which commits of the write branch the gate did not judge (the range ends at the submission)."""
+    from rich.markup import escape
+
+    to_review = f"spec-kitty agent tasks move-task {wp_id} --to for_review --mission {mission_slug}"
+    if review_range.tip_off_branch:
+        console.print(
+            f"[yellow]Bulk-edit review gate:[/] {wp_id}'s submitted tip is no longer on its branch (rewritten); the gate "
+            f"judged the submitted range only. Re-submit to judge the current work: {escape(to_review)}"
+        )
+    elif review_range.moved_past:
+        console.print(
+            f"[yellow]Bulk-edit review gate:[/] the branch moved {review_range.moved_past} commit(s) past {wp_id}'s "
+            f"submitted tip; the gate judged the submitted range only. Re-submit to judge them: {escape(to_review)}"
+        )
 
 
 # Informational note kinds: nothing here asks for a decision. Each is shown
@@ -2491,8 +2503,7 @@ def review(
             feature_dir=feature_dir,
             main_repo_root=main_repo_root,
             mission_slug=mission_slug,
-            target_branch=target_branch,
-            review_workspace=review_workspace,
+            wp_id=normalized_wp_id,
         )
 
         # #6386: inspect the lock this review will acquire BEFORE the claim, so a
