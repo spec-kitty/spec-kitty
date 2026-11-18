@@ -1237,12 +1237,15 @@ def _mt_require_single_branch_evidence(st: _MoveTaskState, manifest: LanesManife
     try:
         changed = wp_evidence.evidence_paths(st.main_repo_root, window, manifest.mission_slug)
     except GitProbeError as exc:
+        # #7726 ruling A: name the restoring command only when the branch really is absent.
+        restore = ""
+        if not single_branch_landing.local_branch_exists(st.main_repo_root, tip):
+            restore = f" It is absent here: create it with git branch {tip} <commit holding the work>"
         raise ActionContextError(
             wp_evidence.SINGLE_BRANCH_IMPLEMENTATION_UNREADABLE,
             f"Could not read the single_branch implementation window {base}..{tip} in "
             f"{st.main_repo_root}; cannot verify {st.task_id} has a committed implementation. Make sure the "
-            "mission branch exists locally and its planning commit is reachable, then retry. If the branch is "
-            f"absent (a fresh clone or a pull-request checkout), create it: git branch {tip} <commit holding the work>",
+            f"mission branch exists locally and its planning commit is reachable, then retry.{restore}",
         ) from exc
     if not wp_evidence.has_owned_change(changed, _mt_owned_file_patterns(st)):
         raise ActionContextError(

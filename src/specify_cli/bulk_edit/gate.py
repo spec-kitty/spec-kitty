@@ -10,7 +10,7 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from kernel.git import GitCommandError, changed_entries, run_git
+from kernel.git import GitCommandError, changed_entries, log_paths
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -51,6 +51,9 @@ class GitDiffFilesResult:
     # content that already exists, so the gate cannot judge a path without
     # knowing whether this diff created it or edited it.
     statuses: dict[str, str] = field(default_factory=dict)
+    # #7726: every changed path came in only through merges (the first-parent filter left none),
+    # so nothing the work package committed itself can be judged.
+    merged_only: bool = False
 
 
 def _is_bulk_edit_mission(feature_dir: Path) -> bool:
@@ -190,17 +193,15 @@ def finalize_tasks_gate_error_payload(result: GateResult) -> dict[str, object]:
 
 
 def _first_parent_paths(repo_root: Path, base_ref: str, head_ref: str) -> set[str]:
-    """The paths the non-merge commits on the first-parent chain of ``base..head`` touch (#7726, ruling B).
+    """The paths the first-parent chain of ``base..head`` changed itself (#7726, ruling B).
 
-    Content a merge brings in (another branch's commits) is not in the set; a rebase or a
-    fast-forward puts foreign commits on the first-parent chain, so they stay. Raises
-    :class:`GitCommandError` on a git failure, which the caller turns into a refusal.
+    Renames are split (``--no-renames``), so a moved file's old path stays judged. A merge on
+    the chain contributes only what its own resolution introduced (``--diff-merges=remerge``),
+    never the commits it brought in; a rebase or a fast-forward puts foreign commits on the
+    chain, so they stay. Raises :class:`GitCommandError` on a git failure (including a git
+    older than 2.36, which lacks ``remerge``), which the caller turns into a refusal.
     """
-    result = run_git(
-        repo_root, "log", "-z", "--first-parent", "--no-merges", "--name-only", "--format=", f"{base_ref}..{head_ref}", timeout=30
-    )
-    # NUL-delimited (``-z``), so a path git would quote is exact, like ``changed_entries``.
-    return {path.strip("\n") for path in result.stdout.decode("utf-8", "replace").split("\0") if path.strip("\n")}
+    return {str(path) for path in log_paths(repo_root, f"{base_ref}..{head_ref}", remerge_merges=True, first_parent=True, timeout=30)}
 
 
 def _git_diff_files(
@@ -279,7 +280,10 @@ def _git_diff_files(
             own = _first_parent_paths(repo_root, base_ref, head_ref)
         except GitCommandError as exc:
             return GitDiffFilesResult(ok=False, stderr=exc.stderr.strip() or str(exc), returncode=exc.returncode if exc.returncode > 0 else None)
-        entries = tuple(entry for entry in entries if str(entry.path) in own)
+        kept = tuple(entry for entry in entries if str(entry.path) in own)
+        if entries and not kept:
+            return GitDiffFilesResult(ok=True, merged_only=True)
+        entries = kept
     files = [str(entry.path) for entry in entries]
     # Normalise ``R100``/``C075`` to their leading letter: the occurrence
     # check cares about the KIND of change, not the similarity score.
@@ -418,6 +422,16 @@ def check_review_diff_compliance(
         if diff_files.stderr:
             details.append(f"stderr={diff_files.stderr}")
         return DiffCheckResult(passed=False, errors=["; ".join(details)])
+
+    if diff_files.merged_only:
+        return DiffCheckResult(
+            passed=False,
+            errors=[
+                f"{BULK_EDIT_REVIEW_RANGE_EMPTY}: every change in {base_ref[:12]}..{head_ref[:12]} came in through a "
+                "merge commit, so nothing the work package committed itself can be judged. Commit the work package's "
+                "change on the branch itself (not only through a merge), then re-submit it."
+            ],
+        )
 
     feature_dir_rel = _feature_dir_rel(feature_dir, repo_root)
     return check_diff_compliance(
