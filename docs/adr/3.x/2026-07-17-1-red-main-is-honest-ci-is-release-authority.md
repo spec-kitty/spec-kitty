@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-07-17'
-updated: '2026-07-17T00:00:00Z'
+updated: '2026-11-18T00:00:00Z'
 ---
 
 # Red main is honest signal; CI status is the release authority
@@ -73,3 +73,13 @@ The decision is confirmed in practice by two observable invariants: (a) no relea
 Rule 3's "red-first reproduction at mainline scope" now has one fixed home. A reproduction of an open P0 carries `@pytest.mark.p0_repro(issue=N)` and runs **only** in the `p0-repro` job of `.github/workflows/ci-nightly.yml`. `tests/_support/p0_repro.py` deselects it from every other run: every per-PR lane, `make test-fast` / `make test-full`, and every other nightly lane. So a pull request always lands on a green per-PR gate, while an open P0 keeps the nightly honestly red, and each failure carries an `[OPEN P0 #N]` banner naming its issue.
 
 Rules 1, 2 and 5 are unchanged in substance. "Mainline CI" includes the nightly, and a release requires a green nightly run for the exact release SHA (`scripts/ci/release_nightly_gate.py`), so an open P0 reproduction still blocks every release. The only bypass is the `skip_nightly` maintainer waiver on a manually dispatched `.github/workflows/release.yml` run (never on a tag push), which skips the nightly gate and says so in the run summary. The `regression` marker no longer carries P0 reproductions. It stays the marker for issue-pinned guards of bugs that are already fixed, and those guards run per PR. The fix PR for a P0 removes the `p0_repro` marker in the same change, which turns the reproduction into such a guard.
+
+## Amendment 2026-11-18 — the performance verdict is weekly (#7704)
+
+Operator ruling on #7704. The `performance` job of `.github/workflows/ci-nightly.yml` now runs weekly, on the Sunday run (cron `17 3 * * 0`), or on any `workflow_dispatch`. Every other nightly job still runs every day. A green nightly on the release SHA therefore no longer proves that the performance suite ran, so the release gate (`scripts/ci/release_nightly_gate.py`) has two conditions:
+
+- **Exact SHA, unchanged.** A green `ci-nightly` run for the exact release SHA.
+- **Performance verdict, new.** The newest completed `ci-nightly` run created in the last 7 days that executed the `performance` job must be green, with that job concluding `success`. It must be on the release SHA, or on a `main` commit the release SHA descends from. A skipped job is no verdict. A newer red verdict outvotes an older green one, so a release cannot publish past an open performance red. Without a green verdict, the gate's `--dispatch` (which `release.yml` passes) runs the nightly by the release tag, and a dispatched run always executes the job.
+
+**Residual risk, accepted by the ruling.** A performance regression that lands between the weekly run and a release whose verdict comes from an ancestor commit ships unless the next weekly run catches it. The 7-day window bounds that exposure. Every other suite keeps the exact-SHA rule. Rules 1-5 are otherwise unchanged, and the `skip_nightly` waiver still skips the whole gate.
+

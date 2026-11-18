@@ -20,16 +20,17 @@ mirroring ``tests/ci/test_nightly_escalation.py``.
 
 from __future__ import annotations
 
+import functools
 import importlib.util
 import sys
 from collections.abc import Iterator
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from collections.abc import Sequence
 from types import ModuleType
 from typing import Any
 
 import pytest
+from kernel.clock import UTC, datetime, timedelta
 
 pytestmark = pytest.mark.fast
 
@@ -120,6 +121,7 @@ class FakeClient:
         jobs: dict[int, list[dict[str, Any]]] | None = None,
         ancestors: frozenset[str] = frozenset({_ANCESTOR_SHA}),
         perf_runs_after_dispatch: Sequence[dict[str, Any]] | None = None,
+        recent_by_poll: Sequence[Sequence[dict[str, Any]]] | None = None,
     ) -> None:
         self._run_batches = run_batches
         self._sha = sha
@@ -130,6 +132,9 @@ class FakeClient:
         self._jobs = dict(_DEFAULT_JOBS if jobs is None else jobs)
         self._ancestors = ancestors
         self._perf_runs_after_dispatch = perf_runs_after_dispatch
+        # When set, the recent-runs listing follows the run_batches snapshot last read,
+        # so a run only becomes a verdict once its own batch shows it completed.
+        self._recent_by_poll = recent_by_poll
 
     def resolve_tag_sha(self, tag: str) -> str:
         self.calls.append(("resolve", (tag,)))
@@ -149,6 +154,8 @@ class FakeClient:
 
     def list_recent_nightly_runs(self, since: datetime) -> list[dict[str, Any]]:
         self.calls.append(("recent", (since,)))
+        if self._recent_by_poll is not None:
+            return list(self._recent_by_poll[min(max(self._list_index - 1, 0), len(self._recent_by_poll) - 1)])
         return list(self._perf_runs)
 
     def list_run_jobs(self, run_id: int) -> list[dict[str, Any]]:
@@ -165,6 +172,7 @@ def _fixed_now(monkeypatch: pytest.MonkeyPatch) -> None:
     """Pin the gate's wall clock so the 7-day window is deterministic."""
     original = mod.run_release_gate
 
+    @functools.wraps(original)
     def _gate(*args: Any, **kwargs: Any) -> Any:
         kwargs.setdefault("now", lambda: _NOW)
         return original(*args, **kwargs)
@@ -570,23 +578,25 @@ def test_a_failed_performance_job_does_not_count() -> None:
 
 def test_dispatch_when_only_the_performance_verdict_is_missing_then_passes_on_the_new_run() -> None:
     # Same-SHA run 1 is green with perf skipped; --dispatch runs the nightly by tag,
-    # and the dispatched run 2 executes the performance job.
+    # and the dispatched run 2 executes the performance job. Run 2 only becomes a
+    # verdict once its own snapshot shows it completed, so the gate must wait.
     clock = FakeClock()
+    batches = [
+        [_run(1, "completed", "success")],
+        [_run(1, "completed", "success"), _run(2, "in_progress")],
+        [_run(1, "completed", "success"), _run(2, "completed", "success")],
+    ]
     client = FakeClient(
-        [
-            [_run(1, "completed", "success")],
-            [_run(1, "completed", "success"), _run(2, "in_progress")],
-            [_run(1, "completed", "success"), _run(2, "completed", "success")],
-        ],
-        perf_runs=[_perf_run(1)],
+        batches,
         jobs={1: _jobs("skipped"), 2: _jobs("success")},
-        perf_runs_after_dispatch=[_perf_run(1), _perf_run(2, age=timedelta(minutes=5))],
+        recent_by_poll=[[_perf_run(1)], [_perf_run(1)], [_perf_run(1), _perf_run(2, age=timedelta(minutes=5))]],
     )
     result = mod.run_release_gate(client, tag=_TAG, dispatch=True, timeout=1000, poll_interval=10, sleep=clock.sleep, monotonic=clock.monotonic)
 
     assert result.passed is True
     assert client.dispatched == [{"ref": _TAG, "mode": "full"}]
     assert "run 2" in result.summary
+    assert _call_names(client).count("list") == len(batches), "the gate must read the snapshot where run 2 completed"
 
 
 def test_dispatch_whose_run_still_lacks_a_performance_verdict_refuses_with_the_remedy() -> None:
@@ -626,7 +636,7 @@ def test_the_performance_job_name_prefix_matches_the_workflow() -> None:
     assert str(workflow["jobs"]["performance"]["name"]).startswith(mod.PERFORMANCE_JOB_NAME_PREFIX)
 
 
-def test_real_client_lists_recent_green_runs_since_the_window(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_real_client_lists_recent_completed_runs_since_the_window(monkeypatch: pytest.MonkeyPatch) -> None:
     client = mod.GitHubActionsClient("spec-kitty/spec-kitty", _FAKE_TOKEN)
     urls: list[str] = []
 
@@ -640,7 +650,8 @@ def test_real_client_lists_recent_green_runs_since_the_window(monkeypatch: pytes
     assert runs == [{"id": 1}]
     assert "workflows/ci-nightly.yml/runs" in urls[0]
     assert "created=%3E%3D2026-11-11T12%3A00%3A00Z" in urls[0]
-    assert "status=success" in urls[0]
+    # Every completed run, red ones included: a newer red verdict must outvote an older green one.
+    assert "status=completed" in urls[0]
 
 
 def test_real_client_pages_through_jobs_and_refuses_a_truncated_listing(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -678,3 +689,124 @@ def test_real_client_ancestry_fails_closed_on_bad_input_or_reply(monkeypatch: py
     monkeypatch.setattr(mod.GitHubActionsClient, "_request", lambda self, method, url, payload=None: {})
     with pytest.raises(mod.ReleaseGateError):
         client.is_ancestor(_ANCESTOR_SHA, _SHA)
+
+
+def test_a_newer_red_performance_run_outvotes_an_older_green_one() -> None:
+    # Sunday green (run 10), a Wednesday dispatch on main went red (run 11): the
+    # release on a descendant commit must not publish on Sunday's verdict.
+    client = FakeClient(
+        [[_run(1, "completed", "success")]],
+        perf_runs=[_perf_run(10, sha=_ANCESTOR_SHA, age=timedelta(days=3)), _perf_run(11, sha=_ANCESTOR_SHA, age=timedelta(days=1)) | {"conclusion": "failure"}],
+        jobs={10: _jobs("success"), 11: _jobs("failure")},
+    )
+    result = mod.run_release_gate(client, tag=_TAG, dispatch=False, timeout=100, poll_interval=10)
+
+    assert result.passed is False
+    assert "run 11" in result.summary
+    assert "is red" in result.summary
+    assert "--dispatch" in result.summary
+
+
+def test_a_cancelled_performance_job_counts_as_an_executed_red_verdict() -> None:
+    client = FakeClient(
+        [[_run(1, "completed", "success")]],
+        perf_runs=[_perf_run(10, age=timedelta(days=3)), _perf_run(11, age=timedelta(days=1)) | {"conclusion": "cancelled"}],
+        jobs={10: _jobs("success"), 11: _jobs("cancelled")},
+    )
+    result = mod.run_release_gate(client, tag=_TAG, dispatch=False, timeout=100, poll_interval=10)
+
+    assert result.passed is False
+    assert "run 11" in result.summary
+
+
+def test_a_red_performance_verdict_with_dispatch_is_cleared_by_a_green_dispatched_run() -> None:
+    clock = FakeClock()
+    red = _perf_run(11, sha=_ANCESTOR_SHA, age=timedelta(days=1)) | {"conclusion": "failure"}
+    batches = [
+        [_run(1, "completed", "success")],
+        [_run(1, "completed", "success"), _run(2, "completed", "success")],
+    ]
+    client = FakeClient(
+        batches,
+        jobs={11: _jobs("failure"), 2: _jobs("success")},
+        recent_by_poll=[[red], [red, _perf_run(2, age=timedelta(minutes=5))]],
+    )
+    result = mod.run_release_gate(client, tag=_TAG, dispatch=True, timeout=1000, poll_interval=10, sleep=clock.sleep, monotonic=clock.monotonic)
+
+    assert result.passed is True
+    assert client.dispatched == [{"ref": _TAG, "mode": "full"}]
+
+
+def test_an_in_flight_weekday_run_without_a_performance_verdict_still_dispatches() -> None:
+    # The 03:17 Monday-Saturday nightly on the release commit is running when the
+    # tag lands; it goes green with the performance job skipped. --dispatch must
+    # still supply the verdict instead of refusing with "run with --dispatch".
+    clock = FakeClock()
+    batches = [
+        [_run(1, "in_progress")],
+        [_run(1, "completed", "success")],
+        [_run(1, "completed", "success")],
+        [_run(1, "completed", "success"), _run(2, "completed", "success")],
+    ]
+    client = FakeClient(
+        batches,
+        jobs={1: _jobs("skipped"), 2: _jobs("success")},
+        recent_by_poll=[[], [_perf_run(1)], [_perf_run(1)], [_perf_run(1), _perf_run(2, age=timedelta(minutes=5))]],
+    )
+    result = mod.run_release_gate(client, tag=_TAG, dispatch=True, timeout=1000, poll_interval=10, sleep=clock.sleep, monotonic=clock.monotonic)
+
+    assert result.passed is True
+    assert client.dispatched == [{"ref": _TAG, "mode": "full"}]
+
+
+def test_an_in_flight_weekday_run_without_dispatch_refuses_with_the_remedy() -> None:
+    clock = FakeClock()
+    client = FakeClient(
+        [[_run(1, "in_progress")], [_run(1, "completed", "success")]],
+        jobs={1: _jobs("skipped")},
+        recent_by_poll=[[], [_perf_run(1)]],
+    )
+    result = mod.run_release_gate(client, tag=_TAG, dispatch=False, timeout=1000, poll_interval=10, sleep=clock.sleep, monotonic=clock.monotonic)
+
+    assert result.passed is False
+    assert "remedy: dispatch ci-nightly" in result.summary
+    assert client.dispatched == []
+
+
+def test_a_red_dispatched_run_is_reported_before_a_missing_performance_verdict() -> None:
+    clock = FakeClock()
+    client = FakeClient(
+        [
+            [_run(1, "completed", "success")],
+            [_run(1, "completed", "success"), _run(2, "completed", "failure")],
+        ],
+        jobs={1: _jobs("skipped"), 2: _jobs("failure")},
+        recent_by_poll=[[_perf_run(1)], [_perf_run(1), _perf_run(2, age=timedelta(minutes=5)) | {"conclusion": "failure"}]],
+    )
+    result = mod.run_release_gate(client, tag=_TAG, dispatch=True, timeout=1000, poll_interval=10, sleep=clock.sleep, monotonic=clock.monotonic)
+
+    assert result.passed is False
+    assert "concluded non-success" in result.summary
+
+
+def test_ancestry_and_completed_jobs_are_asked_once_per_gate_run() -> None:
+    clock = FakeClock()
+    client = FakeClient(
+        [[_run(5, "in_progress")]] * 3 + [[_run(5, "completed", "success")]],
+        perf_runs=[_perf_run(800, sha=_ANCESTOR_SHA, age=timedelta(days=2)) | {"conclusion": "failure"}],
+        jobs={800: _jobs("failure")},
+    )
+    mod.run_release_gate(client, tag=_TAG, dispatch=False, timeout=1000, poll_interval=10, sleep=clock.sleep, monotonic=clock.monotonic)
+
+    names = _call_names(client)
+    assert names.count("ancestor") == 1
+    assert names.count("jobs") == 1
+
+
+def test_the_default_clock_is_the_kernel_clock_door() -> None:
+    import inspect
+
+    from kernel.clock import now_utc
+
+    signature = inspect.signature(inspect.unwrap(mod.run_release_gate), follow_wrapped=False)
+    assert signature.parameters["now"].default is now_utc

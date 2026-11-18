@@ -74,6 +74,12 @@ def test_the_performance_job_runs_on_the_weekly_cron_and_on_dispatch_only() -> N
     assert condition.endswith(f"&& {_CADENCE_CONDITION}"), condition
 
 
+def _workflow_cadence_conjunct() -> str:
+    """The cadence conjunct as the WORKFLOW states it (not this module's constant)."""
+    condition = " ".join(str(_workflow()["jobs"]["performance"]["if"]).split())
+    return condition.rsplit("&&", 1)[1].strip()
+
+
 @pytest.mark.parametrize(
     ("event_name", "schedule", "runs"),
     [
@@ -83,9 +89,9 @@ def test_the_performance_job_runs_on_the_weekly_cron_and_on_dispatch_only() -> N
     ],
 )
 def test_the_cadence_condition_admits_the_expected_runs(event_name: str, schedule: str | None, runs: bool) -> None:
-    """Evaluate the cadence conjunct the way Actions would for each event."""
-    match = re.fullmatch(r"\(github\.event_name != '(\w+)' \|\| github\.event\.schedule == '([^']+)'\)", _CADENCE_CONDITION)
-    assert match
+    """Evaluate the workflow's own cadence conjunct the way Actions would for each event."""
+    match = re.fullmatch(r"\(github\.event_name != '(\w+)' \|\| github\.event\.schedule == '([^']+)'\)", _workflow_cadence_conjunct())
+    assert match, f"unmodeled cadence conjunct: {_workflow_cadence_conjunct()!r}"
     admitted = event_name != match.group(1) or schedule == match.group(2)
     assert admitted is runs
 

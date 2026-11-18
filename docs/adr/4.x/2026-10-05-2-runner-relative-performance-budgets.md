@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-10-05'
-updated: '2026-11-08T00:00:00Z'
+updated: '2026-11-18T00:00:00Z'
 ---
 
 **Status:** Accepted
@@ -255,3 +255,9 @@ Nightly workload medians are now 0.64 to 0.72 s (0.44 to 0.49 s at calibration t
 **Local measurement.** On a machine loaded by other agents, the unchanged code at the old limit reproduced the CI flake: clean `--help` ratio 2.946 (command 1.854 s, workload 0.629 s) against 2.90, with no product change. With the new settings, `SPEC_KITTY_RUN_PERFORMANCE=1 pytest tests/performance/test_cli_startup_budget_4409.py` passed 18 of 18, including both wall-clock tests. Three further interleaved measurements of the planted pair (25,000,000 iterations) gave clean ratios 2.590, 2.896 and 2.568, plant cost fractions 0.925, 0.731 and 0.948, and planted ratios 4.984, 5.013 and 5.002, against a limit of 3.35 and a band of 0.62 to 1.50. These are local readings; the CI runner's fraction is scaled, not measured, as stated above.
 
 **Follow-up (not done here).** Passing runs record no ratio: `record_property` values are dropped under `junit_family` xunit2 (pytest warns that it is incompatible), and the `ci-nightly-performance-reports` artifact could not be read. Future calibration needs the ratio printed to the log, or a `junit_family` change. Neither is part of this change.
+
+## Note 2026-11-18 — weekly cadence and the in-process median (#7704)
+
+- **Cadence.** The nightly `performance` job now runs weekly (the Sunday `ci-nightly.yml` run, or a `workflow_dispatch`). Where this record says "nightly", read "the runs in which the job executed". A recalibration takes its samples from those runs.
+- **In-process budgets.** These are tests that time a function call in the test process, not a spawned CLI. They are outside this ADR's ratio rule, because they pay no interpreter cold start. They keep an absolute budget, but are now judged on the median of `IN_PROCESS_SAMPLE_RUNS` (5) fresh samples after optional untimed warm-ups (`median_in_process_seconds` in `tests/_perf_helpers.py`). The operator accepted that as tuning the gate, not a retry: every sample counts, and a uniformly slower call still moves the median. A once-per-process cost (here, the first `jsonschema` import, about 1 s in the dev environment) is kept out of the step budget by the warm-up. It is a real cold-start cost for a one-shot CLI process, and no suite budgets it today.
+
