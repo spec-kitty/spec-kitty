@@ -645,6 +645,27 @@ log keeps the stamps; only consolidation ignores them.
   `test_commit_to_target_unbounded_residual`, is a strict `xfail`: its `exit 1` assertion fails, so the
   residual (FR-078) stays open, and the stamps do not close it.
 
+## Amendment 2026-11-18 (#7726): the bulk-edit review gate reads the review range
+
+**Status:** Proposed (pending operator review on the pull request closing #7726).
+
+**What changes.** The bulk-edit review gate (`agent action review`,
+`cli/commands/agent/workflow.py::_enforce_bulk_edit_diff_compliance`) diffs the work package's review
+range, `review/wp_range.py::resolve_wp_review_range` (window open to the newest `for_review`
+submission), on every topology. It no longer derives its own base (`lanes.json` `mission_branch`) and
+head (the review workspace branch). On `single_branch` those two named the same branch, so the gate
+diffed `X..X` and passed having checked nothing; with that branch absent locally it refused on
+`rev-parse`. The range's ends are recorded commits, so no local Mission branch is read.
+
+**Refusals.** An `UNAVAILABLE` range refuses with `BULK_EDIT_REVIEW_RANGE_UNAVAILABLE` and its gap; a
+range with no commit outside Mission bookkeeping refuses with `BULK_EDIT_REVIEW_RANGE_EMPTY`
+(`bulk_edit/gate.py::review_range_refusal`). Neither is a pass.
+
+**Residual.** The range ends at the submission. Commits after it (`moved_past`), or a rewritten lane
+(`tip_off_branch`), are named as not judged, not refused: on `single_branch` the commits past a
+submission can be another work package's. On `lanes` and `lanes_with_coord` this narrows the gate
+from the live lane tip to the submitted tip; re-submitting judges the later commits.
+
 ## References
 
 - Contract: `kitty-specs/consolidation-window-provenance-01M6Y84D/contracts/status-event-wp-window.md`.

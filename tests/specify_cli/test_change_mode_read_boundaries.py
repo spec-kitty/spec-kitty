@@ -122,8 +122,7 @@ def _observe_workflow_executor_review_gate(tmp_path: Path, change_mode: str | No
             feature_dir=tmp_path,
             main_repo_root=tmp_path,
             mission_slug="m",
-            target_branch="main",
-            review_workspace=MagicMock(),
+            wp_id="WP01",
         )
     return dispatched.get("called", False)
 

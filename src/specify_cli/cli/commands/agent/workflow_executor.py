@@ -1983,10 +1983,12 @@ def review_enforce_bulk_edit_gate(
     feature_dir: Path,
     main_repo_root: Path,
     mission_slug: str,
-    target_branch: str,
-    review_workspace: ResolvedWorkspace,
+    wp_id: str,
 ) -> None:
-    """Bulk edit occurrence classification + per-file diff compliance gate (FR-006/7/8)."""
+    """Bulk edit occurrence classification + per-file diff compliance gate (FR-006/7/8).
+
+    The diff is *wp_id*'s review range (#7726), so no target branch or workspace branch is read.
+    """
     from specify_cli.bulk_edit.gate import (
         check_review_diff_compliance,
         ensure_occurrence_classification_ready,
@@ -2005,8 +2007,7 @@ def review_enforce_bulk_edit_gate(
             feature_dir=feature_dir,
             main_repo_root=main_repo_root,
             mission_slug=mission_slug,
-            target_branch=target_branch,
-            review_workspace=review_workspace,
+            wp_id=wp_id,
             check_review_diff_compliance=check_review_diff_compliance,
             render_diff_check_failure=render_diff_check_failure,
             rich_console=rich_console,
