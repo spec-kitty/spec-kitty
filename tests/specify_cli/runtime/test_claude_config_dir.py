@@ -15,12 +15,13 @@ from typer.testing import CliRunner
 from specify_cli.runtime import agent_skills
 from specify_cli.runtime.agent_commands import ensure_global_agent_commands, get_global_command_dir
 from specify_cli.runtime.doctor import resolve_command_file_dirs
-from specify_cli.skills.paths import (
+from specify_cli.core.config import (
     CLAUDE_CONFIG_DIR_ENV,
-    get_claude_user_config_root,
-    get_primary_global_skill_root,
-    get_project_skill_root_for_global_root,
+    OPENCODE_CONFIG_DIR_ENV,
+    agent_user_config_root,
+    user_global_path_for_project_path,
 )
+from specify_cli.skills.paths import get_primary_global_skill_root, get_project_skill_root_for_global_root
 
 pytestmark = [pytest.mark.fast]
 
@@ -43,7 +44,7 @@ def claude_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, home: Path) -> 
 
 
 def test_default_claude_roots_stay_under_home(home: Path) -> None:
-    assert get_claude_user_config_root() == home / ".claude"
+    assert agent_user_config_root("claude") == home / ".claude"
     assert get_global_command_dir("claude") == home / ".claude" / "commands"
     assert get_primary_global_skill_root("claude") == home / ".claude" / "skills"
 
@@ -64,6 +65,27 @@ def test_claude_config_dir_redirects_claude_only(home: Path, claude_root: Path) 
     assert get_primary_global_skill_root("claude") == claude_root / "skills"
     assert get_global_command_dir("gemini") == home / ".gemini" / "commands"
     assert get_primary_global_skill_root("codex") == home / ".agents" / "skills"
+
+
+def test_one_resolver_owns_every_documented_config_root(home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Commands and agent-owned skill roots derive from ``agent_user_config_root`` (D2 of #7709)."""
+    monkeypatch.setenv(OPENCODE_CONFIG_DIR_ENV, str(tmp_path / "oc"))
+    monkeypatch.setenv("LLXPRT_CONFIG_HOME", str(tmp_path / "lx"))
+    for agent in ("claude", "opencode", "llxprt"):
+        root = agent_user_config_root(agent)
+        assert root is not None
+        assert get_global_command_dir(agent) == root / "commands"
+    assert agent_user_config_root("opencode") == tmp_path / "oc"
+    assert agent_user_config_root("llxprt") == tmp_path / "lx"
+    assert agent_user_config_root("gemini") is None
+
+
+def test_agent_owned_skill_root_follows_the_config_root_and_shared_root_stays_home(home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(OPENCODE_CONFIG_DIR_ENV, str(tmp_path / "oc"))
+    assert user_global_path_for_project_path("opencode", ".opencode/skills/") == tmp_path / "oc" / "skills"
+    assert user_global_path_for_project_path("opencode", ".agents/skills/") == home / ".agents" / "skills"
+    assert get_primary_global_skill_root("opencode") == home / ".agents" / "skills", "OpenCode's primary root is shared"
+    assert user_global_path_for_project_path("gemini", ".gemini/skills/") == home / ".gemini" / "skills"
 
 
 def test_redirected_claude_skill_root_keeps_native_projection(claude_root: Path) -> None:
