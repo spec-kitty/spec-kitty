@@ -1654,6 +1654,7 @@ def preflight_commit(
     paths: tuple[Path, ...],
     capability: GuardCapability = GuardCapability.STANDARD,
     owned: OwnedCheckout | OwnedCreateMission | None = None,
+    allow_root_commit: bool = False,
 ) -> list[str]:
     """Validate a commit destination and paths without mutating git or files.
 
@@ -1666,6 +1667,9 @@ def preflight_commit(
     :class:`~specify_cli.core.owned_mission.OwnedCreateMission`); the
     mission-scoped ``commit_to_target`` fold then reads the mission from the
     fact (see :func:`_mission_scoped_policies`).
+
+    ``allow_root_commit`` accepts an absent ``destination_ref`` when HEAD names it
+    (an unborn branch), so the commit becomes the repository's root commit (#7612).
     """
     destination_ref = target.ref
     # 1. Shape: short branch name only.
@@ -1693,8 +1697,9 @@ def preflight_commit(
             holder=remedy_holder_of_ref(repo_root, worktree_root, destination_ref),
         )
 
-    # 5. destination_ref exists.
-    if not _destination_ref_exists(worktree_root, destination_ref):
+    # 5. destination_ref exists. Step 4 proved HEAD names it, so an absent ref is
+    #    an unborn branch; only an explicit root-commit request may land there (#7612).
+    if not _destination_ref_exists(worktree_root, destination_ref) and not allow_root_commit:
         raise SafeCommitDestinationNotFound(
             destination_ref=destination_ref,
             worktree_root=worktree_root,
@@ -1931,6 +1936,17 @@ def _commit_against_parent(
     )
 
 
+def _refuse_parent_modes_for_root_commit(
+    allow_root_commit: bool,
+    index_deletions: Sequence[Path],
+    expected_parent_sha: str | None,
+    index_only_removals: tuple[Path, ...],
+) -> None:
+    """A root commit has no parent, so the modes built on one cannot be combined with it (#7612)."""
+    if allow_root_commit and (index_deletions or expected_parent_sha is not None or index_only_removals):
+        raise ValueError("allow_root_commit cannot be combined with index_deletions, expected_parent_sha or index_only_removals: a root commit has no parent")
+
+
 def safe_commit(
     *,
     repo_root: Path,
@@ -1946,6 +1962,7 @@ def safe_commit(
     runtime_lock_path: Path | None = None,
     owned: OwnedCheckout | OwnedCreateMission | None = None,
     index_deletions: Sequence[Path] = (),
+    allow_root_commit: bool = False,
 ) -> CommitResult:
     """Commit ``paths`` to ``destination_ref`` inside ``worktree_root``.
 
@@ -2037,6 +2054,12 @@ def safe_commit(
             (``None`` otherwise). The mission-scoped protection fold then reads
             the mission from the fact -- never inferred from the two roots'
             filesystem shape, never re-deriving the repository root.
+        allow_root_commit: Let the commit land on an unborn ``destination_ref``
+            (the branch HEAD names but that has no commit yet), making it the
+            repository's root commit (#7612). Every other step is unchanged:
+            exactly ``paths`` are committed and the operator's other staged
+            entries stay staged. Incompatible with ``index_deletions``,
+            ``expected_parent_sha`` and ``index_only_removals``, which need a parent.
 
     Returns:
         :class:`CommitResult` carrying the new commit SHA, the declared
@@ -2078,6 +2101,7 @@ def safe_commit(
 
     if index_deletions and expected_parent_sha is not None:
         raise ValueError("index_deletions cannot be combined with expected_parent_sha")
+    _refuse_parent_modes_for_root_commit(allow_root_commit, index_deletions, expected_parent_sha, index_only_removals)
     if index_deletions and advance_intents_reported():
         # #5931: an index_deletions commit moves the ref through porcelain and reports no advance
         # intent, so inside a consolidation rollback span a kill would leave it unexplained.
@@ -2092,6 +2116,7 @@ def safe_commit(
         paths=(*paths, *index_deletions),
         capability=capability,
         owned=owned,
+        allow_root_commit=allow_root_commit,
     )
     _refuse_decisions_runtime_lock(normalized_files[: len(paths)], removals, worktree_root)
     if index_deletions:
