@@ -6079,6 +6079,7 @@ pages:
     - {slug: "clean-up-stale-worktrees", text: "Clean Up Stale Worktrees", level: 3}
     - {slug: "worktree-vocabulary", text: "Worktree Vocabulary", level: 2}
     - {slug: "lane-checkouts-hide-status", text: "Lane checkouts hide status", level: 2}
+    - {slug: "consolidate-reads-git-state-through-a-run-scoped-cache", text: "Consolidate reads git state through a run-scoped cache", level: 2}
     - {slug: "common-issues", text: "Common Issues", level: 2}
     - {slug: "worktree-already-exists", text: "\"Worktree already exists\"", level: 3}
     - {slug: "branch-is-already-checked-out", text: "\"Branch is already checked out\"", level: 3}
@@ -11127,7 +11128,7 @@ pages:
     abstract: "Context section landing page: the unified home for Spec Kitty's canonical glossary contexts, the stakeholder/audience persona catalog, and the Charter governance model."
     anchors:
     - {slug: "glossary-reference-notes", text: "Glossary reference notes", level: 3}
-    - {slug: "spec-kitty-3-2-charter-era-overview", text: "Spec Kitty 3.2 Charter-era overview", level: 2}
+    - {slug: "charter-era-overview", text: "Charter-era overview", level: 2}
     - {slug: "answer-summary", text: "Answer summary", level: 3}
     - {slug: "what-is-charter", text: "What is Charter?", level: 3}
     - {slug: "documentation-by-type", text: "Documentation by type", level: 3}
@@ -11136,20 +11137,35 @@ pages:
   - path: "docs/context/audience/README.md"
     title: "Architecture Audience"
     divio_type: "none"
-    abstract: "Architecture audience catalog: the canonical internal and external persona references for Spec Kitty, split by delivery-boundary membership for journeys and reviews."
+    abstract: "Audience catalog: the eleven internal and external reader profiles a Spec Kitty doc page names in its audience frontmatter, and how to choose one."
     anchors:
+    - {slug: "naming-a-page-s-reader", text: "Naming a page's reader", level: 2}
     - {slug: "audience-groups", text: "Audience Groups", level: 2}
     - {slug: "conventions", text: "Conventions", level: 2}
   - path: "docs/context/audience/external/README.md"
     title: "External Audience Personas"
     divio_type: "none"
-    abstract: "Index of external-audience personas — stakeholders outside the Spec Kitty runtime boundary — with their actor type, primary concern, and linked user journeys."
+    abstract: "Index of the external-audience personas: stakeholders outside the Spec Kitty delivery boundary, with their actor type, primary concern, and the pages to write for them."
     anchors:
     - {slug: "index", text: "Index", level: 2}
   - path: "docs/context/audience/external/architect-evaluator.md"
     title: "Stakeholder Persona: External Architect Evaluator"
     divio_type: "explanation"
     abstract: "External architect-evaluator persona: assesses whether Spec Kitty's architecture and decision model are robust enough for long-term organizational adoption."
+    anchors:
+    - {slug: "overview", text: "Overview", level: 2}
+    - {slug: "core-motivations", text: "Core Motivations", level: 2}
+    - {slug: "desiderata", text: "Desiderata", level: 2}
+    - {slug: "frustrations-and-constraints", text: "Frustrations and Constraints", level: 2}
+    - {slug: "behavioral-cues", text: "Behavioral Cues", level: 2}
+    - {slug: "collaboration-preferences", text: "Collaboration Preferences", level: 2}
+    - {slug: "design-impact", text: "Design Impact", level: 2}
+    - {slug: "measures-of-success", text: "Measures of Success", level: 2}
+    - {slug: "narrative-summary", text: "Narrative Summary", level: 2}
+  - path: "docs/context/audience/external/practitioner.md"
+    title: "Stakeholder Persona: Practitioner"
+    divio_type: "explanation"
+    abstract: "External practitioner persona: installs the Spec Kitty CLI and runs Missions day to day, from specify to consolidate, and needs commands that work and clear recovery."
     anchors:
     - {slug: "overview", text: "Overview", level: 2}
     - {slug: "core-motivations", text: "Core Motivations", level: 2}
@@ -11205,7 +11221,7 @@ pages:
   - path: "docs/context/audience/internal/README.md"
     title: "Internal Audience Personas"
     divio_type: "none"
-    abstract: "Index of internal-audience personas — contributors and system/runtime actors inside the Spec Kitty delivery boundary — with actor type, concern, and linked journeys."
+    abstract: "Index of the internal-audience personas: contributors and system actors inside the Spec Kitty delivery boundary, their concerns, and the pages to write for them."
     anchors:
     - {slug: "index", text: "Index", level: 2}
   - path: "docs/context/audience/internal/ai-collaboration-agent.md"
@@ -11395,7 +11411,7 @@ pages:
     - {slug: "where-the-mapping-lives", text: "Where the mapping lives", level: 2}
     - {slug: "adding-a-new-scope-mapping", text: "Adding a new scope mapping", level: 2}
     - {slug: "available-context-slugs", text: "Available context slugs", level: 2}
-    - {slug: "ci-enforcement", text: "CI enforcement", level: 2}
+    - {slug: "keeping-the-generated-files-current", text: "Keeping the generated files current", level: 2}
     - {slug: "do-not-edit-generated-files", text: "Do not edit generated files", level: 2}
   - path: "docs/context/dossier.md"
     title: "Context: Dossier"
@@ -11696,18 +11712,18 @@ pages:
     - {slug: "the-spec-kitty-specify-command", text: "The `/spec-kitty.specify` Command", level: 3}
     - {slug: "the-spec-kitty-plan-command", text: "The `/spec-kitty.plan` Command", level: 3}
     - {slug: "the-spec-kitty-tasks-command", text: "The `/spec-kitty.tasks` Command", level: 3}
+    - {slug: "the-spec-kitty-implement-workflow", text: "The `/spec-kitty.implement` Workflow", level: 3}
     - {slug: "the-spec-kitty-review-command", text: "The `/spec-kitty.review` Command", level: 3}
     - {slug: "the-spec-kitty-accept-command", text: "The `/spec-kitty.accept` Command", level: 3}
-    - {slug: "the-spec-kitty-implement-workflow-kanban-discipline", text: "The `/spec-kitty.implement` Workflow: Kanban Discipline", level: 3}
     - {slug: "example-building-a-chat-feature", text: "Example: Building a Chat Feature", level: 3}
     - {slug: "the-power-of-structured-automation", text: "The Power of Structured Automation", level: 3}
     - {slug: "template-driven-quality-how-structure-constrains-llms-for-better-outcomes", text: "Template-Driven Quality: How Structure Constrains LLMs for Better Outcomes", level: 3}
     - {slug: "the-compound-effect", text: "The Compound Effect", level: 3}
-    - {slug: "the-charteral-foundation-enforcing-architectural-discipline", text: "The Charteral Foundation: Enforcing Architectural Discipline", level: 2}
+    - {slug: "the-charter-foundation-enforcing-architectural-discipline", text: "The Charter Foundation: Enforcing Architectural Discipline", level: 2}
     - {slug: "the-core-articles-of-development", text: "The Core Articles of Development", level: 3}
-    - {slug: "charteral-enforcement-through-templates", text: "Charteral Enforcement Through Templates", level: 3}
+    - {slug: "charter-enforcement-through-templates", text: "Charter Enforcement Through Templates", level: 3}
     - {slug: "the-power-of-immutable-principles", text: "The Power of Immutable Principles", level: 3}
-    - {slug: "charteral-evolution", text: "Charteral Evolution", level: 3}
+    - {slug: "charter-evolution", text: "Charter Evolution", level: 3}
     - {slug: "beyond-rules-a-development-philosophy", text: "Beyond Rules: A Development Philosophy", level: 3}
     - {slug: "the-transformation", text: "The Transformation", level: 2}
     - {slug: "glossary-requirement-identifiers", text: "Glossary: requirement identifiers", level: 2}
