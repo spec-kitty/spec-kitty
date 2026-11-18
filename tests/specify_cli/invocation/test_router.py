@@ -76,6 +76,7 @@ def _make_mock_registry(profile_specs: list[dict[str, Any]]) -> MagicMock:
         p.profile_id = spec["profile_id"]
         p.role = Role(spec["role_value"])
         p.routing_priority = spec.get("routing_priority", 50)
+        p.capabilities = spec.get("capabilities", [])
 
         sc = MagicMock()
         sc.domain_keywords = spec.get("domain_keywords", [])
@@ -1137,7 +1138,13 @@ _TIE_PROFILES: list[dict[str, Any]] = [
     {"profile_id": "lang-a", "role_value": "implementer", "routing_priority": 80, "domain_keywords": ["widget"]},
     {"profile_id": "lang-b", "role_value": "implementer", "routing_priority": 80, "domain_keywords": ["gadget"]},
     {"profile_id": "ci-owner", "role_value": "implementer", "routing_priority": 50, "domain_keywords": ["ci", "ci matrix", "github actions"]},
-    {"profile_id": "generic-agent", "role_value": "implementer", "routing_priority": 10, "collab_verbs": ["update"]},
+    {
+        "profile_id": "generic-agent",
+        "role_value": "implementer",
+        "routing_priority": 10,
+        "collab_verbs": ["update"],
+        "capabilities": ["general-task-execution"],
+    },
 ]
 
 
@@ -1168,8 +1175,10 @@ def test_generic_route_is_taken_by_the_domain_keyword_leader() -> None:
     decision = ActionRouter(_make_mock_registry(_TIE_PROFILES)).route("update the github actions workflow matrix")
 
     assert decision.profile_id == "ci-owner"
+    # Same role, so the generic route's action and confidence carry over.
     assert decision.confidence == "domain_keyword"
-    assert "outranks the generic profile" in decision.match_reason
+    assert decision.action == "generate"
+    assert "general-purpose profile 'generic-agent'" in decision.match_reason
     assert decision.alternatives[0]["profile_id"] == "generic-agent"
 
 
@@ -1184,9 +1193,144 @@ def test_documentation_alias_never_counts_as_a_domain_hit() -> None:
     """Tier-4 aliases stay out of the decider, so `update the ADR index` keeps its route."""
     registry = _make_mock_registry(
         [
-            {"profile_id": "generic-agent", "role_value": "implementer", "routing_priority": 10, "collab_verbs": ["update"]},
-            {"profile_id": "docs-owner", "role_value": "curator", "routing_priority": 50, "domain_keywords": ["documentation"]},
+            {
+                "profile_id": "generic-agent",
+                "role_value": "implementer",
+                "routing_priority": 10,
+                "collab_verbs": ["update"],
+                "capabilities": ["general-task-execution"],
+            },
+            {"profile_id": "docs-owner", "role_value": "implementer", "routing_priority": 50, "domain_keywords": ["documentation"]},
         ]
     )
 
     assert ActionRouter(registry).route("update the ADR index").profile_id == "generic-agent"
+
+
+def test_generic_route_never_changes_role() -> None:
+    """Squad finding: an implementation request must not reach a reviewer's domain."""
+    registry = _make_mock_registry(
+        [
+            {
+                "profile_id": "generic-agent",
+                "role_value": "implementer",
+                "routing_priority": 10,
+                "capabilities": ["general-task-execution"],
+            },
+            {"profile_id": "security-reviewer", "role_value": "reviewer", "routing_priority": 50, "domain_keywords": ["security"]},
+        ]
+    )
+
+    decision = ActionRouter(registry).route("fix the security hole")
+
+    assert decision.profile_id == "generic-agent"
+    assert decision.action == "implement"
+
+
+def test_generic_is_a_declared_capability_not_an_id() -> None:
+    """Any catch-all declaring the capability yields; a keyword-less specialist does not."""
+
+    def _route(capabilities: list[str]) -> str:
+        # Both match tier 2 (`update` folded verb, `ci` keyword); priority picks
+        # the keyword-less profile, so only the capability decides the hand-off.
+        registry = _make_mock_registry(
+            [
+                {
+                    "profile_id": "catch-all",
+                    "role_value": "implementer",
+                    "routing_priority": 90,
+                    "collab_verbs": ["update"],
+                    "capabilities": capabilities,
+                },
+                {"profile_id": "ci-owner", "role_value": "implementer", "routing_priority": 10, "domain_keywords": ["ci"]},
+            ]
+        )
+        return ActionRouter(registry).route("update the ci").profile_id
+
+    assert _route(["general-task-execution"]) == "ci-owner"
+    assert _route([]) == "catch-all"
+
+
+def test_canonical_verb_fragments_never_decide_arbitration() -> None:
+    """A folded verb fragment (`attribute-actions` → `actions`) is not a domain hit."""
+    profiles = [dict(spec) for spec in _TIE_PROFILES]
+    profiles[0]["collab_verbs"] = ["attribute-actions"]
+
+    with pytest.raises(RouterAmbiguityError) as exc_info:
+        ActionRouter(_make_mock_registry(profiles)).route("fix the actions")
+
+    assert exc_info.value.error_code == "ROUTER_AMBIGUOUS"
+
+
+def test_one_keyword_with_two_shared_words_is_not_named() -> None:
+    """Distinct KEYWORDS count, not shared tokens: one two-word keyword is one hit."""
+    registry = _make_mock_registry([{"profile_id": "mesh-fixture", "role_value": "implementer", "routing_priority": 50, "domain_keywords": ["reticulate mesh"]}])
+
+    with pytest.raises(RouterAmbiguityError) as exc_info:
+        ActionRouter(registry).route("mesh of reticulate")
+
+    assert exc_info.value.error_code == "ROUTER_NO_MATCH"
+    assert exc_info.value.candidates == []
+
+
+def test_two_keywords_sharing_one_word_are_not_named() -> None:
+    """Squad finding: `ci matrix` + `ci pipeline` against "cut ci spend" is one incidental word."""
+    registry = _make_mock_registry(
+        [{"profile_id": "ci-fixture", "role_value": "implementer", "routing_priority": 50, "domain_keywords": ["ci matrix", "ci pipeline"]}]
+    )
+
+    with pytest.raises(RouterAmbiguityError) as exc_info:
+        ActionRouter(registry).route("cut ci spend")
+
+    assert exc_info.value.candidates == []
+    assert "no close match" in exc_info.value.suggestion
+
+
+def test_duplicate_keywords_count_once() -> None:
+    """`splines-algorithm` and `splines algorithm` normalize alike and are one hit."""
+    registry = _make_mock_registry(
+        [
+            {
+                "profile_id": "dup-fixture",
+                "role_value": "implementer",
+                "routing_priority": 50,
+                "domain_keywords": ["splines algorithm", "splines-algorithm"],
+            }
+        ]
+    )
+
+    with pytest.raises(RouterAmbiguityError) as exc_info:
+        ActionRouter(registry).route("reticulate the splines")
+
+    assert exc_info.value.candidates == []
+
+
+def test_more_keyword_hits_outrank_routing_priority() -> None:
+    """The primary sort key is keyword hits: three hits beat two at a higher priority."""
+    registry = _make_mock_registry(
+        [
+            {"profile_id": "two-hits", "role_value": "implementer", "routing_priority": 90, "domain_keywords": ["splines widget", "reticulate grid"]},
+            {
+                "profile_id": "three-hits",
+                "role_value": "implementer",
+                "routing_priority": 10,
+                "domain_keywords": ["splines algorithm", "reticulate mesh", "gizmo solver"],
+            },
+        ]
+    )
+
+    with pytest.raises(RouterAmbiguityError) as exc_info:
+        ActionRouter(registry).route("reticulate the splines gizmo")
+
+    assert [candidate["profile_id"] for candidate in exc_info.value.candidates] == ["three-hits", "two-hits"]
+    assert "--profile three-hits" in exc_info.value.suggestion
+
+
+def test_role_keywords_tolerates_a_profile_without_specialization_context() -> None:
+    """A profile with no specialization context declares no role vocabulary."""
+    from specify_cli.invocation.router import _role_keywords
+
+    profile = MagicMock()
+    profile.specialization_context = None
+
+    assert _role_keywords(profile) == []

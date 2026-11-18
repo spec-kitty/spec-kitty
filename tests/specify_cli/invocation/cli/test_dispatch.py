@@ -1277,8 +1277,12 @@ def test_ci_request_never_suggests_the_minutes_profile(tmp_path: Path) -> None:
 
     assert "minutes-mahad" not in result.output
     envelope = json.loads(result.output)
-    if result.exit_code != 0:
+    if result.exit_code == 0:
+        # Once #7714 ships the CI keywords, the request routes to an implementer.
+        assert envelope["profile_id"] == "implementer-ivan"
+    else:
         assert envelope["error_code"] == "ROUTER_NO_MATCH"
+        assert envelope["candidates"] == []
         assert "--profile <id>" in envelope["suggestion"]
 
 

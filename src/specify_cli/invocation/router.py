@@ -254,16 +254,24 @@ DOCUMENTATION_DOMAIN_ALIASES: dict[str, frozenset[str]] = {
 #: NFR-002). Bounded so the message stays readable for a catalog of any size.
 _NEAREST_PROFILE_LIMIT = 3
 
-#: How many distinct role-defining keywords a profile must share with a request
-#: before a ``ROUTER_NO_MATCH`` refusal may name it (#7697). One shared word is
-#: incidental: ``actions`` and ``minutes`` in a CI request made the meeting-minutes
-#: profile the printed ``--profile`` remedy.
+#: How many distinct role-defining keywords, and distinct request words, a profile
+#: must share with a request before a ``ROUTER_NO_MATCH`` refusal may name it
+#: (#7697). One shared word is incidental: ``actions`` and ``minutes`` in a CI
+#: request made the meeting-minutes profile the printed ``--profile`` remedy.
+#:
+#: This is deliberately stricter than the arbitration in
+#: :func:`_domain_keyword_leader`, where one hit can decide: a refusal remedy is
+#: built from PARTIAL overlap (one word of a keyword), arbitration only from a
+#: WHOLE keyword the request contains. Do not unify the two thresholds.
 _NEAREST_MIN_KEYWORD_HITS = 2
 
-#: The built-in general-purpose profile. A route that lands on it, or a
-#: canonical-verb tie, is decided by domain-keyword hits when one profile leads
-#: them (#7697, operator ruling 2026-11-18). ``empty_charter`` re-exports it.
-GENERIC_PROFILE_ID = "generic-agent"
+#: The capability that marks a general-purpose profile (the built-in
+#: ``generic-agent`` declares it; an org or project catch-all may too). A route
+#: that lands on such a profile is handed to the domain owner of the same role
+#: when exactly one leads the domain-keyword hits (#7697, operator ruling
+#: 2026-11-18). A property of the profile, never its id, so every catch-all is
+#: covered by construction.
+GENERIC_CAPABILITY = "general-task-execution"
 
 
 # ---------------------------------------------------------------------------
@@ -362,7 +370,19 @@ def _role_keywords(profile: object) -> list[str]:
     ``actions``, ``transcribe-minutes`` gives ``minutes``).
     """
     sc = getattr(profile, "specialization_context", None)
-    return list(sc.domain_keywords) if sc and sc.domain_keywords else []
+    declared: list[str] = list(sc.domain_keywords) if sc and sc.domain_keywords else []
+    # De-duplicated by normalized tokens, so `root-cause` and `root cause`, or a
+    # keyword declared twice, count once in the ranking and in arbitration.
+    unique: dict[tuple[str, ...], str] = {}
+    for keyword in declared:
+        unique.setdefault(_keyword_tokens(keyword), keyword)
+    return [keyword for tokens, keyword in unique.items() if tokens]
+
+
+def _is_generic_profile(profile: object) -> bool:
+    """Whether *profile* declares the general-purpose capability (#7697)."""
+    capabilities = getattr(profile, "capabilities", None)
+    return isinstance(capabilities, list) and GENERIC_CAPABILITY in capabilities
 
 
 def _nearest_profiles(profiles: list[object], tokens: list[str]) -> list[tuple[object, str, list[str]]]:
@@ -370,7 +390,9 @@ def _nearest_profiles(profiles: list[object], tokens: list[str]) -> list[tuple[o
 
     A profile qualifies only when at least ``_NEAREST_MIN_KEYWORD_HITS`` distinct
     role-defining keywords (see :func:`_role_keywords`) share a normalized token
-    with the request. The order is total — keyword hits desc, shared tokens desc,
+    with the request, AND those keywords share at least as many distinct request
+    words: two keywords overlapping on one word (``ci matrix``, ``ci pipeline``
+    against "cut ci spend") are still one incidental word. The order is total — keyword hits desc, shared tokens desc,
     ``routing_priority`` desc, ``profile_id`` asc — so two identical calls return
     identical candidates for any catalog order (NFR-001).
 
@@ -388,7 +410,7 @@ def _nearest_profiles(profiles: list[object], tokens: list[str]) -> list[tuple[o
             if overlap:
                 hits += 1
                 shared_tokens.update(overlap)
-        if hits < _NEAREST_MIN_KEYWORD_HITS:
+        if hits < _NEAREST_MIN_KEYWORD_HITS or len(shared_tokens) < _NEAREST_MIN_KEYWORD_HITS:
             continue
         priority = getattr(profile, "routing_priority", 0)
         shared = sorted(shared_tokens)
@@ -533,10 +555,19 @@ class ActionRouter:
          (#6970: previously dead signals)
       5. Documentation-artifact noun → domain_keyword confidence (#6970)
       6. Zero or ambiguous matches → RouterAmbiguityError naming the candidates
+      7. Post-selection domain arbitration (#7697, operator ruling 2026-11-18):
+         a. a canonical-verb tie is decided by the one verb-tier profile with the
+            most whole domain keywords in the request;
+         b. a route that lands on a general-purpose profile (GENERIC_CAPABILITY)
+            is handed to the one profile of the SAME role that leads those hits.
+         No hit, or a tied count, keeps the result of steps 1-6.
 
     Tiers 3-5 are a LADDER, not one pool: a later tier is consulted only when the
-    earlier one produced no candidate, so the new signals are strictly additive and
-    a request that routed before this change cannot move to another profile.
+    earlier one produced no candidate, so the ladder's own signals are strictly
+    additive. Step 7 is deliberately not additive: it moves verb ties and generic
+    routes to the domain owner. Both arbitration pools are role-scoped, so a
+    route never changes role. This class docstring is the living record of the
+    precedence; ADR-3 is a mission snapshot and is not amended (same as #6970).
     """
 
     def __init__(
@@ -623,8 +654,9 @@ class ActionRouter:
         # ------------------------------------------------------------------
         # Check specialization_context.domain_keywords (NOT specialization.domain_keywords),
         # with collaboration.canonical_verbs folded in as additional signals (#6970
-        # extracted that fold into _profile_keywords so the refusal ranking reads the
-        # same vocabulary).
+        # extracted that fold into _profile_keywords). The refusal ranking and the
+        # post-selection arbitration read _role_keywords instead: the declared
+        # domain keywords only, without the folded verbs (#7697).
         #
         # #6970 FR-011: the passes run in order and a later pass is consulted ONLY when
         # the earlier one produced no match. That is what keeps the new signals
@@ -686,8 +718,9 @@ class ActionRouter:
         # profile, when exactly one profile leads the domain-keyword hits.
         try:
             decision = self._select_candidate(request_text, candidates)
-        except RouterAmbiguityError as err:
-            broken = self._break_verb_tie(err, candidates, tokens)
+        except RouterAmbiguityError:
+            # _select_candidate raises only ROUTER_AMBIGUOUS.
+            broken = self._break_verb_tie(candidates, profiles, tokens)
             if broken is None:
                 raise
             return broken
@@ -822,22 +855,19 @@ class ActionRouter:
 
     def _break_verb_tie(
         self,
-        err: RouterAmbiguityError,
         candidates: list[dict[str, str]],
+        profiles: list[object],
         tokens: list[str],
     ) -> RouterDecision | None:
         """Resolve a canonical-verb tie by domain-keyword hits (#7697).
 
-        Only a ``ROUTER_AMBIGUOUS`` refusal inside the canonical-verb tier is
-        considered. The pool is the whole verb tier, not only the top-priority
-        ties: a lower-priority profile whose domain the request names is a better
-        owner than five equally ranked generalists. ``None`` keeps the refusal.
+        The pool is the whole verb tier, not only the top-priority ties: a
+        lower-priority profile whose domain the request names is a better owner
+        than five equally ranked generalists. The verb tier is one role, so the
+        route keeps the verb's role and action. ``None`` keeps the refusal.
         """
-        if err.error_code != "ROUTER_AMBIGUOUS":
-            return None
-        verb_tier = [c for c in candidates if c["_confidence"] == "canonical_verb"]
-        by_id = {c["profile_id"]: c for c in verb_tier}
-        pool = [profile for profile_id in by_id if (profile := self._registry.get(profile_id)) is not None]
+        by_id = {c["profile_id"]: c for c in candidates if c["_confidence"] == "canonical_verb"}
+        pool = [profile for profile in profiles if getattr(profile, "profile_id", "") in by_id]
         leader = _domain_keyword_leader(pool, tokens)
         if leader is None:
             return None
@@ -858,34 +888,38 @@ class ActionRouter:
         profiles: list[object],
         tokens: list[str],
     ) -> RouterDecision:
-        """Hand a route that landed on the generic profile to the domain owner (#7697).
+        """Hand a route that landed on a general-purpose profile to its domain owner (#7697).
 
-        The generic profile declares no domain; its folded verbs (``update``,
+        A general-purpose profile declares no domain; its verbs (``update``,
         ``fix``) say what to do, not whose work it is. When exactly one other
-        profile leads the request's domain-keyword hits, it takes the route.
+        non-generic profile of the SAME role leads the request's domain-keyword
+        hits, it takes the route with the same action and confidence (the role is
+        unchanged, so the action stays valid). A profile of another role never
+        takes it: an implementation request must not reach a reviewer.
         """
-        if decision.profile_id != GENERIC_PROFILE_ID:
+        generic = next((p for p in profiles if getattr(p, "profile_id", "") == decision.profile_id), None)
+        if generic is None or not _is_generic_profile(generic):
             return decision
-        pool = [profile for profile in profiles if getattr(profile, "profile_id", "") != GENERIC_PROFILE_ID]
+        role = getattr(generic, "role", None)
+        pool = [p for p in profiles if getattr(p, "role", None) == role and not _is_generic_profile(p)]
         leader = _domain_keyword_leader(pool, tokens)
         if leader is None:
             return decision
         profile, hits = leader
         profile_id = str(getattr(profile, "profile_id", ""))
-        action = decision.action if decision.confidence == "canonical_verb" else _default_action_for_role(getattr(profile, "role", None))
-        generic = {
+        displaced = {
             "profile_id": decision.profile_id,
             "action": decision.action,
             "confidence": decision.confidence,
             "match_reason": decision.match_reason,
         }
-        others = [_public_candidate(c) for c in candidates if c["profile_id"] not in (profile_id, GENERIC_PROFILE_ID)]
+        others = [_public_candidate(c) for c in candidates if c["profile_id"] not in (profile_id, decision.profile_id)]
         return RouterDecision(
             profile_id=profile_id,
-            action=action,
-            confidence="domain_keyword",
-            match_reason=f"domain keyword {_quoted_hits(hits)} matched; outranks the generic profile '{GENERIC_PROFILE_ID}'",
-            alternatives=[generic, *others],
+            action=decision.action,
+            confidence=decision.confidence,
+            match_reason=f"{decision.match_reason}; domain keyword {_quoted_hits(hits)} hands it from the general-purpose profile '{decision.profile_id}'",
+            alternatives=[displaced, *others],
         )
 
     def _derive_action_from_tokens(self, request_text: str, role: object) -> str:
