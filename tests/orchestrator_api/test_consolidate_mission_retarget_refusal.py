@@ -113,7 +113,13 @@ _MISSION_ID = "01M7M5JA00000000000000000Q"
 
 
 def _persist_retarget(repo: Path) -> None:
+    import json
+
     from specify_cli.consolidation.state import ConsolidationState, save_state
+
+    meta = repo / "kitty-specs" / "m" / "meta.json"
+    meta.parent.mkdir(parents=True, exist_ok=True)
+    meta.write_text(json.dumps({"mission_id": _MISSION_ID, "mission_slug": "m", "target_branch": "main"}), encoding="utf-8")
 
     state = ConsolidationState(mission_id=_MISSION_ID, mission_slug="m", target_branch="develop", wp_order=["WP01"])
     state.retarget = {"from": "main", "to": "develop", "actor": "op", "at": "2026-11-17T09:00:00+00:00", "reason": "r", "committed": False}
@@ -125,9 +131,9 @@ def _persist_retarget(repo: Path) -> None:
 def test_a_persisted_retarget_is_refused_whatever_the_target(tmp_path: Path, target: str) -> None:
     """``consolidate-mission`` has no ``--retarget``: it neither re-lands nor silently finishes a persisted one."""
     _persist_retarget(tmp_path)
-    manifest = cast("LanesManifest", SimpleNamespace(target_branch=target, mission_id=_MISSION_ID))
+    del target  # any target: the record decides, and the lanes.json copy of the identity is never read (review OA-1)
     with pytest.raises(CodedPreflightRefused) as excinfo:
-        orch._refuse_persisted_retarget(tmp_path, "m", manifest)
+        orch._refuse_persisted_retarget(tmp_path, "m")
     assert excinfo.value.error_code == _MISMATCH
     text = str(excinfo.value)
     assert "'main' to 'develop'" in text and "spec-kitty consolidate --mission m --resume" in text and "--abort" in text, text
@@ -135,7 +141,7 @@ def test_a_persisted_retarget_is_refused_whatever_the_target(tmp_path: Path, tar
 
 @pytest.mark.fast
 def test_no_persisted_retarget_is_not_refused(tmp_path: Path) -> None:
-    orch._refuse_persisted_retarget(tmp_path, "m", cast("LanesManifest", SimpleNamespace(target_branch="main", mission_id=_MISSION_ID)))
+    orch._refuse_persisted_retarget(tmp_path, "m")
 
 
 @pytest.mark.integration
@@ -169,3 +175,11 @@ def test_a_failed_retarget_is_not_executed_by_consolidate_mission(tmp_path: Path
     assert merge_record(mission) == record
     assert not blob_present_at(mission.repo, "main", "src/pkg/wp01.py")
     assert not blob_present_at(mission.repo, "develop", "src/pkg/wp01.py")
+
+
+@pytest.mark.fast
+def test_the_record_is_found_by_meta_identity_not_a_legacy_lanes_json(tmp_path: Path) -> None:
+    """Review OA-1: the merge record is keyed by meta.json's mission_id, as the executor keys it."""
+    _persist_retarget(tmp_path)
+    assert preflight.merge_record_key(tmp_path, "m") == _MISSION_ID
+    assert preflight.merge_record_key(tmp_path / "elsewhere", "m") == "m"

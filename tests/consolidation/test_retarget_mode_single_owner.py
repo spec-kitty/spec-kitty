@@ -13,7 +13,6 @@ from __future__ import annotations
 import ast
 import json
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -30,6 +29,9 @@ _CONSOLIDATION_DIR = Path(preflight.__file__).parent
 
 
 def _persist(repo: Path, pair: tuple[str, str] | None) -> None:
+    meta = repo / "kitty-specs" / _SLUG / "meta.json"
+    meta.parent.mkdir(parents=True, exist_ok=True)
+    meta.write_text(json.dumps({"mission_id": _MISSION_ID, "mission_slug": _SLUG, "target_branch": "main"}), encoding="utf-8")
     if pair is None:
         return
     state = ConsolidationState(mission_id=_MISSION_ID, mission_slug=_SLUG, target_branch=pair[1], wp_order=["WP01"])
@@ -43,9 +45,9 @@ def _entry(repo: Path, *, retarget: bool, effective: str) -> tuple[str, str] | N
 
 
 def _forecast(repo: Path, *, retarget: bool, effective: str) -> tuple[str, str] | None:
-    manifest = SimpleNamespace(mission_id=_MISSION_ID, mission_branch="kitty/mission-m", target_branch="main", lanes=[])
+    # Review OA-1: no lanes.json identity is read; the forecast keys the record by meta.json identity.
     pair: tuple[str, str] | None = forecast._forecast_retarget_pair(
-        repo, _SLUG, manifest, retarget=retarget, recorded_target="main", effective_target=effective, json_output=True
+        repo, _SLUG, retarget=retarget, recorded_target="main", effective_target=effective, json_output=True
     )
     return pair
 

@@ -309,7 +309,7 @@ def _persist(monkeypatch: pytest.MonkeyPatch, pair: tuple[str, str] | None) -> N
 
 def _pair(tmp_path: Path, *, retarget: bool, effective: str = "develop") -> tuple[str, str] | None:
     result: tuple[str, str] | None = forecast._forecast_retarget_pair(
-        tmp_path, "m", _manifest(), retarget=retarget, recorded_target="main", effective_target=effective, json_output=True
+        tmp_path, "m", retarget=retarget, recorded_target="main", effective_target=effective, json_output=True
     )
     return result
 

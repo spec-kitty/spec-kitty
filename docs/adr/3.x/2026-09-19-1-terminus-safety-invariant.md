@@ -712,10 +712,16 @@ of the run follows it. Naming the recorded target again is not a retarget.
   status events a retarget run records on `<b>` before the claim are part of the run (mission
   review RISK-2): the executor marks that move as an undoable own move (`rollback.OwnMove.undo`),
   the snapshot takes `<b>`'s tip from before the attestations (`capture_pre_mutation_snapshot`'s
-  `seed`), and `begin_attempt` carries the attested tip as this run's post tip. A rollback or
-  `--abort` then leaves `<b>` at its pre-run tip, and a re-run records the attestation once. A
-  plain run's attestations still re-anchor and survive, as before. A claim-time refusal, which
-  comes before the snapshot, still keeps them (F4).
+  `seed`), and `begin_attempt` carries the attested tip as this run's post tip. The move is also
+  persisted in the record's `retarget` (`attestation_undo`) as soon as the record is loaded or
+  created, and the seeded snapshot records the attested tip as the post tip in the same save, so a
+  SIGKILL before the snapshot or before `begin_attempt` still lets a `--resume` (then a failure) or
+  `--abort` restore `<b>` (review R2-a). A rollback or `--abort` leaves `<b>` at its pre-run tip,
+  and a re-run with the same `--attest-*` flags records the attestation once (a bare `--resume`
+  records none and fails the same claim check). A plain run's attestations still re-anchor and
+  survive, as before. Residuals: a claim-time refusal, which comes before the snapshot, still
+  keeps them (F4); a kill between the attestation commit and the record save (the review-artifact
+  gate in between is read-only), or `--abort` after a kill before the snapshot, keeps them too.
 - **Status surface.** The claim's status surface follows the effective target: on a retarget run
   the old recorded target maps to `<b>` (`run_state`, `status_surface`). The #5385 status-write
   probe is re-pointed at `<b>`, never skipped. `--attest-*` flags follow the retarget too: on a
@@ -748,22 +754,32 @@ of the run follows it. Naming the recorded target again is not a retarget.
   write leaves both copies unchanged (`tests/terminus/test_consolidate_retarget_resume.py`). No
   `--release-branch` is needed.
 
-#### Follow-up 2026-11-17 — a skip-worktree entry the landing writes is refused up front
+#### Follow-up 2026-11-17 — a skip-worktree entry the run writes is refused up front
 
 Found while building the retarget refusals, on every `consolidate`, not only a retarget: with the
 skip-worktree bit set (no edit) on the root checkout's `kitty-specs/<slug>/meta.json`, a plain run
-landed, and the landing's checkout resync (`git reset --hard`) failed: git does not reset a
-skip-worktree entry whose file is present. The rollback restored the branch tips, but the root checkout's index kept the
-landing's content and the merge record stayed. The resync contract and the rollback authority are
-unchanged. Instead the run refuses before the lock and before any snapshot, with
-`CHECKOUT_SKIP_WORKTREE_ENTRIES` (`preflight.skip_worktree_landing_refusal`, read by the entry
-preflight and `--dry-run`), when a checkout holding the target has a skip-worktree entry whose
-file is present (never a sparse-checkout exclusion) under the Mission directory or on a path the
-Mission and lane branches change. An assume-unchanged bit landed fine and is not refused; the
-retarget's stricter rule for its record commit (`RETARGET_RECORD_UNWRITABLE`, either bit) stays.
-`orchestrator-api consolidate-mission` lands through its own path, which was witnessed landing
-cleanly with the bit set, so it is not refused and `CONTRACT_VERSION` is unchanged
-(`tests/terminus/test_consolidate_skip_worktree_checkout.py`).
+landed, and the forward resync succeeded. The run's own post-merge bookkeeping then wrote
+`meta.json` on disk, the bit left that write out of the commit ("No post-merge bookkeeping changes
+to commit"), the baseline validation failed (`baseline_merge_commit` missing), and the rollback's
+resync back to the snapshot failed on the now-edited file (git refuses to reset the entry). The branch tips were
+restored, but the root checkout's index kept the landing and the merge record stayed. The resync
+contract and the rollback authority are unchanged. Instead the run refuses before the lock and
+before any snapshot, with `CHECKOUT_SKIP_WORKTREE_ENTRIES` (`preflight.skip_worktree_landing_refusal`,
+read by the entry preflight, `--dry-run` and `orchestrator-api consolidate-mission`), when a
+checkout holding the target or the Mission branch has an entry tagged `S` or `s` whose path is
+present (`lexists`; never a sparse-checkout exclusion) under the Mission directory or on a path
+the Mission and lane branches change. Refusing Mission-directory entries is the real fix. Entries
+on changed code paths are refused conservatively: an edited skip-worktree file is invisible to
+`git status` and the dirty-checkout gate, so the resync would overwrite or trip on it; an unedited
+one would land and is refused anyway. An assume-unchanged bit alone landed fine and is not
+refused; the retarget's stricter rule for its record commit (`RETARGET_RECORD_UNWRITABLE`, either
+bit) stays. `orchestrator-api consolidate-mission` never writes `meta.json`, so with the bit there
+it landed cleanly, but with the bit on `status.events.jsonl` it landed and then crashed in its
+`done` status commit with no rollback door; it now refuses with `PREFLIGHT_FAILED` and the same
+`data.preflight_error_code`, and `CONTRACT_VERSION` moves to 1.29.0. The index listing expands a
+sparse index in memory: `ls-files --sparse` needs git 2.35, above the supported floor
+(`tests/terminus/test_consolidate_skip_worktree_checkout.py`,
+`tests/consolidation/test_skip_worktree_landing_refusal.py`).
 
 ## Alternatives Considered
 

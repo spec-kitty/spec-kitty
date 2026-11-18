@@ -100,3 +100,42 @@ def test_an_assume_unchanged_bit_is_left_alone(repo: Path) -> None:
 def test_a_checkout_on_another_branch_is_not_judged(repo: Path) -> None:
     _git(repo, "update-index", "--skip-worktree", _META)
     assert preflight.skip_worktree_landing_refusal(repo, _SLUG, _manifest(), target_branch="develop") is None
+
+
+def test_skip_worktree_with_assume_unchanged_too_refuses(repo: Path) -> None:
+    """Review SW-2: ``ls-files -v`` tags an entry carrying both bits ``s``."""
+    _git(repo, "update-index", "--skip-worktree", _META)
+    _git(repo, "update-index", "--assume-unchanged", _META)
+    assert _git(repo, "ls-files", "-v", _META).startswith("s ")
+    verdict = _verdict(repo)
+    assert verdict is not None and verdict.error_code == preflight.CHECKOUT_SKIP_WORKTREE_ENTRIES
+
+
+def test_a_skip_worktree_dangling_symlink_refuses(repo: Path) -> None:
+    """Review SW-3: a broken symlink is present in the working tree (``lexists``), so it refuses."""
+    link = repo / "kitty-specs" / _SLUG / "link"
+    link.symlink_to("nowhere")
+    _git(repo, "add", str(link.relative_to(repo)))
+    _git(repo, "commit", "-qm", "link")
+    _git(repo, "update-index", "--skip-worktree", f"kitty-specs/{_SLUG}/link")
+    verdict = _verdict(repo)
+    assert verdict is not None and f"kitty-specs/{_SLUG}/link" in verdict.message
+
+
+def test_a_checkout_of_the_mission_branch_is_scanned_too(repo: Path, tmp_path: Path) -> None:
+    """Review SW-4: the Mission branch's checkout is resynced when lanes merge into it."""
+    wt = tmp_path / "mission-wt"
+    _git(repo, "worktree", "add", "-q", str(wt), _MISSION_BRANCH)
+    _git(wt, "update-index", "--skip-worktree", _META)
+    verdict = _verdict(repo)
+    assert verdict is not None and verdict.error_code == preflight.CHECKOUT_SKIP_WORKTREE_ENTRIES
+    assert f"git -C {wt}" in verdict.next_step and _MISSION_BRANCH in verdict.message
+
+
+def test_an_edited_skip_worktree_code_file_the_landing_writes_refuses(repo: Path) -> None:
+    """Review item 6: an edit under the bit is invisible to ``git status`` and the dirty gate; refused."""
+    _git(repo, "update-index", "--skip-worktree", "src/b.py")
+    (repo / "src" / "b.py").write_text("local edit\n", encoding="utf-8")
+    assert _git(repo, "status", "--porcelain") == ""
+    verdict = _verdict(repo)
+    assert verdict is not None and "src/b.py" in verdict.message

@@ -58,6 +58,7 @@ from specify_cli.consolidation.preflight import (
     _check_mission_branch,
     mission_branch_check_required,
     refuse_protected_status_target,
+    merge_record_key,
     retarget_mode,
     skip_worktree_landing_refusal,
     retarget_write_branch_refusal,
@@ -554,7 +555,6 @@ def _forecast_recorded_target(main_repo: Path, mission_slug: str, *, fallback: s
 def _forecast_retarget_pair(
     main_repo: Path,
     mission_slug: str,
-    lanes_manifest: LanesManifest,
     *,
     retarget: bool,
     recorded_target: str,
@@ -567,7 +567,8 @@ def _forecast_retarget_pair(
     entry preflight reads too; this caller only renders its ``RETARGET_RESUME_MISMATCH`` as a
     dry-run error with the same message and next step the real run prints.
     """
-    mode = retarget_mode(main_repo, lanes_manifest.mission_id or mission_slug, retarget=retarget, recorded=recorded_target, effective=effective_target)
+    # Review OA-1: the record's key is the executor's (meta.json identity), not the lanes.json copy.
+    mode = retarget_mode(main_repo, merge_record_key(main_repo, mission_slug), retarget=retarget, recorded=recorded_target, effective=effective_target)
     if mode.mismatch is not None:
         _emit_dry_run_error(
             error_msg=f"{mode.mismatch.error_code}: {mode.mismatch.message} Next step: {mode.mismatch.next_step}",
@@ -632,7 +633,6 @@ def _entry_preflights_in_forecast(
     pair = _forecast_retarget_pair(
         main_repo,
         mission_slug,
-        lanes_manifest,
         retarget=retarget,
         recorded_target=recorded_target,
         effective_target=effective_target,

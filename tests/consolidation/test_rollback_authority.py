@@ -1248,8 +1248,9 @@ def test_an_undoable_own_move_is_snapshotted_at_its_origin_and_undone_by_the_rol
     attested = _commit_on(env.repo, _TARGET, "attestation")
     own = {_TARGET: OwnMove(before, attested, undo=True)}
 
-    snap = capture_pre_mutation_snapshot(env.repo, env.state, env.manifest, coord_ref=None, seed={b: m.before for b, m in own.items() if m.undo})
+    snap = capture_pre_mutation_snapshot(env.repo, env.state, env.manifest, coord_ref=None, seed={b: (m.before, m.after) for b, m in own.items() if m.undo})
     assert snap[_TARGET] == before
+    assert env.state.post_mutation_refs[_TARGET] == attested, "recorded with the snapshot, before any attempt starts"
     assert begin_attempt(env.repo, env.state, own_moves=own) == []
     assert env.state.restore_targets[_TARGET] == before
     assert env.state.post_mutation_refs[_TARGET] == attested
@@ -1278,3 +1279,32 @@ def test_own_moves_across_marks_and_keeps_undo() -> None:
     continued = own_moves_across(first, {_TARGET: "b"}, {_TARGET: "c"}, writes=[_TARGET])
     assert continued == {_TARGET: OwnMove("a", "c", undo=True)}
     assert own_moves_across({}, {_TARGET: "a"}, {_TARGET: "b"}, writes=[_TARGET]) == {_TARGET: OwnMove("a", "b")}
+
+
+def test_a_seed_whose_branch_moved_since_is_not_applied(tmp_path: Path) -> None:
+    env = make_env(tmp_path)
+    before = _commit_on(env.repo, _TARGET, "pre-run")
+    attested = _commit_on(env.repo, _TARGET, "attestation")
+    other = _commit_on(env.repo, _TARGET, "another actor")
+
+    snap = capture_pre_mutation_snapshot(env.repo, env.state, env.manifest, coord_ref=None, seed={_TARGET: (before, attested)})
+
+    assert snap[_TARGET] == other
+    assert _TARGET not in env.state.post_mutation_refs
+
+
+def test_the_persisted_attestation_undo_seeds_a_later_process(tmp_path: Path) -> None:
+    """Review R2-a: the undo persisted before the claim seeds a resume that has no own moves."""
+    from specify_cli.consolidation.rollback import ATTESTATION_UNDO_KEY, attestation_undo_seed, persist_attestation_undo
+
+    env = make_env(tmp_path)
+    env.state.retarget = {"from": "main", "to": _TARGET, "committed": False}
+    persist_attestation_undo(env.repo, env.state, {_TARGET: OwnMove("b0", "a1", undo=True)})
+
+    reloaded = load_state(env.repo, env.state.mission_id)
+    assert reloaded is not None and reloaded.retarget is not None
+    assert reloaded.retarget[ATTESTATION_UNDO_KEY] == {"branch": _TARGET, "before": "b0", "after": "a1"}
+    assert attestation_undo_seed(reloaded, {}) == {_TARGET: ("b0", "a1")}
+    reloaded.retarget[ATTESTATION_UNDO_KEY] = {"branch": _TARGET}
+    assert attestation_undo_seed(reloaded, {}) == {}, "a malformed entry is ignored"
+    assert attestation_undo_seed(reloaded, {_TARGET: OwnMove("x", "y")}) == {}, "a plain own move never seeds"

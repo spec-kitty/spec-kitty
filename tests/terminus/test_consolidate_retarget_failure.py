@@ -133,3 +133,50 @@ def test_a_retargeted_attestation_is_undone_on_a_rerun_after_the_failure(tmp_pat
 
     assert_landed_on_new_target(mission, rerun, pre_new)
     assert _attestations(mission, NEW) == 1, flat(rerun)
+
+
+@pytest.mark.parametrize(
+    ("module", "name"),
+    [("phase_claim", "_capture_snapshot_and_begin_attempt"), ("rollback", "begin_attempt")],
+    ids=["before-the-snapshot", "between-snapshot-and-attempt"],
+)
+def test_a_kill_after_the_attestation_still_lets_the_resume_undo_it(tmp_path: Path, module: str, name: str) -> None:
+    """Review R2-a: a SIGKILL between the attestation commit and the attempt's start must not make it permanent.
+
+    The killed run leaves the record (and, past the snapshot, the snapshot). A ``--resume`` that then
+    fails inside the door restores ``develop`` to its tip from before the attestation.
+    """
+    from tests.terminus.retarget_support import REASON, kill
+
+    attest = ("--attest-no-implementation", "WP01", "--attest-reason", REASON)
+    mission = _lanes(tmp_path, "01M7692J")
+    _check_out_override(mission)
+    pre_new = tip(mission, NEW)
+
+    killed = kill(mission, module, name, *RETARGET, *attest)
+
+    assert killed.returncode != 0, flat(killed)
+    assert _attestations(mission, NEW) == 1, "the kill came after the attestation commit"
+    resumed = run_patched(mission, "executor", "_phase_merge_lanes", "--resume", kill=False)
+
+    assert resumed.returncode != 0, flat(resumed)
+    assert tip(mission, NEW) == pre_new, f"the resume's rollback undoes the attestation. output={flat(resumed)}"
+    assert _attestations(mission, NEW) == 0
+
+
+def test_abort_after_a_kill_past_the_snapshot_undoes_the_attestation(tmp_path: Path) -> None:
+    """Review R2-a: ``--abort`` after a SIGKILL between the snapshot and the attempt start restores ``develop``."""
+    from tests.terminus.retarget_support import REASON, kill
+
+    attest = ("--attest-no-implementation", "WP01", "--attest-reason", REASON)
+    mission = _lanes(tmp_path, "01M7692H")
+    _check_out_override(mission)
+    pre_new = tip(mission, NEW)
+    killed = kill(mission, "rollback", "begin_attempt", *RETARGET, *attest)
+    assert killed.returncode != 0, flat(killed)
+
+    aborted = run_terminus(mission, ["consolidate", "--abort", "--mission", mission.slug])
+
+    assert aborted.returncode == 0, flat(aborted)
+    assert tip(mission, NEW) == pre_new, flat(aborted)
+    assert _merge_records(mission) == []

@@ -24,4 +24,4 @@ A retarget forecast adds `"retarget": {"from": "<old>", "to": "<b>"}`.
 `consolidate-mission` has no retarget. A differing target keeps `PREFLIGHT_FAILED` with `data.preflight_error_code = TARGET_OVERRIDE_RECORDED_TARGET_UNWRITABLE`. `CONTRACT_VERSION` is unchanged.
 
 ## Attestations
-`--attest-*` under a retarget follow it (operator ruling, option A). On a Mission without a coordination branch, the attestation status events land on `<b>`, not on the old target, and they are undone with the run: a failure inside the rollback door, or `--abort`, leaves `<b>` at its pre-run tip (mission review RISK-2). A coordination branch is unaffected.
+`--attest-*` under a retarget follow it (operator ruling, option A). On a Mission without a coordination branch, the attestation status events land on `<b>`, not on the old target, and they are undone with the run: a failure inside the rollback door, or `--abort`, leaves `<b>` at its pre-run tip (mission review RISK-2), also after a kill once the run record is saved (review R2-a). A re-run must pass the `--attest-*` flags again. A coordination branch is unaffected.
