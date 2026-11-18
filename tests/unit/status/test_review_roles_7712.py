@@ -22,6 +22,7 @@ from specify_cli.status.review_roles import (
     independent_of_implementers,
     latest_implementer_identity,
     profileless_claim_warning,
+    resubmitter_may_be_implementer,
 )
 
 pytestmark = pytest.mark.unit
@@ -115,8 +116,9 @@ def test_wp03_reviewer_under_another_profile_is_independent_after_the_resubmissi
     assert independent_of_implementers(implementer_identities(events, "WP03"), actor_full_identity(RENATA))
 
 
-def test_wp03_full_recorded_sequence_resolves_to_carla() -> None:
-    """The log as recorded: the forced rewind is kept beside the claim, the unforced submission completes it."""
+def test_wp03_log_as_recorded_fails_closed() -> None:
+    """The log as recorded before #7712: the forced rewind is kept beside the bare claim, and the
+    rewinder's own submission cannot complete the claim it rewound, so the same-tool approval stays refused."""
     events = [
         *_wp03_until_review(),
         _ev(Lane.IN_REVIEW, Lane.FOR_REVIEW, CARLA_AS_REVIEWER, force=True, review_ref="force-override"),
@@ -124,7 +126,13 @@ def test_wp03_full_recorded_sequence_resolves_to_carla() -> None:
         _ev(Lane.IN_PROGRESS, Lane.FOR_REVIEW, CARLA),
         _ev(Lane.FOR_REVIEW, Lane.IN_REVIEW, RENATA),
     ]
-    assert latest_implementer_identity(events, "WP03") == "claude::curator-carla"
+    assert implementer_identities(events, "WP03") == ("claude::", "claude::curator-carla")
+    assert not independent_of_implementers(implementer_identities(events, "WP03"), actor_full_identity(RENATA))
+
+
+def test_wp03_with_the_explicit_resubmission_is_approved_by_another_profile() -> None:
+    """The route #7712 adds: re-submit with --as-implementer, then a reviewer under another profile approves."""
+    events = [*_resubmitted(), _ev(Lane.FOR_REVIEW, Lane.IN_REVIEW, RENATA)]
     assert implementer_identities(events, "WP03") == ("claude::curator-carla",)
     assert independent_of_implementers(implementer_identities(events, "WP03"), actor_full_identity(RENATA))
 
@@ -143,6 +151,64 @@ def test_a_contradicting_resubmission_out_of_in_review_never_changes_the_claim()
         _ev(Lane.IN_REVIEW, Lane.FOR_REVIEW, CARLA, force=True),
     ]
     assert latest_implementer_identity(events, "WP03") == "claude::python-pedro"
+
+
+def test_the_review_claimant_cannot_assert_itself_as_the_implementer() -> None:
+    """S1b: a reviewer handing its own review back with --as-implementer completes nothing."""
+    renata_as_implementer = _actor("claude", "reviewer-renata", "implementer")
+    events = [
+        *_wp03_until_review()[:3],
+        _ev(Lane.FOR_REVIEW, Lane.IN_REVIEW, RENATA),
+        _ev(Lane.IN_REVIEW, Lane.FOR_REVIEW, renata_as_implementer, force=True),
+    ]
+    assert latest_implementer_identity(events, "WP03") == "claude::"
+    assert not independent_of_implementers(implementer_identities(events, "WP03"), "claude::implementer-ivan")
+
+
+def test_a_compact_string_role_never_asserts_an_implementer_act() -> None:
+    """S1d: only a structured actor's role counts; an older log's fourth segment is not the flag."""
+    events = [*_wp03_until_review(), _ev(Lane.IN_REVIEW, Lane.FOR_REVIEW, "claude:opus:reviewer-renata:implementer", force=True)]
+    assert latest_implementer_identity(events, "WP03") == "claude::"
+
+
+def test_a_forcers_own_submission_cannot_complete_the_claim_it_rewound() -> None:
+    """S4: a same-tool reviewer forces a rewind and submits; the bare implementer stays unproven."""
+    events = [
+        *_wp03_until_review(),
+        _ev(Lane.IN_REVIEW, Lane.IN_PROGRESS, RENATA, force=True, review_ref="force-override"),
+        _ev(Lane.IN_PROGRESS, Lane.FOR_REVIEW, RENATA),
+    ]
+    assert implementer_identities(events, "WP03") == ("claude::", "claude::reviewer-renata")
+    assert not independent_of_implementers(implementer_identities(events, "WP03"), "claude:sonnet:implementer-ivan")
+
+
+@pytest.mark.parametrize("claimant", ["implement-command", "user"])
+def test_a_placeholder_reclaim_from_planned_starts_a_new_cycle(claimant: str) -> None:
+    """S9: a re-claim by a placeholder from planned starts a new cycle, as a real actor's re-claim does."""
+    a = _actor("claude", "python-pedro", "implementer")
+    b = _actor("gemini", "python-pedro", "implementer")
+    events = [
+        _ev(Lane.PLANNED, Lane.CLAIMED, a),
+        _ev(Lane.IN_REVIEW, Lane.PLANNED, RENATA, review_ref="review-cycle-1.md"),
+        _ev(Lane.PLANNED, Lane.CLAIMED, claimant),
+        _ev(Lane.CLAIMED, Lane.IN_PROGRESS, b),
+    ]
+    assert implementer_identities(events, "WP03") == ("gemini::python-pedro",)
+
+
+@pytest.mark.parametrize(
+    ("claimant", "resubmitter", "may"),
+    [
+        (None, "claude::curator-carla", True),
+        ("claude::", "claude::curator-carla", True),  # a bare review claim proves nothing either way
+        ("claude::reviewer-renata", "claude::curator-carla", True),
+        ("claude::reviewer-renata", "claude::reviewer-renata", False),
+        ("claude::reviewer-renata", "claude::", False),  # not provably another identity
+        ("codex::reviewer-renata", "claude::", True),
+    ],
+)
+def test_resubmitter_may_be_implementer(claimant: str | None, resubmitter: str, may: bool) -> None:
+    assert resubmitter_may_be_implementer(claimant, resubmitter) is may
 
 
 # --- Gap 3: a forced hop into an implementing lane refines, never replaces ---------------

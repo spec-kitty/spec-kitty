@@ -1395,6 +1395,30 @@ def _mt_require_as_implementer_hop(st: _MoveTaskState) -> None:
             AS_IMPLEMENTER_HOP_INVALID,
             f"{AS_IMPLEMENTER_HOP_INVALID}: --as-implementer needs --agent <tool>:<model>:<profile>, the implementer identity to record.",
         )
+    from specify_cli.cli.commands.agent.tasks_move_task_hops import _mt_hop_structured_actor
+    from specify_cli.status import actor_full_identity, resubmitter_may_be_implementer
+
+    resubmitter = actor_full_identity(_mt_hop_structured_actor(st, st.old_lane, st.target_lane, st.agent))
+    claimant = _mt_review_claimant(st)
+    if not resubmitter_may_be_implementer(claimant, resubmitter):
+        raise ActionContextError(
+            AS_IMPLEMENTER_HOP_INVALID,
+            f"{AS_IMPLEMENTER_HOP_INVALID}: {st.task_id}'s review was claimed by {claimant}, and {resubmitter} is not provably "
+            "another identity: a reviewer handing its review back cannot record the implementer's identity. The implementer "
+            "re-submits with its own full --agent <tool>:<model>:<profile>.",
+        )
+
+
+def _mt_review_claimant(st: _MoveTaskState) -> str | None:
+    """Full identity of the WP's latest review claim over the routed event log, or ``None`` (#7712)."""
+    if not st.mission_slug:
+        return None
+    from specify_cli.cli.commands.agent import tasks as _tasks
+    from specify_cli.status import latest_review_claimant
+
+    events = _tasks.read_events_transactional(feature_dir=st.feature_dir, mission_slug=st.mission_slug, repo_root=st.main_repo_root, owned=st.owned)
+    claimant: str | None = latest_review_claimant(events, st.task_id)
+    return claimant
 
 
 def _mt_require_independent_approval(st: _MoveTaskState) -> None:
