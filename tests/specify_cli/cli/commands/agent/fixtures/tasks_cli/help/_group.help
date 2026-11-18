@@ -5,7 +5,7 @@ Options
 --show-completion Show completion for the current shell, to copy it or customize the installation.
 --help -h Show this message and exit.
 Commands
-move-task Move task between lanes (planned → doing → for_review → approved → done).
+move-task Move task between lanes (planned → claimed → in_progress → for_review → in_review → approved → done).
 mark-status Record subtask status for one or more tasks.
 list-tasks List tasks with optional lane filtering.
 add-history Record a history note in the WP status event log.
