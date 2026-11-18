@@ -1938,8 +1938,9 @@ _Task workflow commands for AI agents_
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ move-task            Move task between lanes (planned → doing → for_review → │
-│                      approved → done).                                       │
+│ move-task            Move task between lanes (planned → claimed →            │
+│                      in_progress → for_review → in_review → approved →       │
+│                      done).                                                  │
 │ mark-status          Record subtask status for one or more tasks.            │
 │ list-tasks           List tasks with optional lane filtering.                │
 │ add-history          Record a history note in the WP status event log.       │
@@ -2184,7 +2185,11 @@ _Task workflow commands for AI agents_
 ```
  Usage: spec-kitty agent tasks move-task [OPTIONS] {task_id}
 
- Move task between lanes (planned → doing → for_review → approved → done).
+ Move task between lanes (planned → claimed → in_progress → for_review →
+ in_review → approved → done).
+
+ ``blocked`` and ``canceled`` are reachable from the other lanes. ``doing`` is
+ accepted as an input alias of ``in_progress`` and is never recorded.
 
  Review-rejection edges (a backward move out of review — ``--to planned`` from
  in_progress/for_review/in_review/approved, or ``in_review → in_progress``)
@@ -2192,8 +2197,7 @@ _Task workflow commands for AI agents_
  carry a rationale: pass ``--review-feedback-file`` (or
  ``--note``/``--reason``).
  That rationale is emitted as the status event's ``review_ref``/reason and is
- required by the shared status contract; a rejection emitted without it is
- accepted locally but silently rejected by hosted sync, so it never propagates.
+ required by the shared status contract; the move is refused without it.
 
  ``--actor``/``--reason`` are accepted as aliases of ``--agent``/``--note``
  (matching ``issue-verdict``'s vocabulary, #3469) — use whichever spelling
@@ -2206,7 +2210,8 @@ _Task workflow commands for AI agents_
  unchecked-subtasks gate on a ``--to for_review`` move.
 
  Examples:
-     spec-kitty agent tasks move-task WP01 --to doing --assignee claude --json
+     spec-kitty agent tasks move-task WP01 --to in_progress --assignee claude
+ --json
      spec-kitty agent tasks move-task WP02 --to for_review --agent claude
  --shell-pid $$
      spec-kitty agent tasks move-task WP02 --to for_review --actor claude
@@ -2218,23 +2223,38 @@ _Task workflow commands for AI agents_
  "Branch deleted after hotfix merge"
      spec-kitty agent tasks move-task WP03 --to planned --review-feedback-file
  feedback.md
+     spec-kitty agent tasks move-task WP03 --to planned --review-feedback-file
+ feedback.md --reset-subtasks T002 --note "T002 regressed"
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    task_id      <str>  Task ID (e.g., WP01) [required]                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --to                                         <str>   Target lane          │
-│                                                         (planned/doing/for_… │
+│                                                         (planned/claimed/in… │
+│                                                         doing is accepted as │
+│                                                         an alias of          │
+│                                                         in_progress)         │
 │                                                         [required]           │
 │    --mission                                    <str>   Mission slug         │
 │    --agent,--actor                              <str>   Agent name (alias:   │
 │                                                         --actor, matching    │
 │                                                         issue-verdict's      │
-│                                                         vocabulary). If both │
-│                                                         --agent and --actor  │
-│                                                         are given, the one   │
-│                                                         supplied LAST on the │
-│                                                         command line wins.   │
+│                                                         vocabulary). When    │
+│                                                         the move hands the   │
+│                                                         WP back for work (a  │
+│                                                         rejection, a reopen, │
+│                                                         for_review ->        │
+│                                                         in_progress) it      │
+│                                                         records only who     │
+│                                                         acted and does not   │
+│                                                         reassign the WP; use │
+│                                                         --assignee for that. │
+│                                                         If both --agent and  │
+│                                                         --actor are given,   │
+│                                                         the one supplied     │
+│                                                         LAST on the command  │
+│                                                         line wins.           │
 │    --model                                      <str>   Refused: the         │
 │                                                         dispatch Op carries  │
 │                                                         no model identifier  │
@@ -2250,7 +2270,11 @@ _Task workflow commands for AI agents_
 │                                                         regardless of the    │
 │                                                         target lane (not     │
 │                                                         limited to --to      │
-│                                                         doing).              │
+│                                                         in_progress). When   │
+│                                                         the move hands the   │
+│                                                         WP back for work it  │
+│                                                         also reassigns the   │
+│                                                         WP to this agent.    │
 │    --shell-pid                                  <str>   Shell PID            │
 │    --note,--reason                              <str>   History note (alias: │
 │                                                         --reason, matching   │
@@ -2290,6 +2314,17 @@ _Task workflow commands for AI agents_
 │                                                         file would be        │
 │                                                         validated and then   │
 │                                                         dropped.             │
+│    --reset-subtasks                             <str>   Comma-separated      │
+│                                                         subtask ids (e.g.    │
+│                                                         T002,T003) to reset  │
+│                                                         on a --to planned    │
+│                                                         rollback; the others │
+│                                                         keep their state.    │
+│                                                         Requires             │
+│                                                         --note/--reason.     │
+│                                                         Without it every     │
+│                                                         non-skipped subtask  │
+│                                                         resets.              │
 │    --approval-ref                               <str>   Approval reference   │
 │                                                         for approval/done    │
 │                                                         transitions (e.g.,   │

@@ -53,7 +53,7 @@ from specify_cli.coordination.status_transition import (
 from specify_cli.coordination.status_transition import (
     read_events_transactional as read_events_transactional,
 )
-from specify_cli.status import Lane
+from specify_cli.status import NON_DISPLAY_LANES, Lane
 
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 # ``get_main_repo_root`` / ``get_feature_target_branch`` / ``get_mission_type``
@@ -718,10 +718,19 @@ def _resolve_task_owned(
     )
 
 
+#: ``--to`` help for ``move-task``, derived from the ``Lane`` enum so the documented
+#: lanes cannot drift from the lifecycle (#7677). Non-display lanes are omitted.
+MOVE_TASK_TO_HELP = (
+    "Target lane ("
+    + "/".join(lane.value for lane in Lane if lane not in NON_DISPLAY_LANES)
+    + "; doing is accepted as an alias of in_progress)"
+)
+
+
 @app.command(name="move-task")
 def move_task(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
-    to: Annotated[str, typer.Option("--to", help="Target lane (planned/doing/for_review/approved/done)")],
+    to: Annotated[str, typer.Option("--to", help=MOVE_TASK_TO_HELP)],
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
     agent: Annotated[
         str | None,
@@ -756,7 +765,7 @@ def move_task(
             "--assignee",
             help=(
                 "Assignee name, recorded on this transition regardless of the "
-                "target lane (not limited to --to doing). When the move hands "
+                "target lane (not limited to --to in_progress). When the move hands "
                 "the WP back for work it also reassigns the WP to this agent."
             ),
         ),
@@ -887,14 +896,16 @@ def move_task(
         ),
     ] = None,
 ) -> None:
-    """Move task between lanes (planned → doing → for_review → approved → done).
+    """Move task between lanes (planned → claimed → in_progress → for_review → in_review → approved → done).
+
+    ``blocked`` and ``canceled`` are reachable from the other lanes. ``doing`` is
+    accepted as an input alias of ``in_progress`` and is never recorded.
 
     Review-rejection edges (a backward move out of review — ``--to planned`` from
     in_progress/for_review/in_review/approved, or ``in_review → in_progress``) MUST
     carry a rationale: pass ``--review-feedback-file`` (or ``--note``/``--reason``).
     That rationale is emitted as the status event's ``review_ref``/reason and is
-    required by the shared status contract; a rejection emitted without it is
-    accepted locally but silently rejected by hosted sync, so it never propagates.
+    required by the shared status contract; the move is refused without it.
 
     ``--actor``/``--reason`` are accepted as aliases of ``--agent``/``--note``
     (matching ``issue-verdict``'s vocabulary, #3469) — use whichever spelling
@@ -907,7 +918,7 @@ def move_task(
     unchecked-subtasks gate on a ``--to for_review`` move.
 
     Examples:
-        spec-kitty agent tasks move-task WP01 --to doing --assignee claude --json
+        spec-kitty agent tasks move-task WP01 --to in_progress --assignee claude --json
         spec-kitty agent tasks move-task WP02 --to for_review --agent claude --shell-pid $$
         spec-kitty agent tasks move-task WP02 --to for_review --actor claude --shell-pid $$
         spec-kitty agent tasks move-task WP03 --to approved --note "Review passed"
