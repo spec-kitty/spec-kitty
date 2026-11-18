@@ -11,6 +11,7 @@ import sys
 from collections.abc import Iterable
 from pathlib import Path
 
+from kernel.errors import GuardedReadError
 from kernel.paths import is_windows
 
 AI_CHOICES = {
@@ -97,9 +98,35 @@ LLXPRT_CONFIG_HOME_ENV = "LLXPRT_CONFIG_HOME"
 _XDG_CONFIG_HOME_ENV = "XDG_CONFIG_HOME"
 
 
+class RelativeAgentConfigRootError(GuardedReadError):
+    """An agent config-root variable holds a relative path (#7709).
+
+    A relative value would resolve against the directory the command runs in,
+    so a run inside a project would write a stray tree into that project.
+    Subclasses ``GuardedReadError`` so the CLI error hook prints it as one line
+    and exits 1, never a traceback.
+    """
+
+    def __init__(self, name: str, value: str) -> None:
+        super().__init__(
+            f"{name} is set to the relative path {value!r}; set it to an absolute path "
+            f"(for example {name}=$HOME/{value}) or unset it."
+        )
+        self.name = name
+        self.value = value
+
+
+_STRICT_ROOT_ENVS = frozenset({CLAUDE_CONFIG_DIR_ENV, OPENCODE_CONFIG_DIR_ENV, LLXPRT_CONFIG_HOME_ENV})
+
+
 def _env_dir(name: str) -> Path | None:
     value = os.environ.get(name)
-    return Path(value).expanduser() if value else None
+    if not value:
+        return None
+    path = Path(value).expanduser()
+    if name in _STRICT_ROOT_ENVS and not path.is_absolute():
+        raise RelativeAgentConfigRootError(name, value)
+    return path
 
 
 def _llxprt_user_config_root() -> Path:
