@@ -1282,9 +1282,7 @@ def test_ci_request_never_suggests_the_minutes_profile(tmp_path: Path) -> None:
         assert "--profile <id>" in envelope["suggestion"]
 
 
-_PIN_REASON = (
-    "#7697: the CI/workflow keywords for implementer-ivan land in spec-kitty-open-packs #302; this passes once core's packs/built-in pin is bumped to that commit."
-)
+_PIN_REASON = "built-in CI keywords arrive with the charter-service cutover; open-packs #302"
 
 
 @pytest.mark.xfail(strict=True, reason=_PIN_REASON)
