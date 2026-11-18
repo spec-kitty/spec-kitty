@@ -1334,3 +1334,35 @@ def test_role_keywords_tolerates_a_profile_without_specialization_context() -> N
     profile.specialization_context = None
 
     assert _role_keywords(profile) == []
+
+
+def test_verb_tie_pool_spans_only_the_roles_the_request_names() -> None:
+    """Re-review nit: with verbs of two roles, the owner of the named domain wins with its own verb."""
+    registry = _make_mock_registry(
+        [
+            {"profile_id": "impl-a", "role_value": "implementer", "routing_priority": 80},
+            {"profile_id": "impl-b", "role_value": "implementer", "routing_priority": 80},
+            {"profile_id": "sec-reviewer", "role_value": "reviewer", "routing_priority": 10, "domain_keywords": ["security"]},
+        ]
+    )
+
+    decision = ActionRouter(registry).route("review and fix the security of the thing")
+
+    assert decision.profile_id == "sec-reviewer"
+    assert decision.action == "review"
+    assert decision.confidence == "canonical_verb"
+
+
+def test_generic_capability_accepts_any_sequence_but_not_a_string() -> None:
+    """Capabilities given as a tuple still mark a generic profile; a bare string never does."""
+    from specify_cli.invocation.router import _is_generic_profile
+
+    profile = MagicMock()
+    profile.capabilities = ("general-task-execution",)
+    assert _is_generic_profile(profile)
+
+    profile.capabilities = "general-task-execution"
+    assert not _is_generic_profile(profile)
+
+    profile.capabilities = None
+    assert not _is_generic_profile(profile)

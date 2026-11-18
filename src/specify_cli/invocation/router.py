@@ -9,7 +9,7 @@ See: kitty-specs/profile-invocation-runtime-audit-trail-01KPQRX2/adr-3-determini
 from __future__ import annotations
 
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Literal
 
@@ -382,7 +382,9 @@ def _role_keywords(profile: object) -> list[str]:
 def _is_generic_profile(profile: object) -> bool:
     """Whether *profile* declares the general-purpose capability (#7697)."""
     capabilities = getattr(profile, "capabilities", None)
-    return isinstance(capabilities, list) and GENERIC_CAPABILITY in capabilities
+    if isinstance(capabilities, str) or not isinstance(capabilities, Sequence):
+        return False
+    return GENERIC_CAPABILITY in capabilities
 
 
 def _nearest_profiles(profiles: list[object], tokens: list[str]) -> list[tuple[object, str, list[str]]]:
@@ -565,8 +567,11 @@ class ActionRouter:
     Tiers 3-5 are a LADDER, not one pool: a later tier is consulted only when the
     earlier one produced no candidate, so the ladder's own signals are strictly
     additive. Step 7 is deliberately not additive: it moves verb ties and generic
-    routes to the domain owner. Both arbitration pools are role-scoped, so a
-    route never changes role. This class docstring is the living record of the
+    routes to the domain owner. Neither pool reaches a role the request did not
+    name: the verb-tie pool spans only the roles of the canonical verbs in the
+    request (each candidate keeps its own verb's action), and the generic
+    hand-off stays in the generic profile's role. This class docstring is the
+    living record of the
     precedence; ADR-3 is a mission snapshot and is not amended (same as #6970).
     """
 
@@ -863,8 +868,10 @@ class ActionRouter:
 
         The pool is the whole verb tier, not only the top-priority ties: a
         lower-priority profile whose domain the request names is a better owner
-        than five equally ranked generalists. The verb tier is one role, so the
-        route keeps the verb's role and action. ``None`` keeps the refusal.
+        than five equally ranked generalists. The verb tier spans the roles of
+        the canonical verbs the request names, and the winner keeps the action of
+        its own role's verb, so the route never reaches a role the request did
+        not ask for. ``None`` keeps the refusal.
         """
         by_id = {c["profile_id"]: c for c in candidates if c["_confidence"] == "canonical_verb"}
         pool = [profile for profile in profiles if getattr(profile, "profile_id", "") in by_id]
