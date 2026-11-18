@@ -3668,6 +3668,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/context/audience/external/practitioner.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/context/audience/external/product-manager-evaluator.md
   tag: current
   divio_type: explanation
