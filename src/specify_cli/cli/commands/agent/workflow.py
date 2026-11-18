@@ -170,19 +170,28 @@ class _GateTopology(NamedTuple):
     """What the bulk-edit gate reads of the Mission beside the review range (#7726)."""
 
     single_branch: bool
+    #: A ``single_branch`` Mission whose write branch is its target (no minted Mission branch).
+    commit_to_target: bool
     #: ``False`` for a planning-lane work package (no lane branch stamps it).
     lane_stamped: bool
     #: The lane branch's (or ``single_branch`` write branch's) live head, ``None`` when it has none.
     live_head: str | None
     mission_dir_name: str
+    #: The planning write branch when the status events sit on another branch (ruling Q10's case), else ``None``.
+    planning_branch_apart: str | None
 
 
 class _GateWindow(NamedTuple):
-    """The commits the gate judges: ``base..head`` without ``excludes``, plus notes on what it did not judge."""
+    """The commits the gate judges: ``base..head`` without ``excludes``, plus notes on what it did not judge.
+
+    ``first_parent_only`` (ruling B) judges only the paths the non-merge first-parent commits touched,
+    on a branch other people also commit to: a commit-to-target Mission's target, a planning branch.
+    """
 
     base: str
     head: str
     excludes: tuple[str, ...]
+    first_parent_only: bool = False
     notes: tuple[str, ...] = ()
 
 
@@ -207,10 +216,11 @@ def _enforce_bulk_edit_diff_compliance(
 
     The head is the submission on ``single_branch`` (commits past it can be another work
     package's) and the lane's live head on a lane topology, as before, so a commit added to a
-    lane after its submission is still judged. A planning-lane work package whose range the
-    owner cannot record (its status events live on a separate coordination branch, ruling Q10)
-    is judged from its recorded claim base, else the Mission's planning commit, to the planning
-    write branch's head. The diff leaves out the Mission bookkeeping the range excludes.
+    lane after its submission is still judged. A planning-lane work package of ruling Q10's case
+    (its status events on a coordination branch apart from its work, so no range is recorded) is
+    judged from its recorded claim base to its planning branch's head. On a branch others commit
+    to (a commit-to-target target, a planning branch), only the non-merge first-parent commits'
+    paths are judged (ruling B). The diff leaves out the Mission bookkeeping the range excludes.
 
     Raises ``typer.Exit(1)`` on a violation, and on a window it cannot judge
     (``BULK_EDIT_REVIEW_RANGE_UNAVAILABLE`` / ``_EMPTY`` / ``BULK_EDIT_REVIEW_TIP_REWRITTEN``): a
@@ -229,6 +239,7 @@ def _enforce_bulk_edit_diff_compliance(
         base_ref=window.base,
         head_ref=window.head,
         exclude_pathspecs=window.excludes,
+        first_parent_only=window.first_parent_only,
     )
     if _diff_result is None:
         # Non-bulk-edit mission — skip silently. check_review_diff_compliance
@@ -253,9 +264,9 @@ def _bulk_edit_review_window(repo_root: Path, mission_slug: str, wp_id: str) -> 
     # range touches, and the unscoped commit listing (bookkeeping excluded) is what "empty" means.
     review_range = resolve_wp_review_range(repo_root, mission_slug, wp_id, owned_files=())
     topology = _review_gate_topology(repo_root, mission_slug, wp_id)
-    planning_lane = topology is not None and not topology.single_branch and not topology.lane_stamped
-    if review_range.base is None and planning_lane and topology is not None:
-        return _planning_lane_window(repo_root, topology.mission_dir_name, mission_slug, wp_id)
+    planning_branch = _planning_branch_without_range(review_range, topology)
+    if planning_branch is not None and topology is not None:
+        return _planning_lane_window(repo_root, topology.mission_dir_name, planning_branch, mission_slug, wp_id)
     facts = ReviewRangeFacts(
         base=review_range.base,
         tip=review_range.tip,
@@ -266,13 +277,30 @@ def _bulk_edit_review_window(repo_root: Path, mission_slug: str, wp_id: str) -> 
     )
     refusal = review_range_refusal(facts, wp_id=wp_id, mission_slug=mission_slug)
     base, tip = review_range.base, review_range.tip
-    if refusal is not None or base is None or tip is None:
+    if refusal is not None or base is None or tip is None or topology is None:
         return refusal or ""
-    single_branch = topology is not None and topology.single_branch
-    live_head = topology.live_head if topology is not None else None
-    head = tip if single_branch or live_head is None else live_head
-    notes = _unjudged_commit_notes(review_range, wp_id, mission_slug) if single_branch else ()
-    return _GateWindow(base=base, head=head, excludes=review_range.bookkeeping_pathspecs, notes=notes)
+    head = tip if topology.single_branch or topology.live_head is None else topology.live_head
+    notes = _unjudged_commit_notes(review_range, wp_id, mission_slug) if topology.single_branch else ()
+    return _GateWindow(
+        base=base,
+        head=head,
+        excludes=review_range.bookkeeping_pathspecs,
+        first_parent_only=topology.commit_to_target,
+        notes=notes,
+    )
+
+
+def _planning_branch_without_range(review_range: WpReviewRange, topology: _GateTopology | None) -> str | None:
+    """The planning branch in exactly ruling Q10's case (an unstamped work package, events apart from its work, no range), else ``None``.
+
+    Every other missing range keeps the range owner's own refusal (``no_submission``, an
+    unresolvable SHA, ...), so this never stands in for a range that should exist.
+    """
+    if topology is None or topology.single_branch or topology.lane_stamped:
+        return None
+    if review_range.base is not None or review_range.gap != "not_recorded":
+        return None
+    return topology.planning_branch_apart
 
 
 def _review_gate_topology(repo_root: Path, mission_slug: str, wp_id: str) -> _GateTopology | None:
@@ -281,6 +309,9 @@ def _review_gate_topology(repo_root: Path, mission_slug: str, wp_id: str) -> _Ga
     ``None`` never passes: the range resolution reports the same failure, so the gate refuses.
     """
     from mission_runtime import is_single_branch
+    from specify_cli.lanes.single_branch_landing import is_commit_to_target_meta
+    from specify_cli.mission_metadata import load_meta_or_empty
+    from specify_cli.review.wp_range import planning_branch_apart_from_status
     from specify_cli.status import read_lane_head, resolve_status_read
 
     try:
@@ -291,68 +322,62 @@ def _review_gate_topology(repo_root: Path, mission_slug: str, wp_id: str) -> _Ga
     reading = read_lane_head(repo_root=repo_root, mission_slug=surface.mission_dir_name, wp_id=wp_id)
     return _GateTopology(
         single_branch=is_single_branch(surface.topology),
+        commit_to_target=is_commit_to_target_meta(load_meta_or_empty(surface.parser_dir)),
         lane_stamped=bool(reading.applicable),
         live_head=reading.sha,
         mission_dir_name=surface.mission_dir_name,
+        planning_branch_apart=planning_branch_apart_from_status(surface),
     )
 
 
-def _planning_lane_window(repo_root: Path, mission_dir_name: str, mission_slug: str, wp_id: str) -> _GateWindow | str:
-    """A planning-lane work package's window when the review range has none (#7726, ruling Q10 case).
+def _planning_lane_window(repo_root: Path, mission_dir_name: str, branch: str, mission_slug: str, wp_id: str) -> _GateWindow | str:
+    """A planning-lane work package's window in ruling Q10's case (#7726): claim base .. *branch* head.
 
-    Its status events sit on the coordination branch, apart from its work, so the range owner
-    records no range. Its work is on the planning write branch, from its recorded claim base
-    (``refs/.../wp-base``), else from the Mission's recorded planning commit, to that branch's
-    head. Both ends are recorded or checked-out commits; the refusal names what is missing.
+    Its work is committed on its planning write branch *branch*, named from ``meta.json`` (never
+    whatever the reviewer has checked out), from its recorded claim base (``refs/spec-kitty/wp-base/
+    <mission>/<wp>``, written where the work package was claimed). Others commit to that branch
+    too, so only the non-merge first-parent commits' paths are judged (ruling B). No wider base
+    stands in for a missing claim base: the refusal names what is missing.
     """
     from specify_cli.bulk_edit.gate import BULK_EDIT_REVIEW_RANGE_EMPTY, BULK_EDIT_REVIEW_RANGE_UNAVAILABLE
     from specify_cli.lanes.claim_base import read_claim_base
     from specify_cli.review.wp_range import bookkeeping_pathspecs
 
-    base = read_claim_base(repo_root, mission_dir_name, wp_id) or _planning_commit(repo_root, mission_slug)
-    head = _planning_write_head(repo_root, mission_slug, wp_id)
-    unavailable = (
-        f"{BULK_EDIT_REVIEW_RANGE_UNAVAILABLE}: the bulk-edit review gate cannot judge planning-lane work package "
-        f"{wp_id}: no claim base or planning commit is recorded that the checked-out planning branch descends from. "
-        f"Check out the Mission's planning branch with the work package's commits, or claim it again with "
-        f"`spec-kitty agent action implement {wp_id} --mission {mission_slug}` to record its claim base, then retry."
-    )
-    if base is None or head is None or not _is_ancestor(repo_root, base, head):
-        return unavailable
+    prefix = f"{BULK_EDIT_REVIEW_RANGE_UNAVAILABLE}: the bulk-edit review gate cannot judge planning-lane work package {wp_id}:"
+    base = read_claim_base(repo_root, mission_dir_name, wp_id)
+    if base is None:
+        return (
+            f"{prefix} no claim base is recorded in this clone (it is written where the work package was claimed). "
+            f"Review it in the clone that claimed it, or claim it here with "
+            f"`spec-kitty agent action implement {wp_id} --mission {mission_slug}` before its work, then retry."
+        )
+    head = _commit_of(repo_root, f"refs/heads/{branch}")
+    if head is None or not _is_ancestor(repo_root, base, head):
+        return (
+            f"{prefix} its planning branch {branch!r} is absent here or does not descend from its claim base "
+            f"{base[:12]}. Fetch or check out {branch!r} with the work package's commits, then retry."
+        )
     excludes = bookkeeping_pathspecs(mission_dir_name)
-    if _count_commits(repo_root, base, head, excludes) == 0:
+    count = _count_commits(repo_root, base, head, excludes)
+    if count is None:
+        return (
+            f"{prefix} the commits of {base[:12]}..{head[:12]} on {branch!r} could not be listed. "
+            "Check that the repository is readable, then retry."
+        )
+    if count == 0:
         return (
             f"{BULK_EDIT_REVIEW_RANGE_EMPTY}: the bulk-edit review gate has nothing to judge for {wp_id}: "
-            f"{base[:12]}..{head[:12]} on its planning branch holds no commit outside Mission bookkeeping."
+            f"{base[:12]}..{head[:12]} on {branch!r} holds no commit outside Mission bookkeeping."
         )
-    return _GateWindow(base=base, head=head, excludes=excludes)
+    return _GateWindow(base=base, head=head, excludes=excludes, first_parent_only=True)
 
 
-def _planning_commit(repo_root: Path, mission_slug: str) -> str | None:
-    """``lanes.json`` ``planning_commit_sha``, read through the placement seam; ``None`` when absent."""
-    from mission_runtime import MissionArtifactKind, placement_seam
-
-    from specify_cli.lanes.persistence import read_lanes_json
-
-    try:
-        manifest = read_lanes_json(placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.LANE_STATE))
-    except Exception:  # an unreadable manifest is "no planning commit": the caller refuses
-        logger.debug("bulk-edit gate: lanes.json of %s unreadable", mission_slug, exc_info=True)
-        return None
-    return manifest.planning_commit_sha if manifest is not None else None
-
-
-def _planning_write_head(repo_root: Path, mission_slug: str, wp_id: str) -> str | None:
-    """The head of the branch *wp_id*'s planning work is written to, as a SHA; ``None`` when it does not resolve."""
-    try:
-        branch = resolve_workspace_for_wp(repo_root, mission_slug, wp_id).branch_name or "HEAD"
-        result = subprocess.run(
-            ["git", "-C", str(repo_root), "rev-parse", "--verify", "--quiet", f"{branch}^{{commit}}"],
-            capture_output=True, text=True, check=False, timeout=30,
-        )
-    except Exception:  # the resolver raises several types; an unresolvable head is a refusal, never a raise
-        logger.debug("bulk-edit gate: planning write branch of %s unresolved", wp_id, exc_info=True)
-        return None
+def _commit_of(repo_root: Path, ref: str) -> str | None:
+    """*ref* as a commit SHA, ``None`` when it does not resolve."""
+    result = subprocess.run(
+        ["git", "-C", str(repo_root), "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"],
+        capture_output=True, text=True, check=False, timeout=30,
+    )
     if result.returncode != 0:
         return None
     return result.stdout.strip() or None
@@ -366,13 +391,15 @@ def _is_ancestor(repo_root: Path, ancestor: str, descendant: str) -> bool:
     return result.returncode == 0
 
 
-def _count_commits(repo_root: Path, base: str, head: str, excludes: tuple[str, ...]) -> int:
-    """Commits in ``base..head`` that touch a path outside *excludes*; a git failure counts as 0 (the caller refuses)."""
+def _count_commits(repo_root: Path, base: str, head: str, excludes: tuple[str, ...]) -> int | None:
+    """Commits in ``base..head`` that touch a path outside *excludes*; ``None`` on a git failure."""
     result = subprocess.run(
         ["git", "-C", str(repo_root), "rev-list", "--count", f"{base}..{head}", "--", ".", *excludes],
         capture_output=True, text=True, check=False, timeout=30,
     )
-    return int(result.stdout.strip() or "0") if result.returncode == 0 else 0
+    if result.returncode != 0:
+        return None
+    return int(result.stdout.strip() or "0")
 
 
 def _unjudged_commit_notes(review_range: WpReviewRange, wp_id: str, mission_slug: str) -> tuple[str, ...]:

@@ -254,19 +254,19 @@ class WorkflowMutationPolicy:
                 ),
             )
 
-        # 3. Existence: local branch must resolve.
+        # 3. Existence: local branch must resolve. #7726: a fresh clone, a cloud
+        # session or a pull-request flow may hold the work under another branch
+        # name; the remedy names the one command that restores the destination.
         if not _local_branch_exists(repo_root, ref):
+            remedy = f"Create it at the commit that holds the work, then retry: git branch {ref} <commit holding the work>"
             return Refused(
                 error_code=DESTINATION_REF_NOT_FOUND,
                 message=(
                     f"Refusing to record {change_set.operation!r}: "
-                    f"destination_ref {ref!r} does not exist in {repo_root}."
+                    f"destination_ref {ref!r} does not exist in {repo_root}. {remedy}"
                 ),
                 destination_ref=ref,
-                next_step=(
-                    "Confirm the branch exists locally "
-                    "('git branch --list'), or create it first."
-                ),
+                next_step=remedy,
             )
 
         # 4. Protected-branch check. The protection DECISION is the SK policy

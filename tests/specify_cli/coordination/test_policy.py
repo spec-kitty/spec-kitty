@@ -102,6 +102,10 @@ def test_refused_not_found(repo: Path) -> None:
     )
     assert isinstance(verdict, Refused)
     assert verdict.error_code == "DESTINATION_REF_NOT_FOUND"
+    # #7726: the remedy is the one command that restores the destination, in the printed message too.
+    remedy = "git branch kitty/never-existed <commit holding the work>"
+    assert remedy in verdict.message
+    assert remedy in verdict.next_step
 
 
 def test_refused_protected_main(repo: Path) -> None:

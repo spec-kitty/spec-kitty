@@ -10,7 +10,7 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from kernel.git import GitCommandError, changed_entries
+from kernel.git import GitCommandError, changed_entries, run_git
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -189,11 +189,27 @@ def finalize_tasks_gate_error_payload(result: GateResult) -> dict[str, object]:
 # ---------------------------------------------------------------------------
 
 
+def _first_parent_paths(repo_root: Path, base_ref: str, head_ref: str) -> set[str]:
+    """The paths the non-merge commits on the first-parent chain of ``base..head`` touch (#7726, ruling B).
+
+    Content a merge brings in (another branch's commits) is not in the set; a rebase or a
+    fast-forward puts foreign commits on the first-parent chain, so they stay. Raises
+    :class:`GitCommandError` on a git failure, which the caller turns into a refusal.
+    """
+    result = run_git(
+        repo_root, "log", "-z", "--first-parent", "--no-merges", "--name-only", "--format=", f"{base_ref}..{head_ref}", timeout=30
+    )
+    # NUL-delimited (``-z``), so a path git would quote is exact, like ``changed_entries``.
+    return {path.strip("\n") for path in result.stdout.decode("utf-8", "replace").split("\0") if path.strip("\n")}
+
+
 def _git_diff_files(
     repo_root: Path,
     base_ref: str,
     head_ref: str,
     exclude_pathspecs: tuple[str, ...] = (),
+    *,
+    first_parent_only: bool = False,
 ) -> GitDiffFilesResult:
     """Return the files changed between *base_ref* and *head_ref*, with status.
 
@@ -256,6 +272,14 @@ def _git_diff_files(
             stderr=exc.stderr.strip() or str(exc),
             returncode=exc.returncode if exc.returncode > 0 else None,
         )
+    if first_parent_only:
+        # The net change of every path a work package's own commit touched; a path only a
+        # merge touched is left out. Each kept path keeps its net status (A/M/D) from the diff.
+        try:
+            own = _first_parent_paths(repo_root, base_ref, head_ref)
+        except GitCommandError as exc:
+            return GitDiffFilesResult(ok=False, stderr=exc.stderr.strip() or str(exc), returncode=exc.returncode if exc.returncode > 0 else None)
+        entries = tuple(entry for entry in entries if str(entry.path) in own)
     files = [str(entry.path) for entry in entries]
     # Normalise ``R100``/``C075`` to their leading letter: the occurrence
     # check cares about the KIND of change, not the similarity score.
@@ -348,11 +372,15 @@ def check_review_diff_compliance(
     base_ref: str,
     head_ref: str,
     exclude_pathspecs: tuple[str, ...] = (),
+    *,
+    first_parent_only: bool = False,
 ) -> DiffCheckResult | None:
     """Run the review-time diff compliance check (FR-007 + FR-008).
 
     *exclude_pathspecs* (``:(exclude)`` pathspecs, #7726) leave paths out of the diff: the review
-    gate passes the review range's bookkeeping excludes.
+    gate passes the review range's bookkeeping excludes. *first_parent_only* (#7726, ruling B)
+    judges only the paths the non-merge first-parent commits touched, so content a merge pulled
+    into a shared branch is not judged; a rebased or fast-forwarded foreign commit still is.
 
     Returns ``None`` when the mission is not a bulk_edit — callers should
     skip any further review-time checks in that case.
@@ -379,7 +407,7 @@ def check_review_diff_compliance(
             ],
         )
 
-    diff_files = _git_diff_files(repo_root, base_ref, head_ref, exclude_pathspecs)
+    diff_files = _git_diff_files(repo_root, base_ref, head_ref, exclude_pathspecs, first_parent_only=first_parent_only)
     if not diff_files.ok:
         details = [
             "Review diff check cannot run: git diff failed.",
