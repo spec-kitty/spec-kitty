@@ -27,6 +27,7 @@ from specify_cli.review.cycle import (
 )
 from specify_cli.status import (
     APPROVED,
+    IMPLEMENTER_RESUBMISSION_ROLE,
     GENERIC_IMPLEMENTATION_ACTORS,
     REJECTED,
     ResolvedBinding,
@@ -38,6 +39,7 @@ from specify_cli.status import (
     actor_from_option,
     build_status_actor,
     emission_event_verdict,
+    is_implementer_resubmission_hop,
     resolve_lane_alias,
     role_for_hop,
 )
@@ -211,9 +213,25 @@ def _mt_structured_actor(st: _MoveTaskState, role: str, tool_identity: str) -> d
     return actor
 
 
+def _mt_hop_role(st: _MoveTaskState, from_lane: str | Lane | None, target: str | Lane) -> str:
+    """The recorded role of one hop: :func:`role_for_hop`, except an ``--as-implementer`` re-submission (#7712).
+
+    ``move-task --to for_review --as-implementer`` out of ``in_review`` records the implementer's own
+    act, which ``status.implementer_identities`` reads to complete a profile-less claim. Every other
+    hop keeps the role ``role_for_hop`` gives it.
+    """
+    # Bound explicitly: mypy widens ``specify_cli.*`` returns to ``Any`` through ``follow_imports=skip``.
+    role: str = (
+        IMPLEMENTER_RESUBMISSION_ROLE
+        if getattr(st, "as_implementer", False) and is_implementer_resubmission_hop(from_lane, target)
+        else role_for_hop(from_lane, target)
+    )
+    return role
+
+
 def _mt_hop_structured_actor(st: _MoveTaskState, from_lane: str | Lane | None, target: str | Lane, hop_actor: str) -> dict[str, str | None]:
-    """The structured actor of one ``from_lane -> target`` hop; ``role`` follows the hop (FR-006/FR-007)."""
-    return _mt_structured_actor(st, role_for_hop(from_lane, target), hop_actor)
+    """The structured actor of one ``from_lane -> target`` hop; ``role`` follows the hop (FR-006/FR-007, #7712)."""
+    return _mt_structured_actor(st, _mt_hop_role(st, from_lane, target), hop_actor)
 
 
 def _mt_annotation_actor(st: _MoveTaskState) -> dict[str, str | None]:

@@ -3,9 +3,10 @@
 Replays WP03 of open-packs Mission ``enforcement-vocabulary-01M7PMJW``: a bare ``claude``
 claim, a forced ``in_review -> for_review`` re-submission carrying the implementer's
 profile, and a forced ``for_review -> in_progress`` rewind. The implementer of record is
-the claim, refined (fill-only, #7159) by the re-submission; a forced hop into an
-implementing lane refines it under the same rule and never replaces it, and an identity
-that cannot refine it is still an implementer an approval must be independent of.
+the claim, refined (fill-only, #7159) by a re-submission the implementer records as its own
+act (``move-task --as-implementer``: role ``implementer``). A reviewer's ordinary hand-back
+(role ``reviewer``) fills nothing. A forced claim, or another identity's claim, never changes
+the implementer of record: it is kept beside it, and an approval must be independent of both.
 """
 
 from __future__ import annotations
@@ -58,8 +59,8 @@ def _ev(
 
 BARE_IMPL = _actor("claude", None, "implementer")
 BARE_REVIEW = _actor("claude", None, "reviewer")
-CARLA_AS_REVIEWER = _actor("claude", "curator-carla", "reviewer")  # role stamped by role_for_hop
-CARLA = _actor("claude", "curator-carla", "implementer")
+CARLA_AS_REVIEWER = _actor("claude", "curator-carla", "reviewer")  # role stamped by role_for_hop, as recorded at 06:44:25
+CARLA = _actor("claude", "curator-carla", "implementer")  # --as-implementer records this role
 RENATA = _actor("claude", "reviewer-renata", "reviewer")
 
 
@@ -74,13 +75,39 @@ def _wp03_until_review() -> list[StatusEvent]:
 
 
 def _resubmitted() -> list[StatusEvent]:
-    """06:44:25: the forced ``in_review -> for_review`` re-submission with the implementer's profile."""
-    return [*_wp03_until_review(), _ev(Lane.IN_REVIEW, Lane.FOR_REVIEW, CARLA_AS_REVIEWER, force=True, review_ref="force-override")]
+    """06:44:25 as ``move-task --to for_review --force --as-implementer --agent claude::curator-carla`` records it."""
+    return [*_wp03_until_review(), _ev(Lane.IN_REVIEW, Lane.FOR_REVIEW, CARLA, force=True)]
 
 
 def test_wp03_resubmission_out_of_in_review_completes_the_bare_claim() -> None:
-    """Gap 2: the re-submission's profile is no longer dropped; no forced rewind is needed."""
+    """Gap 2: the implementer's re-submission completes the claim; no forced rewind is needed."""
     assert latest_implementer_identity(_resubmitted(), "WP03") == "claude::curator-carla"
+
+
+def test_wp03_resubmission_recorded_as_a_reviewer_hand_back_fills_nothing() -> None:
+    """The 06:44:25 event as recorded (role ``reviewer``) cannot be told apart from a reviewer handing back."""
+    events = [*_wp03_until_review(), _ev(Lane.IN_REVIEW, Lane.FOR_REVIEW, CARLA_AS_REVIEWER, force=True)]
+    assert latest_implementer_identity(events, "WP03") == "claude::"
+
+
+@pytest.mark.parametrize(
+    ("claim", "hand_back", "approver"),
+    [
+        ("claude", "claude:opus:reviewer-renata", "claude:sonnet:implementer-ivan"),  # S1
+        ("claude::implementer-ivan", "claude:opus:implementer-ivan", "claude:sonnet:implementer-ivan"),  # S7
+    ],
+)
+def test_a_reviewer_hand_back_never_makes_the_implementer_look_independent(claim: str, hand_back: str, approver: str) -> None:
+    """Squad finding: filling a bare claim from the reviewer's hand-back invents independence evidence."""
+    reviewer = {"tool": "claude", "model": hand_back.split(":")[1], "profile": hand_back.split(":")[2], "role": "reviewer"}
+    events = [
+        _ev(Lane.PLANNED, Lane.CLAIMED, claim),
+        _ev(Lane.CLAIMED, Lane.IN_PROGRESS, claim),
+        _ev(Lane.IN_PROGRESS, Lane.FOR_REVIEW, claim),
+        _ev(Lane.FOR_REVIEW, Lane.IN_REVIEW, reviewer),
+        _ev(Lane.IN_REVIEW, Lane.FOR_REVIEW, reviewer, force=True),
+    ]
+    assert not independent_of_implementers(implementer_identities(events, "WP03"), approver)
 
 
 def test_wp03_reviewer_under_another_profile_is_independent_after_the_resubmission() -> None:
@@ -89,9 +116,10 @@ def test_wp03_reviewer_under_another_profile_is_independent_after_the_resubmissi
 
 
 def test_wp03_full_recorded_sequence_resolves_to_carla() -> None:
-    """The log as recorded, forced rewind and fresh submission included."""
+    """The log as recorded: the forced rewind is kept beside the claim, the unforced submission completes it."""
     events = [
-        *_resubmitted(),
+        *_wp03_until_review(),
+        _ev(Lane.IN_REVIEW, Lane.FOR_REVIEW, CARLA_AS_REVIEWER, force=True, review_ref="force-override"),
         _ev(Lane.FOR_REVIEW, Lane.IN_PROGRESS, CARLA, force=True, review_ref="force-override"),
         _ev(Lane.IN_PROGRESS, Lane.FOR_REVIEW, CARLA),
         _ev(Lane.FOR_REVIEW, Lane.IN_REVIEW, RENATA),
@@ -112,7 +140,7 @@ def test_a_contradicting_resubmission_out_of_in_review_never_changes_the_claim()
     events = [
         _ev(Lane.PLANNED, Lane.CLAIMED, claim),
         _ev(Lane.IN_PROGRESS, Lane.FOR_REVIEW, claim),
-        _ev(Lane.IN_REVIEW, Lane.FOR_REVIEW, CARLA_AS_REVIEWER, force=True),
+        _ev(Lane.IN_REVIEW, Lane.FOR_REVIEW, CARLA, force=True),
     ]
     assert latest_implementer_identity(events, "WP03") == "claude::python-pedro"
 
@@ -148,19 +176,53 @@ def test_a_forced_same_tool_rewind_with_another_profile_does_not_replace_the_cla
     assert implementer_identities(events, "WP03") == ("claude::python-pedro", "claude::reviewer-renata")
 
 
-def test_a_forced_rewind_by_the_claims_own_agent_refines_it() -> None:
+def test_a_forced_rewind_that_agrees_with_a_bare_claim_is_kept_beside_it() -> None:
+    """S4: a forced rewind by a same-tool reviewer never fills the claim, so the bare implementer stays unproven."""
     events = [
         *_wp03_until_review(),
-        _ev(Lane.IN_REVIEW, Lane.IN_PROGRESS, CARLA, force=True, review_ref="force-override"),
+        _ev(Lane.IN_REVIEW, Lane.IN_PROGRESS, RENATA, force=True, review_ref="force-override"),
     ]
+    assert implementer_identities(events, "WP03") == ("claude::", "claude::reviewer-renata")
+    assert not independent_of_implementers(implementer_identities(events, "WP03"), "claude:sonnet:implementer-ivan")
+
+
+def test_the_claims_own_unforced_hop_refines_it() -> None:
+    events = [_ev(Lane.PLANNED, Lane.CLAIMED, BARE_IMPL), _ev(Lane.CLAIMED, Lane.IN_PROGRESS, CARLA)]
     assert implementer_identities(events, "WP03") == ("claude::curator-carla",)
 
 
-def test_an_unforced_claim_still_replaces_the_implementer_of_record() -> None:
-    """The explicit, recorded takeover: an unforced claim (e.g. ``agent action implement``) is a new claim."""
+def test_an_unforced_takeover_is_kept_beside_the_implementer_of_record() -> None:
+    """``agent action implement`` by another agent out of review: both implemented the work package."""
     events = [
         _ev(Lane.PLANNED, Lane.CLAIMED, _actor("claude", "python-pedro", "implementer")),
         _ev(Lane.IN_REVIEW, Lane.IN_PROGRESS, _actor("gemini", "python-pedro", "implementer")),
+    ]
+    assert implementer_identities(events, "WP03") == ("claude::python-pedro", "gemini::python-pedro")
+
+
+@pytest.mark.parametrize("unblocker", ["X", "A"])
+def test_an_unforced_unblock_does_not_wipe_the_forced_reopener(unblocker: str) -> None:
+    """S2 / S2b: a forced reopen then an unforced ``blocked -> in_progress`` keeps both implementers."""
+    a = _actor("claude", "python-pedro", "implementer")
+    x = _actor("codex", "operator-olga", "implementer")
+    events = [
+        _ev(Lane.PLANNED, Lane.CLAIMED, a),
+        _ev(Lane.CLAIMED, Lane.IN_PROGRESS, a),
+        _ev(Lane.APPROVED, Lane.IN_PROGRESS, x, force=True, review_ref="force-override"),
+        _ev(Lane.IN_PROGRESS, Lane.BLOCKED, x),
+        _ev(Lane.BLOCKED, Lane.IN_PROGRESS, x if unblocker == "X" else a),
+    ]
+    identities = implementer_identities(events, "WP03")
+    assert not independent_of_implementers(identities, "claude::python-pedro")
+    assert not independent_of_implementers(identities, "codex::operator-olga")
+
+
+def test_a_fresh_planned_claim_starts_a_new_cycle() -> None:
+    events = [
+        _ev(Lane.PLANNED, Lane.CLAIMED, _actor("claude", "python-pedro", "implementer")),
+        _ev(Lane.APPROVED, Lane.IN_PROGRESS, _actor("codex", "operator-olga", "implementer"), force=True),
+        _ev(Lane.IN_PROGRESS, Lane.PLANNED, _actor("codex", "operator-olga", "reviewer"), review_ref="review-cycle-2.md"),
+        _ev(Lane.PLANNED, Lane.CLAIMED, _actor("gemini", "python-pedro", "implementer")),
     ]
     assert implementer_identities(events, "WP03") == ("gemini::python-pedro",)
 

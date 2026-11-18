@@ -327,6 +327,8 @@ class _MoveTaskState:
     owned: OwnedCheckout | None = None
     #: #7582 FR-012: the raw ``--reset-subtasks`` value (comma-separated ids), else ``None``.
     reset_subtasks: str | None = None
+    #: #7712: ``--as-implementer`` (see :class:`_MoveTaskArgs`).
+    as_implementer: bool = False
     # Review test budget, resolved once per transition (see ``_mt_review_test_timeout``).
     review_test_timeout: int | None = None
     # --- phase A: resolved targets ---
@@ -1369,6 +1371,32 @@ def _mt_review_code(st: _MoveTaskState) -> str:
     return code
 
 
+#: #7712: ``--as-implementer`` on a move it does not apply to.
+AS_IMPLEMENTER_HOP_INVALID = "AS_IMPLEMENTER_HOP_INVALID"
+
+
+def _mt_require_as_implementer_hop(st: _MoveTaskState) -> None:
+    """#7712: ``--as-implementer`` applies only to an ``in_review -> for_review`` re-submission with ``--agent``.
+
+    Refused before any write anywhere else, so the flag is never silently dropped.
+    """
+    if not st.as_implementer:
+        return
+    from specify_cli.status import is_implementer_resubmission_hop
+
+    if not is_implementer_resubmission_hop(st.old_lane, st.target_lane):
+        raise ActionContextError(
+            AS_IMPLEMENTER_HOP_INVALID,
+            f"{AS_IMPLEMENTER_HOP_INVALID}: --as-implementer applies only to a re-submission of a work package in in_review "
+            f"(--to for_review); {st.task_id} is in {st.old_lane} and the move targets {st.target_lane}.",
+        )
+    if not st.agent:
+        raise ActionContextError(
+            AS_IMPLEMENTER_HOP_INVALID,
+            f"{AS_IMPLEMENTER_HOP_INVALID}: --as-implementer needs --agent <tool>:<model>:<profile>, the implementer identity to record.",
+        )
+
+
 def _mt_require_independent_approval(st: _MoveTaskState) -> None:
     """#6715: refuse an unforced move into ``approved``/``done`` that is not an independent review.
 
@@ -2113,6 +2141,8 @@ class _MoveTaskArgs:
     invocation_id: str | None = None
     owned: OwnedCheckout | None = None
     reset_subtasks: str | None = None
+    #: #7712: ``--as-implementer`` -- an ``in_review -> for_review`` re-submission recorded as the implementer's act.
+    as_implementer: bool = False
 
 
 def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> None:
@@ -2173,12 +2203,14 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
         skip_pre_review_gate=args.skip_pre_review_gate,
         owned=args.owned,
         reset_subtasks=args.reset_subtasks,
+        as_implementer=args.as_implementer,
     )
     try:
         _mt_resolve_targets(st, ports)
         # #7582 FR-013: a narrowed reset is refused before any write (the rejection's
         # review-cycle record is committed by ``_mt_finalize_plan``).
         _mt_validate_reset_subtasks(st, ports)
+        _mt_require_as_implementer_hop(st)
         # Fail on an unbootstrapped event log before review/workspace gates can
         # mask the actionable root cause (for example, a dependency cycle that
         # prevented finalize-tasks from creating lanes.json; #1589).

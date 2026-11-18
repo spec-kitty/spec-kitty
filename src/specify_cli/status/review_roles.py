@@ -26,6 +26,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from specify_cli.status.actor import ActorRole
 from specify_cli.status.models import (
     Lane,
     StatusEvent,
@@ -39,7 +40,9 @@ from specify_cli.status.work_package_lifecycle import GENERIC_IMPLEMENTATION_ACT
 
 __all__ = [
     "implementer_identities",
+    "IMPLEMENTER_RESUBMISSION_ROLE",
     "independent_of_implementers",
+    "is_implementer_resubmission_hop",
     "is_latest_implementer",
     "latest_implementer_actor",
     "latest_implementer_event",
@@ -48,6 +51,9 @@ __all__ = [
     "profileless_identity_warning",
 ]
 
+#: The actor role an ``in_review -> for_review`` re-submission records when the implementer
+#: asserts it explicitly (``move-task --as-implementer``, #7712).
+IMPLEMENTER_RESUBMISSION_ROLE: str = str(ActorRole.IMPLEMENTER)
 _IMPLEMENTING_LANES: frozenset[str] = frozenset({Lane.CLAIMED.value, Lane.IN_PROGRESS.value})
 _REVIEWER_SOURCE_LANES: frozenset[str] = frozenset({Lane.FOR_REVIEW.value, Lane.IN_REVIEW.value, Lane.APPROVED.value})
 
@@ -116,42 +122,67 @@ def _submission_actor_ok(event: StatusEvent) -> bool:
     return key is not None and key not in GENERIC_IMPLEMENTATION_ACTORS
 
 
+def _recorded_role(actor: object) -> str | None:
+    """The role the event recorded for its actor: a structured actor's ``role``, or a compact string's fourth segment."""
+    if isinstance(actor, dict):
+        role = actor.get("role")
+        return str(role).strip() or None if role else None
+    text = str(actor).strip() if actor else ""
+    segments = text.split(":")
+    return segments[3].strip() or None if len(segments) == 4 else None
+
+
 def _is_implementer_submission(event: StatusEvent) -> bool:
     """A hand-over into ``for_review`` whose identity refines the implementer of record (#7159, #7712).
 
     Two hops qualify, each by a real, non-generic actor:
 
     * an unforced ``in_progress -> for_review`` submission (#7159); a forced one never does;
-    * an ``in_review -> for_review`` re-submission (#7712). The transition matrix admits that
-      edge only forced, so its force is not an override of anything the refinement could
-      change: :func:`~specify_cli.status.models.refine_actor_identity` only fills segments the
-      record left empty and ignores an identity that names another tool or contradicts a
-      recorded segment. This is the route an implementer whose claim recorded no profile
-      takes to complete it without a forced rewind into ``in_progress``. The hop's role is
-      stamped ``reviewer`` (``role_for_hop``); the role is never part of an identity.
+    * an ``in_review -> for_review`` re-submission whose actor is recorded with role
+      ``implementer`` (#7712): the explicit act ``move-task --to for_review --as-implementer``.
+      The hop's role is otherwise ``reviewer`` (``role_for_hop``): a reviewer handing a review
+      back must never fill a bare claim with its own profile, which would make the real
+      implementer look independent of it.
     """
     hop = (Lane(event.from_lane).value, Lane(event.to_lane).value)
     if hop == (Lane.IN_PROGRESS.value, Lane.FOR_REVIEW.value):
         return not event.force and _submission_actor_ok(event)
     if hop == (Lane.IN_REVIEW.value, Lane.FOR_REVIEW.value):
-        return _submission_actor_ok(event)
+        return _recorded_role(event.actor) == IMPLEMENTER_RESUBMISSION_ROLE and _submission_actor_ok(event)
     return False
+
+
+def is_implementer_resubmission_hop(from_lane: str | Lane | None, to_lane: str | Lane) -> bool:
+    """Whether ``from_lane -> to_lane`` is the ``in_review -> for_review`` hop ``--as-implementer`` applies to (#7712)."""
+    if from_lane is None:
+        return False
+    try:
+        return (Lane(str(from_lane)), Lane(str(to_lane))) == (Lane.IN_REVIEW, Lane.FOR_REVIEW)
+    except ValueError:
+        return False
+
+
+def _is_new_claim_cycle(event: StatusEvent) -> bool:
+    """An unforced ``planned -> claimed``: the one explicit, recorded act that names a new implementer of record."""
+    return not event.force and (Lane(event.from_lane).value, Lane(event.to_lane).value) == (Lane.PLANNED.value, Lane.CLAIMED.value)
 
 
 def implementer_identities(events: Sequence[StatusEvent], wp_id: str) -> tuple[str, ...]:
     """Every identity that implemented ``wp_id`` in its current claim cycle, implementer of record first (#7712).
 
-    One forward pass over the work package's events:
+    One forward pass over the work package's qualifying claims into ``claimed``/``in_progress``
+    (:func:`_qualifies`) and its submissions into ``for_review`` (:func:`_is_implementer_submission`):
 
-    * an unforced qualifying claim into ``claimed``/``in_progress`` (:func:`_qualifies`) is a new
-      claim, an explicit recorded act: its identity becomes the implementer of record and the
-      cycle restarts;
-    * a forced qualifying claim *refines* the record under the #7159 rule when it agrees with it
-      (same tool, no segment recorded on both sides that differs); otherwise it never replaces
-      the record and is kept as a further implementer, since whoever forced a rewind into an
-      implementing lane may have reworked the work package (#6955). With no record yet, it is
-      the record;
-    * a submission into ``for_review`` (:func:`_is_implementer_submission`) refines the record.
+    * an unforced ``planned -> claimed`` claim starts a new cycle: its identity is the
+      implementer of record and nobody else has implemented yet;
+    * with no record yet, a claim is the record;
+    * an unforced claim that agrees with the record (not provably independent of it, ruling 7),
+      such as the claim's own ``claimed -> in_progress`` hop or a resume, refines it (fill only);
+    * every other claim, forced or by another identity (a forced rewind, a takeover, an
+      unblock), never changes the record: its identity is kept beside it as a further
+      implementer, since whoever moved the work package into an implementing lane may have
+      reworked it (#6955);
+    * a submission refines the record (#7159).
 
     An approval must be independent of every identity returned
     (:func:`independent_of_implementers`). Empty when no qualifying claim exists.
@@ -165,9 +196,9 @@ def implementer_identities(events: Sequence[StatusEvent], wp_id: str) -> tuple[s
             identity = actor_full_identity(event.actor)
             if identity is None:
                 continue
-            if not event.force or record is None:
+            if record is None or _is_new_claim_cycle(event):
                 record, others = identity, []
-            elif not actor_identities_independent(record, identity):
+            elif not event.force and not actor_identities_independent(record, identity):
                 record = refine_actor_identity(record, identity)
             elif identity not in others:
                 others.append(identity)
@@ -181,11 +212,12 @@ def implementer_identities(events: Sequence[StatusEvent], wp_id: str) -> tuple[s
 def latest_implementer_identity(events: Sequence[StatusEvent], wp_id: str) -> str | None:
     """Full ``tool:model:profile`` identity of ``wp_id``'s implementer of record, or ``None``.
 
-    The identity of the latest unforced qualifying claim, refined by every later submission
-    into ``for_review`` (operator ruling on #7159; ``in_review -> for_review`` since #7712) and
-    by every later forced claim that agrees with it: a hop by the claim's tool fills the model
-    or profile the claim did not record, and is ignored when it contradicts one. A forced
-    claim never replaces the implementer of record (#7712). A bare ``claude`` claim followed
+    The identity of the claim that opened the work package's claim cycle, refined by every
+    later submission into ``for_review`` (operator ruling on #7159; an explicit
+    ``--as-implementer`` re-submission out of ``in_review`` since #7712) and by the claim's own
+    unforced hops: a hop by the claim's tool fills the model or profile the claim did not
+    record, and is ignored when it contradicts one. A forced claim or another identity's claim
+    never replaces the implementer of record (#7712). A bare ``claude`` claim followed
     by a ``claude:<model>:implementer-ivan`` submission is therefore that full identity, while
     a ``claude::python-pedro`` claim keeps its profile whoever submits. The first element of
     :func:`implementer_identities`.
