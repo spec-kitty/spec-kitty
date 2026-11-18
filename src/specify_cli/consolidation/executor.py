@@ -108,6 +108,7 @@ from specify_cli.consolidation.coord_strand import (
 )
 from specify_cli.consolidation.entry_preflight import (
     _refuse_protected_status_target_or_continue,
+    _refuse_skip_worktree_landing_or_continue,
     _require_lanes_json_naming_mission_branch,
     _resolve_run_status_dir,
     _synthesize_no_lane_manifest,
@@ -1198,6 +1199,7 @@ def _run_lane_based_consolidation(
     # staged deletions); every other outcome remains refuse (byte-identical) or
     # proceed.
     retarget_pair = _refuse_protected_status_target_or_continue(main_repo, mission_slug, lanes_manifest, canonical_id, retarget=retarget)
+    _refuse_skip_worktree_landing_or_continue(main_repo, mission_slug, lanes_manifest, canonical_id)
     _pre_mutation_safety_preflight_with_recovery(
         main_repo,
         mission_slug,

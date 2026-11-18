@@ -60,6 +60,7 @@ from specify_cli.lanes.persistence import require_lanes_json
 from specify_cli.consolidation.preflight import (
     refuse_protected_status_target,
     retarget_mode,
+    skip_worktree_landing_refusal,
     retarget_write_branch_refusal,
     target_override_verdict,
 )
@@ -533,6 +534,21 @@ def _refuse_protected_status_target_or_continue(
         return targets
     console.print(f"[red]Error:[/red] {verdict.error_code}: {verdict.message}")
     console.print(f"  Next step: {verdict.next_step}")
+    console.print(_protected_refusal_footer(get_state_path(main_repo, canonical_id).exists()), markup=False)
+    raise typer.Exit(1)
+
+
+def _refuse_skip_worktree_landing_or_continue(main_repo: Path, mission_slug: str, lanes_manifest: LanesManifest, canonical_id: str) -> None:
+    """Refuse, before any branch moves, a landing whose checkout resync git would refuse (``CHECKOUT_SKIP_WORKTREE_ENTRIES``).
+
+    The verdict is :func:`~specify_cli.consolidation.preflight.skip_worktree_landing_refusal`, which
+    the ``--dry-run`` forecast reads too. Pre-lock, so a refusal writes no merge record (NFR-001).
+    """
+    verdict = skip_worktree_landing_refusal(main_repo, mission_slug, lanes_manifest, target_branch=lanes_manifest.target_branch)
+    if verdict is None:
+        return
+    console.print(f"Error: {verdict.error_code}: {verdict.message}", markup=False, soft_wrap=True)
+    console.print(f"  Next step: {verdict.next_step}", markup=False, soft_wrap=True)
     console.print(_protected_refusal_footer(get_state_path(main_repo, canonical_id).exists()), markup=False)
     raise typer.Exit(1)
 

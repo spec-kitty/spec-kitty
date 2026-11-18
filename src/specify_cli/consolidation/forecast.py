@@ -59,6 +59,7 @@ from specify_cli.consolidation.preflight import (
     mission_branch_check_required,
     refuse_protected_status_target,
     retarget_mode,
+    skip_worktree_landing_refusal,
     retarget_write_branch_refusal,
     target_override_verdict,
 )
@@ -641,6 +642,14 @@ def _entry_preflights_in_forecast(
     _refuse_protected_target_override_in_forecast(
         main_repo, mission_slug, recorded_target=recorded_target, effective_target=effective_target, json_output=json_output, retarget=pair is not None
     )
+    skip_worktree = skip_worktree_landing_refusal(main_repo, mission_slug, lanes_manifest, target_branch=effective_target)
+    if skip_worktree is not None:
+        _emit_dry_run_error(
+            error_msg=f"{skip_worktree.error_code}: {skip_worktree.message} Next step: {skip_worktree.next_step}",
+            json_output=json_output,
+            error_code=skip_worktree.error_code,
+        )
+        raise typer.Exit(1)
     return pair
 
 
