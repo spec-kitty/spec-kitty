@@ -897,3 +897,19 @@ def test_a_red_performance_job_refuses_and_names_the_performance_job() -> None:
     assert result.passed is False
     assert "the performance job of run 1" in result.summary
     assert "concluded 'failure'" in result.summary
+
+
+def test_real_client_reaching_the_page_cap_on_recent_runs_is_an_explicit_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Every page up to the cap is full, so the last one may not be the end: the
+    # gate must say the cap was reached, never read the listing as "no verdict".
+    client = mod.GitHubActionsClient("spec-kitty/spec-kitty", _FAKE_TOKEN)
+    pages: list[str] = []
+
+    def _always_full(self: Any, method: str, url: str, payload: dict[str, Any] | None = None) -> Any:
+        pages.append(url.rsplit("page=", 1)[1])
+        return {"workflow_runs": [{"id": i} for i in range(mod._PAGE_SIZE)]}
+
+    monkeypatch.setattr(mod.GitHubActionsClient, "_request", _always_full)
+    with pytest.raises(mod.ReleaseGateError, match="page cap reached: 10 full pages"):
+        client.list_recent_nightly_runs(_NOW - timedelta(days=7))
+    assert pages == [str(n) for n in range(1, mod._MAX_PAGES + 1)]

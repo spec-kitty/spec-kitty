@@ -505,7 +505,10 @@ class GitHubActionsClient:
             items.extend(item for item in batch if isinstance(item, dict))
             if len(batch) < _PAGE_SIZE:
                 return items
-        raise ReleaseGateError(f"more than {_MAX_PAGES} pages of {key}; refusing to judge a truncated listing")
+        # Reaching the cap is never read as "no verdict": the listing may continue past it.
+        raise ReleaseGateError(
+            f"page cap reached: {_MAX_PAGES} full pages of {_PAGE_SIZE} {key} and the listing may continue; refusing to judge a truncated listing"
+        )
 
     def list_recent_nightly_runs(self, since: datetime) -> list[dict[str, Any]]:
         stamp = since.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
