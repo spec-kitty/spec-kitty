@@ -849,12 +849,11 @@ def _display_vcs_info(_detected_vcs: VCSBackend, console: Console) -> None:
 
 _INIT_COMMIT_MESSAGE = "chore: initialize spec-kitty project"
 
-#: init refused before writing anything: the repository has no commit yet and git has
-#: no author/committer identity, so the root commit init would make cannot be made (#7612).
+#: The repository has no commit yet and git has no author/committer identity, so init
+#: wrote its files but skipped the root commit: a named note, exit 0 (#7612, operator ruling).
 INIT_GIT_IDENTITY_MISSING = "INIT_GIT_IDENTITY_MISSING"
 #: git refused init's root commit on an unborn branch (typically a rejecting hook) (#7612).
 INIT_ROOT_COMMIT_FAILED = "INIT_ROOT_COMMIT_FAILED"
-_INIT_NO_COMMIT_HINT = "or pass --no-commit to leave the files uncommitted"
 
 
 def _git_identity_problem(project_path: Path) -> str | None:
@@ -876,30 +875,23 @@ def _git_identity_problem(project_path: Path) -> str | None:
     return None
 
 
-def _refuse_root_commit_without_identity(project_path: Path, *, enabled: bool) -> None:
-    """Refuse before any write when init would make a root commit git cannot record (#7612).
+def _note_root_commit_skipped_for_identity(project_path: Path, baseline: set[str], problem: str) -> None:
+    """Skip the root commit when git has no identity, and say so with a named note (#7612).
 
-    Only a repository with no commit yet is checked: there the commit init makes is
-    the repository's first, and leaving it unmade leaves a branch every later
-    spec-kitty command needs. Checking first means a refusal leaves the directory
-    untouched, so the remedy is simply to fix the identity and run init again.
+    Operator ruling: this is not a refusal. init has written its files, exits 0 and
+    leaves the commit to the operator, as before #7612; only the reason is now named.
     """
-    from specify_cli.core.git_ops import has_unborn_head
-
-    if not enabled or not (project_path / ".git").exists() or not has_unborn_head(project_path):
-        return
-    problem = _git_identity_problem(project_path)
-    if problem is None:
-        return
     assert _console is not None
+    written = _init_written_paths_summary(project_path, baseline)
     _console.print(
-        f"[red]Error ({INIT_GIT_IDENTITY_MISSING}):[/red] this repository has no commits yet, so init would make its "
-        "first commit, but git has no author identity to record it with. Nothing was written.\n"
+        f"[yellow]Note ({INIT_GIT_IDENTITY_MISSING}):[/yellow] this repository has no commits yet, and git has no "
+        "author identity to record init's first commit with, so init did not commit its files.\n"
         f"git said: {escape(problem)}\n"
-        'Remedy: set an identity (`git config user.name "Your Name"` and `git config user.email you@example.com`) '
-        f"and run init again, {_INIT_NO_COMMIT_HINT}."
+        f"Files init wrote: {escape(written) if written else '(none found)'}\n"
+        'Remedy: set an identity (`git config user.name "Your Name"` and `git config user.email you@example.com`), '
+        f"then commit exactly those files as your first commit (for example `{_INIT_COMMIT_MESSAGE}`) "
+        "before running other spec-kitty commands."
     )
-    raise typer.Exit(1)
 
 
 def _capture_init_commit_baseline(project_path: Path, *, enabled: bool) -> set[str] | None:
@@ -969,6 +961,11 @@ def _commit_init_writes(project_path: Path, baseline: set[str] | None) -> None:
 
     assert _console is not None
     root_commit = has_unborn_head(project_path)
+    if root_commit:
+        identity_problem = _git_identity_problem(project_path)
+        if identity_problem is not None:
+            _note_root_commit_skipped_for_identity(project_path, baseline, identity_problem)
+            return
     try:
         committed, paths, warning = commit_touched_checkout(
             project_path,
@@ -1284,7 +1281,6 @@ def init(  # noqa: C901
 
     # #7555: the git state before init's first write, so its own commit at the end holds
     # exactly what this run wrote and never a file that was already uncommitted (#5905).
-    _refuse_root_commit_without_identity(project_path, enabled=not no_commit)
     init_commit_baseline = _capture_init_commit_baseline(project_path, enabled=not no_commit)
 
     if not here and not project_path.exists():
