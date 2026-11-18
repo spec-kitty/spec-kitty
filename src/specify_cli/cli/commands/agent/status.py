@@ -559,7 +559,8 @@ def emit(
             # shell cannot classify never turns a recorded transition into a failed command.
             logger.debug("could not classify the claim warning for a persisted event", exc_info=True)
             claim_warning = None
-        if claim_warning is not None:
+        # #7712: kept out of --json runs, whose merged output must stay one JSON document.
+        if claim_warning is not None and not json_output:
             typer.echo(claim_warning, err=True)
 
         # Build result
