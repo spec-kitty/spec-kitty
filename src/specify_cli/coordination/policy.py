@@ -113,6 +113,33 @@ def _protected_branch_refusal(
     )
 
 
+def _origin_tracking_ref_exists(repo_root: Path, branch: str) -> bool:
+    """Whether this clone's view of ``origin`` holds *branch* (``refs/remotes/origin/<branch>``); no network."""
+    result = subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", f"refs/remotes/origin/{branch}"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def _missing_destination_remedy(repo_root: Path, branch: str) -> str:
+    """The one command that restores a missing destination branch (#7726, operator ruling A).
+
+    When this clone's view of ``origin`` holds the branch, fetch it into a local branch;
+    otherwise create it at the commit that holds the work. "Origin holds it" is read from the
+    remote-tracking ref, never by contacting the remote: a policy pre-flight makes no network
+    call (remote reads belong to ``kernel.git.remote``).
+    """
+    if _origin_tracking_ref_exists(repo_root, branch):
+        return f"Fetch it from origin, then retry: git fetch origin {branch}:{branch}"
+    return f"Create it at the commit that holds the work, then retry: git branch {branch} <commit holding the work>"
+
+
 def _remote_tracking_branch_exists(repo_root: Path, branch: str) -> bool:
     """Return True iff a remote-tracking ref matches the given name.
 
@@ -258,7 +285,7 @@ class WorkflowMutationPolicy:
         # session or a pull-request flow may hold the work under another branch
         # name; the remedy names the one command that restores the destination.
         if not _local_branch_exists(repo_root, ref):
-            remedy = f"Create it at the commit that holds the work, then retry: git branch {ref} <commit holding the work>"
+            remedy = _missing_destination_remedy(repo_root, ref)
             return Refused(
                 error_code=DESTINATION_REF_NOT_FOUND,
                 message=(
