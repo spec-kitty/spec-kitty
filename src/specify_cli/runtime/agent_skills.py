@@ -13,7 +13,7 @@ from specify_cli.runtime.home import get_kittify_home
 from specify_cli.core.config import AGENT_SKILL_CONFIG
 from specify_cli.skills.catalog import resolve_builtin_skill_catalog
 from specify_cli.skills.skill_frontmatter import SKILL_FILENAME, is_shared_root, project_skill_bytes
-from specify_cli.skills.paths import get_primary_global_skill_root, iter_installable_agents
+from specify_cli.skills.paths import get_primary_global_skill_root, get_project_skill_root_for_global_root, iter_installable_agents
 from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 from specify_cli.skills.retired import RETIRED_CANONICAL_SKILL_NAMES
 from specify_cli.tool_surface.operations import ApplyConsent, OwnerAssessment
@@ -81,9 +81,16 @@ def _unique_global_roots(agent_keys: tuple[str, ...] | None = None) -> list[Path
 
 
 def _is_shared_global_root(destination_root: Path) -> bool:
-    """Whether a global root (``~/.agents/skills``, ``~/.claude/skills``...) takes the spec projection."""
+    """Whether a global root (``~/.agents/skills``, ``~/.claude/skills``...) takes the spec projection.
+
+    A root an agent resolves away from the home mirror (``$CLAUDE_CONFIG_DIR/skills``,
+    #7701) is judged by that agent's project root, so it keeps its native projection.
+    """
+    project_root = get_project_skill_root_for_global_root(destination_root)
+    if project_root is not None:
+        return bool(is_shared_root(project_root))
     try:
-        return is_shared_root(destination_root.relative_to(Path.home()).as_posix())
+        return bool(is_shared_root(destination_root.relative_to(Path.home()).as_posix()))
     except ValueError:
         return True
 

@@ -17,7 +17,7 @@ mission, or all WPs appear complete.
    command, matching CI, in addition to the test runner. A failed compiler
    command fails the gate; passing behavioral tests are not a substitute.
 4. If accept fails, route to `spk-run-blocked-recovery`.
-5. If accept passes, route to `spk-gate-merge`.
+5. If accept passes, route to `spk-gate-consolidate`.
 
 ## Rule
 

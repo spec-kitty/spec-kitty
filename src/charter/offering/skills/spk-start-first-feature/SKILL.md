@@ -18,7 +18,7 @@ feature and needs the end-to-end path.
    split when the project uses staged task authoring.
 5. Advance work with `spk-run-next`.
 6. Drive implementation/review loops with `spk-run-implement-review`.
-7. Close with `spk-gate-accept`, then `spk-gate-merge`.
+7. Close with `spk-gate-accept`, then `spk-gate-consolidate`.
 8. Finish post-merge checks with `spk-gate-mission-review` and
    `spk-gate-retrospective`.
 

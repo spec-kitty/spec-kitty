@@ -66,9 +66,8 @@ Families:
   type selection.
 - `spk-run-*`: runtime-next, program orchestration, implementation/review
   loops, single-WP review, blocked recovery.
-- `spk-gate-*`: accept, merge, mission review, retrospective.
+- `spk-gate-*`: accept, consolidate, mission review, retrospective.
 - `spk-admin-*`: setup, agent config, upgrade.
-- `spk-team-*`: auth, sync, tracker, connectors.
 - `spk-charter-*`: charter governance, glossary, SPDD, profile load.
 - `spk-practice-*`: bulk-edit policy, compact visual communication grounded in
   diagram doctrine, behavior-preserving code reduction.
@@ -100,19 +99,16 @@ hierarchy moves to `spk-*`; none of them uses a command name.
 | `spk-run-program-orchestrate` | Multi-mission program orchestration |
 | `spk-run-implement-review` | WP implementation/review orchestration |
 | `spk-run-review-wp` | Single-WP review |
+| `spk-run-verdict-capture` | Record a WP review verdict via the event-log seam |
 | `spk-run-blocked-recovery` | Blocked-state recovery |
 | `spk-gate-accept` | Accept gate |
-| `spk-gate-merge` | Merge gate |
+| `spk-gate-consolidate` | Consolidation gate |
 | `spk-gate-mission-review` | Post-merge mission review |
 | `spk-gate-retrospective` | Post-merge retrospective |
 | `spk-admin-setup-doctor` | Install and repair |
 | `spk-admin-agent-config` | Agent setup |
 | `spk-admin-upgrade` | Upgrade and migrations |
 | `spk-admin-git-workflow` | Git and worktree workflows |
-| `spk-team-auth` | Auth and accounts |
-| `spk-team-sync` | Tracker sync (local pull/push/run, hosted binding) |
-| `spk-team-tracker` | Tracker workflows |
-| `spk-team-connectors` | Connector integrations |
 | `spk-charter-governance` | Charter lifecycle + `ActiveCharterService` programmatic access |
 | `spk-charter-glossary` | Terminology curation and semantic integrity |
 | `spk-charter-spdd-reasons` | REASONS Canvas |
