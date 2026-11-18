@@ -93,7 +93,7 @@ Editable mode (`-e .`) means edits to `src/specify_cli/` are picked up immediate
 ### pipx
 
 - The shim directory (`~/.local/bin`) must be on PATH. `pipx ensurepath` handles this once.
-- `pipx upgrade spec-kitty-cli` only sees PyPI; for git installs, use `pipx install --force`.
+- `pipx upgrade --pip-args=--pre spec-kitty-cli` only sees PyPI; for git installs, use `pipx install --force`.
 - `pipx reinstall` is occasionally needed after major Python upgrades (3.11 → 3.12) so the tool venv uses the new interpreter.
 
 ### uv tool
@@ -108,9 +108,9 @@ For most users, **pipx** is the right default. It is:
 
 - Officially blessed by the Python packaging ecosystem.
 - Available on every major distribution.
-- Self-contained — `pipx install spec-kitty-cli` is one command.
+- Self-contained — `pipx install --pip-args=--pre spec-kitty-cli` is one command.
 
-If your team has already standardized on uv, prefer `uv tool install spec-kitty-cli` so all your Python tooling lives in the same place.
+If your team has already standardized on uv, prefer `uv tool install --prerelease=allow spec-kitty-cli` so all your Python tooling lives in the same place.
 
 Only fall back to `pip in a venv` when you are managing the venv intentionally (contributors, CI/CD, special interpreters).
 

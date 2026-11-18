@@ -29,7 +29,7 @@ _Stylized splash — the "GET STARTED" lettering is decorative. Install steps an
 Install the CLI with `pipx`:
 
 ```bash
-pipx install spec-kitty-cli
+pipx install --pip-args=--pre spec-kitty-cli
 ```
 
 `pipx` is preferred for command-line tools because it creates an isolated
@@ -37,15 +37,17 @@ virtual environment for Spec Kitty and avoids the
 `externally-managed-environment` errors that modern Linux distributions can
 raise for direct `pip install` commands.
 
+> **4.x is in release candidate.** Until 4.0.0 is released, a plain install gets the latest stable 3.x release, which has no `consolidate` command. The pre-release flag in each install command on this page (`--pip-args=--pre` for pipx, `--prerelease=allow` for uv, `--pre` for pip) installs the latest 4.x release candidate.
+
 Other supported install methods:
 
 ```bash
-uv tool install spec-kitty-cli
+uv tool install --prerelease=allow spec-kitty-cli
 ```
 
 ```bash
 # Inside an activated virtual environment
-python -m pip install spec-kitty-cli
+python -m pip install --pre spec-kitty-cli
 ```
 
 Verify the CLI is available:
@@ -57,7 +59,7 @@ spec-kitty --version
 Expected output (abridged):
 
 ```
-spec-kitty-cli version 3.1.5
+spec-kitty-cli version 4.0.0rc8
 ```
 
 If this step gives you trouble — a platform not covered above, an
@@ -161,7 +163,7 @@ ls .worktrees
 ## Troubleshooting
 
 - **`spec-kitty: command not found`**: Reopen your shell, run `pipx ensurepath` if you installed with `pipx`, or reinstall via `pipx` or `uv`. Then rerun `spec-kitty --version`.
-- **`pip install` fails with `externally-managed-environment`**: Use `pipx install spec-kitty-cli`, or create and activate a virtual environment before using `python -m pip install spec-kitty-cli`.
+- **`pip install` fails with `externally-managed-environment`**: Use `pipx install --pip-args=--pre spec-kitty-cli`, or create and activate a virtual environment before using `python -m pip install --pre spec-kitty-cli`.
 - **Planning artifacts left uncommitted on a protected branch**: mission creation can succeed while reporting its uncommitted files. Run `git checkout -b my-first-mission`, review and commit those files, and continue the existing mission. Do not run `specify` again.
 - **`SPEC_KITTY_REPO_NOT_INITIALIZED` from `specify`**: the project directory is not a git repository. Run `git init -b main`, then `git add -A && git commit -m "Initial commit"`, and retry. `spec-kitty init` does not create the repository for you.
 - **"This checkout has no commits yet"**: the repository exists but has no commit, so Spec Kitty cannot commit its mission scaffold. Run `git add -A && git commit -m "Initial commit"` (or `git commit --allow-empty -m "Initial commit"` if there is nothing to stage) and retry.

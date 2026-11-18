@@ -42,11 +42,13 @@ _Stylized splash — decorative only. Platform install paths and CLI steps are i
 
 ### Install Spec Kitty CLI
 
-#### From PyPI (Recommended - Stable Releases)
+#### From PyPI (Recommended)
+
+> **4.x is in release candidate.** Until 4.0.0 is released, a plain install gets the latest stable 3.x release, which has no `consolidate` command. The pre-release flag in each install command on this page (`--pip-args=--pre` for pipx, `--prerelease=allow` for uv, `--pre` for pip) installs the latest 4.x release candidate.
 
 **Using pipx (preferred):**
 ```bash
-pipx install spec-kitty-cli
+pipx install --pip-args=--pre spec-kitty-cli
 ```
 
 `pipx` installs Spec Kitty as an application in an isolated virtual environment
@@ -70,12 +72,12 @@ spec-kitty --version
 
 **Using uv:**
 ```bash
-uv tool install spec-kitty-cli
+uv tool install --prerelease=allow spec-kitty-cli
 ```
 
 **Using pip in an activated virtual environment or managed CI Python image:**
 ```bash
-python -m pip install spec-kitty-cli
+python -m pip install --pre spec-kitty-cli
 ```
 
 Use `pip` when you are already inside a project-specific virtual environment,
@@ -115,19 +117,19 @@ spec-kitty init <PROJECT_NAME>
 
 **Using pipx:**
 ```bash
-pipx run spec-kitty-cli init <PROJECT_NAME>
+pipx run --pip-args=--pre --spec spec-kitty-cli spec-kitty init <PROJECT_NAME>
 ```
 
 **Using uvx:**
 ```bash
-uvx --from spec-kitty-cli spec-kitty init <PROJECT_NAME>
+uvx --prerelease=allow --from spec-kitty-cli spec-kitty init <PROJECT_NAME>
 ```
 
 `uvx` runs the executable named after the *distribution*, and this distribution
 ships `spec-kitty`, so the short form `uvx spec-kitty-cli …` fails with `An
 executable named 'spec-kitty-cli' is not provided by package 'spec-kitty-cli'`.
-Add a version to pin one (`uvx --from "spec-kitty-cli==4.0.0" spec-kitty …`);
-without a pin a pre-release line resolves to the latest stable release.
+Add a version to pin one (`uvx --from "spec-kitty-cli==4.0.0rc8" spec-kitty …`);
+without a pin or `--prerelease=allow`, `uvx` resolves to the latest stable release.
 
 ### Add to an Existing Project
 
@@ -204,7 +206,7 @@ refuse direct system-wide `pip install spec-kitty-cli` commands because the OS
 owns the system Python environment. Install the CLI with `pipx` instead:
 
 ```bash
-pipx install spec-kitty-cli
+pipx install --pip-args=--pre spec-kitty-cli
 pipx ensurepath
 ```
 
@@ -213,7 +215,7 @@ If you must use `pip`, create and activate a virtual environment first:
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install spec-kitty-cli
+python -m pip install --pre spec-kitty-cli
 ```
 
 ### Git Credential Manager on Linux

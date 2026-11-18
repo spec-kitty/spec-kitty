@@ -33,7 +33,7 @@ Spec Kitty never silently upgrades itself and never touches projects you are not
 For new installations, prefer `pipx`:
 
 ```bash
-pipx install spec-kitty-cli
+pipx install --pip-args=--pre spec-kitty-cli
 pipx ensurepath
 spec-kitty --version
 ```
@@ -47,12 +47,12 @@ installations.
 Other supported install methods:
 
 ```bash
-uv tool install spec-kitty-cli
+uv tool install --prerelease=allow spec-kitty-cli
 ```
 
 ```bash
 # Inside an activated virtual environment or managed CI Python image
-python -m pip install spec-kitty-cli
+python -m pip install --pre spec-kitty-cli
 ```
 
 Use `pip` when you are intentionally managing the Python environment yourself.
@@ -72,9 +72,9 @@ Spec Kitty detects your install method and prints the right command:
 
 | Install method | Upgrade command |
 |---|---|
-| pipx (preferred) | `pipx upgrade spec-kitty-cli` |
-| pip (user) | `pip install --upgrade --user spec-kitty-cli` |
-| pip (venv/system) | `pip install --upgrade spec-kitty-cli` |
+| pipx (preferred) | `pipx upgrade --pip-args=--pre spec-kitty-cli` |
+| pip (user) | `pip install --upgrade --user --pre spec-kitty-cli` |
+| pip (venv/system) | `pip install --upgrade --pre spec-kitty-cli` |
 | Homebrew | `brew upgrade spec-kitty` |
 | System package | use your package manager |
 
@@ -133,7 +133,7 @@ SPEC_KITTY_PRERELEASE=1
 ```
 
 With the channel on, the newest pre-release is surfaced and the proposed upgrade command is a
-**pinned** install (`pip install spec-kitty-cli==3.2.6rc3`, for example) — never a floating
+**pinned** install (`pip install spec-kitty-cli==4.0.0rc8`, for example) — never a floating
 `--pre` flag, so you always know exactly which candidate you are about to install. Check which
 channel is active at any time:
 

@@ -157,7 +157,7 @@ git revert <upgrade-commit-sha>
 Uninstalling does not lock you out. To reinstall:
 
 ```bash
-pipx install spec-kitty-cli
+pipx install --pip-args=--pre spec-kitty-cli
 cd /path/to/project
 spec-kitty init . --ai claude   # idempotent; re-creates agent dirs only for configured agents
 ```

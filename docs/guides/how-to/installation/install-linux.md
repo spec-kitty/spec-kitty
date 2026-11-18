@@ -63,7 +63,7 @@ pipx ensurepath
 Then install Spec Kitty:
 
 ```bash
-pipx install spec-kitty-cli
+pipx install --pip-args=--pre spec-kitty-cli
 spec-kitty --version
 ```
 
@@ -76,7 +76,7 @@ spec-kitty --version
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # install spec-kitty
-uv tool install spec-kitty-cli
+uv tool install --prerelease=allow spec-kitty-cli
 spec-kitty --version
 ```
 
@@ -87,7 +87,7 @@ The Astral installer places `uv` and its tool shims under `~/.local/bin` (some o
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install spec-kitty-cli
+pip install --pre spec-kitty-cli
 spec-kitty --version
 ```
 
@@ -99,7 +99,7 @@ spec-kitty --version
 
 ```bash
 spec-kitty --version
-# spec-kitty-cli version 3.2.x
+# spec-kitty-cli version 4.0.0rc8
 ```
 
 Useful follow-ups:

@@ -46,14 +46,14 @@ Install the `spec-kitty` CLI on macOS using your preferred Python tooling. Three
 ```bash
 brew install pipx
 pipx ensurepath
-pipx install spec-kitty-cli
+pipx install --pip-args=--pre spec-kitty-cli
 ```
 
 Open a new shell so the PATH change takes effect, then verify:
 
 ```bash
 spec-kitty --version
-# spec-kitty-cli version 3.2.x
+# spec-kitty-cli version 4.0.0rc8
 ```
 
 ## Method 2: uv tool
@@ -62,7 +62,7 @@ spec-kitty --version
 
 ```bash
 brew install uv
-uv tool install spec-kitty-cli
+uv tool install --prerelease=allow spec-kitty-cli
 spec-kitty --version
 ```
 
@@ -75,7 +75,7 @@ Use this only when you are intentionally managing the Python environment yoursel
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install spec-kitty-cli
+pip install --pre spec-kitty-cli
 spec-kitty --version
 ```
 
@@ -94,7 +94,7 @@ spec-kitty --version
 You should see output similar to:
 
 ```
-spec-kitty-cli version 3.2.0
+spec-kitty-cli version 4.0.0rc8
 ```
 
 Then probe further:

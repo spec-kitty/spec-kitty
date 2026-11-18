@@ -531,7 +531,7 @@ spec-kitty agent config add claude codex opencode
 
 **Cause**: spec-kitty is not installed or not in PATH.
 
-**Solution**: Install Spec Kitty with `pipx install spec-kitty-cli`, then run
+**Solution**: Install Spec Kitty with `pipx install --pip-args=--pre spec-kitty-cli`, then run
 `pipx ensurepath` and open a new shell. If your team uses `uv`, `uv tool
 install spec-kitty-cli` is also supported. Use `python -m pip install
 spec-kitty-cli` only inside an activated virtual environment or another Python

@@ -79,7 +79,7 @@ py -m pipx ensurepath
 Open a **new** PowerShell window (so the updated PATH is picked up), then:
 
 ```powershell
-pipx install spec-kitty-cli
+pipx install --pip-args=--pre spec-kitty-cli
 spec-kitty --version
 ```
 
@@ -94,7 +94,7 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 Open a new shell, then:
 
 ```powershell
-uv tool install spec-kitty-cli
+uv tool install --prerelease=allow spec-kitty-cli
 spec-kitty --version
 ```
 
@@ -106,7 +106,7 @@ py -3.13 -m venv .venv
 # or:
 .venv\Scripts\activate.bat     # CMD
 
-pip install spec-kitty-cli
+pip install --pre spec-kitty-cli
 spec-kitty --version
 ```
 
@@ -122,7 +122,7 @@ Deactivate the venv with `deactivate`.
 
 ```powershell
 spec-kitty --version
-# spec-kitty-cli version 3.2.x
+# spec-kitty-cli version 4.0.0rc8
 ```
 
 ```powershell
@@ -170,7 +170,7 @@ The Windows `py` launcher picks the right Python version even when several are i
 
 ```powershell
 py -3.13 -m pip install --upgrade pip
-py -3.13 -m pipx install spec-kitty-cli
+py -3.13 -m pipx install --pip-args=--pre spec-kitty-cli
 ```
 
 Plain `python` may resolve to the Microsoft Store stub on a fresh install. `py` resolves to a real Python when one is installed from python.org, and is not found otherwise.
@@ -183,7 +183,7 @@ Plain `python` may resolve to the Microsoft Store stub on a fresh install. `py` 
 
 **The Microsoft Store opens, or "Python was not found; run without arguments to install from the Microsoft Store" appears, when you run `python`** — This is the App execution alias stub, not a Python install. Do not install from the Store. Open **Settings → Apps → Advanced app settings → App execution aliases**, turn off the **App Installer** entries for `python.exe` and `python3.exe`, install Python from python.org (see [above](#get-python-from-pythonorg-not-the-microsoft-store)), then open a new shell.
 
-**Python came from the Microsoft Store** — `Get-AppxPackage *Python*` shows a `PackageFamilyName` ending in `_qbz5n2kfra8p0`. Uninstall it from **Settings → Apps → Installed apps**, install from python.org, then reinstall Spec Kitty (`pipx install spec-kitty-cli`) so it uses the new Python.
+**Python came from the Microsoft Store** — `Get-AppxPackage *Python*` shows a `PackageFamilyName` ending in `_qbz5n2kfra8p0`. Uninstall it from **Settings → Apps → Installed apps**, install from python.org, then reinstall Spec Kitty (`pipx install --pip-args=--pre spec-kitty-cli`) so it uses the new Python.
 
 **Antivirus blocks installs** — Corporate antivirus sometimes quarantines Python wheels. Whitelist the cache directory pipx prints when it errors.
 

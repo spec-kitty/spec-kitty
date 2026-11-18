@@ -24,7 +24,7 @@ Quick iteration for individual developers using Spec Kitty with a single AI agen
 ### 0. Install & Initialize (One-time)
 ```bash
 # Install CLI
-pipx install spec-kitty-cli
+pipx install --pip-args=--pre spec-kitty-cli
 
 # Initialize project
 spec-kitty init my-saas-app --ai claude

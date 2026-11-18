@@ -1,6 +1,6 @@
 ---
 title: Upgrade the Spec Kitty CLI
-description: Upgrade the Spec Kitty CLI to 3.2, verify the installed binary, and know when project migrations are still required.
+description: Upgrade the Spec Kitty CLI to the 4.x release candidate, verify the installed binary, and know when project migrations are still required.
 doc_status: active
 kind: How-To
 updated: '2026-06-03T00:00:00Z'
@@ -22,11 +22,13 @@ Upgrade the `spec-kitty` binary to a newer release. This page covers the CLI its
 
 ## Quick reference
 
+> **4.x is in release candidate.** Until 4.0.0 is released, a plain install gets the latest stable 3.x release, which has no `consolidate` command. The pre-release flag in each install command on this page (`--pip-args=--pre` for pipx, `--prerelease=allow` for uv, `--pre` for pip) installs the latest 4.x release candidate.
+
 | Install method | Upgrade command |
 |---|---|
-| pipx | `pipx upgrade spec-kitty-cli` |
-| uv tool | `uv tool upgrade spec-kitty-cli` |
-| pip (in venv) | `pip install --upgrade spec-kitty-cli` |
+| pipx | `pipx upgrade --pip-args=--pre spec-kitty-cli` |
+| uv tool | `uv tool upgrade --prerelease=allow spec-kitty-cli` |
+| pip (in venv) | `pip install --upgrade --pre spec-kitty-cli` |
 
 Let the CLI tell you which one applies:
 
@@ -45,31 +47,31 @@ operations remain standalone; combining them with `--cli`, `--project --json`,
 ## pipx
 
 ```bash
-pipx upgrade spec-kitty-cli
+pipx upgrade --pip-args=--pre spec-kitty-cli
 ```
 
 To force a reinstall (handy after a corrupted upgrade):
 
 ```bash
-pipx install --force spec-kitty-cli
+pipx install --force --pip-args=--pre spec-kitty-cli
 ```
 
-To pin a specific version:
+To pin a specific version, replace `<version>` with a released version such as `4.0.0rc8`:
 
 ```bash
-pipx install --force spec-kitty-cli==3.2.0
+pipx install --force 'spec-kitty-cli==<version>'
 ```
 
 ## uv tool
 
 ```bash
-uv tool upgrade spec-kitty-cli
+uv tool upgrade --prerelease=allow spec-kitty-cli
 ```
 
 Or reinstall pinned:
 
 ```bash
-uv tool install --force spec-kitty-cli==3.2.0
+uv tool install --force 'spec-kitty-cli==<version>'
 ```
 
 ## pip in a venv
@@ -77,20 +79,20 @@ uv tool install --force spec-kitty-cli==3.2.0
 Activate the venv first, then:
 
 ```bash
-pip install --upgrade spec-kitty-cli
+pip install --upgrade --pre spec-kitty-cli
 ```
 
 Or pin a version:
 
 ```bash
-pip install --upgrade 'spec-kitty-cli==3.2.0'
+pip install --upgrade 'spec-kitty-cli==<version>'
 ```
 
 ## Verify the upgrade
 
 ```bash
 spec-kitty --version
-# spec-kitty-cli version 3.2.x
+# spec-kitty-cli version 4.0.0rc8
 ```
 
 If `--version` still reports the old number after an upgrade, your shell PATH is picking up a different install. Run `which spec-kitty` (or `where.exe spec-kitty` on Windows) and remove or correct the stale entry.
@@ -109,7 +111,7 @@ When a newer CLI version is available on PyPI, spec-kitty prints a single banner
 
 ## Troubleshooting
 
-**`pipx upgrade` says "already at latest" but PyPI has a newer version** — Your pipx cache is stale. Run `pipx install --force spec-kitty-cli`.
+**`pipx upgrade` says "already at latest" but PyPI has a newer version** — Your pipx cache is stale. Run `pipx install --force --pip-args=--pre spec-kitty-cli`.
 
 **`uv tool upgrade` fails with "tool not installed"** — You installed via pipx, not uv. Use the matching upgrade command for your original install method.
 
