@@ -1,4 +1,8 @@
-"""Configuration constants shared across the Spec Kitty CLI."""
+"""Configuration constants shared across the Spec Kitty CLI.
+
+Also the single authority for agents' documented user-global config roots
+(``agent_user_config_root``), which read the environment at call time.
+"""
 
 from __future__ import annotations
 
@@ -112,6 +116,11 @@ def _llxprt_user_config_root() -> Path:
     return (xdg if xdg is not None else Path.home() / ".config") / "llxprt-code"
 
 
+def _claude_user_config_root() -> Path:
+    custom = _env_dir(CLAUDE_CONFIG_DIR_ENV)
+    return custom if custom is not None else Path.home() / AGENT_PROJECT_CONFIG_DIRS["claude"]
+
+
 def _opencode_user_config_root() -> Path:
     custom = _env_dir(OPENCODE_CONFIG_DIR_ENV)
     if custom is not None:
@@ -134,8 +143,7 @@ def agent_user_config_root(agent_key: str) -> Path | None:
     return ``None``; their user-global paths mirror the project path under ``$HOME``.
     """
     if agent_key == "claude":
-        custom = _env_dir(CLAUDE_CONFIG_DIR_ENV)
-        return custom if custom is not None else Path.home() / AGENT_PROJECT_CONFIG_DIRS["claude"]
+        return _claude_user_config_root()
     if agent_key == "opencode":
         return _opencode_user_config_root()
     if agent_key == "llxprt":

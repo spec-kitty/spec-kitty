@@ -145,3 +145,36 @@ def test_doctor_command_files_prints_resolved_dir(tmp_path: Path, claude_root: P
     result = CliRunner().invoke(app, ["command-files"], env={"COLUMNS": "40"})
 
     assert f"claude: {claude_root / 'commands'}" in result.output, result.output
+
+
+@pytest.mark.parametrize(
+    ("platform", "windows", "env", "expected"),
+    [
+        ("darwin", True, {}, "home/Library/Preferences/llxprt-code"),
+        ("win32", True, {"APPDATA": "~/roaming"}, "~/roaming/llxprt-code/Config"),
+        ("linux", False, {"XDG_CONFIG_HOME": "~/xdg"}, "home/xdg/llxprt-code"),
+        ("linux", False, {}, "home/.config/llxprt-code"),
+    ],
+)
+def test_llxprt_root_platform_branches(
+    home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, platform: str, windows: bool, env: dict[str, str], expected: str
+) -> None:
+    """Pins the pre-#7709 order (darwin before Windows) and that APPDATA is not ``~``-expanded."""
+    from specify_cli.core import config
+
+    for var in ("LLXPRT_CONFIG_HOME", "XDG_CONFIG_HOME", "APPDATA"):
+        monkeypatch.delenv(var, raising=False)
+    for var, value in env.items():
+        monkeypatch.setenv(var, value)
+    monkeypatch.setattr(config.sys, "platform", platform)
+    monkeypatch.setattr(config, "is_windows", lambda: windows)
+    want = Path(expected) if expected.startswith("~") else tmp_path / expected
+    assert config.agent_user_config_root("llxprt") == want
+
+
+def test_opencode_root_falls_back_to_xdg_then_home(home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv(OPENCODE_CONFIG_DIR_ENV, raising=False)
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+    assert agent_user_config_root("opencode") == home / ".config" / "opencode"
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
+    assert agent_user_config_root("opencode") == tmp_path / "xdg" / "opencode"
