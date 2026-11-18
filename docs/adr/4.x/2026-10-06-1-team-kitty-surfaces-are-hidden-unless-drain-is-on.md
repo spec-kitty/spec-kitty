@@ -6,6 +6,18 @@ doc_status: active
 kind: ADR
 date: '2026-10-06'
 updated: '2026-10-14T00:00:00Z'
+supersedes:
+- docs/adr/2.x/2026-01-27-12-two-branch-strategy-for-saas-transformation.md
+- docs/adr/2.x/2026-02-27-3-saas-tracker-integration-via-existing-connectors-journey.md
+- docs/adr/3.x/2026-04-04-1-tracker-binding-context-is-discovered-not-user-supplied.md
+- docs/adr/3.x/2026-04-06-2-connector-auth-binding-separation.md
+- docs/adr/3.x/2026-04-06-3-github-app-installation-authority.md
+- docs/adr/3.x/2026-04-19-1-cli-auth-uses-encrypted-file-only-session-storage.md
+- docs/adr/3.x/2026-04-21-1-private-teamspace-and-repository-sharing-boundary.md
+- docs/adr/3.x/2026-04-26-2-auth-transport-boundary.md
+- docs/adr/3.x/2026-05-18-2-delete-specify-cli-auth-transport.md
+- docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md
+- docs/adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md
 ---
 
 **Status:** Accepted. **Amended 2026-10-12** — the "do not build toward Team Kitty" rule is

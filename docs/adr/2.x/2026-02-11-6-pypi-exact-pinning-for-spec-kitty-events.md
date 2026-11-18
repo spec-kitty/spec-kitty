@@ -6,6 +6,8 @@ doc_status: active
 kind: ADR
 date: '2026-02-11'
 updated: '2026-02-11T00:00:00Z'
+supersedes:
+- docs/adr/2.x/2026-01-27-11-dual-repository-pattern.md
 ---
 
 ## Context and Problem Statement

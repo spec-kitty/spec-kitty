@@ -1,11 +1,12 @@
 ---
 title: Tracker Binding Context Is Discovered, Not User-Supplied
 description: 'Tracker discovery returns bindable resource descriptors and the hosted service owns resolution, so operators stop hand-typing project slugs at bind time.'
-status: Accepted
-doc_status: active
+status: Superseded
+doc_status: superseded
 kind: ADR
 date: '2026-04-04'
 updated: '2026-04-04T00:00:00Z'
+superseded_by: docs/adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md
 ---
 
 ## Context and Problem Statement
