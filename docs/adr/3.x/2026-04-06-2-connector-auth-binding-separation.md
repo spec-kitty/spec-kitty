@@ -1,11 +1,12 @@
 ---
 title: 'ADR: Connector Installation, User Link, and Resource Mapping Separation'
 description: Accepted ADR separating connector installation, user link, and resource mapping, replacing the per-binding OAuth-token storage in ConnectorBinding.
-status: Accepted
-doc_status: active
+status: Superseded
+doc_status: superseded
 kind: ADR
 date: '2026-04-06'
 updated: '2026-04-06T00:00:00Z'
+superseded_by: docs/adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md
 ---
 # ADR: Connector Installation, User Link, and Resource Mapping Separation
 

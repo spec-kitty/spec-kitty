@@ -1,11 +1,12 @@
 ---
 title: SaaS Tracker Integration via Existing Connectors Journey
 description: Folds tracker binding, snapshot ingestion, and drift reporting into the established connectors and dashboard journey instead of building a parallel hosted surface.
-status: Accepted
-doc_status: active
+status: Superseded
+doc_status: superseded
 kind: ADR
 date: '2026-02-27'
 updated: '2026-02-27T00:00:00Z'
+superseded_by: docs/adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md
 ---
 
 ## Context and Problem Statement

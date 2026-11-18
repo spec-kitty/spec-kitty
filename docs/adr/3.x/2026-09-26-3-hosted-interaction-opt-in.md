@@ -1,11 +1,12 @@
 ---
 title: 'ADR: hosted interaction is opt-in, twice, with no packaged endpoint'
 description: 'Reverses the #3980 packaged hosted-endpoint default and records the two-scope live-drain consent model plus the ledger-projection flag this mission ships (#4971).'
-status: Accepted
-doc_status: active
+status: Superseded
+doc_status: superseded
 kind: ADR
 date: '2026-09-26'
 updated: '2026-09-26T00:00:00Z'
+superseded_by: docs/adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md
 ---
 
 ## Context and Problem Statement

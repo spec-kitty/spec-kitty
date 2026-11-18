@@ -1,11 +1,12 @@
 ---
 title: ADR 2026-05-18-2 — DELETE specify_cli.auth.transport (deferred to Robert)
 description: 'Deletes the auth transport module: it has zero production callers and its architectural gate passes vacuously, so it mediates nothing that it claims to mediate.'
-status: Accepted
-doc_status: active
+status: Superseded
+doc_status: superseded
 kind: ADR
 date: '2026-05-18'
 updated: '2026-05-18T00:00:00Z'
+superseded_by: docs/adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md
 ---
 
 ## Context

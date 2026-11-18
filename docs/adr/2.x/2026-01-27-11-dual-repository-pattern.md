@@ -1,11 +1,12 @@
 ---
 title: Dual-Repository Pattern for Private spec-kitty-events Dependency
 description: Keeps the shared events library in its own private repository, consumed as a commit-pinned git dependency, so CI stays autonomous and the CLI repo stays public.
-status: Accepted
-doc_status: active
+status: Superseded
+doc_status: superseded
 kind: ADR
 date: '2026-01-27'
 updated: '2026-01-27T00:00:00Z'
+superseded_by: docs/adr/2.x/2026-02-11-6-pypi-exact-pinning-for-spec-kitty-events.md
 ---
 
 ## Context and Problem Statement

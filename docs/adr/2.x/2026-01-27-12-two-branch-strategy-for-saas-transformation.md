@@ -1,11 +1,12 @@
 ---
 title: Two-Branch Strategy for SaaS Transformation
 description: Ships stable local-only 1.x while 2.x develops event sourcing and sync on greenfield, deferring the state migration until the distributed design proves itself.
-status: Accepted
-doc_status: active
+status: Superseded
+doc_status: superseded
 kind: ADR
 date: '2026-01-27'
 updated: '2026-01-27T00:00:00Z'
+superseded_by: docs/adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md
 ---
 
 ## Context and Problem Statement
