@@ -1,6 +1,6 @@
 ---
 name: spk-gate-accept
-description: "Run the Spec Kitty accept gate for a completed mission and verify final readiness before merge."
+description: "Run the Spec Kitty accept gate for a completed mission and verify final readiness before consolidation."
 ---
 
 # spk-gate-accept
@@ -21,4 +21,4 @@ mission, or all WPs appear complete.
 
 ## Rule
 
-Accept is not a formality. It is the final pre-merge readiness gate.
+Accept is not a formality. It is the final pre-consolidation readiness gate.

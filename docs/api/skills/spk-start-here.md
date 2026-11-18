@@ -42,7 +42,6 @@ skills are agent-harness operating guides, not `spec-kitty` CLI commands.
 - Existing mission needs advancement → `spk-run-next`
 - Multi-mission or multi-repo program → `spk-run-program-orchestrate`
 - Review or approval work → `spk-run-review-wp`, then `spk-gate-accept`
-- Team, SaaS, tracker, or sync concern → `spk-team-sync` or `spk-team-tracker`
 - Charter or governance concern → the `spk-charter-*` family
 - Engineering practice (bulk edit, visuals, code reduction) → the `spk-practice-*` family
 - Unsure which skill applies → `spk-meta-skill-map`

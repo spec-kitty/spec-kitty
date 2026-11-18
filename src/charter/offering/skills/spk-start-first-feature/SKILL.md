@@ -1,12 +1,12 @@
 ---
 name: spk-start-first-feature
-description: "Guide a first Spec Kitty feature from setup through specify, plan, tasks, implementation, review, accept, merge, and retrospective."
+description: "Guide a first Spec Kitty mission from setup through specify, plan, tasks, implementation, review, accept, consolidate, and retrospective."
 ---
 
 # spk-start-first-feature
 
-Use this skill when a user wants to start their first Spec Kitty mission or
-feature and needs the end-to-end path.
+Use this skill when a user wants to start their first Spec Kitty mission and
+needs the end-to-end path.
 
 ## Workflow
 
@@ -26,5 +26,5 @@ feature and needs the end-to-end path.
 
 - Keep the user on one mission until a blocker requires a different route.
 - Treat generated runtime prompt files as authoritative for the current action.
-- Do not skip review, accept, or merge gates just because implementation appears
+- Do not skip review, accept, or consolidate gates just because implementation appears
   complete.
