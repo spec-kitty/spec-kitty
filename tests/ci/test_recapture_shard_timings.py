@@ -338,8 +338,7 @@ def test_recapture_job_only_runs_on_main() -> None:
     to `refs/heads/main`."""
     # The leading conjunct is the fork guard (tests/ci/test_fork_guard.py).
     assert _recapture_job().get("if") == (
-        "${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request'"
-        " || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}"
+        "${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}"
     )
 
 
@@ -365,9 +364,7 @@ def test_the_strict_check_runs_after_the_recapture_even_when_it_failed_or_was_sk
     guard stays the first conjunct (tests/ci/test_fork_guard.py)."""
     job = _strict_job()
     assert job.get("needs") == "recapture-shard-timings"
-    assert job.get("if") == (
-        "${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !cancelled() }}"
-    )
+    assert job.get("if") == ("${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch') && !cancelled() }}")
 
 
 def test_the_recapture_uploads_its_output_before_publish_moves_the_working_tree() -> None:

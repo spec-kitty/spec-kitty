@@ -70,9 +70,10 @@ concurrency:
 permissions:
   contents: read
 
-# Fork guard: automated runs (schedule, push to main, workflow_run) are core-repo
-# only. On a fork the guarded jobs skip; pull_request and workflow_dispatch still
-# run everywhere. Pinned by tests/ci/test_fork_guard.py.
+# Fork guard: automated runs (schedule) are core-repo only. On a fork the guarded
+# jobs skip; workflow_dispatch still runs everywhere. This workflow has no
+# pull_request trigger, so its guard names no pull_request atom (#7704). Pinned by
+# tests/ci/test_fork_guard.py.
 jobs:
   # ---------------------------------------------------------------------------
   # performance / e2e / stress: split from the former single
@@ -111,7 +112,7 @@ jobs:
   # dispatch by tag) always runs it. Its red -> P0 escalation steps are
   # unchanged, so the weekly run opens, bumps and closes the `performance` P0.
   performance:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && (github.event_name != 'schedule' || github.event.schedule == '17 3 * * 0')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch') && (github.event_name != 'schedule' || github.event.schedule == '17 3 * * 0')
     name: Performance suite (weekly, #3595, #7704)
     runs-on: ubuntu-24.04
     # #6787: the 35-minute cap above left 2 minutes over the 32:51 suite of run 42442477189; the cap
@@ -249,7 +250,7 @@ jobs:
   # generous timeout costs nothing unless a job hangs). PWHEADLESS keeps any
   # UI-touching heavy/e2e test headless.
   e2e:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
     name: Heavy e2e suite (nightly-only, #3595)
     runs-on: ubuntu-24.04
     timeout-minutes: 40
@@ -350,7 +351,7 @@ jobs:
   # suites. `not windows_ci` leaves the Windows-critical subset to
   # ci-windows.yml.
   stress:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
     name: Stress suite (nightly-only, #3595)
     runs-on: ubuntu-24.04
     # DO NOT set SPEC_KITTY_RUN_PERFORMANCE on this job. This 16-minute
@@ -444,7 +445,7 @@ jobs:
   # exit a broken lane. Serial: the slice is a handful of tests, and the
   # passing and skipped reproduction notices are printed by the controller's terminal summary.
   p0-repro:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
     name: Open-P0 reproductions (nightly-only)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -527,7 +528,7 @@ jobs:
   # ---------------------------------------------------------------------------
   # Shard 1/6: tests/unit, tests/status, tests/cli.
   interpreter-matrix-shard-1:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
     name: "Interpreter matrix shard 1 (Python 3.13, nightly-only, FR-021)"
     runs-on: ubuntu-24.04
     # headroom (#5378): max-suite=12:35 runs=36300726806,36393904544,36482214935,36517786727,36553997695 formula=ceil((max+0:30)*1.5)
@@ -617,7 +618,7 @@ jobs:
 
   # Shard 2/6: tests/specify_cli/runtime, tests/charter, tests/kernel.
   interpreter-matrix-shard-2:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
     name: "Interpreter matrix shard 2 (Python 3.13, nightly-only, FR-021)"
     runs-on: ubuntu-24.04
     # headroom (#5378): max-suite>=20:09 runs=36300726806,36393904544,36482214935,36517786727,36553997695 formula=ceil((max+0:30)*1.5)
@@ -697,7 +698,7 @@ jobs:
   # derivation (a fresh local collect-only capture, bucketed and split via a
   # one-time greedy LPT pass -- never SK-247's mechanism).
   interpreter-matrix-shard-3:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
     name: "Interpreter matrix shard 3 (Python 3.13, nightly-only, FR-021)"
     runs-on: ubuntu-24.04
     # headroom (#5378): max-suite=22:12 runs=36300726806,36393904544,36482214935,36517786727,36553997695 formula=ceil((max+0:30)*1.5)
@@ -773,7 +774,7 @@ jobs:
 
   # Shard 4/6.
   interpreter-matrix-shard-4:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
     name: "Interpreter matrix shard 4 (Python 3.13, nightly-only, FR-021)"
     runs-on: ubuntu-24.04
     # headroom (#5378): max-suite=14:27 runs=36300726806,36393904544,36482214935,36517786727,36553997695 formula=ceil((max+0:30)*1.5)
@@ -849,7 +850,7 @@ jobs:
 
   # Shard 5/6.
   interpreter-matrix-shard-5:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
     name: "Interpreter matrix shard 5 (Python 3.13, nightly-only, FR-021)"
     runs-on: ubuntu-24.04
     # headroom (#5378): max-suite=22:32 runs=36300726806,36393904544,36482214935,36517786727,36553997695 formula=ceil((max+0:30)*1.5)
@@ -925,7 +926,7 @@ jobs:
 
   # Shard 6/6.
   interpreter-matrix-shard-6:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
     name: "Interpreter matrix shard 6 (Python 3.13, nightly-only, FR-021)"
     runs-on: ubuntu-24.04
     # headroom (#5378): max-suite=7:26 runs=36300726806,36393904544,36482214935,36517786727,36553997695 formula=ceil((max+0:30)*1.5)
@@ -1021,7 +1022,7 @@ jobs:
   # the module list itself, which both read from the one committed registry).
   # ---------------------------------------------------------------------------
   generate-full-matrix:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
     name: Generate full module-shard matrix (nightly-only)
     runs-on: ubuntu-24.04
     outputs:
@@ -1121,7 +1122,7 @@ jobs:
   # the interpreter shards: `nightly-summary` keeps one row per shard.
   # ---------------------------------------------------------------------------
   integration-next-shard-1:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
     name: "Integration + next suite shard 1 (nightly-only, #4729, #7456)"
     runs-on: ubuntu-24.04
     # #7456 / #6787: shard 1 holds test_6715_lane_autowalk_guards.py (~15-19 min of CLI lifecycles on one --dist loadfile worker), which is the floor of the whole lane; its cap follows that file, not the shard's share.
@@ -1204,7 +1205,7 @@ jobs:
           echo "integration+next shard 1 suite passed (exit 0)."
 
   integration-next-shard-2:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
     name: "Integration + next suite shard 2 (nightly-only, #4729, #7456)"
     runs-on: ubuntu-24.04
     # #7456 / #6787: projected share of the 44:34 worst recorded single-job suite time (run 42442477189): 25% of the lane's weight in .github/ci-shard-timings.json, ~11 min projected. The first sharded nightly (run 42556248147) measured shard 3 at 12:30 and stopped shards 2 and 4 at their 13-minute step cap with no test failure, run 42570568758 then measured shards 2/3/4 at 17:21/13:02/16:05; caps 30/25 by operator ruling, until the per-shard xunit recapture (capture_shard_timings.py --suite integration_next) rebalances the lane.
@@ -1287,7 +1288,7 @@ jobs:
           echo "integration+next shard 2 suite passed (exit 0)."
 
   integration-next-shard-3:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
     name: "Integration + next suite shard 3 (nightly-only, #4729, #7456)"
     runs-on: ubuntu-24.04
     # #7456 / #6787: projected share of the 44:34 worst recorded single-job suite time (run 42442477189): 25% of the lane's weight in .github/ci-shard-timings.json, ~11 min projected. The first sharded nightly (run 42556248147) measured shard 3 at 12:30 and stopped shards 2 and 4 at their 13-minute step cap with no test failure, run 42570568758 then measured shards 2/3/4 at 17:21/13:02/16:05; caps 30/25 by operator ruling, until the per-shard xunit recapture (capture_shard_timings.py --suite integration_next) rebalances the lane.
@@ -1370,7 +1371,7 @@ jobs:
           echo "integration+next shard 3 suite passed (exit 0)."
 
   integration-next-shard-4:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
     name: "Integration + next suite shard 4 (nightly-only, #4729, #7456)"
     runs-on: ubuntu-24.04
     # #7456 / #6787: projected share of the 44:34 worst recorded single-job suite time (run 42442477189): 25% of the lane's weight in .github/ci-shard-timings.json, ~11 min projected. The first sharded nightly (run 42556248147) measured shard 3 at 12:30 and stopped shards 2 and 4 at their 13-minute step cap with no test failure, run 42570568758 then measured shards 2/3/4 at 17:21/13:02/16:05; caps 30/25 by operator ruling, until the per-shard xunit recapture (capture_shard_timings.py --suite integration_next) rebalances the lane.
@@ -1480,7 +1481,7 @@ jobs:
   # zero-collected floor (a directory lane never exempts exit 5, FIND-2 #5034).
   # ---------------------------------------------------------------------------
   specify-cli-out-of-matrix:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
     name: specify_cli out-of-matrix trees (nightly-only, #5201)
     runs-on: ubuntu-24.04
     # headroom (#5378): max-suite>=45:01 runs=36300726806,36393904544,36482214935,36517786727,36553997695 formula=ceil((max+0:30)*1.5)
@@ -1596,7 +1597,7 @@ jobs:
   # name (scripts/ci/recapture_battery_timings.py, #6365): keep both in step.
   # ---------------------------------------------------------------------------
   architectural-backstop:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
     name: Architectural battery backstop (nightly-only, #5510)
     runs-on: ubuntu-24.04
     # headroom (#5378): max-suite>=25:09 runs=census-2026-09-30 formula=ceil((max+0:30)*1.5)
@@ -1700,7 +1701,7 @@ jobs:
   # exemption is for suites whose marker can honestly match nothing).
   # ---------------------------------------------------------------------------
   integration-slice:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
     name: Integration marker slice (nightly-only)
     runs-on: ubuntu-24.04
     # First-run ceiling. Recalibrate with a `# headroom (#5378)` comment once
@@ -1808,7 +1809,7 @@ jobs:
   # environment sync, plus two collections of roughly two minutes each.
   # ---------------------------------------------------------------------------
   universe-equivalence:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
     name: Test-universe reuse equals a fresh collection (nightly)
     runs-on: ubuntu-24.04
     timeout-minutes: 25
@@ -2196,7 +2197,7 @@ jobs:
   # `mission-state-audit`) and closes it again on the next green run. Otherwise read-only.
   # ---------------------------------------------------------------------------
   mission-state-audit:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
     name: mission-state audit (nightly backstop, #6058)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -2266,7 +2267,7 @@ jobs:
   # refreshes a deduped issue through nightly_escalation.py on main.
   # ---------------------------------------------------------------------------
   security-scans:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
     name: security scans (bandit + pip-audit, nightly)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -2320,7 +2321,7 @@ jobs:
   # defaults to `:-1` (FIND-1).
   # ---------------------------------------------------------------------------
   events-latest:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
     name: Events consumers on the newest allowed spec-kitty-events (nightly-only, #6605)
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -2510,7 +2511,7 @@ jobs:
     name: Nightly full-mode summary
     runs-on: ubuntu-24.04
     needs: [performance, e2e, stress, p0-repro, interpreter-matrix-shard-1, interpreter-matrix-shard-2, interpreter-matrix-shard-3, interpreter-matrix-shard-4, interpreter-matrix-shard-5, interpreter-matrix-shard-6, integration-next-shard-1, integration-next-shard-2, integration-next-shard-3, integration-next-shard-4, integration-slice, specify-cli-out-of-matrix, architectural-backstop, full-module-matrix, universe-equivalence, mission-state-audit, security-scans, events-latest, acceptance-bdd, acceptance-bdd-escalation, mission-status-corpus]
-    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() }}
+    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch') && always() }}
     steps:
       - name: Report full-mode results (run-all-regardless, never fail-fast)
         shell: bash
