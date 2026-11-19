@@ -4349,6 +4349,7 @@ pages:
     - {slug: "j-a-subpackage", text: "J. A subpackage", level: 3}
     - {slug: "k-flat-sibling-modules-chosen", text: "K. Flat sibling modules (chosen)", level: 3}
     - {slug: "amendment-2026-11-12-7578-commit-to-target-single-branch-missions-record-their-window-points", text: "Amendment 2026-11-12 (#7578): commit-to-target single_branch Missions record their window points", level: 2}
+    - {slug: "amendment-2026-11-18-7726-the-bulk-edit-review-gate-reads-the-review-range", text: "Amendment 2026-11-18 (#7726): the bulk-edit review gate reads the review range", level: 2}
     - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/4.x/README.md"
     title: "4.x Architectural Decision Records"
@@ -13393,7 +13394,7 @@ pages:
   - path: "docs/guides/how-to/installation/upgrade-cli.md"
     title: "Upgrade the Spec Kitty CLI"
     divio_type: "how-to"
-    abstract: "Upgrade the Spec Kitty CLI to 3.2, verify the installed binary, and know when project migrations are still required."
+    abstract: "Upgrade the Spec Kitty CLI to the 4.x release candidate, verify the installed binary, and know when project migrations are still required."
     anchors:
     - {slug: "quick-reference", text: "Quick reference", level: 2}
     - {slug: "pipx", text: "pipx", level: 2}
