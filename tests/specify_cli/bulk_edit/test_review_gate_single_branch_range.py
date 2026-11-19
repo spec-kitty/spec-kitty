@@ -233,6 +233,24 @@ def test_an_unavailable_range_is_a_named_refusal(
     assert "--to for_review" in output, output
 
 
+def test_an_unreadable_status_surface_is_a_named_refusal(
+    templates: _Templates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The range resolved but the gate could not read the status surface: a named refusal, never a blank one."""
+    from specify_cli.cli.commands.agent import workflow
+
+    m = _checkout(templates, "minted", tmp_path, monkeypatch)
+    _submit(m, forbidden_edit=False)
+    monkeypatch.setattr(workflow, "_review_gate_topology", lambda *_args: None)
+
+    with pytest.raises(typer.Exit) as excinfo:
+        _gate(m)
+    assert excinfo.value.exit_code == 1
+    output = " ".join(capsys.readouterr().out.split())
+    assert BULK_EDIT_REVIEW_RANGE_UNAVAILABLE in output, output
+    assert "status surface" in output and f"agent tasks status --mission {m.slug}" in output, output
+
+
 # --------------------------------------------------------------------------- lanes_with_coord
 
 
