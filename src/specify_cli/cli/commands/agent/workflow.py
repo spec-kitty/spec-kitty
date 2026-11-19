@@ -277,8 +277,11 @@ def _bulk_edit_review_window(repo_root: Path, mission_slug: str, wp_id: str) -> 
     )
     refusal = review_range_refusal(facts, wp_id=wp_id, mission_slug=mission_slug)
     base, tip = review_range.base, review_range.tip
-    if refusal is not None or base is None or tip is None or topology is None:
-        return refusal or ""
+    if refusal is not None:
+        return refusal
+    # A missing end is already a refusal above; ``base``/``tip`` are named here only to narrow them.
+    if topology is None or base is None or tip is None:
+        return _status_surface_unreadable_refusal(wp_id, mission_slug)
     head = tip if topology.single_branch or topology.live_head is None else topology.live_head
     notes = _unjudged_commit_notes(review_range, wp_id, mission_slug) if topology.single_branch else ()
     return _GateWindow(
@@ -287,6 +290,17 @@ def _bulk_edit_review_window(repo_root: Path, mission_slug: str, wp_id: str) -> 
         excludes=mission_bookkeeping_pathspecs(topology.mission_dir_name),
         first_parent_only=topology.commit_to_target,
         notes=notes,
+    )
+
+
+def _status_surface_unreadable_refusal(wp_id: str, mission_slug: str) -> str:
+    """The refusal when the range resolved but the Mission's status surface could not be read (#7726)."""
+    from specify_cli.bulk_edit.gate import BULK_EDIT_REVIEW_RANGE_UNAVAILABLE
+
+    return (
+        f"{BULK_EDIT_REVIEW_RANGE_UNAVAILABLE}: the bulk-edit review gate cannot judge {wp_id}: the status surface of "
+        f"Mission {mission_slug} could not be read, so the gate cannot tell its topology or the lane's head. Run "
+        f"`spec-kitty agent tasks status --mission {mission_slug}` to see why, fix it, then retry."
     )
 
 
