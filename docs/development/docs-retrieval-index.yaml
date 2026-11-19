@@ -2383,6 +2383,7 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 3}
     - {slug: "confirmation", text: "Confirmation", level: 3}
     - {slug: "amendment-2026-10-04-the-red-lives-in-the-nightly-never-in-a-pr", text: "Amendment 2026-10-04 — the red lives in the nightly, never in a PR", level: 2}
+    - {slug: "amendment-2026-11-18-the-performance-verdict-is-weekly-7704", text: "Amendment 2026-11-18 — the performance verdict is weekly (#7704)", level: 2}
   - path: "docs/adr/3.x/2026-07-18-1-charter-yaml-authoring-authority-and-extractor-retirement.md"
     title: "ADR: charter.yaml is the authoritative structured source; charter.md is a curated companion; retire the prose→triad extractor"
     divio_type: "none"
@@ -3171,6 +3172,7 @@ pages:
     - {slug: "amendment-2026-11-06-what-the-late-teardown-window-proves-and-on-which-tip-7265", text: "Amendment 2026-11-06 — what the late teardown window proves, and on which tip (#7265)", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "follow-up-2026-10-31-the-branch-integration-target-is-judged-too-6464", text: "Follow-up 2026-10-31 — the branch-integration target is judged too (#6464)", level: 3}
+    - {slug: "amendment-2026-11-17-a-retarget-is-a-recorded-run-mutation-inside-the-one-door-7692", text: "Amendment 2026-11-17 — a retarget is a recorded run mutation inside the one door (#7692)", level: 3}
     - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
     - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/3.x/2026-09-20-1-canonical-mission-type-source.md"
@@ -3555,6 +3557,7 @@ pages:
     - {slug: "amendment-2026-11-06-per-wp-approval-windows-for-single-branch-7283", text: "Amendment 2026-11-06: per-WP approval windows for single_branch (#7283)", level: 2}
     - {slug: "amendment-2026-11-08-lane-approvals-are-judged-by-recorded-work-package-windows-7403", text: "Amendment 2026-11-08: lane approvals are judged by recorded work-package windows (#7403)", level: 2}
     - {slug: "amendment-2026-11-10-the-implement-claim-records-its-dispatch-identity-and-a-submission-refines-it-7159", text: "Amendment 2026-11-10: the implement claim records its dispatch identity, and a submission refines it (#7159)", level: 2}
+    - {slug: "amendment-2026-11-18-a-forced-or-foreign-claim-never-replaces-the-implementer-of-record-and-an-explicit-re-submission-completes-a-bare-claim-7712", text: "Amendment 2026-11-18: a forced or foreign claim never replaces the implementer of record, and an explicit re-submission completes a bare claim (#7712)", level: 2}
   - path: "docs/adr/4.x/2026-10-05-1-bare-slug-coordination-directory-alias.md"
     title: "ADR: a bare-slug coordination Mission has one exact directory alias set, and one directory on the target"
     divio_type: "none"
@@ -3590,6 +3593,7 @@ pages:
     - {slug: "ci-calibration-sample-1-5753", text: "CI calibration, sample 1 (#5753)", level: 2}
     - {slug: "ci-calibration-sample-2-5753", text: "CI calibration, sample 2 (#5753)", level: 2}
     - {slug: "ci-recalibration-2026-11-08-7454", text: "CI recalibration 2026-11-08 (#7454)", level: 2}
+    - {slug: "note-2026-11-18-weekly-cadence-and-the-in-process-median-7704", text: "Note 2026-11-18 — weekly cadence and the in-process median (#7704)", level: 2}
   - path: "docs/adr/4.x/2026-10-05-3-org-packs-ship-their-builtin-override-sanction.md"
     title: "ADR: org packs ship their own built-in override sanction"
     divio_type: "none"
@@ -5252,7 +5256,6 @@ pages:
     - {slug: "spk-run", text: "spk-run-*", level: 2}
     - {slug: "spk-gate", text: "spk-gate-*", level: 2}
     - {slug: "spk-admin", text: "spk-admin-*", level: 2}
-    - {slug: "spk-team", text: "spk-team-*", level: 2}
     - {slug: "spk-charter", text: "spk-charter-*", level: 2}
     - {slug: "spk-practice", text: "spk-practice-*", level: 2}
     - {slug: "spk-integrate", text: "spk-integrate-*", level: 2}
@@ -13558,6 +13561,8 @@ pages:
     - {slug: "strategies", text: "Strategies", level: 2}
     - {slug: "restack-onto-a-newer-dependency-branch", text: "Restack onto a Newer Dependency Branch", level: 2}
     - {slug: "target-branch", text: "Target Branch", level: 2}
+    - {slug: "retarget-the-mission", text: "Retarget the Mission", level: 3}
+    - {slug: "skip-worktree-entries-in-the-target-s-checkout", text: "Skip-worktree entries in the target's checkout", level: 3}
     - {slug: "cleanup-options", text: "Cleanup Options", level: 2}
     - {slug: "mission-retention-policy", text: "Mission Retention Policy", level: 3}
     - {slug: "complete-a-direct-on-target-mission-skip-lanes", text: "Complete a Direct-on-Target Mission (`--skip-lanes`)", level: 2}
