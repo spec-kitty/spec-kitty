@@ -16,13 +16,14 @@ The gate now takes its range from :func:`specify_cli.review.wp_range.resolve_wp_
 * an empty or unavailable range is a named refusal, never a pass.
 
 The Missions are built through the real CLI (``tests/integration/single_branch_window_support``).
+The end-to-end ``agent action review`` red-first test lives in
+``test_review_gate_single_branch_cli.py``, which imports no #7726 symbol so it runs on main.
 """
 
 from __future__ import annotations
 
 import json
 import shutil
-import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
@@ -146,29 +147,6 @@ def _gate(m: sb.Mission) -> None:
         mission_slug=m.slug,
         wp_id="WP01",
     )
-
-
-@pytest.mark.parametrize("flavour", ["minted", "ctt"])
-def test_agent_action_review_refuses_a_forbidden_edit_on_single_branch(
-    templates: _Templates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, flavour: str
-) -> None:
-    """Red on main: the gate diffed ``X..X`` and ``agent action review`` went on to claim the WP."""
-    m = _checkout(templates, flavour, tmp_path, monkeypatch)
-    _submit(m, forbidden_edit=True)
-
-    proc = subprocess.run(
-        [*sb._CLI, "agent", "action", "review", "WP01", "--agent", "bob", "--mission", m.slug],
-        cwd=m.repo,
-        env=m.env,
-        capture_output=True,
-        text=True,
-        timeout=400,
-    )
-    output = " ".join((proc.stdout + "\n" + proc.stderr).split())
-
-    assert proc.returncode != 0, output
-    assert "config.yaml" in output, output
-    assert "do_not_change" in output, output
 
 
 @pytest.mark.parametrize("flavour", ["minted", "ctt"])
