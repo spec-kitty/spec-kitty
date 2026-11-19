@@ -13,6 +13,7 @@ for the entity/validation-rule model under test.
 from __future__ import annotations
 
 import subprocess
+import sys
 from dataclasses import FrozenInstanceError
 from pathlib import Path
 from unittest.mock import patch
@@ -74,6 +75,22 @@ def _add_worktree(repo: Path, path: Path, branch: str) -> Path:
     """Create a real linked worktree of ``repo`` at ``path`` on a new branch."""
     _run_git(["worktree", "add", "-b", branch, str(path)], cwd=repo)
     return path
+
+
+def _corrupt_gitdir_pointer(worktree: Path) -> None:
+    """Point the worktree's ``.git`` file at a gitdir that does not exist.
+
+    Git for Windows marks this pointer file hidden, and ``Path.write_text``
+    recreates the file with ``CREATE_ALWAYS``, which Windows refuses on a hidden
+    file (``ERROR_ACCESS_DENIED``, #3822). Rewrite it in place instead. Both the
+    POSIX test and its ``windows_ci`` companion use this helper, so a regression
+    here fails on the Windows job.
+    """
+    git_file = worktree / ".git"
+    assert git_file.is_file()
+    with git_file.open("r+", encoding="utf-8") as pointer:
+        pointer.write("gitdir: /nonexistent/path/.git/worktrees/to-corrupt-wt\n")
+        pointer.truncate()
 
 
 # ---------------------------------------------------------------------------
@@ -257,14 +274,8 @@ def test_foreign_repo_is_foreign_or_mismatched(git_repo: Path, tmp_path: Path) -
 def test_broken_gitdir_pointer_is_broken_pointer(git_repo: Path, tmp_path: Path) -> None:
     worktree = _add_worktree(git_repo, tmp_path / "to-corrupt-wt", "feature-corrupt")
 
-    # Hand-corrupt the .git pointer file after creation (per WP guidance):
-    # point it at a gitdir that does not exist.
-    git_file = worktree / ".git"
-    assert git_file.is_file()
-    # Git marks this pointer hidden on Windows; update without recreating it.
-    with git_file.open("r+", encoding="utf-8") as pointer:
-        pointer.write("gitdir: /nonexistent/path/.git/worktrees/to-corrupt-wt\n")
-        pointer.truncate()
+    # Hand-corrupt the .git pointer file after creation (per WP guidance).
+    _corrupt_gitdir_pointer(worktree)
 
     claim = resolve_ownership_claim(worktree, resolved_primary=git_repo)
 
@@ -277,6 +288,25 @@ def test_broken_gitdir_pointer_is_broken_pointer(git_repo: Path, tmp_path: Path)
     err = error_for_claim(claim)
     assert isinstance(err, BrokenPointerCheckoutError)
     assert err.validation_result is OwnershipValidationResult.BROKEN_POINTER
+
+
+@pytest.mark.windows_ci
+def test_broken_gitdir_pointer_is_broken_pointer_on_windows(git_repo: Path, tmp_path: Path) -> None:
+    """Windows regression lock for #3822: corrupting a hidden gitfile must not fail.
+
+    The dual-platform test above stays unmarked so the POSIX suites keep running
+    it; the Windows job only collects ``windows_ci`` tests, so this companion is
+    what exercises the shared fixture on windows-latest (#4063).
+    """
+    # The ``windows_ci`` marker auto-skips off-win32 (tests/conftest.py).
+    assert sys.platform == "win32"
+    worktree = _add_worktree(git_repo, tmp_path / "to-corrupt-wt", "feature-corrupt")
+
+    _corrupt_gitdir_pointer(worktree)
+
+    claim = resolve_ownership_claim(worktree, resolved_primary=git_repo)
+    assert claim.validation_result is OwnershipValidationResult.BROKEN_POINTER
+    assert isinstance(error_for_claim(claim), BrokenPointerCheckoutError)
 
 
 def test_missing_git_binary_is_broken_pointer(git_repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
