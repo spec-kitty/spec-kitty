@@ -659,8 +659,15 @@ nothing.
 **Head.** On `single_branch` the gate judges up to the submission. Commits past it can be another
 work package's, so they are named as not judged; re-submitting judges them. On a lane topology it
 judges up to the lane's live head, as the gate did before, so a commit added to a lane after its
-submission is still judged. The diff leaves out the Mission bookkeeping the range excludes
-(`WpReviewRange.bookkeeping_pathspecs`), so a ticked task file never blocks the Mission's own review.
+submission is still judged. The diff leaves out only the Mission's own status files and task index
+(`review/wp_range.py::mission_bookkeeping_pathspecs`: the `kitty-specs/<mission>/` entries of
+`lanes/for_review_gate.py::status_only_excluded_prefixes`, namely `status.*`, `issue-matrix.*`,
+`meta.json`, `tasks/`, `lanes.json`, `acceptance-matrix.json`, `analysis-report.md`, `decisions/`,
+`decisions.events.jsonl` and `traces/`, plus `tasks.md`), so a ticked task file never blocks the
+Mission's own review. It does not leave out `.kittify/`: the range counts `.kittify/` as bookkeeping
+when it lists commits (`WpReviewRange.bookkeeping_pathspecs`, which `BULK_EDIT_REVIEW_RANGE_EMPTY`
+reads), but the gate still judges a `.kittify/` edit the occurrence map forbids, as it did on a
+lane before #7726.
 
 **Planning lane in ruling Q10's case.** A planning-lane work package of a `lanes_with_coord` Mission
 whose coordination branch is not its planning branch has no review range: its status events sit

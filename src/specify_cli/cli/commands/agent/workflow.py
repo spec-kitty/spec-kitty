@@ -220,7 +220,7 @@ def _enforce_bulk_edit_diff_compliance(
     (its status events on a coordination branch apart from its work, so no range is recorded) is
     judged from its recorded claim base to its planning branch's head. On a branch others commit
     to (a commit-to-target target, a planning branch), only the non-merge first-parent commits'
-    paths are judged (ruling B). The diff leaves out the Mission bookkeeping the range excludes.
+    paths are judged (ruling B). The diff leaves out only the Mission's own status files and task index (not ``.kittify/``).
 
     Raises ``typer.Exit(1)`` on a violation, and on a window it cannot judge
     (``BULK_EDIT_REVIEW_RANGE_UNAVAILABLE`` / ``_EMPTY`` / ``BULK_EDIT_REVIEW_TIP_REWRITTEN``): a
@@ -258,7 +258,7 @@ def _enforce_bulk_edit_diff_compliance(
 def _bulk_edit_review_window(repo_root: Path, mission_slug: str, wp_id: str) -> _GateWindow | str:
     """The window the bulk-edit gate judges for *wp_id*, or its refusal text (#7726)."""
     from specify_cli.bulk_edit.gate import ReviewRangeFacts, review_range_refusal
-    from specify_cli.review.wp_range import resolve_wp_review_range
+    from specify_cli.review.wp_range import mission_bookkeeping_pathspecs, resolve_wp_review_range
 
     # No owned_files: the ends do not depend on them, the occurrence map judges every path the
     # range touches, and the unscoped commit listing (bookkeeping excluded) is what "empty" means.
@@ -284,7 +284,7 @@ def _bulk_edit_review_window(repo_root: Path, mission_slug: str, wp_id: str) -> 
     return _GateWindow(
         base=base,
         head=head,
-        excludes=review_range.bookkeeping_pathspecs,
+        excludes=mission_bookkeeping_pathspecs(topology.mission_dir_name),
         first_parent_only=topology.commit_to_target,
         notes=notes,
     )
@@ -341,7 +341,7 @@ def _planning_lane_window(repo_root: Path, mission_dir_name: str, branch: str, m
     """
     from specify_cli.bulk_edit.gate import BULK_EDIT_REVIEW_RANGE_EMPTY, BULK_EDIT_REVIEW_RANGE_UNAVAILABLE
     from specify_cli.lanes.claim_base import read_claim_base
-    from specify_cli.review.wp_range import bookkeeping_pathspecs
+    from specify_cli.review.wp_range import bookkeeping_pathspecs, mission_bookkeeping_pathspecs
 
     prefix = f"{BULK_EDIT_REVIEW_RANGE_UNAVAILABLE}: the bulk-edit review gate cannot judge planning-lane work package {wp_id}:"
     base = read_claim_base(repo_root, mission_dir_name, wp_id)
@@ -369,7 +369,9 @@ def _planning_lane_window(repo_root: Path, mission_dir_name: str, branch: str, m
             f"{BULK_EDIT_REVIEW_RANGE_EMPTY}: the bulk-edit review gate has nothing to judge for {wp_id}: "
             f"{base[:12]}..{head[:12]} on {branch!r} holds no commit outside Mission bookkeeping."
         )
-    return _GateWindow(base=base, head=head, excludes=excludes, first_parent_only=True)
+    # Count with the full bookkeeping set (EMPTY), judge with the Mission's own files only, so a
+    # ``.kittify/`` edit the occurrence map forbids is still judged.
+    return _GateWindow(base=base, head=head, excludes=mission_bookkeeping_pathspecs(mission_dir_name), first_parent_only=True)
 
 
 def _commit_of(repo_root: Path, ref: str) -> str | None:

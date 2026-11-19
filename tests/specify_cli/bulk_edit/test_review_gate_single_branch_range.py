@@ -72,6 +72,11 @@ categories:
 _DOCS_PROTECTED_MAP = _OCCURRENCE_MAP.replace("  user_facing_strings:\n    action: rename", "  user_facing_strings:\n    action: do_not_change")
 
 
+#: A protected file under ``.kittify/``: the review range counts ``.kittify/`` as bookkeeping, but the
+#: gate must still judge an edit there that the occurrence map forbids (#7726 landing fold).
+_KITTIFY_PROBE = ".kittify/bulk-edit-probe.yaml"
+
+
 def _make_bulk_edit(repo: Path, slug: str, occurrence_map: str = _OCCURRENCE_MAP) -> None:
     """Declare the Mission bulk_edit, add its occurrence map and a protected file, before any WP opens."""
     feature_dir = repo / "kitty-specs" / slug
@@ -81,7 +86,10 @@ def _make_bulk_edit(repo: Path, slug: str, occurrence_map: str = _OCCURRENCE_MAP
     meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     (feature_dir / "occurrence_map.yaml").write_text(occurrence_map, encoding="utf-8")
     (repo / "config.yaml").write_text("oldName: true\n", encoding="utf-8")
+    (repo / _KITTIFY_PROBE).parent.mkdir(parents=True, exist_ok=True)
+    (repo / _KITTIFY_PROBE).write_text("oldName: true\n", encoding="utf-8")
     sb.git(repo, "add", "-A")
+    sb.git(repo, "add", "-f", _KITTIFY_PROBE)
     sb.git(repo, "commit", "-qm", "test: declare the Mission bulk_edit")
 
 
@@ -122,12 +130,12 @@ def _checkout(templates: _Templates, flavour: str, tmp_path: Path, monkeypatch: 
     return sb.Mission(repo, slug, tmp_path)
 
 
-def _submit(m: sb.Mission, *, forbidden_edit: bool) -> None:
-    """alice implements WP01 (optionally also editing the protected ``config.yaml``) and hands it to review."""
+def _submit(m: sb.Mission, *, forbidden_edit: bool, forbidden_path: str = "config.yaml") -> None:
+    """alice implements WP01 (optionally also editing a protected file) and hands it to review."""
     sb.claim(m, "WP01")
     sb.implement(m, "WP01")
     if forbidden_edit:
-        sb.commit_file(m, "config.yaml", "oldName: false\n", "feat(WP01): touch a do_not_change key")
+        sb.commit_file(m, forbidden_path, "oldName: false\n", "feat(WP01): touch a do_not_change key")
     sb.emit(m, "WP01", "for_review", "alice", "--force", "--reason", "handed to review")
 
 
@@ -228,7 +236,9 @@ def test_an_unavailable_range_is_a_named_refusal(
 # --------------------------------------------------------------------------- lanes_with_coord
 
 
-def _lane_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, forbidden_edit: bool, after_submission: bool = False) -> tuple[Path, str]:
+def _lane_mission(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, forbidden_edit: bool, after_submission: bool = False, forbidden_path: str = "config.yaml"
+) -> tuple[Path, str]:
     """A one-lane coordination Mission (bulk_edit), WP01 worked on its lane and handed to review."""
     from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
     from tests.consolidation import characterization_support as cs
@@ -250,7 +260,7 @@ def _lane_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, forbidden_
         transition(mission, "WP01", lane, actor=ACTOR)
     _commit_in(tree, "src/pkg/wp01.py", "def wp01() -> int:\n    return 1\n", "feat: WP01 work")
     if forbidden_edit and not after_submission:
-        _commit_in(tree, "config.yaml", "oldName: false\n", "feat: touch a do_not_change key")
+        _commit_in(tree, forbidden_path, "oldName: false\n", "feat: touch a do_not_change key")
     transition(mission, "WP01", "for_review", actor=ACTOR, subtasks_complete=True)
     if forbidden_edit and after_submission:
         _commit_in(tree, "config.yaml", "oldName: false\n", "feat: touch a do_not_change key after submission")
@@ -282,6 +292,29 @@ def test_lane_commit_after_the_submission_is_still_judged(tmp_path: Path, monkey
         _gate(sb.Mission(repo, slug, tmp_path))
     output = " ".join(capsys.readouterr().out.split())
     assert "config.yaml" in output, output
+
+
+@pytest.mark.parametrize("flavour", ["minted", "ctt"])
+def test_single_branch_forbidden_kittify_edit_is_refused(
+    templates: _Templates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], flavour: str
+) -> None:
+    """``.kittify/`` is range bookkeeping, not gate bookkeeping: a forbidden edit there is judged."""
+    m = _checkout(templates, flavour, tmp_path, monkeypatch)
+    _submit(m, forbidden_edit=True, forbidden_path=_KITTIFY_PROBE)
+    with pytest.raises(typer.Exit) as excinfo:
+        _gate(m)
+    assert excinfo.value.exit_code == 1
+    output = " ".join(capsys.readouterr().out.split())
+    assert "bulk-edit-probe.yaml" in output and BULK_EDIT_REVIEW_RANGE_EMPTY not in output, output
+
+
+def test_lane_forbidden_kittify_edit_is_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """lanes_with_coord: the gate judged ``.kittify/`` before #7726 and still does."""
+    repo, slug = _lane_mission(tmp_path, monkeypatch, forbidden_edit=True, forbidden_path=_KITTIFY_PROBE)
+    with pytest.raises(typer.Exit):
+        _gate(sb.Mission(repo, slug, tmp_path))
+    output = " ".join(capsys.readouterr().out.split())
+    assert "bulk-edit-probe.yaml" in output, output
 
 
 def test_mission_bookkeeping_never_blocks_its_own_review(templates: _Templates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

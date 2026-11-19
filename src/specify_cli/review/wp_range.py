@@ -105,7 +105,16 @@ from specify_cli.status import (
 
 # ``RangeCommit`` stays a public module-level name outside ``__all__`` until a ``src/`` caller
 # imports it: the dead-symbol gate counts an ``__all__`` member only through a caller outside this module.
-__all__ = ["FileChange", "RangeSource", "RangeStatus", "WpReviewRange", "bookkeeping_pathspecs", "planning_branch_apart_from_status", "resolve_wp_review_range"]
+__all__ = [
+    "FileChange",
+    "RangeSource",
+    "RangeStatus",
+    "WpReviewRange",
+    "bookkeeping_pathspecs",
+    "mission_bookkeeping_pathspecs",
+    "planning_branch_apart_from_status",
+    "resolve_wp_review_range",
+]
 
 logger = logging.getLogger(__name__)
 
@@ -264,6 +273,16 @@ def bookkeeping_pathspecs(mission_dir_name: str) -> tuple[str, ...]:
     and must leave out exactly what the review range leaves out.
     """
     return _bookkeeping_excludes(mission_dir_name)
+
+
+def mission_bookkeeping_pathspecs(mission_dir_name: str) -> tuple[str, ...]:
+    """The ``:(exclude)`` pathspecs of the Mission's own status files and task index only.
+
+    :func:`bookkeeping_pathspecs` also leaves out all of ``.kittify/``, which is right for counting
+    a range's commits but wrong for judging content: the bulk-edit gate must still judge a
+    ``.kittify/`` edit the occurrence map forbids (#7726), so its diff uses this narrower set.
+    """
+    return tuple(spec for spec in _bookkeeping_excludes(mission_dir_name) if spec.startswith(f"{_EXCLUDE}kitty-specs/"))
 
 
 def _listing_scope(owned_pathspecs: tuple[str, ...], bookkeeping: tuple[str, ...]) -> tuple[str, ...]:
