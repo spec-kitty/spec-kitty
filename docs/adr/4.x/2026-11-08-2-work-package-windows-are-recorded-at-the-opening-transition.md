@@ -697,6 +697,11 @@ of them a pass:
 - `BULK_EDIT_REVIEW_RANGE_EMPTY`: no commit outside Mission bookkeeping;
 - `BULK_EDIT_REVIEW_TIP_REWRITTEN`: the submitted tip is no longer on its branch.
 
+A window that holds commits but no net change (for example a forbidden edit committed and then
+reverted inside the window) passes: the gate judges what the work package would land, and an empty
+net diff lands nothing, so there is nothing for the occurrence map to refuse. `_EMPTY` refuses only a
+window with no commit outside bookkeeping, where the work package submitted no work at all.
+
 **Status moves need the local Mission branch (ruling A).** A minted `single_branch` Mission writes
 its status to its Mission branch, so a status move without that branch locally refuses
 `DESTINATION_REF_NOT_FOUND` (status routing, ADR `2026-11-06-2`, unchanged). That refusal now prints
