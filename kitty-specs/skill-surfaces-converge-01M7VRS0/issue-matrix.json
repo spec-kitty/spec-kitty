@@ -133,16 +133,16 @@
       "wp": "WP02"
     },
     "#7723": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP05 old-root leftover report (report only; opt-in removal follow-up #7758)",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "doctor: report leftover ~/.claude commands and skills when CLAUDE_CONFIG_DIR redirects the root",
+      "verdict": "in-mission",
+      "wp": "WP05"
     },
     "#7724": {
       "evidence_ref": "<link or commit>",
