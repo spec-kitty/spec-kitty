@@ -1,0 +1,96 @@
+{
+  "event_count": 30,
+  "last_event_id": "01M7XF4E873VE33KM5JXF6G22E",
+  "materialized_at": "2026-11-20T21:52:20.743082+00:00",
+  "mission_number": "264",
+  "mission_slug": "remote-only-branch-remedy-01M7X5Z5",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude::python-pedro",
+      "lane": "done",
+      "last_event_id": "01M7XF4DJ0XWPGN82TE36VBRGY",
+      "last_transition_at": "2026-11-20T21:52:20.032784+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Builder + three rewires; red-first ATDD; parity test; re-pins of 4979/5113. Tests: 225 blast radius + 32 rerun after note fix; layer/remote-contact gates 121 passed.",
+        "Cycle 1 fixes: B1 fetch names its destination (refs/remotes/<remote>/<b>); 4979 single-branch test runs the printed steps (red 24a89285, green 5415660b); N1 root shlex.quoted; N2/N3 recorded in tracer.",
+        "Cycle 2: B2 E501 split (whole-repo ruff check + format clean); N4 class docstring updated; N5 local-head worktree fallback quoted. 61 passed on the text-covering tests.",
+        "Cycle 3: B2/N4/N5 fixed; ruff check+format clean repo-wide; mypy clean (4 files); 183 passed on 7 targeted files. Issue matrix filled."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/kitty-specs/remote-only-branch-remedy-01M7X5Z5/tasks/WP01-canonical-remote-only-remedy/review-cycle-3.md",
+        "reference": "review-cycle://remote-only-branch-remedy-01M7X5Z5/WP01-canonical-remote-only-remedy/review-cycle-3.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 759,
+      "shell_pid_created_at": "1795208870.49",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude::python-pedro",
+      "lane": "done",
+      "last_event_id": "01M7XF4E873VE33KM5JXF6G22E",
+      "last_transition_at": "2026-11-20T21:52:20.743082+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Red-first test commit, then feat. Tests: WP02 blast radius + status-read/layer/remote-contact/terminology gates 419 passed 1 skipped; make test-fast 3164 passed 7 skipped; ruff check/format clean repo-wide. Two pre-existing mypy no-any-return errors in status_service.read_event_log (present on base).",
+        "Review passed. Verified: subtype caught by every except-StatusSurfaceRefUnreadable caller (no string-matched code in src); zero probes on success; single-branch-clone remedy re-run by hand (fetch+branch then board exits 0); red commit fails with ImportError on base; ADR amendment matches; mypy 2 errors pre-existing on base. Medium follow-up (non-blocking, per plan rule): a MISSION_BRANCH_REF topic branch absent locally AND on every remote is still reported as 'exists only on a remote' with a fetch step that cannot succeed; the COORD arm is protected by the DELETED probe, the topic-branch arm is not.",
+        "Reopened for dispatcher-requested fold (review MEDIUM)",
+        "Fold: MISSION_BRANCH_REF remote-only requires a remote-tracking ref; gone-everywhere keeps STATUS_SURFACE_REF_UNREADABLE (red test first). ADR amendment + changelog say so. 127 passed 1 skipped on door/CLI/matrix/next/single-door gate; ruff/format clean repo-wide; mypy clean on read_surface.",
+        "Re-review passed (cycle 3). MEDIUM fold verified: red 4d6b396b fails pre-fix (printed remote-only + 'git remote add'); fix d90b76e8 gives plain STATUS_SURFACE_REF_UNREADABLE for a topic branch gone everywhere (no remote and remote-pruned both checked); tracking-ref remote-only case still prints the remedy and the printed git branch step unblocks the read; COORD arm unchanged; NFR-001 test green; ADR/changelog match. Trade-off (LOW, non-blocking): a single-branch clone whose topic branch is on the remote but has no tracking ref now gets the plain UNREADABLE message ('ref does not resolve to a commit (missing)'), byte-identical to gone-everywhere, with no next step. Honest and no auto-fetch, so within the operator ruling; distinguishing it needs a network call. Optional follow-up: a conditional fetch hint in that message. Tests: 1067 passed, 1 skipped; ruff/format clean repo-wide; mypy clean; C901 clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/kitty-specs/remote-only-branch-remedy-01M7X5Z5/tasks/WP02-door-remote-only-refusal/review-cycle-1.md",
+        "reference": "review-cycle://remote-only-branch-remedy-01M7X5Z5/WP02-door-remote-only-refusal/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 742,
+      "shell_pid_created_at": "1795210651.25",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
+    }
+  }
+}
