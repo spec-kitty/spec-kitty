@@ -1,25 +1,31 @@
-"""Red-first reproduction of #7755 -- OPEN P0, expected to FAIL until fixed.
+"""Red-first reproduction of the diagnostic half of #7755 -- OPEN P0, expected to FAIL until fixed.
 
 A lanes Mission has two independent lanes that edit adjacent hunks of one file.
 ``consolidate`` folds lane-a into the Mission branch first; lane-b is then
 stale against the in-run Mission branch, so
 :func:`specify_cli.lanes.consolidation.consolidate_lane_into_mission` runs the
-in-run auto-rebase (``_try_auto_rebase_if_stale``). That auto-rebase conflicts
-on the file both lanes touched and halts with a reason, but the caller returns
-the original stale result and discards ``report.halt_reason``. The operator only
-sees the generic stale refusal ("Refresh it through auto-rebase ..."), never
-learns that an auto-rebase already ran and conflicted, and has no working route
-out (the rollback then removes lane-a from the Mission branch, so the named
-remedy brings in nothing).
+in-run auto-rebase (``_try_auto_rebase_if_stale``). That auto-rebase halts, but
+the caller returns the original stale result and discards ``report.halt_reason``.
+The operator only sees the generic stale refusal, never learns that an
+auto-rebase already ran and stopped, nor which sibling lane's content is the
+cause.
 
-Expected (issue "Suggested Fix"): the stale refusal surfaces the auto-rebase
-halt reason so the operator knows what must be incorporated. This test drives
-the pre-existing entry point on real git repositories and worktrees; the only
-test double is a pass-through spy that records the real auto-rebase report.
+Scope: this covers ONLY that diagnostic gap, at ``consolidate_lane_into_mission``.
+It does NOT cover the full ``consolidate`` CLI path that makes #7755 a P0 (the
+rollback restores the pre-run Mission branch, so the named remedy is a no-op and
+every re-run refuses identically); "re-run after following the remedy still
+refuses" is not covered here.
+
+The issue offers several fixes, so the assertion is fix-agnostic: the refusal
+must carry ANY of the halt reason, the sibling lane that caused the staleness,
+or a statement that the in-run auto-rebase already ran and stopped. The test
+drives the pre-existing entry point on real git repositories and worktrees; the
+only test double is a pass-through spy that records the real auto-rebase report.
 """
 
 from __future__ import annotations
 
+import re
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
@@ -90,7 +96,7 @@ def _build_mission(repo: Path) -> LanesManifest:
 
 
 @pytest.mark.p0_repro(issue=7755)
-def test_stale_refusal_surfaces_the_in_run_auto_rebase_halt_reason(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_stale_refusal_says_the_in_run_auto_rebase_already_stopped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo = tmp_path / "repo"
     manifest = _build_mission(repo)
 
@@ -116,6 +122,13 @@ def test_stale_refusal_surfaces_the_in_run_auto_rebase_halt_reason(tmp_path: Pat
     assert not reports[-1].succeeded and halt_reason, reports[-1]
 
     # Defect (#7755): the refusal drops the halt reason, so the operator never
-    # learns the auto-rebase conflicted.
+    # learns the in-run auto-rebase stopped, or which sibling lane caused it.
+    # The generic "If the auto-rebase stops on a conflict" advice and the
+    # overlapping-file list are present today and deliberately do not count.
     refusal = "\n".join(second.errors)
-    assert halt_reason in refusal, f"stale refusal does not surface the auto-rebase halt reason {halt_reason!r}; refusal was:\n{refusal}"
+    reports_halt = (
+        halt_reason in refusal
+        or "lane-a" in refusal
+        or re.search(r"auto-?rebase[^.]{0,40}\b(ran|already|stopped|halted|failed|conflicted)\b", refusal, re.IGNORECASE)
+    )
+    assert reports_halt, f"stale refusal does not say the in-run auto-rebase stopped ({halt_reason!r}) or name sibling lane-a; refusal was:\n{refusal}"
