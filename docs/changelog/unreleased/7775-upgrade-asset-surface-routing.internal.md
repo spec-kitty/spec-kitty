@@ -1,0 +1,1 @@
+- CI now runs the `upgrade` and `cli` shards for changes to the skills, tool-surface and `specify_cli/runtime` packages, and the `make_mission` parity test pins its first-commit dates (#7775, #7776).
