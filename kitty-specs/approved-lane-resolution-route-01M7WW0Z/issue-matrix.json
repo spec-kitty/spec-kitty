@@ -109,16 +109,16 @@
       "wp": null
     },
     "#7497": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Mission approved-lane-resolution-route-01M7WW0Z WP11 (red at base, fixed)",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Canceled content through a re-approved dependency lane",
+      "verdict": "in-mission",
+      "wp": "WP11"
     },
     "#7630": {
       "evidence_ref": "<link or commit>",
