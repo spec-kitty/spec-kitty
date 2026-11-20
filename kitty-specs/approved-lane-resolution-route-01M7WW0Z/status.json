@@ -142,12 +142,21 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-20T18:09:00Z – claude – shell_pid=20158 – red: uv run --frozen pytest -q -n 4 tests/lanes/test_incorporate_sibling_lane.py -> 13 failed, 1 passed at base. CLI tests fail with typer exit 2 'No such option: --incorporate'; unit tests fail ModuleNotFoundError specify_cli.lanes.incorporate. test_without_flag_implement_is_unchanged is a RATCHET, green at base by construction: golden recorded at base (normalised SHAs/ULIDs/timestamps/tmp/HOME and the claim PID, which is volatile per run), determinism precondition asserted by building the fixture twice.",
-        "- 2026-11-20T18:09:05Z – claude – shell_pid=20158 – trace(approach): fixture sends WP02 back with the real 'move-task --to in_progress --review-feedback-file' CLI instead of the in-process transition(): implement refuses a send-back whose review_ref names no readable feedback artifact, and the CLI route is exactly what the remedy prints. The two lanes are cut from one coord tip without src/pkg/shared.py, so the conflict case is an add/add conflict and the clean case touches distinct paths; both asserted with kernel merge_tree as preconditions. Fixture also records an analysis report (implement gate) and excludes .kittify/derived and .kittify/workspaces via .git/info/exclude so record-analysis sees a clean tree."
+        "- 2026-11-20T18:09:05Z – claude – shell_pid=20158 – trace(approach): fixture sends WP02 back with the real 'move-task --to in_progress --review-feedback-file' CLI instead of the in-process transition(): implement refuses a send-back whose review_ref names no readable feedback artifact, and the CLI route is exactly what the remedy prints. The two lanes are cut from one coord tip without src/pkg/shared.py, so the conflict case is an add/add conflict and the clean case touches distinct paths; both asserted with kernel merge_tree as preconditions. Fixture also records an analysis report (implement gate) and excludes .kittify/derived and .kittify/workspaces via .git/info/exclude so record-analysis sees a clean tree.",
+        "- 2026-11-20T18:42:40Z – claude – shell_pid=20158 – trace(design-decisions): (1) conflict exits INCORPORATE_CONFLICT_EXIT=3 per operator ruling 2026-11-20 (supersedes the earlier exit-0 draft); the merge is left in progress and the WP prompt is still printed before the exit. (2) merge env = lanes.consolidation._make_merge_env (the lane-merge pipeline's single env authority, already imported by lanes/auto_rebase.py) so registered merge drivers resolve to the running spec-kitty; no driver config is written. (3) new codes INCORPORATE_LANE_UNKNOWN/OWN_LANE/PLANNING_LANE/NO_APPROVAL_STAMP/STAMP_NOT_ON_LANE/WP_NOT_SENT_BACK/CHECKOUT_BUSY/PROBE_FAILED (for WP13 docs; not in contracts/refusal-codes.md). (4) --incorporate with --force refuses. (5) the stamp is re-read after the claim and before the merge; a moved stamp is used and announced. (6) a planned WP refuses WP_NOT_SENT_BACK with a claim hint instead of the move-back command.",
+        "- 2026-11-20T18:42:46Z – claude – shell_pid=20158 – trace(approach): test 1/2 parent assertion adjusted (not weakened): the canonical implement refresh (lane sync point) advances lane-b before the incorporation, so the merge's first parent is lane-b's refreshed tip (descendant of the pre-command tip, not containing the stamp) and the second parent is exactly the stamp; lane-a's live tip is asserted NOT reachable. Conflict case asserts lane-b tip == ORIG_HEAD and MERGE_HEAD == stamp. Golden ratchet unchanged after the production edit. No friction from the lane checkout sparse status exclusion (#5965) was observed.",
+        "- 2026-11-20T18:42:52Z – claude – shell_pid=20158 – green: tests/lanes/test_incorporate_sibling_lane.py 14 passed; targeted blast radius (stale remediation, auto-rebase additive, workflow cores, implement CLI tests, terminus post-approval/lifecycle closure) 181 passed; architectural gates commit_scope_owner/no_worktree_name_guess/merge_pipeline_ratchets/layer_rules/no_legacy_terminology 274 passed; make test-fast 3144 passed 7 skipped. ruff check, ruff format --check --force-exclude, mypy clean on changed files."
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 20158,
-      "shell_pid_created_at": "1795197346.57"
+      "shell_pid_created_at": "1795197346.57",
+      "subtasks": {
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
+      }
     },
     "WP09": {
       "actor": "finalize-tasks",
