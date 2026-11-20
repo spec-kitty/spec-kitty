@@ -39,9 +39,9 @@ def _sha256(data: bytes) -> str:
 
 @pytest.fixture(autouse=True)
 def _fresh_reader_cache() -> Iterator[None]:
-    historical_renders.clear_cache()
+    historical_renders._clear_cache()
     yield
-    historical_renders.clear_cache()
+    historical_renders._clear_cache()
 
 
 def test_known_historical_blob_is_proven_for_its_path() -> None:
@@ -80,7 +80,7 @@ def test_reader_fails_closed_on_missing_or_malformed_data(tmp_path: Path, monkey
         data_file.write_bytes(content)
     monkeypatch.setattr(historical_renders, "_data_bytes", lambda: data_file.read_bytes())
     assert not historical_renders.is_historical_render("spk-run-implement-review", "SKILL.md", _SHIPPED_2026_07_13)
-    assert historical_renders.historical_render_digests("spk-run-implement-review", "SKILL.md") == frozenset()
+    assert historical_renders._historical_render_digests("spk-run-implement-review", "SKILL.md") == frozenset()
 
 
 def test_generator_union_never_drops_a_digest() -> None:
