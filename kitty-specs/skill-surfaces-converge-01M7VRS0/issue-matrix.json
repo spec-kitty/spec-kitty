@@ -121,16 +121,16 @@
       "wp": "WP03"
     },
     "#7722": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP02 fixed-anchor inventory + external sidecar",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Global asset inventory anchor shifts when a user-global agent root lies outside HOME",
+      "verdict": "in-mission",
+      "wp": "WP02"
     },
     "#7723": {
       "evidence_ref": "<link or commit>",
