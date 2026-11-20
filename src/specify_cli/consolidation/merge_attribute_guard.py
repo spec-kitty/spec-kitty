@@ -38,8 +38,8 @@ from kernel.git.read_cache import Depends, cached_git_read
 from specify_cli.consolidation.git_probes import GitProbeError
 from specify_cli.git.merge_tree_probe import check_attr_source_available
 
+#: ``MergeAttributeRefused`` stays out of ``__all__`` until a src caller needs it; callers catch ``GitProbeError``.
 __all__ = [
-    "MergeAttributeRefused",
     "assert_registered_merge_behaviour",
 ]
 
