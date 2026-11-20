@@ -217,7 +217,9 @@
         "Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
         "REJECT: Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
         "- 2026-11-20T19:58:59Z – unknown – red (review cycle 1): items 1+2 reproduced at f79deb79: test_no_dead_symbols FAILED (incorporate::check_wp_may_incorporate, resolve_sibling_stamp), test_no_legacy_terminology::test_lane_consolidation_phrasing_does_not_grow_beyond_baseline FAILED ('lane-merge pipeline' comment). Items 5+7: with the new canceled check call and the abort line removed, pytest tests/lanes/test_incorporate_sibling_lane.py -k 'canceled_content_under_the_stamp or conflict_then_busy' -> 2 failed (DID NOT RAISE IncorporateRefused; abort line missing from render_outcome); green once restored.",
-        "- 2026-11-20T19:59:03Z – unknown – trace(design-decisions): review item 3 (merge-attribute guard, INCORPORATE_MERGE_ATTRIBUTES_REFUSED) is DEFERRED, not dropped: lane-h's base does not contain WP01's assert_registered_merge_behaviour; per the runner, it is proposed that WP07 (depends on WP01 and WP08) delivers it as recorded leeway. No second attribute check is implemented here."
+        "- 2026-11-20T19:59:03Z – unknown – trace(design-decisions): review item 3 (merge-attribute guard, INCORPORATE_MERGE_ATTRIBUTES_REFUSED) is DEFERRED, not dropped: lane-h's base does not contain WP01's assert_registered_merge_behaviour; per the runner, it is proposed that WP07 (depends on WP01 and WP08) delivers it as recorded leeway. No second attribute check is implemented here.",
+        "- 2026-11-20T20:25:47Z – unknown – review cycle 1 addressed in eb3fd25da7: (1) check_wp_may_incorporate/resolve_sibling_stamp made private, removed from __all__ -> test_no_dead_symbols green. (2) comment now 'lane-consolidation pipeline' -> test_no_legacy_terminology green. (3) DEFERRED to WP07 (see prior note). (4) in-process real-git + CliRunner tests: incorporate.py 100% line coverage, diff-cover vs WP08 base 100% (225 lines, 0 missing); covers CHECKOUT_BUSY (MERGE_HEAD, dirty), every PROBE_FAILED path, diverged stamps, already_present, stamp-moved print, conflict exit on the fix-prompt path, --force refusal. (5) new INCORPORATE_CANCELED_CONTENT_UNDER_STAMP: refuses when a canceled WP of the sibling lane has first-parent non-merge commits in its active windows that the stamp reaches, or an active window lacks a lane_head at either end (fail closed); real-git tests with build_coord_mission_mixed_lane_canceled (refuse) and a commitless control (pass). (6) except narrowed to (OSError, StoreError, ValueError, StatusReadPathNotFound, StatusSurfaceRefUnreadable, WorktreeRegistryUnavailable), as origin_freshness does. (7) conflict block adds 'To back out instead, run in <checkout>: git merge --abort'; the A-10 test assertion now forbids any printed 'git merge' except 'git merge --abort'.",
+        "- 2026-11-20T20:25:51Z – unknown – green (cycle 1): test_incorporate_sibling_lane.py 29 passed; targeted set 196 passed; gates no_dead_symbols/commit_scope_owner/no_worktree_name_guess/merge_pipeline_ratchets/layer_rules/no_legacy_terminology 311 passed; make test-fast 3144 passed 7 skipped; ruff/format/mypy clean."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -231,10 +233,10 @@
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
-        "T014": "planned",
-        "T015": "planned",
-        "T016": "planned",
-        "T017": "planned"
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
       }
     },
     "WP09": {
