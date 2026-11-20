@@ -167,6 +167,11 @@ def derive_build_id(project_uuid: UUID, node_id: str) -> str:
     return str(uuid5(_BUILD_ID_NAMESPACE, name))
 
 
+#: ``git remote get-url`` reads local config only; the bound keeps a wedged git
+#: from stalling the SessionStart hook, which may ask for the remote (#5215).
+_GIT_REMOTE_TIMEOUT_SECONDS = 10
+
+
 def derive_project_slug(repo_root: Path) -> str:
     """Derive project slug from git remote or directory name.
 
@@ -219,6 +224,7 @@ def slug_from_git_remote(repo_root: Path) -> str | None:
             encoding="utf-8",
             errors="replace",
             check=True,
+            timeout=_GIT_REMOTE_TIMEOUT_SECONDS,
         )
         url = result.stdout.strip()
 
@@ -234,7 +240,7 @@ def slug_from_git_remote(repo_root: Path) -> str | None:
             # SSH format: git@host:user/repo
             url = url.split(":")[-1]
 
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
         return None
     return _normalize_slug(url.split("/")[-1]) or None
 

@@ -106,7 +106,7 @@ class TestInstall:
         assert len(result.changes) == 0
 
     def test_null_writer_skipped_silently(self, tmp_path: Path) -> None:
-        """NullWriter (can_write=False) is skipped silently with no warnings."""
+        """A writer that cannot write here (no harness dir) is skipped silently with no warnings."""
         manager = _make_manager(tmp_path)
         mock_writer = MagicMock(spec=MarkdownRulesWriter)
         mock_writer.can_write.return_value = False
@@ -245,23 +245,14 @@ class TestBuildContent:
     """``_build_content`` is the committed content; live health is ``live_content`` (#5215)."""
 
     def test_project_slug_comes_from_identity_config(self, tmp_path: Path) -> None:
-        from specify_cli.compat import Decision
         from specify_cli.core.agent_config import AgentConfig
 
         kittify = tmp_path / ".kittify"
         kittify.mkdir()
         (kittify / "config.yaml").write_text("project:\n  slug: configured-project\n", encoding="utf-8")
         manager = SessionPresenceManager(tmp_path, AgentConfig(available=[]))
-        mock_plan_result = MagicMock()
-        mock_plan_result.decision = Decision.ALLOW
 
-        with (
-            patch("specify_cli.session_presence.manager.UpgradeChecker") as checker_cls,
-            patch("importlib.metadata.version", return_value="3.2.0"),
-            patch("specify_cli.compat.plan", return_value=mock_plan_result),
-        ):
-            checker_cls.return_value.get_available_version.return_value = None
-            content = manager._build_content()
+        content = manager._build_content()
 
         assert content.project_slug == "configured-project"
 

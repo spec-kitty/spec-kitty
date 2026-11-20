@@ -179,3 +179,28 @@ class TestHandEditedBlockPreserved:
         assert _probe(root) == STATE_PRESENT
         _upgrade_repair(root)
         assert _block(root) == edited
+
+
+def test_probe_spawns_at_most_one_git_without_a_recorded_slug(tmp_path: Path) -> None:
+    """NFR-003: probing a surface costs at most one ``git`` call, and none with a recorded slug."""
+    import subprocess
+
+    root = _project(tmp_path, _wrong_slug_block())
+    config = root / ".kittify" / "config.yaml"
+    real_run = subprocess.run
+    git_calls: list[object] = []
+
+    def counting_run(args: object, *a: object, **kw: object) -> object:
+        if isinstance(args, (list, tuple)) and args and args[0] == "git":
+            git_calls.append(args)
+        return real_run(args, *a, **kw)  # type: ignore[call-overload]  # transparent spy
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(subprocess, "run", counting_run)
+        _probe(root)
+        assert git_calls == []
+
+        config.write_text("agents:\n  available:\n  - claude\n", encoding="utf-8")
+        real_run(["git", "init", "-q"], cwd=root, check=True, capture_output=True)
+        _probe(root)
+    assert len(git_calls) == 1
