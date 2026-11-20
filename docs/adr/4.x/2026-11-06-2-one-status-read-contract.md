@@ -447,3 +447,28 @@ has just materialized is not missing. It is a dispatch rule, not a read rule; th
 refuses for it. The code is raised by `mission_runtime.resolution._resolve_status_surface_dir_owned`
 (an empty owned coordination worktree) and mapped to the typed `blocked` decision by
 `runtime.next.runtime_bridge._owned_coordination_unavailable_decision`.
+
+## Amendment 2026-11-20: a remote-only branch is a typed refusal (#5287)
+
+The ref reader rule above gains one case. When a ref-sourced read (`COORD_BRANCH_REF` or
+`MISSION_BRANCH_REF`) fails and the branch has no local head (`refs/heads/<branch>` does not
+resolve), the door raises `StatusSurfaceRefRemoteOnly` (`STATUS_SURFACE_REF_REMOTE_ONLY`). It is a
+subtype of `StatusSurfaceRefUnreadable`, so every caller that handles an unreadable ref handles it
+and relays its own code. Its message carries the canonical remote-only remedy from
+`mission_runtime.coord_remedy`: fetch the branch from the remote that owns it (only when this clone
+lacks the remote-tracking ref), create the local branch, then run `spec-kitty doctor coordination
+--mission <slug> --fix` (or re-run the command, for a Mission topic branch).
+
+- The classification runs only after a failed read, so a readable ref costs no extra subprocess
+  (NFR-001 unchanged).
+- A local ref that names a missing object still resolves and keeps `STATUS_SURFACE_REF_UNREADABLE`.
+- For `MISSION_BRANCH_REF` no earlier probe has shown that a remote holds the topic branch, so the
+  refusal is remote-only only when this clone holds a remote-tracking ref for it; a topic branch
+  gone everywhere keeps `STATUS_SURFACE_REF_UNREADABLE`. For `COORD_BRANCH_REF` the coordination
+  probe has already found the branch before the read.
+- A coordination branch the probe classifies as deleted keeps raising `CoordinationBranchDeleted`.
+- The door still never reads a remote-tracking ref as a status source: one declared source per
+  cell, no fallback. A remote-tracking read source, if wanted, belongs to #7408 under its own
+  amendment.
+- Composing the remedy contacts no remote: it reads git configuration and local refs only (ADR
+  `2026-10-06-3`).
