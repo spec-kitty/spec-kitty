@@ -54,7 +54,13 @@ from ._diagnostics import MissionReviewDiagnostic  # noqa: F401
 from ._issue_matrix import validate_issue_matrix  # noqa: F401
 from ._lane_gate import check_wp_lanes  # noqa: F401
 from ._mode import MissionReviewMode, ModeMismatchError, resolve_mode  # noqa: F401
-from ._report import GateRecord, write_review_report  # noqa: F401
+from ._report import (  # noqa: F401
+    GateRecord,
+    ReportPathOccupiedError,
+    ensure_report_path_writable,
+    refuse_occupied_report_path,
+    write_review_report,
+)
 
 
 def _warn_missing_test_extra(console: object) -> None:
@@ -406,8 +412,10 @@ def review_mission(
     """Validate a merged mission: WP lane check, dead-code scan, BLE001 audit.
 
     Writes kitty-specs/<slug>/mission-review-report.md with a machine-readable
-    verdict.  See module docstring for known false-positive scenarios in the
-    dead-code scan step.
+    verdict. A previous machine report there is replaced; any other file there
+    (an agent-written review, say) is left alone and the command refuses with
+    MISSION_REVIEW_REPORT_PATH_OCCUPIED.  See module docstring for known
+    false-positive scenarios in the dead-code scan step.
     """
     from specify_cli.cli.console import console
 
@@ -422,6 +430,12 @@ def review_mission(
     resolved = resolve_mission_handle(handle, repo_root)
     feature_dir = resolved.feature_dir
     mission_slug = resolved.mission_slug
+    # #7753: refuse before any gate runs when the report path holds a file
+    # this command did not write (write_review_report re-checks at write time).
+    try:
+        ensure_report_path_writable(feature_dir)
+    except ReportPathOccupiedError as exc:
+        refuse_occupied_report_path(exc, repo_root, console)
     meta = load_meta_or_empty(feature_dir)
     friendly_name: str = str(meta.get("friendly_name") or mission_slug)
     _bmc_raw = meta.get("baseline_merge_commit")
