@@ -86,7 +86,7 @@ src/specify_cli/
 │   ├── stale_check.py           # FR-001/002/003: approved-lane remedy, halt reason, siblings
 │   ├── consolidation.py         # consolidate_lane_into_mission: approved_wp_ids + halt report plumbing
 │   ├── auto_rebase.py           # FR-005: write the auto-rebase record on every merge it makes
-│   └── lifecycle_sync.py        # FR-001 (R-01 option b): sibling incorporation at the sync point
+│   └── incorporate.py           # FR-001 (R-01 option b): sibling incorporation (new), called from the implement command
 ├── consolidation/
 │   ├── approved_bound.py        # FR-004: unreviewed_resolution_merges + RESOLUTION_MERGE_UNREVIEWED
 │   ├── reconciliation_authorship.py  # shared unreviewed-merge predicate (extract; C-003)
