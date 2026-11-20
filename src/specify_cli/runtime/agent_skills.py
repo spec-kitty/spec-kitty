@@ -85,6 +85,12 @@ def _discover_registry() -> SkillRegistry | None:
     return resolve_builtin_skill_catalog()
 
 
+def global_skill_names() -> frozenset[str]:
+    """Names of the skills Spec Kitty ships into the user-global roots (built-in only; empty when unavailable)."""
+    registry = _discover_registry()
+    return frozenset(skill.name for skill in registry.discover_skills()) if registry is not None else frozenset()
+
+
 def _unique_global_roots(agent_keys: tuple[str, ...] | None = None) -> list[Path]:
     roots: list[Path] = []
     seen: set[Path] = set()
@@ -219,8 +225,7 @@ def kept_global_skill_files(
     which is what an unselected assessment used; pass the assessment's own when it had a selection.
     """
     if canonical is None:
-        registry = _discover_registry()
-        canonical = {skill.name for skill in registry.discover_skills()} if registry is not None else set()
+        canonical = global_skill_names()
     roots = _unique_global_roots() if skill_roots is None else list(skill_roots)
     return _classify_kept(assessment.dispositions, assessment.root.path, roots, canonical)
 

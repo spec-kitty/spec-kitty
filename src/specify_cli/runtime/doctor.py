@@ -477,15 +477,14 @@ def _command_proof(existing: bytes, desired: bytes) -> str | None:
 
 
 def _skill_leftovers(agent: str, mirror: Path) -> list[LeftoverFile]:
-    from specify_cli.skills.catalog import resolve_builtin_skill_catalog
+    from specify_cli.runtime.agent_skills import global_skill_names
     from specify_cli.skills.paths import get_primary_global_skill_root
     from specify_cli.skills.retired import RETIRED_CANONICAL_SKILL_NAMES
 
     if not _moved_mirror(mirror, get_primary_global_skill_root(agent)):
         return []
-    registry = resolve_builtin_skill_catalog()
-    names = {skill.name for skill in registry.discover_skills()} if registry is not None else set()
-    names |= set(RETIRED_CANONICAL_SKILL_NAMES)
+    # The user-global skill owner names the shipped skills (built-in only, as for every global root).
+    names = set(global_skill_names()) | set(RETIRED_CANONICAL_SKILL_NAMES)
     recorded = _recorded_file_digests("global_skills")
     found: list[LeftoverFile] = []
     for skill_dir in sorted(mirror.iterdir()):
