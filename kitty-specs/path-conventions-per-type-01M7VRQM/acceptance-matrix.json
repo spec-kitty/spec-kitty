@@ -48,10 +48,10 @@
       "criterion_id": "FR-005",
       "description": "Verify FR-005 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "lane-a 6cf1e193 tests/specify_cli/config/test_path_conventions_reader.py (42 passed) (pre-existing flat tests unmodified)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:21:29.903593+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
