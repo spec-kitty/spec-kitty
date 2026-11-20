@@ -200,91 +200,103 @@ def global_asset_root(owner: str, paths: tuple[Path, ...]) -> OperationRoot:
     return OperationRoot(owner, "global", anchor)
 
 
-#: Global asset inventory schemas (#7722). Schema 1 keyed entries relative to the
-#: reporting anchor, which moves when a user-global root resolves outside $HOME.
-#: Schema 2 keys an entry under $HOME as ``~/<path>`` and any other entry by its
-#: absolute POSIX path: no root move changes a key, and a home-relative record
-#: stays byte-identical across equivalent homes.
-_LEGACY_INVENTORY_SCHEMA = 1
-_INVENTORY_SCHEMA = 2
-_INVENTORY_SCHEMAS = (_LEGACY_INVENTORY_SCHEMA, _INVENTORY_SCHEMA)
-_HOME_KEY_PREFIX = "~/"
+#: Global asset inventory layout (#7722).
+#:
+#: Releases before #7722 keyed ``<owner>-assets.json`` relative to the reporting
+#: anchor ``commonpath(home, *roots).parent``, which moves when a user-global root
+#: resolves outside ``$HOME``, so every record stopped resolving. This build keeps
+#: the same file and ``schema_version`` 1 (older CLIs accept only that, and ignore
+#: unknown top-level keys) but always keys it relative to the fixed anchor
+#: ``home.parent`` and marks that with ``"anchor": "home-parent"``. Entries outside
+#: ``home.parent`` (a root moved away from home) go to the sidecar
+#: ``<owner>-external-assets.json`` with absolute keys, which older CLIs never read:
+#: for them those files are unproven and kept, never an error.
+_INVENTORY_SCHEMA = 1
+_ANCHOR_KEY = "anchor"
+_HOME_PARENT_ANCHOR = "home-parent"
+_ABSOLUTE_ANCHOR = "absolute"
+_UNCONFINED_ENTRY = "Unconfined global asset inventory entry"
 
 
-def _inventory_key(path: Path) -> str:
-    """The schema-2 key of an absolute *path*."""
-    home = _normalized(Path.home())
-    try:
-        return _HOME_KEY_PREFIX + path.relative_to(home).as_posix()
-    except ValueError:
-        return path.as_posix()
+def _home_parent() -> Path:
+    return _normalized(Path.home()).parent
 
 
-def _key_path(key: str) -> Path:
-    """The absolute path a schema-2 *key* names."""
-    if key.startswith(_HOME_KEY_PREFIX):
-        return _normalized(Path.home()) / key[len(_HOME_KEY_PREFIX) :]
-    return Path(key)
-
-
-def _validate_inventory_entry(key: object, record: object) -> None:
-    """A ``~/``-relative or absolute normalized POSIX key and a well-formed ``FileState`` record."""
-    if not isinstance(key, str) or not isinstance(record, dict):
+def _check_record(record: object) -> dict[str, object]:
+    if not isinstance(record, dict):
         raise ValueError("Invalid global asset inventory entry")
-    body = key[len(_HOME_KEY_PREFIX) :] if key.startswith(_HOME_KEY_PREFIX) else key
-    absolute = key.startswith(_HOME_KEY_PREFIX) or Path(key).is_absolute()
-    if "\\" in key or not body or not absolute or any(part in {".", ".."} for part in body.split("/")):
-        raise ValueError("Unconfined global asset inventory entry")
     try:
         FileState(**record)
     except TypeError as exc:
         raise ValueError("Invalid global asset inventory state") from exc
+    return record
 
 
-def _anchor_relative(key: str, anchor: Path) -> str | None:
-    """The path *key* names, relative to *anchor* (the in-memory form), or ``None`` when outside it."""
-    try:
-        return _key_path(key).relative_to(anchor).as_posix()
-    except ValueError:
-        return None
+def _check_relative_key(key: object) -> str:
+    """The same confinement every earlier release enforced on a relative key."""
+    if not isinstance(key, str) or Path(key).is_absolute() or "\\" in key or ":" in key or any(part in {"", "..", "."} for part in key.split("/")):
+        raise ValueError(_UNCONFINED_ENTRY)
+    return key
 
 
-def _legacy_anchor_candidates(anchor: Path) -> list[Path]:
-    """Anchors a schema-1 inventory may have been written under, most likely first.
+def _check_absolute_key(key: object) -> Path:
+    if not isinstance(key, str) or "\\" in key or not Path(key).is_absolute():
+        raise ValueError(_UNCONFINED_ENTRY)
+    body = key.split("/")[1:]
+    if not body or any(part in {"", "..", "."} for part in body):
+        raise ValueError(_UNCONFINED_ENTRY)
+    return Path(key)
 
-    Every release before #7722 anchored on ``commonpath(home, *roots).parent``: with
-    all roots under ``$HOME`` that is ``home.parent``; with a root outside, an
-    ancestor of it. The current anchor is tried last.
+
+def _legacy_candidates() -> list[Path]:
+    """Anchors a pre-#7722 inventory may have been written under, deepest first."""
+    return list(_normalized(Path.home()).parents)
+
+
+def _place_legacy_key(relative: str, candidates: list[Path], confinement: tuple[Path, ...]) -> Path | None:
+    """The path a pre-#7722 key named, or ``None`` when it cannot be placed.
+
+    A key is placed under the deepest candidate anchor where its node exists and
+    the result lies inside ``$HOME`` or the kittify home; otherwise under
+    ``home.parent`` when that lands inside ``$HOME``. Anything else is dropped
+    from proof, never guessed.
     """
-    candidates = list(_normalized(Path.home()).parents)
-    return candidates if anchor in candidates else [*candidates, anchor]
-
-
-def _place_legacy_key(relative: str, candidates: list[Path]) -> Path | None:
-    """The absolute path a schema-1 key named, or ``None`` when it cannot be placed.
-
-    A key whose node exists under a candidate is placed there (deepest anchor
-    first). Otherwise it is placed under ``home.parent`` only when that lands
-    inside ``$HOME``; anything else is dropped from proof, never guessed.
-    """
-    if not isinstance(relative, str) or "\\" in relative or Path(relative).is_absolute() or any(part in {"", ".", ".."} for part in relative.split("/")):
-        raise ValueError("Unconfined global asset inventory entry")
     for candidate in candidates:
-        if os.path.lexists(candidate / relative):
-            return candidate / relative
+        placed = candidate / relative
+        if os.path.lexists(placed) and any(root in placed.parents for root in confinement):
+            return placed
     default = candidates[0] / relative
-    return default if _normalized(Path.home()) in default.parents else None
+    return default if confinement[0] in default.parents else None
 
 
-def _migrate_legacy_entries(entries: dict[str, object], anchor: Path) -> dict[str, object]:
-    """Re-key a schema-1 inventory by absolute path, once (#7722)."""
-    candidates = _legacy_anchor_candidates(anchor)
-    migrated: dict[str, object] = {}
-    for relative, record in entries.items():
-        placed = _place_legacy_key(relative, candidates)
+def _confinement() -> tuple[Path, ...]:
+    from specify_cli.runtime.home import get_kittify_home
+
+    return (_normalized(Path.home()), _normalized(get_kittify_home()))
+
+
+def _read_inventory(payload: object, path: Path) -> dict[Path, dict[str, object]]:
+    """Absolute path -> record for one inventory file (main or sidecar)."""
+    if not isinstance(payload, dict) or payload.get("schema_version") != _INVENTORY_SCHEMA or not isinstance(payload.get("entries"), dict):
+        raise ValueError(f"Invalid global asset inventory: {path}")
+    anchor = payload.get(_ANCHOR_KEY)
+    entries: dict[Path, dict[str, object]] = {}
+    if anchor == _ABSOLUTE_ANCHOR:
+        for key, record in payload["entries"].items():
+            entries[_check_absolute_key(key)] = _check_record(record)
+        return entries
+    candidates = [_home_parent()] if anchor == _HOME_PARENT_ANCHOR else _legacy_candidates()
+    confinement = _confinement()
+    for key, record in payload["entries"].items():
+        placed = _place_legacy_key(_check_relative_key(key), candidates, confinement)
         if placed is not None:
-            migrated[_inventory_key(placed)] = record
-    return migrated
+            entries[placed] = _check_record(record)
+    return entries
+
+
+def _serialize_inventory(entries: dict[str, dict[str, object]], anchor: str) -> bytes:
+    payload = {"schema_version": _INVENTORY_SCHEMA, _ANCHOR_KEY: anchor, "entries": entries}
+    return (json.dumps(payload, sort_keys=True, indent=2) + "\n").encode()
 
 
 def _observation(path: Path, state: FileState, children: tuple[str, ...] | None = None, role: ObservationRole = "destination_probe") -> AssetObservation:
@@ -319,28 +331,26 @@ class AssetPreparation:
         self.selected: set[Path] = set()
         self.temporary_paths: set[Path] = set()
         self.environment = tuple((name, os.environ.get(name)) for name in _SOURCE_ENV)
-        # #7722: entries outside this run's anchor (a root that moved) are carried through verbatim.
-        self._foreign_entries: dict[str, dict[str, object]] = {}
-        self._rewrite_inventory = False
-        state = self.observe(self.inventory, role="destination_probe")
-        if state.kind == "file":
-            payload = json.loads(self.inventory.read_bytes())
-            if not isinstance(payload, dict) or payload.get("schema_version") not in _INVENTORY_SCHEMAS or not isinstance(payload.get("entries"), dict):
-                raise ValueError(f"Invalid global asset inventory: {self.inventory}")
-            entries = payload["entries"]
-            if payload["schema_version"] == _LEGACY_INVENTORY_SCHEMA:
-                self._rewrite_inventory = True
-                entries = _migrate_legacy_entries(entries, self.root.path)
-            for key, record in entries.items():
-                _validate_inventory_entry(key, record)
-                relative = _anchor_relative(key, self.root.path)
-                if relative is None:
-                    self._foreign_entries[key] = record
-                else:
-                    self.previous[relative] = record
-            self.entries = dict(self.previous)
-        elif state.kind != "absent":
-            raise ValueError(f"Global inventory is not a regular file: {self.inventory}")
+        # #7722: every known record by absolute path; the anchor-relative view is ``previous``.
+        self.external_inventory = cache / f"{owner}-external-assets.json"
+        self._known: dict[Path, dict[str, object]] = {}
+        self._inventory_bytes: dict[Path, bytes | None] = {}
+        for inventory in (self.inventory, self.external_inventory):
+            state = self.observe(inventory, role="destination_probe")
+            if state.kind == "file":
+                data = inventory.read_bytes()
+                self._inventory_bytes[inventory] = data
+                self._known.update(_read_inventory(json.loads(data), inventory))
+            elif state.kind == "absent":
+                self._inventory_bytes[inventory] = None
+            else:
+                raise ValueError(f"Global inventory is not a regular file: {inventory}")
+        for path, record in self._known.items():
+            try:
+                self.previous[path.relative_to(self.root.path).as_posix()] = record
+            except ValueError:
+                continue  # Outside this run's anchor: carried through unchanged by finish().
+        self.entries = dict(self.previous)
 
     def observe(self, path: Path, *, members: bool = False, role: ObservationRole = "source_read", read_content: bool = True) -> FileState:
         """Observe ancestry before opening a node; reject escaping parents.
@@ -604,13 +614,30 @@ class AssetPreparation:
             else:
                 raise ValueError(f"Unsupported source asset kind: {child}")
 
+    def _stage_inventories(self) -> None:
+        """Write each inventory file whose bytes change (#7722); never touch an unchanged one.
+
+        Records outside this run's anchor are carried through unchanged; nothing
+        prunes them, since this run cannot observe their paths.
+        """
+        known = {path: record for path, record in self._known.items() if self.root.path not in path.parents}
+        known.update({self.root.path / relative: record for relative, record in self.entries.items()})
+        home_parent = _home_parent()
+        main = {path.relative_to(home_parent).as_posix(): record for path, record in known.items() if home_parent in path.parents}
+        external = {path.as_posix(): record for path, record in known.items() if home_parent not in path.parents}
+        for inventory, entries, anchor in ((self.inventory, main, _HOME_PARENT_ANCHOR), (self.external_inventory, external, _ABSOLUTE_ANCHOR)):
+            current = self._inventory_bytes.get(inventory)
+            if current is None and not entries:
+                continue
+            data = _serialize_inventory(entries, anchor)
+            if data != current:
+                self.parents(inventory)
+                proof = OwnershipProof("managed_path", f"{self.owner}:inventory")
+                self._effect(inventory, FileState("file", sha256=digest(data), mode=0o644), data, proof)
+
     def finish(self, version_path: Path | None, version: str) -> OwnerAssessment:
         """Retain supporting inventory/stamp bytes; never refresh equal content."""
-        if self.entries != self.previous or self._rewrite_inventory:
-            keyed = {_inventory_key(self.root.path / relative): record for relative, record in self.entries.items()}
-            data = (json.dumps({"schema_version": _INVENTORY_SCHEMA, "entries": {**self._foreign_entries, **keyed}}, sort_keys=True, indent=2) + "\n").encode()
-            self.parents(self.inventory)
-            self._effect(self.inventory, FileState("file", sha256=digest(data), mode=0o644), data, OwnershipProof("managed_path", f"{self.owner}:inventory"))
+        self._stage_inventories()
         if version_path is not None:
             self.parents(version_path)
             data = version.encode()
