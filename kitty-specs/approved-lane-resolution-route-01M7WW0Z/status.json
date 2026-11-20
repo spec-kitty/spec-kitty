@@ -52,12 +52,21 @@
       "notes": [
         "- 2026-11-20T18:04:07Z – claude – shell_pid=25208 – T006 red: uv run --frozen pytest -q tests/lanes/test_auto_rebase_record.py -> 24 failed, 2 passed. Writer tests fail on assertions (clean/auto-resolved: _ref_value(...auto-rebase/<lane>/<head>) is None; report tests: AttributeError no merge_sha); reader/cleanup tests ImportError (module absent). Controls green at HEAD: test_halted_auto_rebase_records_nothing, test_already_up_to_date_records_nothing. Record-failure test 6 is ImportError at HEAD (it patches the new module); its assertion red is shown after T007.",
         "- 2026-11-20T18:04:44Z – claude – shell_pid=25208 – T007 green (module only): reader/validation tests green (13 passed). Test 6 now red on its assertion: test_record_write_failure_halts_and_leaves_no_unrecorded_merge[clean|auto_resolved] -> 'assert True is False' (report.succeeded) since the writer is not wired. Writer tests 1-3, two-rebases and is_recorded_only_for_exact_sha still red (no ref written / no merge_sha).",
-        "- 2026-11-20T18:05:39Z – claude – shell_pid=25208 – T008 green: uv run --frozen pytest -q tests/lanes/test_auto_rebase_record.py -> 24 passed, 2 failed; the 2 are T009 red: test_cleanup_removes_the_lane_s_records / test_guarded_cleanup_removes_the_lane_s_records ('assert [refs/spec-kitty/auto-rebase/<lane>/...] == []', records left after the branch delete). Kept-lane and missing-branch cleanup tests are controls (green before and after)."
+        "- 2026-11-20T18:05:39Z – claude – shell_pid=25208 – T008 green: uv run --frozen pytest -q tests/lanes/test_auto_rebase_record.py -> 24 passed, 2 failed; the 2 are T009 red: test_cleanup_removes_the_lane_s_records / test_guarded_cleanup_removes_the_lane_s_records ('assert [refs/spec-kitty/auto-rebase/<lane>/...] == []', records left after the branch delete). Kept-lane and missing-branch cleanup tests are controls (green before and after).",
+        "- 2026-11-20T18:30:44Z – claude – shell_pid=25208 – T009 green + gates: tests/lanes/test_auto_rebase_record.py 32 passed; targeted (auto_rebase additive/managed/target_owned, lane_tip, lane_tip_record_points, integration lane_lifecycle_sync, lane_cleanup 6736/module/kept_report/guard_binding, architectural merge_pipeline_ratchets/destructive_op_routing/git_path_listing_owner/layer_rules) 371 passed; make test-fast 3144 passed, 7 skipped. ruff check, ruff format --check --force-exclude, mypy (3 src files) clean; C901 clean. C-002 grep on reconciliation_verifier/closed_world empty. Commit de38bfcd.",
+        "- 2026-11-20T18:30:52Z – claude – shell_pid=25208 – trace(design-decisions): (1) durable SHA-keyed ref, not lane_rebase_moves (R-03): the run-state record is cleared by re-baselines/clean runs, a ref outlives them and cannot be forged by a message or parent shape (both negative controls tested). (2) record failure undoes the merge via guarded_reset_hard to the pre-merge tip and re-records the lane tip; a refused undo leaves the merge and says it will be judged as a hand merge (fail closed). A HEAD whose parents are not [before, mission_before] is halted and left unrecorded, never reset (it may not be ours). (3) is_recorded/delete take lane_branch because the ref embeds it; is_recorded raises on any git failure AND on a ref naming another commit (literal contract), record() maps that to False. (4) records deleted only after a confirmed branch delete in MainTodayRemover._delete_branch and GuardedLaneRemover.remove; delete failures/listing failures are debug-logged, BookkeepingRefError not caught. (5) leeway: SHA validation accepts 40 or 64 hex (SHA-256 repos) so a valid merge in such a repo never raises ValueError mid auto-rebase; the WP said 40. (6) the clean path was extracted into _conclude_clean_merge to keep attempt_auto_rebase under complexity 15.",
+        "- 2026-11-20T18:31:00Z – claude – shell_pid=25208 – trace(tooling-friction): 'spec-kitty agent action implement WP02 ...' first failed with STATUS_LOCK_HELD (status lock held by another writer, pid 20152); retried after ~20s and it claimed. It warned the claim recorded no profile; handoff uses --agent claude::python-pedro. auto_rebase.py is on the ruff-format ratchet (format --check without --force-exclude flags it; with it, clean)."
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 25208,
-      "shell_pid_created_at": "1795197387.0"
+      "shell_pid_created_at": "1795197387.0",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
     },
     "WP03": {
       "actor": "finalize-tasks",
