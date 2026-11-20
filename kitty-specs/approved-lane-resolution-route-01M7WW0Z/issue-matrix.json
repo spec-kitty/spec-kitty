@@ -169,15 +169,15 @@
       "wp": "WP07"
     },
     "#7766": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Context only: filed from this Mission's squad; out of scope (C-005); only the refusal hint is suppressed here",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "title": "--dependency-ref laundering via post-approval merge",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7767": {
