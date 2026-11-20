@@ -20,7 +20,7 @@
   "work_packages": {
     "WP01": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -33,6 +33,7 @@
         "Red-first repro extended (runner + pulled clone), fix committed; targeted tests, owning dirs, named gates and make test-fast green"
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/kitty-specs/codex-home-gitignore-7729-01M7X1HA/tasks/WP01-codex-home-protection/review-cycle-1.md",
         "reference": "review-cycle://codex-home-gitignore-7729-01M7X1HA/WP01-codex-home-protection/review-cycle-1.md",
@@ -40,17 +41,17 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 1227,
-      "shell_pid_created_at": "1795203734.41",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done",
-        "T005": "done",
-        "T006": "done",
-        "T007": "done",
-        "T008": "done"
+        "T001": "planned",
+        "T002": "planned",
+        "T003": "planned",
+        "T004": "planned",
+        "T005": "planned",
+        "T006": "planned",
+        "T007": "planned",
+        "T008": "planned"
       }
     }
   }
