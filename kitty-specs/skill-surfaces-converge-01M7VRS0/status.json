@@ -144,7 +144,7 @@
     },
     "WP07": {
       "actor": "claude",
-      "agent": "claude::python-pedro",
+      "agent": "claude::reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
@@ -154,7 +154,8 @@
       "last_transition_at": "2026-11-20T08:59:13.004515+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Rename to spk-start-first-mission; old id retired; digest list regenerated (out-of-map, WP01-owned JSON)"
+        "Rename to spk-start-first-mission; old id retired; digest list regenerated (out-of-map, WP01-owned JSON)",
+        "Review passed (independent reviewer, head fb15c0506d). Red 8d0e9d0244 (4 failed on pre-rename sources, verified) -> 881df603ce rename (git mv, frontmatter name + heading), old id added to RETIRED_CANONICAL_SKILL_NAMES and to EVER_SHIPPED removed-list; spk-start-here 'New Mission'; skill map, skills README, docs/api/skills repointed. SC-004: git grep spk-start-first-feature -- src docs hits only retired.py, the frozen digest JSON and changelog text (occurrence-map exceptions). fb15c0506d regenerates historical_skill_renders.json (WP01-owned, prompt-sanctioned out-of-map edit); --check exit 0. Targeted: rename + retired completeness + historical renders + spk skill pack + terminology guard 133 passed. Note: the 'Start First Feature' prose heading in solo-developer-workflow.md is outside the skill-id scope (left as is)."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
