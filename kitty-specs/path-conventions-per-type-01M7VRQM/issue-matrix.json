@@ -1,7 +1,7 @@
 {
   "rows": {
     "#2330": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for item 1 context only; the per-type remap is tracked by #7748; #2330 stays open for its other items.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,11 +9,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#2744": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited as the deferred layout auto-detection follow-on; out of scope.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,11 +21,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#3783": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for the blocking-policy and remedy-ordering contract this Mission keeps.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -33,11 +33,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7512": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for the no-mkdir-for-remappable-paths rule this Mission keeps.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,32 +45,32 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7566": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP02 remedy text; WP03/WP04 narrow waivers",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "accept: software-dev path convention blocks content repositories; --lenient is the only, too-coarse escape",
+      "verdict": "in-mission",
+      "wp": "WP02"
     },
     "#7748": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP01 per-type reader; WP02 seam resolution",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "path_conventions: support per-mission-type overrides",
+      "verdict": "in-mission",
+      "wp": "WP01"
     }
   },
   "schema_version": 1
