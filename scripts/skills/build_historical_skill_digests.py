@@ -41,8 +41,17 @@ def _sha256(data: bytes) -> str:
     return str(digest(data))  # the digest the install surfaces record (FileState.sha256)
 
 
+#: sha256 of zero bytes: an empty file (a ``.gitkeep``) is no proof of authorship, so it is never recorded.
+EMPTY_DIGEST = _sha256(b"")
+
+
 def digests_for(relative: str, data: bytes, skill_name: str) -> set[str]:
-    """Digests one shipped file version contributes: raw, plus projections for ``SKILL.md``."""
+    """Digests one shipped file version contributes: raw, plus projections for ``SKILL.md``.
+
+    A zero-length version contributes nothing: an empty file proves no authorship.
+    """
+    if not data:
+        return set()
     digests = {_sha256(data)}
     if relative == SKILL_FILENAME:
         for shared in (True, False):
@@ -54,11 +63,12 @@ def digests_for(relative: str, data: bytes, skill_name: str) -> set[str]:
 
 
 def merge_renders(existing: Mapping[str, Iterable[str]], new: Mapping[str, Iterable[str]]) -> dict[str, list[str]]:
-    """Union two render maps; never drops a digest."""
+    """Union two render maps; never drops a digest except the empty-file one, which proves nothing."""
     merged: dict[str, set[str]] = {key: set(values) for key, values in existing.items()}
     for key, values in new.items():
         merged.setdefault(key, set()).update(values)
-    return {key: sorted(values) for key, values in sorted(merged.items())}
+    cleaned = {key: values - {EMPTY_DIGEST} for key, values in merged.items()}
+    return {key: sorted(values) for key, values in sorted(cleaned.items()) if values}
 
 
 def _split(path: str) -> tuple[str, str] | None:
