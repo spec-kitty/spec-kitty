@@ -58,10 +58,10 @@
       "criterion_id": "FR-006",
       "description": "Verify FR-006 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "API --to planned sends status.planned_claim_release_delta; test_transition_to_planned_releases_the_claim_and_keeps_the_implementer_of_record, test_after_an_api_rollback_host_implement_claims_unforced",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T23:02:56.024270+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
