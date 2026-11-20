@@ -240,6 +240,14 @@ Implement command: `spec-kitty agent action implement WP07 --agent claude --miss
   4. Assert: the send-back exits 0; `implement --incorporate` exits 0 and leaves a merge (or a conflict to resolve, per WP08's chosen exit behaviour); `for_review` exits 0; none of the outputs contains "approved" refusal wording (for example `cannot claim`, `is already in lane: approved`, `--force`) for the approved WP. The review and the final consolidate belong to WP12; stop after `for_review` here.
 - **Notes**: mark `pytest.mark.integration`, `pytest.mark.git_repo`. Use `monkeypatch.delenv` for `SPEC_KITTY_NO_NAG`, `SPEC_KITTY_NON_INTERACTIVE` if the CLI behaves differently under them (CLAUDE.md gotcha 5).
 
+## Binding DoD item: incorporate merge-attribute guard (WP08 review item 3, moved here as recorded leeway)
+
+Accepted by the reviewer on 2026-11-20. It is a blocking check in WP07's review and in the final aggregate review.
+- WP07's lane contains both WP01's guard and WP08's `src/specify_cli/lanes/incorporate.py`. Edit `incorporate.py` as recorded leeway, with a one-line rationale in history.
+- Before `--incorporate` merges, call WP01's `assert_registered_merge_behaviour(repo, <paths changed among HEAD, the sibling stamp and their merge-base>, attributes_source=<pre-run target tip>)` through the SAME shared pinned-config helper WP01 cycle 2 adds (merge.renormalize / filter / directoryRenames pinning or refusal). Do not add a second check.
+- On `GitProbeError`, refuse with a new named code, `INCORPORATE_MERGE_ATTRIBUTES_REFUSED`, before any merge. Exit 1, like the other refusals.
+- Red first: a real-git test where the lane commits `*.py merge=union` and the sibling stamp conflicts on a `.py` file. Today the merge exits 0 with content neither side wrote. After the fix it refuses with the new code, and nothing is merged.
+
 ## Test Strategy
 
 Red first (NFR-004). Commands (targeted files only, no directory sweeps):

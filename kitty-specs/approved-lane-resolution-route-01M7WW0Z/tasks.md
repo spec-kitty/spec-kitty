@@ -187,6 +187,8 @@ T026 Forecast: the `--dry-run` cell reports `CLAIM_REFUSED_FORECAST` naming the 
 T027 FR-012: replace the early returns in `test_dependency_merge_attribution_7307.py` with pinned codes, and keep a gate-level assertion with the claim check bypassed (WP05)
 T028 Convert the strict xfail in `test_approved_bound_residuals.py` (the post-approval merge shape) to assert the new code (WP05)
 
+Binding addendum for WP05 (orchestrator ruling 2026-11-20): a recorded auto-rebase merge is exempt only when the FR-010 guard passes with the committed-tree rule. `is_recorded` raising is a refusal, and a missing `unreviewed_merges` entry means re-probe or refuse. Add a defence-in-depth test that a forged record ref cannot land content. Re-adding the consumed WP02/WP04 symbols to `__all__` is recorded leeway (see the WP05 prompt).
+
 ### Dependencies
 
 - WP01 (guarded probe)
@@ -235,6 +237,8 @@ T033 `StaleCheckResult`: `halt_reason`, `conflicted_paths`, `sibling_lanes`. Add
 T034 `lanes/consolidation.py`: return the `AutoRebaseReport` instead of discarding it, accept `approved_wp_ids` and `sibling_candidates`, and report the no-checkout and merge-in-progress cases. Probe `MERGE_HEAD`/`REBASE_HEAD`/`CHERRY_PICK_HEAD` BEFORE `attempt_auto_rebase` and skip the attempt (`merge_in_progress`), so an operator's half-resolved bytes survive (WP07)
 T035 `phase_advance.py`: derive `approved_wp_ids` from `run.approved_wp_set` and the sibling candidates through the one public helper `lanes.consolidation.sibling_candidates_before(lanes_manifest, lane_id, *, integrated_lane_ids, pre_run_tips) -> tuple[SiblingCandidate, ...]`, which WP09 also calls. Record `lane_rebase_moves` on every auto-rebase merge (WP07)
 T036 Execute-each-printed-command test on a two-lane conflicting fixture (needs WP08's command) (WP07)
+
+Binding DoD for WP07 (from WP08 review item 3, reviewer-accepted recorded leeway): `--incorporate` calls WP01's attribute guard through WP01's shared pinned-config helper before merging, and refuses with `INCORPORATE_MERGE_ATTRIBUTES_REFUSED`. This needs a real-git `merge=union` red test. The edit to `src/specify_cli/lanes/incorporate.py` is recorded leeway (see the WP07 prompt). It is a blocking review check.
 
 ### Dependencies
 
