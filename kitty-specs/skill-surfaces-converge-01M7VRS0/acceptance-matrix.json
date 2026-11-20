@@ -76,13 +76,13 @@
     },
     {
       "criterion_id": "FR-008",
-      "description": "Verify FR-008 is satisfied",
+      "description": "Ownership records written by earlier releases keep resolving and are rewritten once in the new format.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/runtime/test_global_asset_inventory_anchor.py (WP02, legacy-key placement and one-time rewrite)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:30:37.680479+00:00",
+      "notes": "Red-first test committed before the fix; WP approved by an independent reviewer (claude::generic-reviewer/reviewer-renata)."
     },
     {
       "criterion_id": "FR-009",
