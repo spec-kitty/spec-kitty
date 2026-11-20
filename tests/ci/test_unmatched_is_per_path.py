@@ -125,3 +125,22 @@ def test_filter_step_lists_files_as_json() -> None:
 def test_unmatched_step_never_inlines_file_lists_into_the_script() -> None:
     """File names are PR-controlled: they reach the script only through ``env``, never ``${{ }}`` in ``run``."""
     assert "${{" not in _unmatched_step()["run"]
+
+
+def test_src_router_globs_use_only_double_star_and_literal_segments() -> None:
+    """``fnmatch`` stands in for dorny's picomatch only while src globs avoid single-segment wildcards.
+
+    ``select_gates`` / ``unrouted_src_paths`` (and this module's execution of the bash step) judge
+    paths with :func:`fnmatch.fnmatch`, whose ``*`` also crosses ``/``; picomatch's does not. The two
+    agree on a glob whose segments are each either ``**`` or a literal, so every src-backed group's
+    glob must have that shape or the Python answer and the workflow's answer can diverge.
+    """
+    router = load_router()
+    bad = [
+        (group, glob)
+        for group in sorted(router.src_backed_groups)
+        for glob in router.filters[group]
+        for segment in glob.split("/")
+        if segment != "**" and any(char in segment for char in "*?[]{}")
+    ]
+    assert not bad, f"src-backed router globs with a non-literal segment other than '**': {bad}"
