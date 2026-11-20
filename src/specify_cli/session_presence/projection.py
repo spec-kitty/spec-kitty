@@ -20,37 +20,37 @@ Operator rulings (2026-11-20):
 
 from __future__ import annotations
 
-from importlib.metadata import PackageNotFoundError, version
+import importlib.metadata
 from pathlib import Path
 
 from specify_cli.identity.project import load_identity, slug_from_git_remote
 
 from .content import SessionPresenceContent
-from .writers.markdown_rules import MarkdownRulesWriter
+from .writers.markdown_rules import MarkdownRulesWriter, block_version, is_tool_written_block, managed_block
 from .writers.registry import get_writer
 
 __all__ = [
-    "UNKNOWN_PROJECT_SLUG",
     "expected_orientation",
+    "orientation_drift",
     "orientation_writer",
     "resolve_project_slug",
 ]
 
 #: The project name used when neither ``project.slug`` nor a git remote names it.
-UNKNOWN_PROJECT_SLUG = "unknown"
+_UNKNOWN_PROJECT_SLUG = "unknown"
 
 
 def resolve_project_slug(project_root: Path) -> str:
     """Return the project name an orientation block shows.
 
     ``project.slug`` from ``.kittify/config.yaml``, else the git remote
-    repository name, else :data:`UNKNOWN_PROJECT_SLUG`. ``git`` is spawned only
+    repository name, else ``"unknown"``. ``git`` is spawned only
     when no slug is recorded.
     """
     recorded = load_identity(project_root / ".kittify" / "config.yaml").project_slug
     if recorded:
         return str(recorded)
-    return slug_from_git_remote(project_root) or UNKNOWN_PROJECT_SLUG
+    return slug_from_git_remote(project_root) or _UNKNOWN_PROJECT_SLUG
 
 
 def expected_orientation(project_root: Path) -> SessionPresenceContent:
@@ -60,12 +60,37 @@ def expected_orientation(project_root: Path) -> SessionPresenceContent:
         ValueError: when the installed CLI version cannot be read.
     """
     try:
-        installed = version("spec-kitty-cli")
-    except PackageNotFoundError as exc:
+        installed = importlib.metadata.version("spec-kitty-cli")
+    except importlib.metadata.PackageNotFoundError as exc:
         raise ValueError("Installed session content version is unavailable") from exc
     if not installed:
         raise ValueError("Installed session content version is unavailable")
     return SessionPresenceContent(installed, resolve_project_slug(project_root), "healthy", None)
+
+
+def orientation_drift(project_root: Path, rules_path: str) -> bool:
+    """Return whether the managed orientation block in ``rules_path`` needs a rewrite.
+
+    Drift means the block exists and either carries another version stamp, or
+    is a tool-written rendering whose bytes differ from :func:`expected_orientation`
+    (a wrong project name, live health, legacy glyphs). A hand-edited block at
+    the installed version is not drift: the writer preserves it. Committed
+    content is deterministic, so a current block never drifts on a later run
+    (the churn #2265 guarded against came from live health in committed bytes).
+    An absent, unreadable or malformed block, or an unknown installed version,
+    is not judged here.
+    """
+    try:
+        block = managed_block((project_root / rules_path).read_text(encoding="utf-8"))
+        expected = expected_orientation(project_root)
+    except (OSError, UnicodeDecodeError, ValueError):
+        return False
+    if block is None or block == expected.render().rstrip("\n"):
+        return False
+    stamped = block_version(block)
+    if stamped is None:
+        return False
+    return stamped != expected.version or is_tool_written_block(block, expected)
 
 
 def orientation_writer(project_root: Path, agent_key: str, configured: set[str] | None) -> MarkdownRulesWriter | None:

@@ -94,7 +94,7 @@ class TestExpectedOrientation:
         from importlib.metadata import PackageNotFoundError
 
         with (
-            patch("specify_cli.session_presence.projection.version", side_effect=PackageNotFoundError("spec-kitty-cli")),
+            patch("importlib.metadata.version", side_effect=PackageNotFoundError("spec-kitty-cli")),
             pytest.raises(ValueError, match="version is unavailable"),
         ):
             expected_orientation(_project(tmp_path))
