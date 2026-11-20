@@ -12,6 +12,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#4934": {
+      "evidence_ref": "Context only: its never-claimed test is re-ruled by operator ruling 1 (#5781)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "accept-mission applies the host readiness verdict",
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#5227": {
       "evidence_ref": "<auto-classified: no action required>",
       "fr": null,
