@@ -923,6 +923,11 @@ _Mission lifecycle commands for AI agents_
      # Lenient mode (skip strict validation)
      spec-kitty agent mission accept --mission 077-my-mission --lenient --json
 
+     # Waive only the path-convention check for this run (metadata stays
+ strict)
+     spec-kitty agent mission accept --mission 077-my-mission
+ --waive-path-conventions --waive-reason "layout migration" --json
+
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --mission                              <str>   Mission slug (required in     │
 │                                                multi-mission repos)          │
@@ -958,6 +963,15 @@ _Mission lifecycle commands for AI agents_
 │                                                Refuses the repository root   │
 │                                                checkout, lane worktrees and  │
 │                                                coordination worktrees.       │
+│ --waive-path-conventions                       Path-convention misses are    │
+│                                                warnings for this run;        │
+│                                                metadata validation stays     │
+│                                                strict (#7566). Requires      │
+│                                                --waive-reason.               │
+│ --waive-reason                         <str>   Why path conventions are      │
+│                                                waived for this run (required │
+│                                                with                          │
+│                                                --waive-path-conventions).    │
 │ --help                         -h              Show this message and exit.   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -2334,6 +2348,17 @@ _Task workflow commands for AI agents_
 │                                                         fallback after the   │
 │                                                         intended reviewer    │
 │                                                         failed.              │
+│    --as-implementer                                     With --to for_review │
+│                                                         out of in_review:    │
+│                                                         record this          │
+│                                                         re-submission as the │
+│                                                         implementer's own    │
+│                                                         act (role            │
+│                                                         implementer), so its │
+│                                                         --agent identity     │
+│                                                         completes a claim    │
+│                                                         that recorded no     │
+│                                                         profile or model.    │
 │    --intended-reviewer                          <str>   Reviewer that should │
 │                                                         have reviewed this   │
 │                                                         WP before fallback.  │
