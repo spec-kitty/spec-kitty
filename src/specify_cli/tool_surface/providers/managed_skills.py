@@ -47,6 +47,7 @@ from specify_cli.skills.manifest import (
 from specify_cli.skills.paths import SkillPathObservation, get_primary_project_skill_root, observe_skill_path, recheck_skill_paths
 from specify_cli.skills.catalog import PackSkillCatalogError, resolve_project_skill_catalog
 from specify_cli.skills.registry import SkillRegistry
+from specify_cli.skills.retired import RETIRED_CANONICAL_SKILL_NAMES
 from specify_cli.skills.command_installer import windows_dir_mode_only_divergence
 
 from ..enums import (
@@ -467,8 +468,8 @@ class ManagedSkillsProvider:
         catalog_ships_skills = bool(entries_by_path)
         for entry in manifest_entries:
             expected = entries_by_path.get(entry.installed_path)
-            if expected is None and catalog_ships_skills:
-                # #2460: the catalog no longer ships this skill; a hash-clean copy
+            if expected is None and catalog_ships_skills and entry.skill_name in RETIRED_CANONICAL_SKILL_NAMES:
+                # #2460: a retired skill the catalog no longer ships; a hash-clean copy
                 # must still be actionable so the retirement drain runs.
                 self._retired_surface_ids.add(_managed_surface_id(tool_key, entry))
             entries_by_path[entry.installed_path] = (

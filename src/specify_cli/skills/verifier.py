@@ -16,6 +16,7 @@ from specify_cli.skills.paths import get_primary_global_skill_root as get_primar
 from specify_cli.skills.paths import skill_path_observations
 from specify_cli.skills.catalog import PackSkillCatalogError, resolve_project_skill_catalog
 from specify_cli.skills.registry import SkillRegistry
+from specify_cli.skills.retired import RETIRED_CANONICAL_SKILL_NAMES
 from specify_cli.skills.skill_frontmatter import is_shared_root, project_skill_bytes, root_of_installed_path
 from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
 
@@ -82,7 +83,7 @@ def verify_installed_skills(project_path: Path) -> VerifyResult:
             errors.append(f"Cannot read {entry.installed_path}: not a regular skill file")
             continue
         actual_hash = f"sha256:{observed.sha256}"
-        if shipped and entry.skill_name not in shipped and actual_hash == entry.content_hash:
+        if _is_retired(entry.skill_name, shipped) and actual_hash == entry.content_hash:
             retired.append(entry)
             continue
         expected_hash = _expected_hash(entry, registry) or entry.content_hash
@@ -91,6 +92,16 @@ def verify_installed_skills(project_path: Path) -> VerifyResult:
 
     ok = not (missing or drifted or errors or retired)
     return VerifyResult(ok=ok, missing=missing, drifted=drifted, errors=errors, retired=retired)
+
+
+def _is_retired(skill_name: str, shipped: frozenset[str]) -> bool:
+    """A skill Spec Kitty retired by name and the (non-empty) catalog no longer ships.
+
+    Absence from the catalog alone is not retirement: a project can carry skills
+    from another catalog. The one retired-name authority decides, as the global
+    sync does.
+    """
+    return bool(shipped) and skill_name not in shipped and skill_name in RETIRED_CANONICAL_SKILL_NAMES
 
 
 def _shipped_skill_names(registry: SkillRegistry | None) -> frozenset[str]:

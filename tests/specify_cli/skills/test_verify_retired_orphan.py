@@ -149,3 +149,25 @@ def test_provider_probe_reports_retired_entry_as_stale_and_repair_drains_it(tmp_
 
     assert not outcome.failed, outcome.failed
     assert not (project / _RETIRED_PATH).exists()
+
+
+def test_skill_absent_from_catalog_but_not_retired_is_not_reported(tmp_path: Path, registry: SkillRegistry) -> None:
+    """Absence alone is not retirement: only a name Spec Kitty retired is drained."""
+    dest = tmp_path / ".claude/skills/someone-elses-skill/SKILL.md"
+    dest.parent.mkdir(parents=True)
+    dest.write_text("# Theirs\n", encoding="utf-8")
+    entry = ManagedFileEntry(
+        skill_name="someone-elses-skill",
+        source_file="SKILL.md",
+        installed_path=".claude/skills/someone-elses-skill/SKILL.md",
+        installation_class="native-root-required",
+        agent_key="claude",
+        content_hash=compute_content_hash(dest),
+        installed_at="2026-01-01T00:00:00+00:00",
+        delivery_mode="copy",
+    )
+    save_manifest(ManagedSkillManifest(entries=[entry]), tmp_path)
+
+    result = verify_installed_skills(tmp_path)
+
+    assert result.ok and not result.retired
