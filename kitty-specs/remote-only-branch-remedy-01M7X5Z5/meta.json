@@ -1,6 +1,8 @@
 {
+  "accept_commit": "3b991936dc7e227d6ccf96569779d6b5bddcd4c0",
   "acceptance_history": [
     {
+      "accept_commit": "3b991936dc7e227d6ccf96569779d6b5bddcd4c0",
       "acceptance_mode": "pr",
       "accepted_at": "2026-11-20T21:51:19.312285+00:00",
       "accepted_by": "claude::python-pedro",
