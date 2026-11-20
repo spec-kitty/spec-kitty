@@ -305,6 +305,10 @@ def evaluate_path_conventions(
     if not (mission and mission.config.paths):
         return [], None, frozenset()
     waived_tokens, waiver_notice = _contracts_waiver_effect(mission, feature_dir, planning_read_dir)
+    # The type is read from ``feature_dir``, the same meta.json ``get_mission_for_feature``
+    # loaded ``mission`` from, so the per-type overrides always match the conventions being
+    # checked. The waivers read ``planning_read_dir``, the one surface every #5298 / #7566
+    # waiver reader uses; the two answer different questions and need not share a file.
     mission_type = get_mission_type(feature_dir) or MISSION_TYPE_SOFTWARE_DEV
 
     # Mission-artifact paths (e.g. ``contracts/``) live on the PRIMARY mission
