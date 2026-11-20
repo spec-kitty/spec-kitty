@@ -68,10 +68,10 @@
       "criterion_id": "FR-007",
       "description": "Verify FR-007 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/status/test_read_surface_remote_only_5287.py::test_remote_only_mission_topic_branch_is_a_typed_refusal; ::test_a_mission_topic_branch_gone_everywhere_is_not_called_remote_only",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T21:51:05.204599+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
