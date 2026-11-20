@@ -1,7 +1,7 @@
 {
-  "event_count": 14,
-  "last_event_id": "01M7X156S51RXPBXQ8SK3AEHJC",
-  "materialized_at": "2026-11-20T17:48:05.797703+00:00",
+  "event_count": 26,
+  "last_event_id": "01M7X1P3FAVV2PP8DS4WMYCFH4",
+  "materialized_at": "2026-11-20T17:57:18.600101+00:00",
   "mission_number": "",
   "mission_slug": "approved-lane-resolution-route-01M7WW0Z",
   "mission_type": "software-dev",
@@ -13,24 +13,42 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 6,
     "in_review": 0,
-    "planned": 14
+    "planned": 8
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M7X13S60CCAWE9GDRMBAWBGS",
-      "last_transition_at": "2026-11-20T17:47:19.104398+00:00"
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M7X1N7843M7X21W148YVW78Y",
+      "last_transition_at": "2026-11-20T17:56:49.718109+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 24964,
+      "shell_pid_created_at": "1795197384.67"
     },
     "WP02": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M7X13WRKQG7ZNSPVCBE61714",
-      "last_transition_at": "2026-11-20T17:47:22.771717+00:00"
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M7X1P3FAVV2PP8DS4WMYCFH4",
+      "last_transition_at": "2026-11-20T17:57:18.600101+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 25208,
+      "shell_pid_created_at": "1795197387.0"
     },
     "WP03": {
       "actor": "finalize-tasks",
@@ -40,11 +58,20 @@
       "last_transition_at": "2026-11-20T17:47:26.238354+00:00"
     },
     "WP04": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M7X143KE4B0DFG96QQX4R2H7",
-      "last_transition_at": "2026-11-20T17:47:29.774328+00:00"
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M7X1NJ9JX014A3PMXR4R9ZBW",
+      "last_transition_at": "2026-11-20T17:57:00.939521+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 24982,
+      "shell_pid_created_at": "1795197385.42"
     },
     "WP05": {
       "actor": "finalize-tasks",
@@ -68,11 +95,20 @@
       "last_transition_at": "2026-11-20T17:47:40.533856+00:00"
     },
     "WP08": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M7X14HGSE8MX3CKDS71CF28P",
-      "last_transition_at": "2026-11-20T17:47:44.025833+00:00"
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M7X1M5E0YWPSJEKP44WYNNAQ",
+      "last_transition_at": "2026-11-20T17:56:15.086636+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 20158,
+      "shell_pid_created_at": "1795197346.57"
     },
     "WP09": {
       "actor": "finalize-tasks",
@@ -82,18 +118,36 @@
       "last_transition_at": "2026-11-20T17:47:47.808376+00:00"
     },
     "WP10": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M7X14RQT7QB0J5BWH9M7JDT5",
-      "last_transition_at": "2026-11-20T17:47:51.418602+00:00"
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M7X1MX00GGKESXRY85NMX6B1",
+      "last_transition_at": "2026-11-20T17:56:39.170670+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 24797,
+      "shell_pid_created_at": "1795197383.1"
     },
     "WP11": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M7X14W7GX6XH9XS9DY6ZWE28",
-      "last_transition_at": "2026-11-20T17:47:54.992162+00:00"
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M7X1MD4B29VEAMZ5ZSE257R5",
+      "last_transition_at": "2026-11-20T17:56:22.988824+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 20149,
+      "shell_pid_created_at": "1795197346.46"
     },
     "WP12": {
       "actor": "finalize-tasks",
