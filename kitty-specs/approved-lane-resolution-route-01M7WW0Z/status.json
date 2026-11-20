@@ -39,12 +39,20 @@
         "- 2026-11-20T18:46:21Z – claude – shell_pid=24964 – trace(design-decisions): committed attributes = operator ruling (a): with attributes_source a committed merge=union is honoured only when git>=2.40, check-attr --source <tip> prints union, check-attr --source <empty tree> prints unspecified (no clone-local source), and no merge.union.* key is configured. Consequence: this repo's .gitattributes 'kitty-ops/lifecycle.jsonl merge=union' is honoured when committed in the pre-run tip and nothing clone-local overrides it; refused when callers pass no attributes_source (WP05/WP06 must pass excluded_window_base).",
         "- 2026-11-20T18:46:30Z – claude – shell_pid=24964 – trace(design-decisions): git version: merge_tree_probe._git_at_least now reads _read_git_version through cached_git_read(('git-version',), Depends(), store_if=not None): one 'git --version' per run scope per repository (pinned by test_git_version_is_read_once_per_run_scope); outside a scope unchanged. Added public check_attr_source_available() (git>=2.40) to that module for the committed-union leg; existing public functions unchanged.",
         "- 2026-11-20T18:46:39Z – claude – shell_pid=24964 – trace(approach): guard is applied in git_probes (both probes), not in kernel.git merge_tree/remerge_paths: lane_cleanup._absorbed_but_for_status_log and lane_tip._merge_tree_no_op are not attribution probes and are unchanged. merge_own_changed_paths lists paths changed against EACH parent (kernel.git.changed_paths) so a union-forged path hidden from remerge-diff is still guarded. Did not edit reconciliation_verifier.is_legitimate_merge_resolution's docstring (WP06 owns it, T030).",
-        "- 2026-11-20T18:46:49Z – claude – shell_pid=24964 – trace(tooling-friction): 'spec-kitty agent action implement WP01' first failed with STATUS_LOCK_HELD (a concurrent WP11 implement held the status lock); retry succeeded. The claim recorded no profile ('claude' only) and warned about REVIEW_NOT_INDEPENDENT; for_review is submitted with --agent claude::python-pedro."
+        "- 2026-11-20T18:46:49Z – claude – shell_pid=24964 – trace(tooling-friction): 'spec-kitty agent action implement WP01' first failed with STATUS_LOCK_HELD (a concurrent WP11 implement held the status lock); retry succeeded. The claim recorded no profile ('claude' only) and warned about REVIEW_NOT_INDEPENDENT; for_review is submitted with --agent claude::python-pedro.",
+        "- 2026-11-20T19:11:01Z – claude – shell_pid=24964 – tests: uv run --frozen pytest -q tests/consolidation/test_merge_attribute_guard.py -> 88 passed; targeted blast radius (test_merge_derivation_7626, test_dependency_merge_attribution_7307, test_git_probes_seam, test_git_probes_git_paths, test_reconciliation, test_merge_drivers, test_ephemeral_driver_activation_2709, test_reconciliation_module_imports, test_gate_artifact_merge_drivers_2804, tests/specify_cli/git/test_merge_tree_probe.py, tests/lanes/test_lane_tip.py, arch test_merge_pipeline_ratchets + test_layer_rules) -> 477 passed, 1 xfailed; tests/architectural/test_git_path_listing_owner.py green; tests/architectural/test_no_dead_symbols.py -> 37 passed (after dropping MergeAttributeRefused from __all__); pytest -n 8 --dist loadfile tests/consolidation tests/lanes -> 4777 passed, 2 skipped, 11 xfailed; make test-fast -> 3144 passed, 7 skipped. Verifier-seam tests red on HEAD probes (VerifyStatus.PASS), green after. ruff/format/mypy clean on all changed files."
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 24964,
-      "shell_pid_created_at": "1795197384.67"
+      "shell_pid_created_at": "1795197384.67",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     },
     "WP02": {
       "actor": "claude",
@@ -106,7 +114,8 @@
         "- 2026-11-20T18:17:10Z – claude – shell_pid=24982 – trace(approach): golden digests use charter.hasher.hash_content (ruff TID251 bans hashlib.sha256 in tests); _PRE_WP_FIELD_COUNT is 33 (brief did not name it). Added edge tests: unknown stamp reviews nothing (fail closed), canceled dependency lane commits never recorded. Planning-lane exclusion is structural (_record_unreviewed is a no-op when reviewed is full_authored, which is always the case for a planning lane); no dedicated planning-lane fixture.",
         "Public merge_reviewed_by_own_stamps + own_approval_stamps (gate delegates, no behaviour change); additive advisory ApprovedWpCommitSet.unreviewed_merges via keyword-only sink; byte-identity golden recorded at base still green. 18 new tests; targeted 508 passed; test-fast 3144 passed.",
         "Review claimed by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
-        "REJECT relayed from reviewer session session_019C2Tk5ehA3TXonKhbxbaMR"
+        "REJECT relayed from reviewer session session_019C2Tk5ehA3TXonKhbxbaMR",
+        "- 2026-11-20T19:09:59Z – unknown – red (review cycle 1, item 2): the new tests cover branches that already exist, so red-first is shown by mutation. Mutating _dropped_merges' 'except GitProbeError: continue' to append the SHA turns test_dropped_merges_skips_a_sha_whose_parents_cannot_be_read red ('assert (<merge sha>,) == ()'). Mutating _unreviewed_merge's 'except GitProbeError' to re-raise turns test_unreadable_own_content_records_no_entry red (GitProbeError 'is an octopus merge (3+ parents)' escapes the claim builder). Both green after restoring the code."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
