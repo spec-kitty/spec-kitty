@@ -46,7 +46,7 @@ SPK_SKILLS = {
     "spk-run-verdict-capture",
     "spk-start-agent-surface",
     "spk-start-command-map",
-    "spk-start-first-feature",
+    "spk-start-first-mission",
     "spk-start-here",
 }
 LEGACY_ALIAS_SKILLS = {

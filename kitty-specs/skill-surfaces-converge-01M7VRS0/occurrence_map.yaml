@@ -1,0 +1,40 @@
+# Occurrence map for the #7725 rename (DIRECTIVE_035). Only this rename is a
+# bulk edit; the rest of the Mission is new behaviour.
+
+target:
+  term: spk-start-first-feature
+  replacement: spk-start-first-mission
+  operation: rename
+
+categories:
+  code_symbols:         { action: rename }                 # no Python identifier carries the term today
+  import_paths:         { action: rename }                 # none expected
+  filesystem_paths:     { action: rename }                 # the skill directory moves (see moves)
+  serialized_keys:      { action: rename }                 # SKILL.md frontmatter name: field
+  cli_commands:         { action: do_not_change }          # no CLI subcommand carries the term
+  user_facing_strings:  { action: rename }                 # skill README, spk-start-here, skill map, docs/api/skills
+  tests_fixtures:       { action: manual_review }          # shipped-name lists rename; retired-name guards keep the old id
+  logs_telemetry:       { action: do_not_change }          # none
+
+exceptions:
+  - path: "src/specify_cli/skills/retired.py"
+    action: manual_review
+    reason: "The old id is ADDED here verbatim as a retired canonical skill name; it is never renamed."
+  - path: "tests/specify_cli/skills/test_retired_skill_completeness.py"
+    action: manual_review
+    reason: "EVER_SHIPPED_SKILL_NAMES keeps the old id verbatim (now under removed names) and gains the new id."
+  - path: "docs/changelog/**"
+    action: do_not_change
+    reason: "Changelog fragments name the retired id as history."
+  - path: "kitty-specs/**"
+    action: do_not_change
+    reason: "Historical Mission artifacts are immutable snapshots."
+  - path: "src/specify_cli/skills/data/historical_skill_renders.json"
+    action: do_not_change
+    reason: "The frozen historical-render list keys renders by the path they shipped under."
+
+moves:
+  - from:
+      - src/charter/offering/skills/spk-start-first-feature
+    to: src/charter/offering/skills/spk-start-first-mission
+    reason: "#7725: public skill id says Mission, not feature (Terminology Canon)."

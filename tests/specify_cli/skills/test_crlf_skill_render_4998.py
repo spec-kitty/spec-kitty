@@ -31,9 +31,9 @@ Contracts pinned here:
   to date" path), ``doctor tool-surfaces --kind charter-skill --fix``,
   ``install_all_skills`` (the one-shot skill-pack migration path), and, for
   command skills, ``doctor tool-surfaces --kind command-skill --fix``.
-  ``doctor skills --fix`` does NOT yet converge a self-consistent command
-  skill drift (strict ``xfail``, #5281): ``command_installer.verify()`` only
-  compares the on-disk hash to the manifest-recorded one.
+  ``doctor skills --fix`` converges it too (#5281): ``command_installer.verify()``
+  reports a manifest-matching file that differs from today's render as
+  ``outdated``, and the fix re-installs it.
 * A corrupted file the user edited *since* install (on-disk hash !=
   manifest hash) is classified ``consent_required`` and surfaces as
   ``skipped`` (never ``repaired``) -- never silently overwritten.
@@ -735,8 +735,7 @@ def test_command_skill_repair_converges_via_tool_surfaces_fix(tmp_path: Path) ->
     command fresh via ``command_installer.prepare_commands`` and diffs
     against disk (unlike ``command_installer.verify()`` -- see
     ``test_doctor_skills_fix_converges_self_consistent_drift``
-    below (marked ``xfail``, issue #5281) and the module docstring for the
-    contrasting negative case).
+    below, #5281, which pins the same convergence through ``doctor skills``).
     """
     project, dest, correct_skill_md = _seed_self_consistent_command_skill_drift(tmp_path)
 
@@ -767,30 +766,15 @@ def test_command_skill_repair_converges_via_tool_surfaces_fix(tmp_path: Path) ->
     assert payload2["findings"] == [], payload2
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="doctor skills --fix does not re-derive expected hashes; see #5281",
-)
 def test_doctor_skills_fix_converges_self_consistent_drift(tmp_path: Path) -> None:
-    """DESIRED behaviour (currently a known, filed gap -- issue #5281):
-    ``spec-kitty doctor skills --fix`` should converge a self-consistent
-    (manifest-matching) corrupted command-skill install, the same way
-    ``doctor tool-surfaces --kind command-skill --fix`` already does (see
-    ``test_command_skill_repair_converges_via_tool_surfaces_fix``
-    above). It currently does not, because ``command_installer.verify()``
-    (command_installer.py:1101-1146) only compares the on-disk SHA-256 to
-    the manifest-RECORDED hash -- it never re-derives an expected hash from
-    the canonical template the way the charter-skill verifier does. A
-    corruption whose manifest was written at the same (corrupted) install
-    time is therefore invisible to ``verify()``, and
-    ``_repair_command_skill_state`` (``_command_surface_doctor.py``) only
-    acts on ``report.gaps or report.stale or uninstalled_agents or
-    vibe_config_missing`` -- none of which a self-consistent drift sets.
-    This gap pre-dates and is unrelated to the CRLF fix.
-    ``@pytest.mark.xfail(strict=True)`` marks
-    this a KNOWN failure rather than asserting the defect as expected
-    behaviour: when #5281 is fixed, this test flips to XPASS and the
-    strict marker forces the marker's removal.
+    """``spec-kitty doctor skills --fix`` converges a self-consistent command-skill drift (#5281).
+
+    The corrupted file matches the manifest-recorded hash, so a hash-only check
+    sees nothing. ``command_installer.verify()`` also compares it with today's
+    render and reports it ``outdated``; ``_repair_command_skill_state`` treats
+    that as a repair trigger, the same convergence
+    ``test_command_skill_repair_converges_via_tool_surfaces_fix`` pins for
+    ``doctor tool-surfaces --kind command-skill --fix``.
     """
     project, dest, correct_skill_md = _seed_self_consistent_command_skill_drift(tmp_path)
 

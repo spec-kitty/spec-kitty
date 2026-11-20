@@ -1,0 +1,55 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-20T06:02:35.903966Z",
+      "decision_id": "01M7VRSCZZPMQHPVF9HP5T4HM9",
+      "final_answer": "A: reviewed package-data JSON plus a committed git-history generator; append-only; a test fails on a missing current render so skill-edit PRs re-run the generator; RELEASE_CHECKLIST step (operator ruling via orchestrator 2026-11-20)",
+      "input_key": "digest_list_home",
+      "mission_id": "01M7VRS0Q6CPC1HP3VD1TPNXRC",
+      "mission_slug": "skill-surfaces-converge-01M7VRS0",
+      "opened_by": "cli",
+      "options": [
+        "A: reviewed JSON package-data file + committed git-history generator; append-only test fails if a digest is dropped or a current render is missing (regenerate in the skill-edit PR)",
+        "B: same file, regenerated only at release via checklist",
+        "C: Python module constant",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Where does the frozen historical-render digest list live, and how is it regenerated per release?",
+      "rationale": null,
+      "resolved_at": "2026-11-20T06:31:04.129625Z",
+      "resolved_by": null,
+      "slot_key": "specify.proof.digest-list-home",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-20T06:02:38.010253Z",
+      "decision_id": "01M7VRSF1T1ENCAMW2SACF5MS3",
+      "final_answer": "A: report only in this PR (list proven files with an rm hint, delete nothing); file a P3 follow-up for opt-in --fix removal of byte-proven files under the old root, linked to #7723 (operator ruling via orchestrator 2026-11-20)",
+      "input_key": "old_root_fix_policy",
+      "mission_id": "01M7VRS0Q6CPC1HP3VD1TPNXRC",
+      "mission_slug": "skill-surfaces-converge-01M7VRS0",
+      "opened_by": "cli",
+      "options": [
+        "A: report only, with a cleanup hint; delete nothing",
+        "B: --fix removes only byte-proven files there; unproven ones reported",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "May doctor --fix ever remove a proven-generated stale file under the old ~/.claude root when CLAUDE_CONFIG_DIR redirects the resolved root, or only report it?",
+      "rationale": null,
+      "resolved_at": "2026-11-20T06:31:06.215518Z",
+      "resolved_by": null,
+      "slot_key": "specify.doctor.old-root-fix",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M7VRS0Q6CPC1HP3VD1TPNXRC",
+  "version": 1
+}

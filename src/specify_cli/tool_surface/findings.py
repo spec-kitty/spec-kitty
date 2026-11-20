@@ -59,6 +59,12 @@ PROFILE_SENTINEL_SKIPPED = "profile-sentinel-skipped"
 BUNDLE_COMPONENT_MISSING = "bundle-component-missing"
 PLUGIN_MANIFEST_STALE_PATH = "plugin-manifest-stale-path"
 
+# --- User-global charter skills (#5983, #7700) --------------------------------
+# A global skill file the sync kept because its bytes are not a proven Spec Kitty
+# render: one of a skill Spec Kitty ships today, or an edited copy of a retired one.
+GLOBAL_SKILL_KEPT_STALE = "global-skill-kept-stale"
+RETIRED_SKILL_KEPT_EDITED = "retired-skill-kept-edited"
+
 
 @dataclass(frozen=True)
 class SurfaceFinding:

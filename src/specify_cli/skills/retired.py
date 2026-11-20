@@ -15,6 +15,8 @@ RETIRED_CANONICAL_SKILL_NAMES = frozenset({
     "spk-admin-dashboard",
     # Renamed to spk-gate-consolidate by the merge -> consolidate rename (#3080, #7702).
     "spk-gate-merge",
+    # Renamed to spk-start-first-mission (#7725, Terminology Canon).
+    "spk-start-first-feature",
     # Retired with the hosted Team Kitty surface (ADR 2026-10-06-1).
     "spk-team-auth",
     "spk-team-connectors",
