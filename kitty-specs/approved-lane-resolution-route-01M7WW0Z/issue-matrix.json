@@ -12,6 +12,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#2709": {
+      "evidence_ref": "Context only: cited in a WP prompt of Mission approved-lane-resolution-route-01M7WW0Z as a code/ADR reference; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Context citation in WP prompts",
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#3936": {
       "evidence_ref": "Context only: cross-referenced by Mission approved-lane-resolution-route-01M7WW0Z (scope C-005 or constraint); no work owed here",
       "fr": null,
