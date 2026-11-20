@@ -15,6 +15,7 @@ an older record keeps proving the files it named.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -198,3 +199,54 @@ def test_entry_outside_the_anchor_is_carried_through(home: Path, tmp_path: Path)
     assert not [w for p, w in prepared.writes.items() if p.name == "probe-external-assets.json"], "unchanged sidecar is not rewritten"
     main = next(w for p, w in prepared.writes.items() if p.name == "probe-assets.json")
     assert main.content is not None and f"{home.name}/new.txt" in json.loads(main.content)["entries"]
+
+
+def test_pre_7722_record_under_a_root_outside_home_still_proves(home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """B2: an older release wrote the record while CLAUDE_CONFIG_DIR pointed outside home.
+
+    That root is still configured, so its recorded file must stay proven and be
+    refreshed, exactly as the older release itself would.
+    """
+    outside = tmp_path / "outside" / "claude"
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(outside))
+    source = tmp_path / "source"
+    _install(_write_skill(source, "v1"))
+    cache = home / ".kittify" / "cache"
+    known = {}
+    for name in ("global_skills-assets.json", "global_skills-external-assets.json"):
+        if (cache / name).is_file():
+            payload = json.loads((cache / name).read_text(encoding="utf-8"))
+            base = None if payload.get("anchor") == "absolute" else home.parent
+            known.update({(Path(key) if base is None else base / key): record for key, record in payload["entries"].items()})
+            (cache / name).unlink()
+    legacy_anchor = Path(os.path.commonpath((home, outside))).parent  # what the older release anchored on
+    legacy = {path.relative_to(legacy_anchor).as_posix(): record for path, record in known.items()}
+    (cache / "global_skills-assets.json").write_text(json.dumps({"schema_version": 1, "entries": legacy}), encoding="utf-8")
+
+    assessment = _assess(_write_skill(source, "v2"))
+
+    claude_copy = outside / "skills" / _SKILL / "SKILL.md"
+    assert not [p for p in _unproven_paths(assessment) if "outside/claude" in p]
+    assert [e for e in assessment.effects if e.destination == claude_copy], "the recorded copy under the moved root must be refreshed"
+
+
+def test_known_roots_widen_legacy_placement(home: Path, tmp_path: Path) -> None:
+    """Owner-agnostic: any caller's current roots confine a pre-#7722 key (slash commands included)."""
+    from specify_cli.runtime.asset_preparation import digest
+
+    commands = tmp_path / "outside" / "claude" / "commands"
+    commands.mkdir(parents=True)
+    target = commands / "spec-kitty.specify.md"
+    target.write_bytes(b"old render")
+    cache = home / ".kittify" / "cache"
+    cache.mkdir(parents=True)
+    anchor = Path(os.path.commonpath((home, commands))).parent
+    record = {"kind": "file", "sha256": digest(b"old render"), "mode": 0o444}
+    (cache / "probe-assets.json").write_text(json.dumps({"schema_version": 1, "entries": {target.relative_to(anchor).as_posix(): record}}), encoding="utf-8")
+    root = OperationRoot("probe", "global", anchor)
+
+    unconfined = AssetPreparation("probe", root, cache, ".probe.lock", ApplyConsent(automatic=True))
+    confined = AssetPreparation("probe", root, cache, ".probe.lock", ApplyConsent(automatic=True), known_roots=(commands,))
+
+    assert target.relative_to(anchor).as_posix() not in unconfined.previous
+    assert target.relative_to(anchor).as_posix() in confined.previous
