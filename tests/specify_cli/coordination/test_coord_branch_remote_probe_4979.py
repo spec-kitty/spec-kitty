@@ -32,6 +32,8 @@ and ``refs/remotes/`` fast paths both miss.
 
 from __future__ import annotations
 
+import re
+import shlex
 import subprocess
 from pathlib import Path
 from unittest.mock import patch
@@ -267,6 +269,22 @@ def test_single_branch_clone_remote_only_coord_branch_is_not_deleted(tmp_path: P
     next_step = excinfo.value.next_step
     assert f"git -C {clone} fetch origin {coord_branch}" in next_step
     assert f"git -C {clone} branch {coord_branch} origin/{coord_branch}" in next_step
+
+    # #5287 review B1: a single-branch clone's fetch refspec does not cover the
+    # coordination branch, so a bare `fetch origin <b>` writes only FETCH_HEAD and
+    # the printed `git branch` step fails. Run the printed git steps, in order,
+    # exactly as printed, and prove they leave a local branch.
+    git_steps = [step for step in re.findall(r"`([^`]+)`", next_step) if step.startswith("git ")]
+    assert [shlex.split(step)[3] for step in git_steps] == ["fetch", "branch"], git_steps
+    for step in git_steps:
+        subprocess.run(shlex.split(step), check=True, capture_output=True)
+    assert (
+        subprocess.run(
+            ["git", "-C", str(clone), "rev-parse", "--verify", "--quiet", f"refs/heads/{coord_branch}"],
+            capture_output=True,
+        ).returncode
+        == 0
+    )
 
 
 # ---------------------------------------------------------------------------
