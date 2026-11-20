@@ -30,6 +30,7 @@ from specify_cli.core.agent_config import AgentConfigError, load_agent_config
 from specify_cli.core.safe_delete import safe_rmdir as _safe_rmdir
 from specify_cli.core.safe_delete import safe_unlink as _safe_unlink
 from specify_cli.skills.catalog import resolve_project_skill_catalog
+from specify_cli.skills.historical_renders import is_historical_render
 from specify_cli.skills.skill_frontmatter import SKILL_FILENAME, is_shared_root, project_skill_bytes
 from specify_cli.skills.manifest import (
     ManagedFileEntry,
@@ -849,7 +850,8 @@ def _prepare_project_skills(
             and all(_managed_link(entry, project / path, before) for entry in owners)
         )
         canonical = wanted is not None and before.kind == "file" and before.sha256 == after.sha256
-        if _preserve_project_path(plan, path, before, managed, canonical, unchanged_owned):
+        shipped = wanted is not None and _is_shipped_render(before, owners or tuple(new_owners))
+        if _preserve_project_path(plan, path, before, managed, canonical or shipped, unchanged_owned):
             continue
         effect_owners = owners or tuple(new_owners)
         # New consumers share the effect, but cannot fabricate prior manifest proof.
@@ -928,6 +930,17 @@ def _finish_project_preparation(
         prepared=prepared,
         consent=plan.inputs.consent,
     )
+
+
+def _is_shipped_render(before: FileState, entries: tuple[ManagedFileEntry, ...]) -> bool:
+    """Whether *before* is a file holding a render Spec Kitty shipped for this skill path (#2527).
+
+    Such bytes are Spec Kitty's own earlier output, so they are replaced like canonical content
+    (the replacement still keeps a backup); a user's edit matches no shipped render.
+    """
+    if before.kind != "file":
+        return False
+    return any(bool(is_historical_render(entry.skill_name, entry.source_file, before.sha256)) for entry in entries)
 
 
 def _preserve_project_path(
