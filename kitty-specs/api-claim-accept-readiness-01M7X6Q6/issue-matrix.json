@@ -36,6 +36,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#5735": {
+      "evidence_ref": "Context only: inherits the one claim-sidecar builder; no work owed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "shared implement service design spike",
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#5781": {
       "evidence_ref": "WP01 claim sidecar + WP02 gate via review_roles, canceled exemption, derived hint",
       "fr": null,
