@@ -257,9 +257,10 @@ def _place_legacy_key(relative: str, candidates: list[Path], confinement: tuple[
     """The path a pre-#7722 key named, or ``None`` when it cannot be placed.
 
     A key is placed under the deepest candidate anchor where its node exists and
-    the result lies inside ``$HOME`` or the kittify home; otherwise under
-    ``home.parent`` when that lands inside ``$HOME``. Anything else is dropped
-    from proof, never guessed.
+    the result lies inside ``$HOME``, the kittify home or one of the owner's
+    current roots (``known_roots``); otherwise under ``home.parent`` when that
+    lands inside ``$HOME``. Anything else -- a record under a root that has since
+    moved elsewhere -- is dropped from proof, never guessed.
     """
     for candidate in candidates:
         placed = candidate / relative
@@ -275,7 +276,7 @@ def _confinement() -> tuple[Path, ...]:
     return (_normalized(Path.home()), _normalized(get_kittify_home()))
 
 
-def _read_inventory(payload: object, path: Path) -> dict[Path, dict[str, object]]:
+def _read_inventory(payload: object, path: Path, known_roots: tuple[Path, ...] = ()) -> dict[Path, dict[str, object]]:
     """Absolute path -> record for one inventory file (main or sidecar)."""
     if not isinstance(payload, dict) or payload.get("schema_version") != _INVENTORY_SCHEMA or not isinstance(payload.get("entries"), dict):
         raise ValueError(f"Invalid global asset inventory: {path}")
@@ -286,7 +287,7 @@ def _read_inventory(payload: object, path: Path) -> dict[Path, dict[str, object]
             entries[_check_absolute_key(key)] = _check_record(record)
         return entries
     candidates = [_home_parent()] if anchor == _HOME_PARENT_ANCHOR else _legacy_candidates()
-    confinement = _confinement()
+    confinement = (*_confinement(), *(_normalized(root) for root in known_roots))
     for key, record in payload["entries"].items():
         placed = _place_legacy_key(_check_relative_key(key), candidates, confinement)
         if placed is not None:
@@ -318,7 +319,7 @@ class AssetPreparation:
     Entries are committed last, so partial installation cannot certify work.
     """
 
-    def __init__(self, owner: str, root: OperationRoot, cache: Path, lock_name: str, consent: ApplyConsent) -> None:
+    def __init__(self, owner: str, root: OperationRoot, cache: Path, lock_name: str, consent: ApplyConsent, *, known_roots: tuple[Path, ...] = ()) -> None:
         self.owner, self.root, self.consent = owner, root, consent
         self.lock_path = cache / lock_name
         self.inventory = cache / f"{owner}-assets.json"
@@ -340,7 +341,7 @@ class AssetPreparation:
             if state.kind == "file":
                 data = inventory.read_bytes()
                 self._inventory_bytes[inventory] = data
-                self._known.update(_read_inventory(json.loads(data), inventory))
+                self._known.update(_read_inventory(json.loads(data), inventory, known_roots))
             elif state.kind == "absent":
                 self._inventory_bytes[inventory] = None
             else:
