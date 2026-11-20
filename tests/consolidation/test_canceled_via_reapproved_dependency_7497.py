@@ -246,17 +246,13 @@ def shape(tmp_path: Path) -> Shape:
     return Shape(repo=repo, base=base, a1=a1, c1=c1, merge=merge, a2=a2)
 
 
-def _canceled_tip(shape: Shape) -> frozenset[str]:
-    return frozenset({shape.a1, shape.c1})  # lane-b's commits since the base: A's a1 (fast-forwarded at the cut) and c1
-
-
 def test_anchor_is_the_first_parent_of_the_merge_that_incorporated_c(shape: Shape) -> None:
-    got = rc._dependency_anchor_before_incorporating(shape.repo, shape.base, _branch("lane-a"), _canceled_tip(shape))
+    got = rc._dependency_anchor_before_incorporating(shape.repo, shape.base, _branch("lane-a"), _branch("lane-b"))
     assert got == shape.a1
 
 
 def test_anchor_is_unchanged_when_the_dependency_never_merged_c(shape: Shape) -> None:
-    assert rc._dependency_anchor_before_incorporating(shape.repo, shape.base, shape.a1, _canceled_tip(shape)) == shape.a1
+    assert rc._dependency_anchor_before_incorporating(shape.repo, shape.base, shape.a1, _branch("lane-b")) == shape.a1
 
 
 def test_an_unrelated_merge_keeps_the_live_anchor(shape: Shape) -> None:
@@ -265,22 +261,21 @@ def test_an_unrelated_merge_keeps_the_live_anchor(shape: Shape) -> None:
     _sh(shape.repo, "checkout", "-q", "-b", "a-only", shape.a1)
     _sh(shape.repo, "merge", "-q", "--no-ff", "--no-edit", "side")
     tip = _sh(shape.repo, "rev-parse", "HEAD")
-    assert rc._dependency_anchor_before_incorporating(shape.repo, shape.base, tip, _canceled_tip(shape)) == tip
+    assert rc._dependency_anchor_before_incorporating(shape.repo, shape.base, tip, _branch("lane-b")) == tip
 
 
 def test_the_earliest_incorporation_decides(shape: Shape) -> None:
     _sh(shape.repo, "checkout", "-q", _branch("lane-b"))
-    c2 = _commit(shape.repo, "src/c.py", "C = 'canceled again'\n")
+    _commit(shape.repo, "src/c.py", "C = 'canceled again'\n")
     _sh(shape.repo, "checkout", "-q", _branch("lane-a"))
     _sh(shape.repo, "merge", "-q", "--no-ff", "--no-edit", _branch("lane-b"))
-    canceled = _canceled_tip(shape) | {c2}
-    assert rc._dependency_anchor_before_incorporating(shape.repo, shape.base, _branch("lane-a"), canceled) == shape.a1
+    assert rc._dependency_anchor_before_incorporating(shape.repo, shape.base, _branch("lane-a"), _branch("lane-b")) == shape.a1
 
 
 def test_an_unreadable_dependency_anchors_nothing_and_keeps_the_target_base(shape: Shape) -> None:
     with pytest.raises(GitProbeError):
-        rc._dependency_anchor_before_incorporating(shape.repo, shape.base, "no-such-ref", _canceled_tip(shape))
-    got = rc._canceled_lane_anchors(shape.repo, shape.base, ["no-such-ref", shape.base], shape.base, _canceled_tip(shape))
+        rc._dependency_anchor_before_incorporating(shape.repo, shape.base, "no-such-ref", _branch("lane-b"))
+    got = rc._canceled_lane_anchors(shape.repo, shape.base, ["no-such-ref", shape.base], shape.base, _branch("lane-b"))
     assert got == [shape.base]
 
 
@@ -324,3 +319,99 @@ def test_an_unreadable_merged_in_history_refuses_spine_unreadable(shape: Shape, 
     _superseded, content, refusal = rc._carried_dependency_content(query, own_by_lane, carriers.spines, frozenset({shape.c1}), carriers.unreadable)
     assert content == frozenset()
     assert refusal is not None and "spine_unreadable" in refusal and "broken history" in refusal
+
+
+# --------------------------------------------------------------------------- review cycle 1 (HIGH): a refresh merge on A is not "incorporating C"
+
+
+@dataclass(frozen=True)
+class RefreshShape:
+    """``base`` -> lane-a ``a1``, refresh merge ``m0`` of the Mission branch (``s1``), ``a2``; lane-b (canceled) cut from ``a2`` with ``c1``.
+
+    lane-a never merges lane-b.
+    """
+
+    repo: Path
+    base: str
+    a1: str
+    s1: str
+    m0: str
+    a2: str
+    c1: str
+
+
+@pytest.fixture
+def refresh(tmp_path: Path) -> RefreshShape:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _sh(repo, "init", "-q", "-b", _TARGET)
+    for key, value in (("user.email", "t@example.invalid"), ("user.name", "Test"), ("commit.gpgsign", "false")):
+        _sh(repo, "config", key, value)
+    base = _commit(repo, "README.md", "init\n")
+    _sh(repo, "checkout", "-q", "-b", _MANIFEST.mission_branch, base)
+    s1 = _commit(repo, "docs/s.md", "status\n")
+    _sh(repo, "checkout", "-q", "-b", _branch("lane-a"), base)
+    a1 = _commit(repo, "src/a.py", "A = 1\n")
+    _sh(repo, "merge", "-q", "--no-ff", "--no-edit", _MANIFEST.mission_branch)
+    m0 = _sh(repo, "rev-parse", "HEAD")
+    a2 = _commit(repo, "src/a.py", "A = 2\n")
+    _sh(repo, "checkout", "-q", "-b", _branch("lane-b"), a2)
+    c1 = _commit(repo, "src/c.py", "C = 'canceled'\n")
+    return RefreshShape(repo=repo, base=base, a1=a1, s1=s1, m0=m0, a2=a2, c1=c1)
+
+
+@pytest.mark.parametrize("frozen", [False, True], ids=["live", "frozen_tips"])
+def test_a_refresh_merge_before_c_was_cut_keeps_c_owning_only_its_own_commit(refresh: RefreshShape, frozen: bool) -> None:
+    """An ordinary merge on A made before C was cut must not move A's approved work into C's canceled set."""
+    frozen_tips = {_branch("lane-a"): refresh.a2} if frozen else None
+    got = rc._fully_canceled_lane_own_commits(refresh.repo, _MANIFEST, frozenset({"WP02"}), refresh.base, None, frozen_tips=frozen_tips)
+    assert got == {"lane-b": frozenset({refresh.c1})}
+
+
+@pytest.mark.parametrize("frozen", [False, True], ids=["live", "frozen_tips"])
+def test_a_refresh_merge_before_c_was_cut_keeps_the_live_anchor(refresh: RefreshShape, frozen: bool) -> None:
+    tip = refresh.a2 if frozen else _branch("lane-a")
+    assert rc._dependency_anchor_before_incorporating(refresh.repo, refresh.base, tip, _branch("lane-b")) == tip
+
+
+def test_a_lane_that_never_merged_c_is_not_its_carrier(refresh: RefreshShape) -> None:
+    query = rc._CanceledLaneQuery(
+        refresh.repo, refresh.repo / "kitty-specs" / _SLUG, _MANIFEST, {"WP01": {"lane": "approved"}, "WP02": {"lane": "canceled"}},
+        frozenset({"WP02"}), refresh.base, None, None, None, frozen_tips=None,
+    )  # fmt: skip
+    assert rc._carrier_spines(query, frozenset({refresh.c1})).spines == {}
+
+
+def _recut_canceled_lane_after_a_refresh_merge(mission: cs.ShapeMission) -> None:
+    """lane-a gains a refresh merge of the Mission branch and a later commit, is re-approved, and canceled lane-b is re-cut from it."""
+    with fixture_phase():
+        with cs.lane_checkout(mission, mission.lane_branches["WP01"]) as lane_a:
+            cs._git(lane_a, "merge", "-q", "--no-ff", "--no-edit", mission.mission_branch)
+            (lane_a / "src" / "pkg" / "wp01_more.py").write_text("def more() -> int:\n    return 3\n", encoding="utf-8")
+            cs._git(lane_a, "add", "src/pkg/wp01_more.py")
+            cs._git(lane_a, "commit", "-qm", "feat: WP01 more work after a refresh merge")
+            a2 = cs._git(lane_a, "rev-parse", "HEAD").strip()
+        _reapprove_wp01(mission)
+        with cs.lane_checkout(mission, mission.lane_branches["WP02"]) as lane_b:
+            cs._git(lane_b, "reset", "-q", "--hard", a2)
+            (lane_b / WP02_PATH).write_text("def wp02() -> int:\n    return 2\n", encoding="utf-8")
+            cs._git(lane_b, "add", WP02_PATH)
+            cs._git(lane_b, "commit", "-qm", "feat: WP02 work (canceled)")
+    lane_a_tip = cs._git(mission.repo, "rev-parse", mission.lane_branches["WP01"]).strip()
+    require(cs._try_git(mission.repo, "merge-base", "--is-ancestor", mission.lane_branches["WP02"], lane_a_tip) is None, "lane-a must never merge lane-b")
+    require(len(cs._git(mission.repo, "rev-list", "--merges", f"{mission.target_branch}..{lane_a_tip}").split()) == 1, "lane-a must carry one refresh merge")
+
+
+@pytest.mark.slow
+def test_refresh_merge_before_the_cut_keeps_the_base_verdict(tmp_path: Path) -> None:
+    """End to end: canceled lane-b cut after lane-a's refresh merge, never merged back. The base verdict holds: lane-a lands, lane-b is skipped."""
+    mission = build_canceled_lane_on_approved_dependency(tmp_path)
+    _recut_canceled_lane_after_a_refresh_merge(mission)
+
+    result = _fresh_run(mission)
+
+    assert result.exception is None, result.output
+    assert CODE not in result.output, result.output
+    assert result.exit_code == 0, result.output
+    assert blob_present_at(mission.repo, mission.target_branch, "src/pkg/wp01_more.py")
+    assert not blob_present_at(mission.repo, mission.target_branch, WP02_PATH)
