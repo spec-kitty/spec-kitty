@@ -20,18 +20,15 @@ from pathlib import Path
 
 from specify_cli.git.ref_advance import delete_bookkeeping_ref, write_bookkeeping_ref
 
+# ``is_recorded`` (WP05), ``recorded_merges`` (WP05) and ``delete`` (WP03) are public but join
+# ``__all__`` only once a caller outside this module exists (the dead-symbol gate).
 __all__ = [
-    "AUTO_REBASE_REF_PREFIX",
     "AutoRebaseRecordError",
-    "delete",
     "delete_for_lane",
-    "is_recorded",
     "record",
-    "record_ref",
-    "recorded_merges",
 ]
 
-AUTO_REBASE_REF_PREFIX = "refs/spec-kitty/auto-rebase/"
+_AUTO_REBASE_REF_PREFIX = "refs/spec-kitty/auto-rebase/"
 
 # A full object name: SHA-1 (40) or SHA-256 (64) hex, lowercase as git prints it.
 _FULL_SHA = re.compile(r"[0-9a-f]{40}(?:[0-9a-f]{24})?")
@@ -49,10 +46,10 @@ def _require(lane_branch: str, sha: str) -> None:
 
 
 def _lane_prefix(lane_branch: str) -> str:
-    return f"{AUTO_REBASE_REF_PREFIX}{lane_branch}/"
+    return f"{_AUTO_REBASE_REF_PREFIX}{lane_branch}/"
 
 
-def record_ref(lane_branch: str, merge_sha: str) -> str:
+def _record_ref(lane_branch: str, merge_sha: str) -> str:
     """The ref that records ``merge_sha`` as an auto-rebase merge on ``lane_branch``."""
     _require(lane_branch, merge_sha)
     return f"{_lane_prefix(lane_branch)}{merge_sha}"
@@ -64,7 +61,7 @@ def record(repo_root: Path, lane_branch: str, merge_sha: str) -> bool:
     A retried call finds the ref already holding the same SHA and succeeds. A ref holding
     anything else, or any git failure, is ``False``: the writer then halts (NFR-002).
     """
-    ref = record_ref(lane_branch, merge_sha)
+    ref = _record_ref(lane_branch, merge_sha)
     if write_bookkeeping_ref(repo_root, ref, merge_sha, create_only=True):
         return True
     try:
@@ -79,7 +76,7 @@ def is_recorded(repo_root: Path, lane_branch: str, sha: str) -> bool:
     Raises:
         AutoRebaseRecordError: git could not answer, or the record names another commit.
     """
-    ref = record_ref(lane_branch, sha)
+    ref = _record_ref(lane_branch, sha)
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--verify", "--quiet", ref],
@@ -130,7 +127,7 @@ def recorded_merges(repo_root: Path, lane_branch: str) -> frozenset[str]:
 
 def delete(repo_root: Path, lane_branch: str, merge_sha: str) -> bool:
     """Delete one record; ``True`` on success, also when it was already absent."""
-    return bool(delete_bookkeeping_ref(repo_root, record_ref(lane_branch, merge_sha)))
+    return bool(delete_bookkeeping_ref(repo_root, _record_ref(lane_branch, merge_sha)))
 
 
 def delete_for_lane(repo_root: Path, lane_branch: str) -> tuple[str, ...]:
@@ -139,4 +136,4 @@ def delete_for_lane(repo_root: Path, lane_branch: str) -> tuple[str, ...]:
     Raises:
         AutoRebaseRecordError: the records could not be listed.
     """
-    return tuple(record_ref(lane_branch, sha) for sha in sorted(recorded_merges(repo_root, lane_branch)) if not delete(repo_root, lane_branch, sha))
+    return tuple(_record_ref(lane_branch, sha) for sha in sorted(recorded_merges(repo_root, lane_branch)) if not delete(repo_root, lane_branch, sha))

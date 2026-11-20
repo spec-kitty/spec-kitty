@@ -987,14 +987,14 @@ def _undo_unrecorded_merge(
     branch: str,
     merge_sha: str,
     before: str,
+    reason: str,
 ) -> str:
-    """Undo a merge whose record could not be written; return the halt reason (NFR-002).
+    """Undo a merge the tool will not record; return the halt reason, which starts with ``reason`` (NFR-002).
 
     The reset goes through the destructive guard, back to the tip read just before the merge;
     the lane work tip is then re-recorded, since the post-commit recorder hook may already have
     pointed it at the undone merge. A refused or failed reset leaves the merge, and says so.
     """
-    reason = f"auto-rebase record could not be written for merge {merge_sha[:12]}"
     try:
         guarded_reset_hard(worktree_path, before, context=context, env=_make_merge_env())
     except (DestructiveOpRefused, RuntimeError) as exc:
@@ -1009,6 +1009,36 @@ def _undo_unrecorded_merge(
     return f"{reason}; the merge was undone"
 
 
+def _staged_tree(worktree_path: Path) -> str | None:
+    """The tree of the index the tool staged, read just before the commit; ``None`` when unreadable."""
+    result = _run(["git", "write-tree"], worktree_path)
+    tree = result.stdout.strip()
+    return tree if result.returncode == 0 and tree else None
+
+
+def _commit_staged_merge(
+    context: ResidueClassifier,
+    worktree_path: Path,
+    lane_id: str,
+    classifications: list[ConflictClassification],
+    message: str | None = None,
+) -> AutoRebaseReport | str:
+    """Commit the in-progress merge; return the staged tree it was meant to carry, or a failure report."""
+    staged_tree = _staged_tree(worktree_path)
+    if staged_tree is None:
+        return _abort_with_failure(context, worktree_path, lane_id, classifications, "could not read the staged merge tree before the commit")
+    try:
+        commit_result = conclude_in_progress_op(worktree_path, env=_make_merge_env(), message=message)
+    except MergeConclusionRefused as exc:
+        return _abort_with_failure(context, worktree_path, lane_id, classifications, f"merge commit failed: {exc}")
+    if commit_result.returncode != 0:
+        return _abort_with_failure(
+            context, worktree_path, lane_id, classifications,
+            f"merge commit failed: {(commit_result.stderr or commit_result.stdout).strip()}",
+        )
+    return staged_tree
+
+
 def _record_tool_merge(
     context: ResidueClassifier,
     worktree_path: Path,
@@ -1017,11 +1047,14 @@ def _record_tool_merge(
     branch: str,
     tips: _PreMergeTips,
     classifications: list[ConflictClassification],
+    staged_tree: str,
 ) -> AutoRebaseReport | str | None:
     """Record the merge this attempt just committed (FR-005).
 
     Returns the recorded merge SHA, ``None`` when nothing was committed, or a failure report.
-    Only a merge whose parents are exactly ``[before, mission_before]`` is recorded.
+    Only a merge whose parents are exactly ``[before, mission_before]`` and whose tree is the one
+    the tool staged (``staged_tree``) is recorded: a ``pre-commit`` hook that changed the tree is
+    undone like a record that could not be written.
     """
     head_result = _run(["git", "rev-parse", "--verify", "HEAD"], worktree_path)
     head = head_result.stdout.strip()
@@ -1037,9 +1070,17 @@ def _record_tool_merge(
             f"the lane tip {head[:12]} after the auto-rebase is not its merge of {tips.mission_before[:12]} into "
             f"{tips.before[:12]}; it was left on the lane unrecorded",
         )
-    if auto_rebase_record.record(repo_root, branch, head):
+    committed_tree = _run(["git", "rev-parse", "--verify", f"{head}^{{tree}}"], worktree_path).stdout.strip()
+    if committed_tree != staged_tree:
+        reason = (
+            f"the merge {head[:12]} carries tree {committed_tree[:12] or 'unreadable'}, not the tree {staged_tree[:12]} "
+            "the auto-rebase staged (a pre-commit hook altered it), so it was not recorded"
+        )
+    elif auto_rebase_record.record(repo_root, branch, head):
         return head
-    return _halted(lane_id, classifications, _undo_unrecorded_merge(context, worktree_path, repo_root, branch, head, tips.before))
+    else:
+        reason = f"auto-rebase record could not be written for merge {head[:12]}"
+    return _halted(lane_id, classifications, _undo_unrecorded_merge(context, worktree_path, repo_root, branch, head, tips.before, reason))
 
 
 def _finalize_auto_rebase(
@@ -1098,22 +1139,13 @@ def _finalize_auto_rebase(
         f"auto-rebase(lane={lane_id}): {len(classifications)} conflicts "
         f"resolved by classifier rules [{', '.join(rule_ids_used)}]"
     )
-    try:
-        commit_result = conclude_in_progress_op(worktree_path, env=_make_merge_env(), message=message)
-    except MergeConclusionRefused as exc:
-        return _abort_with_failure(
-            context, worktree_path, lane_id, classifications, f"merge commit failed: {exc}",
-        )
-    if commit_result.returncode != 0:
-        return _abort_with_failure(
-            context, worktree_path, lane_id, classifications,
-            f"merge commit failed: "
-            f"{(commit_result.stderr or commit_result.stdout).strip()}",
-        )
+    staged_tree = _commit_staged_merge(context, worktree_path, lane_id, classifications, message)
+    if isinstance(staged_tree, AutoRebaseReport):
+        return staged_tree
 
     # FR-005: record the merge before the lane-tip ref advances, so a record that cannot be
     # written never leaves the tip ref naming an undone merge.
-    recorded = _record_tool_merge(context, worktree_path, repo_root, lane_id, branch, tips, classifications)
+    recorded = _record_tool_merge(context, worktree_path, repo_root, lane_id, branch, tips, classifications, staged_tree)
     if isinstance(recorded, AutoRebaseReport):
         return recorded
 
@@ -1156,14 +1188,10 @@ def _conclude_clean_merge(
 
     recorded: str | None = None
     if _merge_head_exists(worktree_path):
-        commit_result = conclude_in_progress_op(worktree_path, env=_make_merge_env())
-        if commit_result.returncode != 0:
-            return _abort_with_failure(
-                context, worktree_path, lane_id, clean_classifications,
-                f"merge commit failed: "
-                f"{(commit_result.stderr or commit_result.stdout).strip()}",
-            )
-        outcome = _record_tool_merge(context, worktree_path, repo_root, lane_id, branch, tips, clean_classifications)
+        staged_tree = _commit_staged_merge(context, worktree_path, lane_id, clean_classifications)
+        if isinstance(staged_tree, AutoRebaseReport):
+            return staged_tree
+        outcome = _record_tool_merge(context, worktree_path, repo_root, lane_id, branch, tips, clean_classifications, staged_tree)
         if isinstance(outcome, AutoRebaseReport):
             return outcome
         recorded = outcome

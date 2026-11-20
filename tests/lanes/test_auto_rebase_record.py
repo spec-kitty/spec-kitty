@@ -318,7 +318,7 @@ def test_record_is_idempotent_and_delete_is_a_no_op_when_absent(tmp_path: Path) 
     sha = _git(root, "rev-parse", "main")
     assert auto_rebase_record.record(root, _LANE, sha) is True
     assert auto_rebase_record.record(root, _LANE, sha) is True
-    assert auto_rebase_record.record_ref(_LANE, sha) == f"{_PREFIX}{_LANE}/{sha}"
+    assert auto_rebase_record._record_ref(_LANE, sha) == f"{_PREFIX}{_LANE}/{sha}"
     assert auto_rebase_record.delete(root, _LANE, sha) is True
     assert auto_rebase_record.delete(root, _LANE, sha) is True
     assert _refs_under(root, _PREFIX) == []
@@ -519,7 +519,7 @@ def test_a_head_that_is_not_the_tool_merge_is_not_recorded(tmp_path: Path) -> No
     _commit(worktree, "late.py", "w = 4\n")  # a plain commit, not a merge of the Mission branch
     tips = _PreMergeTips(before=before, mission_before=_git(root, "rev-parse", _MISSION))
 
-    outcome = _record_tool_merge(NothingIsResidue(), worktree, root, "lane-a", _LANE, tips, [])
+    outcome = _record_tool_merge(NothingIsResidue(), worktree, root, "lane-a", _LANE, tips, [], _git(worktree, "rev-parse", "HEAD^{tree}"))
 
     assert isinstance(outcome, Report) and outcome.succeeded is False
     assert outcome.halt_reason is not None and "left on the lane unrecorded" in outcome.halt_reason
@@ -534,7 +534,7 @@ def test_an_unreadable_head_is_not_recorded(tmp_path: Path, monkeypatch: pytest.
     nowhere = tmp_path / "not-a-repo"
     nowhere.mkdir()
     monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
-    outcome = _record_tool_merge(NothingIsResidue(), nowhere, nowhere, "lane-a", _LANE, _PreMergeTips("a" * 40, "b" * 40), [])
+    outcome = _record_tool_merge(NothingIsResidue(), nowhere, nowhere, "lane-a", _LANE, _PreMergeTips("a" * 40, "b" * 40), [], "c" * 40)
     assert isinstance(outcome, Report) and outcome.halt_reason is not None
     assert "could not read the lane tip after the auto-rebase merge" in outcome.halt_reason
 
@@ -551,3 +551,49 @@ def test_attempt_halts_without_merging_when_a_pre_merge_tip_is_unreadable(tmp_pa
     assert report.succeeded is False and report.halt_reason == "could not read the lane tip before the auto-rebase merge: boom"
     assert _git(worktree, "rev-parse", "HEAD") == before
     assert _git(worktree, "status", "--porcelain") == ""
+
+
+# --- the record is bound to the tree the tool staged (review cycle 1, must-fix 2) --------------
+
+
+def _install_staging_pre_commit_hook(root: Path) -> None:
+    """A repository ``pre-commit`` hook that stages a file of its own into every commit."""
+    hooks = root / ".git" / "custom-hooks"
+    hooks.mkdir()
+    hook = hooks / "pre-commit"
+    hook.write_text("#!/bin/sh\necho injected > injected-by-hook.txt\ngit add injected-by-hook.txt\n", encoding="utf-8")
+    hook.chmod(0o755)
+    _git(root, "config", "core.hooksPath", str(hooks))
+
+
+@pytest.mark.parametrize("shape", ["clean", "auto_resolved"])
+def test_a_hook_altered_merge_tree_is_undone_and_not_recorded(tmp_path: Path, shape: str) -> None:
+    root, worktree = _SHAPES[shape](tmp_path)
+    before = _git(worktree, "rev-parse", "HEAD")
+    _install_staging_pre_commit_hook(root)
+
+    report = _rebase(root, worktree)
+
+    assert report.succeeded is False
+    assert report.halt_reason is not None and "pre-commit hook" in report.halt_reason
+    assert "the merge was undone" in report.halt_reason
+    assert report.merge_sha is None
+    assert _git(worktree, "rev-parse", "HEAD") == before
+    assert not (worktree / "injected-by-hook.txt").exists()
+    assert _refs_under(root, _PREFIX) == []
+
+
+@pytest.mark.parametrize("shape", ["clean", "auto_resolved"])
+def test_an_unreadable_staged_tree_aborts_the_merge_before_any_commit(tmp_path: Path, shape: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.lanes import auto_rebase
+
+    root, worktree = _SHAPES[shape](tmp_path)
+    before = _git(worktree, "rev-parse", "HEAD")
+    monkeypatch.setattr(auto_rebase, "_staged_tree", lambda _worktree: None)
+
+    report = _rebase(root, worktree)
+
+    assert report.succeeded is False
+    assert report.halt_reason is not None and report.halt_reason.startswith("could not read the staged merge tree")
+    assert _git(worktree, "rev-parse", "HEAD") == before
+    assert _refs_under(root, _PREFIX) == []
