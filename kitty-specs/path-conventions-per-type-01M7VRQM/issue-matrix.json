@@ -1,7 +1,7 @@
 {
   "rows": {
     "#2330": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for item 1 context only; the per-type remap is tracked by #7748; #2330 stays open for its other items.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,7 +9,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#2744": {
