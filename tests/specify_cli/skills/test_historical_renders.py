@@ -129,3 +129,17 @@ def test_generator_refuses_uncommitted_skill_sources(tmp_path: Path, monkeypatch
 
     assert generator.main(["--repo", str(tmp_path)]) == 2
     assert "uncommitted" in capsys.readouterr().err
+
+
+def test_generator_records_no_empty_file_digest() -> None:
+    """An empty file (a ``.gitkeep``) proves no authorship, so the generator never records it."""
+    assert generator.digests_for(".gitkeep", b"", "demo") == set()
+    merged = generator.merge_renders({"demo/.gitkeep": [generator.EMPTY_DIGEST], "demo/SKILL.md": [generator.EMPTY_DIGEST, "a" * 64]}, {})
+    assert merged == {"demo/SKILL.md": ["a" * 64]}
+
+
+def test_committed_list_holds_no_empty_file_digest() -> None:
+    assert not historical_renders.is_historical_render("spec-kitty-setup-doctor", "scripts/.gitkeep", generator.EMPTY_DIGEST)
+    raw = (Path(__file__).resolve().parents[3] / generator.DATA_PATH).read_text(encoding="utf-8")
+    assert generator.EMPTY_DIGEST not in raw
+
