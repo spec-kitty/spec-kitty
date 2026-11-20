@@ -153,7 +153,7 @@
     },
     "WP05": {
       "actor": "claude",
-      "agent": "claude::generic-reviewer",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -166,6 +166,7 @@
         "ADR 2026-08-28-1 amendment (per-type sections, precedence, fail-closed rules, remedy order, both waivers, orchestrator-api note), accept-and-merge how-to rewrite, changelog fragment. Changelog style and spelling clean; terminology guard 98 passed; docs gates 335 passed, 1 skipped."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/path-conventions-per-type-01M7VRQM-coord/kitty-specs/path-conventions-per-type-01M7VRQM/tasks/WP05-docs/review-cycle-1.md",
         "reference": "review-cycle://path-conventions-per-type-01M7VRQM/WP05-docs/review-cycle-1.md",
@@ -173,12 +174,12 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 398,
-      "shell_pid_created_at": "1795175438.04",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T020": "done",
-        "T021": "done",
-        "T022": "done"
+        "T020": "planned",
+        "T021": "planned",
+        "T022": "planned"
       }
     }
   }
