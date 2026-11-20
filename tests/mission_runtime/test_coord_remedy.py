@@ -40,7 +40,8 @@ def test_tracking_ref_absent_leads_with_a_targeted_fetch() -> None:
     text = remote_only_steps(facts, _ROOT, "re-run the command")
 
     assert text == (
-        f"Run in order: `git -C {_ROOT} fetch origin {_BRANCH}:refs/remotes/origin/{_BRANCH}`, then `git -C {_ROOT} branch {_BRANCH} origin/{_BRANCH}`, then re-run the command."
+        f"Run in order: `git -C {_ROOT} fetch origin {_BRANCH}:refs/remotes/origin/{_BRANCH}`, "
+        f"then `git -C {_ROOT} branch {_BRANCH} origin/{_BRANCH}`, then re-run the command."
     )
 
 

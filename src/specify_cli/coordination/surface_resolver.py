@@ -43,6 +43,7 @@ from __future__ import annotations
 import enum
 import logging
 import ntpath
+import shlex
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -324,9 +325,12 @@ class CoordinationWorktreeUnmaterialized(StatusReadPathNotFound):  # type: ignor
     (single-branch/shallow/CI clone, or a pruned remote-tracking ref) reached
     this state via :func:`_coord_branch_exists`'s new remote arm — ``doctor
     workspaces --fix``'s ``git worktree add`` would fail on that unfetched ref,
-    so the guidance leads with ``git fetch origin <branch>`` first. A local
-    head that is simply not yet checked out keeps the original
-    self-materializes-or-``doctor workspaces --fix`` guidance unchanged.
+    so the guidance leads with the canonical remote-only steps (#5287,
+    :mod:`mission_runtime.coord_remedy`): fetch the branch from the remote that
+    owns it into its remote-tracking ref (only when this clone lacks it), create
+    the local branch, then ``doctor coordination --fix``. A local head that is
+    simply not yet checked out keeps the self-materializes-or-``doctor
+    coordination --fix`` guidance.
     """
 
     error_code: str = "COORDINATION_WORKTREE_UNMATERIALIZED"
@@ -396,7 +400,7 @@ class CoordinationWorktreeUnmaterialized(StatusReadPathNotFound):  # type: ignor
         else:  # pragma: no cover - mid8 is always resolved for UNMATERIALIZED
             coord_worktree_root = coord_candidate.parent.parent
         doctor_cmd = f"spec-kitty doctor coordination --mission {mission_slug} --fix"
-        materialize_cmd = f"git -C {repo_root} worktree add {coord_worktree_root} {coordination_branch}"
+        materialize_cmd = f"git -C {shlex.quote(str(repo_root))} worktree add {shlex.quote(str(coord_worktree_root))} {coordination_branch}"
         if coordination_branch and not _coord_branch_is_local_head(repo_root, coordination_branch):
             from mission_runtime.coord_remedy import coordination_doctor_command, remote_only_branch, remote_only_steps
 
