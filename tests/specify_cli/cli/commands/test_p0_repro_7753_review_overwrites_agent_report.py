@@ -1,4 +1,4 @@
-"""Reproduction and per-PR guard for spec-kitty/spec-kitty#7753.
+"""Reproduction and guard for spec-kitty/spec-kitty#7753.
 
 Before the fix, ``spec-kitty review --mission <slug>`` wrote its machine report to
 ``kitty-specs/<slug>/mission-review-report.md`` with an unconditional
@@ -7,8 +7,12 @@ saved at that path (no ``verdict:`` / ``gates_recorded:`` frontmatter) was
 destroyed without warning or backup.
 
 This started as the red-first P0 reproduction (ADR 2026-07-17-1, PR #7770).
-The fix removed the ``p0_repro`` marker, so it now runs on every PR. The
-second test pins the fix's exact contract: the command refuses with
+The fix removed the ``p0_repro`` marker, which moves it from the nightly
+``p0-repro`` lane into the general nightly run, NOT into a per-PR lane:
+``tests/specify_cli/cli/commands`` is in ``out_of_matrix_test_dirs``
+(``.github/ci-module-registry.yml``). The per-PR guard is the in-matrix lift
+``tests/cli/commands/test_review_report_guard_7753.py``. The second test here
+pins the fix's exact contract: the command refuses with
 ``MISSION_REVIEW_REPORT_PATH_OCCUPIED``, exits 1 and leaves the agent's file
 byte-identical in place.
 """

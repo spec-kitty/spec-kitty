@@ -1030,6 +1030,8 @@ def _build_ingestor_findings(
     (FR-007) extends this same seam — ``traces`` feed the same finding channels as
     the workflow-failures-log / analysis-report / mission-review artifacts.
     """
+    if agent_review_text is not None and not agent_review_rel:
+        raise ValueError("agent_review_text needs agent_review_rel: the finding's evidence path")
     helped: list[GenFinding] = []
     not_helpful: list[GenFinding] = []
     gaps: list[GenFinding] = []
