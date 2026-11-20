@@ -143,3 +143,61 @@ def test_committed_list_holds_no_empty_file_digest() -> None:
     raw = (Path(__file__).resolve().parents[3] / generator.DATA_PATH).read_text(encoding="utf-8")
     assert generator.EMPTY_DIGEST not in raw
 
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[3]
+
+
+def _history_unavailable(repo: Path) -> str | None:
+    import subprocess
+
+    try:
+        if generator._is_shallow(repo):
+            return "shallow clone: the full-history rebuild needs `git fetch --unshallow`"
+    except (OSError, subprocess.CalledProcessError):
+        return "not a git checkout"
+    return None
+
+
+def test_committed_list_is_current_against_history() -> None:
+    """The in-suite form of ``--check`` (#7700 m2): the committed list equals a rebuild from history.
+
+    CI's module shards check out with ``fetch-depth: 0``, so this runs there; a shallow or
+    non-git checkout cannot rebuild, and the always-on ``test_every_current_render_is_listed``
+    still covers today's renders.
+    """
+    repo = _repo_root()
+    reason = _history_unavailable(repo)
+    if reason is not None:
+        pytest.skip(reason)
+    _assert_list_current(repo)
+
+
+def _assert_list_current(repo: Path) -> None:
+    committed = (repo / generator.DATA_PATH).read_text(encoding="utf-8")
+    assert generator.build(repo) == committed, f"{generator.DATA_PATH} is out of date; run `{_REGENERATE}`"
+
+
+def test_currency_check_detects_an_unregenerated_skill_edit(tmp_path: Path) -> None:
+    """The currency assertion is not vacuous: a committed skill edit without regenerating fails it."""
+    import subprocess
+
+    def git(*args: str) -> None:
+        subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *args], cwd=tmp_path, check=True, capture_output=True)
+
+    skill = tmp_path / generator.SOURCE_ROOTS[1] / "demo" / "notes.md"
+    skill.parent.mkdir(parents=True)
+    skill.write_text("v1\n", encoding="utf-8")
+    git("init", "-q")
+    git("add", "-A")
+    git("commit", "-q", "-m", "v1")
+    assert _history_unavailable(tmp_path) is None
+    data_file = tmp_path / generator.DATA_PATH
+    data_file.parent.mkdir(parents=True)
+    data_file.write_text(generator.build(tmp_path), encoding="utf-8")
+    _assert_list_current(tmp_path)
+
+    skill.write_text("v2\n", encoding="utf-8")
+    git("commit", "-q", "-am", "v2")
+    with pytest.raises(AssertionError, match="out of date"):
+        _assert_list_current(tmp_path)
