@@ -65,7 +65,8 @@
       "last_transition_at": "2026-11-20T11:04:52.208839+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Per-type resolution at the single caller, both waivers' effect at the seam, remedy text led by the per-type remap. 11 seam tests (open-packs fixture) and 6 remedy tests red first; blast radius 492 passed, 1 skipped; ruff/mypy clean. Deliberate re-pin: remedy order remap < waiver < --lenient < mkdir. Out-of-map: 2 assertions in test_accept_contracts_waiver.py now pin the contracts notice instead of the bare word 'waived'."
+        "Per-type resolution at the single caller, both waivers' effect at the seam, remedy text led by the per-type remap. 11 seam tests (open-packs fixture) and 6 remedy tests red first; blast radius 492 passed, 1 skipped; ruff/mypy clean. Deliberate re-pin: remedy order remap < waiver < --lenient < mkdir. Out-of-map: 2 assertions in test_accept_contracts_waiver.py now pin the contracts notice instead of the bare word 'waived'.",
+        "Review passed: per-type resolution at the single caller (mission_type from meta.json, default software-dev; per-type > flat > default); per-run and meta.json waivers make path misses advisory while metadata stays strict, malformed meta waiver rides on the blocking text; remedy leads with the per-type remap, names both waivers before --lenient (#3783 order kept: remap < waiver < --lenient < mkdir), demotes the mission.yaml copy to a last resort, mkdir only for real deliverables with contracts: none beside contracts/. Re-pins deliberate, not loosened (contracts-waiver pin narrowed to the exact notice). Nit: the strict text names the CLI-only --waive-path-conventions also on the orchestrator-api path. 473 targeted passed/1 skipped; make test-fast 3144 passed/7 skipped; ruff/format/mypy clean."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
