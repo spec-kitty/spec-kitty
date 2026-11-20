@@ -91,6 +91,16 @@ def global_skill_names() -> frozenset[str]:
     return frozenset(skill.name for skill in registry.discover_skills()) if registry is not None else frozenset()
 
 
+def _skill_effect_owners(destination: Path, agents: tuple[str, ...]) -> tuple[str, ...]:
+    """The selected agents whose global skill root holds *destination*; every selected agent for a shared file."""
+    owners = tuple(
+        agent
+        for agent in agents
+        if (agent_root := get_primary_global_skill_root(agent)) is not None and (agent_root == destination or agent_root in destination.parents)
+    )
+    return owners or agents
+
+
 def _unique_global_roots(agent_keys: tuple[str, ...] | None = None) -> list[Path]:
     roots: list[Path] = []
     seen: set[Path] = set()
@@ -323,16 +333,13 @@ def assess_global_agent_skills(
         stale = any(item.kind == "stale_canonical" for item in _classify_kept(prepared.dispositions, prepared.root.path, roots, {skill.name for skill in skills}))
         stamp = home / "cache" / _VERSION_FILENAME if selection is None and not stale else None
         assessment = prepared.finish(stamp, _get_cli_version())
-        effects = []
-        for effect in assessment.effects:
-            logical = tuple(
-                agent
-                for agent in agents
-                if (agent_root := get_primary_global_skill_root(agent)) is not None
-                and (agent_root == effect.destination or agent_root in effect.destination.parents)
-            )
-            effects.append(replace(effect, logical_owners=logical or agents))
-        assessment = replace(assessment, effects=tuple(effects))
+        if agents:
+            # With no agent selected (an upgrade whose agents have no user-global skill root),
+            # the effects keep the owner itself as logical owner, as agent_commands does: an
+            # empty owner tuple is not a valid effect. The one write then is the inventory's
+            # one-time move to the #7722 layout, which keeps every record.
+            effects = tuple(replace(effect, logical_owners=_skill_effect_owners(effect.destination, agents)) for effect in assessment.effects)
+            assessment = replace(assessment, effects=effects)
         return prepared, assessment
 
     try:
