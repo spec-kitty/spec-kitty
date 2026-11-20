@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """Build the frozen list of every skill render Spec Kitty shipped (#7700).
 
-Reads git history of the skill source roots plus the working tree and writes
+Reads the committed git history of the skill source roots and writes
 ``src/specify_cli/skills/data/historical_skill_renders.json``: for each
 ``<skill>/<relative path>``, the sorted sha256 digests of every version that
 shipped. For ``SKILL.md`` it also records today's shared and native frontmatter
 projection of each version, the bytes a projected install holds.
 
 The list is append-only: the existing file is unioned with what history
-yields, so no digest is ever dropped. Run it in a full-history clone::
+yields, so no digest is ever dropped. Only committed bytes are recorded: it
+refuses while a skill source has uncommitted changes, so commit the skill edit
+first. Run it in a full-history clone::
 
     uv run --frozen python -m scripts.skills.build_historical_skill_digests
     uv run --frozen python -m scripts.skills.build_historical_skill_digests --check
@@ -107,28 +109,27 @@ def _history_renders(repo: Path) -> dict[str, set[str]]:
     return renders
 
 
-def _working_tree_renders(repo: Path) -> dict[str, set[str]]:
-    renders: dict[str, set[str]] = {}
-    for root in SOURCE_ROOTS:
-        for path in sorted((repo / root).rglob("*")):
-            split = _split(path.relative_to(repo).as_posix())
-            if split is None or not path.is_file() or path.is_symlink() or "__pycache__" in path.parts:
-                continue
-            renders.setdefault(f"{split[0]}/{split[1]}", set()).update(digests_for(split[1], path.read_bytes(), split[0]))
-    return renders
-
-
 def _serialize(renders: Mapping[str, list[str]]) -> str:
     payload = {"schema_version": SCHEMA_VERSION, "sources": list(SOURCE_ROOTS), "renders": renders}
     return json.dumps(payload, indent=1, sort_keys=True) + "\n"
 
 
 def build(repo: Path) -> str:
-    """The serialized list for *repo*: existing file ∪ history ∪ working tree."""
+    """The serialized list for *repo*: existing file ∪ every committed version of every skill file."""
     data_file = repo / DATA_PATH
     existing = json.loads(data_file.read_text(encoding="utf-8"))["renders"] if data_file.is_file() else {}
-    renders = merge_renders(existing, merge_renders(_history_renders(repo), _working_tree_renders(repo)))
+    renders = merge_renders(existing, _history_renders(repo))
     return _serialize(renders)
+
+
+def _is_shallow(repo: Path) -> bool:
+    return _git(repo, "rev-parse", "--is-shallow-repository").strip() == "true"
+
+
+def _dirty_sources(repo: Path) -> list[str]:
+    """Skill source paths with uncommitted (staged, unstaged or untracked) changes."""
+    status = _git(repo, "status", "--porcelain", "--untracked-files=all", "--", *SOURCE_ROOTS)
+    return [line[3:] for line in status.splitlines() if line.strip()]
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -137,8 +138,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--repo", type=Path, default=Path.cwd(), help="repository root (default: current directory)")
     args = parser.parse_args(argv)
     repo: Path = args.repo
-    if _git(repo, "rev-parse", "--is-shallow-repository").strip() == "true":
+    if _is_shallow(repo):
         print("Refusing: shallow clone; run `git fetch --unshallow` first.", file=sys.stderr)
+        return 2
+    dirty = _dirty_sources(repo)
+    if dirty:
+        print(f"Refusing: uncommitted skill sources would be recorded forever; commit them first: {', '.join(dirty)}", file=sys.stderr)
         return 2
     text = build(repo)
     data_file = repo / DATA_PATH
