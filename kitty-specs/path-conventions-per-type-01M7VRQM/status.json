@@ -165,7 +165,8 @@
       "notes": [
         "ADR 2026-08-28-1 amendment (per-type sections, precedence, fail-closed rules, remedy order, both waivers, orchestrator-api note), accept-and-merge how-to rewrite, changelog fragment. Changelog style and spelling clean; terminology guard 98 passed; docs gates 335 passed, 1 skipped.",
         "Review cycle 1: framing sentence now matches format_errors (per-type remap, waivers, --lenient, last resort; mkdir only for real deliverables); bullets kept as the full list. Docs gates and terminology guard 128 passed.",
-        "Review cycle 2: honours -> honors in the how-to and the ADR amendment; tests/docs 2254 passed, 2 skipped (same as main a053b674)."
+        "Review cycle 2: honours -> honors in the how-to and the ADR amendment; tests/docs 2254 passed, 2 skipped (same as main a053b674).",
+        "Review cycle 3 passed (reviewed by hand on issue-7566-path-conventions-per-type 8ada3b14..55976e8e; CLI-derived range is coord-only, #7759): ADR amendment and accept-and-merge how-to match the implementation (flag/field names, precedence, fail-closed rules, remedy order, orchestrator-api has no per-run flag, YAML single-key note); changelog fragment accurate; US spelling fixed. tests/docs + terminology guard: 2352 passed/2 skipped (base-equivalent)."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
