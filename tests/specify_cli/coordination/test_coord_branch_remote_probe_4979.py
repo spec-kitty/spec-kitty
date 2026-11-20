@@ -224,7 +224,7 @@ def test_pruned_local_branch_remote_only_coord_branch_is_not_deleted(tmp_path: P
     # the local branch.
     next_step = excinfo.value.next_step
     assert f"git -C {repo} fetch origin {coord_branch}" in next_step
-    assert f"git -C {repo} branch {coord_branch} origin/{coord_branch}" in next_step
+    assert f"git -C {repo} branch {coord_branch} refs/remotes/origin/{coord_branch}" in next_step
 
 
 def test_single_branch_clone_remote_only_coord_branch_is_not_deleted(tmp_path: Path) -> None:
@@ -268,7 +268,7 @@ def test_single_branch_clone_remote_only_coord_branch_is_not_deleted(tmp_path: P
     # the local branch.
     next_step = excinfo.value.next_step
     assert f"git -C {clone} fetch origin {coord_branch}" in next_step
-    assert f"git -C {clone} branch {coord_branch} origin/{coord_branch}" in next_step
+    assert f"git -C {clone} branch {coord_branch} refs/remotes/origin/{coord_branch}" in next_step
 
     # #5287 review B1: a single-branch clone's fetch refspec does not cover the
     # coordination branch, so a bare `fetch origin <b>` writes only FETCH_HEAD and
