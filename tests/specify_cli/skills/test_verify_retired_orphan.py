@@ -119,3 +119,35 @@ def test_clean_install_verifies_ok(tmp_path: Path, registry: SkillRegistry) -> N
     save_manifest(ManagedSkillManifest(entries=[]), tmp_path)
     result = verify_installed_skills(tmp_path)
     assert result.ok and not result.retired
+
+
+def test_provider_probe_reports_retired_entry_as_stale_and_repair_drains_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The production repair path (no legacy collaborators) acts only on actionable
+    statuses, so the retired entry must probe as actionable for the drain to run."""
+    from specify_cli.tool_surface.providers.managed_skills import managed_skill_definition
+    from specify_cli.tool_surface.status import STATE_STALE
+
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".kittify"))
+    monkeypatch.delenv("CLAUDE_CONFIG_DIR", raising=False)
+    project = tmp_path / "project"
+    project.mkdir()
+    registry = _registry(tmp_path)
+    _install_retired_copy(project)
+    provider = ManagedSkillsProvider(registry_factory=lambda: registry)
+
+    instances = provider.expand(managed_skill_definition(), "claude", project)
+    statuses = [provider.probe(instance) for instance in instances]
+    retired = [s for s in statuses if s.instance.path == project / _RETIRED_PATH]
+
+    assert [s.state for s in retired] == [STATE_STALE]
+    assert retired[0].findings and "retired" in retired[0].findings[0].message.lower()
+
+    outcome = provider.repair(project, statuses)
+
+    assert not outcome.failed, outcome.failed
+    assert not (project / _RETIRED_PATH).exists()
