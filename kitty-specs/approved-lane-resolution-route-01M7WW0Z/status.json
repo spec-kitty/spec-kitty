@@ -1,7 +1,7 @@
 {
-  "event_count": 45,
-  "last_event_id": "01M7X6PDKZTGFW8V34787GCH8F",
-  "materialized_at": "2026-11-20T19:24:52.735463+00:00",
+  "event_count": 46,
+  "last_event_id": "01M7X7799K67JST6VRSP9JN4F9",
+  "materialized_at": "2026-11-20T19:34:05.363264+00:00",
   "mission_number": "",
   "mission_slug": "approved-lane-resolution-route-01M7WW0Z",
   "mission_type": "software-dev",
@@ -12,8 +12,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 4,
-    "in_progress": 2,
+    "for_review": 5,
+    "in_progress": 1,
     "in_review": 0,
     "planned": 8
   },
@@ -216,9 +216,9 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M7X6G9M61NDQXA2V1D4M6QZD",
-      "last_transition_at": "2026-11-20T19:21:31.288761+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M7X7799K67JST6VRSP9JN4F9",
+      "last_transition_at": "2026-11-20T19:34:05.363264+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-20T18:01:04Z – claude – shell_pid=24797 – red: uv run --frozen pytest -q tests/review/test_review_context_merge_lines.py -> 9 failed: TypeError WpReviewRange.__init__() unexpected keyword 'merges'/'remerge_available' (renderer tests), AttributeError 'WpReviewRange' object has no attribute 'merges' (range-level git tests incl. two-merge full-history and fail-soft)",
@@ -229,7 +229,8 @@
         "Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
         "REJECT relayed from reviewer session session_019C2Tk5ehA3TXonKhbxbaMR",
         "- 2026-11-20T19:24:56Z – unknown – red (review cycle 1, must-fix 1): pytest tests/review/test_review_context_merge_lines.py -k fail_soft -> AssertionError: 'CITED REQUIREMENTS:' == '  RESOLUTION MERGES: could not be listed; run git rev-list --merges --full-history <base>..<tip> ...' (no fallback line rendered when the merge listing fails). Must-fix 2 ATDD test (next review prompt via runtime.next.prompt_builder._review_command_lines) passes on the existing feature, as expected for an acceptance test.",
-        "- 2026-11-20T19:31:36Z – unknown – review cycle 1 addressed: (1) MED fallback: WpReviewRange.merges_unlisted (listing_gap contains the merges step) makes render_review_context print '  RESOLUTION MERGES: could not be listed; run git rev-list --merges --full-history <base>..<tip> and review each with git show --remerge-diff <sha>' with full SHAs after the REVIEW COMMANDS; test_merge_listing_failure_is_fail_soft asserts the rendered line (red then green); docstring shape block updated. (2) LOW ATDD: test_next_review_prompt_prints_the_hand_merge_resolution_command drives runtime.next.prompt_builder._review_command_lines (the next review prompt, render site 1) on the _lane_with_merges fixture and asserts the full-SHA RESOLUTION MERGE line; kept in the owned test file. Tests: targeted set incl. no_dead_symbols/layer_rules/legacy terminology and tests/next/test_prompt_builder_review_base.py 467 passed; make test-fast 3144 passed 7 skipped; ruff/format/mypy clean."
+        "- 2026-11-20T19:31:36Z – unknown – review cycle 1 addressed: (1) MED fallback: WpReviewRange.merges_unlisted (listing_gap contains the merges step) makes render_review_context print '  RESOLUTION MERGES: could not be listed; run git rev-list --merges --full-history <base>..<tip> and review each with git show --remerge-diff <sha>' with full SHAs after the REVIEW COMMANDS; test_merge_listing_failure_is_fail_soft asserts the rendered line (red then green); docstring shape block updated. (2) LOW ATDD: test_next_review_prompt_prints_the_hand_merge_resolution_command drives runtime.next.prompt_builder._review_command_lines (the next review prompt, render site 1) on the _lane_with_merges fixture and asserts the full-SHA RESOLUTION MERGE line; kept in the owned test file. Tests: targeted set incl. no_dead_symbols/layer_rules/legacy terminology and tests/next/test_prompt_builder_review_base.py 467 passed; make test-fast 3144 passed 7 skipped; ruff/format/mypy clean.",
+        "- 2026-11-20T19:32:09Z – unknown – trace(tooling-friction): after the cycle-1 rejection the subtask checkboxes T037-T039 read unchecked again; move-task --to for_review refused 'unchecked subtasks' until mark-status was re-run."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
