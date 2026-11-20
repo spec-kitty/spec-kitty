@@ -66,7 +66,8 @@
       "last_transition_at": "2026-11-20T22:55:55.717029+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Gate via review_roles, canceled exemption, state-machine hint (runs as printed), #5818 aggregate, contract 1.30.0. Red 8bc32eec (14 failed on WP01 base) -> green. Off-tree blast 4601+318 passed; make test-fast 3173; arch gates 113"
+        "Gate via review_roles, canceled exemption, state-machine hint (runs as printed), #5818 aggregate, contract 1.30.0. Red 8bc32eec (14 failed on WP01 base) -> green. Off-tree blast 4601+318 passed; make test-fast 3173; arch gates 113",
+        "Review passed: gate reads review_roles implementer of record (no extra read); canceled-before-claim exempt; repair hint derived from state machine with --mission, each printed command run by test; accept-mission uses mission_terminal_acceptability; 1.30.0 minor bump consistent across envelope/docs/skill row. Red-first re-verified (14 failed on base, synthetic control passes). Nits: coord-topology test asserts the strict gate only, not accept-mission; tests/agent/test_orchestrator_commands_integration.py:304 points at a comment that now says the opposite; new sidecar-less #4934 test only asserts an absence."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
