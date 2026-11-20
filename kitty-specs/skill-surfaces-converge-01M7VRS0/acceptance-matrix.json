@@ -2,7 +2,7 @@
   "mission_slug": "skill-surfaces-converge-01M7VRS0",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
@@ -116,13 +116,13 @@
     },
     {
       "criterion_id": "FR-012",
-      "description": "Verify FR-012 is satisfied",
+      "description": "#2527 reproduced on a053b674 and folded in: a project skill file holding an earlier shipped render is refreshed under --fix, with a backup; a user edit is kept.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/skills/test_project_skills_historical_proof.py (WP03; reproduced on a053b674, folded in)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:31:11.574504+00:00",
+      "notes": "Red-first test committed before the fix; WP approved by an independent reviewer (claude::generic-reviewer/reviewer-renata)."
     }
   ],
   "negative_invariants": []
