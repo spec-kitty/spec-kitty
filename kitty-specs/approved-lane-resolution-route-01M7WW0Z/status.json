@@ -49,7 +49,8 @@
         "- 2026-11-20T20:12:02Z – unknown – review cycle 1 HIGH addressed (c93350986c): assert_registered_merge_behaviour now refuses (1) when 'git config --get --type=bool merge.renormalize' is true (every scope plus GIT_CONFIG_COUNT / -c env; an unreadable value raises), and (2) when any probed path has an effective filter, ident or working-tree-encoding value other than unset/unspecified, read in the SAME batched call 'check-attr --stdin merge filter ident working-tree-encoding' (path-major output, line count = paths x 4, each line's attribute name checked). Real-git red tests: laundering repro (clone-local '* filter=evil' + renormalize) via config file and via GIT_CONFIG_COUNT on both probes; renormalize alone x2; each conversion attribute. Known over-refusal: a repo using git-lfs (filter=lfs) on probed paths now refuses.",
         "- 2026-11-20T20:12:15Z – unknown – review cycle 1 MED addressed (c93350986c): one shared pin helper merge_attribute_guard.merge_probe_env(base=None) + table MERGE_PROBE_CONFIG_PINS (merge.directoryRenames=conflict, merge.renames=true, diff.algorithm=myers, merge.conflictStyle=merge). It appends the pins to GIT_CONFIG_PARAMETERS, which git reads after config files and GIT_CONFIG_COUNT (verified: last value wins, so an inherited -c is overridden). Both probes pass it through the existing env= parameter of kernel.git.merge_tree / remerge_paths, so no unowned code changed and no -c plumbing was needed. Neither name is in __all__; MERGE_PROBE_CONFIG_PINS is used in-module by merge_probe_env, merge_probe_env is imported by git_probes; test_no_dead_symbols green. WP07/WP08 incorporate merge and WP10's printed command should consume merge_probe_env / MERGE_PROBE_CONFIG_PINS. Tests: one spy test per key proving both probes' git invocations see the pinned value with a hostile repo config, a behavioural directoryRenames=true test, a behavioural renames test, and an inherited GIT_CONFIG_PARAMETERS precedence test.",
         "- 2026-11-20T20:12:21Z – unknown – review cycle 1 LOW addressed: red-first record corrected in history (85 failed / 3 passed; controls named).",
-        "- 2026-11-20T20:12:26Z – unknown – tests (cycle 2): guard file 105 passed; arch gates test_no_dead_symbols + test_git_path_listing_owner + test_merge_pipeline_ratchets + test_layer_rules 171 passed; tests/specify_cli/git/test_merge_tree_probe.py 10 passed; make test-fast 3144 passed, 7 skipped; ruff/format/mypy clean on all changed files."
+        "- 2026-11-20T20:12:26Z – unknown – tests (cycle 2): guard file 105 passed; arch gates test_no_dead_symbols + test_git_path_listing_owner + test_merge_pipeline_ratchets + test_layer_rules 171 passed; tests/specify_cli/git/test_merge_tree_probe.py 10 passed; make test-fast 3144 passed, 7 skipped; ruff/format/mypy clean on all changed files.",
+        "- 2026-11-20T20:19:33Z – unknown – tests (cycle 2): pytest -n 8 --dist loadfile tests/consolidation tests/lanes -> 4794 passed, 2 skipped, 11 xfailed."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -63,11 +64,11 @@
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
-        "T001": "planned",
-        "T002": "planned",
-        "T003": "planned",
-        "T004": "planned",
-        "T005": "planned"
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
       }
     },
     "WP02": {
