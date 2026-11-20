@@ -1,0 +1,48 @@
+{
+  "accept_commit": "3b991936dc7e227d6ccf96569779d6b5bddcd4c0",
+  "acceptance_history": [
+    {
+      "accept_commit": "3b991936dc7e227d6ccf96569779d6b5bddcd4c0",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-20T21:51:19.312285+00:00",
+      "accepted_by": "claude::python-pedro",
+      "accepted_from_commit": "00b964b12da7b42f538ddadef268b9c12b972b34"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-20T21:51:19.312285+00:00",
+  "accepted_by": "claude::python-pedro",
+  "accepted_from_commit": "00b964b12da7b42f538ddadef268b9c12b972b34",
+  "baseline_merge_commit": "ba1aa571f55a52508453106e2390e08c81bd48c2",
+  "contracts": "none",
+  "contracts_rationale": "No external interface is added: the change is an error subtype and remedy text on existing CLI commands; the data model records the shapes.",
+  "create_return_branch": "issue-5287-remote-only-coord-remedy",
+  "created_at": "2026-11-20T19:12:11.890788+00:00",
+  "flattened": false,
+  "friendly_name": "Remote-only branch recovery remedy",
+  "merged_at": "2026-11-20T21:52:45.621089+00:00",
+  "merged_commit": "f46a5ae6d3274eae847601c9855a719ed7a090a2",
+  "mid8": "01M7X5Z5",
+  "mission_base_sha": "ba1aa571f55a52508453106e2390e08c81bd48c2",
+  "mission_id": "01M7X5Z5RAEZ14ZPBDGQSYCYEZ",
+  "mission_number": 264,
+  "mission_slug": "remote-only-branch-remedy-01M7X5Z5",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "On a fresh clone the status board refuses with a raw unreadable-ref error and the recovery text claims the branch was never fetched while omitting the step that actually unblocks reads. This Mission makes every remote-only refusal carry one canonical, truthful remedy naming the right remote.",
+  "purpose_tldr": "Give operators on a fresh clone a complete, truthful recovery path when a Mission's coordination or topic branch exists only on a remote.",
+  "slug": "remote-only-branch-remedy-01M7X5Z5",
+  "status_phase": "1",
+  "target_branch": "issue-5287-remote-only-coord-remedy",
+  "topology": "single_branch",
+  "topology_decision": {
+    "code_lane_count": 2,
+    "from": "single_branch",
+    "rule": "wp_count_le_2",
+    "target_protected": false,
+    "to": "single_branch",
+    "wp_count": 2
+  },
+  "topology_settled": true,
+  "topology_source": "default"
+}
