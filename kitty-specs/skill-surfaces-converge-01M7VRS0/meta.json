@@ -1,0 +1,21 @@
+{
+  "create_return_branch": "issue-7700-skill-surfaces-converge",
+  "created_at": "2026-11-20T06:02:24.326750+00:00",
+  "flattened": false,
+  "friendly_name": "Skill surfaces converge",
+  "mid8": "01M7VRS0",
+  "mission_base_sha": "a053b67434d9b073da708a387a5aec93e88fe227",
+  "mission_branch": "kitty/mission-skill-surfaces-converge-01M7VRS0",
+  "mission_id": "01M7VRS0Q6CPC1HP3VD1TPNXRC",
+  "mission_number": null,
+  "mission_slug": "skill-surfaces-converge-01M7VRS0",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Users who upgraded keep loading superseded skill doctrine because the CLI cannot prove its own historical output, loses ownership records when an agent root moves, and its two repair commands disagree. This mission gives every install surface one proof source and one verdict, reports what it must keep, and renames the last public skill id that still says feature.",
+  "purpose_tldr": "Stale and leftover Spec Kitty skills on a user's machine are refreshed when provably generated, and reported otherwise.",
+  "slug": "skill-surfaces-converge-01M7VRS0",
+  "target_branch": "issue-7700-skill-surfaces-converge",
+  "topology": "single_branch",
+  "topology_settled": false,
+  "topology_source": "default"
+}
