@@ -36,13 +36,13 @@
     },
     {
       "criterion_id": "FR-004",
-      "description": "Verify FR-004 is satisfied",
+      "description": "An edited copy of a retired skill in a global root is reported as kept (retired-skill-kept-edited) and never deleted.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/tool_surface/test_global_skill_kept_findings.py::test_edited_retired_global_skill_is_reported; tests/specify_cli/runtime/test_global_skills_historical_proof.py (WP03/WP04)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:30:03.032218+00:00",
+      "notes": "Red-first test committed before the fix; WP approved by an independent reviewer (claude::generic-reviewer/reviewer-renata)."
     },
     {
       "criterion_id": "FR-005",
