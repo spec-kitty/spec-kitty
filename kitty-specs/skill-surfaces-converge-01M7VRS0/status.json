@@ -134,7 +134,7 @@
     },
     "WP05": {
       "actor": "claude",
-      "agent": "claude::python-pedro",
+      "agent": "claude::reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
@@ -144,7 +144,8 @@
       "last_transition_at": "2026-11-20T09:56:31.424394+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "#5281 outdated + doctor skills --fix convergence; #7723 old-root leftovers reported only"
+        "#5281 outdated + doctor skills --fix convergence; #7723 old-root leftovers reported only",
+        "Review passed (independent reviewer, head 2bafcf44ae). Red 0055040818: on pre-fix sources the dropped #5281 xfail test and 2 leftover tests fail (the unset-variable control passes on base, as it should) -> fix 6611db1918. #5281: VerifyReport.outdated (manifest-matching but not today's canonical_digest, cached per verify) triggers the existing install pass, so doctor skills --fix converges like tool-surfaces and upgrade (DIRECTIVE_044); verify() is doctor/tool-surface only, not on the startup path. #7723 (ruling Q2=A): report only -- command-files info rows never affect the exit code, doctor skills old_root_leftovers never flips ok, nothing written; proof = current render / #4609 predecessor marker (commands) or historical render at the exact skill path (skills); symlinks never followed; unset variable -> no output. Tests: crlf + leftovers 14 passed; tests/specify_cli/cli/commands -k 'doctor or skill or command_file' 745 passed 1 skipped. Nit: the ownership-record proof listed in the prompt is not used (report under-lists only; safe)."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
