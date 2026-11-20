@@ -17,5 +17,7 @@
   "target_branch": "issue-4927-host-aware-mode-predicate",
   "topology": "single_branch",
   "topology_settled": false,
-  "topology_source": "default"
+  "topology_source": "default",
+  "contracts": "none",
+  "contracts_rationale": "Internal planner predicate and an architectural gate; no external interface, wire format or CLI surface changes."
 }
