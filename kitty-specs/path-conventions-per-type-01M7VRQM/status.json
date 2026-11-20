@@ -165,7 +165,12 @@
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 1457,
-      "shell_pid_created_at": "1795174762.32"
+      "shell_pid_created_at": "1795174762.32",
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
     }
   }
 }
