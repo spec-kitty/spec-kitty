@@ -265,7 +265,16 @@ site/.beoe-cache/
 .codex/auth.json
 .codex/history.jsonl
 .codex/sessions/
+.codex/archived_sessions/
 .codex/log/
+.codex/*.sqlite*
+.codex/models_cache.json
+.codex/version.json
+.codex/rules/default.rules
+.codex/tmp/
+.codex/shell_snapshots/
+.codex/memories/
+.codex/skills/.system/
 .claude/settings.local.json
 .gemini/.env
 .qwen/.env
