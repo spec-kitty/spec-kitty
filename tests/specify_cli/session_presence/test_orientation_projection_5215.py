@@ -259,3 +259,19 @@ def test_writer_selection_failure_is_a_warning_not_a_crash(tmp_path: Path, opera
 
     assert result.changes == []
     assert any("boom" in warning for warning in result.warnings)
+
+
+def test_linked_worktree_with_a_git_file_uses_its_own_remote(tmp_path: Path) -> None:
+    """#5215 review L3: in a linked worktree (or submodule) ``.git`` is a file, not a directory."""
+    main = tmp_path / "main"
+    main.mkdir()
+    _git("init", "-q", cwd=main)
+    _git("-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "init", cwd=main)
+    _git("remote", "add", "origin", "https://example.invalid/acme/acme-widgets.git", cwd=main)
+    _git("worktree", "add", "-q", str(tmp_path / "wt"), cwd=main)
+    root = tmp_path / "wt"
+    (root / ".kittify").mkdir()
+    (root / ".kittify" / "config.yaml").write_text("agents:\n  available:\n  - claude\n", encoding="utf-8")
+
+    assert (root / ".git").is_file()
+    assert resolve_project_slug(root) == "acme-widgets"
