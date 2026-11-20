@@ -335,6 +335,10 @@ T050 SC-003 no-mutation proof (reflog lengths, no snapshot, with a land-then-rol
 
 ---
 
+Binding DoD for WP12 (WP10 review, reviewer-accepted recorded leeway): wire the review-context resolution commands to WP01. This covers (a) a version-gated cannot-neutralise line, (b) the shared pinned-config helper, (c) the pre-run target tip as the attribute source (red test with `merge=union` committed before the window base), and (d) the cannot-show form for an unlisted merge on git < 2.36. The edit to `review/context_block.py` is recorded leeway; see the WP12 prompt. These are blocking review checks.
+
+---
+
 ## Work Package WP14: End-to-end route: three-lane and rollback cases (Priority: P1)
 
 **Goal**: SC-004 end to end (the next run after a rollback is not refused because of the run's own merge, plus the foreign-commit control); the three-lane route with exact siblings (lane-c depends on lane-b; lane-d a non-overlapping control); the three-lane dependent-stamp refusal; the remaining matrix cells (lanes topology under squash and `--strategy merge`).

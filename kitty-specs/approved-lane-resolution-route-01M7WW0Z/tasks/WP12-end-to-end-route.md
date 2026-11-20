@@ -192,6 +192,14 @@ Implement command: `spec-kitty agent action implement WP12 --agent claude --miss
   2. `test_reviewed_resolution_with_a_novel_line_lands` (the residual control, spec Edge Cases "Residual by design"): follow the route with `run_route(..., novel_line=True)`: the resolution adds a line from neither side, the independent reviewer approves unforced. Consolidate → exit 0, "Reconciliation verified" in the output, and the target's `src/pkg/shared.py` contains the novel line. This is the documented residual: the review is the guard (FR-007 shows the resolution to the reviewer). If this test fails because something refuses the novel line, that is a silent mechanical filter beyond the spec: stop and report (no xfail).
 - **No xfail exit**: test 2 is part of the proof; a strict xfail or skip on it blocks approval (Objectives).
 
+## Binding DoD items: review-context command wiring (WP10 review, reviewer-accepted recorded leeway)
+
+Accepted by the reviewer on 2026-11-20. These are blocking checks in WP12's review and in the final aggregate review. WP12's lane holds both WP01 and WP10, so edit `src/specify_cli/review/context_block.py` (and `review/wp_range.py` if needed) as recorded leeway, with a one-line rationale in history:
+- (a) Print a version-gated "cannot neutralise attributes" line on git < 2.40, using WP01's `check_attr_source_available()` probe. The existing note stays only as the explanation.
+- (b) Shape the printed resolution command with WP01's shared pinned-config helper (`merge_probe_env` / `MERGE_PROBE_CONFIG_PINS`: renormalize, directoryRenames, renames, diff.algorithm, conflictStyle), rendered as `-c` flags, so it cannot drift from the guard.
+- (c) The attribute source is the one WP01's guard uses: the PRE-RUN TARGET TIP, not the range base. Red test: a real-git fixture where `merge=union` is committed on the lane before the window base; the printed command must list the path.
+- (d) When `merges_unlisted` is true and remerge-diff is unavailable (git < 2.36), print the cannot-show form, not a `show --remerge-diff` instruction. Add a test.
+
 ## Test Strategy
 
 This WP is the test. Keep the module's wall time reasonable: build each fixture once per test (no module-scoped mutation sharing), parametrize narrowly. Marks: `pytest.mark.integration`, `pytest.mark.git_repo`, `pytest.mark.regression`. Unset harness variables per test where behaviour depends on them (`monkeypatch.delenv("SPEC_KITTY_NO_NAG", raising=False)`, `SPEC_KITTY_NON_INTERACTIVE`).
