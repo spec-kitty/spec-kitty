@@ -33,10 +33,13 @@ class VerifyResult:
     drifted: list[tuple[ManagedFileEntry, str]] = field(default_factory=list)  # (entry, actual_hash)
     unmanaged: list[str] = field(default_factory=list)  # paths not in manifest
     errors: list[str] = field(default_factory=list)
+    #: Entries of a skill the (non-empty) catalog no longer ships whose file is
+    #: still exactly what was installed: the retirement drain removes them (#2460).
+    retired: list[ManagedFileEntry] = field(default_factory=list)
 
     @property
     def total_issues(self) -> int:
-        return len(self.missing) + len(self.drifted) + len(self.errors)
+        return len(self.missing) + len(self.drifted) + len(self.errors) + len(self.retired)
 
 
 def verify_installed_skills(project_path: Path) -> VerifyResult:
@@ -54,11 +57,13 @@ def verify_installed_skills(project_path: Path) -> VerifyResult:
 
     missing: list[ManagedFileEntry] = []
     drifted: list[tuple[ManagedFileEntry, str]] = []
+    retired: list[ManagedFileEntry] = []
     errors: list[str] = []
     try:
         registry = _discover_registry(project_path)
     except PackSkillCatalogError as exc:
         return VerifyResult(ok=False, errors=[str(exc)])
+    shipped = _shipped_skill_names(registry)
 
     for entry in manifest.entries:
         installed = project_path / entry.installed_path
@@ -77,12 +82,20 @@ def verify_installed_skills(project_path: Path) -> VerifyResult:
             errors.append(f"Cannot read {entry.installed_path}: not a regular skill file")
             continue
         actual_hash = f"sha256:{observed.sha256}"
+        if shipped and entry.skill_name not in shipped and actual_hash == entry.content_hash:
+            retired.append(entry)
+            continue
         expected_hash = _expected_hash(entry, registry) or entry.content_hash
         if actual_hash != expected_hash:
             drifted.append((entry, actual_hash))
 
-    ok = len(missing) == 0 and len(drifted) == 0 and len(errors) == 0
-    return VerifyResult(ok=ok, missing=missing, drifted=drifted, errors=errors)
+    ok = not (missing or drifted or errors or retired)
+    return VerifyResult(ok=ok, missing=missing, drifted=drifted, errors=errors, retired=retired)
+
+
+def _shipped_skill_names(registry: SkillRegistry | None) -> frozenset[str]:
+    """Names the catalog ships; empty when it is missing or empty (never read as mass retirement)."""
+    return frozenset() if registry is None else frozenset(skill.name for skill in registry.discover_skills())
 
 
 def repair_skills(
@@ -95,7 +108,7 @@ def repair_skills(
     """Apply one project-only preparation; drift needs exact-path consent."""
     from specify_cli.skills.installer import assess_project_skills, apply_project_skills, recheck_project_skills
 
-    requested = tuple(verify_result.missing) + tuple(entry for entry, _ in verify_result.drifted)
+    requested = tuple(verify_result.missing) + tuple(entry for entry, _ in verify_result.drifted) + tuple(getattr(verify_result, "retired", ()))
     try:
         manifest = load_manifest(project_path, strict=True)
     except ValueError as exc:

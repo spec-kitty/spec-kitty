@@ -60,6 +60,7 @@ from ..findings import (
     GENERATED_SURFACE_MISSING,
     MANAGED_FILE_DRIFT,
     SEVERITY_ERROR,
+    STALE_GENERATED_SURFACE,
     SEVERITY_WARNING,
     make_finding,
 )
@@ -72,6 +73,7 @@ from ..status import (
     STATE_DRIFTED,
     STATE_MISSING,
     STATE_PRESENT,
+    STATE_STALE,
     SurfaceStatus,
     _surface_id,
 )
@@ -256,6 +258,9 @@ class ManagedSkillsProvider:
         # catalog (built-in plus pack skills) through the one catalog seam.
         self._registry_factory: Callable[[], SkillRegistry] | None = registry_factory
         self._legacy_collaborators = verifier is not None or installer is not None
+        # Surface ids of manifest entries whose skill the (non-empty) catalog no
+        # longer ships, recorded by ``expand`` for ``probe`` (#2460).
+        self._retired_surface_ids: set[str] = set()
 
     def can_handle(self, definition: SurfaceDefinition) -> bool:
         return definition.kind is ToolSurfaceKind.CHARTER_SKILL
@@ -459,8 +464,13 @@ class ManagedSkillsProvider:
             entry.installed_path: entry
             for entry in self._expected_entries(tool_key, project_root)
         }
+        catalog_ships_skills = bool(entries_by_path)
         for entry in manifest_entries:
             expected = entries_by_path.get(entry.installed_path)
+            if expected is None and catalog_ships_skills:
+                # #2460: the catalog no longer ships this skill; a hash-clean copy
+                # must still be actionable so the retirement drain runs.
+                self._retired_surface_ids.add(_managed_surface_id(tool_key, entry))
             entries_by_path[entry.installed_path] = (
                 replace(entry, content_hash=expected.content_hash) if expected is not None else entry
             )
@@ -486,6 +496,8 @@ class ManagedSkillsProvider:
             return self._drifted_status(instance)
         if not path.exists():
             return self._missing_status(instance)
+        if instance.surface_id in self._retired_surface_ids:
+            return self._retired_status(instance)
         if not path.is_file():
             return self._drifted_status(instance)
         if instance.file_hash is not None:
@@ -513,6 +525,24 @@ class ManagedSkillsProvider:
                     SEVERITY_ERROR,
                     f"Managed charter skill for {instance.owner} is missing: "
                     f"{instance.path}",
+                    tool_key=instance.owner,
+                    surface_id=_surface_id(instance),
+                    path=instance.path,
+                    repair_command=_REPAIR_HINT,
+                ),
+            ),
+        )
+
+    @staticmethod
+    def _retired_status(instance: SurfaceInstance) -> SurfaceStatus:
+        return SurfaceStatus(
+            instance=instance,
+            state=STATE_STALE,
+            findings=(
+                make_finding(
+                    STALE_GENERATED_SURFACE,
+                    SEVERITY_WARNING,
+                    f"Retired managed charter skill is still installed: {instance.path}",
                     tool_key=instance.owner,
                     surface_id=_surface_id(instance),
                     path=instance.path,
@@ -561,7 +591,7 @@ class ManagedSkillsProvider:
     ) -> RepairResult:
         """Prepare once, then report only actually permitted/completed repairs."""
         actionable = [
-            s for s in statuses if s.state in (STATE_MISSING, STATE_DRIFTED)
+            s for s in statuses if s.state in (STATE_MISSING, STATE_DRIFTED, STATE_STALE)
         ]
         if not actionable:
             return RepairResult(dry_run=dry_run)

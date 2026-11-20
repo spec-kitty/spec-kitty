@@ -121,9 +121,7 @@ def test_clean_install_verifies_ok(tmp_path: Path, registry: SkillRegistry) -> N
     assert result.ok and not result.retired
 
 
-def test_provider_probe_reports_retired_entry_as_stale_and_repair_drains_it(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_provider_probe_reports_retired_entry_as_stale_and_repair_drains_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The production repair path (no legacy collaborators) acts only on actionable
     statuses, so the retired entry must probe as actionable for the drain to run."""
     from specify_cli.tool_surface.providers.managed_skills import managed_skill_definition
