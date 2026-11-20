@@ -13,12 +13,13 @@ Contract pinned here:
 
 from __future__ import annotations
 
-import hashlib
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 
 from scripts.skills import build_historical_skill_digests as generator
+from specify_cli.runtime.asset_preparation import digest
 from specify_cli.skills import historical_renders
 from specify_cli.skills.catalog import resolve_builtin_skill_catalog
 from specify_cli.skills.skill_frontmatter import SKILL_FILENAME, project_skill_bytes
@@ -32,11 +33,12 @@ _REGENERATE = "uv run --frozen python -m scripts.skills.build_historical_skill_d
 
 
 def _sha256(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
+    # The same digest the install surfaces record (FileState.sha256), so the list and the sync agree.
+    return str(digest(data))
 
 
 @pytest.fixture(autouse=True)
-def _fresh_reader_cache() -> None:
+def _fresh_reader_cache() -> Iterator[None]:
     historical_renders.clear_cache()
     yield
     historical_renders.clear_cache()
