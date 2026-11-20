@@ -1,0 +1,21 @@
+{
+  "create_return_branch": "fix/approved-lane-resolution-route",
+  "created_at": "2026-11-20T16:18:25.410533+00:00",
+  "flattened": false,
+  "friendly_name": "Approved-lane conflict resolution route",
+  "mid8": "01M7WW0Z",
+  "mission_base_sha": "6ed0494ef7ff571ba7e73188f8fde97152181dc7",
+  "mission_branch": "kitty/mission-approved-lane-resolution-route-01M7WW0Z",
+  "mission_id": "01M7WW0ZHE3JCZ0KW6RP8X34G4",
+  "mission_number": null,
+  "mission_slug": "approved-lane-resolution-route-01M7WW0Z",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "When two approved lanes conflict, consolidate currently tells operators to resolve and commit on the lane, then refuses that commit as unreviewed content; the rollback also erases the state the advice refers to. This mission names and makes executable the sanctioned route (re-review and re-approval of the resolution), refuses unreviewed resolutions early with a clear message, closes related soundness gaps, and keeps unreviewed content from ever landing.",
+  "purpose_tldr": "Make consolidate's stale-lane advice and its reconciliation gate agree on how a conflict between approved lanes is resolved, so operators get one working, reviewed route instead of advice that leads into a refusal.",
+  "slug": "approved-lane-resolution-route-01M7WW0Z",
+  "target_branch": "fix/approved-lane-resolution-route",
+  "topology": "single_branch",
+  "topology_settled": false,
+  "topology_source": "default"
+}
