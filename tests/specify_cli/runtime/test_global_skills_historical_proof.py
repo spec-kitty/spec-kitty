@@ -182,3 +182,27 @@ def test_startup_and_tool_surfaces_fix_reach_the_same_bytes(tmp_path: Path, monk
 
     assert results[0] == results[1]
     assert results[0] != _OLD_RUN_IMPLEMENT_REVIEW
+
+
+def test_the_byte_proof_adds_no_destination_read(home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """NFR-001: the historical proof is judged on ``asset()``'s own observation of the file.
+
+    A warm destination is read twice per assessment (``asset()`` compares it, the effect
+    probe confirms it); proving it a shipped render must not add a third read.
+    """
+    from specify_cli.runtime import asset_preparation
+
+    agent_skills.ensure_global_agent_skills()
+    target = home / ".claude" / "skills" / "spk-run-implement-review" / "SKILL.md"
+    real = asset_preparation.node_state
+    reads: list[Path] = []
+
+    def counting(path: Path, *, read_content: bool = True) -> object:
+        if path == target and read_content:
+            reads.append(path)
+        return real(path, read_content=read_content)
+
+    monkeypatch.setattr(asset_preparation, "node_state", counting)
+    agent_skills.assess_global_agent_skills()
+
+    assert len(reads) == 2
