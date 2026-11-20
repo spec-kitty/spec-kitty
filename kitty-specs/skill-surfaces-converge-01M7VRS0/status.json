@@ -1,7 +1,7 @@
 {
-  "event_count": 49,
-  "last_event_id": "01M7W57A90ZWM938S672RT39T2",
-  "materialized_at": "2026-11-20T09:39:54.784322+00:00",
+  "event_count": 51,
+  "last_event_id": "01M7W590DG1Z146HT3CFDYBCWA",
+  "materialized_at": "2026-11-20T09:40:49.498369+00:00",
   "mission_number": "",
   "mission_slug": "skill-surfaces-converge-01M7VRS0",
   "mission_type": "software-dev",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 1,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 2
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
@@ -92,13 +92,13 @@
     "WP03": {
       "actor": "claude",
       "agent": null,
-      "agent_profile": "reviewer-renata",
+      "agent_profile": "python-pedro",
       "agent_profile_version": "1.0",
       "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "planned",
-      "last_event_id": "01M7W53RF8APJAX0F3VAEENS5C",
-      "last_transition_at": "2026-11-20T09:37:58.248113+00:00",
+      "lane": "in_progress",
+      "last_event_id": "01M7W590DG1Z146HT3CFDYBCWA",
+      "last_transition_at": "2026-11-20T09:40:49.498369+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Install surfaces refresh proven historical renders; stamp withheld while canonical kept; kept_global_skill_files classifier; FR-011 agreement test",
@@ -112,7 +112,7 @@
         "reviewer": "claude::reviewer-renata",
         "verdict": "changes_requested"
       },
-      "role": "reviewer",
+      "role": "implementer",
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
