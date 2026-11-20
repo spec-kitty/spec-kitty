@@ -454,7 +454,11 @@ def test_a_path_check_attr_cannot_read_refuses(conflict: Conflict, path: str) ->
 def test_a_line_count_mismatch_refuses(conflict: Conflict, monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.consolidation import merge_attribute_guard
 
+    real_run_git = merge_attribute_guard._run_git
+
     def short(repo_root: Path, argv: Sequence[str], stdin: str | None = None) -> subprocess.CompletedProcess[str]:
+        if argv[0] != "check-attr":
+            return real_run_git(repo_root, argv, stdin)
         return subprocess.CompletedProcess(["git", *argv], 0, stdout="p.py: merge: unspecified\n", stderr="")
 
     monkeypatch.setattr(merge_attribute_guard, "_run_git", short)
@@ -480,9 +484,11 @@ def test_config_read_is_cached_inside_a_run_scope(conflict: Conflict, monkeypatc
     calls = _count_git(monkeypatch, "config")
     with git_read_cache_scope() as stats:
         assert_registered_merge_behaviour(conflict.repo, ["p.py"])
+        first = len(calls)
         assert_registered_merge_behaviour(conflict.repo, ["p.py"])
-    assert len(calls) == 1
-    assert stats.hits >= 1
+    assert first >= 1
+    assert len(calls) == first, "the second call must be answered from the run's cache"
+    assert stats.hits >= first
 
 
 def test_check_attr_is_not_cached(conflict: Conflict) -> None:
@@ -691,3 +697,192 @@ def test_merge_closed_world_refuses_a_union_forged_merge(conflict: Conflict) -> 
     result = MergeOutcomeVerifier(conflict.repo).verify(conflict.merge, claim)
     assert result.status is VerifyStatus.REFUSE
     assert "union" in (result.refusal_reason or "")
+
+
+# ---------------------------------------------------------------------------
+# Review cycle 1 (HIGH): renormalize plus a clean filter launders hand content
+# ---------------------------------------------------------------------------
+
+
+class Laundered:
+    """A clean merge ``M`` of ``one`` (line 1) and ``two`` (line 4) whose hand edit turns ``l7`` into ``EVIL``."""
+
+    def __init__(self, root: Path) -> None:
+        self.repo = _init(root)
+        _write(self.repo, "f", "l1\nl2\nl3\nl4\nl5\nl6\nl7\n")
+        _git(self.repo, "add", ".")
+        _git(self.repo, "commit", "-qm", "base")
+        _git(self.repo, "branch", "one")
+        _git(self.repo, "branch", "two")
+        self.one = _commit(self.repo, "one", "f", "A\nl2\nl3\nl4\nl5\nl6\nl7\n")
+        self.two = _commit(self.repo, "two", "f", "l1\nl2\nl3\nB\nl5\nl6\nl7\n")
+        _git(self.repo, "checkout", "-q", "one")
+        _git(self.repo, "merge", "-q", "--no-commit", "two")
+        _write(self.repo, "f", "A\nl2\nl3\nB\nl5\nl6\nEVIL\n")
+        _git(self.repo, "add", "f")
+        _git(self.repo, "commit", "-qm", "merge with a hand edit")
+        self.merge = _git(self.repo, "rev-parse", "HEAD")
+        assert git_probes.merge_own_changed_paths(self.repo, self.merge) == ["f"], "without the laundering setup the hand edit is own content"
+
+    def filter_evil(self) -> None:
+        info = self.repo / ".git" / "info"
+        info.mkdir(parents=True, exist_ok=True)
+        (info / "attributes").write_text("* filter=evil\n", encoding="utf-8")
+        _git(self.repo, "config", "filter.evil.clean", "sed s/l7/EVIL/")
+        _git(self.repo, "config", "filter.evil.smudge", "cat")
+
+
+def _renormalize(repo: Path, how: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    if how == "config_file":
+        _git(repo, "config", "merge.renormalize", "true")
+    else:
+        monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+        monkeypatch.setenv("GIT_CONFIG_KEY_0", "merge.renormalize")
+        monkeypatch.setenv("GIT_CONFIG_VALUE_0", "true")
+
+
+@pytest.mark.parametrize("how", ["config_file", "git_config_count"])
+def test_renormalize_with_a_clean_filter_refuses_both_probes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, how: str) -> None:
+    case = Laundered(tmp_path / "repo")
+    case.filter_evil()
+    _renormalize(case.repo, how, monkeypatch)
+    with pytest.raises(GitProbeError, match="renormalize|filter"):
+        git_probes.merge_own_changed_paths(case.repo, case.merge)
+    with pytest.raises(GitProbeError, match="renormalize|filter"):
+        git_probes.n_way_merge_blob(case.repo, [f"{case.merge}^1", f"{case.merge}^2"], "f")
+
+
+@pytest.mark.parametrize("how", ["config_file", "git_config_count"])
+def test_renormalize_alone_refuses_both_probes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, how: str) -> None:
+    case = Laundered(tmp_path / "repo")
+    _renormalize(case.repo, how, monkeypatch)
+    with pytest.raises(GitProbeError, match="merge.renormalize"):
+        git_probes.merge_own_changed_paths(case.repo, case.merge)
+    with pytest.raises(GitProbeError, match="merge.renormalize"):
+        git_probes.n_way_merge_blob(case.repo, [case.one, case.two], "f")
+
+
+@pytest.mark.parametrize(
+    ("line", "named"),
+    [
+        pytest.param("f filter=evil", "filter", id="filter"),
+        pytest.param("f ident", "ident", id="ident"),
+        pytest.param("f working-tree-encoding=UTF-16", "working-tree-encoding", id="working_tree_encoding"),
+    ],
+)
+def test_a_content_conversion_attribute_refuses_both_probes(tmp_path: Path, line: str, named: str) -> None:
+    case = Laundered(tmp_path / "repo")
+    info = case.repo / ".git" / "info"
+    info.mkdir(parents=True, exist_ok=True)
+    (info / "attributes").write_text(line + "\n", encoding="utf-8")
+    with pytest.raises(GitProbeError, match=named):
+        git_probes.merge_own_changed_paths(case.repo, case.merge)
+    with pytest.raises(GitProbeError, match=named):
+        git_probes.n_way_merge_blob(case.repo, [case.one, case.two], "f")
+
+
+def test_renormalize_false_passes(tmp_path: Path) -> None:
+    case = Laundered(tmp_path / "repo")
+    _git(case.repo, "config", "merge.renormalize", "false")
+    assert git_probes.merge_own_changed_paths(case.repo, case.merge) == ["f"]
+
+
+# ---------------------------------------------------------------------------
+# Review cycle 1 (MED): probe-relevant merge config is pinned on both probes
+# ---------------------------------------------------------------------------
+
+
+def test_directory_renames_config_is_pinned_to_conflict(tmp_path: Path) -> None:
+    """``merge.directoryRenames=true`` would turn a file-location conflict into a clean merge."""
+    repo = _init(tmp_path / "repo")
+    _write(repo, "a/x.txt", "x\n")
+    _write(repo, "a/y.txt", "y\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "base")
+    _git(repo, "branch", "one")
+    _git(repo, "branch", "two")
+    _git(repo, "checkout", "-q", "one")
+    _git(repo, "mv", "a", "b")
+    _git(repo, "commit", "-qm", "rename dir")
+    one = _git(repo, "rev-parse", "HEAD")
+    two = _commit(repo, "two", "a/new.txt", "new\n")
+    _git(repo, "config", "merge.directoryRenames", "true")
+    assert git_probes.n_way_merge_blob(repo, [one, two], "b/new.txt") is None
+
+
+def test_renames_config_is_pinned_to_true(tmp_path: Path) -> None:
+    """``merge.renames=false`` would read a rename plus an edit as a delete, so the edit never reaches the new path."""
+    repo = _init(tmp_path / "repo")
+    _write(repo, "x.txt", "".join(f"line {n}\n" for n in range(20)))
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "base")
+    _git(repo, "branch", "one")
+    _git(repo, "branch", "two")
+    _git(repo, "checkout", "-q", "one")
+    _git(repo, "mv", "x.txt", "y.txt")
+    _git(repo, "commit", "-qm", "rename")
+    one = _git(repo, "rev-parse", "HEAD")
+    edited = "".join(f"line {n}\n" for n in range(19)) + "EDITED\n"
+    two = _commit(repo, "two", "x.txt", edited)
+    _git(repo, "config", "merge.renames", "false")
+    expected = subprocess.run(["git", "-C", str(repo), "hash-object", "--stdin"], input=edited, capture_output=True, text=True, check=True).stdout.strip()
+    assert git_probes.n_way_merge_blob(repo, [one, two], "y.txt") == expected
+
+
+@pytest.mark.parametrize(
+    ("key", "hostile", "pinned"),
+    [
+        pytest.param("merge.directoryRenames", "true", "conflict", id="directory_renames"),
+        pytest.param("merge.renames", "false", "true", id="renames"),
+        pytest.param("diff.algorithm", "histogram", "myers", id="diff_algorithm"),
+        pytest.param("merge.conflictStyle", "zdiff3", "merge", id="conflict_style"),
+    ],
+)
+def test_both_probes_run_git_with_the_pinned_config(conflict: Conflict, monkeypatch: pytest.MonkeyPatch, key: str, hostile: str, pinned: str) -> None:
+    from kernel.git import listing
+
+    _git(conflict.repo, "config", key, hostile)
+    real_run_git = listing.run_git
+    seen: list[tuple[str, Any]] = []
+
+    def spy(cwd: Path, *args: str, **kwargs: Any) -> Any:
+        subcommand = next((arg for arg in args if arg in ("merge-tree", "show")), "")
+        if subcommand:
+            seen.append((subcommand, kwargs.get("env")))
+        return real_run_git(cwd, *args, **kwargs)
+
+    monkeypatch.setattr(listing, "run_git", spy)
+    git_probes.n_way_merge_blob(conflict.repo, [conflict.one, conflict.two], "p.py")
+    git_probes.merge_own_changed_paths(conflict.repo, conflict.merge)
+    assert {subcommand for subcommand, _env in seen} == {"merge-tree", "show"}
+    for _subcommand, env in seen:
+        assert env is not None
+        effective = subprocess.run(["git", "-C", str(conflict.repo), "config", "--get", key], env=env, capture_output=True, text=True, check=True).stdout.strip()
+        assert effective == pinned
+
+
+def test_the_pins_win_over_inherited_command_line_config(monkeypatch: pytest.MonkeyPatch, conflict: Conflict) -> None:
+    from specify_cli.consolidation.merge_attribute_guard import merge_probe_env
+
+    monkeypatch.setenv("GIT_CONFIG_PARAMETERS", "'merge.renames'='false'")
+    env = merge_probe_env()
+    effective = subprocess.run(
+        ["git", "-C", str(conflict.repo), "config", "--get", "merge.renames"], env=env, capture_output=True, text=True, check=True
+    ).stdout.strip()
+    assert effective == "true"
+
+
+def test_an_unreadable_renormalize_value_refuses(conflict: Conflict) -> None:
+    from specify_cli.consolidation.merge_attribute_guard import assert_registered_merge_behaviour
+
+    _git(conflict.repo, "config", "merge.renormalize", "not-a-bool")
+    with pytest.raises(GitProbeError, match="merge.renormalize"):
+        assert_registered_merge_behaviour(conflict.repo, ["p.py"])
+
+
+def test_merge_probe_env_pins_on_a_given_base() -> None:
+    from specify_cli.consolidation.merge_attribute_guard import MERGE_PROBE_CONFIG_PINS, merge_probe_env
+
+    env = merge_probe_env({"PATH": "/bin"})
+    assert env["PATH"] == "/bin"
+    assert env["GIT_CONFIG_PARAMETERS"] == " ".join(f"'{key}'='{value}'" for key, value in MERGE_PROBE_CONFIG_PINS)

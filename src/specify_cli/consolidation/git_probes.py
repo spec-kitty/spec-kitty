@@ -762,7 +762,7 @@ def merge_own_changed_paths(repo_root: Path, sha: str, *, attributes_source: str
     spec-kitty driver merges it. *attributes_source* (the claim's pre-run target tip) lets a
     committed ``merge=union`` stand; ``None`` refuses it.
     """
-    from specify_cli.consolidation.merge_attribute_guard import assert_registered_merge_behaviour
+    from specify_cli.consolidation.merge_attribute_guard import assert_registered_merge_behaviour, merge_probe_env
 
     parents = commit_parents(repo_root, sha)
     if len(parents) > 2:
@@ -773,7 +773,7 @@ def merge_own_changed_paths(repo_root: Path, sha: str, *, attributes_source: str
     from kernel.git import GitCommandError, remerge_paths
 
     try:
-        return [str(path) for path in remerge_paths(repo_root, sha)]
+        return [str(path) for path in remerge_paths(repo_root, sha, env=merge_probe_env())]
     except GitCommandError as exc:
         raise GitProbeError(f"git show --remerge-diff {sha} failed: {exc}") from exc
 
@@ -897,8 +897,10 @@ def _merge_tree_step(repo_root: Path, ours: str, theirs: str) -> tuple[str, froz
     even when another path conflicted. Any exit code other than 0 (clean) or 1 (some
     conflict) raises :class:`GitProbeError`.
     """
+    from specify_cli.consolidation.merge_attribute_guard import merge_probe_env
+
     try:
-        result = merge_tree(repo_root, ours, theirs)
+        result = merge_tree(repo_root, ours, theirs, env=merge_probe_env())
     except GitCommandError as exc:
         raise GitProbeError(f"git merge-tree --write-tree {ours} {theirs} failed (exit {exc.returncode}): {exc.stderr.strip()}") from exc
     if not result.tree:

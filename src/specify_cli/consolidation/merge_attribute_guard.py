@@ -21,13 +21,23 @@ claim's pre-run target tip) a built-in ``union`` is honoured only when git >= 2.
 committed value at that tip is the effective one, no clone-local source sets it (read with the
 empty tree as source), and no ``merge.union.*`` driver is configured.
 
+Content conversion (review cycle 1): an effective ``merge.renormalize`` (any scope or the
+environment) refuses, and so does any effective ``filter``, ``ident`` or
+``working-tree-encoding`` attribute on a probed path (read in the same batched ``check-attr``):
+renormalizing runs each side through a clean filter, which can rewrite it into a hand resolution.
+The probes also run git with :func:`merge_probe_env`, which pins
+:data:`MERGE_PROBE_CONFIG_PINS` (``merge.directoryRenames``, ``merge.renames``,
+``diff.algorithm``, ``merge.conflictStyle``) over every other config source.
+
 Cost (NFR-001): one batched ``git check-attr --stdin`` per call (three when a committed
-``union`` is judged), plus targeted ``git config --get`` reads (``merge.default`` and the
-names in play; never a name listing, since a value may span lines) cached for the run.
+``union`` is judged), plus targeted ``git config --get`` reads (``merge.renormalize``,
+``merge.default`` and the names in play; never a name listing, since a value may span lines)
+cached for the run.
 """
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 from collections.abc import Mapping, Sequence
@@ -53,10 +63,34 @@ _OVERRIDABLE_BUILTINS = frozenset({"text", "binary"})
 #: The built-in value a committed ``.gitattributes`` may set (operator ruling (a)).
 _COMMITTABLE_BUILTIN = "union"
 
-_UNSPECIFIED = "unspecified"
 _MERGE_DEFAULT_KEY = "merge.default"
 _DRIVER = "driver"
 _RECURSIVE = "recursive"
+
+#: Attributes that convert content before git merges it (when ``merge.renormalize`` is on, or a
+#: driver reads the working tree form): any effective value but unset/unspecified refuses.
+_CONVERSION_ATTRIBUTES = ("filter", "ident", "working-tree-encoding")
+
+#: The attributes one batched ``check-attr`` reads for every probed path.
+_EFFECTIVE_ATTRIBUTES = ("merge", *_CONVERSION_ATTRIBUTES)
+
+_UNSPECIFIED = "unspecified"
+_NEUTRAL_STATES = frozenset({_UNSPECIFIED, "unset"})
+
+_RENORMALIZE_KEY = "merge.renormalize"
+
+#: Config every merge probe runs with, whatever any config scope or the environment says (review
+#: cycle 1): a user ``merge.directoryRenames=true`` turns a file-location conflict into a clean
+#: merge, ``merge.renames`` and ``diff.algorithm`` change what the automatic merge is, and
+#: ``merge.conflictStyle`` changes the conflicted content a re-merge compares against. One table
+#: for every merge a verdict depends on (the probes; later the incorporate merge and the printed
+#: review command), so they cannot drift.
+MERGE_PROBE_CONFIG_PINS: tuple[tuple[str, str], ...] = (
+    ("merge.directoryRenames", "conflict"),
+    ("merge.renames", "true"),
+    ("diff.algorithm", "myers"),
+    ("merge.conflictStyle", "merge"),
+)
 
 _REFUSAL_TAIL = "refusing to classify a merge whose resolution git would compute with an unregistered driver"
 
@@ -165,6 +199,29 @@ def _path_refusal(path: str, value: str, config: MergeConfig, registry: Sequence
     return _refusal(path, value)
 
 
+def merge_probe_env(base: Mapping[str, str] | None = None) -> dict[str, str]:
+    """*base* (default: this process's environment) with :data:`MERGE_PROBE_CONFIG_PINS` appended to ``GIT_CONFIG_PARAMETERS``.
+
+    git reads ``GIT_CONFIG_PARAMETERS`` (what ``git -c`` sets) after every config file and after
+    ``GIT_CONFIG_COUNT``, and the last value of a key wins, so the pins override every other
+    source, an inherited ``-c`` included. Run every merge a verdict depends on with this env.
+    """
+    env = dict(os.environ if base is None else base)
+    pins = " ".join(f"'{key}'='{value}'" for key, value in MERGE_PROBE_CONFIG_PINS)
+    inherited = env.get("GIT_CONFIG_PARAMETERS", "").strip()
+    env["GIT_CONFIG_PARAMETERS"] = f"{inherited} {pins}" if inherited else pins
+    return env
+
+
+def _conversion_refusal(path: str, attributes: Mapping[str, str]) -> str:
+    """Refusal for a content conversion attribute in effect on *path*, or ``""``."""
+    for name in _CONVERSION_ATTRIBUTES:
+        value = attributes[name]
+        if value not in _NEUTRAL_STATES:
+            return f"attribute '{name}' ('{value}') from the effective git attributes applies to {path}; it converts content before git merges it; {_REFUSAL_TAIL}"
+    return ""
+
+
 def _run_git(repo_root: Path, argv: Sequence[str], stdin: str | None = None) -> subprocess.CompletedProcess[str]:
     try:
         return subprocess.run(["git", *argv], cwd=str(repo_root), input=stdin, capture_output=True, text=True, check=False)
@@ -172,22 +229,28 @@ def _run_git(repo_root: Path, argv: Sequence[str], stdin: str | None = None) -> 
         raise GitProbeError(f"git {' '.join(argv)} could not be started: {exc}") from exc
 
 
-def _check_attr(repo_root: Path, paths: Sequence[str], source: str | None = None) -> list[str]:
-    """The ``merge`` attribute of each of *paths*, in order, from ONE ``git check-attr --stdin`` (never cached: it reads the working tree)."""
-    argv = ["check-attr", *(["--source", source] if source else []), "--stdin", "merge"]
+def _check_attr(repo_root: Path, paths: Sequence[str], source: str | None = None, attributes: Sequence[str] = ("merge",)) -> list[dict[str, str]]:
+    """*attributes* of each of *paths*, in order, from ONE ``git check-attr --stdin`` (never cached: it reads the working tree).
+
+    git prints one line per (path, attribute), path-major, in input order.
+    """
+    argv = ["check-attr", *(["--source", source] if source else []), "--stdin", *attributes]
     result = _run_git(repo_root, argv, "".join(f"{path}\n" for path in paths))
     if result.returncode != 0:
         raise GitProbeError(f"git {' '.join(argv)} exited {result.returncode}: {(result.stderr or '').strip()}")
     lines = (result.stdout or "").splitlines()
-    if len(lines) != len(paths):
-        raise GitProbeError(f"git {' '.join(argv)} printed {len(lines)} line(s) for {len(paths)} path(s)")
-    values = []
-    for line in lines:
+    if len(lines) != len(paths) * len(attributes):
+        raise GitProbeError(f"git {' '.join(argv)} printed {len(lines)} line(s) for {len(paths)} path(s) x {len(attributes)} attribute(s)")
+    per_path: list[dict[str, str]] = []
+    for index, line in enumerate(lines):
+        name = attributes[index % len(attributes)]
         prefix, separator, value = line.rpartition(": ")
-        if not separator or not prefix.endswith(": merge"):
+        if not separator or not prefix.endswith(f": {name}"):
             raise GitProbeError(f"git {' '.join(argv)} printed an unexpected line: {line!r}")
-        values.append(value.strip())
-    return values
+        if index % len(attributes) == 0:
+            per_path.append({})
+        per_path[-1][name] = value.strip()
+    return per_path
 
 
 def _cached_config(repo_root: Path, argv: Sequence[str]) -> subprocess.CompletedProcess[str]:
@@ -216,6 +279,22 @@ def _config_section_set(repo_root: Path, name: str) -> bool:
     if result.returncode != 0:
         raise GitProbeError(f"git config --get-regexp ^merge\\.{name}\\. exited {result.returncode}: {(result.stderr or '').strip()}")
     return True
+
+
+def _renormalize_refusal(repo_root: Path, paths: Sequence[str]) -> str:
+    """Refusal when the effective ``merge.renormalize`` (every scope and the environment) is true, or ``""``.
+
+    Renormalizing runs each side through the clean filters and line-ending conversion before the
+    merge, so a clone-local filter can rewrite either side into a hand resolution.
+    """
+    result = _cached_config(repo_root, ["config", "--get", "--type=bool", _RENORMALIZE_KEY])
+    if result.returncode == 1 and not (result.stderr or "").strip():
+        return ""
+    if result.returncode != 0:
+        raise GitProbeError(f"git config --get --type=bool {_RENORMALIZE_KEY} exited {result.returncode}: {(result.stderr or '').strip()}")
+    if (result.stdout or "").strip() == "false":
+        return ""
+    return f"git config {_RENORMALIZE_KEY} is true for the merge of {', '.join(paths)}; it rewrites each side before git merges it; {_REFUSAL_TAIL}"
 
 
 def _driver_config(repo_root: Path, name: str) -> DriverConfig:
@@ -260,8 +339,8 @@ def _committed_union_refusals(repo_root: Path, paths: Sequence[str], config: Mer
         return {path: _refusal(path, _COMMITTABLE_BUILTIN, "git config merge.union.* is set") for path in paths}
     if not check_attr_source_available(repo_root):
         return {path: _refusal(path, _COMMITTABLE_BUILTIN, "honouring a committed value needs git >= 2.40") for path in paths}
-    committed = _check_attr(repo_root, paths, source=attributes_source)
-    clone_local = _check_attr(repo_root, paths, source=_empty_tree(repo_root))
+    committed = [values["merge"] for values in _check_attr(repo_root, paths, source=attributes_source)]
+    clone_local = [values["merge"] for values in _check_attr(repo_root, paths, source=_empty_tree(repo_root))]
     refusals = {}
     for path, at_source, local in zip(paths, committed, clone_local, strict=True):
         if at_source != _COMMITTABLE_BUILTIN:
@@ -288,7 +367,14 @@ def assert_registered_merge_behaviour(repo_root: Path, paths: Sequence[str], *, 
     unique = _validated(paths)
     if not unique:
         return
-    values = _check_attr(repo_root, unique)
+    renormalize = _renormalize_refusal(repo_root, unique)
+    if renormalize:
+        raise MergeAttributeRefused(renormalize)
+    effective = _check_attr(repo_root, unique, attributes=_EFFECTIVE_ATTRIBUTES)
+    conversions = [reason for path, attributes in zip(unique, effective, strict=True) if (reason := _conversion_refusal(path, attributes))]
+    if conversions:
+        raise MergeAttributeRefused("; ".join(conversions))
+    values = [attributes["merge"] for attributes in effective]
     registry = _registry()
     config = _merge_config(repo_root, values, registry)
     refusals = {path: reason for path, value in zip(unique, values, strict=True) if (reason := _path_refusal(path, value, config, registry))}
