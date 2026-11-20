@@ -1,13 +1,13 @@
 {
-  "event_count": 65,
-  "last_event_id": "01M7WBH3FM3Y7DNFGXB6WT0FXK",
-  "materialized_at": "2026-11-20T11:30:06.965019+00:00",
+  "event_count": 66,
+  "last_event_id": "01M7WCX2RTFRK4K78C2RCZDC3W",
+  "materialized_at": "2026-11-20T11:54:08.026387+00:00",
   "mission_number": "",
   "mission_slug": "skill-surfaces-converge-01M7VRS0",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 7,
+    "approved": 6,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
@@ -15,7 +15,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 0
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
@@ -162,37 +162,40 @@
     },
     "WP05": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 1,
+      "force_count": 2,
       "implementer_of_record": "claude",
-      "lane": "approved",
-      "last_event_id": "01M7WAHW0JGEE96EA6DBSBC33H",
-      "last_transition_at": "2026-11-20T11:13:03.506226+00:00",
+      "lane": "planned",
+      "last_event_id": "01M7WCX2RTFRK4K78C2RCZDC3W",
+      "last_transition_at": "2026-11-20T11:54:08.026387+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "#5281 outdated + doctor skills --fix convergence; #7723 old-root leftovers reported only",
         "Review passed (independent reviewer, head 2bafcf44ae). Red 0055040818: on pre-fix sources the dropped #5281 xfail test and 2 leftover tests fail (the unset-variable control passes on base, as it should) -> fix 6611db1918. #5281: VerifyReport.outdated (manifest-matching but not today's canonical_digest, cached per verify) triggers the existing install pass, so doctor skills --fix converges like tool-surfaces and upgrade (DIRECTIVE_044); verify() is doctor/tool-surface only, not on the startup path. #7723 (ruling Q2=A): report only -- command-files info rows never affect the exit code, doctor skills old_root_leftovers never flips ok, nothing written; proof = current render / #4609 predecessor marker (commands) or historical render at the exact skill path (skills); symlinks never followed; unset variable -> no output. Tests: crlf + leftovers 14 passed; tests/specify_cli/cli/commands -k 'doctor or skill or command_file' 745 passed 1 skipped. Nit: the ownership-record proof listed in the prompt is not used (report under-lists only; safe).",
         "Operator ruling (option B): reopen WP05 to add the ownership-record proof (global inventory entry matching bytes) to find_old_root_leftovers",
         "Ownership-record proof added to find_old_root_leftovers (operator ruling B): red 020516cc78, fix 98afbf9bf0; blast 292 passed, make test-fast 3150 passed",
-        "Re-review passed (independent reviewer, head 98afbf9bf0; operator ruling B on the ownership-record nit). Red 020516cc78: the new inventory-record test fails on the pre-fix sources, verified -> fix 98afbf9bf0. Proof is byte-exact (inventory sha256 == file digest), read through the inventory's own parser (#7722 anchoring), absent/unreadable inventory proves nothing (under-list only), symlinks still never followed, nothing written. test_old_root_leftovers + crlf 17 passed; ruff clean. Earlier WP05 evidence stands (cli/commands doctor/skill/command_file 745 passed)."
+        "Re-review passed (independent reviewer, head 98afbf9bf0; operator ruling B on the ownership-record nit). Red 020516cc78: the new inventory-record test fails on the pre-fix sources, verified -> fix 98afbf9bf0. Proof is byte-exact (inventory sha256 == file digest), read through the inventory's own parser (#7722 anchoring), absent/unreadable inventory proves nothing (under-list only), symlinks still never followed, nothing written. test_old_root_leftovers + crlf 17 passed; ruff clean. Earlier WP05 evidence stands (cli/commands doctor/skill/command_file 745 passed).",
+        "Changes requested (aggregate finding A1): doctor skills --json gained outdated/old_root_leftovers but the frozen baseline doctor_skills_baseline.json and migration-compatibility.md were not updated; 2 tool_surface integration tests fail on lane-e. Reopened by the reviewer so the fix lands in a new window."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
-        "reference": "auto-approval:WP05:20261120",
-        "reviewer": "Claude",
-        "verdict": "approved"
+        "feedback_path": "/home/user/spec-kitty/.worktrees/skill-surfaces-converge-01M7VRS0-coord/kitty-specs/skill-surfaces-converge-01M7VRS0/tasks/WP05-doctor-skills-converge-and-leftovers/review-cycle-2.md",
+        "reference": "review-cycle://skill-surfaces-converge-01M7VRS0/WP05-doctor-skills-converge-and-leftovers/review-cycle-2.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 26727,
-      "shell_pid_created_at": "1795165957.4",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T023": "done",
-        "T024": "done",
-        "T025": "done",
-        "T026": "done",
-        "T027": "done"
+        "T023": "planned",
+        "T024": "planned",
+        "T025": "planned",
+        "T026": "planned",
+        "T027": "planned"
       }
     },
     "WP06": {
