@@ -57,7 +57,7 @@ def test_status_board_on_a_remote_only_coordination_branch_names_the_remedy(tmp_
     assert exit_code != 0, output
     message = json.dumps(json.loads(output[output.index("{") :]))
     assert "STATUS_SURFACE_REF_REMOTE_ONLY" in message
-    assert f"branch {COORD_BRANCH} {REMOTE}/{COORD_BRANCH}" in message
+    assert f"branch {COORD_BRANCH} refs/remotes/{REMOTE}/{COORD_BRANCH}" in message
     assert f"spec-kitty doctor coordination --mission {SLUG} --fix" in message
     assert "origin" not in message
 

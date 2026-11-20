@@ -847,7 +847,7 @@ def test_apply_missing_worktree_fix_remote_only_refusal_without_coord_branch_ext
     warning = warnings[0]
     assert warning.next_step is not None
     assert warning.next_step.startswith("Run in order:")
-    assert f"branch {COORD_BRANCH} origin/{COORD_BRANCH}" in warning.next_step
+    assert f"branch {COORD_BRANCH} refs/remotes/origin/{COORD_BRANCH}" in warning.next_step
     assert "exists only as a remote-tracking ref" in warning.message
 
 
