@@ -200,11 +200,81 @@ def global_asset_root(owner: str, paths: tuple[Path, ...]) -> OperationRoot:
     return OperationRoot(owner, "global", anchor)
 
 
+#: Global asset inventory schemas (#7722). Schema 1 keyed entries relative to the
+#: reporting anchor, which moves when a user-global root resolves outside $HOME;
+#: schema 2 keys them by absolute POSIX path so no root move can orphan them.
+_LEGACY_INVENTORY_SCHEMA = 1
+_INVENTORY_SCHEMA = 2
+_INVENTORY_SCHEMAS = (_LEGACY_INVENTORY_SCHEMA, _INVENTORY_SCHEMA)
+
+
+def _validate_inventory_entry(key: object, record: object) -> None:
+    """An absolute, normalized POSIX key and a well-formed ``FileState`` record."""
+    if not isinstance(key, str) or not isinstance(record, dict):
+        raise ValueError("Invalid global asset inventory entry")
+    if "\\" in key or not Path(key).is_absolute() or any(part in {".", ".."} for part in key.split("/")):
+        raise ValueError("Unconfined global asset inventory entry")
+    try:
+        FileState(**record)
+    except TypeError as exc:
+        raise ValueError("Invalid global asset inventory state") from exc
+
+
+def _anchor_relative(key: str, anchor: Path) -> str | None:
+    """*key* relative to *anchor* (the in-memory form), or ``None`` when outside it."""
+    try:
+        return Path(key).relative_to(anchor).as_posix()
+    except ValueError:
+        return None
+
+
+def _legacy_anchor_candidates(anchor: Path) -> list[Path]:
+    """Anchors a schema-1 inventory may have been written under, most likely first.
+
+    Every release before #7722 anchored on ``commonpath(home, *roots).parent``: with
+    all roots under ``$HOME`` that is ``home.parent``; with a root outside, an
+    ancestor of it. The current anchor is tried last.
+    """
+    candidates = list(_normalized(Path.home()).parents)
+    return candidates if anchor in candidates else [*candidates, anchor]
+
+
+def _place_legacy_key(relative: str, candidates: list[Path]) -> Path | None:
+    """The absolute path a schema-1 key named, or ``None`` when it cannot be placed.
+
+    A key whose node exists under a candidate is placed there (deepest anchor
+    first). Otherwise it is placed under ``home.parent`` only when that lands
+    inside ``$HOME``; anything else is dropped from proof, never guessed.
+    """
+    if not isinstance(relative, str) or "\\" in relative or Path(relative).is_absolute() or any(part in {"", ".", ".."} for part in relative.split("/")):
+        raise ValueError("Unconfined global asset inventory entry")
+    for candidate in candidates:
+        if os.path.lexists(candidate / relative):
+            return candidate / relative
+    default = candidates[0] / relative
+    return default if _normalized(Path.home()) in default.parents else None
+
+
+def _migrate_legacy_entries(entries: dict[str, object], anchor: Path) -> dict[str, object]:
+    """Re-key a schema-1 inventory by absolute path, once (#7722)."""
+    candidates = _legacy_anchor_candidates(anchor)
+    migrated: dict[str, object] = {}
+    for relative, record in entries.items():
+        placed = _place_legacy_key(relative, candidates)
+        if placed is not None:
+            migrated[placed.as_posix()] = record
+    return migrated
+
+
 def _observation(path: Path, state: FileState, children: tuple[str, ...] | None = None, role: ObservationRole = "destination_probe") -> AssetObservation:
     if state.kind == "directory":
         info = path.lstat()
         return AssetObservation(path, replace(state, mtime_ns=None), children, (info.st_dev, info.st_ino), role)
     return AssetObservation(path, state, children, role=role)
+
+
+#: A caller's byte proof for a retired node with no inventory record: ``(path, sha256) -> proven``.
+RetireProof = Callable[[Path, "str | None"], bool]
 
 
 class AssetPreparation:
@@ -228,22 +298,25 @@ class AssetPreparation:
         self.selected: set[Path] = set()
         self.temporary_paths: set[Path] = set()
         self.environment = tuple((name, os.environ.get(name)) for name in _SOURCE_ENV)
+        # #7722: entries outside this run's anchor (a root that moved) are carried through verbatim.
+        self._foreign_entries: dict[str, dict[str, object]] = {}
+        self._rewrite_inventory = False
         state = self.observe(self.inventory, role="destination_probe")
         if state.kind == "file":
             payload = json.loads(self.inventory.read_bytes())
-            if not isinstance(payload, dict) or payload.get("schema_version") != 1 or not isinstance(payload.get("entries"), dict):
+            if not isinstance(payload, dict) or payload.get("schema_version") not in _INVENTORY_SCHEMAS or not isinstance(payload.get("entries"), dict):
                 raise ValueError(f"Invalid global asset inventory: {self.inventory}")
-            for relative, record in payload["entries"].items():
-                if not isinstance(relative, str) or not isinstance(record, dict):
-                    raise ValueError("Invalid global asset inventory entry")
-                # PhysicalEffect validates this same confined relative spelling.
-                if Path(relative).is_absolute() or "\\" in relative or ":" in relative or any(p in {"", "..", "."} for p in relative.split("/")):
-                    raise ValueError("Unconfined global asset inventory entry")
-                try:
-                    FileState(**record)
-                except TypeError as exc:
-                    raise ValueError("Invalid global asset inventory state") from exc
-            self.previous = payload["entries"]
+            entries = payload["entries"]
+            if payload["schema_version"] == _LEGACY_INVENTORY_SCHEMA:
+                self._rewrite_inventory = True
+                entries = _migrate_legacy_entries(entries, self.root.path)
+            for key, record in entries.items():
+                _validate_inventory_entry(key, record)
+                relative = _anchor_relative(key, self.root.path)
+                if relative is None:
+                    self._foreign_entries[key] = record
+                else:
+                    self.previous[relative] = record
             self.entries = dict(self.previous)
         elif state.kind != "absent":
             raise ValueError(f"Global inventory is not a regular file: {self.inventory}")
@@ -418,22 +491,37 @@ class AssetPreparation:
         data = self.source(path) if before.kind == "file" else None
         self._effect(target, replace(before, mtime_ns=None), data, OwnershipProof("manifest", f"{self.inventory.name}:{relative}"))
 
-    def retire(self, path: Path) -> bool:
-        """Remove only exact inventory-owned unchanged nodes; retain drift."""
+    def retire(self, path: Path, *, proven: RetireProof | None = None) -> bool:
+        """Remove only proven unchanged nodes; retain drift and report it.
+
+        Proof is an exact inventory record or, for a regular file the inventory
+        does not record (an older release wrote it), *proven* returning True for
+        its path and sha256 -- the caller's byte proof, never a name match. An
+        unrecorded directory is removed only when every child is; a symlink is
+        never proven by bytes.
+        """
         before = self.observe(path, members=True, role="destination_probe")
         if before.kind == "absent":
             return True
         relative = path.relative_to(self.root.path).as_posix()
         old = self.previous.get(relative)
-        if old is None or (before.kind, before.sha256, before.target) != (old.get("kind"), old.get("sha256"), old.get("target")):
+        recorded = old is not None and (before.kind, before.sha256, before.target) == (old.get("kind"), old.get("sha256"), old.get("target"))
+        # A directory has no bytes: with a byte proof it is judged by its children below.
+        byte_proven = not recorded and proven is not None and (before.kind == "directory" or (before.kind == "file" and proven(path, before.sha256)))
+        if not (recorded or byte_proven):
             self.preserve(path, "Unproven or edited retired asset", drift=old is not None)
             return False
         if before.kind == "directory":
-            removable = [self.retire(child) for child in sorted(path.iterdir())]
+            removable = [self.retire(child, proven=proven) for child in sorted(path.iterdir())]
             if not all(removable):
                 self.preserve(path, "Retired directory contains preserved content")
                 return False
-        self._effect(path, FileState("absent"), None, OwnershipProof("manifest", f"{self.inventory.name}:{relative}"))
+        proof = (
+            OwnershipProof("manifest", f"{self.inventory.name}:{relative}")
+            if recorded
+            else OwnershipProof("canonical_content", f"{self.owner}:{relative}:historical-render")
+        )
+        self._effect(path, FileState("absent"), None, proof)
         self.entries.pop(relative, None)
         return True
 
@@ -497,8 +585,9 @@ class AssetPreparation:
 
     def finish(self, version_path: Path | None, version: str) -> OwnerAssessment:
         """Retain supporting inventory/stamp bytes; never refresh equal content."""
-        if self.entries != self.previous:
-            data = (json.dumps({"schema_version": 1, "entries": self.entries}, sort_keys=True, indent=2) + "\n").encode()
+        if self.entries != self.previous or self._rewrite_inventory:
+            absolute = {(self.root.path / relative).as_posix(): record for relative, record in self.entries.items()}
+            data = (json.dumps({"schema_version": _INVENTORY_SCHEMA, "entries": {**self._foreign_entries, **absolute}}, sort_keys=True, indent=2) + "\n").encode()
             self.parents(self.inventory)
             self._effect(self.inventory, FileState("file", sha256=digest(data), mode=0o644), data, OwnershipProof("managed_path", f"{self.owner}:inventory"))
         if version_path is not None:

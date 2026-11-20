@@ -27,7 +27,7 @@ def _prepared(home: Path) -> AssetPreparation:
 
 def _proof(path: Path, sha256: str | None) -> bool:
     _ = path
-    return sha256 == digest(_SHIPPED)
+    return sha256 is not None and sha256 == str(digest(_SHIPPED))
 
 
 def test_retire_with_byte_proof_removes_unrecorded_file(tmp_path: Path) -> None:
