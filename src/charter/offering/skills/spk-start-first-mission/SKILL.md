@@ -1,9 +1,9 @@
 ---
-name: spk-start-first-feature
+name: spk-start-first-mission
 description: "Guide a first Spec Kitty mission from setup through specify, plan, tasks, implementation, review, accept, consolidate, and retrospective."
 ---
 
-# spk-start-first-feature
+# spk-start-first-mission
 
 Use this skill when a user wants to start their first Spec Kitty mission and
 needs the end-to-end path.

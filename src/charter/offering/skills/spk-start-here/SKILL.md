@@ -37,7 +37,7 @@ the smallest useful workflow.
 ## First Route
 
 - New project or broken install: use `spk-admin-setup-doctor`.
-- New feature from scratch: use `spk-start-first-feature`.
+- New Mission from scratch: use `spk-start-first-mission`.
 - User wants a command list: use `spk-start-command-map`.
 - User asks "will this work in Codex or Claude?": use `spk-start-agent-surface`.
 - Existing mission needs advancement: use `spk-run-next`.
