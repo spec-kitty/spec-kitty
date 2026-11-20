@@ -119,7 +119,7 @@ def repair_skills(
     """Apply one project-only preparation; drift needs exact-path consent."""
     from specify_cli.skills.installer import assess_project_skills, apply_project_skills, recheck_project_skills
 
-    requested = tuple(verify_result.missing) + tuple(entry for entry, _ in verify_result.drifted) + tuple(getattr(verify_result, "retired", ()))
+    requested = tuple(verify_result.missing) + tuple(entry for entry, _ in verify_result.drifted) + tuple(verify_result.retired)
     try:
         manifest = load_manifest(project_path, strict=True)
     except ValueError as exc:
