@@ -133,15 +133,15 @@
       "wp": null
     },
     "#7749": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Context only: cross-referenced by Mission approved-lane-resolution-route-01M7WW0Z (scope C-005 or constraint); no work owed here",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "title": "Mission-branch merge of main refused as un-attributable",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7754": {
