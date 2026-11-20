@@ -523,15 +523,20 @@ def _coord_worktree_missing_remote_only_steps(
     (S1192): both the ``COORDINATION_WORKTREE_MISSING`` finding builder
     (:func:`_check_coordination_worktree_health`) and the ``--fix`` fixer's
     warning (:func:`_apply_missing_worktree_fix`) call this so the two
-    truthful texts can never drift apart. Mirrors
-    :func:`~mission_runtime.write_target_degrade.assert_coord_write_materialized`'s
-    remote-only arm (T040) in shape, though that site cannot import this one
-    (runtime/mission_runtime -> specify_cli is a one-way ledger).
+    truthful texts can never drift apart.
+
+    #5287: the steps themselves are composed by
+    :func:`mission_runtime.coord_remedy.remote_only_steps`, the one owner shared
+    with the unmaterialized-coordination refusal and the coordination write
+    refusal: they name the remote that owns the branch (never a hard-coded
+    ``origin``) and skip the fetch when this clone already holds the tracking ref.
     """
-    return (
-        f"Run in order: `git -C {repo_root} fetch`, then "
-        f"`git -C {repo_root} branch {coord_branch} origin/{coord_branch}`, "
-        f"then `spec-kitty doctor coordination --mission {mission_slug} --fix`."
+    from mission_runtime.coord_remedy import coordination_doctor_command, remote_only_branch, remote_only_steps
+
+    return remote_only_steps(
+        remote_only_branch(repo_root, coord_branch),
+        repo_root,
+        coordination_doctor_command(mission_slug),
     )
 
 

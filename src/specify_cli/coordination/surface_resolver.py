@@ -43,6 +43,7 @@ from __future__ import annotations
 import enum
 import logging
 import ntpath
+import shlex
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -324,9 +325,12 @@ class CoordinationWorktreeUnmaterialized(StatusReadPathNotFound):  # type: ignor
     (single-branch/shallow/CI clone, or a pruned remote-tracking ref) reached
     this state via :func:`_coord_branch_exists`'s new remote arm — ``doctor
     workspaces --fix``'s ``git worktree add`` would fail on that unfetched ref,
-    so the guidance leads with ``git fetch origin <branch>`` first. A local
-    head that is simply not yet checked out keeps the original
-    self-materializes-or-``doctor workspaces --fix`` guidance unchanged.
+    so the guidance leads with the canonical remote-only steps (#5287,
+    :mod:`mission_runtime.coord_remedy`): fetch the branch from the remote that
+    owns it into its remote-tracking ref (only when this clone lacks it), create
+    the local branch, then ``doctor coordination --fix``. A local head that is
+    simply not yet checked out keeps the self-materializes-or-``doctor
+    coordination --fix`` guidance.
     """
 
     error_code: str = "COORDINATION_WORKTREE_UNMATERIALIZED"
@@ -382,6 +386,12 @@ class CoordinationWorktreeUnmaterialized(StatusReadPathNotFound):  # type: ignor
         path is composed via the canonical ``CoordinationWorkspace.worktree_path``
         (a pure path composer; requires a non-empty mid8, guaranteed for an
         UNMATERIALIZED state), falling back to the read-path grammar defensively.
+
+        #5287: the remote-only arm prints the canonical steps from
+        :mod:`mission_runtime.coord_remedy` (fetch from the resolved remote only
+        when this clone lacks the tracking ref, create the local branch, then the
+        doctor). It no longer claims the checkout "has not fetched" the branch,
+        which is false on a fresh clone, nor hard-codes ``origin``.
         """
         if mid8:
             from specify_cli.coordination.workspace import CoordinationWorkspace
@@ -390,18 +400,21 @@ class CoordinationWorktreeUnmaterialized(StatusReadPathNotFound):  # type: ignor
         else:  # pragma: no cover - mid8 is always resolved for UNMATERIALIZED
             coord_worktree_root = coord_candidate.parent.parent
         doctor_cmd = f"spec-kitty doctor coordination --mission {mission_slug} --fix"
-        materialize_cmd = f"git -C {repo_root} worktree add {coord_worktree_root} {coordination_branch}"
+        materialize_cmd = f"git -C {shlex.quote(str(repo_root))} worktree add {shlex.quote(str(coord_worktree_root))} {coordination_branch}"
         if coordination_branch and not _coord_branch_is_local_head(repo_root, coordination_branch):
+            from mission_runtime.coord_remedy import coordination_doctor_command, remote_only_branch, remote_only_steps
+
+            steps = remote_only_steps(
+                remote_only_branch(repo_root, coordination_branch),
+                repo_root,
+                coordination_doctor_command(mission_slug),
+            )
             return (
                 f"The coordination branch {coordination_branch!r} declared in "
-                f"meta.json exists on a remote, but this checkout has not "
-                f"fetched it, so its coordination worktree has not been "
-                f"materialized. Run `git fetch origin {coordination_branch}` "
-                f"(or fix a stale `remote.origin.fetch` refspec) first, then "
-                f"`{doctor_cmd}` to materialize it (if that command cannot, "
-                f"materialize it manually with `{materialize_cmd}`). Keep the "
-                f"`coordination_branch` key in meta.json as-is — the branch is "
-                f"not lost, only not yet fetched."
+                f"meta.json exists only on a remote: this checkout has no local "
+                f"branch for it, so its coordination worktree cannot be "
+                f"materialized. {steps} Keep the `coordination_branch` key in "
+                f"meta.json as-is — the branch is not lost."
             )
         return (
             f"The coordination branch {coordination_branch!r} declared in "
