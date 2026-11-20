@@ -44,11 +44,11 @@
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
-        "T001": "planned",
-        "T002": "planned",
-        "T003": "planned",
-        "T004": "planned",
-        "T005": "planned"
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
       }
     },
     "WP02": {
