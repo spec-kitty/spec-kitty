@@ -149,3 +149,40 @@ def test_nothing_is_listed_without_a_moved_root(setup: _Setup) -> None:
 
     assert _command_leftovers(project) == set()
     assert _skill_leftovers(project) == set()
+
+
+def _record_as_written(home: Path, owner: str, path: Path) -> None:
+    """Make the global inventory record *path*'s current bytes, as an older release that wrote them would have."""
+    from specify_cli.runtime.asset_preparation import digest
+
+    inventory = home / ".kittify" / "cache" / f"{owner}-assets.json"
+    payload = json.loads(inventory.read_text(encoding="utf-8"))
+    key = path.relative_to(home.parent).as_posix()
+    assert key in payload["entries"], "control: the sync recorded this file"
+    payload["entries"][key]["sha256"] = digest(path.read_bytes())
+    inventory.write_text(json.dumps(payload, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+
+
+_OLDER_PROJECTION = b"---\nname: spk-run-next\n---\n\n# spk-run-next\n\nProjected by an older release.\n"
+
+
+def test_a_file_the_inventory_records_with_these_bytes_is_listed(setup: _Setup, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    home, project, files = setup
+    files["skill"].write_bytes(_OLDER_PROJECTION)
+    _record_as_written(home, "global_skills", files["skill"])
+    files["command"].write_text("# spec-kitty.specify as an older release rendered it\n", encoding="utf-8")
+    _record_as_written(home, "slash_commands", files["command"])
+    monkeypatch.setenv(CLAUDE_CONFIG_DIR_ENV, str(tmp_path / "cfg"))
+
+    assert files["skill"] in _skill_leftovers(project)
+    assert files["command"] in _command_leftovers(project)
+
+
+def test_a_record_with_other_bytes_proves_nothing(setup: _Setup, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _, project, files = setup
+    files["skill"].write_bytes(_OLDER_PROJECTION)
+    files["command"].write_text("# my own edit\n", encoding="utf-8")
+    monkeypatch.setenv(CLAUDE_CONFIG_DIR_ENV, str(tmp_path / "cfg"))
+
+    assert files["skill"] not in _skill_leftovers(project)
+    assert files["command"] not in _command_leftovers(project)
