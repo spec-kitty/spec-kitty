@@ -6,9 +6,10 @@ directory outside home moves that anchor up, and an inventory keyed relative to
 the old anchor stopped resolving: files the CLI provably wrote under
 ``~/.agents/skills`` became "Unproven existing asset" and were never refreshed.
 
-Contract pinned here: records are written with keys that do not depend on the
-anchor (schema 2: ``~/<path>`` under home, else absolute), an older record keeps
-proving the files it named, and it is rewritten once.
+Contract pinned here: records are keyed relative to the fixed anchor
+``home.parent`` (marked ``"anchor": "home-parent"``) and stay valid for older
+releases (#7722 review B1); entries outside it go to an absolute-keyed sidecar;
+an older record keeps proving the files it named.
 """
 
 from __future__ import annotations
@@ -82,40 +83,70 @@ def test_moved_root_keeps_other_roots_proven(home: Path, tmp_path: Path, monkeyp
     assert b"v2" in shared_copy.read_bytes()
 
 
-def _anchor_free(key: str) -> bool:
-    return key.startswith("~/") or Path(key).is_absolute()
+_STATE = {"kind": "file", "sha256": "0" * 64, "mode": 0o644}
 
 
-def test_inventory_is_written_with_anchor_free_keys(home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path / "outside" / "claude"))
+def _pre_7722_reader_accepts(payload: object) -> bool:
+    """The exact validation every release before #7722 applied to ``<owner>-assets.json``."""
+    if not isinstance(payload, dict) or payload.get("schema_version") != 1 or not isinstance(payload.get("entries"), dict):
+        return False
+    for relative, record in payload["entries"].items():
+        if not isinstance(relative, str) or not isinstance(record, dict):
+            return False
+        if Path(relative).is_absolute() or "\\" in relative or ":" in relative or any(p in {"", "..", "."} for p in relative.split("/")):
+            return False
+    return True
+
+
+def _main_inventory(home: Path) -> Path:
+    return home / ".kittify" / "cache" / "global_skills-assets.json"
+
+
+def test_inventory_stays_readable_by_older_releases(home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """B1: an older CLI on the same machine must still accept the file this build writes."""
+    outside = tmp_path.parent / f"{tmp_path.name}-outside" / "claude"  # outside home.parent
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(outside))
     _install(_write_skill(tmp_path / "source", "v1"))
-    payload = json.loads((home / ".kittify" / "cache" / "global_skills-assets.json").read_text(encoding="utf-8"))
-    assert payload["schema_version"] == 2
-    assert all(_anchor_free(key) for key in payload["entries"])
-    assert f"~/.agents/skills/{_SKILL}/SKILL.md" in payload["entries"]
-    assert (tmp_path / "outside" / "claude" / "skills" / _SKILL / "SKILL.md").as_posix() in payload["entries"]
+
+    payload = json.loads(_main_inventory(home).read_text(encoding="utf-8"))
+    assert _pre_7722_reader_accepts(payload)
+    assert payload["anchor"] == "home-parent"
+    assert f"{home.name}/.agents/skills/{_SKILL}/SKILL.md" in payload["entries"]
+    external = json.loads((home / ".kittify" / "cache" / "global_skills-external-assets.json").read_text(encoding="utf-8"))
+    assert (outside / "skills" / _SKILL / "SKILL.md").as_posix() in external["entries"]
 
 
-def test_schema1_inventory_keeps_proving_and_is_rewritten_once(home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_pre_7722_inventory_keeps_proving_and_stays_valid_for_older_readers(home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     source = tmp_path / "source"
     _install(_write_skill(source, "v1"))
-    inventory = home / ".kittify" / "cache" / "global_skills-assets.json"
+    inventory = _main_inventory(home)
     payload = json.loads(inventory.read_text(encoding="utf-8"))
-    anchor = home.parent  # the anchor every pre-#7722 release used while all roots sat under home
-    legacy = {(home / key[2:]).relative_to(anchor).as_posix(): state for key, state in payload["entries"].items()}
-    inventory.write_text(json.dumps({"schema_version": 1, "entries": legacy}), encoding="utf-8")
+    inventory.write_text(json.dumps({"schema_version": 1, "entries": payload["entries"]}), encoding="utf-8")  # as an older release wrote it
 
     monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path / "outside" / "claude"))
     assessment = _assess(_write_skill(source, "v2"))
 
     assert not [p for p in _unproven_paths(assessment) if ".agents/skills" in p]
     apply_assets(assessment, ApplyConsent(automatic=True))
-    rewritten = json.loads(inventory.read_text(encoding="utf-8"))
-    assert rewritten["schema_version"] == 2
-    assert all(_anchor_free(key) for key in rewritten["entries"])
+    assert _pre_7722_reader_accepts(json.loads(inventory.read_text(encoding="utf-8")))
 
 
-def test_unplaceable_schema1_key_is_not_proof(home: Path, tmp_path: Path) -> None:
+def test_moved_anchor_pre_7722_inventory_is_placed(home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An older release with a root outside home anchored higher; its keys still resolve."""
+    source = tmp_path / "source"
+    _install(_write_skill(source, "v1"))
+    inventory = _main_inventory(home)
+    payload = json.loads(inventory.read_text(encoding="utf-8"))
+    higher = home.parent.parent
+    legacy = {(home.parent / key).relative_to(higher).as_posix(): state for key, state in payload["entries"].items()}
+    inventory.write_text(json.dumps({"schema_version": 1, "entries": legacy}), encoding="utf-8")
+
+    assessment = _assess(_write_skill(source, "v2"))
+
+    assert not [p for p in _unproven_paths(assessment) if ".agents/skills" in p]
+
+
+def test_unplaceable_pre_7722_key_is_not_proof(home: Path, tmp_path: Path) -> None:
     root = global_asset_root("probe", (home / ".kittify",))
     cache = home / ".kittify" / "cache"
     cache.mkdir(parents=True)
@@ -123,7 +154,7 @@ def test_unplaceable_schema1_key_is_not_proof(home: Path, tmp_path: Path) -> Non
     target.write_bytes(b"user bytes")
     from specify_cli.runtime.asset_preparation import digest
 
-    # A record that names a path no candidate anchor can place on disk.
+    # A record that names a path no candidate anchor can place inside home.
     entries = {"nowhere/at/all/victim.txt": {"kind": "file", "sha256": digest(b"user bytes"), "mode": 0o644}}
     (cache / "probe-assets.json").write_text(json.dumps({"schema_version": 1, "entries": entries}), encoding="utf-8")
 
@@ -134,17 +165,36 @@ def test_unplaceable_schema1_key_is_not_proof(home: Path, tmp_path: Path) -> Non
     assert not prepared.writes.get(target)
 
 
-def test_schema2_entry_outside_the_anchor_is_carried_through(home: Path, tmp_path: Path) -> None:
+@pytest.mark.parametrize("key", ["C:/x", "a/../b", "a//b", "/abs", "a\\b"])
+def test_relative_keys_keep_the_old_confinement(home: Path, key: str) -> None:
     cache = home / ".kittify" / "cache"
     cache.mkdir(parents=True)
-    foreign = (tmp_path / "elsewhere" / "x.txt").as_posix()
-    state = {"kind": "file", "sha256": "0" * 64, "mode": 0o644}
-    (cache / "probe-assets.json").write_text(json.dumps({"schema_version": 2, "entries": {foreign: state}}), encoding="utf-8")
+    (cache / "probe-assets.json").write_text(json.dumps({"schema_version": 1, "entries": {key: _STATE}}), encoding="utf-8")
+    with pytest.raises(ValueError, match="Unconfined global asset inventory entry"):
+        AssetPreparation("probe", OperationRoot("probe", "global", home.parent), cache, ".probe.lock", ApplyConsent(automatic=True))
 
-    root = OperationRoot("probe", "global", home)
-    prepared = AssetPreparation("probe", root, cache, ".probe.lock", ApplyConsent(automatic=True))
+
+@pytest.mark.parametrize("key", ["relative/x", "//etc/x", "/a/../b", "/a//b"])
+def test_external_keys_must_be_confined_absolute_paths(home: Path, key: str) -> None:
+    cache = home / ".kittify" / "cache"
+    cache.mkdir(parents=True)
+    payload = {"schema_version": 1, "anchor": "absolute", "entries": {key: _STATE}}
+    (cache / "probe-external-assets.json").write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(ValueError, match="Unconfined global asset inventory entry"):
+        AssetPreparation("probe", OperationRoot("probe", "global", home.parent), cache, ".probe.lock", ApplyConsent(automatic=True))
+
+
+def test_entry_outside_the_anchor_is_carried_through(home: Path, tmp_path: Path) -> None:
+    cache = home / ".kittify" / "cache"
+    cache.mkdir(parents=True)
+    foreign = (tmp_path.parent / f"{tmp_path.name}-elsewhere" / "x.txt").as_posix()  # outside home.parent
+    payload = {"schema_version": 1, "anchor": "absolute", "entries": {foreign: _STATE}}
+    (cache / "probe-external-assets.json").write_text(json.dumps(payload, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+
+    prepared = AssetPreparation("probe", OperationRoot("probe", "global", home), cache, ".probe.lock", ApplyConsent(automatic=True))
     prepared.asset(home / "new.txt", b"x", 0o644)
     prepared.finish(None, "1.0")
-    written = next(w for p, w in prepared.writes.items() if p.name == "probe-assets.json")
-    assert written.content is not None
-    assert foreign in json.loads(written.content)["entries"]
+
+    assert not [w for p, w in prepared.writes.items() if p.name == "probe-external-assets.json"], "unchanged sidecar is not rewritten"
+    main = next(w for p, w in prepared.writes.items() if p.name == "probe-assets.json")
+    assert main.content is not None and f"{home.name}/new.txt" in json.loads(main.content)["entries"]
