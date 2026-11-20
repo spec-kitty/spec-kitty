@@ -108,10 +108,10 @@
       "criterion_id": "FR-011",
       "description": "Verify FR-011 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "lane-d 228c7e54 tests/specify_cli/cli/commands/test_accept_waive_path_conventions.py + test_lifted_root_validate_mission_paths_single_caller.py (11 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:22:23.745749+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
