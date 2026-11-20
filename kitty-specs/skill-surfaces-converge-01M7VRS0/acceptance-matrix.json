@@ -56,13 +56,13 @@
     },
     {
       "criterion_id": "FR-006",
-      "description": "Verify FR-006 is satisfied",
+      "description": "Verification reports a managed entry of a retired skill whose file still matches its recorded hash, so the retirement drain runs.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/skills/test_verify_retired_orphan.py (WP06)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:30:19.880396+00:00",
+      "notes": "Red-first test committed before the fix; WP approved by an independent reviewer (claude::generic-reviewer/reviewer-renata)."
     },
     {
       "criterion_id": "FR-007",
