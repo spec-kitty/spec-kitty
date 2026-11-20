@@ -286,13 +286,38 @@ def _read_inventory(payload: object, path: Path, known_roots: tuple[Path, ...] =
         for key, record in payload["entries"].items():
             entries[_check_absolute_key(key)] = _check_record(record)
         return entries
-    candidates = [_home_parent()] if anchor == _HOME_PARENT_ANCHOR else _legacy_candidates()
     confinement = (*_confinement(), *(_normalized(root) for root in known_roots))
+    if anchor == _HOME_PARENT_ANCHOR:
+        # The anchor is fixed, so a key names one path: no filesystem probe per key (NFR-001).
+        home_parent = _home_parent()
+        for key, record in payload["entries"].items():
+            placed = home_parent / _check_relative_key(key)
+            if any(root in placed.parents for root in confinement):
+                entries[placed] = _check_record(record)
+        return entries
+    candidates = _legacy_candidates()
     for key, record in payload["entries"].items():
-        placed = _place_legacy_key(_check_relative_key(key), candidates, confinement)
-        if placed is not None:
-            entries[placed] = _check_record(record)
+        placed_legacy = _place_legacy_key(_check_relative_key(key), candidates, confinement)
+        if placed_legacy is not None:
+            entries[placed_legacy] = _check_record(record)
     return entries
+
+
+def _inventory_in_canonical_form(payload: object, placed: dict[Path, dict[str, object]], *, sidecar: bool) -> bool:
+    """Whether re-serializing *placed* would reproduce this file's layout (#7722 NFR-001).
+
+    The main file is canonical when it is already home-parent anchored and kept every key;
+    the sidecar when it holds only paths outside ``home.parent``. Anything else (a pre-#7722
+    file, a dropped key, a record that moved across the anchor) needs one rewrite.
+    """
+    if not isinstance(payload, dict) or not isinstance(payload.get("entries"), dict):
+        return False
+    if len(placed) != len(payload["entries"]):
+        return False
+    if sidecar:
+        home_parent = _home_parent()
+        return payload.get(_ANCHOR_KEY) == _ABSOLUTE_ANCHOR and all(home_parent not in path.parents for path in placed)
+    return payload.get(_ANCHOR_KEY) == _HOME_PARENT_ANCHOR
 
 
 def _serialize_inventory(entries: dict[str, dict[str, object]], anchor: str) -> bytes:
@@ -339,12 +364,16 @@ class AssetPreparation:
         self.external_inventory = cache / f"{owner}-external-assets.json"
         self._known: dict[Path, dict[str, object]] = {}
         self._inventory_bytes: dict[Path, bytes | None] = {}
+        self._inventories_canonical = True
         for inventory in (self.inventory, self.external_inventory):
             state = self.observe(inventory, role="destination_probe")
             if state.kind == "file":
                 data = inventory.read_bytes()
                 self._inventory_bytes[inventory] = data
-                self._known.update(_read_inventory(json.loads(data), inventory, known_roots))
+                payload = json.loads(data)
+                placed = _read_inventory(payload, inventory, known_roots)
+                self._inventories_canonical &= _inventory_in_canonical_form(payload, placed, sidecar=inventory == self.external_inventory)
+                self._known.update(placed)
             elif state.kind == "absent":
                 self._inventory_bytes[inventory] = None
             else:
@@ -636,8 +665,11 @@ class AssetPreparation:
         """Write each inventory file whose bytes change (#7722); never touch an unchanged one.
 
         Records outside this run's anchor are carried through unchanged; nothing
-        prunes them, since this run cannot observe their paths.
+        prunes them, since this run cannot observe their paths. A run that changed no
+        record and read both files in their canonical layout is not serialized again.
         """
+        if self.entries == self.previous and self._inventories_canonical:
+            return
         known = {path: record for path, record in self._known.items() if self.root.path not in path.parents}
         known.update({self.root.path / relative: record for relative, record in self.entries.items()})
         home_parent = _home_parent()
