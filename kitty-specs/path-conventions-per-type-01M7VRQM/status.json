@@ -70,7 +70,8 @@
       "last_transition_at": "2026-11-20T07:45:17.013671+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "meta.json path-conventions waiver reader (generalized with the #5298 contracts reader; contracts text unchanged) and history field, red-first; 103 targeted tests passed; ruff and mypy clean."
+        "meta.json path-conventions waiver reader (generalized with the #5298 contracts reader; contracts text unchanged) and history field, red-first; 103 targeted tests passed; ruff and mypy clean.",
+        "Review passed: generalized meta.json waiver reader (_MetaWaiverSpec/_read_meta_waiver) keeps the contracts warning byte-identical (contracts tests unmodified, green); path_conventions waiver is exact-value 'waived' + non-blank rationale, fail-closed, MissionMetaReadError propagates; record_acceptance records path_conventions_waived only for a non-blank reason; new optional meta keys pass write_meta(validate=True). WP tests 103 passed; make test-fast 3144 passed/7 skipped; ruff/format/mypy clean."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
