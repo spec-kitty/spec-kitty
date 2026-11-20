@@ -66,6 +66,9 @@
       "last_event_id": "01M7XDDYDX9RHMWBMCC3PN7Q8W",
       "last_transition_at": "2026-11-20T21:22:35.069496+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Red-first test commit, then feat. Tests: WP02 blast radius + status-read/layer/remote-contact/terminology gates 419 passed 1 skipped; make test-fast 3164 passed 7 skipped; ruff check/format clean repo-wide. Two pre-existing mypy no-any-return errors in status_service.read_event_log (present on base)."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 1530,
