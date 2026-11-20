@@ -13,15 +13,15 @@
       "wp": null
     },
     "#5053": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Context only: cross-referenced by Mission approved-lane-resolution-route-01M7WW0Z (scope C-005 or constraint); no work owed here",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "title": "3-way merge-resolution attribution residual",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#5604": {
