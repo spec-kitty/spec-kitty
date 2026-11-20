@@ -31,7 +31,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: claim sidecar on every claim path, shared planned release, done-bookkeeping reviewer fold; blast radius 7631+3173+1019 passed",
-        "Cycle 1 fixed: B1 #7794 filed, strict xfails restore the strong assertions, residual in research.md R-05; B2 host agent action implement re-claim test (real git); L1 start-review sidecar dropped; L2 spoof through Typer; nits done. 2625 passed / 2 xfailed + make test-fast 3173"
+        "Cycle 1 fixed: B1 #7794 filed, strict xfails restore the strong assertions, residual in research.md R-05; B2 host agent action implement re-claim test (real git); L1 start-review sidecar dropped; L2 spoof through Typer; nits done. 2625 passed / 2 xfailed + make test-fast 3173",
+        "Cycle 2 approved. B1: #7794 exists and its repro reproduces (agent/shell_pid None with the release, set without); both xfails are strict and fail on agent None==codex under --runxfail; passing pins keep the claim sidecar and implementer_of_record. B2: host 'agent action implement' re-claims unforced via subprocess on a real git Mission. L1 dropped, L2 Typer case added, nits done. Reviewer recorded #2512 not-applicable (context only, cited by R-05). Nit (non-blocking): the mid-file fixture import carries '# noqa: E402' plus an __all__ to keep the fixture; move it to the top imports. Release trade-off: keeping it trades a stale holder in the planned window (blocks re-claim, fail-closed) for no holder during the next claim (ownership guard and pid liveness shield fail open), the move-task behaviour since #2512; acceptable as parity pending #7794, but the fail-open residual should get an operator ruling. Tests: orchestrator_api+status+targeted 2281 passed, 7 skipped, 2 xfailed; ruff and format clean."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
