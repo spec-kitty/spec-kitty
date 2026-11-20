@@ -1,16 +1,16 @@
 {
   "rows": {
     "#2460": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP06 VerifyResult.retired + stale probe drains hash-clean retired copies",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Retired-skill cleanup residuals: verify-side detection",
+      "verdict": "in-mission",
+      "wp": "WP06"
     },
     "#2527": {
       "evidence_ref": "<link or commit>",
