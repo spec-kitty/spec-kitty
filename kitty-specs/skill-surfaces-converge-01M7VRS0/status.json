@@ -121,7 +121,7 @@
     },
     "WP06": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": "claude::reviewer-renata",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 1,
@@ -134,7 +134,8 @@
         "Ready for review: VerifyResult.retired + provider probes retired managed entries as stale so --fix drains them; retirement keyed on RETIRED_CANONICAL_SKILL_NAMES; red 14f5656569, cb6b0b9efd; skills+tool_surface+2 migration suites 2163 passed; make test-fast 3144 passed",
         "Review passed (independent reviewer, head 78d8c365b3). Red 14f5656569/a5a4a69855 before fix. Verified: non-empty-catalog guard plus retired-name authority (absence alone never retires); hash-clean retired entry reported (VerifyResult.retired, ok False) and drained by repair_skills and by provider probe->repair; edited retired copy never deleted (verifier path tested; provider path probed by reviewer: --fix skips it, bytes unchanged). tests/specify_cli/skills + tool_surface 2144 passed 1 xfailed; make test-fast 3144 passed; ruff/format clean; mypy only pre-existing managed_skills.py:374 (recheck, untouched). Nits: (1) provider probe marks an EDITED retired copy STALE 'still installed' before the hash check, so --fix lists it as skipped instead of reporting drift needing consent; (2) _retired_surface_ids is per-provider state never cleared between expand calls.",
         "Fold reviewer nits (a) edited retired copy is drift, (b) clear _retired_surface_ids",
-        "Reviewer nits folded: edited retired copy is drift (hash check first); retired marks reset per expansion"
+        "Reviewer nits folded: edited retired copy is drift (hash check first); retired marks reset per expansion",
+        "Re-review passed (independent reviewer, head 4beafb5aef). Nit fixes: red 7d522b0ab9 (2 failed on pre-fix sources, verified) -> 4beafb5aef. (a) probe compares hash before the retired mark: an edited retired copy is DRIFTED (consent), never STALE/drained; (b) expand drops this tool's charter_skill retired marks before re-marking (prefix verified against _managed_surface_id; ToolSurfaceKind is a StrEnum). test_verify_retired_orphan 10 passed; tests/specify_cli/tool_surface 1246 passed. Earlier evidence (skills+tool_surface 2144 passed, make test-fast 3144) stands."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
