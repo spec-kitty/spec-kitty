@@ -31,7 +31,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Per-type reader implemented red-first: 20 new tests red on the old reader, 36/36 green; ruff, format and mypy clean; blast radius 104 passed.",
-        "Review cycle 1 addressed: shape-based dispatch (documentation sections work), readable errors for workspace:{..} and list sections, correct deliverables-warning stacklevel. 5 new tests red first; reader 42/42; blast radius 110 passed. Limitation: YAML allows one documentation key, so a flat documentation path and a documentation section cannot coexist; set documentation inside the relevant type sections instead."
+        "Review cycle 1 addressed: shape-based dispatch (documentation sections work), readable errors for workspace:{..} and list sections, correct deliverables-warning stacklevel. 5 new tests red first; reader 42/42; blast radius 110 passed. Limitation: YAML allows one documentation key, so a flat documentation path and a documentation section cannot coexist; set documentation inside the relevant type sections instead.",
+        "Review cycle 2 passed: per-type sections decided by value shape (documentation section loads against the real layered roster); list section names the mapping rule; deliverables warning stacklevel 4 flat / 5 per-type, test-verified; flat error strings byte-identical; no existing test edited; no roster read for flat-only config. 74 targeted tests passed; make test-fast 3144 passed/7 skipped; ruff/format/mypy clean."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
