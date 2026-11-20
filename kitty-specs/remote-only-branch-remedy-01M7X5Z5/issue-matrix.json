@@ -37,7 +37,7 @@
       "wp": null
     },
     "#7408": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for context only: a remote-tracking status read source belongs to #7408 under its own ADR amendment (operator ruling 1, spec C-001); this Mission adds none.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,7 +45,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7449": {
