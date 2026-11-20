@@ -157,16 +157,16 @@
       "wp": null
     },
     "#7725": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP07 rename to spk-start-first-mission",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Rename public skill id spk-start-first-feature",
+      "verdict": "in-mission",
+      "wp": "WP07"
     }
   },
   "schema_version": 1
