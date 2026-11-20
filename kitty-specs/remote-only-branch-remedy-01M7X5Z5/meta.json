@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-20T21:51:19.312285+00:00",
+      "accepted_by": "claude::python-pedro",
+      "accepted_from_commit": "00b964b12da7b42f538ddadef268b9c12b972b34"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-20T21:51:19.312285+00:00",
+  "accepted_by": "claude::python-pedro",
+  "accepted_from_commit": "00b964b12da7b42f538ddadef268b9c12b972b34",
   "contracts": "none",
   "contracts_rationale": "No external interface is added: the change is an error subtype and remedy text on existing CLI commands; the data model records the shapes.",
   "create_return_branch": "issue-5287-remote-only-coord-remedy",
