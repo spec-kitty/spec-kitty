@@ -1344,7 +1344,7 @@
    }
   },
   "review": {
-   "help": "Validate a merged mission: WP lane check, dead-code scan, BLE001 audit.\n\nWrites kitty-specs/<slug>/mission-review-report.md with a machine-readable\nverdict.  See module docstring for known false-positive scenarios in the\ndead-code scan step.",
+   "help": "Validate a merged mission: WP lane check, dead-code scan, BLE001 audit.\n\nWrites kitty-specs/<slug>/mission-review-report.md with a machine-readable\nverdict. A previous machine report there is replaced; any other file there\n(an agent-written review, say) is left alone and the command refuses with\nMISSION_REVIEW_REPORT_PATH_OCCUPIED.  See module docstring for known\nfalse-positive scenarios in the dead-code scan step.",
    "hidden": false,
    "deprecated": false
   },
