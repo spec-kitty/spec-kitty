@@ -28,6 +28,7 @@ landing (a local target at its PASS anchor, or a remote ref).
 
 from __future__ import annotations
 
+import logging
 import subprocess
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
@@ -49,6 +50,7 @@ from specify_cli.git.destructive_guard import (
     guarded_worktree_remove,
 )
 from specify_cli.git.ref_advance import ResidueClassifier
+from specify_cli.lanes import auto_rebase_record
 from specify_cli.lanes.compute import is_repo_root_lane, lane_created_branch
 from specify_cli.lanes.models import LanesManifest
 from specify_cli.status import EVENTS_FILENAME, SNAPSHOT_FILENAME
@@ -363,6 +365,26 @@ def _registered(repo_root: Path, worktree: Path) -> bool:
     return any(line.startswith("worktree ") and Path(line[len("worktree ") :]).resolve() == target for line in listing.stdout.splitlines())
 
 
+_LOG = logging.getLogger(__name__)
+
+
+def _clear_lane_records(repo_root: Path, branch: str) -> None:
+    """Drop the lane's auto-rebase records once its branch is deleted (FR-005).
+
+    Called only after a confirmed branch delete: a missing, kept or retained branch keeps its
+    records (FR-034 parity). Best effort like the lane-tip clear: the branch is already gone and
+    the records only keep tool merges reachable, so a failure is logged, never a kept lane. A
+    ``BookkeepingRefError`` (a namespace bug) is not caught.
+    """
+    try:
+        remaining = auto_rebase_record.delete_for_lane(repo_root, branch)
+    except auto_rebase_record.AutoRebaseRecordError as exc:
+        _LOG.debug("The auto-rebase records of %s could not be listed: %s", branch, exc)
+        return
+    if remaining:
+        _LOG.debug("Auto-rebase records of the removed lane %s remain: %s", branch, ", ".join(remaining))
+
+
 class MainTodayRemover:
     """The interim remover: today's guarded primitives, unchanged (C-004 interim exception).
 
@@ -440,6 +462,7 @@ class MainTodayRemover:
         if _branch_tip(self._repo_root, branch) is not None:
             return _kept(item, BRANCH_DELETE_REFUSED_BY_GIT, f"{branch} still exists after its delete", detail=None)
         lane_tip.clear_tip(self._repo_root, branch)
+        _clear_lane_records(self._repo_root, branch)
         return LaneCleanupResult(item=item, outcome=LaneCleanupOutcome.REMOVED, recreate=f"git branch {branch} {tip}")
 
 
@@ -561,6 +584,7 @@ class GuardedLaneRemover:
             from specify_cli.lanes import lane_tip
 
             lane_tip.clear_tip(self._repo_root, item.branch)
+            _clear_lane_records(self._repo_root, item.branch)
         return LaneCleanupResult(item=item, outcome=LaneCleanupOutcome.REMOVED, recreate=result.recreate)
 
     def _busy(self, path: Path) -> bool | None:
