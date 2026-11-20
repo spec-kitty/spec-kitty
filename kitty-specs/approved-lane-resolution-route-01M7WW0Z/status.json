@@ -125,7 +125,11 @@
         "Public merge_reviewed_by_own_stamps + own_approval_stamps (gate delegates, no behaviour change); additive advisory ApprovedWpCommitSet.unreviewed_merges via keyword-only sink; byte-identity golden recorded at base still green. 18 new tests; targeted 508 passed; test-fast 3144 passed.",
         "Review claimed by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
         "REJECT relayed from reviewer session session_019C2Tk5ehA3TXonKhbxbaMR",
-        "- 2026-11-20T19:09:59Z – unknown – red (review cycle 1, item 2): the new tests cover branches that already exist, so red-first is shown by mutation. Mutating _dropped_merges' 'except GitProbeError: continue' to append the SHA turns test_dropped_merges_skips_a_sha_whose_parents_cannot_be_read red ('assert (<merge sha>,) == ()'). Mutating _unreviewed_merge's 'except GitProbeError' to re-raise turns test_unreadable_own_content_records_no_entry red (GitProbeError 'is an octopus merge (3+ parents)' escapes the claim builder). Both green after restoring the code."
+        "- 2026-11-20T19:09:59Z – unknown – red (review cycle 1, item 2): the new tests cover branches that already exist, so red-first is shown by mutation. Mutating _dropped_merges' 'except GitProbeError: continue' to append the SHA turns test_dropped_merges_skips_a_sha_whose_parents_cannot_be_read red ('assert (<merge sha>,) == ()'). Mutating _unreviewed_merge's 'except GitProbeError' to re-raise turns test_unreadable_own_content_records_no_entry red (GitProbeError 'is an octopus merge (3+ parents)' escapes the claim builder). Both green after restoring the code.",
+        "- 2026-11-20T19:21:27Z – unknown – review-1 must-fix 1 addressed (1b474a4e): _dropped_merges, merge_reviewed_by_own_stamps and own_approval_stamps removed from reconciliation_authorship.__all__ (not allowlisted); WP05 re-adds the public two when it imports them. tests/architectural/test_no_dead_symbols.py green and added to the gate list.",
+        "- 2026-11-20T19:21:50Z – unknown – review-1 must-fix 2 addressed (1b474a4e): test_unreadable_own_content_records_no_entry (real-git octopus merge on lane-b after its stamp: claim builds with no refusal, no unreviewed_merges entry names the octopus, octopus not in authored_shas; the readable dropped merge is still recorded) and test_dropped_merges_skips_a_sha_whose_parents_cannot_be_read (is_merge_commit raising for one SHA, patched through setattr_reconciliation_family to satisfy the family patch guard; that SHA is not listed).",
+        "- 2026-11-20T19:21:54Z – unknown – green (1b474a4e): ruff check, ruff format --check --force-exclude, mypy clean. Targeted set + tests/architectural/test_layer_rules.py + tests/architectural/test_no_dead_symbols.py: 546 passed, 1 xfailed, plus family guard red on the first patch form, fixed; re-run of test_reviewed_merge_predicate.py + family_guard + no_dead_symbols: 66 passed. make test-fast: 3144 passed, 7 skipped.",
+        "- 2026-11-20T19:21:58Z – unknown – trace(tooling-friction): the octopus fixture first used 'git add -A' on the lane branch, which committed the uncommitted status.events.jsonl into the merge tree and removed it on checkout, silently emptying the claim (approved={}, no refusal). Fixed by staging only the fixture paths."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -139,10 +143,10 @@
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
-        "T010": "planned",
-        "T011": "planned",
-        "T012": "planned",
-        "T013": "planned"
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
       }
     },
     "WP05": {
