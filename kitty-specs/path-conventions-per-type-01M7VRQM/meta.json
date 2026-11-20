@@ -29,6 +29,7 @@
   "purpose_context": "Repositories without a src/ layout, such as content repositories, fail accept on software-dev path conventions. The only remap is project-wide and moves every mission type, and the only in-command escape (--lenient) also disables metadata validation. This Mission adds per-mission-type path-convention overrides, fail-closed validation of the new shape, remedy text that names the per-type remap first, and a narrow path-convention-only escape (#7566, #7748, #2330 item 1).",
   "purpose_tldr": "Let a project remap one mission type's paths without moving the others, and accept a layout mismatch without switching off metadata checks.",
   "slug": "path-conventions-per-type-01M7VRQM",
+  "status_phase": "1",
   "target_branch": "issue-7566-path-conventions-per-type",
   "topology": "lanes_with_coord",
   "topology_decision": {
