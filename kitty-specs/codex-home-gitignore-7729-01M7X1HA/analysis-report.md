@@ -4,7 +4,7 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: codex-home-gitignore-7729-01M7X1HA
 mission_id: 01M7X1HAR66JTAP06PKJ8RK95Z
-generated_at: '2026-11-20T18:01:39.011034+00:00'
+generated_at: '2026-11-20T20:38:05.029033+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
@@ -12,19 +12,19 @@ input_artifacts:
     sha256: ed1c5676ca01e370f3b3415d4bb875b644c41856d0e88f631c4531cc6939ece5
   plan.md:
     path: kitty-specs/codex-home-gitignore-7729-01M7X1HA/plan.md
-    sha256: 267a1447faa8119c02587f328bf4c2c318554b1b2827c071347543093dcbd211
+    sha256: aaeda3dd7fcec421c7a63ef1a1183ed9239df0510fcf55396e4c1fd8b4c6ed2f
   tasks.md:
     path: kitty-specs/codex-home-gitignore-7729-01M7X1HA/tasks.md
-    sha256: ea767f1f1cfa59d8b0e4fde9103a4afd76f4f272aca63e402c51168e9f1f1016
+    sha256: 7a02d9b7d83f488a97d3604b78965da812c3bd08f24762333bb37254d17857d1
   charter:
     path: .kittify/charter/charter.yaml
     sha256: 83874f7451d21cf0615682164d7bb883844ee032e7622bb1359a343fd0e6fb03
 verdict: ready
 issue_counts:
-  low: 4
   high: 0
-  medium: 0
   critical: 0
+  medium: 0
+  low: 4
   info: 0
 findings:
 - id: C1
@@ -42,7 +42,7 @@ findings:
 - id: U1
   severity: low
   category: underspecification
-  summary: Spec Assumptions name a follow-up issue for surfacing pending clone-local steps without an upgrade; it must be filed before the PR leaves draft.
+  summary: 'Spec Assumptions name a follow-up issue for pulled clones that never upgrade; filed as #7782 and deferred by operator ruling.'
 ---
 
 ## Specification Analysis Report
@@ -52,7 +52,7 @@ findings:
 | C1 | Coverage | LOW | spec.md Success Criteria; wps.yaml | SC rows are tracked, not gating, and each maps to a covered FR | None; record the mapping in the PR |
 | G1 | Charter | LOW | charter.md Collaboration Strategy | Branch naming differs from `issue-<n>-<slug>` because the operator brief names the branch | Flag in the PR body |
 | G2 | Charter | LOW | charter.md Tracker Ticket Assignment Rule | Assignment of #7729 was refused by the session permission layer | Note in the Runner report for the operator |
-| U1 | Underspecification | LOW | spec.md Assumptions | Follow-up issue for pulled clones that never upgrade is not yet filed | File it during implement; cite in PR Deferred |
+| U1 | Underspecification | LOW | spec.md Assumptions | Follow-up for pulled clones that never upgrade | Filed as #7782; deferred by operator ruling |
 
 **Coverage Summary Table:**
 
@@ -64,7 +64,7 @@ findings:
 | FR-004 | Yes | T002, T005 | pulled clone |
 | FR-005 | Yes | T002, T005 | every-clone listing |
 | FR-006 | Yes | T001, T002, T007 | reproduction, marker removal |
-| FR-007 | Yes | T006 | manifest entry |
+| FR-007 | Yes | T006 | manifest entries (exclusion + notice, review cycle 1) |
 | NFR-001..003 | Yes | T005, T007 | idempotency, cost, gates |
 | C-001..004 | Yes | T005, T006 | constraints |
 
