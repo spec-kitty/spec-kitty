@@ -105,7 +105,7 @@
     },
     "WP04": {
       "actor": "claude",
-      "agent": "claude::python-pedro",
+      "agent": "claude::reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -131,7 +131,8 @@
         "- 2026-11-20T19:21:50Z – unknown – review-1 must-fix 2 addressed (1b474a4e): test_unreadable_own_content_records_no_entry (real-git octopus merge on lane-b after its stamp: claim builds with no refusal, no unreviewed_merges entry names the octopus, octopus not in authored_shas; the readable dropped merge is still recorded) and test_dropped_merges_skips_a_sha_whose_parents_cannot_be_read (is_merge_commit raising for one SHA, patched through setattr_reconciliation_family to satisfy the family patch guard; that SHA is not listed).",
         "- 2026-11-20T19:21:54Z – unknown – green (1b474a4e): ruff check, ruff format --check --force-exclude, mypy clean. Targeted set + tests/architectural/test_layer_rules.py + tests/architectural/test_no_dead_symbols.py: 546 passed, 1 xfailed, plus family guard red on the first patch form, fixed; re-run of test_reviewed_merge_predicate.py + family_guard + no_dead_symbols: 66 passed. make test-fast: 3144 passed, 7 skipped.",
         "- 2026-11-20T19:21:58Z – unknown – trace(tooling-friction): the octopus fixture first used 'git add -A' on the lane branch, which committed the uncommitted status.events.jsonl into the merge tree and removed it on checkout, silently emptying the claim (approved={}, no refusal). Fixed by staging only the fixture paths.",
-        "Review cycle 1 addressed: names out of __all__ (no_dead_symbols green); octopus and is_merge_commit probe-error tests added. Targeted 546 passed/1 xfailed; test-fast 3144 passed."
+        "Review cycle 1 addressed: names out of __all__ (no_dead_symbols green); octopus and is_merge_commit probe-error tests added. Targeted 546 passed/1 xfailed; test-fast 3144 passed.",
+        "Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
