@@ -20,7 +20,7 @@
   "work_packages": {
     "WP01": {
       "actor": "claude",
-      "agent": null,
+      "agent": "claude::python-pedro",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -30,7 +30,8 @@
       "last_transition_at": "2026-11-20T22:00:37.126928+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ready for review: claim sidecar on every claim path, shared planned release, done-bookkeeping reviewer fold; blast radius 7631+3173+1019 passed"
+        "Ready for review: claim sidecar on every claim path, shared planned release, done-bookkeeping reviewer fold; blast radius 7631+3173+1019 passed",
+        "Cycle 1 fixed: B1 #7794 filed, strict xfails restore the strong assertions, residual in research.md R-05; B2 host agent action implement re-claim test (real git); L1 start-review sidecar dropped; L2 spoof through Typer; nits done. 2625 passed / 2 xfailed + make test-fast 3173"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
