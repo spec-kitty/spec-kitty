@@ -25,16 +25,16 @@
       "wp": null
     },
     "#5604": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Mission approved-lane-resolution-route-01M7WW0Z (route: WP07/WP08, refusal: WP05, proof: WP12)",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Reconciliation refuses approved-lane merge resolution; stale remedy contradicts gate",
+      "verdict": "in-mission",
+      "wp": "WP07"
     },
     "#5721": {
       "evidence_ref": "<link or commit>",
