@@ -54,7 +54,7 @@ def test_remote_only_refusal_names_the_resolved_remote_and_the_branch_step(tmp_p
     assert " fetch " not in next_step
 
 
-def test_remote_only_refusal_leads_with_a_targeted_fetch_when_the_tracking_ref_is_absent(tmp_path: Path) -> None:
+def test_remote_only_refusal_leads_with_a_targeted_fetch_when_no_tracking_ref_is_held(tmp_path: Path) -> None:
     coord = _remote_only(tmp_path)
     branch = coord.coordination_branch
     subprocess.run(
@@ -65,8 +65,47 @@ def test_remote_only_refusal_leads_with_a_targeted_fetch_when_the_tracking_ref_i
 
     next_step = _refusal(coord).next_step
 
-    fetch_step = f"fetch {_REMOTE} {branch}"
-    branch_step = f"branch {branch} {_REMOTE}/{branch}"
+    # The fixture also carries an ``origin`` remote (the git template), so with
+    # no tracking ref anywhere local config names ``origin`` (the default) and
+    # cannot confirm it holds the branch: the text names the other candidate.
+    fetch_step = f"fetch origin {branch}"
+    branch_step = f"branch {branch} origin/{branch}"
     assert fetch_step in next_step
     assert branch_step in next_step
     assert next_step.index(fetch_step) < next_step.index(branch_step)
+    assert f"if origin does not hold the branch, use the remote that does: {_REMOTE}" in next_step
+    assert "has not fetched" not in next_step
+
+
+def test_doctor_refusal_and_write_refusal_carry_the_identical_remedy(tmp_path: Path) -> None:
+    """FR-005 / SC-001: the three surfaces that print a remote-only remedy print one text.
+
+    The expected text is the builder's own output, never a copied literal, so a
+    surface that drifts from the single owner goes red here.
+    """
+    from mission_runtime import ActionContextError, CommitTarget, MissionArtifactKind
+    from mission_runtime.coord_remedy import coordination_doctor_command, remote_only_branch, remote_only_steps
+    from mission_runtime.write_target_degrade import assert_coord_write_materialized
+    from specify_cli.cli.commands._coordination_doctor import _check_coordination_worktree_health
+    from specify_cli.core.paths import load_meta_fail_closed
+
+    coord = _remote_only(tmp_path)
+    root, branch, slug = coord.repo_root, coord.coordination_branch, coord.mission_dir_name
+    expected = remote_only_steps(remote_only_branch(root, branch), root, coordination_doctor_command(slug))
+
+    refusal_text = _refusal(coord).next_step
+
+    meta = load_meta_fail_closed(coord.root_mission_dir) or {}
+    findings = _check_coordination_worktree_health(root, dict(meta))
+    missing = [f for f in findings if f.error_code == "COORDINATION_WORKTREE_MISSING"]
+    assert len(missing) == 1, findings
+    doctor_text = missing[0].next_step or ""
+
+    with pytest.raises(ActionContextError) as excinfo:
+        assert_coord_write_materialized(root, slug, MissionArtifactKind.ISSUE_MATRIX, CommitTarget(ref=branch))
+    write_text = str(excinfo.value)
+
+    assert f"{_REMOTE}/{branch}" in expected
+    assert expected in refusal_text
+    assert doctor_text == expected
+    assert expected in write_text
