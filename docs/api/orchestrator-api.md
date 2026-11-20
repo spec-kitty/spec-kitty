@@ -3,7 +3,7 @@ title: Orchestrator API Reference
 description: Machine-contract API for external orchestration providers.
 doc_status: active
 kind: Reference
-updated: '2026-10-27T00:00:00Z'
+updated: '2026-11-20T00:00:00Z'
 related:
 - api/event-envelope
 - migrations/feature-flag-deprecation
@@ -31,7 +31,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.29.0`
+- `CONTRACT_VERSION`: `1.30.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -277,6 +277,17 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   `data.preflight_error_code` / `data.preflight_error_codes` carry `CHECKOUT_SKIP_WORKTREE_ENTRIES`.
   A call that could answer `success: true` (the bit on a file this path never writes) now refuses
   too, so a minor bump; no field or `error_code` is removed or renamed.
+- `1.30.0` — an orchestrator-claimed Mission, and a descoped one, can be accepted (#5781, #5818,
+  #7644). `start-implementation` and `transition --to claimed` record `agent` = `--actor` in the
+  claim's `policy_metadata` beside the `--policy` keys, which cannot override it, so the snapshot
+  names an owner and the host `move-task` ownership guard applies to API-claimed work packages.
+  `transition --to planned` releases the runtime claim and clears the review override, as
+  `move-task --to planned` does. `accept-mission` lists in `incomplete_wps` only work packages that
+  are not at an acceptable ending: a work package canceled with operator provenance is no longer
+  listed, a synthetic cancellation still is. Its readiness gate reads the implementer from the
+  event log and asks for none on a work package canceled before any claim. A call that refused
+  `MISSION_NOT_READY` can now succeed, so a minor bump; no field or `error_code` is removed or
+  renamed.
 
 ## Response Envelope
 
@@ -284,7 +295,7 @@ Every command returns exactly one JSON object with these 7 top-level keys:
 
 ```json
 {
-  "contract_version": "1.29.0",
+  "contract_version": "1.30.0",
   "command": "orchestrator-api.mission-state",
   "timestamp": "2026-04-08T12:00:00+00:00",
   "correlation_id": "corr-0123456789abcdef",

@@ -337,7 +337,7 @@ spec-kitty orchestrator-api accept-mission --mission TEXT --actor TEXT
 
 | Code | Cause |
 |------|-------|
-| `MISSION_NOT_READY` | One or more WPs are not `approved` or `done`, OR (contract >= 1.7.0) the host readiness verdict (`collect_feature_summary(..., strict_metadata=True).ok`) is `False` -- a pending/failing acceptance matrix, missing/corrupt `lanes.json`, target-branch mismatch, unmet path convention, dirty working tree, etc., OR (contract >= 1.21.0) an approved WP has no implementation evidence or no independent review (codes in `data.evidence_error_codes`, below) |
+| `MISSION_NOT_READY` | One or more WPs are not at an acceptable ending (`approved`, `done`, or, from contract 1.30.0, `canceled` with operator provenance), OR (contract >= 1.7.0) the host readiness verdict (`collect_feature_summary(..., strict_metadata=True).ok`) is `False` -- a pending/failing acceptance matrix, missing/corrupt `lanes.json`, target-branch mismatch, unmet path convention, dirty working tree, etc., OR (contract >= 1.21.0) an approved WP has no implementation evidence or no independent review (codes in `data.evidence_error_codes`, below) |
 
 **Error data (readiness-verdict refusal, contract >= 1.7.0):**
 

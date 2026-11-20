@@ -41,6 +41,7 @@ from specify_cli.status.work_package_lifecycle import GENERIC_IMPLEMENTATION_ACT
 __all__ = [
     "implementer_identities",
     "IMPLEMENTER_RESUBMISSION_ROLE",
+    "implementer_claim_target",
     "independent_of_implementers",
     "is_implementer_resubmission_hop",
     "is_latest_implementer",
@@ -325,6 +326,31 @@ def latest_implementer_identity(events: Sequence[StatusEvent], wp_id: str) -> st
     """
     identities = implementer_identities(events, wp_id)
     return identities[0] if identities else None
+
+
+#: The implementing lanes, in the order a repair should reach for them: a claim first.
+_IMPLEMENTING_TARGETS: tuple[Lane, ...] = (Lane.CLAIMED, Lane.IN_PROGRESS)
+
+
+def implementer_claim_target(lane: str | Lane) -> Lane | None:
+    """The implementing lane a work package in *lane* can move into as an implementing claim, or ``None`` (#5781).
+
+    Derived from the state machine: a target in ``wp_state_for(lane).allowed_targets()``
+    among ``claimed`` / ``in_progress``, reached from a lane this projection does not read
+    as a reviewer verdict (an exit from ``for_review`` / ``in_review`` / ``approved`` needs a
+    ``review_ref`` and is a rework verdict, never a claim, :func:`_is_reviewer_rework_verdict`).
+    ``None`` when no such move exists: ``in_progress`` (already implementing), the review
+    lanes, and the terminal ``done`` / ``canceled``. The accept gate names a repair only when
+    this returns a lane.
+    """
+    from specify_cli.status.transitions import resolve_lane_alias
+    from specify_cli.status.wp_state import wp_state_for
+
+    source = Lane(resolve_lane_alias(str(lane)))
+    if source.value in _REVIEWER_SOURCE_LANES:
+        return None
+    allowed = wp_state_for(source).allowed_targets()
+    return next((target for target in _IMPLEMENTING_TARGETS if target in allowed), None)
 
 
 def independent_of_implementers(implementers: Sequence[str], approver: str | None) -> bool:

@@ -251,11 +251,10 @@ def _emit_planned_to_done(mission_dir: Path, mission_slug: str, wp_id: str, acto
     from specify_cli.status.emit import emit_status_transition
     from specify_cli.status.models import ReviewResult
 
-    # ``policy_metadata={"agent": actor}`` on the planned -> claimed hop is
-    # what the reducer's implementer-of-record projection reads (#4786,
-    # ``status/reducer.py::_project_implementer_of_record``) -- without it a
-    # strict-metadata readiness check (accept-mission, #4934) reports the WP
-    # as "never claimed" even though it reached done/approved here.
+    # The claim carries no ``agent`` sidecar: the strict readiness gate reads the
+    # implementer of record from this claim's actor in the event log (#5781), so a
+    # WP claimed with no sidecar (as orchestrator-api recorded before #5781) is not
+    # "never claimed".
     emit_status_transition(
         TransitionRequest(
             feature_dir=mission_dir,
@@ -263,7 +262,6 @@ def _emit_planned_to_done(mission_dir: Path, mission_slug: str, wp_id: str, acto
             wp_id=wp_id,
             to_lane="claimed",
             actor=actor,
-            policy_metadata={"agent": actor},
         )
     )
     emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id=wp_id, to_lane="in_progress", actor=actor))
@@ -303,7 +301,7 @@ def _emit_planned_to_approved(
     from specify_cli.status.emit import emit_status_transition
     from specify_cli.status.models import ReviewResult
 
-    # See ``_emit_planned_to_done``'s comment on ``policy_metadata``.
+    # No ``policy_metadata`` sidecar on the claim: see ``_emit_planned_to_done``'s comment (#5781).
     emit_status_transition(
         TransitionRequest(
             feature_dir=mission_dir,
@@ -311,7 +309,6 @@ def _emit_planned_to_approved(
             wp_id=wp_id,
             to_lane="claimed",
             actor=actor,
-            policy_metadata={"agent": actor},
         )
     )
     emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id=wp_id, to_lane="in_progress", actor=actor))

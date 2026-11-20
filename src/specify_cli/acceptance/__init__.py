@@ -1157,8 +1157,19 @@ def _resolve_git_context(repo_root: Path) -> tuple[str | None, Path, Path, tuple
     return branch, worktree_root, primary_repo_root, git_dirty
 
 
-def _collect_snapshot_wps(feature: str, feature_dir: Path, activity_issues: list[str]) -> dict[str, dict[str, Any]]:
-    """Load canonical WP states from status.events.jsonl; append issues on failure."""
+def _collect_snapshot_wps(
+    feature: str,
+    feature_dir: Path,
+    activity_issues: list[str],
+    *,
+    implementers: dict[str, str | None] | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Load canonical WP states from status.events.jsonl; append issues on failure.
+
+    When *implementers* is given it is filled with each WP's implementer of record,
+    projected by :mod:`specify_cli.status.review_roles` from the same transitions
+    (#5781), so the strict gate costs no second read of the log.
+    """
     events_path = feature_dir / EVENTS_FILENAME
     _missing_msg = (
         f"No canonical state found for mission '{feature}'. "
@@ -1181,6 +1192,10 @@ def _collect_snapshot_wps(feature: str, feature_dir: Path, activity_issues: list
     work_packages: dict[str, dict[str, Any]] = snapshot.work_packages
     if not work_packages:
         activity_issues.append(_missing_msg)
+    if implementers is not None:
+        from specify_cli.status.review_roles import latest_implementer_identity
+
+        implementers.update({wp_id: latest_implementer_identity(event_stream.transitions, wp_id) for wp_id in work_packages})
     return work_packages
 
 
@@ -1468,7 +1483,8 @@ def _gather_work_packages(
 ) -> _GatheredWorkPackages:
     gathered = _GatheredWorkPackages(lanes={lane: [] for lane in LANES})
     lanes = gathered.lanes
-    snapshot_wps = _collect_snapshot_wps(feature, status_feature_dir, activity_issues)
+    implementers: dict[str, str | None] = {}
+    snapshot_wps = _collect_snapshot_wps(feature, status_feature_dir, activity_issues, implementers=implementers)
     # #3656: WP paths come from the placement seam, whose PRIMARY-partition
     # reads resolve against the seam's checkout root -- the owned checkout
     # root when owned, otherwise the MAIN repo root (it applies
@@ -1490,6 +1506,7 @@ def _gather_work_packages(
             wp_snapshot,
             wp_path_root=wp_path_root,
             strict_metadata=strict_metadata,
+            implementer=implementers.get(wp_id),
         )
         bucket_lane = state.lane
         if bucket_lane in lanes:
