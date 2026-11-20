@@ -153,7 +153,7 @@ check without making it true (#7512). The levers in full:
     reason is required and is recorded on the acceptance history entry in `meta.json`.
     `orchestrator-api` has no per-run flag.
   - for every run of one Mission: add `"path_conventions": "waived"` and a non-empty
-    `"path_conventions_rationale"` to the Mission's `meta.json`. Every accept path honours
+    `"path_conventions_rationale"` to the Mission's `meta.json`. Every accept path honors
     it, `orchestrator-api` included, and accept prints the rationale. A malformed
     declaration waives nothing and says what is wrong with it.
 - **Last resort: drop a key.** Copying the packaged `mission.yaml` to

@@ -266,7 +266,7 @@ Both make path-convention misses warnings while strict metadata validation is un
   history entry. `orchestrator-api` has no per-run waiver.
 - **Per Mission:** `"path_conventions": "waived"` with a non-empty `"path_conventions_rationale"`
   in `meta.json`, read by `core.paths.read_path_conventions_waiver_from_meta`, which shares the
-  #5298 contracts waiver's fail-closed rules. Every accept path honours it, `orchestrator-api`
+  #5298 contracts waiver's fail-closed rules. Every accept path honors it, `orchestrator-api`
   included (operator ruling Q4), and the rationale is printed in the accept warnings.
 
 The strict failure text names the per-run flag on every path; on `orchestrator-api`, use the
