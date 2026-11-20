@@ -1,31 +1,31 @@
 {
   "rows": {
     "#2460": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP06 VerifyResult.retired + stale probe drains hash-clean retired copies",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Retired-skill cleanup residuals: verify-side detection",
+      "verdict": "in-mission",
+      "wp": "WP06"
     },
     "#2527": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Reproduced on a053b674 (research R-4); WP03 refresh by historical proof, WP04 skipped reasons",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "doctor tool-surfaces --fix reports repaired but leaves managed doctrine skills drifted",
+      "verdict": "in-mission",
+      "wp": "WP03"
     },
     "#2904": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Non-goal of this Mission per the operator brief (C-003); overlap noted in the PR, no work owed here",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -33,11 +33,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#5215": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Non-goal of this Mission per the operator brief (C-003); overlap noted in the PR, no work owed here",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,35 +45,35 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#5281": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP05 VerifyReport.outdated; strict xfail flips",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "doctor skills --fix never repairs a command skill whose manifest recorded the corrupted hash",
+      "verdict": "in-mission",
+      "wp": "WP05"
     },
     "#5983": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP03 retire on byte proof; WP04 retired-skill-kept-edited finding",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "spec-kitty upgrade keeps an edited retired skill in ~/.claude/skills silently",
+      "verdict": "in-mission",
+      "wp": "WP04"
     },
     "#5993": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Non-goal of this Mission per the operator brief (C-003); overlap noted in the PR, no work owed here",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -81,11 +81,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6471": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Non-goal of this Mission per the operator brief (C-003); overlap noted in the PR, no work owed here",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -93,11 +93,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6472": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Non-goal of this Mission per the operator brief (C-003); overlap noted in the PR, no work owed here",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -105,47 +105,47 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7700": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP01 historical-render proof source; WP03 global sync refresh + no stamp while preserved",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "User-global skills byte-identical to earlier shipped output stay stale as Unproven existing asset",
+      "verdict": "in-mission",
+      "wp": "WP03"
     },
     "#7722": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP02 fixed-anchor inventory + external sidecar",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Global asset inventory anchor shifts when a user-global agent root lies outside HOME",
+      "verdict": "in-mission",
+      "wp": "WP02"
     },
     "#7723": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP05 old-root leftover report (report only; opt-in removal follow-up #7758)",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "doctor: report leftover ~/.claude commands and skills when CLAUDE_CONFIG_DIR redirects the root",
+      "verdict": "in-mission",
+      "wp": "WP05"
     },
     "#7724": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Already closed before this Mission started; cited for context only",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -153,20 +153,20 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7725": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP07 rename to spk-start-first-mission",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Rename public skill id spk-start-first-feature",
+      "verdict": "in-mission",
+      "wp": "WP07"
     }
   },
   "schema_version": 1
