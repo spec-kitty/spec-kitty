@@ -199,6 +199,32 @@ def test_previously_published_routes_still_redirect() -> None:
     assert redirects["/retrospective-learning-loop.html"] == "/architecture/retrospective-learning-loop/"
 
 
+_ASTRO_REDIRECTS_RE = re.compile(r"^\s*redirects:\s*\{(?P<body>.*?)^\s*\},", re.MULTILINE | re.DOTALL)
+_ASTRO_REDIRECT_ENTRY_RE = re.compile(r"'(?P<source>/[^']*)':\s*'(?P<target>/[^']*)'")
+
+
+def _astro_redirects() -> dict[str, str]:
+    match = _ASTRO_REDIRECTS_RE.search(_read(SITE / "astro.config.mjs"))
+    assert match, "astro.config.mjs declares Astro `redirects` for the unpublished pages' directory URLs"
+    return {entry["source"]: entry["target"] for entry in _ASTRO_REDIRECT_ENTRY_RE.finditer(match["body"])}
+
+
+def test_unpublished_directory_urls_redirect() -> None:
+    """The doc-kitty site served these pages at trailing-slash URLs until #7681 made them drafts."""
+    assert _astro_redirects() == {
+        "/architecture/adr-template/": "/architecture/",
+        "/retrospective-learning-loop/": "/architecture/retrospective-learning-loop/",
+        "/assets/": "/",
+    }
+
+
+def test_astro_redirects_do_not_duplicate_a_legacy_index_stub() -> None:
+    """A `dir/index.html` legacy stub already serves `dir/`; an Astro key for `dir/` fails the build."""
+    legacy = json.loads(_read(SITE / "legacy-redirects.json"))
+
+    assert not {f"{source}index.html" for source in _astro_redirects()} & set(legacy)
+
+
 # --- working-note folders are drafts (#6932, FR-001) --------------------------------------------
 
 
