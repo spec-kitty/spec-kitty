@@ -1,7 +1,7 @@
 {
-  "event_count": 12,
-  "last_event_id": "01M7XGEPXMXSXNF43F8JTFW75F",
-  "materialized_at": "2026-11-20T22:15:25.877038+00:00",
+  "event_count": 14,
+  "last_event_id": "01M7XGHHWA6GVHJ44YAFCQSE9J",
+  "materialized_at": "2026-11-20T22:16:59.001777+00:00",
   "mission_number": "",
   "mission_slug": "api-claim-accept-readiness-01M7X6Q6",
   "mission_type": "software-dev",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -55,11 +55,20 @@
       }
     },
     "WP02": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude::python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M7X6Z7PDWWX951S7RV3A4RCB",
-      "last_transition_at": "2026-11-20T19:29:41.581479+00:00"
+      "implementer_of_record": "claude::python-pedro",
+      "lane": "in_progress",
+      "last_event_id": "01M7XGHHWA6GVHJ44YAFCQSE9J",
+      "last_transition_at": "2026-11-20T22:16:59.001777+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 301,
+      "shell_pid_created_at": "1795213012.39"
     }
   }
 }
