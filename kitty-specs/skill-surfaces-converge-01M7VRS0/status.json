@@ -1,7 +1,7 @@
 {
-  "event_count": 4,
-  "last_event_id": "01M7VTXB5ZYBHRVR6FT3A7M547",
-  "materialized_at": "2026-11-20T06:39:42.271976+00:00",
+  "event_count": 5,
+  "last_event_id": "01M7VTXEC9TXY4Q65RM2EC5R24",
+  "materialized_at": "2026-11-20T06:39:45.545918+00:00",
   "mission_number": "",
   "mission_slug": "skill-surfaces-converge-01M7VRS0",
   "mission_type": "software-dev",
@@ -15,7 +15,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 4
+    "planned": 5
   },
   "work_packages": {
     "WP01": {
@@ -45,6 +45,13 @@
       "lane": "planned",
       "last_event_id": "01M7VTXB5ZYBHRVR6FT3A7M547",
       "last_transition_at": "2026-11-20T06:39:42.271976+00:00"
+    },
+    "WP05": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M7VTXEC9TXY4Q65RM2EC5R24",
+      "last_transition_at": "2026-11-20T06:39:45.545918+00:00"
     }
   }
 }
