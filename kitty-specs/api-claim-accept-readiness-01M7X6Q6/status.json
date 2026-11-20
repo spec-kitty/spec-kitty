@@ -65,6 +65,9 @@
       "last_event_id": "01M7XHAECH4MP9RFAVBZMQ33E1",
       "last_transition_at": "2026-11-20T22:30:34.641986+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Gate via review_roles, canceled exemption, state-machine hint (runs as printed), #5818 aggregate, contract 1.30.0. Red 8bc32eec (14 failed on WP01 base) -> green. Off-tree blast 4601+318 passed; make test-fast 3173; arch gates 113"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 301,
