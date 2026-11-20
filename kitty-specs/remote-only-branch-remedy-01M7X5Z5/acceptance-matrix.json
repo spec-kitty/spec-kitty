@@ -18,10 +18,10 @@
       "criterion_id": "FR-002",
       "description": "Verify FR-002 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/specify_cli/coordination/test_remote_only_remedy_5287.py::test_remote_only_refusal_names_the_resolved_remote_and_the_branch_step (remote coord-remote); tests/mission_runtime/test_coord_remedy.py::test_the_only_remote_owns_the_branch_whatever_its_name",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T21:50:48.712061+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
