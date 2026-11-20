@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-20T16:18:50.352813Z",
+      "decision_id": "01M7WW1RVG4TQ9S2CABCCVK9G9",
+      "final_answer": "Confirm as written (operator, 2026-11-20): intent summary, FR-001..FR-013, N1-N4, NFRs, constraints, and defaults (a) sibling lane + halt reason, (b) CAS undo of the run's own auto-rebase merges at rollback.",
+      "input_key": "intent_summary_confirmation",
+      "mission_id": "01M7WW0ZHE3JCZ0KW6RP8X34G4",
+      "mission_slug": "approved-lane-resolution-route-01M7WW0Z",
+      "opened_by": "cli",
+      "options": [
+        "Confirm as written",
+        "Confirm with corrections",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Confirm the Intent Summary and extracted FR/NFR/C set for the approved-lane conflict resolution route Mission (#5604 scope per operator ruling 2026-11-20), including two plan-level defaults: (a) the stale remedy names the sibling lane(s) and halt reason rather than keeping an in-run mission-tip ref; (b) #7767 is fixed by undoing this run's own auto-rebase merges on lanes under compare-and-swap at rollback.",
+      "rationale": null,
+      "resolved_at": "2026-11-20T16:29:50.410674Z",
+      "resolved_by": null,
+      "slot_key": "specify.intent.confirm-summary",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M7WW0ZHE3JCZ0KW6RP8X34G4",
+  "version": 1
+}
