@@ -72,6 +72,18 @@
       "verdict": "in-mission",
       "wp": "WP02"
     },
+    "#7407": {
+      "evidence_ref": "Context only: inherits the one claim-sidecar builder; no work owed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "structural parity work",
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#7644": {
       "evidence_ref": "WP01: status/claim_release.py shared release; tests/orchestrator_api/test_api_claim_sidecar_5781.py",
       "fr": null,
