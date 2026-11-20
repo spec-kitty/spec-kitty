@@ -13,5 +13,7 @@
   "slug": "orientation-content-authority-01M7X5W6",
   "target_branch": "fix/5215-orientation-content-authority",
   "topology": "single_branch",
-  "topology_source": "explicit"
+  "topology_source": "explicit",
+  "contracts": "none",
+  "contracts_rationale": "Internal refactor of session-presence content ownership; no new external interface, command, file format or event."
 }
