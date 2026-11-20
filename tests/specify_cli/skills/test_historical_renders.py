@@ -106,3 +106,26 @@ def test_generator_digests_cover_both_projections_for_skill_md() -> None:
 def test_generator_tolerates_an_unprojectable_historical_skill_md() -> None:
     broken = b"no frontmatter at all\xff"
     assert generator.digests_for("SKILL.md", broken, "demo") == {_sha256(broken)}
+
+
+def test_build_keeps_every_existing_digest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Append-only: a digest the committed list holds survives a rebuild that history no longer yields."""
+    data_file = tmp_path / generator.DATA_PATH
+    data_file.parent.mkdir(parents=True)
+    kept = {"gone-skill/SKILL.md": ["f" * 64]}
+    data_file.write_text(generator._serialize(kept), encoding="utf-8")
+    monkeypatch.setattr(generator, "_history_renders", lambda repo: {"live/SKILL.md": {"e" * 64}})
+
+    rebuilt = generator.build(tmp_path)
+
+    assert '"gone-skill/SKILL.md"' in rebuilt and "f" * 64 in rebuilt
+    assert "e" * 64 in rebuilt
+
+
+def test_generator_refuses_uncommitted_skill_sources(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """Only committed bytes enter the frozen list: an edited, uncommitted skill would be recorded forever."""
+    monkeypatch.setattr(generator, "_is_shallow", lambda repo: False)
+    monkeypatch.setattr(generator, "_dirty_sources", lambda repo: ["src/charter/offering/skills/x/SKILL.md"])
+
+    assert generator.main(["--repo", str(tmp_path)]) == 2
+    assert "uncommitted" in capsys.readouterr().err
