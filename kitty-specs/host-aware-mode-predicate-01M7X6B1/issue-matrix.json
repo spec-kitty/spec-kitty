@@ -25,15 +25,15 @@
       "wp": null
     },
     "#4776": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Historical context only: closed by 92a200070; its relaxation is replaced by the shared predicate",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "title": "Windows upgrade non-convergence (closed)",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#4777": {
