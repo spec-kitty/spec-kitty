@@ -278,18 +278,21 @@ def assert_coord_write_materialized(
     # remote-tracking ref (a fresh clone / CI checkout where the lane exists
     # solely on `origin/<lane>`) -- `doctor coordination --fix` alone would
     # refuse, because a remote-only branch is never auto-materialized.
+    # #5287: the recovery steps are the canonical remote-only remedy, shared
+    # with the doctor finding and the unmaterialized-coordination refusal.
+    from mission_runtime.coord_remedy import coordination_doctor_command, remote_only_branch, remote_only_steps
+
+    steps = remote_only_steps(remote_only_branch(repo_root, coord_branch), repo_root, coordination_doctor_command(mission_slug))
     raise ActionContextError(
         _COORD_WRITE_UNMATERIALIZED_CODE,
         f"Refusing a terminus WRITE of {kind.value!r} for mission {mission_slug!r}: "
         f"its authoritative coordination surface (branch {coord_branch!r}) is "
         f"unresolved or unmaterialized on this checkout — the coordination worktree "
         f"is absent and {coord_branch!r} is not a local branch head (e.g. a fresh "
-        f"clone / CI checkout where the lane exists only on origin). Writing would "
+        f"clone / CI checkout where the lane exists only on a remote). Writing would "
         f"degrade to the primary directory and overwrite committed coordination "
-        f"state (#4970). Materialize the coordination surface first: `git fetch`, "
-        f"create the local branch (`git branch {coord_branch} origin/{coord_branch}`), "
-        f"then run `spec-kitty doctor coordination --mission {mission_slug} --fix`; "
-        f"or check out {coord_branch!r} locally before retrying.",
+        f"state (#4970). Materialize the coordination surface first. {steps} "
+        f"Or check out {coord_branch!r} locally before retrying.",
     )
 
 
