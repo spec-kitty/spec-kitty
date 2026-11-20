@@ -11,11 +11,13 @@ from __future__ import annotations
 import subprocess
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
 from kernel.git import GitCommandError
+from runtime.next.prompt_builder import _review_command_lines
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
 from specify_cli.review import wp_range
 from specify_cli.review.context_block import BYTE_BUDGET, render_review_context
@@ -211,3 +213,29 @@ def test_merge_listing_failure_is_fail_soft(tmp_path: Path, monkeypatch: pytest.
     assert found.base is not None and found.tip is not None
     assert found.merges == ()
     assert found.listing_gap == "merges"
+
+    lines = render_review_context(found, ())
+    fallback = (
+        f"  RESOLUTION MERGES: could not be listed; run git rev-list --merges --full-history {found.base}..{found.tip}"
+        " and review each with git show --remerge-diff <sha>"
+    )
+    diff_at = next(index for index, line in enumerate(lines) if line.startswith("  git diff "))
+    assert lines[diff_at + 1] == fallback
+    assert lines[diff_at + 2] == REQS
+
+
+@pytest.mark.integration
+@pytest.mark.git_repo
+def test_next_review_prompt_prints_the_hand_merge_resolution_command(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """ATDD (US5): the ``spec-kitty next`` review prompt (render site 1) carries the RESOLUTION MERGE command for a hand merge."""
+    mission, (merge,) = _lane_with_merges(tmp_path, mid8="01M7WM05", merges=(("docs/side.md", "A = 5  # resolved by hand\n"),))
+    workspace: Any = SimpleNamespace(lane_id="lane-a", context=None, branch_name=mission.lane_branches["WP01"])
+    wp_meta: Any = SimpleNamespace(owned_files=["src/**"], requirement_refs=[])
+    for key in _HARNESS_VARIABLES:
+        monkeypatch.delenv(key, raising=False)
+
+    with cs.mission_environment(mission):
+        lines = _review_command_lines(mission.repo, mission.slug, "WP01", wp_meta, workspace, None)
+
+    assert f"  {_LABEL} git show --remerge-diff {merge}" in lines
+    assert len(merge) == 40
