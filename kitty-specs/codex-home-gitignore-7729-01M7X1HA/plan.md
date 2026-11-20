@@ -59,12 +59,13 @@ kitty-specs/codex-home-gitignore-7729-01M7X1HA/
 ```
 src/specify_cli/agent_utils/codex_home.py                  # NEW: Codex home layout + detection
 src/specify_cli/agent_utils/ignore_entries.py              # widen the committed Codex rows
-src/specify_cli/upgrade/migrations/m_4_0_0rc9_exclude_project_local_codex_home.py   # NEW, clone-local
+src/specify_cli/upgrade/migrations/m_4_0_0rc9_exclude_project_local_codex_home.py   # NEW, clone-local exclusion
+src/specify_cli/upgrade/migrations/m_4_0_0rc9_report_newly_visible_agent_files.py    # NEW, clone-local notice (review cycle 1)
 src/specify_cli/upgrade/migrations/order_manifest.txt      # one appended line
 tests/specify_cli/agent_utils/test_codex_home.py           # NEW
 tests/specify_cli/agent_utils/test_ignore_entries.py       # committed-block coverage
-tests/specify_cli/upgrade/migrations/test_m_4_0_0rc9_exclude_project_local_codex_home.py  # NEW
-tests/specify_cli/upgrade/migrations/test_p0_repro_7729_codex_home_exposed.py   # extended, marker removed
+tests/upgrade/migrations/test_m_4_0_0rc9_codex_home_and_agent_files.py  # NEW (per-PR upgrade matrix)
+tests/upgrade/test_p0_repro_7729_codex_home_exposed.py   # extended, marker removed, moved to the per-PR upgrade matrix
 docs/changelog/unreleased/7729-codex-home-gitignore.fixed.md
 ```
 
@@ -95,3 +96,9 @@ docs/changelog/unreleased/7729-codex-home-gitignore.fixed.md
 - **Affected surfaces**: new migration module, `order_manifest.txt`
 - **Sequencing/depends-on**: IC-02
 - **Risks**: noise in fresh projects (one notice per clone, only when untracked agent-folder files exist; a success settles it); an exclude write that silently fails (re-read git status after writing).
+
+## Review cycle 1 amendments
+
+- The one-time agent-folder notice is a separate clone-local step (`4.0.0rc9_report_newly_visible_agent_files`), so the Codex home exclusion settles only after it has excluded one.
+- The exclusion is computed from the repository top level and written anchored at the project (`/<prefix>.codex/`); the step re-reads git status after writing.
+- The reproduction and migration tests live in `tests/upgrade/` (per-PR); `tests/specify_cli/upgrade/` is out of the module matrix.

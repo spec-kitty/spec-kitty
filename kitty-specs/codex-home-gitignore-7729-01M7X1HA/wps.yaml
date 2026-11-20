@@ -3,14 +3,17 @@ work_packages:
     title: "Red-first reproduction, then Codex home protection (committed block + clone-local exclusion)"
     dependencies: []
     owned_files:
-      - "tests/specify_cli/upgrade/migrations/test_p0_repro_7729_codex_home_exposed.py"
+      - "tests/upgrade/test_p0_repro_7729_codex_home_exposed.py"
       - "src/specify_cli/agent_utils/codex_home.py"
       - "src/specify_cli/agent_utils/ignore_entries.py"
       - "src/specify_cli/upgrade/migrations/m_4_0_0rc9_exclude_project_local_codex_home.py"
+      - "src/specify_cli/upgrade/migrations/m_4_0_0rc9_report_newly_visible_agent_files.py"
+      - "tests/architectural/test_no_dead_modules.py"
+      - ".gitignore"
       - "src/specify_cli/upgrade/migrations/order_manifest.txt"
       - "tests/specify_cli/agent_utils/test_codex_home.py"
       - "tests/specify_cli/agent_utils/test_ignore_entries.py"
-      - "tests/specify_cli/upgrade/migrations/test_m_4_0_0rc9_exclude_project_local_codex_home.py"
+      - "tests/upgrade/migrations/test_m_4_0_0rc9_codex_home_and_agent_files.py"
       - "docs/changelog/unreleased/7729-codex-home-gitignore.fixed.md"
     requirement_refs:
       - FR-006

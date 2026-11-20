@@ -40,18 +40,21 @@ create_intent:
 - src/specify_cli/agent_utils/codex_home.py
 - src/specify_cli/upgrade/migrations/m_4_0_0rc9_exclude_project_local_codex_home.py
 - tests/specify_cli/agent_utils/test_codex_home.py
-- tests/specify_cli/upgrade/migrations/test_m_4_0_0rc9_exclude_project_local_codex_home.py
+- tests/upgrade/migrations/test_m_4_0_0rc9_codex_home_and_agent_files.py
 - docs/changelog/unreleased/7729-codex-home-gitignore.fixed.md
 execution_mode: code_change
 owned_files:
-- tests/specify_cli/upgrade/migrations/test_p0_repro_7729_codex_home_exposed.py
+- tests/upgrade/test_p0_repro_7729_codex_home_exposed.py
 - src/specify_cli/agent_utils/codex_home.py
 - src/specify_cli/agent_utils/ignore_entries.py
 - src/specify_cli/upgrade/migrations/m_4_0_0rc9_exclude_project_local_codex_home.py
+- src/specify_cli/upgrade/migrations/m_4_0_0rc9_report_newly_visible_agent_files.py
+- tests/architectural/test_no_dead_modules.py
+- .gitignore
 - src/specify_cli/upgrade/migrations/order_manifest.txt
 - tests/specify_cli/agent_utils/test_codex_home.py
 - tests/specify_cli/agent_utils/test_ignore_entries.py
-- tests/specify_cli/upgrade/migrations/test_m_4_0_0rc9_exclude_project_local_codex_home.py
+- tests/upgrade/migrations/test_m_4_0_0rc9_codex_home_and_agent_files.py
 - docs/changelog/unreleased/7729-codex-home-gitignore.fixed.md
 role: implementer
 tags: []
@@ -106,5 +109,5 @@ Both tests keep the `p0_repro(issue=7729)` marker in the red-first commit; T007 
 ```bash
 uv run --frozen pytest tests/specify_cli/agent_utils tests/specify_cli/upgrade -q
 uv run --frozen pytest tests/architectural/test_migration_order_manifest.py tests/architectural/test_no_tmp_paths_in_tests.py tests/architectural/test_lifted_root_gitignore_contract.py -q
-SPEC_KITTY_RUN_P0_REPRO=1 uv run --frozen pytest tests/specify_cli/upgrade/migrations/test_p0_repro_7729_codex_home_exposed.py -q   # expected: green
+SPEC_KITTY_RUN_P0_REPRO=1 uv run --frozen pytest tests/upgrade/test_p0_repro_7729_codex_home_exposed.py -q   # expected: green
 ```
