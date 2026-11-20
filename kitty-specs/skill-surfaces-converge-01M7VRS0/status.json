@@ -1,7 +1,7 @@
 {
-  "event_count": 23,
-  "last_event_id": "01M7VZH0DYEY4NSH4AZ8AB8FN6",
-  "materialized_at": "2026-11-20T08:00:20.926223+00:00",
+  "event_count": 24,
+  "last_event_id": "01M7VZJYYQE9A9737JKHVKJMSM",
+  "materialized_at": "2026-11-20T08:01:24.951157+00:00",
   "mission_number": "",
   "mission_slug": "skill-surfaces-converge-01M7VRS0",
   "mission_type": "software-dev",
@@ -14,8 +14,8 @@
     "done": 0,
     "for_review": 1,
     "in_progress": 0,
-    "in_review": 2,
-    "planned": 4
+    "in_review": 1,
+    "planned": 5
   },
   "work_packages": {
     "WP01": {
@@ -49,11 +49,11 @@
       "agent": "claude",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
-      "force_count": 1,
+      "force_count": 2,
       "implementer_of_record": "claude",
-      "lane": "in_review",
-      "last_event_id": "01M7VZH0DYEY4NSH4AZ8AB8FN6",
-      "last_transition_at": "2026-11-20T08:00:20.926223+00:00",
+      "lane": "planned",
+      "last_event_id": "01M7VZJYYQE9A9737JKHVKJMSM",
+      "last_transition_at": "2026-11-20T08:01:24.951157+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: schema-2 inventory (~/ or absolute keys), one-time schema-1 migration, retire byte proof; red 739add0ecf; tests/runtime+tests/specify_cli/runtime 2605 passed; make test-fast 3144 passed",
@@ -63,8 +63,8 @@
       "provider": "__resolved_provider_absent__",
       "review": null,
       "review_result": {
-        "feedback_path": "/home/user/spec-kitty/.worktrees/skill-surfaces-converge-01M7VRS0-coord/kitty-specs/skill-surfaces-converge-01M7VRS0/tasks/WP02-global-asset-preparation-primitives/review-cycle-1.md",
-        "reference": "review-cycle://skill-surfaces-converge-01M7VRS0/WP02-global-asset-preparation-primitives/review-cycle-1.md",
+        "feedback_path": "/home/user/spec-kitty/.worktrees/skill-surfaces-converge-01M7VRS0-coord/kitty-specs/skill-surfaces-converge-01M7VRS0/tasks/WP02-global-asset-preparation-primitives/review-cycle-2.md",
+        "reference": "review-cycle://skill-surfaces-converge-01M7VRS0/WP02-global-asset-preparation-primitives/review-cycle-2.md",
         "reviewer": "claude::reviewer-renata",
         "verdict": "changes_requested"
       },
