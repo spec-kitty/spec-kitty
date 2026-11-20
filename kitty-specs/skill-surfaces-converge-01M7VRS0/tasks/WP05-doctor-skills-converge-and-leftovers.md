@@ -44,6 +44,8 @@ owned_files:
 - tests/specify_cli/cli/commands/test_doctor_skills.py
 - tests/specify_cli/cli/commands/test_doctor_legacy_no_agent_list_reports.py
 - tests/specify_cli/cli/commands/test_doctor_stated_empty_reports.py
+- tests/specify_cli/tool_surface/integration/fixtures/doctor_skills_baseline.json
+- src/specify_cli/tool_surface/contracts/migration-compatibility.md
 role: implementer
 tags: []
 task_type: implement
