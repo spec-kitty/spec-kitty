@@ -50,6 +50,11 @@ def test_find_feature_worktree_delegates(monkeypatch: pytest.MonkeyPatch, tmp_pa
     assert seam._find_feature_worktree(tmp_path, "001-demo") == tmp_path / "001-demo"
 
 
+def test_find_feature_worktree_passes_through_none(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(seam, "resolve_feature_worktree", lambda _r, _slug: None)
+    assert seam._find_feature_worktree(tmp_path, "001-demo") is None
+
+
 # ---------------------------------------------------------------------------
 # _maybe_auto_retry_in_worktree
 # ---------------------------------------------------------------------------

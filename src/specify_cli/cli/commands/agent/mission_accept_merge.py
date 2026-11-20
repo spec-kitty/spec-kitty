@@ -78,7 +78,8 @@ def _find_latest_feature_worktree(repo_root: Path) -> Path | None:
 
 def _find_feature_worktree(repo_root: Path, mission_slug: str) -> Path | None:
     """Find a deterministic worktree for a feature slug."""
-    return resolve_feature_worktree(repo_root, mission_slug)
+    worktree: Path | None = resolve_feature_worktree(repo_root, mission_slug)
+    return worktree
 
 
 def accept_feature(
