@@ -23,6 +23,7 @@ from specify_cli.skills.manifest import (
 from specify_cli.skills.registry import SkillRegistry
 from specify_cli.skills.verifier import repair_skills, verify_installed_skills
 from specify_cli.tool_surface.providers.managed_skills import ManagedSkillsProvider
+from specify_cli.tool_surface.status import SurfaceStatus
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -171,3 +172,45 @@ def test_skill_absent_from_catalog_but_not_retired_is_not_reported(tmp_path: Pat
     result = verify_installed_skills(tmp_path)
 
     assert result.ok and not result.retired
+
+
+def _provider_statuses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, edit: bool) -> tuple[ManagedSkillsProvider, Path, list[SurfaceStatus]]:
+    from specify_cli.tool_surface.providers.managed_skills import managed_skill_definition
+
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".kittify"))
+    monkeypatch.delenv("CLAUDE_CONFIG_DIR", raising=False)
+    project = tmp_path / "project"
+    project.mkdir()
+    registry = _registry(tmp_path)
+    _install_retired_copy(project)
+    if edit:
+        (project / _RETIRED_PATH).write_text("# Retired, with my edits\n", encoding="utf-8")
+    provider = ManagedSkillsProvider(registry_factory=lambda: registry)
+    instances = provider.expand(managed_skill_definition(), "claude", project)
+    return provider, project, [provider.probe(instance) for instance in instances]
+
+
+def test_provider_probe_reports_edited_retired_copy_as_drift(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An edited retired copy is drift, which needs consent: never the auto-drained STALE state."""
+    from specify_cli.tool_surface.status import STATE_DRIFTED
+
+    _, project, statuses = _provider_statuses(tmp_path, monkeypatch, edit=True)
+    retired = [s for s in statuses if s.instance.path == project / _RETIRED_PATH]
+
+    assert [s.state for s in retired] == [STATE_DRIFTED]
+    assert "still installed" not in retired[0].findings[0].message
+
+
+def test_retired_marks_do_not_outlive_their_manifest_entry(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A re-expansion after the retired entry left the manifest must not report it as retired."""
+    from specify_cli.tool_surface.providers.managed_skills import managed_skill_definition
+
+    provider, project, _ = _provider_statuses(tmp_path, monkeypatch, edit=False)
+    save_manifest(ManagedSkillManifest(entries=[]), project)
+
+    provider.expand(managed_skill_definition(), "claude", project)
+
+    assert not any(".spk-team-sync." in surface_id for surface_id in provider._retired_surface_ids)
