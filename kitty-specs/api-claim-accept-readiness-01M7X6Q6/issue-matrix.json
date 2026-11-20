@@ -61,15 +61,15 @@
       "wp": "WP01"
     },
     "#7752": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Context only: operator ruling 7, no shared helper fell out (needs a done-or-acceptably-canceled predicate)",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "title": "spec-kitty review lane check on canceled WPs",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7794": {
