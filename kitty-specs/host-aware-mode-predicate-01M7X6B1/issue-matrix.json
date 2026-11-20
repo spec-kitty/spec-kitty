@@ -37,15 +37,15 @@
       "wp": null
     },
     "#4777": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Historical context only: closed by 92a200070; residual tracked as #4927",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "title": "Windows phantom dry-run repairs (closed)",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#4810": {
