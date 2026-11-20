@@ -144,7 +144,8 @@
         "- 2026-11-20T19:21:54Z – unknown – green (1b474a4e): ruff check, ruff format --check --force-exclude, mypy clean. Targeted set + tests/architectural/test_layer_rules.py + tests/architectural/test_no_dead_symbols.py: 546 passed, 1 xfailed, plus family guard red on the first patch form, fixed; re-run of test_reviewed_merge_predicate.py + family_guard + no_dead_symbols: 66 passed. make test-fast: 3144 passed, 7 skipped.",
         "- 2026-11-20T19:21:58Z – unknown – trace(tooling-friction): the octopus fixture first used 'git add -A' on the lane branch, which committed the uncommitted status.events.jsonl into the merge tree and removed it on checkout, silently emptying the claim (approved={}, no refusal). Fixed by staging only the fixture paths.",
         "Review cycle 1 addressed: names out of __all__ (no_dead_symbols green); octopus and is_merge_commit probe-error tests added. Targeted 546 passed/1 xfailed; test-fast 3144 passed.",
-        "Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner"
+        "Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
+        "APPROVE cycle 2 (1b474a4e): review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
