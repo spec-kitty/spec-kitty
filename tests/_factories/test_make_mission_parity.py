@@ -22,9 +22,11 @@ patched.
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
 import subprocess
+import time
 
 import pytest
 
@@ -40,6 +42,11 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _ULID_RE = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
 
+# #7776: a commit's SHA includes its author and committer dates, and ``meta.json``
+# records the first commit as ``mission_base_sha``. Pinning both dates makes the
+# first commit identical across repos, whenever each one is initialised.
+_PINNED_COMMIT_DATE = "2026-01-01T00:00:00+0000"
+
 
 def _init_git_repo(repo: Path, *, branch: str = "main") -> None:
     (repo / ".kittify").mkdir(parents=True, exist_ok=True)
@@ -47,7 +54,29 @@ def _init_git_repo(repo: Path, *, branch: str = "main") -> None:
     subprocess.run(["git", "init", "-q", "-b", branch], cwd=repo, check=True)
     subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, check=True)
     subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
-    subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "init"], cwd=repo, check=True)
+    pinned_env = {**os.environ, "GIT_AUTHOR_DATE": _PINNED_COMMIT_DATE, "GIT_COMMITTER_DATE": _PINNED_COMMIT_DATE}
+    subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "init"], cwd=repo, check=True, env=pinned_env)
+
+
+def test_init_git_repo_first_commit_sha_is_clock_independent(tmp_path: Path) -> None:
+    """#7776: two repos initialised a second apart get the same first-commit SHA.
+
+    ``meta.json`` records that SHA as ``mission_base_sha``, so the byte-for-byte
+    parity test below holds only if ``_init_git_repo`` is independent of the
+    wall clock. The sleep forces the two commits across a second boundary.
+    """
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    first.mkdir()
+    second.mkdir()
+    _init_git_repo(first)
+    time.sleep(1.1)
+    _init_git_repo(second)
+    heads = [
+        subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, check=True, capture_output=True, text=True).stdout
+        for repo in (first, second)
+    ]
+    assert heads[0] == heads[1]
 
 
 def _linked_worktree(repo: Path, checkout: Path) -> Path:
