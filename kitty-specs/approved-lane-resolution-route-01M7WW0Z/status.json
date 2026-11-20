@@ -20,7 +20,7 @@
   "work_packages": {
     "WP01": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -42,9 +42,11 @@
         "- 2026-11-20T18:46:49Z – claude – shell_pid=24964 – trace(tooling-friction): 'spec-kitty agent action implement WP01' first failed with STATUS_LOCK_HELD (a concurrent WP11 implement held the status lock); retry succeeded. The claim recorded no profile ('claude' only) and warned about REVIEW_NOT_INDEPENDENT; for_review is submitted with --agent claude::python-pedro.",
         "- 2026-11-20T19:11:01Z – claude – shell_pid=24964 – tests: uv run --frozen pytest -q tests/consolidation/test_merge_attribute_guard.py -> 88 passed; targeted blast radius (test_merge_derivation_7626, test_dependency_merge_attribution_7307, test_git_probes_seam, test_git_probes_git_paths, test_reconciliation, test_merge_drivers, test_ephemeral_driver_activation_2709, test_reconciliation_module_imports, test_gate_artifact_merge_drivers_2804, tests/specify_cli/git/test_merge_tree_probe.py, tests/lanes/test_lane_tip.py, arch test_merge_pipeline_ratchets + test_layer_rules) -> 477 passed, 1 xfailed; tests/architectural/test_git_path_listing_owner.py green; tests/architectural/test_no_dead_symbols.py -> 37 passed (after dropping MergeAttributeRefused from __all__); pytest -n 8 --dist loadfile tests/consolidation tests/lanes -> 4777 passed, 2 skipped, 11 xfailed; make test-fast -> 3144 passed, 7 skipped. Verifier-seam tests red on HEAD probes (VerifyStatus.PASS), green after. ruff/format/mypy clean on all changed files.",
         "FR-010 guard: new consolidation/merge_attribute_guard.py wired into n_way_merge_blob and merge_own_changed_paths (either-parent paths); committed union honoured only under ruling (a) with attributes_source; git --version cached per run scope; registered_merge_driver_specs() leeway accessor. 88 guard tests, blast radius, tests/consolidation+tests/lanes, test-fast, path-listing and dead-symbol gates green.",
-        "Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner"
+        "Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
+        "REJECT: Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner"
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP01-merge-probe-attribute-guard/review-cycle-1.md",
         "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP01-merge-probe-attribute-guard/review-cycle-1.md",
@@ -52,14 +54,14 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 24964,
-      "shell_pid_created_at": "1795197384.67",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done",
-        "T005": "done"
+        "T001": "planned",
+        "T002": "planned",
+        "T003": "planned",
+        "T004": "planned",
+        "T005": "planned"
       }
     },
     "WP02": {
