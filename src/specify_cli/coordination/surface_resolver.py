@@ -402,7 +402,7 @@ class CoordinationWorktreeUnmaterialized(StatusReadPathNotFound):  # type: ignor
         doctor_cmd = f"spec-kitty doctor coordination --mission {mission_slug} --fix"
         materialize_cmd = f"git -C {shlex.quote(str(repo_root))} worktree add {shlex.quote(str(coord_worktree_root))} {coordination_branch}"
         if coordination_branch and not _coord_branch_is_local_head(repo_root, coordination_branch):
-            from mission_runtime.coord_remedy import coordination_doctor_command, remote_only_branch, remote_only_steps
+            from mission_runtime import coordination_doctor_command, remote_only_branch, remote_only_steps
 
             steps = remote_only_steps(
                 remote_only_branch(repo_root, coordination_branch),
@@ -413,8 +413,10 @@ class CoordinationWorktreeUnmaterialized(StatusReadPathNotFound):  # type: ignor
                 f"The coordination branch {coordination_branch!r} declared in "
                 f"meta.json exists only on a remote: this checkout has no local "
                 f"branch for it, so its coordination worktree cannot be "
-                f"materialized. {steps} Keep the `coordination_branch` key in "
-                f"meta.json as-is — the branch is not lost."
+                f"materialized. {steps} If that command cannot, materialize it "
+                f"manually with `{materialize_cmd}` once the local branch exists. "
+                f"Keep the `coordination_branch` key in meta.json as-is — the "
+                f"branch is not lost."
             )
         return (
             f"The coordination branch {coordination_branch!r} declared in "

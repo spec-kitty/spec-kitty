@@ -730,7 +730,7 @@ def _read_ref_or_refuse(repo_root: Path, ref: str, path: str, *, follow_up: str)
     except status_service.StatusSurfaceRefUnreadable as exc:
         if not ref.startswith(_HEADS_PREFIX) or status_service.ref_names_object(repo_root, ref):
             raise
-        from mission_runtime.coord_remedy import remote_only_branch, remote_only_steps
+        from mission_runtime import remote_only_branch, remote_only_steps
 
         branch = ref.removeprefix(_HEADS_PREFIX)
         facts = remote_only_branch(repo_root, branch)
@@ -746,7 +746,7 @@ def _read_ref_or_refuse(repo_root: Path, ref: str, path: str, *, follow_up: str)
 
 
 def _coordination_follow_up(mission_dir_name: str) -> str:
-    from mission_runtime.coord_remedy import coordination_doctor_command
+    from mission_runtime import coordination_doctor_command
 
     return coordination_doctor_command(mission_dir_name)
 
@@ -813,7 +813,7 @@ def ref_source_remedy(surface: StatusReadSurface, mission_slug: str) -> str:
 
         branch = surface.ref.removeprefix(_HEADS_PREFIX)
         if not status_service.ref_names_object(surface.repo_root, surface.ref):
-            from mission_runtime.coord_remedy import remote_only_branch, remote_only_steps
+            from mission_runtime import remote_only_branch, remote_only_steps
 
             facts = remote_only_branch(surface.repo_root, branch)
             if facts.tracking_ref_present:

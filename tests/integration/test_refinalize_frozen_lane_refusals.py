@@ -652,7 +652,10 @@ def test_remote_only_coordination_branch_refuses(tmp_path: Path, monkeypatch: py
     assert result.payload.get("reason") == "status_unreadable", result.payload
     remedy = _conflict(result, "status_unreadable")["remedy"]
     assert remedy.startswith("Materialize the coordination worktree"), remedy
-    assert f"git fetch origin {coord.coordination_branch}" in remedy, remedy
+    # #5287: `git push` already left refs/remotes/origin/<b>, so the canonical remedy
+    # skips the fetch and creates the local branch from the remote-tracking ref.
+    assert f"branch {coord.coordination_branch} refs/remotes/origin/{coord.coordination_branch}" in remedy, remedy
+    assert "has not fetched" not in remedy, remedy
     assert not coord.coord_worktree.exists(), "the refusal must not materialize the coordination worktree"
     after = read_lanes_json(coord.mission.feature_dir)
     assert after is not None
