@@ -153,7 +153,7 @@
     },
     "WP05": {
       "actor": "claude",
-      "agent": null,
+      "agent": "claude::scribe-sally",
       "agent_profile": "scribe-sally",
       "agent_profile_version": "1.0",
       "force_count": 2,
@@ -164,7 +164,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "ADR 2026-08-28-1 amendment (per-type sections, precedence, fail-closed rules, remedy order, both waivers, orchestrator-api note), accept-and-merge how-to rewrite, changelog fragment. Changelog style and spelling clean; terminology guard 98 passed; docs gates 335 passed, 1 skipped.",
-        "Review cycle 1: framing sentence now matches format_errors (per-type remap, waivers, --lenient, last resort; mkdir only for real deliverables); bullets kept as the full list. Docs gates and terminology guard 128 passed."
+        "Review cycle 1: framing sentence now matches format_errors (per-type remap, waivers, --lenient, last resort; mkdir only for real deliverables); bullets kept as the full list. Docs gates and terminology guard 128 passed.",
+        "Review cycle 2: honours -> honors in the how-to and the ADR amendment; tests/docs 2254 passed, 2 skipped (same as main a053b674)."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
