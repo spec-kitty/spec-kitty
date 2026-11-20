@@ -23,7 +23,7 @@ from specify_cli.orchestrator_api.commands import app
 from specify_cli.status import reduce
 from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.models import Lane, TransitionRequest
-from specify_cli.status.store import read_events
+from specify_cli.status.store import read_event_stream, read_events
 from tests.agent.test_orchestrator_commands_integration import _make_mission, _valid_policy_json
 
 pytestmark = pytest.mark.git_repo
@@ -50,7 +50,8 @@ def _invoke(repo_root: Path, *args: str) -> dict[str, Any]:
 
 
 def _wp01(mission_dir: Path) -> dict[str, Any]:
-    state: dict[str, Any] = reduce(read_events(mission_dir)).work_packages["WP01"]
+    stream = read_event_stream(mission_dir)
+    state: dict[str, Any] = reduce(stream.transitions, stream.annotations).work_packages["WP01"]
     return state
 
 
@@ -142,6 +143,12 @@ def test_after_an_api_rollback_another_implementer_claims_unforced(tmp_path: Pat
 
     state = _wp01(mission_dir)
     assert state["lane"] == "in_progress"
-    assert state["agent"] == "codex"
-    # The new claim carries no pid, and the old holder's pid is gone.
+    assert state["actor"] == "codex"
+    assert state["implementer_of_record"] == "codex"
+    # The old holder's pid is gone and nothing is left for a liveness check to misjudge.
     assert not state.get("shell_pid")
+    assert state.get("agent") != "claude"
+    # The new claim event itself records its agent through the shared sidecar. (The reducer folds
+    # annotations after every transition, so the slot reads empty after an earlier release; that
+    # ordering lives in spec_kitty_events and is the same for a host re-claim after move-task.)
+    assert _claim_event_metadata(mission_dir)["agent"] == "codex"

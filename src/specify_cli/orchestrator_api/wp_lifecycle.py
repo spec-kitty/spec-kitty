@@ -27,7 +27,8 @@ from specify_cli.status import CHECKOUT_CLAIM_LOCK_TIMEOUT_SECONDS, FeatureStatu
 from specify_cli.status import Lane
 from specify_cli.status import ReviewResult
 from specify_cli.status import ActorRole, actor_from_option, role_for_wp
-from specify_cli.status import parse_review_result_json
+from specify_cli.status import claim_policy_metadata, parse_review_result_json
+from specify_cli.status.claim_release import planned_claim_release_delta
 from specify_cli.status import refuse_seed_shaped_identity
 
 from .envelope import (
@@ -544,6 +545,19 @@ def start_implementation(
         _start_implementation(mission, wp, actor, policy, claim_stack)
 
 
+def _transition_policy_metadata(to_lane: str, actor: str, policy_dict: dict[str, Any] | None) -> dict[str, Any] | None:
+    """The ``policy_metadata`` a ``transition`` hop records.
+
+    A move into ``claimed`` is a claim: it carries the claim sidecar (the claiming
+    agent beside the policy), exactly as ``start-implementation`` does (#5781). Every
+    other hop records the policy as given.
+    """
+    if to_lane == Lane.CLAIMED:
+        sidecar: dict[str, Any] = claim_policy_metadata(None, actor, extra=policy_dict)
+        return sidecar
+    return policy_dict
+
+
 def _start_implementation(mission: str, wp: str, actor: str, policy: str | None, claim_stack: ExitStack) -> None:
     """Body of :func:`start_implementation`; *claim_stack* carries the checkout claim lock to the claim emit."""
     cmd = "start-implementation"
@@ -654,7 +668,9 @@ def _start_implementation(mission: str, wp: str, actor: str, policy: str | None,
             workspace_context=workspace_path,
             execution_mode=status_execution_mode,
             repo_root=main_repo_root,
-            policy_metadata=policy_dict,
+            # #5781: the claim records the claiming agent through the one claim-sidecar
+            # builder, as a host claim does; there is no live shell behind an API call.
+            policy_metadata=claim_policy_metadata(None, actor, extra=policy_dict),
         )
     except WorkPackageClaimConflict as exc:
         _fail(
@@ -759,7 +775,9 @@ def start_review(
             workspace_context=f"orchestrator-api:{main_repo_root}",
             execution_mode=_status_execution_mode_for_start_workspace(review_ws),
             repo_root=main_repo_root,
-            policy_metadata=policy_dict,
+            # #5781: the claim records the claiming agent through the one claim-sidecar
+            # builder, as a host claim does; there is no live shell behind an API call.
+            policy_metadata=claim_policy_metadata(None, actor, extra=policy_dict),
         )
     except WorkPackageClaimConflict as exc:
         _fail(
@@ -946,7 +964,8 @@ def transition(
                 implementation_evidence_present=implementation_evidence_present,
                 execution_mode=_status_execution_mode_for_start_workspace(transition_ws),
                 repo_root=main_repo_root,
-                policy_metadata=policy_dict,
+                policy_metadata=_transition_policy_metadata(to_lane, actor, policy_dict),
+                annotation_delta=planned_claim_release_delta() if to_lane == Lane.PLANNED else None,
             ),
         )
     except TransitionError as exc:

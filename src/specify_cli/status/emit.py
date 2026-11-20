@@ -45,6 +45,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, cast
 
 import ulid as _ulid_mod
@@ -254,26 +255,44 @@ def build_claim_policy_metadata(
     }
 
 
-def claim_policy_metadata(shell_pid: int, agent: str) -> dict[str, Any]:
-    """Best-effort ``policy_metadata`` triple for a claim transition (WP07/T026-T027).
+#: The claim-sidecar keys the reducer's claim fold reads. A caller's ``extra`` never supplies them.
+_CLAIM_SIDECAR_KEYS: frozenset[str] = frozenset({"shell_pid", "shell_pid_created_at", "agent"})
 
-    Routes the ``(shell_pid, shell_pid_created_at, agent)`` triple onto the
-    claim transition's ``policy_metadata`` sidecar (FR-004) using
-    :func:`build_claim_policy_metadata` -- the exact key names the reducer fold
-    (``planned -> claimed``) reads. One definition, shared by
-    ``cli.commands.implement_claim`` and ``cli.commands.agent.workflow_executor``.
+
+def claim_policy_metadata(
+    shell_pid: int | None,
+    agent: str,
+    *,
+    extra: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """The ``policy_metadata`` sidecar of every claim transition (WP07/T026-T027, #5781).
+
+    The one claim-sidecar builder: host claims (``cli.commands.implement_claim``,
+    ``cli.commands.agent.workflow_executor``), ``orchestrator-api start-implementation`` /
+    ``transition --to claimed`` and ``agent status emit --to claimed`` all route through it, so
+    every ``planned -> claimed`` event records ``agent`` under the key the reducer fold reads.
+
+    ``shell_pid`` is ``None`` for a claim with no live shell behind it (an orchestrator-api
+    call): the pid keys are then omitted, never fabricated. ``extra`` (the orchestrator
+    ``--policy``) rides beside the claim keys, which it can never supply or override.
 
     ``shell_pid_created_at`` capture is best-effort (C-007): when
     :func:`~specify_cli.core.process_liveness.capture_creation_time_baseline`
     cannot capture a baseline, the key is OMITTED (never fabricated, D3a
     legacy-claim semantics).
     """
+    sidecar: dict[str, Any] = {key: value for key, value in (extra or {}).items() if key not in _CLAIM_SIDECAR_KEYS}
+    if shell_pid is None:
+        sidecar["agent"] = agent
+        return sidecar
     from specify_cli.core.process_liveness import capture_creation_time_baseline
 
     baseline = capture_creation_time_baseline(shell_pid)
     if baseline is None:
-        return {"shell_pid": shell_pid, "agent": agent}
-    return build_claim_policy_metadata(shell_pid=shell_pid, shell_pid_created_at=baseline, agent=agent)
+        sidecar.update({"shell_pid": shell_pid, "agent": agent})
+        return sidecar
+    sidecar.update(build_claim_policy_metadata(shell_pid=shell_pid, shell_pid_created_at=baseline, agent=agent))
+    return sidecar
 
 
 def _reduce_write_surface(feature_dir: Path) -> StatusSnapshot:

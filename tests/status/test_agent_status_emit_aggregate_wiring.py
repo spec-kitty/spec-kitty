@@ -269,6 +269,8 @@ def _emit_via_legacy_direct_path(repo: Path, slug: str) -> dict:
             actor=_CODEX_IMPLEMENTER,  # #6400: emit stores the structured actor
             execution_mode="worktree",
             repo_root=repo,
+            # #5781: a claim records the claiming agent in its sidecar, like every claim path.
+            policy_metadata={"agent": "codex"},
         )
     )
     return event.to_dict()

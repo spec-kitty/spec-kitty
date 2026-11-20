@@ -494,7 +494,7 @@ def emit(
 
         # Lazy import to avoid circular imports
         from specify_cli.status import Lane, TransitionError
-        from specify_cli.status import TransitionRequest
+        from specify_cli.status import TransitionRequest, claim_policy_metadata, resolve_lane_alias
         from specify_cli.lanes.lane_tip import record_tip_for_wp
 
         # FR-004: the MissionStatus aggregate is the sole write entry point.
@@ -516,6 +516,9 @@ def emit(
             implementation_evidence_present=implementation_evidence_present,
             execution_mode=execution_mode,
             repo_root=main_repo_root,
+            # #5781: a claim records the claiming agent through the one claim-sidecar
+            # builder, like every other claim path; emit has no live shell to stamp.
+            policy_metadata=claim_policy_metadata(None, actor) if resolve_lane_alias(to) == Lane.CLAIMED else None,
         ))
 
         # T032 (#5115 review cycle 2, Issue 2): this for_review transition

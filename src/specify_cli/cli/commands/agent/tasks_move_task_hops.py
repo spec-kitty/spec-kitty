@@ -32,7 +32,6 @@ from specify_cli.status import (
     REJECTED,
     ResolvedBinding,
     Lane,
-    ReviewOverride,
     ReviewResult,
     StatusEvent,
     _actor_key,
@@ -543,6 +542,7 @@ def _build_claim_review_override(st: _MoveTaskState, ports: TasksPorts) -> dict[
       WP that is actually back in ``planned`` awaiting rework.
     """
     from specify_cli.cli.commands.agent.tasks_move_task_executor import _mt_prepare_rollback_reset
+    from specify_cli.status.claim_release import planned_claim_release_fields
 
     additions: dict[str, Any] = {}
     # #7582: read the map ``_mt_prepare_rollback_reset`` computed before the PLANNED
@@ -552,8 +552,9 @@ def _build_claim_review_override(st: _MoveTaskState, ports: TasksPorts) -> dict[
         reset = _mt_prepare_rollback_reset(st, ports)
     if reset:
         additions["subtasks"] = reset
-    additions["release_runtime_claim"] = True
-    additions["review"] = ReviewOverride(at="", actor="", wp_id="", reason="")
+    # #7644: the release is defined once (``status.claim_release``) and shared with
+    # ``orchestrator-api transition --to planned``.
+    additions.update(planned_claim_release_fields())
     # #3578: the operator signal for all three otherwise-silent deltas (subtask
     # reset + claim release + review-override clear) is ``st.rollback_reset_summary``,
     # set with the map -- unconditionally on a rollback-to-``planned``, the siblings
