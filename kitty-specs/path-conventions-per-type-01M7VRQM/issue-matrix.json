@@ -49,16 +49,16 @@
       "wp": null
     },
     "#7566": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP02 remedy text; WP03/WP04 narrow waivers",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "accept: software-dev path convention blocks content repositories; --lenient is the only, too-coarse escape",
+      "verdict": "in-mission",
+      "wp": "WP02"
     },
     "#7748": {
       "evidence_ref": "WP01 per-type reader; WP02 seam resolution",
