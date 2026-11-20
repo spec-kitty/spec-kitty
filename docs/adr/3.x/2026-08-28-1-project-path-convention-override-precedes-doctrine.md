@@ -258,7 +258,9 @@ and drops the waiver lines.
 
 ### Narrow waivers
 
-Both make path-convention misses warnings while strict metadata validation is unchanged:
+Both make the misses of remappable layout paths warnings while strict metadata validation is
+unchanged. Neither waives a missing Mission artifact such as `contracts/`: that still blocks
+unless the Mission declares the #5298 `"contracts": "none"` waiver.
 
 - **Per run:** `accept --waive-path-conventions --waive-reason "<why>"` (forwarded by
   `agent mission accept`). A missing or blank reason, or a reason without the flag, is refused
@@ -267,7 +269,9 @@ Both make path-convention misses warnings while strict metadata validation is un
 - **Per Mission:** `"path_conventions": "waived"` with a non-empty `"path_conventions_rationale"`
   in `meta.json`, read by `core.paths.read_path_conventions_waiver_from_meta`, which shares the
   #5298 contracts waiver's fail-closed rules. Every accept path honors it, `orchestrator-api`
-  included (operator ruling Q4), and the rationale is printed in the accept warnings.
+  included (operator ruling Q4), and the rationale is printed in the accept warnings. Trust
+  model: anyone who can write the Mission's `meta.json` can set it, the same trust model as
+  the contracts waiver; the printed rationale and the committed `meta.json` keep it auditable.
 
 The strict failure text names the per-run flag on every path; on `orchestrator-api`, use the
 `meta.json` declaration instead.
