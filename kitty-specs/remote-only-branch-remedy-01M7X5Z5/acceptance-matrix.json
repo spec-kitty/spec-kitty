@@ -38,10 +38,10 @@
       "criterion_id": "FR-004",
       "description": "Verify FR-004 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/specify_cli/coordination/test_remote_only_remedy_5287.py (asserts no 'has not fetched'/'not yet fetched'); 4979 single-branch test runs the printed steps",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T21:50:55.325070+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
