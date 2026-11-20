@@ -61,7 +61,7 @@
       "wp": null
     },
     "#7726": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for context only: policy._missing_destination_remedy keeps its wording (spec C-005, research R-2); not shared with the builder.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -69,7 +69,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     }
   },
