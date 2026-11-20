@@ -157,16 +157,16 @@
       "wp": "WP07"
     },
     "#7755": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Mission approved-lane-resolution-route-01M7WW0Z WP07",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Stale refusal after conflicting in-run auto-rebase is unrecoverable",
+      "verdict": "in-mission",
+      "wp": "WP07"
     },
     "#7766": {
       "evidence_ref": "<link or commit>",
