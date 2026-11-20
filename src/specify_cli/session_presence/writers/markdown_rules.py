@@ -178,9 +178,11 @@ class MarkdownRulesWriter:
             if not _canonical_section(block, content):
                 return replace(prepared, disposition="preserve", reason="Edited managed orientation")
             # #5215: a tool-written block is current only when it equals the
-            # rendering byte for byte (newline style aside). A version-only
-            # check left a wrong project name or health in place forever.
-            if block == rendered.rstrip("\r\n"):
+            # rendering, newline style aside (the same comparison as
+            # ``projection.orientation_drift``, so doctor and upgrade agree on a
+            # file whose newlines are mixed). A version-only check left a wrong
+            # project name or health in place forever.
+            if block.replace("\r\n", "\n") == content.render().rstrip("\n"):
                 return prepared
             desired = existing[:start] + rendered.rstrip("\r\n") + existing[end:]
         elif existing and not self.append_mode:
@@ -356,7 +358,7 @@ def managed_block(text: str) -> str | None:
     """Return the single managed orientation block in ``text`` (markers included), LF-normalised.
 
     ``None`` when there is no block, or the markers are duplicated, unbalanced
-    or reversed (``prepare`` refuses those explicitly).
+    or reversed (``prepare`` raises ``ValueError`` on those).
     """
     if SECTION_OPEN not in text and SECTION_CLOSE not in text:
         return None

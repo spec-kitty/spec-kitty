@@ -43,13 +43,18 @@ _UNKNOWN_PROJECT_SLUG = "unknown"
 def resolve_project_slug(project_root: Path) -> str:
     """Return the project name an orientation block shows.
 
-    ``project.slug`` from ``.kittify/config.yaml``, else the git remote
-    repository name, else ``"unknown"``. ``git`` is spawned only
+    ``project.slug`` from ``.kittify/config.yaml``, else the repository name of
+    the project's own ``origin`` remote, else ``"unknown"``. ``git`` is spawned only
     when no slug is recorded.
     """
     recorded = load_identity(project_root / ".kittify" / "config.yaml").project_slug
     if recorded:
         return str(recorded)
+    # Only the project's own repository names it: git would otherwise walk up
+    # to an enclosing repository (a dotfiles repo, a monorepo) and borrow its
+    # name. ``.git`` is a directory in a clone and a file in a linked worktree.
+    if not (project_root / ".git").exists():
+        return _UNKNOWN_PROJECT_SLUG
     return slug_from_git_remote(project_root) or _UNKNOWN_PROJECT_SLUG
 
 
