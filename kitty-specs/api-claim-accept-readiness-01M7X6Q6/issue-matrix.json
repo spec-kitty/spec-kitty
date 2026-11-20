@@ -25,15 +25,15 @@
       "wp": "WP02"
     },
     "#5782": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Follow-up: #5782, sequenced after this Mission by operator ruling 8",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "title": "accept-mission's acceptance record is never committed",
+      "verdict": "deferred-with-followup",
       "wp": null
     },
     "#5818": {
