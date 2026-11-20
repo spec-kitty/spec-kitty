@@ -1,0 +1,29 @@
+{
+  "event_count": 1,
+  "last_event_id": "01M7X6Z674XRJJP534TBHTG0JM",
+  "materialized_at": "2026-11-20T19:29:40.068453+00:00",
+  "mission_number": "",
+  "mission_slug": "api-claim-accept-readiness-01M7X6Q6",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 1
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M7X6Z674XRJJP534TBHTG0JM",
+      "last_transition_at": "2026-11-20T19:29:40.068453+00:00"
+    }
+  }
+}
