@@ -1,7 +1,7 @@
 {
-  "event_count": 64,
-  "last_event_id": "01M7X81DTAAS549YB31X9QSZRH",
-  "materialized_at": "2026-11-20T19:48:21.962185+00:00",
+  "event_count": 65,
+  "last_event_id": "01M7X984GW2AKZAGY40QAM2HHH",
+  "materialized_at": "2026-11-20T20:09:30.396935+00:00",
   "mission_number": "",
   "mission_slug": "approved-lane-resolution-route-01M7WW0Z",
   "mission_type": "software-dev",
@@ -12,8 +12,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 4,
+    "for_review": 1,
+    "in_progress": 3,
     "in_review": 0,
     "planned": 8
   },
@@ -239,15 +239,15 @@
       "last_transition_at": "2026-11-20T17:47:47.808376+00:00"
     },
     "WP10": {
-      "actor": "user",
+      "actor": "claude",
       "agent": "claude::python-pedro",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M7X7KDFBT7YJZW05VX31GGGZ",
-      "last_transition_at": "2026-11-20T19:40:42.859500+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M7X984GW2AKZAGY40QAM2HHH",
+      "last_transition_at": "2026-11-20T20:09:30.396935+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-20T18:01:04Z – claude – shell_pid=24797 – red: uv run --frozen pytest -q tests/review/test_review_context_merge_lines.py -> 9 failed: TypeError WpReviewRange.__init__() unexpected keyword 'merges'/'remerge_available' (renderer tests), AttributeError 'WpReviewRange' object has no attribute 'merges' (range-level git tests incl. two-merge full-history and fail-soft)",
