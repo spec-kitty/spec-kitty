@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "mission_slug": "codex-home-gitignore-7729-01M7X1HA",
+  "mission_id": "01M7X1HAR66JTAP06PKJ8RK95Z",
+  "mission_branch": "fix/7729-codex-home-gitignore",
+  "target_branch": "fix/7729-codex-home-gitignore",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/7729-codex-home-gitignore.fixed.md",
+        "src/specify_cli/agent_utils/codex_home.py",
+        "src/specify_cli/agent_utils/ignore_entries.py",
+        "src/specify_cli/upgrade/migrations/m_4_0_0rc9_exclude_project_local_codex_home.py",
+        "src/specify_cli/upgrade/migrations/order_manifest.txt",
+        "tests/specify_cli/agent_utils/test_codex_home.py",
+        "tests/specify_cli/agent_utils/test_ignore_entries.py",
+        "tests/specify_cli/upgrade/migrations/test_m_4_0_0rc9_exclude_project_local_codex_home.py",
+        "tests/specify_cli/upgrade/migrations/test_p0_repro_7729_codex_home_exposed.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-20T18:00:46.808814+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "8da791aee501ce9ce1e7eedfffe17703ee833864"
+}
