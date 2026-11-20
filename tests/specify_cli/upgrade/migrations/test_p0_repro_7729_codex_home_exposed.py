@@ -9,6 +9,8 @@ untracked, so ``git add -A`` commits it.
 
 This is an open P0 reproduction (``p0_repro``): it is expected to FAIL until
 #7729 is fixed, and runs only in the nightly ``p0-repro`` lane.
+
+Not covered here: the "pulled clones get no warning" half of #7729.
 """
 
 from __future__ import annotations
