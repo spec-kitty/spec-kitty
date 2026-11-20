@@ -67,7 +67,8 @@
       "last_transition_at": "2026-11-20T21:31:58.260334+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Red-first test commit, then feat. Tests: WP02 blast radius + status-read/layer/remote-contact/terminology gates 419 passed 1 skipped; make test-fast 3164 passed 7 skipped; ruff check/format clean repo-wide. Two pre-existing mypy no-any-return errors in status_service.read_event_log (present on base)."
+        "Red-first test commit, then feat. Tests: WP02 blast radius + status-read/layer/remote-contact/terminology gates 419 passed 1 skipped; make test-fast 3164 passed 7 skipped; ruff check/format clean repo-wide. Two pre-existing mypy no-any-return errors in status_service.read_event_log (present on base).",
+        "Review passed. Verified: subtype caught by every except-StatusSurfaceRefUnreadable caller (no string-matched code in src); zero probes on success; single-branch-clone remedy re-run by hand (fetch+branch then board exits 0); red commit fails with ImportError on base; ADR amendment matches; mypy 2 errors pre-existing on base. Medium follow-up (non-blocking, per plan rule): a MISSION_BRANCH_REF topic branch absent locally AND on every remote is still reported as 'exists only on a remote' with a fetch step that cannot succeed; the COORD arm is protected by the DELETED probe, the topic-branch arm is not."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
