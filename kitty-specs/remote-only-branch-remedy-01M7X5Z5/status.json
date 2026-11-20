@@ -57,7 +57,7 @@
     },
     "WP02": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -68,9 +68,11 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Red-first test commit, then feat. Tests: WP02 blast radius + status-read/layer/remote-contact/terminology gates 419 passed 1 skipped; make test-fast 3164 passed 7 skipped; ruff check/format clean repo-wide. Two pre-existing mypy no-any-return errors in status_service.read_event_log (present on base).",
-        "Review passed. Verified: subtype caught by every except-StatusSurfaceRefUnreadable caller (no string-matched code in src); zero probes on success; single-branch-clone remedy re-run by hand (fetch+branch then board exits 0); red commit fails with ImportError on base; ADR amendment matches; mypy 2 errors pre-existing on base. Medium follow-up (non-blocking, per plan rule): a MISSION_BRANCH_REF topic branch absent locally AND on every remote is still reported as 'exists only on a remote' with a fetch step that cannot succeed; the COORD arm is protected by the DELETED probe, the topic-branch arm is not."
+        "Review passed. Verified: subtype caught by every except-StatusSurfaceRefUnreadable caller (no string-matched code in src); zero probes on success; single-branch-clone remedy re-run by hand (fetch+branch then board exits 0); red commit fails with ImportError on base; ADR amendment matches; mypy 2 errors pre-existing on base. Medium follow-up (non-blocking, per plan rule): a MISSION_BRANCH_REF topic branch absent locally AND on every remote is still reported as 'exists only on a remote' with a fetch step that cannot succeed; the COORD arm is protected by the DELETED probe, the topic-branch arm is not.",
+        "Reopened for dispatcher-requested fold (review MEDIUM)"
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/kitty-specs/remote-only-branch-remedy-01M7X5Z5/tasks/WP02-door-remote-only-refusal/review-cycle-2.md",
         "reference": "review-cycle://remote-only-branch-remedy-01M7X5Z5/WP02-door-remote-only-refusal/review-cycle-2.md",
@@ -78,14 +80,14 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 843,
-      "shell_pid_created_at": "1795209836.57",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T007": "done",
-        "T008": "done",
-        "T009": "done",
-        "T010": "done",
-        "T011": "done"
+        "T007": "planned",
+        "T008": "planned",
+        "T009": "planned",
+        "T010": "planned",
+        "T011": "planned"
       }
     }
   }
