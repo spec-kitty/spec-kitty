@@ -44,6 +44,7 @@ owned_files:
 - tests/charter_offering/test_spk_skill_pack.py
 - tests/specify_cli/skills/test_first_mission_skill_rename.py
 - docs/changelog/unreleased/7725.changed.md
+- src/specify_cli/skills/data/historical_skill_renders.json
 role: implementer
 tags: []
 task_type: implement
