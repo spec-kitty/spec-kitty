@@ -37,16 +37,16 @@
       "wp": null
     },
     "#5818": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP02: accept_mission uses status_lanes.mission_terminal_acceptability",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "accept-mission refuses a canceled-with-provenance WP",
+      "verdict": "in-mission",
+      "wp": "WP02"
     },
     "#7644": {
       "evidence_ref": "WP01: status/claim_release.py shared release; tests/orchestrator_api/test_api_claim_sidecar_5781.py",
