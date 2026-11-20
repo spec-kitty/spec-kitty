@@ -552,6 +552,11 @@ jobs:
             e2e:
               - 'tests/e2e/**'
               - 'tests/cross_cutting/**'
+              # #7741: `init` changes run the first-run path and the e2e suite per PR. #7708
+              # changed what `init` commits and only the nightly ran the tests that consume it,
+              # so main stayed red for two nightlies. `**/`-spelled, so the group stays non-src.
+              - '**/specify_cli/cli/commands/init*.py'
+              - 'tests/acceptance/test_first_run_path.py'
             # CI-infrastructure group (spec-kitty#4386), mirroring the `ci` module
             # registry row and its scrub group 1:1. NON-src, like docs/corpus/e2e:
             # deliberately NOT in the unmatched loop below -- the FR-004 catch-all
@@ -1482,7 +1487,7 @@ jobs:
       - uses: ./.github/actions/policy-scan-cache
       - name: Run tests
         run: |
-          uv run --frozen --no-sync pytest tests/e2e -q
+          uv run --frozen --no-sync pytest tests/e2e tests/acceptance/test_first_run_path.py -q
 
   # The corpus-marked node-ids that no other required job runs (D-13/D-22). Forty of them: the
   # whole of tests/contract/test_example_round_trip.py (34) and

@@ -244,7 +244,10 @@ AUTHORIZED_PER_CHANGE_SUITE_JOBS: dict[JobKey, str] = {
         "architectural-fast (proven by test_battery_partition_proof.py)."
     ),
     ("ci-router.yml", "tests-docs"): "Path-routed lane: tests/docs.",
-    ("ci-router.yml", "tests-e2e"): "Path-routed lane: tests/e2e.",
+    ("ci-router.yml", "tests-e2e"): (
+        "Path-routed lane: tests/e2e, plus tests/acceptance/test_first_run_path.py in the same invocation "
+        "(#7741). That file is out_of_matrix_test_dirs, so no other per-change job runs it."
+    ),
     ("ci-router.yml", "tests-corpus-blocking"): "Path-routed lane: the corpus tests with no other blocking home (D-13/D-22); Packs deselects exactly these.",
     ("ci-router.yml", "tests-contract-tools"): (
         "Path-routed lane: the corpus-marked tests/contract modules the router's corpus job does not own (moved out of "
