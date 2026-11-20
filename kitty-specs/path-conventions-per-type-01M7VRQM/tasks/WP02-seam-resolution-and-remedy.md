@@ -20,6 +20,9 @@ requirement_refs:
 planning_base_branch: issue-7566-path-conventions-per-type
 merge_target_branch: issue-7566-path-conventions-per-type
 branch_strategy: Planning artifacts for this mission were generated on issue-7566-path-conventions-per-type. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-7566-path-conventions-per-type unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-path-conventions-per-type-01M7VRQM
+base_commit: 86642e498f02cb60112c0fa24b7305f8289b7895
+created_at: '2026-11-20T09:12:24.903153+00:00'
 subtasks:
 - T010
 - T011
