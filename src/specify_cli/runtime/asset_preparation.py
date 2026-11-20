@@ -201,18 +201,39 @@ def global_asset_root(owner: str, paths: tuple[Path, ...]) -> OperationRoot:
 
 
 #: Global asset inventory schemas (#7722). Schema 1 keyed entries relative to the
-#: reporting anchor, which moves when a user-global root resolves outside $HOME;
-#: schema 2 keys them by absolute POSIX path so no root move can orphan them.
+#: reporting anchor, which moves when a user-global root resolves outside $HOME.
+#: Schema 2 keys an entry under $HOME as ``~/<path>`` and any other entry by its
+#: absolute POSIX path: no root move changes a key, and a home-relative record
+#: stays byte-identical across equivalent homes.
 _LEGACY_INVENTORY_SCHEMA = 1
 _INVENTORY_SCHEMA = 2
 _INVENTORY_SCHEMAS = (_LEGACY_INVENTORY_SCHEMA, _INVENTORY_SCHEMA)
+_HOME_KEY_PREFIX = "~/"
+
+
+def _inventory_key(path: Path) -> str:
+    """The schema-2 key of an absolute *path*."""
+    home = _normalized(Path.home())
+    try:
+        return _HOME_KEY_PREFIX + path.relative_to(home).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
+def _key_path(key: str) -> Path:
+    """The absolute path a schema-2 *key* names."""
+    if key.startswith(_HOME_KEY_PREFIX):
+        return _normalized(Path.home()) / key[len(_HOME_KEY_PREFIX) :]
+    return Path(key)
 
 
 def _validate_inventory_entry(key: object, record: object) -> None:
-    """An absolute, normalized POSIX key and a well-formed ``FileState`` record."""
+    """A ``~/``-relative or absolute normalized POSIX key and a well-formed ``FileState`` record."""
     if not isinstance(key, str) or not isinstance(record, dict):
         raise ValueError("Invalid global asset inventory entry")
-    if "\\" in key or not Path(key).is_absolute() or any(part in {".", ".."} for part in key.split("/")):
+    body = key[len(_HOME_KEY_PREFIX) :] if key.startswith(_HOME_KEY_PREFIX) else key
+    absolute = key.startswith(_HOME_KEY_PREFIX) or Path(key).is_absolute()
+    if "\\" in key or not body or not absolute or any(part in {".", ".."} for part in body.split("/")):
         raise ValueError("Unconfined global asset inventory entry")
     try:
         FileState(**record)
@@ -221,9 +242,9 @@ def _validate_inventory_entry(key: object, record: object) -> None:
 
 
 def _anchor_relative(key: str, anchor: Path) -> str | None:
-    """*key* relative to *anchor* (the in-memory form), or ``None`` when outside it."""
+    """The path *key* names, relative to *anchor* (the in-memory form), or ``None`` when outside it."""
     try:
-        return Path(key).relative_to(anchor).as_posix()
+        return _key_path(key).relative_to(anchor).as_posix()
     except ValueError:
         return None
 
@@ -262,7 +283,7 @@ def _migrate_legacy_entries(entries: dict[str, object], anchor: Path) -> dict[st
     for relative, record in entries.items():
         placed = _place_legacy_key(relative, candidates)
         if placed is not None:
-            migrated[placed.as_posix()] = record
+            migrated[_inventory_key(placed)] = record
     return migrated
 
 
@@ -586,8 +607,8 @@ class AssetPreparation:
     def finish(self, version_path: Path | None, version: str) -> OwnerAssessment:
         """Retain supporting inventory/stamp bytes; never refresh equal content."""
         if self.entries != self.previous or self._rewrite_inventory:
-            absolute = {(self.root.path / relative).as_posix(): record for relative, record in self.entries.items()}
-            data = (json.dumps({"schema_version": _INVENTORY_SCHEMA, "entries": {**self._foreign_entries, **absolute}}, sort_keys=True, indent=2) + "\n").encode()
+            keyed = {_inventory_key(self.root.path / relative): record for relative, record in self.entries.items()}
+            data = (json.dumps({"schema_version": _INVENTORY_SCHEMA, "entries": {**self._foreign_entries, **keyed}}, sort_keys=True, indent=2) + "\n").encode()
             self.parents(self.inventory)
             self._effect(self.inventory, FileState("file", sha256=digest(data), mode=0o644), data, OwnershipProof("managed_path", f"{self.owner}:inventory"))
         if version_path is not None:

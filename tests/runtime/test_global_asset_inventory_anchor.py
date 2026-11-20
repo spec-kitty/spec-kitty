@@ -6,8 +6,9 @@ directory outside home moves that anchor up, and an inventory keyed relative to
 the old anchor stopped resolving: files the CLI provably wrote under
 ``~/.agents/skills`` became "Unproven existing asset" and were never refreshed.
 
-Contract pinned here: records are written with absolute keys (schema 2), an
-older record keeps proving the files it named, and it is rewritten once.
+Contract pinned here: records are written with keys that do not depend on the
+anchor (schema 2: ``~/<path>`` under home, else absolute), an older record keeps
+proving the files it named, and it is rewritten once.
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ import pytest
 from specify_cli.runtime.agent_skills import GlobalSkillSelection, assess_global_agent_skills
 from specify_cli.runtime.asset_preparation import AssetPreparation, apply_assets, global_asset_root
 from specify_cli.skills.registry import CanonicalSkill
-from specify_cli.tool_surface.operations import ApplyConsent, OperationRoot
+from specify_cli.tool_surface.operations import ApplyConsent, OperationRoot, OwnerAssessment
 
 pytestmark = [pytest.mark.fast]
 
@@ -47,7 +48,7 @@ def home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return home
 
 
-def _assess(skill: CanonicalSkill):  # type: ignore[no-untyped-def]  # OwnerAssessment; local helper
+def _assess(skill: CanonicalSkill) -> OwnerAssessment:
     selection = GlobalSkillSelection(skills=[skill], agent_keys=("claude", "codex"))
     return assess_global_agent_skills(consent=ApplyConsent(automatic=True), selection=selection)
 
@@ -59,7 +60,7 @@ def _install(skill: CanonicalSkill) -> None:
     assert result.outcome == "applied", result.diagnostics
 
 
-def _unproven_paths(assessment) -> list[str]:  # type: ignore[no-untyped-def]
+def _unproven_paths(assessment: OwnerAssessment) -> list[str]:
     return [d.path or "" for d in assessment.dispositions if d.reason == _UNPROVEN or d.state == "consent_required"]
 
 
@@ -81,12 +82,18 @@ def test_moved_root_keeps_other_roots_proven(home: Path, tmp_path: Path, monkeyp
     assert b"v2" in shared_copy.read_bytes()
 
 
-def test_inventory_is_written_with_absolute_keys(home: Path, tmp_path: Path) -> None:
+def _anchor_free(key: str) -> bool:
+    return key.startswith("~/") or Path(key).is_absolute()
+
+
+def test_inventory_is_written_with_anchor_free_keys(home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path / "outside" / "claude"))
     _install(_write_skill(tmp_path / "source", "v1"))
     payload = json.loads((home / ".kittify" / "cache" / "global_skills-assets.json").read_text(encoding="utf-8"))
     assert payload["schema_version"] == 2
-    assert all(Path(key).is_absolute() for key in payload["entries"])
-    assert (home / ".agents" / "skills" / _SKILL / "SKILL.md").as_posix() in payload["entries"]
+    assert all(_anchor_free(key) for key in payload["entries"])
+    assert f"~/.agents/skills/{_SKILL}/SKILL.md" in payload["entries"]
+    assert (tmp_path / "outside" / "claude" / "skills" / _SKILL / "SKILL.md").as_posix() in payload["entries"]
 
 
 def test_schema1_inventory_keeps_proving_and_is_rewritten_once(home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -95,7 +102,7 @@ def test_schema1_inventory_keeps_proving_and_is_rewritten_once(home: Path, tmp_p
     inventory = home / ".kittify" / "cache" / "global_skills-assets.json"
     payload = json.loads(inventory.read_text(encoding="utf-8"))
     anchor = home.parent  # the anchor every pre-#7722 release used while all roots sat under home
-    legacy = {Path(key).relative_to(anchor).as_posix(): state for key, state in payload["entries"].items()}
+    legacy = {(home / key[2:]).relative_to(anchor).as_posix(): state for key, state in payload["entries"].items()}
     inventory.write_text(json.dumps({"schema_version": 1, "entries": legacy}), encoding="utf-8")
 
     monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path / "outside" / "claude"))
@@ -105,7 +112,7 @@ def test_schema1_inventory_keeps_proving_and_is_rewritten_once(home: Path, tmp_p
     apply_assets(assessment, ApplyConsent(automatic=True))
     rewritten = json.loads(inventory.read_text(encoding="utf-8"))
     assert rewritten["schema_version"] == 2
-    assert all(Path(key).is_absolute() for key in rewritten["entries"])
+    assert all(_anchor_free(key) for key in rewritten["entries"])
 
 
 def test_unplaceable_schema1_key_is_not_proof(home: Path, tmp_path: Path) -> None:
