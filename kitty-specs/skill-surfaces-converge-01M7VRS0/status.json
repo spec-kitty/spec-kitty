@@ -46,7 +46,7 @@
     },
     "WP02": {
       "actor": "claude",
-      "agent": null,
+      "agent": "claude",
       "agent_profile": "python-pedro",
       "agent_profile_version": "1.0",
       "force_count": 1,
@@ -57,7 +57,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: schema-2 inventory (~/ or absolute keys), one-time schema-1 migration, retire byte proof; red 739add0ecf; tests/runtime+tests/specify_cli/runtime 2605 passed; make test-fast 3144 passed",
-        "Changes requested: B1 schema-2 inventory makes older CLIs fail every command (reproduced); see review-feedback-1.md"
+        "Changes requested: B1 schema-2 inventory makes older CLIs fail every command (reproduced); see review-feedback-1.md",
+        "Review cycle 1 addressed: B1 inventory stays schema 1 in the same file (fixed home.parent anchor + marker; sidecar <owner>-external-assets.json for entries outside), older readers verified (base a053b674 startup runs after this lane); N1-N4 folded. red 02869bad4b, fix 119b4e5654. tests/runtime+specify_cli/runtime 2615 passed (1 env failure: lane .venv shim runs root checkout install); make test-fast 3144 passed"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
