@@ -356,7 +356,9 @@ MISSION_REVIEW_DEAD_CODE_EVIDENCE_INCOMPLETE: baseline anchor evidence is not re
 
 **Code**: `MISSION_REVIEW_REPORT_PATH_OCCUPIED`
 
-**When it fires**: `kitty-specs/<slug>/mission-review-report.md` already exists and is not a machine report this command wrote. A machine report starts with YAML frontmatter that records `verdict` (`pass`, `pass_with_notes` or `fail`), `reviewed_at` and an integer `findings` count. Anything else at that path (typically a mission review an agent wrote with the `spec-kitty-mission-review` skill, or an unreadable file) is somebody else's work, and `spec-kitty review` refuses to overwrite it (spec-kitty#7753). The check runs before any gate and again just before the write; nothing is written when it fires. A previous machine report is still replaced on every run.
+**When it fires**: `kitty-specs/<slug>/mission-review-report.md` already exists and is not a machine report this command wrote (spec-kitty#7753). A machine report starts with YAML frontmatter that records `verdict` (`pass`, `pass_with_notes` or `fail`), `reviewed_at` and an integer `findings` count; reports written since #7753 also carry `generator: spec-kitty review`, and a `generator` naming anything else is foreign. The message names the reason: the file is not such a report (typically a mission review an agent wrote with the `spec-kitty-mission-review` skill), the path is a symlink, it is not a regular file, or it is unreadable as UTF-8 text. The check runs before any gate and again at the write, where an absent path is created exclusively and a previous machine report is replaced atomically, so a file that appears while the gates run is refused too. Nothing is written when it fires. A previous machine report is still replaced on every run.
+
+Besides the console text, the command writes one JSON line to stdout, like its other exit-1 refusals: `{"diagnostic_code": "MISSION_REVIEW_REPORT_PATH_OCCUPIED", "message": ..., "remediation": "git mv <report> <slug dir>/mission-review.md"}`.
 
 **JSON stability**: this code string is stable across minor releases; consumers may match it as an opaque identifier.
 
@@ -367,7 +369,8 @@ MISSION_REVIEW_DEAD_CODE_EVIDENCE_INCOMPLETE: baseline anchor evidence is not re
 **Body example**:
 
 ```text
-MISSION_REVIEW_REPORT_PATH_OCCUPIED: kitty-specs/my-mission/mission-review-report.md is not a report spec-kitty review wrote (no verdict/reviewed_at/findings frontmatter); refusing to overwrite it.
+MISSION_REVIEW_REPORT_PATH_OCCUPIED: kitty-specs/my-mission/mission-review-report.md is not a report spec-kitty review wrote (no generator/verdict/reviewed_at/findings frontmatter); refusing to overwrite it. Nothing was written.
+{"diagnostic_code": "MISSION_REVIEW_REPORT_PATH_OCCUPIED", "message": "kitty-specs/my-mission/mission-review-report.md is not a report spec-kitty review wrote (no generator/verdict/reviewed_at/findings frontmatter); refusing to overwrite it. Nothing was written.", "remediation": "git mv kitty-specs/my-mission/mission-review-report.md kitty-specs/my-mission/mission-review.md"}
 ```
 
 ---
