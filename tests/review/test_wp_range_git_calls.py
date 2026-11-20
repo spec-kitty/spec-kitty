@@ -30,7 +30,9 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 _BUDGET = 10
 #: NFR-002 for a derived range (decision DM-01M77PZ5833WWQB5J457GXNWYW): the event-commit lookups and their race
 #: guards, plus the moved-past probe now that a commit-to-target Mission has a live head. Still constant.
-_DERIVED_BUDGET = 12
+#: +1 (12 -> 13): FR-007 (approved-lane-resolution-route) mandatory full-history merge listing,
+#: one fixed rev-list per range, independent of commit count (runner ruling, WP10 leeway edit).
+_DERIVED_BUDGET = 13
 _OWNED_FILES = 60
 _OUT_OF_MAP = ("docs/a.md", "docs/b.md", "tools/c.cfg")
 _HARNESS_VARIABLES = ("SPEC_KITTY_NO_NAG", "SPEC_KITTY_NON_INTERACTIVE", "SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS")
