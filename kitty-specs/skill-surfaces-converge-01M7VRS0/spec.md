@@ -157,11 +157,10 @@ The public skill `spk-start-first-feature` is renamed `spk-start-first-mission` 
 - **SC-003**: `doctor skills --fix`, `doctor tool-surfaces --fix` and `upgrade` leave the same seeded corrupted command skill in the same converged state. — [build] · no-op passable: no
 - **SC-004**: `git grep spk-start-first-feature -- src docs` returns only retired-name entries and changelog text. — [build] · no-op passable: no
 
-## Decisions pending
+## Decisions
 
-[NEEDS CLARIFICATION: where the historical digest list lives and how it is regenerated per release; working assumption: a reviewed package-data file plus a committed generator, append-only, regenerated in any PR that edits a shipped skill] <!-- decision_id: 01M7VRSCZZPMQHPVF9HP5T4HM9 -->
-
-[NEEDS CLARIFICATION: whether `--fix` may ever remove a proven-generated stale file under the old `~/.claude` root, or only report it; working assumption: report only] <!-- decision_id: 01M7VRSF1T1ENCAMW2SACF5MS3 -->
+- **Historical digest list home** (decision `01M7VRSCZZPMQHPVF9HP5T4HM9`, operator ruling 2026-11-20): a reviewed package-data JSON file plus a committed generator that reads git history. The list is append-only; a test fails when a digest is dropped or a current render is missing, so a PR that edits a shipped skill re-runs the generator. `RELEASE_CHECKLIST.md` gains a step.
+- **Old-root leftovers** (decision `01M7VRSF1T1ENCAMW2SACF5MS3`, operator ruling 2026-11-20): report only in this Mission: list proven files with a removal hint, delete nothing. A P3 follow-up issue for opt-in `--fix` removal of byte-proven files under the old root is filed and linked to #7723.
 
 ## Assumptions
 

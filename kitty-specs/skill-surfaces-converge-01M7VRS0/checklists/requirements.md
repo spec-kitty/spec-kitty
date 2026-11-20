@@ -13,7 +13,7 @@
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain — two operator decisions are deferred to the orchestrator with working assumptions recorded; they do not block planning, they are re-checked before the proof-source and doctor WPs start
+- [x] No [NEEDS CLARIFICATION] markers remain (both operator decisions resolved 2026-11-20)
 - [x] Requirements are testable and unambiguous
 - [x] Requirement types are separated (Functional / Non-Functional / Constraints)
 - [x] IDs are unique across FR-###, NFR-###, C-### and SC-### entries, and match the requirement-ID grammar
