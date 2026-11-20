@@ -28,10 +28,10 @@
       "criterion_id": "FR-003",
       "description": "Verify FR-003 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/mission_runtime/test_coord_remedy.py::test_tracking_ref_present_skips_the_fetch_step + test_tracking_ref_absent_leads_with_a_targeted_fetch; tests/specify_cli/coordination/test_remote_only_remedy_5287.py (both variants on one fixture)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T21:50:51.953556+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
