@@ -53,9 +53,9 @@
     },
     "WP02": {
       "actor": "claude",
-      "agent": null,
-      "agent_profile": "python-pedro",
-      "agent_profile_version": "1.0",
+      "agent": "claude::python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "implementer_of_record": "claude",
       "lane": "for_review",
@@ -66,7 +66,8 @@
         "Ready for review: schema-2 inventory (~/ or absolute keys), one-time schema-1 migration, retire byte proof; red 739add0ecf; tests/runtime+tests/specify_cli/runtime 2605 passed; make test-fast 3144 passed",
         "Changes requested: B1 schema-2 inventory makes older CLIs fail every command (reproduced); see review-feedback-1.md",
         "Review cycle 1 addressed: B1 inventory stays schema 1 in the same file (fixed home.parent anchor + marker; sidecar <owner>-external-assets.json for entries outside), older readers verified (base a053b674 startup runs after this lane); N1-N4 folded. red 02869bad4b, fix 119b4e5654. tests/runtime+specify_cli/runtime 2615 passed (1 env failure: lane .venv shim runs root checkout install); make test-fast 3144 passed",
-        "Changes requested (cycle 2): B1 resolved; B2 pre-#7722 records under a root outside home are dropped by migration confinement, regressing refresh vs base (reproduced); see review-feedback-2.md"
+        "Changes requested (cycle 2): B1 resolved; B2 pre-#7722 records under a root outside home are dropped by migration confinement, regressing refresh vs base (reproduced); see review-feedback-2.md",
+        "Cycle 2 B2 fixed: known_roots widen legacy placement (red 60afe91822, fix bec3d96d89); spy fix"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
