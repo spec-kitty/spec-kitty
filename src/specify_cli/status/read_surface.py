@@ -708,20 +708,20 @@ def resolve_primary_partition_dir(repo_root: Path, mission: str) -> Path | None:
 _RERUN_FOLLOW_UP = "re-run the command"
 
 
-def _read_ref_or_refuse(repo_root: Path, ref: str, path: str, *, follow_up: str, require_tracking_ref: bool = False) -> RefRead:
-    """Read *path* at *ref*; a failed read of a branch with no local head is remote-only (#5287).
+def _read_ref_or_refuse(repo_root: Path, ref: str, path: str, *, follow_up: str) -> RefRead:
+    """Read *path* at *ref*; a failed read of a branch no checkout here holds may be remote-only (#5287).
 
     The classification runs only after the read failed (NFR-001: a readable ref costs
-    nothing more). When the local head does not resolve, the branch is remote-only (the
-    door's earlier probes ruled out a deleted coordination branch) and the refusal is
-    ``StatusSurfaceRefRemoteOnly`` with the canonical remedy, whose last step is
-    *follow_up*. A local ref that names a missing object still resolves, so corruption
-    keeps the plain ``StatusSurfaceRefUnreadable``. With *require_tracking_ref* (the
-    Mission topic branch, which no earlier probe proved present), the refusal is
-    remote-only only when this clone holds a remote-tracking ref for the branch;
-    otherwise the branch may be gone everywhere, so the plain error stands, with a
-    hedged "if the branch still exists on a remote" hint from the same builder. The remote-tracking ref is never read
-    as status (ADR 2026-11-06-2, Amendment 2026-11-20).
+    nothing more), and only for a ``refs/heads/`` ref whose local head does not resolve
+    (a local ref naming a missing object still resolves, so corruption keeps the plain
+    ``StatusSurfaceRefUnreadable``). The refusal is ``StatusSurfaceRefRemoteOnly``, with
+    the canonical remedy ending in *follow_up*, only when this clone holds a
+    remote-tracking ref proving a remote has the branch. Without one nothing local proves
+    it (the coordination probe may have answered "present" on an inconclusive remote; a
+    topic branch is not probed at all; the branch may be gone everywhere), so the plain
+    error stands with a hedged "if the branch still exists on a remote" hint from the same
+    builder. No remote is contacted, and the remote-tracking ref is never read as status
+    (ADR 2026-11-06-2, Amendment 2026-11-20).
     """
     from specify_cli.coordination import status_service
 
@@ -734,18 +734,15 @@ def _read_ref_or_refuse(repo_root: Path, ref: str, path: str, *, follow_up: str,
 
         branch = ref.removeprefix(_HEADS_PREFIX)
         facts = remote_only_branch(repo_root, branch)
-        if require_tracking_ref and not facts.tracking_ref_present:
-            # Nothing local proves a remote holds it (it may be gone everywhere, or this is a
-            # single-branch clone): keep the plain error, with a hedged hint from the same builder.
-            hint = remote_only_steps(facts, repo_root, follow_up)
+        steps = remote_only_steps(facts, repo_root, follow_up)
+        if not facts.tracking_ref_present:
             raise status_service.StatusSurfaceRefUnreadable(
                 repo_root=repo_root,
                 ref=ref,
                 path=path,
-                detail=f"{exc.detail}. If the branch still exists on a remote: {hint}",
+                detail=f"{exc.detail}. If the branch still exists on a remote: {steps.removesuffix('.')}",
             ) from exc
-        remedy = remote_only_steps(facts, repo_root, follow_up)
-        raise status_service.StatusSurfaceRefRemoteOnly(repo_root=repo_root, ref=ref, path=path, branch=branch, remedy=remedy) from exc
+        raise status_service.StatusSurfaceRefRemoteOnly(repo_root=repo_root, ref=ref, path=path, branch=branch, remedy=steps) from exc
 
 
 def _coordination_follow_up(mission_dir_name: str) -> str:
@@ -761,13 +758,7 @@ def _ref_text(surface: StatusReadSurface) -> str | None:
     if result is None:
         topic_branch = surface.source is StatusReadSource.MISSION_BRANCH_REF
         follow_up = _RERUN_FOLLOW_UP if topic_branch else _coordination_follow_up(surface.mission_dir_name)
-        result = _read_ref_or_refuse(
-            surface.repo_root,
-            surface.ref,
-            _ref_events_path(surface.mission_dir_name),
-            follow_up=follow_up,
-            require_tracking_ref=topic_branch,
-        )
+        result = _read_ref_or_refuse(surface.repo_root, surface.ref, _ref_events_path(surface.mission_dir_name), follow_up=follow_up)
     return None if result.data is None else result.data.decode("utf-8", errors="replace")
 
 
@@ -810,12 +801,23 @@ def ref_source_remedy(surface: StatusReadSurface, mission_slug: str) -> str:
     ``COORD_BRANCH_REF``: ``spec-kitty materialize`` materializes the coordination worktree
     (it adds an absent one and restores an empty one from the branch tip), after which the door
     reads ``COORD_WORKTREE``. ``MISSION_BRANCH_REF``: no checkout holds the Mission topic
-    branch, so the operator checks it out. A path source needs no remedy (``ValueError``).
+    branch, so the operator checks it out; when this checkout has no local branch for it and a
+    remote-tracking ref proves a remote holds it, the canonical remote-only steps create it
+    first (#5287). A path source needs no remedy
+    (``ValueError``).
     """
     if surface.ref is None:
         raise ValueError(f"{surface.source} reads a path; it needs no checkout remedy")
     if surface.source is StatusReadSource.MISSION_BRANCH_REF:
+        from specify_cli.coordination import status_service
+
         branch = surface.ref.removeprefix(_HEADS_PREFIX)
+        if not status_service.ref_names_object(surface.repo_root, surface.ref):
+            from mission_runtime.coord_remedy import remote_only_branch, remote_only_steps
+
+            facts = remote_only_branch(surface.repo_root, branch)
+            if facts.tracking_ref_present:
+                return remote_only_steps(facts, surface.repo_root, _RERUN_FOLLOW_UP)
         return f"Check out the Mission branch with 'git switch {branch}' (or 'git worktree add <path> {branch}'), then re-run."
     return f"Materialize the coordination worktree with 'spec-kitty materialize --mission {mission_slug}', then re-run."
 

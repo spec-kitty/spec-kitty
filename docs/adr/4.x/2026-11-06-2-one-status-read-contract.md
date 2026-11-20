@@ -452,22 +452,25 @@ refuses for it. The code is raised by `mission_runtime.resolution._resolve_statu
 
 The ref reader rule above gains one case. When a ref-sourced read (`COORD_BRANCH_REF` or
 `MISSION_BRANCH_REF`) fails and the branch has no local head (`refs/heads/<branch>` does not
-resolve), the door raises `StatusSurfaceRefRemoteOnly` (`STATUS_SURFACE_REF_REMOTE_ONLY`). It is a
-subtype of `StatusSurfaceRefUnreadable`, so every caller that handles an unreadable ref handles it
-and relays its own code. Its message carries the canonical remote-only remedy from
-`mission_runtime.coord_remedy`: fetch the branch from the remote that owns it (only when this clone
-lacks the remote-tracking ref), create the local branch, then run `spec-kitty doctor coordination
---mission <slug> --fix` (or re-run the command, for a Mission topic branch).
+resolve), the door looks at this clone's remote-tracking refs (a local read):
+
+- When one proves a remote holds the branch, the door raises `StatusSurfaceRefRemoteOnly`
+  (`STATUS_SURFACE_REF_REMOTE_ONLY`). It is a subtype of `StatusSurfaceRefUnreadable`, so every
+  caller that handles an unreadable ref handles it and relays its own code. Its message carries the
+  canonical remote-only remedy from `mission_runtime.coord_remedy`: create the local branch from
+  `refs/remotes/<remote>/<branch>`, then run `spec-kitty doctor coordination --mission <slug> --fix`
+  (or re-run the command, for a Mission topic branch).
+- When none does, nothing local proves the branch exists: the coordination probe may have answered
+  "present" on an inconclusive remote, a topic branch is not probed, and the branch may be gone
+  everywhere. The door keeps `STATUS_SURFACE_REF_UNREADABLE`, whose message adds the same steps
+  (led by a fetch into the remote-tracking ref) as a hedged "if the branch still exists on a
+  remote" hint.
+
+Further:
 
 - The classification runs only after a failed read, so a readable ref costs no extra subprocess
   (NFR-001 unchanged).
 - A local ref that names a missing object still resolves and keeps `STATUS_SURFACE_REF_UNREADABLE`.
-- For `MISSION_BRANCH_REF` no earlier probe has shown that a remote holds the topic branch, so the
-  refusal is remote-only only when this clone holds a remote-tracking ref for it; a topic branch
-  gone everywhere keeps `STATUS_SURFACE_REF_UNREADABLE`, whose message then adds a hedged hint (the
-  same builder's steps, prefixed "If the branch still exists on a remote"), still with no remote
-  contact. For `COORD_BRANCH_REF` the coordination
-  probe has already found the branch before the read.
 - A coordination branch the probe classifies as deleted keeps raising `CoordinationBranchDeleted`.
 - The door still never reads a remote-tracking ref as a status source: one declared source per
   cell, no fallback. A remote-tracking read source, if wanted, belongs to #7408 under its own
