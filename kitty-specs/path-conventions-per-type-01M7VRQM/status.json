@@ -20,7 +20,7 @@
   "work_packages": {
     "WP01": {
       "actor": "claude",
-      "agent": null,
+      "agent": "claude::python-pedro",
       "agent_profile": "python-pedro",
       "agent_profile_version": "1.0",
       "force_count": 1,
@@ -30,7 +30,8 @@
       "last_transition_at": "2026-11-20T08:07:08.145210+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Per-type reader implemented red-first: 20 new tests red on the old reader, 36/36 green; ruff, format and mypy clean; blast radius 104 passed."
+        "Per-type reader implemented red-first: 20 new tests red on the old reader, 36/36 green; ruff, format and mypy clean; blast radius 104 passed.",
+        "Review cycle 1 addressed: shape-based dispatch (documentation sections work), readable errors for workspace:{..} and list sections, correct deliverables-warning stacklevel. 5 new tests red first; reader 42/42; blast radius 110 passed. Limitation: YAML allows one documentation key, so a flat documentation path and a documentation section cannot coexist; set documentation inside the relevant type sections instead."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
