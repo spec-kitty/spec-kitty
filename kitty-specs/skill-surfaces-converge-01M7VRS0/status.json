@@ -55,6 +55,9 @@
       "last_event_id": "01M7VWWFR8ESTDCYW4VV9TYHK2",
       "last_transition_at": "2026-11-20T07:14:11.336140+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: schema-2 inventory (~/ or absolute keys), one-time schema-1 migration, retire byte proof; red 739add0ecf; tests/runtime+tests/specify_cli/runtime 2605 passed; make test-fast 3144 passed"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 16213,
