@@ -13,16 +13,16 @@
       "wp": "WP06"
     },
     "#2527": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Reproduced on a053b674 (research R-4); WP03 refresh by historical proof, WP04 skipped reasons",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "doctor tool-surfaces --fix reports repaired but leaves managed doctrine skills drifted",
+      "verdict": "in-mission",
+      "wp": "WP03"
     },
     "#2904": {
       "evidence_ref": "<link or commit>",
