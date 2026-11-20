@@ -53,9 +53,9 @@ def test_ambiguous_remote_is_a_placeholder_that_lists_the_candidates() -> None:
 
     text = remote_only_steps(facts, _ROOT, _DOCTOR)
 
-    assert f"fetch <remote> {_BRANCH}:refs/remotes/<remote>/{_BRANCH}" in text
-    assert f"branch {_BRANCH} refs/remotes/<remote>/{_BRANCH}" in text
-    assert text.endswith("(<remote> is the remote that holds the branch, one of: fork, upstream)")
+    assert f"fetch REMOTE {_BRANCH}:refs/remotes/REMOTE/{_BRANCH}" in text
+    assert f"branch {_BRANCH} refs/remotes/REMOTE/{_BRANCH}" in text
+    assert text.endswith("(REMOTE is the remote that holds the branch, one of: fork, upstream)")
     assert "origin" not in text
 
 
@@ -210,4 +210,36 @@ def test_a_root_git_cannot_run_in_knows_nothing(tmp_path: Path) -> None:
     """CI fold: ``run_git`` raises on an absent root even with ``check=False``; never let that escape."""
     facts = remote_only_branch(tmp_path / "does-not-exist", _BRANCH)
 
-    assert facts == RemoteOnlyBranch(branch=_BRANCH, remote=None, tracking_ref_present=False)
+    assert facts.remote is None
+    assert facts.tracking_ref_present is False
+
+
+@pytest.mark.unit
+def test_the_placeholder_is_never_shell_special() -> None:
+    """PR review nit: a pasted ``<remote>`` is a shell redirect."""
+    facts = RemoteOnlyBranch(branch=_BRANCH, remote=None, tracking_ref_present=False, remotes=("fork", "upstream"))
+
+    text = remote_only_steps(facts, _ROOT, _DOCTOR)
+
+    assert "<" not in text
+    assert ">" not in text
+
+
+@pytest.mark.git_repo
+def test_a_url_branch_remote_falls_back_to_the_only_configured_remote(repo: Path) -> None:
+    """PR review nit: with one remote configured there is no ambiguity to report."""
+    _add_remote(repo, "upstream", tracking=False)
+    _git(repo, "config", f"branch.{_BRANCH}.remote", "https://example.invalid/repo.git")
+
+    assert remote_only_branch(repo, _BRANCH).remote == "upstream"
+
+
+@pytest.mark.unit
+def test_an_unreadable_checkout_is_not_reported_as_having_no_remote(tmp_path: Path) -> None:
+    """PR review nit: git could not run there, which is not the same as "no remote is configured"."""
+    facts = remote_only_branch(tmp_path / "does-not-exist", _BRANCH)
+
+    text = remote_only_steps(facts, tmp_path, _DOCTOR)
+
+    assert "no remote is configured" not in text
+    assert "could not read" in text

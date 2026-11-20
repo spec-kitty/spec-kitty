@@ -175,7 +175,7 @@ def test_an_unproven_topic_branch_gets_a_hedged_hint_that_works_when_a_remote_ho
     assert not isinstance(excinfo.value, StatusSurfaceRefRemoteOnly)
     assert excinfo.value.error_code == STATUS_SURFACE_REF_UNREADABLE
     text = str(excinfo.value)
-    assert "If the branch still exists on a remote" in text
+    assert "If the branch still exists on a remote: run in order: " in text
     git_steps = [step for step in re.findall(r"`([^`]+)`", text) if step.startswith("git ")]
     assert [shlex.split(step)[3] for step in git_steps] == ["fetch", "branch"], git_steps
     for step in git_steps:
@@ -199,7 +199,7 @@ def test_an_unproven_coordination_branch_is_not_called_remote_only(tmp_path: Pat
 
     assert not isinstance(excinfo.value, StatusSurfaceRefRemoteOnly)
     text = str(excinfo.value)
-    assert "If the branch still exists on a remote" in text
+    assert "If the branch still exists on a remote: run in order: " in text
     assert f"spec-kitty doctor coordination --mission {SLUG} --fix`. A status history" in text
 
 
