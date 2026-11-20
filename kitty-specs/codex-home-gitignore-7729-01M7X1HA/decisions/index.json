@@ -1,0 +1,31 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-20T17:56:06.458476Z",
+      "decision_id": "01M7X1KW5TB3PMABWHBDK0407Y",
+      "final_answer": "(a)+(c) widen the committed Codex block with Codex home state that is never team config, and add a clone-local migration that excludes a CODEX_HOME-shaped .codex/ in .git/info/exclude and lists newly visible agent-folder files in every clone",
+      "input_key": "codex_home_protection",
+      "mission_id": "01M7X1HAR66JTAP06PKJ8RK95Z",
+      "mission_slug": "codex-home-gitignore-7729-01M7X1HA",
+      "opened_by": "cli",
+      "options": [
+        "(a) widen the committed Codex block only",
+        "(b) detect a CODEX_HOME-shaped .codex/ and keep the whole folder ignored in the committed .gitignore",
+        "(a)+(c) widen the committed block with Codex home state that is never team config, and add a clone-local migration that excludes a CODEX_HOME-shaped .codex/ in .git/info/exclude and lists newly visible agent-folder files in every clone",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How should Spec Kitty keep a project-local CODEX_HOME ignored after the rc8 narrowing, and how should clones that pull the narrowed .gitignore be protected or warned?",
+      "rationale": null,
+      "resolved_at": "2026-11-20T17:56:11.605889Z",
+      "resolved_by": null,
+      "slot_key": "specify.design.codex-home-protection",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M7X1HAR66JTAP06PKJ8RK95Z",
+  "version": 1
+}
