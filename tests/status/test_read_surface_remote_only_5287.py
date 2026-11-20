@@ -17,6 +17,7 @@ from pathlib import Path
 
 import pytest
 
+from mission_runtime import MissionTopology
 import specify_cli.coordination.status_service as status_service
 from specify_cli.coordination.status_service import (
     STATUS_SURFACE_REF_REMOTE_ONLY,
@@ -75,7 +76,7 @@ def test_remote_only_coordination_branch_is_a_typed_refusal_with_the_remedy(tmp_
     assert isinstance(refusal, StatusSurfaceRefUnreadable)
     assert refusal.error_code == STATUS_SURFACE_REF_REMOTE_ONLY
     text = str(refusal)
-    assert f"branch {COORD_BRANCH} {REMOTE}/{COORD_BRANCH}" in text
+    assert f"branch {COORD_BRANCH} refs/remotes/{REMOTE}/{COORD_BRANCH}" in text
     assert f"spec-kitty doctor coordination --mission {SLUG} --fix" in text
     assert text.endswith(f"Error code: {STATUS_SURFACE_REF_REMOTE_ONLY}.")
 
@@ -92,7 +93,7 @@ def test_remote_only_mission_topic_branch_is_a_typed_refusal(tmp_path: Path) -> 
         read_status_events(surface)
 
     text = str(excinfo.value)
-    assert f"branch {MISSION_BRANCH} {REMOTE}/{MISSION_BRANCH}" in text
+    assert f"branch {MISSION_BRANCH} refs/remotes/{REMOTE}/{MISSION_BRANCH}" in text
     assert "then re-run the command" in text
     assert "doctor coordination" not in text
 
@@ -181,3 +182,86 @@ def test_an_unproven_topic_branch_gets_a_hedged_hint_that_works_when_a_remote_ho
         subprocess.run(shlex.split(step), check=True, capture_output=True)
 
     assert read_status_events(resolve_status_read(mission.repo, SLUG))
+
+
+def test_an_unproven_coordination_branch_is_not_called_remote_only(tmp_path: Path) -> None:
+    """Squad fold (MEDIUM): the coordination probe can answer "present" on an inconclusive remote.
+
+    With no local head and no remote-tracking ref nothing local proves a remote holds the branch, so
+    the read keeps the plain unreadable error with the hedged hint, the same rule as the topic branch.
+    """
+    mission = build_matrix_mission(tmp_path, LANES_WITH_COORD, UNMATERIALIZED)
+    _remote_only(mission.repo, tmp_path, COORD_BRANCH)
+    git(mission.repo, "update-ref", "-d", f"refs/remotes/{REMOTE}/{COORD_BRANCH}")
+
+    with pytest.raises(StatusSurfaceRefUnreadable) as excinfo:
+        resolve_status_read(mission.repo, SLUG)
+
+    assert not isinstance(excinfo.value, StatusSurfaceRefRemoteOnly)
+    text = str(excinfo.value)
+    assert "If the branch still exists on a remote" in text
+    assert f"spec-kitty doctor coordination --mission {SLUG} --fix`. A status history" in text
+
+
+def test_the_refusal_carries_its_facts(tmp_path: Path) -> None:
+    mission = build_matrix_mission(tmp_path, LANES_WITH_COORD, UNMATERIALIZED)
+    _remote_only(mission.repo, tmp_path, COORD_BRANCH)
+
+    with pytest.raises(StatusSurfaceRefRemoteOnly) as excinfo:
+        resolve_status_read(mission.repo, SLUG)
+
+    refusal = excinfo.value
+    assert refusal.branch == COORD_BRANCH
+    assert refusal.ref == f"refs/heads/{COORD_BRANCH}"
+    assert refusal.remedy.startswith("Run in order: ")
+    assert refusal.remedy in str(refusal)
+    assert refusal.detail == "no local branch"
+
+
+def test_a_coordination_surface_read_later_gets_the_doctor_follow_up(tmp_path: Path) -> None:
+    """A COORD_BRANCH_REF surface without a prefetched read (e.g. a write-side decision) reads later."""
+    from specify_cli.status.read_surface import StatusReadSurface
+
+    mission = build_matrix_mission(tmp_path, LANES_WITH_COORD, UNMATERIALIZED)
+    _remote_only(mission.repo, tmp_path, COORD_BRANCH)
+    surface = StatusReadSurface(
+        topology=MissionTopology.LANES_WITH_COORD,
+        source=StatusReadSource.COORD_BRANCH_REF,
+        mission_dir_name=SLUG,
+        path=None,
+        repo_root=mission.repo,
+        ref=f"refs/heads/{COORD_BRANCH}",
+    )
+
+    with pytest.raises(StatusSurfaceRefRemoteOnly) as excinfo:
+        read_status_events(surface)
+
+    assert f"spec-kitty doctor coordination --mission {SLUG} --fix" in str(excinfo.value)
+
+
+def test_a_failed_read_of_a_non_branch_ref_is_never_remote_only(tmp_path: Path) -> None:
+    from specify_cli.status.read_surface import _read_ref_or_refuse
+
+    mission = build_matrix_mission(tmp_path, SINGLE_BRANCH)
+
+    with pytest.raises(StatusSurfaceRefUnreadable) as excinfo:
+        _read_ref_or_refuse(mission.repo, "refs/remotes/nowhere/branch", "kitty-specs/x/status.events.jsonl", follow_up="re-run the command")
+
+    assert not isinstance(excinfo.value, StatusSurfaceRefRemoteOnly)
+    assert "If the branch still exists" not in str(excinfo.value)
+
+
+def test_the_topic_branch_checkout_remedy_uses_the_canonical_steps_when_the_branch_is_not_local(tmp_path: Path) -> None:
+    """Squad fold (LOW): ``ref_source_remedy`` no longer relies on ``git switch`` DWIM for a remote-only topic branch."""
+    from specify_cli.status.read_surface import ref_source_remedy
+
+    mission = build_matrix_mission(tmp_path, SINGLE_BRANCH)
+    _make_default_off_topic_branch(mission)
+    surface = resolve_status_read(mission.repo, SLUG)
+    assert "git switch" in ref_source_remedy(surface, SLUG)
+
+    _remote_only(mission.repo, tmp_path, MISSION_BRANCH)
+    remedy = ref_source_remedy(surface, SLUG)
+
+    assert f"branch {MISSION_BRANCH} refs/remotes/{REMOTE}/{MISSION_BRANCH}" in remedy
+    assert "git switch" not in remedy

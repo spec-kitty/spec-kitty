@@ -353,7 +353,7 @@ def test_write_target_degrade_remote_only_round_trip(
     assert len(command_steps) == 3, f"expected exactly 3 ordered command steps (fetch, branch-create, doctor --fix), got {command_steps!r} from: {text!r}"
     fetch_step, branch_step, doctor_step = command_steps
     assert fetch_step.split() == ["git", "-C", str(repo), "fetch", "origin", f"{coord_branch}:refs/remotes/origin/{coord_branch}"]
-    assert branch_step.split() == ["git", "-C", str(repo), "branch", coord_branch, f"origin/{coord_branch}"]
+    assert branch_step.split() == ["git", "-C", str(repo), "branch", coord_branch, f"refs/remotes/origin/{coord_branch}"]
     assert doctor_step.split() == [
         "spec-kitty",
         "doctor",
@@ -446,7 +446,7 @@ def test_doctor_fix_remote_only_does_not_materialize(
     assert len(steps) == 2, f"expected 2 ordered backticked steps, got {steps!r} from: {next_step!r}"
     branch_step, doctor_step = steps
     assert " fetch " not in next_step
-    assert branch_step.split() == ["git", "-C", str(repo), "branch", coord_branch, f"origin/{coord_branch}"]
+    assert branch_step.split() == ["git", "-C", str(repo), "branch", coord_branch, f"refs/remotes/origin/{coord_branch}"]
     assert doctor_step.split() == [
         "spec-kitty",
         "doctor",
@@ -523,7 +523,7 @@ def test_missing_worktree_finding_remote_only_leads_with_ordered_steps(
     assert len(steps) == 2, f"expected 2 ordered steps, got {steps!r} from: {next_step!r}"
     branch_step, doctor_step = steps
     assert " fetch " not in next_step
-    assert branch_step.split() == ["git", "-C", str(repo), "branch", coord_branch, f"origin/{coord_branch}"]
+    assert branch_step.split() == ["git", "-C", str(repo), "branch", coord_branch, f"refs/remotes/origin/{coord_branch}"]
     assert doctor_step.split() == [
         "spec-kitty",
         "doctor",

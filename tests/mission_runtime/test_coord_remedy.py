@@ -30,7 +30,9 @@ def test_tracking_ref_present_skips_the_fetch_step() -> None:
 
     text = remote_only_steps(facts, _ROOT, _DOCTOR)
 
-    assert text == (f"Run in order: `git -C {_ROOT} branch {_BRANCH} upstream/{_BRANCH}`, then `spec-kitty doctor coordination --mission demo-01ABCDEF --fix`.")
+    assert text == (
+        f"Run in order: `git -C {_ROOT} branch {_BRANCH} refs/remotes/upstream/{_BRANCH}`, then `spec-kitty doctor coordination --mission demo-01ABCDEF --fix`."
+    )
 
 
 @pytest.mark.unit
@@ -41,7 +43,7 @@ def test_tracking_ref_absent_leads_with_a_targeted_fetch() -> None:
 
     assert text == (
         f"Run in order: `git -C {_ROOT} fetch origin {_BRANCH}:refs/remotes/origin/{_BRANCH}`, "
-        f"then `git -C {_ROOT} branch {_BRANCH} origin/{_BRANCH}`, then re-run the command."
+        f"then `git -C {_ROOT} branch {_BRANCH} refs/remotes/origin/{_BRANCH}`, then re-run the command."
     )
 
 
@@ -52,7 +54,7 @@ def test_ambiguous_remote_is_a_placeholder_that_lists_the_candidates() -> None:
     text = remote_only_steps(facts, _ROOT, _DOCTOR)
 
     assert f"fetch <remote> {_BRANCH}:refs/remotes/<remote>/{_BRANCH}" in text
-    assert f"branch {_BRANCH} <remote>/{_BRANCH}" in text
+    assert f"branch {_BRANCH} refs/remotes/<remote>/{_BRANCH}" in text
     assert text.endswith("(<remote> is the remote that holds the branch, one of: fork, upstream)")
     assert "origin" not in text
 
@@ -172,4 +174,32 @@ def test_outside_a_repository_nothing_is_present(tmp_path: Path) -> None:
 def test_a_root_with_spaces_is_quoted() -> None:
     facts = RemoteOnlyBranch(branch=_BRANCH, remote="origin", tracking_ref_present=True, remotes=("origin",))
 
-    assert f"`git -C '/work/my repo' branch {_BRANCH} origin/{_BRANCH}`" in remote_only_steps(facts, Path("/work/my repo"), _DOCTOR)
+    assert f"`git -C '/work/my repo' branch {_BRANCH} refs/remotes/origin/{_BRANCH}`" in remote_only_steps(facts, Path("/work/my repo"), _DOCTOR)
+
+
+@pytest.mark.git_repo
+def test_a_branch_remote_that_names_no_configured_remote_is_unresolved(repo: Path) -> None:
+    """Squad fold: ``branch.<b>.remote`` may hold a URL; ``refs/remotes/<url>/<b>`` is no ref."""
+    _add_remote(repo, "fork", tracking=False)
+    _add_remote(repo, "upstream", tracking=False)
+    _git(repo, "config", f"branch.{_BRANCH}.remote", "https://example.invalid/repo.git")
+
+    assert remote_only_branch(repo, _BRANCH).remote is None
+
+
+@pytest.mark.git_repo
+def test_an_unrunnable_git_reads_as_no_tracking_ref(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import mission_runtime.coord_remedy as coord_remedy
+    from kernel.git.runner import GitCommandError
+
+    _add_remote(repo, "origin", tracking=True)
+
+    def _fail(*args: object, **kwargs: object) -> object:
+        raise GitCommandError(argv=("rev-parse",), cwd=repo, returncode=-1, stderr="git missing")
+
+    monkeypatch.setattr(coord_remedy, "run_git", _fail)
+
+    facts = remote_only_branch(repo, _BRANCH)
+
+    assert facts.remote == "origin"
+    assert facts.tracking_ref_present is False
