@@ -59,3 +59,18 @@ def test_a_selection_with_agents_still_attributes_effects_to_them(home: Path) ->
 
     assert assessment.complete, assessment.diagnostics
     assert {owner for effect in assessment.effects for owner in effect.logical_owners} == {"claude"}
+
+
+def test_upgrades_combined_global_assessment_with_no_agents_is_complete(home: Path) -> None:
+    """The combined global assessment ``upgrade`` runs, with every owner's inventory in the old layout."""
+    from specify_cli.runtime.asset_preparation import assess_global_assets
+
+    cache = home / ".kittify" / "cache"
+    cache.mkdir(parents=True)
+    for owner in ("runtime_bootstrap", "slash_commands", "global_skills"):
+        (cache / f"{owner}-assets.json").write_text(json.dumps({"schema_version": 1, "entries": {}}), encoding="utf-8")
+
+    assessment = assess_global_assets(agent_keys=[], skill_selection=agent_skills.GlobalSkillSelection(skills=(), agent_keys=()))
+
+    assert assessment.complete, assessment.diagnostics
+    assert all(effect.logical_owners for effect in assessment.effects)
