@@ -10,6 +10,9 @@ local ref that names a missing object keeps the plain unreadable error.
 from __future__ import annotations
 
 import json
+import re
+import shlex
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -150,3 +153,31 @@ def test_a_mission_topic_branch_gone_everywhere_is_not_called_remote_only(tmp_pa
     assert not isinstance(excinfo.value, StatusSurfaceRefRemoteOnly)
     assert excinfo.value.error_code == STATUS_SURFACE_REF_UNREADABLE
     assert "exists only on a remote" not in str(excinfo.value)
+
+
+def test_an_unproven_topic_branch_gets_a_hedged_hint_that_works_when_a_remote_holds_it(tmp_path: Path) -> None:
+    """Review fold (LOW): a single-branch clone has the topic branch on a remote but no tracking ref.
+
+    Nothing local proves a remote holds the branch, so the error stays the plain unreadable one,
+    but it carries a hedged hint built by the canonical builder: if the branch still exists on a
+    remote, the printed git steps recover it, and the read then succeeds.
+    """
+    mission = build_matrix_mission(tmp_path, SINGLE_BRANCH)
+    _make_default_off_topic_branch(mission)
+    _remote_only(mission.repo, tmp_path, MISSION_BRANCH)
+    git(mission.repo, "update-ref", "-d", f"refs/remotes/{REMOTE}/{MISSION_BRANCH}")
+
+    surface = resolve_status_read(mission.repo, SLUG)
+    with pytest.raises(StatusSurfaceRefUnreadable) as excinfo:
+        read_status_events(surface)
+
+    assert not isinstance(excinfo.value, StatusSurfaceRefRemoteOnly)
+    assert excinfo.value.error_code == STATUS_SURFACE_REF_UNREADABLE
+    text = str(excinfo.value)
+    assert "If the branch still exists on a remote" in text
+    git_steps = [step for step in re.findall(r"`([^`]+)`", text) if step.startswith("git ")]
+    assert [shlex.split(step)[3] for step in git_steps] == ["fetch", "branch"], git_steps
+    for step in git_steps:
+        subprocess.run(shlex.split(step), check=True, capture_output=True)
+
+    assert read_status_events(resolve_status_read(mission.repo, SLUG))
