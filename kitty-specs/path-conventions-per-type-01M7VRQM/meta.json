@@ -22,7 +22,7 @@
   "mission_base_sha": "a053b67434d9b073da708a387a5aec93e88fe227",
   "mission_branch": "kitty/mission-path-conventions-per-type-01M7VRQM",
   "mission_id": "01M7VRQM1E45PQDM459J7PTNYD",
-  "mission_number": null,
+  "mission_number": 263,
   "mission_slug": "path-conventions-per-type-01M7VRQM",
   "mission_type": "software-dev",
   "pr_bound": true,
