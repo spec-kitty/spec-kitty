@@ -39,6 +39,7 @@ __all__ = [
     "FANOUT_ALLOWLIST",
     "DEPENDENCY_MODULE_FANOUT",
     "ACTIVATION_STORE_MODULE_FANOUT",
+    "ASSET_SURFACE_MODULE_FANOUT",
     "CLI_COMMAND_MODULE_FANOUT",
     "FANOUT_GROUPS",
     "GROUP_MODULE_FANOUT",
@@ -222,6 +223,22 @@ CLI_COMMAND_MODULE_FANOUT: dict[str, frozenset[str]] = {
     # agent/** already selects execution_context via that module's own glob; this adds the modules whose
     # tests exercise the agent command package but that execution_context does not reach.
     "cli_cmd_agent_subdir": frozenset({"agent", "status", "review", "core_misc", "lanes", "consolidation", "release"}),
+}
+
+# Asset-install surface fan-out (#7775). ``spec-kitty upgrade`` and ``spec-kitty init`` prepare the agent
+# skills and command surface through src/specify_cli/skills/**, src/specify_cli/tool_surface/** and
+# src/specify_cli/runtime/** (upgrade imports skills.*, tool_surface.* and runtime.generated_writer/home/
+# migrate/doctor/agent_commands directly, and reaches runtime.agent_skills/asset_preparation through them).
+# Their own routing never named the modules whose tests run that preparation: tool_surface/** -> core_misc,
+# runtime/** -> next + specify_cli_runtime, and skills/** matched no src group (run-all only when it is the
+# diff's sole src path: ``unmatched`` is per diff, so any routed src path beside it masks it). #7763 changed
+# all three, ran no upgrade shard, and broke ``spec-kitty upgrade`` on main. The group is NON-src
+# (**/-prefixed globs) like CLI_COMMAND_MODULE_FANOUT, so it never masks an unmapped src/** change (FR-004),
+# and gates no router job BY DESIGN (the module matrix is its per-PR executor). Targets: ``upgrade``
+# (tests/upgrade + tests/specify_cli/upgrade drive the preparation) and ``cli`` (tests/init runs init).
+# Pinned by tests/ci/test_upgrade_asset_surface_routing.py.
+ASSET_SURFACE_MODULE_FANOUT: dict[str, frozenset[str]] = {
+    "upgrade_asset_surface": frozenset({"upgrade", "cli"}),
 }
 
 # The groups that fan out: the keys of GROUP_MODULE_FANOUT, named once so the census
@@ -818,6 +835,7 @@ def select_modules(
         *dependency.items(),
         *CLI_COMMAND_MODULE_FANOUT.items(),
         *ACTIVATION_STORE_MODULE_FANOUT.items(),
+        *ASSET_SURFACE_MODULE_FANOUT.items(),
     ):
         if group in selection.matched_groups:
             src_selected = src_selected | (targets & modules)

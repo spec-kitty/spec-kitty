@@ -185,6 +185,9 @@ jobs:
       cli_cmd_plugin: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_cmd_plugin }}
       cli_cmd_service: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_cmd_service }}
       cli_cmd_agent_subdir: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_cmd_agent_subdir }}
+      # Asset-install surface group (#7775): non-src, like cli_cmd_* above; gates no job BY DESIGN
+      # (fanned out to upgrade + cli via gate_selection.ASSET_SURFACE_MODULE_FANOUT). Never in the unmatched loop.
+      upgrade_asset_surface: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.upgrade_asset_surface }}
       # Acceptance-scenarios group (cli-acceptance-bdd-nightly, FR-012/C-005): non-src, like
       # mission_state above; gates no job BY DESIGN (seed CLI scenarios run in the nightly
       # acceptance-bdd job). Never in the unmatched loop.
@@ -406,6 +409,16 @@ jobs:
               - '**/specify_cli/cli/commands/service.py'
             cli_cmd_agent_subdir:
               - '**/specify_cli/cli/commands/agent/**'
+            # Asset-install surface group (#7775): NON-src (**/-prefixed), so it stays out of the unmatched
+            # loop and gates no router job BY DESIGN. `spec-kitty upgrade` and `init` prepare skills and the
+            # command surface through these packages, but their own groups (core_misc, next,
+            # specify_cli_runtime; skills/** has none) never selected the upgrade module, so #7763 broke
+            # upgrade with no upgrade shard run. gate_selection.ASSET_SURFACE_MODULE_FANOUT fans it out to
+            # upgrade + cli. Pinned by tests/ci/test_upgrade_asset_surface_routing.py.
+            upgrade_asset_surface:
+              - '**/specify_cli/skills/**'
+              - '**/specify_cli/tool_surface/**'
+              - '**/specify_cli/runtime/**'
             agent:
               - 'src/specify_cli/agent_utils/**'
             kernel:

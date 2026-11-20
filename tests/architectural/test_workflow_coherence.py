@@ -352,6 +352,12 @@ def needs_declaration_violations(model: gc.WorkflowModel) -> list[str]:
 #   the module matrix is its per-PR executor. Every glob is non-src, so the group stays out
 #   of the ``unmatched`` union. Pinned by tests/ci/test_charter_activation_routing.py and
 #   the fan-out wiring pin in tests/architectural/test_gate_selection_authority.py.
+#
+# * ``upgrade_asset_surface`` (#7775) — ``**/specify_cli/skills/**``, ``**/specify_cli/tool_surface/**``
+#   and ``**/specify_cli/runtime/**``, the asset-install surface ``spec-kitty upgrade`` and ``init`` drive.
+#   Gates no router job BY DESIGN: ``ASSET_SURFACE_MODULE_FANOUT`` fans it out to ``upgrade`` and ``cli``.
+#   Every glob is ``**/``-prefixed (non-src), so the group stays out of the ``unmatched`` union. Pinned by
+#   tests/ci/test_upgrade_asset_surface_routing.py.
 _DELIBERATELY_UNGATED_FILTER_GROUPS = frozenset(
     {
         "any_src",
@@ -378,6 +384,7 @@ _DELIBERATELY_UNGATED_FILTER_GROUPS = frozenset(
         "cli_cmd_plugin",
         "cli_cmd_service",
         "cli_cmd_agent_subdir",
+        "upgrade_asset_surface",
     }
 )
 

@@ -23,6 +23,7 @@ import pytest
 
 from scripts.ci.gate_selection import (
     ACTIVATION_STORE_MODULE_FANOUT,
+    ASSET_SURFACE_MODULE_FANOUT,
     BATTERY_SCOPE_GROUP,
     CLI_COMMAND_MODULE_FANOUT,
     DEFAULT_ROUTER_PATH,
@@ -338,6 +339,7 @@ def test_group_module_fanout_is_wired(router: Router) -> None:
         *DEPENDENCY_MODULE_FANOUT.items(),
         *CLI_COMMAND_MODULE_FANOUT.items(),
         *ACTIVATION_STORE_MODULE_FANOUT.items(),
+        *ASSET_SURFACE_MODULE_FANOUT.items(),
     ):
         assert group in router.filters, f"fan-out group {group!r} is not a router filter group"
         assert targets <= _registry_module_names(), f"fan-out targets of {group!r} are not all registry modules"
