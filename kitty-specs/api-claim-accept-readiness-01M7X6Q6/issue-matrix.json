@@ -1,0 +1,149 @@
+{
+  "rows": {
+    "#2512": {
+      "evidence_ref": "Context only: cited in research.md R-05 as the origin of move-task's planned claim release; the #7794 residual it shares is tracked there",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4786": {
+      "evidence_ref": "Context only: the planned release must not clear implementer_of_record; pinned by test_transition_to_planned_releases_the_claim_and_keeps_the_implementer_of_record",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "implementer-of-record projection",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4934": {
+      "evidence_ref": "Context only: its never-claimed test is re-ruled by operator ruling 1 (#5781)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "accept-mission applies the host readiness verdict",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5227": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: context_only>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5735": {
+      "evidence_ref": "Context only: inherits the one claim-sidecar builder; no work owed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "shared implement service design spike",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5781": {
+      "evidence_ref": "gate via review_roles + claim sidecar; live repro_5781 lanes/coord exit 0; tests/orchestrator_api/test_issue_5781_accept_readiness.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "orchestrator-api accept-mission refuses every API-claimed mission",
+      "verdict": "fixed",
+      "wp": "WP02"
+    },
+    "#5782": {
+      "evidence_ref": "Follow-up: #5782, sequenced after this Mission by operator ruling 8",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "accept-mission's acceptance record is never committed",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#5818": {
+      "evidence_ref": "accept_mission uses mission_terminal_acceptability; live cancel arms X/P/V accept-mission success",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "accept-mission refuses a canceled-with-provenance WP",
+      "verdict": "fixed",
+      "wp": "WP02"
+    },
+    "#7407": {
+      "evidence_ref": "Context only: inherits the one claim-sidecar builder; no work owed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "structural parity work",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7644": {
+      "evidence_ref": "status/claim_release.py; tests/orchestrator_api/test_api_claim_sidecar_5781.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "orchestrator-api transition --to planned never releases the WP's runtime claim",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#7752": {
+      "evidence_ref": "Context only: operator ruling 7, no shared helper fell out (needs a done-or-acceptably-canceled predicate)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "spec-kitty review lane check on canceled WPs",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7794": {
+      "evidence_ref": "Follow-up: #7794 (fix belongs in spec-kitty-events, C-001); pinned as strict xfail in tests/orchestrator_api/test_api_claim_sidecar_5781.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "A claim release erases the claim slots of every later claim (shared reducer annotation order)",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

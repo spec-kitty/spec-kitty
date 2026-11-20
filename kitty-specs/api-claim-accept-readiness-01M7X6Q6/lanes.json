@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "mission_slug": "api-claim-accept-readiness-01M7X6Q6",
+  "mission_id": "01M7X6Q6YGMSTAD3BFKB7QD7VW",
+  "mission_branch": "kitty/mission-api-claim-accept-readiness-01M7X6Q6",
+  "target_branch": "issue-5781-api-claim-accept-readiness",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/offering/skills/spec-kitty-orchestrator-api-operator/references/orchestrator-api-contract.md",
+        "src/specify_cli/acceptance/__init__.py",
+        "src/specify_cli/acceptance/summary_core.py",
+        "src/specify_cli/cli/commands/agent/status.py",
+        "src/specify_cli/cli/commands/agent/tasks_move_task_hops.py",
+        "src/specify_cli/consolidation/done_bookkeeping.py",
+        "src/specify_cli/orchestrator_api/consolidation.py",
+        "src/specify_cli/orchestrator_api/envelope.py",
+        "src/specify_cli/orchestrator_api/wp_lifecycle.py",
+        "src/specify_cli/status/__init__.py",
+        "src/specify_cli/status/claim_release.py",
+        "src/specify_cli/status/emit.py",
+        "src/specify_cli/status/review_roles.py",
+        "tests/acceptance/test_accept_gate_rejection_cycle.py",
+        "tests/agent/test_orchestrator_commands_integration.py",
+        "tests/characterization/test_trio_pure_cores.py",
+        "tests/consolidation/test_done_bookkeeping_reviewer_fallback.py",
+        "tests/orchestrator_api/test_api_claim_sidecar_5781.py",
+        "tests/orchestrator_api/test_issue_4934_accept_mission_readiness.py",
+        "tests/orchestrator_api/test_issue_5781_accept_readiness.py",
+        "tests/specify_cli/acceptance/test_acceptance_cores.py",
+        "tests/specify_cli/acceptance/test_implementer_repair_hint.py",
+        "tests/status/test_claim_release.py",
+        "tests/unit/status/test_review_roles_7712.py",
+        "tests/utils.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-20T19:29:42.527958+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "996f5d6a170e7aa533e83fa60080238173e14f32"
+}
