@@ -2,7 +2,7 @@
   "mission_slug": "remote-only-branch-remedy-01M7X5Z5",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
@@ -88,10 +88,10 @@
       "criterion_id": "FR-009",
       "description": "Verify FR-009 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/specify_cli/cli/commands/agent/test_tasks_status_remote_only_5287.py (refusal + positive control)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T21:51:11.998796+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     }
   ],
