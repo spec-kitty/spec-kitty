@@ -35,6 +35,10 @@ def _event_timestamp(timestamp: str) -> str:
     return timestamp[:-1] + "+00:00" if timestamp.endswith("Z") else timestamp
 
 
+#: Lanes a work package reaches only after it was claimed for implementation.
+_IMPLEMENTED_LANES = frozenset({"claimed", "in_progress", "for_review", "in_review", "approved", "done"})
+
+
 def _seed_canonical_wp_state(
     repo_root: Path,
     feature: str,
@@ -62,13 +66,37 @@ def _seed_canonical_wp_state(
     current_lane = snapshot.work_packages.get(wp_id, {}).get("lane")
 
     if current_lane != canonical_target:
+        from_lane = current_lane or "genesis"
+        if canonical_target in _IMPLEMENTED_LANES - {"claimed"} and from_lane not in _IMPLEMENTED_LANES:
+            # #5781: the accept gate reads a WP's implementer of record from its implementing
+            # claim in the event log (``status.review_roles``), not from the ``agent`` slot the
+            # annotation below plants. A fixture WP that is past ``claimed`` was claimed, so seed
+            # that claim under the fixture's agent first, as ``agent action implement`` records it.
+            seed_status_event(
+                feature_dir,
+                StatusEvent(
+                    event_id=f"TEST{wp_id}{len(existing_events) + 1:020d}",
+                    mission_slug=feature,
+                    wp_id=wp_id,
+                    from_lane=Lane(from_lane),
+                    to_lane=Lane.CLAIMED,
+                    at=_event_timestamp(timestamp),
+                    actor=actor,
+                    force=True,
+                    execution_mode="direct_repo",
+                    reason="test fixture claim",
+                    policy_metadata={"agent": actor},
+                ),
+            )
+            existing_events = read_events(feature_dir)
+            from_lane = "claimed"
         event = StatusEvent(
             event_id=f"TEST{wp_id}{len(existing_events) + 1:020d}",
             mission_slug=feature,
             wp_id=wp_id,
             # T028: use "genesis" as the default (not "planned") so an unseeded WP
             # gets a legal genesis->target event instead of an illegal planned->planned.
-            from_lane=Lane(current_lane or "genesis"),
+            from_lane=Lane(from_lane),
             to_lane=Lane(canonical_target),
             at=_event_timestamp(timestamp),
             actor=actor,

@@ -984,6 +984,21 @@ def _wp(work_package_id: str, *, path: Path, agent: str | None = "claude", assig
     )
 
 
+def _snapshot_reader(snapshot_wps: dict[str, dict[str, Any]]) -> Any:
+    """Stand-in for ``acceptance._collect_snapshot_wps``.
+
+    Like the real reader it fills ``implementers`` (#5781); here a WP's stand-in
+    implementer of record is the ``agent`` its stub snapshot names.
+    """
+
+    def _read(*_args: Any, implementers: dict[str, str | None] | None = None, **_kwargs: Any) -> dict[str, dict[str, Any]]:
+        if implementers is not None:
+            implementers.update({wp_id: state.get("agent") for wp_id, state in snapshot_wps.items()})
+        return snapshot_wps
+
+    return _read
+
+
 class TestCollectFeatureSummaryWiring:
     """``collect_feature_summary`` orchestrates ~15 collaborators; these tests
     mock every collaborator and pin the WIRING: which computed value flows
@@ -1009,7 +1024,7 @@ class TestCollectFeatureSummaryWiring:
         monkeypatch.setattr(acceptance_module, "_resolve_git_context", lambda _repo: ("kitty/mission-x", tmp_path, tmp_path, []))
         monkeypatch.setattr(acceptance_module, "_status_read_feature_dir", lambda *_a, **_k: feature_dir)
         monkeypatch.setattr(acceptance_module, "_accept_dirty_gate", lambda *_a, **_k: [])
-        monkeypatch.setattr(acceptance_module, "_collect_snapshot_wps", lambda *_a, **_k: snapshot_wps or {})
+        monkeypatch.setattr(acceptance_module, "_collect_snapshot_wps", _snapshot_reader(snapshot_wps or {}))
         monkeypatch.setattr(acceptance_module, "_iter_work_packages", lambda *_a, **_k: iter(wps))
         monkeypatch.setattr(acceptance_module, "_planning_read_dir", lambda *_a, **_k: feature_dir)
         # #7641: ``collect_feature_summary`` also asks the placement seam which checkout

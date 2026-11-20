@@ -30,8 +30,6 @@ from specify_cli.core.contract_gate import is_allowed_error_code, validate_outbo
 from specify_cli.git.destructive_guard import DestructiveOpRefused
 from specify_cli.git.origin_freshness import ORIGIN_CHECK_CHOICES, OriginFreshnessRefused, resolve_origin_check_mode
 from specify_cli.git.origin_gate import run_origin_gate, verdict_payloads
-from specify_cli.status import wp_state_for
-from specify_cli.status import Lane
 
 from .envelope import (
     make_envelope,
@@ -939,13 +937,13 @@ def accept_mission(
     snapshot = materialize(mission_dir)
     dep_graph = build_dependency_graph(_planning_read_dir(main_repo_root, mission))
 
-    # Check all WPs (from dep_graph) are approved/done; WPs with no events are implicitly planned.
+    # Every WP (from dep_graph) must be at an acceptable ending: approved, done, or canceled with
+    # operator provenance (#5818). The provenance-aware aggregate is the one authority host
+    # ``accept`` and ``consolidate`` use; a WP with no events fails closed as incomplete.
+    from specify_cli.status_lanes import mission_terminal_acceptability
+
     all_wp_ids = set(dep_graph.keys()) | set(snapshot.work_packages.keys())
-    incomplete = [
-        wp_id
-        for wp_id in sorted(all_wp_ids)
-        if wp_state_for(snapshot.work_packages.get(wp_id, {}).get("lane", Lane.PLANNED)).lane not in {Lane.APPROVED, Lane.DONE}
-    ]
+    _ready, incomplete = mission_terminal_acceptability(snapshot.work_packages, expected_wp_ids=all_wp_ids)
     if incomplete:
         _fail(
             cmd,

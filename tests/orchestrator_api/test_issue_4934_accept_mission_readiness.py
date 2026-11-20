@@ -135,7 +135,7 @@ def _seed_independent_review_history(repo_root: Path, feature_dir: Path) -> None
     _git(repo_root, "commit", "-m", "record WP01's claim and its independent approval")
 
 
-def _seed_lane_implementation(repo_root: Path, feature_dir: Path) -> None:
+def _seed_lane_implementation(repo_root: Path, feature_dir: Path, *, with_review_history: bool = True) -> None:
     """Create the work package's lane branch with its own committed change and declared ownership.
 
     #6715: ``accept-mission`` now reads implementation evidence from the lane's evidence window,
@@ -158,7 +158,8 @@ def _seed_lane_implementation(repo_root: Path, feature_dir: Path) -> None:
     _git(repo_root, "add", "-A")
     _git(repo_root, "commit", "-m", "feat(WP01): implement")
     _git(repo_root, "checkout", "-q", manifest.target_branch)
-    _seed_independent_review_history(repo_root, feature_dir)
+    if with_review_history:
+        _seed_independent_review_history(repo_root, feature_dir)
 
 
 def _seed_acceptable_mission(tmp_path: Path, mission_slug: str) -> tuple[Path, Path]:
@@ -185,7 +186,7 @@ def _seed_acceptable_mission(tmp_path: Path, mission_slug: str) -> tuple[Path, P
     return repo_root, feature_dir
 
 
-def _seed_mission_with_never_claimed_done_wp(tmp_path: Path, mission_slug: str) -> tuple[Path, Path]:
+def _seed_mission_with_never_claimed_done_wp(tmp_path: Path, mission_slug: str, *, claimed: bool = True) -> tuple[Path, Path]:
     """A real-git mission where WP01 reaches ``done`` via a claim event that
     carries NO ``policy_metadata={"agent": ...}``.
 
@@ -213,10 +214,18 @@ def _seed_mission_with_never_claimed_done_wp(tmp_path: Path, mission_slug: str) 
     meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
 
     seed_wp_to_planned(feature_dir, "WP01", slug=mission_slug)
-    # Deliberately NO ``policy_metadata`` on the claim hop.
-    emit_status_transition(TransitionRequest(feature_dir=feature_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="claimed", actor="ci-bot"))
-    emit_status_transition(TransitionRequest(feature_dir=feature_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="in_progress", actor="ci-bot"))
-    emit_status_transition(TransitionRequest(feature_dir=feature_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="for_review", actor="ci-bot"))
+    if claimed:
+        # Deliberately NO ``policy_metadata`` on the claim hop (as orchestrator-api recorded it before #5781).
+        emit_status_transition(TransitionRequest(feature_dir=feature_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="claimed", actor="ci-bot"))
+        emit_status_transition(TransitionRequest(feature_dir=feature_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="in_progress", actor="ci-bot"))
+        emit_status_transition(TransitionRequest(feature_dir=feature_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="for_review", actor="ci-bot"))
+    else:
+        # Genuinely never claimed: forced past the implementing lanes, no claim on the log.
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="for_review", actor="ci-bot", force=True, reason="forced, never claimed"
+            )
+        )
     emit_status_transition(TransitionRequest(feature_dir=feature_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="in_review", actor="ci-bot"))
     emit_status_transition(
         TransitionRequest(
@@ -245,7 +254,8 @@ def _seed_mission_with_never_claimed_done_wp(tmp_path: Path, mission_slug: str) 
 
     _git(repo_root, "add", "-A")
     _git(repo_root, "commit", "-m", "seed WP01 done with no claim metadata")
-    _seed_lane_implementation(repo_root, feature_dir)
+    # The injected review history is an implementer's claim chain: a never-claimed WP gets none.
+    _seed_lane_implementation(repo_root, feature_dir, with_review_history=claimed)
     return repo_root, feature_dir
 
 
@@ -535,18 +545,21 @@ class TestIssue4934AcceptMissionReadiness:
 
     def test_never_claimed_wp_at_done_refuses_mission_not_ready_metadata(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """The explicit ``strict_metadata=True`` pin at the
-        ``collect_feature_summary`` call site (``orchestrator_api/commands.py``)
-        actually matters. A WP that reaches ``done`` via a claim event with NO
-        ``policy_metadata={"agent": ...}`` has no durable implementer of
-        record, i.e. it was genuinely never claimed in the sense the strict
-        gate cares about -- ``accept-mission`` must refuse with
-        ``MISSION_NOT_READY`` and a non-empty ``outstanding["metadata"]``,
-        and record nothing. Mutating ``strict_metadata=True`` to ``False``
-        at that call site makes this same mission wrongly accept (verified
-        manually as red/green mutation evidence).
+        ``collect_feature_summary`` call site (``orchestrator_api/consolidation.py``)
+        actually matters. A WP forced to ``done`` with NO implementing claim on
+        its log has no implementer of record (``status.review_roles``), i.e. it
+        was genuinely never claimed -- ``accept-mission`` must refuse with
+        ``MISSION_NOT_READY`` and a non-empty ``outstanding["metadata"]``, and
+        record nothing. No command is printed: none can record an implementer
+        from ``done`` (#5781; the old ``--to done`` repair was illegal).
+
+        Re-ruled (operator ruling 2026-11-20, #5781): this test used to drive a
+        claim that carried no ``agent`` sidecar, which the old gate read as
+        "never claimed". That is exactly the orchestrator-api claim shape, so it
+        is now a claimed WP (see the test below).
         """
         mission_slug = "issue-4934-never-claimed-metadata"
-        repo_root, feature_dir = _seed_mission_with_never_claimed_done_wp(tmp_path, mission_slug)
+        repo_root, feature_dir = _seed_mission_with_never_claimed_done_wp(tmp_path, mission_slug, claimed=False)
         head_before = _head(repo_root)
 
         result = _invoke_accept_mission(repo_root, mission_slug, monkeypatch)
@@ -559,10 +572,28 @@ class TestIssue4934AcceptMissionReadiness:
         outstanding = payload["data"]["outstanding"]
         assert isinstance(outstanding, dict)
         assert outstanding.get("metadata"), outstanding
-        assert any("WP01" in item and "missing agent" in item for item in outstanding["metadata"])
+        missing = [item for item in outstanding["metadata"] if "WP01" in item and "missing agent" in item]
+        assert missing
+        assert not any("`spec-kitty" in item or "--to done" in item for item in missing)
 
         meta = _meta(feature_dir)
         assert "accepted_at" not in meta
         assert "acceptance_mode" not in meta
         assert "acceptance_history" not in meta
         assert _head(repo_root) == head_before
+
+    def test_a_claim_without_an_agent_sidecar_is_not_a_metadata_refusal(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """#5781: a claim the orchestrator-api recorded with no ``agent`` sidecar names its implementer.
+
+        The gate reads the implementer of record from the claim's actor, so the readiness
+        verdict carries no "missing agent" entry for it. (This fixture's approval is by the
+        implementer itself, so the Mission is still refused, on review independence.)
+        """
+        mission_slug = "issue-4934-sidecar-less-claim"
+        repo_root, _feature_dir = _seed_mission_with_never_claimed_done_wp(tmp_path, mission_slug)
+
+        result = _invoke_accept_mission(repo_root, mission_slug, monkeypatch)
+
+        payload = json.loads(result.output)
+        outstanding = (payload.get("data") or {}).get("outstanding") or {}
+        assert not any("missing agent" in item for item in outstanding.get("metadata", [])), outstanding

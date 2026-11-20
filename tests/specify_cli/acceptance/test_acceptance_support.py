@@ -871,19 +871,20 @@ def test_assignee_still_required_for_active_lanes(feature_repo: Path, mission_sl
 
 # T041: Test required fields still enforced for active lanes
 def test_required_fields_still_enforced(feature_repo: Path, mission_slug: str) -> None:
-    """Agent and shell_pid should still be required for active lanes.
+    """An implementer of record and shell_pid are still required for active lanes.
 
     Note: lane is now tracked via the event log (not frontmatter), so removing
-    lane: from frontmatter no longer produces a metadata_issue.
+    lane: from frontmatter no longer produces a metadata_issue. The implementer
+    is read from the WP's implementing claim in the event log (#5781), so
+    blanking the runtime ``agent`` slot does not unclaim a claimed WP.
     """
     from tests.utils import run
 
-    # Test missing agent in canonical state.
     _force_lane(feature_repo, mission_slug, "WP01", "in_progress")
     _remove_runtime_annotation_field(feature_repo, mission_slug, "agent")
     run(["git", "commit", "-am", "Move to doing without runtime agent"], cwd=feature_repo)
     summary = acc.collect_feature_summary(feature_repo, mission_slug, strict_metadata=True)
-    assert any("missing agent" in issue for issue in summary.metadata_issues), "Agent should still be required"
+    assert not any("missing agent" in issue for issue in summary.metadata_issues), "the claim, not the slot, names the implementer"
 
     # Test missing shell_pid after restoring agent through a later annotation.
     from specify_cli.status import WPInnerStateDelta, emit_inner_state_changed

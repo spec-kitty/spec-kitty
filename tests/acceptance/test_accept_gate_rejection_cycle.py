@@ -64,14 +64,22 @@ def _drive_rejection_cycle(ctx: FlatTopologyContext) -> None:
     The fixture's own seed event is discarded first so this function owns the
     WP's entire lifecycle from ``planned``.
     """
+    _reset_to_planned(ctx)
     feature_dir = ctx.primary_feature_dir
     slug = ctx.slug
+    _drive_from_planned(ctx, feature_dir, slug)
 
-    # The fixture seeds a single planned -> claimed event with an unrelated
-    # marker; start this WP's history fresh from genesis -> planned instead so
-    # the sequence below fully controls it.
+
+def _reset_to_planned(ctx: FlatTopologyContext) -> None:
+    """Discard the fixture's seed and start WP01's history at ``genesis -> planned``.
+
+    The fixture seeds a single ``planned -> claimed`` event with an unrelated
+    marker; a claim is an implementing claim (``status.review_roles``), so a test
+    that needs a never-claimed WP, or owns the whole lifecycle, starts afresh here.
+    """
     import json
 
+    slug = ctx.slug
     seed = {
         "event_id": "01M04SEEDPLANNEDGENESIS001",
         "mission_slug": slug,
@@ -89,6 +97,8 @@ def _drive_rejection_cycle(ctx: FlatTopologyContext) -> None:
     }
     ctx.status_events_path.write_text(json.dumps(seed) + "\n", encoding="utf-8")
 
+
+def _drive_from_planned(ctx: FlatTopologyContext, feature_dir: Path, slug: str) -> None:
     # 1. planned -> claimed: the ORIGINAL implementer claim — carries --agent.
     emit_status_transition(
         TransitionRequest(
@@ -242,11 +252,12 @@ class TestAcceptGateRejectionCycle:
     def test_never_owned_wp_still_refuses_honestly_with_a_named_repair(self, flat_topology_mission: FlatTopologyContext) -> None:
         """A WP that was never claimed at all must still refuse — no fabrication.
 
-        The read-root projection derives NOTHING for a WP with no claim event,
-        so the accept gate's "missing agent" refusal still fires — and, per
-        FR-006/SC-003, now names its repair instead of leaving the operator to
-        guess.
+        A WP with no implementing claim on the log has no implementer of record
+        (``status.review_roles``), so the accept gate's "missing agent" refusal
+        still fires. From ``planned`` it names the claim the state machine allows
+        (#5781), never the illegal ``--to <current lane>``.
         """
+        _reset_to_planned(flat_topology_mission)
         summary = collect_feature_summary(
             flat_topology_mission.repo,
             flat_topology_mission.slug,
@@ -256,7 +267,7 @@ class TestAcceptGateRejectionCycle:
 
         missing = _missing_agent_issues(summary.metadata_issues)
         assert missing, "a never-claimed WP must still be refused, not silently passed"
-        assert any(_REPAIR_HINT in issue for issue in missing)
+        assert any(_REPAIR_HINT in issue and "--to claimed" in issue for issue in missing)
 
 
 class TestMergeMissionOptionGuard:

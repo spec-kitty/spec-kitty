@@ -27,6 +27,10 @@ from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.models import Lane, TransitionRequest
 from specify_cli.status.store import read_event_stream, read_events
 from tests.agent.test_orchestrator_commands_integration import _make_mission, _valid_policy_json
+from tests.integration.coord_topology_fixture import FlatTopologyContext, flat_topology_mission
+
+# Re-exported so pytest discovers the flat-topology fixture in this directory.
+__all__ = ["flat_topology_mission"]
 
 pytestmark = pytest.mark.git_repo
 
@@ -181,10 +185,6 @@ def test_a_policy_agent_key_cannot_name_the_claimant(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # Host re-claim after an API rollback, on a real git Mission (WP prompt, review B2)
 # ---------------------------------------------------------------------------
-
-from tests.integration.coord_topology_fixture import FlatTopologyContext, flat_topology_mission  # noqa: E402
-
-__all__ = ["flat_topology_mission"]
 
 
 def _host_implement(ctx: FlatTopologyContext, agent: str) -> subprocess.CompletedProcess[str]:
