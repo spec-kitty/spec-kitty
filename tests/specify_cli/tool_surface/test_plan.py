@@ -61,12 +61,15 @@ def test_bundle_plans_match_real_assembly_without_writes(tmp_path: Path, canonic
 def test_bundle_plans_retain_healthy_configured_surface(tmp_path: Path, canonical_home: None) -> None:
     from importlib.metadata import version
 
-    from specify_cli.session_presence.content import SessionPresenceContent
+    from specify_cli.session_presence.projection import expected_orientation
     from specify_cli.tool_surface.service import build_plans_for_bundles, build_providers
     from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
 
     target = tmp_path / "GEMINI.md"
-    target.write_text(SessionPresenceContent(version("spec-kitty-cli"), "project", "healthy", None).render(), encoding="utf-8")
+    # The healthy surface is exactly the committed rendering (#5215: content, not only version).
+    content = expected_orientation(tmp_path)
+    assert content.version == version("spec-kitty-cli")
+    target.write_text(content.render(), encoding="utf-8")
     roots = {"project": tmp_path, "user-home": Path.home()}
     before = snapshot(roots)
     plans = build_plans_for_bundles(tmp_path, tool_keys=("gemini",))

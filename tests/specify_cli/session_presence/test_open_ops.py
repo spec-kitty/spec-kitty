@@ -227,7 +227,7 @@ class TestSessionStartOpenOps:
         monkeypatch.chdir(tmp_path)
         with (
             mock_patch(
-                "specify_cli.session_presence.manager.SessionPresenceManager._build_content",
+                "specify_cli.session_presence.manager.SessionPresenceManager.live_content",
                 return_value=SessionPresenceContent("3.2.0", "proj", "healthy", None),
             ),
             mock_patch(

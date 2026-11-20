@@ -16,8 +16,9 @@ provider expands a tool's session-presence writer into one
   (``.claude/settings.json`` ``SessionStart`` / ``Stop`` entries).
 
 The provider never reimplements writer logic: ``expand`` asks the writer which
-paths it manages, ``probe`` checks them, and ``repair`` delegates back to the
-writer via :class:`SessionPresenceManager`. Harnesses with a ``NullWriter`` (no
+paths it manages, ``probe`` checks them against the committed content of
+:mod:`specify_cli.session_presence.projection` (#5215), and ``repair`` has the
+selected writers prepare and apply that content. Harnesses with a ``NullWriter`` (no
 known orientation mechanism) yield a single ``research-gap-surface`` finding --
 never a hard failure and never a silent OK.
 """
@@ -35,9 +36,13 @@ from specify_cli.core.agent_config import load_agent_config, AgentConfigError
 from specify_cli.core.no_follow import fd_relative_dir_ops_supported
 
 from specify_cli.session_presence.content import (
-    SECTION_CLOSE,
     SECTION_OPEN,
     SessionPresenceContent,
+)
+from specify_cli.session_presence.projection import (
+    expected_orientation,
+    orientation_drift,
+    orientation_writer,
 )
 from specify_cli.session_presence.hooks.claude_code_hook import (
     SESSION_START_EVENT,
@@ -229,15 +234,16 @@ class SessionPresenceProvider:
         if not selected:
             dispositions.append(Disposition(PROVIDER_KEY, inputs.root.root_id, None, "not_applicable", "No automatically repairable presence selection"))
         for tool in selected:
-            writer = get_writer(tool)
+            candidate = get_writer(tool)
             kinds = {s.definition.kind for s in eligible_selections if s.tool_key == tool}
-            managed = _managed_surfaces(writer, root)
-            applicable = isinstance(writer, MarkdownRulesWriter) and (configured is None or tool in configured) and any(kind in kinds for _, kind in managed)
-            if applicable and isinstance(writer, MarkdownRulesWriter):
-                check = writer.check_dir or str(Path(writer.rules_path).parent)
+            managed = _managed_surfaces(candidate, root)
+            writer = None
+            if isinstance(candidate, MarkdownRulesWriter) and (configured is None or tool in configured) and any(kind in kinds for _, kind in managed):
+                # Observe the harness directory before the applicability check reads it.
+                check = candidate.check_dir or str(Path(candidate.rules_path).parent)
                 observations.extend(observe_presence_path(root, check))
-                applicable = writer.can_write(root)
-            if not applicable or not isinstance(writer, MarkdownRulesWriter):
+                writer = orientation_writer(root, tool, configured)
+            if writer is None:
                 dispositions.append(Disposition(PROVIDER_KEY, inputs.root.root_id, None, "not_applicable", f"No enabled selected writable presence for {tool}"))
                 continue
             if content is None:
@@ -405,7 +411,7 @@ class SessionPresenceProvider:
         except SettingsNotDecodableError:
             return self._undecodable_status(instance)
         if present:
-            if _orientation_version_is_stale(instance):
+            if _orientation_is_stale(instance):
                 return self._stale_status(instance)
             return SurfaceStatus(instance=instance, state=STATE_PRESENT)
         return self._missing_status(instance)
@@ -443,7 +449,7 @@ class SessionPresenceProvider:
                 make_finding(
                     STALE_GENERATED_SURFACE,
                     SEVERITY_WARNING,
-                    f"Orientation version stale for {instance.owner}: {instance.path}",
+                    f"Orientation content stale for {instance.owner}: {instance.path}",
                     tool_key=instance.owner,
                     surface_id=_surface_id(instance),
                     path=instance.path,
@@ -680,70 +686,27 @@ def _orientation_section_present(target: Path) -> bool:
         return False
 
 
-#: The prefix ``SessionPresenceContent.render`` stamps immediately before the
-#: version (``**Spec Kitty v{version}** — ...``). The version runs up to the
-#: closing ``**``.
-_VERSION_PREFIX = "**Spec Kitty v"
-_VERSION_SUFFIX = "**"
-
-
-def _on_disk_orientation_version(target: Path) -> str | None:
-    """Return the version stamped in ``target``'s orientation block, or ``None``.
-
-    The parse is scoped to the marker-delimited managed block (the same
-    delimiters the writer uses to locate it), so a stray ``**Spec Kitty v...**``
-    elsewhere in the file — a pasted example or a second stamp — cannot be
-    mistaken for the managed version.
-
-    ``None`` means the file is absent, unreadable, has no managed block, or the
-    block carries no parseable ``**Spec Kitty v...**`` stamp — in which case the
-    block is left alone rather than churned (a hand-edited block is drift,
-    handled by a different rule).
-    """
-    try:
-        text = target.read_text(encoding="utf-8")
-    except OSError:
-        return None
-    open_at = text.find(SECTION_OPEN)
-    if open_at == -1:
-        return None
-    close_at = text.find(SECTION_CLOSE, open_at)
-    section = text[open_at : close_at if close_at != -1 else len(text)]
-    start = section.find(_VERSION_PREFIX)
-    if start == -1:
-        return None
-    start += len(_VERSION_PREFIX)
-    end = section.find(_VERSION_SUFFIX, start)
-    if end == -1:
-        return None
-    stamped = section[start:end].strip()
-    return stamped or None
-
-
-# Orientation-bearing surfaces carry the version stamp: always-on context files
+# Orientation-bearing surfaces carry the managed block: always-on context files
 # and path/glob-activated rule/steering files (both written by the Markdown
-# family). Hooks do not, so they are excluded from the staleness check.
+# family). Hooks do not, so they are excluded from the drift check.
 _ORIENTATION_STAMPED_KINDS = frozenset({ToolSurfaceKind.CONTEXT_FILE, ToolSurfaceKind.RULE})
 
 
-def _orientation_version_is_stale(instance: SurfaceInstance) -> bool:
-    """Return whether a present orientation surface's version stamp is outdated (#2265).
+def _orientation_is_stale(instance: SurfaceInstance) -> bool:
+    """Return whether a present orientation surface differs from the expected content (#5215).
 
-    Covers every Markdown-family orientation surface (context files AND
-    rule/steering files) uniformly. Staleness is a pure version-string mismatch
-    against the installed CLI, so a legitimate health-line change (e.g.
-    ``upgrade-available`` -> ``healthy``) at the same version does not churn the
-    block on every upgrade.
+    Delegates to the one content authority
+    (:func:`specify_cli.session_presence.projection.orientation_drift`): another
+    version stamp, or a tool-written block whose project name or health differs
+    from the committed rendering, is stale. Before #5215 only the version was
+    compared (#2265), so a block naming the checkout directory stayed "present".
     """
     if instance.definition.kind not in _ORIENTATION_STAMPED_KINDS:
         return False
     project_root, writer = _resolve_writer_for_instance(instance)
     if project_root is None or writer is None:
         return False
-    on_disk = _on_disk_orientation_version(project_root / writer.rules_path)
-    if on_disk is None:
-        return False
-    return bool(on_disk != _orientation_content(project_root).version)
+    return orientation_drift(project_root, writer.rules_path)
 
 
 def _claude_hooks_present(project_root: Path) -> bool:
@@ -772,10 +735,8 @@ def _resolve_writer_for_instance(
 
 
 def _orientation_content(project_root: Path) -> SessionPresenceContent:
-    """Use the session owner's explicit local-only content path."""
-    from specify_cli.session_presence.manager import local_presence_content
-
-    return local_presence_content(project_root.name)
+    """Return the committed orientation content from the one content authority (#5215)."""
+    return expected_orientation(project_root)
 
 
 # ---------------------------------------------------------------------------

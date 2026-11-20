@@ -1,0 +1,125 @@
+{
+  "rows": {
+    "#2265": {
+      "evidence_ref": "Kept fixed: stale (older-version) blocks still probe stale and are rewritten; tests/specify_cli/tool_surface/providers/test_session_presence.py stale-refresh tests green. The no-churn intent is now met by deterministic committed content.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "spec-kitty upgrade does not refresh the generated .claude/CLAUDE.md orientation surface",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#2344": {
+      "evidence_ref": "Context only: sequenced after #5215 (operator brief); NullWriter harnesses stay not applicable via orientation_writer",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "session presence: resolve Pattern-E harnesses (qwen, kilocode, auggie, q) beyond NullWriter stubs",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4706": {
+      "evidence_ref": "Kept fixed: committed block reads project.slug (resolve_project_slug); TestBuildContent::test_project_slug_comes_from_identity_config + test_orientation_projection_5215.py green",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Bug: orientation block always renders project: unknown (regression in 3.2.7)",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#4707": {
+      "evidence_ref": "Kept fixed in the live SessionStart hook: SessionPresenceManager.live_content keeps live health (test_manager TestBuildContent health tests re-pinned to live_content, green); committed blocks carry deterministic health by operator ruling 2026-11-20",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Bug: orientation-block health can never report upgrade-available",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#4782": {
+      "evidence_ref": "Kept fixed: provider repair path unchanged for stale blocks; tests/specify_cli/tool_surface/test_plan.py and provider tests green",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Bug: GEMINI.md orientation block never refreshes; tool-surfaces --fix reports success without repairing it",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#4893": {
+      "evidence_ref": "Context only: .kittify/config.yaml stays a session fingerprint input (provider _prepare observes it before reading the slug); no work owed by this Mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "upgrade from a 3.2.0-era project reports Upgrade failed after all migrations applied (provisioning trips tool-surface recheck)",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4927": {
+      "evidence_ref": "Related, fixed separately by Mission host-aware-mode-predicate-01M7X6B1; not folded here (spec C-003)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Bug: Windows upgrade --dry-run still reports 184 phantom repairs after convergence",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5215": {
+      "evidence_ref": "WP01 85b5b531+6a11491e (session_presence/projection.py authority, identity slug, deterministic health); WP02 repairs S1/S3/S4 via provider + writer",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Orientation-refresh split-brain (DIRECTIVE_044): consolidate to one authority so upgrade and doctor --fix agree",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    },
+    "#5757": {
+      "evidence_ref": "Kept fixed: render unchanged (ASCII); test_content.py green",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Orientation block written into AGENTS.md/CLAUDE.md contains non-ASCII characters",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#6472": {
+      "evidence_ref": "Context only: sequenced after #5215 (operator brief); no work owed by this Mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Plugin mode: per-harness surface ownership so the CLI stops writing/duplicating surfaces a plugin provides",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

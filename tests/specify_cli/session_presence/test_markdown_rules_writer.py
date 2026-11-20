@@ -36,14 +36,34 @@ def test_wp07_mixed_markdown_preserves_exact_prefix_suffix(tmp_path: Path) -> No
     assert target.read_bytes() == prefix + new.render().strip().replace("\n", "\r\n").encode() + suffix
 
 
-def test_wp07_same_version_health_difference_has_no_churn(tmp_path: Path) -> None:
+def test_wp07_same_content_has_no_churn(tmp_path: Path) -> None:
+    """Rewriting the same committed content is a byte-level no-op (#2265, #5215)."""
     from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
 
     writer = MarkdownRulesWriter("codex", "AGENTS.md", True)
-    writer.write(tmp_path, SessionPresenceContent("3.2.0", "example", "upgrade-available", "4.0.0"))
+    writer.write(tmp_path, SessionPresenceContent("3.2.0", "example", "healthy", None))
     before = snapshot({"project": tmp_path})
     writer.write(tmp_path, SessionPresenceContent("3.2.0", "example", "healthy", None))
     assert_unchanged(before, snapshot({"project": tmp_path}))
+
+
+def test_same_version_block_with_other_health_or_slug_converges_once(tmp_path: Path) -> None:
+    """#5215: a tool-written block that differs from the rendering is rewritten, then stable.
+
+    Before #5215 a version-only shortcut kept a block naming the wrong project
+    (or carrying live health) forever. Committed content is now deterministic,
+    so the rewrite happens once.
+    """
+    writer = MarkdownRulesWriter("codex", "AGENTS.md", True)
+    target = tmp_path / "AGENTS.md"
+    writer.write(tmp_path, SessionPresenceContent("3.2.0", "dirname", "upgrade-available", "4.0.0"))
+    committed = SessionPresenceContent("3.2.0", "example", "healthy", None)
+
+    assert writer.prepare(tmp_path, committed).changed
+    writer.write(tmp_path, committed)
+
+    assert target.read_text(encoding="utf-8") == committed.render()
+    assert not writer.prepare(tmp_path, committed).changed
 
 
 def test_wp07_oracle_rejects_unowned_overwrite_and_same_byte_churn(tmp_path: Path) -> None:

@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from specify_cli.session_presence.manager import InstallResult, SessionPresenceManager
+from specify_cli.session_presence.writers.markdown_rules import MarkdownRulesWriter
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -52,13 +53,13 @@ def _make_manager(
 class TestInstall:
     def test_calls_write_when_can_write_and_no_presence(self, tmp_path: Path) -> None:
         manager = _make_manager(tmp_path)
-        mock_writer = MagicMock()
+        mock_writer = MagicMock(spec=MarkdownRulesWriter)
         mock_writer.can_write.return_value = True
         mock_writer.has_presence.return_value = False
 
         with (
             patch(
-                "specify_cli.session_presence.manager.get_writer",
+                "specify_cli.session_presence.projection.get_writer",
                 return_value=mock_writer,
             ),
             patch("specify_cli.session_presence.manager.UpgradeChecker") as mock_checker_cls,
@@ -79,13 +80,13 @@ class TestInstall:
 
     def test_skips_when_has_presence_true(self, tmp_path: Path) -> None:
         manager = _make_manager(tmp_path)
-        mock_writer = MagicMock()
+        mock_writer = MagicMock(spec=MarkdownRulesWriter)
         mock_writer.can_write.return_value = True
         mock_writer.has_presence.return_value = True
 
         with (
             patch(
-                "specify_cli.session_presence.manager.get_writer",
+                "specify_cli.session_presence.projection.get_writer",
                 return_value=mock_writer,
             ),
             patch("specify_cli.session_presence.manager.UpgradeChecker") as mock_checker_cls,
@@ -105,14 +106,14 @@ class TestInstall:
         assert len(result.changes) == 0
 
     def test_null_writer_skipped_silently(self, tmp_path: Path) -> None:
-        """NullWriter (can_write=False) is skipped silently with no warnings."""
+        """A writer that cannot write here (no harness dir) is skipped silently with no warnings."""
         manager = _make_manager(tmp_path)
-        mock_writer = MagicMock()
+        mock_writer = MagicMock(spec=MarkdownRulesWriter)
         mock_writer.can_write.return_value = False
 
         with (
             patch(
-                "specify_cli.session_presence.manager.get_writer",
+                "specify_cli.session_presence.projection.get_writer",
                 return_value=mock_writer,
             ),
             patch("specify_cli.session_presence.manager.UpgradeChecker") as mock_checker_cls,
@@ -133,13 +134,13 @@ class TestInstall:
 
     def test_returns_install_result_with_changes(self, tmp_path: Path) -> None:
         manager = _make_manager(tmp_path, available=["claude"])
-        mock_writer = MagicMock()
+        mock_writer = MagicMock(spec=MarkdownRulesWriter)
         mock_writer.can_write.return_value = True
         mock_writer.has_presence.return_value = False
 
         with (
             patch(
-                "specify_cli.session_presence.manager.get_writer",
+                "specify_cli.session_presence.projection.get_writer",
                 return_value=mock_writer,
             ),
             patch("specify_cli.session_presence.manager.UpgradeChecker") as mock_checker_cls,
@@ -160,14 +161,14 @@ class TestInstall:
 
     def test_catches_writer_exceptions_adds_warnings(self, tmp_path: Path) -> None:
         manager = _make_manager(tmp_path)
-        mock_writer = MagicMock()
+        mock_writer = MagicMock(spec=MarkdownRulesWriter)
         mock_writer.can_write.return_value = True
         mock_writer.has_presence.return_value = False
         mock_writer.write.side_effect = RuntimeError("disk error")
 
         with (
             patch(
-                "specify_cli.session_presence.manager.get_writer",
+                "specify_cli.session_presence.projection.get_writer",
                 return_value=mock_writer,
             ),
             patch("specify_cli.session_presence.manager.UpgradeChecker") as mock_checker_cls,
@@ -190,12 +191,12 @@ class TestInstall:
 class TestUpdate:
     def test_update_calls_write_regardless_of_presence(self, tmp_path: Path) -> None:
         manager = _make_manager(tmp_path)
-        mock_writer = MagicMock()
+        mock_writer = MagicMock(spec=MarkdownRulesWriter)
         mock_writer.can_write.return_value = True
 
         with (
             patch(
-                "specify_cli.session_presence.manager.get_writer",
+                "specify_cli.session_presence.projection.get_writer",
                 return_value=mock_writer,
             ),
             patch("specify_cli.session_presence.manager.UpgradeChecker") as mock_checker_cls,
@@ -215,12 +216,12 @@ class TestUpdate:
 
     def test_dry_run_does_not_write(self, tmp_path: Path) -> None:
         manager = _make_manager(tmp_path)
-        mock_writer = MagicMock()
+        mock_writer = MagicMock(spec=MarkdownRulesWriter)
         mock_writer.can_write.return_value = True
 
         with (
             patch(
-                "specify_cli.session_presence.manager.get_writer",
+                "specify_cli.session_presence.projection.get_writer",
                 return_value=mock_writer,
             ),
             patch("specify_cli.session_presence.manager.UpgradeChecker") as mock_checker_cls,
@@ -241,24 +242,17 @@ class TestUpdate:
 
 
 class TestBuildContent:
+    """``_build_content`` is the committed content; live health is ``live_content`` (#5215)."""
+
     def test_project_slug_comes_from_identity_config(self, tmp_path: Path) -> None:
-        from specify_cli.compat import Decision
         from specify_cli.core.agent_config import AgentConfig
 
         kittify = tmp_path / ".kittify"
         kittify.mkdir()
         (kittify / "config.yaml").write_text("project:\n  slug: configured-project\n", encoding="utf-8")
         manager = SessionPresenceManager(tmp_path, AgentConfig(available=[]))
-        mock_plan_result = MagicMock()
-        mock_plan_result.decision = Decision.ALLOW
 
-        with (
-            patch("specify_cli.session_presence.manager.UpgradeChecker") as checker_cls,
-            patch("importlib.metadata.version", return_value="3.2.0"),
-            patch("specify_cli.compat.plan", return_value=mock_plan_result),
-        ):
-            checker_cls.return_value.get_available_version.return_value = None
-            content = manager._build_content()
+        content = manager._build_content()
 
         assert content.project_slug == "configured-project"
 
@@ -271,10 +265,11 @@ class TestBuildContent:
         (kittify / "config.yaml").write_text("project:\n  slug: configured-project\n", encoding="utf-8")
         manager = SessionPresenceManager(tmp_path, AgentConfig(available=[]))
 
-        with patch("specify_cli.session_presence.manager.local_presence_content") as local_content:
+        with patch.object(SessionPresenceManager, "_build_content", wraps=manager._build_content) as build:
             manager.update(dry_run=True)
 
-        local_content.assert_called_once_with("configured-project")
+        build.assert_called_once_with()
+        assert manager._build_content().project_slug == "configured-project"
 
     def test_health_uses_fresh_prerelease_cache(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         import json
@@ -290,6 +285,8 @@ class TestBuildContent:
         )
         monkeypatch.setattr(upgrade_check_module, "CACHE_PATH", cache_path)
         monkeypatch.setenv("SPEC_KITTY_PRERELEASE", "1")
+        # Agent harnesses export the opt-out; this test reads the cache, so unset it.
+        monkeypatch.delenv(upgrade_check_module.OPT_OUT_ENV_VAR, raising=False)
         manager = _make_manager(tmp_path)
         mock_plan_result = MagicMock()
         mock_plan_result.decision = Decision.ALLOW
@@ -298,7 +295,7 @@ class TestBuildContent:
             patch("importlib.metadata.version", return_value="3.2.7"),
             patch("specify_cli.compat.plan", return_value=mock_plan_result),
         ):
-            content = manager._build_content()
+            content = manager.live_content()
 
         assert content.health == "upgrade-available"
         assert content.available_version == "4.0.0rc3"
@@ -322,7 +319,7 @@ class TestBuildContent:
             ),
         ):
             mock_checker_cls.return_value.get_available_version.return_value = None
-            content = manager._build_content()
+            content = manager.live_content()
 
         assert content.health == "migration-required"
 
@@ -341,7 +338,7 @@ class TestBuildContent:
             ),
         ):
             mock_checker_cls.return_value.get_available_version.return_value = "3.3.0"
-            content = manager._build_content()
+            content = manager.live_content()
 
         assert content.health == "upgrade-available"
         assert content.available_version == "3.3.0"
@@ -365,7 +362,7 @@ class TestBuildContent:
             ),
         ):
             mock_checker_cls.return_value.get_available_version.return_value = None
-            content = manager._build_content()
+            content = manager.live_content()
 
         assert content.health == "healthy"
 
@@ -390,7 +387,7 @@ class TestBuildContent:
             ),
         ):
             mock_checker_cls.return_value.get_available_version.return_value = "3.2.2"
-            content = manager._build_content()
+            content = manager.live_content()
 
         assert content.health == "healthy"
 
@@ -410,7 +407,7 @@ class TestBuildContent:
             ),
         ):
             mock_checker_cls.return_value.get_available_version.return_value = "3.2.2"
-            content = manager._build_content()
+            content = manager.live_content()
 
         assert content.health == "healthy"
 

@@ -32,7 +32,7 @@ from specify_cli.tool_surface.operations import FileState, InputObservation
 from ..content import SECTION_CLOSE, SECTION_OPEN, SessionPresenceContent
 from ..invocation import LEGACY_SPECIFY_INVOCATION
 
-__all__ = ["MarkdownRulesWriter"]
+__all__ = ["MarkdownRulesWriter", "block_version", "is_tool_written_block", "managed_block"]
 
 
 @dataclass(frozen=True)
@@ -177,7 +177,12 @@ class MarkdownRulesWriter:
             block = existing[start:end]
             if not _canonical_section(block, content):
                 return replace(prepared, disposition="preserve", reason="Edited managed orientation")
-            if f"**Spec Kitty v{content.version}**" in block and _invocation_line(content) in block.replace("\r\n", "\n"):
+            # #5215: a tool-written block is current only when it equals the
+            # rendering, newline style aside (the same comparison as
+            # ``projection.orientation_drift``, so doctor and upgrade agree on a
+            # file whose newlines are mixed). A version-only check left a wrong
+            # project name or health in place forever.
+            if block.replace("\r\n", "\n") == content.render().rstrip("\n"):
                 return prepared
             desired = existing[:start] + rendered.rstrip("\r\n") + existing[end:]
         elif existing and not self.append_mode:
@@ -349,8 +354,43 @@ def _section_bounds(text: str) -> tuple[int, int]:
     return start, end + len(SECTION_CLOSE)
 
 
-def _invocation_line(content: SessionPresenceContent) -> str:
-    return f"  -> run {content.specify_invocation}\n"
+def managed_block(text: str) -> str | None:
+    """Return the single managed orientation block in ``text`` (markers included), LF-normalised.
+
+    ``None`` when there is no block, or the markers are duplicated, unbalanced
+    or reversed (``prepare`` raises ``ValueError`` on those).
+    """
+    if SECTION_OPEN not in text and SECTION_CLOSE not in text:
+        return None
+    try:
+        start, end = _section_bounds(text)
+    except ValueError:
+        return None
+    return text[start:end].replace("\r\n", "\n")
+
+
+def block_version(block: str) -> str | None:
+    """Return the ``**Spec Kitty v<version>**`` stamp inside a managed block, or ``None``.
+
+    Read from the first stamp up to its closing ``**``, so a hand-edited block
+    keeps the version it was stamped with even when the rest of its header no
+    longer parses.
+    """
+    start = block.find(_HEADER_PREFIX)
+    if start == -1:
+        return None
+    start += len(_HEADER_PREFIX)
+    end = block.find("**", start)
+    stamped = block[start:end].strip() if end != -1 else ""
+    return stamped or None
+
+
+def is_tool_written_block(block: str, content: SessionPresenceContent) -> bool:
+    """Return whether ``block`` is a rendering this tool wrote (any version, slug or health).
+
+    A block that is not provably tool-written was edited by hand and is preserved.
+    """
+    return _canonical_section(block, content)
 
 
 def _canonical_section(block: str, content: SessionPresenceContent) -> bool:
@@ -436,7 +476,9 @@ def _canonical_for(block: str, content: SessionPresenceContent) -> bool:
         if warning is None:
             return False
         old = replace(old, health="upgrade-available", available_version=warning.group(1))
-    return normalized == old.render().rstrip("\n")
+    # ``render`` comes through a mypy-skipped import (#7334); keep the comparison typed.
+    rendered: str = old.render()
+    return normalized == rendered.rstrip("\n")
 
 
 def _remove_section(text: str) -> str:
