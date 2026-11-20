@@ -28,6 +28,7 @@
   "purpose_context": "Fixes #5781 with #5818 and #7644 folded in: the accept gate reads the implementer from the single review_roles authority, the API claim records the agent like the host claim, a never-claimed canceled WP needs no implementer, accept-mission uses the provenance-aware acceptable-ending aggregate, and an API move to planned releases the claim.",
   "purpose_tldr": "Missions driven through orchestrator-api, or with a WP canceled before any claim, can be accepted; the repair hint always names a command that works.",
   "slug": "api-claim-accept-readiness-01M7X6Q6",
+  "status_phase": "1",
   "target_branch": "issue-5781-api-claim-accept-readiness",
   "topology": "single_branch",
   "topology_decision": {
