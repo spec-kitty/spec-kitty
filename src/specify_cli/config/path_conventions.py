@@ -123,7 +123,14 @@ def _validated_value(label: str, value: object) -> str:
     return normalized_value
 
 
-def _is_artifact_routed(key: str, label: str) -> bool:
+#: ``warnings.warn`` stack depths that point a deliverables warning at the caller of
+#: :func:`load_project_path_conventions` (flat: warn <- _is_artifact_routed <- _split_section <-
+#: load <- caller; per-type: one frame deeper, through _validated_per_type).
+_FLAT_WARN_STACKLEVEL = 4
+_SECTION_WARN_STACKLEVEL = 5
+
+
+def _is_artifact_routed(key: str, label: str, *, stacklevel: int) -> bool:
     """Warn about (and report) an artifact-routed key, which is never overridable (C-010)."""
     if key not in ARTIFACT_ROUTED_KEYS:
         return False
@@ -131,7 +138,7 @@ def _is_artifact_routed(key: str, label: str) -> bool:
         f"{_SECTION}.{label} is ignored: {key!r} is artifact-routed and cannot be "
         "overridden (it would flip the artifact-resolution surface). See ADR "
         "project-path-convention-override-precedes-doctrine.",
-        stacklevel=4,
+        stacklevel=stacklevel,
     )
     return True
 
@@ -145,10 +152,20 @@ def _validated_section(type_id: str, section: object) -> dict[str, str]:
         label = f"{type_id}.{key}"
         if key not in VALID_PATH_KEYS:
             raise PathConventionsConfigError(f"Unknown path-convention key {label!r} in {_SECTION}. Known keys: {sorted(VALID_PATH_KEYS)}.")
-        if _is_artifact_routed(str(key), label):
+        if _is_artifact_routed(str(key), label, stacklevel=_SECTION_WARN_STACKLEVEL):
             continue
         validated[str(key)] = _validated_value(label, value)
     return validated
+
+
+def _is_section_candidate(key: object, value: object) -> bool:
+    """Decide by the value's shape whether an entry is a per-type section (review cycle 1).
+
+    A flat value is always a string, so every mapping value is a per-type section -- also under a
+    key that is a path key as well (``documentation`` is both a path key and a mission-type id). A
+    non-string under a key that is not a path key is a malformed section, never a flat typo.
+    """
+    return isinstance(value, dict) or (key not in VALID_PATH_KEYS and not isinstance(value, str))
 
 
 def _split_section(section: Mapping[Any, Any]) -> tuple[dict[str, str], dict[str, object]]:
@@ -156,12 +173,12 @@ def _split_section(section: Mapping[Any, Any]) -> tuple[dict[str, str], dict[str
     flat: dict[str, str] = {}
     candidates: dict[str, object] = {}
     for key, value in section.items():
-        if isinstance(value, dict) and key not in VALID_PATH_KEYS:
+        if _is_section_candidate(key, value):
             candidates[str(key)] = value
             continue
         if key not in VALID_PATH_KEYS:
             raise PathConventionsConfigError(f"Unknown path-convention key {key!r} in {_SECTION}. Known keys: {sorted(VALID_PATH_KEYS)}.")
-        if _is_artifact_routed(str(key), str(key)):
+        if _is_artifact_routed(str(key), str(key), stacklevel=_FLAT_WARN_STACKLEVEL):
             continue
         flat[str(key)] = _validated_value(str(key), value)
     return flat, candidates
@@ -175,6 +192,16 @@ def _known_mission_types(mission_type_ids: MissionTypeIds) -> frozenset[str]:
         raise PathConventionsConfigError(f"{_SECTION}: could not read the mission-type roster to validate per-type sections: {exc}") from exc
 
 
+def _unknown_section_message(type_id: str, known: frozenset[str]) -> str:
+    """Name the mistake for a section whose id is not in the roster."""
+    if type_id in VALID_PATH_KEYS:
+        return (
+            f"{_SECTION}.{type_id} is a mapping, so it is read as a per-type section, but {type_id!r} is not a "
+            f"mission type. A path-convention value must be a string directory. Known mission types: {sorted(known)}."
+        )
+    return f"Unknown mission type {type_id!r} in {_SECTION}. Known mission types: {sorted(known)}."
+
+
 def _validated_per_type(candidates: Mapping[str, object], mission_type_ids: MissionTypeIds) -> dict[str, dict[str, str]]:
     """Validate the per-type candidates' ids against the roster, then their contents."""
     if not candidates:
@@ -183,7 +210,7 @@ def _validated_per_type(candidates: Mapping[str, object], mission_type_ids: Miss
     per_type: dict[str, dict[str, str]] = {}
     for type_id, section in candidates.items():
         if type_id not in known:
-            raise PathConventionsConfigError(f"Unknown mission type {type_id!r} in {_SECTION}. Known mission types: {sorted(known)}.")
+            raise PathConventionsConfigError(_unknown_section_message(type_id, known))
         per_type[type_id] = _validated_section(type_id, section)
     return per_type
 

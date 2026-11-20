@@ -273,3 +273,57 @@ def test_default_roster_is_the_layered_roster(tmp_path: Path, monkeypatch: pytes
     _write_config(tmp_path, "project:\n  path_conventions:\n    software-dev:\n      workspace: packs/\n")
     assert load_project_path_conventions(tmp_path).for_mission_type("software-dev") == {"workspace": "packs/"}
     assert seen == [tmp_path]
+
+
+# Review cycle 1 (WP01): ``documentation`` is both a mission-type id and a path key. The value's
+# shape decides: a string is the flat key, a mapping is the per-type section. A YAML mapping holds a
+# key once, so one config cannot carry both a flat ``documentation`` and a ``documentation`` section.
+
+
+def test_documentation_section_alone_is_a_per_type_section(tmp_path: Path) -> None:
+    _write_config(tmp_path, "project:\n  path_conventions:\n    documentation:\n      workspace: handbook/\n")
+    result = _load(tmp_path)
+    assert result == {}
+    assert result.for_mission_type("documentation") == {"workspace": "handbook/"}
+    assert result.for_mission_type("software-dev") == {}
+
+
+def test_documentation_section_beside_flat_keys(tmp_path: Path) -> None:
+    _write_config(
+        tmp_path,
+        "project:\n  path_conventions:\n    workspace: apps/\n    documentation:\n      workspace: handbook/\n      documentation: manual/\n",
+    )
+    result = _load(tmp_path)
+    assert result == {"workspace": "apps/"}
+    assert result.for_mission_type("documentation") == {"workspace": "handbook/", "documentation": "manual/"}
+    assert result.for_mission_type("research") == {"workspace": "apps/"}
+
+
+def test_flat_documentation_string_stays_the_flat_key(tmp_path: Path) -> None:
+    _write_config(tmp_path, "project:\n  path_conventions:\n    documentation: manual/\n")
+    result = _load(tmp_path)
+    assert result == {"documentation": "manual/"}
+    assert result.per_type == {}
+
+
+def test_mapping_under_a_path_key_that_is_no_mission_type_raises(tmp_path: Path) -> None:
+    _write_config(tmp_path, "project:\n  path_conventions:\n    workspace:\n      a: b\n")
+    with pytest.raises(PathConventionsConfigError, match="'workspace'") as excinfo:
+        _load(tmp_path)
+    assert "per-type section" in str(excinfo.value)
+
+
+def test_list_valued_section_of_a_known_type_names_the_mapping_rule(tmp_path: Path) -> None:
+    _write_config(tmp_path, "project:\n  path_conventions:\n    software-dev:\n      - src/\n")
+    with pytest.raises(PathConventionsConfigError, match=r"software-dev must be a mapping"):
+        _load(tmp_path)
+
+
+def test_deliverables_warning_points_at_the_caller_for_sections_and_flat(tmp_path: Path) -> None:
+    _write_config(
+        tmp_path,
+        "project:\n  path_conventions:\n    deliverables: out/\n    software-dev:\n      deliverables: out/\n",
+    )
+    with pytest.warns(UserWarning, match="deliverables") as record:
+        _load(tmp_path)
+    assert [Path(w.filename).name for w in record] == [Path(__file__).name, Path(__file__).name]
