@@ -29,6 +29,9 @@
       "last_event_id": "01M7XBWBC2NZFA88RGH5S1MCST",
       "last_transition_at": "2026-11-20T20:55:29.922447+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: claim sidecar on every claim path, shared planned release, done-bookkeeping reviewer fold; blast radius 7631+3173+1019 passed"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 12481,
