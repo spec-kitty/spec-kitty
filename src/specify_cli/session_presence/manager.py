@@ -30,19 +30,6 @@ if TYPE_CHECKING:
 _logger = logging.getLogger(__name__)
 
 
-def local_presence_content(project_slug: str) -> SessionPresenceContent:
-    """Render installed-version orientation without consulting live health services."""
-    from importlib.metadata import version, PackageNotFoundError
-
-    try:
-        current = version("spec-kitty-cli")
-    except PackageNotFoundError as exc:
-        raise ValueError("Installed session content version is unavailable") from exc
-    if not current or not project_slug:
-        raise ValueError("Missing required local session content")
-    return SessionPresenceContent(current, project_slug, "healthy", None)
-
-
 class InstallResult(NamedTuple):
     """Result of a SessionPresenceManager install or update operation."""
 
