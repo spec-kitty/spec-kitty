@@ -78,10 +78,10 @@
       "criterion_id": "FR-008",
       "description": "Verify FR-008 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "lane-b c0126d62 tests/specify_cli/acceptance/test_path_conventions_per_type.py + tests/agent/test_validators_unit.py + test_accept_contracts_waiver.py (61 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:21:57.338445+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
