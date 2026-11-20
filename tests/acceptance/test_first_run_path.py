@@ -111,7 +111,8 @@ def project(tmp_path: Path) -> Path:
     _git(repo, "config", "user.name", "Test")
     init = _cli(repo, "init", ".", "--ai", "claude")
     assert init.returncode == 0, f"`spec-kitty init` failed:\n{init.stdout}\n{init.stderr}"
-    commit_init_leftovers(repo, "Initial commit")
+    leftovers_committed = commit_init_leftovers(repo, "Initial commit")
+    assert not leftovers_committed, "`spec-kitty init` left files uncommitted; since #7612 it makes the root commit itself"
     return repo
 
 
@@ -408,7 +409,8 @@ def test_installed_wheel_tutorial_reaches_plan(
     _git(repo, "config", "user.name", "Test")
     initialized = _cli(repo, "init", ".", "--ai", "claude")
     assert initialized.returncode == 0, _unwrapped(initialized)
-    commit_init_leftovers(repo, "Initial commit")
+    leftovers_committed = commit_init_leftovers(repo, "Initial commit")
+    assert not leftovers_committed, "`spec-kitty init` left files uncommitted; since #7612 it makes the root commit itself"
     test_plan_runs_on_the_mission_the_tutorial_creates(repo)
 
 

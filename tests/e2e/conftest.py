@@ -447,7 +447,8 @@ def fresh_e2e_project(tmp_path: Path) -> Path:
     # subsequent CLI commands see a clean working tree. ``init`` already
     # commits its own writes (#7555, and the root commit on an unborn branch
     # since #7612), so only leftovers are committed here (#7738).
-    commit_init_leftovers(project, "Initial spec-kitty init")
+    leftovers_committed = commit_init_leftovers(project, "Initial spec-kitty init")
+    assert not leftovers_committed, "`spec-kitty init` left files uncommitted; since #7612 it makes the root commit itself"
     _checkout_e2e_status_commit_branch(project)
 
     return project
