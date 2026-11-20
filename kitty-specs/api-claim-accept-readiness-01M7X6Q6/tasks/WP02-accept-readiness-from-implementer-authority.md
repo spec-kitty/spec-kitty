@@ -41,6 +41,9 @@ owned_files:
 - src/specify_cli/orchestrator_api/envelope.py
 - src/charter/offering/skills/spec-kitty-orchestrator-api-operator/references/orchestrator-api-contract.md
 - tests/utils.py
+- tests/specify_cli/orchestrator_api/test_contract_version.py
+- docs/api/orchestrator-api.md
+- tests/specify_cli/acceptance/test_acceptance_support.py
 - tests/agent/test_orchestrator_commands_integration.py
 - tests/specify_cli/test_acceptance_regressions.py
 - tests/orchestrator_api/test_issue_4934_accept_mission_readiness.py
