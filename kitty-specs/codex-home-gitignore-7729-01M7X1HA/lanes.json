@@ -11,23 +11,26 @@
         "WP01"
       ],
       "write_scope": [
+        ".gitignore",
         "docs/changelog/unreleased/7729-codex-home-gitignore.fixed.md",
         "src/specify_cli/agent_utils/codex_home.py",
         "src/specify_cli/agent_utils/ignore_entries.py",
         "src/specify_cli/upgrade/migrations/m_4_0_0rc9_exclude_project_local_codex_home.py",
+        "src/specify_cli/upgrade/migrations/m_4_0_0rc9_report_newly_visible_agent_files.py",
         "src/specify_cli/upgrade/migrations/order_manifest.txt",
+        "tests/architectural/test_no_dead_modules.py",
         "tests/specify_cli/agent_utils/test_codex_home.py",
         "tests/specify_cli/agent_utils/test_ignore_entries.py",
-        "tests/specify_cli/upgrade/migrations/test_m_4_0_0rc9_exclude_project_local_codex_home.py",
-        "tests/specify_cli/upgrade/migrations/test_p0_repro_7729_codex_home_exposed.py"
+        "tests/upgrade/migrations/test_m_4_0_0rc9_codex_home_and_agent_files.py",
+        "tests/upgrade/test_p0_repro_7729_codex_home_exposed.py"
       ],
       "predicted_surfaces": [],
       "depends_on_lanes": [],
       "parallel_group": 0
     }
   ],
-  "computed_at": "2026-11-20T18:00:46.808814+00:00",
+  "computed_at": "2026-11-20T20:37:48.047743+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [],
-  "planning_commit_sha": "8da791aee501ce9ce1e7eedfffe17703ee833864"
+  "planning_commit_sha": "51488a69d5ee35fd7bf80c138b56891534dfc2f6"
 }
