@@ -16,13 +16,13 @@
     },
     {
       "criterion_id": "FR-002",
-      "description": "Verify FR-002 is satisfied",
+      "description": "The global skill version stamp is not written as current while any canonical destination is kept.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/runtime/test_global_skills_historical_proof.py::test_unproven_canonical_file_is_kept_and_withholds_the_stamp (WP03)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:29:45.969492+00:00",
+      "notes": "Red-first test committed before the fix; WP approved by an independent reviewer (claude::generic-reviewer/reviewer-renata)."
     },
     {
       "criterion_id": "FR-003",
