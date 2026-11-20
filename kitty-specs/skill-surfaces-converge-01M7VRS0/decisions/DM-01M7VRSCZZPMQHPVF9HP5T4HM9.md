@@ -4,9 +4,9 @@
 - **Origin flow:** `specify`
 - **Slot key:** `specify.proof.digest-list-home`
 - **Input key:** `digest_list_home`
-- **Status:** `deferred`
+- **Status:** `resolved`
 - **Created:** `2026-11-20T06:02:35.903966+00:00`
-- **Resolved:** `2026-11-20T06:05:12.445178+00:00`
+- **Resolved:** `2026-11-20T06:31:04.129625+00:00`
 - **Opened by:** `cli`
 - **Other answer:** `false`
 
@@ -23,13 +23,13 @@ Where does the frozen historical-render digest list live, and how is it regenera
 
 ## Final answer
 
-_(none)_
+A: reviewed package-data JSON plus a committed git-history generator; append-only; a test fails on a missing current render so skill-edit PRs re-run the generator; RELEASE_CHECKLIST step (operator ruling via orchestrator 2026-11-20)
 
 ## Rationale
 
-Raised to the operator via the orchestrator; working assumption A until answered
+_(none)_
 
 ## Change log
 
 - `2026-11-20T06:02:35.903966+00:00` - opened
-- `2026-11-20T06:05:12.445178+00:00` - deferred
+- `2026-11-20T06:31:04.129625+00:00` - resolved (final_answer="A: reviewed package-data JSON plus a committed git-history generator; append-only; a test fails on a missing current render so skill-edit PRs re-run the generator; RELEASE_CHECKLIST step (operator ruling via orchestrator 2026-11-20)")

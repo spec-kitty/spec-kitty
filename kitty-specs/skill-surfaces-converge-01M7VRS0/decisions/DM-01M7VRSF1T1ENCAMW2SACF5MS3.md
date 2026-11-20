@@ -4,9 +4,9 @@
 - **Origin flow:** `specify`
 - **Slot key:** `specify.doctor.old-root-fix`
 - **Input key:** `old_root_fix_policy`
-- **Status:** `deferred`
+- **Status:** `resolved`
 - **Created:** `2026-11-20T06:02:38.010253+00:00`
-- **Resolved:** `2026-11-20T06:05:14.650832+00:00`
+- **Resolved:** `2026-11-20T06:31:06.215518+00:00`
 - **Opened by:** `cli`
 - **Other answer:** `false`
 
@@ -22,13 +22,13 @@ May doctor --fix ever remove a proven-generated stale file under the old ~/.clau
 
 ## Final answer
 
-_(none)_
+A: report only in this PR (list proven files with an rm hint, delete nothing); file a P3 follow-up for opt-in --fix removal of byte-proven files under the old root, linked to #7723 (operator ruling via orchestrator 2026-11-20)
 
 ## Rationale
 
-Raised to the operator via the orchestrator; working assumption A (report only) until answered
+_(none)_
 
 ## Change log
 
 - `2026-11-20T06:02:38.010253+00:00` - opened
-- `2026-11-20T06:05:14.650832+00:00` - deferred
+- `2026-11-20T06:31:06.215518+00:00` - resolved (final_answer="A: report only in this PR (list proven files with an rm hint, delete nothing); file a P3 follow-up for opt-in --fix removal of byte-proven files under the old root, linked to #7723 (operator ruling via orchestrator 2026-11-20)")
