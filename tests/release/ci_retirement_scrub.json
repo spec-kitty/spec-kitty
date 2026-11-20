@@ -295,9 +295,11 @@
       "group": "e2e",
       "roots": [
         "tests/e2e/**",
-        "tests/cross_cutting/**"
+        "tests/cross_cutting/**",
+        "**/specify_cli/cli/commands/init*.py",
+        "tests/acceptance/test_first_run_path.py"
       ],
-      "note": "End-to-end / cross-cutting suite; not a src --cov subject."
+      "note": "End-to-end / cross-cutting suite, plus the first-run path, which an init change also routes here (#7741); not a src --cov subject."
     },
     {
       "group": "mission_state",
