@@ -91,7 +91,7 @@
     },
     "WP03": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": null,
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 1,
@@ -101,9 +101,11 @@
       "last_transition_at": "2026-11-20T09:37:58.248113+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Install surfaces refresh proven historical renders; stamp withheld while canonical kept; kept_global_skill_files classifier; FR-011 agreement test"
+        "Install surfaces refresh proven historical renders; stamp withheld while canonical kept; kept_global_skill_files classifier; FR-011 agreement test",
+        "Changes requested: B1 historical lookup re-reads every destination file (NFR-001); measured lane-c +24% vs base (WP03 share +6-12%); see review-feedback-1.md"
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/skill-surfaces-converge-01M7VRS0-coord/kitty-specs/skill-surfaces-converge-01M7VRS0/tasks/WP03-install-surfaces-use-the-proof/review-cycle-1.md",
         "reference": "review-cycle://skill-surfaces-converge-01M7VRS0/WP03-install-surfaces-use-the-proof/review-cycle-1.md",
@@ -111,16 +113,16 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 1504,
-      "shell_pid_created_at": "1795167396.49",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T011": "done",
-        "T012": "done",
-        "T013": "done",
-        "T014": "done",
-        "T015": "done",
-        "T016": "done",
-        "T017": "done"
+        "T011": "planned",
+        "T012": "planned",
+        "T013": "planned",
+        "T014": "planned",
+        "T015": "planned",
+        "T016": "planned",
+        "T017": "planned"
       }
     },
     "WP04": {
