@@ -61,16 +61,16 @@
       "wp": null
     },
     "#7748": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP01 per-type reader; WP02 seam resolution",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "path_conventions: support per-mission-type overrides",
+      "verdict": "in-mission",
+      "wp": "WP01"
     }
   },
   "schema_version": 1
