@@ -1,0 +1,139 @@
+{
+  "mission_slug": "path-conventions-per-type-01M7VRQM",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-a 6cf1e193 tests/specify_cli/config/test_path_conventions_reader.py (42 passed); lane-b c0126d62 tests/specify_cli/acceptance/test_path_conventions_per_type.py + tests/agent/test_validators_unit.py + test_accept_contracts_waiver.py (61 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:20:54.407150+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-b c0126d62 tests/specify_cli/acceptance/test_path_conventions_per_type.py + tests/agent/test_validators_unit.py + test_accept_contracts_waiver.py (61 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:21:03.454172+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-a 6cf1e193 tests/specify_cli/config/test_path_conventions_reader.py (42 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:21:12.420893+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-a 6cf1e193 tests/specify_cli/config/test_path_conventions_reader.py (42 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:21:20.962175+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-a 6cf1e193 tests/specify_cli/config/test_path_conventions_reader.py (42 passed) (pre-existing flat tests unmodified)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:21:29.903593+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-b c0126d62 tests/specify_cli/acceptance/test_path_conventions_per_type.py + tests/agent/test_validators_unit.py + test_accept_contracts_waiver.py (61 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:21:38.928968+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-b c0126d62 tests/specify_cli/acceptance/test_path_conventions_per_type.py + tests/agent/test_validators_unit.py + test_accept_contracts_waiver.py (61 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:21:48.066321+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-b c0126d62 tests/specify_cli/acceptance/test_path_conventions_per_type.py + tests/agent/test_validators_unit.py + test_accept_contracts_waiver.py (61 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:21:57.338445+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-d 228c7e54 tests/specify_cli/cli/commands/test_accept_waive_path_conventions.py + test_lifted_root_validate_mission_paths_single_caller.py (11 passed); lane-c 532e44d6 tests/core/test_path_conventions_waiver_reader.py + tests/specify_cli/test_record_acceptance_path_conventions_waiver.py (19 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:22:06.024397+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-c 532e44d6 tests/core/test_path_conventions_waiver_reader.py + tests/specify_cli/test_record_acceptance_path_conventions_waiver.py (19 passed); lane-b c0126d62 tests/specify_cli/acceptance/test_path_conventions_per_type.py + tests/agent/test_validators_unit.py + test_accept_contracts_waiver.py (61 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:22:14.837907+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-d 228c7e54 tests/specify_cli/cli/commands/test_accept_waive_path_conventions.py + test_lifted_root_validate_mission_paths_single_caller.py (11 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:22:23.745749+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-b c0126d62 tests/specify_cli/acceptance/test_path_conventions_per_type.py + tests/agent/test_validators_unit.py + test_accept_contracts_waiver.py (61 passed); lane-d 228c7e54 tests/specify_cli/cli/commands/test_accept_waive_path_conventions.py + test_lifted_root_validate_mission_paths_single_caller.py (11 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:22:32.979016+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-d 228c7e54 tests/specify_cli/cli/commands/test_accept_waive_path_conventions.py + test_lifted_root_validate_mission_paths_single_caller.py (11 passed) (orchestrator call-shape controls: strict, no per-run keyword; meta waiver honoured)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:22:41.962521+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

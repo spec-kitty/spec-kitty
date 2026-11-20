@@ -608,7 +608,11 @@ def test_strict_failure_keeps_mkdir_for_artifact_path_after_lenient_and_remap(tm
     """#7512 + the #3783 ordering contract: with a build-layout path (``src/``)
     AND a mission-artifact path (``contracts/``) missing, only the artifact path
     gets a ``mkdir -p`` remedy, and it still reads after ``--lenient`` and the
-    ``project.path_conventions`` remap."""
+    ``project.path_conventions`` remap.
+
+    #7566 (deliberate re-pin): the per-type remap is now the FIRST remedy, then
+    the narrow path-convention waiver, then ``--lenient``; ``mkdir -p`` stays
+    last, so the #3783 contract (``--lenient`` before ``mkdir -p``) still holds."""
     repo_root = _go_style_repo(tmp_path)
     feature_dir = repo_root / "kitty-specs" / "010-mission"
 
@@ -623,7 +627,7 @@ def test_strict_failure_keeps_mkdir_for_artifact_path_after_lenient_and_remap(tm
     assert result.suggestions == ["mkdir -p kitty-specs/010-mission/contracts/"]
     assert "mkdir -p src/" not in output
     assert "Create directories in one go" not in output
-    assert output.index("--lenient") < output.index("project.path_conventions") < output.index("mkdir -p")
+    assert output.index("project.path_conventions") < output.index("--waive-path-conventions") < output.index("--lenient") < output.index("mkdir -p")
 
 
 def test_lenient_warning_names_remap_and_drops_mkdir_for_build_paths(tmp_path: Path) -> None:
@@ -725,3 +729,79 @@ def test_a_build_path_is_never_waived(tmp_path: Path) -> None:
     )
 
     assert result.missing_paths == ["tests/"]
+
+
+# ---------------------------------------------------------------------------
+# #7566 / #7748 (Mission path-conventions-per-type-01M7VRQM, WP02): the remedy
+# text leads with the per-type remap for the failing mission type, names the
+# narrow waivers before ``--lenient``, demotes the mission.yaml copy to a last
+# resort, and offers ``mkdir -p`` only for real deliverables.
+# ---------------------------------------------------------------------------
+
+
+def test_first_remedy_is_the_per_type_remap_for_the_failing_type(tmp_path: Path) -> None:
+    repo_root = _go_style_repo(tmp_path)
+    feature_dir = repo_root / "kitty-specs" / "010-mission"
+
+    with pytest.raises(PathValidationError) as excinfo:
+        validate_mission_paths(_software_dev_stub(), repo_root, strict=True, feature_dir=feature_dir, mission_type="software-dev")
+
+    output = str(excinfo.value)
+    remedies = output.split("(not found)")[-1]
+    assert remedies.lstrip().startswith("If this project's real layout differs")
+    assert "  project:\n    path_conventions:\n      software-dev:\n        workspace: <real-directory>/" in output
+    assert output.index("software-dev:") < output.index("--waive-path-conventions") < output.index("--lenient")
+
+
+def test_explicit_mission_type_wins_over_the_resolver_path_slug(tmp_path: Path) -> None:
+    repo_root = _go_style_repo(tmp_path)
+    missions_dir = repo_root / ".kittify" / "missions"
+    missions_dir.mkdir(parents=True)
+    mission = _software_dev_stub(missions_dir / "software-dev")
+
+    result = validate_mission_paths(mission, repo_root, feature_dir=repo_root / "kitty-specs" / "010-mission", mission_type="docs-audit")
+
+    assert result.mission_type == "docs-audit"
+    assert "      docs-audit:" in result.format_errors()
+
+
+def test_failure_names_both_narrow_waivers_before_lenient(tmp_path: Path) -> None:
+    repo_root = _go_style_repo(tmp_path)
+    with pytest.raises(PathValidationError) as excinfo:
+        validate_mission_paths(_software_dev_stub(), repo_root, strict=True, feature_dir=repo_root / "kitty-specs" / "010-mission")
+    output = str(excinfo.value)
+    assert '`accept --waive-path-conventions --waive-reason "<why>"`' in output
+    assert '"path_conventions": "waived"' in output
+    assert "metadata validation strict" in output
+    assert output.index("--waive-path-conventions") < output.index("--lenient")
+
+
+def test_mission_yaml_copy_is_only_a_last_resort(tmp_path: Path) -> None:
+    repo_root = _go_style_repo(tmp_path)
+    with pytest.raises(PathValidationError) as excinfo:
+        validate_mission_paths(_software_dev_stub(), repo_root, strict=True, feature_dir=repo_root / "kitty-specs" / "010-mission", mission_type="software-dev")
+    output = str(excinfo.value)
+    copy_line = next(line for line in output.splitlines() if ".kittify/overrides/missions/software-dev/mission.yaml" in line)
+    assert copy_line.startswith("Last resort:")
+    assert "freezes" in copy_line
+    assert output.index("--lenient") < output.index("Last resort:")
+
+
+def test_missing_contracts_names_the_contracts_none_waiver_beside_mkdir(tmp_path: Path) -> None:
+    repo_root = _go_style_repo(tmp_path)
+    with pytest.raises(PathValidationError) as excinfo:
+        validate_mission_paths(_software_dev_stub_with_contracts(), repo_root, strict=True, feature_dir=repo_root / "kitty-specs" / "010-mission")
+    output = str(excinfo.value)
+    assert "mkdir -p kitty-specs/010-mission/contracts/" in output
+    assert '"contracts": "none"' in output
+    assert output.index("mkdir -p") < output.index('"contracts": "none"')
+
+
+def test_advisory_text_carries_the_per_type_remap_but_no_waiver_lines(tmp_path: Path) -> None:
+    repo_root = _go_style_repo(tmp_path)
+    result = validate_mission_paths(_software_dev_stub(), repo_root, feature_dir=repo_root / "kitty-specs" / "010-mission", mission_type="software-dev")
+    output = result.format_warnings()
+    assert "      software-dev:" in output
+    assert "--waive-path-conventions" not in output
+    assert "--lenient" not in output
+    assert "Last resort:" in output

@@ -176,7 +176,9 @@ def test_a_contracts_path_that_is_not_a_mission_artifact_is_never_waived(tmp_pat
 
     assert tokens == frozenset()
     assert "expects deliverables path" in "\n".join(violations)
-    assert "waived" not in "\n".join(violations) + (warning or "")
+    # #7566: the remedy text now names the path-conventions waiver, so pin the
+    # contracts notice itself rather than the bare word "waived".
+    assert "contracts/ requirement waived" not in "\n".join(violations) + (warning or "")
 
 
 def test_research_prefix_mode_reads_no_waiver(tmp_path: Path) -> None:
@@ -200,4 +202,6 @@ def test_research_prefix_mode_reads_no_waiver(tmp_path: Path) -> None:
     violations, warning, tokens = evaluate_path_conventions(research, repo_root, feature_dir, feature_dir, strict_metadata=True)
 
     assert tokens == frozenset()
-    assert "waived" not in "\n".join(violations) + (warning or "")
+    # #7566: the remedy text now names the path-conventions waiver, so pin the
+    # contracts notice itself rather than the bare word "waived".
+    assert "contracts/ requirement waived" not in "\n".join(violations) + (warning or "")

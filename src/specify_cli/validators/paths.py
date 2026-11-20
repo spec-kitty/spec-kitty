@@ -83,96 +83,113 @@ class PathValidationResult:
         return not self.missing_paths
 
     def format_warnings(self) -> str:
-        """Return human-readable warning text."""
+        """Return human-readable warning text (the advisory form: ``--lenient`` or a waiver).
+
+        The same project-level remedies as the strict text, minus the waiver and
+        ``--lenient`` lines: the operator already chose one of them (#7512, #7566).
+        """
         if not self.warnings:
             return ""
 
         lines = ["Path Convention Warnings:"]
         for warning in self.warnings:
             lines.append(f"  - {warning}")
-
-        # #7512: the advisory text names the same project-level levers as the
-        # strict text, from the one shared renderer.
         lines.extend(self._remap_guidance_lines())
-
-        if self.suggestions:
-            lines.append("")
-            lines.append("Suggestions:")
-            for suggestion in self.suggestions:
-                lines.append(f"  - {suggestion}")
-
+        lines.extend(self._last_resort_lines())
+        lines.extend(self._deliverable_action_lines("Suggestions:"))
         return "\n".join(lines)
 
     def format_errors(self) -> str:
-        """Return human-readable error text for strict enforcement."""
+        """Return human-readable error text for strict enforcement.
+
+        Remedy order (#7566, Mission path-conventions-per-type-01M7VRQM): the
+        per-type ``project.path_conventions`` remap for the failing mission type
+        first; then the narrow path-convention waivers and ``accept --lenient``
+        (still before any ``mkdir -p``, the #3783 ordering contract); then the
+        mission.yaml copy as a last resort; and ``mkdir -p`` only for real
+        deliverables (Mission artifact and research deliverable paths, #7512),
+        with the ``contracts: none`` waiver named beside ``contracts/``.
+        """
         if self.is_valid:
             return ""
 
         lines = ["Path Convention Errors:"]
         for warning in self.warnings:
             lines.append(f"  - {warning}")
-
-        lines.append("")
-        if self.suggestions:
-            lines.append(
-                "Run `accept --lenient` to treat these as warnings instead of blocking "
-                "errors for this mission run - or, if you want to adopt the convention, "
-                "see the commands below:"
-            )
-        else:
-            lines.append(
-                "Run `accept --lenient` to treat these as warnings instead of blocking "
-                "errors for this mission run."
-            )
-
-        # #6633: name the honest project-level levers #3016/#4088 added, so a
-        # repo whose real layout is not ``src/``/``tests/``/``docs/`` can
-        # self-serve instead of fabricating directories or paying the
-        # ``--lenient`` metadata-check cost. Rendered only when at least one
-        # missing key is remappable: an artifact-routed key (``deliverables``)
-        # is excluded from the override vocabulary (C-010) and governed by the
-        # #5298 ``contracts: none`` waiver instead. Placed AFTER the
-        # ``--lenient`` sentence and BEFORE the ``mkdir -p`` suggestions so the
-        # #3783 ordering contract (``--lenient`` first) is preserved. #7512:
-        # those suggestions now cover only non-remappable (artifact) paths.
         lines.extend(self._remap_guidance_lines())
-
-        if self.suggestions:
-            lines.append("")
-            lines.append("Required Actions:")
-            for suggestion in self.suggestions:
-                lines.append(f"  - {suggestion}")
-
+        lines.extend(_WAIVER_GUIDANCE_LINES)
+        lines.extend(self._last_resort_lines())
+        lines.extend(self._deliverable_action_lines("Required Actions:"))
         return "\n".join(lines)
 
-    def _remap_guidance_lines(self) -> list[str]:
-        """Render the ``project.path_conventions`` / mission-override guidance.
+    def _mission_type_label(self) -> str:
+        return self.mission_type or "<mission-type>"
 
-        Shared by ``format_errors`` and ``format_warnings`` (#7512) so the
-        strict and ``--lenient`` texts carry one wording. Empty when no missing
-        key is remappable; otherwise starts with a blank separator line.
+    def _remap_guidance_lines(self) -> list[str]:
+        """Render the per-type ``project.path_conventions`` remap (#7566, #7748).
+
+        Shared by ``format_errors`` and ``format_warnings`` (#7512) so the strict
+        and advisory texts carry one wording. Empty when no missing key is
+        remappable; otherwise starts with a blank separator line. The snippet is
+        keyed by the failing Mission's type, so other mission types keep their
+        own conventions.
         """
         if not self.remappable_missing_keys:
             return []
+        mission_type = self._mission_type_label()
         lines = [
             "",
-            "If this project's real layout differs from these conventions, remap "
-            "them in `.kittify/config.yaml` via `project.path_conventions` (see ADR "
-            "project-path-convention-override-precedes-doctrine):",
+            f"If this project's real layout differs, remap these paths for {mission_type} Missions under "
+            "`project.path_conventions` in `.kittify/config.yaml` (other mission types keep their own "
+            "conventions; see ADR project-path-convention-override-precedes-doctrine):",
             "",
             "  project:",
             "    path_conventions:",
+            f"      {mission_type}:",
         ]
         for key in self.remappable_missing_keys:
-            lines.append(f"      {key}: <real-directory>/  # where this project keeps its {key}")
-        lines.append("")
-        lines.append(
-            "A key this project has no directory for can instead be dropped by "
-            "copying the packaged mission.yaml to "
-            f"`.kittify/overrides/missions/{self.mission_type or '<mission-type>'}/mission.yaml` "
-            "and removing that key's line."
-        )
+            lines.append(f"        {key}: <real-directory>/  # where this project keeps its {key}")
         return lines
+
+    def _last_resort_lines(self) -> list[str]:
+        """The mission.yaml copy, demoted to a last resort (#7566 FR-008)."""
+        if not self.remappable_missing_keys:
+            return []
+        return [
+            "",
+            "Last resort: copying the packaged mission.yaml to "
+            f"`.kittify/overrides/missions/{self._mission_type_label()}/mission.yaml` and deleting a key "
+            "drops it, but freezes that mission definition at this CLI version.",
+        ]
+
+    def _deliverable_action_lines(self, heading: str) -> list[str]:
+        """``mkdir -p`` for real deliverables only, plus the ``contracts: none`` alternative."""
+        if not self.suggestions:
+            return []
+        lines = ["", heading]
+        for suggestion in self.suggestions:
+            lines.append(f"  - {suggestion}")
+        if _CONTRACTS_ARTIFACT_NAME in self.missing_artifact_tokens:
+            lines.append(_CONTRACTS_WAIVER_ALTERNATIVE)
+        return lines
+
+
+#: The narrow escapes (#7566), named before ``accept --lenient`` and before any
+#: ``mkdir -p`` (#3783). Both keep metadata validation strict.
+_WAIVER_GUIDANCE_LINES: tuple[str, ...] = (
+    "",
+    "To accept this Mission without the path check while keeping metadata validation strict:",
+    '  - for this run: `accept --waive-path-conventions --waive-reason "<why>"`',
+    '  - for every run: set "path_conventions": "waived" and a "path_conventions_rationale" in the Mission\'s meta.json',
+    "`accept --lenient` also turns these into warnings, but skips strict metadata validation too.",
+)
+
+#: The mission artifact whose absence the #5298 ``contracts: none`` waiver can declare.
+_CONTRACTS_ARTIFACT_NAME = "contracts"
+_CONTRACTS_WAIVER_ALTERNATIVE = (
+    '  - or, if this Mission defines no interfaces, declare "contracts": "none" with a '
+    '"contracts_rationale" in its meta.json'
+)
 
 
 def suggest_directory_creation(missing_paths: Iterable[str]) -> list[str]:
@@ -402,6 +419,7 @@ def validate_mission_paths(
     candidate_source_roots: Sequence[Path] = (),
     waived_artifact_tokens: frozenset[str] = frozenset(),
     holding_checkout: Path | None = None,
+    mission_type: str | None = None,
 ) -> PathValidationResult:
     """Validate that project directories follow mission-defined conventions.
 
@@ -444,6 +462,9 @@ def validate_mission_paths(
             placement seam's ``write_dir(...).surface_root`` (#7602). A missing
             artifact held by a checkout other than the project root is named relative
             to it. ``None`` keeps the project-relative frame.
+        mission_type: The Mission's type id (#7566), as the caller resolved it from
+            ``meta.json``. Names the per-type remap in the failure text; ``None``
+            falls back to the type slug of the mission's resolver path.
 
     Returns:
         PathValidationResult summarising the state of each required path.
@@ -471,7 +492,7 @@ def validate_mission_paths(
     result = PathValidationResult(
         mission_name=mission.name,
         required_paths=required_paths,
-        mission_type=_mission_type_slug(mission),
+        mission_type=mission_type or _mission_type_slug(mission),
     )
 
     if not required_paths:

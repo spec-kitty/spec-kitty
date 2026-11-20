@@ -133,6 +133,11 @@ class MissionMetaOptional(TypedDict, total=False):
     # ``core.paths.read_contracts_waiver_from_meta`` (fail-closed).
     contracts: str
     contracts_rationale: str
+    # #7566 (Mission path-conventions-per-type-01M7VRQM): "waived" makes the
+    # Mission's path-convention misses advisory on every accept path; read only
+    # by ``core.paths.read_path_conventions_waiver_from_meta`` (fail-closed).
+    path_conventions: str
+    path_conventions_rationale: str
     # S7 #7282 (ADR 2026-11-06-3 Decision 4): topology provenance. Absent
     # ``topology_source`` means a legacy, settled Mission.
     topology_source: str
@@ -1080,12 +1085,18 @@ def record_acceptance(
     from_commit: str | None = None,
     accept_commit: str | None = None,
     lenient: bool = False,
+    path_conventions_waiver_reason: str | None = None,
 ) -> dict[str, Any]:
     """Record acceptance metadata.  Appends to bounded history.
 
     ``lenient`` (#7356): records ``lenient: true`` on the history entry so a
     later reader can tell a lenient acceptance from a strict one; a strict
     acceptance keeps the existing entry shape (the key stays absent).
+
+    ``path_conventions_waiver_reason`` (#7566): the reason given with
+    ``accept --waive-path-conventions``; a non-blank one is recorded as
+    ``path_conventions_waived: {"reason": ...}`` on the history entry, and
+    without one the entry shape is unchanged.
     """
     now = _now_iso()
 
@@ -1101,6 +1112,8 @@ def record_acceptance(
             entry["accept_commit"] = accept_commit
         if lenient:
             entry["lenient"] = True
+        if path_conventions_waiver_reason is not None and path_conventions_waiver_reason.strip():
+            entry["path_conventions_waived"] = {"reason": path_conventions_waiver_reason.strip()}
 
         # Set top-level fields — always clear stale commit fields first
         meta["accepted_at"] = now

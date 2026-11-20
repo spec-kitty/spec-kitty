@@ -111,7 +111,7 @@
        "deprecated": false
       },
       "accept": {
-       "help": "Perform mission acceptance workflow.\n\nThis command:\n1. Validates all tasks are in 'done' lane\n2. Runs acceptance checks from checklist files\n3. Creates acceptance report\n4. Marks mission as ready for merge\n\nWrapper for top-level accept command with agent-specific defaults.\n\nExamples:\n    # Run acceptance workflow\n    spec-kitty agent mission accept --mission 077-my-mission\n\n    # With JSON output for agents\n    spec-kitty agent mission accept --mission 077-my-mission --json\n\n    # Lenient mode (skip strict validation)\n    spec-kitty agent mission accept --mission 077-my-mission --lenient --json",
+       "help": "Perform mission acceptance workflow.\n\nThis command:\n1. Validates all tasks are in 'done' lane\n2. Runs acceptance checks from checklist files\n3. Creates acceptance report\n4. Marks mission as ready for merge\n\nWrapper for top-level accept command with agent-specific defaults.\n\nExamples:\n    # Run acceptance workflow\n    spec-kitty agent mission accept --mission 077-my-mission\n\n    # With JSON output for agents\n    spec-kitty agent mission accept --mission 077-my-mission --json\n\n    # Lenient mode (skip strict validation)\n    spec-kitty agent mission accept --mission 077-my-mission --lenient --json\n\n    # Waive only the path-convention check for this run (metadata stays strict)\n    spec-kitty agent mission accept --mission 077-my-mission --waive-path-conventions --waive-reason \"layout migration\" --json",
        "hidden": false,
        "deprecated": false
       },
