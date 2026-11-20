@@ -262,7 +262,7 @@
     },
     "WP11": {
       "actor": "claude",
-      "agent": "claude::python-pedro",
+      "agent": "claude::reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
@@ -279,7 +279,8 @@
         "- 2026-11-20T18:16:54Z – claude – shell_pid=20149 – trace(approach): residual: a FAST-FORWARD of C onto A is not detected (C's commits become A's first-parent commits, indistinguishable from A's own by graph); also a merge into A of a branch X that C also contains would count X's commits C reaches as C's own (shrinking direction). Both recorded in the helper docstring.",
         "- 2026-11-20T18:40:59Z – claude – shell_pid=20149 – tests: new file 13 passed; blast radius (origin_freshness, terminus canceled_dependency x2, resume_frozen_anchors, executor_lane_naming, reconciliation, canceled_dependency_attribution/lane, wp_evidence, refusal_precedence_matrix(+windows), lane_approval_windows, orchestrator_api 5814, architectural/test_layer_rules) 641 passed 2 xfailed; tests/terminus -k canceled_dependency 20 passed; make test-fast 3144 passed 7 skipped. ruff/format/mypy clean. Commit e52d6733.",
         "- 2026-11-20T18:41:21Z – claude – shell_pid=20149 – T042 not applicable: red at base, fixed under T041 (FR-011 Delivery stays [build]).",
-        "#7497 red at base (generic unattributable FAIL); fixed in reconciliation_canceled.py: C anchored on A before A merged C, merged-in canceled commits counted on carrier spines. Fresh run now refuses CANCELED_REACHABLE_VIA_DEPENDENCY; control keeps LANE_MOVED_AFTER_APPROVAL; mutation checks permanent. T042 n/a (red-at-base branch taken)."
+        "#7497 red at base (generic unattributable FAIL); fixed in reconciliation_canceled.py: C anchored on A before A merged C, merged-in canceled commits counted on carrier spines. Fresh run now refuses CANCELED_REACHABLE_VIA_DEPENDENCY; control keeps LANE_MOVED_AFTER_APPROVAL; mutation checks permanent. T042 n/a (red-at-base branch taken).",
+        "Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner"
       ],
       "provider": "__resolved_provider_absent__",
       "role": "reviewer",
