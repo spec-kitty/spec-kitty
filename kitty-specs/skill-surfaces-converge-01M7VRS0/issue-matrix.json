@@ -61,16 +61,16 @@
       "wp": null
     },
     "#5983": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP03 retire on byte proof; WP04 retired-skill-kept-edited finding",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "spec-kitty upgrade keeps an edited retired skill in ~/.claude/skills silently",
+      "verdict": "in-mission",
+      "wp": "WP04"
     },
     "#5993": {
       "evidence_ref": "<link or commit>",
