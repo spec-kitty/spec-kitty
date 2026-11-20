@@ -1,4 +1,7 @@
 {
+  "contracts": "none",
+  "contracts_rationale": "Internal planner predicate and an architectural gate; no external interface, wire format or CLI surface changes.",
+  "coordination_branch": "kitty/mission-host-aware-mode-predicate-01M7X6B1",
   "create_return_branch": "issue-4927-host-aware-mode-predicate",
   "created_at": "2026-11-20T19:18:41.008601+00:00",
   "flattened": false,
@@ -15,9 +18,15 @@
   "purpose_tldr": "A converged Windows project stops re-planning file-mode repairs it can never apply, on every CLI start and every upgrade preview.",
   "slug": "host-aware-mode-predicate-01M7X6B1",
   "target_branch": "issue-4927-host-aware-mode-predicate",
-  "topology": "single_branch",
-  "topology_settled": false,
-  "topology_source": "default",
-  "contracts": "none",
-  "contracts_rationale": "Internal planner predicate and an architectural gate; no external interface, wire format or CLI surface changes."
+  "topology": "lanes_with_coord",
+  "topology_decision": {
+    "code_lane_count": 3,
+    "from": "single_branch",
+    "rule": "lanes_with_coord",
+    "target_protected": false,
+    "to": "lanes_with_coord",
+    "wp_count": 3
+  },
+  "topology_settled": true,
+  "topology_source": "default"
 }
