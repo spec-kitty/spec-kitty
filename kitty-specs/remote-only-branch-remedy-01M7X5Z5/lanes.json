@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "mission_slug": "remote-only-branch-remedy-01M7X5Z5",
+  "mission_id": "01M7X5Z5RAEZ14ZPBDGQSYCYEZ",
+  "mission_branch": "kitty/mission-remote-only-branch-remedy-01M7X5Z5",
+  "target_branch": "issue-5287-remote-only-coord-remedy",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/2026-11-06-2-one-status-read-contract.md",
+        "docs/changelog/unreleased/5287.fixed.md",
+        "src/mission_runtime/coord_remedy.py",
+        "src/mission_runtime/write_target_degrade.py",
+        "src/specify_cli/cli/commands/_coordination_doctor.py",
+        "src/specify_cli/coordination/status_service.py",
+        "src/specify_cli/coordination/surface_resolver.py",
+        "src/specify_cli/status/read_surface.py",
+        "tests/mission_runtime/test_coord_remedy.py",
+        "tests/runtime/next/test_board_query_read_door_7507.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_status_remote_only_5287.py",
+        "tests/specify_cli/cli/commands/test_coordination_remedy_5113.py",
+        "tests/specify_cli/cli/commands/test_doctor_coordination.py",
+        "tests/specify_cli/coordination/test_coord_branch_remote_probe_4979.py",
+        "tests/specify_cli/coordination/test_remote_only_remedy_5287.py",
+        "tests/status/test_read_surface_remote_only_5287.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-20T19:16:50.612115+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "ba1aa571f55a52508453106e2390e08c81bd48c2"
+}

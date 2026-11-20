@@ -1,0 +1,99 @@
+{
+  "mission_slug": "remote-only-branch-remedy-01M7X5Z5",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/coordination/test_remote_only_remedy_5287.py::test_doctor_refusal_and_write_refusal_carry_the_identical_remedy; tests/mission_runtime/test_coord_remedy.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T21:50:45.176503+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/coordination/test_remote_only_remedy_5287.py::test_remote_only_refusal_names_the_resolved_remote_and_the_branch_step (remote coord-remote); tests/mission_runtime/test_coord_remedy.py::test_the_only_remote_owns_the_branch_whatever_its_name",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T21:50:48.712061+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/mission_runtime/test_coord_remedy.py::test_tracking_ref_present_skips_the_fetch_step + test_tracking_ref_absent_leads_with_a_targeted_fetch; tests/specify_cli/coordination/test_remote_only_remedy_5287.py (both variants on one fixture)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T21:50:51.953556+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/coordination/test_remote_only_remedy_5287.py (asserts no 'has not fetched'/'not yet fetched'); 4979 single-branch test runs the printed steps",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T21:50:55.325070+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/coordination/test_remote_only_remedy_5287.py::test_doctor_refusal_and_write_refusal_carry_the_identical_remedy (compares against builder output)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T21:50:58.678509+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_read_surface_remote_only_5287.py::test_remote_only_coordination_branch_is_a_typed_refusal_with_the_remedy; ::test_a_local_ref_naming_a_missing_object_stays_unreadable",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T21:51:01.848944+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_read_surface_remote_only_5287.py::test_remote_only_mission_topic_branch_is_a_typed_refusal; ::test_a_mission_topic_branch_gone_everywhere_is_not_called_remote_only",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T21:51:05.204599+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/next/test_board_query_read_door_7507.py::test_query_renders_an_unreadable_status_source_as_a_typed_error[remote_only-STATUS_SURFACE_REF_REMOTE_ONLY]; subtype of StatusSurfaceRefUnreadable",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T21:51:08.688841+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_tasks_status_remote_only_5287.py (refusal + positive control)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T21:51:11.998796+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
