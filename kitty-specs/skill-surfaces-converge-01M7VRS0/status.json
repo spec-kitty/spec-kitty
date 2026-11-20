@@ -91,7 +91,7 @@
     },
     "WP03": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": "claude::reviewer-renata",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 1,
@@ -103,7 +103,8 @@
       "notes": [
         "Install surfaces refresh proven historical renders; stamp withheld while canonical kept; kept_global_skill_files classifier; FR-011 agreement test",
         "Changes requested: B1 historical lookup re-reads every destination file (NFR-001); measured lane-c +24% vs base (WP03 share +6-12%); see review-feedback-1.md",
-        "Cycle 2: B1 fixed (proof judged on asset()'s own observation); WP02 costs folded (anchored keys placed without probe, unchanged inventory not re-serialized); N1 folded"
+        "Cycle 2: B1 fixed (proof judged on asset()'s own observation); WP02 costs folded (anchored keys placed without probe, unchanged inventory not re-serialized); N1 folded",
+        "Review passed (independent reviewer, cycle 2, head 396e420f20). B1 fixed: asset() takes a PredecessorProof judged on its own observation (red 43df17539e -> 98c6723438). Operator NFR-001 ruling (fold WP02 costs here): anchored inventory keys placed without a lexists probe (confinement kept), unchanged canonical inventories not re-serialized (red 266ea31f98 -> 396e420f20); both deterministic guards verified red on the pre-fix sources. Reviewer timing, same protocol as cycle 1 (isolated HOME, 553 files, median of 7, three rounds): base 0.805/0.844/0.799 s, lane-c 0.838/0.833/0.790 s -- within +-5% of base a053b674 (NFR-001 met). Behaviour unchanged from cycle 1 (per-path proof, stamp withheld only for stale_canonical, project backup kept, FR-011 test); N1 folded. Tests: historical-proof files 11 passed; tests/specify_cli/runtime + tests/runtime + skills + tool_surface 4778 passed 2 skipped 1 xfailed; make test-fast 3153 passed; ruff/format/mypy clean on the 3 changed modules."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
