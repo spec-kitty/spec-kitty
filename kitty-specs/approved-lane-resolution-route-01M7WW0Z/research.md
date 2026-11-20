@@ -10,7 +10,7 @@ Format per decision: Decision / Rationale / Alternatives considered.
 
 ## R-01: How the route incorporates the sibling lane (FR-001)
 
-- **Decision**: pending operator ruling DM-01M7WX8AX56E23AXBZRWGNX4EM. The plan assumes the recommended option (b): extend the canonical lane sync point.
+- **Decision**: operator ruling DM-01M7WX8AX56E23AXBZRWGNX4EM (2026-11-20) selected option (b): extend the canonical lane sync point.
   - Command: `spec-kitty agent action implement <WP> --mission <m> --incorporate <lane>`.
   - It merges the named sibling lane at its newest approval stamp into the lane checkout.
   - It stops on a conflict and leaves the merge in progress for hand resolution.

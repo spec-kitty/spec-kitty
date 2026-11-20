@@ -56,7 +56,7 @@ The ADR amendments record the model. Approach C, attributing a conflict resoluti
 | Terminology canon | PASS | Mission, consolidate (lane consolidation), "incorporate"; never "sync" or "feature". |
 | Supply chain (DIRECTIVE_051) | N/A | No dependency is added, upgraded or removed. |
 
-Post-design re-check: PASS. Research R-01 to R-10 introduce no second authority. The one open operator decision (R-01, the command shape) does not change the authority map.
+Post-design re-check: PASS. Research R-01 to R-10 introduce no second authority. The operator ruling on R-01 (option b) keeps the authority map: the incorporate step extends the existing lane sync point.
 
 ## Project Structure
 
@@ -189,7 +189,7 @@ No charter violations. Nothing to justify.
   - `lanes/stale_check.py`: new fields and the approved-lane remedy branch; pure;
   - `lanes/consolidation.py`: plumb `approved_wp_ids`, the halt report and the sibling map; return the report;
   - `consolidation/phase_advance.py`: sibling mapping from pre-run lane tips;
-  - `lanes/lifecycle_sync.py` and `cli/commands/agent/workflow.py`: `--incorporate <lane>` (R-01 option b, pending the operator ruling);
+  - `lanes/lifecycle_sync.py` and `cli/commands/agent/workflow.py`: `--incorporate <lane>` (R-01 option b, ruled by the operator in DM-01M7WX8AX56E23AXBZRWGNX4EM);
   - orchestrator-api stale stance: same renderer;
   - `tests/lanes/test_stale_remediation_cli_command.py`: re-pinned per the ruling.
 - **Sequencing/depends-on**: none for the remedy text. The incorporate command needs the approval-stamp reader that already exists in `approved_bound`.
