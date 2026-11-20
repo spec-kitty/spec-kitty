@@ -163,6 +163,7 @@ from .actor import (
     role_for_hop,
     role_for_wp,
 )
+from .claim_release import planned_claim_release_delta, planned_claim_release_fields
 from .emit import (
     TransitionError,
     build_claim_policy_metadata,
@@ -650,6 +651,8 @@ __all__ = [
     "WPInnerStateDelta",
     "annotate",
     "build_claim_policy_metadata",
+    "planned_claim_release_delta",
+    "planned_claim_release_fields",
     "claim_policy_metadata",
     "build_resolved_actor",
     "is_cut_over",
