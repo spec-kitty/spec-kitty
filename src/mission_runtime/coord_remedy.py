@@ -76,8 +76,12 @@ def remote_only_branch(repo_root: Path, branch: str) -> RemoteOnlyBranch:
     remote does, the clone has already fetched the branch from that remote, so
     it is the one named (and no fetch is needed).
     """
-    remotes = tuple(configured_remotes(repo_root))
-    remote = resolve_remote(repo_root, branch)
+    try:
+        remotes = tuple(configured_remotes(repo_root))
+        remote = resolve_remote(repo_root, branch)
+    except GitCommandError:
+        # git could not run here (e.g. the root does not exist): nothing is known locally.
+        return RemoteOnlyBranch(branch=branch, remote=None, tracking_ref_present=False)
     if remote is not None and remote not in remotes:
         # ``branch.<b>.remote`` may hold a URL: there is no ``refs/remotes/<url>/<b>``.
         remote = None

@@ -131,6 +131,8 @@ _PUBLIC_SURFACE = sorted(
         # a second private copy of the inversion.
         "mission_file_basenames_for_kind",
         "classify_topology",
+        # #5287: the one remote-only branch remedy (MR-1/MR-2: consumed from the root).
+        "coordination_doctor_command",
         # single-branch-topology-honesty (#5100 FR-013 / #2602, squad N7): the
         # runtime reading of a mission with NO stored topology -- never a
         # derived ``single_branch``. ``specify_cli.migration.backfill_topology``
@@ -208,6 +210,8 @@ _PUBLIC_SURFACE = sorted(
         # settled-placement-surface (#7595): core/paths.py and core/git_ops.py read a
         # Mission's target branch through it from the package root.
         "read_dir_for",
+        "remote_only_branch",
+        "remote_only_steps",
         "resolve_action_context",
         # WP02: the affirmative, stamped surface→filesystem seam (the true schema
         # root) + its total member→path translation.

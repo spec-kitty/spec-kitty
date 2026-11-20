@@ -274,7 +274,8 @@ def test_single_branch_clone_remote_only_coord_branch_is_not_deleted(tmp_path: P
     # coordination branch, so a bare `fetch origin <b>` writes only FETCH_HEAD and
     # the printed `git branch` step fails. Run the printed git steps, in order,
     # exactly as printed, and prove they leave a local branch.
-    git_steps = [step for step in re.findall(r"`([^`]+)`", next_step) if step.startswith("git ")]
+    # The manual `git worktree add` fallback that follows is for when the doctor cannot; skip it.
+    git_steps = [step for step in re.findall(r"`([^`]+)`", next_step) if step.startswith("git ") and " worktree add " not in step]
     assert [shlex.split(step)[3] for step in git_steps] == ["fetch", "branch"], git_steps
     for step in git_steps:
         subprocess.run(shlex.split(step), check=True, capture_output=True)
