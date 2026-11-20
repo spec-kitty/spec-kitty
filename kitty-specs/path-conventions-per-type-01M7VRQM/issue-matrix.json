@@ -48,6 +48,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#7356": {
+      "evidence_ref": "Cited for context: the lenient history-entry pattern that the waiver reason mirrors.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#7512": {
       "evidence_ref": "Cited for the no-mkdir-for-remappable-paths rule this Mission keeps.",
       "fr": null,
