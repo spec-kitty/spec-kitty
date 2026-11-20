@@ -61,16 +61,16 @@
       "wp": null
     },
     "#4927": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP01 33c25c23 (global planners via effect_action; emulated-Windows convergence test); WP02 completes project/provider planners",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Windows upgrade --dry-run reports phantom repairs after convergence",
+      "verdict": "in-mission",
+      "wp": "WP01"
     },
     "#5215": {
       "evidence_ref": "<link or commit>",
