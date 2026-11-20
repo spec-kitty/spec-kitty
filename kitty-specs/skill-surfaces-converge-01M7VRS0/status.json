@@ -129,7 +129,7 @@
     },
     "WP04": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": "claude::reviewer-renata",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 0,
@@ -139,7 +139,8 @@
       "last_transition_at": "2026-11-20T11:30:06.965019+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "kept global skill findings (global-skill-kept-stale, retired-skill-kept-edited) + repair.skipped_reasons; red 3b4c4b8c1a, fix 5132a0f251; tool_surface dir 1269 passed, doctor/cli blast 477 passed 1 xfailed, make test-fast 3153 passed"
+        "kept global skill findings (global-skill-kept-stale, retired-skill-kept-edited) + repair.skipped_reasons; red 3b4c4b8c1a, fix 5132a0f251; tool_surface dir 1269 passed, doctor/cli blast 477 passed 1 xfailed, make test-fast 3153 passed",
+        "Review passed (independent reviewer, head 5132a0f251). Red 3b4c4b8c1a: its own tests on its own sources give 4 behavioural failures (3 controls pass), verified; the fix commit's test edits tighten assertions (ok unchanged vs a baseline + warnings exactly +1) and add shared-root tool_key and explain_skipped tests. FR-003/FR-004: kept canonical / edited retired global files reported as warnings with path, reason and remedy, read from WP03's classifier via an assessment only (no writes); --kind/--tool filters honoured; warnings never flip ok (exit code follows report.ok). #2527: repair.skipped_reasons (additive) under --fix. Tests: test_global_skill_kept_findings 9 passed; tests/specify_cli/tool_surface + tests/specify_cli/cli/commands 8289 passed, 2 failed -- both charter cascade tests outside this diff that pass serially on base and on lane-d (parallel-load timing, not WP04). Residuals accepted: +~0.65s per doctor tool-surfaces run (doctor only, not startup); skipped reasons are JSON-only (human output still shows the refreshed drift finding)."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
