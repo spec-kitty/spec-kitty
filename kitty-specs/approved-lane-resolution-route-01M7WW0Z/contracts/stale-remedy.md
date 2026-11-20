@@ -8,7 +8,7 @@ The approved-lane remedy applies when every one of these holds:
 
 In every other case the remedy text is unchanged (US1 AS3).
 
-Ordered content (the command shape per DM-01M7WX8AX56E23AXBZRWGNX4EM; option (b) shown):
+Ordered content (option (b), per operator ruling DM-01M7WX8AX56E23AXBZRWGNX4EM):
 
 1. `Lane <id> is stale: <sibling lane id(s)> landed approved changes to <paths> that conflict with this lane.` This line names exactly `sibling_lanes`.
 2. `The in-run auto-rebase stopped: <halt_reason> (<conflicted paths>).`
