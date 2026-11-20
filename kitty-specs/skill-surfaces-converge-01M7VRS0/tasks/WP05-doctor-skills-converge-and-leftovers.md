@@ -41,6 +41,9 @@ owned_files:
 - tests/specify_cli/runtime/test_old_root_leftovers.py
 - docs/changelog/unreleased/5281.fixed.md
 - docs/changelog/unreleased/7723.added.md
+- tests/specify_cli/cli/commands/test_doctor_skills.py
+- tests/specify_cli/cli/commands/test_doctor_legacy_no_agent_list_reports.py
+- tests/specify_cli/cli/commands/test_doctor_stated_empty_reports.py
 role: implementer
 tags: []
 task_type: implement
