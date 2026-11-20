@@ -1,7 +1,7 @@
 {
-  "event_count": 56,
-  "last_event_id": "01M7X7MCEVHFEQ7RV9DT02XTTA",
-  "materialized_at": "2026-11-20T19:41:14.587586+00:00",
+  "event_count": 57,
+  "last_event_id": "01M7X7N9GPGK8MX7CE80ZZT22S",
+  "materialized_at": "2026-11-20T19:41:44.342514+00:00",
   "mission_number": "",
   "mission_slug": "approved-lane-resolution-route-01M7WW0Z",
   "mission_type": "software-dev",
@@ -14,8 +14,8 @@
     "done": 0,
     "for_review": 1,
     "in_progress": 2,
-    "in_review": 2,
-    "planned": 9
+    "in_review": 1,
+    "planned": 10
   },
   "work_packages": {
     "WP01": {
@@ -23,11 +23,11 @@
       "agent": "claude::reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 0,
+      "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "in_review",
-      "last_event_id": "01M7X7MCEVHFEQ7RV9DT02XTTA",
-      "last_transition_at": "2026-11-20T19:41:14.587586+00:00",
+      "lane": "planned",
+      "last_event_id": "01M7X7N9GPGK8MX7CE80ZZT22S",
+      "last_transition_at": "2026-11-20T19:41:44.342514+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-20T18:04:16Z – claude – shell_pid=24964 – T001 red: uv run --frozen pytest -q tests/consolidation/test_merge_attribute_guard.py on HEAD -> 23 failed, 2 passed. Every attack route (info_attributes, worktree_gitattributes, core_attributes_file, custom_driver, merge_default, builtin binary/text redefined, registered driver redefined on wrong and on own pattern, registered shipped command on wrong pattern) x both probes fails with 'DID NOT RAISE GitProbeError'; also red: union on non-conflicting path, either-parent guard, git --version once per run scope (HEAD spawns one per call). Controls green: attribute on another path, single-commit fold.",
@@ -45,6 +45,12 @@
         "Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP01-merge-probe-attribute-guard/review-cycle-1.md",
+        "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP01-merge-probe-attribute-guard/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "changes_requested"
+      },
       "role": "reviewer",
       "shell_pid": 24964,
       "shell_pid_created_at": "1795197384.67",
