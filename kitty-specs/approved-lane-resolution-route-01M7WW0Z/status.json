@@ -56,7 +56,7 @@
     },
     "WP02": {
       "actor": "claude",
-      "agent": "claude::python-pedro",
+      "agent": "claude::reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
@@ -72,7 +72,8 @@
         "- 2026-11-20T18:30:44Z – claude – shell_pid=25208 – T009 green + gates: tests/lanes/test_auto_rebase_record.py 32 passed; targeted (auto_rebase additive/managed/target_owned, lane_tip, lane_tip_record_points, integration lane_lifecycle_sync, lane_cleanup 6736/module/kept_report/guard_binding, architectural merge_pipeline_ratchets/destructive_op_routing/git_path_listing_owner/layer_rules) 371 passed; make test-fast 3144 passed, 7 skipped. ruff check, ruff format --check --force-exclude, mypy (3 src files) clean; C901 clean. C-002 grep on reconciliation_verifier/closed_world empty. Commit de38bfcd.",
         "- 2026-11-20T18:30:52Z – claude – shell_pid=25208 – trace(design-decisions): (1) durable SHA-keyed ref, not lane_rebase_moves (R-03): the run-state record is cleared by re-baselines/clean runs, a ref outlives them and cannot be forged by a message or parent shape (both negative controls tested). (2) record failure undoes the merge via guarded_reset_hard to the pre-merge tip and re-records the lane tip; a refused undo leaves the merge and says it will be judged as a hand merge (fail closed). A HEAD whose parents are not [before, mission_before] is halted and left unrecorded, never reset (it may not be ours). (3) is_recorded/delete take lane_branch because the ref embeds it; is_recorded raises on any git failure AND on a ref naming another commit (literal contract), record() maps that to False. (4) records deleted only after a confirmed branch delete in MainTodayRemover._delete_branch and GuardedLaneRemover.remove; delete failures/listing failures are debug-logged, BookkeepingRefError not caught. (5) leeway: SHA validation accepts 40 or 64 hex (SHA-256 repos) so a valid merge in such a repo never raises ValueError mid auto-rebase; the WP said 40. (6) the clean path was extracted into _conclude_clean_merge to keep attempt_auto_rebase under complexity 15.",
         "- 2026-11-20T18:31:00Z – claude – shell_pid=25208 – trace(tooling-friction): 'spec-kitty agent action implement WP02 ...' first failed with STATUS_LOCK_HELD (status lock held by another writer, pid 20152); retried after ~20s and it claimed. It warned the claim recorded no profile; handoff uses --agent claude::python-pedro. auto_rebase.py is on the ruff-format ratchet (format --check without --force-exclude flags it; with it, clean).",
-        "Durable auto-rebase record: attempt_auto_rebase records every clean/auto-resolved merge at refs/spec-kitty/auto-rebase/<lane>/<sha>, halts+undoes on record failure; new lanes/auto_rebase_record module (record/is_recorded/recorded_merges/delete/delete_for_lane, reads raise on git failure); lane cleanup deletes a lane's records only after the branch delete. 32 new tests, 371 targeted, test-fast 3144 passed."
+        "Durable auto-rebase record: attempt_auto_rebase records every clean/auto-resolved merge at refs/spec-kitty/auto-rebase/<lane>/<sha>, halts+undoes on record failure; new lanes/auto_rebase_record module (record/is_recorded/recorded_merges/delete/delete_for_lane, reads raise on git failure); lane cleanup deletes a lane's records only after the branch delete. 32 new tests, 371 targeted, test-fast 3144 passed.",
+        "Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner"
       ],
       "provider": "__resolved_provider_absent__",
       "role": "reviewer",
