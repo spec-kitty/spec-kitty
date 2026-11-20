@@ -1,0 +1,1 @@
+- **The generated CLI reference pages list current options again.** **Before:** `docs/api/cli-commands.md` and `docs/api/agent-subcommands.md` were missing `accept --waive-path-conventions` / `--waive-reason`, `consolidate --retarget` / `--retarget-reason` and `agent tasks move-task --as-implementer`. **After:** both pages are regenerated from the CLI.
