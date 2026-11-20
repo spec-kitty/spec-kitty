@@ -36,6 +36,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#4609": {
+      "evidence_ref": "Cited for context only: the existing canonical-predecessor version-marker rule (#4609) is reused as command-file proof in WP05; no work owed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#5215": {
       "evidence_ref": "Non-goal of this Mission per the operator brief (C-003); overlap noted in the PR, no work owed here",
       "fr": null,
