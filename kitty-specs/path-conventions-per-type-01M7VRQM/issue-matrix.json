@@ -13,7 +13,7 @@
       "wp": null
     },
     "#2744": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited as the deferred layout auto-detection follow-on; out of scope.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,7 +21,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#3783": {
