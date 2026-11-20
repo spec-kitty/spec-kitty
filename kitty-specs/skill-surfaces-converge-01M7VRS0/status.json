@@ -1,13 +1,13 @@
 {
-  "event_count": 65,
-  "last_event_id": "01M7WBH3FM3Y7DNFGXB6WT0FXK",
-  "materialized_at": "2026-11-20T11:30:06.965019+00:00",
+  "event_count": 66,
+  "last_event_id": "01M7WCX2RTFRK4K78C2RCZDC3W",
+  "materialized_at": "2026-11-20T11:54:08.026387+00:00",
   "mission_number": "",
   "mission_slug": "skill-surfaces-converge-01M7VRS0",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 7,
+    "approved": 6,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
@@ -15,7 +15,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 0
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
@@ -165,11 +165,11 @@
       "agent": "claude::reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 1,
+      "force_count": 2,
       "implementer_of_record": "claude",
-      "lane": "approved",
-      "last_event_id": "01M7WAHW0JGEE96EA6DBSBC33H",
-      "last_transition_at": "2026-11-20T11:13:03.506226+00:00",
+      "lane": "planned",
+      "last_event_id": "01M7WCX2RTFRK4K78C2RCZDC3W",
+      "last_transition_at": "2026-11-20T11:54:08.026387+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "#5281 outdated + doctor skills --fix convergence; #7723 old-root leftovers reported only",
@@ -180,9 +180,10 @@
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
-        "reference": "auto-approval:WP05:20261120",
-        "reviewer": "Claude",
-        "verdict": "approved"
+        "feedback_path": "/home/user/spec-kitty/.worktrees/skill-surfaces-converge-01M7VRS0-coord/kitty-specs/skill-surfaces-converge-01M7VRS0/tasks/WP05-doctor-skills-converge-and-leftovers/review-cycle-2.md",
+        "reference": "review-cycle://skill-surfaces-converge-01M7VRS0/WP05-doctor-skills-converge-and-leftovers/review-cycle-2.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "changes_requested"
       },
       "role": "reviewer",
       "shell_pid": 26727,
