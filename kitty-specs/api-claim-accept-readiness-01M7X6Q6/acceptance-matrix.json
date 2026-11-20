@@ -28,10 +28,10 @@
       "criterion_id": "FR-003",
       "description": "Verify FR-003 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "Hint from review_roles.implementer_claim_target; tests/specify_cli/acceptance/test_implementer_repair_hint.py runs every printed command and asserts no command where none is legal",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T23:02:43.629730+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
