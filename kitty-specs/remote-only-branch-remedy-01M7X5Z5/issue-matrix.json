@@ -49,7 +49,7 @@
       "wp": null
     },
     "#7449": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for context only: backfill settling on an unreadable ref stays with #7408 (operator ruling, spec C-003); MigrationResult unchanged.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -57,7 +57,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7726": {
