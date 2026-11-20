@@ -319,6 +319,8 @@ def test_unborn_head_error_names_a_remedy_that_works(tmp_path: Path) -> None:
     _git(repo, "config", "user.name", "Test")
     # ``--no-commit`` keeps HEAD unborn (see the test above, #7741).
     assert _cli(repo, "init", ".", "--ai", "claude", "--no-commit").returncode == 0
+    heads = list((repo / ".git" / "refs" / "heads").glob("*")) if (repo / ".git" / "refs" / "heads").exists() else []
+    assert heads == [], f"fixture invalid: the repo already has a branch ({heads})"
 
     blocked = _cli(repo, "specify", "task-list")
     # The remedy must commit what ``init`` wrote: an empty commit leaves those
