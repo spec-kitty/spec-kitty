@@ -393,6 +393,7 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         "specify_cli.upgrade.migrations.m_4_0_0rc8_activation_ledger",
         "specify_cli.upgrade.migrations.m_4_0_0rc8_command_skill_hyphen_names",  # #6475: auto-discovered command-skill rename, never statically imported
         "specify_cli.upgrade.migrations.m_4_0_0rc8_retire_antigravity_workflows",  # #6470: auto-discovered workflows archive, never statically imported
+        "specify_cli.upgrade.migrations.m_4_0_0rc9_exclude_project_local_codex_home",  # #7729: auto-discovered clone-local Codex home exclusion, never statically imported
         "specify_cli.upgrade.migrations.m_4_0_0rc8_retire_stale_mission_template_forks",  # #5280: auto-discovered stale template repair, never statically imported
         "specify_cli.upgrade.migrations.m_4_0_0rc8_stamp_globalize_commands",  # #6954: auto-discovered successor, never statically imported by runtime code
         "specify_cli.upgrade.migrations.m_4_0_0rc8_repair_historical_sweep_overrides",  # #6548: auto-discovered override repair
