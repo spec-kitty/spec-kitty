@@ -1,0 +1,21 @@
+{
+  "create_return_branch": "issue-4927-host-aware-mode-predicate",
+  "created_at": "2026-11-20T19:18:41.008601+00:00",
+  "flattened": false,
+  "friendly_name": "Host-aware mode predicate for tool-surface planners",
+  "mid8": "01M7X6B1",
+  "mission_base_sha": "873ca367c809e69f25e38b8f70923d8b677efed1",
+  "mission_branch": "kitty/mission-host-aware-mode-predicate-01M7X6B1",
+  "mission_id": "01M7X6B1MARTS68ADD3VQJD0Y6",
+  "mission_number": null,
+  "mission_slug": "host-aware-mode-predicate-01M7X6B1",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "On Windows the file system reports fixed modes, so planners that compare the observed mode with a planned POSIX mode plan a chmod that never takes effect: the startup skill sync and upgrade --dry-run report the same phantom repairs forever, while doctor says the project is clean. This Mission makes one host-aware mode comparison the only way planners decide mode equality and adds an architectural gate that keeps it that way (#4927, #4810).",
+  "purpose_tldr": "A converged Windows project stops re-planning file-mode repairs it can never apply, on every CLI start and every upgrade preview.",
+  "slug": "host-aware-mode-predicate-01M7X6B1",
+  "target_branch": "issue-4927-host-aware-mode-predicate",
+  "topology": "single_branch",
+  "topology_settled": false,
+  "topology_source": "default"
+}
