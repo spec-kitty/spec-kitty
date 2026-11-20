@@ -1,7 +1,7 @@
 {
-  "event_count": 55,
-  "last_event_id": "01M7X7KW4PDKDG8PZHH5CMTK51",
-  "materialized_at": "2026-11-20T19:40:56.859751+00:00",
+  "event_count": 56,
+  "last_event_id": "01M7X7MCEVHFEQ7RV9DT02XTTA",
+  "materialized_at": "2026-11-20T19:41:14.587586+00:00",
   "mission_number": "",
   "mission_slug": "approved-lane-resolution-route-01M7WW0Z",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 2,
+    "for_review": 1,
     "in_progress": 2,
-    "in_review": 1,
+    "in_review": 2,
     "planned": 9
   },
   "work_packages": {
@@ -25,9 +25,9 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "for_review",
-      "last_event_id": "01M7X6BCFFVSXJ84601ZMEQM6Y",
-      "last_transition_at": "2026-11-20T19:18:51.120010+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M7X7MCEVHFEQ7RV9DT02XTTA",
+      "last_transition_at": "2026-11-20T19:41:14.587586+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-20T18:04:16Z – claude – shell_pid=24964 – T001 red: uv run --frozen pytest -q tests/consolidation/test_merge_attribute_guard.py on HEAD -> 23 failed, 2 passed. Every attack route (info_attributes, worktree_gitattributes, core_attributes_file, custom_driver, merge_default, builtin binary/text redefined, registered driver redefined on wrong and on own pattern, registered shipped command on wrong pattern) x both probes fails with 'DID NOT RAISE GitProbeError'; also red: union on non-conflicting path, either-parent guard, git --version once per run scope (HEAD spawns one per call). Controls green: attribute on another path, single-commit fold.",
@@ -44,7 +44,7 @@
         "FR-010 guard: new consolidation/merge_attribute_guard.py wired into n_way_merge_blob and merge_own_changed_paths (either-parent paths); committed union honoured only under ruling (a) with attributes_source; git --version cached per run scope; registered_merge_driver_specs() leeway accessor. 88 guard tests, blast radius, tests/consolidation+tests/lanes, test-fast, path-listing and dead-symbol gates green."
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
+      "role": "reviewer",
       "shell_pid": 24964,
       "shell_pid_created_at": "1795197384.67",
       "subtasks": {
