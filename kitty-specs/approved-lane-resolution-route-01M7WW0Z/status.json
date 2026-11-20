@@ -1,7 +1,7 @@
 {
-  "event_count": 8,
-  "last_event_id": "01M7X14HGSE8MX3CKDS71CF28P",
-  "materialized_at": "2026-11-20T17:47:44.025833+00:00",
+  "event_count": 9,
+  "last_event_id": "01M7X14N705MA7K5GK87TQQCJV",
+  "materialized_at": "2026-11-20T17:47:47.808376+00:00",
   "mission_number": "",
   "mission_slug": "approved-lane-resolution-route-01M7WW0Z",
   "mission_type": "software-dev",
@@ -15,7 +15,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 8
+    "planned": 9
   },
   "work_packages": {
     "WP01": {
@@ -73,6 +73,13 @@
       "lane": "planned",
       "last_event_id": "01M7X14HGSE8MX3CKDS71CF28P",
       "last_transition_at": "2026-11-20T17:47:44.025833+00:00"
+    },
+    "WP09": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M7X14N705MA7K5GK87TQQCJV",
+      "last_transition_at": "2026-11-20T17:47:47.808376+00:00"
     }
   }
 }
