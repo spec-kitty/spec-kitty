@@ -185,6 +185,9 @@ def test_doctor_skills_json_envelope_is_unchanged_for_stated_empty_project(tmp_p
         "slash_commands",
         "pack_skills",
         "tool_folders",
+        # Additive (#5281, #7723).
+        "outdated",
+        "old_root_leftovers",
     }
     assert data["configured_agents"] == []
     assert data["ok"] is True
