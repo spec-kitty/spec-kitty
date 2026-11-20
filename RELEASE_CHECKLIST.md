@@ -74,6 +74,12 @@ Use this checklist for releases from `main`.
   ```bash
   spec-kitty charter pack vendor --check
   ```
+- [ ] Verify the frozen historical skill-render list is current (run in a full-history clone; exit 1 means
+  a shipped skill changed without regenerating, #7700). Regenerate without `--check`, review the
+  additions and commit them; the list is append-only.
+  ```bash
+  uv run --frozen python -m scripts.skills.build_historical_skill_digests --check
+  ```
 - [ ] Verify the service pins (run BEFORE building; fails on drift). The first command checks
   `pins/read-service.source.yaml` online against the release's `SHA256SUMS`; the other two fetch and
   digest-verify this host's pinned assets, then check the cache. The CLI wheel ships the pins only,
