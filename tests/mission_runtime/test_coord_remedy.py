@@ -203,3 +203,11 @@ def test_an_unrunnable_git_reads_as_no_tracking_ref(repo: Path, monkeypatch: pyt
 
     assert facts.remote == "origin"
     assert facts.tracking_ref_present is False
+
+
+@pytest.mark.unit
+def test_a_root_git_cannot_run_in_knows_nothing(tmp_path: Path) -> None:
+    """CI fold: ``run_git`` raises on an absent root even with ``check=False``; never let that escape."""
+    facts = remote_only_branch(tmp_path / "does-not-exist", _BRANCH)
+
+    assert facts == RemoteOnlyBranch(branch=_BRANCH, remote=None, tracking_ref_present=False)

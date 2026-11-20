@@ -530,7 +530,7 @@ def _coord_worktree_missing_remote_only_steps(
     refusal: they name the remote that owns the branch (never a hard-coded
     ``origin``) and skip the fetch when this clone already holds the tracking ref.
     """
-    from mission_runtime.coord_remedy import coordination_doctor_command, remote_only_branch, remote_only_steps
+    from mission_runtime import coordination_doctor_command, remote_only_branch, remote_only_steps
 
     return remote_only_steps(
         remote_only_branch(repo_root, coord_branch),
@@ -1259,7 +1259,7 @@ def _coord_branch_remote_skip_reason(repo_root: Path, coord_branch: str, mission
     if outcome is RemoteLookup.HIT:
         # #5287: the canonical remote-only steps, never a bare `git fetch` (which
         # creates no local branch).
-        from mission_runtime.coord_remedy import coordination_doctor_command, remote_only_branch, remote_only_steps
+        from mission_runtime import coordination_doctor_command, remote_only_branch, remote_only_steps
 
         steps = remote_only_steps(remote_only_branch(repo_root, coord_branch), repo_root, coordination_doctor_command(mission_slug))
         return f"{_COORD_BRANCH_REMOTE_HIT_SKIP_LEAD} {steps}"
