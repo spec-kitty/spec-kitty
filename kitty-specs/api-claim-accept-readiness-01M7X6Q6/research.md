@@ -41,3 +41,9 @@ Rebuilt from the issue bodies of #5781 and #5818. Each was run against the edita
 ## R-04 Supply chain
 
 No dependency is added or changed (DIRECTIVE_051: not applicable).
+
+## R-05 Residual found in WP01 review (cycle 1)
+
+`spec_kitty_events.diary.reduce_parsed` folds every annotation after every transition, so a `release_runtime_claim` annotation also clears the `agent`/`shell_pid` slots that a LATER claim's sidecar set (#7794, minimal reproduction in the issue). Since WP01, an `orchestrator-api transition --to planned` emits that release (#7644), so after an API rollback the next claim, API or host, shows no live holder in the reduced snapshot. `move-task --to planned` has had the same consequence since #2512. The claim event still records its agent, and the implementer of record is right, so acceptance is unaffected.
+
+The fix belongs in `spec-kitty-events` (C-001). The intended outcome is pinned as strict `xfail`s in `tests/orchestrator_api/test_api_claim_sidecar_5781.py` (`test_after_an_api_rollback_the_new_claim_holds_the_agent_slot`, `test_after_an_api_rollback_the_host_re_claim_holds_the_live_claim_slots`). Keeping the release (parity with `move-task`, the #7644 contract) was preferred over withholding it until the events fix: withholding would keep a stale holder and pid bound after every API rollback, the defect #7644 reports.
