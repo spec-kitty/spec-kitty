@@ -20,7 +20,7 @@
   "work_packages": {
     "WP01": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": "claude::python-pedro",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
@@ -29,6 +29,9 @@
       "last_event_id": "01M7X7609R55TBMPXETDFQDWEW",
       "last_transition_at": "2026-11-20T19:33:23.384711+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Builder + three rewires; red-first ATDD; parity test; re-pins of 4979/5113. Tests: 225 blast radius + 32 rerun after note fix; layer/remote-contact gates 121 passed."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 3765,
