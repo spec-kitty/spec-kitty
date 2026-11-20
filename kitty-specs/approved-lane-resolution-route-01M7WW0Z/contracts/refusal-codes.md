@@ -24,9 +24,7 @@
 
 ## Rollback outcome `LANE_MOVED_SINCE_AUTO_REBASE`
 
-**Report line**: `lane <branch>: moved since this run's auto-rebase merge <sha12> (now <tip12>); not restored. To drop the auto-rebase merge yourself: git -C <lane checkout> ... (named by implement)`.
-
-The exact recovery text is decided in the implementation. It must name the lane, the recorded `before` and `after`, and the live tip.
+**Report line**: `lane <branch>: moved since this run's auto-rebase merge <sha12> (now <tip12>; recorded before <before12>, after <after12>); not restored. The lane keeps the auto-rebase merge; review the lane's new commits, then re-run spec-kitty consolidate --mission <slug>.` No raw git recipe is printed (consistent with the stale-remedy rule of #7285). WP03 asserts the line names the lane, before, after and the live tip.
 
 **Effects**:
 

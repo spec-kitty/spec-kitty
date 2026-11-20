@@ -12,7 +12,7 @@ Format per decision: Decision / Rationale / Alternatives considered.
 
 - **Decision**: operator ruling DM-01M7WX8AX56E23AXBZRWGNX4EM (2026-11-20) selected option (b): extend the canonical lane sync point.
   - Command: `spec-kitty agent action implement <WP> --mission <m> --incorporate <lane>`.
-  - It merges the named sibling lane at its newest approval stamp into the lane checkout.
+  - It merges the named sibling lane at its newest approval stamp into the lane checkout (new module `lanes/incorporate.py`; `lanes/lifecycle_sync.py` is unchanged). On a conflict it exits with a distinct non-zero code (operator ruling).
   - It stops on a conflict and leaves the merge in progress for hand resolution.
   - It refuses when the sibling has no approval stamp, or the stamp is not on the sibling branch.
   - The remedy prints, in order:
@@ -115,7 +115,7 @@ Format per decision: Decision / Rationale / Alternatives considered.
 ## R-07: Reconciliation hint (FR-006)
 
 - **Decision**:
-  - Add a claim field `unreviewed_merges: tuple[UnreviewedMerge, ...]` (sha, lane_id, wp_ids, own_paths), populated where `_drop_unreviewed_merges` drops a merge. The field is additive; existing fields stay byte-identical.
+  - Add a claim field `unreviewed_merges: tuple[UnreviewedMerge, ...]` (sha, lane_id, wp_ids, own_paths, own_blobs), populated where `_drop_unreviewed_merges` drops a merge. The field is additive; existing fields stay byte-identical.
   - `_with_attribution_hint` shows the re-review hint instead of the `--dependency-ref` hint when every un-attributable blob in the divergence is one of those merges' own-path blobs.
   - It does not show the hint when the divergence also carries a canceled clause (N4).
 - **Rationale**:
@@ -130,7 +130,7 @@ Format per decision: Decision / Rationale / Alternatives considered.
   - The range object carries them.
   - `context_block` prints, after the range commands, one labelled line per merge: `RESOLUTION MERGE (operator-authored, review these bytes): git show --remerge-diff <sha>`.
   - When `remerge_diff_available` is false, it prints a "cannot show the resolution on this git" line.
-  - Contract C-001 (commands only, no patch text) is kept, and its text is amended to name the new line.
+  - Review-context contract C-001 (commands only, no patch text) is kept, and its text is amended to name the new line.
 - **Rationale**: the renderer stays pure, and `wp_range` stays the range owner.
 - **Alternatives considered**: render the patch bytes inline. That breaks C-001 and the byte budget.
 

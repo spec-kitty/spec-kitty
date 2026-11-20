@@ -12,7 +12,7 @@ Two approved lanes, `lane-a` (WP01) and `lane-b` (WP02), edit adjacent hunks of 
 2. Follow the printed commands (option (b) shown):
    ```bash
    spec-kitty agent tasks move-task WP02 --to in_progress --mission alpha ...
-   spec-kitty agent action implement WP02 --mission alpha --incorporate lane-a
+   spec-kitty agent action implement WP02 --mission alpha --incorporate lane-a   # exits non-zero on a conflict: expected
    # resolve the conflict in the checkout it names, then commit
    spec-kitty agent tasks move-task WP02 --to for_review --mission alpha
    ```
