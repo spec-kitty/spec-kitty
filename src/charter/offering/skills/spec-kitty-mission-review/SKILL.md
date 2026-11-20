@@ -607,10 +607,11 @@ the materialized coordination worktree when one exists, its retained-branch
 ref content when the worktree has been consolidated away, or the primary
 checkout unchanged on a coord-less (`single_branch` / `lanes`) topology.
 `spec-kitty review` reports Gate 4 as a pass/fail verdict plus the resolved
-matrix source it read as evidence (`kitty-specs/<slug>/mission-review-report.md`'s
-frontmatter `issue_matrix_present: true|false|not_applicable` and its
-`## Findings` section, when the matrix is missing or a row fails validation)
-— it does not itself render a per-row table; you record that table yourself,
+matrix source it read as evidence, in its own machine report
+`kitty-specs/<slug>/mission-review-report.md` (not your Step 9 report): that
+file's frontmatter `issue_matrix_present: true|false|not_applicable` and its
+`## Findings` section, when the matrix is missing or a row fails validation.
+It does not itself render a per-row table; you record that table yourself,
 below, under `## Gate Results — Issue Matrix`. `issue-matrix.json` is the
 single canonical artifact (C-008); a legacy `issue-matrix.md` mission is
 still read via failover — at BOTH the materialized-worktree read AND the
@@ -692,6 +693,16 @@ clean the FR coverage table looks.
 Produce a single structured markdown report. The report is your deliverable.
 It must be self-contained — a reader who has not done any of the prior steps
 must be able to understand each finding from the report alone.
+
+**Save it as `kitty-specs/<slug>/mission-review.md`.** Never save it as
+`kitty-specs/<slug>/mission-review-report.md`: that path belongs to the
+machine report `spec-kitty review` writes in Gate 4 and rewrites on every run.
+`spec-kitty review` refuses with `MISSION_REVIEW_REPORT_PATH_OCCUPIED` (and
+writes nothing) when it finds a file there that it did not write; if you see
+that refusal, move your report with
+`git mv kitty-specs/<slug>/mission-review-report.md kitty-specs/<slug>/mission-review.md`
+(plain `mv` when it is untracked) and re-run Gate 4. Commit your report before
+running any further commands.
 
 ```markdown
 # Mission Review Report: <slug>

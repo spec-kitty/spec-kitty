@@ -15,6 +15,11 @@ review.
 3. Identify drift, missing tests, security concerns, and follow-up issues.
 4. Produce a final verdict and record follow-ups.
 
+Save the review as `kitty-specs/<slug>/mission-review.md`. The path
+`kitty-specs/<slug>/mission-review-report.md` belongs to the machine report
+`spec-kitty review` writes; that command refuses to overwrite any other file
+there (`MISSION_REVIEW_REPORT_PATH_OCCUPIED`).
+
 ## Legacy Alias
 
 For detailed review mechanics, use `spec-kitty-mission-review` when available.
