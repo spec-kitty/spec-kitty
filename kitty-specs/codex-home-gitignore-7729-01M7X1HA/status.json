@@ -30,7 +30,8 @@
       "last_transition_at": "2026-11-20T20:38:10.578275+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Red-first repro extended (runner + pulled clone), fix committed; targeted tests, owning dirs, named gates and make test-fast green"
+        "Red-first repro extended (runner + pulled clone), fix committed; targeted tests, owning dirs, named gates and make test-fast green",
+        "- 2026-11-20T20:38:20Z – unknown – Review cycle 1 folded in 482d17dd: (1) repro + migration tests moved to tests/upgrade (per-PR); (2) nested projects via repo-root prefix + anchored rule; (3) notice split into 4.0.0rc9_report_newly_visible_agent_files so exclusion settles only after excluding; (4) exclusion verified after write; (5) dogfood .gitignore Codex rows committed; (6) PR body commit refs updated; relative CODEX_HOME read from the project."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
