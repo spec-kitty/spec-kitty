@@ -53,7 +53,7 @@
     },
     "WP02": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": "claude::reviewer-renata",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 2,
@@ -67,7 +67,8 @@
         "Changes requested: B1 schema-2 inventory makes older CLIs fail every command (reproduced); see review-feedback-1.md",
         "Review cycle 1 addressed: B1 inventory stays schema 1 in the same file (fixed home.parent anchor + marker; sidecar <owner>-external-assets.json for entries outside), older readers verified (base a053b674 startup runs after this lane); N1-N4 folded. red 02869bad4b, fix 119b4e5654. tests/runtime+specify_cli/runtime 2615 passed (1 env failure: lane .venv shim runs root checkout install); make test-fast 3144 passed",
         "Changes requested (cycle 2): B1 resolved; B2 pre-#7722 records under a root outside home are dropped by migration confinement, regressing refresh vs base (reproduced); see review-feedback-2.md",
-        "Cycle 2 B2 fixed: known_roots widen legacy placement (red 60afe91822, fix bec3d96d89); spy fix"
+        "Cycle 2 B2 fixed: known_roots widen legacy placement (red 60afe91822, fix bec3d96d89); spy fix",
+        "Review passed (independent reviewer, cycle 3, head 5cb93458e5). B1 (cycle 1) fixed: inventory stays schema 1 + anchor marker, external sidecar for out-of-home entries; older CLIs read it. B2 (cycle 2) fixed: known_roots widen legacy placement; red 60afe91822 (2 failed on the pre-fix sources, verified) -> bec3d96d89; reviewer end-to-end repro (pre-#7722 inventory, CLAUDE_CONFIG_DIR outside home, stale recorded skill) now plans the same refresh effect as base a053b674. N1/N3/N4 done. tests/runtime + tests/specify_cli/runtime 2618 passed 2 skipped. Note for orchestrator: the one-line known_roots edit in agent_skills.py lies in lane-c (WP03) write scope -- WP03 must merge it; agent_commands.py and test_build_serialized.py edits are outside owned_files."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
