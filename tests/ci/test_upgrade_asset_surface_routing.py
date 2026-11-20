@@ -122,12 +122,12 @@ def test_single_asset_path_selects_upgrade(path: str) -> None:
     assert {"upgrade", "cli"} <= select_modules([path])
 
 
-def test_skills_only_diff_is_still_run_all() -> None:
-    """The group is non-src: a ``skills/**``-only diff keeps its FR-004 run-all, never narrowed."""
+def test_skills_only_diff_selects_upgrade_without_run_all() -> None:
+    """Since #7775 routed ``skills/**`` to the modules whose tests import it, a skills-only diff is narrow."""
     selection = select_gates(["src/specify_cli/skills/installer.py"])
     assert ASSET_GROUP in selection.matched_groups
-    assert selection.unmatched_src
-    assert {"upgrade", "cli", "core_misc", "status"} <= select_modules(["src/specify_cli/skills/installer.py"])
+    assert not selection.unmatched_src
+    assert {"upgrade", "cli"} <= select_modules(["src/specify_cli/skills/installer.py"])
 
 
 def test_group_is_non_src_and_wired() -> None:

@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+import re
+
 from pathlib import Path
 
 import pytest
@@ -193,7 +195,8 @@ def test_authority_parses_the_yaml_not_a_hardcoded_map(tmp_path: Path) -> None:
 
     # Remove the whole `consolidation` filter block from a temp copy → `consolidation` no longer matches.
     text = DEFAULT_ROUTER_PATH.read_text(encoding="utf-8")
-    mutated = text.replace("            consolidation:\n              - 'src/specify_cli/consolidation/**'\n", "")
+    # Drop the header and every glob line of the block (#7775 gave it more than one glob).
+    mutated = re.sub(r"            consolidation:\n(?:              - '[^']*'\n)+", "", text, count=1)
     assert mutated != text, "mutation fixture no longer matches the router — update it"
     router_copy = tmp_path / "ci-router.yml"
     router_copy.write_text(mutated, encoding="utf-8")

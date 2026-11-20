@@ -108,7 +108,8 @@ needs_jq = pytest.mark.skipif(shutil.which("jq") is None, reason="the workflow s
         ([UNROUTED], "true"),
         ([ROUTED, ROUTED_TOO], "false"),
         (["docs/x.md"], "false"),
-        ([ROUTED, "src/specify_cli/skills/installer.py"], "true"),
+        ([ROUTED, "src/specify_cli/__init__.py"], "true"),
+        (["src/specify_cli/skills/installer.py", ROUTED], "false"),
     ],
 )
 def test_workflow_unmatched_step_is_per_path(paths: list[str], expected: str, tmp_path: Path) -> None:

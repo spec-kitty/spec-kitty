@@ -64,6 +64,7 @@ __all__ = [
     "pack_content_groups",
     "select_gates",
     "unrouted_src_paths",
+    "UNROUTED_SRC_ALLOWLIST",
     "select_modules",
 ]
 
@@ -157,28 +158,9 @@ ACTIVATION_STORE_MODULE_FANOUT: dict[str, frozenset[str]] = {
 #
 # ``src/**`` events importers no registry row roots (a src change there is already run-all, FR-004),
 # mapped to the modules whose per-PR tests exercise them. Keys are a file or a ``/``-terminated prefix.
-REDUCER_LOCK_UNOWNED_IMPORTERS: dict[str, tuple[frozenset[str], str]] = {
-    "src/specify_cli/decisions/": (
-        frozenset({"core_misc"}),
-        "no registry row roots src/specify_cli/decisions/**; its per-PR tests are tests/decisions (core_misc)",
-    ),
-    "src/specify_cli/events/": (
-        frozenset({"execution_context"}),
-        "no registry row roots src/specify_cli/events/**; tests/runtime (execution_context) exercises decision_log through the runtime bridge",
-    ),
-    "src/specify_cli/state/retention.py": (
-        frozenset({"core_misc"}),
-        "no registry row roots src/specify_cli/state/**; tests/core/test_event_log_retention.py (core_misc) exercises it",
-    ),
-    "src/specify_cli/status_lanes.py": (
-        frozenset({"status", "core_misc", "consolidation"}),
-        "no registry row roots src/specify_cli/status_lanes.py; tests/status, tests/specify_cli/core and tests/consolidation exercise it",
-    ),
-    "src/specify_cli/retrospective/": (
-        frozenset({"agent", "cli", "status"}),
-        "no registry row roots src/specify_cli/retrospective/**; tests/agent, tests/cli and tests/status exercise its events module",
-    ),
-}
+# Empty since #7775 routed every src events importer to a registry row (decisions/, events/, state/,
+# status_lanes.py and retrospective/ each have owners now, so their entries were stale).
+REDUCER_LOCK_UNOWNED_IMPORTERS: dict[str, tuple[frozenset[str], str]] = {}
 EVENTS_PACKAGE = "spec_kitty_events"
 # The dependency-lock groups (keys of DEPENDENCY_MODULE_FANOUT), named without running the census.
 DEPENDENCY_GROUPS = frozenset({"reducer_lock"})
@@ -450,6 +432,89 @@ def _match_groups(paths: list[str], router: Router) -> frozenset[str]:
         if any(fnmatch.fnmatch(path, pattern) for pattern in globs for path in paths):
             hit.add(group)
     return frozenset(hit)
+
+
+# Tracked src paths that DELIBERATELY match no src-backed group (#7775 operator ruling: route every src
+# file to its owning module's tests; the full matrix stays the fail-safe for genuinely unowned paths only).
+# A path here still forces run-all through unrouted_src_paths -- the allowlist does not exempt it, it only
+# records that run-all is the intended answer. Pinned by tests/ci/test_every_src_file_is_routed.py, which
+# reds on an unrouted path missing from this table and on a stale entry.
+UNROUTED_SRC_ALLOWLIST: dict[str, str] = {
+    "src/specify_cli/__init__.py": "the package root: every module imports it, so run-all is the right answer",
+    "src/specify_cli/__main__.py": "the `python -m specify_cli` entry point: it runs the whole CLI, so run-all is the right answer",
+    "src/runtime/__init__.py": "the `runtime` package root: every runtime.next importer loads it, so run-all is the right answer",
+    "src/specify_cli/paths/**": (
+        "the keystone path resolver: deliberately unmapped so the catch-all runs everything there (#6879; pinned by tests/ci/test_path_literal_audit_routing.py)"
+    ),
+    "src/specify_cli/.contextive/**": (
+        "generated Contextive glossary exports (scripts/generate_contextive_glossaries.py); no src code reads them "
+        "and their only test, tests/cross_cutting/encoding, is out of matrix"
+    ),
+    "src/specify_cli/schemas/**": (
+        "wps.schema.json is read only by scripts/ci/coverage_guard_lib.py; the `ci` group that owns it is non-src "
+        "by design (it gates no router job and stays out of the catch-all)"
+    ),
+    "src/specify_cli/_completion_manifest.json": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "shell-completion data read by completion.py, which no in-matrix test imports"
+    ),
+    "src/specify_cli/templates/**": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "init's packaged template files (AGENTS.md, claudeignore, vscode settings); data, which no in-matrix test imports by module"
+    ),
+    "src/specify_cli/agent_upgrade_prompt.py": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "reached only through skills/, runtime/ and template/ code"
+    ),
+    "src/specify_cli/ast_analysis/**": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "used by post_merge/stale_assertions.py and the architectural gates (tests/ast_analysis is out of matrix)"
+    ),
+    "src/specify_cli/bytecode_heal.py": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "used by the upgrade and doctor commands and compat/planner.py"
+    ),
+    "src/specify_cli/completion.py": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "imported only by the package root"
+    ),
+    "src/specify_cli/configured_command.py": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "used by review/ and acceptance/"
+    ),
+    "src/specify_cli/docs/**": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "used by the docs command and scripts/docs (tests/docs is out of matrix)"
+    ),
+    "src/specify_cli/doctor/**": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "used by the doctor command (tests/doctor is out of matrix)"
+    ),
+    "src/specify_cli/drg_writers/**": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "used by charter's DRG synthesizer and migration (tests/specify_cli/drg_writers is out of matrix)"
+    ),
+    "src/specify_cli/encoding.py": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "imported only by cli/__init__.py"
+    ),
+    "src/specify_cli/intake_sources.py": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "used by the intake command and intake/"
+    ),
+    "src/specify_cli/plan_validation.py": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "used by the research command"
+    ),
+    "src/specify_cli/readiness/**": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "used by cli/helpers.py and the upgrade command (tests/readiness is out of matrix)"
+    ),
+    "src/specify_cli/verify_enhanced.py": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "used by the verify command"
+    ),
+}
 
 
 def unrouted_src_paths(paths: Iterable[str], router: Router) -> tuple[str, ...]:
