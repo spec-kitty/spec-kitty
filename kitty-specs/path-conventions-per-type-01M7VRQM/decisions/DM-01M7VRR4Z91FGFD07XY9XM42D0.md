@@ -4,8 +4,9 @@
 - **Origin flow:** `specify`
 - **Slot key:** `specify.config.type-ids`
 - **Input key:** `valid_type_ids`
-- **Status:** `open`
+- **Status:** `resolved`
 - **Created:** `2026-11-20T06:01:54.921711+00:00`
+- **Resolved:** `2026-11-20T06:31:05.881584+00:00`
 - **Opened by:** `cli`
 - **Other answer:** `false`
 
@@ -21,7 +22,7 @@ Which mission-type ids are valid per-type section keys under project.path_conven
 
 ## Final answer
 
-_(none)_
+ii: the layered roster (built-in, org, project).
 
 ## Rationale
 
@@ -30,3 +31,4 @@ _(none)_
 ## Change log
 
 - `2026-11-20T06:01:54.921711+00:00` - opened
+- `2026-11-20T06:31:05.881584+00:00` - resolved (final_answer="ii: the layered roster (built-in, org, project).")
