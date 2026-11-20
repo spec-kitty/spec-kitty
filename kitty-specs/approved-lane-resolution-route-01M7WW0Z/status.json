@@ -1,7 +1,7 @@
 {
-  "event_count": 62,
-  "last_event_id": "01M7X7Z8BJ3WRGST6NQS2Q7N4Y",
-  "materialized_at": "2026-11-20T19:47:10.834603+00:00",
+  "event_count": 63,
+  "last_event_id": "01M7X7ZZ3A49KN966FCBSYGDMH",
+  "materialized_at": "2026-11-20T19:47:34.123129+00:00",
   "mission_number": "",
   "mission_slug": "approved-lane-resolution-route-01M7WW0Z",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 4,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 8
   },
   "work_packages": {
@@ -71,9 +71,9 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "for_review",
-      "last_event_id": "01M7X7F97VKYTV00JDN7K113RJ",
-      "last_transition_at": "2026-11-20T19:38:27.451654+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M7X7ZZ3A49KN966FCBSYGDMH",
+      "last_transition_at": "2026-11-20T19:47:34.123129+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-20T18:04:07Z – claude – shell_pid=25208 – T006 red: uv run --frozen pytest -q tests/lanes/test_auto_rebase_record.py -> 24 failed, 2 passed. Writer tests fail on assertions (clean/auto-resolved: _ref_value(...auto-rebase/<lane>/<head>) is None; report tests: AttributeError no merge_sha); reader/cleanup tests ImportError (module absent). Controls green at HEAD: test_halted_auto_rebase_records_nothing, test_already_up_to_date_records_nothing. Record-failure test 6 is ImportError at HEAD (it patches the new module); its assertion red is shown after T007.",
@@ -98,7 +98,7 @@
         "reviewer": "claude::reviewer-renata",
         "verdict": "changes_requested"
       },
-      "role": "implementer",
+      "role": "reviewer",
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
@@ -297,7 +297,8 @@
         "#7497 red at base (generic unattributable FAIL); fixed in reconciliation_canceled.py: C anchored on A before A merged C, merged-in canceled commits counted on carrier spines. Fresh run now refuses CANCELED_REACHABLE_VIA_DEPENDENCY; control keeps LANE_MOVED_AFTER_APPROVAL; mutation checks permanent. T042 n/a (red-at-base branch taken).",
         "Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
         "REJECT: Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
-        "- 2026-11-20T19:45:21Z – unknown – red (review cycle 1, HIGH): pytest test_canceled_via_reapproved_dependency_7497.py -k 'refresh or never_merged' on e52d6733: own_commits[live] and [frozen_tips] FAIL (C owns {a1-side: s1,m0,a2,c1} instead of {c1}); end-to-end test_refresh_merge_before_the_cut_keeps_the_base_verdict FAILS: approved WP01 file src/pkg/wp01_more.py refused as CANCELED_REACHABLE_VIA_DEPENDENCY. Anchor-helper tests fail on the signature change (canceled branch replaces the tip closure), not a semantic red. Carrier test already passes."
+        "- 2026-11-20T19:45:21Z – unknown – red (review cycle 1, HIGH): pytest test_canceled_via_reapproved_dependency_7497.py -k 'refresh or never_merged' on e52d6733: own_commits[live] and [frozen_tips] FAIL (C owns {a1-side: s1,m0,a2,c1} instead of {c1}); end-to-end test_refresh_merge_before_the_cut_keeps_the_base_verdict FAILS: approved WP01 file src/pkg/wp01_more.py refused as CANCELED_REACHABLE_VIA_DEPENDENCY. Anchor-helper tests fail on the signature change (canceled branch replaces the tip closure), not a semantic red. Carrier test already passes.",
+        "- 2026-11-20T19:47:22Z – unknown – trace(design-decisions) cycle 2: matching rule fixed per review. A spine merge M on A incorporates C only when a commit on M's non-first-parent side (M^1..p for p in parents[1:]) lies on C's OWN first-parent spine (first-parent coord_base..C minus what M^1 reaches); never the full tip closure (_dependency_anchor_before_incorporating now takes C's branch; new _merge_brings_in). A gone/empty canceled lane short-circuits to no own commits (same result as before). Green: 19/19 in the file incl. refresh-merge repro live+frozen, never-merged carrier check, and the end-to-end cell (exit 0, approved src/pkg/wp01_more.py lands, C's file absent; the same cell is exit 0 with the base source, verified by swapping in 2c1a56fe's reconciliation_canceled.py). Main/control/mutation tests stay green."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
