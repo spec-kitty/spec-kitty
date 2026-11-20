@@ -56,7 +56,8 @@ from specify_cli.state.contract import is_target_owned_path
 from specify_cli.status import EventLogMergeError, materialize, merge_event_log_texts, review_presync_ref, sits_on_through_merges
 from specify_cli.coordination.coherence import CheckoutRole, ResidueContext, is_coord_residue_churn
 from specify_cli.consolidation.git_probes import LagResidueContext
-from specify_cli.git.destructive_guard import DestructiveOpRefused, guarded_merge_abort
+from specify_cli.git.destructive_guard import DestructiveOpRefused, guarded_merge_abort, guarded_reset_hard
+from specify_cli.lanes import auto_rebase_record
 from specify_cli.git.ref_advance import ResidueClassifier, write_bookkeeping_ref
 from mission_runtime import (
     MissionArtifactKind,
@@ -136,6 +137,8 @@ class AutoRebaseReport:
     succeeded: bool
     classifications: tuple[ConflictClassification, ...] = field(default_factory=tuple)
     halt_reason: str | None = None
+    #: The merge commit this attempt made and recorded (FR-005); ``None`` when it made none.
+    merge_sha: str | None = None
 
     def __post_init__(self) -> None:
         # Invariant: halt_reason is set iff succeeded is False.
@@ -946,6 +949,99 @@ def _process_conflicted_file(
     return validated, file_path.name == "__init__.py", None
 
 
+@dataclass(frozen=True)
+class _PreMergeTips:
+    """The lane tip and the Mission branch tip read just before the auto-rebase merge."""
+
+    before: str
+    mission_before: str
+
+
+def _read_pre_merge_tips(worktree_path: Path, mission_branch: str) -> _PreMergeTips | str:
+    """Both tips the record step checks the merge against, or the halt reason when one is unreadable."""
+    tips: list[str] = []
+    for label, rev in (("the lane tip", "HEAD"), (f"the tip of {mission_branch}", mission_branch)):
+        result = _run(["git", "rev-parse", "--verify", f"{rev}^{{commit}}"], worktree_path)
+        sha = result.stdout.strip()
+        if result.returncode != 0 or not sha:
+            detail = (result.stderr or result.stdout).strip() or f"git exited {result.returncode}"
+            return f"could not read {label} before the auto-rebase merge: {detail}"
+        tips.append(sha)
+    return _PreMergeTips(before=tips[0], mission_before=tips[1])
+
+
+def _halted(lane_id: str, classifications: list[ConflictClassification], halt_reason: str) -> AutoRebaseReport:
+    return AutoRebaseReport(
+        lane_id=lane_id,
+        attempted=True,
+        succeeded=False,
+        classifications=tuple(classifications),
+        halt_reason=halt_reason,
+    )
+
+
+def _undo_unrecorded_merge(
+    context: ResidueClassifier,
+    worktree_path: Path,
+    repo_root: Path,
+    branch: str,
+    merge_sha: str,
+    before: str,
+) -> str:
+    """Undo a merge whose record could not be written; return the halt reason (NFR-002).
+
+    The reset goes through the destructive guard, back to the tip read just before the merge;
+    the lane work tip is then re-recorded, since the post-commit recorder hook may already have
+    pointed it at the undone merge. A refused or failed reset leaves the merge, and says so.
+    """
+    reason = f"auto-rebase record could not be written for merge {merge_sha[:12]}"
+    try:
+        guarded_reset_hard(worktree_path, before, context=context, env=_make_merge_env())
+    except (DestructiveOpRefused, RuntimeError) as exc:
+        detail = exc.remediation if isinstance(exc, DestructiveOpRefused) else str(exc)
+        return (
+            f"{reason}; the merge {merge_sha[:12]} was left on the lane unrecorded because undoing it failed ({detail}); "
+            "consolidate will judge it as a hand merge"
+        )
+    from specify_cli.lanes.lane_tip import record_tip
+
+    record_tip(repo_root, branch)
+    return f"{reason}; the merge was undone"
+
+
+def _record_tool_merge(
+    context: ResidueClassifier,
+    worktree_path: Path,
+    repo_root: Path,
+    lane_id: str,
+    branch: str,
+    tips: _PreMergeTips,
+    classifications: list[ConflictClassification],
+) -> AutoRebaseReport | str | None:
+    """Record the merge this attempt just committed (FR-005).
+
+    Returns the recorded merge SHA, ``None`` when nothing was committed, or a failure report.
+    Only a merge whose parents are exactly ``[before, mission_before]`` is recorded.
+    """
+    head_result = _run(["git", "rev-parse", "--verify", "HEAD"], worktree_path)
+    head = head_result.stdout.strip()
+    if head_result.returncode != 0 or not head:
+        return _halted(lane_id, classifications, "could not read the lane tip after the auto-rebase merge; the merge was left on the lane unrecorded")
+    if head == tips.before:
+        return None
+    parents = _run(["git", "rev-list", "--parents", "-n1", head], worktree_path).stdout.split()
+    if parents != [head, tips.before, tips.mission_before]:
+        return _halted(
+            lane_id,
+            classifications,
+            f"the lane tip {head[:12]} after the auto-rebase is not its merge of {tips.mission_before[:12]} into "
+            f"{tips.before[:12]}; it was left on the lane unrecorded",
+        )
+    if auto_rebase_record.record(repo_root, branch, head):
+        return head
+    return _halted(lane_id, classifications, _undo_unrecorded_merge(context, worktree_path, repo_root, branch, head, tips.before))
+
+
 def _finalize_auto_rebase(
     lane_id: str,
     worktree_path: Path,
@@ -955,8 +1051,9 @@ def _finalize_auto_rebase(
     uvlock_seen: bool,
     branch: str,
     context: ResidueClassifier,
+    tips: _PreMergeTips,
 ) -> AutoRebaseReport:
-    """Run post-resolution steps: uv.lock regen, ruff fix, commit."""
+    """Run post-resolution steps: uv.lock regen, ruff fix, commit, record."""
     if uvlock_seen:
         ok, message = _attempt_resolve_uv_lock(worktree_path, repo_root)
         if not ok:
@@ -1014,6 +1111,12 @@ def _finalize_auto_rebase(
             f"{(commit_result.stderr or commit_result.stdout).strip()}",
         )
 
+    # FR-005: record the merge before the lane-tip ref advances, so a record that cannot be
+    # written never leaves the tip ref naming an undone merge.
+    recorded = _record_tool_merge(context, worktree_path, repo_root, lane_id, branch, tips, classifications)
+    if isinstance(recorded, AutoRebaseReport):
+        return recorded
+
     # #5115/WP07 (FR-018): spec-kitty's own lane advance also records the
     # tip explicitly -- defense in depth alongside the post-commit hook,
     # which this same ``git commit`` above already triggers when installed.
@@ -1026,6 +1129,51 @@ def _finalize_auto_rebase(
         attempted=True,
         succeeded=True,
         classifications=tuple(classifications),
+        merge_sha=recorded,
+    )
+
+
+def _conclude_clean_merge(
+    context: ResidueClassifier,
+    worktree_path: Path,
+    repo_root: Path,
+    lane_id: str,
+    branch: str,
+    tips: _PreMergeTips,
+) -> AutoRebaseReport:
+    """Refresh staged status snapshots, commit a clean merge and record it."""
+    clean_classifications: list[ConflictClassification] = []
+    halt_reason = _refresh_status_json_for_staged_artifacts(worktree_path, clean_classifications)
+    if halt_reason is not None:
+        return _abort_with_failure(context, worktree_path, lane_id, clean_classifications, halt_reason)
+
+    sparse_error = _reapply_sparse_checkout(worktree_path)
+    if sparse_error is not None:
+        return _abort_with_failure(
+            context, worktree_path, lane_id, clean_classifications,
+            f"sparse checkout cleanup failed: {sparse_error}",
+        )
+
+    recorded: str | None = None
+    if _merge_head_exists(worktree_path):
+        commit_result = conclude_in_progress_op(worktree_path, env=_make_merge_env())
+        if commit_result.returncode != 0:
+            return _abort_with_failure(
+                context, worktree_path, lane_id, clean_classifications,
+                f"merge commit failed: "
+                f"{(commit_result.stderr or commit_result.stdout).strip()}",
+            )
+        outcome = _record_tool_merge(context, worktree_path, repo_root, lane_id, branch, tips, clean_classifications)
+        if isinstance(outcome, AutoRebaseReport):
+            return outcome
+        recorded = outcome
+
+    return AutoRebaseReport(
+        lane_id=lane_id,
+        attempted=True,
+        succeeded=True,
+        classifications=tuple(clean_classifications),
+        merge_sha=recorded,
     )
 
 
@@ -1077,44 +1225,21 @@ def attempt_auto_rebase(
     # driver here would pre-empt that classifier (#2709/#2711 regression).
     _ensure_merge_driver_git_config(repo_root)
 
-    pre_merge_sha = _head_sha(worktree_path)
+    # FR-005: the two tips the record step proves the merge against, read before the merge.
+    # ``tips.before`` is also the #7802 review pre-sync tip.
+    tips = _read_pre_merge_tips(worktree_path, mission_branch)
+    if isinstance(tips, str):
+        return _halted(lane.lane_id, [], tips)
+
     merge_result = _run(
         ["git", "merge", "--no-edit", "--no-ff", "--no-commit", mission_branch],
         worktree_path,
     )
     if merge_result.returncode == 0:
-        clean_classifications: list[ConflictClassification] = []
-        halt_reason = _refresh_status_json_for_staged_artifacts(
-            worktree_path, clean_classifications
-        )
-        if halt_reason is not None:
-            return _abort_with_failure(
-                context, worktree_path, lane.lane_id, clean_classifications, halt_reason,
-            )
-
-        sparse_error = _reapply_sparse_checkout(worktree_path)
-        if sparse_error is not None:
-            return _abort_with_failure(
-                context, worktree_path, lane.lane_id, clean_classifications,
-                f"sparse checkout cleanup failed: {sparse_error}",
-            )
-
-        if _merge_head_exists(worktree_path):
-            commit_result = conclude_in_progress_op(worktree_path, env=_make_merge_env())
-            if commit_result.returncode != 0:
-                return _abort_with_failure(
-                    context, worktree_path, lane.lane_id, clean_classifications,
-                    f"merge commit failed: "
-                    f"{(commit_result.stderr or commit_result.stdout).strip()}",
-                )
-            _record_review_presync(repo_root, worktree_path, branch, pre_merge_sha)
-
-        return AutoRebaseReport(
-            lane_id=lane.lane_id,
-            attempted=True,
-            succeeded=True,
-            classifications=tuple(clean_classifications),
-        )
+        report = _conclude_clean_merge(context, worktree_path, repo_root, lane.lane_id, branch, tips)
+        if report.succeeded:
+            _record_review_presync(repo_root, worktree_path, branch, tips.before)
+        return report
 
     conflicted = _list_conflicted_files(worktree_path)
     if not conflicted:
@@ -1158,8 +1283,8 @@ def attempt_auto_rebase(
 
     report = _finalize_auto_rebase(
         lane.lane_id, worktree_path, repo_root,
-        classifications, init_py_touched, uvlock_seen, branch, context,
+        classifications, init_py_touched, uvlock_seen, branch, context, tips,
     )
     if report.succeeded:
-        _record_review_presync(repo_root, worktree_path, branch, pre_merge_sha)
+        _record_review_presync(repo_root, worktree_path, branch, tips.before)
     return report
