@@ -49,16 +49,16 @@
       "wp": null
     },
     "#4810": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Folded in by operator ruling 2026-11-20; predicate in WP01, ratchet gate tests/architectural/test_mode_equality_authority.py in WP03",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Close the convergence-predicate bug class by construction: canonical predicate + mutation-proven ratchet gate",
+      "verdict": "in-mission",
+      "wp": "WP03"
     },
     "#4927": {
       "evidence_ref": "WP01 33c25c23 (global planners via effect_action; emulated-Windows convergence test); WP02 completes project/provider planners",
