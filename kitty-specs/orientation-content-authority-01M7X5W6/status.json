@@ -1,0 +1,90 @@
+{
+  "event_count": 19,
+  "last_event_id": "01M7XEX4FT95SZK5ZTA4MGBDC4",
+  "materialized_at": "2026-11-20T21:48:21.370169+00:00",
+  "mission_number": "264",
+  "mission_slug": "orientation-content-authority-01M7X5W6",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude::python-pedro",
+      "lane": "done",
+      "last_event_id": "01M7XEX3VYC5HKTF9SEZWH25DP",
+      "last_transition_at": "2026-11-20T21:48:20.734309+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Authority module, identity fallback, manager/hook split; 462 tests green in session_presence+identity+session_start (with harness opt-out unset)",
+        "Review cycle 1 folded in 6a11491e: B1 (lazy metadata lookup; 4 migration test files green), N1 (writer selection inside per-agent try), N2 (fallback documented + pinned), N3 (dry-run test exercises dry_run)",
+        "Review passed (cycle 2): B1 fixed - the 4 session-presence migration test files give 61/61 on base 2c2b4395 and 61/61 on tip (expected_orientation reads importlib.metadata.version at call time). N1 fixed (orientation_writer inside the per-agent try; parametrized install/update warning test). N2 documented and tested. N3 test exercises update(dry_run=True). UNKNOWN_PROJECT_SLUG private. session_presence+identity+test_session_start+test_no_dead_symbols: 502 passed, 2 skipped. ruff/format/mypy clean. No migration module edited. Anti-pattern checklist all PASS/N/A. Shared-file note: WP02 shares lane-planning and should rebase onto this tip. Only change since review start (2c5b5dc7..77cc1387) is issue-matrix.json."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/kitty-specs/orientation-content-authority-01M7X5W6/tasks/WP01-content-authority/review-cycle-2.md",
+        "reference": "review-cycle://orientation-content-authority-01M7X5W6/WP01-content-authority/review-cycle-2.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1462,
+      "shell_pid_created_at": "1795208411.13",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude::python-pedro",
+      "lane": "done",
+      "last_event_id": "01M7XEX4FT95SZK5ZTA4MGBDC4",
+      "last_transition_at": "2026-11-20T21:48:21.370169+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "S1/S3/S4/convergence red on WP01 tip (9 failing), green now. Blast radius 1797 passed; arch gates 121 passed; make test-fast 3167 passed; live CLI repro fixed and idempotent.",
+        "Review passed: red-first 9->12 green confirmed on WP01 tip; live #5215 repro converges (doctor flags, --fix and upgrade write local-agent-bus, rc8 rewritten, second upgrade no-op, hand-edit preserved); re-pins honest; ruff/format/mypy/C901 clean. Nits: test_plan.py edited outside owned_files; _prepare keeps an inline configured/isinstance pre-check beside orientation_writer; mixed-newline file reads present to the probe but the writer rewrites it once."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/kitty-specs/orientation-content-authority-01M7X5W6/tasks/WP02-provider-writer-convergence/review-cycle-1.md",
+        "reference": "review-cycle://orientation-content-authority-01M7X5W6/WP02-provider-writer-convergence/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 813,
+      "shell_pid_created_at": "1795209690.8",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    }
+  }
+}
