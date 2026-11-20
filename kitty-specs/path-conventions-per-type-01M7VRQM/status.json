@@ -1,7 +1,7 @@
 {
-  "event_count": 7,
-  "last_event_id": "01M7VVPHCNWQTJHVG0N45NERNP",
-  "materialized_at": "2026-11-20T06:53:27.076775+00:00",
+  "event_count": 9,
+  "last_event_id": "01M7VVZWXPFZ8Q5WRS243Q8927",
+  "materialized_at": "2026-11-20T06:58:33.757296+00:00",
   "mission_number": "",
   "mission_slug": "path-conventions-per-type-01M7VRQM",
   "mission_type": "software-dev",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 2,
     "in_review": 0,
-    "planned": 4
+    "planned": 3
   },
   "work_packages": {
     "WP01": {
@@ -42,11 +42,20 @@
       "last_transition_at": "2026-11-20T06:38:48.362883+00:00"
     },
     "WP03": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "python-pedro",
+      "agent_profile_version": "1.0",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M7VTVT6KC296ADG4EJVH47ER",
-      "last_transition_at": "2026-11-20T06:38:52.115169+00:00"
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M7VVZWXPFZ8Q5WRS243Q8927",
+      "last_transition_at": "2026-11-20T06:58:33.757296+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 8239,
+      "shell_pid_created_at": "1795157893.4"
     },
     "WP04": {
       "actor": "finalize-tasks",
