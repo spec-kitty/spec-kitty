@@ -7,7 +7,8 @@ set is now narrow, and is computed here from the configured agents:
 
 - **Secrets and runtime state**, for every agent whether configured or not:
   credential and local-only files (``.codex/auth.json``, ``.gemini/.env``,
-  ``.claude/settings.local.json`` ...) and the state folders of Vibe, Pi,
+  ``.claude/settings.local.json`` ...), the state a project-local Codex home
+  writes (``agent_utils.codex_home``), and the state folders of Vibe, Pi,
   Letta and Copilot. These guard a credential, not ownership, so they never
   depend on config.
 - **Generated command files** (``<command dir>/spec-kitty.*``) for each
@@ -34,6 +35,7 @@ from collections.abc import Iterable, Sequence
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
+from specify_cli.agent_utils.codex_home import CODEX_HOME_STATE_ENTRIES
 from specify_cli.core.config import AGENT_COMMAND_CONFIG, AGENT_SKILL_CONFIG, AI_CHOICES
 
 if TYPE_CHECKING:
@@ -46,13 +48,12 @@ __all__ = [
 ]
 
 #: Credential and local-only files inside folders that otherwise hold team config.
-#: ``.codex/`` also covers a project-local ``CODEX_HOME`` (history, sessions, logs);
-#: the Gemini CLI family reads an API key from ``.env`` in its project folder.
+#: ``.codex/`` rows cover the state of a project-local ``CODEX_HOME`` that is never
+#: team config (#7729); its ``config.toml`` is excluded per clone instead
+#: (``agent_utils.codex_home``). The Gemini CLI family reads an API key from
+#: ``.env`` in its project folder.
 _SECRET_ENTRIES: tuple[str, ...] = (
-    ".codex/auth.json",
-    ".codex/history.jsonl",
-    ".codex/sessions/",
-    ".codex/log/",
+    *CODEX_HOME_STATE_ENTRIES,
     ".claude/settings.local.json",
     ".gemini/.env",
     ".qwen/.env",

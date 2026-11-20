@@ -1,11 +1,11 @@
-"""Open P0 reproduction for #7729: narrowing the agent gitignore exposes a project-local CODEX_HOME.
+"""Regression guard for #7729: narrowing the agent gitignore must not expose a project-local CODEX_HOME.
 
 ``4.0.0rc8_narrow_agent_gitignore`` replaces the whole-folder ``.codex/`` line
 with a managed block that keeps only ``auth.json``, ``history.jsonl``,
 ``sessions/`` and ``log/`` ignored (``agent_utils/ignore_entries.py``). A
 project that set ``CODEX_HOME=<project>/.codex`` then has its personal Codex
 state (config, state/log databases, approval rules, caches, memories) shown as
-untracked, so ``git add -A`` commits it.
+untracked, so ``git add -A`` committed it.
 
 Both halves are driven through ``MigrationRunner.upgrade``, the entry point
 ``spec-kitty upgrade`` uses, on a ledger that settles every other migration:
@@ -14,8 +14,8 @@ Both halves are driven through ``MigrationRunner.upgrade``, the entry point
 - a second clone that pulls the narrowed ``.gitignore`` keeps its Codex home
   ignored once it upgrades, and is told which agent-folder files git now shows.
 
-This is an open P0 reproduction (``p0_repro``): it is expected to FAIL until
-#7729 is fixed, and runs only in the nightly ``p0-repro`` lane.
+This was the open P0 reproduction for #7729 (``p0_repro``); the fix removed the
+marker, so it now guards every PR.
 """
 
 from __future__ import annotations
@@ -114,7 +114,6 @@ def _untracked_visible(project: Path, prefix: str = ".codex/") -> list[str]:
     return sorted(line[3:] for line in out.splitlines() if line.startswith("?? ") and line[3:].startswith(prefix))
 
 
-@pytest.mark.p0_repro(issue=7729)
 def test_narrowing_keeps_a_project_local_codex_home_ignored(tmp_path: Path) -> None:
     project = _pre_rc8_project(tmp_path / "project")
     _write_files(project, _CODEX_HOME_FILES)
@@ -127,7 +126,6 @@ def test_narrowing_keeps_a_project_local_codex_home_ignored(tmp_path: Path) -> N
     assert exposed == [], f"#7729: personal Codex home state is no longer ignored after narrowing: {exposed}"
 
 
-@pytest.mark.p0_repro(issue=7729)
 def test_a_clone_that_pulls_the_narrowed_gitignore_keeps_its_codex_home_ignored_and_is_told(tmp_path: Path) -> None:
     upgrading = _pre_rc8_project(tmp_path / "upgrading")
     _git(upgrading, "add", "-A")
