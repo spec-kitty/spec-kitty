@@ -193,11 +193,11 @@ class TestFindProjectRoot:
 
 
 class TestExitZeroGuarantee:
-    def test_exit_0_on_build_content_exception(self, spec_project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Exception in _build_content(): exit 0, no traceback output."""
+    def test_exit_0_on_live_content_exception(self, spec_project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Exception in live_content(): exit 0, no traceback output."""
         monkeypatch.chdir(spec_project)
         with patch(
-            "specify_cli.session_presence.manager.SessionPresenceManager._build_content",
+            "specify_cli.session_presence.manager.SessionPresenceManager.live_content",
             side_effect=RuntimeError("unexpected crash"),
         ):
             result = runner.invoke(_app, [])

@@ -57,7 +57,7 @@ def session_start() -> None:
         from specify_cli.session_presence.manager import SessionPresenceManager
 
         agent_config = load_agent_config(project_root)
-        content = SessionPresenceManager(project_root, agent_config)._build_content()
+        content = SessionPresenceManager(project_root, agent_config).live_content()
         typer.echo(content.render())
         from specify_cli.session_presence.open_ops import render_open_ops_section
 
