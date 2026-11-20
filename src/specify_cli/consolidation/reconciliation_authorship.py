@@ -942,7 +942,6 @@ __all__ = [
     "_commits_before",
     "_dependency_forks",
     "_drop_unreviewed_merges",
-    "_dropped_merges",
     "_dropped_own_change",
     "_final_authored_blobs",
     "_final_authored_deletions",
@@ -961,7 +960,5 @@ __all__ = [
     "_record_lane_path_contribution",
     "_started_from",
     "_unsuperseded_holders",
-    "merge_reviewed_by_own_stamps",
-    "own_approval_stamps",
     "unmet_approved_content",
 ]

@@ -28,6 +28,7 @@ from specify_cli.consolidation.reconciliation import ApprovedWpCommitSet, build_
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
+from tests.consolidation.reconciliation_family import setattr_reconciliation_family
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -371,6 +372,59 @@ def test_canceled_dependency_lane_commits_are_never_recorded(tmp_path: Path) -> 
     canceled_lane = set(_git(mission.repo, "rev-list", f"{mission.base}..{_branch('lane-c')}").split())
     assert not {entry.sha for entry in entries} & canceled_lane
     assert {entry.lane_id for entry in entries} <= {"lane-b"}
+
+
+def _add_post_approval_octopus(mission: _Mission) -> str:
+    """A 3-parent merge on lane-b after its approval stamp, with a file of its own (``u/octo.txt``).
+
+    Its extra parents (lane-c's ``c2`` and lane-b's own ``c1`` base) are anchored, so only the
+    octopus itself is new. ``git show --remerge-diff`` skips octopus merges, so the own-content
+    probe raises on it.
+    """
+    repo = mission.repo
+    _git(repo, "checkout", "-q", _branch("lane-b"))
+    head = _git(repo, "rev-parse", "HEAD")
+    c2 = _git(repo, "rev-parse", _branch("lane-c"))
+    c1 = _git(repo, "rev-parse", f"{c2}^")
+    _git(repo, "checkout", "-q", c2, "--", "u/c.txt")
+    _write(repo, "u/octo.txt", "folded into an octopus merge\n")
+    _git(repo, "add", "--", "u/c.txt", "u/octo.txt")
+    tree = _git(repo, "write-tree")
+    octo = _git(repo, "commit-tree", tree, "-p", head, "-p", c2, "-p", c1, "-m", "octopus")
+    _git(repo, "reset", "-q", "--hard", octo)
+    _git(repo, "checkout", "-q", _TARGET)
+    return octo
+
+
+def test_unreadable_own_content_records_no_entry(tmp_path: Path) -> None:
+    """An octopus merge after the approval: the own-content probe raises, so no hint entry, no refusal, no authorship."""
+    mission = _build_two_lane(tmp_path, variant="clean")
+    octo = _add_post_approval_octopus(mission)
+    assert len(_git(mission.repo, "rev-list", "--parents", "-n", "1", octo).split()) == 4, "fixture: a 3-parent merge"
+    claim = _claim(mission)
+    entries = getattr(claim, "unreviewed_merges", None)
+    assert entries is not None
+    assert octo not in {entry.sha for entry in entries}
+    assert mission.merge in {entry.sha for entry in entries}, "the readable dropped merge is still recorded"
+    assert octo not in claim.authored_shas
+
+
+def test_dropped_merges_skips_a_sha_whose_parents_cannot_be_read(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.consolidation import reconciliation_authorship
+
+    mission = _build_two_lane(tmp_path, variant="post")
+    spine = _git(mission.repo, "rev-list", "--first-parent", f"{mission.base}..{_branch('lane-b')}").split()
+    reviewed = [sha for sha in spine if sha != mission.merge]
+    real = reconciliation_authorship.is_merge_commit
+    assert reconciliation_authorship._dropped_merges(mission.repo, spine, reviewed) == (mission.merge,), "precondition: the merge is listed"
+
+    def raising(repo_root: Path, sha: str) -> bool:
+        if sha == mission.merge:
+            raise reconciliation_authorship.GitProbeError("unreadable parents")
+        return real(repo_root, sha)
+
+    setattr_reconciliation_family(monkeypatch, "is_merge_commit", raising)
+    assert reconciliation_authorship._dropped_merges(mission.repo, spine, reviewed) == ()
 
 
 def test_hand_built_claim_defaults_to_no_unreviewed_merges() -> None:
