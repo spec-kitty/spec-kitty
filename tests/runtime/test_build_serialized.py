@@ -164,9 +164,11 @@ def _spy_asset_preparation_init(monkeypatch: pytest.MonkeyPatch) -> dict[str, in
         cache: Path,
         lock_name: str,
         consent: ApplyConsent,
+        *,
+        known_roots: tuple[Path, ...] = (),
     ) -> None:
         init_calls["n"] += 1
-        real_init(self, owner, root, cache, lock_name, consent)
+        real_init(self, owner, root, cache, lock_name, consent, known_roots=known_roots)
 
     monkeypatch.setattr(AssetPreparation, "__init__", counting_init)
     return init_calls

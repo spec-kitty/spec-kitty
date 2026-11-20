@@ -188,7 +188,7 @@ def assess_global_agent_skills(
     root = global_asset_root("global_skills", (home, *roots))
 
     def _build() -> tuple[AssetPreparation, OwnerAssessment]:
-        prepared = AssetPreparation("global_skills", root, home / "cache", _LOCK_FILENAME, consent)
+        prepared = AssetPreparation("global_skills", root, home / "cache", _LOCK_FILENAME, consent, known_roots=roots)
         skills = (
             _load_registry_skills(prepared)
             if selection is None
