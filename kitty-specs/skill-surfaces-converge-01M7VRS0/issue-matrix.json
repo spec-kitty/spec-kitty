@@ -109,16 +109,16 @@
       "wp": null
     },
     "#7700": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP01 historical-render proof source; WP03 global sync refresh + no stamp while preserved",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "User-global skills byte-identical to earlier shipped output stay stale as Unproven existing asset",
+      "verdict": "in-mission",
+      "wp": "WP03"
     },
     "#7722": {
       "evidence_ref": "<link or commit>",
