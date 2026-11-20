@@ -15,10 +15,11 @@ from unittest.mock import patch
 import pytest
 
 from specify_cli.core.agent_config import AgentConfig
-from specify_cli.session_presence.content import SessionPresenceContent
+from specify_cli.session_presence.content import SECTION_CLOSE, SECTION_OPEN, SessionPresenceContent
 from specify_cli.session_presence.manager import SessionPresenceManager
 from specify_cli.session_presence.projection import (
     expected_orientation,
+    orientation_drift,
     orientation_writer,
     resolve_project_slug,
 )
@@ -78,13 +79,15 @@ class TestExpectedOrientation:
         assert content.project_slug == _SLUG
         assert "dirname-differs" not in content.render()
 
-    def test_health_is_deterministic_even_when_an_upgrade_is_cached(self, tmp_path: Path) -> None:
+    def test_committed_content_never_consults_live_health(self, tmp_path: Path) -> None:
+        """Before #5215 ``_build_content`` read the upgrade cache and the compat planner."""
         root = _project(tmp_path)
-        with patch(
-            "specify_cli.session_presence.upgrade_check.UpgradeChecker.get_available_version",
-            return_value="999.0.0",
+        manager = SessionPresenceManager(root, AgentConfig(available=["claude"]))
+        with (
+            patch("specify_cli.session_presence.manager.UpgradeChecker", side_effect=AssertionError("upgrade cache read")),
+            patch("specify_cli.compat.plan", side_effect=AssertionError("compat planner run")),
         ):
-            content = expected_orientation(root)
+            content = manager._build_content()
 
         assert content.health == "healthy"
         assert content.available_version is None
@@ -95,6 +98,13 @@ class TestExpectedOrientation:
 
         with (
             patch("importlib.metadata.version", side_effect=PackageNotFoundError("spec-kitty-cli")),
+            pytest.raises(ValueError, match="version is unavailable"),
+        ):
+            expected_orientation(_project(tmp_path))
+
+    def test_empty_installed_version_refuses(self, tmp_path: Path) -> None:
+        with (
+            patch("importlib.metadata.version", return_value=""),
             pytest.raises(ValueError, match="version is unavailable"),
         ):
             expected_orientation(_project(tmp_path))
@@ -124,23 +134,32 @@ class TestExpectedOrientation:
         assert expected_orientation(root).render().rstrip("\n") in target.read_text(encoding="utf-8")
 
 
+def _live(manager: SessionPresenceManager, available: str | None) -> SessionPresenceContent:
+    """``live_content`` with the upgrade cache and the compat planner pinned (no host state)."""
+    from specify_cli.compat import Decision
+
+    with (
+        patch("specify_cli.session_presence.manager.UpgradeChecker") as checker,
+        patch("specify_cli.compat.plan") as planner,
+    ):
+        checker.return_value.get_available_version.return_value = available
+        planner.return_value.decision = Decision.ALLOW
+        return manager.live_content()
+
+
 class TestLiveContentAgreesWithFiles:
     def test_hook_and_committed_block_name_the_same_project(self, tmp_path: Path) -> None:
         root = _project(tmp_path)
         manager = SessionPresenceManager(root, AgentConfig(available=["claude"]))
 
-        live = manager.live_content()
+        live = _live(manager, "999.0.0")
 
         assert live.project_slug == expected_orientation(root).project_slug == _SLUG
 
     def test_hook_still_shows_live_health(self, tmp_path: Path) -> None:
         root = _project(tmp_path)
         manager = SessionPresenceManager(root, AgentConfig(available=["claude"]))
-        with patch(
-            "specify_cli.session_presence.manager.UpgradeChecker.get_available_version",
-            return_value="999.0.0",
-        ):
-            live = manager.live_content()
+        live = _live(manager, "999.0.0")
 
         assert live.health == "upgrade-available"
         assert live.available_version == "999.0.0"
@@ -162,8 +181,72 @@ class TestOrientationWriter:
         assert orientation_writer(_project(tmp_path), "not-a-harness", None) is None
 
 
-def test_content_value_is_a_session_presence_content(tmp_path: Path) -> None:
-    assert isinstance(expected_orientation(_project(tmp_path)), SessionPresenceContent)
+class TestOrientationDrift:
+    """Branches of ``projection.orientation_drift`` the provider acceptance tests do not reach."""
+
+    _RULES = ".claude/CLAUDE.md"
+
+    def _write(self, root: Path, text: str) -> None:
+        (root / self._RULES).write_text(text, encoding="utf-8", newline="")
+
+    def test_absent_file_is_not_drift(self, tmp_path: Path) -> None:
+        assert not orientation_drift(_project(tmp_path), self._RULES)
+
+    def test_file_without_block_is_not_drift(self, tmp_path: Path) -> None:
+        root = _project(tmp_path)
+        self._write(root, "# notes\n")
+        assert not orientation_drift(root, self._RULES)
+
+    def test_duplicate_markers_are_not_judged(self, tmp_path: Path) -> None:
+        root = _project(tmp_path)
+        block = SessionPresenceContent("0.0.1", _SLUG, "healthy", None).render()
+        self._write(root, block + block)
+        assert not orientation_drift(root, self._RULES)
+
+    def test_unknown_installed_version_is_not_judged(self, tmp_path: Path) -> None:
+        from importlib.metadata import PackageNotFoundError
+
+        root = _project(tmp_path)
+        self._write(root, SessionPresenceContent("0.0.1", _SLUG, "healthy", None).render())
+        with patch("importlib.metadata.version", side_effect=PackageNotFoundError("spec-kitty-cli")):
+            assert not orientation_drift(root, self._RULES)
+
+    def test_block_without_version_stamp_is_not_drift(self, tmp_path: Path) -> None:
+        root = _project(tmp_path)
+        self._write(root, f"{SECTION_OPEN}\nhand-written\n{SECTION_CLOSE}\n")
+        assert not orientation_drift(root, self._RULES)
+
+    def test_unterminated_version_stamp_is_not_drift(self, tmp_path: Path) -> None:
+        root = _project(tmp_path)
+        self._write(root, f"{SECTION_OPEN}\n**Spec Kitty v0.0.1 - no closing bold\n{SECTION_CLOSE}\n")
+        assert not orientation_drift(root, self._RULES)
+
+    def test_mixed_newlines_agree_with_the_writer(self, tmp_path: Path) -> None:
+        """Reviewer LOW B / squad: CRLF outside the block, LF inside -- no pending rewrite either way."""
+        from specify_cli.session_presence.writers.registry import get_writer
+
+        root = _project(tmp_path)
+        self._write(root, "# notes\r\n\r\n" + expected_orientation(root).render())
+
+        assert not orientation_drift(root, self._RULES)
+        assert not get_writer("claude").prepare(root, expected_orientation(root)).changed
+
+
+def test_enclosing_repository_never_names_the_project(tmp_path: Path) -> None:
+    """A project that is not its own repository does not borrow the parent repository's name."""
+    _git("init", "-q", cwd=tmp_path)
+    _git("remote", "add", "origin", "https://example.invalid/acme/dotfiles.git", cwd=tmp_path)
+    root = _project(tmp_path, slug=None)
+
+    with patch("subprocess.run", side_effect=AssertionError("git spawned")):
+        assert resolve_project_slug(root) == "unknown"
+
+
+def test_slug_lookup_survives_a_wedged_git(tmp_path: Path) -> None:
+    root = _project(tmp_path, slug=None)
+    _git("init", "-q", cwd=root)
+    with patch("subprocess.run", side_effect=subprocess.TimeoutExpired(["git"], 10)):
+        assert resolve_project_slug(root) == "unknown"
 
 
 @pytest.mark.parametrize("operation", ["install", "update"])

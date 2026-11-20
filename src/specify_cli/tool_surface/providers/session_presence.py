@@ -16,8 +16,9 @@ provider expands a tool's session-presence writer into one
   (``.claude/settings.json`` ``SessionStart`` / ``Stop`` entries).
 
 The provider never reimplements writer logic: ``expand`` asks the writer which
-paths it manages, ``probe`` checks them, and ``repair`` delegates back to the
-writer via :class:`SessionPresenceManager`. Harnesses with a ``NullWriter`` (no
+paths it manages, ``probe`` checks them against the committed content of
+:mod:`specify_cli.session_presence.projection` (#5215), and ``repair`` has the
+selected writers prepare and apply that content. Harnesses with a ``NullWriter`` (no
 known orientation mechanism) yield a single ``research-gap-surface`` finding --
 never a hard failure and never a silent OK.
 """
