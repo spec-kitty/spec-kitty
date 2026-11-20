@@ -464,7 +464,9 @@ lacks the remote-tracking ref), create the local branch, then run `spec-kitty do
 - A local ref that names a missing object still resolves and keeps `STATUS_SURFACE_REF_UNREADABLE`.
 - For `MISSION_BRANCH_REF` no earlier probe has shown that a remote holds the topic branch, so the
   refusal is remote-only only when this clone holds a remote-tracking ref for it; a topic branch
-  gone everywhere keeps `STATUS_SURFACE_REF_UNREADABLE`. For `COORD_BRANCH_REF` the coordination
+  gone everywhere keeps `STATUS_SURFACE_REF_UNREADABLE`, whose message then adds a hedged hint (the
+  same builder's steps, prefixed "If the branch still exists on a remote"), still with no remote
+  contact. For `COORD_BRANCH_REF` the coordination
   probe has already found the branch before the read.
 - A coordination branch the probe classifies as deleted keeps raising `CoordinationBranchDeleted`.
 - The door still never reads a remote-tracking ref as a status source: one declared source per
