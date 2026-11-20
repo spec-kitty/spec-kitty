@@ -52,6 +52,7 @@ from specify_cli.upgrade.migrations.m_4_0_0rc8_command_skill_hyphen_names import
     unconfigured_legacy_warning,
     unrecorded_legacy_warning,
 )
+from tests._support.git_cli import commit_init_leftovers
 
 pytestmark = [pytest.mark.unit]
 
@@ -627,8 +628,7 @@ def test_upgrade_migrates_a_prior_release_clone(tmp_path: Path, monkeypatch: pyt
     with contextlib.chdir(root):
         init = runner.invoke(root_app, ["init", "--ai", "codex", "--non-interactive"], catch_exceptions=False)
     assert init.exit_code == 0, init.output
-    _git(root, "add", "-A")
-    _git(root, "commit", "-q", "-m", "init")
+    commit_init_leftovers(root, "init")
     # Downgrade this clone to the prior release's command-skill layout.
     for command in CANONICAL_COMMANDS:
         shutil.rmtree(root / command_skill_rel_path(command).rsplit("/", 1)[0])

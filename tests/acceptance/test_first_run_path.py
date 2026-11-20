@@ -17,6 +17,7 @@ import tomllib
 from pathlib import Path
 
 import pytest
+from tests._support.git_cli import commit_init_leftovers
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -95,11 +96,13 @@ def _porcelain(repo: Path) -> str:
 
 @pytest.fixture
 def project(tmp_path: Path) -> Path:
-    """An initialized project with one commit, sitting on ``main``.
+    """An initialized project with every file ``init`` wrote committed, sitting on ``main``.
 
-    Mirrors the corrected Getting Started steps 1-3. Step 4 (the working
-    branch) is deliberately left to each test, because whether it happened is
-    the thing several of these are about.
+    Covers the end state of the corrected Getting Started steps 1-3. Step 4 (the
+    working branch) is deliberately left to each test, because whether it
+    happened is the thing several of these are about. ``git init`` runs first
+    here, so ``init`` makes the root commit itself (#7612); the explicit commit
+    only picks up leftovers (#7741).
     """
     repo = tmp_path / "my-spec-project"
     repo.mkdir()
@@ -108,8 +111,7 @@ def project(tmp_path: Path) -> Path:
     _git(repo, "config", "user.name", "Test")
     init = _cli(repo, "init", ".", "--ai", "claude")
     assert init.returncode == 0, f"`spec-kitty init` failed:\n{init.stdout}\n{init.stderr}"
-    _git(repo, "add", "-A")
-    _git(repo, "commit", "-m", "Initial commit")
+    commit_init_leftovers(repo, "Initial commit")
     return repo
 
 
@@ -290,7 +292,9 @@ def test_unborn_head_refuses_before_writing_anything(tmp_path: Path) -> None:
     _git(repo, "init", "-b", "main")
     _git(repo, "config", "user.email", "test@test.com")
     _git(repo, "config", "user.name", "Test")
-    assert _cli(repo, "init", ".", "--ai", "claude").returncode == 0
+    # ``--no-commit``: since #7612 ``init`` would otherwise make the root commit,
+    # and the unborn HEAD this test is about would be gone (#7741).
+    assert _cli(repo, "init", ".", "--ai", "claude", "--no-commit").returncode == 0
     heads = list((repo / ".git" / "refs" / "heads").glob("*")) if (repo / ".git" / "refs" / "heads").exists() else []
     assert heads == [], f"fixture invalid: the repo already has a branch ({heads})"
 
@@ -313,7 +317,8 @@ def test_unborn_head_error_names_a_remedy_that_works(tmp_path: Path) -> None:
     _git(repo, "init", "-b", "main")
     _git(repo, "config", "user.email", "test@test.com")
     _git(repo, "config", "user.name", "Test")
-    assert _cli(repo, "init", ".", "--ai", "claude").returncode == 0
+    # ``--no-commit`` keeps HEAD unborn (see the test above, #7741).
+    assert _cli(repo, "init", ".", "--ai", "claude", "--no-commit").returncode == 0
 
     blocked = _cli(repo, "specify", "task-list")
     # The remedy must commit what ``init`` wrote: an empty commit leaves those
@@ -401,8 +406,7 @@ def test_installed_wheel_tutorial_reaches_plan(
     _git(repo, "config", "user.name", "Test")
     initialized = _cli(repo, "init", ".", "--ai", "claude")
     assert initialized.returncode == 0, _unwrapped(initialized)
-    _git(repo, "add", "-A")
-    _git(repo, "commit", "-m", "Initial commit")
+    commit_init_leftovers(repo, "Initial commit")
     test_plan_runs_on_the_mission_the_tutorial_creates(repo)
 
 
