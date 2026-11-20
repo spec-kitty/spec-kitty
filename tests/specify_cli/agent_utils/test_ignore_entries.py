@@ -193,7 +193,9 @@ class TestAgentIgnoreEntries:
         entries = agent_ignore_entries(tmp_path, ("q",))
 
         assert ".amazonq/prompts/spec-kitty.*" in entries
-        assert not any("skills" in entry for entry in entries if entry not in _SHARED_RESERVED)
+        # The fixed secret rows (a Codex home's ``skills/.system/``, #7729) are not generated skill patterns.
+        generated = [entry for entry in entries if entry not in _SHARED_RESERVED and entry not in SECRET_ENTRIES]
+        assert not any("skills" in entry for entry in generated)
 
     def test_output_is_deterministic(self, tmp_path: Path) -> None:
         assert agent_ignore_entries(tmp_path, ("kiro", "claude")) == agent_ignore_entries(tmp_path, ("claude", "kiro"))
@@ -259,6 +261,54 @@ class TestSyncAgentBlock:
         assert not _is_ignored(tmp_path, ".agents/skills/team-skill/SKILL.md")
         assert not _is_ignored(tmp_path, ".codex/config.toml")
         assert ".claude/commands/spec-kitty.*" in result.entries_added
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            ".codex/auth.json",
+            ".codex/history.jsonl",
+            ".codex/sessions/2026/s.jsonl",
+            ".codex/archived_sessions/s.jsonl",
+            ".codex/log/codex-tui.log",
+            ".codex/logs_1.sqlite",
+            ".codex/logs_1.sqlite-wal",
+            ".codex/logs_1.sqlite-shm",
+            ".codex/state_1.sqlite",
+            ".codex/models_cache.json",
+            ".codex/version.json",
+            ".codex/rules/default.rules",
+            ".codex/" + "tmp" + "/x",  # spelled split for test_no_tmp_paths_in_tests
+            ".codex/shell_snapshots/snap.sh",
+            ".codex/memories/m.md",
+            ".codex/skills/.system/foo/SKILL.md",
+        ],
+    )
+    def test_block_ignores_codex_home_state(self, tmp_path: Path, path: str) -> None:
+        """#7729: a project-local CODEX_HOME's personal state stays ignored by the committed block alone."""
+        subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+
+        assert GitignoreManager(tmp_path).protect_all_agents(["codex"]).success
+
+        assert _is_ignored(tmp_path, path)
+
+    @pytest.mark.parametrize("path", [".codex/config.toml", ".codex/rules/team.rules", ".codex/skills/team-skill/SKILL.md"])
+    def test_block_keeps_codex_team_files_visible(self, tmp_path: Path, path: str) -> None:
+        """#7729: the committed block is the same in every clone, so a plain project .codex/ keeps its team files."""
+        subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+
+        assert GitignoreManager(tmp_path).protect_all_agents(["codex"]).success
+
+        assert not _is_ignored(tmp_path, path)
+
+    def test_block_codex_rows_do_not_depend_on_local_files(self, tmp_path: Path) -> None:
+        """#7729 / C-002: a clone with a Codex home writes the same block as one without."""
+        plain = tmp_path / "plain"
+        home = tmp_path / "home"
+        plain.mkdir()
+        (home / ".codex").mkdir(parents=True)
+        (home / ".codex" / "version.json").write_text("{}", encoding="utf-8")
+
+        assert agent_ignore_entries(plain, ("codex",)) == agent_ignore_entries(home, ("codex",))
 
     def test_second_protect_reports_block_entries_as_skipped(self, tmp_path: Path) -> None:
         manager = GitignoreManager(tmp_path)
