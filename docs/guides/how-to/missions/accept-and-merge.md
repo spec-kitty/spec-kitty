@@ -107,8 +107,10 @@ the plan step do it. For the reasoning, see the
 
 The other path conventions, such as `src/`, `tests/` and `docs/`, stay in force for the
 Mission type. A project whose real layout differs has honest project-level levers. The strict
-failure text names them in this order, and none of them is `mkdir -p` for these directories:
-an empty `src/` would pass the check without making it true (#7512).
+failure text leads with the per-type remap for the failing Mission type, then names both
+waivers and `accept --lenient`, then the last-resort copy; `mkdir -p` is offered only for real
+deliverables such as `contracts/`, never for these directories: an empty `src/` would pass the
+check without making it true (#7512). The levers in full:
 
 - **Remap for one Mission type** (#7748). Key a section by the Mission type in
   `.kittify/config.yaml`. Only Missions of that type see the remap; the other types keep their
