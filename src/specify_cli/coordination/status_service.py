@@ -580,7 +580,6 @@ def merge_append_preserving_coordination_event_log_bytes(
 
 
 __all__ = [
-    "STATUS_SURFACE_REF_REMOTE_ONLY",
     "EventLogReadContract",
     "StatusSurfaceRefRemoteOnly",
     "EventLogWriteContract",
