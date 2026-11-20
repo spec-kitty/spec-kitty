@@ -27,6 +27,7 @@ Shape (``?`` lines are optional; an optional line renders with the two-space ite
       git diff <base>..<tip> -- <listing pathspecs>
     ? RESOLUTION MERGE (operator-authored, review these bytes): git show --remerge-diff <sha>
     ? RESOLUTION MERGE <sha12>: this git cannot show the resolution (needs git >= 2.36); review the merge by hand
+    ? RESOLUTION MERGES: could not be listed; run git rev-list --merges --full-history <base>..<tip> and review each with git show --remerge-diff <sha>
     CITED REQUIREMENTS:
       <ref> — <text>
     ? … <k> more cited (see spec.md)
@@ -47,7 +48,8 @@ RESOLUTION MERGE lines (one per merge of the range, ``WpReviewRange.merges``; FR
 ``approved-lane-resolution-route``) are commands too: they point the reviewer at each merge's own
 resolution and, like the REVIEW COMMANDS lines, are printed in full outside the budget. On a git
 without ``--remerge-diff`` (``WpReviewRange.remerge_available`` false) each prints a cannot-show
-line instead; the review proceeds either way.
+line instead; when the merge listing itself failed, one line names the command that lists them
+(full SHAs), since the pathspec-scoped commands above can hide merges. The review proceeds either way.
 """
 
 from __future__ import annotations
@@ -232,6 +234,11 @@ def _command_lines(review_range: WpReviewRange) -> list[str]:
 
 def _merge_lines(review_range: WpReviewRange) -> list[str]:
     """One command line per merge of the range (full SHA), or the cannot-show line when this git lacks ``--remerge-diff``."""
+    if review_range.merges_unlisted:
+        return [
+            f"{_INDENT}RESOLUTION MERGES: could not be listed; run git rev-list --merges --full-history "
+            f"{review_range.base}..{review_range.tip} and review each with git show --remerge-diff <sha>"
+        ]
     if review_range.remerge_available:
         return [f"{_INDENT}{_MERGE_LABEL} git show --remerge-diff {sha}" for sha in review_range.merges]
     return [f"{_INDENT}{_MERGE_CANNOT_SHOW.format(label=_label(sha))}" for sha in review_range.merges]

@@ -231,6 +231,11 @@ class WpReviewRange:
             raise ValueError(f"an UNAVAILABLE review range has neither end, any other has both: {self.status}, base={self.base}, tip={self.tip}")
 
     @property
+    def merges_unlisted(self) -> bool:
+        """Whether the merge listing step failed, so ``merges`` is empty for want of a listing, not of merges."""
+        return _MERGES_STEP in (self.listing_gap or "").split(", ")
+
+    @property
     def listing_pathspecs(self) -> tuple[str, ...]:
         """The pathspecs the commit list was listed with and the printed review commands carry (one value)."""
         return _listing_scope(self.owned_pathspecs, self.bookkeeping_pathspecs)
@@ -462,6 +467,9 @@ def _select_base(ctx: _Context, tip: str) -> tuple[str | None, RangeSource, Rang
 
 # --------------------------------------------------------------------------- listing
 
+#: The merge listing's step name in ``listing_gap`` (FR-007): the renderer prints a manual fallback when it failed.
+_MERGES_STEP = "merges"
+
 
 @dataclass
 class _Listing:
@@ -559,7 +567,7 @@ def _listing(request: _ListingRequest) -> _Listing:
         listing.merges = tuple(line for line in result.stdout.decode("ascii", "replace").split() if line)
 
     listing.attempt("moved-past", _moved_past)
-    listing.attempt("merges", _merges)
+    listing.attempt(_MERGES_STEP, _merges)
     return listing
 
 
