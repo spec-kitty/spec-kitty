@@ -1,7 +1,7 @@
 {
   "rows": {
     "#2330": {
-      "evidence_ref": "Cited for item 1 context only; the per-type remap is tracked by #7748; #2330 stays open for its other items.",
+      "evidence_ref": "Item 1 only (per-mission-type path conventions, WP01/WP02); #2330 stays open for its other items; the PR references it, it does not close it.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,8 +9,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "not-applicable",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP01"
     },
     "#2744": {
       "evidence_ref": "Cited as the deferred layout auto-detection follow-on; out of scope.",
