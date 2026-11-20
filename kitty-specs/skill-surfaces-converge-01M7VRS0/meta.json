@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-20T12:31:28.999489+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "f1398680613834eccd6826b9f8695dae93351e13"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-20T12:31:28.999489+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "f1398680613834eccd6826b9f8695dae93351e13",
   "change_mode": "bulk_edit",
   "contracts": "none",
   "contracts_rationale": "No new interface beyond additive doctor JSON keys and two append-only finding codes, recorded in data-model.md.",
