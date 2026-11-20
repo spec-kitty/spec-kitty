@@ -37,16 +37,16 @@
       "wp": "WP07"
     },
     "#5721": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Mission approved-lane-resolution-route-01M7WW0Z WP05 (merge-commit slice only)",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Approval-stamp bound residuals (merge-commit slice)",
+      "verdict": "in-mission",
+      "wp": "WP05"
     },
     "#5722": {
       "evidence_ref": "<link or commit>",
