@@ -63,7 +63,7 @@ def test_ambiguous_remote_is_a_placeholder_that_lists_the_candidates() -> None:
 def test_no_remote_configured_says_so() -> None:
     facts = RemoteOnlyBranch(branch=_BRANCH, remote=None, tracking_ref_present=False, remotes=())
 
-    assert remote_only_steps(facts, _ROOT, _DOCTOR).endswith("(no remote is configured: add one with `git remote add <name> <url>`)")
+    assert remote_only_steps(facts, _ROOT, _DOCTOR).endswith("(no remote is configured: add one with `git remote add NAME URL`)")
 
 
 @pytest.mark.unit
