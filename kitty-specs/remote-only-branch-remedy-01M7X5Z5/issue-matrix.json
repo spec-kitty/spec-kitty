@@ -12,6 +12,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#4970": {
+      "evidence_ref": "Cited for context only: names the existing coordination write refusal whose remedy text WP01 rewires; the #4970 refusal behaviour itself is unchanged.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#5287": {
       "evidence_ref": "WP01 delivers the canonical remote-only remedy (FR-001..FR-005; commits e44b8c61 red, then the WP01 feat/fix commits); WP02 delivers the typed status-read refusal (FR-006..FR-009).",
       "fr": null,
