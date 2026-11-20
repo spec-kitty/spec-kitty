@@ -8,6 +8,7 @@ lists each as a warning so the operator can review it. A project surface that
 
 from __future__ import annotations
 
+import stat
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
@@ -121,7 +122,9 @@ def test_fix_reports_kept_global_files_after_the_repair(home: Path, project: Pat
 def test_a_skipped_project_surface_carries_its_reason(home: Path, project: Path) -> None:
     run_tool_surfaces(project, ("claude",), fix=True)
     edited = (project / _PROJECT_SKILL).read_bytes() + b"\nmy note\n"
-    (project / _PROJECT_SKILL).write_bytes(edited)
+    path = project / _PROJECT_SKILL
+    path.chmod(path.stat().st_mode | stat.S_IWUSR)  # the fix installed it read-only (0444)
+    path.write_bytes(edited)
 
     outcome = run_tool_surfaces(project, ("claude",), fix=True)
 

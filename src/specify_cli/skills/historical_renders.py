@@ -22,8 +22,6 @@ import re
 from importlib import resources
 
 __all__ = [
-    "clear_cache",
-    "historical_render_digests",
     "is_historical_render",
 ]
 
@@ -65,7 +63,7 @@ def _renders() -> dict[str, frozenset[str]]:
         return {}
 
 
-def clear_cache() -> None:
+def _clear_cache() -> None:
     """Forget the memoized list (tests that swap the data file)."""
     _renders.cache_clear()
 
@@ -74,11 +72,11 @@ def _key(skill_name: str, relative_path: str) -> str:
     return f"{skill_name}/{relative_path.replace(chr(92), '/')}"
 
 
-def historical_render_digests(skill_name: str, relative_path: str) -> frozenset[str]:
+def _historical_render_digests(skill_name: str, relative_path: str) -> frozenset[str]:
     """Every sha256 Spec Kitty shipped for *relative_path* inside skill *skill_name*."""
     return _renders().get(_key(skill_name, relative_path), frozenset())
 
 
 def is_historical_render(skill_name: str, relative_path: str, sha256: str | None) -> bool:
     """Whether *sha256* is a render Spec Kitty shipped for exactly this skill path."""
-    return sha256 is not None and sha256 in historical_render_digests(skill_name, relative_path)
+    return sha256 is not None and sha256 in _historical_render_digests(skill_name, relative_path)

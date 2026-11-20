@@ -214,6 +214,9 @@ _CUTOVER_MODULE = re.compile(r"^src/specify_cli/upgrade/migrations/m_[^/]*charte
 #: Tombstone files: their job is to name retired things.
 _TOMBSTONE_FILES: dict[str, str] = {
     "src/specify_cli/skills/retired.py": "RETIRED_CANONICAL_SKILL_NAMES lists the removed skill ids",
+    "src/specify_cli/skills/data/historical_skill_renders.json": (
+        "frozen digests of every render each skill ever shipped, retired ids included, so the sync can prove and drain them (#7700)"
+    ),
     "src/charter/offering/packs/retired_fields.py": "names the retired pack fields to refuse them (RETIRED_PACK_FIELD)",
     "src/specify_cli/upgrade/metadata.py": "recorded migration ids of consumer projects",
 }

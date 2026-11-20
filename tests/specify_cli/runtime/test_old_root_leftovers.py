@@ -12,6 +12,7 @@ from __future__ import annotations
 import base64
 import contextlib
 import json
+import stat
 from pathlib import Path
 
 import pytest
@@ -69,6 +70,12 @@ def _tree(root: Path) -> dict[str, bytes]:
     return {path.relative_to(root).as_posix(): path.read_bytes() for path in sorted(root.rglob("*")) if path.is_file()}
 
 
+def _overwrite(path: Path, data: bytes) -> None:
+    """Write *data* over a file the sync installed read-only (0444), as a user editing it would."""
+    path.chmod(path.stat().st_mode | stat.S_IWUSR)
+    path.write_bytes(data)
+
+
 @pytest.fixture
 def setup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> _Setup:
     home = tmp_path / "home"
@@ -87,7 +94,7 @@ def setup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> _Setup:
         "custom_command": old / "commands" / "my-own.md",
     }
     assert files["command"].is_file() and files["skill"].is_file(), "control: the sync wrote ~/.claude"
-    files["historical"].write_bytes(_OLD_RUN_IMPLEMENT_REVIEW)
+    _overwrite(files["historical"], _OLD_RUN_IMPLEMENT_REVIEW)
     files["notes"].write_text("my notes\n", encoding="utf-8")
     files["custom_command"].write_text("# mine\n", encoding="utf-8")
     project = tmp_path / "project"
@@ -168,9 +175,9 @@ _OLDER_PROJECTION = b"---\nname: spk-run-next\n---\n\n# spk-run-next\n\nProjecte
 
 def test_a_file_the_inventory_records_with_these_bytes_is_listed(setup: _Setup, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     home, project, files = setup
-    files["skill"].write_bytes(_OLDER_PROJECTION)
+    _overwrite(files["skill"], _OLDER_PROJECTION)
     _record_as_written(home, "global_skills", files["skill"])
-    files["command"].write_text("# spec-kitty.specify as an older release rendered it\n", encoding="utf-8")
+    _overwrite(files["command"], b"# spec-kitty.specify as an older release rendered it\n")
     _record_as_written(home, "slash_commands", files["command"])
     monkeypatch.setenv(CLAUDE_CONFIG_DIR_ENV, str(tmp_path / "cfg"))
 
@@ -180,8 +187,8 @@ def test_a_file_the_inventory_records_with_these_bytes_is_listed(setup: _Setup, 
 
 def test_a_record_with_other_bytes_proves_nothing(setup: _Setup, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _, project, files = setup
-    files["skill"].write_bytes(_OLDER_PROJECTION)
-    files["command"].write_text("# my own edit\n", encoding="utf-8")
+    _overwrite(files["skill"], _OLDER_PROJECTION)
+    _overwrite(files["command"], b"# my own edit\n")
     monkeypatch.setenv(CLAUDE_CONFIG_DIR_ENV, str(tmp_path / "cfg"))
 
     assert files["skill"] not in _skill_leftovers(project)
@@ -190,7 +197,7 @@ def test_a_record_with_other_bytes_proves_nothing(setup: _Setup, tmp_path: Path,
 
 def test_an_unreadable_inventory_proves_nothing(setup: _Setup, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     home, project, files = setup
-    files["skill"].write_bytes(_OLDER_PROJECTION)
+    _overwrite(files["skill"], _OLDER_PROJECTION)
     _record_as_written(home, "global_skills", files["skill"])
     (home / ".kittify" / "cache" / "global_skills-assets.json").write_text("{not json", encoding="utf-8")
     monkeypatch.setenv(CLAUDE_CONFIG_DIR_ENV, str(tmp_path / "cfg"))

@@ -10,6 +10,7 @@ any replacement; a user's edit still needs consent.
 from __future__ import annotations
 
 import base64
+import stat
 from pathlib import Path
 
 import pytest
@@ -76,9 +77,15 @@ def _backups_holding(project: Path, data: bytes) -> list[Path]:
     return [path for path in (project / ".kittify").rglob("*") if path.is_file() and path.read_bytes() == data]
 
 
+def _overwrite(path: Path, data: bytes) -> None:
+    """Write *data* over a file the sync installed read-only (0444), as a user editing it would."""
+    path.chmod(path.stat().st_mode | stat.S_IWUSR)
+    path.write_bytes(data)
+
+
 def test_historical_render_in_a_project_is_refreshed_with_a_backup(project: Path) -> None:
     current = (project / _SKILL).read_bytes()
-    (project / _SKILL).write_bytes(_OLD_RUN_IMPLEMENT_REVIEW)
+    _overwrite(project / _SKILL, _OLD_RUN_IMPLEMENT_REVIEW)
 
     run_tool_surfaces(project, ("claude",), fix=True)
 
@@ -88,7 +95,7 @@ def test_historical_render_in_a_project_is_refreshed_with_a_backup(project: Path
 
 def test_edited_project_skill_still_needs_consent(project: Path) -> None:
     edited = (project / _SKILL).read_bytes() + b"\nmy note\n"
-    (project / _SKILL).write_bytes(edited)
+    _overwrite(project / _SKILL, edited)
 
     run_tool_surfaces(project, ("claude",), fix=True)
 
