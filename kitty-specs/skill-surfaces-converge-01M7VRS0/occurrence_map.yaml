@@ -18,11 +18,11 @@ categories:
 
 exceptions:
   - path: "src/specify_cli/skills/retired.py"
-    action: do_not_change
-    reason: "The old id is ADDED here as a retired canonical skill name; it must stay spelled as shipped."
+    action: manual_review
+    reason: "The old id is ADDED here verbatim as a retired canonical skill name; it is never renamed."
   - path: "tests/specify_cli/skills/test_retired_skill_completeness.py"
-    action: do_not_change
-    reason: "EVER_SHIPPED_SKILL_NAMES records the historically shipped id verbatim."
+    action: manual_review
+    reason: "EVER_SHIPPED_SKILL_NAMES keeps the old id verbatim (now under removed names) and gains the new id."
   - path: "docs/changelog/**"
     action: do_not_change
     reason: "Changelog fragments name the retired id as history."

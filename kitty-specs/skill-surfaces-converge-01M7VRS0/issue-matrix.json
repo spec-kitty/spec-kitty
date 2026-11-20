@@ -36,6 +36,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#4609": {
+      "evidence_ref": "Cited for context only: the existing canonical-predecessor version-marker rule (#4609) is reused as command-file proof in WP05; no work owed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#5215": {
       "evidence_ref": "Non-goal of this Mission per the operator brief (C-003); overlap noted in the PR, no work owed here",
       "fr": null,
@@ -167,6 +179,18 @@
       "title": "Rename public skill id spk-start-first-feature",
       "verdict": "in-mission",
       "wp": "WP07"
+    },
+    "#7758": {
+      "evidence_ref": "Follow-up: opt-in removal of byte-proven old-root copies, filed from this Mission per operator ruling Q2; no work owed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
     }
   },
   "schema_version": 1

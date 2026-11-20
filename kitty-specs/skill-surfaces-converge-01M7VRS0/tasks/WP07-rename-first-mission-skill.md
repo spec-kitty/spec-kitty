@@ -10,6 +10,9 @@ requirement_refs:
 planning_base_branch: issue-7700-skill-surfaces-converge
 merge_target_branch: issue-7700-skill-surfaces-converge
 branch_strategy: Planning artifacts for this mission were generated on issue-7700-skill-surfaces-converge. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-7700-skill-surfaces-converge unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-skill-surfaces-converge-01M7VRS0
+base_commit: fd2f86473c60587f94ebac5aafdd80a9ecde1686
+created_at: '2026-11-20T08:24:22.447267+00:00'
 subtasks:
 - T032
 - T033
