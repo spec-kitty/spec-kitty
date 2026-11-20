@@ -7,10 +7,10 @@
 | Field | Type | New? | Meaning |
 |---|---|---|---|
 | `is_stale` | bool | no | the lane must incorporate other content first |
-| `overlapping_files` | list[str] | no | paths both sides changed |
+| `stale_files` | list[str] | no | paths both sides changed (existing field name) |
 | `remediation` | str | changed | approved code lane: the re-review route (contracts/stale-remedy.md); otherwise as today |
-| `halt_reason` | `"conflict" \| "no_lane_checkout" \| "merge_in_progress" \| None` | yes | why the in-run auto-rebase did not refresh the lane |
-| `conflicted_paths` | tuple[str, ...] | yes | exactly the paths the auto-rebase classified Manual |
+| `halt_reason` | `"conflict" \| "no_lane_checkout" \| "merge_in_progress" \| "other" \| None` | yes | why the in-run auto-rebase did not refresh the lane |
+| `conflicted_paths` | tuple[str, ...] | yes | exactly the paths that conflict (computed with a merge-tree probe, because the auto-rebase stops at the first Manual file) |
 | `sibling_lanes` | tuple[SiblingLane, ...] | yes | lanes consolidated earlier in this run whose approved content overlaps |
 
 **SiblingLane**: `lane_id`, `branch`, `approval_stamp_sha` (the newest stamp of its approved WPs), and `paths` (the overlapping paths that lane contributed).

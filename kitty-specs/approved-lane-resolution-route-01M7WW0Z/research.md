@@ -98,7 +98,8 @@ Format per decision: Decision / Rationale / Alternatives considered.
 
 - **Decision**:
   - In `git_probes`, before `n_way_merge_blob` attributes a fold and before `merge_own_changed_paths` reports paths, run one batched `git check-attr --stdin merge` over the paths involved (all changed paths of the merge for the remerge probe).
-  - Refuse (probe error, fail closed) when the effective `merge` attribute is set to anything other than unspecified, unset, `binary` or `text`, unless both hold:
+  - Correction from tasks authoring: plain `set` is safe (git's built-in merge). `text` and `binary` are NOT safe on their own, because a configured `merge.text.driver` or `merge.binary.driver` overrides the built-in (reproduced). A committed built-in value is decided by the operator question on committed attributes (default (a): honoured only when `check-attr --source <pre-run target tip>` agrees with the effective value and no driver is configured for that name; git < 2.40 refuses).
+  - Refuse (probe error, fail closed) when the effective `merge` attribute is set to anything other than unspecified, unset or `set` (or an honoured committed built-in, above), unless both hold:
     - the value names a spec-kitty registered driver (`lanes/consolidation._MERGE_DRIVERS`) and the path matches that driver's registered pattern;
     - the configured `merge.<name>.driver` command equals the registered command.
   - Also refuse when `merge.default` is configured.
@@ -138,7 +139,7 @@ Format per decision: Decision / Rationale / Alternatives considered.
 - **Decision**:
   - Write a red-first test with `build_canceled_lane_on_approved_dependency`. Steps: A approved; C fully canceled and merged into A; A re-approved by an unforced review whose stamp descends from that merge; fresh consolidate.
   - Assert the preconditions. Expect `CANCELED_REACHABLE_VIA_DEPENDENCY`.
-  - Likely mechanism: `_fully_canceled_lane_own_commits` anchors C on A's live tip (`reconciliation_kernel.py:214`), so C's own commits become empty once A merges C. The fix anchors C on A as of C's cut (merge-base / C's lane base).
+  - Likely mechanism: `_fully_canceled_lane_own_commits` anchors C on A's live tip (`reconciliation_kernel.py:214`), so C's own commits become empty once A merges C. The fix anchors C on A as of C's cut (C's lane base or first-claim stamp; a merge-base equals C's tip once A merged C). A second candidate mechanism is the first-parent-only `_carrier_spines` with a `--no-ff` merge; the WP identifies which applies first.
   - If the test is green at the base, keep it as a ratchet pin and close #7497 with that evidence.
 - **Rationale**: the operator ruled "fold, fix included", and this is red first.
 - **Alternatives considered**: none. This is a probe.
