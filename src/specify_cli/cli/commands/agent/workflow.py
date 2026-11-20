@@ -92,6 +92,7 @@ from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed, SafeCommitStagedTreeUnchanged
 from specify_cli.git.merge_conclusion import run_committing_op
+from specify_cli.lanes.incorporate import INCORPORATE_CONFLICT_EXIT, IncorporateOutcome, IncorporateRefused, SiblingStamp
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.review.cycle import (
     REVIEW_FEEDBACK_SENTINELS,
@@ -1726,6 +1727,52 @@ def _resolve_dispatch_binding(
     )
 
 
+_INCORPORATE_OPT_HELP = (
+    "Merge the named sibling lane, at its newest approval stamp, into this work package's lane checkout. "
+    f"Stops on a conflict for hand resolution and exits {INCORPORATE_CONFLICT_EXIT}. "
+    "Only for a work package that is claimed or in progress."
+)
+
+
+def _incorporate_preflight(repo_root: Path, mission_slug: str, wp_id: str, incorporate: str | None) -> SiblingStamp | None:
+    """Every ``--incorporate`` precondition, read only, before any workspace or claim side effect (FR-001)."""
+    if incorporate is None:
+        return None
+    from specify_cli.lanes.incorporate import prepare_incorporation
+
+    return prepare_incorporation(repo_root, mission_slug, wp_id, incorporate)
+
+
+def _run_incorporation(
+    repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+    workspace: ResolvedWorkspace,
+    sibling: SiblingStamp | None,
+) -> IncorporateOutcome | None:
+    """Merge *sibling* at its approval stamp into the resolved lane checkout and print the outcome."""
+    if sibling is None:
+        return None
+    from specify_cli.lanes.incorporate import IncorporateCode, incorporate_sibling, prepare_incorporation, render_outcome
+
+    if workspace.runs_in_checkout_root:
+        raise IncorporateRefused(IncorporateCode.PLANNING_LANE, f"{wp_id} runs in the repository root checkout; it has no lane checkout to incorporate into.")
+    # The status log may have moved since the preflight (e.g. the sibling was approved again): re-read the stamp.
+    current = prepare_incorporation(repo_root, mission_slug, wp_id, sibling.lane_id, check_wp=False)
+    if current.stamp != sibling.stamp:
+        print(f"{sibling.lane_id}'s newest approval stamp moved from {sibling.stamp[:12]} to {current.stamp[:12]}; incorporating the new one.")
+    outcome = incorporate_sibling(workspace.worktree_path, current)
+    for line in render_outcome(outcome, wp_id, mission_slug):
+        print(line)
+    return outcome
+
+
+def _exit_if_incorporate_conflict(outcome: IncorporateOutcome | None) -> None:
+    """A conflicted incorporation exits non-zero (operator ruling 2026-11-20), after the prompt was printed."""
+    if outcome is not None and outcome.conflicted:
+        raise typer.Exit(INCORPORATE_CONFLICT_EXIT)
+
+
 @app.command(name="implement")
 def implement(
     wp_id: Annotated[str | None, typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first planned if omitted")] = None,
@@ -1795,6 +1842,7 @@ def implement(
             ),
         ),
     ] = None,
+    incorporate: Annotated[str | None, typer.Option("--incorporate", help=_INCORPORATE_OPT_HELP)] = None,
 ) -> None:
     """Display work package prompt with implementation instructions.
 
@@ -1822,6 +1870,9 @@ def implement(
         raise typer.Exit(1) from exc
     if force and not agent:
         print("Error: --force requires --agent (it becomes the implementer of record)")
+        raise typer.Exit(1)
+    if force and incorporate is not None:
+        print("Error: --incorporate cannot be combined with --force: the re-review route never forces a work package out of review.")
         raise typer.Exit(1)
 
     # T009: the raw CLI-option surface, unresolved -- threaded through the
@@ -1873,6 +1924,9 @@ def implement(
 
         # Find WP file to read dependencies
         wp = _executor.implement_locate_wp(repo_root, mission_slug, normalized_wp_id)
+
+        # FR-001: every --incorporate refusal happens here, before the workspace or the claim.
+        sibling = _incorporate_preflight(main_repo_root, mission_slug, normalized_wp_id, incorporate)
 
         # C-006 charter precondition: check BEFORE any worktree creation or
         # status transition.
@@ -2059,6 +2113,7 @@ def implement(
         )
         wp = claim_result.wp
         wp_slug = claim_result.wp_slug
+        incorporation = _run_incorporation(main_repo_root, mission_slug, normalized_wp_id, workspace, sibling)
 
         # Fix-mode detection: if the WP was rejected and has review-cycle
         # artifacts, generate a focused fix-mode prompt instead of the full
@@ -2076,6 +2131,7 @@ def implement(
             repo_root=repo_root,
         )
         if fix_prompt_file is not None:
+            _exit_if_incorporate_conflict(incorporation)
             return
 
         # Detect mission type and get deliverables_path for research missions.
@@ -2120,11 +2176,17 @@ def implement(
             deliverables_path=deliverables_path,
             subtask_cmd=subtask_cmd,
         )
+        _exit_if_incorporate_conflict(incorporation)
 
     except typer.Exit:
         with contextlib.suppress(Exception):
             _print_commit_summary(command_name="implement")
         raise
+    except IncorporateRefused as e:
+        with contextlib.suppress(Exception):
+            _print_commit_summary(command_name="implement")
+        print(f"Error: {e.code}: {e.message}")
+        raise typer.Exit(1) from e
     except FeatureStatusLockTimeoutError as e:
         # A claim lock held past its bound is retryable and has its own code, like the orchestrator API.
         with contextlib.suppress(Exception):
