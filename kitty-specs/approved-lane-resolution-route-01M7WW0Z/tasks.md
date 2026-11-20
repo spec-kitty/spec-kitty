@@ -335,7 +335,7 @@ T050 SC-003 no-mutation proof (reflog lengths, no snapshot, with a land-then-rol
 
 ---
 
-Binding DoD for WP12 (WP10 review, reviewer-accepted recorded leeway): wire the review-context resolution commands to WP01. This covers (a) a version-gated cannot-neutralise line, (b) the shared pinned-config helper, (c) the pre-run target tip as the attribute source (red test with `merge=union` committed before the window base), and (d) the cannot-show form for an unlisted merge on git < 2.36. The edit to `review/context_block.py` is recorded leeway; see the WP12 prompt. These are blocking review checks.
+Binding DoD for WP12 (WP10 review, reviewer-accepted recorded leeway): wire the review-context resolution commands to WP01. This covers (a) a version-gated cannot-neutralise line, (b) the shared pinned-config helper (including `merge.renormalize=false`) plus `--no-ext-diff --no-textconv`, (c) the pre-run target tip as the attribute source (red test with `merge=union` committed before the window base), and (d) the cannot-show form for an unlisted merge on git < 2.36. The edit to `review/context_block.py` is recorded leeway; see the WP12 prompt. These are blocking review checks.
 
 ---
 

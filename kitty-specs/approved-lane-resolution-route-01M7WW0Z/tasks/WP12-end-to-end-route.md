@@ -196,7 +196,7 @@ Implement command: `spec-kitty agent action implement WP12 --agent claude --miss
 
 Accepted by the reviewer on 2026-11-20. These are blocking checks in WP12's review and in the final aggregate review. WP12's lane holds both WP01 and WP10, so edit `src/specify_cli/review/context_block.py` (and `review/wp_range.py` if needed) as recorded leeway, with a one-line rationale in history:
 - (a) Print a version-gated "cannot neutralise attributes" line on git < 2.40, using WP01's `check_attr_source_available()` probe. The existing note stays only as the explanation.
-- (b) Shape the printed resolution command with WP01's shared pinned-config helper (`merge_probe_env` / `MERGE_PROBE_CONFIG_PINS`: renormalize, directoryRenames, renames, diff.algorithm, conflictStyle), rendered as `-c` flags, so it cannot drift from the guard.
+- (b) Shape the printed resolution command with WP01's shared pinned-config helper (`merge_probe_env` / `MERGE_PROBE_CONFIG_PINS`: renormalize, directoryRenames, renames, diff.algorithm, conflictStyle), rendered as `-c` flags, so it cannot drift from the guard. The printed command also carries `--no-ext-diff --no-textconv`, because a `diff=<driver>` textconv or a `-diff` attribute can change or hide the bytes the reviewer sees (reviewer, WP01 cycle 2). The pins include `merge.renormalize=false`.
 - (c) The attribute source is the one WP01's guard uses: the PRE-RUN TARGET TIP, not the range base. Red test: a real-git fixture where `merge=union` is committed on the lane before the window base; the printed command must list the path.
 - (d) When `merges_unlisted` is true and remerge-diff is unavailable (git < 2.36), print the cannot-show form, not a `show --remerge-diff` instruction. Add a test.
 
