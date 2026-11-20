@@ -227,7 +227,9 @@
         "- 2026-11-20T18:36:48Z – claude – shell_pid=24797 – leeway: tests/review/test_wp_range_git_calls.py (not owned) _DERIVED_BUDGET 12 -> 13 per runner ruling, commit b2bd03a7. Reason: FR-007 mandatory full-history merge listing, one fixed rev-list per range independent of commit count. Measured: derived 12 -> 13 (within 13); recorded 6 -> 7 (within _BUDGET=10, unchanged; equal for 1 and 200 commits). Comment sits on the line above the constant (an inline comment exceeded the E501 line limit).",
         "FR-007: wp_range lists every merge of base..tip (rev-list --merges --full-history, no pathspec; remerge probe only when merges exist); render_review_context prints one RESOLUTION MERGE command per merge (or cannot-show line on git<2.36) outside the byte budget; no-merge ranges unchanged. Leeway: _DERIVED_BUDGET 12->13 per runner ruling (b2bd03a7). Tests: 5 review files 95 passed; make test-fast 3144 passed 7 skipped.",
         "Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
-        "REJECT relayed from reviewer session session_019C2Tk5ehA3TXonKhbxbaMR"
+        "REJECT relayed from reviewer session session_019C2Tk5ehA3TXonKhbxbaMR",
+        "- 2026-11-20T19:24:56Z – unknown – red (review cycle 1, must-fix 1): pytest tests/review/test_review_context_merge_lines.py -k fail_soft -> AssertionError: 'CITED REQUIREMENTS:' == '  RESOLUTION MERGES: could not be listed; run git rev-list --merges --full-history <base>..<tip> ...' (no fallback line rendered when the merge listing fails). Must-fix 2 ATDD test (next review prompt via runtime.next.prompt_builder._review_command_lines) passes on the existing feature, as expected for an acceptance test.",
+        "- 2026-11-20T19:31:36Z – unknown – review cycle 1 addressed: (1) MED fallback: WpReviewRange.merges_unlisted (listing_gap contains the merges step) makes render_review_context print '  RESOLUTION MERGES: could not be listed; run git rev-list --merges --full-history <base>..<tip> and review each with git show --remerge-diff <sha>' with full SHAs after the REVIEW COMMANDS; test_merge_listing_failure_is_fail_soft asserts the rendered line (red then green); docstring shape block updated. (2) LOW ATDD: test_next_review_prompt_prints_the_hand_merge_resolution_command drives runtime.next.prompt_builder._review_command_lines (the next review prompt, render site 1) on the _lane_with_merges fixture and asserts the full-SHA RESOLUTION MERGE line; kept in the owned test file. Tests: targeted set incl. no_dead_symbols/layer_rules/legacy terminology and tests/next/test_prompt_builder_review_base.py 467 passed; make test-fast 3144 passed 7 skipped; ruff/format/mypy clean."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -241,9 +243,9 @@
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
-        "T037": "planned",
-        "T038": "planned",
-        "T039": "planned"
+        "T037": "done",
+        "T038": "done",
+        "T039": "done"
       }
     },
     "WP11": {
