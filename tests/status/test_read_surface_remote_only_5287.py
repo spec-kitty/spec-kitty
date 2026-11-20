@@ -127,3 +127,26 @@ def test_a_readable_ref_never_pays_for_the_remote_only_probe(tmp_path: Path, mon
 
     assert surface.source is StatusReadSource.COORD_BRANCH_REF
     assert calls == []
+
+
+def test_a_mission_topic_branch_gone_everywhere_is_not_called_remote_only(tmp_path: Path) -> None:
+    """Review fold: nothing proves a remote holds a topic branch with no local head and no tracking ref.
+
+    The coordination arm is different: the coordination probe has already found the branch
+    (locally, in a remote-tracking ref or on a remote) before the door reads it. The topic-branch
+    arm has no such probe, so without a remote-tracking ref it keeps the plain unreadable error
+    instead of printing a fetch that cannot succeed.
+    """
+    mission = build_matrix_mission(tmp_path, SINGLE_BRANCH)
+    _make_default_off_topic_branch(mission)
+    git(mission.repo, "branch", "-D", MISSION_BRANCH)
+
+    surface = resolve_status_read(mission.repo, SLUG)
+    assert surface.source is StatusReadSource.MISSION_BRANCH_REF
+
+    with pytest.raises(StatusSurfaceRefUnreadable) as excinfo:
+        read_status_events(surface)
+
+    assert not isinstance(excinfo.value, StatusSurfaceRefRemoteOnly)
+    assert excinfo.value.error_code == STATUS_SURFACE_REF_UNREADABLE
+    assert "exists only on a remote" not in str(excinfo.value)
