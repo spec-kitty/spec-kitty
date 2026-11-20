@@ -218,7 +218,8 @@ CLI_COMMAND_MODULE_FANOUT: dict[str, frozenset[str]] = {
 # all three, ran no upgrade shard, and broke ``spec-kitty upgrade`` on main. The group is NON-src
 # (**/-prefixed globs) like CLI_COMMAND_MODULE_FANOUT, so it never masks an unmapped src/** change (FR-004),
 # and gates no router job BY DESIGN (the module matrix is its per-PR executor). Targets: ``upgrade``
-# (tests/upgrade + tests/specify_cli/upgrade drive the preparation) and ``cli`` (tests/init runs init).
+# (tests/upgrade drives the preparation; tests/specify_cli/upgrade is out of matrix, nightly only, #4732)
+# and ``cli`` (tests/init runs init).
 # Pinned by tests/ci/test_upgrade_asset_surface_routing.py.
 ASSET_SURFACE_MODULE_FANOUT: dict[str, frozenset[str]] = {
     "upgrade_asset_surface": frozenset({"upgrade", "cli"}),
