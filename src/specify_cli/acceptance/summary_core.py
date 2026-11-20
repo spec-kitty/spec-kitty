@@ -330,9 +330,13 @@ def evaluate_path_conventions(
         return [], waiver_notice, waived_tokens
     paths_waived, paths_notice = _path_conventions_waiver_effect(planning_read_dir, path_conventions_waiver_reason)
     waiver_notice = _joined_notice(waiver_notice, paths_notice)
-    if strict_metadata and not paths_waived:
-        artifact_tokens = artifact_tokens_for_mission(mission)
-        dedup_tokens = frozenset(normalize_path_token(token) for token in path_result.missing_artifact_tokens if normalize_path_token(token) in artifact_tokens)
+    artifact_tokens = artifact_tokens_for_mission(mission)
+    dedup_tokens = frozenset(normalize_path_token(token) for token in path_result.missing_artifact_tokens if normalize_path_token(token) in artifact_tokens)
+    # Landing fold (#7566): a path-convention waiver covers layout paths only. A
+    # missing Mission artifact (e.g. ``contracts/``) keeps blocking unless its own
+    # narrower waiver (#5298 ``contracts: none``) took it out of the result.
+    unwaived_artifacts = dedup_tokens - waived_tokens
+    if strict_metadata and (not paths_waived or unwaived_artifacts):
         return [_with_notice(path_result.format_errors() or _PATH_CONVENTIONS_NOT_SATISFIED, waiver_notice)], None, dedup_tokens | waived_tokens
     return [], _with_notice(path_result.format_warnings() or _PATH_CONVENTIONS_NOT_SATISFIED, waiver_notice), waived_tokens
 

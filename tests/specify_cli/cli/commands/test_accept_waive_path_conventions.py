@@ -44,7 +44,7 @@ def _git(repo_root: Path, *args: str) -> None:
     subprocess.run(["git", *args], cwd=repo_root, check=True, capture_output=True)
 
 
-def _content_repo(tmp_path: Path, *, meta_extra: dict[str, object] | None = None) -> Path:
+def _content_repo(tmp_path: Path, *, meta_extra: dict[str, object] | None = None, drop_meta: tuple[str, ...] = ()) -> Path:
     """A content repository with no ``src/`` and one never-claimed work package (a strict metadata issue)."""
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
@@ -72,6 +72,8 @@ def _content_repo(tmp_path: Path, *, meta_extra: dict[str, object] | None = None
         "contracts_rationale": "content repository; no interfaces",
         **(meta_extra or {}),
     }
+    for key in drop_meta:
+        meta.pop(key, None)
     (feature_dir / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
     for name in ("spec.md", "plan.md", "tasks.md"):
         (feature_dir / name).write_text(f"# {name}\nDone.\n")
@@ -122,6 +124,29 @@ def test_meta_json_waiver_applies_on_the_orchestrator_call_shape(tmp_path: Path)
 
     assert _path_violations(summary) == []
     assert _missing_agent(summary), summary.metadata_issues
+
+
+@pytest.mark.parametrize(
+    ("reason", "meta_extra"),
+    [
+        ("content repository", None),
+        (None, {"path_conventions": "waived", "path_conventions_rationale": "content repository"}),
+    ],
+    ids=["per-run", "meta-json"],
+)
+def test_waiver_never_waives_a_missing_mission_artifact(tmp_path: Path, reason: str | None, meta_extra: dict[str, object] | None) -> None:
+    """Landing fold: a path-convention waiver covers remappable layout paths only.
+
+    A missing ``contracts/`` Mission artifact still blocks under strict metadata unless the
+    Mission declares the narrower #5298 ``"contracts": "none"`` waiver.
+    """
+    repo_root = _content_repo(tmp_path, meta_extra=meta_extra, drop_meta=("contracts", "contracts_rationale"))
+
+    summary = collect_feature_summary(repo_root, _SLUG, strict_metadata=True, mutate_matrix=False, path_conventions_waiver_reason=reason)
+
+    contracts_blocks = [entry for entry in summary.path_violations if "contracts" in entry]
+    assert contracts_blocks, summary.path_violations
+    assert summary.ok is False
 
 
 # --- FR-011: the CLI refuses a waiver without a reason, before any work -----------------

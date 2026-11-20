@@ -1860,7 +1860,8 @@ def accept(
         typer.Option(
             WAIVE_PATH_CONVENTIONS_FLAG,
             help=(
-                "Treat missing path-convention directories as warnings for this run only; metadata validation stays strict. "
+                "Treat missing layout directories (src/, tests/, docs/...) as warnings for this run only; metadata validation stays strict "
+                "and a missing Mission artifact such as contracts/ still blocks. "
                 f"Requires {WAIVE_REASON_FLAG}; the reason is recorded in the acceptance history. To waive them for every run, "
                 'set "path_conventions": "waived" with a "path_conventions_rationale" in the Mission\'s meta.json.'
             ),
