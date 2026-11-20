@@ -114,6 +114,8 @@ def test_review_refuses_by_name_and_leaves_agent_report_byte_identical(
 
     assert result.exit_code == 1, result.output
     assert "MISSION_REVIEW_REPORT_PATH_OCCUPIED" in result.output, result.output
+    # Machine consumers get the same JSON diagnostic line as the other refusals.
+    assert '"diagnostic_code": "MISSION_REVIEW_REPORT_PATH_OCCUPIED"' in result.output, result.output
     # The remedy names the skill's own path for an agent-written review.
     assert "mission-review.md" in result.output, result.output
     assert report_path.read_bytes() == before
