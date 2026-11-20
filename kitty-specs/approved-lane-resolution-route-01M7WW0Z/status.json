@@ -1,7 +1,7 @@
 {
-  "event_count": 49,
-  "last_event_id": "01M7X79SAAX80P0PNFA6TYVZTA",
-  "materialized_at": "2026-11-20T19:35:27.306854+00:00",
+  "event_count": 50,
+  "last_event_id": "01M7X7AENF7TVGGHB30ZCY3YNA",
+  "materialized_at": "2026-11-20T19:35:49.167122+00:00",
   "mission_number": "",
   "mission_slug": "approved-lane-resolution-route-01M7WW0Z",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 3,
+    "for_review": 2,
     "in_progress": 1,
-    "in_review": 1,
+    "in_review": 2,
     "planned": 9
   },
   "work_packages": {
@@ -267,9 +267,9 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "for_review",
-      "last_event_id": "01M7X57EEF1JS78QVB92VMVVMS",
-      "last_transition_at": "2026-11-20T18:59:13.487499+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M7X7AENF7TVGGHB30ZCY3YNA",
+      "last_transition_at": "2026-11-20T19:35:49.167122+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-20T18:04:52Z – claude – shell_pid=20149 – red: uv run --frozen pytest tests/consolidation/test_canceled_via_reapproved_dependency_7497.py at base 2c1a56fe: main test FAILS on 'assert CANCELED_REACHABLE_VIA_DEPENDENCY in output'. CellResult: exit_code=1 status=fail codes=() divergence_fields=('unattributable_blobs',). Verdict: Reconciliation FAILED, src/pkg/wp02.py un-attributable, gate rolled back (target does not carry C's blob). Content does NOT land at base, but under a generic code, not the canceled-dependency axis. Control (no re-approval) passes: LANE_MOVED_AFTER_APPROVAL on lane-a.",
@@ -282,7 +282,7 @@
         "#7497 red at base (generic unattributable FAIL); fixed in reconciliation_canceled.py: C anchored on A before A merged C, merged-in canceled commits counted on carrier spines. Fresh run now refuses CANCELED_REACHABLE_VIA_DEPENDENCY; control keeps LANE_MOVED_AFTER_APPROVAL; mutation checks permanent. T042 n/a (red-at-base branch taken)."
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
+      "role": "reviewer",
       "shell_pid": 20149,
       "shell_pid_created_at": "1795197346.46",
       "subtasks": {
