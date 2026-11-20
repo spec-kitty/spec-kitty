@@ -30,6 +30,7 @@ from ruamel.yaml import YAML
 from charter.activation.activation_ledger import LEDGER_KEYS
 from kernel.activation_ledger_store import ACTIVATION_LEDGER, activation_ledger_path
 from tests._support.activation_cli import REPO_ROOT, cli, git, init_git_repo, snapshot, unwrapped
+from tests._support.git_cli import commit_init_leftovers
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -49,8 +50,7 @@ def initialized(tmp_path_factory: pytest.TempPathFactory) -> Path:
     repo = init_git_repo(tmp_path_factory.mktemp("init-flow") / "project")
     result = cli(repo, "init", ".", "--ai", "claude")
     assert result.returncode == 0, unwrapped(result)
-    git(repo, "add", "-A")
-    git(repo, "commit", "-q", "-m", "spec-kitty init")
+    commit_init_leftovers(repo, "spec-kitty init")
     return repo
 
 

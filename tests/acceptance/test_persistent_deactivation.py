@@ -40,6 +40,7 @@ from charter.offering.artifact_kinds import ArtifactKind
 from kernel.activation_ledger_store import activation_ledger_path
 from specify_cli.cli.commands.charter.interview import _promote_interview_selections
 from tests._support.activation_cli import REPO_ROOT, cli, git, init_git_repo, unwrapped
+from tests._support.git_cli import commit_init_leftovers
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -111,8 +112,7 @@ def project(tmp_path: Path) -> Path:
     repo = init_git_repo(tmp_path / "project")
     result = cli(repo, "init", ".", "--ai", "claude")
     assert result.returncode == 0, unwrapped(result)
-    git(repo, "add", "-A")
-    git(repo, "commit", "-q", "-m", "spec-kitty init")
+    commit_init_leftovers(repo, "spec-kitty init")
     return repo
 
 

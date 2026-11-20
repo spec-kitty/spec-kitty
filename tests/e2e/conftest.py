@@ -20,6 +20,7 @@ import yaml
 
 from tests._support.builtin_missions import copy_builtin_missions
 from tests._support.fixture_pollution import scrub_repo_mission_overrides
+from tests._support.git_cli import commit_init_leftovers
 from tests.test_isolation_helpers import get_installed_version, run_cli_subprocess
 from specify_cli.migration.schema_version import MAX_SUPPORTED_SCHEMA, SCHEMA_CAPABILITIES
 from charter.activation.sync import sync as sync_charter
@@ -442,20 +443,11 @@ def fresh_e2e_project(tmp_path: Path) -> Path:
     if result.returncode != 0:
         raise AssertionError(f"spec-kitty init failed for fresh fixture:\n  rc={result.returncode}\n  stdout: {result.stdout}\n  stderr: {result.stderr}")
 
-    # Step 3: commit the freshly seeded project state so subsequent
-    # CLI commands see a clean working tree.
-    subprocess.run(
-        ["git", "add", "."],
-        cwd=project,
-        check=True,
-        capture_output=True,
-    )
-    subprocess.run(
-        ["git", "commit", "-m", "Initial spec-kitty init"],
-        cwd=project,
-        check=True,
-        capture_output=True,
-    )
+    # Step 3: make sure the freshly seeded project state is committed so
+    # subsequent CLI commands see a clean working tree. ``init`` already
+    # commits its own writes (#7555, and the root commit on an unborn branch
+    # since #7612), so only leftovers are committed here (#7738).
+    commit_init_leftovers(project, "Initial spec-kitty init")
     _checkout_e2e_status_commit_branch(project)
 
     return project
