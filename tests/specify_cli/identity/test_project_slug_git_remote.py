@@ -117,3 +117,24 @@ def test_remote_url_naming_no_repository_falls_back_to_directory(tmp_path: Path)
 
     assert slug_from_git_remote(local) is None
     assert derive_project_slug(local) == "dirname-differs"
+
+
+@pytest.mark.parametrize(
+    ("url", "slug"),
+    [
+        ("https://example.invalid/acme/acme-widgets/", "acme-widgets"),
+        ("https://example.invalid/acme/acme-widgets.git/", "acme-widgets"),
+        ("git@example.invalid:acme/acme-widgets.git", "acme-widgets"),
+        ("https://example.invalid", None),
+    ],
+)
+def test_slug_from_git_remote_url_shapes(tmp_path: Path, url: str, slug: str | None) -> None:
+    """#5215 review L2: a trailing slash still names the repository; a bare host names none."""
+    from specify_cli.identity.project import slug_from_git_remote
+
+    local = tmp_path / "clone"
+    local.mkdir()
+    _git("init", "-q", cwd=local)
+    _git("remote", "add", "origin", url, cwd=local)
+
+    assert slug_from_git_remote(local) == slug

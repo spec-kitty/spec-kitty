@@ -227,21 +227,29 @@ def slug_from_git_remote(repo_root: Path) -> str | None:
             timeout=_GIT_REMOTE_TIMEOUT_SECONDS,
         )
         url = result.stdout.strip()
-
-        # Handle both SSH and HTTPS URLs
-        # SSH: git@github.com:user/repo.git
-        # HTTPS: https://github.com/user/repo.git
-        if url.endswith(".git"):
-            url = url[:-4]
-
-        # Extract repo name from URL
-        # For SSH URLs like git@github.com:user/repo, split on : first
-        if ":" in url and "@" in url:
-            # SSH format: git@host:user/repo
-            url = url.split(":")[-1]
-
     except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
         return None
+    return _repository_name(url)
+
+
+def _repository_name(url: str) -> str | None:
+    """Return the kebab-case repository name a remote URL ends in, or ``None``.
+
+    SSH ``git@github.com:user/repo.git`` and HTTPS ``https://github.com/user/repo.git``
+    both give ``repo``. A trailing ``/`` is ignored (#5215: it used to name no
+    repository, so the slug depended on how each clone spelled its remote), and a
+    URL with no path after the host names none.
+    """
+    url = url.rstrip("/")
+    if url.endswith(".git"):
+        url = url[:-4]
+    if ":" in url and "@" in url:
+        # SSH format: git@host:user/repo
+        url = url.split(":")[-1]
+    elif "://" in url:
+        url = url.split("://", 1)[1]
+        if "/" not in url:
+            return None
     return _normalize_slug(url.split("/")[-1]) or None
 
 
