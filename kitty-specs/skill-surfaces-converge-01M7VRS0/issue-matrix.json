@@ -179,6 +179,18 @@
       "title": "Rename public skill id spk-start-first-feature",
       "verdict": "in-mission",
       "wp": "WP07"
+    },
+    "#7758": {
+      "evidence_ref": "Follow-up: opt-in removal of byte-proven old-root copies, filed from this Mission per operator ruling Q2; no work owed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
     }
   },
   "schema_version": 1
