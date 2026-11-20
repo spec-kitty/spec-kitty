@@ -874,6 +874,20 @@ class TestAgentMissionReviewIngestor:
         _helped, not_helpful, _gaps = _ingest_with_agent_review(None, "---\nfindings: 3\n---\n# Review\n", ev_reg)
         assert [f.summary for f in not_helpful] == ["mission-review.md records 3 finding(s)"]
 
+    def test_agent_review_text_without_a_path_is_refused(self) -> None:
+        with pytest.raises(ValueError, match="agent_review_rel"):
+            _build_ingestor_findings(
+                workflow_failures_text=None,
+                analysis_report_text=None,
+                review_report_text=None,
+                workflow_failures_rel="kitty-specs/test/workflow-failures-log.md",
+                analysis_report_rel="kitty-specs/test/analysis-report.md",
+                review_report_rel="kitty-specs/test/mission-review-report.md",
+                finding_id_counters={},
+                ev_reg=_EvidenceRegistry(),
+                agent_review_text=_AGENT_REVIEW,
+            )
+
     def test_absent_agent_review_adds_nothing(self) -> None:
         helped, not_helpful, _gaps = _ingest_with_agent_review(None, None, _EvidenceRegistry())
         assert helped == []
