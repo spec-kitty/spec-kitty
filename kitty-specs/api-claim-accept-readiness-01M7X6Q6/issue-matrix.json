@@ -13,16 +13,16 @@
       "wp": null
     },
     "#5781": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP01 claim sidecar + WP02 gate via review_roles, canceled exemption, derived hint",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "orchestrator-api accept-mission refuses every API-claimed mission",
+      "verdict": "in-mission",
+      "wp": "WP02"
     },
     "#5782": {
       "evidence_ref": "<link or commit>",
