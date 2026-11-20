@@ -305,6 +305,10 @@ Tracer notes: this code WP cannot own `kitty-specs/` paths. Record friction, app
 - **Performance**: the remerge probe is expensive. Mitigation: predicate and record checks first; one enumeration per lane.
 - **Ordering in compound refusals**: the orchestrator reads `codes[0]`. Mitigation: new block always last.
 
+## Additional required test (analysis A13)
+
+- `test_refuses_naming_the_git_version_below_remerge_support`: patch the cached git version below 2.36. A hand-merge fixture must refuse before any mutation, and the message must name the git version (spec edge case: git without remerge-diff).
+
 ## Review Guidance
 
 Anti-fake checks (from `squad2/reviewer-renata.md`), each must hold:

@@ -305,6 +305,10 @@ Complexity <= 15; no `# noqa`, no `# type: ignore`. Record commands and counts i
 - **Faking SC-004 by loosening the resume check.** Mitigation: `state.py` changes are limited to the field comment; `lane_tip_cas_ok` is untouched; the review checks it.
 - **A fixture that never auto-rebases.** Mitigation: the local builder allocates lane worktrees with `allocate_lane_worktree`, and T018 step 3 asserts the recorded move before any post-fix assertion.
 
+## Report line (contract)
+
+- A test asserts the `LANE_MOVED_SINCE_AUTO_REBASE` report line names the lane, the recorded before and after, and the live tip, and prints no raw git recipe (`contracts/refusal-codes.md`).
+
 ## Review Guidance
 
 Anti-fake checks (from `squad2/reviewer-renata.md`, FR-009 findings, and `squad2/doctrine-daphne.md` findings 1 and 9):

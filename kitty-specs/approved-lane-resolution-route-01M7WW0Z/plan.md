@@ -25,7 +25,7 @@ The ADR amendments record the model. Approach C, attributing a conflict resoluti
 ## Technical Context
 
 **Language/Version**: Python 3.11+ (repo floor; CI also runs newer interpreters)
-**Primary Dependencies**: typer and rich (CLI), git ≥ 2.38 for `merge-tree --write-tree` and ≥ 2.36 for `show --remerge-diff`. Both are already required by the consolidation probes. No new dependency.
+**Primary Dependencies**: typer and rich (CLI), git ≥ 2.38 for `merge-tree --write-tree` and ≥ 2.36 for `show --remerge-diff` (both already required); git ≥ 2.40 for `check-attr --source`, needed only to honour a committed attribute (older git refuses it). The first two are already required by the consolidation probes. No new dependency.
 **Storage**: git refs and objects in the repository; the consolidation run record (`.kittify/runtime/merge/<mission_id>/state.json`); the append-only status event log. One new ref namespace: `refs/spec-kitty/auto-rebase/` (see research R-03).
 **Testing**: pytest. Unit tests at the probe and helper level. Real-git integration tests via the existing fixture builders (`tests/consolidation/*_support.py`). End to end through the real CLI via `tests/terminus/conftest.py::run_terminus`. Red first for every behaviour change. `make test-fast` plus the blast radius; no full heavy suites (NO_FULL_HEAVY_SUITES_IN_MISSION).
 **Target Platform**: Linux, macOS and Windows CLI. The new git invocations use only porcelain and plumbing available on all three.
@@ -37,7 +37,7 @@ The ADR amendments record the model. Approach C, attributing a conflict resoluti
 - No new verdict-lifting attestation (C-002).
 - One rollback authority, one refusal renderer, one merge-probe layer, one review-range owner (C-006).
 - The orchestrator-api contract version is bumped (C-007).
-**Scale/Scope**: about 10 work packages over consolidation, lanes, review, orchestrator-api and docs. No migration: the new ref namespace is created on demand, and an absent namespace is the legacy state.
+**Scale/Scope**: 14 work packages (tasks.md is authoritative for the WP structure and ownership; the source tree below is an overview) over consolidation, lanes, review, orchestrator-api and docs. No migration: the new ref namespace is created on demand, and an absent namespace is the legacy state.
 
 ## Charter Check
 
@@ -56,7 +56,7 @@ The ADR amendments record the model. Approach C, attributing a conflict resoluti
 | Terminology canon | PASS | Mission, consolidate (lane consolidation), "incorporate"; never "sync" or "feature". |
 | Supply chain (DIRECTIVE_051) | N/A | No dependency is added, upgraded or removed. |
 
-Post-design re-check: PASS. Research R-01 to R-10 introduce no second authority. The operator ruling on R-01 (option b) keeps the authority map: the incorporate step extends the existing lane sync point.
+Post-design re-check: PASS. The incorporate step is a new `lanes/incorporate.py` behind the existing `implement` command; `lanes/lifecycle_sync.py` is unchanged. Research R-01 to R-10 introduce no second authority. The operator ruling on R-01 (option b) keeps the authority map: the incorporate step extends the existing lane sync point.
 
 ## Project Structure
 
@@ -113,7 +113,7 @@ tests/
 ├── orchestrator_api/            # envelope/contract version, preflight codes
 └── terminus/                    # FR-008 end-to-end route (squash, merge, N1-N3, three lanes)
 
-docs/adr/4.x/2026-10-04-5-*.md, docs/adr/4.x/2026-09-29-1-*.md (or its era dir),
+docs/adr/4.x/2026-10-04-5-*.md, docs/adr/3.x/2026-09-29-1-*.md,
 docs/adr/3.x/2026-09-19-1-*.md, docs/adr/4.x/2026-11-08-2-*.md, CLAUDE.md residual line   # FR-013
 docs/changelog/unreleased/<id>.<section>.md                                                   # changelog fragment
 ```
@@ -189,7 +189,7 @@ No charter violations. Nothing to justify.
   - `lanes/stale_check.py`: new fields and the approved-lane remedy branch; pure;
   - `lanes/consolidation.py`: plumb `approved_wp_ids`, the halt report and the sibling map; return the report;
   - `consolidation/phase_advance.py`: sibling mapping from pre-run lane tips;
-  - `lanes/lifecycle_sync.py` and `cli/commands/agent/workflow.py`: `--incorporate <lane>` (R-01 option b, ruled by the operator in DM-01M7WX8AX56E23AXBZRWGNX4EM);
+  - new `lanes/incorporate.py` and `cli/commands/agent/workflow.py` (`lanes/lifecycle_sync.py` unchanged): `--incorporate <lane>` (R-01 option b, ruled by the operator in DM-01M7WX8AX56E23AXBZRWGNX4EM);
   - orchestrator-api stale stance: same renderer;
   - `tests/lanes/test_stale_remediation_cli_command.py`: re-pinned per the ruling.
 - **Sequencing/depends-on**: none for the remedy text. The incorporate command needs the approval-stamp reader that already exists in `approved_bound`.
@@ -206,7 +206,7 @@ No charter violations. Nothing to justify.
   - `consolidation/reconciliation_claim.py` and `reconciliation_claim_types.py`: additive claim field `unreviewed_merges`;
   - `reconciliation_authorship.py`: populate it;
   - `reconciliation_verifier._with_attribution_hint`.
-- **Sequencing/depends-on**: IC-03 (shared predicate).
+- **Sequencing/depends-on**: the shared predicate and claim field (IC-03's WP04 part) and the probe guard (IC-01).
 - **Risks**:
   - `Divergence.describe()` stays unchanged.
   - Mixed or canceled divergences show no re-review hint (N4).
@@ -219,7 +219,7 @@ No charter violations. Nothing to justify.
 - **Affected surfaces**:
   - `review/wp_range.py`: list merges, without history simplification;
   - `review/context_block.py`: one line per merge, commands only;
-  - contract C-001 text.
+  - review-context contract C-001 text.
 - **Sequencing/depends-on**: none. The availability check uses the existing `remerge_diff_available`.
 - **Risks**:
   - Keep the renderer pure.

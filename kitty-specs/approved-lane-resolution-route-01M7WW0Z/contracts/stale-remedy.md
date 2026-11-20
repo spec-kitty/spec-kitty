@@ -26,4 +26,4 @@ Ordered content (option (b), per operator ruling DM-01M7WX8AX56E23AXBZRWGNX4EM):
 Invariants:
 
 - No `git merge`, `cd .worktrees` or bare `agent action implement <WP>` without `--incorporate` appears for an approved code lane. A-10 is kept.
-- Every printed command runs as printed in the fixture, and none is refused for being approved.
+- Every printed command runs as printed in the fixture, and none is refused for being approved. On a conflicting fixture `implement --incorporate` exits with its distinct conflict code (operator ruling), which is expected and leaves the merge in progress for resolution.

@@ -205,6 +205,10 @@ This WP cannot own `kitty-specs/` paths. Record notes with `spec-kitty agent tas
 - **CLAUDE.md drift from the charter.** If the charter and CLAUDE.md disagree after your edit, flag it to the orchestrator; do not resolve silently.
 - **Terminology regressions** (`ceremony`, `status-writing`, "feature", "sync"). Mitigation: the guard plus a manual read.
 
+## Residuals to record (analysis A14)
+
+- The review context labels every merge inside the review window "operator-authored", including recorded tool auto-rebase merges. Record this as a documented residual in the ADR 2026-11-08-2 amendment.
+
 ## Review Guidance
 
 - Check each of the seven checklist points above against the merged code (squad 2 dispositions in `squads/01-pre-spec-and-post-specify.md`: FR-013 must cover 2026-10-04-5, 2026-09-29-1, 2026-09-19-1, 2026-11-08-2 plus the contract, the #7285 rule and the CLAUDE.md residual sentence).

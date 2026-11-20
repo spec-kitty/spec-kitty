@@ -13,11 +13,11 @@
 | `conflicted_paths` | tuple[str, ...] | yes | exactly the paths that conflict (computed with a merge-tree probe, because the auto-rebase stops at the first Manual file) |
 | `sibling_lanes` | tuple[SiblingLane, ...] | yes | lanes consolidated earlier in this run whose approved content overlaps |
 
-**SiblingLane**: `lane_id`, `branch`, `approval_stamp_sha` (the newest stamp of its approved WPs), and `paths` (the overlapping paths that lane contributed).
+**SiblingLane**: `lane_id`, `branch`, `approval_stamp_sha` (optional, display-only; `None` when not known at the call site; `--incorporate` resolves the stamp itself), and `paths` (the overlapping paths that lane contributed).
 
 **Invariants**:
 - `sibling_lanes` holds exactly the lanes whose pre-run tips reach a commit that changed an overlapping path. A non-overlapping lane is never included.
-- `halt_reason is None` exactly when no auto-rebase was attempted for a reason other than a missing checkout.
+- `halt_reason` by case: not stale or the auto-rebase succeeded → `None`; no lane checkout → `no_lane_checkout`; a merge, rebase or cherry-pick already in progress in the lane checkout (detected before any attempt, which is then skipped) → `merge_in_progress`; Manual-classified conflict → `conflict`; any other halt → `other`, with the raw text in `halt_detail` (str | None).
 
 ### Auto-rebase record (new ref namespace)
 

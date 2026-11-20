@@ -371,6 +371,11 @@ T054 CLAUDE.md: fix the residual sentence about lane auto-rebase merges survivin
 
 ---
 
+## Closeout ownership (runner)
+
+- The runner fills `issue-matrix.json` (FR/WP/verdict per issue), claims the issues and posts the tracker comments at closeout (charter Standing Order 8). FR-011's ratchet branch is recorded there.
+- NFR-003, NFR-004, C-001 and C-005 are enforced through every WP's validation section, through the design, or as a scope boundary. They are not mapped to a single WP.
+
 ## Parallelization
 
 - **Phase 1 (independent, start together):** WP01, WP02, WP04, WP08, WP10, WP11.
