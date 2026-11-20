@@ -29,6 +29,9 @@
       "last_event_id": "01M7VVQ5YP3FYXAS2ACR339F8H",
       "last_transition_at": "2026-11-20T06:53:48.886684+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: reader + generator + frozen list (117 paths, 585 digests); 11 tests green; red commit edd9885eec"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 7026,
