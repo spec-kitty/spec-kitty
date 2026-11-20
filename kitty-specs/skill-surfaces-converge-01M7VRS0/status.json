@@ -162,9 +162,9 @@
     },
     "WP05": {
       "actor": "claude",
-      "agent": null,
-      "agent_profile": "python-pedro",
-      "agent_profile_version": "1.0",
+      "agent": "claude::python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "implementer_of_record": "claude",
       "lane": "for_review",
@@ -177,7 +177,8 @@
         "Operator ruling (option B): reopen WP05 to add the ownership-record proof (global inventory entry matching bytes) to find_old_root_leftovers",
         "Ownership-record proof added to find_old_root_leftovers (operator ruling B): red 020516cc78, fix 98afbf9bf0; blast 292 passed, make test-fast 3150 passed",
         "Re-review passed (independent reviewer, head 98afbf9bf0; operator ruling B on the ownership-record nit). Red 020516cc78: the new inventory-record test fails on the pre-fix sources, verified -> fix 98afbf9bf0. Proof is byte-exact (inventory sha256 == file digest), read through the inventory's own parser (#7722 anchoring), absent/unreadable inventory proves nothing (under-list only), symlinks still never followed, nothing written. test_old_root_leftovers + crlf 17 passed; ruff clean. Earlier WP05 evidence stands (cli/commands doctor/skill/command_file 745 passed).",
-        "Changes requested (aggregate finding A1): doctor skills --json gained outdated/old_root_leftovers but the frozen baseline doctor_skills_baseline.json and migration-compatibility.md were not updated; 2 tool_surface integration tests fail on lane-e. Reopened by the reviewer so the fix lands in a new window."
+        "Changes requested (aggregate finding A1): doctor skills --json gained outdated/old_root_leftovers but the frozen baseline doctor_skills_baseline.json and migration-compatibility.md were not updated; 2 tool_surface integration tests fail on lane-e. Reopened by the reviewer so the fix lands in a new window.",
+        "Review A1 fixed: doctor_skills_baseline.json + migration-compatibility.md gain outdated/old_root_leftovers (additive), 377fbb58d0; integration dir with PYTHONPATH=<lane>/src: 46 passed"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
