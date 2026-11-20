@@ -58,10 +58,10 @@
       "criterion_id": "FR-006",
       "description": "Verify FR-006 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/status/test_read_surface_remote_only_5287.py::test_remote_only_coordination_branch_is_a_typed_refusal_with_the_remedy; ::test_a_local_ref_naming_a_missing_object_stays_unreadable",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T21:51:01.848944+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
