@@ -103,9 +103,9 @@ Paste these rules into every brief.
    manifest, golden help fixtures) before the first push.
 8. **Blocked force push.** Push a `-v2` branch and open a new PR, unless the
    operator approves the force push.
-9. **Consolidate before any merge into `main`** (core #7749). Consolidate onto
+9. **Consolidate before any merge into `main`.** Consolidate onto
    the Mission topic branch. Never merge `main` into the Mission or
-   coordination branch.
+   coordination branch: consolidate refuses a mid-Mission `main` update (open bug core #7749).
 10. **Ready rule (proportionate).** Flip a PR to ready only when every check on
     every page is green, nothing is pending on others, and the tier's review
     requirement is met.
