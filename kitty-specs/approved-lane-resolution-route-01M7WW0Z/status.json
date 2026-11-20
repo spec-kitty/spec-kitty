@@ -1,7 +1,7 @@
 {
-  "event_count": 22,
-  "last_event_id": "01M7X1N7843M7X21W148YVW78Y",
-  "materialized_at": "2026-11-20T17:56:49.718109+00:00",
+  "event_count": 61,
+  "last_event_id": "01M7X7S285QQ1MH034PTX3048S",
+  "materialized_at": "2026-11-20T19:43:47.098624+00:00",
   "mission_number": "",
   "mission_slug": "approved-lane-resolution-route-01M7WW0Z",
   "mission_type": "software-dev",
@@ -12,34 +12,101 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
+    "for_review": 1,
     "in_progress": 4,
-    "in_review": 0,
-    "planned": 10
+    "in_review": 1,
+    "planned": 8
   },
   "work_packages": {
     "WP01": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 0,
+      "force_count": 1,
       "implementer_of_record": "claude",
       "lane": "in_progress",
-      "last_event_id": "01M7X1N7843M7X21W148YVW78Y",
-      "last_transition_at": "2026-11-20T17:56:49.718109+00:00",
+      "last_event_id": "01M7X7S285QQ1MH034PTX3048S",
+      "last_transition_at": "2026-11-20T19:43:47.098624+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-20T18:04:16Z – claude – shell_pid=24964 – T001 red: uv run --frozen pytest -q tests/consolidation/test_merge_attribute_guard.py on HEAD -> 23 failed, 2 passed. Every attack route (info_attributes, worktree_gitattributes, core_attributes_file, custom_driver, merge_default, builtin binary/text redefined, registered driver redefined on wrong and on own pattern, registered shipped command on wrong pattern) x both probes fails with 'DID NOT RAISE GitProbeError'; also red: union on non-conflicting path, either-parent guard, git --version once per run scope (HEAD spawns one per call). Controls green: attribute on another path, single-commit fold.",
+        "- 2026-11-20T18:04:20Z – claude – shell_pid=24964 – recorded leeway: registered_merge_driver_specs() added to lanes/consolidation.py (owned by WP07) next to merge_driver_attribute_lines(); WP07 please keep it, the FR-010 guard reads it.",
+        "- 2026-11-20T18:45:50Z – claude – shell_pid=24964 – trace(design-decisions): allowed-value table: unspecified only without merge.default; set/unset always (built-in text merge / keep-ours, no user lookup); text/binary only when no merge.text.*/merge.binary.* key is configured (git looks user drivers up before built-ins: verified merge.binary.driver forges a clean merge-tree result); registered key only on a registered pattern with merge.<key>.driver absent or byte-equal to the registered command and no merge.<key>.recursive; everything else (union, any other name) refuses.",
+        "- 2026-11-20T18:45:56Z – claude – shell_pid=24964 – trace(design-decisions): <source> in the FR-010 refusal is the fixed phrase 'from the effective git attributes' (check-attr does not say which file set a value); config routes add the key, e.g. '(git config merge.binary.driver is set)'.",
+        "- 2026-11-20T18:46:05Z – claude – shell_pid=24964 – trace(design-decisions): config is read with targeted 'git config --get <key>' and '--get-regexp ^merge\\.<name>\\.' (names restricted to [a-z0-9-]+), never 'git config --name-only --get-regexp': the path-listing census (tests/architectural/test_git_path_listing_owner.py) flags any --name-only argv, and a plain --get-regexp listing is ambiguous when a value spans lines (a driver value 'cmd\\nmerge.x.name ; printf EVIL > %A' would parse as the registered command). Driver equality compares the whole --get output, so a multi-line command never matches. Cost: merge.default plus <=3 reads per name in play, each cached via cached_git_read(Depends(config=True)).",
+        "- 2026-11-20T18:46:13Z – claude – shell_pid=24964 – trace(design-decisions): cycle avoidance: the guard imports GitProbeError from git_probes at module top; git_probes imports the guard function-locally inside both probes; the guard imports registered_merge_driver_specs function-locally. Pinned by fresh-interpreter import tests (3 orders).",
+        "- 2026-11-20T18:46:21Z – claude – shell_pid=24964 – trace(design-decisions): committed attributes = operator ruling (a): with attributes_source a committed merge=union is honoured only when git>=2.40, check-attr --source <tip> prints union, check-attr --source <empty tree> prints unspecified (no clone-local source), and no merge.union.* key is configured. Consequence: this repo's .gitattributes 'kitty-ops/lifecycle.jsonl merge=union' is honoured when committed in the pre-run tip and nothing clone-local overrides it; refused when callers pass no attributes_source (WP05/WP06 must pass excluded_window_base).",
+        "- 2026-11-20T18:46:30Z – claude – shell_pid=24964 – trace(design-decisions): git version: merge_tree_probe._git_at_least now reads _read_git_version through cached_git_read(('git-version',), Depends(), store_if=not None): one 'git --version' per run scope per repository (pinned by test_git_version_is_read_once_per_run_scope); outside a scope unchanged. Added public check_attr_source_available() (git>=2.40) to that module for the committed-union leg; existing public functions unchanged.",
+        "- 2026-11-20T18:46:39Z – claude – shell_pid=24964 – trace(approach): guard is applied in git_probes (both probes), not in kernel.git merge_tree/remerge_paths: lane_cleanup._absorbed_but_for_status_log and lane_tip._merge_tree_no_op are not attribution probes and are unchanged. merge_own_changed_paths lists paths changed against EACH parent (kernel.git.changed_paths) so a union-forged path hidden from remerge-diff is still guarded. Did not edit reconciliation_verifier.is_legitimate_merge_resolution's docstring (WP06 owns it, T030).",
+        "- 2026-11-20T18:46:49Z – claude – shell_pid=24964 – trace(tooling-friction): 'spec-kitty agent action implement WP01' first failed with STATUS_LOCK_HELD (a concurrent WP11 implement held the status lock); retry succeeded. The claim recorded no profile ('claude' only) and warned about REVIEW_NOT_INDEPENDENT; for_review is submitted with --agent claude::python-pedro.",
+        "- 2026-11-20T19:11:01Z – claude – shell_pid=24964 – tests: uv run --frozen pytest -q tests/consolidation/test_merge_attribute_guard.py -> 88 passed; targeted blast radius (test_merge_derivation_7626, test_dependency_merge_attribution_7307, test_git_probes_seam, test_git_probes_git_paths, test_reconciliation, test_merge_drivers, test_ephemeral_driver_activation_2709, test_reconciliation_module_imports, test_gate_artifact_merge_drivers_2804, tests/specify_cli/git/test_merge_tree_probe.py, tests/lanes/test_lane_tip.py, arch test_merge_pipeline_ratchets + test_layer_rules) -> 477 passed, 1 xfailed; tests/architectural/test_git_path_listing_owner.py green; tests/architectural/test_no_dead_symbols.py -> 37 passed (after dropping MergeAttributeRefused from __all__); pytest -n 8 --dist loadfile tests/consolidation tests/lanes -> 4777 passed, 2 skipped, 11 xfailed; make test-fast -> 3144 passed, 7 skipped. Verifier-seam tests red on HEAD probes (VerifyStatus.PASS), green after. ruff/format/mypy clean on all changed files.",
+        "FR-010 guard: new consolidation/merge_attribute_guard.py wired into n_way_merge_blob and merge_own_changed_paths (either-parent paths); committed union honoured only under ruling (a) with attributes_source; git --version cached per run scope; registered_merge_driver_specs() leeway accessor. 88 guard tests, blast radius, tests/consolidation+tests/lanes, test-fast, path-listing and dead-symbol gates green.",
+        "Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
+        "REJECT: Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner"
+      ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP01-merge-probe-attribute-guard/review-cycle-1.md",
+        "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP01-merge-probe-attribute-guard/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "changes_requested"
+      },
       "role": "implementer",
-      "shell_pid": 24964,
-      "shell_pid_created_at": "1795197384.67"
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T001": "planned",
+        "T002": "planned",
+        "T003": "planned",
+        "T004": "planned",
+        "T005": "planned"
+      }
     },
     "WP02": {
-      "actor": "finalize-tasks",
-      "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M7X13WRKQG7ZNSPVCBE61714",
-      "last_transition_at": "2026-11-20T17:47:22.771717+00:00"
+      "actor": "claude",
+      "agent": "claude::python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "for_review",
+      "last_event_id": "01M7X7F97VKYTV00JDN7K113RJ",
+      "last_transition_at": "2026-11-20T19:38:27.451654+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-20T18:04:07Z – claude – shell_pid=25208 – T006 red: uv run --frozen pytest -q tests/lanes/test_auto_rebase_record.py -> 24 failed, 2 passed. Writer tests fail on assertions (clean/auto-resolved: _ref_value(...auto-rebase/<lane>/<head>) is None; report tests: AttributeError no merge_sha); reader/cleanup tests ImportError (module absent). Controls green at HEAD: test_halted_auto_rebase_records_nothing, test_already_up_to_date_records_nothing. Record-failure test 6 is ImportError at HEAD (it patches the new module); its assertion red is shown after T007.",
+        "- 2026-11-20T18:04:44Z – claude – shell_pid=25208 – T007 green (module only): reader/validation tests green (13 passed). Test 6 now red on its assertion: test_record_write_failure_halts_and_leaves_no_unrecorded_merge[clean|auto_resolved] -> 'assert True is False' (report.succeeded) since the writer is not wired. Writer tests 1-3, two-rebases and is_recorded_only_for_exact_sha still red (no ref written / no merge_sha).",
+        "- 2026-11-20T18:05:39Z – claude – shell_pid=25208 – T008 green: uv run --frozen pytest -q tests/lanes/test_auto_rebase_record.py -> 24 passed, 2 failed; the 2 are T009 red: test_cleanup_removes_the_lane_s_records / test_guarded_cleanup_removes_the_lane_s_records ('assert [refs/spec-kitty/auto-rebase/<lane>/...] == []', records left after the branch delete). Kept-lane and missing-branch cleanup tests are controls (green before and after).",
+        "- 2026-11-20T18:30:44Z – claude – shell_pid=25208 – T009 green + gates: tests/lanes/test_auto_rebase_record.py 32 passed; targeted (auto_rebase additive/managed/target_owned, lane_tip, lane_tip_record_points, integration lane_lifecycle_sync, lane_cleanup 6736/module/kept_report/guard_binding, architectural merge_pipeline_ratchets/destructive_op_routing/git_path_listing_owner/layer_rules) 371 passed; make test-fast 3144 passed, 7 skipped. ruff check, ruff format --check --force-exclude, mypy (3 src files) clean; C901 clean. C-002 grep on reconciliation_verifier/closed_world empty. Commit de38bfcd.",
+        "- 2026-11-20T18:30:52Z – claude – shell_pid=25208 – trace(design-decisions): (1) durable SHA-keyed ref, not lane_rebase_moves (R-03): the run-state record is cleared by re-baselines/clean runs, a ref outlives them and cannot be forged by a message or parent shape (both negative controls tested). (2) record failure undoes the merge via guarded_reset_hard to the pre-merge tip and re-records the lane tip; a refused undo leaves the merge and says it will be judged as a hand merge (fail closed). A HEAD whose parents are not [before, mission_before] is halted and left unrecorded, never reset (it may not be ours). (3) is_recorded/delete take lane_branch because the ref embeds it; is_recorded raises on any git failure AND on a ref naming another commit (literal contract), record() maps that to False. (4) records deleted only after a confirmed branch delete in MainTodayRemover._delete_branch and GuardedLaneRemover.remove; delete failures/listing failures are debug-logged, BookkeepingRefError not caught. (5) leeway: SHA validation accepts 40 or 64 hex (SHA-256 repos) so a valid merge in such a repo never raises ValueError mid auto-rebase; the WP said 40. (6) the clean path was extracted into _conclude_clean_merge to keep attempt_auto_rebase under complexity 15.",
+        "- 2026-11-20T18:31:00Z – claude – shell_pid=25208 – trace(tooling-friction): 'spec-kitty agent action implement WP02 ...' first failed with STATUS_LOCK_HELD (status lock held by another writer, pid 20152); retried after ~20s and it claimed. It warned the claim recorded no profile; handoff uses --agent claude::python-pedro. auto_rebase.py is on the ruff-format ratchet (format --check without --force-exclude flags it; with it, clean).",
+        "Durable auto-rebase record: attempt_auto_rebase records every clean/auto-resolved merge at refs/spec-kitty/auto-rebase/<lane>/<sha>, halts+undoes on record failure; new lanes/auto_rebase_record module (record/is_recorded/recorded_merges/delete/delete_for_lane, reads raise on git failure); lane cleanup deletes a lane's records only after the branch delete. 32 new tests, 371 targeted, test-fast 3144 passed.",
+        "Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
+        "REJECT relayed from reviewer session session_019C2Tk5ehA3TXonKhbxbaMR",
+        "- 2026-11-20T19:24:21Z – unknown – Cycle 2 red (must-fix 2): uv run --frozen pytest -q tests/lanes/test_auto_rebase_record.py -k hook_altered -> 2 failed (clean, auto_resolved): 'assert True is False' on report.succeeded; a staging pre-commit hook's file landed in the merge and the merge was recorded (merge_sha set). Correction to the T006 red note: the red run against de38bfcd^ is 30 failed, 2 passed (the 2 are the labelled controls), not 24/2.",
+        "- 2026-11-20T19:35:56Z – unknown – Cycle 2 addressed (commit 2ba0c493). Must-fix 1: auto_rebase_record __all__ = [AutoRebaseRecordError, delete_for_lane, record]; is_recorded/delete/recorded_merges stay public (WP05/WP03) and are referenced in-module (record->is_recorded, delete_for_lane->recorded_merges/delete); AUTO_REBASE_REF_PREFIX/record_ref renamed _AUTO_REBASE_REF_PREFIX/_record_ref. tests/architectural/test_no_dead_symbols.py green, no allowlist. Must-fix 2: new _commit_staged_merge reads git write-tree right before conclude_in_progress_op in both the clean and auto-resolved paths; _record_tool_merge records only when HEAD^{tree} equals it, else _undo_unrecorded_merge (guarded reset to before, record_tip, halt naming the hook-altered tree; refused reset leaves the merge unrecorded). Unreadable staged tree aborts before commit. Tests: test_a_hook_altered_merge_tree_is_undone_and_not_recorded[clean|auto_resolved] (real core.hooksPath pre-commit hook staging a file; red recorded before the fix) and test_an_unreadable_staged_tree_aborts_the_merge_before_any_commit[clean|auto_resolved]. Red-count note corrected to 30 failed / 2 passed. Forgeable-ref and .gitattributes points left to WP05 per ruling.",
+        "- 2026-11-20T19:36:00Z – unknown – Cycle 2 tests: tests/lanes/test_auto_rebase_record.py 36 passed; targeted set + arch gates (merge_pipeline_ratchets, destructive_op_routing, git_path_listing_owner, layer_rules, no_dead_symbols) 412 passed; make test-fast 3144 passed, 7 skipped; ruff check, C901, ruff format --check --force-exclude, mypy (3 src files) clean.",
+        "Cycle 2: dead-symbol gate green (narrowed __all__, internal ref helpers); record bound to the tool-staged tree in both commit paths, hook-altered merges undone and unrecorded; real pre-commit hook tests on both shapes."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP02-auto-rebase-record/review-cycle-1.md",
+        "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP02-auto-rebase-record/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "changes_requested"
+      },
+      "role": "implementer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
     },
     "WP03": {
       "actor": "finalize-tasks",
@@ -49,11 +116,53 @@
       "last_transition_at": "2026-11-20T17:47:26.238354+00:00"
     },
     "WP04": {
-      "actor": "finalize-tasks",
-      "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M7X143KE4B0DFG96QQX4R2H7",
-      "last_transition_at": "2026-11-20T17:47:29.774328+00:00"
+      "actor": "claude",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "in_review",
+      "last_event_id": "01M7X77TZ1C771Z2PZ2PD450M5",
+      "last_transition_at": "2026-11-20T19:34:23.457710+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-20T18:05:54Z – claude – shell_pid=24982 – T010 red: uv run --frozen pytest -q tests/consolidation/test_reviewed_merge_predicate.py at base -> 13 failed, 5 passed. Predicate tests (6) fail with ImportError: cannot import name 'merge_reviewed_by_own_stamps'/'own_approval_stamps' from reconciliation_authorship; claim tests fail with ImportError UnreviewedMerge or 'assert None == ()' / 'assert None is not None' (getattr(claim,'unreviewed_merges',None) is None); replace test AttributeError no attribute 'unreviewed_merges'.",
+        "- 2026-11-20T18:05:58Z – claude – shell_pid=24982 – T013 ratchet (not a red test): per-field digests of all 33 pre-WP ApprovedWpCommitSet fields recorded at the base (HEAD ef294110, before any production edit) over the two-lane, reviewed, clean and three-lane fixtures with fixed GIT_*_DATE/identity, fixed event ids/timestamps; each fixture built twice and digests compared equal before the golden check. test_existing_claim_fields_are_byte_identical[4] + positional-arity test green at base.",
+        "- 2026-11-20T18:16:42Z – claude – shell_pid=24982 – green (62704eed): test_reviewed_merge_predicate.py 18 passed; targeted set (7307, 7626, reconciliation, canceled_dependency_lane, presence_lane_base, single_branch_mission_to_target, approved_bound, split_shape, family_guard, module_imports, architectural/test_layer_rules) 508 passed, 1 xfailed (same 7 existing suites on base: 378 passed, 1 xfailed; unchanged); make test-fast 3144 passed, 7 skipped. T013 byte-identity golden unchanged and green after T011/T012. ruff check, ruff format --check --force-exclude, mypy clean on all 4 files.",
+        "- 2026-11-20T18:16:48Z – claude – shell_pid=24982 – trace(design-decisions): reconciliation_claim.py edit is the sink wiring (unreviewed list, unreviewed_sink=, unreviewed_merges=) plus one import (UnreviewedMerge, needed to type the empty list for mypy). Leeway rationale: the brief's 'two-line wiring' cannot type-check without the import.",
+        "- 2026-11-20T18:16:53Z – claude – shell_pid=24982 – trace(design-decisions): new data flows through a keyword-only unreviewed_sink on _collect_authored; _AuthoredClaim keeps its six fields so positional unpacking (test_canceled_dependency_lane.py:201, :454) is unaffected. _collect_authored still calls _drop_unreviewed_merges unchanged; _record_unreviewed derives the dropped known merges from (spine, reviewed) and is a no-op when reviewed is spine, so the gate path and its identity check are untouched.",
+        "- 2026-11-20T18:16:59Z – claude – shell_pid=24982 – trace(design-decisions): skip-on-probe-error: a GitProbeError from merge_own_changed_paths/path_state_at skips the UnreviewedMerge entry with a debug log; the field is advisory, never a verdict, and its absence never means 'no own content'. No probe memo added (WP05 owns any memo).",
+        "- 2026-11-20T18:17:04Z – claude – shell_pid=24982 – trace(approach): WP05 import constraint stated in merge_reviewed_by_own_stamps' docstring: approved_bound must import it function-locally (reconciliation_authorship imports approved_bound at module top).",
+        "- 2026-11-20T18:17:10Z – claude – shell_pid=24982 – trace(approach): golden digests use charter.hasher.hash_content (ruff TID251 bans hashlib.sha256 in tests); _PRE_WP_FIELD_COUNT is 33 (brief did not name it). Added edge tests: unknown stamp reviews nothing (fail closed), canceled dependency lane commits never recorded. Planning-lane exclusion is structural (_record_unreviewed is a no-op when reviewed is full_authored, which is always the case for a planning lane); no dedicated planning-lane fixture.",
+        "Public merge_reviewed_by_own_stamps + own_approval_stamps (gate delegates, no behaviour change); additive advisory ApprovedWpCommitSet.unreviewed_merges via keyword-only sink; byte-identity golden recorded at base still green. 18 new tests; targeted 508 passed; test-fast 3144 passed.",
+        "Review claimed by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
+        "REJECT relayed from reviewer session session_019C2Tk5ehA3TXonKhbxbaMR",
+        "- 2026-11-20T19:09:59Z – unknown – red (review cycle 1, item 2): the new tests cover branches that already exist, so red-first is shown by mutation. Mutating _dropped_merges' 'except GitProbeError: continue' to append the SHA turns test_dropped_merges_skips_a_sha_whose_parents_cannot_be_read red ('assert (<merge sha>,) == ()'). Mutating _unreviewed_merge's 'except GitProbeError' to re-raise turns test_unreadable_own_content_records_no_entry red (GitProbeError 'is an octopus merge (3+ parents)' escapes the claim builder). Both green after restoring the code.",
+        "- 2026-11-20T19:21:27Z – unknown – review-1 must-fix 1 addressed (1b474a4e): _dropped_merges, merge_reviewed_by_own_stamps and own_approval_stamps removed from reconciliation_authorship.__all__ (not allowlisted); WP05 re-adds the public two when it imports them. tests/architectural/test_no_dead_symbols.py green and added to the gate list.",
+        "- 2026-11-20T19:21:50Z – unknown – review-1 must-fix 2 addressed (1b474a4e): test_unreadable_own_content_records_no_entry (real-git octopus merge on lane-b after its stamp: claim builds with no refusal, no unreviewed_merges entry names the octopus, octopus not in authored_shas; the readable dropped merge is still recorded) and test_dropped_merges_skips_a_sha_whose_parents_cannot_be_read (is_merge_commit raising for one SHA, patched through setattr_reconciliation_family to satisfy the family patch guard; that SHA is not listed).",
+        "- 2026-11-20T19:21:54Z – unknown – green (1b474a4e): ruff check, ruff format --check --force-exclude, mypy clean. Targeted set + tests/architectural/test_layer_rules.py + tests/architectural/test_no_dead_symbols.py: 546 passed, 1 xfailed, plus family guard red on the first patch form, fixed; re-run of test_reviewed_merge_predicate.py + family_guard + no_dead_symbols: 66 passed. make test-fast: 3144 passed, 7 skipped.",
+        "- 2026-11-20T19:21:58Z – unknown – trace(tooling-friction): the octopus fixture first used 'git add -A' on the lane branch, which committed the uncommitted status.events.jsonl into the merge tree and removed it on checkout, silently emptying the claim (approved={}, no refusal). Fixed by staging only the fixture paths.",
+        "Review cycle 1 addressed: names out of __all__ (no_dead_symbols green); octopus and is_merge_commit probe-error tests added. Targeted 546 passed/1 xfailed; test-fast 3144 passed.",
+        "Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP04-reviewed-merge-predicate/review-cycle-1.md",
+        "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP04-reviewed-merge-predicate/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "changes_requested"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
     },
     "WP05": {
       "actor": "finalize-tasks",
@@ -78,19 +187,42 @@
     },
     "WP08": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 0,
+      "force_count": 1,
       "implementer_of_record": "claude",
       "lane": "in_progress",
-      "last_event_id": "01M7X1M5E0YWPSJEKP44WYNNAQ",
-      "last_transition_at": "2026-11-20T17:56:15.086636+00:00",
+      "last_event_id": "01M7X7NS6GWVAV8J94XEN8D443",
+      "last_transition_at": "2026-11-20T19:41:59.259697+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-20T18:09:00Z – claude – shell_pid=20158 – red: uv run --frozen pytest -q -n 4 tests/lanes/test_incorporate_sibling_lane.py -> 13 failed, 1 passed at base. CLI tests fail with typer exit 2 'No such option: --incorporate'; unit tests fail ModuleNotFoundError specify_cli.lanes.incorporate. test_without_flag_implement_is_unchanged is a RATCHET, green at base by construction: golden recorded at base (normalised SHAs/ULIDs/timestamps/tmp/HOME and the claim PID, which is volatile per run), determinism precondition asserted by building the fixture twice.",
+        "- 2026-11-20T18:09:05Z – claude – shell_pid=20158 – trace(approach): fixture sends WP02 back with the real 'move-task --to in_progress --review-feedback-file' CLI instead of the in-process transition(): implement refuses a send-back whose review_ref names no readable feedback artifact, and the CLI route is exactly what the remedy prints. The two lanes are cut from one coord tip without src/pkg/shared.py, so the conflict case is an add/add conflict and the clean case touches distinct paths; both asserted with kernel merge_tree as preconditions. Fixture also records an analysis report (implement gate) and excludes .kittify/derived and .kittify/workspaces via .git/info/exclude so record-analysis sees a clean tree.",
+        "- 2026-11-20T18:42:40Z – claude – shell_pid=20158 – trace(design-decisions): (1) conflict exits INCORPORATE_CONFLICT_EXIT=3 per operator ruling 2026-11-20 (supersedes the earlier exit-0 draft); the merge is left in progress and the WP prompt is still printed before the exit. (2) merge env = lanes.consolidation._make_merge_env (the lane-merge pipeline's single env authority, already imported by lanes/auto_rebase.py) so registered merge drivers resolve to the running spec-kitty; no driver config is written. (3) new codes INCORPORATE_LANE_UNKNOWN/OWN_LANE/PLANNING_LANE/NO_APPROVAL_STAMP/STAMP_NOT_ON_LANE/WP_NOT_SENT_BACK/CHECKOUT_BUSY/PROBE_FAILED (for WP13 docs; not in contracts/refusal-codes.md). (4) --incorporate with --force refuses. (5) the stamp is re-read after the claim and before the merge; a moved stamp is used and announced. (6) a planned WP refuses WP_NOT_SENT_BACK with a claim hint instead of the move-back command.",
+        "- 2026-11-20T18:42:46Z – claude – shell_pid=20158 – trace(approach): test 1/2 parent assertion adjusted (not weakened): the canonical implement refresh (lane sync point) advances lane-b before the incorporation, so the merge's first parent is lane-b's refreshed tip (descendant of the pre-command tip, not containing the stamp) and the second parent is exactly the stamp; lane-a's live tip is asserted NOT reachable. Conflict case asserts lane-b tip == ORIG_HEAD and MERGE_HEAD == stamp. Golden ratchet unchanged after the production edit. No friction from the lane checkout sparse status exclusion (#5965) was observed.",
+        "- 2026-11-20T18:42:52Z – claude – shell_pid=20158 – green: tests/lanes/test_incorporate_sibling_lane.py 14 passed; targeted blast radius (stale remediation, auto-rebase additive, workflow cores, implement CLI tests, terminus post-approval/lifecycle closure) 181 passed; architectural gates commit_scope_owner/no_worktree_name_guess/merge_pipeline_ratchets/layer_rules/no_legacy_terminology 274 passed; make test-fast 3144 passed 7 skipped. ruff check, ruff format --check --force-exclude, mypy clean on changed files.",
+        "implement --incorporate <lane>: new lanes/incorporate.py (stamp resolution, INCORPORATE_* refusals before side effects, merge via run_committing_op, conflict exit 3), wired into agent action implement; 14 new tests incl. golden ratchet for the unflagged path.",
+        "Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
+        "REJECT: Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner"
+      ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP08-implement-incorporate/review-cycle-1.md",
+        "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP08-implement-incorporate/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "changes_requested"
+      },
       "role": "implementer",
-      "shell_pid": 20158,
-      "shell_pid_created_at": "1795197346.57"
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T014": "planned",
+        "T015": "planned",
+        "T016": "planned",
+        "T017": "planned"
+      }
     },
     "WP09": {
       "actor": "finalize-tasks",
@@ -100,36 +232,87 @@
       "last_transition_at": "2026-11-20T17:47:47.808376+00:00"
     },
     "WP10": {
-      "actor": "claude",
-      "agent": "claude",
+      "actor": "user",
+      "agent": "claude::python-pedro",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 0,
+      "force_count": 2,
       "implementer_of_record": "claude",
       "lane": "in_progress",
-      "last_event_id": "01M7X1MX00GGKESXRY85NMX6B1",
-      "last_transition_at": "2026-11-20T17:56:39.170670+00:00",
+      "last_event_id": "01M7X7KDFBT7YJZW05VX31GGGZ",
+      "last_transition_at": "2026-11-20T19:40:42.859500+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-20T18:01:04Z – claude – shell_pid=24797 – red: uv run --frozen pytest -q tests/review/test_review_context_merge_lines.py -> 9 failed: TypeError WpReviewRange.__init__() unexpected keyword 'merges'/'remerge_available' (renderer tests), AttributeError 'WpReviewRange' object has no attribute 'merges' (range-level git tests incl. two-merge full-history and fail-soft)",
+        "- 2026-11-20T18:25:22Z – claude – shell_pid=24797 – trace(design-decisions): RESOLUTION MERGE lines print after REVIEW COMMANDS, outside the byte budget like the command lines (ruling Q11); the renderer stays pure, remerge availability is a WpReviewRange field computed in wp_range via merge_tree_probe.remerge_diff_available, probed only when a merge exists. The review-context contract file belongs to Mission review-context-wp-diff-01M774QF; its amendment goes through ADR 2026-11-08-2 (WP13).",
+        "- 2026-11-20T18:25:31Z – claude – shell_pid=24797 – trace(tooling-friction): NFR-002 derived budget conflict. tests/review/test_wp_range_git_calls.py::test_derived_pre_stamp_commit_to_target_range_stays_within_budget measured 12 git processes on base (exactly _DERIVED_BUDGET=12) and 13 with the new rev-list --merges --full-history step (assert 13 <= 12). Recorded range: 6 -> 7 (within _BUDGET=10, equal for 1 and 200 commits). The WP prompt computed only the recorded budget. No safe fold found: the merge listing must be pathspec-free full history, so it cannot share the commit-list, out-of-map or moved-past calls without changing their semantics. Test file not owned by WP10; not edited. Needs an operator ruling (raise _DERIVED_BUDGET to 13 with rationale, or accept a fold).",
+        "- 2026-11-20T18:36:48Z – claude – shell_pid=24797 – leeway: tests/review/test_wp_range_git_calls.py (not owned) _DERIVED_BUDGET 12 -> 13 per runner ruling, commit b2bd03a7. Reason: FR-007 mandatory full-history merge listing, one fixed rev-list per range independent of commit count. Measured: derived 12 -> 13 (within 13); recorded 6 -> 7 (within _BUDGET=10, unchanged; equal for 1 and 200 commits). Comment sits on the line above the constant (an inline comment exceeded the E501 line limit).",
+        "FR-007: wp_range lists every merge of base..tip (rev-list --merges --full-history, no pathspec; remerge probe only when merges exist); render_review_context prints one RESOLUTION MERGE command per merge (or cannot-show line on git<2.36) outside the byte budget; no-merge ranges unchanged. Leeway: _DERIVED_BUDGET 12->13 per runner ruling (b2bd03a7). Tests: 5 review files 95 passed; make test-fast 3144 passed 7 skipped.",
+        "Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
+        "REJECT relayed from reviewer session session_019C2Tk5ehA3TXonKhbxbaMR",
+        "- 2026-11-20T19:24:56Z – unknown – red (review cycle 1, must-fix 1): pytest tests/review/test_review_context_merge_lines.py -k fail_soft -> AssertionError: 'CITED REQUIREMENTS:' == '  RESOLUTION MERGES: could not be listed; run git rev-list --merges --full-history <base>..<tip> ...' (no fallback line rendered when the merge listing fails). Must-fix 2 ATDD test (next review prompt via runtime.next.prompt_builder._review_command_lines) passes on the existing feature, as expected for an acceptance test.",
+        "- 2026-11-20T19:31:36Z – unknown – review cycle 1 addressed: (1) MED fallback: WpReviewRange.merges_unlisted (listing_gap contains the merges step) makes render_review_context print '  RESOLUTION MERGES: could not be listed; run git rev-list --merges --full-history <base>..<tip> and review each with git show --remerge-diff <sha>' with full SHAs after the REVIEW COMMANDS; test_merge_listing_failure_is_fail_soft asserts the rendered line (red then green); docstring shape block updated. (2) LOW ATDD: test_next_review_prompt_prints_the_hand_merge_resolution_command drives runtime.next.prompt_builder._review_command_lines (the next review prompt, render site 1) on the _lane_with_merges fixture and asserts the full-SHA RESOLUTION MERGE line; kept in the owned test file. Tests: targeted set incl. no_dead_symbols/layer_rules/legacy terminology and tests/next/test_prompt_builder_review_base.py 467 passed; make test-fast 3144 passed 7 skipped; ruff/format/mypy clean.",
+        "- 2026-11-20T19:32:09Z – unknown – trace(tooling-friction): after the cycle-1 rejection the subtask checkboxes T037-T039 read unchecked again; move-task --to for_review refused 'unchecked subtasks' until mark-status was re-run.",
+        "Review cycle 1 fixed (fe066bc6): explicit full-SHA RESOLUTION MERGES fallback when the merge listing fails; ATDD test through the next review prompt. Targeted 467 passed; make test-fast 3144 passed 7 skipped.",
+        "addendum from reviewer"
+      ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP10-review-context-merge-lines/review-cycle-1.md",
+        "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP10-review-context-merge-lines/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "changes_requested"
+      },
       "role": "implementer",
-      "shell_pid": 24797,
-      "shell_pid_created_at": "1795197383.1"
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T037": "done",
+        "T038": "done",
+        "T039": "done"
+      }
     },
     "WP11": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 0,
+      "force_count": 1,
       "implementer_of_record": "claude",
       "lane": "in_progress",
-      "last_event_id": "01M7X1MD4B29VEAMZ5ZSE257R5",
-      "last_transition_at": "2026-11-20T17:56:22.988824+00:00",
+      "last_event_id": "01M7X7KW4PDKDG8PZHH5CMTK51",
+      "last_transition_at": "2026-11-20T19:40:56.859751+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-20T18:04:52Z – claude – shell_pid=20149 – red: uv run --frozen pytest tests/consolidation/test_canceled_via_reapproved_dependency_7497.py at base 2c1a56fe: main test FAILS on 'assert CANCELED_REACHABLE_VIA_DEPENDENCY in output'. CellResult: exit_code=1 status=fail codes=() divergence_fields=('unattributable_blobs',). Verdict: Reconciliation FAILED, src/pkg/wp02.py un-attributable, gate rolled back (target does not carry C's blob). Content does NOT land at base, but under a generic code, not the canceled-dependency axis. Control (no re-approval) passes: LANE_MOVED_AFTER_APPROVAL on lane-a.",
+        "- 2026-11-20T18:16:38Z – claude – shell_pid=20149 – trace(design-decisions): diagnosis confirmed BOTH mechanisms: (1) anchor: A's live tip reaches C after the --no-ff merge, so C's own set was empty; (2) carrier: C's commit sits behind the merge's second parent, off A's first-parent spine, so A was not a carrier. Fix in reconciliation_canceled.py only: _canceled_lane_anchors/_dependency_anchor_before_incorporating (C's dependency anchors taken at the first parent of the earliest spine merge that brought in a commit of C; target base untouched; unchanged when A never merged C; probe error anchors nothing for A) used only by _fully_canceled_lane_own_commits; _with_merged_in_canceled + _Carriers (merged-in canceled commits inserted after their merge on the carrier spine; probe error -> carrier listed as unreadable -> existing spine_unreadable refusal). _closed_world_anchors, _lane_first_parent_spine and wp_attribution.py untouched (leeway not used).",
+        "- 2026-11-20T18:16:43Z – claude – shell_pid=20149 – green: after fix the fresh run exits 1, status=fail, codes=('CANCELED_REACHABLE_VIA_DEPENDENCY',), divergence_fields=('canceled_reachable_via_dependency','unattributable_blobs'), naming src/pkg/wp02.py, WP02, lane lane-b carried by lane-a; target rolled back (no C blob). Control (no re-approval) unchanged: LANE_MOVED_AFTER_APPROVAL on lane-a. FR-011 stays [build].",
+        "- 2026-11-20T18:16:48Z – claude – shell_pid=20149 – T043 mutation: permanent test_protection_is_load_bearing: anchor helper -> live tip => code absent (test asserts absence, passes); _with_merged_in_canceled -> identity => code absent. Scratch: forced re-approval => FixturePrecondition 'WP01's newest approval must be unforced'; merge skipped => FixturePrecondition 'C's canceled blob must be reachable from lane-a's tip'. Control unaffected.",
+        "- 2026-11-20T18:16:54Z – claude – shell_pid=20149 – trace(approach): residual: a FAST-FORWARD of C onto A is not detected (C's commits become A's first-parent commits, indistinguishable from A's own by graph); also a merge into A of a branch X that C also contains would count X's commits C reaches as C's own (shrinking direction). Both recorded in the helper docstring.",
+        "- 2026-11-20T18:40:59Z – claude – shell_pid=20149 – tests: new file 13 passed; blast radius (origin_freshness, terminus canceled_dependency x2, resume_frozen_anchors, executor_lane_naming, reconciliation, canceled_dependency_attribution/lane, wp_evidence, refusal_precedence_matrix(+windows), lane_approval_windows, orchestrator_api 5814, architectural/test_layer_rules) 641 passed 2 xfailed; tests/terminus -k canceled_dependency 20 passed; make test-fast 3144 passed 7 skipped. ruff/format/mypy clean. Commit e52d6733.",
+        "- 2026-11-20T18:41:21Z – claude – shell_pid=20149 – T042 not applicable: red at base, fixed under T041 (FR-011 Delivery stays [build]).",
+        "#7497 red at base (generic unattributable FAIL); fixed in reconciliation_canceled.py: C anchored on A before A merged C, merged-in canceled commits counted on carrier spines. Fresh run now refuses CANCELED_REACHABLE_VIA_DEPENDENCY; control keeps LANE_MOVED_AFTER_APPROVAL; mutation checks permanent. T042 n/a (red-at-base branch taken).",
+        "Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
+        "REJECT: Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner"
+      ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP11-canceled-via-reapproved-dependency/review-cycle-1.md",
+        "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP11-canceled-via-reapproved-dependency/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "changes_requested"
+      },
       "role": "implementer",
-      "shell_pid": 20149,
-      "shell_pid_created_at": "1795197346.46"
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T040": "planned",
+        "T041": "planned",
+        "T042": "planned",
+        "T043": "planned"
+      }
     },
     "WP12": {
       "actor": "finalize-tasks",
