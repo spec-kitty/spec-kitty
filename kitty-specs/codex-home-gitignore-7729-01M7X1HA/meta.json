@@ -1,0 +1,17 @@
+{
+  "created_at": "2026-11-20T17:54:48.164275+00:00",
+  "flattened": false,
+  "friendly_name": "Keep a project-local Codex home ignored after agent-gitignore narrowing (#7729)",
+  "mid8": "01M7X1HA",
+  "mission_id": "01M7X1HAR66JTAP06PKJ8RK95Z",
+  "mission_number": null,
+  "mission_slug": "codex-home-gitignore-7729-01M7X1HA",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Projects that followed Spec Kitty's earlier advice to set CODEX_HOME to the project's .codex/ folder had their Codex session databases, state, config and approval rules turned into untracked files by the 4.0.0rc8 agent-gitignore narrowing, so a git add -A could commit personal Codex state. Only the clone that ran the upgrade saw a warning. This Mission keeps that state ignored and protects and warns every clone.",
+  "purpose_tldr": "Stop the rc8 agent-gitignore narrowing from exposing personal Codex home state, and warn every clone, not only the one that upgraded.",
+  "slug": "codex-home-gitignore-7729-01M7X1HA",
+  "target_branch": "fix/7729-codex-home-gitignore",
+  "topology": "single_branch",
+  "topology_source": "explicit"
+}
