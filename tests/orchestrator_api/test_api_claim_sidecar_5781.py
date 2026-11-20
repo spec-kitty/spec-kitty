@@ -11,6 +11,8 @@ in the ``agent``/``shell_pid`` slots, where ``move-task --to planned`` releases 
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -145,10 +147,114 @@ def test_after_an_api_rollback_another_implementer_claims_unforced(tmp_path: Pat
     assert state["lane"] == "in_progress"
     assert state["actor"] == "codex"
     assert state["implementer_of_record"] == "codex"
-    # The old holder's pid is gone and nothing is left for a liveness check to misjudge.
-    assert not state.get("shell_pid")
-    assert state.get("agent") != "claude"
-    # The new claim event itself records its agent through the shared sidecar. (The reducer folds
-    # annotations after every transition, so the slot reads empty after an earlier release; that
-    # ordering lives in spec_kitty_events and is the same for a host re-claim after move-task.)
+    # The new claim event records its agent through the shared sidecar.
     assert _claim_event_metadata(mission_dir)["agent"] == "codex"
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "#7794: spec_kitty_events.diary.reduce_parsed folds every annotation after every transition, "
+        "so the rollback's claim release also clears the slots the LATER claim set. Same for move-task."
+    ),
+)
+def test_after_an_api_rollback_the_new_claim_holds_the_agent_slot(tmp_path: Path) -> None:
+    repo_root, mission_dir = _make_mission(tmp_path, _SLUG)
+    _host_shaped_claim(mission_dir, "claude")
+    _invoke(repo_root, "transition", "--mission", _SLUG, "--wp", "WP01", "--to", "planned", "--actor", "orch", "--note", "rolled back")
+
+    _invoke(repo_root, "start-implementation", "--mission", _SLUG, "--wp", "WP01", "--actor", "codex", "--policy", _valid_policy_json())
+
+    assert _wp01(mission_dir)["agent"] == "codex"
+
+
+def test_a_policy_agent_key_cannot_name_the_claimant(tmp_path: Path) -> None:
+    repo_root, mission_dir = _make_mission(tmp_path, _SLUG)
+    policy = {**json.loads(_valid_policy_json()), "agent": "spoof"}
+
+    _invoke(repo_root, "start-implementation", "--mission", _SLUG, "--wp", "WP01", "--actor", "claude", "--policy", json.dumps(policy))
+
+    assert _wp01(mission_dir)["agent"] == "claude"
+    assert _claim_event_metadata(mission_dir)["agent"] == "claude"
+
+
+# ---------------------------------------------------------------------------
+# Host re-claim after an API rollback, on a real git Mission (WP prompt, review B2)
+# ---------------------------------------------------------------------------
+
+from tests.integration.coord_topology_fixture import FlatTopologyContext, flat_topology_mission  # noqa: E402
+
+__all__ = ["flat_topology_mission"]
+
+
+def _host_implement(ctx: FlatTopologyContext, agent: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, "-m", "specify_cli", "agent", "action", "implement", "WP01", "--agent", agent, "--mission", ctx.slug],
+        cwd=ctx.repo,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def _commit_all(ctx: FlatTopologyContext, message: str) -> None:
+    subprocess.run(["git", "-C", str(ctx.repo), "add", "-A"], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(ctx.repo), "commit", "-qm", message, "--allow-empty"], check=True, capture_output=True)
+
+
+def _host_claimed_then_api_rolled_back(ctx: FlatTopologyContext) -> None:
+    """``claude`` claims through host implement; an orchestrator then rolls WP01 back to planned."""
+    from specify_cli.analysis_report import write_analysis_report
+
+    seed = {
+        "event_id": "01M04SEEDPLANNEDGENESIS001",
+        "mission_slug": ctx.slug,
+        "wp_id": "WP01",
+        "from_lane": "genesis",
+        "to_lane": "planned",
+        "at": "2026-01-01T00:00:00+00:00",
+        "actor": "finalize-tasks",
+        "force": False,
+        "execution_mode": "direct_repo",
+    }
+    ctx.status_events_path.write_text(json.dumps(seed) + "\n", encoding="utf-8")
+    feature_dir = ctx.primary_feature_dir
+    (feature_dir / "spec.md").write_text("# Spec\n\nFR-001.\n", encoding="utf-8")
+    (feature_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
+    (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
+    write_analysis_report(feature_dir=feature_dir, repo_root=ctx.repo, body="# Analysis\n\nPASS\n", analyzer_agent="test")
+    _commit_all(ctx, "fixture: planned WP01 with a recorded analysis")
+
+    first = _host_implement(ctx, "claude")
+    assert first.returncode == 0, first.stdout + first.stderr
+    _invoke(ctx.repo, "transition", "--mission", ctx.slug, "--wp", "WP01", "--to", "planned", "--actor", "orch", "--note", "rolled back")
+    _commit_all(ctx, "fixture: API rollback")
+
+
+def test_after_an_api_rollback_host_implement_claims_unforced(flat_topology_mission: FlatTopologyContext) -> None:
+    ctx = flat_topology_mission
+    _host_claimed_then_api_rolled_back(ctx)
+    released = _wp01(ctx.primary_feature_dir)
+    assert not released.get("agent")
+    assert not released.get("shell_pid")
+
+    second = _host_implement(ctx, "codex")
+
+    assert second.returncode == 0, second.stdout + second.stderr
+    state = _wp01(ctx.primary_feature_dir)
+    assert state["lane"] == "in_progress"
+    assert state["implementer_of_record"] == "codex"
+    assert _claim_event_metadata(ctx.primary_feature_dir)["agent"] == "codex"
+
+
+@pytest.mark.xfail(strict=True, reason="#7794: a claim release folds after the later host claim and clears its agent/shell_pid slots")
+def test_after_an_api_rollback_the_host_re_claim_holds_the_live_claim_slots(flat_topology_mission: FlatTopologyContext) -> None:
+    ctx = flat_topology_mission
+    _host_claimed_then_api_rolled_back(ctx)
+
+    second = _host_implement(ctx, "codex")
+
+    assert second.returncode == 0, second.stdout + second.stderr
+    state = _wp01(ctx.primary_feature_dir)
+    assert state["agent"] == "codex"
+    assert state["shell_pid"]

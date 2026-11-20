@@ -28,7 +28,7 @@ from specify_cli.status import Lane
 from specify_cli.status import ReviewResult
 from specify_cli.status import ActorRole, actor_from_option, role_for_wp
 from specify_cli.status import claim_policy_metadata, parse_review_result_json
-from specify_cli.status.claim_release import planned_claim_release_delta
+from specify_cli.status import planned_claim_release_delta
 from specify_cli.status import refuse_seed_shaped_identity
 
 from .envelope import (
@@ -775,9 +775,7 @@ def start_review(
             workspace_context=f"orchestrator-api:{main_repo_root}",
             execution_mode=_status_execution_mode_for_start_workspace(review_ws),
             repo_root=main_repo_root,
-            # #5781: the claim records the claiming agent through the one claim-sidecar
-            # builder, as a host claim does; there is no live shell behind an API call.
-            policy_metadata=claim_policy_metadata(None, actor, extra=policy_dict),
+            policy_metadata=policy_dict,
         )
     except WorkPackageClaimConflict as exc:
         _fail(

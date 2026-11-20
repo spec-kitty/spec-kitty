@@ -281,7 +281,12 @@ def _stable(event_dict: dict) -> dict:
 
 
 def test_emit_event_fields_match_prior_direct_path(tmp_path: Path) -> None:
-    """The StatusEvent emitted by the command matches the prior direct path."""
+    """The StatusEvent emitted by the command matches the direct transactional path.
+
+    Since #5781 the command's claim records the claim sidecar (``{"agent": ...}``), so the
+    direct-path emulation passes the same sidecar; the comparison is no longer against the
+    literal pre-#5781 event.
+    """
     slug = "017-test-feature"
 
     # New path (via command + aggregate).

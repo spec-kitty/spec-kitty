@@ -542,7 +542,7 @@ def _build_claim_review_override(st: _MoveTaskState, ports: TasksPorts) -> dict[
       WP that is actually back in ``planned`` awaiting rework.
     """
     from specify_cli.cli.commands.agent.tasks_move_task_executor import _mt_prepare_rollback_reset
-    from specify_cli.status.claim_release import planned_claim_release_fields
+    from specify_cli.status import planned_claim_release_fields
 
     additions: dict[str, Any] = {}
     # #7582: read the map ``_mt_prepare_rollback_reset`` computed before the PLANNED
