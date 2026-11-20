@@ -466,6 +466,9 @@ class ManagedSkillsProvider:
             for entry in self._expected_entries(tool_key, project_root)
         }
         catalog_ships_skills = bool(entries_by_path)
+        # Marks describe this expansion only: drop the ones an earlier expansion left for this tool.
+        tool_prefix = f"{tool_key}.{ToolSurfaceKind.CHARTER_SKILL}."
+        self._retired_surface_ids = {sid for sid in self._retired_surface_ids if not sid.startswith(tool_prefix)}
         for entry in manifest_entries:
             expected = entries_by_path.get(entry.installed_path)
             if expected is None and catalog_ships_skills and entry.skill_name in RETIRED_CANONICAL_SKILL_NAMES:
@@ -497,14 +500,15 @@ class ManagedSkillsProvider:
             return self._drifted_status(instance)
         if not path.exists():
             return self._missing_status(instance)
-        if instance.surface_id in self._retired_surface_ids:
-            return self._retired_status(instance)
         if not path.is_file():
             return self._drifted_status(instance)
         if instance.file_hash is not None:
             on_disk = self._content_hash(path)
             if on_disk != instance.file_hash:
+                # An edited copy is drift, retired or not: it needs consent, never the drain.
                 return self._drifted_status(instance)
+        if instance.surface_id in self._retired_surface_ids:
+            return self._retired_status(instance)
         return SurfaceStatus(instance=instance, state=STATE_PRESENT)
 
     @staticmethod
