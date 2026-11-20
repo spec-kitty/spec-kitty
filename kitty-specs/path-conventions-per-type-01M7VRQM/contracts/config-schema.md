@@ -1,6 +1,7 @@
 # Contract: `project.path_conventions` schema
 
 ```yaml
+# round-trip: skip: .kittify/config.yaml shape sketch (non-Pydantic operator config); the reader is tested in tests/specify_cli/config/test_path_conventions_reader.py
 project:
   path_conventions:
     workspace: apps/          # flat form: applies to every mission type that declares the key
