@@ -1,7 +1,7 @@
 {
-  "event_count": 48,
-  "last_event_id": "01M7X78VZG33BT3DHP5EMNSGAR",
-  "materialized_at": "2026-11-20T19:34:57.264430+00:00",
+  "event_count": 49,
+  "last_event_id": "01M7X79SAAX80P0PNFA6TYVZTA",
+  "materialized_at": "2026-11-20T19:35:27.306854+00:00",
   "mission_number": "",
   "mission_slug": "approved-lane-resolution-route-01M7WW0Z",
   "mission_type": "software-dev",
@@ -14,8 +14,8 @@
     "done": 0,
     "for_review": 3,
     "in_progress": 1,
-    "in_review": 2,
-    "planned": 8
+    "in_review": 1,
+    "planned": 9
   },
   "work_packages": {
     "WP01": {
@@ -178,11 +178,11 @@
       "agent": "claude::reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 0,
+      "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "in_review",
-      "last_event_id": "01M7X78VZG33BT3DHP5EMNSGAR",
-      "last_transition_at": "2026-11-20T19:34:57.264430+00:00",
+      "lane": "planned",
+      "last_event_id": "01M7X79SAAX80P0PNFA6TYVZTA",
+      "last_transition_at": "2026-11-20T19:35:27.306854+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-20T18:09:00Z – claude – shell_pid=20158 – red: uv run --frozen pytest -q -n 4 tests/lanes/test_incorporate_sibling_lane.py -> 13 failed, 1 passed at base. CLI tests fail with typer exit 2 'No such option: --incorporate'; unit tests fail ModuleNotFoundError specify_cli.lanes.incorporate. test_without_flag_implement_is_unchanged is a RATCHET, green at base by construction: golden recorded at base (normalised SHAs/ULIDs/timestamps/tmp/HOME and the claim PID, which is volatile per run), determinism precondition asserted by building the fixture twice.",
@@ -194,6 +194,12 @@
         "Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP08-implement-incorporate/review-cycle-1.md",
+        "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP08-implement-incorporate/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "changes_requested"
+      },
       "role": "reviewer",
       "shell_pid": 20158,
       "shell_pid_created_at": "1795197346.57",
