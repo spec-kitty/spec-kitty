@@ -197,7 +197,7 @@
     },
     "WP10": {
       "actor": "claude",
-      "agent": "claude::python-pedro",
+      "agent": "claude::reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
@@ -211,7 +211,8 @@
         "- 2026-11-20T18:25:22Z – claude – shell_pid=24797 – trace(design-decisions): RESOLUTION MERGE lines print after REVIEW COMMANDS, outside the byte budget like the command lines (ruling Q11); the renderer stays pure, remerge availability is a WpReviewRange field computed in wp_range via merge_tree_probe.remerge_diff_available, probed only when a merge exists. The review-context contract file belongs to Mission review-context-wp-diff-01M774QF; its amendment goes through ADR 2026-11-08-2 (WP13).",
         "- 2026-11-20T18:25:31Z – claude – shell_pid=24797 – trace(tooling-friction): NFR-002 derived budget conflict. tests/review/test_wp_range_git_calls.py::test_derived_pre_stamp_commit_to_target_range_stays_within_budget measured 12 git processes on base (exactly _DERIVED_BUDGET=12) and 13 with the new rev-list --merges --full-history step (assert 13 <= 12). Recorded range: 6 -> 7 (within _BUDGET=10, equal for 1 and 200 commits). The WP prompt computed only the recorded budget. No safe fold found: the merge listing must be pathspec-free full history, so it cannot share the commit-list, out-of-map or moved-past calls without changing their semantics. Test file not owned by WP10; not edited. Needs an operator ruling (raise _DERIVED_BUDGET to 13 with rationale, or accept a fold).",
         "- 2026-11-20T18:36:48Z – claude – shell_pid=24797 – leeway: tests/review/test_wp_range_git_calls.py (not owned) _DERIVED_BUDGET 12 -> 13 per runner ruling, commit b2bd03a7. Reason: FR-007 mandatory full-history merge listing, one fixed rev-list per range independent of commit count. Measured: derived 12 -> 13 (within 13); recorded 6 -> 7 (within _BUDGET=10, unchanged; equal for 1 and 200 commits). Comment sits on the line above the constant (an inline comment exceeded the E501 line limit).",
-        "FR-007: wp_range lists every merge of base..tip (rev-list --merges --full-history, no pathspec; remerge probe only when merges exist); render_review_context prints one RESOLUTION MERGE command per merge (or cannot-show line on git<2.36) outside the byte budget; no-merge ranges unchanged. Leeway: _DERIVED_BUDGET 12->13 per runner ruling (b2bd03a7). Tests: 5 review files 95 passed; make test-fast 3144 passed 7 skipped."
+        "FR-007: wp_range lists every merge of base..tip (rev-list --merges --full-history, no pathspec; remerge probe only when merges exist); render_review_context prints one RESOLUTION MERGE command per merge (or cannot-show line on git<2.36) outside the byte budget; no-merge ranges unchanged. Leeway: _DERIVED_BUDGET 12->13 per runner ruling (b2bd03a7). Tests: 5 review files 95 passed; make test-fast 3144 passed 7 skipped.",
+        "Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner"
       ],
       "provider": "__resolved_provider_absent__",
       "role": "reviewer",
