@@ -568,13 +568,16 @@ def _coord_ref_decision(facts: _MissionFacts, coord_dir: Path, *, for_write: boo
     for an unmaterialized one, so path-classifying callers (e.g. the WP status backfill's
     live-coordination refusal) keep their answer until WP06/WP07 move them onto the door.
     """
-    from specify_cli.coordination.status_service import read_status_ref
-
     assert facts.coord_branch is not None
     ref = f"{_HEADS_PREFIX}{facts.coord_branch}"
     prefetched = None
     if not for_write:
-        prefetched = read_status_ref(facts.repo_root, ref, _ref_events_path(coord_dir.name))
+        prefetched = _read_ref_or_refuse(
+            facts.repo_root,
+            ref,
+            _ref_events_path(coord_dir.name),
+            follow_up=_coordination_follow_up(facts.mission_dir_name),
+        )
         if prefetched.absent and facts.primary_dir.exists():
             reason = PRE_SEED_FALLBACK_REASON.format(branch=facts.coord_branch, events=_EVENTS_FILENAME)
             decision = _path_decision(
@@ -702,14 +705,60 @@ def resolve_primary_partition_dir(repo_root: Path, mission: str) -> Path | None:
 # ---------------------------------------------------------------------------
 
 
+_RERUN_FOLLOW_UP = "re-run the command"
+
+
+def _read_ref_or_refuse(repo_root: Path, ref: str, path: str, *, follow_up: str, require_tracking_ref: bool = False) -> RefRead:
+    """Read *path* at *ref*; a failed read of a branch with no local head is remote-only (#5287).
+
+    The classification runs only after the read failed (NFR-001: a readable ref costs
+    nothing more). When the local head does not resolve, the branch is remote-only (the
+    door's earlier probes ruled out a deleted coordination branch) and the refusal is
+    ``StatusSurfaceRefRemoteOnly`` with the canonical remedy, whose last step is
+    *follow_up*. A local ref that names a missing object still resolves, so corruption
+    keeps the plain ``StatusSurfaceRefUnreadable``. With *require_tracking_ref* (the
+    Mission topic branch, which no earlier probe proved present), the refusal is
+    remote-only only when this clone holds a remote-tracking ref for the branch;
+    otherwise the branch may be gone everywhere and the plain error stands. The remote-tracking ref is never read
+    as status (ADR 2026-11-06-2, Amendment 2026-11-20).
+    """
+    from specify_cli.coordination import status_service
+
+    try:
+        return status_service.read_status_ref(repo_root, ref, path)
+    except status_service.StatusSurfaceRefUnreadable as exc:
+        if not ref.startswith(_HEADS_PREFIX) or status_service.ref_names_object(repo_root, ref):
+            raise
+        from mission_runtime.coord_remedy import remote_only_branch, remote_only_steps
+
+        branch = ref.removeprefix(_HEADS_PREFIX)
+        facts = remote_only_branch(repo_root, branch)
+        if require_tracking_ref and not facts.tracking_ref_present:
+            raise
+        remedy = remote_only_steps(facts, repo_root, follow_up)
+        raise status_service.StatusSurfaceRefRemoteOnly(repo_root=repo_root, ref=ref, path=path, branch=branch, remedy=remedy) from exc
+
+
+def _coordination_follow_up(mission_dir_name: str) -> str:
+    from mission_runtime.coord_remedy import coordination_doctor_command
+
+    return coordination_doctor_command(mission_dir_name)
+
+
 def _ref_text(surface: StatusReadSurface) -> str | None:
     """The log text at the surface's ref, or ``None`` when the file is absent there."""
-    from specify_cli.coordination.status_service import read_status_ref
-
     assert surface.ref is not None
     result = surface.prefetched
     if result is None:
-        result = read_status_ref(surface.repo_root, surface.ref, _ref_events_path(surface.mission_dir_name))
+        topic_branch = surface.source is StatusReadSource.MISSION_BRANCH_REF
+        follow_up = _RERUN_FOLLOW_UP if topic_branch else _coordination_follow_up(surface.mission_dir_name)
+        result = _read_ref_or_refuse(
+            surface.repo_root,
+            surface.ref,
+            _ref_events_path(surface.mission_dir_name),
+            follow_up=follow_up,
+            require_tracking_ref=topic_branch,
+        )
     return None if result.data is None else result.data.decode("utf-8", errors="replace")
 
 
