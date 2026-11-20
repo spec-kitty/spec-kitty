@@ -108,6 +108,18 @@
       "verdict": "in-mission",
       "wp": "WP07"
     },
+    "#5638": {
+      "evidence_ref": "Context only: cited in a WP prompt of Mission approved-lane-resolution-route-01M7WW0Z as a code/ADR reference; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Context citation in WP prompts",
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#5721": {
       "evidence_ref": "Mission approved-lane-resolution-route-01M7WW0Z WP05 (merge-commit slice only)",
       "fr": null,
