@@ -1,0 +1,55 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-20T06:02:35.903966Z",
+      "decision_id": "01M7VRSCZZPMQHPVF9HP5T4HM9",
+      "final_answer": null,
+      "input_key": "digest_list_home",
+      "mission_id": "01M7VRS0Q6CPC1HP3VD1TPNXRC",
+      "mission_slug": "skill-surfaces-converge-01M7VRS0",
+      "opened_by": "cli",
+      "options": [
+        "A: reviewed JSON package-data file + committed git-history generator; append-only test fails if a digest is dropped or a current render is missing (regenerate in the skill-edit PR)",
+        "B: same file, regenerated only at release via checklist",
+        "C: Python module constant",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Where does the frozen historical-render digest list live, and how is it regenerated per release?",
+      "rationale": "Raised to the operator via the orchestrator; working assumption A until answered",
+      "resolved_at": "2026-11-20T06:05:12.445178Z",
+      "resolved_by": null,
+      "slot_key": "specify.proof.digest-list-home",
+      "status": "deferred",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-20T06:02:38.010253Z",
+      "decision_id": "01M7VRSF1T1ENCAMW2SACF5MS3",
+      "final_answer": null,
+      "input_key": "old_root_fix_policy",
+      "mission_id": "01M7VRS0Q6CPC1HP3VD1TPNXRC",
+      "mission_slug": "skill-surfaces-converge-01M7VRS0",
+      "opened_by": "cli",
+      "options": [
+        "A: report only, with a cleanup hint; delete nothing",
+        "B: --fix removes only byte-proven files there; unproven ones reported",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "May doctor --fix ever remove a proven-generated stale file under the old ~/.claude root when CLAUDE_CONFIG_DIR redirects the resolved root, or only report it?",
+      "rationale": "Raised to the operator via the orchestrator; working assumption A (report only) until answered",
+      "resolved_at": "2026-11-20T06:05:14.650832Z",
+      "resolved_by": null,
+      "slot_key": "specify.doctor.old-root-fix",
+      "status": "deferred",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M7VRS0Q6CPC1HP3VD1TPNXRC",
+  "version": 1
+}
