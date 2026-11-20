@@ -32,6 +32,10 @@ M1 = "c" * 40
 M2 = "d" * 40
 REQS = "CITED REQUIREMENTS:"
 _LABEL = "RESOLUTION MERGE (operator-authored, review these bytes):"
+_ATTR_NOTE = (
+    "  note: the resolution commands read .gitattributes from the range base (--attr-source needs git >= 2.40;"
+    " on older git drop it, and a merge driver committed in the range, such as merge=union, can hide the resolution)"
+)
 
 _BASE_RANGE = WpReviewRange(
     wp_id="WP02",
@@ -59,11 +63,12 @@ def test_merges_render_one_labelled_line_each() -> None:
     lines = render_review_context(_range(merges=(M1, M2), remerge_available=True), ())
 
     diff_at = lines.index(f"  git diff {BASE}..{TIP} -- 'src/m2/**'")
-    assert lines[diff_at + 1 : diff_at + 3] == [
-        f"  {_LABEL} git show --remerge-diff {M1}",
-        f"  {_LABEL} git show --remerge-diff {M2}",
+    assert lines[diff_at + 1 : diff_at + 4] == [
+        f"  {_LABEL} git --attr-source={BASE} show --remerge-diff {M1}",
+        f"  {_LABEL} git --attr-source={BASE} show --remerge-diff {M2}",
+        _ATTR_NOTE,
     ]
-    assert lines[diff_at + 3] == REQS
+    assert lines[diff_at + 4] == REQS
 
 
 @pytest.mark.fast
@@ -106,7 +111,7 @@ def test_merge_lines_do_not_consume_the_byte_budget() -> None:
 
     merge_lines = [line for line in with_merges if "RESOLUTION MERGE" in line]
     assert len(merge_lines) == len(merges)
-    assert [line for line in with_merges if "RESOLUTION MERGE" not in line] == without
+    assert [line for line in with_merges if "RESOLUTION MERGE" not in line and line != _ATTR_NOTE] == without
     assert any(line.startswith("  … ") for line in without), "precondition: the commit list fills the budget"
     budgeted = with_merges[: with_merges.index("REVIEW COMMANDS:")]
     assert sum(len(line.encode("utf-8")) + 1 for line in budgeted) <= BYTE_BUDGET
@@ -217,11 +222,12 @@ def test_merge_listing_failure_is_fail_soft(tmp_path: Path, monkeypatch: pytest.
     lines = render_review_context(found, ())
     fallback = (
         f"  RESOLUTION MERGES: could not be listed; run git rev-list --merges --full-history {found.base}..{found.tip}"
-        " and review each with git show --remerge-diff <sha>"
+        f" and review each with git --attr-source={found.base} show --remerge-diff <sha>"
     )
     diff_at = next(index for index, line in enumerate(lines) if line.startswith("  git diff "))
     assert lines[diff_at + 1] == fallback
-    assert lines[diff_at + 2] == REQS
+    assert lines[diff_at + 2] == _ATTR_NOTE
+    assert lines[diff_at + 3] == REQS
 
 
 @pytest.mark.integration
@@ -237,5 +243,37 @@ def test_next_review_prompt_prints_the_hand_merge_resolution_command(tmp_path: P
     with cs.mission_environment(mission):
         lines = _review_command_lines(mission.repo, mission.slug, "WP01", wp_meta, workspace, None)
 
-    assert f"  {_LABEL} git show --remerge-diff {merge}" in lines
+    base = next(line for line in lines if line.startswith("REVIEW RANGE")).split()[3].split("..")[0]
+    command = next(line for line in lines if line.startswith(f"  {_LABEL}"))
+    assert command.startswith(f"  {_LABEL} git --attr-source=") and command.endswith(f" show --remerge-diff {merge}")
+    assert base.startswith(command.split("--attr-source=")[1][:12])
     assert len(merge) == 40
+
+
+@pytest.mark.git_repo
+def test_pinned_command_shows_a_union_hidden_resolution(tmp_path: Path) -> None:
+    """A lane-committed ``merge=union`` hides the resolution from a plain ``--remerge-diff``; the printed command pins attributes to the range base."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q", "-b", "main")
+    for key, value in (("user.name", "Test"), ("user.email", "test@example.invalid"), ("commit.gpgsign", "false")):
+        _git(repo, "config", key, value)
+    _commit_in(repo, "src/pkg/a.py", "A = 1\n", "seed")
+    base = _git(repo, "rev-parse", "HEAD")
+    _git(repo, "checkout", "-q", "-b", "side")
+    _commit_in(repo, "src/pkg/a.py", "A = 3\n", "side")
+    _git(repo, "checkout", "-q", "main")
+    _commit_in(repo, ".gitattributes", "src/pkg/a.py merge=union\n", "lane: union driver")
+    _commit_in(repo, "src/pkg/a.py", "A = 2\n", "lane work")
+    _git(repo, "merge", "-q", "--no-ff", "-m", "Merge side", "side")
+    merge = _git(repo, "rev-parse", "HEAD")
+    assert _git(repo, "show", "HEAD:src/pkg/a.py") == "A = 2\nA = 3", "precondition: the union driver resolved the conflict"
+    review_range = _range(base=base, tip=merge, merges=(merge,), remerge_available=True)
+
+    command = next(line for line in render_review_context(review_range, ()) if line.startswith(f"  {_LABEL}"))
+    argv = command.removeprefix(f"  {_LABEL} ").split()
+    unpinned = [arg for arg in argv if not arg.startswith("--attr-source=")]
+
+    assert argv != unpinned, "the printed command pins the attribute source"
+    assert "src/pkg/a.py" in _git(repo, *argv[1:], "--format=", "--name-only")
+    assert "src/pkg/a.py" not in _git(repo, *unpinned[1:], "--format=", "--name-only")
