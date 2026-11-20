@@ -20,7 +20,7 @@
   "work_packages": {
     "WP01": {
       "actor": "claude",
-      "agent": null,
+      "agent": "claude::python-pedro",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -50,7 +50,8 @@
         "- 2026-11-20T20:12:15Z – unknown – review cycle 1 MED addressed (c93350986c): one shared pin helper merge_attribute_guard.merge_probe_env(base=None) + table MERGE_PROBE_CONFIG_PINS (merge.directoryRenames=conflict, merge.renames=true, diff.algorithm=myers, merge.conflictStyle=merge). It appends the pins to GIT_CONFIG_PARAMETERS, which git reads after config files and GIT_CONFIG_COUNT (verified: last value wins, so an inherited -c is overridden). Both probes pass it through the existing env= parameter of kernel.git.merge_tree / remerge_paths, so no unowned code changed and no -c plumbing was needed. Neither name is in __all__; MERGE_PROBE_CONFIG_PINS is used in-module by merge_probe_env, merge_probe_env is imported by git_probes; test_no_dead_symbols green. WP07/WP08 incorporate merge and WP10's printed command should consume merge_probe_env / MERGE_PROBE_CONFIG_PINS. Tests: one spy test per key proving both probes' git invocations see the pinned value with a hostile repo config, a behavioural directoryRenames=true test, a behavioural renames test, and an inherited GIT_CONFIG_PARAMETERS precedence test.",
         "- 2026-11-20T20:12:21Z – unknown – review cycle 1 LOW addressed: red-first record corrected in history (85 failed / 3 passed; controls named).",
         "- 2026-11-20T20:12:26Z – unknown – tests (cycle 2): guard file 105 passed; arch gates test_no_dead_symbols + test_git_path_listing_owner + test_merge_pipeline_ratchets + test_layer_rules 171 passed; tests/specify_cli/git/test_merge_tree_probe.py 10 passed; make test-fast 3144 passed, 7 skipped; ruff/format/mypy clean on all changed files.",
-        "- 2026-11-20T20:19:33Z – unknown – tests (cycle 2): pytest -n 8 --dist loadfile tests/consolidation tests/lanes -> 4794 passed, 2 skipped, 11 xfailed."
+        "- 2026-11-20T20:19:33Z – unknown – tests (cycle 2): pytest -n 8 --dist loadfile tests/consolidation tests/lanes -> 4794 passed, 2 skipped, 11 xfailed.",
+        "Cycle-2 fixes (c93350986c): HIGH - guard refuses an effective merge.renormalize (all scopes plus env) and any effective filter/ident/working-tree-encoding attribute, read in the same batched check-attr; MED - both probes run with merge_probe_env(), which pins merge.directoryRenames=conflict, merge.renames=true, diff.algorithm=myers, merge.conflictStyle=merge via GIT_CONFIG_PARAMETERS (one shared helper, out of __all__); LOW - red-first record corrected to 85 failed / 3 passed (controls named). Guard 105 passed; tests/consolidation+tests/lanes 4794 passed; arch gates incl. no_dead_symbols 171 passed; test-fast 3144 passed."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
