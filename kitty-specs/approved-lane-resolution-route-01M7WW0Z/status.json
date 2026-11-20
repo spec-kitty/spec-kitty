@@ -1,7 +1,7 @@
 {
-  "event_count": 66,
-  "last_event_id": "01M7X9CQDM3G0DKC5CH1WETT6X",
-  "materialized_at": "2026-11-20T20:12:00.820255+00:00",
+  "event_count": 67,
+  "last_event_id": "01M7X9Q5KF00FYRR3JCGZ70YAS",
+  "materialized_at": "2026-11-20T20:17:43.023551+00:00",
   "mission_number": "",
   "mission_slug": "approved-lane-resolution-route-01M7WW0Z",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 2,
+    "for_review": 1,
     "in_progress": 2,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 8
   },
   "work_packages": {
@@ -45,7 +45,11 @@
         "Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
         "REJECT: Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
         "- 2026-11-20T19:50:45Z – unknown – correction (review cycle 1, LOW): the T001 red record above is superseded. Re-measured as the reviewer did (tests of 1f29e11d against the 5354775e^ sources): 85 failed, 3 passed. The 3 passing tests are controls by design: test_an_attribute_on_another_path_does_not_refuse, test_n_way_merge_blob_single_commit_is_not_guarded, test_merge_set_passes.",
-        "- 2026-11-20T19:50:51Z – unknown – cycle-2 red: uv run --frozen pytest -q tests/consolidation/test_merge_attribute_guard.py -k 'renormalize or conversion or pinned or pins_win' on 1f29e11d -> 13 failed, 2 passed. Red: renormalize+clean filter laundering x {config file, GIT_CONFIG_COUNT} on both probes (DID NOT RAISE); renormalize alone x 2; filter / ident / working-tree-encoding attribute (DID NOT RAISE); merge.directoryRenames=true makes n_way_merge_blob return a blob for a should-conflict path ('3e757656...' is not None); per-key pin spy x 4 (probe git ran with env=None); merge_probe_env missing (ImportError). Passing: control test_renormalize_false_passes, and test_renames_config_is_pinned_to_true (git 2.43 merge-tree still detected the rename with merge.renames=false in that scenario, so its red evidence is the renames row of the spy test)."
+        "- 2026-11-20T19:50:51Z – unknown – cycle-2 red: uv run --frozen pytest -q tests/consolidation/test_merge_attribute_guard.py -k 'renormalize or conversion or pinned or pins_win' on 1f29e11d -> 13 failed, 2 passed. Red: renormalize+clean filter laundering x {config file, GIT_CONFIG_COUNT} on both probes (DID NOT RAISE); renormalize alone x 2; filter / ident / working-tree-encoding attribute (DID NOT RAISE); merge.directoryRenames=true makes n_way_merge_blob return a blob for a should-conflict path ('3e757656...' is not None); per-key pin spy x 4 (probe git ran with env=None); merge_probe_env missing (ImportError). Passing: control test_renormalize_false_passes, and test_renames_config_is_pinned_to_true (git 2.43 merge-tree still detected the rename with merge.renames=false in that scenario, so its red evidence is the renames row of the spy test).",
+        "- 2026-11-20T20:12:02Z – unknown – review cycle 1 HIGH addressed (c93350986c): assert_registered_merge_behaviour now refuses (1) when 'git config --get --type=bool merge.renormalize' is true (every scope plus GIT_CONFIG_COUNT / -c env; an unreadable value raises), and (2) when any probed path has an effective filter, ident or working-tree-encoding value other than unset/unspecified, read in the SAME batched call 'check-attr --stdin merge filter ident working-tree-encoding' (path-major output, line count = paths x 4, each line's attribute name checked). Real-git red tests: laundering repro (clone-local '* filter=evil' + renormalize) via config file and via GIT_CONFIG_COUNT on both probes; renormalize alone x2; each conversion attribute. Known over-refusal: a repo using git-lfs (filter=lfs) on probed paths now refuses.",
+        "- 2026-11-20T20:12:15Z – unknown – review cycle 1 MED addressed (c93350986c): one shared pin helper merge_attribute_guard.merge_probe_env(base=None) + table MERGE_PROBE_CONFIG_PINS (merge.directoryRenames=conflict, merge.renames=true, diff.algorithm=myers, merge.conflictStyle=merge). It appends the pins to GIT_CONFIG_PARAMETERS, which git reads after config files and GIT_CONFIG_COUNT (verified: last value wins, so an inherited -c is overridden). Both probes pass it through the existing env= parameter of kernel.git.merge_tree / remerge_paths, so no unowned code changed and no -c plumbing was needed. Neither name is in __all__; MERGE_PROBE_CONFIG_PINS is used in-module by merge_probe_env, merge_probe_env is imported by git_probes; test_no_dead_symbols green. WP07/WP08 incorporate merge and WP10's printed command should consume merge_probe_env / MERGE_PROBE_CONFIG_PINS. Tests: one spy test per key proving both probes' git invocations see the pinned value with a hostile repo config, a behavioural directoryRenames=true test, a behavioural renames test, and an inherited GIT_CONFIG_PARAMETERS precedence test.",
+        "- 2026-11-20T20:12:21Z – unknown – review cycle 1 LOW addressed: red-first record corrected in history (85 failed / 3 passed; controls named).",
+        "- 2026-11-20T20:12:26Z – unknown – tests (cycle 2): guard file 105 passed; arch gates test_no_dead_symbols + test_git_path_listing_owner + test_merge_pipeline_ratchets + test_layer_rules 171 passed; tests/specify_cli/git/test_merge_tree_probe.py 10 passed; make test-fast 3144 passed, 7 skipped; ruff/format/mypy clean on all changed files."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -245,9 +249,9 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "implementer_of_record": "claude",
-      "lane": "for_review",
-      "last_event_id": "01M7X984GW2AKZAGY40QAM2HHH",
-      "last_transition_at": "2026-11-20T20:09:30.396935+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M7X9Q5KF00FYRR3JCGZ70YAS",
+      "last_transition_at": "2026-11-20T20:17:43.023551+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-20T18:01:04Z – claude – shell_pid=24797 – red: uv run --frozen pytest -q tests/review/test_review_context_merge_lines.py -> 9 failed: TypeError WpReviewRange.__init__() unexpected keyword 'merges'/'remerge_available' (renderer tests), AttributeError 'WpReviewRange' object has no attribute 'merges' (range-level git tests incl. two-merge full-history and fail-soft)",
@@ -275,7 +279,7 @@
         "reviewer": "claude::reviewer-renata",
         "verdict": "changes_requested"
       },
-      "role": "implementer",
+      "role": "reviewer",
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
