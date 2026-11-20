@@ -8,7 +8,7 @@ ordered steps, composed here:
 1. ``git -C <root> fetch <remote> <branch>:refs/remotes/<remote>/<branch>``
    (omitted when this clone already holds that remote-tracking ref; the
    explicit destination makes it work in a single-branch or shallow clone);
-2. ``git -C <root> branch <branch> <remote>/<branch>``;
+2. ``git -C <root> branch <branch> refs/remotes/<remote>/<branch>``;
 3. a caller-supplied follow-up (the coordination doctor, or "re-run").
 
 The remote is the one that owns the branch, resolved from local configuration
@@ -30,7 +30,6 @@ from kernel.git.remote import configured_remotes, resolve_remote, tracking_ref
 from kernel.git.runner import GitCommandError, run_git
 
 __all__ = [
-    "RemoteOnlyBranch",
     "coordination_doctor_command",
     "remote_only_branch",
     "remote_only_steps",
@@ -79,6 +78,9 @@ def remote_only_branch(repo_root: Path, branch: str) -> RemoteOnlyBranch:
     """
     remotes = tuple(configured_remotes(repo_root))
     remote = resolve_remote(repo_root, branch)
+    if remote is not None and remote not in remotes:
+        # ``branch.<b>.remote`` may hold a URL: there is no ``refs/remotes/<url>/<b>``.
+        remote = None
     if remote is not None and _has_tracking_ref(repo_root, remote, branch):
         return RemoteOnlyBranch(branch=branch, remote=remote, tracking_ref_present=True, remotes=remotes)
     holders = [name for name in remotes if name != remote and _has_tracking_ref(repo_root, name, branch)]
@@ -122,6 +124,7 @@ def remote_only_steps(facts: RemoteOnlyBranch, repo_root: Path, follow_up: str) 
         # refspec does not cover the branch, so a bare `fetch <remote> <b>` would
         # write only FETCH_HEAD and the next step could not name <remote>/<b>.
         steps.append(f"`git -C {root} fetch {remote} {branch}:refs/remotes/{remote}/{branch}`")
-    steps.append(f"`git -C {root} branch {branch} {remote}/{branch}`")
+    # The full remote-tracking ref, so a local branch or tag named <remote>/<b> cannot shadow it.
+    steps.append(f"`git -C {root} branch {branch} refs/remotes/{remote}/{branch}`")
     steps.append(follow_up)
     return f"Run in order: {', then '.join(steps)}.{_remote_note(facts)}"

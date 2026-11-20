@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -106,9 +107,7 @@ _COORD_BRANCH_ABSENT_HINT = (
 #: after WP01 -- these hints cover the independent case where the FIX is
 #: reached anyway (a future probe regression, a race). Fail-closed toward
 #: "do not destroy": HIT and ERROR both skip the flatten.
-_COORD_BRANCH_REMOTE_HIT_SKIP_HINT = (
-    "still exists on a remote; run `git fetch` to materialize it locally -- not flattened"
-)
+_COORD_BRANCH_REMOTE_HIT_SKIP_LEAD = "still exists on a remote -- not flattened."
 _COORD_BRANCH_REMOTE_ERROR_SKIP_HINT = (
     "could not be verified against the remote (network error or timeout); "
     "leaving meta.json unchanged until connectivity is restored -- not flattened"
@@ -617,7 +616,7 @@ def _check_coordination_worktree_health(
         if is_local_head:
             next_step = (
                 f"Run: `spec-kitty doctor coordination --mission {mission_slug} --fix` "
-                f"(or, manually: `git -C {repo_root} worktree add {worktree} {coord_branch}`)"
+                f"(or, manually: `git -C {shlex.quote(str(repo_root))} worktree add {shlex.quote(str(worktree))} {coord_branch}`)"
             )
         else:
             next_step = _coord_worktree_missing_remote_only_steps(
@@ -1240,7 +1239,7 @@ def _collect_coordination_findings(
     return findings
 
 
-def _coord_branch_remote_skip_reason(repo_root: Path, coord_branch: str) -> str | None:
+def _coord_branch_remote_skip_reason(repo_root: Path, coord_branch: str, mission_slug: str) -> str | None:
     """Re-verify *coord_branch* against the remote before a destructive flatten.
 
     Returns ``None`` when the flatten may proceed (the WP01 shared
@@ -1258,7 +1257,12 @@ def _coord_branch_remote_skip_reason(repo_root: Path, coord_branch: str) -> str 
 
     outcome = remote_branch_lookup(repo_root, coord_branch)
     if outcome is RemoteLookup.HIT:
-        return _COORD_BRANCH_REMOTE_HIT_SKIP_HINT
+        # #5287: the canonical remote-only steps, never a bare `git fetch` (which
+        # creates no local branch).
+        from mission_runtime.coord_remedy import coordination_doctor_command, remote_only_branch, remote_only_steps
+
+        steps = remote_only_steps(remote_only_branch(repo_root, coord_branch), repo_root, coordination_doctor_command(mission_slug))
+        return f"{_COORD_BRANCH_REMOTE_HIT_SKIP_LEAD} {steps}"
     if outcome is RemoteLookup.ERROR:
         return _COORD_BRANCH_REMOTE_ERROR_SKIP_HINT
     return None
@@ -1303,7 +1307,7 @@ def _fix_never_created_branches(
         if not coord_branch:
             continue
         if repo_root is not None:
-            skip_reason = _coord_branch_remote_skip_reason(repo_root, str(coord_branch))
+            skip_reason = _coord_branch_remote_skip_reason(repo_root, str(coord_branch), mission_dir.name)
             if skip_reason is not None:
                 console.print(
                     f"[yellow]Skipped:[/yellow] {mission_dir.name}/meta.json -- "
