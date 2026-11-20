@@ -20,7 +20,7 @@
   "work_packages": {
     "WP01": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
@@ -52,7 +52,8 @@
         "- 2026-11-20T20:12:26Z – unknown – tests (cycle 2): guard file 105 passed; arch gates test_no_dead_symbols + test_git_path_listing_owner + test_merge_pipeline_ratchets + test_layer_rules 171 passed; tests/specify_cli/git/test_merge_tree_probe.py 10 passed; make test-fast 3144 passed, 7 skipped; ruff/format/mypy clean on all changed files.",
         "- 2026-11-20T20:19:33Z – unknown – tests (cycle 2): pytest -n 8 --dist loadfile tests/consolidation tests/lanes -> 4794 passed, 2 skipped, 11 xfailed.",
         "Cycle-2 fixes (c93350986c): HIGH - guard refuses an effective merge.renormalize (all scopes plus env) and any effective filter/ident/working-tree-encoding attribute, read in the same batched check-attr; MED - both probes run with merge_probe_env(), which pins merge.directoryRenames=conflict, merge.renames=true, diff.algorithm=myers, merge.conflictStyle=merge via GIT_CONFIG_PARAMETERS (one shared helper, out of __all__); LOW - red-first record corrected to 85 failed / 3 passed (controls named). Guard 105 passed; tests/consolidation+tests/lanes 4794 passed; arch gates incl. no_dead_symbols 171 passed; test-fast 3144 passed.",
-        "review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner"
+        "review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
+        "REJECT cycle 2: review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -66,11 +67,11 @@
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done",
-        "T005": "done"
+        "T001": "planned",
+        "T002": "planned",
+        "T003": "planned",
+        "T004": "planned",
+        "T005": "planned"
       }
     },
     "WP02": {
