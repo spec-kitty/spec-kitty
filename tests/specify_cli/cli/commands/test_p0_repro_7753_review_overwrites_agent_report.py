@@ -13,6 +13,7 @@ The fix PR removes the ``p0_repro`` marker.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -56,7 +57,7 @@ def test_review_does_not_silently_overwrite_agent_written_report(
     """An agent-written mission-review-report.md survives ``spec-kitty review``."""
     repo_root, feature_dir = _setup_fixture(
         tmp_path,
-        {"WP01": "in_progress", "WP02": "done"},
+        {"WP01": "done", "WP02": "done"},
     )
     report_path = feature_dir / "mission-review-report.md"
     report_path.write_text(_AGENT_REPORT, encoding="utf-8")
@@ -77,16 +78,19 @@ def test_review_does_not_silently_overwrite_agent_written_report(
         ["--mission", _MISSION_SLUG],
     )
 
-    # Guard against a vacuous pass: the run must reach the report stage, not
-    # stop on a fixture/setup refusal before any write is attempted.
-    assert "MISSION_REVIEW_MODE_MISMATCH" not in result.output, result.output
+    # Positive precondition: the command got as far as the report-write
+    # decision, so its output names the report (written, refused because one
+    # exists, or moved aside). An unrelated early refusal names none of these.
+    assert re.search(r"mission-review|backup|\.bak", result.output, re.IGNORECASE), f"review never reached the report-write decision; output:\n{result.output}"
 
-    # The agent's review must survive: either left in place (command refuses
-    # or writes elsewhere) or moved aside to a backup the output names.
-    surviving = [p for p in feature_dir.rglob("*.md") if _AGENT_MARKER in p.read_text(encoding="utf-8")]
+    # The agent's review must survive in ANY file under the repository
+    # (left in place, or preserved as a backup anywhere, with any name or
+    # extension).
+    marker = _AGENT_MARKER.encode()
+    surviving = [p for p in repo_root.rglob("*") if p.is_file() and marker in p.read_bytes()]
     assert surviving, (
         "#7753: spec-kitty review destroyed the agent-written "
-        "mission-review-report.md with no backup.\n"
+        "mission-review-report.md with no backup anywhere in the repository.\n"
         f"Exit code: {result.exit_code}\nOutput:\n{result.output}\n"
         f"Report now:\n{report_path.read_text(encoding='utf-8')[:400]}"
     )
