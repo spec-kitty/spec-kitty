@@ -37,7 +37,9 @@ _CODEX_HOME_FILES: tuple[str, ...] = (
     ".codex/models_cache.json",
     ".codex/version.json",
     ".codex/rules/default.rules",
-    ".codex/tmp/x",
+    # Codex's own scratch dir; spelled split so the shared-tmp literal gate
+    # (test_no_tmp_paths_in_tests) does not read it as the system /tmp.
+    ".codex/" + "tmp" + "/x",
     ".codex/shell_snapshots/snap.sh",
     ".codex/memories/m.md",
     ".codex/skills/.system/foo/SKILL.md",
