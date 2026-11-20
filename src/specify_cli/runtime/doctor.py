@@ -427,8 +427,24 @@ def find_old_root_leftovers(agent_keys: list[str] | None = None, *, kinds: tuple
 
 
 def _moved_mirror(mirror: Path, current: Path | None) -> bool:
-    """Whether *mirror* is a real directory the agent no longer reads from."""
-    return current is not None and mirror != current and mirror.is_dir() and not mirror.is_symlink()
+    """Whether *mirror* is a real directory the agent no longer reads from.
+
+    An alias of the current root (a symlinked ``$HOME``, a ``..`` spelling) is the same
+    directory, never a moved one: its files are the live install, not leftovers.
+    """
+    if current is None or not mirror.is_dir() or mirror.is_symlink():
+        return False
+    return not _same_directory(mirror, current)
+
+
+def _same_directory(left: Path, right: Path) -> bool:
+    """``os.path.samefile`` when both exist; else compare the resolved paths."""
+    import os
+
+    try:
+        return os.path.samefile(left, right)
+    except OSError:
+        return left.resolve() == right.resolve()
 
 
 def _command_leftovers(agent: str) -> list[LeftoverFile]:

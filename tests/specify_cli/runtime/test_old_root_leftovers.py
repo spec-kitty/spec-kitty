@@ -203,3 +203,33 @@ def test_an_unreadable_inventory_proves_nothing(setup: _Setup, tmp_path: Path, m
     monkeypatch.setenv(CLAUDE_CONFIG_DIR_ENV, str(tmp_path / "cfg"))
 
     assert files["skill"] not in _skill_leftovers(project)
+
+
+def test_a_symlinked_home_naming_the_same_root_lists_nothing(setup: _Setup, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``$HOME`` is a symlink and ``CLAUDE_CONFIG_DIR`` names the real path: one root, no leftovers."""
+    home, project, _ = setup
+    alias = tmp_path / "home-alias"
+    alias.symlink_to(home, target_is_directory=True)
+    monkeypatch.setenv("HOME", str(alias))
+    monkeypatch.setenv(CLAUDE_CONFIG_DIR_ENV, str(home / ".claude"))
+
+    assert _command_leftovers(project) == set()
+    assert _skill_leftovers(project) == set()
+
+
+def test_a_dotdot_spelling_of_the_same_root_lists_nothing(setup: _Setup, monkeypatch: pytest.MonkeyPatch) -> None:
+    home, project, _ = setup
+    monkeypatch.setenv(CLAUDE_CONFIG_DIR_ENV, str(home / ".claude" / ".." / ".claude"))
+
+    assert _command_leftovers(project) == set()
+    assert _skill_leftovers(project) == set()
+
+
+def test_same_directory_falls_back_to_resolved_paths_when_one_side_is_missing(tmp_path: Path) -> None:
+    from specify_cli.runtime.doctor import _same_directory
+
+    existing = tmp_path / "real"
+    existing.mkdir()
+    assert _same_directory(existing, tmp_path / "." / "real") is True
+    assert _same_directory(tmp_path / "gone", tmp_path / "x" / ".." / "gone") is True
+    assert _same_directory(existing, tmp_path / "gone") is False
