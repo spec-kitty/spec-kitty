@@ -25,6 +25,8 @@ Shape (``?`` lines are optional; an optional line renders with the two-space ite
     REVIEW COMMANDS:
       git log --oneline <base>..<tip> -- <listing pathspecs>
       git diff <base>..<tip> -- <listing pathspecs>
+    ? RESOLUTION MERGE (operator-authored, review these bytes): git show --remerge-diff <sha>
+    ? RESOLUTION MERGE <sha12>: this git cannot show the resolution (needs git >= 2.36); review the merge by hand
     CITED REQUIREMENTS:
       <ref> — <text>
     ? … <k> more cited (see spec.md)
@@ -40,7 +42,12 @@ provenance lines are always kept, and the commit list, the file list and the out
 filled in that order until the budget is reached, the rest of each replaced by one ``… <k> more``
 line. The command lines are printed in full on top of the budget, so they run verbatim over the
 listing pathspecs; a work package that owns many files can exceed 4,096 bytes in total. No patch
-text is ever rendered (C-001): only command strings, commit subjects and numstat counts.
+text is ever rendered (C-001): only command strings, commit subjects and numstat counts. The
+RESOLUTION MERGE lines (one per merge of the range, ``WpReviewRange.merges``; FR-007 of Mission
+``approved-lane-resolution-route``) are commands too: they point the reviewer at each merge's own
+resolution and, like the REVIEW COMMANDS lines, are printed in full outside the budget. On a git
+without ``--remerge-diff`` (``WpReviewRange.remerge_available`` false) each prints a cannot-show
+line instead; the review proceeds either way.
 """
 
 from __future__ import annotations
@@ -66,6 +73,8 @@ _ELLIPSIS = "…"
 _REQUIREMENT_SEPARATOR = " — "
 
 UNSCOPED_LINE = f"{_INDENT}scope: unscoped (no owned_files declared)"
+_MERGE_LABEL = "RESOLUTION MERGE (operator-authored, review these bytes):"
+_MERGE_CANNOT_SHOW = "RESOLUTION MERGE {label}: this git cannot show the resolution (needs git >= 2.36); review the merge by hand"
 UNAVAILABLE_COMMAND_LINE = f"{_INDENT}(no deterministic range; inspect `spec-kitty agent tasks status` and the WP's commits)"
 
 _COMMANDS_HEADING = "REVIEW COMMANDS:"
@@ -221,6 +230,13 @@ def _command_lines(review_range: WpReviewRange) -> list[str]:
     ]
 
 
+def _merge_lines(review_range: WpReviewRange) -> list[str]:
+    """One command line per merge of the range (full SHA), or the cannot-show line when this git lacks ``--remerge-diff``."""
+    if review_range.remerge_available:
+        return [f"{_INDENT}{_MERGE_LABEL} git show --remerge-diff {sha}" for sha in review_range.merges]
+    return [f"{_INDENT}{_MERGE_CANNOT_SHOW.format(label=_label(sha))}" for sha in review_range.merges]
+
+
 def _fill_list(items: Sequence[str], more: Callable[[int], str], remaining: int) -> tuple[list[str], int]:
     """Take *items* while they fit in *remaining* bytes, then one *more* line naming how many were left out.
 
@@ -357,5 +373,6 @@ def render_review_context(
         *files,
         *outside,
         *commands,
+        *_merge_lines(review_range),
         *_requirement_lines(cited),
     ]

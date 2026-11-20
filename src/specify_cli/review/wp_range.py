@@ -44,6 +44,14 @@ follow the resolved Mission directory name, never the caller's handle (a mid8 or
   paths, split by ``ownership.matches_owned`` (the evidence axis' matcher, so review and
   ``IMPLEMENTATION_MISSING`` agree).
 * ``out_of_map_only_commits``: the non-bookkeeping commits of the range that are not in ``commits``.
+* ``merges``: every merge commit of ``base..tip``, oldest first, from
+  ``git rev-list --merges --full-history --reverse base..tip`` with no pathspec. It does not reuse
+  the commit list's pathspecs: under them default history simplification drops a merge whose
+  combined diff leaves the owned files alone, and a conflict resolution can hide a novel line in
+  content a sibling already had approved. The list exists so the reviewer reads each merge's own
+  resolution (FR-007 of Mission ``approved-lane-resolution-route``); ``remerge_available`` says
+  whether this git can show it (``git show --remerge-diff``, git >= 2.36), probed only when a
+  merge was found.
 * ``moved_past``: non-bookkeeping commits on the write branch after the tip
   (``status.read_lane_head``), so the work package's own status commits never count. A tip that
   is not an ancestor of the live head (a rewritten lane) sets ``tip_off_branch`` instead and
@@ -83,6 +91,7 @@ from mission_runtime import (
     is_single_branch,
     routes_through_coordination,
 )
+from specify_cli.git.merge_tree_probe import remerge_diff_available
 from specify_cli.lanes.claim_base import read_claim_base
 from specify_cli.lanes.for_review_gate import mission_tasks_index_path, status_only_excluded_prefixes
 from specify_cli.mission_metadata import load_meta_or_empty
@@ -191,7 +200,9 @@ class WpReviewRange:
     Invariant: ``status is UNAVAILABLE`` iff ``base is None or tip is None`` (and then both are ``None``). Beyond the data
     model, ``listing_gap`` names a listing step that failed (the range itself still holds), and ``tip_off_branch`` is
     set when the submitted tip is not an ancestor of the write branch's live head (a rewritten lane): ``moved_past`` is
-    then ``0``, because a count from a tip the branch no longer holds would mean nothing.
+    then ``0``, because a count from a tip the branch no longer holds would mean nothing. ``merges`` lists every merge
+    commit of ``base..tip`` (full history, no pathspec) and ``remerge_available`` whether this git can show each one's
+    resolution; the renderer reads both and runs nothing.
     """
 
     wp_id: str
@@ -210,6 +221,8 @@ class WpReviewRange:
     listing_gap: str | None = None
     bookkeeping_pathspecs: tuple[str, ...] = ()
     tip_off_branch: bool = False
+    merges: tuple[str, ...] = ()
+    remerge_available: bool = True
 
     def __post_init__(self) -> None:
         unavailable = self.status is RangeStatus.UNAVAILABLE
@@ -457,6 +470,7 @@ class _Listing:
     files: tuple[FileChange, ...] = ()
     out_of_map: tuple[str, ...] = ()
     moved_past: int = 0
+    merges: tuple[str, ...] = ()
     failed: list[str] = field(default_factory=list)
 
     def attempt(self, step: str, action: Callable[[], None]) -> None:
@@ -538,7 +552,14 @@ def _listing(request: _ListingRequest) -> _Listing:
     listing.attempt("commits", _commits)
     listing.attempt("out-of-map commits", _out_of_map_only)
     listing.attempt("numstat", _stat)
+
+    def _merges() -> None:
+        # Full history and no pathspec: simplification under the owned pathspecs would drop a merge (FR-007).
+        result = run_git(request.repo_root, "rev-list", "--merges", "--full-history", "--reverse", rev_range)
+        listing.merges = tuple(line for line in result.stdout.decode("ascii", "replace").split() if line)
+
     listing.attempt("moved-past", _moved_past)
+    listing.attempt("merges", _merges)
     return listing
 
 
@@ -692,4 +713,7 @@ def resolve_wp_review_range(
         listing_gap=", ".join(listing.failed) or None,
         bookkeeping_pathspecs=bookkeeping,
         tip_off_branch=tip_off_branch,
+        merges=listing.merges,
+        # The version probe runs only when a merge exists, so a range without merges keeps its git cost.
+        remerge_available=remerge_diff_available(repo_root) if listing.merges else True,
     )
