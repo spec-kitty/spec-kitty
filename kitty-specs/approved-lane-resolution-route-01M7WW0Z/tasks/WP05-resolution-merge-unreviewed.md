@@ -259,6 +259,21 @@ Implement command: `spec-kitty agent action implement WP05 --agent claude --miss
   - `test_approved_bound.py::_conflict_resolved_merge` (`:508-527`) exercises `check_lane` only; it is unaffected (it does not go through `_approved_bound_verdict`). Do not change it.
 - **Validation**: the converted test passes; `pytest --runxfail` is not needed any more; `grep -n "xfail" tests/consolidation/test_approved_bound_residuals.py` returns nothing.
 
+## Binding addendum (orchestrator ruling 2026-11-20, WP02 and WP04 reviews)
+
+1. Lane-committed attributes. A merge with an auto-rebase record (`is_recorded`) is exempt from RESOLUTION_MERGE_UNREVIEWED only when the FR-010 guard `assert_registered_merge_behaviour(repo, <the merge's changed paths vs either parent>, attributes_source=<pre-run target tip>)` passes.
+   - If the guard refuses or errors, the merge is treated as unrecorded (judged as a hand merge). This is fail closed.
+   - `is_recorded` raising (a foreign value) is also a refusal.
+   - Red test: a recorded auto-rebase merge on a lane whose committed `.gitattributes` sets `merge=union` on the merged path (not set on the target tip) refuses with RESOLUTION_MERGE_UNREVIEWED.
+2. Forged record is harmless (defence-in-depth test).
+   - Setup: a hand merge with its own content on an approved lane, plus a forged `refs/spec-kitty/auto-rebase/<lane>/<sha>` written with `git update-ref`.
+   - Expected: the claim-time refusal may be skipped, but consolidate still does not land the content. The gate FAILs it on the attribution axis, the target is restored, and exit is non-zero.
+   - Record the result for WP13, which lists it in the ADR as defence in depth.
+3. When WP05 imports `is_recorded` / `recorded_merges` (WP02), and `merge_reviewed_by_own_stamps` / `own_approval_stamps` (WP04), adding them back to their modules' `__all__` is recorded leeway in WP05.
+   - `tests/architectural/test_no_dead_symbols.py` must be green on WP05's lane.
+4. `is_recorded` raises on a record that names a different commit. Treat that as a refusal.
+   - A missing `unreviewed_merges` entry never means "clean": re-probe or refuse (WP04 reviewer note).
+
 ## Test Strategy
 
 Red first for every behavioural change; record each red run in the WP history.
