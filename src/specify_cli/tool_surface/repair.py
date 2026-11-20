@@ -52,16 +52,40 @@ class RepairResult:
     failed: tuple[str, ...] = ()
     dry_run: bool = False
     findings_after: tuple[SurfaceFinding, ...] = ()
+    #: ``(surface id, reason)`` per skipped surface, so a skip never reads as convergence (#2527).
+    skipped_reasons: tuple[tuple[str, str], ...] = ()
 
     def to_json(self) -> dict[str, object]:
         """Serialize to a JSON-friendly mapping."""
         return {
             "repaired": list(self.repaired),
             "skipped": list(self.skipped),
+            "skipped_reasons": dict(self.skipped_reasons),
             "failed": list(self.failed),
             "dry_run": self.dry_run,
             "findings_after": [f.to_json() for f in self.findings_after],
         }
+
+
+_NOT_REPORTED_AFTER_REPAIR = "not reported after the repair"
+
+
+def explain_skipped(result: RepairResult, statuses_after: Sequence[SurfaceStatus]) -> RepairResult:
+    """Attach the reason each skipped surface was left alone, read from the state after the repair.
+
+    A surface the owner skipped keeps its pre-repair state, so the refreshed probe says why:
+    its state and the first finding's message (e.g. a user-edited file stays ``drifted``).
+    """
+    by_id = {_surface_id(status.instance): status for status in statuses_after}
+    reasons = []
+    for surface_id in dict.fromkeys(result.skipped):
+        status = by_id.get(surface_id)
+        if status is None:
+            reasons.append((surface_id, _NOT_REPORTED_AFTER_REPAIR))
+            continue
+        message = next((finding.message for finding in status.findings if finding.message), None)
+        reasons.append((surface_id, f"{status.state}: {message}" if message else status.state))
+    return replace(result, skipped_reasons=tuple(reasons))
 
 
 @dataclass
