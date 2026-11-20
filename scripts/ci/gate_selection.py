@@ -63,6 +63,7 @@ __all__ = [
     "matches_declared_scan_scope",
     "pack_content_groups",
     "select_gates",
+    "unrouted_src_paths",
     "select_modules",
 ]
 
@@ -230,8 +231,8 @@ CLI_COMMAND_MODULE_FANOUT: dict[str, frozenset[str]] = {
 # src/specify_cli/runtime/** (upgrade imports skills.*, tool_surface.* and runtime.generated_writer/home/
 # migrate/doctor/agent_commands directly, and reaches runtime.agent_skills/asset_preparation through them).
 # Their own routing never named the modules whose tests run that preparation: tool_surface/** -> core_misc,
-# runtime/** -> next + specify_cli_runtime, and skills/** matched no src group (run-all only when it is the
-# diff's sole src path: ``unmatched`` is per diff, so any routed src path beside it masks it). #7763 changed
+# runtime/** -> next + specify_cli_runtime, and skills/** matched no src group (run-all only when it was the
+# diff's sole src path: ``unmatched`` was per diff until #7775 made it per path, unrouted_src_paths). #7763 changed
 # all three, ran no upgrade shard, and broke ``spec-kitty upgrade`` on main. The group is NON-src
 # (**/-prefixed globs) like CLI_COMMAND_MODULE_FANOUT, so it never masks an unmapped src/** change (FR-004),
 # and gates no router job BY DESIGN (the module matrix is its per-PR executor). Targets: ``upgrade``
@@ -451,6 +452,18 @@ def _match_groups(paths: list[str], router: Router) -> frozenset[str]:
     return frozenset(hit)
 
 
+def unrouted_src_paths(paths: Iterable[str], router: Router) -> tuple[str, ...]:
+    """The ``src/**`` paths that match no src-backed group, each judged on its own (#7775).
+
+    FR-004's fail-closed catch-all is per path: one routed src path in a diff must not
+    mask an unrouted one beside it. Before #7775 the test was per diff (any src path
+    AND no src-backed group matched), so #7763's ``skills/**`` change rode along with
+    routed ``runtime/**`` paths and ran a narrowed module set.
+    """
+    src_globs = tuple(glob for group in sorted(router.src_backed_groups) for glob in router.filters[group])
+    return tuple(path for path in paths if path.startswith("src/") and not any(fnmatch.fnmatch(path, glob) for glob in src_globs))
+
+
 def select_gates(
     changed_paths: Iterable[str | Path],
     *,
@@ -459,8 +472,8 @@ def select_gates(
 ) -> GateSelection:
     """Return which jobs / code shards a changed-path set selects.
 
-    ``mode="full"`` (or an unmapped ``src/**`` change — the FR-004 fail-closed
-    catch-all) forces run-all: every routing group is selected. Otherwise only
+    ``mode="full"`` (or any unmapped ``src/**`` path, judged per path — the FR-004
+    fail-closed catch-all, :func:`unrouted_src_paths`) forces run-all: every routing group is selected. Otherwise only
     the groups the paths matched are selected. Always-on jobs (no filter group)
     are always included; ``selected_code_shards`` is the src-backed subset.
     """
@@ -468,8 +481,7 @@ def select_gates(
     paths = [str(path) for path in changed_paths]
     matched = _match_groups(paths, router)
 
-    any_src = any(path.startswith("src/") for path in paths)
-    unmatched_src = any_src and not (matched & router.src_backed_groups)
+    unmatched_src = bool(unrouted_src_paths(paths, router))
 
     run_all = mode == "full" or unmatched_src
     selected_groups = router.routing_groups if run_all else matched

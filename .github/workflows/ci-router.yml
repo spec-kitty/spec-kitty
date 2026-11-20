@@ -226,6 +226,8 @@ jobs:
         id: filter
         if: steps.green.outputs.skip != 'true'
         with:
+          # #7775: the per-path `unmatched` step reads each src group's `<group>_files` list.
+          list-files: json
           filters: |
             consolidation:
               - 'src/specify_cli/consolidation/**'
@@ -719,46 +721,49 @@ jobs:
               - '**/specify_cli/status/wp_view.py'
               - '**/specify_cli/upgrade/metadata.py'
               - '**/specify_cli/workspace/context.py'
-            # FR-004 probe: matches ANY src change. The `unmatched` step computes
-            # `any_src AND NOT (any named src group)` from the filter's own outputs.
+            # FR-004 probe: matches ANY src change. The `unmatched` step computes, PER PATH (#7775),
+            # `any_src_files MINUS the union of every named src group's files` from the filter's own outputs.
             # Never gate a job on `any_src` directly (contract Invariant 1).
             any_src:
               - 'src/**'
       - name: Compute fail-closed catch-all unmatched signal
         id: unmatched
         if: steps.green.outputs.skip != 'true'
+        # PER PATH (#7775): run-all when ANY src/** path matches no src-backed group. The old per-diff
+        # test (any src changed AND no src group matched) let one routed src path mask an unrouted one
+        # beside it (#7763). The file lists are dorny's `<group>_files` outputs (`list-files: json`),
+        # passed ONLY through env: file names are PR-controlled and never reach the script as `${{ }}`.
+        # SRC-BACKED groups ONLY (docs/corpus/e2e are non-src, so a data-only path never covers a src
+        # path). Mirrors gate_selection.unrouted_src_paths; executed by tests/ci/test_unmatched_is_per_path.py.
         env:
-          ANY_SRC: ${{ steps.filter.outputs.any_src }}
+          ANY_SRC_FILES: ${{ steps.filter.outputs.any_src_files }}
+          SRC_GROUP_FILES_consolidation: ${{ steps.filter.outputs.consolidation_files }}
+          SRC_GROUP_FILES_missions: ${{ steps.filter.outputs.missions_files }}
+          SRC_GROUP_FILES_post_merge: ${{ steps.filter.outputs.post_merge_files }}
+          SRC_GROUP_FILES_release: ${{ steps.filter.outputs.release_files }}
+          SRC_GROUP_FILES_status: ${{ steps.filter.outputs.status_files }}
+          SRC_GROUP_FILES_review: ${{ steps.filter.outputs.review_files }}
+          SRC_GROUP_FILES_next: ${{ steps.filter.outputs.next_files }}
+          SRC_GROUP_FILES_lanes: ${{ steps.filter.outputs.lanes_files }}
+          SRC_GROUP_FILES_upgrade: ${{ steps.filter.outputs.upgrade_files }}
+          SRC_GROUP_FILES_cli: ${{ steps.filter.outputs.cli_files }}
+          SRC_GROUP_FILES_charter: ${{ steps.filter.outputs.charter_files }}
+          SRC_GROUP_FILES_dossier: ${{ steps.filter.outputs.dossier_files }}
+          SRC_GROUP_FILES_agent: ${{ steps.filter.outputs.agent_files }}
+          SRC_GROUP_FILES_kernel: ${{ steps.filter.outputs.kernel_files }}
+          SRC_GROUP_FILES_glossary: ${{ steps.filter.outputs.glossary_files }}
+          SRC_GROUP_FILES_execution_context: ${{ steps.filter.outputs.execution_context_files }}
+          SRC_GROUP_FILES_core_misc: ${{ steps.filter.outputs.core_misc_files }}
+          SRC_GROUP_FILES_unit: ${{ steps.filter.outputs.unit_files }}
+          SRC_GROUP_FILES_specify_cli_runtime: ${{ steps.filter.outputs.specify_cli_runtime_files }}
         run: |
-          matched=false
-          # Union of the SRC-BACKED filter groups ONLY (docs/corpus/e2e are non-src,
-          # excluded so a data-only path can never mask an unmapped src/** change).
-          for group_hit in \
-            "${{ steps.filter.outputs.consolidation }}" \
-            "${{ steps.filter.outputs.missions }}" \
-            "${{ steps.filter.outputs.post_merge }}" \
-            "${{ steps.filter.outputs.release }}" \
-            "${{ steps.filter.outputs.status }}" \
-            "${{ steps.filter.outputs.review }}" \
-            "${{ steps.filter.outputs.next }}" \
-            "${{ steps.filter.outputs.lanes }}" \
-            "${{ steps.filter.outputs.upgrade }}" \
-            "${{ steps.filter.outputs.cli }}" \
-            "${{ steps.filter.outputs.charter }}" \
-            "${{ steps.filter.outputs.dossier }}" \
-            "${{ steps.filter.outputs.agent }}" \
-            "${{ steps.filter.outputs.kernel }}" \
-            "${{ steps.filter.outputs.glossary }}" \
-            "${{ steps.filter.outputs.execution_context }}" \
-            "${{ steps.filter.outputs.core_misc }}" \
-            "${{ steps.filter.outputs.unit }}" \
-            "${{ steps.filter.outputs.specify_cli_runtime }}"; do
-            if [ "$group_hit" = "true" ]; then
-              matched=true
-            fi
-          done
-          if [ "$ANY_SRC" = "true" ] && [ "$matched" = "false" ]; then
-            echo "::warning::src/** change matched by NO named filter group — forcing run-all (FR-004 fail-closed catch-all). Add a named group for this directory."
+          unrouted="$(jq -n -c '
+            def files($v): if ($v // "") == "" then [] else ($v | fromjson) end;
+            ([env | to_entries[] | select(.key | startswith("SRC_GROUP_FILES_")) | files(.value)[]] | unique) as $covered
+            | [files(env.ANY_SRC_FILES)[] | select(startswith("src/"))] - $covered')"
+          if [ "$unrouted" != "[]" ]; then
+            echo "::warning::src/** paths matched by NO named filter group — forcing run-all (FR-004 fail-closed catch-all). Add a named group for their directory."
+            echo "unrouted src paths (JSON): $unrouted"
             echo "unmatched=true" >> "$GITHUB_OUTPUT"
           else
             echo "unmatched=false" >> "$GITHUB_OUTPUT"

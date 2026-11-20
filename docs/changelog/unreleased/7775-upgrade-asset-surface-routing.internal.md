@@ -1,1 +1,1 @@
-- CI now runs the `upgrade` and `cli` shards for changes to the skills, tool-surface and `specify_cli/runtime` packages, and the `make_mission` parity test pins its first-commit dates (#7775, #7776).
+- CI now runs the `upgrade` and `cli` shards for changes to the skills, tool-surface and `specify_cli/runtime` packages, runs every shard when any one `src/` path matches no router group, and the `make_mission` parity test pins its first-commit dates (#7775, #7776).
