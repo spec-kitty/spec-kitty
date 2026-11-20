@@ -78,10 +78,10 @@
       "criterion_id": "FR-008",
       "description": "Verify FR-008 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/runtime/next/test_board_query_read_door_7507.py::test_query_renders_an_unreadable_status_source_as_a_typed_error[remote_only-STATUS_SURFACE_REF_REMOTE_ONLY]; subtype of StatusSurfaceRefUnreadable",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T21:51:08.688841+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
