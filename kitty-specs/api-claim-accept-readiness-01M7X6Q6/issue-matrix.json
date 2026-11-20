@@ -1,5 +1,17 @@
 {
   "rows": {
+    "#2512": {
+      "evidence_ref": "Context only: cited in research.md R-05 as the origin of move-task's planned claim release; the #7794 residual it shares is tracked there",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#4786": {
       "evidence_ref": "Context only: the planned release must not clear implementer_of_record; pinned by test_transition_to_planned_releases_the_claim_and_keeps_the_implementer_of_record",
       "fr": null,
