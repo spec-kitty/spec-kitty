@@ -30,6 +30,7 @@
   "purpose_context": "On a fresh clone the status board refuses with a raw unreadable-ref error and the recovery text claims the branch was never fetched while omitting the step that actually unblocks reads. This Mission makes every remote-only refusal carry one canonical, truthful remedy naming the right remote.",
   "purpose_tldr": "Give operators on a fresh clone a complete, truthful recovery path when a Mission's coordination or topic branch exists only on a remote.",
   "slug": "remote-only-branch-remedy-01M7X5Z5",
+  "status_phase": "1",
   "target_branch": "issue-5287-remote-only-coord-remedy",
   "topology": "single_branch",
   "topology_decision": {
