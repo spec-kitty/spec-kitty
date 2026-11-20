@@ -5,8 +5,9 @@ coordination branch (or its Mission topic branch) with no local head while a
 remote still holds it. Every command that meets that state prints the same
 ordered steps, composed here:
 
-1. ``git -C <root> fetch <remote> <branch>`` (omitted when this clone already
-   holds ``refs/remotes/<remote>/<branch>``);
+1. ``git -C <root> fetch <remote> <branch>:refs/remotes/<remote>/<branch>``
+   (omitted when this clone already holds that remote-tracking ref; the
+   explicit destination makes it work in a single-branch or shallow clone);
 2. ``git -C <root> branch <branch> <remote>/<branch>``;
 3. a caller-supplied follow-up (the coordination doctor, or "re-run").
 
@@ -21,6 +22,7 @@ This module lives in ``mission_runtime`` so both ``mission_runtime`` and
 
 from __future__ import annotations
 
+import shlex
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -113,9 +115,13 @@ def remote_only_steps(facts: RemoteOnlyBranch, repo_root: Path, follow_up: str) 
     """
     remote = facts.remote or _REMOTE_PLACEHOLDER
     branch = facts.branch
+    root = shlex.quote(str(repo_root))
     steps: list[str] = []
     if not facts.tracking_ref_present:
-        steps.append(f"`git -C {repo_root} fetch {remote} {branch}`")
-    steps.append(f"`git -C {repo_root} branch {branch} {remote}/{branch}`")
+        # An explicit destination: a single-branch (or shallow) clone's fetch
+        # refspec does not cover the branch, so a bare `fetch <remote> <b>` would
+        # write only FETCH_HEAD and the next step could not name <remote>/<b>.
+        steps.append(f"`git -C {root} fetch {remote} {branch}:refs/remotes/{remote}/{branch}`")
+    steps.append(f"`git -C {root} branch {branch} {remote}/{branch}`")
     steps.append(follow_up)
     return f"Run in order: {', then '.join(steps)}.{_remote_note(facts)}"

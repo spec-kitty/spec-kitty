@@ -39,7 +39,9 @@ def test_tracking_ref_absent_leads_with_a_targeted_fetch() -> None:
 
     text = remote_only_steps(facts, _ROOT, "re-run the command")
 
-    assert text == (f"Run in order: `git -C {_ROOT} fetch origin {_BRANCH}`, then `git -C {_ROOT} branch {_BRANCH} origin/{_BRANCH}`, then re-run the command.")
+    assert text == (
+        f"Run in order: `git -C {_ROOT} fetch origin {_BRANCH}:refs/remotes/origin/{_BRANCH}`, then `git -C {_ROOT} branch {_BRANCH} origin/{_BRANCH}`, then re-run the command."
+    )
 
 
 @pytest.mark.unit
@@ -48,7 +50,7 @@ def test_ambiguous_remote_is_a_placeholder_that_lists_the_candidates() -> None:
 
     text = remote_only_steps(facts, _ROOT, _DOCTOR)
 
-    assert f"fetch <remote> {_BRANCH}" in text
+    assert f"fetch <remote> {_BRANCH}:refs/remotes/<remote>/{_BRANCH}" in text
     assert f"branch {_BRANCH} <remote>/{_BRANCH}" in text
     assert text.endswith("(<remote> is the remote that holds the branch, one of: fork, upstream)")
     assert "origin" not in text
@@ -163,3 +165,10 @@ def test_outside_a_repository_nothing_is_present(tmp_path: Path) -> None:
 
     assert facts.tracking_ref_present is False
     assert facts.remote is None
+
+
+@pytest.mark.unit
+def test_a_root_with_spaces_is_quoted() -> None:
+    facts = RemoteOnlyBranch(branch=_BRANCH, remote="origin", tracking_ref_present=True, remotes=("origin",))
+
+    assert f"`git -C '/work/my repo' branch {_BRANCH} origin/{_BRANCH}`" in remote_only_steps(facts, Path("/work/my repo"), _DOCTOR)

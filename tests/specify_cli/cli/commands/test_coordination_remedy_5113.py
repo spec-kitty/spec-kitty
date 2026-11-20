@@ -352,7 +352,7 @@ def test_write_target_degrade_remote_only_round_trip(
     command_steps = [s for s in steps if s.startswith(("git ", "spec-kitty "))]
     assert len(command_steps) == 3, f"expected exactly 3 ordered command steps (fetch, branch-create, doctor --fix), got {command_steps!r} from: {text!r}"
     fetch_step, branch_step, doctor_step = command_steps
-    assert fetch_step.split() == ["git", "-C", str(repo), "fetch", "origin", coord_branch]
+    assert fetch_step.split() == ["git", "-C", str(repo), "fetch", "origin", f"{coord_branch}:refs/remotes/origin/{coord_branch}"]
     assert branch_step.split() == ["git", "-C", str(repo), "branch", coord_branch, f"origin/{coord_branch}"]
     assert doctor_step.split() == [
         "spec-kitty",
