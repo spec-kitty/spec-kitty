@@ -719,7 +719,8 @@ def _read_ref_or_refuse(repo_root: Path, ref: str, path: str, *, follow_up: str,
     keeps the plain ``StatusSurfaceRefUnreadable``. With *require_tracking_ref* (the
     Mission topic branch, which no earlier probe proved present), the refusal is
     remote-only only when this clone holds a remote-tracking ref for the branch;
-    otherwise the branch may be gone everywhere and the plain error stands. The remote-tracking ref is never read
+    otherwise the branch may be gone everywhere, so the plain error stands, with a
+    hedged "if the branch still exists on a remote" hint from the same builder. The remote-tracking ref is never read
     as status (ADR 2026-11-06-2, Amendment 2026-11-20).
     """
     from specify_cli.coordination import status_service
@@ -734,7 +735,15 @@ def _read_ref_or_refuse(repo_root: Path, ref: str, path: str, *, follow_up: str,
         branch = ref.removeprefix(_HEADS_PREFIX)
         facts = remote_only_branch(repo_root, branch)
         if require_tracking_ref and not facts.tracking_ref_present:
-            raise
+            # Nothing local proves a remote holds it (it may be gone everywhere, or this is a
+            # single-branch clone): keep the plain error, with a hedged hint from the same builder.
+            hint = remote_only_steps(facts, repo_root, follow_up)
+            raise status_service.StatusSurfaceRefUnreadable(
+                repo_root=repo_root,
+                ref=ref,
+                path=path,
+                detail=f"{exc.detail}. If the branch still exists on a remote: {hint}",
+            ) from exc
         remedy = remote_only_steps(facts, repo_root, follow_up)
         raise status_service.StatusSurfaceRefRemoteOnly(repo_root=repo_root, ref=ref, path=path, branch=branch, remedy=remedy) from exc
 
