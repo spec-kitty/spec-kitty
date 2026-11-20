@@ -17,5 +17,7 @@
   "target_branch": "issue-5287-remote-only-coord-remedy",
   "topology": "single_branch",
   "topology_settled": false,
-  "topology_source": "default"
+  "topology_source": "default",
+  "contracts": "none",
+  "contracts_rationale": "No external interface is added: the change is an error subtype and remedy text on existing CLI commands; the data model records the shapes."
 }
