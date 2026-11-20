@@ -20,7 +20,7 @@
   "work_packages": {
     "WP01": {
       "actor": "claude",
-      "agent": null,
+      "agent": "claude::python-pedro",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -30,7 +30,8 @@
       "last_transition_at": "2026-11-20T20:54:53.268191+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Builder + three rewires; red-first ATDD; parity test; re-pins of 4979/5113. Tests: 225 blast radius + 32 rerun after note fix; layer/remote-contact gates 121 passed."
+        "Builder + three rewires; red-first ATDD; parity test; re-pins of 4979/5113. Tests: 225 blast radius + 32 rerun after note fix; layer/remote-contact gates 121 passed.",
+        "Cycle 1 fixes: B1 fetch names its destination (refs/remotes/<remote>/<b>); 4979 single-branch test runs the printed steps (red 24a89285, green 5415660b); N1 root shlex.quoted; N2/N3 recorded in tracer."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
