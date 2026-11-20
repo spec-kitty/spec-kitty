@@ -112,7 +112,8 @@ def project(tmp_path: Path) -> Path:
     repo = init_git_repo(tmp_path / "project")
     result = cli(repo, "init", ".", "--ai", "claude")
     assert result.returncode == 0, unwrapped(result)
-    commit_init_leftovers(repo, "spec-kitty init")
+    leftovers_committed = commit_init_leftovers(repo, "spec-kitty init")
+    assert not leftovers_committed, "`spec-kitty init` left files uncommitted; since #7612 it makes the root commit itself"
     return repo
 
 

@@ -628,7 +628,8 @@ def test_upgrade_migrates_a_prior_release_clone(tmp_path: Path, monkeypatch: pyt
     with contextlib.chdir(root):
         init = runner.invoke(root_app, ["init", "--ai", "codex", "--non-interactive"], catch_exceptions=False)
     assert init.exit_code == 0, init.output
-    commit_init_leftovers(root, "init")
+    leftovers_committed = commit_init_leftovers(root, "init")
+    assert not leftovers_committed, "`spec-kitty init` left files uncommitted; since #7612 it makes the root commit itself"
     # Downgrade this clone to the prior release's command-skill layout.
     for command in CANONICAL_COMMANDS:
         shutil.rmtree(root / command_skill_rel_path(command).rsplit("/", 1)[0])
