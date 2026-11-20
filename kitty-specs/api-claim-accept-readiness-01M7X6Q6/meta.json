@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-20T23:03:09.147089+00:00",
+      "accepted_by": "claude::python-pedro",
+      "accepted_from_commit": "6ca0814190f7d626729987194877261c1b98909a"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-20T23:03:09.147089+00:00",
+  "accepted_by": "claude::python-pedro",
+  "accepted_from_commit": "6ca0814190f7d626729987194877261c1b98909a",
   "create_return_branch": "issue-5781-api-claim-accept-readiness",
   "created_at": "2026-11-20T19:25:19.760937+00:00",
   "flattened": false,
