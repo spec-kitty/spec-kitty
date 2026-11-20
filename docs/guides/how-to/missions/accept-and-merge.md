@@ -128,6 +128,13 @@ check without making it true (#7512). The levers in full:
   The section id must be a Mission type the project knows (built-in, org or project), and
   every value must be a repository-relative directory; anything else stops `accept` with a
   configuration error.
+
+  That error stops `accept` for every Mission in the project, not only the type the section
+  names. If a section names a Mission type that no longer exists (for example a type removed
+  from an org pack), delete or rename that section in `.kittify/config.yaml`; the error names
+  the unknown id and lists the known types. If the error says the mission-type roster could
+  not be read, run `spec-kitty doctor charter-packs` to find the broken pack, fix or
+  re-sync it, or remove the per-type sections until it is fixed (plain values need no roster).
 - **Remap for every Mission type.** A plain string value applies to every type that
   declares the key:
 
@@ -148,7 +155,9 @@ check without making it true (#7512). The levers in full:
   `deliverables` (artifact-routed) is not in their vocabulary. See the
   [ADR](../../../adr/3.x/2026-08-28-1-project-path-convention-override-precedes-doctrine.md).
 - **Waive only the path check** (#7566). When a layout mismatch is genuine and you do not
-  want to remap it, waive path conventions while every other accept check stays strict:
+  want to remap it, waive the layout-path check while every other accept check stays strict.
+  A missing Mission artifact such as `contracts/` is not waived; declare `"contracts": "none"`
+  for that instead:
   - for one run: `spec-kitty accept --waive-path-conventions --waive-reason "<why>"`. The
     reason is required and is recorded on the acceptance history entry in `meta.json`.
     `orchestrator-api` has no per-run flag.
