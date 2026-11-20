@@ -462,6 +462,10 @@ lacks the remote-tracking ref), create the local branch, then run `spec-kitty do
 - The classification runs only after a failed read, so a readable ref costs no extra subprocess
   (NFR-001 unchanged).
 - A local ref that names a missing object still resolves and keeps `STATUS_SURFACE_REF_UNREADABLE`.
+- For `MISSION_BRANCH_REF` no earlier probe has shown that a remote holds the topic branch, so the
+  refusal is remote-only only when this clone holds a remote-tracking ref for it; a topic branch
+  gone everywhere keeps `STATUS_SURFACE_REF_UNREADABLE`. For `COORD_BRANCH_REF` the coordination
+  probe has already found the branch before the read.
 - A coordination branch the probe classifies as deleted keeps raising `CoordinationBranchDeleted`.
 - The door still never reads a remote-tracking ref as a status source: one declared source per
   cell, no fallback. A remote-tracking read source, if wanted, belongs to #7408 under its own
