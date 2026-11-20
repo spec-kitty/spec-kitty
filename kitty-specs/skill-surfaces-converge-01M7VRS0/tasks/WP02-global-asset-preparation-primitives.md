@@ -34,6 +34,9 @@ owned_files:
 - tests/runtime/test_global_asset_inventory_anchor.py
 - tests/runtime/test_asset_preparation_retire_proof.py
 - docs/changelog/unreleased/7722.fixed.md
+- src/specify_cli/runtime/agent_skills.py
+- src/specify_cli/runtime/agent_commands.py
+- tests/runtime/test_build_serialized.py
 role: implementer
 tags: []
 task_type: implement
