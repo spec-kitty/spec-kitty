@@ -67,7 +67,14 @@
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 191,
-      "shell_pid_created_at": "1795165902.36"
+      "shell_pid_created_at": "1795165902.36",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
     },
     "WP03": {
       "actor": "claude",
