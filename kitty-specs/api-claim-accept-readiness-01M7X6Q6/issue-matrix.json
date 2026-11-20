@@ -1,5 +1,17 @@
 {
   "rows": {
+    "#4786": {
+      "evidence_ref": "Context only: the planned release must not clear implementer_of_record; pinned by test_transition_to_planned_releases_the_claim_and_keeps_the_implementer_of_record",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "implementer-of-record projection",
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#5227": {
       "evidence_ref": "<auto-classified: no action required>",
       "fr": null,
