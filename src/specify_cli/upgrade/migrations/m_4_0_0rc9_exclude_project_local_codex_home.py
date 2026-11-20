@@ -16,7 +16,7 @@ folder, personal config in a Codex home. That is decided here, per clone:
    committed). Files already committed there stay tracked.
 2. Warn about the untracked files git still shows in the agent folders the old
    whole-folder rules hid, so every clone, including one that pulled the
-   narrowed ``.gitignore``, reviews them before a ``git add -A``.
+   narrowed ``.gitignore``, reviews them before staging everything.
 
 The effect lives outside version control, so the migration is clone-local: it is
 pending in every clone until it runs there. It never deletes, moves or untracks
@@ -70,7 +70,7 @@ def _visibility_warning(paths: list[str]) -> str | None:
     more = f" and {len(paths) - _MAX_LISTED_PATHS} more" if len(paths) > _MAX_LISTED_PATHS else ""
     return (
         f"Spec Kitty no longer ignores whole agent folders (4.0.0rc8), so git shows {len(paths)} untracked file(s) in them: {listed}{more}. "
-        "Review them before 'git add -A': commit the ones your team shares and add your own ignore rule for the rest."
+        "Review them before you stage everything: commit the ones your team shares and add your own ignore rule for the rest."
     )
 
 
