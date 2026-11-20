@@ -4,7 +4,7 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: approved-lane-resolution-route-01M7WW0Z
 mission_id: 01M7WW0ZHE3JCZ0KW6RP8X34G4
-generated_at: '2026-11-20T17:54:58.335871+00:00'
+generated_at: '2026-11-20T19:48:46.874398+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
@@ -15,16 +15,16 @@ input_artifacts:
     sha256: b3c3d009f533fb3b83343427da8ad6a9dcef1fd0329a9b5d449302e70ece5155
   tasks.md:
     path: .worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks.md
-    sha256: cac37b246513d70faae53cddd728b79cc8202c7c301bf4ebe7e07c6efa21c48d
+    sha256: 98d16bad51ef275e88751fd4e461ac488fb82abf43da545bf752740e7a390c22
   charter:
     path: .kittify/charter/charter.yaml
     sha256: 83874f7451d21cf0615682164d7bb883844ee032e7622bb1359a343fd0e6fb03
 verdict: ready
 issue_counts:
+  high: 0
+  medium: 0
   critical: 0
   low: 2
-  medium: 0
-  high: 0
   info: 0
 findings:
 - id: A12
@@ -39,7 +39,7 @@ findings:
 
 ## Specification Analysis Report
 
-Second pass, after remediation commit 4c8c0ab. The first pass was by claude::analyst-annie: 17 findings (1 high, 4 medium, 12 low). Fifteen are resolved in the artifacts and two remain as accepted LOW residuals.
+Third pass, after remediation commit 4c8c0ab and the reviewer-accepted task refinements in e19da56. e19da56 moves WP08 review item 3 into WP07's DoD as recorded leeway and adds the WP05 binding addendum from the orchestrator ruling. Neither changes requirements or coverage; both tighten WP DoDs. The first pass was by claude::analyst-annie: 17 findings (1 high, 4 medium, 12 low). Fifteen are resolved in the artifacts and two remain as accepted LOW residuals.
 
 | ID | Category | Severity | Location(s) | Summary | Recommendation |
 |----|----------|----------|-------------|---------|----------------|
