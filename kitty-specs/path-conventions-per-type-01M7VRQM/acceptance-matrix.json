@@ -118,10 +118,10 @@
       "criterion_id": "FR-012",
       "description": "Verify FR-012 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "lane-b c0126d62 tests/specify_cli/acceptance/test_path_conventions_per_type.py + tests/agent/test_validators_unit.py + test_accept_contracts_waiver.py (61 passed); lane-d 228c7e54 tests/specify_cli/cli/commands/test_accept_waive_path_conventions.py + test_lifted_root_validate_mission_paths_single_caller.py (11 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:22:32.979016+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
