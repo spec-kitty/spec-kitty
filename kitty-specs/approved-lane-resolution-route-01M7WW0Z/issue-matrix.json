@@ -145,16 +145,16 @@
       "wp": null
     },
     "#7754": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Mission approved-lane-resolution-route-01M7WW0Z WP07 (+ WP08 --incorporate)",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Stale-lane remedy names implement, which refuses approved WPs",
+      "verdict": "in-mission",
+      "wp": "WP07"
     },
     "#7755": {
       "evidence_ref": "<link or commit>",
