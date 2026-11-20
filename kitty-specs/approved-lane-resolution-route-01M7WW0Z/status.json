@@ -286,7 +286,7 @@
     },
     "WP11": {
       "actor": "claude",
-      "agent": null,
+      "agent": "claude::python-pedro",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -310,7 +310,8 @@
         "- 2026-11-20T19:47:22Z – unknown – trace(design-decisions) cycle 2: matching rule fixed per review. A spine merge M on A incorporates C only when a commit on M's non-first-parent side (M^1..p for p in parents[1:]) lies on C's OWN first-parent spine (first-parent coord_base..C minus what M^1 reaches); never the full tip closure (_dependency_anchor_before_incorporating now takes C's branch; new _merge_brings_in). A gone/empty canceled lane short-circuits to no own commits (same result as before). Green: 19/19 in the file incl. refresh-merge repro live+frozen, never-merged carrier check, and the end-to-end cell (exit 0, approved src/pkg/wp01_more.py lands, C's file absent; the same cell is exit 0 with the base source, verified by swapping in 2c1a56fe's reconciliation_canceled.py). Main/control/mutation tests stay green.",
         "- 2026-11-20T19:47:28Z – unknown – trace(approach) residuals for WP13 ADR list (also in the helper docstring): (1) fast-forward of C onto A; (2) git merge --squash of C into A (C keeps c1, A is no carrier); (3) cherry-pick of c1 onto A (patch-equivalent copy). In each, C's content is still refused by the un-attributable blob axis but not named CANCELED_REACHABLE_VIA_DEPENDENCY; each needs a re-approval that reviews the content.",
         "- 2026-11-20T19:47:57Z – unknown – correction to the previous residual note: in the three residual shapes (fast-forward, merge --squash, cherry-pick of c1 onto A) C's change becomes A's own first-parent commit, so it is NOT refused by any axis: it lands as A's approved content, guarded only by a re-approval that reviews it. Docstring corrected.",
-        "- 2026-11-20T20:06:04Z – unknown – cycle 2 tests: targeted set + arch gates (-n 6 loadfile) 696 passed, 2 xfailed, 1 failed = test_no_dead_symbols::test_no_public_symbol_in_all_is_unimported under parallel load; rerun in isolation twice: 37/37 and 1/1 passed (my diff adds no __all__ entry), classified as a parallel-run interference, not this change. tests/architectural/test_layer_rules.py green. make test-fast 3144 passed, 7 skipped. ruff/format/mypy clean."
+        "- 2026-11-20T20:06:04Z – unknown – cycle 2 tests: targeted set + arch gates (-n 6 loadfile) 696 passed, 2 xfailed, 1 failed = test_no_dead_symbols::test_no_public_symbol_in_all_is_unimported under parallel load; rerun in isolation twice: 37/37 and 1/1 passed (my diff adds no __all__ entry), classified as a parallel-run interference, not this change. tests/architectural/test_layer_rules.py green. make test-fast 3144 passed, 7 skipped. ruff/format/mypy clean.",
+        "Review cycle 1 addressed: a merge incorporates C only through C's own first-parent spine (no tip-closure match); refresh-merge repro (live+frozen), never-merged carrier check and an end-to-end base-verdict cell added; squash/cherry-pick residuals documented. Commit 62680dda."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
