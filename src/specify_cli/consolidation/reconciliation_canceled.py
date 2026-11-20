@@ -338,19 +338,24 @@ def _fully_canceled_lane_own_commits(
     for lane in lanes_manifest.lanes:
         if is_planning_lane(lane) or not lane_fully_canceled(lane, excluded_canceled_wp_ids):
             continue
-        tip_commits = _lane_tip_commits(repo_root, coord_base_ref, _lane_branch_for(lanes_manifest, lane.lane_id))
+        lane_branch = _lane_branch_for(lanes_manifest, lane.lane_id)
+        tip_commits = _lane_tip_commits(repo_root, coord_base_ref, lane_branch)
+        if not tip_commits:  # a gone or empty canceled lane owns nothing, whatever its anchors
+            by_lane[lane.lane_id] = frozenset()
+            continue
         anchors = _closed_world_anchors(lanes_manifest, lane, target_base, excluded_canceled_wp_ids=excluded_canceled_wp_ids, frozen_tips=frozen_tips)
-        anchors = _canceled_lane_anchors(repo_root, coord_base_ref, anchors, target_base, frozenset(tip_commits))
+        anchors = _canceled_lane_anchors(repo_root, coord_base_ref, anchors, target_base, lane_branch)
         by_lane[lane.lane_id] = lane_own_commits(repo_root, coord_base_ref, tip_commits, anchors)
     return by_lane
 
 
-def _canceled_lane_anchors(repo_root: Path, coord_base_ref: str, anchors: Sequence[str], target_base: str | None, canceled_tip: frozenset[str]) -> list[str]:
+def _canceled_lane_anchors(repo_root: Path, coord_base_ref: str, anchors: Sequence[str], target_base: str | None, canceled_branch: str) -> list[str]:
     """A fully-canceled lane C's anchors, each dependency anchor taken from BEFORE it incorporated C (#7497).
 
     The target base is kept as it is. A dependency anchor whose history never merged C stays
     unchanged, so every Mission without that shape reads the same anchors as before. One whose
-    spine cannot be read anchors nothing (fail closed: fewer of C's commits are exempt, never more).
+    history (or C's) cannot be read anchors nothing (fail closed: fewer of C's commits are exempt,
+    never more).
     """
     kept: list[str] = []
     for anchor in anchors:
@@ -358,32 +363,49 @@ def _canceled_lane_anchors(repo_root: Path, coord_base_ref: str, anchors: Sequen
             kept.append(anchor)
             continue
         try:
-            kept.append(_dependency_anchor_before_incorporating(repo_root, coord_base_ref, anchor, canceled_tip))
+            kept.append(_dependency_anchor_before_incorporating(repo_root, coord_base_ref, anchor, canceled_branch))
         except GitProbeError:
             continue
     return kept
 
 
-def _dependency_anchor_before_incorporating(repo_root: Path, coord_base_ref: str, dependency_tip: str, canceled_tip: frozenset[str]) -> str:
-    """*dependency_tip* as it was before its first-parent spine first merged in a commit of *canceled_tip* (#7497).
+def _dependency_anchor_before_incorporating(repo_root: Path, coord_base_ref: str, dependency_tip: str, canceled_branch: str) -> str:
+    """*dependency_tip* as it was before its first-parent spine first merged in C's own work (#7497).
 
     A dependency lane A that merged the fully-canceled lane C (``git merge --no-ff``) reaches every
     commit of C, so with A's live tip as an anchor C would own nothing and its content would never be
-    judged. Walking A's first-parent spine oldest first, the anchor is the first parent of the earliest
-    merge whose other parents bring in a commit of C that the first parent does not reach (the earliest
-    incorporation decides, a later re-merge of C changes nothing). A dependency lane that never merged C
-    keeps *dependency_tip*. A fast-forward of C onto A is not detected (C's commits are then A's own
-    first-parent commits, which the graph alone cannot tell apart): a recorded residual. A merge into A of
-    another branch that C also contains moves the anchor too; that only makes more of C's commits C's own
-    (the shrinking direction). Raises
-    :class:`GitProbeError` when the history cannot be read.
+    judged. Walking A's first-parent spine oldest first, a merge M incorporates C only when a commit
+    on M's non-first-parent side (``M^1..p`` for every other parent ``p``, M itself excluded) lies on
+    C's OWN first-parent spine: ``coord_base_ref..canceled_branch`` first-parent commits that A before
+    M (``M^1``) does not reach. Matching C's whole tip closure instead would read any ordinary merge on
+    A made before C was cut (a refresh of the Mission branch) as incorporating C, and move A's approved
+    work into C's canceled set (review cycle 1). The anchor is then ``M^1``; the earliest incorporation
+    decides, a later re-merge of C changes nothing. A dependency lane that never merged C keeps
+    *dependency_tip*.
+
+    Residuals (the graph shows C's change as A's own first-parent work, so it is NOT refused: it
+    lands as A's approved content, and only a re-approval that reviews that content guards it):
+
+    * a fast-forward of C onto A: C's commits become A's own first-parent commits, which the graph
+      alone cannot tell apart;
+    * ``git merge --squash`` of C into A: C keeps owning its commit, A is no carrier of it;
+    * a cherry-pick of C's commit onto A: a patch-equivalent copy, not C's commit.
+
+    Raises :class:`GitProbeError` when either history cannot be read.
     """
     spine = first_parent_commits_in_range(repo_root, coord_base_ref, dependency_tip)
+    canceled_spine = frozenset(first_parent_commits_in_range(repo_root, coord_base_ref, canceled_branch))
     for sha in reversed(spine):
         parents: list[str] = commit_parents(repo_root, sha)
-        if len(parents) > 1 and canceled_tip.intersection(commits_in_range(repo_root, parents[0], sha)):
+        if len(parents) > 1 and _merge_brings_in(repo_root, coord_base_ref, parents, canceled_spine):
             return parents[0]
     return dependency_tip
+
+
+def _merge_brings_in(repo_root: Path, coord_base_ref: str, parents: Sequence[str], canceled_spine: frozenset[str]) -> bool:
+    """True when a merge with *parents* brings in a commit of C's own first-parent spine its first parent does not reach."""
+    own = canceled_spine.difference(commits_in_range(repo_root, coord_base_ref, parents[0]))
+    return any(own.intersection(commits_in_range(repo_root, parents[0], other)) for other in parents[1:])
 
 
 @dataclass(frozen=True)
