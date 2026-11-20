@@ -92,3 +92,15 @@ def test_slug_unaffected_by_a_global_insteadof_transport_rewrite(tmp_path: Path,
     clone = _clone(origin, tmp_path / "work" / "some-other-dirname")
     _git("remote", "set-url", "origin", "https://github.com/acme/acme-widgets.git", cwd=clone)
     assert derive_project_slug(clone) == "acme-widgets"
+
+
+def test_slug_from_git_remote_is_none_without_origin(tmp_path: Path) -> None:
+    """#5215: the remote-only lookup never falls back to the directory name."""
+    from specify_cli.identity.project import slug_from_git_remote
+
+    local = tmp_path / "dirname-differs"
+    local.mkdir()
+    _git("init", "-q", cwd=local)
+
+    assert slug_from_git_remote(local) is None
+    assert derive_project_slug(local) == "dirname-differs"

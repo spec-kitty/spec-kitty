@@ -170,8 +170,26 @@ def derive_build_id(project_uuid: UUID, node_id: str) -> str:
 def derive_project_slug(repo_root: Path) -> str:
     """Derive project slug from git remote or directory name.
 
-    Attempts to extract repo name from git remote origin URL.
-    Falls back to directory name if no remote is configured.
+    Attempts to extract repo name from git remote origin URL
+    (:func:`slug_from_git_remote`). Falls back to directory name if no remote
+    is configured.
+
+    Args:
+        repo_root: Path to repository root
+
+    Returns:
+        Kebab-case project slug
+    """
+    return slug_from_git_remote(repo_root) or _normalize_slug(repo_root.name)
+
+
+def slug_from_git_remote(repo_root: Path) -> str | None:
+    """Return the kebab-case repository name of the ``origin`` remote, or ``None``.
+
+    ``None`` when git is missing, there is no ``origin`` remote, or its URL
+    names no repository. Callers that must never show a directory name (the
+    session-presence orientation, #5215) use this without the directory
+    fallback of :func:`derive_project_slug`.
 
     Uses the transport view (``git remote get-url``, which applies any
     global ``url.<base>.insteadOf`` rewrite) rather than the raw configured
@@ -189,9 +207,8 @@ def derive_project_slug(repo_root: Path) -> str:
         repo_root: Path to repository root
 
     Returns:
-        Kebab-case project slug
+        Kebab-case repository name, or ``None``
     """
-    # Try git remote origin first
     try:
         result = subprocess.run(
             ["git", "remote", "get-url", "origin"],
@@ -216,13 +233,9 @@ def derive_project_slug(repo_root: Path) -> str:
             # SSH format: git@host:user/repo
             url = url.split(":")[-1]
 
-        return _normalize_slug(url.split("/")[-1])
-
     except (subprocess.CalledProcessError, FileNotFoundError):
-        pass
-
-    # Fallback to directory name
-    return _normalize_slug(repo_root.name)
+        return None
+    return _normalize_slug(url.split("/")[-1]) or None
 
 
 def _normalize_slug(name: str) -> str:
