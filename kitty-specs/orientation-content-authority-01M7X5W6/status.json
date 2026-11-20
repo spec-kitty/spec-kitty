@@ -1,7 +1,7 @@
 {
-  "event_count": 1,
-  "last_event_id": "01M7X62QYWTSD6TVN0GC9GQRV7",
-  "materialized_at": "2026-11-20T19:14:07.964854+00:00",
+  "event_count": 2,
+  "last_event_id": "01M7X62S0T6KA6V3X51DKBB8SY",
+  "materialized_at": "2026-11-20T19:14:09.050832+00:00",
   "mission_number": "",
   "mission_slug": "orientation-content-authority-01M7X5W6",
   "mission_type": "software-dev",
@@ -15,7 +15,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 1
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
@@ -24,6 +24,13 @@
       "lane": "planned",
       "last_event_id": "01M7X62QYWTSD6TVN0GC9GQRV7",
       "last_transition_at": "2026-11-20T19:14:07.964854+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M7X62S0T6KA6V3X51DKBB8SY",
+      "last_transition_at": "2026-11-20T19:14:09.050832+00:00"
     }
   }
 }
