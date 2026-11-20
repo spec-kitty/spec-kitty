@@ -71,6 +71,18 @@
       "title": "<fill at WP-implementation time>",
       "verdict": "unknown",
       "wp": null
+    },
+    "#7794": {
+      "evidence_ref": "Follow-up: #7794 (fix belongs in spec-kitty-events, C-001); pinned as strict xfail in tests/orchestrator_api/test_api_claim_sidecar_5781.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "A claim release erases the claim slots of every later claim (shared reducer annotation order)",
+      "verdict": "deferred-with-followup",
+      "wp": null
     }
   },
   "schema_version": 1
