@@ -17,4 +17,5 @@
 ```
 
 - Exact value `"waived"` and a non-blank string rationale. Anything else waives nothing, and the blocking text carries a warning naming the problem.
+- Honoured on every accept path, orchestrator-api included (operator ruling Q4), like `contracts: none`.
 - Effect: as for the per-run flag. The rationale is surfaced in the accept warning: `path conventions waived by meta.json (path_conventions: waived): <rationale>`.

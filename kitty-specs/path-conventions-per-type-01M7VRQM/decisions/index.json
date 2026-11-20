@@ -73,6 +73,30 @@
       "status": "resolved",
       "step_id": null,
       "summary_json": null
+    },
+    {
+      "created_at": "2026-11-20T06:52:17.400462Z",
+      "decision_id": "01M7VVMCKR8V6NZ7TMH935QESH",
+      "final_answer": "b: honour the meta.json waiver everywhere, orchestrator-api included, like contracts: none; only the per-run flag is CLI-only; metadata stays strict on both paths.",
+      "input_key": "orchestrator_meta_waiver",
+      "mission_id": "01M7VRQM1E45PQDM459J7PTNYD",
+      "mission_slug": "path-conventions-per-type-01M7VRQM",
+      "opened_by": "cli",
+      "options": [
+        "a: honour neither waiver on orchestrator-api",
+        "b: honour the meta.json waiver everywhere; per-run flag CLI-only",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Does orchestrator-api honour the meta.json path-conventions waiver?",
+      "rationale": null,
+      "resolved_at": "2026-11-20T06:52:21.717170Z",
+      "resolved_by": null,
+      "slot_key": "plan.waiver.orchestrator-meta",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
     }
   ],
   "mission_id": "01M7VRQM1E45PQDM459J7PTNYD",

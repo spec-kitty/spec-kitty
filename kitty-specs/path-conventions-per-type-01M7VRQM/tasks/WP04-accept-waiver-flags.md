@@ -9,6 +9,7 @@ requirement_refs:
 - FR-011
 - FR-013
 - SC-004
+- NFR-003
 planning_base_branch: issue-7566-path-conventions-per-type
 merge_target_branch: issue-7566-path-conventions-per-type
 branch_strategy: Planning artifacts for this mission were generated on issue-7566-path-conventions-per-type. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-7566-path-conventions-per-type unless the human explicitly redirects the landing branch.
@@ -69,7 +70,7 @@ Wrap HTML/XML tags in backticks; use language identifiers in code blocks.
 - A flag without a non-blank reason, or a reason without the flag, is refused (exit 2) before any write (FR-011).
 - `spec-kitty agent mission accept` forwards both flags.
 - The `--lenient` help still mentions path conventions (the existing pin) and points at the narrow flag.
-- orchestrator-api stays strict: a positive control proves `collect_feature_summary(..., strict_metadata=True)` with no waiver still reports a path violation (FR-013).
+- orchestrator-api offers no per-run waiver but honours a well-formed `meta.json` waiver like the CLI (operator ruling Q4, FR-013); controls prove both.
 
 ## Context & Constraints
 
@@ -96,7 +97,7 @@ New `tests/specify_cli/cli/commands/test_accept_waive_path_conventions.py`:
 3. Threading: patch `collect_feature_summary` (at the accept module's import site) and `perform_acceptance`; invoke with the flag and reason; assert `collect_feature_summary` received `path_conventions_waiver_reason="why"` **and** `strict_metadata=True`, and `perform_acceptance` received `path_conventions_waiver_reason="why"` and `lenient=False`.
 4. Agent wrapper: `spec-kitty agent mission accept --waive-path-conventions --waive-reason why` forwards both to the top-level accept (patch `mission.top_level_accept`, the documented seam).
 5. End-to-end at summary level (no CLI): a real mission fixture (reuse helpers from `tests/specify_cli/acceptance/` such as those in `test_accept_contracts_waiver.py`) with `src/` missing **and** a WP missing required metadata → `collect_feature_summary(..., strict_metadata=True, path_conventions_waiver_reason="why")` has no path violation **but** still reports the metadata issue. This is the SC-004 discriminator.
-6. orchestrator positive control: `collect_feature_summary(..., strict_metadata=True)` with no waiver → a path violation is present.
+6. orchestrator controls (operator ruling Q4): `collect_feature_summary(..., strict_metadata=True)` with no waiver → a path violation is present; with a well-formed `meta.json` waiver and no per-run reason → no path violation, metadata still strict. No orchestrator source change is needed: it reaches the same evaluator.
 
 Confirm red.
 

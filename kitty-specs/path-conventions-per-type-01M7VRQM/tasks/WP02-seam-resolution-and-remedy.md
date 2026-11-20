@@ -16,6 +16,7 @@ requirement_refs:
 - SC-001
 - SC-002
 - SC-003
+- NFR-003
 planning_base_branch: issue-7566-path-conventions-per-type
 merge_target_branch: issue-7566-path-conventions-per-type
 branch_strategy: Planning artifacts for this mission were generated on issue-7566-path-conventions-per-type. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-7566-path-conventions-per-type unless the human explicitly redirects the landing branch.

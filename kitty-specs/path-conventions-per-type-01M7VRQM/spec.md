@@ -69,7 +69,7 @@ A software-dev Mission then accepts against `packs/`. Documentation, plan and re
 3. **Given** `meta.json` with `"path_conventions": "waived"` and a non-blank `path_conventions_rationale`, **When** accept runs without any flag, **Then** path conventions are advisory and the rationale is surfaced in the accept output. Metadata stays strict.
 4. **Given** a malformed per-Mission waiver (a wrong value or a missing or blank rationale), **Then** nothing is waived, and the blocking text carries a warning naming the problem.
 5. **Given** `--waive-path-conventions` without `--waive-reason` (or with a blank one), **Then** accept refuses with a usage error before doing anything.
-6. **Given** the orchestrator-api accept or consolidate path, **Then** it stays strict and offers no waiver.
+6. **Given** the orchestrator-api accept or consolidate path, **Then** it offers no per-run waiver; it honours a well-formed `meta.json` waiver exactly as the CLI does (operator ruling Q4), and metadata stays strict.
 
 ### Edge Cases
 
@@ -98,7 +98,7 @@ A software-dev Mission then accepts against `packs/`. Documentation, plan and re
 | FR-010 | A `meta.json` declaration `"path_conventions": "waived"` with a non-blank string `path_conventions_rationale` makes path-convention misses non-blocking for that Mission. The rationale is surfaced in the accept output. A malformed declaration waives nothing and warns. | Draft | [build] | no |
 | FR-011 | `--waive-path-conventions` without a non-blank `--waive-reason` is refused before any write. | Draft | [build] | no |
 | FR-012 | The failure text names the narrow waiver before `--lenient`. `--lenient` keeps its current meaning. | Draft | [build] | no |
-| FR-013 | The orchestrator-api accept and consolidate paths stay strict and do not honour the per-run waiver. | Draft | [ratchet] | yes — positive control: an orchestrator-api strict call still reports path violations |
+| FR-013 | The orchestrator-api accept and consolidate paths offer no per-run waiver (path misses block there unless the Mission's `meta.json` carries a well-formed waiver, which every accept path honours, operator ruling Q4), and metadata stays strict there. | Draft | [build] | no — the same Mission data gives the same path verdict on the CLI and orchestrator-api paths |
 
 ### Non-Functional Requirements
 

@@ -25,7 +25,7 @@
   - per run: `accept --waive-path-conventions --waive-reason "<why>"`. A blank or missing reason is refused before any write. Recorded on the acceptance history entry as `path_conventions_waived: {"reason": ...}`.
   - per Mission: `meta.json` `"path_conventions": "waived"` plus `"path_conventions_rationale"`. It is read by the generalized #5298 waiver reader (exact value, non-blank rationale, fail-closed warning). The rationale is surfaced in the accept warning.
 - **Effect**: identical to `--lenient`'s path effect (path misses become the warning text), with `strict_metadata` untouched.
-- **orchestrator-api**: calls `collect_feature_summary(..., strict_metadata=True)` without the new keyword. The per-run waiver is unavailable there. The per-Mission declaration is Mission data, so it applies wherever accept is evaluated. It is a recorded operator decision in the Mission, the same as `contracts: none`, which orchestrator-api also honours.
+- **orchestrator-api** (operator ruling Q4, option b): calls `collect_feature_summary(..., strict_metadata=True)` without the new keyword, so the per-run waiver is unavailable there. The per-Mission declaration is Mission data and applies wherever accept is evaluated, orchestrator-api included, the same as `contracts: none`. Metadata stays strict on both paths.
 
 ## R-5 Remedy ordering (#3783 contract)
 
