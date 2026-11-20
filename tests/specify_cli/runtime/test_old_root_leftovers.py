@@ -186,3 +186,13 @@ def test_a_record_with_other_bytes_proves_nothing(setup: _Setup, tmp_path: Path,
 
     assert files["skill"] not in _skill_leftovers(project)
     assert files["command"] not in _command_leftovers(project)
+
+
+def test_an_unreadable_inventory_proves_nothing(setup: _Setup, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    home, project, files = setup
+    files["skill"].write_bytes(_OLDER_PROJECTION)
+    _record_as_written(home, "global_skills", files["skill"])
+    (home / ".kittify" / "cache" / "global_skills-assets.json").write_text("{not json", encoding="utf-8")
+    monkeypatch.setenv(CLAUDE_CONFIG_DIR_ENV, str(tmp_path / "cfg"))
+
+    assert files["skill"] not in _skill_leftovers(project)
