@@ -86,7 +86,7 @@
     },
     "WP04": {
       "actor": "claude",
-      "agent": "claude::python-pedro",
+      "agent": "claude::reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
@@ -104,7 +104,8 @@
         "- 2026-11-20T18:16:59Z – claude – shell_pid=24982 – trace(design-decisions): skip-on-probe-error: a GitProbeError from merge_own_changed_paths/path_state_at skips the UnreviewedMerge entry with a debug log; the field is advisory, never a verdict, and its absence never means 'no own content'. No probe memo added (WP05 owns any memo).",
         "- 2026-11-20T18:17:04Z – claude – shell_pid=24982 – trace(approach): WP05 import constraint stated in merge_reviewed_by_own_stamps' docstring: approved_bound must import it function-locally (reconciliation_authorship imports approved_bound at module top).",
         "- 2026-11-20T18:17:10Z – claude – shell_pid=24982 – trace(approach): golden digests use charter.hasher.hash_content (ruff TID251 bans hashlib.sha256 in tests); _PRE_WP_FIELD_COUNT is 33 (brief did not name it). Added edge tests: unknown stamp reviews nothing (fail closed), canceled dependency lane commits never recorded. Planning-lane exclusion is structural (_record_unreviewed is a no-op when reviewed is full_authored, which is always the case for a planning lane); no dedicated planning-lane fixture.",
-        "Public merge_reviewed_by_own_stamps + own_approval_stamps (gate delegates, no behaviour change); additive advisory ApprovedWpCommitSet.unreviewed_merges via keyword-only sink; byte-identity golden recorded at base still green. 18 new tests; targeted 508 passed; test-fast 3144 passed."
+        "Public merge_reviewed_by_own_stamps + own_approval_stamps (gate delegates, no behaviour change); additive advisory ApprovedWpCommitSet.unreviewed_merges via keyword-only sink; byte-identity golden recorded at base still green. 18 new tests; targeted 508 passed; test-fast 3144 passed.",
+        "Review claimed by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner"
       ],
       "provider": "__resolved_provider_absent__",
       "role": "reviewer",
