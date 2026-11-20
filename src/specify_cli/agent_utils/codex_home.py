@@ -69,8 +69,8 @@ _SQLITE_SUFFIX = ".sqlite"
 def is_codex_home(project_path: Path, environ: Mapping[str, str] | None = None) -> bool:
     """Whether *project_path*'s ``.codex/`` folder is a Codex home.
 
-    True when ``CODEX_HOME`` (read from *environ*, default ``os.environ``)
-    points at that folder, or when the folder holds a file or folder only a
+    True when ``CODEX_HOME`` (read from *environ*, default ``os.environ``; a
+    relative value is read from the project) points at that folder, or when the folder holds a file or folder only a
     Codex home has (``auth.json``, ``version.json``, session folders, a Codex
     ``*.sqlite*`` database ...). A missing folder is never a Codex home.
     """
@@ -87,10 +87,14 @@ def is_codex_home(project_path: Path, environ: Mapping[str, str] | None = None) 
 
 
 def _codex_home_env_points_at(folder: Path, environ: Mapping[str, str]) -> bool:
+    """Whether ``CODEX_HOME`` names *folder*; a relative value is read from the project (*folder*'s parent)."""
     value = environ.get("CODEX_HOME", "").strip()
     if not value:
         return False
+    target = Path(value).expanduser()
+    if not target.is_absolute():
+        target = folder.parent / target
     try:
-        return Path(value).expanduser().resolve() == folder.resolve()
+        return target.resolve() == folder.resolve()
     except OSError:
         return False

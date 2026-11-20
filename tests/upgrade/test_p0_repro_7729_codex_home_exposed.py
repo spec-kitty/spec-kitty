@@ -15,7 +15,8 @@ Both halves are driven through ``MigrationRunner.upgrade``, the entry point
   ignored once it upgrades, and is told which agent-folder files git now shows.
 
 This was the open P0 reproduction for #7729 (``p0_repro``); the fix removed the
-marker, so it now guards every PR.
+marker and moved it to ``tests/upgrade/`` (the ``upgrade`` module's per-PR
+matrix), so it now guards every PR that touches the upgrade package.
 """
 
 from __future__ import annotations
@@ -39,9 +40,15 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 #: The upgrade target that reaches every migration this reproduction exercises.
 _TARGET = "4.0.0rc9"
 
-#: Migrations the reproduction leaves unsettled: the rc8 narrowing, and the
-#: clone-local step that protects a project-local Codex home (the fix).
-_UNDER_TEST = frozenset({"4.0.0rc8_narrow_agent_gitignore", "4.0.0rc9_exclude_project_local_codex_home"})
+#: Migrations the reproduction leaves unsettled: the rc8 narrowing, and the two
+#: clone-local steps of the fix (the Codex home exclusion and the per-clone notice).
+_UNDER_TEST = frozenset(
+    {
+        "4.0.0rc8_narrow_agent_gitignore",
+        "4.0.0rc9_exclude_project_local_codex_home",
+        "4.0.0rc9_report_newly_visible_agent_files",
+    }
+)
 
 #: Files Codex writes into its home (the issue's list), all personal state.
 _CODEX_HOME_FILES: tuple[str, ...] = (

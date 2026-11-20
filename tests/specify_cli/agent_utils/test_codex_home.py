@@ -59,6 +59,14 @@ def test_codex_home_env_pointing_at_the_folder_makes_it_a_codex_home(tmp_path: P
     assert is_codex_home(tmp_path, environ={"CODEX_HOME": f"{folder}/"})
 
 
+def test_a_relative_codex_home_is_read_from_the_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _codex(tmp_path, "config.toml")
+    monkeypatch.chdir(tmp_path.parent)  # the process directory is not the project
+
+    assert is_codex_home(tmp_path, environ={"CODEX_HOME": ".codex"})
+    assert not is_codex_home(tmp_path, environ={"CODEX_HOME": "other/.codex"})
+
+
 def test_codex_home_env_pointing_elsewhere_is_ignored(tmp_path: Path) -> None:
     _codex(tmp_path, "config.toml")
     elsewhere = tmp_path / "home" / ".codex"
