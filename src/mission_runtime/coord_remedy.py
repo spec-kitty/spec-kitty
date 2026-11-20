@@ -35,7 +35,8 @@ __all__ = [
     "remote_only_steps",
 ]
 
-_REMOTE_PLACEHOLDER = "<remote>"
+#: Not ``<remote>``: a pasted ``<`` is a shell redirect.
+_REMOTE_PLACEHOLDER = "REMOTE"
 
 
 @dataclass(frozen=True)
@@ -46,13 +47,15 @@ class RemoteOnlyBranch:
     configuration cannot tell (several remotes, none named ``origin``, none
     configured for the branch). ``tracking_ref_present`` says this clone already
     holds ``refs/remotes/<remote>/<branch>``, so no fetch is needed; it implies
-    ``remote`` is set.
+    ``remote`` is set. ``remotes_readable`` is ``False`` when git could not read
+    this checkout's configuration at all, which is not the same as "no remote".
     """
 
     branch: str
     remote: str | None
     tracking_ref_present: bool
     remotes: tuple[str, ...] = ()
+    remotes_readable: bool = True
 
     def __post_init__(self) -> None:
         if self.tracking_ref_present and self.remote is None:
@@ -81,16 +84,24 @@ def remote_only_branch(repo_root: Path, branch: str) -> RemoteOnlyBranch:
         remote = resolve_remote(repo_root, branch)
     except GitCommandError:
         # git could not run here (e.g. the root does not exist): nothing is known locally.
-        return RemoteOnlyBranch(branch=branch, remote=None, tracking_ref_present=False)
+        return RemoteOnlyBranch(branch=branch, remote=None, tracking_ref_present=False, remotes_readable=False)
     if remote is not None and remote not in remotes:
         # ``branch.<b>.remote`` may hold a URL: there is no ``refs/remotes/<url>/<b>``.
-        remote = None
+        # Fall back to the same default ``resolve_remote`` applies without that key.
+        remote = _default_remote(remotes)
     if remote is not None and _has_tracking_ref(repo_root, remote, branch):
         return RemoteOnlyBranch(branch=branch, remote=remote, tracking_ref_present=True, remotes=remotes)
     holders = [name for name in remotes if name != remote and _has_tracking_ref(repo_root, name, branch)]
     if len(holders) == 1:
         return RemoteOnlyBranch(branch=branch, remote=holders[0], tracking_ref_present=True, remotes=remotes)
     return RemoteOnlyBranch(branch=branch, remote=remote, tracking_ref_present=False, remotes=remotes)
+
+
+def _default_remote(remotes: tuple[str, ...]) -> str | None:
+    """The only configured remote, else ``origin`` when configured, else ``None``."""
+    if len(remotes) == 1:
+        return remotes[0]
+    return "origin" if "origin" in remotes else None
 
 
 def coordination_doctor_command(mission_slug: str) -> str:
@@ -101,9 +112,11 @@ def coordination_doctor_command(mission_slug: str) -> str:
 def _remote_note(facts: RemoteOnlyBranch) -> str:
     """Say what local configuration cannot settle about the remote, or nothing."""
     if facts.remote is None:
+        if not facts.remotes_readable:
+            return f" (git could not read this checkout's remotes: {_REMOTE_PLACEHOLDER} is the remote that holds the branch)"
         if facts.remotes:
             return f" ({_REMOTE_PLACEHOLDER} is the remote that holds the branch, one of: {', '.join(facts.remotes)})"
-        return " (no remote is configured: add one with `git remote add <name> <url>`)"
+        return " (no remote is configured: add one with `git remote add NAME URL`)"
     others = [name for name in facts.remotes if name != facts.remote]
     if facts.tracking_ref_present or not others:
         return ""

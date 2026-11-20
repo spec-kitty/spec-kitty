@@ -740,7 +740,7 @@ def _read_ref_or_refuse(repo_root: Path, ref: str, path: str, *, follow_up: str)
                 repo_root=repo_root,
                 ref=ref,
                 path=path,
-                detail=f"{exc.detail}. If the branch still exists on a remote: {steps.removesuffix('.')}",
+                detail=f"{exc.detail}. If the branch still exists on a remote: {steps[:1].lower()}{steps[1:].removesuffix('.')}",
             ) from exc
         raise status_service.StatusSurfaceRefRemoteOnly(repo_root=repo_root, ref=ref, path=path, branch=branch, remedy=steps) from exc
 
