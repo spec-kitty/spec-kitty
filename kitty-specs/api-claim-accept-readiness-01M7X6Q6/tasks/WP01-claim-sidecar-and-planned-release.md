@@ -15,7 +15,6 @@ subtasks:
 - T004
 - T005
 - T006
-- T007
 phase: Phase 1 - Claim parity
 history:
 - at: '2026-11-20T19:40:00Z'
@@ -28,6 +27,8 @@ create_intent:
 - tests/orchestrator_api/test_api_claim_sidecar_5781.py
 - tests/status/test_claim_release.py
 - tests/consolidation/test_done_bookkeeping_reviewer_fallback.py
+- tests/consolidation/test_merge_done_recording.py
+- tests/status/test_agent_status_emit_aggregate_wiring.py
 execution_mode: code_change
 owned_files:
 - src/specify_cli/status/emit.py
@@ -40,7 +41,6 @@ owned_files:
 - tests/orchestrator_api/test_api_claim_sidecar_5781.py
 - tests/status/test_claim_release.py
 - tests/consolidation/test_done_bookkeeping_reviewer_fallback.py
-- tests/agent/test_orchestrator_commands_integration.py
 role: implementer
 tags: []
 task_type: implement

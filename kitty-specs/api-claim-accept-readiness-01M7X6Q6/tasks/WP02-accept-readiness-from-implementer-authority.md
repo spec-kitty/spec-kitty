@@ -21,6 +21,7 @@ subtasks:
 - T013
 - T014
 - T015
+- T007
 phase: Phase 2 - Accept readiness
 history:
 - at: '2026-11-20T19:40:00Z'
@@ -40,6 +41,8 @@ owned_files:
 - src/specify_cli/orchestrator_api/envelope.py
 - src/charter/offering/skills/spec-kitty-orchestrator-api-operator/references/orchestrator-api-contract.md
 - tests/utils.py
+- tests/agent/test_orchestrator_commands_integration.py
+- tests/specify_cli/test_acceptance_regressions.py
 - tests/orchestrator_api/test_issue_4934_accept_mission_readiness.py
 - tests/orchestrator_api/test_issue_5781_accept_readiness.py
 - tests/specify_cli/acceptance/test_acceptance_cores.py

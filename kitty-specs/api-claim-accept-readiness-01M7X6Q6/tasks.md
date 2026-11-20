@@ -18,7 +18,6 @@ Subtasks:
 | T004 | Wire the builder into the API claim paths and `agent status emit --to claimed` | |
 | T005 | New `status/claim_release.py` planned-release delta; `move-task` reuses it; API `--to planned` sends it as the transition's annotation | |
 | T006 | `consolidation/done_bookkeeping.py`: reviewer fallback reads the latest `approved` transition's actor, with a test | |
-| T007 | Drop the injected `{"agent": actor}` masking in `tests/agent/test_orchestrator_commands_integration.py` | |
 
 ## Work Package WP02: Accept readiness from the implementer authority (IC-03)
 
@@ -37,4 +36,5 @@ Subtasks:
 | T012 | `acceptance/summary_core.py` + `acceptance/__init__.py`: gate via the implementer of record, canceled exemption, derived hint | |
 | T013 | `orchestrator_api/consolidation.py`: `accept_mission` uses `mission_terminal_acceptability` (#5818) | |
 | T014 | `tests/utils.py` seeds a real claim event; re-rule the #4934 test; re-pin the hint-string tests | |
+| T007 | Drop the injected `{"agent": actor}` masking in `tests/agent/test_orchestrator_commands_integration.py` (moved from WP01: it masks the accept gate, not the claim) | |
 | T015 | `CONTRACT_VERSION` 1.30.0 with its comment block; update the orchestrator-api skill contract doc | |
