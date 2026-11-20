@@ -40,11 +40,9 @@ __all__ = [
     "IncorporateOutcome",
     "IncorporateRefused",
     "SiblingStamp",
-    "check_wp_may_incorporate",
     "incorporate_sibling",
     "prepare_incorporation",
     "render_outcome",
-    "resolve_sibling_stamp",
 ]
 
 #: Exit code of ``implement --incorporate`` when the merge stops on a conflict (operator ruling
@@ -57,6 +55,8 @@ _MAY_INCORPORATE = frozenset({Lane.CLAIMED, Lane.IN_PROGRESS})
 _APPROVED_LANES = frozenset({Lane.APPROVED, Lane.DONE})
 #: The lanes a work package leaves with the move-back command.
 _SEND_BACK_LANES = frozenset({Lane.FOR_REVIEW, Lane.IN_REVIEW, Lane.APPROVED, Lane.DONE})
+#: A canceled work package's active lanes: a window opens on entering one and closes on leaving them all.
+_ACTIVE_LANES = frozenset({Lane.CLAIMED, Lane.IN_PROGRESS, Lane.BLOCKED, Lane.FOR_REVIEW, Lane.IN_REVIEW})
 _IN_PROGRESS_REFS = ("MERGE_HEAD", "REBASE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD")
 _SHORT = 12
 
@@ -69,6 +69,7 @@ class IncorporateCode(StrEnum):
     PLANNING_LANE = "INCORPORATE_PLANNING_LANE"
     NO_APPROVAL_STAMP = "INCORPORATE_NO_APPROVAL_STAMP"
     STAMP_NOT_ON_LANE = "INCORPORATE_STAMP_NOT_ON_LANE"
+    CANCELED_CONTENT_UNDER_STAMP = "INCORPORATE_CANCELED_CONTENT_UNDER_STAMP"
     WP_NOT_SENT_BACK = "INCORPORATE_WP_NOT_SENT_BACK"
     CHECKOUT_BUSY = "INCORPORATE_CHECKOUT_BUSY"
     PROBE_FAILED = "INCORPORATE_PROBE_FAILED"
@@ -120,7 +121,7 @@ def _move_back(wp_id: str, mission_slug: str, lane: Lane) -> str:
     return f'{command} --force --note "<why>"' if lane is Lane.DONE else command
 
 
-def check_wp_may_incorporate(lane: Lane, wp_id: str, mission_slug: str) -> None:
+def _check_wp_may_incorporate(lane: Lane, wp_id: str, mission_slug: str) -> None:
     """Refuse unless *wp_id* is ``claimed`` or ``in_progress`` (an approved WP must be sent back first)."""
     if lane in _MAY_INCORPORATE:
         return
@@ -199,7 +200,81 @@ def _require_stamp_on_branch(repo_root: Path, stamp: str, branch: str, lane_id: 
         )
 
 
-def resolve_sibling_stamp(
+def _canceled_wp_ids(events: Sequence[StatusEvent], wp_ids: Sequence[str]) -> list[str]:
+    from specify_cli.status import reduce
+
+    snapshot = reduce(list(events))
+    return [wp for wp in wp_ids if str((snapshot.work_packages.get(wp) or {}).get("lane")) == Lane.CANCELED]
+
+
+def _active_windows(events: Sequence[StatusEvent], wp_id: str) -> list[tuple[str | None, str | None]]:
+    """``(open lane_head, close lane_head)`` of every stretch *wp_id* spent in an active lane, in order.
+
+    Migration-synthesized events never open or close a window (FR-011). A window still
+    open at the end of the log has ``None`` as its close stamp.
+    """
+    from specify_cli.status import is_migration_event, stamp_of
+
+    windows: list[tuple[str | None, str | None]] = []
+    open_head: str | None = None
+    is_open = False
+    for event in events:
+        if event.wp_id != wp_id or is_migration_event(event):
+            continue
+        entering = str(event.to_lane) in _ACTIVE_LANES
+        if entering and not is_open:
+            open_head, is_open = stamp_of(event), True
+        elif not entering and is_open:
+            windows.append((open_head, stamp_of(event)))
+            is_open = False
+    if is_open:
+        windows.append((open_head, None))
+    return windows
+
+
+def _window_commits_under(repo_root: Path, window: tuple[str | None, str | None], stamp: str) -> list[str]:
+    """The canceled window's own (first-parent, non-merge) commits that *stamp* reaches; an unbounded window raises."""
+    from specify_cli.consolidation.git_probes import first_parent_commits_in_range, is_merge_commit, sha_reachable_from
+
+    open_head, close_head = window
+    if open_head is None or close_head is None:
+        raise ValueError("the window has no recorded lane head at one end")
+    return [
+        sha
+        for sha in first_parent_commits_in_range(repo_root, open_head, close_head)
+        if not is_merge_commit(repo_root, sha) and sha_reachable_from(repo_root, sha, stamp)
+    ]
+
+
+def _refuse_canceled_content_under_stamp(repo_root: Path, events: Sequence[StatusEvent], sibling: ExecutionLane, stamp: str) -> None:
+    """Refuse when a canceled work package of the sibling lane has commits the stamp reaches.
+
+    Incorporating the stamp would bring that canceled work into this lane, where the
+    reconciliation gate's canceled-content axis would fail it. A window that cannot be
+    bounded (a missing lane-head stamp) refuses too: its commits cannot be ruled out.
+    """
+    from specify_cli.consolidation.git_probes import GitProbeError
+
+    for wp_id in _canceled_wp_ids(events, sibling.wp_ids):
+        for window in _active_windows(events, wp_id):
+            try:
+                under = _window_commits_under(repo_root, window, stamp)
+            except (GitProbeError, ValueError) as exc:
+                raise IncorporateRefused(
+                    IncorporateCode.CANCELED_CONTENT_UNDER_STAMP,
+                    f"{sibling.lane_id}: the commits of canceled {wp_id} cannot be bounded ({exc}), "
+                    f"so they cannot be ruled out of the approval stamp {_short(stamp)}.",
+                ) from exc
+            if under:
+                listed = ", ".join(_short(sha) for sha in under)
+                raise IncorporateRefused(
+                    IncorporateCode.CANCELED_CONTENT_UNDER_STAMP,
+                    f"{sibling.lane_id}'s approval stamp {_short(stamp)} reaches commits of canceled {wp_id} ({listed}); "
+                    "incorporating it would bring canceled work into this lane. Rework that lane first so its approved stamp no longer carries them.",
+                )
+
+
+def _resolve_sibling_stamp(
     repo_root: Path,
     mission_slug: str,
     manifest: LanesManifest,
@@ -214,6 +289,7 @@ def resolve_sibling_stamp(
     stamps = _approved_stamps(events, sibling.wp_ids, sibling.lane_id)
     stamp = _newest_stamp(repo_root, stamps, sibling.lane_id)
     _require_stamp_on_branch(repo_root, stamp, branch, sibling.lane_id)
+    _refuse_canceled_content_under_stamp(repo_root, events, sibling, stamp)
     return SiblingStamp(lane_id=sibling.lane_id, branch=branch, stamp=stamp, wp_ids=tuple(sibling.wp_ids))
 
 
@@ -231,11 +307,14 @@ def _read_manifest(repo_root: Path, mission_slug: str) -> LanesManifest:
 
 
 def _read_events(repo_root: Path, mission_slug: str) -> list[StatusEvent]:
-    from specify_cli.status import read_status_events, resolve_status_read
+    from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
+    from specify_cli.coordination.surface_resolver import WorktreeRegistryUnavailable
+    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+    from specify_cli.status import StoreError, read_status_events, resolve_status_read
 
     try:
         events: list[StatusEvent] = read_status_events(resolve_status_read(repo_root, mission_slug))
-    except Exception as exc:  # the status read door raises several typed errors; every one refuses
+    except (OSError, StoreError, ValueError, StatusReadPathNotFound, StatusSurfaceRefUnreadable, WorktreeRegistryUnavailable) as exc:
         raise IncorporateRefused(IncorporateCode.PROBE_FAILED, f"the status of {mission_slug} cannot be read: {exc}") from exc
     return events
 
@@ -255,7 +334,7 @@ def prepare_incorporation(repo_root: Path, mission_slug: str, wp_id: str, siblin
     """Every precondition of ``implement --incorporate``, read only: the WP's lane, its own lane, the sibling and its stamp."""
     events = _read_events(repo_root, mission_slug)
     if check_wp:
-        check_wp_may_incorporate(_wp_lane(events, wp_id), wp_id, mission_slug)
+        _check_wp_may_incorporate(_wp_lane(events, wp_id), wp_id, mission_slug)
     manifest = _read_manifest(repo_root, mission_slug)
     own = manifest.lane_for_wp(wp_id)
     if own is None:
@@ -264,11 +343,11 @@ def prepare_incorporation(repo_root: Path, mission_slug: str, wp_id: str, siblin
         raise IncorporateRefused(
             IncorporateCode.PLANNING_LANE, f"{wp_id} runs in the repository root checkout (a planning lane); it has no lane checkout to incorporate into."
         )
-    return resolve_sibling_stamp(repo_root, mission_slug, manifest, own_lane_id=own.lane_id, sibling_lane_id=sibling_lane_id, events=events)
+    return _resolve_sibling_stamp(repo_root, mission_slug, manifest, own_lane_id=own.lane_id, sibling_lane_id=sibling_lane_id, events=events)
 
 
 def _merge_env() -> dict[str, str]:
-    # The lane-merge pipeline's single environment authority, so spec-kitty's registered
+    # The lane-consolidation pipeline's single environment authority, so spec-kitty's registered
     # merge drivers resolve to the running spec-kitty (the auto-rebase uses the same one).
     from specify_cli.lanes.consolidation import _make_merge_env
 
@@ -344,5 +423,6 @@ def render_outcome(outcome: IncorporateOutcome, wp_id: str, mission_slug: str) -
         f"  2. spec-kitty agent tasks move-task {wp_id} --to for_review --mission {mission_slug}",
         f"  3. An independent reviewer reviews {wp_id} and approves it; the new approval must reach the resolution merge.",
         f"  4. spec-kitty consolidate --mission {mission_slug}",
+        f"To back out instead, run in {outcome.checkout}: git merge --abort",
         f"(exit code {INCORPORATE_CONFLICT_EXIT}: the merge is left in progress for resolution.)",
     ]
