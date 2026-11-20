@@ -309,6 +309,9 @@ def _observation(path: Path, state: FileState, children: tuple[str, ...] | None 
 
 #: A caller's byte proof for a retired node with no inventory record: ``(path, sha256) -> proven``.
 RetireProof = Callable[[Path, "str | None"], bool]
+#: A caller's byte proof that an existing destination is an earlier canonical render, judged on
+#: :meth:`AssetPreparation.asset`'s own observation of it: ``(before) -> proven``.
+PredecessorProof = Callable[[FileState], bool]
 
 
 class AssetPreparation:
@@ -481,9 +484,23 @@ class AssetPreparation:
             if state.kind == "absent":
                 self._effect(parent, FileState("directory", mode=0o755), None, OwnershipProof("managed_path", f"{self.owner}:required-parent"))
 
-    def asset(self, path: Path, content: bytes | None, mode: int, *, managed_tree: bool = False, canonical_predecessor: bool = False) -> None:
-        """Compare canonical output; preserve drift and unknown links/content."""
+    def asset(
+        self,
+        path: Path,
+        content: bytes | None,
+        mode: int,
+        *,
+        managed_tree: bool = False,
+        canonical_predecessor: bool | PredecessorProof = False,
+    ) -> None:
+        """Compare canonical output; preserve drift and unknown links/content.
+
+        *canonical_predecessor* is either a caller's verdict or a proof evaluated on this
+        method's own observation of *path* (#7700), so a byte proof never reads the file twice.
+        """
         before = self.observe(path, role="destination_probe")
+        if callable(canonical_predecessor):
+            canonical_predecessor = canonical_predecessor(before)
         self.selected.add(path)
         relative = path.relative_to(self.root.path).as_posix()
         desired = FileState("directory", mode=mode) if content is None else FileState("file", sha256=digest(content), mode=mode)

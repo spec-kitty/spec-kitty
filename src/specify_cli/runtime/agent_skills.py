@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Literal
 
 from specify_cli.runtime.bootstrap import _get_cli_version
-from specify_cli.runtime.asset_preparation import AssetPreparation, RetireProof, _GlobalAssetPreparation
+from specify_cli.runtime.asset_preparation import AssetPreparation, PredecessorProof, RetireProof, _GlobalAssetPreparation
 from specify_cli.runtime.home import get_kittify_home
 from specify_cli.core.config import AGENT_SKILL_CONFIG
 from specify_cli.skills.catalog import resolve_builtin_skill_catalog
@@ -18,7 +18,7 @@ from specify_cli.skills.skill_frontmatter import SKILL_FILENAME, is_shared_root,
 from specify_cli.skills.paths import get_primary_global_skill_root, get_project_skill_root_for_global_root, iter_installable_agents
 from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 from specify_cli.skills.retired import RETIRED_CANONICAL_SKILL_NAMES
-from specify_cli.tool_surface.operations import ApplyConsent, Disposition, OwnerAssessment
+from specify_cli.tool_surface.operations import ApplyConsent, Disposition, FileState, OwnerAssessment
 
 logger = logging.getLogger(__name__)
 
@@ -153,16 +153,19 @@ def _prepare_skill_tree(
             data = prepared.source(child)
             if child.name == SKILL_FILENAME and normalize_frontmatter:
                 data = project_skill_bytes(data, shared=shared, skill_name=skill_name)
-            predecessor = _is_shipped_render(prepared, target, skill_name, f"{prefix}{child.name}")
-            prepared.asset(target, data, (child_state.mode or 0o644) & ~0o222, canonical_predecessor=predecessor)
+            proof = _shipped_render_proof(skill_name, f"{prefix}{child.name}")
+            prepared.asset(target, data, (child_state.mode or 0o644) & ~0o222, canonical_predecessor=proof)
         else:
             raise ValueError(f"Unsupported canonical skill source: {child}")
 
 
-def _is_shipped_render(prepared: AssetPreparation, target: Path, skill_name: str, relative: str) -> bool:
-    """Whether *target* is a regular file holding a render shipped for ``<skill_name>/<relative>``."""
-    state = prepared.observe(target, role="destination_probe")
-    return state.kind == "file" and bool(is_historical_render(skill_name, relative, state.sha256))
+def _shipped_render_proof(skill_name: str, relative: str) -> PredecessorProof:
+    """Proof, judged on ``asset()``'s own observation, that a destination holds a render shipped for ``<skill_name>/<relative>``."""
+
+    def proven(before: FileState) -> bool:
+        return before.kind == "file" and bool(is_historical_render(skill_name, relative, before.sha256))
+
+    return proven
 
 
 def _retired_render_proof(skill_dir: Path) -> RetireProof:
@@ -202,15 +205,24 @@ def _skill_of(path: Path, skill_roots: Sequence[Path]) -> str | None:
     return None
 
 
-def kept_global_skill_files(assessment: OwnerAssessment) -> tuple[KeptSkillFile, ...]:
+def kept_global_skill_files(
+    assessment: OwnerAssessment,
+    *,
+    canonical: frozenset[str] | set[str] | None = None,
+    skill_roots: Sequence[Path] | None = None,
+) -> tuple[KeptSkillFile, ...]:
     """Classify the files a global skill assessment keeps (#7700, #5983): one rule for every reporter.
 
     Reads the assessment's ``preserve`` / ``consent_required`` dispositions; a file of a skill
     Spec Kitty ships today is ``stale_canonical``, one of a retired skill ``edited_retired``.
+    *canonical* and *skill_roots* default to the package catalog and every agent's global root,
+    which is what an unselected assessment used; pass the assessment's own when it had a selection.
     """
-    registry = _discover_registry()
-    canonical = {skill.name for skill in registry.discover_skills()} if registry is not None else set()
-    return _classify_kept(assessment.dispositions, assessment.root.path, _unique_global_roots(), canonical)
+    if canonical is None:
+        registry = _discover_registry()
+        canonical = {skill.name for skill in registry.discover_skills()} if registry is not None else set()
+    roots = _unique_global_roots() if skill_roots is None else list(skill_roots)
+    return _classify_kept(assessment.dispositions, assessment.root.path, roots, canonical)
 
 
 def _observe_registry_catalog(prepared: AssetPreparation, skills: list[CanonicalSkill]) -> None:
