@@ -106,13 +106,28 @@ the plan step do it. For the reasoning, see the
 ### When the Project Layout Differs
 
 The other path conventions, such as `src/`, `tests/` and `docs/`, stay in force for the
-mission type — but a project whose real layout differs has two honest project-level levers
-(#6633). The strict failure text and the `--lenient` warning both name them, and neither
-suggests `mkdir -p` for these directories: an empty `src/` would pass the check without
-making it true (#7512).
+Mission type. A project whose real layout differs has honest project-level levers. The strict
+failure text names them in this order, and none of them is `mkdir -p` for these directories:
+an empty `src/` would pass the check without making it true (#7512).
 
-- **Remap to the real layout.** Declare it once in `.kittify/config.yaml` under
-  `project.path_conventions` and `accept` checks the remapped directories instead:
+- **Remap for one Mission type** (#7748). Key a section by the Mission type in
+  `.kittify/config.yaml`. Only Missions of that type see the remap; the other types keep their
+  own conventions. A content repository with `packs/` and no `src/` can write:
+
+  ```yaml
+  project:
+    path_conventions:
+      software-dev:
+        workspace: packs/   # where this repository's work actually lives
+        tests: packs/
+  ```
+
+  Documentation, plan and research Missions still check `docs/`, `docs/` and `research/`.
+  The section id must be a Mission type the project knows (built-in, org or project), and
+  every value must be a repository-relative directory; anything else stops `accept` with a
+  configuration error.
+- **Remap for every Mission type.** A plain string value applies to every type that
+  declares the key:
 
   ```yaml
   project:
@@ -121,14 +136,30 @@ making it true (#7512).
       tests: internal/       # where the tests actually live
   ```
 
-  The override is remap-only: it moves a required directory, never adds or drops one, and
-  `deliverables` (artifact-routed) is not in its vocabulary. See the
-  [ADR](../../../adr/3.x/2026-08-28-1-project-path-convention-override-precedes-doctrine.md).
-- **Drop a key the project has no directory for.** Copy the packaged `mission.yaml` to
-  `.kittify/overrides/missions/<mission-type>/mission.yaml` (for example `software-dev`)
-  and remove that key's line.
+  Per key, a type's section wins over the plain value, which wins over the Mission type's
+  default. YAML holds a key once, so `documentation:` is either a plain value or the
+  documentation type's section, not both: to give documentation Missions their own paths
+  next to a plain `documentation:` value for the other types, set `documentation` inside each
+  type's section instead.
 
-Prefer these over `accept --lenient`: lenient mode also skips the per-work-package
+  Both forms are remap-only: they move a required directory, never add or drop one, and
+  `deliverables` (artifact-routed) is not in their vocabulary. See the
+  [ADR](../../../adr/3.x/2026-08-28-1-project-path-convention-override-precedes-doctrine.md).
+- **Waive only the path check** (#7566). When a layout mismatch is genuine and you do not
+  want to remap it, waive path conventions while every other accept check stays strict:
+  - for one run: `spec-kitty accept --waive-path-conventions --waive-reason "<why>"`. The
+    reason is required and is recorded on the acceptance history entry in `meta.json`.
+    `orchestrator-api` has no per-run flag.
+  - for every run of one Mission: add `"path_conventions": "waived"` and a non-empty
+    `"path_conventions_rationale"` to the Mission's `meta.json`. Every accept path honours
+    it, `orchestrator-api` included, and accept prints the rationale. A malformed
+    declaration waives nothing and says what is wrong with it.
+- **Last resort: drop a key.** Copying the packaged `mission.yaml` to
+  `.kittify/overrides/missions/<mission-type>/mission.yaml` and deleting the key's line drops
+  it, but the copy freezes that Mission type's definition at the CLI version you copied it
+  from, so later changes to the packaged Mission type no longer reach you.
+
+Prefer all of these over `accept --lenient`: lenient mode also skips the per-work-package
 `agent`, `assignee` and `shell_pid` metadata checks, so it gives up more than the path
 check.
 
