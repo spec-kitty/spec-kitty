@@ -206,3 +206,32 @@ def test_the_byte_proof_adds_no_destination_read(home: Path, monkeypatch: pytest
     agent_skills.assess_global_agent_skills()
 
     assert len(reads) == 2
+
+
+def test_a_warm_sync_neither_probes_placement_nor_reserializes_the_inventory(home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """NFR-001: an anchored inventory places its keys without a filesystem probe, and an
+    unchanged inventory is not serialized again (bounded counts, not timings)."""
+    from specify_cli.runtime import asset_preparation
+
+    agent_skills.ensure_global_agent_skills()
+    probes: list[str] = []
+    serializations: list[str] = []
+    real_place = asset_preparation._place_legacy_key
+    real_serialize = asset_preparation._serialize_inventory
+
+    def counting_place(relative: str, candidates: list[Path], confinement: tuple[Path, ...]) -> Path | None:
+        probes.append(relative)
+        placed: Path | None = real_place(relative, candidates, confinement)
+        return placed
+
+    def counting_serialize(entries: dict[str, dict[str, object]], anchor: str) -> bytes:
+        serializations.append(anchor)
+        return bytes(real_serialize(entries, anchor))
+
+    monkeypatch.setattr(asset_preparation, "_place_legacy_key", counting_place)
+    monkeypatch.setattr(asset_preparation, "_serialize_inventory", counting_serialize)
+    assessment = agent_skills.assess_global_agent_skills()
+
+    assert not assessment.effects
+    assert probes == []
+    assert serializations == []
