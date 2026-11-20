@@ -6,7 +6,7 @@ detailed workflows or aliases while new public operating skills use `spk-*`.
 ## Start
 
 - `spk-start-here`: first route for users and agents.
-- `spk-start-first-feature`: first mission walkthrough.
+- `spk-start-first-mission`: first mission walkthrough.
 - `spk-start-command-map`: command-to-skill map.
 - `spk-start-agent-surface`: host/surface compatibility.
 

@@ -86,7 +86,7 @@ hierarchy moves to `spk-*`; none of them uses a command name.
 | Skill | Purpose |
 |---|---|
 | `spk-start-here` | First route for users and agents |
-| `spk-start-first-feature` | First mission walkthrough |
+| `spk-start-first-mission` | First mission walkthrough |
 | `spk-start-command-map` | Command-to-skill map |
 | `spk-start-agent-surface` | Agent host compatibility |
 | `spk-mission-specify` | Specification phase |

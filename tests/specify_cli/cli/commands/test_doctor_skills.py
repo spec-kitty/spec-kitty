@@ -370,6 +370,10 @@ def test_doctor_skills_json_error_schema_stable(tmp_path: Path, monkeypatch: pyt
         "pack_skills": [],
         # Additive (#5801): ``no_tool_folder`` finding; empty when any configured tool folder exists.
         "tool_folders": [],
+        # Additive (#5281): manifest-matching command skills that are not today's render.
+        "outdated": [],
+        # Additive (#7723): proven copies under a moved agent root; report only, never flips ``ok``.
+        "old_root_leftovers": [],
         "ok": True,
         "slash_commands": {
             "configured_agents": [],

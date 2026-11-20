@@ -124,6 +124,9 @@ CANONICAL_COMMANDS: tuple[str, ...] = tuple(sorted((*PROMPT_BACKED_COMMANDS, *CL
 
 assert set(CANONICAL_COMMANDS) == set(CONSUMER_SKILLS), "Command-skill installer must cover every consumer command"
 
+#: Canonical command-skill path -> its command, for the #5281 outdated check.
+_CANONICAL_COMMAND_BY_REL: dict[str, str] = {command_skill_rel_path(command): command for command in CANONICAL_COMMANDS}
+
 #: Disposition state of an edited legacy dotted skill kept on disk but no longer managed.
 LEGACY_KEPT = "legacy_kept"
 #: Disposition state of a canonical path occupied by content Spec Kitty does not own.
@@ -318,6 +321,10 @@ class VerifyReport:
     collisions:
         Canonical ``SKILL.md`` paths occupied by content the manifest does not
         own and that is not today's canonical rendering (FR-019).
+    outdated:
+        Canonical entries whose file still matches the manifest-recorded hash
+        but differs from today's canonical rendering (#5281): a self-consistent
+        drift the next install repairs.
     """
 
     drift: list[str] = field(default_factory=list)
@@ -328,6 +335,7 @@ class VerifyReport:
     legacy: list[str] = field(default_factory=list)
     legacy_owned: list[str] = field(default_factory=list)
     collisions: list[str] = field(default_factory=list)
+    outdated: list[str] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -1609,7 +1617,8 @@ def verify(repo_root: Path) -> VerifyReport:
 
 
 def _verify_entries(repo_root: Path, manifest: manifest_store.SkillsManifest, report: VerifyReport) -> None:
-    """Classify each manifest entry as unsafe, legacy, stale, gap or drift."""
+    """Classify each manifest entry as unsafe, legacy, stale, gap, drift or outdated."""
+    canonical_digests: dict[str, str | None] = {}
     for entry in manifest.entries:
         if is_legacy_rel_path(entry.path):
             # Retired by the legacy rule on the next preparation, which never follows a link
@@ -1630,6 +1639,23 @@ def _verify_entries(repo_root: Path, manifest: manifest_store.SkillsManifest, re
         on_disk = manifest_store.fingerprint_file(abs_path)
         if on_disk != entry.content_hash:
             report.drift.append(entry.path)
+        elif _is_outdated(repo_root, entry.path, on_disk, canonical_digests):
+            report.outdated.append(entry.path)
+
+
+def _is_outdated(repo_root: Path, rel: str, on_disk: str, digests: dict[str, str | None]) -> bool:
+    """Whether the canonical command skill at *rel* differs from today's render (#5281).
+
+    *digests* caches one :func:`canonical_digest` per command for a single verify call;
+    a command with no single canonical render (``None``) is never reported.
+    """
+    command = _CANONICAL_COMMAND_BY_REL.get(rel)
+    if command is None:
+        return False
+    if command not in digests:
+        digests[command] = canonical_digest(repo_root, command)
+    expected = digests[command]
+    return expected is not None and expected != on_disk
 
 
 def _verify_legacy_folders(repo_root: Path, manifest_paths: set[str], report: VerifyReport) -> None:

@@ -66,7 +66,7 @@ EVER_SHIPPED_SKILL_NAMES = frozenset(
         "spk-run-verdict-capture",
         "spk-start-agent-surface",
         "spk-start-command-map",
-        "spk-start-first-feature",
+        "spk-start-first-mission",
         "spk-start-here",
         # Removed since; each must stay retired.
         "ad-hoc-profile-load",
@@ -86,6 +86,7 @@ EVER_SHIPPED_SKILL_NAMES = frozenset(
         "spk-doctrine-show-me",
         "spk-doctrine-spdd-reasons",
         "spk-gate-merge",
+        "spk-start-first-feature",
         "spk-team-auth",
         "spk-team-connectors",
         "spk-team-sync",

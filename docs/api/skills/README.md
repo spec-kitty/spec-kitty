@@ -42,7 +42,7 @@ re-listing it here.
 | Skill ID | Purpose | Legacy Alias | Deep Page |
 |---|---|---|---|
 | `spk-start-here` | First route for users and agents | — | [spk-start-here](spk-start-here.md) |
-| `spk-start-first-feature` | First mission walkthrough | — | — |
+| `spk-start-first-mission` | First mission walkthrough | — | — |
 | `spk-start-command-map` | Command-to-skill map | — | — |
 | `spk-start-agent-surface` | Agent host compatibility | — | — |
 
