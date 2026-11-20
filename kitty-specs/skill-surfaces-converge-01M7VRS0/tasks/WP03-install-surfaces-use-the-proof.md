@@ -46,6 +46,7 @@ owned_files:
 - tests/specify_cli/skills/test_project_skills_historical_proof.py
 - docs/changelog/unreleased/7700.fixed.md
 - docs/changelog/unreleased/2527.fixed.md
+- src/specify_cli/runtime/asset_preparation.py
 role: implementer
 tags: []
 task_type: implement
