@@ -175,7 +175,7 @@
     },
     "WP08": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -191,9 +191,11 @@
         "- 2026-11-20T18:42:46Z – claude – shell_pid=20158 – trace(approach): test 1/2 parent assertion adjusted (not weakened): the canonical implement refresh (lane sync point) advances lane-b before the incorporation, so the merge's first parent is lane-b's refreshed tip (descendant of the pre-command tip, not containing the stamp) and the second parent is exactly the stamp; lane-a's live tip is asserted NOT reachable. Conflict case asserts lane-b tip == ORIG_HEAD and MERGE_HEAD == stamp. Golden ratchet unchanged after the production edit. No friction from the lane checkout sparse status exclusion (#5965) was observed.",
         "- 2026-11-20T18:42:52Z – claude – shell_pid=20158 – green: tests/lanes/test_incorporate_sibling_lane.py 14 passed; targeted blast radius (stale remediation, auto-rebase additive, workflow cores, implement CLI tests, terminus post-approval/lifecycle closure) 181 passed; architectural gates commit_scope_owner/no_worktree_name_guess/merge_pipeline_ratchets/layer_rules/no_legacy_terminology 274 passed; make test-fast 3144 passed 7 skipped. ruff check, ruff format --check --force-exclude, mypy clean on changed files.",
         "implement --incorporate <lane>: new lanes/incorporate.py (stamp resolution, INCORPORATE_* refusals before side effects, merge via run_committing_op, conflict exit 3), wired into agent action implement; 14 new tests incl. golden ratchet for the unflagged path.",
-        "Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner"
+        "Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
+        "REJECT: Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner"
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP08-implement-incorporate/review-cycle-1.md",
         "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP08-implement-incorporate/review-cycle-1.md",
@@ -201,13 +203,13 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 20158,
-      "shell_pid_created_at": "1795197346.57",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T014": "done",
-        "T015": "done",
-        "T016": "done",
-        "T017": "done"
+        "T014": "planned",
+        "T015": "planned",
+        "T016": "planned",
+        "T017": "planned"
       }
     },
     "WP09": {
