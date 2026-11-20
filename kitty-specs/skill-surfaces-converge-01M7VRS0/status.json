@@ -102,6 +102,9 @@
       "last_event_id": "01M7VXWD57508BZ13NQW65FYVD",
       "last_transition_at": "2026-11-20T07:31:37.255305+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: VerifyResult.retired + provider probes retired managed entries as stale so --fix drains them; retirement keyed on RETIRED_CANONICAL_SKILL_NAMES; red 14f5656569, cb6b0b9efd; skills+tool_surface+2 migration suites 2163 passed; make test-fast 3144 passed"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 2362,
