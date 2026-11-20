@@ -6153,8 +6153,10 @@ _Cross-mission retrospective summary._
  Validate a merged mission: WP lane check, dead-code scan, BLE001 audit.
 
  Writes kitty-specs/<slug>/mission-review-report.md with a machine-readable
- verdict.  See module docstring for known false-positive scenarios in the
- dead-code scan step.
+ verdict. A previous machine report there is replaced; any other file there
+ (an agent-written review, say) is left alone and the command refuses with
+ MISSION_REVIEW_REPORT_PATH_OCCUPIED.  See module docstring for known
+ false-positive scenarios in the dead-code scan step.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --mission          <str>  Mission handle (id, mid8, or slug).                │

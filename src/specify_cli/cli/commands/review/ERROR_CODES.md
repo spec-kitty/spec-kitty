@@ -352,6 +352,26 @@ MISSION_REVIEW_DEAD_CODE_EVIDENCE_INCOMPLETE: baseline anchor evidence is not re
 
 ---
 
+## REPORT_PATH_OCCUPIED
+
+**Code**: `MISSION_REVIEW_REPORT_PATH_OCCUPIED`
+
+**When it fires**: `kitty-specs/<slug>/mission-review-report.md` already exists and is not a machine report this command wrote. A machine report starts with YAML frontmatter that records `verdict` (`pass`, `pass_with_notes` or `fail`), `reviewed_at` and an integer `findings` count. Anything else at that path (typically a mission review an agent wrote with the `spec-kitty-mission-review` skill, or an unreadable file) is somebody else's work, and `spec-kitty review` refuses to overwrite it (spec-kitty#7753). The check runs before any gate and again just before the write; nothing is written when it fires. A previous machine report is still replaced on every run.
+
+**JSON stability**: this code string is stable across minor releases; consumers may match it as an opaque identifier.
+
+**Remediation**:
+1. Move the file to `kitty-specs/<slug>/mission-review.md`, the path the `spec-kitty-mission-review` skill names for its report: `git mv kitty-specs/<slug>/mission-review-report.md kitty-specs/<slug>/mission-review.md` (plain `mv` when the file is untracked).
+2. Re-run `spec-kitty review --mission <slug>`.
+
+**Body example**:
+
+```text
+MISSION_REVIEW_REPORT_PATH_OCCUPIED: kitty-specs/my-mission/mission-review-report.md is not a report spec-kitty review wrote (no verdict/reviewed_at/findings frontmatter); refusing to overwrite it.
+```
+
+---
+
 ## ENV_SKEW
 
 **Code**: `MISSION_REVIEW_ENV_SKEW`
