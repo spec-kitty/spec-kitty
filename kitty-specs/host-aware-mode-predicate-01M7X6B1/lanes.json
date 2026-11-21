@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "mission_slug": "host-aware-mode-predicate-01M7X6B1",
+  "mission_id": "01M7X6B1MARTS68ADD3VQJD0Y6",
+  "mission_branch": "kitty/mission-host-aware-mode-predicate-01M7X6B1",
+  "target_branch": "issue-4927-host-aware-mode-predicate",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/runtime/asset_preparation.py",
+        "src/specify_cli/tool_surface/operations.py",
+        "tests/specify_cli/runtime/test_global_mode_convergence_windows.py",
+        "tests/specify_cli/tool_surface/ntfs_emulation.py",
+        "tests/specify_cli/tool_surface/test_mode_equivalence.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/activation/charter_yaml_io.py",
+        "src/specify_cli/skills/command_installer.py",
+        "src/specify_cli/skills/installer.py",
+        "src/specify_cli/skills/manifest.py",
+        "src/specify_cli/tool_surface/bundles/projection.py",
+        "src/specify_cli/tool_surface/providers/agent_profiles.py",
+        "src/specify_cli/tool_surface/providers/managed_skills.py",
+        "src/specify_cli/tool_surface/providers/native_config.py",
+        "tests/charter/test_charter_yaml_host_seam.py",
+        "tests/specify_cli/skills/test_installer.py",
+        "tests/specify_cli/skills/test_project_skill_windows_write_bit.py",
+        "tests/specify_cli/tool_surface/providers/test_managed_skills_host_aware.py",
+        "tests/specify_cli/tool_surface/test_latent_windows_mode_sites.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/4927.fixed.md",
+        "tests/architectural/_mode_equality_scan.py",
+        "tests/architectural/test_mode_equality_authority.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-11-20T19:25:01.908525+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "873ca367c809e69f25e38b8f70923d8b677efed1"
+}

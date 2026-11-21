@@ -41,6 +41,7 @@ from specify_cli.tool_surface.operations import (
     OwnershipProof,
     PhysicalEffect,
     coalesce_effects,
+    effect_action,
 )
 
 
@@ -73,20 +74,6 @@ def node_state(path: Path, *, read_content: bool = True) -> FileState:
         raise ValueError(f"Unsupported asset node: {path}")
     sha256 = digest(path.read_bytes()) if read_content else digest(b"")
     return FileState("file", sha256=sha256, mode=mode, mtime_ns=info.st_mtime_ns)
-
-
-def _action(before: FileState, after: FileState) -> str | None:
-    if before.kind == "absent":
-        return "create" if after.kind != "absent" else None
-    if after.kind == "absent":
-        return "delete"
-    if before.kind != after.kind:
-        return "replace"
-    if before.sha256 != after.sha256:
-        return "update"
-    if before.target != after.target:
-        return "retarget"
-    return "chmod" if before.mode != after.mode else None
 
 
 @dataclass(frozen=True)
@@ -446,7 +433,7 @@ class AssetPreparation:
 
     def _effect(self, path: Path, after: FileState, content: bytes | None, proof: OwnershipProof) -> None:
         before = self.observe(path, role="destination_probe")
-        action = _action(before, after)
+        action = effect_action(before, after)
         relative = path.relative_to(self.root.path).as_posix()
         if action is None:
             self.dispositions.append(Disposition(self.owner, self.root.root_id, relative, "unchanged", "Asset already matches"))
@@ -460,6 +447,7 @@ class AssetPreparation:
             self.owner, "global_bootstrap", self.root, relative, action, before, after, "Refresh canonical global asset", (proof,), (self.owner,)
         )
         previous = self.writes.get(path)
+        # Conflict check between two planned states: exact on every host.
         if previous is not None and previous.effect.after != after:
             raise ValueError(f"Conflicting global asset outputs: {path}")
         self.writes[path] = AssetWrite(effect, content)
@@ -1203,6 +1191,7 @@ def check_assets(assessment: OwnerAssessment) -> tuple[Diagnostic, ...]:
                 # PermissionError drops exc.filename (it is None), leaving only
                 # "[Errno 13] Permission denied" -- undiagnosable as shipped.
                 raise ValueError(f"Could not read global asset {observation.path}: {exc}") from exc
+            # Guard: two observations of the same node, so exact on every host.
             drifted = (current.state, current.identity) != (observation.state, observation.identity)
             if drifted and not _is_cold_install_sentinel_materialization(observation, current, sentinel_ancestors):
                 write = writes_by_path.get(observation.path) if observation.role == "destination_probe" else None

@@ -48,7 +48,6 @@ from specify_cli.skills.paths import SkillPathObservation, get_primary_project_s
 from specify_cli.skills.catalog import PackSkillCatalogError, resolve_project_skill_catalog
 from specify_cli.skills.registry import SkillRegistry
 from specify_cli.skills.retired import RETIRED_CANONICAL_SKILL_NAMES
-from specify_cli.skills.command_installer import windows_dir_mode_only_divergence
 
 from ..enums import (
     ActivationMode,
@@ -66,7 +65,17 @@ from ..findings import (
     make_finding,
 )
 from ..model import SurfaceDefinition, SurfaceInstance, SurfaceSelection
-from ..operations import ApplyConsent, AssessmentInputs, Diagnostic, OperationRoot, OwnerAssessment, OwnerApplyResult, PhysicalEffect, coalesce_effects
+from ..operations import (
+    ApplyConsent,
+    AssessmentInputs,
+    Diagnostic,
+    OperationRoot,
+    OwnerAssessment,
+    OwnerApplyResult,
+    PhysicalEffect,
+    coalesce_effects,
+    state_equivalent,
+)
 from ..repair import RepairResult
 from ..bundles.projection import SelectedSkillBundle, completed_selected_skill_bundle, selected_skill_bundle_guard
 from ..bundles.model import PreparedBundle
@@ -164,8 +173,7 @@ def _recheck_command_completion(
         created_yaml = provisioning.write.recheck_applied()
     for effect in command_effects:
         state = observe_skill_path(effect.destination).state
-        normalized = replace(state, mtime_ns=effect.after.mtime_ns)
-        if normalized != effect.after and not windows_dir_mode_only_divergence(normalized, effect.after):
+        if not state_equivalent(state, effect.after):
             raise ValueError(f"Completed command output changed: {effect.destination}")
     for before in composition.parents:
         current = observe_skill_path(before.path, members=True)

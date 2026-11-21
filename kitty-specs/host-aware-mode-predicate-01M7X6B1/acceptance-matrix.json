@@ -1,0 +1,119 @@
+{
+  "mission_slug": "host-aware-mode-predicate-01M7X6B1",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/tool_surface/test_mode_equivalence.py (both hosts)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-21T07:06:40.589584+00:00",
+      "notes": "One host-aware equivalence in tool_surface/operations.py (modes_equivalent/mode_equivalent/state_equivalent); POSIX exact, Windows dir/symlink kind-only, file write bit."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/tool_surface/test_mode_equivalence.py::test_validator_*; tests/architectural/test_mode_equality_authority.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-21T07:06:49.178656+00:00",
+      "notes": "effect_action is the single action function; PhysicalEffect validates with it; every planner ladder delegates."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/runtime/test_global_mode_convergence_windows.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-21T07:06:57.273706+00:00",
+      "notes": "Global skills and combined global assets plan 0 effects after one apply under emulated NTFS (was 253)."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/runtime/test_global_mode_convergence_windows.py::test_posix_*",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-21T07:07:05.366457+00:00",
+      "notes": "POSIX loosened dir and exec-bit drift still plan and converge."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/skills/test_project_skill_windows_write_bit.py; test_global_mode_convergence_windows.py::test_windows_read_only_drift_is_still_repaired",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-21T07:07:13.513840+00:00",
+      "notes": "Windows read-only drift repaired for project skills and global assets."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/tool_surface/providers/test_managed_skills_host_aware.py; tests/specify_cli/skills/test_installer.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-21T07:07:22.272234+00:00",
+      "notes": "Receipts, completion recheck and native postcondition use state_equivalent."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/tool_surface/test_latent_windows_mode_sites.py; tests/specify_cli/tool_surface/bundles/test_selected_bundle_windows.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-21T07:07:31.023854+00:00",
+      "notes": "Bundles stage/finalize/selected recheck, agent-profile sibling dir, native-config postcondition accept NTFS modes; POSIX twins exact."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_mode_equality_authority.py (ADJUDICATED guards); POSIX drift refusal tests",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-21T07:07:39.433987+00:00",
+      "notes": "Observed-vs-observed guards and planned-vs-planned conflict checks stay exact, keyed by exact comparison text."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_mode_equality_authority.py::test_the_retired_relaxation_helper_is_gone",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-21T07:07:47.831630+00:00",
+      "notes": "windows_dir_mode_only_divergence deleted; callers re-pointed."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_mode_equality_authority.py (23 tests incl. self/live mutation)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-21T07:07:57.192429+00:00",
+      "notes": "Gate P1-P4, text-keyed adjudication, stale + floor checks; each pattern mutation-proven."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_charter_yaml_host_seam.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-21T07:08:07.130242+00:00",
+      "notes": "charter_yaml_io reads the host via kernel.paths.is_windows."
+    }
+  ],
+  "negative_invariants": []
+}
