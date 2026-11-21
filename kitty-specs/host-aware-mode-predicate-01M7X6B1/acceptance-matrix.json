@@ -18,11 +18,11 @@
       "criterion_id": "FR-002",
       "description": "Verify FR-002 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/tool_surface/test_mode_equivalence.py::test_validator_*; tests/architectural/test_mode_equality_authority.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-21T07:06:49.178656+00:00",
+      "notes": "effect_action is the single action function; PhysicalEffect validates with it; every planner ladder delegates."
     },
     {
       "criterion_id": "FR-003",
