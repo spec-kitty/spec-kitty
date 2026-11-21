@@ -13,6 +13,8 @@ import json
 from pathlib import Path, PurePosixPath, PureWindowsPath
 import re
 
+from kernel import paths as kernel_paths
+
 
 PHASES = ("global_bootstrap", "migrations", "metadata", "provisioning", "manifest_repair", "surface_repair")
 
@@ -103,7 +105,60 @@ class OwnershipProof:
             raise ValueError("Ownership requires an exact reference")
 
 
-def _action(before: FileState, after: FileState) -> str | None:
+_OWNER_WRITE_BIT = 0o200
+_KIND_ONLY_ON_WINDOWS = frozenset({"directory", "symlink"})
+
+
+def modes_equivalent(kind: str, observed: int | None, planned: int | None) -> bool:
+    """Return whether an *observed* mode satisfies a *planned* one on this host.
+
+    The one host-aware mode equivalence (#4927, #4810; operator ruling
+    2026-11-20). Every planner that decides between a permission repair and
+    "unchanged", and every check of an observation against a planned state,
+    uses it.
+
+    * POSIX: exact equality, unchanged.
+    * Windows: NTFS synthesizes modes -- a directory always reads ``0o777``, a
+      regular file ``0o666`` or ``0o444`` -- and ``chmod`` only toggles the
+      read-only attribute. A directory or symlink therefore compares kind
+      only, and a file compares only its owner write bit.
+
+    The host is read through ``kernel.paths.is_windows`` at call time, so tests
+    can emulate Windows. Do NOT use this for two observations of the same node
+    (concurrency guards) or two planned states (conflict checks): those stay
+    exact on every host.
+    """
+    if observed is None or planned is None or not kernel_paths.is_windows():
+        return observed == planned
+    if kind in _KIND_ONLY_ON_WINDOWS:
+        return True
+    return bool(observed & _OWNER_WRITE_BIT) == bool(planned & _OWNER_WRITE_BIT)
+
+
+def mode_equivalent(observed: FileState, planned: FileState) -> bool:
+    """Same kind, and :func:`modes_equivalent` for that kind."""
+    return observed.kind == planned.kind and modes_equivalent(observed.kind, observed.mode, planned.mode)
+
+
+def state_equivalent(observed: FileState, planned: FileState, *, ignore_mtime: bool = True) -> bool:
+    """Whether an observed node satisfies a planned state on this host.
+
+    Kind, content digest and link target compare exactly; mode through
+    :func:`mode_equivalent`; ``mtime_ns`` only when *ignore_mtime* is False
+    (planned states rarely carry a comparable one).
+    """
+    same_identity = (observed.kind, observed.sha256, observed.target) == (planned.kind, planned.sha256, planned.target)
+    same_mtime = ignore_mtime or observed.mtime_ns == planned.mtime_ns
+    return same_identity and same_mtime and mode_equivalent(observed, planned)
+
+
+def effect_action(before: FileState, after: FileState) -> str | None:
+    """The single action an effect from *before* (observed) to *after* (planned) takes.
+
+    ``PhysicalEffect`` validates every effect against it, and every planner
+    decides its action through it, so a planner can never plan a permission
+    repair the host cannot represent (#4927).
+    """
     if before.kind == "absent":
         return "create" if after.kind != "absent" else None
     if after.kind == "absent":
@@ -114,7 +169,7 @@ def _action(before: FileState, after: FileState) -> str | None:
         return "update"
     if before.target != after.target:
         return "retarget"
-    return "chmod" if before.mode != after.mode else None
+    return None if mode_equivalent(before, after) else "chmod"
 
 
 @dataclass(frozen=True)
@@ -136,7 +191,7 @@ class PhysicalEffect:
     def __post_init__(self) -> None:
         _relative_path(self.path)
         _one_of(self.phase, PHASES, "phase")
-        if self.action != _action(self.before, self.after):
+        if self.action != effect_action(self.before, self.after):
             raise ValueError("Effect action does not match its before/after states")
         if not self.owner or not self.reason or not self.ownership or not self.logical_owners:
             raise ValueError("Effect requires owner, reason, exact ownership and logical owners")

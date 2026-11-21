@@ -44,6 +44,8 @@ from ..operations import (
     OwnershipProof,
     PhysicalEffect,
     coalesce_effects,
+    effect_action,
+    modes_equivalent,
 )
 from ..status import _surface_id
 from .model import BundleEntry, BundleObservation, PreparedBundle, StagedFile
@@ -158,14 +160,17 @@ def _finish_selected_stage(assessment: OwnerAssessment) -> None:
     completed = []
     for path, original in observations.items():
         effect = effects.get(path)
-        if effect is not None and path in run.parents:
-            original = replace(original, state=replace(original.state, mode=effect.after.mode))
         if effect is not None and path not in run.parents:
-            written = run.written[path]
-            original = replace(written, state=replace(effect.after, mtime_ns=written.state.mtime_ns))
+            original = run.written[path]
         elif path not in run.parents:
             original = _selected_provisioned_observation(assessment, original)
         current = observe_bundle_path(path, members=original.children is not None)
+        if effect is not None:
+            # A parent keeps its observed identity; a written output is the planned
+            # state at its written mtime. Either way the planned mode is compared
+            # host-aware (#4927).
+            expected = original.state if path in run.parents else replace(effect.after, mtime_ns=original.state.mtime_ns)
+            original = replace(original, state=expected_with_mode(expected, effect.after.mode, current.state))
         if not same_observation(current, original):
             raise ValueError(f"Selected staged output/input changed: {path}")
         if path in run.parents:
@@ -892,15 +897,8 @@ def _stage_effect(
     dispositions: list[Disposition],
 ) -> None:
     after = FileState("file", sha256=sha256(member.content).hexdigest(), mode=member.mode)
-    if before.kind == "absent":
-        action = "create"
-    elif before.kind != "file":
-        action = "replace"
-    elif before.sha256 != after.sha256:
-        action = "update"
-    elif before.mode != after.mode:
-        action = "chmod"
-    else:
+    action = effect_action(before, after)
+    if action is None:
         dispositions.append(Disposition(OWNER, root.root_id, member.path, "unchanged", "Staged bytes and mode are current"))
         return
     effects.append(
@@ -953,6 +951,19 @@ def staging_guard(assessment: OwnerAssessment) -> Iterator[tuple[Diagnostic, ...
                 diagnostics.extend(stack.enter_context(provider.recheck(supplier)))
         diagnostics.extend(recheck_staging(assessment))
         yield tuple(diagnostics)
+
+
+def expected_with_mode(expected: FileState, planned_mode: int | None, observed: FileState) -> FileState:
+    """*expected* carrying the planned mode, or the observed one when it satisfies it on this host.
+
+    Checks that compare an observation with a planned state (#4927): on
+    Windows NTFS reports 0o777 for a directory and 0o666/0o444 for a file, so
+    the planned POSIX mode is replaced by the observed one when the two are
+    equivalent; every other field, and POSIX modes, still compare exactly.
+    """
+    equivalent = observed.kind == expected.kind and modes_equivalent(expected.kind, observed.mode, planned_mode)
+    mode = observed.mode if equivalent else planned_mode
+    return replace(expected, mode=mode)
 
 
 def same_observation(current: BundleObservation, retained: BundleObservation) -> bool:
@@ -1093,7 +1104,7 @@ def _finalize_staged_directories(
             finally:
                 os.close(descriptor)
             final = observe_confined(effect.root.path, effect.destination)[-1]
-            if not same_observation(final, replace(created, state=effect.after)):
+            if not same_observation(final, replace(created, state=expected_with_mode(effect.after, effect.after.mode, final.state))):
                 raise ValueError(f"Staged directory changed during finalization: {effect.path}")
         except (OSError, ValueError) as exc:
             failed.append(effect.id)
