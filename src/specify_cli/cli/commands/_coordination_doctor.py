@@ -1811,7 +1811,8 @@ def _apply_missing_worktree_fix(
                 message = (
                     f"Could not materialize the coordination worktree for "
                     f"mission {mission_slug!r}: the coordination branch "
-                    f"{coord_branch!r} exists only as a remote-tracking ref. "
+                    f"{coord_branch!r} has no local branch and no remote-tracking "
+                    f"ref in this clone. "
                     f"{next_step}"
                 )
             else:

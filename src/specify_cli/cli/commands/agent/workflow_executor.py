@@ -1936,17 +1936,8 @@ def review_resolve_wp_and_lane_gate(
     from specify_cli.status import get_wp_lane as rv_get_wp_lane
     from specify_cli.status import read_events as rv_read_events
     from specify_cli.status import reduce as rv_reduce
-    from specify_cli.coordination.surface_resolver import materialize_coord_surface_for_write
 
     w = _wf()
-
-    # #5936: review writes a review claim, so it is a coordination writer. In a
-    # teammate's clone the coordination branch is only a remote-tracking ref and
-    # its worktree is absent, so the status read below would find no canonical
-    # status. Materialize the surface first (the same seam the write uses; a
-    # no-op for flat and already-materialized Missions, and a refusal when this
-    # clone holds no ref for the branch at all).
-    materialize_coord_surface_for_write(main_repo_root, mission_slug)
 
     try:
         wp = _locate_wp(repo_root, mission_slug, normalized_wp_id)

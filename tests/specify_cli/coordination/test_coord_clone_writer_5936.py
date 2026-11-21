@@ -210,9 +210,13 @@ def _assert_materialized(team: _Team, clone: Path) -> None:
 _ARMS = {
     "emit": ("agent", "status", "emit", "WP01", "--to", "in_review", "--actor", "teammate"),
     "markstatus": ("agent", "tasks", "mark-status", "T021", "--status", "done"),
+    # An artifact writer (issue matrix) goes through the write seam's own gate, not the status seam.
+    "issueverdict": ("agent", "issue-verdict", "--issue", "#5936", "--verdict", "in-mission", "--actor", "teammate", "--wp", "WP01"),
     # The WP is assigned to its implementer; the teammate takes the review seat.
     "movetask": ("agent", "tasks", "move-task", "WP01", "--to", "in_review", "--agent", "author", "--reviewer", "teammate"),
     "review": ("agent", "action", "review", "WP01", "--agent", "teammate"),
+    # Without a WP id, review auto-detects the first for_review WP by reading status first.
+    "reviewauto": ("agent", "action", "review", "--agent", "teammate"),
 }
 
 
@@ -221,7 +225,7 @@ def test_first_coord_writer_in_teammate_clone_materializes(team: _Team, tmp_path
     """Each coordination writer in a fresh teammate clone materializes the coordination surface and succeeds."""
     clone = _teammate(team, tmp_path)
     _assert_remote_only(team, clone)
-    if arm == "review":
+    if arm in ("review", "reviewauto"):
         # Review also syncs the WP's lane after its claim, and the lane branch is
         # remote-only in this clone too. Creating a remote-only LANE head is a
         # separate gap (outside #5936's coordination scope), so the reviewer
@@ -270,11 +274,14 @@ def test_doctor_coordination_report_leads_with_fix_for_tracking_ref(team: _Team,
 def test_branch_with_no_local_ref_still_refuses(team: _Team, tmp_path: Path) -> None:
     """Fail-closed: with neither a local head nor a remote-tracking ref, the writer still refuses (no fork from main)."""
     clone = _teammate(team, tmp_path)
+    # The branch still lives on origin, but this clone never fetched it (a single-branch / shallow / CI
+    # clone): no local ref proves its content, so the guard refuses rather than fork from main.
     _must(_run(team.env, clone, "git", "update-ref", "-d", f"refs/remotes/origin/{team.coord_branch}"), "drop tracking ref")
-    # No remote either, so nothing can prove the branch's content.
-    _must(_run(team.env, clone, "git", "remote", "remove", "origin"), "remove origin")
 
     proc = _sk(team.env, clone, *_ARMS["emit"], "--mission", team.slug)
 
-    assert proc.returncode != 0, (proc.stdout + proc.stderr)[-3000:]
+    output = proc.stdout + proc.stderr
+    assert proc.returncode != 0, output[-3000:]
+    # The refusal comes from the coordination guard, not from some unrelated failure.
+    assert "is unmaterialized" in output, output[-3000:]
     assert not _has_local_head(team.env, clone, team.coord_branch)

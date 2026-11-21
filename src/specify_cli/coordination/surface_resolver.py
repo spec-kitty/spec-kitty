@@ -48,7 +48,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import kernel.paths as kernel_paths
-from kernel.git import GitCommandError, tree_paths
+from kernel.git import GitCommandError, run_git, tree_paths
 from kernel.git.read_cache import cached_git_read
 from kernel.git.remote import resolve_remote, tracking_ref
 from mission_runtime import (
@@ -820,13 +820,8 @@ def coord_branch_tracking_ref(repo_root: Path, coord_branch: str) -> str | None:
         return None
     ref = tracking_ref(remote, coord_branch)
     try:
-        probe = subprocess.run(
-            ["git", "-C", str(repo_root), "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-    except OSError:
+        probe = run_git(repo_root, "rev-parse", "--verify", "--quiet", "--end-of-options", f"{ref}^{{commit}}", check=False)
+    except GitCommandError:  # git could not run at all
         return None
     return ref if probe.returncode == 0 else None
 
@@ -856,19 +851,21 @@ def ensure_coord_branch_local_head(repo_root: Path, coord_branch: str) -> bool:
     if start is None:
         return False
     try:
-        created = subprocess.run(
-            ["git", "-C", str(repo_root), "branch", "--track", coord_branch, start],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-    except OSError:
+        # ``--end-of-options``: the branch name comes from ``meta.json`` (pushed by
+        # teammates), so it must never be parsed as an option.
+        created = run_git(repo_root, "branch", "--track", "--end-of-options", coord_branch, start, check=False)
+    except GitCommandError:  # git could not run at all
         return False
     if created.returncode != 0:
         # A concurrent CLI process may have created it between the probe and here.
-        logger.debug("ensure_coord_branch_local_head: git branch --track %s %s failed: %s", coord_branch, start, created.stderr.strip())
+        logger.debug(
+            "ensure_coord_branch_local_head: git branch --track %s %s failed: %s",
+            coord_branch,
+            start,
+            created.stderr.decode("utf-8", "replace").strip(),
+        )
         return _coord_branch_is_local_head(repo_root, coord_branch)
-    logger.info("created local coordination branch %r from %r (#5936)", coord_branch, start)
+    logger.info("created local coordination branch %r from %r as last fetched (#5936)", coord_branch, start)
     return True
 
 

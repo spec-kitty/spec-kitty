@@ -54,7 +54,11 @@ def _is_local_head(repo: Path, branch: str) -> bool:
 def clone_with_tracking_ref(tmp_path: Path) -> Path:
     """A clone whose only ref for ``_BRANCH`` is ``refs/remotes/origin/<branch>``."""
     src = _repo(tmp_path, "src")
-    _git(src, "branch", _BRANCH)
+    # The coordination tip is a commit of its own, so a branch forked from the
+    # clone's default branch can never pass for the tracking ref.
+    _git(src, "checkout", "-q", "-b", _BRANCH)
+    _git(src, "commit", "-q", "--allow-empty", "-m", "coordination commit")
+    _git(src, "checkout", "-q", "remote-probe-4979-work")
     bare = _bare_origin(tmp_path)
     _push(src, bare, "remote-probe-4979-work", _BRANCH)
     clone = tmp_path / "clone"
@@ -117,6 +121,14 @@ def test_ensure_creates_tracking_local_head(clone_with_tracking_ref: Path) -> No
     local = _git(clone_with_tracking_ref, "rev-parse", f"refs/heads/{_BRANCH}").stdout
     remote = _git(clone_with_tracking_ref, "rev-parse", f"refs/remotes/origin/{_BRANCH}").stdout
     assert local == remote
+
+
+def test_ensure_sets_upstream_without_git_autosetup(clone_with_tracking_ref: Path) -> None:
+    """``--track`` itself sets the upstream, not git's ``branch.autoSetupMerge`` default."""
+    _git(clone_with_tracking_ref, "config", "branch.autoSetupMerge", "false")
+    assert ensure_coord_branch_local_head(clone_with_tracking_ref, _BRANCH) is True
+    upstream = _git(clone_with_tracking_ref, "rev-parse", "--abbrev-ref", f"{_BRANCH}@{{upstream}}", check=False)
+    assert upstream.stdout.strip() == f"origin/{_BRANCH}", upstream.stderr
 
 
 def test_ensure_is_a_no_op_for_an_existing_local_head(clone_with_tracking_ref: Path) -> None:
@@ -186,9 +198,16 @@ def teammate_clone(tmp_path: Path) -> tuple[Path, str, str, str]:
 def test_write_seam_materializes_in_teammate_clone(teammate_clone: tuple[Path, str, str, str]) -> None:
     clone, slug, coord_branch, mission_id = teammate_clone
 
+    remote_tip = _git(clone, "rev-parse", f"refs/remotes/origin/{coord_branch}").stdout.strip()
+    main_tip = _git(clone, "rev-parse", "HEAD").stdout.strip()
+    assert remote_tip != main_tip, "fixture precondition: the coordination tip differs from the default branch"
+
     materialize_coord_surface_for_write(clone, slug)
 
     assert _is_local_head(clone, coord_branch)
+    local_tip = _git(clone, "rev-parse", f"refs/heads/{coord_branch}").stdout.strip()
+    ancestry = _git(clone, "merge-base", "--is-ancestor", remote_tip, local_tip, check=False)
+    assert ancestry.returncode == 0, "the local coordination branch must start from the tracking ref, never from main"
     worktree = CoordinationWorkspace.worktree_path(clone, slug, mission_id[:8])
     assert (worktree / ".git").exists()
     assert _git(worktree, "symbolic-ref", "--short", "HEAD").stdout.strip() == coord_branch
@@ -240,8 +259,9 @@ class _MaterializeCalled(Exception):
     pass
 
 
-def test_review_gate_materializes_before_reading_status(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from specify_cli.cli.commands.agent import workflow_executor
+def test_review_materializes_before_auto_detecting_the_wp(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``agent action review`` with no WP id: the surface is materialized before the for_review auto-detection reads status."""
+    from specify_cli.cli.commands.agent import workflow
 
     seen: list[tuple[Path, str]] = []
 
@@ -249,12 +269,16 @@ def test_review_gate_materializes_before_reading_status(tmp_path: Path, monkeypa
         seen.append((repo_root, mission_slug))
         raise _MaterializeCalled
 
-    def _locate_must_not_run(*_a: object, **_k: object) -> None:
+    def _read_must_not_run(*_a: object, **_k: object) -> None:
         raise AssertionError("the status read ran before the coordination surface was materialized")
 
     monkeypatch.setattr(surface_resolver, "materialize_coord_surface_for_write", _record)
-    monkeypatch.setattr(workflow_executor, "_locate_wp", _locate_must_not_run)
+    monkeypatch.setattr(workflow, "locate_project_root", lambda: tmp_path / "wt")
+    monkeypatch.setattr(workflow, "_find_mission_slug", lambda **_k: "demo-01ABCDEF")
+    monkeypatch.setattr(workflow, "_ensure_target_branch_checked_out", lambda *_a: (tmp_path, "main"))
+    monkeypatch.setattr(workflow, "_find_first_for_review_wp", _read_must_not_run)
 
-    with pytest.raises(_MaterializeCalled):
-        workflow_executor.review_resolve_wp_and_lane_gate(tmp_path / "wt", tmp_path, "demo-01ABCDEF", "WP01")
+    with pytest.raises((_MaterializeCalled, SystemExit, Exception)) as excinfo:
+        workflow.review(wp_id=None, mission="demo-01ABCDEF", agent="teammate")
+    assert not isinstance(excinfo.value, AssertionError), excinfo.value
     assert seen == [(tmp_path, "demo-01ABCDEF")]
