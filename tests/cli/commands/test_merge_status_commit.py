@@ -349,7 +349,8 @@ class TestUnmaterializedCoordWorktreeMerge:
         """#4970 control: a coordination branch that exists ONLY on a remote still aborts cleanly.
 
         New fixture (a ``file://`` bare remote, the branch pushed, the local head
-        deleted); the assertions are the original test's, byte for byte.
+        and its remote-tracking ref deleted, #5936); the assertions are the
+        original test's, byte for byte.
         """
         mission_slug, coord_branch, _mid8 = _build_declared_coord_mission(tmp_path, "merge-unmat-coord")
         remote_dir = tmp_path.parent / f"{tmp_path.name}-remote.git"
@@ -358,6 +359,9 @@ class TestUnmaterializedCoordWorktreeMerge:
         subprocess.run(["git", "push", "origin", coord_branch], cwd=tmp_path, check=True, capture_output=True)
         subprocess.run(["git", "fetch", "origin", coord_branch], cwd=tmp_path, check=True, capture_output=True)
         subprocess.run(["git", "branch", "-D", coord_branch], cwd=tmp_path, check=True, capture_output=True)
+        # #5936: a clone holding the branch as a remote-tracking ref now gets its local head from that ref.
+        # The abort this control pins is for a clone that never fetched the branch.
+        subprocess.run(["git", "update-ref", "-d", f"refs/remotes/origin/{coord_branch}"], cwd=tmp_path, check=True, capture_output=True)
 
         exit_exc = _run_consolidation_expecting_abort_or_failure(tmp_path, mission_slug)
 
