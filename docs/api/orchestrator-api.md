@@ -286,8 +286,8 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   are not at an acceptable ending: a work package canceled with operator provenance is no longer
   listed, a synthetic cancellation still is. Its readiness gate reads the implementer from the
   event log and asks for none on a work package canceled before any claim. A call that refused
-  `MISSION_NOT_READY` can now succeed, so a minor bump; no field or `error_code` is removed or
-  renamed.
+  `MISSION_NOT_READY` can now succeed, and the success payload gains `canceled_wps` (the descoped
+  work packages), so a minor bump; no field or `error_code` is removed or renamed.
 
 ## Response Envelope
 
@@ -451,8 +451,8 @@ in_review -> in_progress -> for_review
 
 ## Acceptance Payload
 
-`accept-mission` requires every WP to be `approved` or `done`. On success it
-returns:
+`accept-mission` requires every WP to be at an acceptable ending: `approved`, `done`, or
+(contract >= 1.30.0) `canceled` with operator provenance. On success it returns:
 
 | Field | Meaning |
 |---|---|
@@ -460,13 +460,14 @@ returns:
 | `approved_wps` | Review-passed WPs still awaiting merge/integration |
 | `done_wps` | WPs already merged/integrated |
 | `merge_pending_wps` | Alias of `approved_wps`; WPs accepted-ready but not done |
+| `canceled_wps` | (contract >= 1.30.0) WPs canceled with operator provenance, accepted as descoped |
 
 `accept-mission` does not move WPs from `approved` to `done`; merge owns that
 transition.
 
 ### `MISSION_NOT_READY` (contract >= 1.7.0)
 
-Once every WP is `approved`/`done`, `accept-mission` additionally applies the
+Once every WP is at an acceptable ending, `accept-mission` additionally applies the
 SAME host readiness verdict the `accept` CLI computes via
 `collect_feature_summary(..., strict_metadata=True)` — one readiness
 authority, never a second computation of it. Before that summary is collected

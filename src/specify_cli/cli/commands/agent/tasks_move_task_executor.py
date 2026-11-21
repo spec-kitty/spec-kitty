@@ -592,7 +592,8 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
             # the claim triple: a liveness check would judge the new owner's claim
             # by the old holder's shell. ``release_runtime_claim`` clears the triple
             # first, and the reducer's replace loop then re-plants ``agent`` from
-            # this same delta. (A move into ``planned`` releases below.)
+            # this same delta. (A move into ``planned`` releases below, through the one
+            # shared planned release, ``status.claim_release``; this re-plant is not that.)
             fields["release_runtime_claim"] = True
         if st.shell_pid and not _mt_hands_back_work(st):
             pid = int(st.shell_pid)

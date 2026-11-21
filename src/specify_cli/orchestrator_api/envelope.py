@@ -237,8 +237,9 @@ from kernel.clock import now_utc_iso
 # packages that are not at an acceptable ending (a WP canceled with operator provenance is no
 # longer listed; a synthetic cancellation still is), and its readiness gate reads the
 # implementer from the event log, never demanding one for a WP canceled before any claim. A call
-# that refused ``MISSION_NOT_READY`` can now succeed, so a minor bump; no field or
-# ``error_code`` is removed or renamed.
+# that refused ``MISSION_NOT_READY`` can now succeed, and its success payload gains
+# ``canceled_wps`` (the descoped work packages), so a minor bump; no field or ``error_code``
+# is removed or renamed.
 CONTRACT_VERSION = "1.30.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 

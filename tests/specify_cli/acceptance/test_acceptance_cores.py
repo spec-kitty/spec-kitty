@@ -108,7 +108,10 @@ class TestBuildWorkPackageState:
 
         assert issues == [
             # #5781: no implementing claim can be recorded from in_progress, so no command is named.
-            "WP01: missing agent in canonical runtime state (no implementing claim recorded, and none can be recorded from lane 'in_progress')",
+            (
+                "WP01: missing agent in canonical runtime state (no implementing claim recorded; "
+                "from lane 'in_progress' it must go back for rework and be claimed by a named agent)"
+            ),
             "WP01: missing assignee in canonical runtime state",
             "WP01: missing shell_pid in canonical runtime state",
         ]
@@ -141,7 +144,12 @@ class TestBuildWorkPackageState:
             wp, "WP01", {"lane": "approved", "agent": "slot-only"}, wp_path_root=tmp_path, strict_metadata=True, implementer=None
         )
 
-        assert issues == ["WP01: missing agent in canonical runtime state (no implementing claim recorded, and none can be recorded from lane 'approved')"]
+        assert issues == [
+            (
+                "WP01: missing agent in canonical runtime state (no implementing claim recorded; "
+                "from lane 'approved' it must go back for rework and be claimed by a named agent)"
+            )
+        ]
 
     def test_implementer_of_record_satisfies_the_gate_without_an_agent_slot(self, tmp_path: Path) -> None:
         """#5781: an API claim recorded no ``agent`` sidecar; its implementer of record still counts."""
@@ -160,6 +168,22 @@ class TestBuildWorkPackageState:
         )
 
         assert issues == []
+
+    @pytest.mark.parametrize("reason_source", ["operator", "synthetic"])
+    def test_a_wp_canceled_after_a_claim_keeps_its_implementer(self, tmp_path: Path, reason_source: str) -> None:
+        """Canceled after a claim: the implementer of record stands and no metadata issue is raised.
+
+        Whether the cancellation is an acceptable ending (operator provenance) is decided elsewhere.
+        """
+        wp = _wp(path=tmp_path / "tasks" / "WP01.md", agent=None)
+
+        state, issues = build_work_package_state(
+            wp, "WP01", {"lane": "canceled", "reason_source": reason_source}, wp_path_root=tmp_path, strict_metadata=True, implementer="claude::"
+        )
+
+        assert issues == []
+        assert state.metadata["agent"] == "claude::"
+        assert state.has_operator_provenance is (reason_source == "operator")
 
     @pytest.mark.parametrize(("lane", "target"), [("planned", "claimed"), ("claimed", "in_progress"), ("blocked", "in_progress")])
     def test_the_repair_names_the_implementing_claim_the_state_machine_allows(self, tmp_path: Path, lane: str, target: str) -> None:

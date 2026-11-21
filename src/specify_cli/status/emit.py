@@ -267,10 +267,12 @@ def claim_policy_metadata(
 ) -> dict[str, Any]:
     """The ``policy_metadata`` sidecar of every claim transition (WP07/T026-T027, #5781).
 
-    The one claim-sidecar builder: host claims (``cli.commands.implement_claim``,
-    ``cli.commands.agent.workflow_executor``), ``orchestrator-api start-implementation`` /
-    ``transition --to claimed`` and ``agent status emit --to claimed`` all route through it, so
-    every ``planned -> claimed`` event records ``agent`` under the key the reducer fold reads.
+    The claim-sidecar builder for the claim entry points: host claims
+    (``cli.commands.implement_claim``, ``cli.commands.agent.workflow_executor``),
+    ``orchestrator-api start-implementation`` / ``transition --to claimed`` and ``agent status
+    emit --to claimed`` route through it, so each records ``agent`` under the key the reducer fold
+    reads. ``move-task --to claimed`` builds the same shape through
+    :func:`build_claim_policy_metadata`, the key-shape authority both share.
 
     ``shell_pid`` is ``None`` for a claim with no live shell behind it (an orchestrator-api
     call): the pid keys are then omitted, never fabricated. ``extra`` (the orchestrator

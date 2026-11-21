@@ -876,7 +876,10 @@ def test_required_fields_still_enforced(feature_repo: Path, mission_slug: str) -
     Note: lane is now tracked via the event log (not frontmatter), so removing
     lane: from frontmatter no longer produces a metadata_issue. The implementer
     is read from the WP's implementing claim in the event log (#5781), so
-    blanking the runtime ``agent`` slot does not unclaim a claimed WP.
+    blanking the runtime ``agent`` slot does not unclaim a claimed WP (here the
+    forced ``test-agent`` move into ``in_progress`` is that claim). "An active
+    lane with no implementer is refused" is pinned in
+    ``tests/specify_cli/acceptance/test_implementer_repair_hint.py``.
     """
     from tests.utils import run
 

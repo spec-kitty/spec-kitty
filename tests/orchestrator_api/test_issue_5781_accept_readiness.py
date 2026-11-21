@@ -183,6 +183,7 @@ def test_accept_mission_accepts_an_api_claimed_mission(tmp_path: Path, monkeypat
 
     assert payload["success"] is True, payload
     assert payload["data"]["accepted"] is True
+    assert payload["data"]["canceled_wps"] == []
 
 
 @pytest.mark.parametrize("variant", ["host_without_agent", "host_with_agent", "api"])
@@ -195,6 +196,9 @@ def test_a_wp_canceled_before_any_claim_needs_no_implementer(tmp_path: Path, mon
 
     payload = _accept_mission(repo_root, monkeypatch)
     assert payload["success"] is True, payload
+    # 1.30.0: the descoped WP is named in the success payload, not silently absent.
+    assert payload["data"]["canceled_wps"] == ["WP02"]
+    assert payload["data"]["accepted_wps"] == ["WP01"]
 
 
 def test_a_synthetic_cancellation_is_still_incomplete(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

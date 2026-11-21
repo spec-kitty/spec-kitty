@@ -346,7 +346,10 @@ def implementer_claim_target(lane: str | Lane) -> Lane | None:
     from specify_cli.status.transitions import resolve_lane_alias
     from specify_cli.status.wp_state import wp_state_for
 
-    source = Lane(resolve_lane_alias(str(lane)))
+    try:
+        source = Lane(resolve_lane_alias(str(lane)))
+    except ValueError:
+        return None  # a lane the state machine does not know offers no repair
     if source.value in _REVIEWER_SOURCE_LANES:
         return None
     allowed = wp_state_for(source).allowed_targets()

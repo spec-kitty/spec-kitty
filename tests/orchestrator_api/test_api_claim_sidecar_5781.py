@@ -157,6 +157,7 @@ def test_after_an_api_rollback_another_implementer_claims_unforced(tmp_path: Pat
 
 @pytest.mark.xfail(
     strict=True,
+    raises=AssertionError,
     reason=(
         "#7794: spec_kitty_events.diary.reduce_parsed folds every annotation after every transition, "
         "so the rollback's claim release also clears the slots the LATER claim set. Same for move-task."
@@ -245,9 +246,19 @@ def test_after_an_api_rollback_host_implement_claims_unforced(flat_topology_miss
     assert state["lane"] == "in_progress"
     assert state["implementer_of_record"] == "codex"
     assert _claim_event_metadata(ctx.primary_feature_dir)["agent"] == "codex"
+    reclaim = [e for e in read_events(ctx.primary_feature_dir) if e.wp_id == "WP01" and Lane(e.to_lane) == Lane.CLAIMED][-1]
+    assert reclaim.force is False
 
 
-@pytest.mark.xfail(strict=True, reason="#7794: a claim release folds after the later host claim and clears its agent/shell_pid slots")
+@pytest.mark.xfail(
+    strict=True,
+    raises=AssertionError,
+    reason=(
+        "#7794, a regression on this path from the #7644 release: before it, an API rollback released nothing "
+        "(the old holder stayed bound) and a host re-claim set agent/shell_pid; now the release folds after the "
+        "later host claim and clears them, as it already did after move-task --to planned"
+    ),
+)
 def test_after_an_api_rollback_the_host_re_claim_holds_the_live_claim_slots(flat_topology_mission: FlatTopologyContext) -> None:
     ctx = flat_topology_mission
     _host_claimed_then_api_rolled_back(ctx)
@@ -258,3 +269,38 @@ def test_after_an_api_rollback_the_host_re_claim_holds_the_live_claim_slots(flat
     state = _wp01(ctx.primary_feature_dir)
     assert state["agent"] == "codex"
     assert state["shell_pid"]
+
+
+def test_an_api_claimed_wp_meets_the_host_ownership_guard(flat_topology_mission: FlatTopologyContext) -> None:
+    """The point of claim parity (#5781, operator ruling R28): an API claim names an owner, so a
+    host ``move-task`` by a different tool is refused like it is for a host-claimed WP."""
+    ctx = flat_topology_mission
+    feature_dir = ctx.primary_feature_dir
+    seed = {
+        "event_id": "01M04SEEDPLANNEDGENESIS001",
+        "mission_slug": ctx.slug,
+        "wp_id": "WP01",
+        "from_lane": "genesis",
+        "to_lane": "planned",
+        "at": "2026-01-01T00:00:00+00:00",
+        "actor": "finalize-tasks",
+        "force": False,
+        "execution_mode": "direct_repo",
+    }
+    ctx.status_events_path.write_text(json.dumps(seed) + "\n", encoding="utf-8")
+    _commit_all(ctx, "fixture: planned WP01")
+    _invoke(ctx.repo, "transition", "--mission", ctx.slug, "--wp", "WP01", "--to", "claimed", "--actor", "claude", "--policy", _valid_policy_json())
+    assert _wp01(feature_dir)["agent"] == "claude"
+    _commit_all(ctx, "fixture: API claim")
+
+    moved = subprocess.run(
+        [sys.executable, "-m", "specify_cli", "agent", "tasks", "move-task", "WP01", "--to", "blocked", "--agent", "codex", "--mission", ctx.slug, "--note", "x"],
+        cwd=ctx.repo,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert moved.returncode != 0, moved.stdout + moved.stderr
+    assert "claude" in (moved.stdout + moved.stderr)
+    assert _wp01(feature_dir)["lane"] == "claimed"

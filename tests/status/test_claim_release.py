@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 import pytest
 
 from specify_cli.status import claim_policy_metadata
@@ -48,8 +50,20 @@ def test_planned_release_fields_are_the_delta_in_dict_form() -> None:
     assert WPInnerStateDelta(**planned_claim_release_fields()) == planned_claim_release_delta()
 
 
-def test_move_task_planned_additions_come_from_the_shared_release() -> None:
-    from specify_cli.cli.commands.agent import tasks_move_task_hops
+def test_move_task_and_the_api_record_the_same_planned_release() -> None:
+    """Behaviour, not structure: both rollback paths record one release (#7644).
 
-    source = tasks_move_task_hops.__dict__["_build_claim_review_override"].__code__.co_names
-    assert "planned_claim_release_fields" in source
+    ``move-task --to planned`` builds its annotation additions in ``_build_claim_review_override``;
+    ``orchestrator-api transition --to planned`` sends ``planned_claim_release_delta()``. With no
+    subtask roster to reset, the two must be the same delta.
+    """
+    from types import SimpleNamespace
+
+    from specify_cli.cli.commands.agent.tasks_move_task_hops import _build_claim_review_override
+
+    state = SimpleNamespace(rollback_reset_map={})  # the reset map is precomputed (#7582): empty roster
+
+    # Only the precomputed map is read, so a namespace stands in for the move-task state and ports.
+    additions = _build_claim_review_override(cast(Any, state), ports=cast(Any, None))
+
+    assert WPInnerStateDelta(**additions) == planned_claim_release_delta()

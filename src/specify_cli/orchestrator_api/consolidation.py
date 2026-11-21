@@ -920,7 +920,7 @@ def accept_mission(
     actor: str = typer.Option(..., "--actor", help=_HELP_ACTOR),
     origin_check: str | None = typer.Option(None, "--origin-check", click_type=_ORIGIN_CHECK_CHOICE, help=_HELP_ORIGIN_CHECK),
 ) -> None:
-    """Accept a mission after all WPs are approved or done."""
+    """Accept a Mission once every WP is approved, done, or canceled with operator provenance."""
     cmd = "accept-mission"
 
     main_repo_root = _common._get_main_repo_root()
@@ -1018,6 +1018,8 @@ def accept_mission(
         "approved_wps": approved_wps,
         "done_wps": done_wps,
         "merge_pending_wps": approved_wps,
+        # 1.30.0 (#5818): WPs canceled with operator provenance, accepted as descoped.
+        "canceled_wps": sorted(entry["wp_id"] for entry in summary.canceled_wps),
     }
     if origin.warnings:
         data["origin_warnings"] = origin.warnings

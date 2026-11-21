@@ -984,16 +984,20 @@ def _wp(work_package_id: str, *, path: Path, agent: str | None = "claude", assig
     )
 
 
-def _snapshot_reader(snapshot_wps: dict[str, dict[str, Any]]) -> Any:
+def _snapshot_reader(snapshot_wps: dict[str, dict[str, Any]], implementer_of_record: dict[str, str | None] | None = None) -> Any:
     """Stand-in for ``acceptance._collect_snapshot_wps``.
 
-    Like the real reader it fills ``implementers`` (#5781); here a WP's stand-in
-    implementer of record is the ``agent`` its stub snapshot names.
+    Like the real reader it fills ``implementers`` (#5781). By default a WP's stand-in
+    implementer of record is the ``agent`` its stub snapshot names; *implementer_of_record*
+    sets it independently of the slot.
     """
 
     def _read(*_args: Any, implementers: dict[str, str | None] | None = None, **_kwargs: Any) -> dict[str, dict[str, Any]]:
         if implementers is not None:
-            implementers.update({wp_id: state.get("agent") for wp_id, state in snapshot_wps.items()})
+            if implementer_of_record is not None:
+                implementers.update(implementer_of_record)
+            else:
+                implementers.update({wp_id: state.get("agent") for wp_id, state in snapshot_wps.items()})
         return snapshot_wps
 
     return _read
@@ -1013,6 +1017,7 @@ class TestCollectFeatureSummaryWiring:
         strict_metadata: bool,
         wps: list[WorkPackage],
         snapshot_wps: dict[str, dict[str, Any]] | None = None,
+        implementer_of_record: dict[str, str | None] | None = None,
     ) -> tuple[Path, dict[str, list[str]]]:
         feature_dir = tmp_path / "kitty-specs" / "trio-mission"
         feature_dir.mkdir(parents=True)
@@ -1024,7 +1029,7 @@ class TestCollectFeatureSummaryWiring:
         monkeypatch.setattr(acceptance_module, "_resolve_git_context", lambda _repo: ("kitty/mission-x", tmp_path, tmp_path, []))
         monkeypatch.setattr(acceptance_module, "_status_read_feature_dir", lambda *_a, **_k: feature_dir)
         monkeypatch.setattr(acceptance_module, "_accept_dirty_gate", lambda *_a, **_k: [])
-        monkeypatch.setattr(acceptance_module, "_collect_snapshot_wps", _snapshot_reader(snapshot_wps or {}))
+        monkeypatch.setattr(acceptance_module, "_collect_snapshot_wps", _snapshot_reader(snapshot_wps or {}, implementer_of_record))
         monkeypatch.setattr(acceptance_module, "_iter_work_packages", lambda *_a, **_k: iter(wps))
         monkeypatch.setattr(acceptance_module, "_planning_read_dir", lambda *_a, **_k: feature_dir)
         # #7641: ``collect_feature_summary`` also asks the placement seam which checkout
@@ -1089,6 +1094,23 @@ class TestCollectFeatureSummaryWiring:
         summary = collect_feature_summary(tmp_path, "trio-mission", strict_metadata=True, mutate_matrix=False)
 
         assert summary.metadata_issues == []
+
+    def test_the_gate_reads_the_implementer_of_record_not_the_agent_slot(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """#5781 wiring: the strict gate is fed the implementer the reader projects, never the slot."""
+        feature_dir, _ = self._wire_common(
+            monkeypatch,
+            tmp_path,
+            strict_metadata=True,
+            wps=[],
+            snapshot_wps={"WP01": {"lane": "done", "agent": "slot-only"}},
+            implementer_of_record={"WP01": None},
+        )
+        wp = _wp("WP01", path=feature_dir / "tasks" / "WP01.md", agent="slot-only", assignee=None, shell_pid=None)
+        monkeypatch.setattr(acceptance_module, "_iter_work_packages", lambda *_a, **_k: iter([wp]))
+
+        summary = collect_feature_summary(tmp_path, "trio-mission", strict_metadata=True, mutate_matrix=False)
+
+        assert any(issue.startswith("WP01: missing agent") for issue in summary.metadata_issues)
 
     def test_planning_holding_checkout_flows_into_path_conventions(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """#7641 / #7602: the PRIMARY-partition holder the placement seam reports is the

@@ -310,7 +310,7 @@ spec-kitty orchestrator-api append-history \
 
 ## 8. accept-mission
 
-Mark a mission as accepted. All work packages must be `approved` or `done`.
+Mark a Mission as accepted. Every work package must be `approved`, `done`, or (contract >= 1.30.0) `canceled` with operator provenance.
 
 ```bash
 spec-kitty orchestrator-api accept-mission --mission TEXT --actor TEXT
@@ -329,6 +329,7 @@ spec-kitty orchestrator-api accept-mission --mission TEXT --actor TEXT
 |-------|------|-------------|
 | `accepted` | bool | True if mission was accepted |
 | `accepted_wps` | list[string] | WPs counted by mission acceptance (`approved` plus `done`) |
+| `canceled_wps` | list[string] | (contract >= 1.30.0) WPs canceled with operator provenance, accepted as descoped |
 | `approved_wps` | list[string] | Review-passed WPs still awaiting merge/integration |
 | `done_wps` | list[string] | WPs already merged/integrated |
 | `merge_pending_wps` | list[string] | Alias of `approved_wps`; WPs accepted-ready but not done |
@@ -379,8 +380,8 @@ still refused with `MISSION_NOT_READY`.
 
 **Usage notes:**
 
-- Always call `mission-state` first to verify every WP is in `approved` or `done`
-- This is a guard-protected operation; it will reject if any WP is not `approved` or `done`, or if the host readiness verdict is not passing
+- Always call `mission-state` first to verify every WP is `approved`, `done`, or `canceled` with operator provenance
+- This is a guard-protected operation; it will reject if any WP is not at an acceptable ending (`approved`, `done`, or, from contract 1.30.0, `canceled` with operator provenance), or if the host readiness verdict is not passing
 - `accept-mission` does not move WPs from `approved` to `done`; merge owns that transition
 
 
@@ -905,7 +906,7 @@ transition — it never invokes the WP-loop or `next` engines.
 | `CONTRACT_VERSION_MISMATCH` | contract-version | Provider version too old |
 | `INVALID_MISSION` | all mission-scoped commands | `--mission` is not a safe path segment (`..`, a separator, a leading dot, non-ASCII); refused before any path join |
 | `MISSION_NOT_FOUND` | mission-state, list-ready | Unknown mission slug |
-| `MISSION_NOT_READY` | accept-mission | Not all WPs are approved/done, or (contract >= 1.7.0) the host readiness verdict is not passing, or (contract >= 1.21.0) the implementation-evidence check refuses (`data.evidence_error_codes`) |
+| `MISSION_NOT_READY` | accept-mission | Not every WP is approved, done, or (contract >= 1.30.0) canceled with operator provenance, or (contract >= 1.7.0) the host readiness verdict is not passing, or (contract >= 1.21.0) the implementation-evidence check refuses (`data.evidence_error_codes`) |
 | `WORKFLOW_EVIDENCE_REQUIRED` | transition | A terminal transition lacks its required structured workflow evidence; the current host derives those facts instead of returning this code, but the contract registers it |
 | `POLICY_METADATA_REQUIRED` | start-implementation, start-review, transition | Missing or incomplete policy JSON |
 | `POLICY_VALIDATION_FAILED` | start-implementation, start-review, transition | Policy JSON invalid or contains secret-like values |
@@ -1033,7 +1034,7 @@ spec-kitty orchestrator-api transition \
   --evidence-json '{"review":{"reviewer":"reviewer-bot","verdict":"approved","reference":"PR #42"}}' \
   --note "Approved in PR #42"
 
-# 9. When all WPs are approved or done, accept and merge
+# 9. When every WP is approved, done, or canceled with operator provenance, accept and merge
 spec-kitty orchestrator-api accept-mission --mission 017-my-mission --actor "ci-bot"
 spec-kitty orchestrator-api consolidate-mission --mission 017-my-mission --strategy squash --push
 ```

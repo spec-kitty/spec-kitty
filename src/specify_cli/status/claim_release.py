@@ -10,7 +10,12 @@ reducer's ``implementer_of_record`` projection (#4786) is not a release slot and
 survives.
 
 ``move-task --to planned`` and ``orchestrator-api transition --to planned`` both
-build their release from this module, so the two paths cannot drift.
+build their claim release from this module, so the release itself cannot drift between
+them. ``move-task`` additionally resets the subtask roster of a rolled-back work package
+(#2513), which the API rollback does not do.
+
+Known residual (#7794): the shared reducer folds every annotation after every transition,
+so this release also clears the slots a LATER claim's sidecar set.
 """
 
 from __future__ import annotations
