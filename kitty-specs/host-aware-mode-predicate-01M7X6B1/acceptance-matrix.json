@@ -68,11 +68,11 @@
       "criterion_id": "FR-007",
       "description": "Verify FR-007 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/tool_surface/test_latent_windows_mode_sites.py; tests/specify_cli/tool_surface/bundles/test_selected_bundle_windows.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-21T07:07:31.023854+00:00",
+      "notes": "Bundles stage/finalize/selected recheck, agent-profile sibling dir, native-config postcondition accept NTFS modes; POSIX twins exact."
     },
     {
       "criterion_id": "FR-008",
