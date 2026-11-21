@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import os
 import stat
-from hashlib import sha256
 from pathlib import Path
 
 import pytest
@@ -22,6 +21,7 @@ from specify_cli.tool_surface.bundles.projection import (
     OWNER,
     _finalize_staged_directories,
     _stage_effect,
+    expected_with_mode,
     observe_confined,
 )
 from specify_cli.tool_surface.operations import (
@@ -38,7 +38,7 @@ from tests.specify_cli.tool_surface.ntfs_emulation import emulate_ntfs
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _CONTENT = b"staged bytes\n"
-_SHA = sha256(_CONTENT).hexdigest()
+_SHA = "24668ae36d3c2448e3dbe456c1d49dc376be2d68c97ac472978c545d1f23fffd"  # sha256 of _CONTENT: the digest the stage planner computes
 _PROOF = OwnershipProof("canonical_content", "test")
 
 
@@ -95,6 +95,26 @@ def test_stage_effect_posix_twin_still_plans_chmod(tmp_path: Path, monkeypatch: 
     effects, _ = _stage(tmp_path, observed_mode=0o666, planned_mode=0o644)
 
     assert [e.action for e in effects] == ["chmod"]
+
+
+# ── bundles: expected_with_mode (the recheck/finalize stamp) ────────────────
+
+
+@pytest.mark.parametrize(
+    ("windows", "observed", "expected_mode"),
+    [
+        (True, FileState("directory", mode=0o777, mtime_ns=5), 0o777),  # equivalent: observed mode kept
+        (False, FileState("directory", mode=0o777, mtime_ns=5), 0o755),  # POSIX: planned mode, exact compare
+        (True, FileState("file", sha256=_SHA, mode=0o777), 0o755),  # kind mismatch: planned mode
+    ],
+)
+def test_expected_with_mode(monkeypatch: pytest.MonkeyPatch, windows: bool, observed: FileState, expected_mode: int) -> None:
+    monkeypatch.setattr(kernel_paths, "is_windows", lambda: windows)
+    expected = FileState("directory", mode=0o700, mtime_ns=9)
+
+    stamped = expected_with_mode(expected, 0o755, observed)
+
+    assert stamped == FileState("directory", mode=expected_mode, mtime_ns=9)
 
 
 # ── bundles: finalize of a created directory with a deferred mode ───────────
