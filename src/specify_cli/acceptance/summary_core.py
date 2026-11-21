@@ -92,7 +92,7 @@ def missing_implementer_issue(wp_id: str, lane: str, implementer: str | None, *,
     (:func:`~specify_cli.status.review_roles.implementer_claim_target`); the command
     it prints is that claim, so running it records the implementer this gate reads.
     """
-    from specify_cli.status.review_roles import implementer_claim_target
+    from specify_cli.status import implementer_claim_target
 
     if implementer or lane == "canceled":
         return None

@@ -1193,7 +1193,7 @@ def _collect_snapshot_wps(
     if not work_packages:
         activity_issues.append(_missing_msg)
     if implementers is not None:
-        from specify_cli.status.review_roles import latest_implementer_identity
+        from specify_cli.status import latest_implementer_identity
 
         implementers.update({wp_id: latest_implementer_identity(event_stream.transitions, wp_id) for wp_id in work_packages})
     return work_packages
