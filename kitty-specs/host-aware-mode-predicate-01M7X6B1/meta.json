@@ -1,0 +1,57 @@
+{
+  "accept_commit": "48dba9ebdfa813985a9d2d239c3859ddd1887c53",
+  "acceptance_history": [
+    {
+      "accept_commit": "3142534e3c39c2cdff9d02ac106ec4e949961a55",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-21T07:08:33.069119+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "8fb50ab06ba84c34152becaa7b078f6b3308411c"
+    },
+    {
+      "accept_commit": "48dba9ebdfa813985a9d2d239c3859ddd1887c53",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-21T07:09:07.389383+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "90c41e5cfaf3972ff23de049202be407f114d3ca"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-21T07:09:07.389383+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "90c41e5cfaf3972ff23de049202be407f114d3ca",
+  "baseline_merge_commit": "873ca367c809e69f25e38b8f70923d8b677efed1",
+  "contracts": "none",
+  "contracts_rationale": "Internal planner predicate and an architectural gate; no external interface, wire format or CLI surface changes.",
+  "create_return_branch": "issue-4927-host-aware-mode-predicate",
+  "created_at": "2026-11-20T19:18:41.008601+00:00",
+  "flattened": true,
+  "friendly_name": "Host-aware mode predicate for tool-surface planners",
+  "merged_at": "2026-11-21T07:16:56.780513+00:00",
+  "merged_commit": "8b900c913d4138c21ccad7b25b59a654d657541a",
+  "mid8": "01M7X6B1",
+  "mission_base_sha": "873ca367c809e69f25e38b8f70923d8b677efed1",
+  "mission_branch": "kitty/mission-host-aware-mode-predicate-01M7X6B1",
+  "mission_id": "01M7X6B1MARTS68ADD3VQJD0Y6",
+  "mission_number": 264,
+  "mission_slug": "host-aware-mode-predicate-01M7X6B1",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "On Windows the file system reports fixed modes, so planners that compare the observed mode with a planned POSIX mode plan a chmod that never takes effect: the startup skill sync and upgrade --dry-run report the same phantom repairs forever, while doctor says the project is clean. This Mission makes one host-aware mode comparison the only way planners decide mode equality and adds an architectural gate that keeps it that way (#4927, #4810).",
+  "purpose_tldr": "A converged Windows project stops re-planning file-mode repairs it can never apply, on every CLI start and every upgrade preview.",
+  "slug": "host-aware-mode-predicate-01M7X6B1",
+  "status_phase": "1",
+  "target_branch": "issue-4927-host-aware-mode-predicate",
+  "topology_decision": {
+    "code_lane_count": 3,
+    "from": "single_branch",
+    "rule": "lanes_with_coord",
+    "target_protected": false,
+    "to": "lanes_with_coord",
+    "wp_count": 3
+  },
+  "topology_settled": true,
+  "topology_source": "default",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-20T19:26:15.929780+00:00"
+}
