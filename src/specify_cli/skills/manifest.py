@@ -10,6 +10,7 @@ from pathlib import Path
 from specify_cli.core.atomic import atomic_write
 from kernel.clock import now_utc_iso
 from kernel.content_digest import sha256_digest
+from kernel.file_modes import modes_equivalent
 from specify_cli.skills.paths import SkillPathObservation, recheck_skill_paths, skill_path_observations
 
 logger = logging.getLogger(__name__)
@@ -176,7 +177,7 @@ def save_manifest(manifest: ManagedSkillManifest | PreparedSkillManifest, projec
     recheck_skill_paths(prepared.observations)
     if prepared.changed:
         atomic_write(target, prepared.content, mkdir=True)
-        if target.stat().st_mode & 0o7777 != prepared.mode:
+        if not modes_equivalent("file", target.stat().st_mode & 0o7777, prepared.mode):
             target.chmod(prepared.mode)
     if isinstance(manifest, ManagedSkillManifest):
         saved = _parse_manifest(prepared.content.decode("utf-8"))
