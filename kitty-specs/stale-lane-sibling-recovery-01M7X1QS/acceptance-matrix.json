@@ -1,0 +1,69 @@
+{
+  "mission_slug": "stale-lane-sibling-recovery-01M7X1QS",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_p0_repro_7755_auto_rebase_halt_reason.py; tests/consolidation/test_7755_stale_sibling_lane_recovery.py::test_operator_who_follows_the_remedy_lands_the_mission",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T19:49:25.090537+00:00",
+      "notes": "Refusal states the in-run auto-rebase stopped, with its halt reason; red on 71a1b002 pre-fix sources, green at head."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_stale_sibling_lanes.py (find_sibling_lanes: merged/unmerged/already-held/failed-probe); recovery + no-worktree CLI tests",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T19:49:29.871616+00:00",
+      "notes": "Sibling lane and branch named; unmerged or already-held siblings are not."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_stale_sibling_lanes.py::test_refined_remedy_leads_with_the_halt_and_names_the_sibling_branch; tests/integration/test_consolidate_upgraded_mission_recovery.py::test_lanes_that_change_gitattributes_differently_are_still_refused_as_stale",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T19:49:34.842173+00:00",
+      "notes": "Remedy names git merge <sibling branch>, never a merge of the Mission branch."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_stale_remediation_cli_command.py::test_stale_remediation_reopens_the_approved_wp_before_reentry; tests/lanes/test_stale_sibling_lanes.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T19:49:41.615986+00:00",
+      "notes": "Reopen step (move-task --to planned --review-feedback-file) with review cost precedes implement (#7754)."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_7755_stale_sibling_lane_recovery.py::test_operator_who_follows_the_remedy_lands_the_mission",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T19:49:48.026117+00:00",
+      "notes": "Following the remedy, the next consolidate passes lane-b and lands with Reconciliation verified. Reopen/claim driven via the production status shell (reviewer LOW-1)."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_p0_repro_7755_auto_rebase_halt_reason.py (p0_repro marker removed; runs per PR, green in CI Modules consolidation shards)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T19:49:53.546358+00:00",
+      "notes": "Repro is a per-PR guard."
+    }
+  ],
+  "negative_invariants": []
+}
