@@ -489,8 +489,13 @@ sparse exclusion, applied by `lanes/lane_checkout.py::open_lane_checkout`); a st
 aimed at a lane checkout refuses `STATUS_WRITE_TARGETS_LANE_CHECKOUT`. The `for_review` gate
 counts commits on the lane branch (`git rev-list <base>..refs/heads/<lane>`), so it needs no
 lane checkout. A stale lane is refreshed by the CLI: `consolidate` auto-rebases it, and its
-remedy prints `spec-kitty agent action implement <WP> --mission <handle>` (the lane sync
-point), never a `cd .worktrees/...` + `git merge` recipe.
+remedy first reopens the approved WP (`move-task <WP> --to planned --review-feedback-file <file>`,
+a re-review; `implement` refuses an approved WP, #7754), then prints
+`spec-kitty agent action implement <WP> --mission <handle>` (the lane sync point), never a
+`cd .worktrees/...` recipe. When the overlap comes from a sibling lane consolidated ahead of it
+(#7755), the refusal carries the in-run auto-rebase halt reason and names the sibling lane's
+branch, which the rollback never moves, to `git merge` in the checkout `implement` names; it
+never prescribes a merge of the Mission branch, which the rollback restores without that change.
 
 **References:** [execution-lanes.md](docs/architecture/execution-lanes.md), [git-worktrees.md](docs/architecture/git-worktrees.md)
 
