@@ -88,11 +88,11 @@
       "criterion_id": "FR-009",
       "description": "Verify FR-009 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/architectural/test_mode_equality_authority.py::test_the_retired_relaxation_helper_is_gone",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-21T07:07:47.831630+00:00",
+      "notes": "windows_dir_mode_only_divergence deleted; callers re-pointed."
     },
     {
       "criterion_id": "FR-010",
