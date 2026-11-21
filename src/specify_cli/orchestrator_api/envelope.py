@@ -227,7 +227,20 @@ from kernel.clock import now_utc_iso
 # ``data.preflight_error_code`` / ``preflight_error_codes`` = ``CHECKOUT_SKIP_WORKTREE_ENTRIES``.
 # A call that could answer ``success: true`` (the bit on a file this path never writes, such as
 # ``meta.json``) now refuses too, so a minor bump; no field or ``error_code`` is removed or renamed.
-CONTRACT_VERSION = "1.29.0"
+# 1.30.0: an orchestrator-claimed Mission can be accepted, and a descoped one too (#5781, #5818,
+# #7644). ``start-implementation`` and ``transition --to claimed`` record ``agent`` = ``--actor``
+# in the claim's ``policy_metadata`` beside the ``--policy`` keys (no ``--policy`` key can
+# override it), so the snapshot names an owner and the host ``move-task`` ownership guard applies
+# to API-claimed work packages. ``transition --to planned`` releases the runtime claim
+# (``agent``/``shell_pid``/``shell_pid_created_at``) and clears the review override, as
+# ``move-task --to planned`` does. ``accept-mission`` lists in ``incomplete_wps`` only work
+# packages that are not at an acceptable ending (a WP canceled with operator provenance is no
+# longer listed; a synthetic cancellation still is), and its readiness gate reads the
+# implementer from the event log, never demanding one for a WP canceled before any claim. A call
+# that refused ``MISSION_NOT_READY`` can now succeed, and its success payload gains
+# ``canceled_wps`` (the descoped work packages), so a minor bump; no field or ``error_code``
+# is removed or renamed.
+CONTRACT_VERSION = "1.30.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose

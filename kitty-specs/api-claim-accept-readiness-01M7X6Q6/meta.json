@@ -1,0 +1,46 @@
+{
+  "accept_commit": "7910c738ead074fdf46d4e182c9a04fcd8aee843",
+  "acceptance_history": [
+    {
+      "accept_commit": "7910c738ead074fdf46d4e182c9a04fcd8aee843",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-20T23:03:09.147089+00:00",
+      "accepted_by": "claude::python-pedro",
+      "accepted_from_commit": "6ca0814190f7d626729987194877261c1b98909a"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-20T23:03:09.147089+00:00",
+  "accepted_by": "claude::python-pedro",
+  "accepted_from_commit": "6ca0814190f7d626729987194877261c1b98909a",
+  "baseline_merge_commit": "996f5d6a170e7aa533e83fa60080238173e14f32",
+  "create_return_branch": "issue-5781-api-claim-accept-readiness",
+  "created_at": "2026-11-20T19:25:19.760937+00:00",
+  "flattened": false,
+  "friendly_name": "API-claimed and canceled WPs reach acceptance",
+  "merged_at": "2026-11-20T23:04:20.180106+00:00",
+  "merged_commit": "56709273a3a77c2c40b73eb80e72516a12dd265c",
+  "mid8": "01M7X6Q6",
+  "mission_base_sha": "996f5d6a170e7aa533e83fa60080238173e14f32",
+  "mission_id": "01M7X6Q6YGMSTAD3BFKB7QD7VW",
+  "mission_number": 264,
+  "mission_slug": "api-claim-accept-readiness-01M7X6Q6",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Fixes #5781 with #5818 and #7644 folded in: the accept gate reads the implementer from the single review_roles authority, the API claim records the agent like the host claim, a never-claimed canceled WP needs no implementer, accept-mission uses the provenance-aware acceptable-ending aggregate, and an API move to planned releases the claim.",
+  "purpose_tldr": "Missions driven through orchestrator-api, or with a WP canceled before any claim, can be accepted; the repair hint always names a command that works.",
+  "slug": "api-claim-accept-readiness-01M7X6Q6",
+  "status_phase": "1",
+  "target_branch": "issue-5781-api-claim-accept-readiness",
+  "topology": "single_branch",
+  "topology_decision": {
+    "code_lane_count": 2,
+    "from": "single_branch",
+    "rule": "wp_count_le_2",
+    "target_protected": false,
+    "to": "single_branch",
+    "wp_count": 2
+  },
+  "topology_settled": true,
+  "topology_source": "default"
+}

@@ -125,7 +125,7 @@ returns `POLICY_VALIDATION_FAILED`.
 | `POLICY_VALIDATION_FAILED` | Policy JSON invalid or contains secrets |
 | `USAGE_ERROR` | CLI usage or missing required arguments |
 | `DEPENDENCIES_NOT_SATISFIED` | WP dependencies do not permit the requested transition |
-| `MISSION_NOT_READY` | Not all WPs approved or done |
+| `MISSION_NOT_READY` | Not every WP is approved, done, or (contract >= 1.30.0) canceled with operator provenance |
 | `PREFLIGHT_FAILED` | Worktree dirty, target diverged, or missing WPs |
 | `UNSUPPORTED_STRATEGY` | Merge strategy not in {merge, squash, rebase} |
 
@@ -278,7 +278,7 @@ use it when there is an external review artifact to record.
 spec-kitty orchestrator-api append-history \
   --mission <slug> --wp WP01 --actor "ci-bot" --note "Tests passed"
 
-# Accept mission (validates all WPs are approved or done via dependency graph)
+# Accept mission (validates every WP in the dependency graph is approved, done, or canceled with operator provenance)
 spec-kitty orchestrator-api accept-mission --mission <slug> --actor "ci-bot"
 
 # Merge mission
@@ -287,9 +287,9 @@ spec-kitty orchestrator-api consolidate-mission \
 ```
 
 `accept-mission` returns `MISSION_NOT_READY` if any WP from the dependency
-graph is not `approved` or `done`.
+graph is not `approved`, `done`, or (contract >= 1.30.0) `canceled` with operator provenance.
 
-Once every WP is `approved`/`done`, `accept-mission` (contract >= 1.7.0) ALSO
+Once every WP is at an acceptable ending, `accept-mission` (contract >= 1.7.0) ALSO
 applies the host readiness verdict — the same `collect_feature_summary(...,
 strict_metadata=True)` check the `accept` CLI runs (a pending/failing
 acceptance matrix, a missing/corrupt `lanes.json`, a dirty working tree,

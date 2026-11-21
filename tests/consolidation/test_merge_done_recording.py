@@ -268,14 +268,36 @@ def test_mark_wp_merged_done_synthesized_evidence_uses_typed_agent(
     tmp_path: Path,
     monkeypatch: Any,
 ) -> None:
-    """Lane-approved fallback uses the event-sourced runtime agent."""
+    """Lane-approved fallback names the event-sourced approving actor, never the claim holder (#5781).
+
+    The runtime ``agent`` slot is the implementer's claim; reading it would record the
+    implementer as its own reviewer.
+    """
+    from specify_cli.status.models import Lane, StatusEvent
+    from tests._support.status_seed import seed_status_event
+
     repo_root = tmp_path
     feature_dir = repo_root / "kitty-specs" / "021-test"
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     _write_minimal_meta(feature_dir)
     _write_wp(tasks_dir / "WP01-test.md")
-    _seed_runtime(feature_dir, agent="gemini-cli")
+    seed_status_event(
+        feature_dir,
+        StatusEvent(
+            event_id="01H22222222222222222222222",
+            mission_slug="021-test",
+            wp_id="WP01",
+            from_lane=Lane.GENESIS,
+            to_lane=Lane.APPROVED,
+            at="2026-07-20T00:00:00+00:00",
+            actor="gemini-cli",
+            force=True,
+            execution_mode="worktree",
+            reason="fixture approval",
+        ),
+    )
+    _seed_runtime(feature_dir, agent="claude-implementer")
 
     emit_mock = Mock()
     monkeypatch.setattr("specify_cli.coordination.status_transition.emit_status_transition_transactional", emit_mock)

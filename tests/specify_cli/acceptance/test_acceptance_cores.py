@@ -103,10 +103,16 @@ class TestBuildWorkPackageState:
             {"lane": "in_progress"},
             wp_path_root=tmp_path,
             strict_metadata=True,
+            implementer=None,
         )
 
         assert issues == [
-            "WP01: missing agent in canonical runtime state (never claimed; run `spec-kitty agent tasks move-task WP01 --to in_progress --agent <name>` to repair)",
+            # #5781: in_progress hands back to planned with only a reason, then a named agent claims it.
+            (
+                "WP01: missing agent in canonical runtime state (no implementing claim recorded; run "
+                "`spec-kitty agent tasks move-task WP01 --to planned --review-feedback-file <file> --mission trio-mission`, then "
+                "`spec-kitty agent tasks move-task WP01 --to claimed --agent <name> --mission trio-mission` to claim it)"
+            ),
             "WP01: missing assignee in canonical runtime state",
             "WP01: missing shell_pid in canonical runtime state",
         ]
@@ -126,18 +132,71 @@ class TestBuildWorkPackageState:
             {"lane": "done", "agent": "claude"},
             wp_path_root=tmp_path,
             strict_metadata=True,
+            implementer="claude",
         )
 
         assert issues == []
 
-    def test_terminal_lane_still_requires_canonical_runtime_agent(self, tmp_path: Path) -> None:
+    def test_terminal_lane_still_requires_an_implementer_of_record(self, tmp_path: Path) -> None:
+        """#5781: the gate reads the implementer of record, never the ``agent`` slot or the WP file."""
         wp = _wp(path=tmp_path / "tasks" / "WP01.md", agent="authored-only")
 
-        _state, issues = build_work_package_state(wp, "WP01", {"lane": "approved"}, wp_path_root=tmp_path, strict_metadata=True)
+        _state, issues = build_work_package_state(
+            wp, "WP01", {"lane": "approved", "agent": "slot-only"}, wp_path_root=tmp_path, strict_metadata=True, implementer=None
+        )
 
         assert issues == [
-            "WP01: missing agent in canonical runtime state (never claimed; run `spec-kitty agent tasks move-task WP01 --to approved --agent <name>` to repair)"
+            (
+                "WP01: missing agent in canonical runtime state (no implementing claim recorded; "
+                "no command applies from lane 'approved': it is left only by a review rejection back to "
+                "planned or a forced operator rewind, after which a named --agent claims it)"
+            )
         ]
+
+    def test_implementer_of_record_satisfies_the_gate_without_an_agent_slot(self, tmp_path: Path) -> None:
+        """#5781: an API claim recorded no ``agent`` sidecar; its implementer of record still counts."""
+        wp = _wp(path=tmp_path / "tasks" / "WP01.md", agent=None)
+
+        state, issues = build_work_package_state(wp, "WP01", {"lane": "approved"}, wp_path_root=tmp_path, strict_metadata=True, implementer="claude::")
+
+        assert issues == []
+        assert state.metadata["agent"] == "claude::"
+
+    def test_a_canceled_wp_with_no_claim_history_needs_no_implementer(self, tmp_path: Path) -> None:
+        wp = _wp(path=tmp_path / "tasks" / "WP01.md", agent=None)
+
+        _state, issues = build_work_package_state(
+            wp, "WP01", {"lane": "canceled", "reason_source": "operator"}, wp_path_root=tmp_path, strict_metadata=True, implementer=None
+        )
+
+        assert issues == []
+
+    @pytest.mark.parametrize("reason_source", ["operator", "synthetic"])
+    def test_a_wp_canceled_after_a_claim_keeps_its_implementer(self, tmp_path: Path, reason_source: str) -> None:
+        """Canceled after a claim: the implementer of record stands and no metadata issue is raised.
+
+        Whether the cancellation is an acceptable ending (operator provenance) is decided elsewhere.
+        """
+        wp = _wp(path=tmp_path / "tasks" / "WP01.md", agent=None)
+
+        state, issues = build_work_package_state(
+            wp, "WP01", {"lane": "canceled", "reason_source": reason_source}, wp_path_root=tmp_path, strict_metadata=True, implementer="claude::"
+        )
+
+        assert issues == []
+        assert state.metadata["agent"] == "claude::"
+        assert state.has_operator_provenance is (reason_source == "operator")
+
+    @pytest.mark.parametrize(("lane", "target"), [("planned", "claimed"), ("claimed", "in_progress"), ("blocked", "in_progress")])
+    def test_the_repair_names_the_implementing_claim_the_state_machine_allows(self, tmp_path: Path, lane: str, target: str) -> None:
+        wp = _wp(path=tmp_path / "tasks" / "WP01.md", agent=None, assignee="a", shell_pid="1")
+
+        _state, issues = build_work_package_state(wp, "WP01", {"lane": lane}, wp_path_root=tmp_path, strict_metadata=True, implementer=None)
+
+        assert issues[0] == (
+            "WP01: missing agent in canonical runtime state (no implementing claim recorded; run "
+            f"`spec-kitty agent tasks move-task WP01 --to {target} --agent <name> --mission trio-mission` to claim it)"
+        )
 
     def test_non_strict_metadata_suppresses_all_issues(self, tmp_path: Path) -> None:
         wp = _wp(path=tmp_path / "tasks" / "WP01.md", agent=None, assignee=None, shell_pid=None)
@@ -148,6 +207,7 @@ class TestBuildWorkPackageState:
             {"lane": "in_progress"},
             wp_path_root=tmp_path,
             strict_metadata=False,
+            implementer=None,
         )
 
         assert issues == []
@@ -171,6 +231,7 @@ class TestBuildWorkPackageState:
             },
             wp_path_root=tmp_path,
             strict_metadata=True,
+            implementer="resolved-agent",
         )
 
         assert issues == []
@@ -184,7 +245,7 @@ class TestBuildWorkPackageState:
     def test_canonical_lane_none_buckets_to_planned(self, tmp_path: Path) -> None:
         wp = _wp(path=tmp_path / "tasks" / "WP01.md")
 
-        state, _issues = build_work_package_state(wp, "WP01", None, wp_path_root=tmp_path, strict_metadata=True)
+        state, _issues = build_work_package_state(wp, "WP01", None, wp_path_root=tmp_path, strict_metadata=True, implementer="claude")
 
         assert state.lane == "planned"
         assert state.has_lane_entry is False
@@ -194,14 +255,14 @@ class TestBuildWorkPackageState:
         wp_path = tmp_path / "kitty-specs" / "trio-mission" / "tasks" / "WP01.md"
         wp = _wp(path=wp_path)
 
-        state, _issues = build_work_package_state(wp, "WP01", {"lane": "approved"}, wp_path_root=tmp_path, strict_metadata=True)
+        state, _issues = build_work_package_state(wp, "WP01", {"lane": "approved"}, wp_path_root=tmp_path, strict_metadata=True, implementer="claude")
 
         assert state.path == str(Path("kitty-specs") / "trio-mission" / "tasks" / "WP01.md")
 
     def test_title_strips_surrounding_quotes(self, tmp_path: Path) -> None:
         wp = _wp(path=tmp_path / "WP01.md", title='"Quoted Title"')
 
-        state, _issues = build_work_package_state(wp, "WP01", {"lane": "approved"}, wp_path_root=tmp_path, strict_metadata=True)
+        state, _issues = build_work_package_state(wp, "WP01", {"lane": "approved"}, wp_path_root=tmp_path, strict_metadata=True, implementer="claude")
 
         assert state.title == "Quoted Title"
 

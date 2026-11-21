@@ -82,6 +82,41 @@ class WorkPackageState:
     has_operator_provenance: bool = False
 
 
+def missing_implementer_issue(wp_id: str, lane: str, implementer: str | None, *, mission: str) -> str | None:
+    """The strict gate's missing-implementer issue for one WP, or ``None`` (#5781).
+
+    ``None`` when the WP has an implementer of record, and for a ``canceled`` WP
+    without one: a WP canceled before anyone claimed it has no implementer to record,
+    and none is fabricated. Otherwise the issue names a repair only when the state
+    machine allows an implementing claim from *lane*
+    (:func:`~specify_cli.status.review_roles.implementer_claim_target`); the command
+    it prints is that claim, so running it records the implementer this gate reads.
+    """
+    from specify_cli.status import implementer_claim_target, implementer_release_target
+
+    if implementer or lane == "canceled":
+        return None
+    prefix = f"{wp_id}: missing agent in canonical runtime state (no implementing claim recorded"
+    target = implementer_claim_target(lane)
+    release = implementer_release_target(lane)
+    if target is None and release is not None:
+        # The lane hands back to planned (move-task asks every move to planned for a feedback file);
+        # a named agent then claims it.
+        return (
+            f"{prefix}; run `spec-kitty agent tasks move-task {wp_id} --to {release.value} --review-feedback-file <file> "
+            f"--mission {mission}`, "
+            f"then `spec-kitty agent tasks move-task {wp_id} --to claimed --agent <name> --mission {mission}` to claim it)"
+        )
+    if target is None:
+        # No single command records a claim from here: a review or terminal lane is left only
+        # through a review verdict or a forced operator rewind, after which a real agent claims it.
+        return (
+            f"{prefix}; no command applies from lane '{lane}': it is left only by a review rejection back to "
+            "planned or a forced operator rewind, after which a named --agent claims it)"
+        )
+    return f"{prefix}; run `spec-kitty agent tasks move-task {wp_id} --to {target.value} --agent <name> --mission {mission}` to claim it)"
+
+
 def build_work_package_state(
     wp: WorkPackage,
     wp_id: str,
@@ -89,8 +124,15 @@ def build_work_package_state(
     *,
     wp_path_root: Path,
     strict_metadata: bool,
+    implementer: str | None,
 ) -> tuple[WorkPackageState, list[str]]:
     """Pure: build one WP's summary state + its metadata-gate issues.
+
+    ``implementer`` is the WP's implementer of record, read by the caller from the
+    event log through the single authority :mod:`specify_cli.status.review_roles`
+    (#5781). The strict gate reads only it, never the snapshot ``agent`` slot: that
+    slot is filled by a claim sidecar, which orchestrator-api claims recorded without
+    before #5781, so a slot read refused every API-claimed Mission.
 
     ``wp`` supplies authored presentation fields only; ``wp_snapshot`` supplies
     every runtime field. Both are already-resolved inputs, so this function
@@ -107,29 +149,20 @@ def build_work_package_state(
     lane_value = snapshot.get("lane")
     canonical_lane = str(lane_value) if lane_value is not None else None
     bucket_lane = canonical_lane if canonical_lane is not None else "planned"
+    # Display only: the live claim slot, else the implementer of record. The gate
+    # below never reads it.
     metadata: dict[str, str | None] = {
         "lane": canonical_lane,
-        "agent": _runtime_metadata_field(snapshot, "agent", fallback_key="implementer_of_record"),
+        "agent": _runtime_metadata_field(snapshot, "agent", fallback_key="implementer_of_record") or implementer,
         "assignee": _runtime_metadata_field(snapshot, "assignee"),
         "shell_pid": _runtime_metadata_field(snapshot, "shell_pid"),
     }
 
     metadata_issues: list[str] = []
     if strict_metadata:
-        if not metadata["agent"]:
-            # Reaching here means BOTH the live ``agent`` slot AND the derived
-            # ``implementer_of_record`` fallback are empty — i.e. the WP carries
-            # no ``planned -> claimed`` event, so it was genuinely never claimed.
-            # ``doctor mission-state --fix`` rebuilds ``lanes.json`` from the
-            # event log; it does NOT synthesise a claim, so it cannot repair this
-            # slot. The repair is to (re-)plant the implementer via a same-lane
-            # ``move-task --agent`` (the #3029 remedy) — FR-006/SC-003, name the
-            # repair that actually re-establishes the field this gate reads.
-            metadata_issues.append(
-                f"{wp_id}: missing agent in canonical runtime state "
-                f"(never claimed; run `spec-kitty agent tasks move-task {wp_id} "
-                f"--to {bucket_lane} --agent <name>` to repair)"
-            )
+        missing_implementer = missing_implementer_issue(wp_id, bucket_lane, implementer, mission=wp.feature)
+        if missing_implementer is not None:
+            metadata_issues.append(missing_implementer)
         # ``shell_pid`` identifies the live interactive shell that claimed a WP
         # in ``spec-kitty next`` — an artifact of the ACTIVE-work phase, and one
         # the orchestrator executor never stamps. Require it (and ``assignee``)

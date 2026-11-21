@@ -1,0 +1,79 @@
+{
+  "mission_slug": "api-claim-accept-readiness-01M7X6Q6",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "FR-001: Gate reads the implementer of record",
+      "proof_type": "automated_test",
+      "evidence": "Gate reads review_roles implementer (summary_core.missing_implementer_issue); tests/orchestrator_api/test_issue_5781_accept_readiness.py (lanes + coordination); live repro_5781 lanes and coord exit 0",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T23:02:35.113131+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "FR-002: Canceled WP without claim history needs no implementer",
+      "proof_type": "automated_test",
+      "evidence": "Canceled WP without claim history exempt; test_a_wp_canceled_before_any_claim_needs_no_implementer[host_without_agent|host_with_agent|api]; live cancel arms X/P/V host accept rc=0",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T23:02:39.596749+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "FR-003: Repair hint derived from the state machine",
+      "proof_type": "automated_test",
+      "evidence": "Hint from review_roles.implementer_claim_target; tests/specify_cli/acceptance/test_implementer_repair_hint.py runs every printed command and asserts no command where none is legal",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T23:02:43.629730+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "FR-004: API claim records the agent through the shared builder",
+      "proof_type": "automated_test",
+      "evidence": "One claim builder on start-implementation, transition --to claimed, agent status emit --to claimed; tests/orchestrator_api/test_api_claim_sidecar_5781.py. Residual after a rollback tracked as #7794 (strict xfail)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T23:02:47.781815+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "FR-005: accept-mission uses the acceptable-ending aggregate",
+      "proof_type": "automated_test",
+      "evidence": "accept_mission uses mission_terminal_acceptability; live cancel arms X/P/V accept-mission success=true, synthetic cancel still incomplete (test_a_synthetic_cancellation_is_still_incomplete)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T23:02:51.854006+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "FR-006: API move to planned releases the claim",
+      "proof_type": "automated_test",
+      "evidence": "API --to planned sends status.planned_claim_release_delta; test_transition_to_planned_releases_the_claim_and_keeps_the_implementer_of_record, test_after_an_api_rollback_host_implement_claims_unforced",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T23:02:56.024270+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "FR-007: Contract version",
+      "proof_type": "automated_test",
+      "evidence": "CONTRACT_VERSION 1.30.0 with comment block, docs/api/orchestrator-api.md, skill contract row; tests/specify_cli/orchestrator_api/test_contract_version.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T23:03:00.046354+00:00",
+      "notes": null
+    }
+  ],
+  "negative_invariants": []
+}
