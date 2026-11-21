@@ -3986,6 +3986,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/development/how-to/cloud-environment-setup.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/development/how-to/cloud-session-setup.md
   tag: current
   divio_type: how-to
@@ -4058,6 +4064,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/development/how-to/run-a-multi-session-orchestration.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/development/how-to/service-pins.md
   tag: current
   divio_type: how-to
@@ -4077,6 +4089,12 @@
   current_target: true
   notes: null
 - path: docs/development/inline-meta-read-allowlist-baseline-deviation.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/development/multi-session-orchestration.md
   tag: current
   divio_type: explanation
   owning_workstream: none
