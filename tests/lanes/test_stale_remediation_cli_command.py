@@ -86,6 +86,19 @@ def test_stale_remediation_has_no_git_merge_or_worktrees_cd(tmp_path: Path) -> N
     assert "git merge" not in result.remediation
 
 
+def test_stale_remediation_reopens_the_approved_wp_before_reentry(tmp_path: Path) -> None:
+    """#7754: at consolidate the WP is approved and ``implement`` refuses it, so the remedy reopens it first."""
+    repo, _worktree = _stale_repo(tmp_path)
+
+    result = check_lane_staleness(_lane(), LANE_BRANCH, COORD_BRANCH, repo, mission_slug=MISSION_SLUG)
+
+    assert result.remediation is not None
+    reopen = f"spec-kitty agent tasks move-task WP01 --to planned --review-feedback-file <file> --mission {MISSION_SLUG}"
+    assert reopen in result.remediation
+    assert "re-review" in result.remediation
+    assert result.remediation.index(reopen) < result.remediation.index(REENTRY_COMMAND)
+
+
 def test_stale_remediation_without_handle_names_placeholder(tmp_path: Path) -> None:
     repo, _worktree = _stale_repo(tmp_path)
 
