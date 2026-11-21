@@ -48,6 +48,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#4805": {
+      "evidence_ref": "Cited as a lesson only (WP02 prompt: do not route observed-vs-observed guards through the predicate, the over-reach #4805 caught); no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "PR #4805 rescope (convergence predicate over-reach)",
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#4810": {
       "evidence_ref": "Folded in by operator ruling 2026-11-20; predicate in WP01, ratchet gate tests/architectural/test_mode_equality_authority.py in WP03",
       "fr": null,
