@@ -38,11 +38,11 @@
       "criterion_id": "FR-004",
       "description": "Verify FR-004 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/runtime/test_global_mode_convergence_windows.py::test_posix_*",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-21T07:07:05.366457+00:00",
+      "notes": "POSIX loosened dir and exec-bit drift still plan and converge."
     },
     {
       "criterion_id": "FR-005",
