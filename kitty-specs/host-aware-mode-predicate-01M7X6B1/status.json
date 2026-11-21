@@ -99,7 +99,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-21T06:13:59Z – claude::python-pedro – shell_pid=244 – Red-first: 2c4dce16 (gate test only) red: ImportError, _mode_equality_scan absent. 042aa8a0 adds the scan; 246e5637 adds the selected-bundle NTFS case (WP02 review LOW, out-of-map in tests/specify_cli/tool_surface/bundles/, rationale: reviewer-requested coverage of _finish_selected_stage) and changelog fragment docs/changelog/unreleased/4927.fixed.md (check_changelog_style 0 errors, check_spelling 0 findings). Live tree: 77 files, 1616 comparisons, 4 findings, all adjudicated: observe_bundle_path read-stability guard, _finalize_staged_directories fstat identity guard, _unique_members planned-vs-planned conflict, installer._archive_existing_path backup-fidelity copy of an observed symlink mode. P2/P3: zero live hits. Gate: 17 passed; scan_tree 0.57 s (4 scans, about 2.5 s total, NFR-004 <5 s). Mutation proof: disabling P1 reds each_pattern + live_mutation + stale; disabling P2 or P3 reds each_pattern. Ran: pytest tests/architectural/test_mode_equality_authority.py test_layer_rules.py test_no_follow_symlinks_apply_ban.py test_os_detection_ban.py tests/specify_cli/tool_surface/bundles tests/specify_cli/tool_surface/test_mode_equivalence.py -n 4 -> 316 passed; selected-bundle test 3 passed; make test-fast 3173 passed, 7 skipped. ruff/format/mypy clean on all new files.",
-        "Ready for review: mutation-proven mode-equality gate + changelog"
+        "Ready for review: mutation-proven mode-equality gate + changelog",
+        "- 2026-11-21T06:42:24Z – unknown – Review cycle 1 folded. Red: 6b?? commit 'gate catches a second comparison...' (4 failed on the old scan). Fix de82744c: B1 findings carry ast.unparse text; ADJUDICATED keyed on (path, qualname, pattern, text) -- the reviewer's _finalize_staged_directories reproduction is now 1 unadjudicated finding (test_a_second_comparison_in_an_adjudicated_function_is_caught). B2 new P4: planned mode (<x>.after.mode) vs any non-mode operand (current = S_IMODE(...); current != after.mode caught); *_mode names and getattr(x,'mode') carry a mode for P1. Live tree unchanged: same 4 adjudicated sites, 0 new hits from P4/mode names. Mutation proof: P1/P2/P3/P4 off each red at least one test; a function-wide key reds the second-comparison test. Non-blocking: scan docstring lists out-of-scope evasions (alias, dict lookup, operator.*, match, helpers outside roots), gate docstring points at it; changelog 4927.internal.md (style 0 errors, spelling 0 findings); selected-bundle test type: ignore removed by typing the chmod wrapper. Tests: gate 23 passed; gate + selected bundle + test_layer_rules 106 passed; ruff/format/mypy clean."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -113,9 +114,9 @@
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
-        "T011": "planned",
-        "T012": "planned",
-        "T013": "planned"
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
       }
     }
   }
