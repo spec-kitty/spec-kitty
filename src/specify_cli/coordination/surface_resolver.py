@@ -48,8 +48,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import kernel.paths as kernel_paths
-from kernel.git import GitCommandError, tree_paths
+from kernel.git import GitCommandError, run_git, tree_paths
 from kernel.git.read_cache import cached_git_read
+from kernel.git.remote import resolve_remote, tracking_ref
 from mission_runtime import (
     CommitTarget,
     MissionArtifactKind,
@@ -83,6 +84,8 @@ __all__ = [
     "WorktreeRegistryUnavailable",
     "WorktreeTopology",
     "classify_worktree_topology",
+    "coord_branch_tracking_ref",
+    "ensure_coord_branch_local_head",
     "is_registered_coord_worktree",
     "is_under_worktrees_segment",
     "materialize_coord_surface_for_write",
@@ -797,6 +800,75 @@ def _coord_branch_is_local_head(repo_root: Path, coord_branch: str) -> bool:
     return result.returncode == 0
 
 
+def coord_branch_tracking_ref(repo_root: Path, coord_branch: str) -> str | None:
+    """Return the remote-tracking ref this clone holds for *coord_branch*, or ``None``.
+
+    #5936: the remote is the one that owns the branch
+    (:func:`kernel.git.remote.resolve_remote`: ``branch.<b>.remote``, then the
+    only configured remote, then ``origin``), never a scan of every remote, so
+    two remotes carrying different tips can never pick one silently. Local reads
+    only; no remote is contacted (ADR 2026-10-06-3). ``None`` when no owning
+    remote resolves, or this clone has no commit at
+    ``refs/remotes/<remote>/<coord_branch>`` (a single-branch / shallow clone
+    that never fetched it, or a pruned tracking ref).
+    """
+    try:
+        remote = resolve_remote(repo_root, coord_branch)
+    except (GitCommandError, OSError):
+        return None
+    if remote is None:
+        return None
+    ref = tracking_ref(remote, coord_branch)
+    try:
+        probe = run_git(repo_root, "rev-parse", "--verify", "--quiet", "--end-of-options", f"{ref}^{{commit}}", check=False)
+    except GitCommandError:  # git could not run at all
+        return None
+    return ref if probe.returncode == 0 else None
+
+
+def ensure_coord_branch_local_head(repo_root: Path, coord_branch: str) -> bool:
+    """Make *coord_branch* a local head, creating it from its remote-tracking ref (#5936).
+
+    A teammate's clone (``git clone`` / ``git pull`` of a coordination Mission)
+    carries the coordination branch only as ``refs/remotes/<remote>/<branch>``.
+    That ref IS the branch's shared history, so a local branch started from it
+    never forks from the primary branch (the #4970 hazard): this is what rc5's
+    ``git worktree add <path> <branch>`` did through git's own remote-tracking
+    DWIM. The branch is created with ``--track`` so its upstream is the owning
+    remote.
+
+    Returns ``True`` when *coord_branch* is a local head afterwards (already was,
+    created here, or created by a concurrent process). Returns ``False``, writing
+    nothing, when this clone holds no remote-tracking ref for it
+    (:func:`coord_branch_tracking_ref`): the caller keeps refusing, fail-closed,
+    because nothing local proves the branch's content.
+
+    Write-side only: a read path must never call this (reads stay side-effect free).
+    """
+    if _coord_branch_is_local_head(repo_root, coord_branch):
+        return True
+    start = coord_branch_tracking_ref(repo_root, coord_branch)
+    if start is None:
+        return False
+    try:
+        # ``--end-of-options``: the branch name comes from ``meta.json`` (pushed by
+        # teammates), so it must never be parsed as an option.
+        created = run_git(repo_root, "branch", "--track", "--end-of-options", coord_branch, start, check=False)
+    except GitCommandError:  # git could not run at all
+        return False
+    if created.returncode != 0:
+        # A concurrent CLI process may have created it between the probe and here.
+        logger.debug(
+            "ensure_coord_branch_local_head: git branch --track %s %s failed: %s",
+            coord_branch,
+            start,
+            created.stderr.decode("utf-8", "replace").strip(),
+        )
+        return _coord_branch_is_local_head(repo_root, coord_branch)
+    logger.info("created local coordination branch %r from %r as last fetched (#5936)", coord_branch, start)
+    return True
+
+
 def coord_branch_has_committed_artifact(
     repo_root: Path,
     coord_branch: str,
@@ -956,8 +1028,10 @@ def materialize_coord_surface_for_write(
     2. Not :attr:`~...CoordState.UNMATERIALIZED` (``MATERIALIZED`` / ``EMPTY``):
        no-op — nothing to materialize, and ``DELETED`` is left to raise
        downstream exactly as it does today.
-    3. A remote-only branch (not a local head) is never auto-materialized
-       before a write (#4970 parity, S-C) — raises BEFORE any write.
+    3. A branch that is not a local head gets one from this clone's
+       remote-tracking ref (:func:`ensure_coord_branch_local_head`, #5936).
+       With no such ref it is never auto-materialized before a write (#4970
+       parity, S-C) — raises BEFORE any write.
     4. Otherwise materializes via the canonical resolver. A concurrent CLI race
        that materializes the worktree between this function's probe and its own
        ``resolve`` call (plan Risk 4) is tolerated: on a narrowed materialization
@@ -1002,7 +1076,10 @@ def materialize_coord_surface_for_write(
     if state is not CoordState.UNMATERIALIZED:
         return
 
-    if not _coord_branch_is_local_head(repo_root, coordination_branch):
+    # #5936: a branch this clone holds only as a remote-tracking ref (a teammate's
+    # clone / pull) gets its local head from that ref first, as rc5 did. With no
+    # such ref nothing local proves the branch's content, so the write refuses.
+    if not ensure_coord_branch_local_head(repo_root, coordination_branch):
         _raise_unmaterialized(repo_root, mission_slug, mid8, coordination_branch)
 
     from specify_cli.coordination.workspace import (  # noqa: PLC0415
