@@ -1,0 +1,71 @@
+{
+  "event_count": 29,
+  "last_event_id": "01M7YFD436YYZJH5W9PCRB9BW8",
+  "materialized_at": "2026-11-21T07:16:19.686282+00:00",
+  "mission_number": "",
+  "mission_slug": "host-aware-mode-predicate-01M7X6B1",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M7YFCK0EA3JHF7M4WN843TPE",
+      "last_transition_at": "2026-11-21T07:16:02.190737+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261121",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 5086,
+      "shell_pid_created_at": "1795202763.31"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude::python-pedro",
+      "force_count": 0,
+      "implementer_of_record": "claude::python-pedro",
+      "lane": "done",
+      "last_event_id": "01M7YFCVCSJK55BPAZSY49H3CP",
+      "last_transition_at": "2026-11-21T07:16:10.777246+00:00",
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/host-aware-mode-predicate-01M7X6B1-coord/kitty-specs/host-aware-mode-predicate-01M7X6B1/tasks/WP02-project-planners-and-latent-sites/review-cycle-1.md",
+        "reference": "review-cycle://host-aware-mode-predicate-01M7X6B1/WP02-project-planners-and-latent-sites/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 1169,
+      "shell_pid_created_at": "1795235019.58"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude::python-pedro",
+      "force_count": 1,
+      "implementer_of_record": "claude::python-pedro",
+      "lane": "done",
+      "last_event_id": "01M7YFD436YYZJH5W9PCRB9BW8",
+      "last_transition_at": "2026-11-21T07:16:19.686282+00:00",
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/host-aware-mode-predicate-01M7X6B1-coord/kitty-specs/host-aware-mode-predicate-01M7X6B1/tasks/WP03-ratchet-gate-and-changelog/review-cycle-2.md",
+        "reference": "review-cycle://host-aware-mode-predicate-01M7X6B1/WP03-ratchet-gate-and-changelog/review-cycle-2.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 192,
+      "shell_pid_created_at": "1795242716.12"
+    }
+  }
+}

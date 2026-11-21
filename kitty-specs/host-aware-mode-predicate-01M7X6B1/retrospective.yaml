@@ -1,0 +1,178 @@
+schema_version: 1
+mission_id: 01M7X6B1MARTS68ADD3VQJD0Y6
+mission_slug: host-aware-mode-predicate-01M7X6B1
+mission_number: 264
+friendly_name: Host-aware mode predicate for tool-surface planners
+mission_type: software-dev
+target_branch: issue-4927-host-aware-mode-predicate
+created_at: '2026-11-21T07:17:21.812684+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-11-21T07:17:21.812684+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-008
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-008
+not_helpful:
+- id: n-003
+  category: doc
+  summary: analysis-report.md records 6 finding(s)
+  evidence_refs:
+  - e-011
+  details: The analysis-report.md artifact for this mission records 6 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-002
+  category: process
+  summary: WP01 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-010
+  details: WP WP01 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP03 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-009
+  details: WP WP03 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-007
+  category: tooling
+  summary: 'Tracer: [2026-11-20][implement] Execute-bit twin.'
+  evidence_refs:
+  - e-013
+  details: '- **[2026-11-20][implement] Execute-bit twin.** No packaged asset is executable, so the POSIX exec-bit twin pins
+    drift in the other direction: an exec bit gained on a planned read-only skill file is repaired.'
+- id: n-008
+  category: tooling
+  summary: 'Tracer: [2026-11-20][implement] mypy reports `no-any-return` at `asset_preparation.apply_assets` only when it
+    checks `operations.py` and `asset_preparation.py` together.'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-20][implement] mypy reports `no-any-return` at `asset_preparation.apply_assets` only when it checks
+    `operations.py` and `asset_preparation.py` together.** The base commit shows the same error under the same invocation,
+    and each file checked alone is clean. This is pre-existing and depends on the invocation; it is not caused by this Mission.'
+- id: n-004
+  category: tooling
+  summary: 'Tracer: [2026-11-20][plan] One predicate plus delegation.'
+  evidence_refs:
+  - e-012
+  details: "- **[2026-11-20][plan] One predicate plus delegation.** The approach is one host-aware predicate beside `FileState`.
+    The effect validator and every planner's action ladder delegate to `effect_action`, so they cannot disagree. An AST ratchet
+    gate closes the class (#4810). Windows is emulated on Linux by synthesizing NTFS modes in `os.stat`/`lstat`/`fstat`, with
+    `chmod` toggling only the write bit."
+- id: n-006
+  category: tooling
+  summary: 'Tracer: [2026-11-20][plan] The validator is host-aware (research R-3).'
+  evidence_refs:
+  - e-013
+  details: '- **[2026-11-20][plan] The validator is host-aware (research R-3).** A missed raw-chmod planner now raises on
+    Windows instead of re-planning forever. The gate makes such a miss a CI failure. The alternative, a tolerant validator,
+    was rejected because it would leave the class silently alive.'
+- id: n-005
+  category: tooling
+  summary: 'Tracer: [2026-11-20][plan] Windows semantics (operator ruling 2026-11-20).'
+  evidence_refs:
+  - e-013
+  details: "- **[2026-11-20][plan] Windows semantics (operator ruling 2026-11-20).** Directories and symlinks compare kind
+    only; files compare the owner write bit; POSIX compares exactly. This replaces 6269777dc's \"ignore every Windows file
+    mode\" for project skills."
+gaps:
+- id: g-001
+  category: tooling
+  summary: 'Tracer: [2026-11-20][plan] `spec-commit` refuses a directory argument and the decisions lock file.'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-11-20][plan] `spec-commit` refuses a directory argument and the decisions lock file.** Passing `decisions/`
+    failed. Passing every file under it failed too, because `index.json.lock` is a runtime lock. The workaround was to pass
+    the files explicitly, excluding `*.lock`. Candidate gap: let `spec-commit` skip runtime locks.'
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/host-aware-mode-predicate-01M7X6B1/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/host-aware-mode-predicate-01M7X6B1/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/host-aware-mode-predicate-01M7X6B1/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/host-aware-mode-predicate-01M7X6B1/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/host-aware-mode-predicate-01M7X6B1/tasks/WP01-predicate-and-global-planners.md
+- id: e-006
+  kind: file
+  path: kitty-specs/host-aware-mode-predicate-01M7X6B1/tasks/WP02-project-planners-and-latent-sites.md
+- id: e-007
+  kind: file
+  path: kitty-specs/host-aware-mode-predicate-01M7X6B1/tasks/WP03-ratchet-gate-and-changelog.md
+- id: e-008
+  kind: file
+  path: kitty-specs/host-aware-mode-predicate-01M7X6B1/status.events.jsonl
+- id: e-009
+  kind: event_range
+  path: kitty-specs/host-aware-mode-predicate-01M7X6B1/status.events.jsonl
+  range: 01M7YCSH29FKMMCGN20EQ1A6N4
+- id: e-010
+  kind: event_range
+  path: kitty-specs/host-aware-mode-predicate-01M7X6B1/status.events.jsonl
+  range: 01M7YE7D78VVYZN58PZARSX1QZ
+- id: e-011
+  kind: file
+  path: kitty-specs/host-aware-mode-predicate-01M7X6B1/analysis-report.md
+- id: e-012
+  kind: file
+  path: kitty-specs/host-aware-mode-predicate-01M7X6B1/traces/approach.md
+- id: e-013
+  kind: file
+  path: kitty-specs/host-aware-mode-predicate-01M7X6B1/traces/design-decisions.md
+- id: e-014
+  kind: file
+  path: kitty-specs/host-aware-mode-predicate-01M7X6B1/traces/tooling-friction.md
+generator_version: '1.0'
+provenance_history: []
