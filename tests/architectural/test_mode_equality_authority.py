@@ -14,9 +14,15 @@ each adjudicated by kind:
 * ``conflict`` -- two planned states (conflicting outputs from two owners);
 * ``fidelity`` -- an observed mode copied onto a copy of that node.
 
+Each entry names the exact comparison text, so it exempts that one comparison.
+
 They are permanent classifications, not drain-debt, so the table needs no
 ``_baselines.yaml`` entry (ADR ``2026-09-30-1``). An entry that no longer
 matches a live site fails the gate, so the table cannot rot.
+
+The detector is syntactic; its docstring lists the evasions it does not
+follow (an alias not named like a mode, a dictionary lookup, ``operator``
+functions, ``match``, helpers outside the scan roots). Review owns those.
 """
 
 from __future__ import annotations
@@ -35,17 +41,23 @@ _PROJECTION = "src/specify_cli/tool_surface/bundles/projection.py"
 
 @dataclass(frozen=True)
 class Adjudicated:
-    """One comparison allowed to stay exact, keyed by (path, qualname, pattern)."""
+    """One comparison allowed to stay exact, keyed by its exact source text in its scope.
+
+    Keying on the comparison's ``ast.unparse`` text (not just the function)
+    means a second, different comparison added to the same function is a new,
+    unadjudicated finding (review cycle 1, B1).
+    """
 
     path: str
     qualname: str
     pattern: str
+    text: str
     kind: str
     rationale: str
 
     @property
-    def key(self) -> tuple[str, str, str]:
-        return (self.path, self.qualname, self.pattern)
+    def key(self) -> tuple[str, str, str, str]:
+        return (self.path, self.qualname, self.pattern, self.text)
 
 
 ADJUDICATED: tuple[Adjudicated, ...] = (
@@ -53,6 +65,7 @@ ADJUDICATED: tuple[Adjudicated, ...] = (
         _PROJECTION,
         "observe_bundle_path",
         "P1",
+        "(info.st_dev, info.st_ino, info.st_mode, info.st_mtime_ns) != (after.st_dev, after.st_ino, after.st_mode, after.st_mtime_ns)",
         "guard",
         "Two lstat reads of the same node around a content read: detects a concurrent change, so exact on every host.",
     ),
@@ -60,6 +73,7 @@ ADJUDICATED: tuple[Adjudicated, ...] = (
         _PROJECTION,
         "_finalize_staged_directories",
         "P1",
+        "(info.st_dev, info.st_ino, stat.S_IMODE(info.st_mode)) != (created.device, created.inode, created.state.mode)",
         "guard",
         "The open descriptor's (dev, ino, mode) against the observation taken when the directory was created: identity check.",
     ),
@@ -67,6 +81,7 @@ ADJUDICATED: tuple[Adjudicated, ...] = (
         _PROJECTION,
         "_unique_members",
         "P1",
+        "(previous.content, previous.mode) != (member.content, member.mode)",
         "conflict",
         "Two planned staged members for one path must agree on bytes and mode; no observation is involved.",
     ),
@@ -74,6 +89,7 @@ ADJUDICATED: tuple[Adjudicated, ...] = (
         "src/specify_cli/skills/installer.py",
         "_archive_existing_path",
         "P1",
+        "stat.S_IMODE(backup_path.lstat().st_mode) != before.mode",
         "fidelity",
         "Re-applies a symlink's observed mode to its backup copy on the same host; both sides are observations.",
     ),
@@ -87,7 +103,7 @@ MIN_SCANNED_COMPARISONS = 1200
 
 def _unadjudicated(findings: list[scan.Finding]) -> list[scan.Finding]:
     allowed = {entry.key for entry in ADJUDICATED}
-    return [f for f in findings if (f.path, f.qualname, f.pattern) not in allowed]
+    return [f for f in findings if f.key not in allowed]
 
 
 def test_no_planner_decides_mode_equality_outside_the_predicate() -> None:
@@ -104,11 +120,11 @@ def test_no_planner_decides_mode_equality_outside_the_predicate() -> None:
 
 def test_every_adjudicated_site_is_still_live() -> None:
     findings, _files, _comparisons = scan.scan_tree()
-    live = {(f.path, f.qualname, f.pattern) for f in findings}
+    live = {f.key for f in findings}
 
     stale = [entry for entry in ADJUDICATED if entry.key not in live]
 
-    assert not stale, "Remove stale entries from ADJUDICATED: " + ", ".join(f"{e.path}::{e.qualname} [{e.pattern}]" for e in stale)
+    assert not stale, "Remove or update stale entries in ADJUDICATED: " + ", ".join(f"{e.path}::{e.qualname} [{e.pattern}] {e.text}" for e in stale)
 
 
 def test_adjudicated_entries_are_classified_and_justified() -> None:

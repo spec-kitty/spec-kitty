@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from types import SimpleNamespace
-from typing import cast
+from typing import Any, cast
 
 import pytest
 
@@ -77,8 +77,8 @@ def test_selected_bundle_still_refuses_posix_mode_drift(tmp_path: Path, monkeypa
     monkeypatch.setattr(kernel_paths, "is_windows", lambda: False)
     real_chmod = os.chmod
 
-    def drifting_chmod(path: object, mode: int, *args: object, **kwargs: object) -> None:
-        real_chmod(path, 0o600 if str(path).endswith("a.json") else mode, *args, **kwargs)  # type: ignore[arg-type]
+    def drifting_chmod(path: str | os.PathLike[str], mode: int, *args: Any, **kwargs: Any) -> None:
+        real_chmod(path, 0o600 if str(path).endswith("a.json") else mode, *args, **kwargs)
 
     monkeypatch.setattr(os, "chmod", drifting_chmod)
 

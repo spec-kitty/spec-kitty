@@ -23,7 +23,24 @@ roots must decide mode equality through it.
   stamp (an ``<x>.after`` attribute, or a name ``after``/``planned``): a whole
   node state compared with a planned one carries the mode with it;
 * ``P3`` -- a ``replace(..., mode=<x>.after.mode)`` call: a planned mode
-  stamped into an observation that is then compared exactly.
+  stamped into an observation that is then compared exactly;
+* ``P4`` -- an ``==``/``!=`` comparison of a planned mode (``<x>.after.mode``)
+  with an operand the detector cannot see a mode in, such as a local variable
+  holding ``stat.S_IMODE(...)`` (the original ``installer.py`` shape).
+
+A mode is carried by a ``.mode``/``.st_mode`` attribute, a ``stat.S_IMODE(...)``
+call, a ``getattr(x, "mode")`` call, or a name that is ``mode`` or ends in
+``_mode``.
+
+Each finding records the comparison's source text (``ast.unparse``), so an
+adjudication exempts exactly one comparison, never a whole function.
+
+**Out of scope (known evasions).** The detector is syntactic. It does not
+follow a planned mode through an alias that is not named ``planned``/``after``
+or ``*_mode``, a dictionary lookup, ``operator.eq``/``operator.ne``, a ``match``
+statement, ``functools`` partials, or a helper defined outside the scan roots.
+Review owns those; a new helper that compares modes belongs in
+``tool_surface/operations.py``.
 
 A comparison between two observations of the same node (a concurrency guard)
 or between two planned states (a conflict check) is legitimately exact on every
@@ -63,6 +80,12 @@ class Finding:
     qualname: str
     pattern: str
     lineno: int
+    text: str
+
+    @property
+    def key(self) -> tuple[str, str, str, str]:
+        """The adjudication key: one exact comparison in one scope."""
+        return (self.path, self.qualname, self.pattern, self.text)
 
 
 def iter_python_files(roots: tuple[Path, ...] = SCAN_ROOTS) -> list[Path]:
@@ -78,16 +101,30 @@ def relpath(path: Path) -> str:
     return path.resolve().relative_to(REPO_ROOT).as_posix()
 
 
-def _carries_mode(node: ast.AST) -> bool:
-    for child in ast.walk(node):
-        if isinstance(child, ast.Attribute) and child.attr in _MODE_ATTRS:
-            return True
-        if isinstance(child, ast.Call):
-            func = child.func
-            name = func.attr if isinstance(func, ast.Attribute) else func.id if isinstance(func, ast.Name) else ""
-            if name == "S_IMODE":
-                return True
+def _call_name(node: ast.Call) -> str:
+    func = node.func
+    return func.attr if isinstance(func, ast.Attribute) else func.id if isinstance(func, ast.Name) else ""
+
+
+def _is_mode_getattr(node: ast.Call) -> bool:
+    if _call_name(node) != "getattr" or len(node.args) < 2:
+        return False
+    attr = node.args[1]
+    return isinstance(attr, ast.Constant) and attr.value in _MODE_ATTRS
+
+
+def _is_mode_carrier(child: ast.AST) -> bool:
+    if isinstance(child, ast.Attribute):
+        return child.attr in _MODE_ATTRS
+    if isinstance(child, ast.Name):
+        return child.id == "mode" or child.id.endswith("_mode")
+    if isinstance(child, ast.Call):
+        return _call_name(child) == "S_IMODE" or _is_mode_getattr(child)
     return False
+
+
+def _carries_mode(node: ast.AST) -> bool:
+    return any(_is_mode_carrier(child) for child in ast.walk(node))
 
 
 def _is_planned_stamp(node: ast.AST) -> bool:
@@ -107,15 +144,15 @@ def _compare_patterns(node: ast.Compare) -> list[str]:
     patterns = []
     if sum(_carries_mode(operand) for operand in operands) >= 2:
         patterns.append("P1")
+    elif any(_is_planned_mode(operand) for operand in operands) and not all(_is_planned_mode(operand) for operand in operands):
+        patterns.append("P4")
     if sum(_is_planned_stamp(operand) for operand in operands) == 1:
         patterns.append("P2")
     return patterns
 
 
 def _call_patterns(node: ast.Call) -> list[str]:
-    func = node.func
-    name = func.attr if isinstance(func, ast.Attribute) else func.id if isinstance(func, ast.Name) else ""
-    if name == "replace" and any(kw.arg == "mode" and _is_planned_mode(kw.value) for kw in node.keywords):
+    if _call_name(node) == "replace" and any(kw.arg == "mode" and _is_planned_mode(kw.value) for kw in node.keywords):
         return ["P3"]
     return []
 
@@ -142,7 +179,8 @@ class _Detector(ast.NodeVisitor):
     def _report(self, node: ast.expr, patterns: list[str]) -> None:
         if self.path == AUTHORITY_FILE and self.scope and self.scope[-1] in AUTHORITY_FUNCTIONS:
             return
-        self.findings.extend(Finding(self.path, self.qualname, pattern, node.lineno) for pattern in patterns)
+        text = ast.unparse(node)
+        self.findings.extend(Finding(self.path, self.qualname, pattern, node.lineno, text) for pattern in patterns)
 
     def visit_Compare(self, node: ast.Compare) -> None:
         self._report(node, _compare_patterns(node))
