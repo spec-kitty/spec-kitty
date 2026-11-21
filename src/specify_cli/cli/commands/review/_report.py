@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import stat
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -236,6 +237,8 @@ def _write_report(feature_dir: Path, content: str) -> Path:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             handle.write(content)
+        # mkstemp creates 0600; keep the replaced report's own mode.
+        os.chmod(tmp_name, stat.S_IMODE(report_path.stat().st_mode))
         os.replace(tmp_name, report_path)
     except BaseException:
         Path(tmp_name).unlink(missing_ok=True)
