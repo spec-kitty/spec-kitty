@@ -143,6 +143,18 @@
       "title": "A claim release erases the claim slots of every later claim (shared reducer annotation order)",
       "verdict": "deferred-with-followup",
       "wp": null
+    },
+    "#7798": {
+      "evidence_ref": "Follow-up: #7798 (matrix criteria carry no WP mapping; the squad fold was reverted after the PR review)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "descoped Mission code_review criteria never auto-derive",
+      "verdict": "deferred-with-followup",
+      "wp": null
     }
   },
   "schema_version": 1
