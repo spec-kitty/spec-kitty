@@ -172,6 +172,42 @@ def test_qualname_names_the_enclosing_scope() -> None:
     assert [(f.qualname, f.lineno) for f in scan.scan_source(source, _SYNTHETIC)] == [("Owner.plan", 3)]
 
 
+# ── review cycle 1: the evasions a function-wide or one-sided key let through ──
+
+
+def test_a_second_comparison_in_an_adjudicated_function_is_caught() -> None:
+    """B1: an adjudicated entry exempts one comparison text, never its whole function."""
+    path = scan.SRC_ROOT / "specify_cli" / "tool_surface" / "bundles" / "projection.py"
+    source = path.read_text(encoding="utf-8")
+    anchor = "                chmod_fd(descriptor, effect.destination, effect.after.mode)\n"
+    assert anchor in source, "control: the finalize chmod is where the #4927 shape would be reintroduced"
+    mutated = source.replace(
+        anchor,
+        "                if current.state.mode != effect.after.mode:\n    " + anchor,
+        1,
+    )
+
+    offending = _unadjudicated(scan.scan_source(mutated, scan.relpath(path)))
+
+    assert [(f.qualname, f.pattern) for f in offending] == [("_finalize_staged_directories", "P1")]
+
+
+@pytest.mark.parametrize(
+    ("source", "pattern"),
+    [
+        # B2: one side extracted into a variable -- the original installer.py:1040 shape.
+        ("import stat\ndef f(path, after):\n    current = stat.S_IMODE(path.lstat().st_mode)\n    return current != after.mode\n", "P4"),
+        ("def f(value, effect):\n    return value == effect.after.mode\n", "P4"),
+        # Mode-named names and getattr carry a mode too.
+        ("def f(observed_mode, effect):\n    return observed_mode == effect.after.mode\n", "P1"),
+        ("def f(observed_mode, planned_mode):\n    return observed_mode != planned_mode\n", "P1"),
+        ("def f(x, after):\n    return getattr(x, 'mode') != after.mode\n", "P1"),
+    ],
+)
+def test_one_sided_and_aliased_mode_comparisons_are_caught(source: str, pattern: str) -> None:
+    assert [f.pattern for f in scan.scan_source(source, _SYNTHETIC)] == [pattern]
+
+
 # ── live mutation: reverting a real planner to a raw compare is caught ─────
 
 
