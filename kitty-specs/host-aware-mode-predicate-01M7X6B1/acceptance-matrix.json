@@ -78,11 +78,11 @@
       "criterion_id": "FR-008",
       "description": "Verify FR-008 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/architectural/test_mode_equality_authority.py (ADJUDICATED guards); POSIX drift refusal tests",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-21T07:07:39.433987+00:00",
+      "notes": "Observed-vs-observed guards and planned-vs-planned conflict checks stay exact, keyed by exact comparison text."
     },
     {
       "criterion_id": "FR-009",
