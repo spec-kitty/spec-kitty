@@ -47,3 +47,28 @@ No dependency is added or changed (DIRECTIVE_051: not applicable).
 `spec_kitty_events.diary.reduce_parsed` folds every annotation after every transition, so a `release_runtime_claim` annotation also clears the `agent`/`shell_pid` slots that a LATER claim's sidecar set (#7794, minimal reproduction in the issue). Since WP01, an `orchestrator-api transition --to planned` emits that release (#7644), so after an API rollback the next claim, API or host, shows no live holder in the reduced snapshot. `move-task --to planned` has had the same consequence since #2512. The claim event still records its agent, and the implementer of record is right, so acceptance is unaffected.
 
 The fix belongs in `spec-kitty-events` (C-001). The intended outcome is pinned as strict `xfail`s in `tests/orchestrator_api/test_api_claim_sidecar_5781.py` (`test_after_an_api_rollback_the_new_claim_holds_the_agent_slot`, `test_after_an_api_rollback_the_host_re_claim_holds_the_live_claim_slots`). Keeping the release (parity with `move-task`, the #7644 contract) was preferred over withholding it until the events fix: withholding would keep a stale holder and pid bound after every API rollback, the defect #7644 reports.
+
+## R-06 Post-consolidation adversarial squad (R24), finding dispositions
+
+Three independent read-only lenses reviewed the aggregate diff: correctness/regression, orchestrator-api contract/single authority, and test quality/non-vacuity. None found a HIGH correctness defect. All findings were folded except those noted.
+
+| Finding | Severity | Disposition |
+|---|---|---|
+| The host re-claim strict xfail XPASSes on origin/main: the API release is new on this path, so the next host claim's live slots now read empty (#7794) | HIGH (test lens) | Labelled accurately as a regression of this path in the xfail reason and the PR. Whether to keep the release until #7794 ships is with the operator (dispatcher escalation); no unilateral change. |
+| No-command repair text read "none can be recorded" | MEDIUM | Folded: "it must go back for rework and be claimed by a named agent". |
+| Docs, skill and docstrings still said accept-mission needs every WP approved/done | MEDIUM | Folded: docs/api, SKILL.md, the contract reference, the command docstrings; the CLI reference and completion manifest regenerated. |
+| Matrix auto-verification (`populate_criteria_from_review_evidence`) still required every WP approved/done, so a descoped Mission's `code_review` rows stayed pending | MEDIUM | Folded: operator-canceled WPs are acceptable and cite no review; an all-canceled Mission derives nothing. Tests added. |
+| The success payload did not name canceled WPs | MEDIUM | Folded: additive `canceled_wps` field (contract 1.30.0), documented and tested. |
+| The `tests/utils.py` fixture seeds a claim for every lane past `claimed` | MEDIUM | Folded: `seed_claim=False` escape hatch, documented. |
+| The trio stub could not tell the implementer from the slot | MEDIUM | Folded: a discriminating wiring test. |
+| A test inspected `co_names` | MEDIUM | Folded: replaced with a behavioural comparison of the move-task and API release deltas. |
+| Missing coverage: generic actors, canceled-after-claim, the `doing` alias, the ownership guard on API claims | MEDIUM | Folded: unit and integration tests added. |
+| `implementer_claim_target` raised on an unknown lane | LOW | Folded: returns `None`. |
+| Builder and release docstrings overstated their reach | LOW | Folded: made accurate (move-task shares the key-shape builder; its rollback also resets subtasks). |
+| `status_lanes.mission_terminal_acceptability` docstring consumer list | LOW | Folded. |
+| The hand-back `release_runtime_claim` in the executor looks like a second release | LOW | Folded: comment points to the shared release. |
+| xfails could pass on any exception; "unforced" never asserted | LOW | Folded: `raises=AssertionError`; `force is False` asserted. |
+| `test_acceptance_support` re-pin docstring | LOW | Folded. |
+| The printed repair can still meet dependency/workspace gates in real use | LOW | Accepted: those lanes are already not acceptable, and the gate prints the only claim the state machine allows. Recorded here. |
+| The raw `--actor` stored as `agent` differs from the parsed event actor for compact actors | LOW | Accepted: same as host claims (`effective_actor`); the ownership guard compares tool keys. Recorded here. |
+| `--policy` claim keys are dropped silently | LOW | Accepted: documented in the builder and contract 1.30.0; no envelope warning added. |
