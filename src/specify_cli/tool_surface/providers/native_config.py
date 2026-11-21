@@ -45,6 +45,7 @@ from ..operations import (
     OwnerApplyResult,
     OwnershipProof,
     PhysicalEffect,
+    state_equivalent,
 )
 
 from ..enums import (
@@ -358,7 +359,7 @@ def _directory_postcondition_holds(effect: PhysicalEffect) -> bool:
         observed = observe_presence_path(effect.root.path, effect.path)[-1]
     except (OSError, ValueError):
         return False
-    return bool(presence_state(observed) == effect.after)
+    return bool(state_equivalent(presence_state(observed), effect.after))
 
 
 def _vibe_skill_path_present(config_path: Path) -> bool:
