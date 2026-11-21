@@ -50,7 +50,6 @@ from specify_cli.skills.paths import (
     recheck_skill_paths,
     skill_path_observations,
 )
-from specify_cli.skills.command_installer import windows_dir_mode_only_divergence
 from specify_cli.tool_surface.operations import (
     ApplyConsent,
     AssessmentInputs,
@@ -64,6 +63,9 @@ from specify_cli.tool_surface.operations import (
     OwnershipProof,
     PhysicalEffect,
     coalesce_effects,
+    effect_action,
+    modes_equivalent,
+    state_equivalent,
 )
 from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 
@@ -473,11 +475,10 @@ def _command_parent_receipts(assessment: OwnerAssessment) -> dict[Path, SkillPat
         if len(matches) != 1:
             raise ValueError(f"Invalid command-created skill parent: {path}")
         effect = matches[0]
-        # #4776: on Windows a freshly-created shared parent cannot carry the
-        # planned POSIX 0o755, so accept a directory whose sole divergence from
-        # the plan is that host-unrepresentable mode (dir-scoped, host-gated via
-        # kernel.paths.is_windows). POSIX drift still refuses (NFR-003).
-        after_matches = effect.after == item.state or windows_dir_mode_only_divergence(item.state, effect.after)
+        # #4776/#4927: a receipt compared with a planned state goes through the
+        # host-aware equivalence -- on Windows a created directory reads 0o777,
+        # never the planned 0o755; on POSIX any mode drift still refuses.
+        after_matches = state_equivalent(item.state, effect.after, ignore_mtime=False)
         if effect.before.kind != "absent" or not after_matches or item.identity is None or item.state.kind != "directory":
             raise ValueError(f"Invalid command-created skill parent: {path}")
     recheck_skill_paths(tuple(receipts.values()))
@@ -560,28 +561,10 @@ class _ProjectSkillPreparation:
     ) -> None:
         if before.kind == after.kind == "absent":
             return
-        if before.kind == "absent":
-            action = "create"
-        elif after.kind == "absent":
-            action = "delete"
-        elif before.kind != after.kind:
-            action = "replace"
-        elif before.sha256 != after.sha256:
-            action = "update"
-        elif before.target != after.target:
-            action = "retarget"
-        elif before.mode != after.mode:
-            # #4927/T006: on Windows, `before` (observed) carries a real
-            # mtime the fixed-POSIX `after` (from _expected_project_entries)
-            # never sets, so mtime_ns is normalized before consulting the
-            # shared host-aware relaxation -- mirroring the same
-            # normalization the managed-skills completion re-check already
-            # does. A host-unrepresentable mode-only divergence emits no
-            # effect at all (FR-004); a genuine divergence still chmods.
-            if windows_dir_mode_only_divergence(replace(before, mtime_ns=after.mtime_ns), after):
-                return
-            action = "chmod"
-        else:
+        # #4927: the one host-aware action decision; a Windows mode the host
+        # cannot represent plans nothing, read-only drift still chmods.
+        action = effect_action(before, after)
+        if action is None:
             return
         proofs = tuple(
             OwnershipProof(
@@ -1037,7 +1020,7 @@ def _apply_project_skill_write(write: PreparedProjectSkillWrite) -> None:
     elif after.kind == "symlink":
         assert after.target is not None
         path.symlink_to(after.target)
-        if stat.S_IMODE(path.lstat().st_mode) != after.mode:
+        if not modes_equivalent("symlink", stat.S_IMODE(path.lstat().st_mode), after.mode):
             assert after.mode is not None
             chmod_no_follow(path, after.mode)
     else:

@@ -23,7 +23,7 @@ pytestmark = [pytest.mark.fast]
 
 
 def _apply(inputs: object, registry: object) -> None:
-    assessment = assess_project_skills(inputs, registry, ("claude",))  # type: ignore[arg-type]
+    assessment = assess_project_skills(inputs, registry, ("claude",))
     assert assessment.complete, assessment.diagnostics
     with recheck_project_skills(assessment) as diagnostics:
         assert not diagnostics, diagnostics
@@ -35,7 +35,7 @@ def test_converged_project_plans_nothing_on_windows(tmp_path: Path, monkeypatch:
     _installed, inputs, registry = _install_one_converged_skill(tmp_path)
     emulate_ntfs(monkeypatch)
 
-    assessment = assess_project_skills(inputs, registry, ("claude",))  # type: ignore[arg-type]
+    assessment = assess_project_skills(inputs, registry, ("claude",))
 
     assert assessment.complete, assessment.diagnostics
     assert assessment.effects == ()
@@ -47,9 +47,9 @@ def test_writable_copy_of_a_read_only_skill_file_is_repaired_on_windows(tmp_path
     emulate_ntfs(monkeypatch)
     os.chmod(installed, 0o644)  # clear the read-only attribute
 
-    assessment = assess_project_skills(inputs, registry, ("claude",))  # type: ignore[arg-type]
+    assessment = assess_project_skills(inputs, registry, ("claude",))
 
     assert [(Path(e.destination), e.action) for e in assessment.effects] == [(installed, "chmod")]
     _apply(inputs, registry)
     assert not installed.stat().st_mode & 0o200
-    assert assess_project_skills(inputs, registry, ("claude",)).effects == ()  # type: ignore[arg-type]
+    assert assess_project_skills(inputs, registry, ("claude",)).effects == ()
