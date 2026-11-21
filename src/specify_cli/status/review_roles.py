@@ -42,6 +42,7 @@ __all__ = [
     "implementer_identities",
     "IMPLEMENTER_RESUBMISSION_ROLE",
     "implementer_claim_target",
+    "implementer_release_target",
     "independent_of_implementers",
     "is_implementer_resubmission_hop",
     "is_latest_implementer",
@@ -354,6 +355,30 @@ def implementer_claim_target(lane: str | Lane) -> Lane | None:
         return None
     allowed = wp_state_for(source).allowed_targets()
     return next((target for target in _IMPLEMENTING_TARGETS if target in allowed), None)
+
+
+def implementer_release_target(lane: str | Lane) -> Lane | None:
+    """The lane a work package in *lane* can be released into so a named agent can then claim it, or ``None`` (#5781).
+
+    Only for a lane with no implementing claim of its own (:func:`implementer_claim_target` is
+    ``None``) that the state machine lets an implementer hand back to ``planned`` without a
+    review verdict: today ``in_progress`` (whose ``-> planned`` edge needs a reason, which
+    ``move-task`` takes as a feedback file). A
+    review lane's exit to ``planned`` is a rework verdict, and a terminal lane has no exit, so
+    both yield ``None``.
+    """
+    from specify_cli.status.transitions import resolve_lane_alias
+    from specify_cli.status.wp_state import wp_state_for
+
+    if implementer_claim_target(lane) is not None:
+        return None
+    try:
+        source = Lane(resolve_lane_alias(str(lane)))
+    except ValueError:
+        return None
+    if source.value not in _IMPLEMENTING_LANES:
+        return None  # a review lane's exit is a verdict; genesis is left by finalize, not a hand-back
+    return Lane.PLANNED if Lane.PLANNED in wp_state_for(source).allowed_targets() else None
 
 
 def independent_of_implementers(implementers: Sequence[str], approver: str | None) -> bool:

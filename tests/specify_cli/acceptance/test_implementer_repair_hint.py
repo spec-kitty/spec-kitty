@@ -79,9 +79,10 @@ _REPAIRABLE = {
     "planned": (),
     "claimed": (("claimed", False),),
     "blocked": (("blocked", False),),
+    # A release back to planned (needs only a reason), then a claim: two printed commands.
+    "in_progress": (("claimed", False), ("in_progress", False)),
 }
 _UNREPAIRABLE = {
-    "in_progress": (("claimed", False), ("in_progress", False)),
     "for_review": (("for_review", True),),
     "in_review": (("in_review", True),),
     "approved": (("approved", True),),
@@ -98,14 +99,16 @@ def test_the_printed_repair_runs_and_clears_the_refusal(flat_topology_mission: F
 
     issue = _issue(ctx)
     assert issue is not None, f"a {lane} WP with no implementing claim must be refused"
-    match = _COMMAND.search(issue)
-    assert match is not None, issue
-    argv = shlex.split(match.group(1).replace("<name>", "claude::python-pedro"))
-    assert argv[0] == "spec-kitty"
+    commands = _COMMAND.findall(issue)
+    assert commands, issue
+    feedback = ctx.repo.parent / "release-feedback.md"
+    feedback.write_text("**Issue**: released so a named agent can claim it\n", encoding="utf-8")
 
-    result = subprocess.run([sys.executable, "-m", "specify_cli", *argv[1:]], cwd=ctx.repo, capture_output=True, text=True, check=False)
-
-    assert result.returncode == 0, result.stdout + result.stderr
+    for command in commands:  # every printed step, in order, exactly as printed
+        argv = shlex.split(command.replace("<name>", "claude::python-pedro").replace("<file>", str(feedback)))
+        assert argv[0] == "spec-kitty"
+        result = subprocess.run([sys.executable, "-m", "specify_cli", *argv[1:]], cwd=ctx.repo, capture_output=True, text=True, check=False)
+        assert result.returncode == 0, f"{command}: {result.stdout}{result.stderr}"
     assert _issue(ctx) is None
 
 

@@ -107,11 +107,11 @@ class TestBuildWorkPackageState:
         )
 
         assert issues == [
-            # #5781: no implementing claim can be recorded from in_progress, so no command is named.
+            # #5781: in_progress hands back to planned with only a reason, then a named agent claims it.
             (
-                "WP01: missing agent in canonical runtime state (no implementing claim recorded; "
-                "no command applies from lane 'in_progress': it is left only by a review rejection back to "
-                "planned or a forced operator rewind, after which a named --agent claims it)"
+                "WP01: missing agent in canonical runtime state (no implementing claim recorded; run "
+                "`spec-kitty agent tasks move-task WP01 --to planned --review-feedback-file <file> --mission trio-mission`, then "
+                "`spec-kitty agent tasks move-task WP01 --to claimed --agent <name> --mission trio-mission` to claim it)"
             ),
             "WP01: missing assignee in canonical runtime state",
             "WP01: missing shell_pid in canonical runtime state",

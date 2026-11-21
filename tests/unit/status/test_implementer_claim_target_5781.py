@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.review_roles import implementer_claim_target, latest_implementer_identity
+from specify_cli.status.review_roles import implementer_claim_target, implementer_release_target, latest_implementer_identity
 
 pytestmark = pytest.mark.fast
 
@@ -67,3 +67,15 @@ def test_a_claim_by_a_generic_actor_names_no_implementer(generic: str) -> None:
 
 def test_a_claim_by_a_real_actor_names_it() -> None:
     assert latest_implementer_identity(_claim("claude"), "WP01") == "claude::"
+
+
+@pytest.mark.parametrize("lane", sorted(_EXPECTED))
+def test_only_in_progress_is_released_to_planned_for_a_new_claim(lane: str) -> None:
+    """in_progress -> planned needs only a reason; review lanes leave by a verdict, terminal ones not at all."""
+    expected = Lane.PLANNED if lane == "in_progress" else None
+    assert implementer_release_target(lane) == expected
+
+
+def test_release_target_tolerates_aliases_and_unknown_lanes() -> None:
+    assert implementer_release_target("doing") == Lane.PLANNED
+    assert implementer_release_target("not-a-lane") is None

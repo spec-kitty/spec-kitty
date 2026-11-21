@@ -92,12 +92,21 @@ def missing_implementer_issue(wp_id: str, lane: str, implementer: str | None, *,
     (:func:`~specify_cli.status.review_roles.implementer_claim_target`); the command
     it prints is that claim, so running it records the implementer this gate reads.
     """
-    from specify_cli.status import implementer_claim_target
+    from specify_cli.status import implementer_claim_target, implementer_release_target
 
     if implementer or lane == "canceled":
         return None
     prefix = f"{wp_id}: missing agent in canonical runtime state (no implementing claim recorded"
     target = implementer_claim_target(lane)
+    release = implementer_release_target(lane)
+    if target is None and release is not None:
+        # The lane hands back to planned (move-task asks every move to planned for a feedback file);
+        # a named agent then claims it.
+        return (
+            f"{prefix}; run `spec-kitty agent tasks move-task {wp_id} --to {release.value} --review-feedback-file <file> "
+            f"--mission {mission}`, "
+            f"then `spec-kitty agent tasks move-task {wp_id} --to claimed --agent <name> --mission {mission}` to claim it)"
+        )
     if target is None:
         # No single command records a claim from here: a review or terminal lane is left only
         # through a review verdict or a forced operator rewind, after which a real agent claims it.
