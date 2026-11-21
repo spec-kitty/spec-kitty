@@ -58,11 +58,11 @@
       "criterion_id": "FR-006",
       "description": "Verify FR-006 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/tool_surface/providers/test_managed_skills_host_aware.py; tests/specify_cli/skills/test_installer.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-21T07:07:22.272234+00:00",
+      "notes": "Receipts, completion recheck and native postcondition use state_equivalent."
     },
     {
       "criterion_id": "FR-007",
