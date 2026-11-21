@@ -2666,6 +2666,17 @@ def review(
         # (needed for auto-commits and status tracking inside this command)
         main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug)
 
+        # #5936: review records a review claim, so it is a coordination writer.
+        # In a teammate's clone the coordination branch is only a remote-tracking
+        # ref and its worktree is absent, so every status read below (the
+        # for_review auto-detection included) would find no canonical status.
+        # Materialize the surface first, through the same seam the write uses: a
+        # no-op for flat and already-materialized Missions, and a refusal when
+        # this clone holds no ref for the branch at all.
+        from specify_cli.coordination.surface_resolver import materialize_coord_surface_for_write
+
+        materialize_coord_surface_for_write(main_repo_root, mission_slug)
+
         # Determine which WP to review
         if request.wp_id:
             normalized_wp_id = _normalize_wp_id(request.wp_id)

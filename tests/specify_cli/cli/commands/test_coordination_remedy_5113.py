@@ -327,8 +327,9 @@ def test_write_target_degrade_remote_only_round_trip(
     _git(repo, "remote", "add", "origin", str(remote))
     _git(repo, "fetch", "origin")
     _git(repo, "branch", "-D", coord_branch)
-    # #5287: prune the remote-tracking ref too, so the canonical remedy must
-    # lead with a targeted fetch from the resolved remote.
+    # #5936: a clone holding the branch as a remote-tracking ref gets its local
+    # head from that ref; this remedy is for a clone that never fetched it, so
+    # it must lead with a targeted fetch from the resolved remote (#5287).
     _git(repo, "update-ref", "-d", f"refs/remotes/origin/{coord_branch}")
 
     monkeypatch.chdir(repo)
@@ -415,6 +416,10 @@ def test_doctor_fix_remote_only_does_not_materialize(
     _git(repo, "remote", "add", "origin", str(remote))
     _git(repo, "fetch", "origin")
     _git(repo, "branch", "-D", coord_branch)
+    # #5936: a clone that holds the branch as a remote-tracking ref now gets its
+    # local head from that ref (`--fix` materializes it). The remote-only state
+    # these steps are for is a clone that never fetched the branch at all.
+    _git(repo, "update-ref", "-d", f"refs/remotes/origin/{coord_branch}")
     meta_path = repo / "kitty-specs" / mission_slug / "meta.json"
     meta_before = meta_path.read_text(encoding="utf-8")
 
@@ -503,6 +508,10 @@ def test_missing_worktree_finding_remote_only_leads_with_ordered_steps(
     _git(repo, "remote", "add", "origin", str(remote))
     _git(repo, "fetch", "origin")
     _git(repo, "branch", "-D", coord_branch)
+    # #5936: a clone that holds the branch as a remote-tracking ref now gets its
+    # local head from that ref (`--fix` materializes it). The remote-only state
+    # these steps are for is a clone that never fetched the branch at all.
+    _git(repo, "update-ref", "-d", f"refs/remotes/origin/{coord_branch}")
 
     monkeypatch.chdir(repo)
     from specify_cli.cli.commands.doctor import app as doctor_app
