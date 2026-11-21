@@ -28,11 +28,11 @@
       "criterion_id": "FR-003",
       "description": "Verify FR-003 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/runtime/test_global_mode_convergence_windows.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-21T07:06:57.273706+00:00",
+      "notes": "Global skills and combined global assets plan 0 effects after one apply under emulated NTFS (was 253)."
     },
     {
       "criterion_id": "FR-004",
