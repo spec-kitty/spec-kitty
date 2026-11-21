@@ -16,6 +16,9 @@ requirement_refs:
 planning_base_branch: issue-4927-host-aware-mode-predicate
 merge_target_branch: issue-4927-host-aware-mode-predicate
 branch_strategy: Planning artifacts for this mission were generated on issue-4927-host-aware-mode-predicate. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-4927-host-aware-mode-predicate unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-host-aware-mode-predicate-01M7X6B1
+base_commit: 4528a142777e108274eb68fb3575f07c87cf1b10
+created_at: '2026-11-21T04:24:00.224281+00:00'
 subtasks:
 - T006
 - T007

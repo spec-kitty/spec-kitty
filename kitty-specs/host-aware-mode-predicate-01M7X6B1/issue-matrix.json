@@ -1,7 +1,7 @@
 {
   "rows": {
     "#3048": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Out of scope by operator ruling 2026-11-20 (spec C-003); not folded",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,11 +9,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#3771": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited as motivation for the Windows write-bit rule (WinError 5 on read-only files); not fixed by this Mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,59 +21,71 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#4776": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Historical context only: closed by 92a200070; its relaxation is replaced by the shared predicate",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "title": "Windows upgrade non-convergence (closed)",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#4777": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Historical context only: closed by 92a200070; residual tracked as #4927",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "title": "Windows phantom dry-run repairs (closed)",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4805": {
+      "evidence_ref": "Cited as a lesson only (WP02 prompt: do not route observed-vs-observed guards through the predicate, the over-reach #4805 caught); no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "PR #4805 rescope (convergence predicate over-reach)",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#4810": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Folded in by operator ruling 2026-11-20; predicate in WP01, ratchet gate tests/architectural/test_mode_equality_authority.py in WP03",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Close the convergence-predicate bug class by construction: canonical predicate + mutation-proven ratchet gate",
+      "verdict": "in-mission",
+      "wp": "WP03"
     },
     "#4927": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP01 33c25c23 (global planners via effect_action; emulated-Windows convergence test); WP02 completes project/provider planners",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Windows upgrade --dry-run reports phantom repairs after convergence",
+      "verdict": "in-mission",
+      "wp": "WP01"
     },
     "#5215": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Out of scope by operator ruling 2026-11-20 (spec C-003); not folded",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -81,11 +93,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#5225": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Out of scope by operator ruling 2026-11-20 (spec C-003); not folded",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -93,11 +105,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6228": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited as motivation for the Windows write-bit rule (WinError 5 on read-only files); not fixed by this Mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -105,11 +117,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7761": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Out of scope by operator ruling 2026-11-20 (spec C-003); not folded",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -117,7 +129,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     }
   },
