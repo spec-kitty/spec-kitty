@@ -48,11 +48,11 @@
       "criterion_id": "FR-005",
       "description": "Verify FR-005 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/skills/test_project_skill_windows_write_bit.py; test_global_mode_convergence_windows.py::test_windows_read_only_drift_is_still_repaired",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-21T07:07:13.513840+00:00",
+      "notes": "Windows read-only drift repaired for project skills and global assets."
     },
     {
       "criterion_id": "FR-006",
