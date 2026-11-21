@@ -1,4 +1,4 @@
-"""Red-first reproduction of the diagnostic half of #7755 -- OPEN P0, expected to FAIL until fixed.
+"""Reproduction of the diagnostic half of #7755 (fixed): a per-PR guard since the fix removed its ``p0_repro`` marker.
 
 A lanes Mission has two independent lanes that edit adjacent hunks of one file.
 ``consolidate`` folds lane-a into the Mission branch first; lane-b is then
@@ -11,10 +11,10 @@ auto-rebase already ran and stopped, nor which sibling lane's content is the
 cause.
 
 Scope: this covers ONLY that diagnostic gap, at ``consolidate_lane_into_mission``.
-It does NOT cover the full ``consolidate`` CLI path that makes #7755 a P0 (the
-rollback restores the pre-run Mission branch, so the named remedy is a no-op and
-every re-run refuses identically); "re-run after following the remedy still
-refuses" is not covered here.
+The full ``consolidate`` CLI path (the rollback restores the pre-run Mission
+branch, so the old remedy was a no-op and every re-run refused identically) is
+covered by ``tests/consolidation/test_7755_stale_sibling_lane_recovery.py``,
+which follows the printed remedy and re-runs to a landing.
 
 The issue offers several fixes, so the assertion is fix-agnostic: the refusal
 must carry ANY of the halt reason, the sibling lane that caused the staleness,
@@ -95,7 +95,6 @@ def _build_mission(repo: Path) -> LanesManifest:
     return manifest
 
 
-@pytest.mark.p0_repro(issue=7755)
 def test_stale_refusal_says_the_in_run_auto_rebase_already_stopped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo = tmp_path / "repo"
     manifest = _build_mission(repo)
