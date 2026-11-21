@@ -1,0 +1,125 @@
+{
+  "rows": {
+    "#3531": {
+      "evidence_ref": "Cited for context only; no work owed by this Mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5053": {
+      "evidence_ref": "Cited for context only; no work owed by this Mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5604": {
+      "evidence_ref": "Cited for context only; no work owed by this Mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5711": {
+      "evidence_ref": "Cited for context only; no work owed by this Mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7285": {
+      "evidence_ref": "Cited for context only; no work owed by this Mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7311": {
+      "evidence_ref": "Cited for context only; no work owed by this Mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7324": {
+      "evidence_ref": "Cited for context only; no work owed by this Mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7626": {
+      "evidence_ref": "Cited for context only; no work owed by this Mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7754": {
+      "evidence_ref": "tests/lanes/test_stale_remediation_cli_command.py::test_stale_remediation_reopens_the_approved_wp_before_reentry, tests/lanes/test_stale_sibling_lanes.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "consolidate stale-lane remedy names agent action implement, which refuses every approved WP",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#7755": {
+      "evidence_ref": "tests/consolidation/test_7755_stale_sibling_lane_recovery.py, tests/consolidation/test_p0_repro_7755_auto_rebase_halt_reason.py (p0_repro marker removed)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Stale-lane refusal after a conflicting in-run auto-rebase is unrecoverable",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

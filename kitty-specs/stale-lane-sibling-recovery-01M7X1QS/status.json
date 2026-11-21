@@ -1,0 +1,55 @@
+{
+  "event_count": 7,
+  "last_event_id": "01M7X873T02YP82VVA77ABHY16",
+  "materialized_at": "2026-11-20T19:51:28.320650+00:00",
+  "mission_number": "264",
+  "mission_slug": "stale-lane-sibling-recovery-01M7X1QS",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M7X873T02YP82VVA77ABHY16",
+      "last_transition_at": "2026-11-20T19:51:28.320650+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for independent review: fix, red-first CLI recovery test, gates and owning suites green",
+        "Review passed: red-first confirmed at 71a1b002 (3 failed on pre-fix sources); 45 targeted + 1384 lanes/gates/integration tests pass; consolidation/ untouched vs origin/main; ruff/format/mypy clean, complexity <=15. Non-blocking: recovery test reopens via status shell not move-task CLI; halt reason echoes an absolute .worktrees path; sibling detection may also name a dependency lane that already carries the sibling (harmless double merge); CI coverage measured nothing for the diff."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/kitty-specs/stale-lane-sibling-recovery-01M7X1QS/tasks/WP01-recoverable-stale-refusal/review-cycle-1.md",
+        "reference": "review-cycle://stale-lane-sibling-recovery-01M7X1QS/WP01-recoverable-stale-refusal/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1632,
+      "shell_pid_created_at": "1795203326.78",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    }
+  }
+}
