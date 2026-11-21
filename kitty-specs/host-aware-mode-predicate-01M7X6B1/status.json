@@ -1,7 +1,7 @@
 {
-  "event_count": 10,
-  "last_event_id": "01M7Y5HQKPY8XEQ7DM5WKX8JTF",
-  "materialized_at": "2026-11-21T04:24:04.202162+00:00",
+  "event_count": 12,
+  "last_event_id": "01M7Y8181EGZQ70P4AXEAZE1JE",
+  "materialized_at": "2026-11-21T05:07:30.478268+00:00",
   "mission_number": "",
   "mission_slug": "host-aware-mode-predicate-01M7X6B1",
   "mission_type": "software-dev",
@@ -13,8 +13,8 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
-    "in_review": 0,
+    "in_progress": 0,
+    "in_review": 1,
     "planned": 1
   },
   "work_packages": {
@@ -54,19 +54,30 @@
     },
     "WP02": {
       "actor": "claude",
-      "agent": "claude::python-pedro",
+      "agent": "claude::reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude::python-pedro",
-      "lane": "in_progress",
-      "last_event_id": "01M7Y5HQKPY8XEQ7DM5WKX8JTF",
-      "last_transition_at": "2026-11-21T04:24:04.202162+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M7Y8181EGZQ70P4AXEAZE1JE",
+      "last_transition_at": "2026-11-21T05:07:30.478268+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-21T04:57:52Z – claude::python-pedro – shell_pid=1169 – Red-first: e82b507a (tests only) red on WP base: 8 failed / 6 passed (POSIX twins green): stage_effect raises in the host-aware validator, finalize refuses NTFS 0o777, sibling dir + profile write refuse, native postcondition False, project-skill writable drift not planned, charter YAML written-target refuses under the is_windows seam. Fix 2208593b + d3 test fix: all green. Targeted: latent sites + write-bit + charter seam + managed_skills_host_aware + test_installer + bundles + mode_equivalence -> 291 passed. Blast radius (tests/specify_cli/{tool_surface,skills,runtime} tests/runtime tests/charter tests/upgrade/test_preview_oracle.py + architectural test_os_detection_ban/test_layer_rules/test_no_follow_symlinks_apply_ban, -n 6 --dist loadfile): 10201 passed, 23 skipped, 5 failed, all not this change: test_historical_renders x2 (main-red from 2ce8f40a, fixed by #7797); test_reassess_under_lock live preview + test_preview_oracle x2 fail with 'Source mismatch' in lane worktrees (subprocess imports the root install) -- from the root checkout detached at the WP02 tip, test_preview_oracle.py + the reassess class pass 33/33. make test-fast: 3173 passed, 7 skipped. ruff check + format --check --force-exclude clean on every changed file; mypy per file: only pre-existing no-any-return (skills/paths.py:46, managed_skills preflight, projection same_observation), identical on lane-a; native_config's new return wrapped in bool() as before. Reviewer findings folded: projection._stage_effect via effect_action (MEDIUM); state_equivalent now has production callers (receipts, completion recheck, native postcondition). Re-pins (C-006 semantic change, operator ruling 2026-11-20): test_installer converged-Windows tests now emulate NTFS (read-only file reads 0o444 -> nothing planned) instead of chmod 0o666; managed_skills_host_aware helper tests re-pinned from the deleted windows_dir_mode_only_divergence to state_equivalent with the write-bit rule. Guards kept exact: same_observation, finalize fstat triple, before-state preconditions, check_assets. Note: the bundle recheck (_finish_selected_stage) is covered via the shared expected_with_mode helper (unit + finalize integration), not an end-to-end selected-bundle run.",
+        "Ready for review: remaining planners, rechecks and latent sites on the host-aware predicate; old helper retired"
+      ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 1169,
-      "shell_pid_created_at": "1795235019.58"
+      "role": "reviewer",
+      "shell_pid": 1021,
+      "shell_pid_created_at": "1795237638.45",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
     },
     "WP03": {
       "actor": "finalize-tasks",
