@@ -12,11 +12,12 @@ glob-level matching to avoid false positives.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from collections.abc import Sequence
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from kernel.git.listing import log_paths, tree_entries
-from kernel.git.runner import GitCommandError
+from kernel.git.runner import GitCommandError, run_git
 from specify_cli.core.vcs.git import git_diff_names, git_merge_base
 from specify_cli.lanes.compute import is_planning_lane
 from specify_cli.lanes.models import ExecutionLane
@@ -27,13 +28,28 @@ MISSION_PLACEHOLDER = "<mission>"
 WP_PLACEHOLDER = "<WP>"
 
 
+@dataclass(frozen=True)
+class SiblingLane:
+    """Another lane of the Mission whose consolidated change makes a lane stale (#7755)."""
+
+    lane_id: str
+    branch: str
+
+
 @dataclass
 class StaleCheckResult:
-    """Result of a stale-lane check."""
+    """Result of a stale-lane check.
+
+    ``auto_rebase_halt`` is the reason the in-run auto-rebase stopped (``None`` when none ran);
+    ``sibling_lanes`` are the lanes whose consolidated change overlaps ``stale_files`` and is
+    missing from the stale lane. Both are filled in by :func:`refine_stale_result` (#7755).
+    """
 
     is_stale: bool
     stale_files: list[str] = field(default_factory=list)
     remediation: str | None = None
+    auto_rebase_halt: str | None = None
+    sibling_lanes: tuple[SiblingLane, ...] = ()
 
 
 def check_lane_staleness(
@@ -141,10 +157,104 @@ def _tree_entry_ids(repo_root: Path, ref: str, paths: list[str]) -> dict[str, tu
     return {str(entry.path): (entry.mode, entry.oid) for entry in entries}
 
 
+def find_sibling_lanes(
+    repo_root: Path,
+    lane_branch: str,
+    mission_branch: str,
+    candidates: Sequence[SiblingLane],
+    stale_files: Sequence[str],
+) -> tuple[SiblingLane, ...]:
+    """The *candidates* whose change makes the lane stale (#7755), in candidate order.
+
+    A candidate counts when the Mission branch reaches its branch tip (it was consolidated)
+    and a commit on it that the lane lacks (``lane..candidate``) touches one of
+    *stale_files*. Two git probes per candidate, run only on the stale path. A failed probe
+    drops that candidate: the remedy then falls back to the Mission-branch wording.
+    """
+    wanted = set(stale_files)
+    found: list[SiblingLane] = []
+    for candidate in candidates:
+        if candidate.branch in (lane_branch, mission_branch):
+            continue
+        try:
+            reached = run_git(repo_root, "merge-base", "--is-ancestor", candidate.branch, mission_branch, check=False).returncode == 0
+            if reached and wanted & {str(path) for path in log_paths(repo_root, f"{lane_branch}..{candidate.branch}")}:
+                found.append(candidate)
+        except GitCommandError:
+            continue
+    return tuple(found)
+
+
+def refine_stale_result(
+    result: StaleCheckResult,
+    lane: ExecutionLane,
+    lane_branch: str,
+    mission_branch: str,
+    *,
+    mission_slug: str | None = None,
+    auto_rebase_halt: str | None = None,
+    sibling_lanes: Sequence[SiblingLane] = (),
+) -> StaleCheckResult:
+    """*result* with the in-run auto-rebase halt reason and the sibling lanes, its remedy rebuilt (#7755)."""
+    if not result.is_stale:
+        return result
+    siblings = tuple(sibling_lanes)
+    return replace(
+        result,
+        auto_rebase_halt=auto_rebase_halt,
+        sibling_lanes=siblings,
+        remediation=_stale_remediation(
+            lane,
+            lane_branch,
+            mission_branch,
+            mission_slug=mission_slug,
+            auto_rebase_halt=auto_rebase_halt,
+            sibling_lanes=siblings,
+        ),
+    )
+
+
 def _reentry_command(lane: ExecutionLane, mission_slug: str | None) -> str:
     """The A-10 re-entry command: re-running ``implement`` runs the lane sync point (auto-rebase)."""
     wp_id = lane.wp_ids[0] if len(lane.wp_ids) == 1 else WP_PLACEHOLDER
     return f"spec-kitty agent action implement {wp_id} --mission {mission_slug or MISSION_PLACEHOLDER}"
+
+
+def _reopen_step(lane: ExecutionLane, handle: str) -> str:
+    """#7754: at ``consolidate`` every WP is approved and ``implement`` refuses an approved WP, so reopen first."""
+    wp_ids = lane.wp_ids or (WP_PLACEHOLDER,)
+    commands = " and ".join(f"spec-kitty agent tasks move-task {wp_id} --to planned --review-feedback-file <file> --mission {handle}" for wp_id in wp_ids)
+    noun = "work package is" if len(wp_ids) == 1 else "work packages are"
+    return (
+        f"The lane's {noun} approved and `spec-kitty agent action implement` refuses an approved work package, "
+        f"so reopen {'it' if len(wp_ids) == 1 else 'each of them'} first (this costs a re-review): {commands}."
+    )
+
+
+def _cause_sentence(lane: ExecutionLane, mission_branch: str, siblings: tuple[SiblingLane, ...]) -> str:
+    """What the lane lacks: a sibling lane's branch (#7755), else the Mission branch."""
+    if not siblings:
+        return f"Lane {lane.lane_id} must incorporate changes from {mission_branch} before it is consolidated."
+    named = ", ".join(f"lane {sibling.lane_id} (branch {sibling.branch})" for sibling in siblings)
+    return (
+        f"The overlapping change comes from {named}, consolidated into {mission_branch} ahead of it. "
+        f"Rolling {mission_branch} back to its pre-run tip can remove that change again, so refreshing from "
+        f"{mission_branch} can bring in nothing: lane {lane.lane_id} must incorporate "
+        f"{'that branch' if len(siblings) == 1 else 'those branches'} itself before it is consolidated."
+    )
+
+
+def _refresh_step(lane: ExecutionLane, mission_slug: str | None, siblings: tuple[SiblingLane, ...]) -> str:
+    """Re-enter the lane, then bring the missing change in: merge each sibling branch, else auto-rebase."""
+    any_wp = "" if len(lane.wp_ids) == 1 else f" (any WP of the lane: {', '.join(lane.wp_ids)})"
+    reentry = f"Then re-enter it with {_reentry_command(lane, mission_slug)}{any_wp}"
+    if not siblings:
+        return (
+            f"{reentry}, which refreshes the lane through auto-rebase; if the auto-rebase stops on a conflict, "
+            f"resolve it in the lane checkout the command names and commit there."
+        )
+    merges = ", then ".join(f"git merge {sibling.branch}" for sibling in siblings)
+    return f"{reentry}, which names the lane checkout; in that checkout run {merges} and resolve the conflicts, then commit."
 
 
 def _stale_remediation(
@@ -153,14 +263,26 @@ def _stale_remediation(
     mission_branch: str,
     *,
     mission_slug: str | None = None,
+    auto_rebase_halt: str | None = None,
+    sibling_lanes: tuple[SiblingLane, ...] = (),
 ) -> str:
-    """Build the operator-facing fix-it command for a stale lane.
+    """Build the operator-facing fix-it text for a stale lane.
 
-    A code lane (FR-091, #7285) is refreshed through the CLI, never by hand:
-    re-running ``spec-kitty agent action implement <WP> --mission <handle>``
-    runs the lifecycle sync point, which auto-rebases the lane onto the
-    Mission branch (A-10, ``tests/lanes/test_stale_remediation_cli_command.py``).
-    The remedy names no ``.worktrees/`` path and no ``git merge``.
+    A code lane (FR-091, #7285) is refreshed through the CLI where one exists:
+    re-entering the WP with ``spec-kitty agent action implement <WP> --mission <handle>``
+    runs the lifecycle sync point, which auto-rebases the lane onto the Mission branch
+    (A-10, ``tests/lanes/test_stale_remediation_cli_command.py``). The remedy names no
+    ``.worktrees/`` path.
+
+    The stale check runs at ``consolidate``, where every WP is approved and
+    ``implement`` refuses an approved WP (#7754), so the remedy starts with the
+    reopen step and says what it costs. When the overlap comes from a sibling lane
+    consolidated earlier in the same run (#7755), the run's rollback restores the
+    Mission branch without it, so refreshing from the Mission branch brings in
+    nothing; no CLI command refreshes a lane from a sibling, so the remedy names the
+    sibling lane's branch (the rollback never moves a lane branch) to merge in the
+    checkout ``implement`` names. When the in-run auto-rebase stopped, its reason
+    leads the text.
 
     The canonical planning lane (:func:`is_planning_lane`) never has a
     ``.worktrees/`` entry -- it resolves to the repository-root checkout on
@@ -188,10 +310,10 @@ def _stale_remediation(
             f"git add kitty-specs/<id>/status.json"
         )
     handle = mission_slug or MISSION_PLACEHOLDER
+    halt = f"The in-run auto-rebase of lane {lane.lane_id} onto {mission_branch} stopped: {auto_rebase_halt}. " if auto_rebase_halt else ""
     return (
-        f"Lane {lane.lane_id} must incorporate changes from {mission_branch} before it is consolidated. "
-        f"Refresh it through auto-rebase: {_reentry_command(lane, mission_slug)}"
-        + ("" if len(lane.wp_ids) == 1 else f" (any WP of the lane: {', '.join(lane.wp_ids)})")
-        + f". If the auto-rebase stops on a conflict, resolve it in the lane checkout the command names, "
-        f"commit there, then re-run: spec-kitty consolidate --mission {handle}"
+        f"{halt}{_cause_sentence(lane, mission_branch, sibling_lanes)} "
+        f"{_reopen_step(lane, handle)} "
+        f"{_refresh_step(lane, mission_slug, sibling_lanes)} "
+        f"Then hand the lane's work back for review; once it is approved again, re-run: spec-kitty consolidate --mission {handle}"
     )
