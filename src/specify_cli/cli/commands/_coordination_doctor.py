@@ -576,6 +576,7 @@ def _check_coordination_worktree_health(
         from specify_cli.coordination.surface_resolver import (
             _coord_branch_exists,
             _coord_branch_is_local_head,
+            coord_branch_tracking_ref,
         )
 
         if not _coord_branch_exists(repo_root, coord_branch):
@@ -606,14 +607,17 @@ def _check_coordination_worktree_health(
             "git", "-C", str(repo_root), "worktree", "add",
             str(worktree), coord_branch,
         ]
-        # #5113: a branch that exists ONLY as a
-        # remote-tracking ref (a fresh clone / CI checkout) is never
-        # auto-materialized by `--fix` (materialize_coord_surface_for_write
-        # refuses it) -- leading with the bare `--fix` command there is a
-        # remedy that refuses and loops the operator back to itself. Classify
-        # it here and lead with the truthful ordered steps instead.
+        # #5113: a branch this clone has no ref for at all (a single-branch /
+        # shallow / CI clone that never fetched it) is never auto-materialized
+        # by `--fix` (materialize_coord_surface_for_write refuses it) -- leading
+        # with the bare `--fix` command there is a remedy that refuses and loops
+        # the operator back to itself. Classify it here and lead with the
+        # truthful ordered steps instead.
+        # #5936: a branch this clone holds as a remote-tracking ref (a teammate's
+        # clone / pull) IS materialized by `--fix`, which creates the local head
+        # from that ref first, so it gets the same `--fix`-led remedy.
         is_local_head = _coord_branch_is_local_head(repo_root, coord_branch)
-        if is_local_head:
+        if is_local_head or coord_branch_tracking_ref(repo_root, coord_branch) is not None:
             next_step = (
                 f"Run: `spec-kitty doctor coordination --mission {mission_slug} --fix` "
                 f"(or, manually: `git -C {shlex.quote(str(repo_root))} worktree add {shlex.quote(str(worktree))} {coord_branch}`)"
@@ -1816,7 +1820,8 @@ def _apply_missing_worktree_fix(
                 message = (
                     f"Could not materialize the coordination worktree for "
                     f"mission {mission_slug!r}: the coordination branch "
-                    f"{coord_branch!r} exists only as a remote-tracking ref. "
+                    f"{coord_branch!r} has no local branch and no remote-tracking "
+                    f"ref in this clone. "
                     f"{next_step}"
                 )
             else:
