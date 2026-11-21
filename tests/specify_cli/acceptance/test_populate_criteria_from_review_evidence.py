@@ -298,9 +298,10 @@ def _cancel_event(mission_slug: str, wp_id: str, *, reason_source: str) -> Statu
     )
 
 
-def test_a_descoped_mission_still_derives_its_verdict_from_the_reviewed_wps(tmp_path: Path) -> None:
-    """#5818: a WP canceled with operator provenance is an acceptable ending with no review to
-    cite. It neither blocks auto-population nor appears in its evidence."""
+def test_a_wp_canceled_with_operator_provenance_keeps_criteria_pending(tmp_path: Path) -> None:
+    """Matrix criteria carry no work-package mapping, so the reviews of the remaining WPs cannot
+    vouch for scope a descoped WP owned: the rows stay pending for an explicit acceptance verdict
+    (#5781 PR review; the auto-derivation stall on descoped Missions is a recorded follow-up)."""
     feature_dir = tmp_path / "kitty-specs" / "demo"
     feature_dir.mkdir(parents=True)
     seed_status_event(feature_dir, _approve_event("demo", "WP01"))
@@ -308,9 +309,8 @@ def test_a_descoped_mission_still_derives_its_verdict_from_the_reviewed_wps(tmp_
 
     updated = populate_criteria_from_review_evidence(feature_dir, [_criterion()])
 
-    assert updated[0].pass_fail == "pass"
-    assert "WP01" in (updated[0].evidence or "")
-    assert "WP02" not in (updated[0].evidence or "")
+    assert updated[0].pass_fail == "pending"
+    assert not updated[0].evidence
 
 
 def test_a_synthetic_cancellation_still_blocks_auto_population(tmp_path: Path) -> None:

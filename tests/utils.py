@@ -49,7 +49,6 @@ def _seed_canonical_wp_state(
     assignee: str,
     shell_pid: str,
     timestamp: str,
-    seed_claim: bool = True,
 ) -> None:
     from specify_cli.status.models import InnerStateChanged, Lane, StatusEvent, WPInnerStateDelta
     from specify_cli.status.reducer import materialize, reduce
@@ -68,7 +67,7 @@ def _seed_canonical_wp_state(
 
     if current_lane != canonical_target:
         from_lane = current_lane or "genesis"
-        if seed_claim and canonical_target in _IMPLEMENTED_LANES - {"claimed"} and from_lane not in _IMPLEMENTED_LANES:
+        if canonical_target in _IMPLEMENTED_LANES - {"claimed"} and from_lane not in _IMPLEMENTED_LANES:
             # #5781: the accept gate reads a WP's implementer of record from its implementing
             # claim in the event log (``status.review_roles``), not from the ``agent`` slot the
             # annotation below plants. A fixture WP that is past ``claimed`` was claimed, so seed
@@ -153,17 +152,16 @@ def write_wp(
     timestamp: str = "2025-01-01T00:00:00Z",
     legacy: bool = False,
     seed_canonical: bool = True,
-    seed_claim: bool = True,
 ) -> Path:
     """Create a work package file for testing.
 
     Args:
         legacy: If True, create in subdirectory (tasks/planned/WP01.md).
                 If False (default), create in flat structure (tasks/WP01.md).
-        seed_claim: For a lane past ``claimed``, seed the implementing claim by *agent*
-                that a real WP in that lane carries (#5781: the accept gate reads the
-                implementer of record from it). Pass ``False`` for a WP that reached the
-                lane with no implementing claim.
+
+    A WP seeded into a lane past ``claimed`` also gets the implementing claim by *agent*
+    that a real WP in that lane carries (#5781: the accept gate reads the implementer of
+    record from it). To model a WP that never had a claim, seed its events directly.
     """
     from specify_cli.task_utils.support import (
         append_activity_log,
@@ -218,6 +216,5 @@ def write_wp(
             assignee=assignee,
             shell_pid=shell_pid,
             timestamp=timestamp,
-            seed_claim=seed_claim,
         )
     return path

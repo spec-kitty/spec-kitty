@@ -110,7 +110,8 @@ class TestBuildWorkPackageState:
             # #5781: no implementing claim can be recorded from in_progress, so no command is named.
             (
                 "WP01: missing agent in canonical runtime state (no implementing claim recorded; "
-                "from lane 'in_progress' it must go back for rework and be claimed by a named agent)"
+                "no command applies from lane 'in_progress': it is left only by a review rejection back to "
+                "planned or a forced operator rewind, after which a named --agent claims it)"
             ),
             "WP01: missing assignee in canonical runtime state",
             "WP01: missing shell_pid in canonical runtime state",
@@ -147,7 +148,8 @@ class TestBuildWorkPackageState:
         assert issues == [
             (
                 "WP01: missing agent in canonical runtime state (no implementing claim recorded; "
-                "from lane 'approved' it must go back for rework and be claimed by a named agent)"
+                "no command applies from lane 'approved': it is left only by a review rejection back to "
+                "planned or a forced operator rewind, after which a named --agent claims it)"
             )
         ]
 

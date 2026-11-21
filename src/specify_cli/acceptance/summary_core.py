@@ -101,7 +101,10 @@ def missing_implementer_issue(wp_id: str, lane: str, implementer: str | None, *,
     if target is None:
         # No single command records a claim from here: a review or terminal lane is left only
         # through a review verdict or a forced operator rewind, after which a real agent claims it.
-        return f"{prefix}; from lane '{lane}' it must go back for rework and be claimed by a named agent)"
+        return (
+            f"{prefix}; no command applies from lane '{lane}': it is left only by a review rejection back to "
+            "planned or a forced operator rewind, after which a named --agent claims it)"
+        )
     return f"{prefix}; run `spec-kitty agent tasks move-task {wp_id} --to {target.value} --agent <name> --mission {mission}` to claim it)"
 
 

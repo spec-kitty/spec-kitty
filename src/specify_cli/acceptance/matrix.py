@@ -1235,20 +1235,12 @@ def populate_criteria_from_review_evidence(status_feature_dir: Path, criteria: l
         return criteria
     if not wp_states:
         return criteria
-    from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
-
-    # #5818: an operator-canceled WP is an acceptable ending with no review to cite, so it is
-    # neither a blocker nor evidence; every other WP must be approved or done. A Mission whose
-    # only WPs were canceled delivered nothing and derives no verdict.
-    if not all(is_acceptable_ending(str(state.get("lane")), has_provenance=has_operator_provenance(state)) for state in wp_states.values()):
-        return criteria
-    reviewed_wp_ids = sorted(wp_id for wp_id, state in wp_states.items() if state.get("lane") in ("approved", "done"))
-    if not reviewed_wp_ids:
+    if not all(state.get("lane") in ("approved", "done") for state in wp_states.values()):
         return criteria
 
     reviewers: list[str] = []
     references: list[str] = []
-    for wp_id in reviewed_wp_ids:
+    for wp_id in sorted(wp_states):
         lookup = event_sourced_review_result(status_feature_dir, wp_id)
         if not lookup.slot_present or lookup.result is None or lookup.result.verdict != "approved":
             # Incomplete evidence chain (a WP approved before T1/T2 landed,
