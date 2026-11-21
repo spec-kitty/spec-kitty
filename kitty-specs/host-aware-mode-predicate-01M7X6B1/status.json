@@ -20,7 +20,7 @@
   "work_packages": {
     "WP01": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": "claude::python-pedro",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -32,7 +32,8 @@
       "notes": [
         "- 2026-11-20T19:48:52Z – claude – shell_pid=5086 – Red-first: 11a789e0 (tests only) red on WP base: global convergence 4 failed / 2 passed (POSIX twins green), predicate matrix ImportError. Green at 33c25c23: tests/specify_cli/runtime/test_global_mode_convergence_windows.py + tests/specify_cli/tool_surface/test_mode_equivalence.py 60 passed. Blast radius: pytest tests/specify_cli/tool_surface tests/specify_cli/runtime tests/runtime tests/specify_cli/skills -n 6 --dist loadfile -> 4877 passed, 2 skipped, 3 failed, all pre-existing/environmental: test_historical_renders x2 also red on the base checkout (main 873ca367, CI green there -> container-specific); test_reassess_under_lock live preview fails on 'Source mismatch' (the subprocess imports the root-checkout install, not the lane: stale-install category). ruff check + ruff format --check --force-exclude clean on all 5 files; mypy clean per file (mypy on operations.py+asset_preparation.py together reports a pre-existing no-any-return at apply_assets, identical on the base). NFR-001 (analysis C1): cProfile over 5 global skill assessments -> effect_action 553 calls/assessment, about 2 ms of 1.9 s; median wall-clock base 0.586-0.596 s vs lane 0.600-0.641 s is variance between checkouts, not the predicate. SC-004 (analysis C2): assess_global_assets (upgrade's global_bootstrap entry) plans zero chmods under emulation (test_combined_global_assets_plan_no_chmod_under_emulated_windows). Exec-bit twin: no packaged asset is executable, so the twin pins a gained exec bit on a planned read-only skill file. Note: global skill files are planned read-only (0o444), so the Windows read-only twin clears the attribute.",
         "Ready for review: predicate + effect_action + global planners converge under emulated Windows",
-        "Review passed: one host-aware predicate (exact on POSIX; Windows dir/symlink kind-only, file write bit only) in operations.py; effect_action is the single action ladder and PhysicalEffect validates with it; asset_preparation's duplicate _action removed; guards/conflict checks stay exact. Red verified on base (4F/2P + ImportError), 60 passed at tip; blast radius tool_surface+specify_cli/runtime+runtime+preview_oracle 3988 passed, make test-fast 3173 passed; historical_renders red reproduces on base (main-red, #7797). ruff/format/C901 clean; mypy no-any-return at asset_preparation populate_from_package is pre-existing on base. Notes (non-blocking): (1) state_equivalent has no production caller until WP02; (2) until WP02 lands, bundles/projection._stage_effect still plans raw chmod that the sharper validator now rejects on Windows; WP02 must land in the same PR; (3) commit message says planner and validator cannot disagree, true only for global planners. Anti-pattern checklist: 1 PASS(note), 2 PASS, 3 PASS, 4 PASS, 5 N/A, 6 PASS, 7 PASS (WP02 owns the other planners), 8 PASS."
+        "Review passed: one host-aware predicate (exact on POSIX; Windows dir/symlink kind-only, file write bit only) in operations.py; effect_action is the single action ladder and PhysicalEffect validates with it; asset_preparation's duplicate _action removed; guards/conflict checks stay exact. Red verified on base (4F/2P + ImportError), 60 passed at tip; blast radius tool_surface+specify_cli/runtime+runtime+preview_oracle 3988 passed, make test-fast 3173 passed; historical_renders red reproduces on base (main-red, #7797). ruff/format/C901 clean; mypy no-any-return at asset_preparation populate_from_package is pre-existing on base. Notes (non-blocking): (1) state_equivalent has no production caller until WP02; (2) until WP02 lands, bundles/projection._stage_effect still plans raw chmod that the sharper validator now rejects on Windows; WP02 must land in the same PR; (3) commit message says planner and validator cannot disagree, true only for global planners. Anti-pattern checklist: 1 PASS(note), 2 PASS, 3 PASS, 4 PASS, 5 N/A, 6 PASS, 7 PASS (WP02 owns the other planners), 8 PASS.",
+        "Operator ruling 2026-11-21: re-review WP01. The cycle-1 approval stamp ce0c9066 was a reviewer-local merge, never pushed, and is lost (consolidate would refuse APPROVAL_STAMP_NOT_ON_LANE). Code unchanged since that review: lane-a 11a789e0 (red) + 33c25c23 (fix)."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
@@ -41,7 +42,7 @@
         "reviewer": "claude::reviewer-renata",
         "verdict": "approved"
       },
-      "role": "reviewer",
+      "role": "implementer",
       "shell_pid": 25975,
       "shell_pid_created_at": "1795234720.41",
       "subtasks": {
