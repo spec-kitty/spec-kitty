@@ -88,7 +88,7 @@
     },
     "WP03": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -102,6 +102,7 @@
         "Ready for review: mutation-proven mode-equality gate + changelog"
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/host-aware-mode-predicate-01M7X6B1-coord/kitty-specs/host-aware-mode-predicate-01M7X6B1/tasks/WP03-ratchet-gate-and-changelog/review-cycle-1.md",
         "reference": "review-cycle://host-aware-mode-predicate-01M7X6B1/WP03-ratchet-gate-and-changelog/review-cycle-1.md",
@@ -109,12 +110,12 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 1030,
-      "shell_pid_created_at": "1795242197.57",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T011": "done",
-        "T012": "done",
-        "T013": "done"
+        "T011": "planned",
+        "T012": "planned",
+        "T013": "planned"
       }
     }
   }
