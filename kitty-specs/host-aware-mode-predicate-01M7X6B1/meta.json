@@ -1,5 +1,4 @@
 {
-  "accept_commit": "3142534e3c39c2cdff9d02ac106ec4e949961a55",
   "acceptance_history": [
     {
       "accept_commit": "3142534e3c39c2cdff9d02ac106ec4e949961a55",
@@ -7,12 +6,18 @@
       "accepted_at": "2026-11-21T07:08:33.069119+00:00",
       "accepted_by": "system",
       "accepted_from_commit": "8fb50ab06ba84c34152becaa7b078f6b3308411c"
+    },
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-21T07:09:07.389383+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "90c41e5cfaf3972ff23de049202be407f114d3ca"
     }
   ],
   "acceptance_mode": "pr",
-  "accepted_at": "2026-11-21T07:08:33.069119+00:00",
+  "accepted_at": "2026-11-21T07:09:07.389383+00:00",
   "accepted_by": "system",
-  "accepted_from_commit": "8fb50ab06ba84c34152becaa7b078f6b3308411c",
+  "accepted_from_commit": "90c41e5cfaf3972ff23de049202be407f114d3ca",
   "contracts": "none",
   "contracts_rationale": "Internal planner predicate and an architectural gate; no external interface, wire format or CLI surface changes.",
   "coordination_branch": "kitty/mission-host-aware-mode-predicate-01M7X6B1",
