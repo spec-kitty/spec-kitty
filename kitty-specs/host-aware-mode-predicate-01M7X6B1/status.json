@@ -1,7 +1,7 @@
 {
-  "event_count": 13,
-  "last_event_id": "01M7YAN9PGKVNNSN9WZE19P0KT",
-  "materialized_at": "2026-11-21T05:53:24.688237+00:00",
+  "event_count": 15,
+  "last_event_id": "01M7YATFYZGAEQ0Y2TT26KAWQP",
+  "materialized_at": "2026-11-21T05:56:14.208747+00:00",
   "mission_number": "",
   "mission_slug": "host-aware-mode-predicate-01M7X6B1",
   "mission_type": "software-dev",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -87,11 +87,20 @@
       }
     },
     "WP03": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude::python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M7X6PNC0SQ7HV0EMVJJVVBXK",
-      "last_transition_at": "2026-11-20T19:25:00.672752+00:00"
+      "implementer_of_record": "claude::python-pedro",
+      "lane": "in_progress",
+      "last_event_id": "01M7YATFYZGAEQ0Y2TT26KAWQP",
+      "last_transition_at": "2026-11-21T05:56:14.208747+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 244,
+      "shell_pid_created_at": "1795240549.27"
     }
   }
 }
