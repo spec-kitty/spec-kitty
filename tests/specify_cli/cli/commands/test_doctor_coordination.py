@@ -851,7 +851,7 @@ def test_apply_missing_worktree_fix_remote_only_refusal_without_coord_branch_ext
     assert warning.next_step is not None
     assert warning.next_step.startswith("Run in order:")
     assert f"branch {COORD_BRANCH} refs/remotes/origin/{COORD_BRANCH}" in warning.next_step
-    assert "has no local branch and no remote-tracking ref in this clone" in warning.message
+    assert "no remote-tracking ref for it from its owning remote" in warning.message
 
 
 def test_apply_missing_worktree_fix_generic_refusal_for_local_head_relays_next_step(

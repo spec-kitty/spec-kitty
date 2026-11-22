@@ -63,9 +63,9 @@ class RemoteOnlyBranch:
 
 
 def _has_tracking_ref(repo_root: Path, remote: str, branch: str) -> bool:
-    """True when ``refs/remotes/<remote>/<branch>`` resolves (local read; unreadable answers False)."""
+    """True when ``refs/remotes/<remote>/<branch>`` resolves to a commit (local read; unreadable answers False)."""
     try:
-        result = run_git(repo_root, "rev-parse", "--verify", "--quiet", "--end-of-options", tracking_ref(remote, branch), check=False)
+        result = run_git(repo_root, "rev-parse", "--verify", "--quiet", "--end-of-options", f"{tracking_ref(remote, branch)}^{{commit}}", check=False)
     except GitCommandError:
         return False
     return result.returncode == 0
