@@ -224,15 +224,24 @@ def _planning_checkout_root(
     so probing there read finalize's own writes as "no changes". The seam's
     declared-PRIMARY ``write_dir(TASKS_INDEX).surface_root`` names the containing
     checkout (no side effects: a PRIMARY kind never establishes coordination state).
-    When the seam's directory is not ``planning_dir`` (a caller-supplied directory),
-    ``repo_root`` stays the probe root, as before.
+    The containment test compares resolved paths, so a ``planning_dir`` spelled
+    through a symbolic link (a symlinked temp directory, say) still finds its
+    checkout; the answer is re-spelled as an ancestor of ``planning_dir`` so the
+    candidates' ``relative_to`` holds. Only a ``planning_dir`` outside the seam's
+    checkout (a caller-supplied directory) keeps ``repo_root`` as the probe root.
     """
     from mission_runtime import placement_seam
 
     location = placement_seam(repo_root, mission_slug, owned=owned).write_dir(MissionArtifactKind.TASKS_INDEX)
-    if planning_dir.is_relative_to(location.surface_root):
-        return location.surface_root
-    return repo_root
+    surface_root = location.surface_root
+    if planning_dir.is_relative_to(surface_root):
+        return surface_root
+    resolved_planning = planning_dir.resolve()
+    resolved_root = surface_root.resolve()
+    if not resolved_planning.is_relative_to(resolved_root):
+        return repo_root
+    depth = len(resolved_planning.relative_to(resolved_root).parts)
+    return planning_dir.parents[depth - 1] if depth else planning_dir
 
 
 def _resolve_finalize_commit_candidates(
@@ -403,16 +412,19 @@ def _uncommitted_finalize_writes(candidate_checkouts: dict[Path, Path], ledger: 
 
 
 def _refuse_uncommitted_finalize_writes(outcome: _CommitOutcome, *, json_output: bool) -> None:
-    """Postcondition: a run that commits nothing left none of its own writes dirty, else exit 1 (#7792).
+    """Postcondition: no file this run wrote stays uncommitted behind an "unchanged" answer, else exit 1 (#7792).
 
     The operator ruling is fail loud: ``finalize-tasks`` must never report
     "unchanged" while its own writes stay dirty (the next command would build on a
-    branch that lacks them). It applies to the no-commit outcomes only -- the
-    candidate probe found nothing, or the router answered ``unchanged``. When the
-    router reports a commit, its per-surface outcome is the authority, and a
-    refused surface (``surface_refusal``) already exits 1 after its own report,
-    which this check must not pre-empt. On a refusal here nothing landed, so
-    ``finalize_tasks``' undo restores the run's writes; the message says so.
+    branch that lacks them). The check runs when no commit landed (the candidate
+    probe found nothing, or the router answered ``unchanged``) and when a commit
+    landed but some surface answered ``unchanged`` (a committed PRIMARY group beside
+    an unchanged coordination group). When every surface committed, the router's
+    per-surface outcome is the authority. A refused surface (``surface_refusal``)
+    already exits 1 after its own report, which this check must not pre-empt.
+    When no commit landed, ``finalize_tasks``' undo restores the run's writes and the
+    message says so; when one did, nothing is undone and the message names the
+    files to commit.
 
     Residual: the check probes the same candidate-to-checkout mapping the commit
     decision used, so a wrong mapping would hide the dirt from both. It catches a
@@ -420,17 +432,21 @@ def _refuse_uncommitted_finalize_writes(outcome: _CommitOutcome, *, json_output:
     """
     from specify_cli.cli.commands.agent import mission_finalize as _mf
 
-    if outcome.surface_refusal or outcome.commit_created:
+    from specify_cli.coordination.commit_outcome import STATUS_UNCHANGED
+
+    if outcome.surface_refusal:
+        return
+    if outcome.commit_created and not any(surface.get("status") == STATUS_UNCHANGED for surface in outcome.commit_surfaces):
         return
     dirty = _uncommitted_finalize_writes(outcome.candidate_checkouts, active_write_ledger())
     if not dirty:
         return
     names = sorted(str(path) for path in dirty)
-    message = (
-        "finalize-tasks wrote files it did not commit: "
-        + ", ".join(names)
-        + ". No commit landed, so the run's writes are being restored. Re-run finalize-tasks; if it refuses again, report it."
-    )
+    if outcome.commit_created:
+        remedy = "A commit landed and is kept. Commit them in the checkout that holds them (git status there)."
+    else:
+        remedy = "No commit landed, so the run's writes are being restored. Re-run finalize-tasks; if it refuses again, report it."
+    message = "finalize-tasks wrote files it did not commit: " + ", ".join(names) + ". " + remedy
     if json_output:
         _mf._emit_json({"result": "error", "error": message, "error_code": FINALIZE_WRITES_UNCOMMITTED, "uncommitted_files": names})
     else:

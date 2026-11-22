@@ -5,7 +5,7 @@ monolith into ≤15-CC phase helpers (SaaS/auth preflight → git preflight →
 feature-dir resolution → spec gate → plan scaffold → lifecycle emit → plan
 commit → documentation wiring → result emit), plus the planning-commit helpers
 it owns: ``_commit_to_branch`` + ``CommitToBranchResult``, ``_kind_for_artifact``
-(and its ``_ARTIFACT_TYPE_TO_KIND`` table), ``_artifact_has_no_git_changes``,
+(and its ``_ARTIFACT_TYPE_TO_KIND`` table),
 ``_print_artifact_unchanged``, ``_warn_commit_failed``. The heavyweight
 ``commit_for_mission`` import stays function-local (A-3 / NFR-005).
 
@@ -40,7 +40,6 @@ import typer
 
 from charter.activation.mission_type_profiles import resolve_mission_type_context
 from charter.resolution import ResolutionResult
-from kernel.git import GitCommandError, status_entries
 from mission_runtime import MissionArtifactKind, OwnedCheckout, placement_seam
 from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption
 from specify_cli.coordination.commit_outcome import STATUS_COMMITTED, STATUS_UNCHANGED, SurfaceOutcome, commit_outcome_payload, render_commit_outcome
@@ -92,32 +91,6 @@ SPEC_REQUIREMENT_IDS_INVALID_MESSAGE = "spec.md declares requirement IDs that ar
 # ---------------------------------------------------------------------------
 # Planning-commit helpers (relocated from mission.py — WP06 / T023)
 # ---------------------------------------------------------------------------
-
-
-def _artifact_has_no_git_changes(repo_root: Path, file_path: Path) -> bool:
-    """True when *file_path* has no pending change in the checkout that holds it.
-
-    #7792: an absolute *file_path* inside a nested checkout (a coordination
-    worktree under ``.worktrees/``) is probed in that checkout, never in
-    *repo_root*, whose ``git status`` does not list a nested checkout's files.
-    """
-    from kernel.git_anchor import checkout_root_in_spelling
-
-    probe_root = repo_root
-    candidate = file_path
-    if candidate.is_absolute():
-        holder = checkout_root_in_spelling(candidate)
-        if holder is not None:
-            probe_root = holder
-        with contextlib.suppress(ValueError):
-            candidate = candidate.relative_to(probe_root)
-
-    try:
-        return not status_entries(probe_root, pathspecs=[str(candidate)], untracked=None)
-    except GitCommandError:
-        # Advisory: "no changes" only skips a redundant commit; when git cannot
-        # say, report "has changes" so the commit is still attempted.
-        return False
 
 
 def _print_artifact_unchanged(artifact_type: str, json_output: bool) -> None:
