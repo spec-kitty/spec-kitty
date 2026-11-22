@@ -125,19 +125,29 @@ _PR_OR_COMMIT_PATTERN = re.compile(r"\bpr\s*#|\bpull\b|/pull/\d+", re.IGNORECASE
 # Positional, like the citation labels below: the SHA must sit within
 # ``_COMMIT_SHA_WINDOW`` characters of THIS citation (before its ``#`` or after
 # its number), so it never demotes an unrelated number further along the line.
-# The token must carry at least one letter ``a-f``: an all-digit backticked token
-# cannot be told from an ordinary number, so it stays gating (fail-safe).
+# The token must carry at least one letter ``a-f`` AND one digit: an all-digit
+# backticked token cannot be told from an ordinary number, and an all-letter one
+# is usually an English word (``defaced``, ``deadbeef``), so both stay gating
+# (fail-safe). A real 7-character SHA is all letters about 0.1% of the time.
 _COMMIT_SHA_PATTERN = re.compile(r"`([0-9a-f]{7,40})`", re.IGNORECASE)
 _COMMIT_SHA_WINDOW = 16
 _HEX_LETTERS = frozenset("abcdefABCDEF")
+_DECIMAL_DIGITS = frozenset("0123456789")
 # The citation's own text, from its offset: ``#4757`` or a full issue URL.
 _CITATION_TOKEN_PATTERN = re.compile(r"[^\s)\],;`]+")
 
 # A closing keyword IS an implementation-target statement (#5516: it gates in
 # every scanned artefact). Label-only: the number after it is the canonical
 # detector's citation (FR-006, one number-recognition authority), and the label
-# binds to the ONE citation it ends at, like the positional context labels.
-_CLOSING_KEYWORD_LABEL_PATTERN = re.compile(r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s*:?\s*#", re.IGNORECASE)
+# binds to the ONE citation it ends at, like the positional context labels. The
+# keyword may be emphasised (``**Closes**``, ``**Fixes:**``) and the citation
+# wrapped (```#12```, ``[#12](url)``, ``**#12**``); the label ends at the
+# citation's first character, the ``#`` of a bare reference or the ``h`` of an
+# issue URL (the only citation that starts with ``h``).
+_CLOSING_KEYWORD_LABEL_PATTERN = re.compile(
+    r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\b(?:\*\*|__)?\s*:?(?:\*\*|__)?\s*[\[`*_]*[#h]",
+    re.IGNORECASE,
+)
 
 # A closing keyword directly preceded by a negation ("does not fix #N") is not a
 # closing statement.
@@ -217,7 +227,7 @@ def _closing_keyword_leads_into(occurrence: Occurrence) -> bool:
 def _commit_sha_beside_citation(occurrence: Occurrence) -> bool:
     """True iff a backticked commit SHA sits right beside this citation (#5297)."""
     line = occurrence.line_text
-    shas = [match for match in _COMMIT_SHA_PATTERN.finditer(line) if _HEX_LETTERS.intersection(match.group(1))]
+    shas = [match for match in _COMMIT_SHA_PATTERN.finditer(line) if _HEX_LETTERS.intersection(match.group(1)) and _DECIMAL_DIGITS.intersection(match.group(1))]
     offset = occurrence.ref_offset
     if offset is None:
         return bool(shas)

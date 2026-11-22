@@ -100,10 +100,40 @@ def test_leading_zero_is_never_an_issue_number_7808(text: str) -> None:
         ("Parent: #4521", [4521]),
         # A capitalised prose label is not a (lower-case) CSS property name.
         ("Background: #4521", [4521]),
+        # Squad fold: the property must be a whole token, not a word ending in a
+        # colour word, and a non-CSS custom-looking option is not a property.
+        ("Backfill: #4521", [4521]),
+        ("- backfill: #4521", [4521]),
+        ("tasks-outline: #4521", [4521]),
+        ("Watercolor: #4521", [4521]),
+        ("UI-color: #4521", [4521]),
+        # A real property name in prose with no declaration terminator stays a reference.
+        ("- background: #4521 reported in triage", [4521]),
+        ("outline: #4521", [4521]),
+        ("| border | #4521 |", [4521]),
     ],
 )
 def test_real_references_survive_the_colour_filter_7808(text: str, expected: list[int]) -> None:
     assert issue_numbers_in_text(text) == expected
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "color: #112233;",
+        "a { border-color: #445566 }",
+        "`--brand: #778899`",
+        "background: #112233 !important;",
+        'style="color: #112233"',
+        "box-shadow: #112233;",
+    ],
+)
+def test_declaration_forms_are_filtered_7808(text: str) -> None:
+    assert issue_numbers_in_text(text) == []
+
+
+def test_non_ascii_digits_are_never_issue_numbers_7808() -> None:
+    assert issue_numbers_in_text("#\u0661\u0662\u0663 and #1\u0662\u0663") == []
 
 
 def test_same_repo_url_with_leading_zero_is_not_a_reference_7808() -> None:
@@ -147,6 +177,13 @@ def test_spec_commit_citation_is_non_gating_5297(tmp_path: Path) -> None:
         ("Reverted in `0123456789abcdef0123456789abcdef01234567` for #4757", "#4757", GatingClass.PR_OR_COMMIT_REF),
         # The SHA describes #4757 only; #4521 far away on the same line still gates.
         ("(`ed6d34e75`, #4757) and separately we must implement the fix for #4521", "#4521", GatingClass.IMPLEMENTATION_TARGET),
+        # Window boundary: a gap of exactly 16 characters demotes, 17 does not.
+        ("(`ed6d34e75`" + " " * 16 + "#4757)", "#4757", GatingClass.PR_OR_COMMIT_REF),
+        ("(`ed6d34e75`" + " " * 17 + "#4757)", "#4757", GatingClass.IMPLEMENTATION_TARGET),
+        ("#4757" + " " * 16 + "`ed6d34e75`", "#4757", GatingClass.PR_OR_COMMIT_REF),
+        ("#4757" + " " * 17 + "`ed6d34e75`", "#4757", GatingClass.IMPLEMENTATION_TARGET),
+        # All-letter hex words are English, not SHAs.
+        ("Revert `defaced` then do #4757", "#4757", GatingClass.IMPLEMENTATION_TARGET),
         # Too short (6 hex chars) is not a SHA.
         ("(`abcdef`, #4757)", "#4757", GatingClass.IMPLEMENTATION_TARGET),
         # Not backticked: plain hex words are not commit citations.
@@ -182,7 +219,7 @@ def test_spec_closes_gates_5516(tmp_path: Path) -> None:
     assert gating_issue_numbers(feature_dir) == {"#19"}
 
 
-@pytest.mark.parametrize("artefact", ["plan.md", "research.md", "analysis-report.md", "contracts/api.md"])
+@pytest.mark.parametrize("artefact", ["plan.md", "research.md", "analysis-report.md", "contracts/api.md", "contracts/spec.md"])
 def test_out_of_scope_artefacts_cite_bare_references_5516(tmp_path: Path, artefact: str) -> None:
     feature_dir = _mission(tmp_path, {artefact: "Background in #4521 and table id #22.\n"})
     assert _classes(feature_dir) == {4521: GatingClass.CONTEXT_ONLY, 22: GatingClass.CONTEXT_ONLY}
@@ -199,6 +236,32 @@ def test_in_scope_artefacts_still_gate_bare_references_5516(tmp_path: Path, arte
 def test_closing_keyword_gates_in_any_artefact_5516(tmp_path: Path, keyword: str) -> None:
     feature_dir = _mission(tmp_path, {"plan.md": f"{keyword} as part of this plan.\n"})
     assert gating_issue_numbers(feature_dir) == {"#4521"}
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "**Closes** #4521",
+        "**Fixes:** #4521",
+        "Fixes `#4521`",
+        "Closes [#4521](https://github.com/spec-kitty/spec-kitty/issues/4521)",
+        "Closes https://github.com/spec-kitty/spec-kitty/issues/4521",
+    ],
+)
+def test_closing_keyword_wrapped_forms_gate_out_of_scope_5516(tmp_path: Path, line: str) -> None:
+    feature_dir = _mission(tmp_path, {"research.md": f"{line}\n"})
+    assert gating_issue_numbers(feature_dir) == {"#4521"}
+
+
+def test_closing_keyword_names_only_the_citation_it_leads_into_5516(tmp_path: Path) -> None:
+    """GitHub semantics: ``Closes #A and #B`` closes only ``#A``; out of scope ``#B`` is cited."""
+    feature_dir = _mission(tmp_path, {"plan.md": "Closes #4521 and #4600\n"})
+    assert _classes(feature_dir) == {4521: GatingClass.IMPLEMENTATION_TARGET, 4600: GatingClass.CONTEXT_ONLY}
+
+
+def test_closing_keyword_inside_a_word_is_not_a_label_5516(tmp_path: Path) -> None:
+    feature_dir = _mission(tmp_path, {"plan.md": "This encloses #4521 and the prefix #4600.\n"})
+    assert gating_issue_numbers(feature_dir) == set()
 
 
 def test_negated_closing_keyword_out_of_scope_is_cited_5516(tmp_path: Path) -> None:
@@ -261,6 +324,8 @@ def test_detect_single_file_keeps_default_scope_5516(tmp_path: Path) -> None:
         ("Issue #4521: real", frozenset({4521})),
         ("GitHub issue 4521 - hashless form", frozenset({4521})),
         ("Ticket 0123 - hashless leading zero", frozenset()),
+        # The number must directly follow the lead; a later citation is not the lead.
+        ("Issue #abc, see #4521", frozenset()),
     ],
 )
 def test_source_description_uses_the_shared_filter(tmp_path: Path, description: str, expected: frozenset[int]) -> None:
@@ -279,5 +344,20 @@ def test_source_description_uses_the_shared_filter(tmp_path: Path, description: 
     ],
 )
 def test_closing_keyword_source_issues_use_the_shared_filter(tmp_path: Path, spec: str, expected: frozenset[int]) -> None:
+    feature_dir = _mission(tmp_path, {"spec.md": spec})
+    assert mission_source_issue_numbers(feature_dir) == expected
+
+
+@pytest.mark.parametrize(
+    ("spec", "expected"),
+    [
+        # Only the FIRST ``**Input**`` line names the source issue.
+        ("**Input**: Issue #4521\n**Input**: Issue #4600\n", frozenset({4521})),
+        # Every citation on the Input line has a label in front of it: none is the source.
+        ("**Input**: Epic #4521\n", frozenset()),
+        ("**Input**: Epic #4521 -- Issue #4600\n", frozenset({4600})),
+    ],
+)
+def test_input_line_source_issue_paths(tmp_path: Path, spec: str, expected: frozenset[int]) -> None:
     feature_dir = _mission(tmp_path, {"spec.md": spec})
     assert mission_source_issue_numbers(feature_dir) == expected

@@ -169,11 +169,11 @@ _SCAFFOLD_NON_GATING_EVIDENCE = "<auto-classified: no action required>"
 # the named group ``url_number`` instead, since ``owner``/``repo`` must be
 # captured first to mirror the URL's own left-to-right shape.
 _GH_ISSUE_PATTERN = re.compile(
-    r"(?:^|\s|\(|\[|[`*]|(?<=\d)/)#([1-9]\d{1,5})"
+    r"(?:^|\s|\(|\[|[`*]|(?<=\d)/)#([1-9][0-9]{1,5})"
     r"(?=\s|\)|\]|,|;|\.|[`*\"'|\u2014\u2013]|[:!?_](?!\w)|/(?=#)|$)"
     r"|"
     r"https?://github\.com/(?P<owner>[\w.-]+)/(?P<repo>[\w.-]+)/issues/"
-    r"(?P<url_number>[1-9]\d{1,5})(?!\w)",
+    r"(?P<url_number>[1-9][0-9]{1,5})(?!\w)",
     re.MULTILINE,
 )
 
@@ -192,15 +192,27 @@ _LEGACY_REPO_SLUGS = frozenset({"priivacy-ai/spec-kitty"})
 _SAME_REPO_SLUGS = frozenset({_CANONICAL_REPO_SLUG.casefold()}) | _LEGACY_REPO_SLUGS
 
 
-# #7808: an all-digit hex colour in CSS declaration form -- a colour-bearing
-# property (``color``, ``background-color``, ``border``, ``fill`` …) or a custom
-# property (``--brand``), a colon, then the value -- is never an issue reference.
-# Matched only against the text DIRECTLY before the ``#``, never a CSS word
-# elsewhere on the line: a 4-digit ``#RGBA`` colour looks exactly like a 4-digit
-# issue, so a keyword-anywhere filter would silently drop real references. The
-# property name is matched case-sensitively in lower case (CSS convention), so a
-# prose label such as ``Background: #4521`` stays a reference.
-_CSS_COLOUR_DECLARATION_PREFIX = re.compile(r"(?:--[\w-]+|[a-z-]*(?:color|colour|background|border|fill|stroke|outline|shadow)[a-z-]*)\s*:\s*$")
+# #7808: an all-digit hex colour in CSS declaration form is never an issue
+# reference. Declaration form is a real colour-bearing CSS property name -- or a
+# custom property (``--brand``) -- as a WHOLE token, a colon, the value, then a
+# declaration terminator (``;``, ``}``, ``!important``, or a closing backtick or
+# quote of inline code): ``color: #112233;``, ``border-color:#445566}``,
+# ```--brand: #778899```.
+#
+# Fail-safe by construction, because a 4-digit ``#RGBA`` colour looks exactly
+# like a 4-digit issue:
+#   * only the text DIRECTLY around the value counts, never a CSS word elsewhere
+#     on the line (a keyword-anywhere filter would drop real references);
+#   * the property must start a token (``(?<![\w-])``) and be one of the listed
+#     names, so ``Backfill: #4521`` or ``tasks-outline: #7808`` stay references;
+#   * the name is lower case (CSS convention), so ``Background: #4521`` stays one;
+#   * without a terminator (``background: #4521 reported``) it stays one.
+_CSS_COLOUR_DECLARATION_PREFIX = re.compile(
+    r"(?<![\w-])(?:--[\w-]+|color|background(?:-color)?|border(?:-(?:top|right|bottom|left|block|inline))?(?:-color)?"
+    r"|outline(?:-color)?|fill|stroke|(?:box|text)-shadow|caret-color|accent-color|column-rule(?:-color)?"
+    r"|text-decoration(?:-color)?)\s*:\s*$"
+)
+_CSS_DECLARATION_TERMINATOR = re.compile(r"\s*(?:[;}`\"']|!important)")
 # How much text before the ``#`` the declaration check looks at; a property name
 # plus its colon never needs more, and the bound keeps the check per-match O(1).
 _CSS_DECLARATION_LOOKBEHIND = 64
@@ -210,7 +222,9 @@ def _is_css_colour_value(match: re.Match[str]) -> bool:
     """True iff this hash-arm match is the value of a CSS colour declaration (#7808)."""
     hash_index = match.start(1) - 1
     window = match.string[max(0, hash_index - _CSS_DECLARATION_LOOKBEHIND) : hash_index]
-    return _CSS_COLOUR_DECLARATION_PREFIX.search(window) is not None
+    if _CSS_COLOUR_DECLARATION_PREFIX.search(window) is None:
+        return False
+    return _CSS_DECLARATION_TERMINATOR.match(match.string, match.end(1)) is not None
 
 
 def _matched_issue_number(match: re.Match[str]) -> int | None:
@@ -296,12 +310,7 @@ def issue_numbers_in_text(text: str) -> list[int]:
     of a line (the Mission's ``**Input**:`` header, say) reuses this definition
     instead of adding a second pattern.
     """
-    numbers: list[int] = []
-    for match in _GH_ISSUE_PATTERN.finditer(text):
-        number = _matched_issue_number(match)
-        if number is not None:
-            numbers.append(number)
-    return numbers
+    return [number for number, _offset in issue_citations_in_line(text)]
 
 
 def issue_citations_in_line(line: str) -> list[tuple[int, int]]:
@@ -317,6 +326,9 @@ def issue_citations_in_line(line: str) -> list[tuple[int, int]]:
     citations: list[tuple[int, int]] = []
     for match in _GH_ISSUE_PATTERN.finditer(line):
         number = _matched_issue_number(match)
+        # ``_citation_offset`` only returns ``None`` for a negative offset, which
+        # cannot happen with no leading whitespace to subtract (``leading=0``);
+        # the check narrows the ``Optional`` for the type checker.
         offset = _citation_offset(match, 0)
         if number is not None and offset is not None:
             citations.append((number, offset))
@@ -341,10 +353,11 @@ def _citation_offset(match: re.Match[str], leading: int) -> int | None:
 def detect_issue_references(spec_md_path: Path) -> list[IssueReference]:
     """Return the unique list of GH issue refs in a file, ordered by first appearance.
 
-    Recognises ``#NNNN`` (2-6 digits) and same-repo GitHub issue URLs alike
-    (FR-012, #1738; see ``_GH_ISSUE_PATTERN``). Skips refs that look like
-    markdown anchor links (``#section-name``) and cross-repo/prior-art
-    issue URLs (never returned as a reference -- SC-008).
+    Recognises ``#NNNN`` (2-6 digits, no leading zero) and same-repo GitHub
+    issue URLs alike (FR-012, #1738; see ``_GH_ISSUE_PATTERN``). Skips refs that
+    look like markdown anchor links (``#section-name``), cross-repo/prior-art
+    issue URLs (never returned as a reference -- SC-008), and all-digit hex
+    colours in CSS declaration form (#7808).
 
     WP01 (#3469, FR-015): every line the number appears on within this file
     is retained as an :class:`~specify_cli.tasks.issue_reference_discovery.

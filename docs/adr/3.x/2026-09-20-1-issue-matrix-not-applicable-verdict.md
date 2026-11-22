@@ -176,30 +176,58 @@ Mission `issue-matrix-over-matching-01M81KK0` (#7808, #5297, #5516; operator rul
 fail-safe default, under which an unmarked bare `#NNNN` gates, now holds **inside the
 gating scope only**:
 
-- **Gating scope.** References in `spec.md` and in `tasks/*.md` keep the FR-011
-  default. A reference found only in another scanned artefact (`plan.md`,
-  `research.md`, `analysis-report.md`, `contracts/*.md`) is *cited*: it classifies
-  as `context_only` (non-gating) and stays in the audit trail. A planted-break label
+- **Gating scope (an allowlist).** References in `spec.md` and in `tasks/*.md` keep
+  the FR-011 default. A reference found in any other scanned artefact is *cited*: it
+  classifies as `context_only` (non-gating) and stays in the audit trail. Today that
+  covers `plan.md`, `research.md`, `analysis-report.md` and `contracts/*.md`, and any
+  artefact added to the scan later defaults to cited. A planted-break label
   ("Break #N"), a research-table id and background prose therefore need no row.
   Discovery marks each `Occurrence` with `in_gating_scope`, and `classify_occurrence`
   remains the one classifier that reads it.
 - **Closing keywords gate everywhere.** A non-negated closing keyword
-  (`close`/`fix`/`resolve` family, optional colon) that leads into a citation makes
-  that occurrence an `implementation_target` in any scanned artefact. It takes
+  (`close`/`fix`/`resolve` family, optional colon, optionally emphasised) that leads
+  into a citation makes that occurrence an `implementation_target` in any scanned
+  artefact. The citation may be wrapped: `` `#N` ``, `[#N](url)` or an issue URL. The
+  keyword binds to the one citation it leads into, as GitHub's does, so in
+  `Closes #A and #B` only `#A` is closed. It takes
   precedence over every demoting rule, including the commit rule below. The same
   helper feeds the Mission source-issue derivation (#7011), so the two cannot drift.
 - **Commit citations.** A backticked 7-40 character hex SHA that contains at least one
-  letter `a-f` and sits within 16 characters of the citation, on either side, classes
-  the occurrence as `pr_or_commit_ref`, as in ``(`<sha>`, #N)``. An all-digit backticked
-  token stays gating.
+  letter `a-f` and one digit, and sits within 16 characters of the citation on either
+  side, classes the occurrence as `pr_or_commit_ref`, as in ``(`<sha>`, #N)``. An
+  all-digit backticked token, or an all-letter word such as `defaced`, stays gating.
 - **Number filter.** No issue-number pattern accepts a leading zero, so `#000` and
-  `#000000` are no longer issue 0. An all-digit hex colour in CSS declaration form is
-  not a reference. Declaration form means a lower-case colour-bearing property or a
-  `--custom-property`, then a colon, then the value, directly before the `#`. A CSS
+  `#000000` are no longer issue 0. Digits are ASCII only. An all-digit hex colour in CSS
+  declaration form is not a reference. Declaration form means a listed lower-case
+  colour-bearing property name (`color`, `background`, `border-color`, `fill`, and so
+  on) or a `--custom-property`, as a whole token. Then come a colon, the value, and a
+  declaration terminator (`;`, `}`, `!important`, or a closing backtick or quote).
+  Prose such as `Backfill: #N`, `Background: #N` or `background: #N reported` stays
+  a reference. A CSS
   word elsewhere on the line does not filter anything, because a 4-digit `#RGBA`
   colour is indistinguishable from a 4-digit issue. The closing-keyword and
   source-description patterns now read numbers only through `_GH_ISSUE_PATTERN` and
   `_matched_issue_number`, leaving one number-recognition authority.
+
+**Promotion layer.** The Mission source-issue promotion (#7011) still runs after
+`classify_occurrence`. A Mission's own issue therefore gates wherever it is cited,
+including when it is cited only out of scope. This is a documented guarantee layered
+on top of the classifier, not a second classifier.
+
+**Accepted narrowings.** The closing-keyword and source-description labels now read
+the number through the canonical detector. Forms that detector deliberately rejects
+are therefore no longer source issues:
+- a hyphen or other non-terminator glued to the number (`Closes #N-fix`, `Issue #N-colour`);
+- no boundary before the `#` (`Fixes:#N`, `Closes#N`);
+- a keyword and number split across lines.
+
+A negation such as "does not fix" is now judged within the line only. These forms
+gate in `spec.md` and `tasks/` all the same under the scope default.
+
+**Scaffold.** `scaffold_issue_matrix` still detects on `spec.md` alone. It agrees with
+discovery there. References that gate only through `tasks/` or a closing keyword
+elsewhere are reported as missing rows by the gates rather than pre-scaffolded, as
+before.
 
 `GatingClass` is unchanged. "Cited" is the existing `context_only` value, so persisted
 rows and scaffold verdicts keep their vocabulary. D2, D4 and D5 are unaffected. The
