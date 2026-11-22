@@ -20,12 +20,21 @@
   "work_packages": {
     "WP01": {
       "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "cancellation_reason": "Canceled: operator ruling R68 (2026-11-22, squad session) moves #7808 to the Slice 5 Mission (#7808 + #5297 + #5516); no work was committed on lane-a.",
       "force_count": 0,
       "lane": "canceled",
       "last_event_id": "01M8131XFDQW7NMJWYB5GXKKFZ",
       "last_transition_at": "2026-11-22T07:38:12.845502+00:00",
-      "reason_source": "operator"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Canceled: operator ruling R68 (2026-11-22, squad session) moves #7808 to the Slice 5 Mission (#7808 + #5297 + #5516); no work was committed on lane-a."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "reason_source": "operator",
+      "role": "implementer"
     },
     "WP02": {
       "actor": "claude",
