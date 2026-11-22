@@ -249,6 +249,14 @@ modules:
   - specify_cli.workspace
   tier: standard
   shard_count: 1
+  # #7789: promoted tests/specify_cli/lanes from out_of_matrix_test_dirs (nightly-only),
+  # in the same change that made every src/specify_cli/lanes/* file a diff-cover
+  # critical path: a critical-path lanes change needs its secondary test tree in the
+  # per-PR shard that produces its coverage evidence. The explicit test_dirs list
+  # REPLACES the tests/lanes fallback claim, so tests/lanes stays named.
+  test_dirs:
+  - tests/lanes
+  - tests/specify_cli/lanes
 - module: upgrade
   roots:
   - src/specify_cli/upgrade/**
@@ -983,16 +991,6 @@ out_of_matrix_test_dirs:
   dirs:
   - tests/specify_cli/cli/commands/charter
   - tests/specify_cli/cli/commands/review
-
-- reason: >-
-    Deferred-promotion (spec-kitty#4374 disposition ledger, WP01): existing owning row
-    lanes (cov_targets specify_cli.lanes; import census confirms 15x
-    specify_cli.lanes.worktree_allocator, 7x .models, 7x .recovery). Not in the Phase-S
-    capped promotion set (merge/status/dashboard/auth only) -- promotion warranted;
-    deferred to a follow-up (#4732) to respect the bounded single-PR cap, never
-    silently absorbed.
-  dirs:
-  - tests/specify_cli/lanes
 
 - reason: >-
     Deferred-promotion (spec-kitty#4374 disposition ledger, WP01): existing owning row
