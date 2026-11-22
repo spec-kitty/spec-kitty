@@ -21,7 +21,7 @@ All findings come from reproductions run on `main` at f8fee580 through the real 
 
 ## R4. Derived pin freeze (#7297 item 1)
 
-**Decision (revised during WP01)**: a persisted marker. `lanes.json` gains `planning_commit_derived: true`, written only when true so every other `lanes.json` is byte-identical. It is set when finalize (or the doctor rebuild) derives the pin and carried by every decision that keeps the recorded pin. On the automatic path an ADVANCED pin with the marker is preserved; an explicit `--refresh-planning-commit` replaces it and clears the marker. **Why revised**: the first, stateless design (recorded == base derived now) also froze *timely* pins. On a direct history the derived base equals the tip a timely finalize records, which broke the R17 rule that a genuine planning amendment refreshes a pin (`test_finalize_refreshes_planning_commit_sha_by_default` went red). For `single_branch`, the R3 guard additionally stops any automatic refresh that would strand committed work.
+**Decision (revised during WP01)**: a persisted marker. `lanes.json` gains `planning_commit_derived: true`, written only when true so every other `lanes.json` is byte-identical. It is set when finalize derives the pin and carried by every decision that keeps the recorded pin. The `doctor mission-state --fix` rebuild (`mission_state._rebuilt_planning_commit`) and the `tasks_finalize` capture do not set it yet, and both still derive or capture on `target_branch` rather than the pin line; WP02 folds both (review N1). On the automatic path an ADVANCED pin with the marker is preserved; an explicit `--refresh-planning-commit` replaces it and clears the marker. **Why revised**: the first, stateless design (recorded == base derived now) also froze *timely* pins. On a direct history the derived base equals the tip a timely finalize records, which broke the R17 rule that a genuine planning amendment refreshes a pin (`test_finalize_refreshes_planning_commit_sha_by_default` went red). For `single_branch`, the R3 guard additionally stops any automatic refresh that would strand committed work.
 
 ## R5. Derivation anchor (#7297 items 4 and 5)
 
@@ -30,6 +30,10 @@ All findings come from reproductions run on `main` at f8fee580 through the real 
 ## R4b. Execution has begun
 
 **Decision**: `_execution_has_begun` is also true when any work package ever left `planned` (a non-migration transition in the log). **Rationale**: the #7793 operator path runs finalize while the rejected WP sits in `planned`. The old "current lane" test read that as "never run", so finalize took the pre-execution branch and re-captured the tip with no orphan check, emptying the window. This is topology-neutral: a rejected lane Mission gets the begun-path protections (preserve, orphan fail-closed) too.
+
+## R2b. An upstream copy of the planning commit (review B2)
+
+**Decision**: a patch-id match reachable from the target branch or the primary branch (`resolve_primary_branch`, no feature bias), less the pin line itself, is never the Mission's copy. When the planning change also landed upstream, the rebase drops the Mission's copy as already applied, and pinning the upstream copy would count every later upstream commit as the Mission's work. Only upstream matches → refuse `PLANNING_PIN_NO_PATCH_ID_MATCH`, naming the upstream. **Residual** (ADR, WP02): an upstream that is neither the target nor the primary branch (a rebase onto some other branch carrying the planning change) is not recognised.
 
 ## R6. Messages (#7297 items 3 and 6)
 
