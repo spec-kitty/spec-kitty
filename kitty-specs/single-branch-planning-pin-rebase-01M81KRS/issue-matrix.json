@@ -1,15 +1,15 @@
 {
   "rows": {
     "#7210": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "cited for context: the derivation this Mission extends",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "title": "finalize derives a missing planning pin (prior work)",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7297": {
