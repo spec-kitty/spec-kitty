@@ -31,7 +31,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: D1-D5 implemented red-first; 50 new tests; family 3010 passed; diff coverage 100%",
-        "Folding adversarial-squad findings before review (CSS prefix fail-open, closing-keyword forms, test gaps)"
+        "Folding adversarial-squad findings before review (CSS prefix fail-open, closing-keyword forms, test gaps)",
+        "Resubmitted with adversarial-squad folds (8f2eabe0): CSS filter anchored + terminator, wrapped closing-keyword forms, boundary tests, ADR notes"
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
