@@ -111,7 +111,7 @@ def _owned_patterns_by_wp(planning_dir: Path) -> dict[str, tuple[str, ...]]:
     """
     from specify_cli.frontmatter import FrontmatterError
     from specify_cli.ownership.matching import owned_patterns
-    from specify_cli.status.wp_metadata import read_authored_wp_frontmatter
+    from specify_cli.status import read_authored_wp_frontmatter
 
     by_wp: dict[str, tuple[str, ...]] = {}
     for wp_file in sorted((planning_dir / "tasks").glob("WP*.md")):
