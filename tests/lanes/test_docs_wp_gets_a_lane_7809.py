@@ -267,3 +267,24 @@ def test_two_wp_mission_settles_single_branch_and_keeps_kinds(tmp_path: Path) ->
     assert payload["kind_normalised"] == []
     wp_text = (mission.root_mission_dir / "tasks" / "WP02-work.md").read_text(encoding="utf-8")
     assert _execution_mode(wp_text) == PLANNING
+
+
+def test_settled_single_branch_refinalize_never_reads_the_status_log(tmp_path: Path) -> None:
+    """single_branch is untouched: a re-finalize never reads the started set, so an unreadable surface cannot refuse it (F1)."""
+    mission = make_mission(
+        tmp_path,
+        (
+            WorkPackage(("src/a/mod.py",), CODE),
+            WorkPackage(("docs/x.md",), PLANNING),
+        ),
+    )
+    code, payload, _output = run_finalize(mission)
+    assert code == 0, payload
+    assert payload["topology_decision"]["settled_topology"] == "single_branch"
+    assert (mission.root_mission_dir / "lanes.json").exists()
+    # An unreadable status surface makes the fail-closed started-set reader raise; single_branch must never call it.
+    unreadable = AssertionError("status_unreadable: the started set was read for a settled single_branch Mission")
+    with patch("specify_cli.cli.commands.agent.mission_finalize_lanes._read_started_wp_ids", side_effect=unreadable):
+        code, payload, _output = run_finalize(mission, "--validate-only")
+    assert code == 0, payload
+    assert payload["kind_normalised"] == []
