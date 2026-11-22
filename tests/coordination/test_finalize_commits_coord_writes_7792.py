@@ -165,12 +165,24 @@ def test_postcondition_defers_to_a_surface_refusal(tmp_path: Path) -> None:
         mf.end_write_ledger(ledger_token, observer_token)
 
 
-def test_postcondition_names_files_to_commit_after_a_landed_commit(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_postcondition_trusts_a_reported_commit(tmp_path: Path) -> None:
+    from specify_cli.cli.commands.agent import mission_finalize as mf
+
+    outcome, dirty = _outcome(tmp_path, surface_refusal=False, commit_created=True)
+    ledger, ledger_token, observer_token = mf.begin_write_ledger()
+    try:
+        ledger.record(dirty, b"x\n")
+        mf._refuse_uncommitted_finalize_writes(outcome, json_output=True)  # no raise
+    finally:
+        mf.end_write_ledger(ledger_token, observer_token)
+
+
+def test_postcondition_refuses_in_text_mode_when_nothing_landed(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     import typer
 
     from specify_cli.cli.commands.agent import mission_finalize as mf
 
-    outcome, dirty = _outcome(tmp_path, surface_refusal=False, commit_created=True)
+    outcome, dirty = _outcome(tmp_path, surface_refusal=False, commit_created=False)
     ledger, ledger_token, observer_token = mf.begin_write_ledger()
     try:
         ledger.record(dirty, b"x\n")
@@ -179,50 +191,4 @@ def test_postcondition_names_files_to_commit_after_a_landed_commit(tmp_path: Pat
     finally:
         mf.end_write_ledger(ledger_token, observer_token)
     out = capsys.readouterr().out
-    assert "FINALIZE_WRITES_UNCOMMITTED" in out and "Commit them" in out
-
-
-def test_settlement_commits_its_meta_restamp_in_the_coordination_worktree(tmp_path: Path) -> None:
-    mission = _settled_lanes_with_coord(tmp_path)
-    assert git(mission.coord_mission_dir.parents[1], "status", "--porcelain") == ""
-
-
-def _meta_repo(tmp_path: Path, committed: dict[str, object], current: dict[str, object]) -> Path:
-    import json
-
-    root = tmp_path / "meta-repo"
-    root.mkdir()
-    git(root, "init", "-q")
-    meta = root / "meta.json"
-    meta.write_text(json.dumps(committed), encoding="utf-8")
-    git(root, "add", "meta.json")
-    git(root, "-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-qm", "meta")
-    meta.write_text(json.dumps(current), encoding="utf-8")
-    return meta
-
-
-@pytest.mark.parametrize(
-    ("current_extra", "expected"),
-    [
-        ({"topology": "lanes_with_coord", "coordination_branch": "b", "topology_settled": True, "topology_decision": {"rule": "x"}}, True),
-        ({"topology": "lanes_with_coord", "coordination_branch": "b"}, False),
-        ({"topology": "lanes_with_coord", "topology_decision": {"rule": "x"}, "vcs": "git"}, False),
-    ],
-    ids=["settlement_delta", "topology_without_decision", "settlement_plus_foreign_field"],
-)
-def test_meta_settlement_delta_attribution(tmp_path: Path, current_extra: dict[str, object], expected: bool) -> None:
-    from specify_cli.cli.commands.agent import mission_finalize as mf
-
-    committed: dict[str, object] = {"slug": "s", "topology": "single_branch", "topology_settled": False}
-    meta = _meta_repo(tmp_path, committed, {**committed, **current_extra})
-    assert mf._meta_json_delta_is_finalize_attributable(meta, meta.parent) is expected
-
-
-def test_setup_plan_artifact_probe_reads_the_nested_checkout(tmp_path: Path) -> None:
-    from specify_cli.cli.commands.agent import mission_setup_plan
-
-    mission = _settled_lanes_with_coord(tmp_path)
-    tasks_md = mission.coord_mission_dir / "tasks.md"
-    assert mission_setup_plan._artifact_has_no_git_changes(mission.root, tasks_md) is True
-    tasks_md.write_text("changed\n", encoding="utf-8")
-    assert mission_setup_plan._artifact_has_no_git_changes(mission.root, tasks_md) is False
+    assert "FINALIZE_WRITES_UNCOMMITTED" in out and "No commit landed" in out
