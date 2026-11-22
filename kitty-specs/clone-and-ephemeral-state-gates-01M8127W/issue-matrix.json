@@ -97,16 +97,16 @@
       "wp": "WP01"
     },
     "#7809": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Mission clone-and-ephemeral-state-gates-01M8127W WP04",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "planning-artifact WP in a lane Mission judged against the target branch",
+      "verdict": "in-mission",
+      "wp": "WP04"
     }
   },
   "schema_version": 1
