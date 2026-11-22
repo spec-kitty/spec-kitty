@@ -18,10 +18,10 @@
       "criterion_id": "FR-002",
       "description": "Verify FR-002 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "lane-d tests/lanes/test_docs_wp_gets_a_lane_7809.py + test_kind_normalisation_7809.py (20 passed, WP04 approved cycle 2)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-22T12:28:10.528178+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
