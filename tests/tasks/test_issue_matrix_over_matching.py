@@ -270,6 +270,7 @@ def test_closing_keyword_gates_in_any_artefact_5516(tmp_path: Path, keyword: str
         "Fixes `#4521`",
         "Closes [#4521](https://github.com/spec-kitty/spec-kitty/issues/4521)",
         "Closes https://github.com/spec-kitty/spec-kitty/issues/4521",
+        "Closes ([#4521](https://github.com/spec-kitty/spec-kitty/issues/4521))",
     ],
 )
 def test_closing_keyword_wrapped_forms_gate_out_of_scope_5516(tmp_path: Path, line: str) -> None:
