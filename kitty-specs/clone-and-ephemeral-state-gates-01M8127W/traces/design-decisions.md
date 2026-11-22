@@ -9,3 +9,4 @@
 | Remote-only lane created in `_reconcile_review_lane` via a kernel helper | One owning-remote rule for the coordination branch, lane and base lookup; keeps `lifecycle_sync` fail-closed and inside the destroyed-lane guard | DM 01M8128SDVVPS8X575JY9CGVFX, architect squad |
 | Hex filter at `_matched_issue_number`, declaration form only | `issue_numbers_in_text` shares that filter; a keyword-anywhere filter would drop real 4-digit refs | researcher squad |
 | Post-tasks squad skipped | The research-phase squad already covered architecture and evidence; the WPs map 1:1 to the reviewed design. Advisory per Standing Order #1 | orchestrator |
+| #7808 / WP01 moved out | Operator ruling R68 (squad session, confirmed by dispatcher): one Slice 5 Mission owns #7808 + #5297 + #5516; WP01 was canceled before any work was committed | dispatcher 2026-11-22 |

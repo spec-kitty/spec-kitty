@@ -85,7 +85,7 @@
       "wp": "WP02"
     },
     "#7808": {
-      "evidence_ref": "Mission clone-and-ephemeral-state-gates-01M8127W WP01",
+      "evidence_ref": "Follow-up: moved to the Slice 5 Mission (#7808 + #5297 + #5516) by operator ruling R68, 2026-11-22",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -93,7 +93,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "issue-matrix discovery reads a CSS hex colour as an issue",
-      "verdict": "in-mission",
+      "verdict": "deferred-with-followup",
       "wp": "WP01"
     },
     "#7809": {
