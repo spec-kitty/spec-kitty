@@ -84,6 +84,14 @@ class _CommitOutcome:
     #: ``commit_surfaces`` payload. Printed with ``markup=False`` by every
     #: text-mode consumer (untrusted path/diagnostic content, never Rich markup).
     rendered_lines: list[str] = field(default_factory=list)
+    #: #7792: every resolved commit candidate mapped to the checkout that holds it,
+    #: so the postcondition (:func:`_refuse_uncommitted_finalize_writes`) probes each
+    #: one where it lives. Empty when no candidate resolution ran.
+    candidate_checkouts: dict[Path, Path] = field(default_factory=dict)
+
+
+#: #7792: the refusal code when a file this run wrote is still uncommitted after the commit.
+FINALIZE_WRITES_UNCOMMITTED: Final = "FINALIZE_WRITES_UNCOMMITTED"
 
 
 @dataclass(frozen=True)
@@ -93,6 +101,8 @@ class _FinalizeCommitCandidates:
     files_to_commit: list[Path]
     files_to_commit_rel: list[str]
     has_relevant_changes: bool
+    #: #7792: each candidate in ``files_to_commit`` mapped to the checkout holding it.
+    checkouts: dict[Path, Path] = field(default_factory=dict)
 
 
 def _finalize_candidates_dirty(repo_root: Path, files_to_commit_rel: list[str]) -> bool:
@@ -135,6 +145,8 @@ class _CoordCandidateDirt:
 
     files: list[Path]
     is_dirty: bool
+    #: #7792: each file in ``files`` mapped to the checkout holding it.
+    checkouts: dict[Path, Path] = field(default_factory=dict)
 
 
 def _coord_candidate_dirt(
@@ -182,15 +194,45 @@ def _coord_candidate_dirt(
             seen.add(candidate)
 
     is_dirty = False
+    checkouts: dict[Path, Path] = {}
     for directory, checkout_root in checkout_roots_by_dir.items():
-        rel_files = [str(path.relative_to(checkout_root)) for path in files if path.is_relative_to(directory)]
+        in_directory = [path for path in files if path.is_relative_to(directory)]
+        checkouts.update(dict.fromkeys(in_directory, checkout_root))
+        rel_files = [str(path.relative_to(checkout_root)) for path in in_directory]
         if not rel_files:
             continue
         # A failed probe propagates (``GitCommandError``) -- see ``_finalize_candidates_dirty``.
         if _mf._finalize_candidates_dirty(checkout_root, rel_files):
             is_dirty = True
 
-    return _CoordCandidateDirt(files=files, is_dirty=is_dirty)
+    return _CoordCandidateDirt(files=files, is_dirty=is_dirty, checkouts=checkouts)
+
+
+def _planning_checkout_root(
+    planning_dir: Path,
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    owned: OwnedCheckout | None,
+) -> Path:
+    """The checkout that holds ``planning_dir``, where its candidates must be probed (#7792).
+
+    For a default Mission before its landing, ``planning_dir`` is the copy in the
+    checkout holding the Mission topic branch -- the coordination worktree once
+    ``finalize-tasks`` settled it to ``lanes_with_coord``. That worktree is nested
+    under the repository root checkout, whose ``git status`` never lists its files,
+    so probing there read finalize's own writes as "no changes". The seam's
+    declared-PRIMARY ``write_dir(TASKS_INDEX).surface_root`` names the containing
+    checkout (no side effects: a PRIMARY kind never establishes coordination state).
+    When the seam's directory is not ``planning_dir`` (a caller-supplied directory),
+    ``repo_root`` stays the probe root, as before.
+    """
+    from mission_runtime import placement_seam
+
+    location = placement_seam(repo_root, mission_slug, owned=owned).write_dir(MissionArtifactKind.TASKS_INDEX)
+    if planning_dir.is_relative_to(location.surface_root):
+        return location.surface_root
+    return repo_root
 
 
 def _resolve_finalize_commit_candidates(
@@ -224,14 +266,18 @@ def _resolve_finalize_commit_candidates(
     from specify_cli.cli.commands.agent import mission_finalize as _mf
 
     files_to_commit = _mf._collect_finalize_artifacts(planning_dir, tasks_dir, lanes_path=lanes_path)
+    planning_root = _mf._planning_checkout_root(planning_dir, repo_root, mission_slug, owned=owned)
     meta_json_path = planning_dir / META_JSON_FILENAME
-    if meta_json_path in files_to_commit and not _mf._meta_json_delta_is_finalize_attributable(meta_json_path, repo_root):
+    if meta_json_path in files_to_commit and not _mf._meta_json_delta_is_finalize_attributable(meta_json_path, planning_root):
         files_to_commit = [path for path in files_to_commit if path != meta_json_path]
 
-    primary_files_rel = [str(path.relative_to(repo_root)) for path in files_to_commit]
-    primary_dirty = bool(primary_files_rel) and _mf._finalize_candidates_dirty(repo_root, primary_files_rel)
+    checkouts = dict.fromkeys(files_to_commit, planning_root)
+    primary_files_rel = [str(path.relative_to(planning_root)) for path in files_to_commit]
+    primary_dirty = bool(primary_files_rel) and _mf._finalize_candidates_dirty(planning_root, primary_files_rel)
 
     coord_dirt = _mf._coord_candidate_dirt(repo_root, mission_slug, owned=owned)
+    for candidate, checkout_root in coord_dirt.checkouts.items():
+        checkouts.setdefault(candidate, checkout_root)
     seen_files = set(files_to_commit)
     for candidate in coord_dirt.files:
         if candidate not in seen_files:
@@ -243,6 +289,7 @@ def _resolve_finalize_commit_candidates(
         files_to_commit=files_to_commit,
         files_to_commit_rel=files_to_commit_rel,
         has_relevant_changes=primary_dirty or coord_dirt.is_dirty,
+        checkouts=checkouts,
     )
 
 
@@ -332,6 +379,55 @@ def _apply_finalize_commit_router_result(
         raise typer.Exit(1)
 
 
+def _uncommitted_finalize_writes(candidate_checkouts: dict[Path, Path], ledger: FinalizeWriteLedger | None) -> list[Path]:
+    """The commit candidates this run wrote that still carry a pending change in their checkout (#7792).
+
+    A candidate counts only when the run's write ledger recorded a write to it, so a
+    pending edit another writer left (a foreign meta.json delta, already excluded from
+    the candidates) never trips this. A failed probe propagates (``GitCommandError``).
+    """
+    from specify_cli.cli.commands.agent import mission_finalize as _mf
+
+    if ledger is None:
+        return []
+    written = [path for path in candidate_checkouts if path.resolve() in ledger.written]
+    by_checkout: dict[Path, list[Path]] = {}
+    for path in written:
+        by_checkout.setdefault(candidate_checkouts[path], []).append(path)
+    dirty: list[Path] = []
+    for checkout_root, paths in by_checkout.items():
+        for path in paths:
+            if _mf._finalize_candidates_dirty(checkout_root, [str(path.relative_to(checkout_root))]):
+                dirty.append(path)
+    return dirty
+
+
+def _refuse_uncommitted_finalize_writes(outcome: _CommitOutcome, *, json_output: bool) -> None:
+    """Postcondition: every candidate this run wrote is committed, else exit 1 (#7792, fail loud).
+
+    ``finalize-tasks`` must never report success (or "unchanged") while leaving its
+    own writes dirty: the next command would build on a branch that lacks them.
+    Runs after ``commit_landed`` is recorded, so a refusal here never unwinds a
+    commit that did land; the files named stay as they are for the operator.
+    """
+    from specify_cli.cli.commands.agent import mission_finalize as _mf
+
+    dirty = _uncommitted_finalize_writes(outcome.candidate_checkouts, active_write_ledger())
+    if not dirty:
+        return
+    names = sorted(str(path) for path in dirty)
+    message = (
+        "finalize-tasks wrote files it did not commit: "
+        + ", ".join(names)
+        + ". Commit them in the checkout that holds them (git status there), then re-run finalize-tasks."
+    )
+    if json_output:
+        _mf._emit_json({"result": "error", "error": message, "error_code": FINALIZE_WRITES_UNCOMMITTED, "uncommitted_files": names})
+    else:
+        _mf.console.print(f"Error: [{FINALIZE_WRITES_UNCOMMITTED}] {message}", markup=False, style="red")
+    raise typer.Exit(1)
+
+
 class OwnedCheckoutCandidateOutsidePlanningError(RuntimeError):
     """WP15 cycle 3 (fold): an owned-checkout commit candidate resolved outside
     ``planning_dir`` -- the invariant ``_commit_finalize_artifacts`` relies on
@@ -368,6 +464,7 @@ def _commit_finalize_artifacts(
     outcome = _CommitOutcome()
     try:
         candidates = _mf._resolve_finalize_commit_candidates(planning_dir, tasks_dir, repo_root, lanes_path, mission_slug=mission_slug, owned=owned)
+        outcome.candidate_checkouts = dict(candidates.checkouts)
         # partition-authority-residuals-01M021K9 WP06 (#2937 / FR-009): report the
         # TRUE committed set — ``files_committed`` is populated ONLY once the router
         # actually lands a commit (below), never up front. Reporting the full
@@ -782,6 +879,7 @@ def _run_commit_pipeline(
             "was excluded from this commit (a foreign meta.json edit is pending "
             "alongside it) and remains an uncommitted working-tree change."
         )
+    _mf._refuse_uncommitted_finalize_writes(commit_outcome, json_output=json_output)
 
     if json_output:
         _mf._emit_success_report(
