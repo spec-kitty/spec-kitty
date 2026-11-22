@@ -73,7 +73,7 @@
       "wp": null
     },
     "#7759": {
-      "evidence_ref": "Mission clone-and-ephemeral-state-gates-01M8127W WP05",
+      "evidence_ref": "Mission clone-and-ephemeral-state-gates-01M8127W WP05 approved (review recorded by claude::reviewer-renata); lands via PR from issue-7809-clone-ephemeral-state-gates",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -81,7 +81,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "planning-lane WP review range omits its target-branch work",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP05"
     },
     "#7796": {
