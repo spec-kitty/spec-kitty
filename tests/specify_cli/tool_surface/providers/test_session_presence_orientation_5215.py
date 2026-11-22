@@ -102,34 +102,6 @@ class TestS1WrongBlockAtCurrentVersion:
         assert _DIRNAME not in _block(root)
         assert _probe(root) == STATE_PRESENT
 
-    def test_upgrade_repair_rewrites_to_the_recorded_project(self, tmp_path: Path) -> None:
-        root = _project(tmp_path, _wrong_slug_block())
-
-        _upgrade_repair(root)
-
-        assert f"project: {_SLUG} (healthy)" in _block(root)
-
-
-class TestS3S4OlderBlockNeverGetsTheDirectoryName:
-    def _older(self) -> SessionPresenceContent:
-        return SessionPresenceContent("4.0.0rc8", _SLUG, "healthy", None)
-
-    def test_upgrade_writes_the_recorded_project(self, tmp_path: Path) -> None:
-        root = _project(tmp_path, self._older())
-
-        _upgrade_repair(root)
-
-        assert f"**Spec Kitty v{_installed()}** - project: {_SLUG} (healthy)" in _block(root)
-        assert _DIRNAME not in _block(root)
-
-    def test_doctor_fix_writes_the_recorded_project(self, tmp_path: Path) -> None:
-        root = _project(tmp_path, self._older())
-
-        _doctor_fix(root)
-
-        assert f"**Spec Kitty v{_installed()}** - project: {_SLUG} (healthy)" in _block(root)
-        assert _DIRNAME not in _block(root)
-
 
 class TestConvergence:
     @pytest.mark.parametrize("start", ["wrong-slug", "older", "live-health"])
@@ -146,6 +118,7 @@ class TestConvergence:
         _doctor_fix(via_doctor)
 
         assert _block(via_upgrade) == _block(via_doctor) == expected_orientation(via_doctor).render()
+        assert f"project: {_SLUG} (healthy)" in _block(via_upgrade)
 
     def test_second_pass_changes_nothing(self, tmp_path: Path) -> None:
         root = _project(tmp_path, _wrong_slug_block())
