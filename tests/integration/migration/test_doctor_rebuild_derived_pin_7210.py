@@ -105,6 +105,8 @@ def test_fix_keeps_the_live_tip_and_warns_when_no_base_can_be_derived(tmp_path: 
     # #7297 item 6: the warning names the next step.
     # Squad review: a refresh records the tip, so the next step is the manual edit, never a refresh.
     assert "planning_commit_sha in lanes.json by hand" in flat
+    # Tier R N5: the lane Mission (this fixture) gets its own next step, the lane base on the target.
+    assert "target-branch commit its lane branches were cut from" in flat
     assert "--refresh-planning-commit" not in flat
     assert lanes.planning_commit_derived is False
 

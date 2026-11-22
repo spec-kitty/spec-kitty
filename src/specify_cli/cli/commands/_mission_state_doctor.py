@@ -328,9 +328,11 @@ def _run_mission_repair(
             console.print(
                 f"[yellow]⚠[/yellow] {mission_result.mission_slug}: no planning commit could be derived from git (the "
                 "Mission's task files are not in its branch's history), so the rebuilt lanes.json records the live "
-                "branch tip; work already committed there falls outside the evidence window. Next: "
-                f"{MANUAL_PIN_REMEDY}. No finalize-tasks run can move it back: a refresh records the tip, and "
-                "derivation runs only when no pin is recorded.",
+                "branch tip; work already committed there falls outside the evidence window. Next, on a "
+                f"single_branch Mission: {MANUAL_PIN_REMEDY}. On a lane Mission: set planning_commit_sha in "
+                "lanes.json by hand to the target-branch commit its lane branches were cut from, commit lanes.json, "
+                "then retry. No finalize-tasks run can move it back: a refresh records the tip, and derivation runs "
+                "only when no pin is recorded.",
                 soft_wrap=True,
             )
         pin_unset = [m for m in report.missions if LANES_REBUILT_PIN_UNSET_ACTION in m.meta_actions]
