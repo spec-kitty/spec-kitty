@@ -243,13 +243,14 @@ def _repository_name(url: str) -> str | None:
     url = url.rstrip("/")
     if url.endswith(".git"):
         url = url[:-4]
-    if ":" in url and "@" in url:
-        # SSH format: git@host:user/repo
-        url = url.split(":")[-1]
-    elif "://" in url:
+    if "://" in url:
+        # Checked first: userinfo (https://user:token@host) is not a path.
         url = url.split("://", 1)[1]
         if "/" not in url:
             return None
+    elif ":" in url and "@" in url:
+        # SSH format: git@host:user/repo
+        url = url.split(":")[-1]
     return _normalize_slug(url.split("/")[-1]) or None
 
 
