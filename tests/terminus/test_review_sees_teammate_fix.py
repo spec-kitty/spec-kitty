@@ -122,7 +122,9 @@ def test_review_without_local_lane_creates_workspace_from_the_remote_lane(two_cl
     assert code == 0, out
     assert (two_clone.lane_worktree / _CODE).read_text() == _V2
     assert git_rev(two_clone.mission.repo, two_clone.lane) == new_tip
-    assert f"Created review workspace from origin/{two_clone.lane}" in out
+    # #7806: review's origin step creates the lane branch from the owning remote's
+    # tracking ref (tracking it) before the claim; the workspace then attaches to it.
+    assert f"Created {two_clone.lane} from origin/{two_clone.lane} (tracking)" in out
 
 
 def test_consolidate_lands_the_reviewed_fix(two_clone: TwoClone) -> None:
