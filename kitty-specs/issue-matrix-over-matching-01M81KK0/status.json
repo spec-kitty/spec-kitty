@@ -30,7 +30,8 @@
       "notes": [
         "Ready for review: D1-D5 implemented red-first; 50 new tests; family 3010 passed; diff coverage 100%",
         "Folding adversarial-squad findings before review (CSS prefix fail-open, closing-keyword forms, test gaps)",
-        "Resubmitted with adversarial-squad folds (8f2eabe0): CSS filter anchored + terminator, wrapped closing-keyword forms, boundary tests, ADR notes"
+        "Resubmitted with adversarial-squad folds (8f2eabe0): CSS filter anchored + terminator, wrapped closing-keyword forms, boundary tests, ADR notes",
+        "Cycle 1 addressed: B1 anchored + colour lengths (e2dcf6ef); squad folds 8f2eabe0 cover N1/N2; N3 recorded"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
