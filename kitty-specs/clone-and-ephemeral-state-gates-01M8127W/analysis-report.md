@@ -4,12 +4,12 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: clone-and-ephemeral-state-gates-01M8127W
 mission_id: 01M8127W3JTX5R46HKHR22P571
-generated_at: '2026-11-22T07:35:31.096382+00:00'
+generated_at: '2026-11-22T09:06:23.928532+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
     path: .worktrees/clone-and-ephemeral-state-gates-01M8127W-coord/kitty-specs/clone-and-ephemeral-state-gates-01M8127W/spec.md
-    sha256: 7092bc4dcc074e026059487577f2372f0ea0a8729dbaf35d2220d0a154df16cb
+    sha256: b372eaa514ff25e7e13852b8aca836fcd382e38acf7a668cdbf687ab169ad138
   plan.md:
     path: .worktrees/clone-and-ephemeral-state-gates-01M8127W-coord/kitty-specs/clone-and-ephemeral-state-gates-01M8127W/plan.md
     sha256: e13f46ffe1f9e1d1cb65ebc116b6184928e6016021115339315cd884382fdd67
@@ -61,7 +61,7 @@ findings:
 | FR-001..FR-005 | yes | WP04 | |
 | FR-006..FR-008 | yes | WP02 | |
 | FR-009..FR-011 | yes | WP03 | |
-| FR-012 | yes | WP01 | |
+| FR-012 | moved | WP01 (canceled) | Moved to the Slice 5 Mission by operator ruling R68; #7808 row deferred-with-followup |
 | FR-013 | yes | WP05 | |
 | NFR-001 | yes | WP02, WP03 | |
 | NFR-002 | yes | WP03 | |
@@ -77,9 +77,9 @@ findings:
 
 **Metrics:**
 
-- Total Requirements: 21 (13 FR, 3 NFR, 5 C)
-- Total Tasks: 24 subtasks in 5 WPs
-- Coverage: 100% of FRs have at least one WP
+- Total Requirements: 21 (13 FR, 3 NFR, 5 C); FR-012 / SC-004 moved out of this Mission (R68)
+- Total Tasks: 24 subtasks in 5 WPs (WP01 canceled, 4 live)
+- Coverage: 100% of in-scope FRs have at least one live WP (WP01 canceled with its FR moved)
 - Ambiguity Count: 0
 - Duplication Count: 0
 - Critical Issues Count: 0
