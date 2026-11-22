@@ -1,0 +1,4 @@
+- **The issue-matrix approval gate stops asking for rows the Mission does not owe** (#7808, #5297, #5516).
+  - **Colors.** Before: a hex color such as `#000000` read as issue 0, and an all-digit color such as `color: #112233;` read as issue 112233. After: a number with a leading zero is never an issue, and an all-digit color in CSS declaration form is not a reference. Prose such as `Backfill: #4521` is still a reference.
+  - **Commit citations.** Before: a commit citation such as ``(`ed6d34e75`, #4757)`` gated approval. After: a backticked commit SHA next to the citation makes it a non-gating PR/commit reference.
+  - **Background prose.** Before: every `#N` in `plan.md`, `research.md`, `analysis-report.md` and `contracts/` gated, including labels such as "Break #19". After: only references in `spec.md` and `tasks/` gate, plus any number a closing keyword (`Closes`, `Fixes`, `Resolves`) names in any artifact. Other references are cited and stay in the audit trail.
