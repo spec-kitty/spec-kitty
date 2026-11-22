@@ -105,8 +105,11 @@ def effective_stamp(repo_root: Path, event_metadata: Mapping[str, object] | None
 
     *event_metadata* is the approval event's ``policy_metadata``. An approval with no ``lane_head``
     is unstamped (``StampVerdict(None, None)``): a pre-sync stamp alone never stands in for it.
-    When neither recorded stamp is on the lane the detail is ``absent_from_clone`` when neither
-    names a commit in this clone, else ``not_on_lane``.
+    The pre-sync stamp is consulted only when ``lane_head`` is absent from this clone (the
+    reviewer's unpushed sync merge). A ``lane_head`` present in the clone but off the lane means
+    the lane was rewritten after the approval and refuses ``not_on_lane``. When no recorded stamp
+    is on the lane the detail is ``absent_from_clone`` when neither names a commit in this clone,
+    else ``not_on_lane``.
 
     The pre-sync stamp keeps the bound sound: the status pipeline records it only when every
     commit between it and ``lane_head`` is a merge commit, and both tiers of the bound drop merge
@@ -117,13 +120,20 @@ def effective_stamp(repo_root: Path, event_metadata: Mapping[str, object] | None
     head = _recorded_sha(event_metadata, LANE_HEAD_KEY)
     if head is None:
         return StampVerdict(None, None)
+    if sha_reachable_from(repo_root, head, lane_tip):
+        return StampVerdict(head, head)
+    if commit_in_clone(repo_root, head):
+        # ``lane_head`` is here but off the lane: the lane was rewritten after the approval.
+        # The pre-sync fallback is only for a ``lane_head`` this clone never received
+        # (the reviewer's unpushed sync merge), so it never stands in here (Tier R N1).
+        return StampVerdict(None, head, StampDetail.NOT_ON_LANE)
     presync = _recorded_sha(event_metadata, LANE_HEAD_PRESYNC_KEY)
-    candidates = [head] if presync is None or presync == head else [head, presync]
-    for candidate in candidates:
-        if sha_reachable_from(repo_root, candidate, lane_tip):
-            return StampVerdict(candidate, head)
-    absent = not any(commit_in_clone(repo_root, candidate) for candidate in candidates)
-    return StampVerdict(None, head, StampDetail.ABSENT_FROM_CLONE if absent else StampDetail.NOT_ON_LANE)
+    if presync is None or presync == head:
+        return StampVerdict(None, head, StampDetail.ABSENT_FROM_CLONE)
+    if sha_reachable_from(repo_root, presync, lane_tip):
+        return StampVerdict(presync, head)
+    detail = StampDetail.NOT_ON_LANE if commit_in_clone(repo_root, presync) else StampDetail.ABSENT_FROM_CLONE
+    return StampVerdict(None, head, detail)
 
 
 @dataclass(frozen=True)
