@@ -98,10 +98,10 @@
       "criterion_id": "FR-010",
       "description": "Verify FR-010 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "lane-c tests/consolidation/test_approval_stamp_presync_7802.py + tests/status/test_lane_head_presync_7802.py (22 passed, WP03 approved cycle 2)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-22T12:28:59.671866+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
