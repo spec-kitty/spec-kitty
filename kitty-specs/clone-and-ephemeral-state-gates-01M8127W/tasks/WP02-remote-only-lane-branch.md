@@ -12,6 +12,9 @@ requirement_refs:
 planning_base_branch: issue-7809-clone-ephemeral-state-gates
 merge_target_branch: issue-7809-clone-ephemeral-state-gates
 branch_strategy: Planning artifacts for this mission were generated on issue-7809-clone-ephemeral-state-gates. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-7809-clone-ephemeral-state-gates unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-clone-and-ephemeral-state-gates-01M8127W
+base_commit: e8b9fdec5ab0b6c7fec8f7a98de65d0b7dcaa455
+created_at: '2026-11-22T07:37:28.345860+00:00'
 subtasks:
 - T005
 - T006
