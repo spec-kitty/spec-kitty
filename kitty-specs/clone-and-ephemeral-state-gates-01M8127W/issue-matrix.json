@@ -1,5 +1,53 @@
 {
   "rows": {
+    "#0": {
+      "evidence_ref": "phantom ref: CSS hex colour (#000/#000000) in research.md misread as an issue by #7808, which is deferred to the Slice 5 Mission (ruling R68)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#111111": {
+      "evidence_ref": "phantom ref: CSS hex colour #111111 in research.md misread as an issue by #7808, which is deferred to the Slice 5 Mission (ruling R68)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5297": {
+      "evidence_ref": "context only: named in spec.md/design-decisions as part of the Slice 5 Mission with #7808 (ruling R68); not in this Mission's scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5516": {
+      "evidence_ref": "context only: named in spec.md/design-decisions as part of the Slice 5 Mission with #7808 (ruling R68); not in this Mission's scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#5858": {
       "evidence_ref": "<auto-classified: no action required>",
       "fr": null,
@@ -48,6 +96,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#7801": {
+      "evidence_ref": "context only: cited in WP prompts and traces as the out-of-matrix test disclosure rule; no change to it in this Mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#7802": {
       "evidence_ref": "Mission clone-and-ephemeral-state-gates-01M8127W WP03",
       "fr": null,
@@ -85,7 +145,7 @@
       "wp": "WP02"
     },
     "#7808": {
-      "evidence_ref": "Mission clone-and-ephemeral-state-gates-01M8127W WP01",
+      "evidence_ref": "Follow-up: moved to the Slice 5 Mission (#7808 + #5297 + #5516) by operator ruling R68, 2026-11-22",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -93,7 +153,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "issue-matrix discovery reads a CSS hex colour as an issue",
-      "verdict": "in-mission",
+      "verdict": "deferred-with-followup",
       "wp": "WP01"
     },
     "#7809": {
