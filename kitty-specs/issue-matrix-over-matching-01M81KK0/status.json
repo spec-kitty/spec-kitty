@@ -31,7 +31,8 @@
         "Ready for review: D1-D5 implemented red-first; 50 new tests; family 3010 passed; diff coverage 100%",
         "Folding adversarial-squad findings before review (CSS prefix fail-open, closing-keyword forms, test gaps)",
         "Resubmitted with adversarial-squad folds (8f2eabe0): CSS filter anchored + terminator, wrapped closing-keyword forms, boundary tests, ADR notes",
-        "Cycle 1 addressed: B1 anchored + colour lengths (e2dcf6ef); squad folds 8f2eabe0 cover N1/N2; N3 recorded"
+        "Cycle 1 addressed: B1 anchored + colour lengths (e2dcf6ef); squad folds 8f2eabe0 cover N1/N2; N3 recorded",
+        "Review cycle 2 passed: B1 fixed (colour filter anchored at a declaration start, whole-token property list, terminator, hex lengths); N1 disclosed, N2 fixed. Red-first 27/99 vs cycle-1 code. WP tests 202, tasks blast 469, arch gates 243, test-fast 3176 passed."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
