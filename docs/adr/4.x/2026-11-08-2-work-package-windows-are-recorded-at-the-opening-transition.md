@@ -719,6 +719,24 @@ Fetching it automatically, through `kernel.git.remote`, is #7730.
 - `--diff-merges=remerge` needs git 2.36 or later; an older git refuses the window rather than
   judging less.
 
+## Amendment 2026-11-22 (#7759): a bookkeeping-only planning range is withheld
+
+**Status:** Accepted (operator ruling `specify.scope.fold_7759`, 2026-11-22).
+
+**What changes.** A planning-lane work package's range derived from its status-event commits
+(rulings Q10 / Q12) can hold only coordination status commits when the work package's own commits
+sit on another branch (#7759: the planning work was committed on the target). Such a range is no
+longer printed as if it held the work. When every commit of the derived `base..tip` touches only
+the range's own bookkeeping pathspecs (`review/wp_range.py::bookkeeping_pathspecs`, no third
+definition), `resolve_wp_review_range` returns it unavailable with the gap
+`planning_range_bookkeeping_only`, and the review context prints that reason. Code-lane ranges,
+`single_branch` ranges and an empty range (base equals tip) are unchanged; a count that cannot run
+keeps the range (fail-soft).
+
+**Related.** Documentation work packages now get their own lane in lane topologies (ADR
+`2026-11-06-3`, Amendment 2026-11-22), which removes most planning-lane ranges of this shape; the
+check covers the `kitty-specs/`-only planning work packages that remain.
+
 ## References
 
 - Contract: `kitty-specs/consolidation-window-provenance-01M6Y84D/contracts/status-event-wp-window.md`.
@@ -732,4 +750,4 @@ Fetching it automatically, through `kernel.git.remote`, is #7730.
   `01M6YAG2HE6Q2XNQMGK6X3MBEK` (events issue filing).
 - [spec-kitty/spec-kitty-events#229](https://github.com/spec-kitty/spec-kitty-events/issues/229):
   the Java write service adopts and types `policy_metadata.wp_window` (context citation, FR-006).
-- Issues: #7403, #7358, #5721, #5048, #7359, #7362, #5703.
+- Issues: #7403, #7358, #5721, #5048, #7359, #7362, #5703, #7759.
