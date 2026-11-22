@@ -48,10 +48,10 @@
       "criterion_id": "FR-005",
       "description": "Verify FR-005 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/tasks/test_issue_matrix_over_matching.py::test_spec_closes_gates_5516, ::test_closing_keyword_gates_in_any_artefact_5516, ::test_closing_keyword_wrapped_forms_gate_out_of_scope_5516, ::test_closing_keyword_wins_over_commit_sha_5516",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-22T13:30:20.481294+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
