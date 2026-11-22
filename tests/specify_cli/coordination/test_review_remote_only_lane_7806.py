@@ -104,3 +104,16 @@ def test_review_refuses_a_destroyed_lane_whose_tip_origin_lacks(team: _Team, tmp
     assert code != 0, output[-3000:]
     assert "DESTROYED_LANE" in output, output[-3000:]
     assert not _has_local_head(team.env, clone, lane)
+
+
+def test_review_with_origin_check_off_creates_from_the_last_fetched_ref_and_warns(team: _Team, tmp_path: Path) -> None:
+    """Origin check off: nothing is fetched, the lane is still created from the local tracking ref, with a warning."""
+    clone = _teammate(team, tmp_path)
+    _assert_lane_remote_only(team, clone)
+    env = {**team.env, "SPEC_KITTY_ORIGIN_CHECK": "off"}
+
+    code, output = _review(team, clone, env)
+
+    assert code == 0, output[-3000:]
+    assert "was not refreshed from the remote" in output, output[-3000:]
+    assert _has_local_head(team.env, clone, _lane(team))
