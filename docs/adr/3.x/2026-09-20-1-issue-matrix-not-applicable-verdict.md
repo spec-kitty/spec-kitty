@@ -187,7 +187,7 @@ gating scope only**:
 - **Closing keywords gate everywhere.** A non-negated closing keyword
   (`close`/`fix`/`resolve` family, optional colon, optionally emphasised) that leads
   into a citation makes that occurrence an `implementation_target` in any scanned
-  artefact. The citation may be wrapped: `` `#N` ``, `[#N](url)` or an issue URL. The
+  artefact. The citation may be wrapped in backticks, emphasis or a markdown link, or be an issue URL. The
   keyword binds to the one citation it leads into, as GitHub's does, so in
   `Closes #A and #B` only `#A` is closed. It takes
   precedence over every demoting rule, including the commit rule below. The same
