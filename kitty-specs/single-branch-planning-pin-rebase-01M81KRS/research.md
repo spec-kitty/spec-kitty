@@ -1,0 +1,34 @@
+# Research: single_branch planning pin across a rebase
+
+All findings come from reproductions run on `main` at f8fee580 through the real CLI (the #5939 integration harness, `tests/integration/test_5939_single_branch_autowalk_guards.py::_setup_mission`), plus a code read.
+
+## R1. The two single_branch shapes
+
+- **Shape A, commit-to-target** (`mission_branch` = `target_branch`, an unprotected topic branch). The pin is the topic tip at finalize, a commit on the Mission's own line. A `git rebase main` orphans it. `implement` names `--refresh-planning-commit --allow-orphaned`, which re-pins to the tip (`_resolve_refresh_planning_commit_decision`, :374-386). The window `tip..tip` is then empty, and `move-task --to for_review` refuses `SINGLE_BRANCH_IMPLEMENTATION_MISSING`. **This is #7793, reproduced exactly.**
+- **Shape B, minted branch** (default topology, or explicit `single_branch` on a protected `main`). Finalize's planning branch is `target_branch` (`_resolve_target_branch`), so the pin is **`main`'s tip** at finalize, below the mission branch's fork point. After a rebase onto a newer `main` the pin stays an ancestor, but the window `pin..mission_branch` gains every new `main` commit. Unrelated `main` content touching `owned_files` would pass a hollow WP (#7297 item 4, concrete). `--refresh-planning-commit` refuses `PLANNING_REFRESH_FAIL_CLOSED` ("lanes.json does not resolve to the planning target branch"), because the placement seam writes `lanes.json` on the mission branch (#7297 item 2: the dead end).
+
+**Decision**: one resolver, `planning_base.pin_branch_line(meta, target_branch)`. It returns `meta.mission_branch` for a stored `single_branch` Mission that records one, otherwise `target_branch`. Capture, the explicit refresh (including the compare-and-swap tip check and the destination check) and derivation all use it. **Rationale**: the window's tip is `mission_branch`, so its base must sit on the same line. **Alternatives**: derivation-only (the literal ruling) leaves shape B's refresh dead end and the too-early pin; rejected pending the dispatcher's confirmation (recorded in spec Assumptions). **Existing Missions**: a recorded pin is never rewritten by this change (C-002). The new line applies at the next capture or explicit refresh.
+
+## R2. Following an orphaned pin by patch-id
+
+**Decision**: `planning_base.follow_pin_by_patch_id(repo, pin, tip)` takes `patch_id_of(pin)` and scans `rev-list merge-base(pin, tip)..tip`. It returns the single commit with an equal non-empty patch-id. Otherwise it returns a typed miss: `no_patch_id` (an empty-diff pin, e.g. a merge or an empty commit), `no_match` or `ambiguous`. A git error refuses. **Rationale**: a rebase rewrites SHAs but keeps each commit's change. The rebased copy of the planning commit is exactly where the window should start (operator ruling). **Bound**: the range is the Mission's own commits plus the new upstream commits; one patch-id per commit (NFR-001).
+
+**Scope**: applied on the explicit `--allow-orphaned` re-pin of a `single_branch` Mission. Lane Missions keep the #4827 re-pin to the tip (C-003): their lanes are cut from the pin, and the allocator merge semantics are out of scope.
+
+## R3. Never empty the window
+
+**Decision**: before writing any `single_branch` re-pin or refresh candidate, compare the evidence paths (`wp_evidence.evidence_paths`) of the old window and the candidate window against the union of every work package's `owned_files`. If the old window holds an owned change and the candidate's does not, the re-pin refuses (`PLANNING_PIN_WOULD_EMPTY_WINDOW`) and the automatic refresh keeps the pin with a warning. **Rationale**: this is the operator's "never lands on a tip that empties the window", stated as the evidence the gate itself reads, so it cannot disagree with `move-task`.
+
+## R4. Derived pin freeze (#7297 item 1)
+
+**Decision**: stateless. On the automatic (no-flag) path, a recorded pin equal to the base `resolve_finalize_planning_base` derives now is a derived pin, and it is preserved (`action="preserved"`, `refusal_reason=None`, `pin_class` unchanged). An explicit `--refresh-planning-commit` still applies. The R3 guard additionally stops any automatic refresh that would strand committed work, which also covers timely pins (the issue notes they refresh the same way). **Alternative**: a `planning_commit_source` key in `lanes.json`. Rejected: it is a schema addition rippling through `compute_and_write_lanes`, golden contract tests and three writers, for no extra protection once R3 exists.
+
+## R5. Derivation anchor (#7297 items 4 and 5)
+
+**Decision**: anchor on any file under `kitty-specs/<slug>/tasks/` (not only `WP*.md`), on the first-parent line of the pin branch line, and take the **last** time the directory went from absent to present (a re-add after a full removal), rather than the first-ever touch. Implementation: walk `git log --first-parent --format=%H --name-status -- <tasks dir>` oldest-first and track presence. **Item 5**: non-`WP*` task files renamed to `WP*` are covered because the directory is anchored, not the name. **Residuals** (kept in the ADR): WP files committed before unrelated work, and a topic cut after tasks reached `main`. A derived base cannot tell those apart from ordinary history; the R3 guard does not apply to a first derivation.
+
+## R6. Messages (#7297 items 3 and 6)
+
+- Finalize: the INDETERMINATE branch with `recorded=None`, a resolved tip and nothing derivable gets `refusal_reason="no_pin_underivable"`. The text names `spec-kitty agent mission finalize-tasks --refresh-planning-commit` as the next step. `indeterminate_tip_uncapturable` is kept only when the tip really is `None`, and its text no longer prints a tip it says it could not resolve.
+- `move-task`: the `SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE` remedy names the re-pin route (`--refresh-planning-commit`, and `--allow-orphaned` after a rebase) instead of a bare "run finalize-tasks".
+- Doctor: a rebuild whose pin stays `None` warns (`lanes_rebuilt_pin_unset`). Both warnings name `finalize-tasks --refresh-planning-commit` as the next step.

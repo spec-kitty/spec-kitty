@@ -145,7 +145,7 @@ state the same way and each names a command or step that works (#7297 items 3 an
 |----|-------|------------|----------|----------|--------|
 | C-001 | One authority | Reuse `consolidation.git_probes.patch_id_of` and `lanes.planning_base`; add no second patch-id or derivation helper. | Technical | High | Open |
 | C-002 | Recorded pins are not rewritten silently | No path rewrites a recorded pin except an explicit operator refresh or the existing advance rule; existing Missions keep their pins. | Technical | High | Open |
-| C-003 | Lane topologies unchanged | `lanes` and `lanes_with_coord` capture, refresh and evidence behaviour stays byte-identical except where the shared re-pin authority applies FR-001-FR-003. | Technical | High | Open |
+| C-003 | Lane topologies unchanged | `lanes` and `lanes_with_coord` capture, refresh and evidence behaviour stays byte-identical, except for the derived-pin freeze (FR-004, topology-neutral by the operator ruling) and the derivation anchor (FR-008, FR-009). | Technical | High | Open |
 | C-004 | ADR amendment | Amend ADR `docs/adr/4.x/2026-10-04-5-approval-stamp-bounds-the-approved-claim.md` with the rules and residuals. | Governance | High | Open |
 | C-005 | Concurrent Missions | `tasks_move_task.py` and `single_branch_landing.py` overlap #7809; `mission_finalize.py` overlaps Slice 1a; `doctor` overlaps Slice 10. Keep edits local; whichever lands second rebases. | Process | Medium | Open |
 
