@@ -2,7 +2,7 @@
   "mission_slug": "clone-and-ephemeral-state-gates-01M8127W",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
@@ -117,12 +117,14 @@
     {
       "criterion_id": "FR-012",
       "description": "Verify FR-012 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "proof_type": "manual",
+      "evidence": "WP01 canceled",
+      "pass_fail": "deferred",
+      "verified_by": "claude",
+      "verified_at": "2026-11-22T12:29:25.272595+00:00",
+      "notes": "TODO: replace with a real acceptance criterion",
+      "deferral_reason": "Moved to the Slice 5 Mission (#7808 + #5297 + #5516) by operator ruling R68",
+      "deferral_follow_up": "#7808"
     },
     {
       "criterion_id": "FR-013",
