@@ -13,16 +13,16 @@
       "wp": "WP01"
     },
     "#5516": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "commit a19bc320: scope rule (spec.md, tasks/, closing keywords) + ADR 2026-09-20-1 amendment; tests/tasks/test_issue_matrix_over_matching.py",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Every #NN in planning and research artefacts gates approval",
+      "verdict": "fixed",
+      "wp": "WP01"
     },
     "#7808": {
       "evidence_ref": "commit a19bc320: leading-zero rejection + CSS-declaration colour filter; tests/tasks/test_issue_matrix_over_matching.py",
