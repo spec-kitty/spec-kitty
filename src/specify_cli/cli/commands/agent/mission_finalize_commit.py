@@ -403,17 +403,16 @@ def _uncommitted_finalize_writes(candidate_checkouts: dict[Path, Path], ledger: 
 
 
 def _refuse_uncommitted_finalize_writes(outcome: _CommitOutcome, *, json_output: bool) -> None:
-    """Postcondition: every candidate this run wrote is committed, else exit 1 (#7792, fail loud).
+    """Postcondition: a run that commits nothing left none of its own writes dirty, else exit 1 (#7792).
 
-    ``finalize-tasks`` must never report success (or "unchanged") while leaving its
-    own writes dirty: the next command would build on a branch that lacks them.
-    Runs after ``commit_landed`` is recorded, so a refusal here never unwinds a
-    commit that did land: the files named then stay as they are for the operator.
-    When no commit landed, ``finalize_tasks``' undo restores the run's writes, so
-    the message says to re-run instead of naming files to commit.
-
-    Skipped when a surface already refused (``surface_refusal``): that run exits 1
-    after its per-surface report, which this check must not pre-empt.
+    The operator ruling is fail loud: ``finalize-tasks`` must never report
+    "unchanged" while its own writes stay dirty (the next command would build on a
+    branch that lacks them). It applies to the no-commit outcomes only -- the
+    candidate probe found nothing, or the router answered ``unchanged``. When the
+    router reports a commit, its per-surface outcome is the authority, and a
+    refused surface (``surface_refusal``) already exits 1 after its own report,
+    which this check must not pre-empt. On a refusal here nothing landed, so
+    ``finalize_tasks``' undo restores the run's writes; the message says so.
 
     Residual: the check probes the same candidate-to-checkout mapping the commit
     decision used, so a wrong mapping would hide the dirt from both. It catches a
@@ -421,17 +420,17 @@ def _refuse_uncommitted_finalize_writes(outcome: _CommitOutcome, *, json_output:
     """
     from specify_cli.cli.commands.agent import mission_finalize as _mf
 
-    if outcome.surface_refusal:
+    if outcome.surface_refusal or outcome.commit_created:
         return
     dirty = _uncommitted_finalize_writes(outcome.candidate_checkouts, active_write_ledger())
     if not dirty:
         return
     names = sorted(str(path) for path in dirty)
-    if outcome.commit_created:
-        remedy = "Commit them in the checkout that holds them (git status there), then re-run finalize-tasks."
-    else:
-        remedy = "No commit landed, so the run's writes are being restored. Re-run finalize-tasks; if it refuses again, report it."
-    message = "finalize-tasks wrote files it did not commit: " + ", ".join(names) + ". " + remedy
+    message = (
+        "finalize-tasks wrote files it did not commit: "
+        + ", ".join(names)
+        + ". No commit landed, so the run's writes are being restored. Re-run finalize-tasks; if it refuses again, report it."
+    )
     if json_output:
         _mf._emit_json({"result": "error", "error": message, "error_code": FINALIZE_WRITES_UNCOMMITTED, "uncommitted_files": names})
     else:
