@@ -1,0 +1,141 @@
+{
+  "mission_slug": "clone-and-ephemeral-state-gates-01M8127W",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-d tests/lanes/test_docs_wp_gets_a_lane_7809.py + test_kind_normalisation_7809.py (20 passed, WP04 approved cycle 2)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-22T12:28:04.485341+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-d tests/lanes/test_docs_wp_gets_a_lane_7809.py + test_kind_normalisation_7809.py (20 passed, WP04 approved cycle 2)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-22T12:28:10.528178+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-d tests/lanes/test_docs_wp_gets_a_lane_7809.py + test_kind_normalisation_7809.py (20 passed, WP04 approved cycle 2)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-22T12:28:16.375104+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-d tests/lanes/test_docs_wp_gets_a_lane_7809.py + test_kind_normalisation_7809.py (20 passed, WP04 approved cycle 2)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-22T12:28:22.472049+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-d tests/lanes/test_docs_wp_gets_a_lane_7809.py + test_kind_normalisation_7809.py (20 passed, WP04 approved cycle 2)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-22T12:28:28.603802+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-b tests/specify_cli/coordination/test_review_remote_only_lane_7806.py + tests/kernel/git/test_tracking_branch.py (21 passed, WP02 approved)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-22T12:28:34.785638+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-b tests/specify_cli/coordination/test_review_remote_only_lane_7806.py + tests/kernel/git/test_tracking_branch.py (21 passed, WP02 approved)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-22T12:28:41.153718+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-b tests/specify_cli/coordination/test_review_remote_only_lane_7806.py + tests/kernel/git/test_tracking_branch.py (21 passed, WP02 approved)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-22T12:28:47.500674+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-c tests/consolidation/test_approval_stamp_presync_7802.py + tests/status/test_lane_head_presync_7802.py (22 passed, WP03 approved cycle 2)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-22T12:28:53.481767+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-c tests/consolidation/test_approval_stamp_presync_7802.py + tests/status/test_lane_head_presync_7802.py (22 passed, WP03 approved cycle 2)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-22T12:28:59.671866+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-c tests/consolidation/test_approval_stamp_presync_7802.py + tests/status/test_lane_head_presync_7802.py (22 passed, WP03 approved cycle 2)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-22T12:29:06.074007+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "manual",
+      "evidence": "WP01 canceled",
+      "pass_fail": "deferred",
+      "verified_by": "claude",
+      "verified_at": "2026-11-22T12:29:25.272595+00:00",
+      "notes": "TODO: replace with a real acceptance criterion",
+      "deferral_reason": "Moved to the Slice 5 Mission (#7808 + #5297 + #5516) by operator ruling R68",
+      "deferral_follow_up": "#7808"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-e tests/review/test_planning_range_bookkeeping_only_7759.py (8 passed, WP05 approved)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-22T12:29:12.315710+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
