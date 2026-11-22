@@ -20,7 +20,7 @@
   "work_packages": {
     "WP01": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": "claude::implementer-ivan",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
@@ -29,6 +29,9 @@
       "last_event_id": "01M81N7QPC8DMPSXWQJKBZJ3WZ",
       "last_transition_at": "2026-11-22T12:55:57.900091+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: D1-D5 implemented red-first; 50 new tests; family 3010 passed; diff coverage 100%"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 4032,
