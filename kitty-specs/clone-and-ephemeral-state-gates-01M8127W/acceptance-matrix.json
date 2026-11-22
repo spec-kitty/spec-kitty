@@ -128,10 +128,10 @@
       "criterion_id": "FR-013",
       "description": "Verify FR-013 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "lane-e tests/review/test_planning_range_bookkeeping_only_7759.py (8 passed, WP05 approved)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-22T12:29:12.315710+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     }
   ],
