@@ -934,6 +934,25 @@ def _execution_has_begun_in_snapshot(snapshot: StatusSnapshot) -> bool:
     return any(wp_state.get("lane") not in (None, "planned") for wp_state in snapshot.work_packages.values())
 
 
+def _work_package_ever_left_planned(mission_dir: Path) -> bool:
+    """#7793 / squad F3: the history half of "execution has begun", as ``finalize-tasks`` reads it.
+
+    A work package rejected back to ``planned`` has committed work; finalize treats the Mission as
+    begun and refuses toward this repair, so the repair must see the same wedge
+    (:func:`specify_cli.lanes.persistence.any_work_package_left_planned`). An unreadable log reads
+    as not begun, like the snapshot above.
+    """
+    from specify_cli.lanes.persistence import any_work_package_left_planned
+    from specify_cli.status import StoreError, read_event_stream
+
+    try:
+        transitions = read_event_stream(mission_dir).transitions
+    except (StoreError, OSError):
+        return False
+    began: bool = any_work_package_left_planned(transitions)
+    return began
+
+
 def _gather_wp_frontmatter_for_lanes_rebuild(
     tasks_dir: Path,
 ) -> tuple[dict[str, WPMetadata], dict[str, str]]:
@@ -1041,7 +1060,7 @@ def _rebuild_lanes_if_wedged(
         # historical Missions (#5811).
         return ()
 
-    execution_has_begun = _execution_has_begun_in_snapshot(snapshot)
+    execution_has_begun = _execution_has_begun_in_snapshot(snapshot) or _work_package_ever_left_planned(mission_dir)
     if not is_execution_wedged(execution_has_begun=execution_has_begun, lanes_present=False):
         return ()
 

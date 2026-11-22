@@ -417,3 +417,28 @@ def test_rebuild_turns_a_literal_owned_path_matching_nothing_into_a_repair_error
     assert any("Cannot rebuild lanes.json" in e and "match zero files" in e for e in result.validation_errors), result.validation_errors
     assert read_lanes_json(feature_dir) is None
     assert LANES_REBUILT_ACTION not in result.meta_actions
+
+
+def test_a_rejected_work_package_still_counts_as_begun_for_the_rebuild(tmp_path: Path) -> None:
+    """#7793 / squad F3: every WP back in planned after a rejection is still the #4758 wedge.
+
+    finalize-tasks reads "any WP ever left planned" as begun and refuses toward this repair; the
+    repair must read the same history, or the two point at each other and nothing rebuilds.
+    """
+    from specify_cli.migration.mission_state import _work_package_ever_left_planned
+
+    feature_dir = _build_wedged_mission(tmp_path)
+    emit_status_transition(
+        feature_dir,
+        wp_id="WP01",
+        to_lane="planned",
+        actor="test-reviewer",
+        mission_slug=_MISSION_SLUG,
+        repo_root=tmp_path,
+        fan_out=False,
+        force=True,
+        reason="rejected",
+    )
+
+    assert _work_package_ever_left_planned(feature_dir) is True
+    assert _work_package_ever_left_planned(tmp_path / "kitty-specs" / "absent-mission") is False

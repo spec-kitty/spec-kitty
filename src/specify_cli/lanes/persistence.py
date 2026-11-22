@@ -13,7 +13,9 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+from collections.abc import Iterable
 from pathlib import Path, PurePath, PureWindowsPath
+from typing import Any
 
 from charter.hasher import hash_content
 from kernel.atomic import notify_written
@@ -203,3 +205,18 @@ def is_execution_wedged(*, execution_has_begun: bool, lanes_present: bool) -> bo
     combination itself is never duplicated or drifted.
     """
     return execution_has_begun and not lanes_present
+
+
+def any_work_package_left_planned(transitions: Iterable[Any]) -> bool:
+    """True when a non-migration transition moved a work package past ``planned`` (#7793).
+
+    The history half of "execution has begun": a work package rejected back to ``planned`` has
+    committed work although no work package sits outside ``planned`` now. One predicate shared by
+    ``finalize-tasks`` (``mission_finalize_planning_pin._execution_has_begun``) and ``doctor
+    mission-state --fix`` (``migration.mission_state``), so both read the #4758 wedge the same way.
+    Pure: callers read the transitions from their own status surface.
+    """
+    from specify_cli.status import is_migration_actor
+
+    not_started = {"planned", "genesis"}
+    return any(str(getattr(event, "to_lane", "")) not in not_started and not is_migration_actor(getattr(event, "actor", "")) for event in transitions)

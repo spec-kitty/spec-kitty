@@ -103,7 +103,9 @@ def test_fix_keeps_the_live_tip_and_warns_when_no_base_can_be_derived(tmp_path: 
     flat = " ".join(output.split())
     assert "records the live branch tip" in flat
     # #7297 item 6: the warning names the next step.
-    assert f"finalize-tasks --mission {_SLUG} --refresh-planning-commit" in flat
+    # Squad review: a refresh records the tip, so the next step is the manual edit, never a refresh.
+    assert "planning_commit_sha in lanes.json by hand" in flat
+    assert "--refresh-planning-commit" not in flat
     assert lanes.planning_commit_derived is False
 
 

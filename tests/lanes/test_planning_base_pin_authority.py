@@ -161,3 +161,17 @@ def test_a_missing_upstream_ref_reaches_nothing(repo: Path) -> None:
     follow = follow_pin_by_patch_id(repo, pin, "topic", upstream_refs=("no-such-branch", "main"))
 
     assert follow.sha == _git(repo, "rev-parse", "topic~1")
+
+
+def test_any_work_package_left_planned_reads_history_and_ignores_migrations() -> None:
+    """#7793 / squad F3: the one predicate finalize and the doctor share."""
+    from types import SimpleNamespace
+
+    from specify_cli.lanes.persistence import any_work_package_left_planned
+
+    def event(to_lane: str, actor: str = "claude") -> SimpleNamespace:
+        return SimpleNamespace(to_lane=to_lane, actor=actor)
+
+    assert any_work_package_left_planned([event("planned"), event("claimed"), event("planned")])
+    assert not any_work_package_left_planned([event("planned"), event("claimed", actor="migration:backfill")])
+    assert not any_work_package_left_planned([])

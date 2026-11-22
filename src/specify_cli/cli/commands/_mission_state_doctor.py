@@ -258,6 +258,7 @@ def _run_mission_repair(
     json_output: bool,
 ) -> None:
     """Execute the --fix dispatch arm: repair repo and emit the manifest."""
+    from specify_cli.cli.commands.agent.mission_finalize_pin_window import MANUAL_PIN_REMEDY
     from specify_cli.migration.mission_state import (
         LANES_REBUILT_ACTION,
         LANES_REBUILT_PIN_UNSET_ACTION,
@@ -327,10 +328,9 @@ def _run_mission_repair(
             console.print(
                 f"[yellow]⚠[/yellow] {mission_result.mission_slug}: no planning commit could be derived from git (the "
                 "Mission's task files are not in its branch's history), so the rebuilt lanes.json records the live "
-                "branch tip; work already committed there falls outside the evidence window. Next: set "
-                "planning_commit_sha in lanes.json to the commit just before the first implementation commit, or "
-                f"commit the task files and run: spec-kitty agent mission finalize-tasks --mission {mission_result.mission_slug} "
-                "--refresh-planning-commit",
+                "branch tip; work already committed there falls outside the evidence window. Next: "
+                f"{MANUAL_PIN_REMEDY}. No finalize-tasks run can move it back: a refresh records the tip, and "
+                "derivation runs only when no pin is recorded.",
                 soft_wrap=True,
             )
         pin_unset = [m for m in report.missions if LANES_REBUILT_PIN_UNSET_ACTION in m.meta_actions]
@@ -338,7 +338,8 @@ def _run_mission_repair(
             console.print(
                 f"[yellow]⚠[/yellow] {mission_result.mission_slug}: the rebuilt lanes.json records no planning commit: "
                 "none could be derived from git and the branch tip could not be read. The evidence gates refuse "
-                "EVIDENCE_WINDOW_UNCOMPUTABLE until one is recorded. Next: make the Mission's branch resolvable "
+                "EVIDENCE_WINDOW_UNCOMPUTABLE (SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE on a single_branch Mission) "
+                "until one is recorded. Next: make the Mission's branch resolvable "
                 f"(fetch or create it), then run: spec-kitty agent mission finalize-tasks --mission {mission_result.mission_slug}",
                 soft_wrap=True,
             )

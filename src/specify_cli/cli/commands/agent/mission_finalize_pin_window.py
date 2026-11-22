@@ -25,6 +25,7 @@ from typing import Any, Final
 from mission_runtime import OwnedCheckout
 
 __all__ = [
+    "MANUAL_PIN_REMEDY",
     "NO_PATCH_ID_MATCH",
     "WOULD_EMPTY_WINDOW",
     "PinWindowUnreadable",
@@ -39,6 +40,13 @@ NO_PATCH_ID_MATCH: Final = "PLANNING_PIN_NO_PATCH_ID_MATCH"
 PATCH_ID_AMBIGUOUS: Final = "PLANNING_PIN_PATCH_ID_AMBIGUOUS"
 #: The candidate pin would drop the committed owned-file work out of the evidence window.
 WOULD_EMPTY_WINDOW: Final = "PLANNING_PIN_WOULD_EMPTY_WINDOW"
+#: The one recovery no finalize run can do for the operator: a refresh records the branch tip and
+#: derivation runs only when no pin is recorded, so a pin that leaves committed work outside the
+#: window is corrected by hand (#7793, squad review).
+MANUAL_PIN_REMEDY: Final = (
+    "set planning_commit_sha in lanes.json by hand to the commit just before the Mission's first "
+    "implementation commit, commit lanes.json on the mission branch, then retry"
+)
 
 
 class PinWindowUnreadable(Exception):
@@ -115,12 +123,26 @@ def _owned_patterns_by_wp(planning_dir: Path) -> dict[str, tuple[str, ...]]:
     return by_wp
 
 
-def window_keeps_owned_work(repo_root: Path, mission_slug: str, planning_dir: Path, *, recorded: str | None, candidate: str, tip: str) -> bool:
-    """False when *candidate*..*tip* loses some work package's owned-file change *recorded*..*tip* holds (#7793).
+def window_keeps_owned_work(
+    repo_root: Path,
+    mission_slug: str,
+    planning_dir: Path,
+    *,
+    recorded: str | None,
+    candidate: str,
+    tip: str,
+    upstream_refs: tuple[str, ...] = (),
+) -> bool:
+    """False when *candidate*..*tip* loses a work package's committed owned-file change (#7793).
 
-    Judged per work package, as the gates judge it: every work package with an owned change in the
-    recorded window must keep one in the candidate window. True when nothing is recorded or no
-    such work package exists (nothing committed yet can be lost).
+    The work at risk is the Mission's own: the commits on *tip* reachable from neither *recorded*
+    nor *upstream_refs* (``git log tip --not recorded upstreams``). Reading the recorded window
+    ``recorded..tip`` instead would count an upstream change a rebase brought in as the Mission's
+    work, and refuse a correct re-pin whenever the upstream touched a file a not-yet-started work
+    package owns (squad F1). Judged per work package, as the gates judge it: every work package
+    with an owned change among the Mission's own commits must keep one in the candidate window.
+    True when nothing bounds the Mission's own commits (no recorded pin and no upstream), or no
+    work package has committed owned work.
 
     Raises:
         PinWindowUnreadable: the ownership or either window cannot be read (the caller fails closed).
@@ -128,20 +150,47 @@ def window_keeps_owned_work(repo_root: Path, mission_slug: str, planning_dir: Pa
     from specify_cli.consolidation import wp_evidence
     from specify_cli.consolidation.git_probes import GitProbeError
 
-    if recorded is None or recorded == candidate:
+    if recorded is not None and recorded == candidate:
         return True
     by_wp = {wp: patterns for wp, patterns in _owned_patterns_by_wp(planning_dir).items() if patterns}
     if not by_wp:
         return True
+    if recorded is not None and not _resolves(repo_root, recorded):
+        raise PinWindowUnreadable(f"the recorded planning commit {recorded} cannot be read")
+    bounds = [ref for ref in ((recorded,) if recorded else ()) + upstream_refs if _resolves(repo_root, ref)]
+    if not bounds:
+        return True
+    own = _own_changed_paths(repo_root, tip, bounds)
+    at_risk = [patterns for patterns in by_wp.values() if wp_evidence.has_owned_change(own, patterns)]
+    if not at_risk:
+        return True
     try:
-        before = wp_evidence.evidence_paths(repo_root, (recorded, tip), mission_slug)
-        at_risk = [patterns for patterns in by_wp.values() if wp_evidence.has_owned_change(before, patterns)]
-        if not at_risk:
-            return True
         after = wp_evidence.evidence_paths(repo_root, (candidate, tip), mission_slug)
     except GitProbeError as exc:
         raise PinWindowUnreadable(f"the evidence window could not be read: {exc}") from exc
     return all(wp_evidence.has_owned_change(after, patterns) for patterns in at_risk)
+
+
+def _resolves(repo_root: Path, ref: str) -> bool:
+    """True when *ref* names a commit here."""
+    from kernel.git import run_git
+
+    return run_git(repo_root, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}", check=False).returncode == 0
+
+
+def _own_changed_paths(repo_root: Path, tip: str, bounds: list[str]) -> frozenset[str]:
+    """Paths the non-merge commits on *tip* reachable from none of *bounds* change.
+
+    Raises:
+        PinWindowUnreadable: git cannot list them.
+    """
+    from kernel.git import GitCommandError, run_git
+
+    try:
+        out = run_git(repo_root, "log", "--no-merges", "--format=", "--name-only", tip, "--not", *bounds, "--").stdout
+    except GitCommandError as exc:
+        raise PinWindowUnreadable(f"the Mission's own commits could not be listed: {exc}") from exc
+    return frozenset(line.strip() for line in out.decode("utf-8", "replace").splitlines() if line.strip())
 
 
 @dataclass(frozen=True)
