@@ -136,7 +136,8 @@ def window_keeps_owned_work(
     """False when *candidate*..*tip* loses a work package's committed owned-file change (#7793).
 
     The work at risk is the Mission's own: the commits on *tip* reachable from neither *recorded*
-    nor *upstream_refs* (``git log tip --not recorded upstreams``). Reading the recorded window
+    nor an upstream ref that does not contain *recorded* (``git log tip --not recorded upstreams``;
+    a ref that already reaches the pin is downstream, see :func:`_bounds_the_mission`). Reading the recorded window
     ``recorded..tip`` instead would count an upstream change a rebase brought in as the Mission's
     work, and refuse a correct re-pin whenever the upstream touched a file a not-yet-started work
     package owns (squad F1). Judged per work package, as the gates judge it: every work package
@@ -157,7 +158,7 @@ def window_keeps_owned_work(
         return True
     if recorded is not None and not _resolves(repo_root, recorded):
         raise PinWindowUnreadable(f"the recorded planning commit {recorded} cannot be read")
-    bounds = [ref for ref in ((recorded,) if recorded else ()) + upstream_refs if _resolves(repo_root, ref)]
+    bounds = ([recorded] if recorded else []) + [ref for ref in upstream_refs if _bounds_the_mission(repo_root, ref, recorded)]
     if not bounds:
         return True
     own = _own_changed_paths(repo_root, tip, bounds)
@@ -171,6 +172,32 @@ def window_keeps_owned_work(
     return all(wp_evidence.has_owned_change(after, patterns) for patterns in at_risk)
 
 
+def _bounds_the_mission(repo_root: Path, ref: str, recorded: str | None) -> bool:
+    """True when upstream *ref* resolves and does not already contain the *recorded* pin.
+
+    A ref that reaches the recorded pin is downstream of the Mission (gitflow: ``develop`` merged
+    into ``main``): the Mission's work it also carries is still the Mission's, so it bounds nothing
+    (Tier R review B1). In the rebase case the orphaned pin is unreachable from the upstream, which
+    therefore still bounds the Mission's own commits (squad F1).
+
+    Raises:
+        PinWindowUnreadable: the ancestry probe fails for a reason other than "not an ancestor".
+    """
+    from kernel.git import GitCommandError, run_git
+
+    if not _resolves(repo_root, ref):
+        return False
+    if recorded is None:
+        return True
+    try:
+        run_git(repo_root, "merge-base", "--is-ancestor", recorded, ref)
+    except GitCommandError as exc:
+        if exc.returncode == 1:
+            return True  # the pin is not on the ref: it is upstream of the Mission's work
+        raise PinWindowUnreadable(f"could not tell whether {ref} contains the recorded planning commit: {exc}") from exc
+    return False
+
+
 def _resolves(repo_root: Path, ref: str) -> bool:
     """True when *ref* names a commit here."""
     from kernel.git import run_git
@@ -182,7 +209,8 @@ def _own_changed_paths(repo_root: Path, tip: str, bounds: list[str]) -> frozense
     """Paths the non-merge commits on *tip* reachable from none of *bounds* change.
 
     The commits are the intersection of each ``bound..tip`` range; each one's paths come from
-    ``kernel.git.commit_paths`` (a merge lists nothing, as ``git log --no-merges`` would).
+    ``kernel.git.commit_paths``. A merge contributes its combined-diff paths (conflict-resolved
+    and evil-merge paths), so the walk can only over-count the work at risk, never miss it.
 
     Raises:
         PinWindowUnreadable: git cannot list them.

@@ -665,3 +665,71 @@ def test_remote_tracking_refs_degrade_to_none(repo: Path, monkeypatch: pytest.Mo
 
     monkeypatch.setattr(kernel_git, "run_git", boom)
     assert pin_window._remote_tracking_refs(repo, ["main"]) == []
+
+
+# --- Tier R review B1: a ref that already contains the pin is downstream, not upstream --------
+
+
+def test_the_guard_keeps_mission_work_that_a_downstream_primary_also_contains(repo: Path) -> None:
+    """Tier R B1: gitflow (develop merged into main) must not hide the Mission's work from the guard.
+
+    ``main`` reaches the recorded pin, so it is downstream of the Mission and bounds nothing: the
+    implementation it also carries is still the Mission's, and a refresh to the tip would empty
+    the window.
+    """
+    _git(repo, "checkout", "-q", "-b", "develop")
+    recorded = _commit(repo, f"kitty-specs/{SLUG}/tasks/WP01-m1.md", WP01, "planning")
+    _commit(repo, "src/m1/a.py", "X = 1\n", "WP01 implementation")
+    _git(repo, "checkout", "-q", "main")
+    _git(repo, "merge", "-q", "--no-ff", "-m", "merge develop", "develop")
+    _git(repo, "checkout", "-q", "develop")
+    tip = _commit(repo, f"kitty-specs/{SLUG}/spec.md", "# amended\n", "planning amendment")
+
+    assert not pin_window.window_keeps_owned_work(repo, SLUG, _planning_dir(repo), recorded=recorded, candidate=tip, tip=tip, upstream_refs=("main",))
+    resolution = pin._automatic_refresh_or_keep(
+        repo_root=repo, mission_slug=SLUG, recorded=recorded, tip=tip, single_branch_planning_dir=_planning_dir(repo), upstream_refs=("main",)
+    )
+    assert (resolution.action, resolution.refusal_reason) == ("kept_with_warning", "window_would_empty")
+
+
+def test_a_lanes_mission_with_a_rejected_work_package_keeps_its_pin(repo: Path) -> None:
+    """Tier R N3: the "ever left planned" rule holds on lane topologies too.
+
+    Before #7793 a ``lanes`` Mission whose only WP was rejected back to planned read as not begun,
+    so a plain finalize re-captured the target tip; now it classifies and preserves the pin.
+    """
+    from tests._support.status_seed import seed_status_events
+
+    from specify_cli.lanes.models import LanesManifest
+    from specify_cli.lanes.persistence import write_lanes_json
+
+    mission_dir = _planning_dir(repo)
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text(json.dumps({"mission_slug": SLUG, "topology": "lanes", "target_branch": "main"}), encoding="utf-8")
+    pin_sha = _commit(repo, f"kitty-specs/{SLUG}/tasks/WP01-m1.md", WP01, "planning")
+    write_lanes_json(
+        mission_dir,
+        LanesManifest(
+            version=1,
+            mission_slug=SLUG,
+            mission_id=None,
+            mission_branch="main",
+            target_branch="main",
+            lanes=[],
+            computed_at="t",
+            computed_from="f",
+            planning_commit_sha=pin_sha,
+        ),
+    )
+    seed_status_events(
+        mission_dir,
+        [_event("01HX0000000000000000000011", "planned", "claimed"), _event("01HX0000000000000000000012", "claimed", "planned")],
+    )
+    # The pin's bookkeeping lands in a finalize-style commit; only unrelated work follows it.
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", f"Add tasks for mission {SLUG}")
+    _commit(repo, "src/unrelated.py", "U = 1\n", "the target moves on")
+
+    resolution = pin._preserve_or_capture_planning_commit_sha(mission_dir, repo, SLUG, "main", json_output=True)
+
+    assert (resolution.action, resolution.sha) == ("preserved", pin_sha)
