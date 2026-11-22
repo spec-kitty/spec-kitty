@@ -30,6 +30,11 @@ SPEC = (
     "| --- | --- | --- | --- |\n| FR-001 | Requirement | Test passes. | proposed |\n"
 )
 
+# A planning WP that owns only its Mission directory stays on lane-planning; one that owns
+# paths outside kitty-specs/ (e.g. docs/) counts as a code lane in a lane topology (#7809,
+# "Count it", DM 01M81298MS97SQBQZ2612VFH3Z; covered by tests/lanes/test_finalize_docs_wp_lane_normalisation.py).
+MISSION_DIR_TOKEN = "<mission-dir>"
+
 
 def git(root: Path, *args: str) -> str:
     return subprocess.run(["git", *args], cwd=root, check=True, capture_output=True, text=True).stdout.strip()
@@ -67,7 +72,8 @@ def _write_wps(mission_dir: Path, owned: Sequence[str], *, planning: Sequence[in
     (mission_dir / "tasks").mkdir(exist_ok=True)
     ids = [f"WP{index:02d}" for index in range(1, len(owned) + 1)]
     (mission_dir / "tasks.md").write_text("# Tasks\n\n" + "".join(f"## {wp}\n\nNo dependencies.\n\n" for wp in ids), encoding="utf-8")
-    for index, (wp_id, path) in enumerate(zip(ids, owned, strict=True), start=1):
+    for index, (wp_id, raw_path) in enumerate(zip(ids, owned, strict=True), start=1):
+        path = raw_path.replace(MISSION_DIR_TOKEN, f"kitty-specs/{mission_dir.name}")
         mode = "planning_artifact" if index in planning else "code_change"
         (mission_dir / "tasks" / f"{wp_id}-work.md").write_text(
             f"---\nwork_package_id: {wp_id}\ntitle: Work {wp_id}\ndependencies: []\nrequirement_refs: [FR-001]\nsubtasks: []\n"
@@ -259,7 +265,8 @@ def test_explicit_lanes_and_coord_still_materialize_at_create(tmp_path: Path) ->
 
 
 def test_five_wp_one_code_lane_settles_single_branch(tmp_path: Path) -> None:
-    mission = make_default_mission(tmp_path, ("docs/a.md", "docs/b.md", "docs/c.md", "docs/d.md", "src/one.py"), planning=(1, 2, 3, 4))
+    planning_only = tuple(f"{MISSION_DIR_TOKEN}/{name}.md" for name in ("a", "b", "c", "d"))
+    mission = make_default_mission(tmp_path, (*planning_only, "src/one.py"), planning=(1, 2, 3, 4))
     code, payload = run_finalize(mission)
     assert code == 0, payload
     assert payload["topology_decision"]["rule"] == "code_lanes_le_1"
@@ -304,7 +311,7 @@ def test_canceled_wps_not_counted_planning_wps_counted(tmp_path: Path) -> None:
     zero = decide_topology_by_size(provisional, wp_count=4, code_lane_count=0, target_protected=False)
     assert zero is not None and zero.to_topology == "single_branch"
     # A planning-artifact WP counts toward the WP count: three WPs, two code lanes -> lanes_with_coord.
-    mission = make_default_mission(tmp_path, ("docs/plan.md", "src/one.py", "src/two.py"), planning=(1,))
+    mission = make_default_mission(tmp_path, (f"{MISSION_DIR_TOKEN}/plan.md", "src/one.py", "src/two.py"), planning=(1,))
     code, payload = run_finalize(mission, "--validate-only")
     assert code == 0, payload
     decision = payload["topology_decision"]

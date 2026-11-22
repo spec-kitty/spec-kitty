@@ -134,6 +134,7 @@ def _install(monkeypatch: pytest.MonkeyPatch, h: Harness) -> None:
     monkeypatch.setattr(seam, "_read_meta_for_emission", read_meta)
     monkeypatch.setattr(seam, "_warn_missing_meta", fake("_warn_missing_meta"))
     monkeypatch.setattr(seam, "_decide_topology_by_size", fake("_decide_topology_by_size", lambda: h.decision))
+    monkeypatch.setattr(seam, "_kind_normalisation_for", fake("_kind_normalisation_for", None))
     monkeypatch.setattr(seam, "_bind_topology_decision", fake("_bind_topology_decision"))
     monkeypatch.setattr(seam, "_preflight_frozen_lane_membership", fake("_preflight_frozen_lane_membership", "frozen"))
     monkeypatch.setattr(seam, "_settle_or_refuse", fake("_settle_or_refuse", SimpleNamespace(planning_dir=h.settled_dir)))

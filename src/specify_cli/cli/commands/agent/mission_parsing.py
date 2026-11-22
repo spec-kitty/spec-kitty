@@ -22,11 +22,11 @@ from specify_cli.cli.console import console
 from specify_cli.version_utils import cli_version
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.ownership.models import WorkProductKind
+from specify_cli.ownership.paths import is_kitty_specs_path, normalize_owned_path
 from specify_cli.ownership.validation import _PLANNING_PREFIXES
 from specify_cli.requirement_mapping import grammar
 from specify_cli.status import WPMetadata
 from kernel.clock import now_utc_stamp
-from kernel.paths import to_posix
 
 
 
@@ -108,18 +108,9 @@ def _find_undeclared_requirement_citations(spec_content: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-def _normalize_owned_file_path(path: str) -> str:
-    """Normalize a WP owned_files entry for repository-relative validation."""
-    normalized = to_posix(path.strip())
-    while normalized.startswith("./"):
-        normalized = normalized[2:]
-    return normalized
-
-
-def _is_mission_specs_owned_file(path: str) -> bool:
-    """Return True when an owned_files entry targets mission planning artifacts."""
-    normalized = _normalize_owned_file_path(path)
-    return normalized == KITTY_SPECS_DIR or normalized.startswith(f"{KITTY_SPECS_DIR}/")
+# The one owned_files normaliser and kitty-specs test, shared with the kind normalisation (#7809).
+_normalize_owned_file_path = normalize_owned_path
+_is_mission_specs_owned_file = is_kitty_specs_path
 
 
 _EXPLICIT_EMPTY_OWNED_FILES_RE = re.compile(

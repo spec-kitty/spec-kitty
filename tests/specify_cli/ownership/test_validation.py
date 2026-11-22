@@ -233,6 +233,23 @@ class TestValidateExecutionModeConsistency:
         warnings = validate_execution_mode_consistency(m)
         assert len(warnings) == 1
 
+    def test_code_change_with_only_docs_no_warning(self) -> None:
+        """#7809: a docs-only WP recorded as code_change in a lane topology is not flagged."""
+        m = _manifest(mode=WorkProductKind.CODE_CHANGE, owned=("docs/x.md", "docs/guide/**"), surface="docs/")
+        warnings = validate_execution_mode_consistency(m)
+        assert warnings == []
+
+    @pytest.mark.parametrize("owned", [("./docs/x.md",), ("docs\\guide\\x.md",), (" docs/x.md ",)])
+    def test_code_change_with_only_docs_is_judged_on_the_normalised_path(self, owned: tuple[str, ...]) -> None:
+        """L2: the docs-only exemption reads the same normalised path as the kitty-specs test."""
+        m = _manifest(mode=WorkProductKind.CODE_CHANGE, owned=owned, surface="docs/")
+        assert validate_execution_mode_consistency(m) == []
+
+    def test_code_change_with_docs_and_other_non_code_path_still_warns(self) -> None:
+        m = _manifest(mode=WorkProductKind.CODE_CHANGE, owned=("docs/x.md", "scripts/run.sh"), surface="docs/")
+        warnings = validate_execution_mode_consistency(m)
+        assert len(warnings) == 1
+
     def test_planning_artifact_with_kitty_specs_no_warning(self) -> None:
         m = _manifest(
             mode=WorkProductKind.PLANNING_ARTIFACT,
