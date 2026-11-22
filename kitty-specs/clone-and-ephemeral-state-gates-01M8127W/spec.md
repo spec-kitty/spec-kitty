@@ -67,7 +67,9 @@ A reviewer in a throwaway container claims a work package for review; the review
 
 ---
 
-### User Story 4 - A hex colour is never an issue (Priority: P2)
+### User Story 4 - A hex colour is never an issue (Priority: P2) — moved out of this Mission
+
+> **Moved (2026-11-22):** operator ruling R68 moves #7808 into the Slice 5 Mission, together with #5297 and #5516. WP01 is canceled, the #7808 matrix row is deferred-with-followup, and FR-012 / SC-004 are owned by that Mission. The story is kept below for traceability.
 
 A Mission's research quotes colours such as a hash followed by `000000`. Today issue-matrix discovery reads that as issue number 0 and blocks approval until someone records a verdict for an issue that does not exist. After this Mission, hex colour literals in CSS declaration form and any hash-number with a leading zero are never issue references.
 
@@ -122,7 +124,7 @@ Folded from #7759. A planning-lane work package in a lane Mission gets a review 
 | FR-009 | Record the pre-sync lane tip on approval | As a reviewer, I want an approval to record the lane tip from before the review's own sync merge alongside the lane head, so that the approval does not depend on a commit only my clone has. | High | Open | [build] | no |
 | FR-010 | Bound accepts either recorded stamp | As an integrator, I want consolidation's approval-stamp check to accept the approval when the lane contains either recorded stamp and bound the approved claim on that stamp, so that an unpushed review merge does not block consolidation. | High | Open | [build] | no — a post-approval commit on the same fixture must still be refused |
 | FR-011 | Precise remedy for an absent stamp | As an integrator, I want an approval-stamp refusal to say when the stamp commit does not exist in this clone and what to do, so that I do not mistake it for a rewritten lane. | Medium | Open | [build] | no |
-| FR-012 | Hex colours are not issue references | As a reviewer, I want hash-number literals with a leading zero, and all-digit hex colour values in CSS declaration form, never discovered as issue references in any issue-number pattern, so that approval is not blocked by a non-existent issue. | Medium | Open | [build] | no — a real reference on the same line must still be found |
+| FR-012 | Hex colours are not issue references | As a reviewer, I want hash-number literals with a leading zero, and all-digit hex colour values in CSS declaration form, never discovered as issue references in any issue-number pattern, so that approval is not blocked by a non-existent issue. | Medium | Moved (Slice 5 Mission, ruling R68) | [build] | no — a real reference on the same line must still be found |
 | FR-013 | Honest planning-lane review range | As a reviewer, I want the review context of a planning-lane work package to report the range as unavailable, with the reason, when the derived range holds only status-bookkeeping commits, so that I never review a range that omits the work. | Medium | Open | [build] | no |
 
 ### Non-Functional Requirements
@@ -158,7 +160,7 @@ Folded from #7759. A planning-lane work package in a lane Mission gets a review 
 - **SC-001**: A lane Mission with a docs-only work package reaches a successful consolidation with zero commits on the target branch outside consolidation itself and zero forced transitions. — [build] · no-op passable: no
 - **SC-002**: A reviewer in a fresh teammate clone completes `agent action review` on a remote-only lane with zero manual git commands. — [build] · no-op passable: no
 - **SC-003**: Consolidation succeeds in a clone that never received the reviewer's sync merge, with zero re-reviews and zero attestations. — [build] · no-op passable: no
-- **SC-004**: An artifact containing colour declarations yields zero issue-matrix rows for them. — [build] · no-op passable: no
+- **SC-004** (moved to the Slice 5 Mission, ruling R68): An artifact containing colour declarations yields zero issue-matrix rows for them. — [build] · no-op passable: no
 
 ## Assumptions
 
