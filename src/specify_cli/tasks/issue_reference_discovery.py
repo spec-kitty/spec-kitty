@@ -141,11 +141,11 @@ _CITATION_TOKEN_PATTERN = re.compile(r"[^\s)\],;`]+")
 # detector's citation (FR-006, one number-recognition authority), and the label
 # binds to the ONE citation it ends at, like the positional context labels. The
 # keyword may be emphasised (``**Closes**``, ``**Fixes:**``) and the citation
-# wrapped (```#12```, ``[#12](url)``, ``**#12**``); the label ends at the
+# wrapped (```#12```, ``[#12](url)``, ``([#12](url))``, ``**#12**``); the label ends at the
 # citation's first character, the ``#`` of a bare reference or the ``h`` of an
 # issue URL (the only citation that starts with ``h``).
 _CLOSING_KEYWORD_LABEL_PATTERN = re.compile(
-    r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\b(?:\*\*|__)?\s*:?(?:\*\*|__)?\s*[\[`*_]*[#h]",
+    r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\b(?:\*\*|__)?\s*:?(?:\*\*|__)?\s*[(\[`*_]*[#h]",
     re.IGNORECASE,
 )
 
