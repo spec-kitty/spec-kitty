@@ -192,3 +192,112 @@ def test_postcondition_refuses_in_text_mode_when_nothing_landed(tmp_path: Path, 
         mf.end_write_ledger(ledger_token, observer_token)
     out = capsys.readouterr().out
     assert "FINALIZE_WRITES_UNCOMMITTED" in out and "No commit landed" in out
+
+
+def test_postcondition_checks_writes_behind_an_unchanged_surface_after_a_commit(tmp_path: Path) -> None:
+    """A committed PRIMARY group beside an unchanged coordination group: its dirty writes still refuse."""
+    import typer
+
+    from specify_cli.cli.commands.agent import mission_finalize as mf
+
+    outcome, dirty = _outcome(tmp_path, surface_refusal=False, commit_created=True)
+    outcome.commit_surfaces = [{"surface": "primary", "status": "committed"}, {"surface": "coordination", "status": "unchanged"}]
+    ledger, ledger_token, observer_token = mf.begin_write_ledger()
+    try:
+        ledger.record(dirty, b"x\n")
+        with patch.object(mf, "_emit_json") as emit, pytest.raises(typer.Exit):
+            mf._refuse_uncommitted_finalize_writes(outcome, json_output=True)
+    finally:
+        mf.end_write_ledger(ledger_token, observer_token)
+    payload = emit.call_args.args[0]
+    assert payload["error_code"] == "FINALIZE_WRITES_UNCOMMITTED"
+    assert "A commit landed and is kept" in payload["error"]
+
+
+def test_postcondition_trusts_every_surface_committed(tmp_path: Path) -> None:
+    from specify_cli.cli.commands.agent import mission_finalize as mf
+
+    outcome, dirty = _outcome(tmp_path, surface_refusal=False, commit_created=True)
+    outcome.commit_surfaces = [{"surface": "primary", "status": "committed"}, {"surface": "coordination", "status": "committed"}]
+    ledger, ledger_token, observer_token = mf.begin_write_ledger()
+    try:
+        ledger.record(dirty, b"x\n")
+        mf._refuse_uncommitted_finalize_writes(outcome, json_output=True)  # no raise
+    finally:
+        mf.end_write_ledger(ledger_token, observer_token)
+
+
+def test_planning_checkout_root_resolves_a_symlinked_spelling(tmp_path: Path) -> None:
+    """A planning dir spelled through a symbolic link still finds the coordination worktree."""
+    from specify_cli.cli.commands.agent import mission_finalize as mf
+
+    mission = _settled_lanes_with_coord(tmp_path)
+    link = tmp_path / "linked"
+    link.symlink_to(mission.root, target_is_directory=True)
+    linked_planning = link / mission.coord_mission_dir.relative_to(mission.root)
+
+    root = mf._planning_checkout_root(linked_planning, mission.root, mission.slug, owned=None)
+
+    assert root == link / mission.coord_mission_dir.parents[1].relative_to(mission.root)
+    assert linked_planning.is_relative_to(root)
+    tasks_md = linked_planning / "tasks.md"
+    tasks_md.write_text(tasks_md.read_text(encoding="utf-8") + "\nedit\n", encoding="utf-8")
+    candidates = mf._resolve_finalize_commit_candidates(
+        linked_planning, linked_planning / "tasks", mission.root, linked_planning / "lanes.json", mission_slug=mission.slug
+    )
+    assert candidates.has_relevant_changes is True
+
+
+def test_settlement_commits_its_meta_restamp_in_the_coordination_worktree(tmp_path: Path) -> None:
+    mission = _settled_lanes_with_coord(tmp_path)
+    coord_root = mission.coord_mission_dir.parents[1]
+    assert git(coord_root, "status", "--porcelain") == ""
+    meta = git(mission.root, "show", f"{mission.topic}:kitty-specs/{mission.slug}/meta.json")
+    assert '"coordination_branch"' in meta and '"lanes_with_coord"' in meta
+
+
+def _meta_repo(tmp_path: Path, committed: dict[str, object], current: dict[str, object]) -> Path:
+    import json
+
+    root = tmp_path / "meta-repo"
+    root.mkdir()
+    git(root, "init", "-q")
+    meta = root / "meta.json"
+    meta.write_text(json.dumps(committed), encoding="utf-8")
+    git(root, "add", "meta.json")
+    git(root, "-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-qm", "meta")
+    meta.write_text(json.dumps(current), encoding="utf-8")
+    return meta
+
+
+_PROVISIONAL: dict[str, object] = {"slug": "s", "topology": "single_branch", "topology_settled": False}
+_SETTLED: dict[str, object] = {
+    "topology": "lanes_with_coord",
+    "coordination_branch": "b",
+    "topology_settled": True,
+    "topology_decision": {"rule": "x"},
+}
+
+
+@pytest.mark.parametrize(
+    ("committed", "current", "expected"),
+    [
+        (_PROVISIONAL, {**_PROVISIONAL, **_SETTLED}, True),
+        (_PROVISIONAL, {**_PROVISIONAL, "topology": "lanes_with_coord"}, False),
+        (_PROVISIONAL, {**_PROVISIONAL, "topology": "lanes_with_coord", "coordination_branch": "b"}, False),
+        (_PROVISIONAL, {**_PROVISIONAL, **_SETTLED, "vcs": "git"}, False),
+        ({**_PROVISIONAL, **_SETTLED}, {**_PROVISIONAL, **_SETTLED, "topology": "lanes"}, False),
+    ],
+    ids=[
+        "settlement_delta",
+        "topology_alone",
+        "topology_and_coordination_branch_without_decision",
+        "settlement_plus_foreign_field",
+        "decision_already_at_head",
+    ],
+)
+def test_meta_settlement_delta_attribution(tmp_path: Path, committed: dict[str, object], current: dict[str, object], expected: bool) -> None:
+    from specify_cli.cli.commands.agent import mission_finalize as mf
+
+    meta = _meta_repo(tmp_path, committed, current)
+    assert mf._meta_json_delta_is_finalize_attributable(meta, meta.parent) is expected
