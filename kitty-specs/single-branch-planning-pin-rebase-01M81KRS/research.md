@@ -21,11 +21,15 @@ All findings come from reproductions run on `main` at f8fee580 through the real 
 
 ## R4. Derived pin freeze (#7297 item 1)
 
-**Decision**: stateless. On the automatic (no-flag) path, a recorded pin equal to the base `resolve_finalize_planning_base` derives now is a derived pin, and it is preserved (`action="preserved"`, `refusal_reason=None`, `pin_class` unchanged). An explicit `--refresh-planning-commit` still applies. The R3 guard additionally stops any automatic refresh that would strand committed work, which also covers timely pins (the issue notes they refresh the same way). **Alternative**: a `planning_commit_source` key in `lanes.json`. Rejected: it is a schema addition rippling through `compute_and_write_lanes`, golden contract tests and three writers, for no extra protection once R3 exists.
+**Decision (revised during WP01)**: a persisted marker. `lanes.json` gains `planning_commit_derived: true`, written only when true so every other `lanes.json` is byte-identical. It is set when finalize (or the doctor rebuild) derives the pin and carried by every decision that keeps the recorded pin. On the automatic path an ADVANCED pin with the marker is preserved; an explicit `--refresh-planning-commit` replaces it and clears the marker. **Why revised**: the first, stateless design (recorded == base derived now) also froze *timely* pins. On a direct history the derived base equals the tip a timely finalize records, which broke the R17 rule that a genuine planning amendment refreshes a pin (`test_finalize_refreshes_planning_commit_sha_by_default` went red). For `single_branch`, the R3 guard additionally stops any automatic refresh that would strand committed work.
 
 ## R5. Derivation anchor (#7297 items 4 and 5)
 
 **Decision**: anchor on any file under `kitty-specs/<slug>/tasks/` (not only `WP*.md`), on the first-parent line of the pin branch line, and take the **last** time the directory went from absent to present (a re-add after a full removal), rather than the first-ever touch. Implementation: walk `git log --first-parent --format=%H --name-status -- <tasks dir>` oldest-first and track presence. **Item 5**: non-`WP*` task files renamed to `WP*` are covered because the directory is anchored, not the name. **Residuals** (kept in the ADR): WP files committed before unrelated work, and a topic cut after tasks reached `main`. A derived base cannot tell those apart from ordinary history; the R3 guard does not apply to a first derivation.
+
+## R4b. Execution has begun
+
+**Decision**: `_execution_has_begun` is also true when any work package ever left `planned` (a non-migration transition in the log). **Rationale**: the #7793 operator path runs finalize while the rejected WP sits in `planned`. The old "current lane" test read that as "never run", so finalize took the pre-execution branch and re-captured the tip with no orphan check, emptying the window. This is topology-neutral: a rejected lane Mission gets the begun-path protections (preserve, orphan fail-closed) too.
 
 ## R6. Messages (#7297 items 3 and 6)
 

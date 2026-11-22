@@ -1,6 +1,6 @@
 # Data Model
 
-No persisted schema change (research R4).
+One additive optional key in `lanes.json`: `planning_commit_derived` (research R4).
 
 ## PlanningCommitResolution (existing, `mission_finalize_planning_pin.py`)
 
@@ -13,6 +13,12 @@ No persisted schema change (research R4).
 ## PatchIdFollow (new, `lanes/planning_base.py`)
 
 A frozen result: `sha: str | None`, `miss: Literal["no_patch_id", "no_match", "ambiguous"] | None`, `candidates: tuple[str, ...]`. Invariant: exactly one of `sha` / `miss` is set.
+
+## LanesManifest (existing, `lanes/models.py`)
+
+| Field | Change |
+|-------|--------|
+| `planning_commit_derived` (new) | `bool`, default `False`; serialized only when `True`; read strictly (`is True`) |
 
 ## Invariants
 
