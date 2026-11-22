@@ -156,7 +156,7 @@ def test_repin_after_rebase_follows_planning_commit_and_keeps_the_work(tmp_path:
     assert planning["action"] == "repinned", planning
     assert planning["matched_by"] == "patch_id", planning
     new_pin = str(_lanes(fd)["planning_commit_sha"])
-    assert new_pin != _git(repo, "rev-parse", "HEAD~1"), "the pin must not land on the tip"
+    assert new_pin != _git(repo, "rev-parse", mission_branch), "the pin must not land on the tip"
     # SC-004: the window holds the Mission's work and none of main's newer commit.
     window = _git(repo, "diff", "--name-only", f"{new_pin}..{mission_branch}").splitlines()
     assert "src/m1/a.py" in window

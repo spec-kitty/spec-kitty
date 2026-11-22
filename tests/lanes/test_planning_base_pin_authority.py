@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -175,3 +176,49 @@ def test_any_work_package_left_planned_reads_history_and_ignores_migrations() ->
     assert any_work_package_left_planned([event("planned"), event("claimed"), event("planned")])
     assert not any_work_package_left_planned([event("planned"), event("claimed", actor="migration:backfill")])
     assert not any_work_package_left_planned([])
+
+
+@pytest.mark.parametrize("failing", ["merge-base", "rev-list"])
+def test_a_git_failure_is_never_read_as_a_miss(repo: Path, monkeypatch: pytest.MonkeyPatch, failing: str) -> None:
+    """Squad T4: merge-base / rev-list failing for a real reason raises GitProbeError, never "no_match"."""
+    from kernel.git import GitCommandError
+    from specify_cli.consolidation.git_probes import GitProbeError
+    from specify_cli.lanes import planning_base
+
+    pin, _ = _mission_branch_with_planning(repo)
+    real = planning_base.run_git
+
+    def flaky(cwd: Path, *args: str, **kwargs: Any) -> Any:
+        if args and args[0] == failing and "--is-ancestor" not in args:
+            raise GitCommandError(argv=args, cwd=cwd, returncode=128, stderr="fatal: bad object")
+        return real(cwd, *args, **kwargs)
+
+    monkeypatch.setattr(planning_base, "run_git", flaky)
+    if failing == "rev-list":
+        # Unrelated histories force the full rev-list scan.
+        monkeypatch.setattr(planning_base, "commits_in_range", lambda *_a: [])
+        _git(repo, "checkout", "-q", "--orphan", "island")
+        _git(repo, "rm", "-rq", "--cached", ".")
+        _commit(repo, "island.txt", "island\n", "island")
+        with pytest.raises(GitProbeError):
+            follow_pin_by_patch_id(repo, pin, "island")
+        return
+    with pytest.raises(GitProbeError):
+        follow_pin_by_patch_id(repo, pin, "topic")
+
+
+def test_an_is_ancestor_failure_for_a_real_reason_raises(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from kernel.git import GitCommandError
+    from specify_cli.consolidation.git_probes import GitProbeError
+    from specify_cli.lanes import planning_base
+
+    real = planning_base.run_git
+
+    def flaky(cwd: Path, *args: str, **kwargs: Any) -> Any:
+        if "--is-ancestor" in args:
+            raise GitCommandError(argv=args, cwd=cwd, returncode=128, stderr="fatal: corrupt")
+        return real(cwd, *args, **kwargs)
+
+    monkeypatch.setattr(planning_base, "run_git", flaky)
+    with pytest.raises(GitProbeError):
+        planning_base._on_any_upstream(repo, _git(repo, "rev-parse", "HEAD"), ("main",))

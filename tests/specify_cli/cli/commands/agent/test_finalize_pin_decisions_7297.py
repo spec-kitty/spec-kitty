@@ -484,6 +484,7 @@ def test_a_stale_local_main_still_recognises_the_origin_copy(repo: Path, tmp_pat
 
 @pytest.mark.xfail(
     strict=True,
+    raises=AssertionError,
     reason="#7793 review B2 residual (ADR 2026-10-04-5 Amendment 2026-11-22): an upstream that is neither the "
     "target nor the primary branch (nor their remote-tracking refs) is not recognised, so its copy of the "
     "planning commit is followed and the window widens to that branch's later commits.",
@@ -552,3 +553,115 @@ def test_an_orphaned_pin_that_would_empty_the_window_names_the_manual_route(repo
     payload = _refusal(capsys)
     assert payload["error_code"] == pin_window.WOULD_EMPTY_WINDOW
     assert "orphaned" in payload["error"] and "lanes.json by hand" in payload["error"]
+
+
+# --- per-PR wiring guards (squad test-fidelity review) -----------------------------------------
+
+
+def test_the_refresh_decision_routes_a_single_branch_pin_to_the_patch_id_re_pin(repo: Path) -> None:
+    """Squad T1: the #7793 entry seam itself, with the real classifier: orphaned single_branch -> patch-id."""
+    recorded, _ = _mission(repo)
+    _rebase(repo)
+    tip = _git(repo, "rev-parse", "topic")
+
+    resolution = pin._resolve_refresh_planning_commit_decision(
+        repo_root=repo,
+        mission_slug=SLUG,
+        target_branch="topic",
+        recorded=recorded,
+        tip=tip,
+        allow_orphaned=True,
+        json_output=True,
+        single_branch_planning_dir=_planning_dir(repo),
+        upstream_refs=("main",),
+    )
+
+    assert (resolution.action, resolution.matched_by) == ("repinned", "patch_id")
+    assert resolution.sha == _git(repo, "rev-parse", "topic~1") != tip
+
+
+def test_preserve_or_capture_wires_the_pin_line_for_a_single_branch_mission(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Squad T1: from the finalize entry, a stored single_branch Mission re-pins by patch-id on its own branch."""
+    from specify_cli.cli.commands.agent import mission_finalize as mf
+    from specify_cli.lanes.models import LanesManifest
+    from specify_cli.lanes.persistence import write_lanes_json
+
+    recorded = _commit_to_target_mission(repo)
+    write_lanes_json(
+        _planning_dir(repo),
+        LanesManifest(
+            version=1,
+            mission_slug=SLUG,
+            mission_id=None,
+            mission_branch="topic",
+            target_branch="topic",
+            lanes=[],
+            computed_at="t",
+            computed_from="f",
+            planning_commit_sha=recorded,
+        ),
+    )
+    _git(repo, "checkout", "-q", "main")
+    _commit(repo, "upstream.txt", "upstream\n", "main moves on")
+    _git(repo, "checkout", "-q", "topic")
+    _git(repo, "rebase", "-q", "main")
+    monkeypatch.setattr(mf, "_execution_has_begun", lambda *_a, **_k: True)
+
+    resolution = pin._preserve_or_capture_planning_commit_sha(
+        _planning_dir(repo), repo, SLUG, "topic", json_output=True, refresh_planning_commit=True, allow_orphaned=True
+    )
+
+    assert (resolution.action, resolution.matched_by) == ("repinned", "patch_id")
+
+
+def test_a_kept_derived_pin_keeps_its_marker_when_the_tip_is_uncapturable(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Squad T3: the marker survives a kept_with_warning decision (no planning change can reach it there)."""
+    from specify_cli.cli.commands.agent import mission_finalize as mf
+    from specify_cli.lanes.models import LanesManifest
+    from specify_cli.lanes.persistence import write_lanes_json
+
+    _planning_dir(repo).mkdir(parents=True)
+    write_lanes_json(
+        _planning_dir(repo),
+        LanesManifest(
+            version=1,
+            mission_slug=SLUG,
+            mission_id=None,
+            mission_branch="main",
+            target_branch="main",
+            lanes=[],
+            computed_at="t",
+            computed_from="f",
+            planning_commit_sha=_git(repo, "rev-parse", "HEAD"),
+            planning_commit_derived=True,
+        ),
+    )
+    monkeypatch.setattr(mf, "_execution_has_begun", lambda *_a, **_k: True)
+    monkeypatch.setattr(mf, "capture_branch_tip", lambda *_a: None)
+
+    resolution = pin._preserve_or_capture_planning_commit_sha(_planning_dir(repo), repo, SLUG, "main", json_output=True)
+
+    assert (resolution.action, resolution.derived) == ("kept_with_warning", True)
+
+
+def test_the_text_mode_refusal_leads_with_its_code(repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(typer.Exit):
+        pin._refuse_planning_pin_with_code(pin_window.NO_PATCH_ID_MATCH, "no copy", json_output=False)
+    with pytest.raises(typer.Exit):
+        pin._refuse_planning_pin_refresh("unreadable", json_output=False)
+
+    out = " ".join(capsys.readouterr().out.split())
+    assert f"{pin_window.NO_PATCH_ID_MATCH}: no copy" in out
+    assert "PLANNING_REFRESH_FAIL_CLOSED: Cannot refresh" in out
+
+
+def test_remote_tracking_refs_degrade_to_none(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from kernel import git as kernel_git
+
+    assert pin_window._remote_tracking_refs(repo, []) == []
+
+    def boom(*_a: object, **_k: object) -> object:
+        raise kernel_git.GitCommandError(argv=("for-each-ref",), cwd=repo, returncode=128, stderr="fatal")
+
+    monkeypatch.setattr(kernel_git, "run_git", boom)
+    assert pin_window._remote_tracking_refs(repo, ["main"]) == []
