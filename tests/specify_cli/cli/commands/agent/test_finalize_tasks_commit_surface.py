@@ -718,6 +718,23 @@ def test_a_derived_pin_survives_later_plain_finalizes(tmp_path: Path, monkeypatc
     assert refresh is not None and refresh.get("status") == "preserved", refresh
 
 
+def test_an_explicit_refresh_clears_the_derived_marker(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review B1: ``--refresh-planning-commit`` writes the operator's pin, which is never frozen as derived."""
+    coord, original_pin = _blank_recorded_pin(monkeypatch, tmp_path, "issue-7297-explicit")
+    _run_real_finalize(monkeypatch, coord)
+    derived = read_lanes_json(coord.root_mission_dir)
+    assert derived is not None and (derived.planning_commit_sha, derived.planning_commit_derived) == (original_pin, True)
+    # The fixture tracks the coordination worktree as a gitlink; record where the plain finalize moved it.
+    _git_stdout(coord.repo_root, "add", "-A")
+    _git_stdout(coord.repo_root, "commit", "-q", "-m", "fixture: settle the coordination gitlink")
+
+    emitted = _run_real_finalize(monkeypatch, coord, refresh=True)
+
+    after = read_lanes_json(coord.root_mission_dir)
+    assert after is not None and after.planning_commit_sha != original_pin, emitted
+    assert after.planning_commit_derived is False
+
+
 def test_finalize_keeps_no_pin_when_a_lane_branch_lacks_the_derived_base(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#7210: a base the lane lacks reads the target's content as the lane's work, so it is not recorded."""
     from specify_cli.lanes.branch_naming import code_lane_branch_name

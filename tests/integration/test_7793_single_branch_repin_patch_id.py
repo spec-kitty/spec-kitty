@@ -157,13 +157,49 @@ def test_repin_after_rebase_follows_planning_commit_and_keeps_the_work(tmp_path:
     assert planning["matched_by"] == "patch_id", planning
     new_pin = str(_lanes(fd)["planning_commit_sha"])
     assert new_pin != _git(repo, "rev-parse", "HEAD~1"), "the pin must not land on the tip"
-    # SC-004: the window excludes main's new commit (it is below the rebased planning commit).
+    # SC-004: the window holds the Mission's work and none of main's newer commit.
+    window = _git(repo, "diff", "--name-only", f"{new_pin}..{mission_branch}").splitlines()
+    assert "src/m1/a.py" in window
+    assert "upstream.txt" not in window, f"main's commit entered the evidence window: {window}"
     assert _git(repo, "merge-base", "--is-ancestor", upstream, new_pin) == ""
     _commit_specs(repo)
 
     _submit_wp01(repo, env, slug)
     move = _sk(repo, env, "agent", "tasks", "move-task", "WP01", "--to", "for_review", "--agent", "alice", "--mission", slug)
     assert move.returncode == 0, f"WP01's committed work must stay in the evidence window\n{move.stdout}\n{move.stderr}"
+
+
+def test_minted_repin_refuses_when_the_planning_change_is_only_upstream(tmp_path: Path) -> None:
+    """Review B2 (minted): the planning commit also landed on main, so the rebase dropped the Mission's copy.
+
+    Pinning main's copy would count main's later commits as this Mission's work; the re-pin refuses.
+    """
+    repo, env, slug, fd = _setup(tmp_path, "minted")
+    recorded = str(_lanes(fd)["planning_commit_sha"])
+    mission_branch = _git(repo, "branch", "--show-current")
+    _submit_wp01(repo, env, slug)
+    (repo / "src" / "m1").mkdir(parents=True, exist_ok=True)
+    (repo / "src" / "m1" / "a.py").write_text("X = 1\n", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "WP01 implementation")
+    _git(repo, "checkout", "-q", "main")
+    # The planning change lands upstream too: every Mission commit up to the pin, so the copies apply.
+    _git(repo, "cherry-pick", f"main..{recorded}")
+    (repo / "src" / "m1").mkdir(parents=True, exist_ok=True)
+    (repo / "src" / "m1" / "b.py").write_text("Y = 1\n", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "later main work on an owned path")
+    _git(repo, "checkout", "-q", mission_branch)
+    _git(repo, "rebase", "-q", "main")
+    before = (fd / "lanes.json").read_bytes()
+
+    refresh = _sk(repo, env, "agent", "mission", "finalize-tasks", "--mission", slug, "--refresh-planning-commit", "--allow-orphaned", "--json")
+
+    assert refresh.returncode != 0, refresh.stdout
+    payload = json.loads(refresh.stdout)
+    assert payload["error_code"] == "PLANNING_PIN_NO_PATCH_ID_MATCH", payload
+    assert "only on the upstream" in payload["error"]
+    assert (fd / "lanes.json").read_bytes() == before
 
 
 def test_repin_with_no_patch_id_match_refuses_and_writes_nothing(tmp_path: Path) -> None:
@@ -191,14 +227,3 @@ def test_repin_with_no_patch_id_match_refuses_and_writes_nothing(tmp_path: Path)
     assert payload["error_code"] == "PLANNING_PIN_NO_PATCH_ID_MATCH", payload
     assert "evidence window" in payload["error"]
     assert (fd / "lanes.json").read_bytes() == before
-
-
-def test_minted_mission_refresh_no_longer_dead_ends(tmp_path: Path) -> None:
-    """#7297 item 2: ``--refresh-planning-commit`` on a minted single_branch Mission resolves to its branch."""
-    repo, env, slug, fd = _setup(tmp_path, "minted")
-    _submit_wp01(repo, env, slug)
-    refresh = _sk(repo, env, "agent", "mission", "finalize-tasks", "--mission", slug, "--refresh-planning-commit", "--json")
-    assert refresh.returncode == 0, f"{refresh.stdout}\n{refresh.stderr}"
-    assert json.loads(refresh.stdout).get("error_code") != "PLANNING_REFRESH_FAIL_CLOSED"
-    pin = str(_lanes(fd)["planning_commit_sha"])
-    assert _git(repo, "merge-base", "--is-ancestor", pin, _git(repo, "branch", "--show-current")) == ""

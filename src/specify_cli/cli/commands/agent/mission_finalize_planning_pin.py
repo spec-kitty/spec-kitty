@@ -371,6 +371,7 @@ def _resolve_refresh_planning_commit_decision(
     allow_orphaned: bool,
     json_output: bool,
     single_branch_planning_dir: Path | None = None,
+    upstream_refs: tuple[str, ...] = (),
 ) -> PlanningCommitResolution:
     """#4141/#4827: resolve the ``--refresh-planning-commit`` branch.
 
@@ -432,6 +433,7 @@ def _resolve_refresh_planning_commit_decision(
             tip=tip,
             orphaned=pin_class is PinClass.ORPHANED,
             json_output=json_output,
+            upstream_refs=upstream_refs,
         )
     action = "repinned" if pin_class is PinClass.ORPHANED else "refreshed"
     return PlanningCommitResolution(sha=tip, action=action, previous_sha=recorded, branch_tip=tip)
@@ -459,8 +461,12 @@ def _single_branch_refresh_resolution(
     tip: str,
     orphaned: bool,
     json_output: bool,
+    upstream_refs: tuple[str, ...] = (),
 ) -> PlanningCommitResolution:
     """#7793: the explicit refresh/re-pin of a ``single_branch`` Mission's pin.
+
+    A copy of the planning commit reachable from *upstream_refs* (the target and primary
+    branches) is the upstream's and never followed (review B2).
 
     The window is ``pin..mission_branch``. An orphaned pin (a rebase) follows the recorded planning
     commit to its rebased copy by patch-id, never to the tip; no match, or more than one, refuses
@@ -473,7 +479,7 @@ def _single_branch_refresh_resolution(
     candidate, matched_by = tip, None
     try:
         if orphaned and recorded is not None:
-            follow = pin_window.follow_orphaned_pin(repo_root, recorded, tip)
+            follow = pin_window.follow_orphaned_pin(repo_root, recorded, tip, upstream_refs=upstream_refs)
             if follow.sha is None:
                 _refuse_planning_pin_with_code(
                     follow.error_code or pin_window.NO_PATCH_ID_MATCH,
@@ -904,6 +910,8 @@ def _commit_planning_pin_refresh_locked(
     if plan.lanes_path.read_bytes() != old_lanes_bytes:
         _refuse_planning_pin_refresh("lanes.json changed after refresh preparation; concurrent content was left untouched", json_output=json_output)
     lanes_manifest.planning_commit_sha = plan.new_sha
+    # #7297 item 1 / review B1: an explicit refresh is the operator's pin, never a derived one.
+    lanes_manifest.planning_commit_derived = False
     write_lanes_json(planning_dir, lanes_manifest)
     candidate_lanes_bytes = plan.lanes_path.read_bytes()
     try:
@@ -1368,6 +1376,7 @@ def _preserve_or_capture_planning_commit_sha(
             allow_orphaned=allow_orphaned,
             json_output=json_output,
             single_branch_planning_dir=single_branch_planning_dir,
+            upstream_refs=pin_line.upstream_refs,
         )
     resolution = _resolve_preserve_planning_commit_decision(
         repo_root=repo_root,

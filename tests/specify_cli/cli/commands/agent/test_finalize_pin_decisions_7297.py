@@ -71,8 +71,9 @@ def _rebase(repo: Path) -> None:
     _git(repo, "rebase", "-q", "main")
 
 
-def _refresh(repo: Path, recorded: str | None, *, orphaned: bool) -> pin.PlanningCommitResolution:
+def _refresh(repo: Path, recorded: str | None, *, orphaned: bool, upstream_refs: tuple[str, ...] = ()) -> pin.PlanningCommitResolution:
     return pin._single_branch_refresh_resolution(
+        upstream_refs=upstream_refs,
         repo_root=repo,
         mission_slug=SLUG,
         target_branch="topic",
@@ -404,3 +405,34 @@ def test_a_non_surface_or_unreadable_log_is_not_begun(tmp_path: Path) -> None:
 
     assert pin._any_work_package_left_planned(object()) is False
     assert pin._any_work_package_left_planned(_surface(mission_dir)) is False
+
+
+def test_repin_refuses_a_match_that_is_only_on_the_upstream(repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Review B2: the planning change also landed on main; its copy there is never the Mission's pin."""
+    recorded, _ = _mission(repo)
+    _git(repo, "checkout", "-q", "main")
+    _commit(repo, "noise.txt", "noise\n", "main moves first")
+    _git(repo, "cherry-pick", recorded)
+    _commit(repo, "src/m1/b.py", "Y = 1\n", "later main work on an owned path")
+    _git(repo, "checkout", "-q", "topic")
+    _git(repo, "rebase", "-q", "main")
+
+    with pytest.raises(typer.Exit):
+        _refresh(repo, recorded, orphaned=True, upstream_refs=("main",))
+
+    payload = _refusal(capsys)
+    assert payload["error_code"] == pin_window.NO_PATCH_ID_MATCH
+    assert "only on the upstream (main)" in payload["error"]
+
+
+def test_window_guard_is_judged_per_work_package(repo: Path) -> None:
+    """Review N2: keeping WP02's change does not excuse dropping WP01's."""
+    _git(repo, "checkout", "-q", "-b", "topic")
+    recorded = _commit(repo, f"kitty-specs/{SLUG}/tasks/WP01-m1.md", WP01, "planning")
+    _commit(repo, f"kitty-specs/{SLUG}/tasks/WP02-m2.md", WP01.replace("WP01", "WP02").replace("m1", "m2"), "planning WP02")
+    _commit(repo, "src/m1/a.py", "X = 1\n", "WP01 implementation")
+    candidate = _git(repo, "rev-parse", "HEAD")
+    tip = _commit(repo, "src/m2/a.py", "Z = 1\n", "WP02 implementation")
+
+    assert not pin_window.window_keeps_owned_work(repo, SLUG, _planning_dir(repo), recorded=recorded, candidate=candidate, tip=tip)
+    assert pin_window.window_keeps_owned_work(repo, SLUG, _planning_dir(repo), recorded=recorded, candidate=recorded, tip=tip)

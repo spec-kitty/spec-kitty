@@ -1,15 +1,16 @@
 """The target-branch commit immediately before a Mission path first appeared (#7209, #7210).
 
 The #6715 evidence window is ``planning_commit..<tip>``. Where no planning commit was ever
-recorded, the one authority for a base read from git is :func:`resolve_planning_base_commit`.
-Two callers anchor it on different Mission paths:
+recorded, this module is the one authority for a base read from git, with two entry points:
 
 * ``consolidate --skip-lanes`` (#7209, ``consolidation.entry_preflight``): a Mission with no
-  ``lanes.json`` anchors on the Mission directory, ``kitty-specs/<slug>/``.
-* ``finalize-tasks`` (#7210, ``mission_finalize_planning_pin``): a ``lanes.json`` that predates the
-  pin anchors on the work package task files, ``kitty-specs/<slug>/tasks/WP*.md``, through
-  :func:`resolve_finalize_planning_base`, which also requires every lane branch to contain the
-  base. On a direct history that is the tip a timely finalize would have recorded.
+  ``lanes.json`` anchors on the Mission directory, ``kitty-specs/<slug>/``, through
+  :func:`resolve_planning_base_commit` (the first appearance).
+* ``finalize-tasks`` and ``doctor mission-state --fix`` (#7210): a ``lanes.json`` that predates the
+  pin anchors on the Mission's task files (``tasks/*.md`` but the scaffold ``README.md``) through
+  :func:`resolve_finalize_planning_base`: the last appearance (#7297 items 4 and 5), and every lane
+  branch must contain the base. On a direct history that is the tip a timely finalize would have
+  recorded.
 
 A derived base is a fact read from git and claims nothing about review (operator ruling
 2026-11-05, ADR ``2026-10-04-5`` Amendment 2026-11-05). The window it opens can be wider than a
@@ -37,8 +38,6 @@ from specify_cli.consolidation.git_probes import GitProbeError, commit_parents, 
 from specify_cli.lanes.branch_naming import code_lane_branch_name
 
 __all__ = [
-    "PatchIdFollow",
-    "PatchIdMiss",
     "follow_pin_by_patch_id",
     "mission_dir_pathspec",
     "pin_branch_line",
@@ -46,17 +45,12 @@ __all__ = [
     "resolve_planning_base_commit",
 ]
 
-PatchIdMiss = Literal["no_patch_id", "no_match", "ambiguous"]
+PatchIdMiss = Literal["no_patch_id", "no_match", "ambiguous", "upstream_only"]
 
 
 def mission_dir_pathspec(mission_slug: str) -> str:
     """The Mission directory, ``kitty-specs/<slug>`` (the ``--skip-lanes`` anchor, #7209)."""
     return f"kitty-specs/{mission_slug}"
-
-
-def mission_wp_tasks_pathspec(mission_slug: str) -> str:
-    """The Mission's work package task files, ``kitty-specs/<slug>/tasks/WP*.md`` (the #7210 anchor)."""
-    return f":(glob)kitty-specs/{mission_slug}/tasks/WP*.md"
 
 
 def mission_task_files_pathspecs(mission_slug: str) -> tuple[str, str]:
@@ -91,8 +85,8 @@ def pin_branch_line(meta: Mapping[str, Any], target_branch: str) -> str:
 class PatchIdFollow:
     """Where an orphaned pin went: the one commit with its patch-id (``sha``), or why none (``miss``).
 
-    Exactly one of ``sha`` / ``miss`` is set. ``candidates`` lists every match (two or more only
-    for ``miss == "ambiguous"``).
+    Exactly one of ``sha`` / ``miss`` is set. ``candidates`` lists the matches that count (two or
+    more only for ``miss == "ambiguous"``); ``upstream_only`` means every match is on an upstream.
     """
 
     sha: str | None
@@ -100,13 +94,19 @@ class PatchIdFollow:
     candidates: tuple[str, ...] = ()
 
 
-def follow_pin_by_patch_id(repo_root: Path, pin: str, tip: str) -> PatchIdFollow:
+def follow_pin_by_patch_id(repo_root: Path, pin: str, tip: str, *, upstream_refs: tuple[str, ...] = ()) -> PatchIdFollow:
     """The rebased copy of the orphaned *pin* on *tip*'s history, matched by patch-id (#7793).
 
     Scans ``merge-base(pin, tip)..tip``: the commits the rebase rewrote plus the upstream commits it
     moved onto, one patch-id each (bounded). A pin with an empty diff (a merge, an empty commit)
     has no patch-id to follow (``no_patch_id``); no equal patch-id is ``no_match``; more than one
     is ``ambiguous``. Never guesses, never returns the tip for lack of a match.
+
+    A match reachable from one of *upstream_refs* (the target and primary branches) is the
+    upstream's own copy, not the Mission's: when the planning change also landed upstream, the
+    rebase drops the Mission's copy as already applied, and pinning the upstream copy would open
+    the window over every upstream commit after it (#7793 review B2). Such matches never count;
+    when they are the only ones the miss is ``upstream_only``.
 
     Raises:
         GitProbeError: a git probe failed. The caller refuses rather than read it as a miss.
@@ -122,10 +122,28 @@ def follow_pin_by_patch_id(repo_root: Path, pin: str, tip: str) -> PatchIdFollow
             base = ""
         else:
             raise GitProbeError(f"git merge-base {pin} {tip} failed: {exc}") from exc
-    candidates = tuple(sha for sha in (commits_in_range(repo_root, base, tip) if base else _all_commits(repo_root, tip)) if patch_id_of(repo_root, sha) == wanted)
+    matches = tuple(sha for sha in (commits_in_range(repo_root, base, tip) if base else _all_commits(repo_root, tip)) if patch_id_of(repo_root, sha) == wanted)
+    candidates = tuple(sha for sha in matches if not _on_any_upstream(repo_root, sha, upstream_refs))
+    if matches and not candidates:
+        return PatchIdFollow(sha=None, miss="upstream_only")
     if len(candidates) == 1:
         return PatchIdFollow(sha=candidates[0], candidates=candidates)
     return PatchIdFollow(sha=None, miss="ambiguous" if candidates else "no_match", candidates=candidates)
+
+
+def _on_any_upstream(repo_root: Path, sha: str, upstream_refs: tuple[str, ...]) -> bool:
+    """True when *sha* is reachable from one of *upstream_refs* (a missing ref reaches nothing)."""
+    for ref in upstream_refs:
+        try:
+            run_git(repo_root, "merge-base", "--is-ancestor", sha, ref)
+        except GitCommandError as exc:
+            if exc.returncode == 1:
+                continue  # not an ancestor
+            if run_git(repo_root, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}", check=False).returncode != 0:
+                continue  # the ref does not exist here
+            raise GitProbeError(f"git merge-base --is-ancestor {sha} {ref} failed: {exc}") from exc
+        return True
+    return False
 
 
 def _all_commits(repo_root: Path, tip: str) -> list[str]:

@@ -120,3 +120,44 @@ def test_follow_scans_all_history_when_the_pin_shares_no_commit_with_the_tip(rep
 )
 def test_pin_branch_line_is_the_mission_branch_only_for_single_branch(meta: dict[str, object], expected: str) -> None:
     assert pin_branch_line(meta, "main") == expected
+
+
+def _planning_also_landed_upstream(repo: Path) -> str:
+    """The planning commit is cherry-picked onto main (with later main work), then ``topic`` is rebased.
+
+    ``git rebase`` drops the Mission's copy as already applied: the only patch-id match left on
+    ``topic`` is main's own copy (#7793 review B2).
+    """
+    pin, _ = _mission_branch_with_planning(repo)
+    _git(repo, "checkout", "-q", "main")
+    _git(repo, "-c", "user.name=Other", "cherry-pick", pin)
+    _commit(repo, "src/b.py", "Y = 1\n", "later main work")
+    _git(repo, "checkout", "-q", "topic")
+    _git(repo, "rebase", "-q", "main")
+    return pin
+
+
+def test_follow_never_takes_the_upstream_copy_of_the_planning_commit(repo: Path) -> None:
+    pin = _planning_also_landed_upstream(repo)
+
+    assert follow_pin_by_patch_id(repo, pin, "topic", upstream_refs=("main",)) == PatchIdFollow(sha=None, miss="upstream_only")
+
+
+def test_without_upstream_refs_the_upstream_copy_would_be_taken(repo: Path) -> None:
+    """The control for the case above: the unfiltered scan finds main's copy, which widens the window."""
+    pin = _planning_also_landed_upstream(repo)
+
+    follow = follow_pin_by_patch_id(repo, pin, "topic")
+
+    assert follow.sha is not None
+    assert _git(repo, "merge-base", "--is-ancestor", follow.sha, "main") == ""
+    assert "src/b.py" in _git(repo, "diff", "--name-only", f"{follow.sha}..topic").splitlines()
+
+
+def test_a_missing_upstream_ref_reaches_nothing(repo: Path) -> None:
+    pin, _ = _mission_branch_with_planning(repo)
+    _rebase_onto_new_main(repo)
+
+    follow = follow_pin_by_patch_id(repo, pin, "topic", upstream_refs=("no-such-branch", "main"))
+
+    assert follow.sha == _git(repo, "rev-parse", "topic~1")

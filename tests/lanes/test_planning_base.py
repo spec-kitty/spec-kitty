@@ -8,11 +8,16 @@ from pathlib import Path
 import pytest
 
 from specify_cli.lanes.branch_naming import code_lane_branch_name
-from specify_cli.lanes.planning_base import mission_dir_pathspec, mission_wp_tasks_pathspec, resolve_finalize_planning_base, resolve_planning_base_commit
+from specify_cli.lanes.planning_base import mission_dir_pathspec, resolve_finalize_planning_base, resolve_planning_base_commit
 
 pytestmark = pytest.mark.git_repo
 
 SLUG = "demo-mission"
+
+
+def mission_wp_tasks_pathspec(mission_slug: str) -> str:
+    """The #7210 work package task-file pathspec, kept here as a fixture for the first-appearance walk."""
+    return f":(glob)kitty-specs/{mission_slug}/tasks/WP*.md"
 
 
 def _git(repo: Path, *args: str) -> str:
