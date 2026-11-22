@@ -25,16 +25,16 @@
       "wp": null
     },
     "#7759": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Mission clone-and-ephemeral-state-gates-01M8127W WP05",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "planning-lane WP review range omits its target-branch work",
+      "verdict": "in-mission",
+      "wp": "WP05"
     },
     "#7796": {
       "evidence_ref": "<auto-classified: no action required>",
