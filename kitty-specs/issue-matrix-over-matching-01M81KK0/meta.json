@@ -17,5 +17,8 @@
   "target_branch": "issue-7808-issue-matrix-over-matching",
   "topology": "single_branch",
   "topology_settled": false,
-  "topology_source": "default"
+  "topology_source": "default",
+  "contracts": "none",
+  "contracts_rationale": "The Mission changes an internal text classifier; it adds no endpoint, payload or CLI surface, and the GatingClass vocabulary is unchanged (C-001).",
+  "source_description": "Issue #7808: hex colour values read as issue references; bundled with #5297 and #5516 (operator ruling: one Mission, all three)."
 }
