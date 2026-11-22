@@ -49,9 +49,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import kernel.paths as kernel_paths
-from kernel.git import GitCommandError, run_git, tree_paths
+from kernel.git import GitCommandError, tree_paths
 from kernel.git.read_cache import cached_git_read
-from kernel.git.remote import resolve_remote, tracking_ref
+from kernel.git.remote import resolve_remote
+from kernel.git.tracking_branch import ensure_local_tracking_branch, is_local_head, owning_tracking_ref
 from mission_runtime import (
     CommitTarget,
     MissionArtifactKind,
@@ -803,16 +804,7 @@ def _coord_branch_is_local_head(repo_root: Path, coord_branch: str) -> bool:
     is a local head. Fails closed — an unreadable/foreign git context returns
     ``False`` (no local head proven ⇒ the WRITE must refuse rather than clobber).
     """
-    try:
-        result = subprocess.run(
-            ["git", "-C", str(repo_root), "rev-parse", "--verify", "--quiet", f"refs/heads/{coord_branch}"],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-    except OSError:
-        return False
-    return result.returncode == 0
+    return is_local_head(repo_root, coord_branch)
 
 
 def coord_branch_tracking_ref(repo_root: Path, coord_branch: str) -> str | None:
@@ -827,18 +819,9 @@ def coord_branch_tracking_ref(repo_root: Path, coord_branch: str) -> str | None:
     ``refs/remotes/<remote>/<coord_branch>`` (a single-branch / shallow clone
     that never fetched it, or a pruned tracking ref).
     """
-    try:
-        remote = resolve_remote(repo_root, coord_branch)
-    except (GitCommandError, OSError):
-        return None
-    if remote is None:
-        return None
-    ref = tracking_ref(remote, coord_branch)
-    try:
-        probe = run_git(repo_root, "rev-parse", "--verify", "--quiet", "--end-of-options", f"{ref}^{{commit}}", check=False)
-    except GitCommandError:  # git could not run at all
-        return None
-    return ref if probe.returncode == 0 else None
+    # Delegates to the one owning-remote rule (#7806). ``resolve_remote`` is passed
+    # by this module's binding so it stays this helper's seam.
+    return owning_tracking_ref(repo_root, coord_branch, remote_resolver=resolve_remote)
 
 
 def ensure_coord_branch_local_head(repo_root: Path, coord_branch: str) -> bool:
@@ -860,28 +843,13 @@ def ensure_coord_branch_local_head(repo_root: Path, coord_branch: str) -> bool:
 
     Write-side only: a read path must never call this (reads stay side-effect free).
     """
-    if _coord_branch_is_local_head(repo_root, coord_branch):
-        return True
-    start = coord_branch_tracking_ref(repo_root, coord_branch)
-    if start is None:
-        return False
-    try:
-        # ``--end-of-options``: the branch name comes from ``meta.json`` (pushed by
-        # teammates), so it must never be parsed as an option.
-        created = run_git(repo_root, "branch", "--track", "--end-of-options", coord_branch, start, check=False)
-    except GitCommandError:  # git could not run at all
-        return False
-    if created.returncode != 0:
-        # A concurrent CLI process may have created it between the probe and here.
-        logger.debug(
-            "ensure_coord_branch_local_head: git branch --track %s %s failed: %s",
-            coord_branch,
-            start,
-            created.stderr.decode("utf-8", "replace").strip(),
-        )
-        return _coord_branch_is_local_head(repo_root, coord_branch)
-    logger.info("created local coordination branch %r from %r as last fetched (#5936)", coord_branch, start)
-    return True
+    # Delegates to the one helper (#7806); this module's two named probes stay its seams.
+    return ensure_local_tracking_branch(
+        repo_root,
+        coord_branch,
+        start_ref=coord_branch_tracking_ref,
+        local_head=_coord_branch_is_local_head,
+    )
 
 
 def coord_branch_has_committed_artifact(
