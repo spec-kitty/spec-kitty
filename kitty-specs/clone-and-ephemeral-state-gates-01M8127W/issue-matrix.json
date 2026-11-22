@@ -1,5 +1,17 @@
 {
   "rows": {
+    "#0": {
+      "evidence_ref": "phantom ref: CSS hex colour (#000/#000000) in research.md misread as an issue by #7808, which is deferred to the Slice 5 Mission (ruling R68)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#5858": {
       "evidence_ref": "<auto-classified: no action required>",
       "fr": null,
