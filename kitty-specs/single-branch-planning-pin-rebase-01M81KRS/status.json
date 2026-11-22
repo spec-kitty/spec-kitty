@@ -20,7 +20,7 @@
   "work_packages": {
     "WP01": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -33,6 +33,7 @@
         "- 2026-11-22T13:28:07Z – claude::implementer-ivan – shell_pid=10953 – Out-of-map edits, each tied to the goal: mission_finalize_pin_window.py (new helper module, so the 1376-line pin module does not grow); lanes/models.py + lanes/compute_and_persist.py + mission_finalize_lanes.py (the planning_commit_derived marker, research R4 revised: the stateless freeze froze timely pins and broke R17); test_finalize_tasks_commit_surface.py (two stale pins re-pinned to #7297 item 3, plus the SC-003 end-to-end test). Tests: make test-fast 3176 passed/7 skipped; blast radius 1587 passed/1 skipped; arch gates test_finalize_refresh_pin_authority + test_no_legacy_terminology 103 passed."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/kitty-specs/single-branch-planning-pin-rebase-01M81KRS/tasks/WP01-pin-authority-and-finalize-decisions/review-cycle-1.md",
         "reference": "review-cycle://single-branch-planning-pin-rebase-01M81KRS/WP01-pin-authority-and-finalize-decisions/review-cycle-1.md",
@@ -40,18 +41,18 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 754,
-      "shell_pid_created_at": "1795354952.15",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done",
-        "T005": "done",
-        "T006": "done",
-        "T007": "done",
-        "T008": "done",
-        "T009": "done"
+        "T001": "planned",
+        "T002": "planned",
+        "T003": "planned",
+        "T004": "planned",
+        "T005": "planned",
+        "T006": "planned",
+        "T007": "planned",
+        "T008": "planned",
+        "T009": "planned"
       }
     },
     "WP02": {
