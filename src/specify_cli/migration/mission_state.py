@@ -901,6 +901,9 @@ LANES_REBUILT_ACTION = "lanes_rebuilt_from_event_log"
 #: git, so the rebuilt ``lanes.json`` records the live target tip (an empty evidence window for work
 #: already committed there).
 LANES_REBUILT_WITH_TARGET_TIP_ACTION = "lanes_rebuilt_pin_is_target_tip"
+#: #7297 item 6: reported beside :data:`LANES_REBUILT_ACTION` when no planning base could be derived
+#: AND the tip could not be captured, so the rebuilt ``lanes.json`` records no pin at all.
+LANES_REBUILT_PIN_UNSET_ACTION = "lanes_rebuilt_pin_unset"
 #: ``status.json`` differs from a fresh materialization but was NOT rewritten
 #: (the event log was unchanged, or the file is untracked): reported, never
 #: silently "fixed" (#5811).
@@ -1097,7 +1100,7 @@ def _write_rebuilt_lanes(
     )
 
     wp_dependencies = {wp_id: list(fm.dependencies) for wp_id, fm in wp_frontmatters.items()}
-    planning_commit_sha, derived = _rebuilt_planning_commit(repo_root, mission_slug, target_branch)
+    planning_commit_sha, derived = _rebuilt_planning_commit(repo_root, mission_slug, target_branch, meta=meta)
     # #5100 M3 (review cycle-1 nit 3, extended for consistency across all
     # three callers): derived from the ALREADY-loaded `meta` this repair's
     # canonicalization already produced (`_canonicalize_meta`, tolerant by
@@ -1125,6 +1128,7 @@ def _write_rebuilt_lanes(
             mission_id=mission_id,
             topology=topology,
             mission_branch=resolved_mission_branch,
+            planning_commit_derived=derived,
         )
     except LaneGlobValidationError as exc:
         raise MissionStateRepairError(
@@ -1139,26 +1143,30 @@ def _write_rebuilt_lanes(
         # migration / CLI is), so it reports and returns cleanly rather than
         # letting the typed mismatch propagate as an unhandled repair error.
         return (LANES_REBUILD_SKIPPED_TOPOLOGY_UNMIGRATED_ACTION,)
-    if derived or planning_commit_sha is None:
+    if derived:
         return (LANES_REBUILT_ACTION,)
+    if planning_commit_sha is None:
+        return (LANES_REBUILT_ACTION, LANES_REBUILT_PIN_UNSET_ACTION)
     return (LANES_REBUILT_ACTION, LANES_REBUILT_WITH_TARGET_TIP_ACTION)
 
 
-def _rebuilt_planning_commit(repo_root: Path, mission_slug: str, target_branch: str) -> tuple[str | None, bool]:
+def _rebuilt_planning_commit(repo_root: Path, mission_slug: str, target_branch: str, *, meta: Mapping[str, Any] | None = None) -> tuple[str | None, bool]:
     """The planning commit a rebuilt ``lanes.json`` records, and whether it was derived (#7210).
 
-    The same base ``finalize-tasks`` derives for a pin-less ``lanes.json``: the target-branch
-    commit before the Mission's ``tasks/WP*.md`` first appeared on its first-parent line
-    (:func:`specify_cli.lanes.planning_base.resolve_planning_base_commit`). When none can be
-    derived, today's behaviour stands: the live target tip (``None`` only on a git failure).
+    The same base ``finalize-tasks`` derives for a pin-less ``lanes.json``
+    (:func:`specify_cli.lanes.planning_base.resolve_finalize_planning_base`), on the same branch
+    line: a ``single_branch`` Mission's mission branch, where its tasks live (#7297 item 2,
+    :func:`specify_cli.lanes.planning_base.pin_branch_line`). When none can be derived, today's
+    behaviour stands: that line's live tip (``None`` only on a git failure).
     """
     from specify_cli.core.vcs.git import capture_branch_tip
-    from specify_cli.lanes.planning_base import resolve_finalize_planning_base
+    from specify_cli.lanes.planning_base import pin_branch_line, resolve_finalize_planning_base
 
-    derived = resolve_finalize_planning_base(repo_root, target_branch, mission_slug)
+    pin_line = pin_branch_line(meta or {}, target_branch)
+    derived = resolve_finalize_planning_base(repo_root, pin_line, mission_slug)
     if derived is not None:
         return derived, True
-    tip: str | None = capture_branch_tip(repo_root, target_branch)
+    tip: str | None = capture_branch_tip(repo_root, pin_line)
     return tip, False
 
 

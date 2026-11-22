@@ -436,3 +436,65 @@ def test_window_guard_is_judged_per_work_package(repo: Path) -> None:
 
     assert not pin_window.window_keeps_owned_work(repo, SLUG, _planning_dir(repo), recorded=recorded, candidate=candidate, tip=tip)
     assert pin_window.window_keeps_owned_work(repo, SLUG, _planning_dir(repo), recorded=recorded, candidate=recorded, tip=tip)
+
+
+# --- upstream recognition: remote-tracking refs and the residual (#7793 review B2) ------------
+
+
+def _commit_to_target_mission(repo: Path) -> str:
+    """A commit-to-target single_branch Mission on ``topic``; returns the planning commit (the pin)."""
+    _git(repo, "checkout", "-q", "-b", "topic")
+    meta = {"mission_slug": SLUG, "topology": "single_branch", "mission_branch": "topic", "target_branch": "topic"}
+    _planning_dir(repo).mkdir(parents=True, exist_ok=True)
+    (_planning_dir(repo) / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    planning = _commit(repo, f"kitty-specs/{SLUG}/tasks/WP01-m1.md", WP01, "planning")
+    _commit(repo, "src/m1/a.py", "X = 1\n", "WP01 implementation")
+    return planning
+
+
+def _land_upstream_and_rebase(repo: Path, upstream: str, pin_commit: str) -> None:
+    """The planning change lands on *upstream* with later owned work; ``topic`` is rebased onto it."""
+    _git(repo, "checkout", "-q", "--detach", upstream)
+    _commit(repo, "noise.txt", "noise\n", "upstream moves first")
+    _git(repo, "cherry-pick", f"{pin_commit}~1..{pin_commit}")
+    _commit(repo, "src/m1/b.py", "Y = 1\n", "later upstream work on an owned path")
+    landed = _git(repo, "rev-parse", "HEAD")
+    _git(repo, "checkout", "-q", "topic")
+    _git(repo, "rebase", "-q", landed)
+    return None
+
+
+def test_a_stale_local_main_still_recognises_the_origin_copy(repo: Path, tmp_path: Path) -> None:
+    """The rebase went onto origin/main while the local main is stale: the copy is still the upstream's."""
+    origin = tmp_path / "origin.git"
+    _git(tmp_path, "clone", "-q", "--bare", repo.as_posix(), origin.as_posix())
+    _git(repo, "remote", "add", "origin", origin.as_posix())
+    pin_commit = _commit_to_target_mission(repo)
+    # Upstream work lands on origin/main only; the local main never moves.
+    _land_upstream_and_rebase(repo, "main", pin_commit)
+    _git(repo, "push", "-q", "origin", "HEAD~1:refs/heads/main")
+    _git(repo, "fetch", "-q", "origin")
+
+    line = pin_window.resolve_pin_line(repo, SLUG, "topic")
+    follow = pin_window.follow_orphaned_pin(repo, pin_commit, "topic", upstream_refs=line.upstream_refs)
+
+    assert "refs/remotes/origin/main" in line.upstream_refs
+    assert (follow.sha, follow.error_code) == (None, pin_window.NO_PATCH_ID_MATCH)
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="#7793 review B2 residual (ADR 2026-10-04-5 Amendment 2026-11-22): an upstream that is neither the "
+    "target nor the primary branch (nor their remote-tracking refs) is not recognised, so its copy of the "
+    "planning commit is followed and the window widens to that branch's later commits.",
+)
+def test_residual_an_unrelated_upstream_copy_is_followed(repo: Path) -> None:
+    pin_commit = _commit_to_target_mission(repo)
+    _git(repo, "branch", "release", "main")
+    _land_upstream_and_rebase(repo, "release", pin_commit)
+    _git(repo, "branch", "-f", "release", "topic~1")
+
+    line = pin_window.resolve_pin_line(repo, SLUG, "topic")
+    follow = pin_window.follow_orphaned_pin(repo, pin_commit, "topic", upstream_refs=line.upstream_refs)
+
+    assert follow.sha is None, "the copy on 'release' is the upstream's, not the Mission's"

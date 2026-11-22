@@ -260,6 +260,7 @@ def _run_mission_repair(
     """Execute the --fix dispatch arm: repair repo and emit the manifest."""
     from specify_cli.migration.mission_state import (
         LANES_REBUILT_ACTION,
+        LANES_REBUILT_PIN_UNSET_ACTION,
         LANES_REBUILT_WITH_TARGET_TIP_ACTION,
         MissionStateRepairError,
         RepairReport,
@@ -320,12 +321,25 @@ def _run_mission_repair(
                 console.print(f"  - {mission_result.mission_slug}", soft_wrap=True)
         # #7210: a rebuild with no derivable planning base records the live target tip, an
         # empty evidence window for work already committed there. Say so, never silently.
+        # #7297 item 6: both pin fallbacks warn and name the next step; neither is silent.
         tip_pinned = [m for m in report.missions if LANES_REBUILT_WITH_TARGET_TIP_ACTION in m.meta_actions]
         for mission_result in tip_pinned:
             console.print(
                 f"[yellow]⚠[/yellow] {mission_result.mission_slug}: no planning commit could be derived from git (the "
-                "Mission's tasks/WP*.md are not in the target branch's history), so the rebuilt lanes.json records the "
-                "live target-branch tip; work already committed there falls outside the evidence window.",
+                "Mission's task files are not in its branch's history), so the rebuilt lanes.json records the live "
+                "branch tip; work already committed there falls outside the evidence window. Next: set "
+                "planning_commit_sha in lanes.json to the commit just before the first implementation commit, or "
+                f"commit the task files and run: spec-kitty agent mission finalize-tasks --mission {mission_result.mission_slug} "
+                "--refresh-planning-commit",
+                soft_wrap=True,
+            )
+        pin_unset = [m for m in report.missions if LANES_REBUILT_PIN_UNSET_ACTION in m.meta_actions]
+        for mission_result in pin_unset:
+            console.print(
+                f"[yellow]⚠[/yellow] {mission_result.mission_slug}: the rebuilt lanes.json records no planning commit: "
+                "none could be derived from git and the branch tip could not be read. The evidence gates refuse "
+                "EVIDENCE_WINDOW_UNCOMPUTABLE until one is recorded. Next: make the Mission's branch resolvable "
+                f"(fetch or create it), then run: spec-kitty agent mission finalize-tasks --mission {mission_result.mission_slug}",
                 soft_wrap=True,
             )
         # #4928 WP03: the audit trail (manifest + any quarantine) now lives at a

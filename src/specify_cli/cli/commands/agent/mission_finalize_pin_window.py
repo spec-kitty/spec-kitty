@@ -59,8 +59,9 @@ def resolve_pin_line(repo_root: Path, mission_slug: str, target_branch: str, *, 
     """The pin branch line of *mission_slug*, read from its stored ``meta.json`` (#7297 item 2).
 
     ``upstream_refs`` are the target branch and the repository's primary branch, less the pin line
-    itself: a rebase moves a Mission onto one of them, and a copy of the planning commit already
-    there is that upstream's, not the Mission's.
+    itself, each with its remote-tracking refs (``refs/remotes/<remote>/<name>``): a rebase moves a
+    Mission onto one of them, often ``origin/main`` while the local ``main`` is stale, and a copy of
+    the planning commit already there is that upstream's, not the Mission's (#7793 review B2).
     """
     from mission_runtime import is_single_branch
 
@@ -75,8 +76,23 @@ def resolve_pin_line(repo_root: Path, mission_slug: str, target_branch: str, *, 
     upstream: tuple[str, ...] = ()
     if single_branch:
         primary = resolve_primary_branch(repo_root, bias=False)
-        upstream = tuple(dict.fromkeys(ref for ref in (target_branch, primary) if ref and ref != branch))
+        names = [ref for ref in (target_branch, primary) if ref and ref != branch]
+        upstream = tuple(dict.fromkeys([*names, *_remote_tracking_refs(repo_root, names)]))
     return _PinLine(branch=branch, single_branch=single_branch, upstream_refs=upstream)
+
+
+def _remote_tracking_refs(repo_root: Path, names: list[str]) -> list[str]:
+    """Every ``refs/remotes/<remote>/<name>`` that exists for *names* (none when git cannot list them)."""
+    from kernel.git import GitCommandError, run_git
+
+    if not names:
+        return []
+    try:
+        listed = run_git(repo_root, "for-each-ref", "--format=%(refname)", "refs/remotes").stdout.decode("utf-8", "replace").split()
+    except GitCommandError:
+        return []
+    wanted = set(names)
+    return [ref for ref in listed if ref.count("/") >= 3 and ref.split("/", 3)[3] in wanted]
 
 
 def _owned_patterns_by_wp(planning_dir: Path) -> dict[str, tuple[str, ...]]:
