@@ -1,7 +1,7 @@
 {
-  "event_count": 9,
-  "last_event_id": "01M81TD85N7ZDXV06CS77KG44Y",
-  "materialized_at": "2026-11-22T14:26:21.476741+00:00",
+  "event_count": 10,
+  "last_event_id": "01M81THV3D1EH0PYN966YWJTBR",
+  "materialized_at": "2026-11-22T14:28:51.949590+00:00",
   "mission_number": "",
   "mission_slug": "single-branch-planning-pin-rebase-01M81KRS",
   "mission_type": "software-dev",
@@ -12,8 +12,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 1
   },
@@ -25,12 +25,13 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude::implementer-ivan",
-      "lane": "in_progress",
-      "last_event_id": "01M81TD85N7ZDXV06CS77KG44Y",
-      "last_transition_at": "2026-11-22T14:26:21.476741+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M81THV3D1EH0PYN966YWJTBR",
+      "last_transition_at": "2026-11-22T14:28:51.949590+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "- 2026-11-22T13:28:07Z – claude::implementer-ivan – shell_pid=10953 – Out-of-map edits, each tied to the goal: mission_finalize_pin_window.py (new helper module, so the 1376-line pin module does not grow); lanes/models.py + lanes/compute_and_persist.py + mission_finalize_lanes.py (the planning_commit_derived marker, research R4 revised: the stateless freeze froze timely pins and broke R17); test_finalize_tasks_commit_surface.py (two stale pins re-pinned to #7297 item 3, plus the SC-003 end-to-end test). Tests: make test-fast 3176 passed/7 skipped; blast radius 1587 passed/1 skipped; arch gates test_finalize_refresh_pin_authority + test_no_legacy_terminology 103 passed."
+        "- 2026-11-22T13:28:07Z – claude::implementer-ivan – shell_pid=10953 – Out-of-map edits, each tied to the goal: mission_finalize_pin_window.py (new helper module, so the 1376-line pin module does not grow); lanes/models.py + lanes/compute_and_persist.py + mission_finalize_lanes.py (the planning_commit_derived marker, research R4 revised: the stateless freeze froze timely pins and broke R17); test_finalize_tasks_commit_surface.py (two stale pins re-pinned to #7297 item 3, plus the SC-003 end-to-end test). Tests: make test-fast 3176 passed/7 skipped; blast radius 1587 passed/1 skipped; arch gates test_finalize_refresh_pin_authority + test_no_legacy_terminology 103 passed.",
+        "- 2026-11-22T14:26:28Z – claude::implementer-ivan – Cycle 1 fold (79bd20ef): B1 explicit refresh clears planning_commit_derived; B2 patch-id follow ignores copies reachable from target/primary (refuses PLANNING_PIN_NO_PATCH_ID_MATCH naming the upstream; residual: an upstream that is neither, for the ADR); B3 SC-004 asserts the window content, dropped the test that passed on base; B4 dead symbols removed (test_no_dead_symbols green); N2 per-WP guard; N3 docstring. N1 (doctor marker + pin line, tasks_finalize capture) and N4 (meta vs lanes.json mission_branch after landing) routed to WP02. Red witnessed: B1/B2 red on f134aeba, SC-004 red on 4a6b8cc4. Tests: blast radius + arch gates 1733 passed/1 skipped; make test-fast 3176 passed/7 skipped."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
