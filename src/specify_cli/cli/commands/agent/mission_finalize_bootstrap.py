@@ -31,7 +31,8 @@ from specify_cli.frontmatter import FrontmatterManager, locked_update_frontmatte
 from specify_cli.ownership import infer_ownership
 from specify_cli.ownership.audit_targets import validate_audit_coverage
 from specify_cli.ownership.inference import detect_post_integration_acceptance
-from specify_cli.ownership.models import OwnershipManifest
+from specify_cli.ownership.kind_normalisation import KindRewrite
+from specify_cli.ownership.models import OwnershipManifest, WorkProductKind
 from specify_cli.ownership.validation import (
     GlobValidationResult,
     validate_glob_matches,
@@ -65,6 +66,9 @@ from specify_cli.cli.commands.agent.mission_finalize_seams import (
     OWNERSHIP_CONTRADICTION_CODE_CHANGE_EMPTY_OWNED_FILES,
     TASKS_MD_FILENAME,
 )
+
+
+_WP_FILE_ID_PATTERN = r"^(WP\d{2})(?:[-_.]|$)"
 
 
 def _enforce_charter_activation_gate(wp_meta: WPMetadata, wp_id: str, repo_root: Path) -> None:
@@ -276,7 +280,7 @@ def _bootstrap_one_wp(
 
     from specify_cli.cli.commands.agent import mission_finalize as _mf
 
-    wp_id_match = re.match(r"^(WP\d{2})(?:[-_.]|$)", wp_file.name)
+    wp_id_match = re.match(_WP_FILE_ID_PATTERN, wp_file.name)
     if not wp_id_match:
         return None
     wp_id: str = wp_id_match.group(1)
@@ -451,19 +455,106 @@ def _validate_owned_files_not_in_mission_specs(inmemory_frontmatter: dict[str, W
     invalid_owned_files = _invalid_mission_specs_owned_files(inmemory_frontmatter)
     if not invalid_owned_files:
         return
+    _mf._refuse_kitty_specs_owned_files(invalid_owned_files, json_output=json_output)
+
+
+def _refuse_kitty_specs_owned_files(invalid_owned_files: list[dict[str, str]], *, json_output: bool, remedy: str | None = None) -> None:
+    """Render the ``INVALID_WP_OWNED_FILES_KITTY_SPECS`` refusal (with *remedy* when given) and exit 1."""
+
+    from specify_cli.cli.commands.agent import mission_finalize as _mf
+
     error_msg = "WP owned_files cannot include paths under kitty-specs/"
     payload: dict[str, object] = {
         "error": error_msg,
         "error_code": INVALID_WP_OWNED_FILES_KITTY_SPECS,
         "invalid_owned_files": invalid_owned_files,
     }
+    if remedy is not None:
+        payload["remedy"] = remedy
     if json_output:
         _mf._emit_json(payload)
     else:
         _mf.console.print(f"[red]Error:[/red] {error_msg}")
         for invalid in invalid_owned_files:
             _mf.console.print(f"  - {invalid['wp_id']}: {invalid['path']}")
+        if remedy is not None:
+            _mf.console.print(f"[yellow]Remedy:[/yellow] {remedy}")
     raise typer.Exit(1) from None
+
+
+_MIXED_WP_SPLIT_REMEDY = (
+    "In a lane topology a work package that owns paths outside kitty-specs/ is recorded as code_change and gets its own lane, "
+    "so it cannot also own kitty-specs/ paths. Split {wp_ids}: move the kitty-specs/ paths to a planning_artifact work package "
+    "that owns only kitty-specs/ paths, keep the other paths in a separate work package, then re-run finalize-tasks."
+)
+
+
+def _refuse_mixed_normalised_wps(
+    mixed: Sequence[KindRewrite],
+    manifests: Mapping[str, OwnershipManifest],
+    *,
+    json_output: bool,
+) -> None:
+    """Operator ruling "Refuse, split it" (#7809): a rewritten WP that also owns ``kitty-specs/`` paths refuses."""
+    if not mixed:
+        return
+    invalid = [
+        {"wp_id": rewrite.wp_id, "path": path}
+        for rewrite in mixed
+        for path in manifests[rewrite.wp_id].owned_files
+        if path not in rewrite.paths_outside_kitty_specs
+    ]
+    remedy = _MIXED_WP_SPLIT_REMEDY.format(wp_ids=", ".join(rewrite.wp_id for rewrite in mixed))
+    _refuse_kitty_specs_owned_files(invalid, json_output=json_output, remedy=remedy)
+
+
+_KIND_NORMALISED_NOTICE = "Notice: {wp_id} owns paths outside kitty-specs/ ({paths}); recorded as code_change so it gets its own lane."
+
+
+def _report_kind_rewrites(rewrites: Sequence[KindRewrite], *, json_output: bool) -> None:
+    """One ``Notice:`` line per rewritten WP on stderr (human output only; JSON carries ``kind_normalised``)."""
+
+    from specify_cli.cli.commands.agent import mission_finalize as _mf
+
+    if json_output:
+        return
+    for rewrite in rewrites:
+        notice = _KIND_NORMALISED_NOTICE.format(wp_id=rewrite.wp_id, paths=", ".join(rewrite.paths_outside_kitty_specs))
+        _mf.err_console.print(notice, markup=False)
+
+
+def _wp_file_by_id(wp_files: Sequence[Path]) -> dict[str, Path]:
+    """Map each ``WP##`` id to its task file."""
+    by_id: dict[str, Path] = {}
+    for wp_file in wp_files:
+        match = re.match(_WP_FILE_ID_PATTERN, wp_file.name)
+        if match:
+            by_id[match.group(1)] = wp_file
+    return by_id
+
+
+def _persist_kind_rewrites(
+    rewrites: Sequence[KindRewrite],
+    tasks_dir: Path,
+    wp_files: Sequence[Path],
+    wp_frontmatters: Mapping[str, WPMetadata],
+    wp_bodies: Mapping[str, str],
+    *,
+    repo_root: Path | None = None,
+) -> None:
+    """Write ``execution_mode: code_change`` to each rewritten WP's task file in *tasks_dir* (#7809).
+
+    Applied as a field delta under the Mission write lock, like the bootstrap
+    flush; the caller never calls it under ``--validate-only`` or a refresh-only run.
+    """
+    by_id = _wp_file_by_id(wp_files)
+    for rewrite in rewrites:
+        source = by_id.get(rewrite.wp_id)
+        if source is None:
+            continue
+        updated = wp_frontmatters[rewrite.wp_id].builder().set(execution_mode=WorkProductKind.CODE_CHANGE.value).build()
+        delta: dict[str, object] = {"execution_mode": WorkProductKind.CODE_CHANGE.value}
+        _flush_one_frontmatter_write(tasks_dir / source.name, updated, wp_bodies.get(rewrite.wp_id, ""), delta, repo_root=repo_root)
 
 
 def _apply_finalize_delta(frontmatter: dict[str, object], wp_file: Path, delta: dict[str, object]) -> None:
@@ -516,7 +607,7 @@ def _gather_validation_frontmatter(wp_files: list[Path], state: _BootstrapState)
     wp_frontmatters: dict[str, WPMetadata] = {}
     wp_bodies: dict[str, str] = {}
     for wp_file in wp_files:
-        wp_id_match = re.match(r"^(WP\d{2})(?:[-_.]|$)", wp_file.name)
+        wp_id_match = re.match(_WP_FILE_ID_PATTERN, wp_file.name)
         if not wp_id_match:
             continue
         wp_id = wp_id_match.group(1)

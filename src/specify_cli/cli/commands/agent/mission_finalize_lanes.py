@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from specify_cli.lanes.compute import LaneMembershipFrozenError
     from specify_cli.lanes.frozen_membership import FrozenLaneMembership
     from specify_cli.lanes.topology_settlement import SettlementHandle, TopologyDecision
+    from specify_cli.ownership.kind_normalisation import KindNormalisation
 
 
 def _cause_detail(cause: BaseException) -> str:
@@ -696,3 +697,48 @@ def _apply_topology_settlement(
         )
 
     return settle_topology(repo_root, planning_dir, meta, decision, write_lanes=_write_lanes)
+
+
+# ---------------------------------------------------------------------------
+# Kind normalisation in lane topologies (#7809, ADR 2026-11-06-3 Amendment 2026-11-22)
+# ---------------------------------------------------------------------------
+
+
+def _started_wp_ids_for_normalisation(planning_dir: Path, repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None) -> frozenset[str]:
+    """The history-started WPs, read like the frozen preflight: a first finalize (no ``lanes.json``) has none."""
+    from specify_cli.lanes.persistence import read_lanes_json
+
+    if read_lanes_json(planning_dir) is None:
+        return frozenset()
+    return _read_started_wp_ids(repo_root, mission_slug, owned=owned)
+
+
+def _kind_normalisation_for(
+    planning_dir: Path,
+    repo_root: Path,
+    mission_slug: str,
+    lane_wp_manifests: dict[str, OwnershipManifest],
+    *,
+    owned: OwnedCheckout | None,
+) -> KindNormalisation:
+    """Normalise the lane inputs' kinds; the started set is read only when some WP would be rewritten."""
+    from specify_cli.ownership.kind_normalisation import normalise_kinds_for_lane_topology
+
+    candidate = normalise_kinds_for_lane_topology(lane_wp_manifests, started_wp_ids=frozenset())
+    if not candidate.rewritten:
+        return candidate
+    started = _started_wp_ids_for_normalisation(planning_dir, repo_root, mission_slug, owned=owned)
+    if not started:
+        return candidate
+    return normalise_kinds_for_lane_topology(lane_wp_manifests, started_wp_ids=started)
+
+
+def _is_lane_topology_this_run(meta: dict[str, object] | None, planning_dir: Path, decision: TopologyDecision | None) -> bool:
+    """True when this run's effective topology has lanes: settled now to one, or an explicit/settled non-``single_branch``."""
+    from specify_cli.migration.backfill_topology import topology_from_meta
+
+    if decision is not None:
+        single_branch: str = MissionTopology.SINGLE_BRANCH.value
+        return str(decision.to_topology) != single_branch
+    topology: MissionTopology = topology_from_meta(meta or {}, planning_dir)
+    return topology is not MissionTopology.SINGLE_BRANCH
