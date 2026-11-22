@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-09-20'
-updated: '2026-09-20T00:00:00Z'
+updated: '2026-11-22T00:00:00Z'
 ---
 
 ## Context and Problem Statement
@@ -168,6 +168,44 @@ than discovered only after a validation failure.
 - The `merge_gates.py` comment naming "WP09" is left in place (out of this WP's owned
   files) pending WP03's pass over that module; this ADR is the authoritative record that
   its `not_applicable` intent is superseded by `IssueMatrixVerdict.NOT_APPLICABLE`.
+
+## Amendment 2026-11-22 — scope decides; colour values and commit citations are not owed
+
+Mission `issue-matrix-over-matching-01M81KK0` (#7808, #5297, #5516; operator rulings
+"One Mission, all three" and "Scope decides") narrows what D3 gates. The FR-011
+fail-safe default, under which an unmarked bare `#NNNN` gates, now holds **inside the
+gating scope only**:
+
+- **Gating scope.** References in `spec.md` and in `tasks/*.md` keep the FR-011
+  default. A reference found only in another scanned artefact (`plan.md`,
+  `research.md`, `analysis-report.md`, `contracts/*.md`) is *cited*: it classifies
+  as `context_only` (non-gating) and stays in the audit trail. A planted-break label
+  ("Break #N"), a research-table id and background prose therefore need no row.
+  Discovery marks each `Occurrence` with `in_gating_scope`, and `classify_occurrence`
+  remains the one classifier that reads it.
+- **Closing keywords gate everywhere.** A non-negated closing keyword
+  (`close`/`fix`/`resolve` family, optional colon) that leads into a citation makes
+  that occurrence an `implementation_target` in any scanned artefact. It takes
+  precedence over every demoting rule, including the commit rule below. The same
+  helper feeds the Mission source-issue derivation (#7011), so the two cannot drift.
+- **Commit citations.** A backticked 7-40 character hex SHA that contains at least one
+  letter `a-f` and sits within 16 characters of the citation, on either side, classes
+  the occurrence as `pr_or_commit_ref`, as in ``(`<sha>`, #N)``. An all-digit backticked
+  token stays gating.
+- **Number filter.** No issue-number pattern accepts a leading zero, so `#000` and
+  `#000000` are no longer issue 0. An all-digit hex colour in CSS declaration form is
+  not a reference. Declaration form means a lower-case colour-bearing property or a
+  `--custom-property`, then a colon, then the value, directly before the `#`. A CSS
+  word elsewhere on the line does not filter anything, because a 4-digit `#RGBA`
+  colour is indistinguishable from a 4-digit issue. The closing-keyword and
+  source-description patterns now read numbers only through `_GH_ISSUE_PATTERN` and
+  `_matched_issue_number`, leaving one number-recognition authority.
+
+`GatingClass` is unchanged. "Cited" is the existing `context_only` value, so persisted
+rows and scaffold verdicts keep their vocabulary. D2, D4 and D5 are unaffected. The
+default inside the gating scope still fails safe: no reference in `spec.md` or `tasks/`
+that gated before stops gating, unless it is a colour, a leading-zero number or a
+commit citation. Tests: `tests/tasks/test_issue_matrix_over_matching.py`.
 
 ## Alternatives Considered
 
