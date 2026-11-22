@@ -1,20 +1,20 @@
 {
-  "event_count": 21,
-  "last_event_id": "01M816RY55AEK3V68ZADRBG43Z",
-  "materialized_at": "2026-11-22T08:43:12.933258+00:00",
+  "event_count": 22,
+  "last_event_id": "01M817DBRQ07JRG2FXZXS15QWP",
+  "materialized_at": "2026-11-22T08:54:22.231075+00:00",
   "mission_number": "",
   "mission_slug": "clone-and-ephemeral-state-gates-01M8127W",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 1,
+    "approved": 2,
     "blocked": 0,
     "canceled": 1,
     "claimed": 0,
     "done": 0,
     "for_review": 2,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {
@@ -43,15 +43,21 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_review",
-      "last_event_id": "01M8168Q63B5PRVRVP37VPKJYE",
-      "last_transition_at": "2026-11-22T08:34:21.507556+00:00",
+      "lane": "approved",
+      "last_event_id": "01M817DBRQ07JRG2FXZXS15QWP",
+      "last_transition_at": "2026-11-22T08:54:22.231075+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-22T08:11:09Z – claude – shell_pid=9632 – Red (0f94e2fe, test only): pytest tests/specify_cli/coordination/test_review_remote_only_lane_7806.py -> 2 failed, 1 passed (create arm and DESTROYED_LANE arm failed with 'LANE_AUTO_REBASE_FAILED ... is not a local branch'; no-ref control passed). Green (c0e5146b): same file plus an origin-check-off arm -> 4 passed. New kernel helper src/kernel/git/tracking_branch.py (owning_tracking_ref, ensure_local_tracking_branch, is_local_head; refs only, no remote contact); surface_resolver #5936 helpers and resolve_lane_base_ref delegate to it (origin fallback kept; PR #7804 tests unchanged and green); _reconcile_review_lane creates the lane with --track before the claim, refuses DESTROYED_LANE for a lane tip the tracking ref lacks, warns when not refreshed; lifecycle_sync untouched. Tests (PYTHONPATH=lane/src, root .venv python): tests/kernel/git/test_tracking_branch.py 17 passed; tests/specify_cli/coordination/ + tests/kernel/ (-n auto --dist loadfile) 1786 passed, 14 skipped; tests/lanes/test_base_ref_tracking_ref_builder.py tests/lanes/test_lane_identity.py tests/specify_cli/git/test_origin_freshness.py tests/specify_cli/cli/commands/agent/test_review_lane_from_remote.py tests/specify_cli/cli/commands/test_doctor_coordination.py tests/specify_cli/cli/commands/test_coordination_remedy_5113.py + gates test_remote_contact_owner.py test_lane_checkout_single_seam.py test_layer_rules.py test_no_dead_symbols.py test_evidence_gates_check_origin.py: 326 passed; make test-fast: 3170 passed, 7 skipped. ruff check, ruff format --check --force-exclude, mypy clean; changelog style check 0 errors. Out-of-matrix (nightly-only), run locally, unmodified: tests/specify_cli/cli/commands/agent/test_review_lane_from_remote.py, tests/specify_cli/cli/commands/test_doctor_coordination.py, tests/specify_cli/cli/commands/test_coordination_remedy_5113.py. No out-of-matrix test file changed.",
         "Ready for review: lane pushed at c0e5146b"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/clone-and-ephemeral-state-gates-01M8127W-coord/kitty-specs/clone-and-ephemeral-state-gates-01M8127W/tasks/WP02-remote-only-lane-branch/review-cycle-1.md",
+        "reference": "review-cycle://clone-and-ephemeral-state-gates-01M8127W/WP02-remote-only-lane-branch/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 935,
       "shell_pid_created_at": "1795336449.88",
