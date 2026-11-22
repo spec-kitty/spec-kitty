@@ -33,7 +33,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
-from kernel.git import GitCommandError, run_git
+from kernel.git import GitCommandError, NameStatusEntry, changed_entries, run_git
 from specify_cli.consolidation.git_probes import GitProbeError, commit_parents, commits_in_range, patch_id_of
 from specify_cli.lanes.branch_naming import code_lane_branch_name
 
@@ -44,6 +44,9 @@ __all__ = [
     "resolve_finalize_planning_base",
     "resolve_planning_base_commit",
 ]
+
+#: git's empty tree: the "parent" a root commit's changes are read against.
+_EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 
 PatchIdMiss = Literal["no_patch_id", "no_match", "ambiguous", "upstream_only"]
 
@@ -214,36 +217,25 @@ def _last_appearance_base(repo_root: Path, branch: str, pathspecs: tuple[str, ..
     try:
         if run_git(repo_root, "rev-parse", "--is-shallow-repository").stdout.strip() == b"true":
             return None
-        log = run_git(
-            repo_root,
-            "log",
-            "--first-parent",
-            "--diff-merges=first-parent",
-            "--no-renames",
-            "--reverse",
-            "--format=%x00%H",
-            "--name-status",
-            branch,
-            "--",
-            *pathspecs,
-        )
+        history = run_git(repo_root, "log", "--first-parent", "--reverse", "--format=%H", branch, "--", *pathspecs)
     except GitCommandError:
         return None
+    commits = [line.strip() for line in history.stdout.decode("utf-8", "replace").splitlines() if line.strip()]
     present: set[str] = set()
     introducing: str | None = None
-    for record in log.stdout.decode("utf-8", "replace").split("\0")[1:]:
-        lines = [line for line in record.splitlines() if line.strip()]
-        if not lines:
-            continue
+    for commit in commits:
+        try:
+            entries = _first_parent_changes(repo_root, commit, pathspecs)
+        except (GitCommandError, GitProbeError, OSError):
+            return None
         was_empty = not present
-        for status_line in lines[1:]:
-            status, _, path = status_line.partition("\t")
-            if status.startswith("D"):
-                present.discard(path)
+        for entry in entries:
+            if entry.status.startswith("D"):
+                present.discard(str(entry.path))
             else:
-                present.add(path)
+                present.add(str(entry.path))
         if was_empty and present:
-            introducing = lines[0].strip()
+            introducing = commit
     if introducing is None:
         return None
     try:
@@ -251,6 +243,14 @@ def _last_appearance_base(repo_root: Path, branch: str, pathspecs: tuple[str, ..
     except (GitProbeError, OSError):
         return None
     return parents[0] if parents else introducing
+
+
+def _first_parent_changes(repo_root: Path, commit: str, pathspecs: tuple[str, ...]) -> tuple[NameStatusEntry, ...]:
+    """*commit*'s changes to *pathspecs* against its first parent (a root commit: against nothing)."""
+    parents = commit_parents(repo_root, commit)
+    base = parents[0] if parents else _EMPTY_TREE
+    entries: tuple[NameStatusEntry, ...] = changed_entries(repo_root, base, commit, pathspecs=pathspecs, glob=True)
+    return entries
 
 
 def resolve_finalize_planning_base(repo_root: Path, target_branch: str, mission_slug: str) -> str | None:
