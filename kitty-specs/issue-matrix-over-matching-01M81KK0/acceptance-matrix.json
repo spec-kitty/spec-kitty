@@ -18,10 +18,10 @@
       "criterion_id": "FR-002",
       "description": "Verify FR-002 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/tasks/test_issue_matrix_over_matching.py::test_research_colours_are_no_reference_7808, ::test_declaration_forms_are_filtered_7808, ::test_real_references_survive_the_colour_filter_7808 (incl. review-cycle-1 B1 rows)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-22T13:30:11.186830+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
