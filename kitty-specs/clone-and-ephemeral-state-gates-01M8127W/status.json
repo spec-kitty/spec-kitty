@@ -96,7 +96,7 @@
     },
     "WP05": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": "claude::reviewer-renata",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 0,
@@ -107,7 +107,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-22T08:01:22Z – claude – shell_pid=8929 – Red: commit 24e00c12 (test only). PYTHONPATH=<lane>/src PWHEADLESS=1 .venv/bin/python -m pytest tests/review/test_planning_range_bookkeeping_only_7759.py -> 1 failed, 1 passed (bookkeeping-only range was DERIVED). Green: f917ee0f (wp_range.py: RangeGap.PLANNING_RANGE_BOOKKEEPING_ONLY via _bookkeeping_only_planning_range, reusing _count + the range's own _bookkeeping_excludes, no third definition; context_block.py gap description), 756ee0d5 (ADR 2026-11-08-2 Amendment 2026-11-22, docs/changelog/unreleased/7759.fixed.md). New file -> 8 passed. Blast: pytest -n 8 --dist loadfile tests/review tests/specify_cli/review tests/agent/test_workflow_mixed_dependency_review_context.py tests/specify_cli/bulk_edit/test_review_gate_single_branch_range.py tests/specify_cli/cli/commands/agent/test_workflow_cores.py tests/integration/review/test_review_range_acceptance.py tests/characterization/test_trio_pure_cores.py tests/architectural/test_no_legacy_terminology.py -> 1252 passed, 8 skipped, 4 failed (test_verdict_commit_queue x3, test_verdict_status_lock_bound x1: lock-timing tests run concurrently with make test-fast; re-run serially -n0 -> 17 passed, 3 skipped; unrelated to this diff). make test-fast -> 3170 passed, 7 skipped. ruff check/format --force-exclude clean; mypy clean on touched files (11 pre-existing errors only in imported tests/specify_cli/cli/commands/agent/test_finalize_topology_settlement.py). check_changelog_style 0 errors. Out-of-matrix (nightly-only), run locally: tests/specify_cli/review, tests/specify_cli/cli/commands/agent/test_workflow_cores.py, tests/integration/review/test_review_range_acceptance.py; no file under those dirs changed. Note: the ADR amendment cross-references ADR 2026-11-06-3 Amendment 2026-11-22 (docs WPs get a lane), owned by another WP.",
-        "Ready for review"
+        "Ready for review",
+        "Review passed: FR-013 met. Red-first verified (24e00c12 fails 1/2 on DERIVED vs UNAVAILABLE). Green: new file 8 passed; tests/review + tests/specify_cli/review + range/context consumers + integration/review 1386 passed, 8 skipped; make test-fast 3170 passed. ruff/format/mypy clean. Bookkeeping definition reused (bookkeeping_pathspecs == _bookkeeping_excludes), author-written kitty-specs content still counts. ADR 2026-11-06-3 Amendment 2026-11-22 cross-ref resolves on lane-d (WP04), same Mission landing. Nits: redundant parens in context_block gap text; test reuses helpers from an out-of-matrix test module."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
