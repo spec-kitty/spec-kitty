@@ -96,6 +96,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#7801": {
+      "evidence_ref": "context only: cited in WP prompts and traces as the out-of-matrix test disclosure rule; no change to it in this Mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#7802": {
       "evidence_ref": "Mission clone-and-ephemeral-state-gates-01M8127W WP03",
       "fr": null,
