@@ -245,21 +245,30 @@ def test_single_branch_approval_is_bounded_and_a_lanes_planning_lane_is_not(two_
 
 
 @pytest.mark.fast
-def test_stamp_refusal_names_missing_then_off_branch_stamps(two_missions: Path) -> None:
+def test_stamp_resolution_names_missing_then_off_branch_stamps(two_missions: Path) -> None:
     """T063: the stamp half of ``check_lane`` -- every missing stamp together, else the first stamp the branch does not reach."""
     on_branch = _git(two_missions, "rev-parse", f"refs/heads/{_SB_BRANCH}")
     _git(two_missions, "checkout", "-q", _TARGET)
     off_branch = _commit(two_missions, "elsewhere.txt", "x\n", "off the Mission branch")
 
-    missing = approved_bound.stamp_refusal(two_missions, stamps={"WP01": None, "WP02": on_branch, "WP03": None}, lane_id="lane-planning", branch=_SB_BRANCH)
+    missing = approved_bound._resolve_stamps(
+        two_missions, stamps={"WP01": None, "WP02": on_branch, "WP03": None}, presync_stamps=None, lane_id="lane-planning", branch=_SB_BRANCH, lane_tip=_SB_BRANCH
+    )[0]
     assert missing is not None
     assert (missing.code, missing.wp_ids) == (approved_bound.BoundRefusalCode.APPROVAL_STAMP_MISSING, ("WP01", "WP03"))
 
-    off = approved_bound.stamp_refusal(two_missions, stamps={"WP01": on_branch, "WP02": off_branch}, lane_id="lane-planning", branch=_SB_BRANCH)
+    off = approved_bound._resolve_stamps(
+        two_missions, stamps={"WP01": on_branch, "WP02": off_branch}, presync_stamps=None, lane_id="lane-planning", branch=_SB_BRANCH, lane_tip=_SB_BRANCH
+    )[0]
     assert off is not None
     assert (off.code, off.wp_ids, off.stamp) == (approved_bound.BoundRefusalCode.APPROVAL_STAMP_NOT_ON_LANE, ("WP02",), off_branch)
 
-    assert approved_bound.stamp_refusal(two_missions, stamps={"WP01": on_branch}, lane_id="lane-planning", branch=_SB_BRANCH) is None
+    assert (
+        approved_bound._resolve_stamps(
+            two_missions, stamps={"WP01": on_branch}, presync_stamps=None, lane_id="lane-planning", branch=_SB_BRANCH, lane_tip=_SB_BRANCH
+        )[0]
+        is None
+    )
 
 
 # ---------------------------------------------------------------------------
