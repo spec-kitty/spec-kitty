@@ -144,7 +144,7 @@ def _any_work_package_left_planned(surface: object) -> bool:
     """
     from specify_cli.lanes.persistence import any_work_package_left_planned
     from specify_cli.status import StoreError
-    from specify_cli.status.read_surface import StatusReadSurface, read_status_stream
+    from specify_cli.status import StatusReadSurface, read_status_stream
 
     if not isinstance(surface, StatusReadSurface):
         return False
