@@ -200,10 +200,15 @@ gating scope only**:
   `#000000` are no longer issue 0. Digits are ASCII only. An all-digit hex colour in CSS
   declaration form is not a reference. Declaration form means a listed lower-case
   colour-bearing property name (`color`, `background`, `border-color`, `fill`, and so
-  on) or a `--custom-property`, as a whole token. Then come a colon, the value, and a
-  declaration terminator (`;`, `}`, `!important`, or a closing backtick or quote).
-  Prose such as `Backfill: #N`, `Background: #N` or `background: #N reported` stays
-  a reference. A CSS
+  on) or a `--custom-property`, as a whole token. The property must start a
+  declaration: at line start, after `{`, `;`, a backtick or a quote, or after
+  whitespace inside a `{` block opened earlier on the line. Then come a colon, the
+  value, and a declaration terminator (`;`, `}`, `!important`, or a closing backtick
+  or quote). The value must have a hex-colour length (3, 4, 6 or 8 digits). Prose
+  such as `Backfill: #N`, `Border-color: #N tracks this`, `Fix text color: #N;` or
+  `fill: #12345;` stays a reference. This is narrower than plan D1 of the Mission,
+  whose regex was case-insensitive and unanchored; review cycle 1 found that version
+  dropped real references. A CSS
   word elsewhere on the line does not filter anything, because a 4-digit `#RGBA`
   colour is indistinguishable from a 4-digit issue. The closing-keyword and
   source-description patterns now read numbers only through `_GH_ISSUE_PATTERN` and

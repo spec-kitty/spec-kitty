@@ -111,6 +111,22 @@ def test_leading_zero_is_never_an_issue_number_7808(text: str) -> None:
         ("- background: #4521 reported in triage", [4521]),
         ("outline: #4521", [4521]),
         ("| border | #4521 |", [4521]),
+        # Review cycle 1 (B1): every row of the reviewer's table, each with a
+        # terminator added where the original lacked one, so the declaration-start
+        # anchor and the colour-length check are what keep them.
+        ("Border-color: #4521 tracks this", [4521]),
+        ("Recolor: #4521 is broken", [4521]),
+        ("Fix text color: #4521", [4521]),
+        ("Fix text color: #4521;", [4521]),
+        ("See the outline: #4521", [4521]),
+        ("See the outline: #4521;", [4521]),
+        ("Fix the shadow: #4521 rendering", [4521]),
+        ("- shadow: #4521 follow", [4521]),
+        ("--note: #4521", [4521]),
+        ("Run with --note: #4521;", [4521]),
+        ("fill: #12345", [12345]),
+        ("fill: #12345;", [12345]),
+        ("a { color: red } then color: #4521;", [4521]),
     ],
 )
 def test_real_references_survive_the_colour_filter_7808(text: str, expected: list[int]) -> None:
@@ -126,6 +142,9 @@ def test_real_references_survive_the_colour_filter_7808(text: str, expected: lis
         "background: #112233 !important;",
         'style="color: #112233"',
         "box-shadow: #112233;",
+        "  color: #1122;",
+        "a {color: #112;}",
+        "`fill: #11223344`",
     ],
 )
 def test_declaration_forms_are_filtered_7808(text: str) -> None:

@@ -206,25 +206,49 @@ _SAME_REPO_SLUGS = frozenset({_CANONICAL_REPO_SLUG.casefold()}) | _LEGACY_REPO_S
 #   * the property must start a token (``(?<![\w-])``) and be one of the listed
 #     names, so ``Backfill: #4521`` or ``tasks-outline: #7808`` stay references;
 #   * the name is lower case (CSS convention), so ``Background: #4521`` stays one;
-#   * without a terminator (``background: #4521 reported``) it stays one.
+#   * without a terminator (``background: #4521 reported``) it stays one;
+#   * the property must START a declaration: the start of the line (after any
+#     indentation), or right after ``{``, ``;``, a backtick or a quote, or after
+#     plain whitespace only inside a ``{`` block opened earlier on the line --
+#     so prose such as ``Fix text color: #4521;`` stays a reference;
+#   * the value has a valid hex-colour length (3, 4, 6 or 8 digits), so
+#     ``fill: #12345;`` stays a reference.
 _CSS_COLOUR_DECLARATION_PREFIX = re.compile(
     r"(?<![\w-])(?:--[\w-]+|color|background(?:-color)?|border(?:-(?:top|right|bottom|left|block|inline))?(?:-color)?"
     r"|outline(?:-color)?|fill|stroke|(?:box|text)-shadow|caret-color|accent-color|column-rule(?:-color)?"
     r"|text-decoration(?:-color)?)\s*:\s*$"
 )
 _CSS_DECLARATION_TERMINATOR = re.compile(r"\s*(?:[;}`\"']|!important)")
+_CSS_DECLARATION_OPENERS = frozenset("{;`\"'")
+_CSS_HEX_COLOUR_LENGTHS = frozenset({3, 4, 6, 8})
 # How much text before the ``#`` the declaration check looks at; a property name
 # plus its colon never needs more, and the bound keeps the check per-match O(1).
 _CSS_DECLARATION_LOOKBEHIND = 64
 
 
+def _starts_a_declaration(text: str, property_start: int) -> bool:
+    """True iff a CSS property beginning at ``property_start`` opens a declaration (#7808)."""
+    line_start = text.rfind("\n", 0, property_start) + 1
+    before = text[line_start:property_start]
+    preceding = before.rstrip()
+    if not preceding or preceding[-1] in _CSS_DECLARATION_OPENERS:
+        return True
+    # After plain whitespace only inside a ``{`` block opened earlier on the line.
+    block_open = before.rfind("{")
+    return block_open != -1 and "}" not in before[block_open:]
+
+
 def _is_css_colour_value(match: re.Match[str]) -> bool:
     """True iff this hash-arm match is the value of a CSS colour declaration (#7808)."""
-    hash_index = match.start(1) - 1
-    window = match.string[max(0, hash_index - _CSS_DECLARATION_LOOKBEHIND) : hash_index]
-    if _CSS_COLOUR_DECLARATION_PREFIX.search(window) is None:
+    if len(match.group(1)) not in _CSS_HEX_COLOUR_LENGTHS:
         return False
-    return _CSS_DECLARATION_TERMINATOR.match(match.string, match.end(1)) is not None
+    text = match.string
+    hash_index = match.start(1) - 1
+    window_start = max(0, hash_index - _CSS_DECLARATION_LOOKBEHIND)
+    prefix = _CSS_COLOUR_DECLARATION_PREFIX.search(text, window_start, hash_index)
+    if prefix is None or not _starts_a_declaration(text, prefix.start()):
+        return False
+    return _CSS_DECLARATION_TERMINATOR.match(text, match.end(1)) is not None
 
 
 def _matched_issue_number(match: re.Match[str]) -> int | None:
