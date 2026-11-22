@@ -432,6 +432,7 @@ from .lane_head import (
     # #7802: the pre-sync approval stamp key and the clone-local ref the review sync records.
     LANE_HEAD_PRESYNC_KEY,
     review_presync_ref,
+    sits_on_through_merges,
     # review-context-wp-diff-01M774QF (#7578): the review range reads the live write-branch head
     # through the facade (SR-2); a re-export marker only, not advertised in ``__all__``.
     read_lane_head as read_lane_head,
@@ -589,6 +590,7 @@ __all__ = [
     "WindowOpen",
     "is_migration_event",
     "review_presync_ref",
+    "sits_on_through_merges",
     "stamp_of",
     "window_open_of",
     "window_opener_events",

@@ -53,7 +53,7 @@ from specify_cli.consolidation.conflict_classifier import (
     validate_resolution,
 )
 from specify_cli.state.contract import is_target_owned_path
-from specify_cli.status import EventLogMergeError, materialize, merge_event_log_texts, review_presync_ref
+from specify_cli.status import EventLogMergeError, materialize, merge_event_log_texts, review_presync_ref, sits_on_through_merges
 from specify_cli.coordination.coherence import CheckoutRole, ResidueContext, is_coord_residue_churn
 from specify_cli.consolidation.git_probes import LagResidueContext
 from specify_cli.git.destructive_guard import DestructiveOpRefused, guarded_merge_abort
@@ -533,14 +533,21 @@ def _head_sha(worktree: Path) -> str | None:
 
 
 def _record_review_presync(repo_root: Path, worktree: Path, branch: str, pre_merge_sha: str | None) -> None:
-    """#7802: record the lane tip before this sync's merge commit as ``refs/spec-kitty/review-presync/<branch>``.
+    """#7802: record the lane tip before the review's sync merge(s) as ``refs/spec-kitty/review-presync/<branch>``.
 
-    Written only when the sync actually created a merge commit on top of *pre_merge_sha*
+    Acts only when the sync actually created a merge commit on top of *pre_merge_sha*
     (``HEAD^1`` is that tip and ``HEAD^2`` exists); nothing is written when the merge was a
-    no-op. The ref is clone-local and never pushed: the lane-head reader turns it into the
-    approval's ``lane_head_presync`` stamp, so a reviewer who never pushes this merge still
-    leaves an approval stamp another clone holds. Best-effort: a failed write leaves the
-    approval with today's single stamp.
+    no-op. An existing record is KEPT when *pre_merge_sha* is that record or sits on it through
+    merge commits only (:func:`~specify_cli.status.sits_on_through_merges`, the predicate the
+    lane-head reader applies): a second sync must not replace the pushed tip with the first,
+    unpushed, sync merge (review cycle 1). It is overwritten with *pre_merge_sha* only when the
+    lane has non-merge work beyond the record (a new implementer commit) or the record is not
+    on the lane's first-parent path.
+
+    The ref is clone-local and never pushed: the lane-head reader turns it into the approval's
+    ``lane_head_presync`` stamp, so a reviewer who never pushes these merges still leaves an
+    approval stamp another clone holds. Best-effort: a failed write leaves the approval with
+    today's single stamp.
     """
     if pre_merge_sha is None:
         return
@@ -551,7 +558,11 @@ def _record_review_presync(repo_root: Path, worktree: Path, branch: str, pre_mer
     second_parent = _run(["git", "rev-parse", "-q", "--verify", "HEAD^2"], worktree)
     if first_parent != pre_merge_sha or second_parent.returncode != 0:
         return
-    if not write_bookkeeping_ref(repo_root, review_presync_ref(branch), pre_merge_sha):
+    ref = review_presync_ref(branch)
+    recorded = _run(["git", "rev-parse", "-q", "--verify", f"{ref}^{{commit}}"], repo_root).stdout.strip()
+    if recorded and (recorded == pre_merge_sha or sits_on_through_merges(repo_root, recorded, pre_merge_sha)):
+        return
+    if not write_bookkeeping_ref(repo_root, ref, pre_merge_sha):
         _LOG.debug("auto-rebase: could not record the review pre-sync tip of %s", branch)
 
 

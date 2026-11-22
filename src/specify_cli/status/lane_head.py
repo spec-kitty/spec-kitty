@@ -249,15 +249,40 @@ def _branch_head(repo_root: Path, branch: str) -> str | None:
     return sha or None
 
 
+def sits_on_through_merges(repo_root: Path, tip: str, head: str) -> bool:
+    """True iff *head* sits on *tip* through merge commits only (#7802), the one predicate of the pre-sync record.
+
+    *tip* must differ from *head*, and every commit on *head*'s first-parent path down to *tip*
+    must be a merge commit: the oldest such commit's first parent is *tip* itself (so *tip* is a
+    first-parent ancestor), and every listed commit has two or more parents
+    (``rev-list --first-parent --no-merges`` would list none). The lane-head reader uses it to
+    accept a recorded tip, and ``attempt_auto_rebase`` to keep one across a later sync merge. Any
+    git failure is ``False``.
+    """
+    from specify_cli.core.git_ops import run_command
+
+    if not tip or tip == head:
+        return False
+    try:
+        ret, out, _err = run_command(
+            ["git", "rev-list", "--first-parent", "--parents", f"{tip}..{head}"],
+            capture=True,
+            check_return=False,
+            cwd=repo_root,
+        )
+    except Exception:  # noqa: BLE001 — best-effort (C-1): an unreadable path is "not on it", never an error
+        logger.debug("sits_on_through_merges: could not walk %s..%s", tip, head, exc_info=True)
+        return False
+    rows = [line.split() for line in out.splitlines() if line.strip()] if ret == 0 else []
+    return bool(rows) and all(len(row) >= _MERGE_ROW_MIN_FIELDS for row in rows) and rows[-1][1] == tip
+
+
 def _presync_of(repo_root: Path, branch: str, head: str) -> str | None:
     """#7802: the recorded pre-sync tip of *branch* when *head* sits on it through merges only, else ``None``.
 
-    The tip is the clone-local :func:`review_presync_ref`. It counts only when it differs from
-    *head* and every commit on *head*'s first-parent path down to it is a merge commit: the
-    oldest such commit's first parent is the tip itself (so it is a first-parent ancestor), and
-    every listed commit has two or more parents (``rev-list --first-parent --no-merges`` would
-    list none). Any other shape, a missing ref or any git failure is ``None``: the pre-sync
-    stamp is extra, so its absence never fails or changes the ``lane_head`` reading.
+    The tip is the clone-local :func:`review_presync_ref`; :func:`sits_on_through_merges` judges
+    it. A missing ref or any git failure is ``None``: the pre-sync stamp is extra, so its absence
+    never fails or changes the ``lane_head`` reading.
     """
     from specify_cli.core.git_ops import run_command
 
@@ -268,22 +293,11 @@ def _presync_of(repo_root: Path, branch: str, head: str) -> str | None:
             check_return=False,
             cwd=repo_root,
         )
-        presync = out.strip() if ret == 0 else ""
-        if not presync or presync == head:
-            return None
-        ret, out, _err = run_command(
-            ["git", "rev-list", "--first-parent", "--parents", f"{presync}..{head}"],
-            capture=True,
-            check_return=False,
-            cwd=repo_root,
-        )
     except Exception:  # noqa: BLE001 — best-effort (C-1): the extra stamp never fails the reading
         logger.debug("read_lane_head: could not read the review pre-sync tip of %s", branch, exc_info=True)
         return None
-    rows = [line.split() for line in out.splitlines() if line.strip()] if ret == 0 else []
-    if not rows or any(len(row) < _MERGE_ROW_MIN_FIELDS for row in rows) or rows[-1][1] != presync:
-        return None
-    return presync
+    presync = out.strip() if ret == 0 else ""
+    return presync if sits_on_through_merges(repo_root, presync, head) else None
 
 
 #: A ``rev-list --parents`` row of a merge commit: the commit and at least two parents.

@@ -15,7 +15,7 @@ from typing import Any
 import pytest
 
 from specify_cli.lanes.branch_naming import lane_branch_name
-from specify_cli.status import LANE_HEAD_KEY, LANE_HEAD_PRESYNC_KEY, TransitionRequest, review_presync_ref
+from specify_cli.status import LANE_HEAD_KEY, LANE_HEAD_PRESYNC_KEY, TransitionRequest, review_presync_ref, sits_on_through_merges
 from specify_cli.status.emit import emit_status_transition, emit_status_transition_batch
 from specify_cli.status.lane_head import LaneHeadReading, read_lane_head
 from specify_cli.status.wp_window import CaptureCause
@@ -207,3 +207,19 @@ def test_a_git_failure_never_fails_the_reading(flat_mission: FlatTopologyContext
     assert reading.sha == head
     assert reading.presync_sha is None
     assert reading.cause is None
+
+
+def test_sits_on_through_merges_is_false_for_the_head_itself_an_empty_tip_and_a_git_failure(
+    flat_mission: FlatTopologyContext, lane: tuple[Path, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    worktree, _branch = lane
+    head = _git(worktree, "rev-parse", "HEAD")
+
+    assert sits_on_through_merges(flat_mission.repo, head, head) is False
+    assert sits_on_through_merges(flat_mission.repo, "", head) is False
+
+    def _fail(cmd: list[str], **kwargs: Any) -> tuple[int, str, str]:
+        raise OSError("git exploded")
+
+    monkeypatch.setattr("specify_cli.core.git_ops.run_command", _fail)
+    assert sits_on_through_merges(flat_mission.repo, _git(worktree, "rev-parse", "HEAD^"), head) is False
