@@ -200,6 +200,9 @@ from specify_cli.cli.commands.agent.mission_finalize_bootstrap import (
     _refuse_mixed_normalised_wps as _refuse_mixed_normalised_wps,
     _report_kind_rewrites as _report_kind_rewrites,
     _wp_file_by_id as _wp_file_by_id,
+    _KIND_NORMALISED_NOTICE as _KIND_NORMALISED_NOTICE,
+    _MIXED_WP_SPLIT_REMEDY as _MIXED_WP_SPLIT_REMEDY,
+    _WP_FILE_ID_PATTERN as _WP_FILE_ID_PATTERN,
 )
 from specify_cli.cli.commands.agent.mission_finalize_planning_pin import (
     PlanningCommitResolution as PlanningCommitResolution,
@@ -259,6 +262,7 @@ from specify_cli.cli.commands.agent.mission_finalize_lanes import (
     _status_unreadable_error as _status_unreadable_error,
     _is_lane_topology_this_run as _is_lane_topology_this_run,
     _kind_normalisation_for as _kind_normalisation_for,
+    _is_settled_single_branch as _is_settled_single_branch,
     _started_wp_ids_for_normalisation as _started_wp_ids_for_normalisation,
 )
 from specify_cli.cli.commands.agent.mission_finalize_commit import (
@@ -1328,7 +1332,7 @@ def _finalize_validate_phase(
     normalisation = (
         None
         if refresh_planning_commit
-        else _kind_normalisation_for(ctx.planning_dir, ctx.repo_root, ctx.mission_slug, own_gates.lane_wp_manifests, owned=ctx.owned)
+        else _kind_normalisation_for(ctx.planning_dir, ctx.repo_root, ctx.mission_slug, own_gates.lane_wp_manifests, meta, owned=ctx.owned)
     )
     # S7 (#7282, FR-053): decide a provisional Mission's topology by size before the
     # frozen preflight; it is settled (FR-055) before the run's first status write.

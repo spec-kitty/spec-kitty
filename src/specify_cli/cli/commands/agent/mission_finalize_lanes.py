@@ -713,17 +713,37 @@ def _started_wp_ids_for_normalisation(planning_dir: Path, repo_root: Path, missi
     return _read_started_wp_ids(repo_root, mission_slug, owned=owned)
 
 
+def _is_settled_single_branch(meta: dict[str, object] | None, planning_dir: Path) -> bool:
+    """A settled (or explicit) ``single_branch`` Mission: the frozen preflight's topology predicate, minus provisional ones."""
+    from specify_cli.lanes.topology_settlement import is_provisional
+    from specify_cli.migration.backfill_topology import topology_from_meta
+
+    if is_provisional(meta or {}):
+        return False
+    topology: MissionTopology = topology_from_meta(meta or {}, planning_dir)
+    return topology is MissionTopology.SINGLE_BRANCH
+
+
 def _kind_normalisation_for(
     planning_dir: Path,
     repo_root: Path,
     mission_slug: str,
     lane_wp_manifests: dict[str, OwnershipManifest],
+    meta: dict[str, object] | None,
     *,
     owned: OwnedCheckout | None,
 ) -> KindNormalisation:
-    """Normalise the lane inputs' kinds; the started set is read only when some WP would be rewritten."""
-    from specify_cli.ownership.kind_normalisation import normalise_kinds_for_lane_topology
+    """Normalise the lane inputs' kinds; the started set is read only when some WP would be rewritten.
 
+    A settled ``single_branch`` Mission is untouched (review F1): nothing is
+    rewritten and the status surface is never read, exactly as the frozen
+    preflight skips it. A provisional Mission is still normalised, because its
+    size decision counts the rewritten kinds.
+    """
+    from specify_cli.ownership.kind_normalisation import KindNormalisation, normalise_kinds_for_lane_topology
+
+    if _is_settled_single_branch(meta, planning_dir):
+        return KindNormalisation(manifests=dict(lane_wp_manifests), rewritten=())
     candidate = normalise_kinds_for_lane_topology(lane_wp_manifests, started_wp_ids=frozenset())
     if not candidate.rewritten:
         return candidate

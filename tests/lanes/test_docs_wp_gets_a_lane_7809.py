@@ -288,3 +288,36 @@ def test_settled_single_branch_refinalize_never_reads_the_status_log(tmp_path: P
         code, payload, _output = run_finalize(mission, "--validate-only")
     assert code == 0, payload
     assert payload["kind_normalised"] == []
+
+
+def test_started_docs_wp_keeps_planning_artifact_and_its_lane_on_refinalize(tmp_path: Path) -> None:
+    """Frozen membership (ADR 2026-10-04-2): a history-started docs WP is never rewritten (review N1)."""
+    from specify_cli.ownership.kind_normalisation import KindNormalisation
+    from specify_cli.status.emit import emit_status_transition
+
+    mission = make_mission(
+        tmp_path,
+        (
+            WorkPackage(("src/a/mod.py",), CODE),
+            WorkPackage(("src/b/mod.py",), CODE),
+            WorkPackage(("src/c/mod.py",), CODE),
+            WorkPackage(("docs/x.md",), PLANNING),
+        ),
+    )
+    # A lane Mission finalized before #7809: its docs WP sits on lane-planning as planning_artifact.
+    with patch(
+        "specify_cli.cli.commands.agent.mission_finalize._kind_normalisation_for",
+        side_effect=lambda _dir, _root, _slug, manifests, _meta, **_kw: KindNormalisation(manifests=dict(manifests), rewritten=()),
+    ):
+        code, payload, _output = run_finalize(mission)
+    assert code == 0, payload
+    assert payload["topology_decision"]["settled_topology"] == "lanes_with_coord"
+    assert _lane_of(json.loads(_committed(mission, "lanes.json")), "WP04") == "lane-planning"
+
+    emit_status_transition(mission_dir=mission.coord_mission_dir, mission_slug=mission.slug, wp_id="WP04", to_lane="claimed", actor="test", repo_root=mission.root)
+
+    code, payload, _output = run_finalize(mission)
+    assert code == 0, payload
+    assert payload["kind_normalised"] == []
+    assert _lane_of(json.loads((mission.coord_mission_dir / "lanes.json").read_text(encoding="utf-8")), "WP04") == "lane-planning"
+    assert _execution_mode((mission.coord_mission_dir / "tasks" / "WP04-work.md").read_text(encoding="utf-8")) == PLANNING
