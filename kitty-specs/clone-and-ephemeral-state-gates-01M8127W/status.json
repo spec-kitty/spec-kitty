@@ -82,7 +82,8 @@
       "last_transition_at": "2026-11-22T09:13:01.159645+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "- 2026-11-22T08:32:15Z – claude – shell_pid=8935 – Red-first: b7af01da committed tests/consolidation/test_approval_stamp_presync_7802.py alone; red run 'pytest tests/consolidation/test_approval_stamp_presync_7802.py' = 3 failed (no lane_head_presync recorded; late commit misreported as APPROVAL_STAMP_NOT_ON_LANE; no push remedy). Fix 852433f6, docs c319e599 (ADR 2026-10-04-5 Amendment 2026-11-22, changelog 7802.fixed.md). Green: new consolidation file 7 passed; tests/status/test_lane_head_presync_7802.py 12 passed; tests/consolidation -n auto --dist loadfile 3503 passed, 1 skipped, 11 xfailed; tests/status -n 4 2191 passed, 7 skipped; tests/lanes -n 4 1207 passed, 1 skipped; architectural gates test_remote_contact_owner, test_layer_rules, test_status_module_boundary, test_cold_import_status_boundary 135 passed; test_commit_scope_owner, test_exemption_registry_ratchet, test_mission_write_discipline, test_status_events_writes_gate 236 passed 1 xfailed; test_destructive_op_routing, test_merge_pipeline_ratchets, test_no_legacy_terminology 172 passed; make test-fast 3182 passed, 7 skipped. Out-of-matrix (nightly-only), run locally, not changed: tests/integration/test_single_branch_approval_windows.py 10 passed, 1 xfailed. No out-of-matrix test file was changed. ruff check/format and per-file mypy clean (a combined mypy of status/__init__.py+transition_pipeline.py shows 8 pre-existing errors, same on base). status/__init__.py export added without a pyproject version bump (pyproject is not in owned_files)."
+        "- 2026-11-22T08:32:15Z – claude – shell_pid=8935 – Red-first: b7af01da committed tests/consolidation/test_approval_stamp_presync_7802.py alone; red run 'pytest tests/consolidation/test_approval_stamp_presync_7802.py' = 3 failed (no lane_head_presync recorded; late commit misreported as APPROVAL_STAMP_NOT_ON_LANE; no push remedy). Fix 852433f6, docs c319e599 (ADR 2026-10-04-5 Amendment 2026-11-22, changelog 7802.fixed.md). Green: new consolidation file 7 passed; tests/status/test_lane_head_presync_7802.py 12 passed; tests/consolidation -n auto --dist loadfile 3503 passed, 1 skipped, 11 xfailed; tests/status -n 4 2191 passed, 7 skipped; tests/lanes -n 4 1207 passed, 1 skipped; architectural gates test_remote_contact_owner, test_layer_rules, test_status_module_boundary, test_cold_import_status_boundary 135 passed; test_commit_scope_owner, test_exemption_registry_ratchet, test_mission_write_discipline, test_status_events_writes_gate 236 passed 1 xfailed; test_destructive_op_routing, test_merge_pipeline_ratchets, test_no_legacy_terminology 172 passed; make test-fast 3182 passed, 7 skipped. Out-of-matrix (nightly-only), run locally, not changed: tests/integration/test_single_branch_approval_windows.py 10 passed, 1 xfailed. No out-of-matrix test file was changed. ruff check/format and per-file mypy clean (a combined mypy of status/__init__.py+transition_pipeline.py shows 8 pre-existing errors, same on base). status/__init__.py export added without a pyproject version bump (pyproject is not in owned_files).",
+        "- 2026-11-22T09:44:26Z – unknown – Review cycle 1 fold. Blocking 1: red-first 62bad652 (two-sync case, alone): 'pytest tests/consolidation/test_approval_stamp_presync_7802.py' = 1 failed (merges-only: presync recorded as M1, not X), 8 passed (implementer-commit-between guard green). Fix 8b351c0b: attempt_auto_rebase keeps refs/spec-kitty/review-presync/<lane> when the pre-merge tip is the record or sits on it through merges only, via the reader's own predicate now extracted as status.sits_on_through_merges; overwrite only for non-merge work beyond it or a record off the first-parent path. ADR bullet updated, residual 'content inside a merge commit' now named as running from the pre-sync tip. Blocking 2: no pyproject bump, per coordinator; awaiting operator ruling. Green: new files 22 passed (consolidation 9, status 13); tests/consolidation -n auto --dist loadfile 3505 passed, 1 skipped, 11 xfailed; tests/status -n 4 2192 passed, 7 skipped; tests/lanes -n 4 1207 passed, 1 skipped; 11 architectural gate files 543 passed, 1 xfailed (one earlier run showed test_ast_scan_no_direct_status_imports_repo_wide red while the consolidation suite ran concurrently; it passed alone and in a clean rerun of the full gate set); make test-fast 3183 passed, 7 skipped. Out-of-matrix (nightly-only), unchanged, run locally: tests/integration/test_single_branch_approval_windows.py 10 passed, 1 xfailed."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -96,12 +97,12 @@
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
-        "T010": "planned",
-        "T011": "planned",
-        "T012": "planned",
-        "T013": "planned",
-        "T014": "planned",
-        "T015": "planned"
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
       }
     },
     "WP04": {
