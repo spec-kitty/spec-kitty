@@ -92,7 +92,7 @@
     },
     "WP04": {
       "actor": "reviewer-renata",
-      "agent": "reviewer-renata",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -107,6 +107,7 @@
         "Ready for review"
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/clone-and-ephemeral-state-gates-01M8127W-coord/kitty-specs/clone-and-ephemeral-state-gates-01M8127W/tasks/WP04-docs-wp-gets-a-lane/review-cycle-1.md",
         "reference": "review-cycle://clone-and-ephemeral-state-gates-01M8127W/WP04-docs-wp-gets-a-lane/review-cycle-1.md",
@@ -114,15 +115,15 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 814,
-      "shell_pid_created_at": "1795337125.7",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T016": "done",
-        "T017": "done",
-        "T018": "done",
-        "T019": "done",
-        "T020": "done",
-        "T021": "done"
+        "T016": "planned",
+        "T017": "planned",
+        "T018": "planned",
+        "T019": "planned",
+        "T020": "planned",
+        "T021": "planned"
       }
     },
     "WP05": {
