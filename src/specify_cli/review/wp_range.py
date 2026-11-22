@@ -23,7 +23,9 @@ Resolution (each derived anchor must be an ancestor of the tip, or it is skipped
   written to. On a coordination topology that holds only when the coordination branch is the
   planning lane's write branch (a default-settled Mission before its landing); otherwise the events
   sit on the coordination branch, apart from the work, and the range is unavailable
-  (``not_recorded``) rather than an empty derived one. A code-lane work package never uses them:
+  (``not_recorded``) rather than an empty derived one. A derived planning-lane range whose commits
+  all touch only bookkeeping paths (the work package's own commits are on another branch, #7759) is
+  unavailable too (``planning_range_bookkeeping_only``). A code-lane work package never uses them:
   its status log lives on the status branch, not its lane branch.
 * ``gap`` names why the recorded value was not used (the first reason seen).
 
@@ -152,6 +154,8 @@ class RangeGap(StrEnum):
     NO_SUBMISSION = "no_submission"
     UNRESOLVABLE_SHA = "unresolvable_sha"
     STATUS_UNREADABLE = "status_unreadable"
+    #: A derived planning-lane range whose commits all touch only bookkeeping paths (#7759).
+    PLANNING_RANGE_BOOKKEEPING_ONLY = "planning_range_bookkeeping_only"
 
 
 #: Each window gap reason as the range's own gap (an explicit map, so a new reason fails the check in the tests, never a resolution).
@@ -588,6 +592,22 @@ def _read_context(repo_root: Path, mission_slug: str, wp_id: str, owned: OwnedCh
     )
 
 
+def _bookkeeping_only_planning_range(ctx: _Context, base: str, tip: str, bookkeeping: Sequence[str]) -> bool:
+    """Whether a derived planning-lane range holds nothing but bookkeeping commits (#7759).
+
+    Only a work package no lane branch stamps, on a non-``single_branch`` topology, is judged (the
+    status-event path of rulings Q10 / Q12); code-lane ranges are never withheld. The count uses
+    the range's own bookkeeping excludes. A failed count keeps the range (fail-soft, NFR-004).
+    """
+    if ctx.lane_stamped or is_single_branch(ctx.surface.topology) or base == tip:
+        return False
+    try:
+        return _count(ctx.repo_root, f"{base}..{tip}", bookkeeping) == 0
+    except GitCommandError:
+        logger.debug("review range: bookkeeping count of %s..%s failed", base, tip, exc_info=True)
+        return False
+
+
 def _status_of(base_source: RangeSource, tip_source: RangeSource) -> RangeStatus:
     recorded = base_source is RangeSource.RECORDED_WINDOW and tip_source is RangeSource.RECORDED_SUBMISSION
     return RangeStatus.RECORDED if recorded else RangeStatus.DERIVED
@@ -617,6 +637,8 @@ def resolve_wp_review_range(
     if base is None:
         return WpReviewRange.unavailable(wp_id, base_gap or RangeGap.UNRESOLVABLE_SHA, owned_pathspecs)
     bookkeeping = _bookkeeping_excludes(ctx.surface.mission_dir_name)
+    if _bookkeeping_only_planning_range(ctx, base, tip, bookkeeping):
+        return WpReviewRange.unavailable(wp_id, RangeGap.PLANNING_RANGE_BOOKKEEPING_ONLY, owned_pathspecs)
     head = ctx.live_head
     tip_off_branch = head is not None and not ctx.is_ancestor(tip, head)
     listing = _listing(

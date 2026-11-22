@@ -11,10 +11,14 @@ The positive control keeps the range when a non-bookkeeping commit lies inside i
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
+from types import SimpleNamespace
 
 import pytest
 
-from mission_runtime import MissionArtifactKind, placement_seam
+from kernel.git import GitCommandError
+from mission_runtime import MissionArtifactKind, MissionTopology, placement_seam
+from specify_cli.review import wp_range
 from specify_cli.review.context_block import describe_gap, render_review_context
 from specify_cli.review.wp_range import RangeStatus, resolve_wp_review_range
 from specify_cli.status.emit import emit_status_transition
@@ -84,3 +88,41 @@ def test_planning_range_with_a_work_commit_keeps_its_range(tmp_path: Path, monke
 
     assert found.status is RangeStatus.DERIVED, found
     assert [change.path for change in found.files] == [_PLANNING_PATH]
+
+
+# --------------------------------------------------------------------------- the check's own branches
+
+
+def _ctx(*, lane_stamped: bool = False, topology: MissionTopology = MissionTopology.LANES_WITH_COORD) -> Any:
+    """A duck-typed resolution context: only the fields the check reads."""
+    return SimpleNamespace(lane_stamped=lane_stamped, surface=SimpleNamespace(topology=topology), repo_root=Path("."))
+
+
+@pytest.mark.parametrize(
+    ("ctx", "base"),
+    [
+        pytest.param(_ctx(lane_stamped=True), "a", id="code-lane-never-judged"),
+        pytest.param(_ctx(topology=MissionTopology.SINGLE_BRANCH), "a", id="single-branch-never-judged"),
+        pytest.param(_ctx(), "b", id="empty-range-kept"),
+    ],
+)
+def test_check_skips_what_it_does_not_judge(ctx: Any, base: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    def _never(*_args: object) -> int:
+        raise AssertionError("no count expected")
+
+    monkeypatch.setattr(wp_range, "_count", _never)
+    assert wp_range._bookkeeping_only_planning_range(ctx, base, "b", ()) is False
+
+
+def test_a_failed_count_keeps_the_range(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _fail(*_args: object) -> int:
+        raise GitCommandError(argv=("git", "rev-list"), cwd=Path("."), returncode=128, stderr="failed")
+
+    monkeypatch.setattr(wp_range, "_count", _fail)
+    assert wp_range._bookkeeping_only_planning_range(_ctx(), "a", "b", ()) is False
+
+
+@pytest.mark.parametrize(("count", "expected"), [(0, True), (2, False)])
+def test_the_count_decides(count: int, expected: bool, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(wp_range, "_count", lambda *_args: count)
+    assert wp_range._bookkeeping_only_planning_range(_ctx(), "a", "b", ()) is expected
