@@ -9,7 +9,7 @@ import pytest
 
 from specify_cli.migration.mission_state import _rebuilt_planning_commit
 
-pytestmark = pytest.mark.git_repo
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 SLUG = "demo-01ABCDEF"
 
