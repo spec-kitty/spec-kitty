@@ -27,11 +27,12 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.consolidation.approved_bound import BoundRefusal, BoundRefusalCode, check_lane, render_refusals
+from specify_cli.consolidation.approved_bound import BoundRefusal, BoundRefusalCode, StampDetail, StampVerdict, check_lane, effective_stamp, render_refusals
+from specify_cli.consolidation.write_branch_bound import ApprovalWindow, check_lane_windows
 from specify_cli.lanes.auto_rebase import attempt_auto_rebase
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.persistence import read_lanes_json
-from specify_cli.status import LANE_HEAD_KEY, ReviewResult, StatusEvent, TransitionRequest, read_events
+from specify_cli.status import LANE_HEAD_KEY, LANE_HEAD_PRESYNC_KEY, ReviewResult, StatusEvent, TransitionRequest, read_events, review_presync_ref
 from specify_cli.status.emit import emit_status_transition
 from tests.integration.coord_topology_fixture import FlatTopologyContext, _git, build_flat_topology_mission
 
@@ -225,3 +226,77 @@ def test_an_approval_whose_stamps_are_both_absent_gets_the_push_remedy(scenario:
     assert "not in this clone" in text
     assert f"git push <remote> {scenario.branch}" in text
     assert "spec-kitty agent tasks move-task WP01 --to in_progress" in text
+
+
+# --------------------------------------------------------------------------- #
+# The pieces: the recorded ref, effective_stamp, the rewritten-lane text, tier 2
+# --------------------------------------------------------------------------- #
+
+
+def _ref(repo: Path, ref: str) -> str | None:
+    result = subprocess.run(["git", "-C", str(repo), "rev-parse", "--verify", "--quiet", ref], check=False, capture_output=True, text=True)
+    return result.stdout.strip() or None
+
+
+def test_the_review_sync_records_the_pre_merge_tip_and_a_no_op_sync_records_nothing(scenario: _Scenario) -> None:
+    repo = scenario.reviewer.repo
+    ref = review_presync_ref(scenario.branch)
+    assert _ref(repo, ref) == scenario.implemented_tip
+
+    _git(repo, "update-ref", "-d", ref)
+    manifest = read_lanes_json(scenario.reviewer.primary_feature_dir)
+    assert manifest is not None
+    lane = next(entry for entry in manifest.lanes if entry.lane_id == _LANE_ID)
+    worktree = scenario.integrator.parent / "lane-a-worktree"
+    report = attempt_auto_rebase(lane, scenario.branch, _SYNC_SOURCE, repo, worktree, mission_slug=scenario.reviewer.slug)
+
+    assert report.succeeded, report.halt_reason
+    assert _git(repo, "rev-parse", f"refs/heads/{scenario.branch}") == scenario.sync_merge
+    assert _ref(repo, ref) is None
+
+
+def test_effective_stamp_reads_the_newest_recorded_stamp_each_clone_holds(scenario: _Scenario) -> None:
+    metadata = {LANE_HEAD_KEY: scenario.sync_merge, LANE_HEAD_PRESYNC_KEY: scenario.implemented_tip}
+
+    assert effective_stamp(scenario.reviewer.repo, metadata, scenario.branch) == StampVerdict(scenario.sync_merge, scenario.sync_merge)
+    assert effective_stamp(scenario.integrator, metadata, scenario.branch) == StampVerdict(scenario.implemented_tip, scenario.sync_merge)
+    # A pre-sync stamp alone never stands in for a missing lane_head: the approval is unstamped.
+    assert effective_stamp(scenario.integrator, {LANE_HEAD_PRESYNC_KEY: scenario.implemented_tip}, scenario.branch) == StampVerdict(None, None)
+    assert effective_stamp(scenario.integrator, None, scenario.branch) == StampVerdict(None, None)
+
+
+def test_a_rewritten_lane_keeps_the_rewritten_remedy_without_a_push(scenario: _Scenario) -> None:
+    """The pre-sync tip is in this clone but the lane no longer reaches it: ``not_on_lane``, never the push remedy."""
+    worktree = scenario.integrator.parent / "integrator-lane"
+    _git(scenario.integrator, "worktree", "add", "-q", str(worktree), scenario.branch)
+    _git(worktree, "reset", "-q", "--hard", scenario.claim_base)
+    _commit_file(worktree, "impl.txt", "rewritten lane work\n", "feat: rewritten lane work")
+
+    refusal = _check(scenario, scenario.events)
+
+    assert refusal is not None
+    assert refusal.code is BoundRefusalCode.APPROVAL_STAMP_NOT_ON_LANE
+    assert refusal.stamp_detail is StampDetail.NOT_ON_LANE
+    text = render_refusals([refusal], scenario.reviewer.slug)
+    assert "the lane was rewritten" in text
+    assert "git push" not in text
+
+
+def test_tier_two_ends_each_window_at_the_effective_stamp(scenario: _Scenario) -> None:
+    """A window recorded at the unpushed sync merge does not make tier 2 read a commit this clone lacks."""
+    windows = (ApprovalWindow(_WP, None, scenario.sync_merge),)
+
+    tiers = check_lane_windows(
+        scenario.integrator,
+        events=scenario.events,
+        lane_id=_LANE_ID,
+        branch=scenario.branch,
+        approved_wp_ids=[_WP],
+        claim_base=scenario.claim_base,
+        exemption_anchors=[scenario.claim_base],
+        windows=windows,
+        is_bookkeeping=_is_bookkeeping,
+        tip=_git(scenario.integrator, "rev-parse", scenario.branch),
+    )
+
+    assert tiers == ((), ())
