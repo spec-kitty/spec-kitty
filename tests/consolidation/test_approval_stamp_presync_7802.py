@@ -59,6 +59,8 @@ class _Scenario:
     sync_merge: str
     claim_base: str
     events: list[StatusEvent]
+    #: The pre-sync tip the approval must record: X, or the implementer's later commit Y.
+    expected_presync: str
 
     @property
     def approval(self) -> StatusEvent:
@@ -108,8 +110,31 @@ def _commit_file(worktree: Path, name: str, text: str, message: str) -> str:
     return _git(worktree, "rev-parse", "HEAD")
 
 
-@pytest.fixture
-def scenario(tmp_path: Path) -> _Scenario:
+def _move_coordination(repo: Path, tmp_path: Path, name: str) -> None:
+    """The coordination branch moves on (a review claim's own commit, another WP's status commit)."""
+    if subprocess.run(["git", "-C", str(repo), "rev-parse", "--verify", "--quiet", _SYNC_SOURCE], check=False, capture_output=True).returncode != 0:
+        _git(repo, "branch", _SYNC_SOURCE, "main")
+    sync_worktree = tmp_path / f"sync-worktree-{name}"
+    _git(repo, "worktree", "add", "-q", str(sync_worktree), _SYNC_SOURCE)
+    _commit_file(sync_worktree, f"{name}.txt", f"{name}\n", f"chore: coordination {name}")
+    _git(repo, "worktree", "remove", "-f", str(sync_worktree))
+
+
+def _review_sync(ctx: FlatTopologyContext, branch: str, worktree: Path) -> str:
+    """The review claim's sync: merge the coordination branch into the lane; returns the new merge commit."""
+    before = _git(ctx.repo, "rev-parse", f"refs/heads/{branch}")
+    manifest = read_lanes_json(ctx.primary_feature_dir)
+    assert manifest is not None
+    lane = next(entry for entry in manifest.lanes if entry.lane_id == _LANE_ID)
+    report = attempt_auto_rebase(lane, branch, _SYNC_SOURCE, ctx.repo, worktree, mission_slug=ctx.slug)
+    assert report.succeeded, report.halt_reason
+    merge = _git(ctx.repo, "rev-parse", f"refs/heads/{branch}")
+    assert merge != before
+    assert _git(ctx.repo, "rev-parse", f"{merge}^1") == before
+    return merge
+
+
+def _build_scenario(tmp_path: Path, *, syncs: int = 1, implementer_commit_between: bool = False) -> _Scenario:
     ctx = build_flat_topology_mission(tmp_path, topology="lanes")
     repo = ctx.repo
     _git(repo, "rm", "-q", "--", str(ctx.status_events_path.relative_to(repo)))
@@ -133,22 +158,18 @@ def scenario(tmp_path: Path) -> _Scenario:
     _git(repo, "push", "-q", "origin", branch)
     _emit(ctx, "for_review", force=True)
 
-    # The coordination branch moved on (the review claim's own commit lands there).
-    _git(repo, "branch", _SYNC_SOURCE, "main")
-    sync_worktree = tmp_path / "sync-worktree"
-    _git(repo, "worktree", "add", "-q", str(sync_worktree), _SYNC_SOURCE)
-    _commit_file(sync_worktree, "coord.txt", "coordination\n", "chore: review claim")
-    _git(repo, "worktree", "remove", "-f", str(sync_worktree))
-
-    # The reviewer's review claim merges the coordination branch into the lane (merge M).
-    manifest = read_lanes_json(ctx.primary_feature_dir)
-    assert manifest is not None
-    lane = next(entry for entry in manifest.lanes if entry.lane_id == _LANE_ID)
-    report = attempt_auto_rebase(lane, branch, _SYNC_SOURCE, repo, worktree, mission_slug=ctx.slug)
-    assert report.succeeded, report.halt_reason
-    sync_merge = _git(repo, "rev-parse", f"refs/heads/{branch}")
-    assert sync_merge != implemented_tip
-    assert _git(repo, "rev-parse", f"{sync_merge}^1") == implemented_tip
+    # The coordination branch moved on, and the reviewer's review claim merges it into the lane (merge M1).
+    expected_presync = implemented_tip
+    _move_coordination(repo, tmp_path, "coord-1")
+    sync_merge = _review_sync(ctx, branch, worktree)
+    for index in range(2, syncs + 1):
+        if implementer_commit_between:
+            # New implementer work on top of the sync merge, pushed: the record moves to it.
+            expected_presync = _commit_file(worktree, f"impl-{index}.txt", "more lane work\n", "feat: more lane work")
+            _git(repo, "push", "-q", "origin", branch)
+        # The coordination branch moves again (a parallel review), and the review claim syncs again (M2).
+        _move_coordination(repo, tmp_path, f"coord-{index}")
+        sync_merge = _review_sync(ctx, branch, worktree)
 
     _emit(ctx, "in_review")
     _approve(ctx)
@@ -171,7 +192,29 @@ def scenario(tmp_path: Path) -> _Scenario:
         sync_merge=sync_merge,
         claim_base=claim_base,
         events=list(read_events(ctx.primary_feature_dir)),
+        expected_presync=expected_presync,
     )
+
+
+@pytest.fixture
+def scenario(tmp_path: Path) -> _Scenario:
+    return _build_scenario(tmp_path)
+
+
+@pytest.mark.parametrize("implementer_commit_between", [False, True], ids=["merges-only", "implementer-commit-between"])
+def test_a_second_merge_creating_sync_keeps_the_pushed_pre_sync_tip(tmp_path: Path, implementer_commit_between: bool) -> None:
+    """Review cycle 1, blocking 1: a second sync must not replace the record with the first, unpushed, sync merge.
+
+    Merges only since the record: the record stays X, and an integrator clone without M1 or M2
+    passes on X. A new implementer commit Y between the syncs: the record moves to Y.
+    """
+    two_syncs = _build_scenario(tmp_path, syncs=2, implementer_commit_between=implementer_commit_between)
+    metadata = two_syncs.approval.policy_metadata or {}
+
+    assert metadata.get(LANE_HEAD_KEY) == two_syncs.sync_merge
+    assert metadata.get(_PRESYNC_KEY) == two_syncs.expected_presync
+    assert _ref(two_syncs.reviewer.repo, review_presync_ref(two_syncs.branch)) == two_syncs.expected_presync
+    assert _check(two_syncs, two_syncs.events) is None
 
 
 def _check(scenario: _Scenario, events: list[StatusEvent]) -> BoundRefusal | None:
