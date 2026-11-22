@@ -29,6 +29,7 @@
   "purpose_context": "Real Missions run in cloud sessions and teammate clones broke on five gates: a docs work package judged against the target branch, a lane branch that exists only on origin, an approval stamp that names an unpushed review merge, and a hex colour read as an issue number. This Mission fixes those gates so a team can carry a Mission from agreed intent to a verified result across clones.",
   "purpose_tldr": "Make review, approval and consolidation work when the state lives on origin, on a topic branch, or in a reviewer that never pushes.",
   "slug": "clone-and-ephemeral-state-gates-01M8127W",
+  "status_phase": "1",
   "target_branch": "issue-7809-clone-ephemeral-state-gates",
   "topology": "lanes_with_coord",
   "topology_decision": {
