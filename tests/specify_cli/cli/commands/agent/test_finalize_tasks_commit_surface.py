@@ -30,7 +30,6 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
@@ -1017,7 +1016,7 @@ def test_resolve_finalize_commit_candidates_sees_coord_only_dirt_with_clean_root
     this test fail (verified below by directly monkeypatching the coord-dirt
     probe to report clean, reproducing the mutation's effect).
     """
-    from specify_cli.cli.commands.agent.mission_finalize import _resolve_finalize_commit_candidates
+    from specify_cli.cli.commands.agent.mission_finalize import _CoordCandidateDirt, _resolve_finalize_commit_candidates
 
     coord = make_coord_mission(tmp_path, MissionTopology.COORD, slug="wp15-r10-unit")
     _write_coord_finalize_fixture(coord)
@@ -1055,7 +1054,7 @@ def test_resolve_finalize_commit_candidates_sees_coord_only_dirt_with_clean_root
     # leg were dropped from has_relevant_changes, a fully-clean root would
     # report no changes at all.
     with patch("specify_cli.cli.commands.agent.mission_finalize._coord_candidate_dirt") as mock_dirt:
-        mock_dirt.return_value = SimpleNamespace(files=[], is_dirty=False)
+        mock_dirt.return_value = _CoordCandidateDirt(files=[], is_dirty=False)
         mutated = _resolve_finalize_commit_candidates(
             planning_dir,
             tasks_dir,
