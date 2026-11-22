@@ -1,0 +1,26 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-22T12:31:08.714715Z",
+      "decision_id": "01M81KT9DA4XS2E156YB0QBBJZ",
+      "final_answer": "Operator rulings ('Bigger: items 1-6', relayed by the dispatcher, verified in the research squad transcript, ledger R68): (1) a re-pin follows the recorded planning commit by patch-id (reuse consolidation/git_probes.patch_id_of and lanes/planning_base.resolve_finalize_planning_base); (2) it refuses with a named code when there is no match, and never lands on a tip that empties the evidence window; (3) a derived pin is frozen against a later plain finalize; (4) derivation walks the mission branch; (5) #7297 items 3-6 are in scope (message mismatches, too-early pin, too-late pin after a rename, doctor gaps), each grounded before planning; (6) amend ADR 2026-10-04-5. Runner recommendation pending dispatcher confirmation: the single_branch pin's branch line is meta.mission_branch for capture, refresh/repin and derivation alike.",
+      "input_key": "scope_rulings",
+      "mission_id": "01M81KRSCYPVJE3WS74AE674YP",
+      "mission_slug": "single-branch-planning-pin-rebase-01M81KRS",
+      "opened_by": "cli",
+      "options": [],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "What scope and behaviour should the single_branch planning pin follow across a rebase (#7793, #7297 items 1-6)?",
+      "rationale": null,
+      "resolved_at": "2026-11-22T12:31:16.415634Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.rulings",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M81KRSCYPVJE3WS74AE674YP",
+  "version": 1
+}
