@@ -25,6 +25,7 @@ import fnmatch
 import functools
 import json
 import re
+import shlex
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -69,6 +70,7 @@ __all__ = [
     "out_of_matrix_test_paths",
     "render_out_of_matrix_report",
     "is_test_module",
+    "router_pytest_paths",
 ]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -940,24 +942,62 @@ def is_test_module(path: str) -> bool:
     return any(fnmatch.fnmatchcase(name, pattern) for pattern in _TEST_MODULE_PATTERNS)
 
 
-def out_of_matrix_test_paths(paths: Iterable[str | Path], *, registry_path: Path | None = None) -> tuple[tuple[str, str], ...]:
-    """Changed ``tests/**`` paths under an out-of-matrix directory, with that directory (#7801).
+def router_pytest_paths(workflow: dict[str, Any]) -> frozenset[str]:
+    """Every ``tests/...`` path a pytest command in ``ci-router.yml`` names (#7801 review B1).
 
-    A path belongs to its deepest containing directory that the registry names:
-    a row's effective test dir (``test_dirs``, else ``tests/<module>``, the
-    precedence ``module-tests.yml`` applies) keeps it in the per-PR matrix; an
+    Several ``out_of_matrix_test_dirs`` records have their per-PR home in a router
+    job, not a module row (the architectural battery, ``tests (docs)``,
+    ``tests (e2e)``). Reading the router's own pytest commands keeps that set in
+    step with the jobs instead of a hand-kept list. A positional ``tests/...``
+    argument of a non-comment line that invokes pytest counts (``--ignore=``
+    values do not; a node id counts as its file). Which events select a job is
+    the router's business: a path here is per-PR routed, not nightly-only.
+    """
+    paths: set[str] = set()
+    for job in (workflow.get("jobs") or {}).values():
+        for step in job.get("steps") or ():
+            run = step.get("run") if isinstance(step, dict) else None
+            if not isinstance(run, str):
+                continue
+            for line in run.replace("\\\n", " ").splitlines():
+                if "pytest" not in line or line.lstrip().startswith("#"):
+                    continue
+                try:
+                    tokens = shlex.split(line, comments=True)
+                except ValueError:
+                    tokens = line.split()
+                if "pytest" not in " ".join(tokens):
+                    continue
+                paths.update(token.split("::", 1)[0].rstrip("/") for token in tokens if _within(token, "tests"))
+    return frozenset(paths)
+
+
+def out_of_matrix_test_paths(
+    paths: Iterable[str | Path],
+    *,
+    registry_path: Path | None = None,
+    router_path: Path | None = None,
+) -> tuple[tuple[str, str], ...]:
+    """Changed ``tests/**`` paths no per-PR shard or job runs, with the record that says so (#7801).
+
+    A path a ``ci-router.yml`` pytest command names (:func:`router_pytest_paths`)
+    runs per PR in that job and is never reported. Otherwise a path belongs to
+    its deepest containing directory that the registry names: a row's effective
+    test dir (``test_dirs``, else ``tests/<module>``, the precedence
+    ``module-tests.yml`` applies) keeps it in the per-PR matrix; an
     ``out_of_matrix_test_dirs`` record puts it out of the matrix. The record
-    speaks for the test modules there (nightly-only); a conftest or support file
-    under it may also be loaded per PR, which :func:`render_out_of_matrix_report`
-    words accordingly. Returns sorted, de-duplicated ``(path, out_of_matrix_dir)``
-    pairs. Pure apart from reading the registry; it reports and never decides a gate.
+    speaks for the test modules there; a conftest or support file under it may
+    also be loaded per PR, which :func:`render_out_of_matrix_report` words
+    accordingly. Returns sorted, de-duplicated ``(path, out_of_matrix_dir)``
+    pairs. Pure apart from reading the two files; it reports and never decides a gate.
     """
     registry = yaml.safe_load((registry_path or DEFAULT_REGISTRY_PATH).read_text(encoding="utf-8"))
+    routed = router_pytest_paths(yaml.safe_load((router_path or DEFAULT_ROUTER_PATH).read_text(encoding="utf-8")))
     claimed = {str(entry).rstrip("/") for row in registry["modules"] for entry in (row.get("test_dirs") or [f"tests/{row['module']}"])}
     recorded = {str(entry).rstrip("/") for record in registry.get("out_of_matrix_test_dirs") or () for entry in record.get("dirs") or ()}
     hits: set[tuple[str, str]] = set()
     for path in {str(raw) for raw in paths}:
-        if not _within(path, "tests") or path == "tests":
+        if not _within(path, "tests") or path == "tests" or any(_within(path, job_path) for job_path in routed):
             continue
         for directory in _ancestors(path):
             if directory in claimed:
@@ -966,6 +1006,11 @@ def out_of_matrix_test_paths(paths: Iterable[str | Path], *, registry_path: Path
                 hits.add((path, directory))
                 break
     return tuple(sorted(hits))
+
+
+def _record_names_parent(path: str, directory: str) -> bool:
+    """Whether ``directory`` is the record of ``path``'s own directory (not a distant ancestor)."""
+    return path.rsplit("/", 1)[0] == directory
 
 
 def render_out_of_matrix_report(hits: Iterable[tuple[str, str]]) -> tuple[tuple[str, ...], str]:
@@ -981,17 +1026,28 @@ def render_out_of_matrix_report(hits: Iterable[tuple[str, str]]) -> tuple[tuple[
     commands = tuple(
         f"::warning file={path}::{path} is in out_of_matrix_test_dirs ({directory}): no per-PR shard runs it, only the nightly. "
         "Run it locally and paste the result in the PR (#7801)."
+        if is_test_module(path) and _record_names_parent(path, directory)
+        else f"::warning file={path}::{path} sits below out_of_matrix_test_dirs ({directory}) in a directory the registry does not name: "
+        "it is not routed to any per-PR shard or job. Run it locally and paste the result in the PR (#7801)."
         if is_test_module(path)
         else f"::warning file={path}::{path} sits in out_of_matrix_test_dirs ({directory}): nightly-only tests there may depend on it. "
         "Run them locally if they do (#7801)."
         for path, directory in pairs
     )
-    tests = [f"- `{path}` (out-of-matrix directory `{directory}`)" for path, directory in pairs if is_test_module(path)]
+    tests = [f"- `{path}` (out-of-matrix directory `{directory}`)" for path, directory in pairs if is_test_module(path) and _record_names_parent(path, directory)]
+    unrouted = [
+        f"- `{path}` (below out-of-matrix directory `{directory}`)"
+        for path, directory in pairs
+        if is_test_module(path) and not _record_names_parent(path, directory)
+    ]
     support = [f"- `{path}` (out-of-matrix directory `{directory}`)" for path, directory in pairs if not is_test_module(path)]
     lines: list[str] = []
     if tests:
         lines += ["### Changed tests that run only in the nightly (#7801)", "", *tests, ""]
         lines += ["No per-PR shard runs these files. Run them locally and record the result under the PR's *Tests run*.", ""]
+    if unrouted:
+        lines += ["### Changed tests not routed to any per-PR shard or job (#7801)", "", *unrouted, ""]
+        lines += ["No registry row or record names their directory. Run them locally and record the result under the PR's *Tests run*.", ""]
     if support:
         lines += ["### Changed support files in nightly-only test directories (#7801)", "", *support, ""]
         lines += ["Nightly-only tests in these directories may depend on them.", ""]
