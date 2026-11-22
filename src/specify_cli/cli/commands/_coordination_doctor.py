@@ -511,13 +511,12 @@ def _coord_worktree_missing_remote_only_steps(
     repo_root: Path, mission_slug: str, coord_branch: str,
 ) -> str:
     """#5113 / FR-014: the truthful ordered remedy
-    for a coordination branch that exists ONLY as a remote-tracking ref (a
-    fresh clone / CI checkout where the lane exists solely on
-    ``origin/<branch>``).
+    for a coordination branch with neither a local head nor the owning
+    remote's tracking ref in this clone (a single-branch / shallow / CI clone).
 
     ``spec-kitty doctor coordination --fix`` alone REFUSES this state
-    (``materialize_coord_surface_for_write`` never auto-materializes a
-    remote-only branch) -- naming it as the LEADING remedy loops the operator
+    (``materialize_coord_surface_for_write`` materializes from the tracking ref
+    only, #5936) -- naming it as the LEADING remedy loops the operator
     back to a command that just refused. The single construction site
     (S1192): both the ``COORDINATION_WORKTREE_MISSING`` finding builder
     (:func:`_check_coordination_worktree_health`) and the ``--fix`` fixer's
@@ -1820,8 +1819,8 @@ def _apply_missing_worktree_fix(
                 message = (
                     f"Could not materialize the coordination worktree for "
                     f"mission {mission_slug!r}: the coordination branch "
-                    f"{coord_branch!r} has no local branch and no remote-tracking "
-                    f"ref in this clone. "
+                    f"{coord_branch!r} has no local branch, and this clone holds "
+                    f"no remote-tracking ref for it from its owning remote. "
                     f"{next_step}"
                 )
             else:
@@ -2315,7 +2314,8 @@ def run_coordination_health(
     which routes through the canonical
     :func:`~specify_cli.coordination.surface_resolver.materialize_coord_surface_for_write`
     materializer (idempotent; refuses with a ``warning`` finding, never a crash,
-    when the branch is remote-only). It also removes stale ``coordination_branch``
+    when the clone holds neither a local head nor the owning remote's tracking
+    ref for the branch, #5936). It also removes stale ``coordination_branch``
     keys from ``meta.json`` for any ``COORDINATION_WORKTREE_NEVER_CREATED``
     findings, re-runs :func:`~specify_cli.migration.backfill_topology.backfill_topology_repo`
     with ``runtime_reading=True`` (never a derived ``single_branch``), then attempts the WP06

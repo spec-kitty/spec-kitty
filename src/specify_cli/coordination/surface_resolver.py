@@ -415,7 +415,7 @@ class CoordinationWorktreeUnmaterialized(StatusReadPathNotFound):  # type: ignor
             return (
                 f"The coordination branch {coordination_branch!r} declared in "
                 f"meta.json exists only on a remote: this checkout has no local "
-                f"branch for it, so its coordination worktree cannot be "
+                f"branch for it, so its coordination worktree is not "
                 f"materialized. {steps} If that command cannot, materialize it "
                 f"manually with `{materialize_cmd}` once the local branch exists. "
                 f"Keep the `coordination_branch` key in meta.json as-is — the "

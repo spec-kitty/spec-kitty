@@ -1555,7 +1555,7 @@ def coordination_health(
     With ``--fix``, automatically materializes a missing coordination worktree
     whose declared branch still exists in git (#5113 / FR-014, via the
     canonical ``materialize_coord_surface_for_write`` helper — idempotent, and
-    it refuses rather than crashing when the branch is remote-only), flattens
+    it refuses rather than crashing when this clone holds no ref for the branch), flattens
     missions that have a stale ``coordination_branch`` key (branch never
     created or already deleted), re-derives topology, and attempts the Gap-1
     coord-vs-target fast-forward (FR-009) -- which fails loud with a unified
