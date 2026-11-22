@@ -37,16 +37,16 @@
       "wp": null
     },
     "#7793": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "FR-001..FR-003, WP01",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "single_branch: --refresh-planning-commit --allow-orphaned after a rebase empties the implementation evidence window",
+      "verdict": "in-mission",
+      "wp": "WP01"
     },
     "#7809": {
       "evidence_ref": "<link or commit>",
