@@ -1500,7 +1500,8 @@ def finalize_tasks(
             "--refresh-planning-commit",
             help=(
                 "Force a refresh-ONLY run: re-point the recorded planning_commit_sha in "
-                "lanes.json to the current target-branch tip and exit, without running the "
+                "lanes.json to the current tip of the branch the pin is recorded on (the Mission "
+                "branch for a single_branch Mission) and exit, without running the "
                 "rest of finalize-tasks (#4141). By default (no flag needed) a normal "
                 "re-finalize already advances the pin automatically whenever a PRIMARY "
                 "planning file genuinely changed since it was recorded (FR-012); use this "
@@ -1547,7 +1548,9 @@ def finalize_tasks(
     planning state instead of a stale snapshot (#4141). It is refused when the recorded
     SHA is not an ancestor of the tip (a history rewrite, not an amendment) -- unless
     that non-ancestor SHA is a proven ORPHAN (present, just unreachable -- a mid-mission
-    rebase), in which case add --allow-orphaned to re-point to the live tip (#4827).
+    rebase), in which case add --allow-orphaned to re-point it (#4827): a single_branch
+    Mission follows the planning commit to its rebased copy (#7793), other Missions move
+    to the live tip.
 
     Bootstrap Mutation Surface (FR-003 / SC-002)
     =============================================

@@ -498,3 +498,57 @@ def test_residual_an_unrelated_upstream_copy_is_followed(repo: Path) -> None:
     follow = pin_window.follow_orphaned_pin(repo, pin_commit, "topic", upstream_refs=line.upstream_refs)
 
     assert follow.sha is None, "the copy on 'release' is the upstream's, not the Mission's"
+
+
+# --- squad findings: the guard judges the Mission's own commits (F1, F4) ----------------------
+
+
+def test_repin_is_not_refused_when_the_upstream_touched_another_work_packages_files(repo: Path) -> None:
+    """Squad F1: an upstream change to a not-yet-started WP's owned file is not the Mission's work.
+
+    Reading the recorded window across the rebase counted ``src/m2/b.py`` (main's change) as WP02's
+    committed work, which the correct re-pin then "lost": the #7793 remedy refused.
+    """
+    _commit(repo, "src/m2/b.py", "B = 0\n", "main has WP02's module")
+    _git(repo, "checkout", "-q", "-b", "topic")
+    recorded = _commit(repo, f"kitty-specs/{SLUG}/tasks/WP01-m1.md", WP01, "planning")
+    _commit(repo, f"kitty-specs/{SLUG}/tasks/WP02-m2.md", WP01.replace("WP01", "WP02").replace("m1", "m2"), "planning WP02")
+    _commit(repo, "src/m1/a.py", "X = 1\n", "WP01 implementation")
+    _git(repo, "checkout", "-q", "main")
+    _commit(repo, "src/m2/b.py", "B = 1\n", "upstream changes WP02's file")
+    _git(repo, "checkout", "-q", "topic")
+    _git(repo, "rebase", "-q", "main")
+
+    resolution = _refresh(repo, recorded, orphaned=True, upstream_refs=("main",))
+
+    assert (resolution.action, resolution.matched_by) == ("repinned", "patch_id")
+    assert resolution.sha == _git(repo, "rev-parse", "topic~2")
+
+
+def test_a_refresh_with_no_recorded_pin_refuses_over_committed_work(repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Squad F4: no pin and a tip refresh used to empty the window over the Mission's committed work."""
+    _mission(repo)
+
+    with pytest.raises(typer.Exit):
+        _refresh(repo, None, orphaned=False, upstream_refs=("main",))
+
+    payload = _refusal(capsys)
+    assert payload["error_code"] == pin_window.WOULD_EMPTY_WINDOW
+    assert "lanes.json by hand" in payload["error"]
+
+
+def test_an_orphaned_pin_that_would_empty_the_window_names_the_manual_route(repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Squad (docs) F7: keeping an orphaned pin is no way forward, so the refusal names the manual edit."""
+    recorded, _ = _mission(repo)
+    _rebase(repo)
+    # The rebased planning copy sits after the implementation: following it would drop the work.
+    _git(repo, "reset", "-q", "--hard", "main")
+    _commit(repo, "src/m1/a.py", "X = 1\n", "WP01 implementation")
+    _git(repo, "cherry-pick", recorded)
+
+    with pytest.raises(typer.Exit):
+        _refresh(repo, recorded, orphaned=True, upstream_refs=("main",))
+
+    payload = _refusal(capsys)
+    assert payload["error_code"] == pin_window.WOULD_EMPTY_WINDOW
+    assert "orphaned" in payload["error"] and "lanes.json by hand" in payload["error"]
