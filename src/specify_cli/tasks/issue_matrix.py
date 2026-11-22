@@ -340,27 +340,19 @@ class IssueReference(NamedTuple):
     classification: GatingClass = GatingClass.IMPLEMENTATION_TARGET
 
 
-def issue_numbers_in_text(text: str) -> list[int]:
-    """Every same-repo GH issue number in free text, in order of appearance (#7011).
-
-    The ONE text-level entry point to the canonical ``#NNNN`` / issue-URL pattern
-    (:data:`_GH_ISSUE_PATTERN`): cross-repo URLs are filtered exactly as in
-    :func:`detect_issue_references`, so a caller that needs to read a number out
-    of a line (the Mission's ``**Input**:`` header, say) reuses this definition
-    instead of adding a second pattern.
-    """
-    return [number for number, _offset in issue_citations_in_line(text)]
-
-
 def issue_citations_in_line(line: str) -> list[tuple[int, int]]:
     """Every same-repo citation in one line as ``(number, offset)`` pairs, in order.
 
     The offset is the column of the citation inside ``line`` (the ``#`` of a
     bare reference, the ``h`` of an issue URL) -- the ``ref_offset`` an
     :class:`~specify_cli.tasks.issue_reference_discovery.Occurrence` carries.
-    Same pattern and filter as :func:`issue_numbers_in_text`, so a caller that
-    needs to know *where* a number sits (a closing keyword or a citation label
-    leading into it) reuses the one detector instead of adding a pattern.
+    The ONE text-level entry point to the canonical ``#NNNN`` / issue-URL
+    pattern (:data:`_GH_ISSUE_PATTERN`, #7011): cross-repo URLs and filtered
+    values are dropped exactly as in :func:`detect_issue_references`, so a
+    caller that needs a number -- or where it sits, for a closing keyword or a
+    citation label leading into it -- reuses this definition instead of adding
+    a second pattern. ``line`` may span several lines; offsets are then relative
+    to the whole text.
     """
     citations: list[tuple[int, int]] = []
     for match in _GH_ISSUE_PATTERN.finditer(line):

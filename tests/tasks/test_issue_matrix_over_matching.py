@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.tasks.issue_matrix import detect_issue_references, issue_numbers_in_text
+from specify_cli.tasks.issue_matrix import detect_issue_references, issue_citations_in_line
 from specify_cli.tasks.issue_reference_discovery import (
     GatingClass,
     Occurrence,
@@ -33,6 +33,11 @@ from specify_cli.tasks.issue_reference_discovery import (
 )
 
 pytestmark = [pytest.mark.fast]
+
+
+def issue_numbers_in_text(text: str) -> list[int]:
+    """The numbers the canonical detector reads from ``text``, in order."""
+    return [number for number, _offset in issue_citations_in_line(text)]
 
 
 def _mission(tmp_path: Path, files: dict[str, str]) -> Path:
