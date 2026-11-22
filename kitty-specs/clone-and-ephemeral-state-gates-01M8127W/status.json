@@ -1,7 +1,7 @@
 {
-  "event_count": 20,
-  "last_event_id": "01M816RY55AEK3V68ZADRBG43Z",
-  "materialized_at": "2026-11-22T08:43:12.933258+00:00",
+  "event_count": 21,
+  "last_event_id": "01M816XGS4E3QYSH7F5ZQSK1WB",
+  "materialized_at": "2026-11-22T08:45:43.076781+00:00",
   "mission_number": "",
   "mission_slug": "clone-and-ephemeral-state-gates-01M8127W",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "canceled": 1,
     "claimed": 0,
     "done": 0,
-    "for_review": 3,
+    "for_review": 2,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 0
   },
   "work_packages": {
@@ -91,15 +91,15 @@
       }
     },
     "WP04": {
-      "actor": "claude",
-      "agent": "claude::implementer-ivan",
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "for_review",
-      "last_event_id": "01M816R745TMRZ9941XB039JS6",
-      "last_transition_at": "2026-11-22T08:42:49.349157+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M816XGS4E3QYSH7F5ZQSK1WB",
+      "last_transition_at": "2026-11-22T08:45:43.076781+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-22T08:25:37Z – claude – shell_pid=8932 – Red: b654f875 tests/lanes/test_docs_wp_gets_a_lane_7809.py 6 failed/0 passed. Green: 849c687c (kind_normalisation.py + finalize wiring), 83adaff1 (ADR amendment 2026-11-22, 7809.fixed.md). Runs: tests/lanes/*7809* 18 passed; test_finalize*.py + tests/specify_cli/ownership + tests/consolidation/test_wp_evidence.py + tests/lanes: 1643 passed, 8 failed, 1 skipped; test_layer_rules/test_no_dead_symbols/test_no_legacy_terminology: 215 passed after making a helper private; make test-fast 3170 passed 7 skipped; ruff/format/mypy clean; changelog style 0 errors. BLOCKED (out of owned_files, not edited): 6 tests in tests/specify_cli/cli/commands/agent/test_finalize_tasks_orchestration.py (harness fakes lane_wp_manifests as strings; needs a fake for _kind_normalisation_for) and 2 in test_finalize_topology_settlement.py (test_five_wp_one_code_lane_settles_single_branch, test_canceled_wps_not_counted_planning_wps_counted encode the old 'docs WP not counted' rule, flipped by the Count it ruling). Both files are out-of-matrix (nightly-only). Changed files: src/specify_cli/ownership/kind_normalisation.py, src/specify_cli/cli/commands/agent/mission_finalize{,_lanes,_bootstrap}.py, tests/lanes/test_kind_normalisation_7809.py, tests/lanes/test_docs_wp_gets_a_lane_7809.py, ADR 2026-11-06-3, docs/changelog/unreleased/7809.fixed.md. Follow-up: execution_mode template guidance in spec-kitty-open-packs needs updating (C-004).",
@@ -107,9 +107,9 @@
         "Ready for review"
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 8932,
-      "shell_pid_created_at": "1795333016.26",
+      "role": "reviewer",
+      "shell_pid": 814,
+      "shell_pid_created_at": "1795337125.7",
       "subtasks": {
         "T016": "done",
         "T017": "done",
