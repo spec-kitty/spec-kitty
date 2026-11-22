@@ -73,16 +73,16 @@
       "wp": null
     },
     "#7806": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Mission clone-and-ephemeral-state-gates-01M8127W WP02",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "review fails LANE_AUTO_REBASE_FAILED when the lane branch is only a remote-tracking ref",
+      "verdict": "in-mission",
+      "wp": "WP02"
     },
     "#7808": {
       "evidence_ref": "Mission clone-and-ephemeral-state-gates-01M8127W WP01",
