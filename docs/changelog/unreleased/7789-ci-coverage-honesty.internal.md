@@ -1,0 +1,1 @@
+- **The per-PR coverage gate says when it scored nothing, and the CI router names changed tests only the nightly runs** (#7789, #7801).

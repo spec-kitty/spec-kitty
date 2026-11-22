@@ -66,6 +66,9 @@ __all__ = [
     "unrouted_src_paths",
     "UNROUTED_SRC_ALLOWLIST",
     "select_modules",
+    "out_of_matrix_test_paths",
+    "render_out_of_matrix_report",
+    "is_test_module",
 ]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -919,6 +922,80 @@ def select_modules(
             src_selected = src_selected | (targets & modules)
     test_selected = _modules_for_test_paths(paths, router=router, registry_path=registry_path, modules=modules)
     return src_selected | test_selected
+
+
+def _ancestors(path: str) -> list[str]:
+    """The directories containing ``path``, deepest first (``a/b/c.py`` -> ``a/b``, ``a``)."""
+    parts = path.split("/")[:-1]
+    return ["/".join(parts[:end]) for end in range(len(parts), 0, -1)]
+
+
+# pytest's default ``python_files`` (pytest.ini does not override it, #4388).
+_TEST_MODULE_PATTERNS = ("test_*.py", "*_test.py")
+
+
+def is_test_module(path: str) -> bool:
+    """Whether ``path`` is a module pytest collects (its ``python_files`` patterns)."""
+    name = path.rsplit("/", 1)[-1]
+    return any(fnmatch.fnmatchcase(name, pattern) for pattern in _TEST_MODULE_PATTERNS)
+
+
+def out_of_matrix_test_paths(paths: Iterable[str | Path], *, registry_path: Path | None = None) -> tuple[tuple[str, str], ...]:
+    """Changed ``tests/**`` paths under an out-of-matrix directory, with that directory (#7801).
+
+    A path belongs to its deepest containing directory that the registry names:
+    a row's effective test dir (``test_dirs``, else ``tests/<module>``, the
+    precedence ``module-tests.yml`` applies) keeps it in the per-PR matrix; an
+    ``out_of_matrix_test_dirs`` record puts it out of the matrix. The record
+    speaks for the test modules there (nightly-only); a conftest or support file
+    under it may also be loaded per PR, which :func:`render_out_of_matrix_report`
+    words accordingly. Returns sorted, de-duplicated ``(path, out_of_matrix_dir)``
+    pairs. Pure apart from reading the registry; it reports and never decides a gate.
+    """
+    registry = yaml.safe_load((registry_path or DEFAULT_REGISTRY_PATH).read_text(encoding="utf-8"))
+    claimed = {str(entry).rstrip("/") for row in registry["modules"] for entry in (row.get("test_dirs") or [f"tests/{row['module']}"])}
+    recorded = {str(entry).rstrip("/") for record in registry.get("out_of_matrix_test_dirs") or () for entry in record.get("dirs") or ()}
+    hits: set[tuple[str, str]] = set()
+    for path in {str(raw) for raw in paths}:
+        if not _within(path, "tests") or path == "tests":
+            continue
+        for directory in _ancestors(path):
+            if directory in claimed:
+                break
+            if directory in recorded:
+                hits.add((path, directory))
+                break
+    return tuple(sorted(hits))
+
+
+def render_out_of_matrix_report(hits: Iterable[tuple[str, str]]) -> tuple[tuple[str, ...], str]:
+    """The workflow-command lines and step-summary markdown for :func:`out_of_matrix_test_paths` hits.
+
+    Every hit is a ``::warning`` naming the file. A test module is said to run
+    in no per-PR shard. Any other file (a conftest or helper) may be loaded per
+    PR too, so its claim is only that nightly-only tests there may depend on it.
+    """
+    pairs = tuple(hits)
+    if not pairs:
+        return (), ""
+    commands = tuple(
+        f"::warning file={path}::{path} is in out_of_matrix_test_dirs ({directory}): no per-PR shard runs it, only the nightly. "
+        "Run it locally and paste the result in the PR (#7801)."
+        if is_test_module(path)
+        else f"::warning file={path}::{path} sits in out_of_matrix_test_dirs ({directory}): nightly-only tests there may depend on it. "
+        "Run them locally if they do (#7801)."
+        for path, directory in pairs
+    )
+    tests = [f"- `{path}` (out-of-matrix directory `{directory}`)" for path, directory in pairs if is_test_module(path)]
+    support = [f"- `{path}` (out-of-matrix directory `{directory}`)" for path, directory in pairs if not is_test_module(path)]
+    lines: list[str] = []
+    if tests:
+        lines += ["### Changed tests that run only in the nightly (#7801)", "", *tests, ""]
+        lines += ["No per-PR shard runs these files. Run them locally and record the result under the PR's *Tests run*.", ""]
+    if support:
+        lines += ["### Changed support files in nightly-only test directories (#7801)", "", *support, ""]
+        lines += ["Nightly-only tests in these directories may depend on them.", ""]
+    return commands, "\n".join(lines)
 
 
 _DYNAMIC_IMPORTERS = frozenset({"import_module", "__import__"})

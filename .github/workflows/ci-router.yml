@@ -1114,6 +1114,61 @@ jobs:
           fi
           echo "prose_only=${prose_only:-false}" >> "$GITHUB_OUTPUT"
           echo "scan_scope_match=${scan_scope_match:-false}" >> "$GITHUB_OUTPUT"
+      # #7801: name every changed test file that runs in no per-PR shard (an
+      # out_of_matrix_test_dirs record in .github/ci-module-registry.yml), so a PR
+      # editing a nightly-only test cannot read its own green as a run of that test.
+      # REPORT ONLY: a ::warning plus a step-summary list, never a failure
+      # (continue-on-error, and the script exits 0 on every path). The mapping is
+      # gate_selection.out_of_matrix_test_paths; executed by
+      # tests/ci/test_gate_selection_out_of_matrix.py.
+      - name: Name changed tests that only the nightly runs
+        id: out-of-matrix
+        continue-on-error: true
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          set -uo pipefail
+          base=""
+          case "$EVENT_NAME" in
+            pull_request) base="$BASE_SHA" ;;
+            push) base="$PUSH_BEFORE" ;;
+            merge_group) base="$MERGE_GROUP_BASE" ;;
+          esac
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            echo "out-of-matrix scan: no trustworthy base, nothing to report"
+            exit 0
+          fi
+          # The diff travels in a FILE (never an env var: E2BIG past ~2000 paths, #6915).
+          diff_file="$RUNNER_TEMP/out-of-matrix-diff.txt"
+          # Deleted files are left out (--diff-filter=d): there is nothing left to run.
+          if ! git diff --name-only --diff-filter=d "$base" "$HEAD_SHA" > "$diff_file" 2>/dev/null; then
+            echo "out-of-matrix scan: diff unavailable, nothing to report"
+            exit 0
+          fi
+          OOM_DIFF_FILE="$diff_file" python3 - <<'PY' || echo "::warning::out-of-matrix scan failed: changed nightly-only tests were not checked (#7801)"
+          import os
+          import sys
+
+          sys.path.insert(0, os.environ.get("PYTHONPATH", "."))
+          from scripts.ci.gate_selection import out_of_matrix_test_paths, render_out_of_matrix_report
+
+          with open(os.environ["OOM_DIFF_FILE"], encoding="utf-8") as fh:
+              paths = [line for line in fh.read().splitlines() if line]
+          warnings, summary = render_out_of_matrix_report(out_of_matrix_test_paths(paths))
+          for line in warnings:
+              print(line)
+          if summary and os.environ.get("GITHUB_STEP_SUMMARY"):
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as out:
+                  out.write(summary)
+          print(f"out-of-matrix scan: {len(warnings)} changed nightly-only test path(s)")
+          PY
+          exit 0
 
   # ===========================================================================
   # Shift-left front (FR-005): the cheapest static / lint / regen gates. Every
