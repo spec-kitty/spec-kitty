@@ -1,13 +1,6 @@
 ---
 work_package_id: WP04
 title: Docs work packages get a lane in lane topologies (#7809)
-subtasks:
-- T016
-- T017
-- T018
-- T019
-- T020
-- T021
 dependencies: []
 requirement_refs:
 - FR-001
@@ -19,7 +12,24 @@ requirement_refs:
 - C-004
 - C-005
 - SC-001
-task_type: implement
+planning_base_branch: issue-7809-clone-ephemeral-state-gates
+merge_target_branch: issue-7809-clone-ephemeral-state-gates
+branch_strategy: Planning artifacts for this mission were generated on issue-7809-clone-ephemeral-state-gates. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-7809-clone-ephemeral-state-gates unless the human explicitly redirects the landing branch.
+subtasks:
+- T016
+- T017
+- T018
+- T019
+- T020
+- T021
+history: []
+agent_profile: implementer-ivan
+authoritative_surface: src/specify_cli/ownership/kind_normalisation.py
+create_intent:
+- src/specify_cli/ownership/kind_normalisation.py
+- tests/lanes/test_kind_normalisation_7809.py
+- tests/lanes/test_docs_wp_gets_a_lane_7809.py
+- docs/changelog/unreleased/7809.fixed.md
 execution_mode: code_change
 owned_files:
 - src/specify_cli/ownership/kind_normalisation.py
@@ -31,15 +41,10 @@ owned_files:
 - tests/lanes/test_docs_wp_gets_a_lane_7809.py
 - docs/adr/4.x/2026-11-06-3-topology-is-settled-once-at-first-finalize.md
 - docs/changelog/unreleased/7809.fixed.md
-authoritative_surface: src/specify_cli/ownership/kind_normalisation.py
-create_intent:
-- src/specify_cli/ownership/kind_normalisation.py
-- tests/lanes/test_kind_normalisation_7809.py
-- tests/lanes/test_docs_wp_gets_a_lane_7809.py
-- docs/changelog/unreleased/7809.fixed.md
-agent_profile: implementer-ivan
 role: implementer
-agent: claude
+tags: []
+task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP04 – Docs work packages get a lane in lane topologies (#7809)

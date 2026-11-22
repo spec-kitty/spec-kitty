@@ -1,12 +1,6 @@
 ---
 work_package_id: WP02
 title: Review creates a remote-only lane branch through one owning-remote helper (#7806)
-subtasks:
-- T005
-- T006
-- T007
-- T008
-- T009
 dependencies: []
 requirement_refs:
 - FR-006
@@ -15,7 +9,23 @@ requirement_refs:
 - NFR-001
 - C-001
 - SC-002
-task_type: implement
+planning_base_branch: issue-7809-clone-ephemeral-state-gates
+merge_target_branch: issue-7809-clone-ephemeral-state-gates
+branch_strategy: Planning artifacts for this mission were generated on issue-7809-clone-ephemeral-state-gates. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-7809-clone-ephemeral-state-gates unless the human explicitly redirects the landing branch.
+subtasks:
+- T005
+- T006
+- T007
+- T008
+- T009
+history: []
+agent_profile: implementer-ivan
+authoritative_surface: src/kernel/git/tracking_branch.py
+create_intent:
+- src/kernel/git/tracking_branch.py
+- tests/kernel/git/test_tracking_branch.py
+- tests/specify_cli/coordination/test_review_remote_only_lane_7806.py
+- docs/changelog/unreleased/7806.fixed.md
 execution_mode: code_change
 owned_files:
 - src/kernel/git/tracking_branch.py
@@ -25,15 +35,10 @@ owned_files:
 - src/specify_cli/cli/commands/agent/workflow.py
 - tests/specify_cli/coordination/test_review_remote_only_lane_7806.py
 - docs/changelog/unreleased/7806.fixed.md
-authoritative_surface: src/kernel/git/tracking_branch.py
-create_intent:
-- src/kernel/git/tracking_branch.py
-- tests/kernel/git/test_tracking_branch.py
-- tests/specify_cli/coordination/test_review_remote_only_lane_7806.py
-- docs/changelog/unreleased/7806.fixed.md
-agent_profile: implementer-ivan
 role: implementer
-agent: claude
+tags: []
+task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP02 – Review creates a remote-only lane branch through one owning-remote helper (#7806)

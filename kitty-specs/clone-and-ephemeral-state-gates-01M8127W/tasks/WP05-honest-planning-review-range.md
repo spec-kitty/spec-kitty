@@ -1,15 +1,23 @@
 ---
 work_package_id: WP05
 title: Honest planning-lane review range (#7759)
-subtasks:
-- T022
-- T023
-- T024
 dependencies: []
 requirement_refs:
 - FR-013
 - C-003
-task_type: implement
+planning_base_branch: issue-7809-clone-ephemeral-state-gates
+merge_target_branch: issue-7809-clone-ephemeral-state-gates
+branch_strategy: Planning artifacts for this mission were generated on issue-7809-clone-ephemeral-state-gates. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-7809-clone-ephemeral-state-gates unless the human explicitly redirects the landing branch.
+subtasks:
+- T022
+- T023
+- T024
+history: []
+agent_profile: implementer-ivan
+authoritative_surface: src/specify_cli/review/wp_range.py
+create_intent:
+- tests/review/test_planning_range_bookkeeping_only_7759.py
+- docs/changelog/unreleased/7759.fixed.md
 execution_mode: code_change
 owned_files:
 - src/specify_cli/review/wp_range.py
@@ -17,13 +25,10 @@ owned_files:
 - tests/review/test_planning_range_bookkeeping_only_7759.py
 - docs/adr/4.x/2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition.md
 - docs/changelog/unreleased/7759.fixed.md
-authoritative_surface: src/specify_cli/review/wp_range.py
-create_intent:
-- tests/review/test_planning_range_bookkeeping_only_7759.py
-- docs/changelog/unreleased/7759.fixed.md
-agent_profile: implementer-ivan
 role: implementer
-agent: claude
+tags: []
+task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP05 – Honest planning-lane review range (#7759)

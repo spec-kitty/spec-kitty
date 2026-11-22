@@ -1,13 +1,6 @@
 ---
 work_package_id: WP03
 title: Approval stamp survives the review's own sync merge (#7802)
-subtasks:
-- T010
-- T011
-- T012
-- T013
-- T014
-- T015
 dependencies: []
 requirement_refs:
 - FR-009
@@ -18,7 +11,23 @@ requirement_refs:
 - C-002
 - C-003
 - SC-003
-task_type: implement
+planning_base_branch: issue-7809-clone-ephemeral-state-gates
+merge_target_branch: issue-7809-clone-ephemeral-state-gates
+branch_strategy: Planning artifacts for this mission were generated on issue-7809-clone-ephemeral-state-gates. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-7809-clone-ephemeral-state-gates unless the human explicitly redirects the landing branch.
+subtasks:
+- T010
+- T011
+- T012
+- T013
+- T014
+- T015
+history: []
+agent_profile: implementer-ivan
+authoritative_surface: src/specify_cli/lanes/auto_rebase.py
+create_intent:
+- tests/consolidation/test_approval_stamp_presync_7802.py
+- tests/status/test_lane_head_presync_7802.py
+- docs/changelog/unreleased/7802.fixed.md
 execution_mode: code_change
 owned_files:
 - src/specify_cli/lanes/auto_rebase.py
@@ -35,14 +44,10 @@ owned_files:
 - tests/status/test_lane_head_presync_7802.py
 - docs/adr/4.x/2026-10-04-5-approval-stamp-bounds-the-approved-claim.md
 - docs/changelog/unreleased/7802.fixed.md
-authoritative_surface: src/specify_cli/lanes/auto_rebase.py
-create_intent:
-- tests/consolidation/test_approval_stamp_presync_7802.py
-- tests/status/test_lane_head_presync_7802.py
-- docs/changelog/unreleased/7802.fixed.md
-agent_profile: implementer-ivan
 role: implementer
-agent: claude
+tags: []
+task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP03 – Approval stamp survives the review's own sync merge (#7802)

@@ -1,29 +1,34 @@
 ---
 work_package_id: WP01
 title: Hex colours are not issue references (#7808)
+dependencies: []
+requirement_refs:
+- FR-012
+- SC-004
+planning_base_branch: issue-7809-clone-ephemeral-state-gates
+merge_target_branch: issue-7809-clone-ephemeral-state-gates
+branch_strategy: Planning artifacts for this mission were generated on issue-7809-clone-ephemeral-state-gates. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-7809-clone-ephemeral-state-gates unless the human explicitly redirects the landing branch.
 subtasks:
 - T001
 - T002
 - T003
 - T004
-dependencies: []
-requirement_refs:
-- FR-012
-- SC-004
-task_type: implement
+history: []
+agent_profile: implementer-ivan
+authoritative_surface: src/specify_cli/tasks/issue_matrix.py
+create_intent:
+- tests/tasks/test_issue_reference_hex_colour_7808.py
+- docs/changelog/unreleased/7808.fixed.md
 execution_mode: code_change
 owned_files:
 - src/specify_cli/tasks/issue_matrix.py
 - src/specify_cli/tasks/issue_reference_discovery.py
 - tests/tasks/test_issue_reference_hex_colour_7808.py
 - docs/changelog/unreleased/7808.fixed.md
-authoritative_surface: src/specify_cli/tasks/issue_matrix.py
-create_intent:
-- tests/tasks/test_issue_reference_hex_colour_7808.py
-- docs/changelog/unreleased/7808.fixed.md
-agent_profile: implementer-ivan
 role: implementer
-agent: claude
+tags: []
+task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP01 – Hex colours are not issue references (#7808)
