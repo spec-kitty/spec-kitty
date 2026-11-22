@@ -1,7 +1,7 @@
 {
-  "event_count": 16,
-  "last_event_id": "01M8163ATV3BXQKD7JRXSNQWCS",
-  "materialized_at": "2026-11-22T08:31:25.019475+00:00",
+  "event_count": 17,
+  "last_event_id": "01M816K8HQZ0R253ATVP8WFBHK",
+  "materialized_at": "2026-11-22T08:40:06.967935+00:00",
   "mission_number": "",
   "mission_slug": "clone-and-ephemeral-state-gates-01M8127W",
   "mission_type": "software-dev",
@@ -12,8 +12,8 @@
     "canceled": 1,
     "claimed": 0,
     "done": 0,
-    "for_review": 2,
-    "in_progress": 2,
+    "for_review": 3,
+    "in_progress": 1,
     "in_review": 0,
     "planned": 0
   },
@@ -70,9 +70,9 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M8130S8BGZK4FHJFJHECHRTP",
-      "last_transition_at": "2026-11-22T07:37:34.759602+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M816K8HQZ0R253ATVP8WFBHK",
+      "last_transition_at": "2026-11-22T08:40:06.967935+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-22T08:32:15Z – claude – shell_pid=8935 – Red-first: b7af01da committed tests/consolidation/test_approval_stamp_presync_7802.py alone; red run 'pytest tests/consolidation/test_approval_stamp_presync_7802.py' = 3 failed (no lane_head_presync recorded; late commit misreported as APPROVAL_STAMP_NOT_ON_LANE; no push remedy). Fix 852433f6, docs c319e599 (ADR 2026-10-04-5 Amendment 2026-11-22, changelog 7802.fixed.md). Green: new consolidation file 7 passed; tests/status/test_lane_head_presync_7802.py 12 passed; tests/consolidation -n auto --dist loadfile 3503 passed, 1 skipped, 11 xfailed; tests/status -n 4 2191 passed, 7 skipped; tests/lanes -n 4 1207 passed, 1 skipped; architectural gates test_remote_contact_owner, test_layer_rules, test_status_module_boundary, test_cold_import_status_boundary 135 passed; test_commit_scope_owner, test_exemption_registry_ratchet, test_mission_write_discipline, test_status_events_writes_gate 236 passed 1 xfailed; test_destructive_op_routing, test_merge_pipeline_ratchets, test_no_legacy_terminology 172 passed; make test-fast 3182 passed, 7 skipped. Out-of-matrix (nightly-only), run locally, not changed: tests/integration/test_single_branch_approval_windows.py 10 passed, 1 xfailed. No out-of-matrix test file was changed. ruff check/format and per-file mypy clean (a combined mypy of status/__init__.py+transition_pipeline.py shows 8 pre-existing errors, same on base). status/__init__.py export added without a pyproject version bump (pyproject is not in owned_files)."
