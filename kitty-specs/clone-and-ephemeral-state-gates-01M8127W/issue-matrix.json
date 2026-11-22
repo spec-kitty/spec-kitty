@@ -109,7 +109,7 @@
       "wp": null
     },
     "#7802": {
-      "evidence_ref": "Mission clone-and-ephemeral-state-gates-01M8127W WP03",
+      "evidence_ref": "Mission clone-and-ephemeral-state-gates-01M8127W WP03 approved (review recorded by claude::reviewer-renata); lands via PR from issue-7809-clone-ephemeral-state-gates",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -117,7 +117,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "approval stamps lane_head on the review's own unpushed merge",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP03"
     },
     "#7804": {
