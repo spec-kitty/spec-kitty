@@ -126,6 +126,8 @@ def test_remote_url_naming_no_repository_falls_back_to_directory(tmp_path: Path)
         ("https://example.invalid/acme/acme-widgets.git/", "acme-widgets"),
         ("git@example.invalid:acme/acme-widgets.git", "acme-widgets"),
         ("https://example.invalid", None),
+        ("https://user:TOKEN@example.invalid", None),
+        ("https://user:TOKEN@example.invalid:8443/acme/acme-widgets.git", "acme-widgets"),
     ],
 )
 def test_slug_from_git_remote_url_shapes(tmp_path: Path, url: str, slug: str | None) -> None:
