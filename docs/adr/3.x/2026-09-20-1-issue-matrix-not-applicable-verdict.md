@@ -197,7 +197,9 @@ gating scope only**:
   side, classes the occurrence as `pr_or_commit_ref`, as in ``(`<sha>`, #N)``. An
   all-digit backticked token, or an all-letter word such as `defaced`, stays gating.
 - **Number filter.** No issue-number pattern accepts a leading zero, so `#000` and
-  `#000000` are no longer issue 0. Digits are ASCII only. An all-digit hex color in CSS
+  `#000000` are no longer issue 0. The rule is not limited to colors: zero-padded
+  prose such as `#083` (a Mission number) is no longer a reference either. Digits are
+  ASCII only. An all-digit hex color in CSS
   declaration form is not a reference. Declaration form means a listed lower-case
   color-bearing property name (`color`, `background`, `border-color`, `fill`, and so
   on) or a `--custom-property`, as a whole token. The property must start a
@@ -227,8 +229,20 @@ are therefore no longer source issues:
 - no boundary before the `#` (`Fixes:#N`, `Closes#N`);
 - a keyword and number split across lines.
 
-A negation such as "does not fix" is now judged within the line only. These forms
-gate in `spec.md` and `tasks/` all the same under the scope default.
+A negation such as "does not fix" is now judged within the line only. Of these forms,
+only the keyword split across lines still gates in `spec.md` and `tasks/`, under the
+scope default. The glued and boundary-less forms (`#N-fix`, `Fixes:#N`, `Closes#N`)
+are not detected anywhere, so they neither gate nor appear in the audit trail. The
+detector on main never found them either, so this is not a regression; it is recorded
+so no fail-safe is claimed for them.
+
+**Known residual over-match (within the rulings).** The closing-keyword label also
+gates noun uses ("the fix #N regressed"), past-tense history ("PR #M fixed #N",
+"closed #N") and negations outside the existing list ("must not close #N", "do not
+fix #N"). The commit-citation window also demotes a backticked hex-only identifier
+next to a citation. Outside `spec.md` and `tasks/` the closing-keyword cases all
+gated before this amendment as well. Extending the negation list and narrowing the
+keyword to imperative use are follow-ups.
 
 **Scaffold.** `scaffold_issue_matrix` still detects on `spec.md` alone. It agrees with
 discovery there. References that gate only through `tasks/` or a closing keyword
