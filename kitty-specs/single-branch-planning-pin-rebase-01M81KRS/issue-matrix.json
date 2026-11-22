@@ -49,15 +49,15 @@
       "wp": "WP01"
     },
     "#7809": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "cited for coordination: overlaps tasks_move_task.py and single_branch_landing.py",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "title": "clone-and-ephemeral-state-gates Mission (overlap only)",
+      "verdict": "not-applicable",
       "wp": null
     }
   },
