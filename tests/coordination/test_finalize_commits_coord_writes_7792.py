@@ -15,6 +15,7 @@ from unittest.mock import patch
 
 import pytest
 
+from specify_cli.cli.commands.agent.mission_finalize_commit import _CommitOutcome
 from tests.specify_cli.cli.commands.agent.test_finalize_topology_settlement import (
     REPO_ROOT,
     THREE_LANES,
@@ -138,6 +139,47 @@ def test_refinalize_refuses_when_its_own_writes_stay_uncommitted(tmp_path: Path)
     uncommitted = payload["uncommitted_files"]
     assert isinstance(uncommitted, list)
     assert any(str(name).endswith("lanes.json") for name in uncommitted)
+    assert "No commit landed" in str(payload["error"])
+
+
+def _outcome(tmp_path: Path, *, surface_refusal: bool, commit_created: bool) -> tuple[_CommitOutcome, Path]:
+    from specify_cli.cli.commands.agent import mission_finalize as mf
+
+    root = tmp_path / "repo-postcondition"
+    root.mkdir()
+    git(root, "init", "-q")
+    dirty = root / "tasks.md"
+    dirty.write_text("x\n", encoding="utf-8")
+    return mf._CommitOutcome(commit_created=commit_created, surface_refusal=surface_refusal, candidate_checkouts={dirty: root}), dirty
+
+
+def test_postcondition_defers_to_a_surface_refusal(tmp_path: Path) -> None:
+    from specify_cli.cli.commands.agent import mission_finalize as mf
+
+    outcome, dirty = _outcome(tmp_path, surface_refusal=True, commit_created=True)
+    ledger, ledger_token, observer_token = mf.begin_write_ledger()
+    try:
+        ledger.record(dirty, b"x\n")
+        mf._refuse_uncommitted_finalize_writes(outcome, json_output=True)  # no raise
+    finally:
+        mf.end_write_ledger(ledger_token, observer_token)
+
+
+def test_postcondition_names_files_to_commit_after_a_landed_commit(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    import typer
+
+    from specify_cli.cli.commands.agent import mission_finalize as mf
+
+    outcome, dirty = _outcome(tmp_path, surface_refusal=False, commit_created=True)
+    ledger, ledger_token, observer_token = mf.begin_write_ledger()
+    try:
+        ledger.record(dirty, b"x\n")
+        with pytest.raises(typer.Exit):
+            mf._refuse_uncommitted_finalize_writes(outcome, json_output=False)
+    finally:
+        mf.end_write_ledger(ledger_token, observer_token)
+    out = capsys.readouterr().out
+    assert "FINALIZE_WRITES_UNCOMMITTED" in out and "Commit them" in out
 
 
 def test_settlement_commits_its_meta_restamp_in_the_coordination_worktree(tmp_path: Path) -> None:
