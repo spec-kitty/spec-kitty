@@ -161,6 +161,7 @@ def compute_and_write_lanes(
     topology: MissionTopology,
     mission_branch: str | None = None,
     frozen: FrozenLaneMembership | None = None,
+    planning_commit_derived: bool = False,
 ) -> tuple[Path, LanesManifest]:
     """Compute execution lanes and persist ``lanes.json`` -- the pure core.
 
@@ -303,5 +304,7 @@ def compute_and_write_lanes(
     # §4). ``compute_lanes`` itself stays untouched (Complexity Tracking).
     lanes_manifest.mission_branch = _preserved_mission_branch(previous_lanes, lanes_manifest.mission_branch, topology=topology)
     lanes_manifest.planning_commit_sha = planning_commit_sha
+    # #7297 item 1: a derived pin stays marked, so a later plain finalize keeps it.
+    lanes_manifest.planning_commit_derived = planning_commit_derived and planning_commit_sha is not None
     lanes_path = write_lanes_json(planning_dir, lanes_manifest)
     return lanes_path, lanes_manifest

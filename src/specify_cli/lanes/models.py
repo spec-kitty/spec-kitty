@@ -146,6 +146,10 @@ class LanesManifest:
             ADR closes). ``None`` for a ``lanes.json`` written before this field
             existed; the allocator's merge step is a no-op in that case,
             reproducing pre-fix behaviour exactly (backward compatible).
+        planning_commit_derived: #7297 item 1: ``True`` when ``planning_commit_sha`` was derived
+            from git (#7210) rather than captured or refreshed by an operator. A plain re-finalize
+            keeps a derived pin; only an explicit ``--refresh-planning-commit`` replaces it.
+            Serialized only when ``True``, so every other ``lanes.json`` is byte-identical.
     """
 
     version: int
@@ -159,6 +163,7 @@ class LanesManifest:
     planning_artifact_wps: list[str] = field(default_factory=list)
     collapse_report: CollapseReport | None = field(default=None)
     planning_commit_sha: str | None = field(default=None)
+    planning_commit_derived: bool = field(default=False)
 
     def lane_for_wp(self, wp_id: str) -> ExecutionLane | None:
         """Return the lane containing the given WP, or None."""
@@ -189,6 +194,8 @@ class LanesManifest:
         }
         if self.collapse_report and self.collapse_report.events:
             d["collapse_report"] = self.collapse_report.to_dict()
+        if self.planning_commit_derived:
+            d["planning_commit_derived"] = True
         return d
 
     @classmethod
@@ -221,4 +228,5 @@ class LanesManifest:
             planning_artifact_wps=data.get("planning_artifact_wps", []),
             collapse_report=collapse_report,
             planning_commit_sha=data.get("planning_commit_sha"),
+            planning_commit_derived=data.get("planning_commit_derived") is True,
         )

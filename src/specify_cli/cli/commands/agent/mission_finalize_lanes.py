@@ -396,6 +396,7 @@ def _compute_and_write_lanes(
             topology=topology,
             mission_branch=resolved_mission_branch,
             frozen=frozen,
+            planning_commit_derived=planning_sha.derived if planning_sha is not None else False,
         )
     except LaneGlobValidationError as exc:
         glob_result = exc.result
