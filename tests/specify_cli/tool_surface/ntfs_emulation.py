@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import os
 import stat
-from collections.abc import Iterator
 from typing import Any
 
 import pytest
@@ -94,17 +93,3 @@ def emulate_ntfs(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(os, "chmod", fake_chmod)
     monkeypatch.setattr(os, "fchmod", fake_fchmod)
     monkeypatch.setattr(kernel_paths, "is_windows", lambda: True)
-
-
-@pytest.fixture
-def ntfs_host(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """A test body that runs as if on Windows with an NTFS file system."""
-    emulate_ntfs(monkeypatch)
-    yield
-
-
-@pytest.fixture
-def posix_host(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """A test body that runs on POSIX regardless of the harness's real host."""
-    monkeypatch.setattr(kernel_paths, "is_windows", lambda: False)
-    yield

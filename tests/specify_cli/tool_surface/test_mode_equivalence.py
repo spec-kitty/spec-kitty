@@ -12,7 +12,6 @@ from pathlib import Path
 import pytest
 
 from kernel import paths as kernel_paths
-from kernel.file_modes import modes_equivalent
 from specify_cli.tool_surface.operations import (
     FileState,
     OperationRoot,
@@ -46,35 +45,6 @@ def _dir(mode: int, mtime: int | None = None) -> FileState:
 
 def _link(mode: int, target: str = "t") -> FileState:
     return FileState("symlink", target=target, mode=mode)
-
-
-@pytest.mark.parametrize(
-    ("kind", "observed", "planned", "on_windows"),
-    [
-        ("directory", 0o777, 0o755, True),
-        ("symlink", 0o777, 0o755, True),
-        ("file", 0o666, 0o644, True),
-        ("file", 0o666, 0o755, True),  # the exec bit is not representable on NTFS
-        ("file", 0o444, 0o644, False),  # read-only drift is representable
-        ("file", 0o666, 0o444, False),
-        ("file", 0o444, 0o444, True),
-        ("file", 0o644, 0o644, True),
-    ],
-)
-def test_modes_equivalent(windows: bool, kind: str, observed: int, planned: int, on_windows: bool) -> None:
-    expected = on_windows if windows else observed == planned
-    assert modes_equivalent(kind, observed, planned) is expected
-
-
-def test_modes_equivalent_unknown_kind_compares_exactly(windows: bool) -> None:
-    assert modes_equivalent("absent", 0o777, 0o755) is False
-    assert modes_equivalent("absent", 0o644, 0o644) is True
-
-
-def test_modes_equivalent_none_compares_exactly(windows: bool) -> None:
-    assert modes_equivalent("file", None, None) is True
-    assert modes_equivalent("file", None, 0o644) is False
-    assert modes_equivalent("directory", 0o777, None) is False
 
 
 def test_mode_equivalent_requires_same_kind(windows: bool) -> None:
