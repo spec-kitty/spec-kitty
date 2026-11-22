@@ -49,16 +49,16 @@
       "wp": null
     },
     "#7802": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Mission clone-and-ephemeral-state-gates-01M8127W WP03",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "approval stamps lane_head on the review's own unpushed merge",
+      "verdict": "in-mission",
+      "wp": "WP03"
     },
     "#7804": {
       "evidence_ref": "<auto-classified: no action required>",
