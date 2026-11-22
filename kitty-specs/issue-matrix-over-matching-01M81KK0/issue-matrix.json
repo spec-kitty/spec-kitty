@@ -25,16 +25,16 @@
       "wp": null
     },
     "#7808": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "commit a19bc320: leading-zero rejection + CSS-declaration colour filter; tests/tasks/test_issue_matrix_over_matching.py",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Hex colour values are read as issue references",
+      "verdict": "fixed",
+      "wp": "WP01"
     }
   },
   "schema_version": 1
