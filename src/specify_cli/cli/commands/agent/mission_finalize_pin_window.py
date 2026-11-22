@@ -181,16 +181,21 @@ def _resolves(repo_root: Path, ref: str) -> bool:
 def _own_changed_paths(repo_root: Path, tip: str, bounds: list[str]) -> frozenset[str]:
     """Paths the non-merge commits on *tip* reachable from none of *bounds* change.
 
+    The commits are the intersection of each ``bound..tip`` range; each one's paths come from
+    ``kernel.git.commit_paths`` (a merge lists nothing, as ``git log --no-merges`` would).
+
     Raises:
         PinWindowUnreadable: git cannot list them.
     """
-    from kernel.git import GitCommandError, run_git
+    from kernel.git import GitCommandError, commit_paths
+    from specify_cli.consolidation.git_probes import GitProbeError, commits_in_range
 
     try:
-        out = run_git(repo_root, "log", "--no-merges", "--format=", "--name-only", tip, "--not", *bounds, "--").stdout
-    except GitCommandError as exc:
+        ranges = [set(commits_in_range(repo_root, bound, tip)) for bound in bounds]
+        own = set.intersection(*ranges) if ranges else set()
+        return frozenset(str(path) for commit in sorted(own) for path in commit_paths(repo_root, commit))
+    except (GitCommandError, GitProbeError) as exc:
         raise PinWindowUnreadable(f"the Mission's own commits could not be listed: {exc}") from exc
-    return frozenset(line.strip() for line in out.decode("utf-8", "replace").splitlines() if line.strip())
 
 
 @dataclass(frozen=True)
