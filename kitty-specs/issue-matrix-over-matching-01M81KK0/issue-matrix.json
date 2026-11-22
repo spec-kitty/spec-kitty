@@ -1,16 +1,16 @@
 {
   "rows": {
     "#5297": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "commit a19bc320: positional backticked-SHA rule -> pr_or_commit_ref; tests/tasks/test_issue_matrix_over_matching.py",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Commit-SHA evidence citations are classified as implementation targets",
+      "verdict": "fixed",
+      "wp": "WP01"
     },
     "#5516": {
       "evidence_ref": "<link or commit>",
