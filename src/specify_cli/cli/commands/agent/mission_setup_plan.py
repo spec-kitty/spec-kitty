@@ -95,13 +95,25 @@ SPEC_REQUIREMENT_IDS_INVALID_MESSAGE = "spec.md declares requirement IDs that ar
 
 
 def _artifact_has_no_git_changes(repo_root: Path, file_path: Path) -> bool:
+    """True when *file_path* has no pending change in the checkout that holds it.
+
+    #7792: an absolute *file_path* inside a nested checkout (a coordination
+    worktree under ``.worktrees/``) is probed in that checkout, never in
+    *repo_root*, whose ``git status`` does not list a nested checkout's files.
+    """
+    from kernel.git_anchor import checkout_root_in_spelling
+
+    probe_root = repo_root
     candidate = file_path
     if candidate.is_absolute():
+        holder = checkout_root_in_spelling(candidate)
+        if holder is not None:
+            probe_root = holder
         with contextlib.suppress(ValueError):
-            candidate = candidate.relative_to(repo_root)
+            candidate = candidate.relative_to(probe_root)
 
     try:
-        return not status_entries(repo_root, pathspecs=[str(candidate)], untracked=None)
+        return not status_entries(probe_root, pathspecs=[str(candidate)], untracked=None)
     except GitCommandError:
         # Advisory: "no changes" only skips a redundant commit; when git cannot
         # say, report "has changes" so the commit is still attempted.

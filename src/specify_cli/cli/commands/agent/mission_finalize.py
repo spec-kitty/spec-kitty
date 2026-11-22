@@ -120,6 +120,7 @@ from specify_cli.lanes.planning_commit_classify import classify_recorded_pin as 
 from specify_cli.ownership.inference import detect_post_integration_acceptance as detect_post_integration_acceptance
 from specify_cli.cli.commands.agent.mission_finalize_seams import (
     FINALIZE_ATTRIBUTABLE_META_FIELDS as FINALIZE_ATTRIBUTABLE_META_FIELDS,
+    FINALIZE_SETTLEMENT_META_FIELDS as FINALIZE_SETTLEMENT_META_FIELDS,
     FINALIZE_TASKS_COMMAND_NAME as FINALIZE_TASKS_COMMAND_NAME,
     INVALID_WP_OWNED_FILES_KITTY_SPECS as INVALID_WP_OWNED_FILES_KITTY_SPECS,
     ISSUE_MATRIX_FILENAME as ISSUE_MATRIX_FILENAME,
@@ -278,6 +279,10 @@ from specify_cli.cli.commands.agent.mission_finalize_commit import (
     _report_status_surface_leftover as _report_status_surface_leftover,
     _report_target_branch_revert_failure as _report_target_branch_revert_failure,
     _resolve_finalize_commit_candidates as _resolve_finalize_commit_candidates,
+    FINALIZE_WRITES_UNCOMMITTED as FINALIZE_WRITES_UNCOMMITTED,
+    _planning_checkout_root as _planning_checkout_root,
+    _refuse_uncommitted_finalize_writes as _refuse_uncommitted_finalize_writes,
+    _uncommitted_finalize_writes as _uncommitted_finalize_writes,
     _restore_mission_write_scope as _restore_mission_write_scope,
     _restore_mission_write_scope_beside_status as _restore_mission_write_scope_beside_status,
     _restore_status_surface as _restore_status_surface,
@@ -459,7 +464,9 @@ def _meta_json_delta_is_finalize_attributable(meta_path: Path, repo_root: Path) 
     - the committed (``HEAD``) side fails to parse as JSON while the working-tree
       copy is valid (our fix supersedes a malformed committed copy), or
     - the changed-field set is empty or a subset of
-      ``FINALIZE_ATTRIBUTABLE_META_FIELDS``.
+      ``FINALIZE_ATTRIBUTABLE_META_FIELDS``, or -- for the delta that first
+      records ``topology_decision`` (the S7 settlement restamp, #7792) -- a
+      subset of that set plus ``FINALIZE_SETTLEMENT_META_FIELDS``.
 
     Returns ``False`` (exclude the whole file) when the working-tree copy is
     unreadable or malformed. finalize-tasks did NOT commit meta.json before
@@ -527,7 +534,11 @@ def _meta_json_delta_is_finalize_attributable(meta_path: Path, repo_root: Path) 
         return True
 
     changed_keys = {key for key in {*committed_meta.keys(), *current_meta.keys()} if committed_meta.get(key) != current_meta.get(key)}
-    attributable: bool = changed_keys <= FINALIZE_ATTRIBUTABLE_META_FIELDS
+    owned_fields = FINALIZE_ATTRIBUTABLE_META_FIELDS
+    if "topology_decision" not in committed_meta and "topology_decision" in current_meta:
+        # #7792: the settlement restamp's delta (it first records the write-once decision).
+        owned_fields = owned_fields | FINALIZE_SETTLEMENT_META_FIELDS
+    attributable: bool = changed_keys <= owned_fields
     return attributable
 
 
