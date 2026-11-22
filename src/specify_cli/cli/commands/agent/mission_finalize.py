@@ -233,6 +233,15 @@ from specify_cli.cli.commands.agent.mission_finalize_planning_pin import (
     _resolve_status_read_dir as _resolve_status_read_dir,
     _restore_planning_pin_candidate as _restore_planning_pin_candidate,
     _validate_only_planning_preview as _validate_only_planning_preview,
+    _INDETERMINATE_TIP_UNCAPTURABLE as _INDETERMINATE_TIP_UNCAPTURABLE,
+    _NO_PIN_UNDERIVABLE as _NO_PIN_UNDERIVABLE,
+    _WINDOW_UNREADABLE as _WINDOW_UNREADABLE,
+    _WINDOW_WOULD_EMPTY as _WINDOW_WOULD_EMPTY,
+    _any_work_package_left_planned as _any_work_package_left_planned,
+    _automatic_refresh_or_keep as _automatic_refresh_or_keep,
+    _kept_pin_warning as _kept_pin_warning,
+    _refuse_planning_pin_with_code as _refuse_planning_pin_with_code,
+    _single_branch_refresh_resolution as _single_branch_refresh_resolution,
 )
 from specify_cli.cli.commands.agent.mission_finalize_lanes import (
     _cause_detail as _cause_detail,
