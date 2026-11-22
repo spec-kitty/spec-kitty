@@ -872,6 +872,11 @@ modules:
 # neither fail a PR nor contribute coverage evidence). Adding a directory here
 # is a reasoned decision; the right fix for a directory that SHOULD gate per-PR
 # is a registry row with measured durations, never a silent default.
+# per_pr_home (#7801): a record whose tests run per PR in a ci-router.yml job, not a
+# module row, names that job. gate_selection.per_pr_home_violations proves the claim
+# (the job's if: groups cover the dirs, a pytest command names them, no -m narrowing),
+# enforced by tests/ci/test_gate_selection_out_of_matrix.py. Records without it are
+# reported to a PR that changes them as nightly-only (scripts/ci/gate_selection.py).
 out_of_matrix_test_dirs:
 
 - reason: >-
@@ -885,12 +890,14 @@ out_of_matrix_test_dirs:
 - reason: >-
     Per-PR home is ci-router.yml's 'tests (docs)' path-routed job, which runs this
     directory directly; claiming it in a module row too would only double-run it per PR.
+  per_pr_home: tests-docs
   dirs:
   - tests/docs
 
 - reason: >-
     Per-PR home is ci-router.yml's 'tests (e2e)' path-routed job, which runs this
     directory directly; claiming it in a module row too would only double-run it per PR.
+  per_pr_home: tests-e2e
   dirs:
   - tests/e2e
 
@@ -907,6 +914,7 @@ out_of_matrix_test_dirs:
     (below): the fast roster plus the file-partitioned shards of ci-router.yml's
     'architectural battery' job, and the always-on terminology / layer-rules /
     archive-freeze lanes; a module row would only double-run it.
+  per_pr_home: architectural-heavy
   dirs:
   - tests/architectural
   - tests/architectural/tool_artifact_enrolment

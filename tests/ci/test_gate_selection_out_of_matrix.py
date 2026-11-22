@@ -15,24 +15,19 @@ from pathlib import Path
 import pytest
 import yaml
 
+from scripts.ci import gate_selection
 from scripts.ci.gate_selection import (
     DEFAULT_REGISTRY_PATH,
     DEFAULT_ROUTER_PATH,
+    load_router,
     out_of_matrix_test_paths,
     render_out_of_matrix_report,
-    router_pytest_paths,
 )
 
 pytestmark = [pytest.mark.fast]
 
 ROOT = Path(__file__).resolve().parents[2]
 ROUTER = ROOT / ".github/workflows/ci-router.yml"
-
-
-def _router(tmp_path: Path, run: str = "uv run pytest tests/docs -q") -> Path:
-    path = tmp_path / "ci-router.yml"
-    path.write_text(yaml.safe_dump({"jobs": {"tests-docs": {"steps": [{"run": run}]}}}), encoding="utf-8")
-    return path
 
 
 def _registry(tmp_path: Path) -> Path:
@@ -56,14 +51,14 @@ def _registry(tmp_path: Path) -> Path:
 
 
 def test_out_of_matrix_test_file_is_named(tmp_path: Path) -> None:
-    hits = out_of_matrix_test_paths(["tests/specify_cli/upgrade/x.py"], registry_path=_registry(tmp_path), router_path=_router(tmp_path))
+    hits = out_of_matrix_test_paths(["tests/specify_cli/upgrade/x.py"], registry_path=_registry(tmp_path))
     assert hits == (("tests/specify_cli/upgrade/x.py", "tests/specify_cli/upgrade"),)
 
 
 @pytest.mark.parametrize(
     "path",
     [
-        # Out-of-matrix records whose per-PR home is another router job (review B1).
+        # Out-of-matrix records with a verified per_pr_home router job (review B1).
         "tests/architectural/test_layer_rules.py",
         "tests/architectural/test_some_battery_gate.py",
         "tests/architectural/tool_artifact_enrolment/test_x.py",
@@ -72,36 +67,100 @@ def test_out_of_matrix_test_file_is_named(tmp_path: Path) -> None:
         "tests/architectural/conftest.py",
     ],
 )
-def test_live_paths_run_by_a_per_pr_router_job_are_not_named(path: str) -> None:
-    assert out_of_matrix_test_paths([path], registry_path=DEFAULT_REGISTRY_PATH, router_path=DEFAULT_ROUTER_PATH) == ()
-
-
-def test_router_job_coverage_is_derived_from_the_workflow(tmp_path: Path) -> None:
-    """A record the router runs per PR is exempt; the same record without a router job is not."""
-    registry = tmp_path / "registry.yml"
-    registry.write_text(
-        yaml.safe_dump({"modules": [], "out_of_matrix_test_dirs": [{"reason": "r", "dirs": ["tests/docs", "tests/nightly"]}]}),
-        encoding="utf-8",
-    )
-    paths = ["tests/docs/test_a.py", "tests/nightly/test_b.py"]
-    hits = out_of_matrix_test_paths(paths, registry_path=registry, router_path=_router(tmp_path))
-    assert hits == (("tests/nightly/test_b.py", "tests/nightly"),)
+def test_live_records_with_a_per_pr_home_are_not_named(path: str) -> None:
+    assert out_of_matrix_test_paths([path], registry_path=DEFAULT_REGISTRY_PATH) == ()
 
 
 @pytest.mark.parametrize(
-    ("run", "expected"),
+    "path",
     [
-        ("uv run pytest tests/docs -q", {"tests/docs"}),
-        ("uv run pytest tests/e2e \\\n  tests/acceptance/test_first.py -q", {"tests/e2e", "tests/acceptance/test_first.py"}),
-        ("pytest tests/x.py::TestY -q", {"tests/x.py"}),
-        ("pytest tests/architectural --ignore=tests/architectural/test_a.py -q", {"tests/architectural"}),
-        ("echo tests/docs", set()),
-        ("# pytest tests/docs", set()),
+        # Review B2: a router job names these, but its `if:` or `-m` does not run them on every PR
+        # that changes them, so they stay named (fail closed).
+        "tests/migration/test_x.py",
+        "tests/contract/test_x.py",
     ],
 )
-def test_router_pytest_paths(tmp_path: Path, run: str, expected: set[str]) -> None:
-    workflow = yaml.safe_load(_router(tmp_path, run).read_text(encoding="utf-8"))
-    assert router_pytest_paths(workflow) == frozenset(expected)
+def test_live_router_named_paths_without_a_per_pr_home_are_still_named(path: str) -> None:
+    assert [hit for hit, _ in out_of_matrix_test_paths([path], registry_path=DEFAULT_REGISTRY_PATH)] == [path]
+
+
+def test_per_pr_home_exempts_only_its_own_record(tmp_path: Path) -> None:
+    registry = tmp_path / "registry.yml"
+    registry.write_text(
+        yaml.safe_dump(
+            {
+                "modules": [],
+                "out_of_matrix_test_dirs": [
+                    {"reason": "r", "dirs": ["tests/docs"], "per_pr_home": "tests-docs"},
+                    {"reason": "r", "dirs": ["tests/nightly"]},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    hits = out_of_matrix_test_paths(["tests/docs/test_a.py", "tests/nightly/test_b.py"], registry_path=registry)
+    assert hits == (("tests/nightly/test_b.py", "tests/nightly"),)
+
+
+def _violations(registry: dict[str, object], workflow: dict[str, object]) -> list[str]:
+    check = getattr(gate_selection, "per_pr_home_violations", None)
+    assert check is not None, "gate_selection.per_pr_home_violations is missing"
+    return list(check(registry, workflow, router=load_router(DEFAULT_ROUTER_PATH)))
+
+
+def test_live_per_pr_homes_are_verified() -> None:
+    """Every per_pr_home names a router job that runs the record's dirs on every PR changing them."""
+    registry = yaml.safe_load(DEFAULT_REGISTRY_PATH.read_text(encoding="utf-8"))
+    workflow = yaml.safe_load(DEFAULT_ROUTER_PATH.read_text(encoding="utf-8"))
+    homes = {entry.get("per_pr_home") for entry in registry["out_of_matrix_test_dirs"]} - {None}
+    assert homes == {"architectural-heavy", "tests-docs", "tests-e2e"}
+    assert _violations(registry, workflow) == []
+
+
+def _one_record(home: str, directory: str = "tests/docs") -> dict[str, object]:
+    return {"modules": [], "out_of_matrix_test_dirs": [{"reason": "r", "dirs": [directory], "per_pr_home": home}]}
+
+
+def _workflow_with(job: str, run: str) -> dict[str, object]:
+    workflow = yaml.safe_load(DEFAULT_ROUTER_PATH.read_text(encoding="utf-8"))
+    workflow["jobs"][job]["steps"] = [{"run": run}]
+    return dict(workflow)
+
+
+@pytest.mark.parametrize(
+    ("home", "directory", "run", "problem"),
+    [
+        ("no-such-job", "tests/docs", "pytest tests/docs", "no job"),
+        # The job's `if:` groups must cover the directory: tests-docs is gated on `docs`, which
+        # does not cover tests/migration.
+        ("tests-docs", "tests/migration", "pytest tests/migration -q", "if:"),
+        # arch_scan_scope covers tests/docs but selects only a scoped battery leg, never the whole job.
+        ("architectural-heavy", "tests/docs", "pytest tests/docs -q", "if:"),
+        # A -m narrowing other than the parallel-unsafe negations runs a subset.
+        ("tests-docs", "tests/docs", 'pytest -m "corpus and not windows_ci" tests/docs', "-m"),
+        # The directory must be a positional argument, never an option value.
+        ("tests-docs", "tests/docs", "pytest --deselect tests/docs -q tests/other", "names"),
+        ("tests-docs", "tests/docs", "pytest --ignore tests/docs tests/other", "names"),
+        ("tests-docs", "tests/docs", 'echo "pytest tests/docs"', "names"),
+        ("tests-docs", "tests/docs", "# pytest tests/docs", "names"),
+    ],
+)
+def test_unverifiable_per_pr_home_is_a_violation(home: str, directory: str, run: str, problem: str) -> None:
+    violations = _violations(_one_record(home, directory), _workflow_with("architectural-heavy" if home == "architectural-heavy" else "tests-docs", run))
+    assert len(violations) == 1, violations
+    assert problem in violations[0]
+
+
+@pytest.mark.parametrize(
+    "run",
+    [
+        "uv run --frozen --no-sync pytest tests/docs -q",
+        'uv run python -m pytest tests/docs -m "not performance and not stress and not timing" -n 4',
+        "pytest tests -q",
+    ],
+)
+def test_verified_per_pr_home_has_no_violation(run: str) -> None:
+    assert _violations(_one_record("tests-docs"), _workflow_with("tests-docs", run)) == []
 
 
 def test_live_registry_names_an_upgrade_test_as_nightly_only() -> None:
@@ -122,7 +181,7 @@ def test_live_registry_names_an_upgrade_test_as_nightly_only() -> None:
     ],
 )
 def test_owner_is_the_deepest_recorded_directory(tmp_path: Path, path: str, owner: str) -> None:
-    assert out_of_matrix_test_paths([path], registry_path=_registry(tmp_path), router_path=_router(tmp_path)) == ((path, owner),)
+    assert out_of_matrix_test_paths([path], registry_path=_registry(tmp_path)) == ((path, owner),)
 
 
 @pytest.mark.parametrize(
@@ -137,7 +196,7 @@ def test_owner_is_the_deepest_recorded_directory(tmp_path: Path, path: str, owne
     ],
 )
 def test_matrix_and_non_test_paths_are_not_named(tmp_path: Path, path: str) -> None:
-    assert out_of_matrix_test_paths([path], registry_path=_registry(tmp_path), router_path=_router(tmp_path)) == ()
+    assert out_of_matrix_test_paths([path], registry_path=_registry(tmp_path)) == ()
 
 
 @pytest.mark.parametrize("path", ["tests/conftest.py", "tests/lane_test_utils.py", "tests/specify_cli/upgrade/x.py", "tests/fixtures/data.json"])
@@ -162,7 +221,7 @@ def test_test_module_gets_the_nightly_only_warning(path: str) -> None:
 
 def test_hits_are_sorted_and_deduplicated(tmp_path: Path) -> None:
     paths = ["tests/specify_cli/upgrade/b.py", "tests/specify_cli/upgrade/a.py", "tests/specify_cli/upgrade/a.py"]
-    hits = out_of_matrix_test_paths(paths, registry_path=_registry(tmp_path), router_path=_router(tmp_path))
+    hits = out_of_matrix_test_paths(paths, registry_path=_registry(tmp_path))
     assert [path for path, _ in hits] == ["tests/specify_cli/upgrade/a.py", "tests/specify_cli/upgrade/b.py"]
 
 
