@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
+from specify_cli.ownership.paths import normalize_owned_path
 
 if TYPE_CHECKING:
     from specify_cli.status import WPMetadata
@@ -72,7 +73,8 @@ class GlobValidationResult:
 
 
 # Paths considered "planning only" for execution_mode consistency checks.
-_PLANNING_PREFIXES = (f"{KITTY_SPECS_DIR}/", "docs/")
+_DOCS_PREFIX = "docs/"
+_PLANNING_PREFIXES = (f"{KITTY_SPECS_DIR}/", _DOCS_PREFIX)
 # Paths considered "code" for execution_mode consistency checks.
 _CODE_PREFIXES = ("src/", "tests/")
 
@@ -298,7 +300,10 @@ def validate_execution_mode_consistency(manifest: OwnershipManifest) -> list[str
         has_code_path = any(
             p.startswith(prefix) for p in manifest.owned_files for prefix in _CODE_PREFIXES
         )
-        if manifest.owned_files and not has_code_path:
+        # #7809: in a lane topology finalize records a docs-only work package as
+        # code_change so it gets its own lane; that is not an inconsistency.
+        docs_only = all(normalize_owned_path(p).startswith(_DOCS_PREFIX) for p in manifest.owned_files)
+        if manifest.owned_files and not has_code_path and not docs_only:
             warnings.append(
                 f"code_change WP does not own any files under src/ or tests/. "
                 f"owned_files: {list(manifest.owned_files)!r}"
