@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#5297": {
+      "evidence_ref": "commit a19bc320: positional backticked-SHA rule -> pr_or_commit_ref; tests/tasks/test_issue_matrix_over_matching.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Commit-SHA evidence citations are classified as implementation targets",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#5516": {
+      "evidence_ref": "commit a19bc320: scope rule (spec.md, tasks/, closing keywords) + ADR 2026-09-20-1 amendment; tests/tasks/test_issue_matrix_over_matching.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Every #NN in planning and research artefacts gates approval",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#7808": {
+      "evidence_ref": "commit a19bc320: leading-zero rejection + CSS-declaration colour filter; tests/tasks/test_issue_matrix_over_matching.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Hex colour values are read as issue references",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

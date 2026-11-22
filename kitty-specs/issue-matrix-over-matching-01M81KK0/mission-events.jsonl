@@ -1,0 +1,2 @@
+{"mission": "software-dev", "payload": {"action": "analyze", "agent": "claude", "decision_kind": "step", "mission_state": "analyze", "result_input": "success", "wp_id": null}, "timestamp": "2026-11-22T12:31:40.547320+00:00", "type": "MissionNextInvoked"}
+{"mission": "software-dev", "payload": {"action": "implement", "agent": "claude", "decision_kind": "step", "mission_state": "implement", "result_input": "success", "wp_id": "WP01"}, "timestamp": "2026-11-22T12:32:13.043761+00:00", "type": "MissionNextInvoked"}

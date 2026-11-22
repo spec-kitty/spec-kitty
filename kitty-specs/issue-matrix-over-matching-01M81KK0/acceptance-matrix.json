@@ -1,0 +1,79 @@
+{
+  "mission_slug": "issue-matrix-over-matching-01M81KK0",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/tasks/test_issue_matrix_over_matching.py::test_leading_zero_is_never_an_issue_number_7808, ::test_same_repo_url_with_leading_zero_is_not_a_reference_7808 (99 passed @ 18a48182)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-22T13:30:07.498209+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/tasks/test_issue_matrix_over_matching.py::test_research_colours_are_no_reference_7808, ::test_declaration_forms_are_filtered_7808, ::test_real_references_survive_the_colour_filter_7808 (incl. review-cycle-1 B1 rows)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-22T13:30:11.186830+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/tasks/test_issue_matrix_over_matching.py::test_spec_commit_citation_is_non_gating_5297, ::test_commit_sha_rule_is_positional_5297 (16/17 boundary)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-22T13:30:14.272099+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/tasks/test_issue_matrix_over_matching.py::test_research_planted_break_is_cited_5516, ::test_out_of_scope_artefacts_cite_bare_references_5516, ::test_in_scope_artefacts_still_gate_bare_references_5516",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-22T13:30:17.373286+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/tasks/test_issue_matrix_over_matching.py::test_spec_closes_gates_5516, ::test_closing_keyword_gates_in_any_artefact_5516, ::test_closing_keyword_wrapped_forms_gate_out_of_scope_5516, ::test_closing_keyword_wins_over_commit_sha_5516",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-22T13:30:20.481294+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/tasks/test_issue_matrix_over_matching.py::test_source_description_uses_the_shared_filter, ::test_closing_keyword_source_issues_use_the_shared_filter; squad architect lens confirmed one number authority (no other artefact parser in src/)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-22T13:30:23.576732+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "docs/adr/3.x/2026-09-20-1-issue-matrix-not-applicable-verdict.md 'Amendment 2026-11-22'; verified by review cycle 2 (claude::reviewer-renata)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-22T13:30:26.828554+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

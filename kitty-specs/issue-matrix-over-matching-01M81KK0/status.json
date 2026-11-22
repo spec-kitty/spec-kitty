@@ -1,0 +1,58 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M81Q8ZE6R6X4M5V7RFWVKXFZ",
+  "materialized_at": "2026-11-22T13:31:35.750410+00:00",
+  "mission_number": "265",
+  "mission_slug": "issue-matrix-over-matching-01M81KK0",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01M81Q8ZE6R6X4M5V7RFWVKXFZ",
+      "last_transition_at": "2026-11-22T13:31:35.750410+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: D1-D5 implemented red-first; 50 new tests; family 3010 passed; diff coverage 100%",
+        "Folding adversarial-squad findings before review (CSS prefix fail-open, closing-keyword forms, test gaps)",
+        "Resubmitted with adversarial-squad folds (8f2eabe0): CSS filter anchored + terminator, wrapped closing-keyword forms, boundary tests, ADR notes",
+        "Cycle 1 addressed: B1 anchored + colour lengths (e2dcf6ef); squad folds 8f2eabe0 cover N1/N2; N3 recorded",
+        "Review cycle 2 passed: B1 fixed (colour filter anchored at a declaration start, whole-token property list, terminator, hex lengths); N1 disclosed, N2 fixed. Red-first 27/99 vs cycle-1 code. WP tests 202, tasks blast 469, arch gates 243, test-fast 3176 passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/kitty-specs/issue-matrix-over-matching-01M81KK0/tasks/WP01-narrow-detector-and-classifier/review-cycle-2.md",
+        "reference": "review-cycle://issue-matrix-over-matching-01M81KK0/WP01-narrow-detector-and-classifier/review-cycle-2.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 12572,
+      "shell_pid_created_at": "1795354093.63",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    }
+  }
+}
