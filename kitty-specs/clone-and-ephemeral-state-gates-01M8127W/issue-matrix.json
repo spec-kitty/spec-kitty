@@ -24,6 +24,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#5297": {
+      "evidence_ref": "context only: named in spec.md/design-decisions as part of the Slice 5 Mission with #7808 (ruling R68); not in this Mission's scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#5858": {
       "evidence_ref": "<auto-classified: no action required>",
       "fr": null,
