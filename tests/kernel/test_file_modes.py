@@ -26,6 +26,7 @@ def _host(monkeypatch: pytest.MonkeyPatch, *, windows: bool) -> None:
         ("directory", 0o555, 0o755, True),
         ("symlink", 0o777, 0o644, True),
         ("file", 0o666, 0o644, True),
+        ("file", 0o666, 0o755, True),  # the exec bit is not representable on NTFS
         ("file", 0o444, 0o444, True),
         ("file", 0o444, 0o644, False),
         ("file", 0o666, 0o444, False),
