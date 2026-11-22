@@ -28,10 +28,10 @@
       "criterion_id": "FR-003",
       "description": "Verify FR-003 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/tasks/test_issue_matrix_over_matching.py::test_spec_commit_citation_is_non_gating_5297, ::test_commit_sha_rule_is_positional_5297 (16/17 boundary)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-22T13:30:14.272099+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
