@@ -31,6 +31,7 @@
   "purpose_tldr": "Stop the issue-matrix gate from demanding verdict rows for colours, commit citations and research-note numbers.",
   "slug": "issue-matrix-over-matching-01M81KK0",
   "source_description": "Issue #7808: hex colour values read as issue references; bundled with #5297 and #5516 (operator ruling: one Mission, all three).",
+  "status_phase": "1",
   "target_branch": "issue-7808-issue-matrix-over-matching",
   "topology": "single_branch",
   "topology_decision": {
