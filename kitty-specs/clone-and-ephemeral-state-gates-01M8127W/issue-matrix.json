@@ -157,7 +157,7 @@
       "wp": "WP01"
     },
     "#7809": {
-      "evidence_ref": "Mission clone-and-ephemeral-state-gates-01M8127W WP04",
+      "evidence_ref": "Mission clone-and-ephemeral-state-gates-01M8127W WP04 approved (review recorded by claude::reviewer-renata); lands via PR from issue-7809-clone-ephemeral-state-gates",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -165,7 +165,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "planning-artifact WP in a lane Mission judged against the target branch",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP04"
     }
   },
