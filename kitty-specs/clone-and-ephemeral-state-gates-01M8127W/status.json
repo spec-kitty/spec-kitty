@@ -1,0 +1,29 @@
+{
+  "event_count": 1,
+  "last_event_id": "01M812R53EYMD0YHMPVDGRRY7H",
+  "materialized_at": "2026-11-22T07:32:52.974254+00:00",
+  "mission_number": "",
+  "mission_slug": "clone-and-ephemeral-state-gates-01M8127W",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 1
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M812R53EYMD0YHMPVDGRRY7H",
+      "last_transition_at": "2026-11-22T07:32:52.974254+00:00"
+    }
+  }
+}
