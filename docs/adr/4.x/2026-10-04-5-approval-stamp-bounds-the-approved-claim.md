@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-10-04'
-updated: '2026-11-10T00:00:00Z'
+updated: '2026-11-22T00:00:00Z'
 ---
 
 **Status:** Accepted
@@ -366,3 +366,35 @@ Every non-migration move of a lane-mapped work package into `claimed` or `in_pro
 - The status-log race seen in the same run (a `migration:backfill_runtime_state` row stamped 06:21 appended after the 06:54 `done` row) is the union merge of two clones' pushes of `status.events.jsonl`; the reducer orders by `at`, so the fold is correct. The coordination status-write guard (#5572) compares one worktree with its own `HEAD` and cannot see a cross-clone race. Tracked under #1795 and #4955, not a `single_branch` gap of that guard.
 
 **Confirmation.** `tests/unit/status/test_review_roles_7712.py` (WP03's sequence, the reviewer hand-back, the third-identity rewind, takeover and unblock, the claim-time warning) and `tests/specify_cli/cli/commands/agent/test_move_task_evidence_gate.py` (a forced re-opener refused at the move; `--as-implementer` role and refusals; the review claimant re-submitting under another profile still refused, and the control where another implementer completes the bare claim).
+
+## Amendment 2026-11-22: the single_branch planning pin follows the planning commit across a rebase (#7793, #7297)
+
+**Reader:** a maintainer who changes how `finalize-tasks`, `doctor mission-state --fix` or `agent tasks finalize-tasks` record `planning_commit_sha`, or who reads a `single_branch` evidence window after a rebase.
+
+**Problem.** A `single_branch` Mission's evidence window is `planning_commit_sha..mission_branch`. After a rebase, the remedy `implement` prints, `finalize-tasks --refresh-planning-commit --allow-orphaned`, re-pointed the pin to the branch tip. The window was then empty and `move-task --to for_review` refused `SINGLE_BRANCH_IMPLEMENTATION_MISSING` for committed work (#7793, observed on PR #7778). The pin authority had related gaps (#7297):
+
+1. A second plain finalize replaced a derived pin.
+2. A minted `single_branch` Mission recorded its pin from the target's tip, below its branch's fork point. Its refresh always refused `PLANNING_REFRESH_FAIL_CLOSED`, and a rebase onto a newer target widened the window to the target's new commits.
+3. The finalize warning and the refusals disagreed.
+4. The derived pin could be too early.
+5. The derived pin could be too late.
+6. `doctor` left a `None` pin silently.
+
+**Decision** (operator rulings "Bigger: items 1-6", 2026-11-22).
+
+- **Execution has begun once any work package ever left `planned`.** A non-migration transition past `planned` counts, not only a work package outside `planned` now. In the #7793 path the rejected work package sits in `planned`, and finalize took the pre-execution branch, re-capturing the tip with no orphan check. This holds on every topology.
+- **The pin branch line.** `lanes/planning_base.pin_branch_line` is the branch the pin is captured from, refreshed against and derived on. For a stored `single_branch` Mission that records a `mission_branch` it is that branch, the tip of its window; for every other Mission it is the target branch. `finalize-tasks` (capture, classification, refresh, derivation, and the refresh commit's compare-and-swap and destination checks), `doctor mission-state --fix` and `agent tasks finalize-tasks` all read it. A pin recorded earlier on the target tip is not rewritten; it moves only by an explicit refresh.
+- **A re-pin follows the planning commit by patch-id.** On a `single_branch` Mission, `--refresh-planning-commit --allow-orphaned` on an orphaned pin takes the one commit in `merge-base(pin, tip)..tip` whose patch-id equals the pin's (`planning_base.follow_pin_by_patch_id`, over `consolidation.git_probes.patch_id_of`). It never takes the tip for lack of a match. No match, an empty-diff pin, or a match only upstream refuses `PLANNING_PIN_NO_PATCH_ID_MATCH`; two or more matches refuse `PLANNING_PIN_PATCH_ID_AMBIGUOUS`. A git error refuses `PLANNING_REFRESH_FAIL_CLOSED`. Every refusal happens before `lanes.json` is written. Lane Missions keep the #4827 re-pin to the tip.
+- **An upstream copy is never the Mission's.** A match reachable from the target branch, the primary branch (`resolve_primary_branch`, no feature bias) or either's remote-tracking refs (`refs/remotes/<remote>/<name>`), less the pin line itself, does not count. When the planning change also landed upstream, the rebase drops the Mission's copy as already applied. Pinning the upstream copy would count the upstream's later commits as the Mission's work.
+- **No pin empties the window.** An explicit `single_branch` refresh or re-pin whose candidate window loses some work package's owned-file change that the recorded window holds refuses `PLANNING_PIN_WOULD_EMPTY_WINDOW`. The automatic refresh keeps the pin instead (`kept_with_warning`, reason `window_would_empty`, or `window_unreadable` when the window cannot be read). The guard reads `consolidation.wp_evidence`, per work package, as the gates do.
+- **A derived pin is frozen.** `lanes.json` carries `planning_commit_derived: true` when `finalize-tasks` or the doctor rebuild derived the pin. The key is written only when true and read strictly. Every decision that keeps the recorded pin keeps the marker. An ADVANCED pin with the marker is preserved by the automatic path. An explicit `--refresh-planning-commit` replaces the pin and clears the marker. A stateless rule (the recorded pin equals the base derived now) was rejected: on a direct history it also froze timely pins, which must refresh after a genuine planning amendment.
+- **The derivation anchor.** `resolve_finalize_planning_base` anchors on the Mission's task files (`tasks/*.md` but the scaffold `README.md`). It takes the last time they went from absent to present on the first-parent line, so a remove-and-re-add anchors on the re-add (#7297 item 4) and a task file renamed into `WP*` anchors on its first commit (item 5). `resolve_planning_base_commit` keeps its first-appearance walk for the `--skip-lanes` Mission-directory anchor.
+- **Messages.** A resolved tip with no pin and nothing derivable reports `no_pin_underivable`, not `indeterminate_tip_uncapturable`, and names `--refresh-planning-commit`. The `move-task` single_branch refusals name the route that works: plain `finalize-tasks` (derivation) for an uncomputable window, and the `--allow-orphaned` re-pin after a rebase for a missing implementation. The doctor reports `lanes_rebuilt_pin_unset` when the rebuilt pin stays `None`, and both its pin warnings name the next step.
+
+**Residuals.** Each stays open.
+
+- **An unrelated upstream.** A rebase onto a branch that is neither the target nor the primary branch (nor their remote-tracking refs) and carries a copy of the planning commit is not recognised. That copy is followed and the window widens to the branch's later commits. Pinned as a strict `xfail`: `tests/specify_cli/cli/commands/agent/test_finalize_pin_decisions_7297.py::test_residual_an_unrelated_upstream_copy_is_followed`.
+- **A planning commit deliberately landed first.** A Mission whose planning was merged to the target before its implementation (a planning PR first) refuses the re-pin with `PLANNING_PIN_NO_PATCH_ID_MATCH`. The operator sets `planning_commit_sha` in `lanes.json` by hand.
+- **A derived pin that is still wide.** WP files committed before unrelated work, or a topic cut after the tasks reached the target, still widen a derived window (the Amendment 2026-11-05 residual). The window guard applies to refreshes, not to a first derivation.
+- **Two readings of `mission_branch`.** The pin line reads `meta.json` `mission_branch`, which landing clears. The window tip reads `lanes.json` `mission_branch`, which `_preserved_mission_branch` keeps. They agree until the landing; after it, a re-finalize captures on the target while the window still names the old mission branch.
+- **Lane topologies.** A lane Mission's `--allow-orphaned` re-pin still moves to the target tip (#4827), and the window guard does not apply to it.

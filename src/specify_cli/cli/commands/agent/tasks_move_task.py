@@ -1233,9 +1233,13 @@ def _mt_require_single_branch_evidence(st: _MoveTaskState, manifest: LanesManife
         # planning_commit_sha): fail CLOSED -- we cannot verify an implementation exists (#5939).
         raise ActionContextError(
             wp_evidence.SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE,
+            # #7297 items 2 and 3: a plain finalize derives the planning commit from the mission
+            # branch; where nothing is derivable, it says so and names --refresh-planning-commit.
             f"Cannot verify a committed implementation for {st.task_id}: this single_branch mission records no "
             "planning commit, so the implementation-evidence window cannot be computed. Run "
-            "`spec-kitty agent mission finalize-tasks` to record the planning commit, then retry.",
+            f"`spec-kitty agent mission finalize-tasks --mission {manifest.mission_slug}`: it derives the planning "
+            "commit from the mission branch. If it reports that none can be derived, record one with "
+            "`--refresh-planning-commit` once the task files are committed, then retry.",
         )
     base, tip = window
     try:
@@ -1257,8 +1261,11 @@ def _mt_require_single_branch_evidence(st: _MoveTaskState, manifest: LanesManife
             # "no implementation commit" is the phrase lanes/for_review_gate.py and the consolidate
             # axis use; this gate runs before for_review_gate, so its words are what operators read (#6369).
             f"{st.task_id} cannot move into review: no implementation commit touching its owned_files on the "
-            "single_branch mission branch. Commit the work package's implementation to its owned_files, then "
-            f"retry ({_NOT_SHIPPED_CODE}).",
+            f"single_branch mission branch (window {base}..{tip}). Commit the work package's implementation to its "
+            f"owned_files, then retry ({_NOT_SHIPPED_CODE}). If the work is committed and the mission branch was "
+            "rebased after its planning commit was recorded (#7793), re-pin it: `spec-kitty agent mission "
+            f"finalize-tasks --mission {manifest.mission_slug} --refresh-planning-commit --allow-orphaned` follows "
+            "the planning commit to its rebased copy.",
         )
 
 
