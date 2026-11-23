@@ -1,4 +1,6 @@
 {
+  "contracts": "none",
+  "contracts_rationale": "The Mission changes internal CLI behaviour (where setup-plan records and commits its lifecycle events, and one doctor finding); it adds no API, schema or interface.",
   "create_return_branch": "issue-3933-lifecycle-event-placement",
   "created_at": "2026-11-23T18:15:32.128274+00:00",
   "flattened": false,
