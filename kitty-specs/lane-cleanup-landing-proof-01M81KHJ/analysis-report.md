@@ -4,12 +4,12 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: lane-cleanup-landing-proof-01M81KHJ
 mission_id: 01M81KHJ8AZPW0HCEZSX01C5B9
-generated_at: '2026-11-23T19:08:46.528541+00:00'
+generated_at: '2026-11-23T21:22:07.065270+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
     path: .worktrees/lane-cleanup-landing-proof-01M81KHJ-coord/kitty-specs/lane-cleanup-landing-proof-01M81KHJ/spec.md
-    sha256: 0788e560ae6c86b7a563b5072543c264aa1b0742255b37771a3657d7b3679770
+    sha256: 093a0121f03ec015b88192448100ce04597bd8362083983c907906b5f06afe9c
   plan.md:
     path: .worktrees/lane-cleanup-landing-proof-01M81KHJ-coord/kitty-specs/lane-cleanup-landing-proof-01M81KHJ/plan.md
     sha256: 030319c5c86ce615bc19451d54c59ccf59974e41686f03c010416d08bb49c899
@@ -21,10 +21,10 @@ input_artifacts:
     sha256: 83874f7451d21cf0615682164d7bb883844ee032e7622bb1359a343fd0e6fb03
 verdict: ready
 issue_counts:
-  high: 0
-  low: 4
-  medium: 1
   critical: 0
+  high: 0
+  low: 5
+  medium: 1
   info: 0
 findings:
 - id: C1
@@ -35,6 +35,10 @@ findings:
   severity: low
   category: ambiguity
   summary: FR-008 / US3 say a lane with 'no branch' is kept, while plan PD-1 (operator ruling 4A) keeps the retained-branch leg on today's worktree removal; the spec does not separate the two senses of 'no branch'.
+- id: I4
+  severity: low
+  category: inconsistency
+  summary: WP03 carries the WP01 review folds (tests, docstring, ADR, FR-005/C-004 wording) and re-pins two cases of test_lane_cleanup_kept_report.py; all out-of-map edits are recorded in the WP03 prompt.
 - id: I3
   severity: low
   category: inconsistency
@@ -55,6 +59,7 @@ findings:
 |----|----------|----------|-------------|---------|----------------|
 | C1 | Coverage | MEDIUM | spec.md NFR-001; tasks.md | No task measures the 2 s proof budget. | In WP01, time the predicate on the T001 real fixture (three lanes) and record the figure in the PR; add a 12-WP measurement only if the three-lane figure is not far below budget. |
 | A1 | Ambiguity | LOW | spec.md FR-008, US3; plan.md PD-1 | "No branch" mixes a missing branch ref with a branch retained by policy. | FR-008 covers the missing-ref case; PD-1 (operator ruling 4A, Decision Moment 01M84WXR) governs the retained case. |
+| I4 | Inconsistency | LOW | WP03 prompt; spec.md FR-005, C-004 | WP01 review folds land in WP03 with out-of-map edits. | Recorded with rationale; FR-005 and C-004 now state the status-log exception and that untouched files are no lane change. |
 | I3 | Inconsistency | LOW | tasks.md T014; WP01 prompt | G1 was folded after finalize (ruling 3A) and edits files outside WP01's owned_files. | Out-of-map edit with rationale; no other WP touches those files. |
 | I1 | Inconsistency | LOW | tasks.md WP03; WP03 prompt | Out-of-map edit recorded only in the prompt. | Acceptable under ownership-map leeway; reviewer checks the edit stays inside GuardedLaneRemover.remove. |
 | I2 | Inconsistency | LOW | spec.md SC-001/SC-002 | Three lanes instead of the brief's two. | No change; reported to the dispatcher. |
@@ -93,4 +98,4 @@ findings:
 ### Next Actions
 
 - No CRITICAL or HIGH findings: implementation may proceed.
-- C1 is folded into WP01's evidence. G1 was folded into WP01 as T014 by operator ruling 3A (2026-11-23); this report supersedes the earlier one (8f162f0f).
+- C1 is folded into WP01's evidence. G1 was folded into WP01 as T014 by operator ruling 3A (2026-11-23); this report supersedes the earlier ones (8f162f0f, 2c89e341); it adds the WP01 review folds carried by WP03.
