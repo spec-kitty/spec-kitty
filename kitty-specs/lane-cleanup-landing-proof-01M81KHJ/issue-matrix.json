@@ -56,9 +56,9 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "consolidate keeps every lane worktree after a clean squash landing on lanes_with_coord",
+      "verdict": "in-mission",
+      "wp": "WP01"
     },
     "#7767": {
       "evidence_ref": "<link or commit>",
