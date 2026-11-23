@@ -858,11 +858,14 @@ def _lane_mission_slug(repo_root: Path, branch: str | None) -> str | None:
 def _landed_on(repo_root: Path, tip: str, landing_ref: str, mission_slug: str | None) -> bool:
     """The O3 proof: the shared landing proof for a released Mission's lane, the plain one for every other worktree.
 
-    Raises :class:`AbsorptionUnsupported` when git cannot run ``merge-tree --write-tree``.
+    A tip the landing reaches (a merge landing) is proven without ``merge-tree``, as the plain proof does.
+    Otherwise raises :class:`AbsorptionUnsupported` when git cannot run ``merge-tree --write-tree``.
     """
     if mission_slug is None:
         plain: bool = is_absorbed(repo_root, tip, landing_ref, base=None)
         return plain
+    if run_git(repo_root, "merge-base", "--is-ancestor", tip, landing_ref, check=False).returncode == 0:
+        return True
     if not merge_tree_write_tree_available(repo_root):
         raise AbsorptionUnsupported(f"git merge-tree --write-tree needs git >= {MERGE_TREE_WRITE_TREE_MIN_VERSION[0]}.{MERGE_TREE_WRITE_TREE_MIN_VERSION[1]}")
     proven: bool = is_absorbed_but_for_mission_bookkeeping(repo_root, tip, landing_ref, mission_slug)
