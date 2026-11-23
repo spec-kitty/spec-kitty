@@ -1,0 +1,201 @@
+"""#3933 (Slice 1b): ``setup-plan`` commits its lifecycle events on a coordination Mission.
+
+On a Mission whose coordination branch exists when setup-plan runs (an explicit
+``--topology coord`` / ``lanes_with_coord``), setup-plan writes ``SpecifyCompleted``,
+``PlanStarted`` and ``PlanCompleted`` to the coordination worktree's status log.
+Before this fix nothing committed them there: the repository root checkout stayed
+clean, the coordination worktree was left with a modified ``status.events.jsonl``.
+Mission ``setup-plan-coord-lifecycle-commit-01M84SXJ``; every test drives the real
+CLI on a real git repository.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any, Literal
+
+import pytest
+
+from tests.integration.cli_mission_fixture_7545 import dirty, flat, git, init_repo, json_of, run_sk
+
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.timeout(900)]
+
+_SPEC = (
+    "# Spec\n\n## Requirements\n\n| ID | Title | User Story | Priority | Status |\n|---|---|---|---|---|\n"
+    "| FR-001 | things work | As a user I want things so that ok. | High | Open |\n"
+)
+_PLAN = """# Implementation Plan
+
+## Technical Context
+
+**Language/Version**: Python 3.11
+**Primary Dependencies**: none
+**Storage**: N/A
+**Testing**: pytest
+**Target Platform**: Linux
+**Project Type**: single
+"""
+_SETUP_PLAN_EVENTS = ("SpecifyCompleted", "PlanStarted", "PlanCompleted")
+
+
+class _Mission:
+    def __init__(self, repo: Path, env: dict[str, str], slug: str, mission_dir: Path) -> None:
+        self.repo = repo
+        self.env = env
+        self.slug = slug
+        self.mission_dir = mission_dir
+
+    @property
+    def meta(self) -> dict[str, object]:
+        data: dict[str, object] = json.loads((self.mission_dir / "meta.json").read_text(encoding="utf-8"))
+        return data
+
+    @property
+    def coord_branch(self) -> str:
+        return str(self.meta["coordination_branch"])
+
+    @property
+    def coord_root(self) -> Path:
+        return self.repo / ".worktrees" / f"{self.slug}-coord"
+
+    def setup_plan(self) -> dict[str, object]:
+        proc = run_sk(self.repo, self.env, "agent", "mission", "setup-plan", "--mission", self.slug, "--json")
+        assert proc.returncode == 0, flat(proc)[-2000:]
+        return json_of(proc)
+
+    def write_plan(self) -> None:
+        (self.mission_dir / "plan.md").write_text(_PLAN, encoding="utf-8")
+
+    def coord_events(self) -> list[str]:
+        text = git(self.repo, "show", f"{self.coord_branch}:kitty-specs/{self.slug}/status.events.jsonl")
+        return [str(json.loads(line).get("event_type")) for line in text.splitlines() if line.strip()]
+
+
+def _mission(tmp_path: Path, topology: str | None) -> _Mission:
+    repo, env = init_repo(tmp_path)
+    topology_args = ("--topology", topology) if topology else ()
+    created = run_sk(
+        repo,
+        env,
+        *("agent", "mission", "create", "gamma", "--mission-type", "software-dev", *topology_args),
+        *("--target-branch", "dev", "--friendly-name", "gamma", "--purpose-tldr", "g", "--purpose-context", "Fixture.", "--json"),
+        check=True,
+    )
+    payload = json_of(created)
+    mission = _Mission(repo, env, str(payload["mission_slug"]), Path(str(payload["mission_dir"])))
+    (mission.mission_dir / "spec.md").write_text(_SPEC, encoding="utf-8")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "spec")
+    return mission
+
+
+@pytest.mark.parametrize("topology", ["lanes_with_coord", "coord"])
+def test_coord_setup_plan_commits_lifecycle_events_on_the_coordination_branch(tmp_path: Path, topology: str) -> None:
+    mission = _mission(tmp_path, topology)
+    mission.setup_plan()  # scaffold
+    mission.write_plan()
+
+    payload = mission.setup_plan()
+
+    assert payload["commit_created"] is True, payload
+    assert dirty(mission.repo) == []
+    assert dirty(mission.coord_root) == [], "setup-plan left its lifecycle events uncommitted in the coordination worktree"
+    events = mission.coord_events()
+    assert all(event in events for event in _SETUP_PLAN_EVENTS), events
+    lifecycle = payload["lifecycle_commit"]
+    assert isinstance(lifecycle, dict)
+    assert lifecycle["status"] in {"committed", "unchanged"}
+    assert git(mission.repo, "rev-parse", mission.coord_branch) == git(mission.coord_root, "rev-parse", "HEAD")
+
+
+def test_coord_scaffold_only_run_commits_the_events_recorded_so_far(tmp_path: Path) -> None:
+    mission = _mission(tmp_path, "lanes_with_coord")
+
+    payload = mission.setup_plan()
+
+    assert payload.get("scaffold_only") is True, payload
+    assert dirty(mission.coord_root) == []
+    events = mission.coord_events()
+    assert "SpecifyCompleted" in events and "PlanStarted" in events, events
+    lifecycle = payload["lifecycle_commit"]
+    assert isinstance(lifecycle, dict) and lifecycle["status"] == "committed"
+
+
+def test_coord_rerun_makes_no_new_commit(tmp_path: Path) -> None:
+    mission = _mission(tmp_path, "lanes_with_coord")
+    mission.setup_plan()
+    mission.write_plan()
+    mission.setup_plan()
+    tip = git(mission.repo, "rev-parse", mission.coord_branch)
+
+    payload = mission.setup_plan()
+
+    assert git(mission.repo, "rev-parse", mission.coord_branch) == tip
+    lifecycle = payload["lifecycle_commit"]
+    assert isinstance(lifecycle, dict) and lifecycle["status"] == "unchanged"
+    assert dirty(mission.coord_root) == []
+
+
+@pytest.mark.parametrize("topology", ["single_branch", None], ids=["single_branch", "default_before_settlement"])
+def test_non_coordination_setup_plan_is_unchanged(tmp_path: Path, topology: str | None) -> None:
+    mission = _mission(tmp_path, topology)
+    mission.setup_plan()
+    mission.write_plan()
+
+    payload = mission.setup_plan()
+
+    assert payload["commit_created"] is True, payload
+    committed = git(mission.repo, "show", "--name-only", "--format=", str(payload["commit_hash"])).splitlines()
+    assert f"kitty-specs/{mission.slug}/plan.md" in committed
+    assert f"kitty-specs/{mission.slug}/status.events.jsonl" in committed
+    assert dirty(mission.repo) == []
+    assert "lifecycle_commit" not in payload
+    assert not (mission.repo / ".worktrees").exists()
+
+
+# ---------------------------------------------------------------------------
+# FR-004: a refused coordination commit fails loud (in process, so the router can be refused)
+# ---------------------------------------------------------------------------
+
+
+def _run_setup_plan_in_process(mission: _Mission, monkeypatch: pytest.MonkeyPatch) -> tuple[int, dict[str, object]]:
+    from typer.testing import CliRunner
+
+    from specify_cli.cli.commands.agent import mission as mission_module
+
+    for key, value in mission.env.items():
+        monkeypatch.setenv(key, value)
+    monkeypatch.chdir(mission.repo)
+    monkeypatch.setattr(mission_module, "locate_project_root", lambda *a, **k: mission.repo)
+    result = CliRunner().invoke(mission_module.app, ["setup-plan", "--mission", mission.slug, "--json"], catch_exceptions=False)
+    payloads = [json.loads(line) for line in result.output.splitlines() if line.startswith("{")]
+    return result.exit_code, (payloads[-1] if payloads else {"raw": result.output})
+
+
+@pytest.mark.parametrize("status", ["error", "no_op_wrong_surface"])
+def test_refused_coordination_commit_fails_loud(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, status: Literal["error", "no_op_wrong_surface"]) -> None:
+    from mission_runtime import MissionArtifactKind
+    from specify_cli.coordination import commit_router
+    from specify_cli.coordination.commit_router import CommitRouterResult
+
+    mission = _mission(tmp_path, "lanes_with_coord")
+    mission.setup_plan()
+    mission.write_plan()
+    real = commit_router.commit_for_mission
+
+    def _refuse_status(*args: Any, **kwargs: Any) -> CommitRouterResult:
+        if kwargs.get("kind") is MissionArtifactKind.STATUS_STATE:
+            return CommitRouterResult(status=status, placement_ref=mission.coord_branch, diagnostic="coordination surface refused (test)")
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(commit_router, "commit_for_mission", _refuse_status)
+
+    code, payload = _run_setup_plan_in_process(mission, monkeypatch)
+
+    assert code == 1, payload
+    assert payload["error_code"] == "SETUP_PLAN_LIFECYCLE_UNCOMMITTED", payload
+    assert "coordination surface refused (test)" in str(payload["lifecycle_diagnostic"])
+    uncommitted = payload["uncommitted_lifecycle_events"]
+    assert isinstance(uncommitted, list) and set(_SETUP_PLAN_EVENTS) <= set(uncommitted)
+    assert payload["commit_hash"], "the plan commit that landed must still be reported"
