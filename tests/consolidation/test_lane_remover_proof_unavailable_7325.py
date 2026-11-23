@@ -27,6 +27,7 @@ from specify_cli.consolidation.lane_cleanup import (
     GuardedLaneRemover,
     LaneCleanupItem,
     LaneCleanupOutcome,
+    LaneCleanupReport,
     LaneRetention,
     LocalTargetAtPass,
 )
@@ -105,6 +106,8 @@ def test_a_gone_worktree_with_a_unique_commit_keeps_the_branch(landed: tuple[Pat
     assert _branch_tip(root) == unique
     assert result.command is None  # no worktree left for the prune backstop to judge
     assert _LANE in (result.remedy or "") and f"git log main..{_LANE}" in (result.remedy or "")
+    [kept] = LaneCleanupReport(results=(result,)).render_lines()[1:3][1:]
+    assert kept.strip() == f"Remedy: {result.remedy}", kept  # review cycle 1: never "then run: None"
 
 
 def test_an_empty_pass_anchor_keeps_the_lane(landed: tuple[Path, Path, str]) -> None:
@@ -114,6 +117,8 @@ def test_an_empty_pass_anchor_keeps_the_lane(landed: tuple[Path, Path, str]) -> 
     assert result.code == LANDING_PROOF_UNAVAILABLE
     assert worktree.exists() and _branch_tip(root) == tip
     assert result.command == BACKSTOP_COMMAND  # the worktree remains for the prune to judge
+    lines = LaneCleanupReport(results=(result,)).render_lines()
+    assert lines[2].strip() == f"Remedy: {result.remedy}, then run: {BACKSTOP_COMMAND}", lines
 
 
 def test_no_landing_proof_keeps_the_lane(landed: tuple[Path, Path, str]) -> None:
@@ -122,6 +127,9 @@ def test_no_landing_proof_keeps_the_lane(landed: tuple[Path, Path, str]) -> None
     assert result.outcome is LaneCleanupOutcome.KEPT, result
     assert result.code == LANDING_PROOF_UNAVAILABLE
     assert worktree.exists() and _branch_tip(root) == tip
+    # Review cycle 1: no command naming a ref that is not one ("git log the target branch..").
+    assert "git log" not in (result.remedy or ""), result.remedy
+    assert _LANE in (result.remedy or "")
 
 
 def test_no_tip_to_name_keeps_the_lane(landed: tuple[Path, Path, str]) -> None:
@@ -133,6 +141,10 @@ def test_no_tip_to_name_keeps_the_lane(landed: tuple[Path, Path, str]) -> None:
     assert result.outcome is LaneCleanupOutcome.KEPT, result
     assert result.code == LANDING_PROOF_UNAVAILABLE
     assert worktree.exists()
+    # Review cycle 1: the branch ref is gone, so the remedy must not name it as a revision.
+    remedy = result.remedy or ""
+    assert f"main..{_LANE}" not in remedy, remedy
+    assert f"git -C {worktree} reflog" in remedy and f"refs/spec-kitty/lane-tip/{_LANE}" in remedy, remedy
 
 
 def test_a_lane_with_nothing_left_is_removed(landed: tuple[Path, Path, str]) -> None:
