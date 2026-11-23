@@ -141,6 +141,22 @@ def test_an_old_git_leaves_a_released_lane_unproven(landed: tuple[Path, Path], m
     assert proof(_git(lane, "rev-parse", "HEAD"), "refs/remotes/origin/main") is False
 
 
+def test_an_old_git_still_proves_a_released_lane_its_merge_landing_reaches(landed: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review F1: ancestry needs no ``merge-tree``, so a merge-landed lane stays landed and prunable on old git."""
+    root, lane = landed
+    _released(root, merged_at="2026-11-23T00:00:00+00:00")
+    _git(root, "merge", "-q", "--no-ff", "--no-edit", "-X", "ours", _LANE)
+    _git(root, "push", "-q", "origin", "main")
+    _git(root, "fetch", "-q", "origin")
+    monkeypatch.setattr(landed_worktrees, "merge_tree_write_tree_available", lambda _repo: False)
+    verdict = _verdict(assess_worktrees(root, current_dir=root, probe=_idle), lane)
+    assert verdict.verdict is Verdict.LANDED, verdict
+    proof = landed_worktrees._absorption_proof(root, _SLUG)
+    assert proof(_git(lane, "rev-parse", "HEAD"), "refs/remotes/origin/main") is True
+    [outcome] = prune_landed(root, current_dir=root, probe=_idle)
+    assert outcome.removed and outcome.branch_deleted, outcome
+
+
 def test_a_detached_head_has_no_mission(landed: tuple[Path, Path]) -> None:
     root, _lane = landed
     assert landed_worktrees._lane_mission_slug(root, None) is None
