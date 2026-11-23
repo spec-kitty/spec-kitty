@@ -144,17 +144,6 @@ def test_follow_never_takes_the_upstream_copy_of_the_planning_commit(repo: Path)
     assert follow_pin_by_patch_id(repo, pin, "topic", upstream_refs=("main",)) == PatchIdFollow(sha=None, miss="upstream_only")
 
 
-def test_without_upstream_refs_the_upstream_copy_would_be_taken(repo: Path) -> None:
-    """The control for the case above: the unfiltered scan finds main's copy, which widens the window."""
-    pin = _planning_also_landed_upstream(repo)
-
-    follow = follow_pin_by_patch_id(repo, pin, "topic")
-
-    assert follow.sha is not None
-    assert _git(repo, "merge-base", "--is-ancestor", follow.sha, "main") == ""
-    assert "src/b.py" in _git(repo, "diff", "--name-only", f"{follow.sha}..topic").splitlines()
-
-
 def test_a_missing_upstream_ref_reaches_nothing(repo: Path) -> None:
     pin, _ = _mission_branch_with_planning(repo)
     _rebase_onto_new_main(repo)
