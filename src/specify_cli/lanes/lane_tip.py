@@ -432,8 +432,11 @@ def is_absorbed_but_for_mission_bookkeeping(repo_root: Path, tip: str, landing_r
     * any ``kitty-specs/`` file the lane did not author whose lane copy is the merge base's copy
       (only the landing ref moved it), or that the lane has no copy of: nothing to lose.
 
-    Everything else is ``False``: another ``kitty-specs/`` difference, a deletion the lane made, a
-    git error, an unknown ref, or a git without ``merge-tree --write-tree``. A merge or merge-driver
+    Everything else is ``False``: another ``kitty-specs/`` change the lane made, a deletion the lane
+    made (except of its own Mission's status log: the log is append-only and its events are judged by
+    containment, so a lane without a copy has none to lose), a git error, an unknown ref, or a git
+    without ``merge-tree --write-tree``. "Set aside" applies to the lane's own changes only: a file
+    the lane left untouched (rule 4) is no lane change, whatever its kind. A merge or merge-driver
     result is never evidence for a ``kitty-specs/`` path. Residual (ADR 2026-11-06-1, Amendment
     2026-11-23): a version merged in from a branch other than the coordination branch counts as
     not authored on this lane.

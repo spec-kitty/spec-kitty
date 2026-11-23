@@ -29,6 +29,8 @@ from pathlib import Path
 
 import pytest
 
+from kernel.git import GitCommandError
+from specify_cli.lanes import lane_tip
 from specify_cli.lanes.lane_tip import is_absorbed, is_absorbed_but_for_mission_bookkeeping
 
 pytestmark = [pytest.mark.git_repo]
@@ -93,7 +95,8 @@ class Landed:
         return _git(self.lane, "rev-parse", "HEAD")
 
     def proof(self, slug: str = _SLUG) -> bool:
-        return is_absorbed_but_for_mission_bookkeeping(self.root, self.tip(), _TARGET, slug)
+        proven: bool = is_absorbed_but_for_mission_bookkeeping(self.root, self.tip(), _TARGET, slug)
+        return proven
 
 
 def _init(root: Path) -> None:
@@ -263,3 +266,66 @@ def test_a_mission_file_only_the_target_moved_since_the_merge_base_is_nothing_to
     assert is_absorbed_but_for_mission_bookkeeping(root, tip, _TARGET, _SLUG)
     _commit(lane, "the lane edits that file after all", {other: "# other, lane edit\n"})
     assert not is_absorbed_but_for_mission_bookkeeping(root, _git(lane, "rev-parse", "HEAD"), _TARGET, _SLUG)
+
+
+# --- review folds (WP01 review, 2026-11-23): the clauses no other case reaches ----------------
+
+
+def test_a_lane_that_deleted_its_own_status_log_is_landed(landed: Landed) -> None:
+    """The stated exception to "a lane-made deletion keeps the lane" (#6736): the log is append-only and
+    every event it held is on the target, so a lane without a copy has none to lose."""
+    _commit(landed.lane, "drop the log copy", {_LOG: None})
+    assert landed.proof()
+
+
+def test_a_bookkeeping_file_the_target_no_longer_has_keeps_the_lane(landed: Landed) -> None:
+    """FR-003: both sides must have the file; the lane's copy of a file the target dropped is not set aside."""
+    _commit(landed.root, "the target drops meta.json", {_META: None})
+    assert not landed.proof()
+
+
+def test_another_missions_snapshot_is_not_set_aside(landed: Landed) -> None:
+    """status.json and meta.json are set aside only for the lane's own Mission."""
+    other_snapshot = f"kitty-specs/{_OTHER_SLUG}/status.json"
+    _commit(landed.coord, "another Mission's snapshot", {other_snapshot: '{"v": 1}\n'})
+    _git(landed.lane, "merge", "-q", "--no-ff", "--no-edit", _COORD)
+    _commit(landed.root, "that Mission moves on", {other_snapshot: '{"v": 2}\n'})
+    assert not landed.proof()
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [GitCommandError(argv=("merge-tree",), cwd=Path("."), returncode=128, stderr="boom"), OSError("git did not start")],
+    ids=["git-error", "os-error"],
+)
+def test_a_git_failure_fails_closed(landed: Landed, monkeypatch: pytest.MonkeyPatch, failure: Exception) -> None:
+    def broken(*_args: object, **_kwargs: object) -> object:
+        raise failure
+
+    monkeypatch.setattr(lane_tip, "merge_tree", broken)
+    assert not landed.proof()
+
+
+def test_a_root_commit_changes_every_path_it_holds(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    _init(root)
+    first = _git(root, "rev-list", "--max-parents=0", "HEAD")
+    assert sorted(lane_tip._paths_changed_by(root, first, ())) == [".gitignore", "README.md"]
+
+
+def test_a_mission_file_the_lane_lost_through_a_sync_merge_is_nothing_to_lose(tmp_path: Path) -> None:
+    """The coordination branch deleted a file; the lane took that deletion whole from its sync merge."""
+    root = tmp_path / "repo"
+    _init(root)
+    legacy = f"{_MD}/legacy.md"
+    _commit(root, "a legacy Mission file", {legacy: "old\n"})
+    coord = root / ".worktrees" / "coord"
+    _git(root, "worktree", "add", "-q", "-b", _COORD, str(coord))
+    _commit(coord, "the coordination branch drops it", {legacy: None})
+    lane = root / ".worktrees" / "lane-a"
+    _git(root, "worktree", "add", "-q", "-b", _LANE, str(lane), "main")
+    _git(lane, "merge", "-q", "--no-ff", "--no-edit", _COORD)  # the implement sync
+    _commit(lane, "feat(WP01)", {_PRODUCT: "x = 1\n"})
+    _git(root, "checkout", "-q", _LANE, "--", _PRODUCT)
+    _git(root, "commit", "-q", "-m", "land the lane's product")
+    assert is_absorbed_but_for_mission_bookkeeping(root, _git(lane, "rev-parse", "HEAD"), _TARGET, _SLUG)

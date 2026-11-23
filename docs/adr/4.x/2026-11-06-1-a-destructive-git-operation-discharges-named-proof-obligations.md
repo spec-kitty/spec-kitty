@@ -169,8 +169,12 @@ for:
    comparison, not a merge result.
 
 No merge or merge-driver result is evidence for a `kitty-specs/` path (#7302 item 3). Everything else
-fails closed: any other `kitty-specs/` difference, a deletion the lane made, an unknown ref, or any
-git error. The matrices (`issue-matrix.json`, `acceptance-matrix.json`) are not set aside.
+fails closed: any other `kitty-specs/` change the lane made, a deletion the lane made, an unknown ref,
+or any git error. One deletion is the exception: the lane's own Mission status log, because the log is
+append-only and rule 2 judges it by its events, so a lane without a copy has none to lose. "Set aside"
+applies to the lane's own changes only: the matrices (`issue-matrix.json`, `acceptance-matrix.json`)
+and every other Mission file are never set aside when the lane changed them, while a file the lane
+left untouched (rule 4) is no lane change at all.
 
 **The kept legs (#7325).** `GuardedLaneRemover` no longer hands a lane with a branch leg to the older
 remover. A lane is kept with `LANDING_PROOF_UNAVAILABLE`, its branch untouched, in each of these cases:
