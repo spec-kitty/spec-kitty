@@ -16,7 +16,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import typer
@@ -905,23 +905,12 @@ def test_phase_push_failure_with_linear_history_hint_exits(tmp_path: Path) -> No
 # --- _phase_cleanup_worktrees_and_branches ----------------------------------
 
 
-def test_phase_cleanup_removes_worktrees_and_branches(tmp_path: Path) -> None:
-    """WP03/T012 (#4753): lane-worktree removal now routes through the shared
-    ``guarded_worktree_remove`` chokepoint (``specify_cli.git.destructive_guard``)
-    instead of a raw ``git worktree remove --force`` issued via ``run_command``.
-    That chokepoint shells out for real (it is git-plumbing-pure and does not
-    accept an injected command runner), so it is spied on directly here rather
-    than through the ``run_command`` fake used for the other git calls in this
-    phase.
-    """
-    run = _make_run(tmp_path, remove_worktree=True, delete_branch=True)
-    wt = tmp_path / ".worktrees" / "m-lane-a"
-    wt.mkdir(parents=True)
+def _cleanup_with_spies(run: ex._MergeRunState, wt: Path) -> tuple[list[list[str]], MagicMock, MagicMock, MagicMock]:
+    """Run the real cleanup phase with the lane-cleanup primitives and the coordination seam spied on."""
     calls: list[list[str]] = []
 
     def _fake_cmd(args: list[str], **kwargs: object) -> tuple[int, str, str]:
         calls.append(list(args))
-        # rev-parse --verify -> branch exists (ret 0); everything else ret 0.
         return (0, "", "")
 
     with (
@@ -933,7 +922,7 @@ def test_phase_cleanup_removes_worktrees_and_branches(tmp_path: Path) -> None:
         # S5: the lane legs moved into the one lane-cleanup module.
         patch.object(lane_cleanup, "guarded_worktree_remove") as guarded_remove_mock,
         patch.object(lane_cleanup, "guarded_branch_delete") as guarded_branch_delete_mock,
-        patch.object(lane_cleanup, "_branch_tip", side_effect=["a" * 40, None]),
+        patch.object(lane_cleanup, "_branch_tip", return_value="a" * 40),
         patch("specify_cli.mission_metadata.load_meta", return_value={"mid8": "deadbeef"}),
         # WP04 (#2119): coordination teardown now routes through the shared
         # ``teardown_coordination_topology`` seam. Patch the seam's real destroy
@@ -942,16 +931,39 @@ def test_phase_cleanup_removes_worktrees_and_branches(tmp_path: Path) -> None:
         patch("specify_cli.coordination.workspace.CoordinationWorkspace") as cw_mock,
     ):
         ex._phase_cleanup_worktrees_and_branches(run)
-    # T012: the guarded chokepoint removed the (known-clean) lane worktree,
-    # never a raw ``git worktree remove --force``.
+    return calls, guarded_remove_mock, guarded_branch_delete_mock, cw_mock
+
+
+def test_phase_cleanup_retained_branch_removes_the_worktree_through_the_guard(tmp_path: Path) -> None:
+    """WP03/T012 (#4753): lane-worktree removal routes through the shared
+    ``guarded_worktree_remove`` chokepoint (``specify_cli.git.destructive_guard``),
+    never a raw ``git worktree remove --force`` issued via ``run_command``. Since #7325 that leg
+    is reached on its own only with ``--keep-branch`` (plan PD-1): the branch is retained, never deleted.
+    """
+    run = _make_run(tmp_path, remove_worktree=True, delete_branch=False)
+    wt = tmp_path / ".worktrees" / "m-lane-a"
+    wt.mkdir(parents=True)
+    calls, guarded_remove_mock, guarded_branch_delete_mock, _cw = _cleanup_with_spies(run, wt)
     guarded_remove_mock.assert_called_once()
     guard_call = guarded_remove_mock.call_args
     assert guard_call.args[0] == wt
     assert guard_call.kwargs["retain"] is False
     assert not any(c[:3] == ["git", "worktree", "remove"] for c in calls)
-    # A branch deletion ran (branch existed), through the guard and never as a raw `git branch -D`.
-    guarded_branch_delete_mock.assert_called_once()
+    guarded_branch_delete_mock.assert_not_called()
     assert not any(c[:3] == ["git", "branch", "-D"] for c in calls)
+
+
+def test_phase_cleanup_without_a_pass_anchor_removes_no_lane(tmp_path: Path) -> None:
+    """#7325: no reconciliation PASS anchor, no landing proof: the lane is kept, nothing is removed or
+    deleted (the older remover's branch delete was the blind spot), and the coordination teardown still runs."""
+    run = _make_run(tmp_path, remove_worktree=True, delete_branch=True)
+    wt = tmp_path / ".worktrees" / "m-lane-a"
+    wt.mkdir(parents=True)
+    calls, guarded_remove_mock, guarded_branch_delete_mock, cw_mock = _cleanup_with_spies(run, wt)
+    guarded_remove_mock.assert_not_called()
+    guarded_branch_delete_mock.assert_not_called()
+    assert not any(c[:3] in (["git", "worktree", "remove"], ["git", "branch", "-D"]) for c in calls)
+    assert wt.exists()
     cw_mock.teardown.assert_called_once()
 
 
