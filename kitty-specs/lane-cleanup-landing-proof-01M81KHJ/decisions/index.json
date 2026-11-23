@@ -126,6 +126,29 @@
       "status": "resolved",
       "step_id": null,
       "summary_json": null
+    },
+    {
+      "created_at": "2026-11-23T19:08:03.333816Z",
+      "decision_id": "01M84WXRW53P3VQ0BEEV9P5VR6",
+      "final_answer": "Yes, PD-1 stands. Decided by the operator 2026-11-23 (ruling 4A, relayed by the dispatcher); supersedes the runner's provisional resolution of 01M84SX5 as the record of who decided.",
+      "input_key": "retain_branches_leg_operator",
+      "mission_id": "01M81KHJ8AZPW0HCEZSX01C5B9",
+      "mission_slug": "lane-cleanup-landing-proof-01M81KHJ",
+      "opened_by": "cli",
+      "options": [
+        "Yes, PD-1 stands",
+        "No, keep with LANDING_PROOF_UNAVAILABLE"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Operator confirmation of PD-1 (Decision Moment 01M84SX5): does the retained-branch leg stay on today's guarded worktree removal?",
+      "rationale": null,
+      "resolved_at": "2026-11-23T19:08:08.236502Z",
+      "resolved_by": null,
+      "slot_key": "plan.cleanup.retain_branches_leg_operator",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
     }
   ],
   "mission_id": "01M81KHJ8AZPW0HCEZSX01C5B9",

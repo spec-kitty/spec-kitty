@@ -68,7 +68,7 @@ None.
 
 ## Recorded Decisions
 
-- **PD-1, retained-branch leg (Decision Moment 01M84SX5).** With `retain_branches`, cleanup removes the worktree and deletes no branch. That leg stays on today's guarded worktree removal (`MainTodayRemover`, `guarded_worktree_remove`) and is not kept with `LANDING_PROOF_UNAVAILABLE`, because no branch is deleted, so it is not the #7325 blind spot, and the FR-033 retention report is unchanged. The question is with the operator. To flip it, remove the `item.branch is None` hand-off in `GuardedLaneRemover.remove`, so that the leg falls into the proof-unavailable check.
+- **PD-1, retained-branch leg (Decision Moment 01M84SX5).** With `retain_branches`, cleanup removes the worktree and deletes no branch. That leg stays on today's guarded worktree removal (`MainTodayRemover`, `guarded_worktree_remove`) and is not kept with `LANDING_PROOF_UNAVAILABLE`, because no branch is deleted, so it is not the #7325 blind spot, and the FR-033 retention report is unchanged. Operator ruling 2026-11-23 (4A): PD-1 stands; the operator is the decider (Decision Moment 01M84WXRW53P3VQ0BEEV9P5VR6). To flip it, remove the `item.branch is None` hand-off in `GuardedLaneRemover.remove`, so that the leg falls into the proof-unavailable check.
 
 ## Implementation Concern Map
 
