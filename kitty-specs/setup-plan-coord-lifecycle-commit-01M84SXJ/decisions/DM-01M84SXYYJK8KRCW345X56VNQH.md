@@ -4,8 +4,10 @@
 - **Origin flow:** `specify`
 - **Slot key:** `specify.scope.stranded-events`
 - **Input key:** `stranded_events_handling`
-- **Status:** `open`
+- **Status:** `resolved`
 - **Created:** `2026-11-23T18:15:43.826305+00:00`
+- **Resolved:** `2026-11-23T19:07:04.280049+00:00`
+- **Resolved by:** `operator`
 - **Opened by:** `cli`
 - **Other answer:** `false`
 
@@ -22,12 +24,13 @@ Existing coordination Missions may already hold SpecifyCompleted/PlanStarted/Pla
 
 ## Final answer
 
-_(none)_
+doctor reports them; no migration in this Mission
 
 ## Rationale
 
-_(none)_
+Operator answer 1A, relayed verbatim by the dispatcher.
 
 ## Change log
 
 - `2026-11-23T18:15:43.826305+00:00` - opened
+- `2026-11-23T19:07:04.280049+00:00` - resolved (final_answer="doctor reports them; no migration in this Mission")
