@@ -156,7 +156,8 @@ def _render_result(result: LaneCleanupResult) -> list[str]:
         return [f"  Retained  {lane}  retained by policy ({result.detail})"]
     if result.outcome is LaneCleanupOutcome.KEPT:
         lines = [f"  Kept      {lane}  {result.code}  {result.detail or ''}".rstrip()]
-        lines.append(f"            Remedy: {result.remedy}, then run: {result.command}")
+        then_run = f", then run: {result.command}" if result.command else ""
+        lines.append(f"            Remedy: {result.remedy}{then_run}")
         return lines
     branch = result.item.branch or ""
     suffix = f"   (recreate: {result.recreate})" if result.recreate else ""
@@ -539,8 +540,7 @@ class GuardedLaneRemover:
         reason = _proof_unavailable_reason(landing, worktree_present=worktree_present, tip=item.expected_tip or branch_tip)
         if reason is None:
             return None
-        ref = _landing_ref_name(landing)
-        remedy = f"{reason}; check {branch} with `git log {ref}..{branch}` and delete it by hand only if its work is on {ref}"
+        remedy = _proof_unavailable_remedy(reason, branch, landing, branch_present=branch_tip is not None, worktree=item.worktree)
         return _kept(item, LANDING_PROOF_UNAVAILABLE, remedy, detail=None, command=BACKSTOP_COMMAND if worktree_present else None)
 
     def _busy(self, path: Path) -> bool | None:
@@ -553,9 +553,11 @@ class GuardedLaneRemover:
 
         if self._mission_slug is not None:
             # #7747: never the plain proof first; its merge can hide a lane's Mission-file edit.
-            return is_absorbed_but_for_mission_bookkeeping(self._repo_root, tip, landing_ref, self._mission_slug)
+            proven: bool = is_absorbed_but_for_mission_bookkeeping(self._repo_root, tip, landing_ref, self._mission_slug)
+            return proven
         try:
-            return is_absorbed(self._repo_root, tip, landing_ref, base=None)
+            plain: bool = is_absorbed(self._repo_root, tip, landing_ref, base=None)
+            return plain
         except AbsorptionUnsupported:
             return False
 
@@ -573,12 +575,24 @@ def _proof_unavailable_reason(landing: LandingProof | None, *, worktree_present:
     return None
 
 
-def _landing_ref_name(landing: LandingProof | None) -> str:
+def _proof_unavailable_remedy(reason: str, branch: str, landing: LandingProof | None, *, branch_present: bool, worktree: Path | None) -> str:
+    """A remedy whose commands run as printed (#7325): it names a revision only when one exists."""
+    if landing is None:
+        return f"{reason}; delete {branch} by hand only once you have checked that its work is on the target branch"
+    ref = _landing_ref_name(landing)
+    if branch_present:
+        return f"{reason}; check {branch} with `git log {ref}..{branch}` and delete it by hand only if its work is on {ref}"
+    # The branch ref is gone: find the lane's last commit another way, then check it.
+    return (
+        f"{reason}; find its last commit with `git -C {worktree} reflog -1` or `git rev-parse refs/spec-kitty/lane-tip/{branch}`, "
+        f"check it with `git log {ref}..<sha>`, and remove the worktree by hand only if that work is on {ref}"
+    )
+
+
+def _landing_ref_name(landing: LandingProof) -> str:
     if isinstance(landing, LocalTargetAtPass):
         return landing.target_ref
-    if isinstance(landing, RemoteRef):
-        return landing.ref
-    return "the target branch"
+    return landing.ref
 
 
 def _guarded_removal(repo_root: Path, item: LaneCleanupItem, landing: LandingProof | None) -> LandedRemoval | None:
