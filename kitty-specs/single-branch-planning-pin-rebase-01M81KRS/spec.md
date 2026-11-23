@@ -165,7 +165,7 @@ state the same way and each names a command or step that works (#7297 items 3 an
 
 ## Assumptions
 
-- The dispatcher confirms the FR-005 extension (capture and refresh, not only derivation, follow the
-  mission branch); if it is ruled out, FR-005 narrows to derivation plus an honest message.
+- The operator confirmed the FR-005 extension on 2026-11-23 (capture and refresh, not only derivation, follow the
+  mission branch).
 - Patch-id is computed with the existing `patch_id_of` (stable patch-id), so whitespace-only rebase
   conflicts that change the diff do not match; that case refuses (FR-002).
