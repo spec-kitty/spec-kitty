@@ -34,7 +34,8 @@
         "Ready for review",
         "- 2026-11-23T22:37:55Z – unknown – Cycle 2: B1 fixed (status-surface guard before the whole-log commit; COORD_STATUS_SURFACE_DIVERGED/UNREADABLE via SETUP_PLAN_LIFECYCLE_UNCOMMITTED), S1 (raising router -> named refusal), S2 (absent log on coordination = refusal), S3 (diff coverage 100%, 75 lines, subprocess coverage), N1 (refusal wording). Red-first on cycle-1 source: 4 failed (B1 rc 0 + lifecycle committed). make test-fast 3222 passed; blast 2413 passed, 1 failed pre-existing (kind_normalised, fails on main). Merge target pushed to origin.",
         "Cycle 2: review findings addressed",
-        "- 2026-11-23T23:27:51Z – unknown – Cycle 3: B2 (compare-and-swap on the guard's HEAD + exact log bytes), B3 (loss-risk refusals never say commit the checkout), N3, N4. Red-first: 2 failed on cycle-2 source (race rc 0; 'commit them in that checkout'). Diff coverage measured directly from coverage XML vs git diff: 96.8% before the HEAD test (missed 776-777, 839), those 3 now covered. make test-fast 3222 passed; blast 2456 passed, 1 pre-existing (kind_normalised)."
+        "- 2026-11-23T23:27:51Z – unknown – Cycle 3: B2 (compare-and-swap on the guard's HEAD + exact log bytes), B3 (loss-risk refusals never say commit the checkout), N3, N4. Red-first: 2 failed on cycle-2 source (race rc 0; 'commit them in that checkout'). Diff coverage measured directly from coverage XML vs git diff: 96.8% before the HEAD test (missed 776-777, 839), those 3 now covered. make test-fast 3222 passed; blast 2456 passed, 1 pre-existing (kind_normalised).",
+        "Cycle 3: review-cycle-2 findings addressed"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
