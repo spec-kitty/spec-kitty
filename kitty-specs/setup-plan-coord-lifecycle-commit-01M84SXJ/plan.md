@@ -7,7 +7,7 @@ All planning questions are answered. The Engineering Alignment was confirmed by 
 
 ## Summary
 
-On a Mission whose coordination branch exists at setup-plan time (explicit `coord` / `lanes_with_coord`), `spec-kitty agent mission setup-plan` today appends `SpecifyCompleted`, `PlanStarted` and `PlanCompleted` to the repository root checkout's copy of the status log and leaves them uncommitted (`_lifecycle_log_for_plan_commit` excludes that log from the plan commit on purpose, a recorded residual of PR #7562). This Mission routes the three events through the existing write location for status records, `placement_seam(...).write_dir(STATUS_STATE)`, and commits them on the coordination branch with one `commit_for_mission(kind=STATUS_STATE)` call at the end of the run. A refused commit fails loud with `SETUP_PLAN_LIFECYCLE_UNCOMMITTED`. `spec-kitty doctor coordination` gains a report-only warning for events already stranded in a repository root checkout log.
+On a Mission whose coordination branch exists at setup-plan time (explicit `coord` / `lanes_with_coord`), `spec-kitty agent mission setup-plan` today appends `SpecifyCompleted`, `PlanStarted` and `PlanCompleted` to the coordination worktree's status log (its `feature_dir` comes from the coordination-aware read resolver) and leaves them uncommitted (`_lifecycle_log_for_plan_commit` excludes that log from the plan commit on purpose, a recorded residual of PR #7562). This Mission moves the writes onto the single write location for status records, `placement_seam(...).write_dir(STATUS_STATE)` (no behaviour change, FR-001 ratchet), and commits them on the coordination branch with one `commit_for_mission(kind=STATUS_STATE)` call at the end of the run. A refused commit fails loud with `SETUP_PLAN_LIFECYCLE_UNCOMMITTED`. The stranded-event report (FR-005) is the existing `doctor coordination` warning `COORDINATION_WORKTREE_DIRTY` (operator ruling `01M853E34H1MN0CQGQ9209P8MR`); no doctor change.
 
 ## Technical Context
 
@@ -19,7 +19,7 @@ On a Mission whose coordination branch exists at setup-plan time (explicit `coor
 **Project Type**: single project (`src/` + `tests/`).
 **Performance Goals**: at most one extra git commit per setup-plan run on a coordination Mission; zero when nothing is new (NFR-001).
 **Constraints**: no new placement seam, no new commit path, no ADR (C-003); non-coordination topologies byte-identical (NFR-002); no migration of stranded events (C-002); default Missions before settlement untouched (C-001, follow-up #7827).
-**Scale/Scope**: two source modules changed (`mission_setup_plan.py`, `_coordination_doctor.py`), one new test module per concern.
+**Scale/Scope**: one source module changed (`mission_setup_plan.py`), one new test module.
 
 ## Charter Check
 
@@ -29,7 +29,7 @@ On a Mission whose coordination branch exists at setup-plan time (explicit `coor
 - **Architectural alignment**: no new layer edge; `specify_cli` already imports both seams. Pass.
 - **ATDD-first / red-first (Standing Order 4)**: each concern starts with a failing entry-point test. Pass (planned).
 - **Fail loud (operator ruling on #7792)**: the refused-commit path exits 1 with a named code. Pass.
-- **Campsite (Standing Order 2)**: `_coordination_doctor.py` is ~2300 lines; the new check goes in a small new helper with its own tests instead of growing an existing function. Complexity stays <= 15.
+- **Campsite (Standing Order 2)**: the commit leg goes in a small new helper with its own tests instead of growing `setup_plan`. Complexity stays <= 15.
 - **Terminology**: "Mission", "coordination branch", "repository root checkout" are used per the glossary. Pass.
 - **Test policy**: in-matrix home for new tests; any changed out-of-matrix test is disclosed with a local run.
 
@@ -55,9 +55,7 @@ No `contracts/`: the Mission adds no interface. `meta.json` records `"contracts"
 
 ```
 src/specify_cli/cli/commands/agent/mission_setup_plan.py   # placement + one coordination commit + fail loud
-src/specify_cli/cli/commands/_coordination_doctor.py        # stranded lifecycle event warning
-tests/coordination/test_setup_plan_coord_lifecycle_3933.py # IC-01 entry-point tests (new, in matrix)
-tests/coordination/test_doctor_stranded_lifecycle_3933.py  # IC-02 tests (new, in matrix)
+tests/coordination/test_setup_plan_coord_lifecycle_3933.py # entry-point tests (new, in matrix)
 ```
 
 **Structure Decision**: single project; changes stay in the two modules that own the behaviour.
@@ -76,10 +74,6 @@ No charter violations.
 - **Sequencing/depends-on**: none
 - **Risks**: the coordination worktree may be unmaterialized (the write-location authority establishes it or refuses with its own named error); the plan commit must stay untouched; a scaffold-only run must still commit the events recorded so far; `write_dir` must be resolved outside the best-effort `try` so a refusal is never swallowed (finalize WP15 B3 precedent).
 
-### IC-02 — doctor coordination reports stranded lifecycle events
+### Folded: stranded-event report (FR-005)
 
-- **Purpose**: name the coordination Missions whose repository root checkout log holds lifecycle events absent from the coordination log, without changing anything.
-- **Relevant requirements**: FR-005, C-002
-- **Affected surfaces**: `_coordination_doctor.py` (a new per-Mission helper wired into the existing per-Mission loop; warning severity, exit 0; not touched by `--fix`), JSON output (new `error_code`).
-- **Sequencing/depends-on**: none (independent of IC-01)
-- **Risks**: reading two logs per Mission must not refuse on a malformed log (report it as unreadable instead); the comparison must key on event identity, not line bytes.
+Satisfied by the existing `doctor coordination` warning `COORDINATION_WORKTREE_DIRTY` (operator ruling `01M853E34H1MN0CQGQ9209P8MR`). No concern, no work package.

@@ -13,11 +13,20 @@
 - **Exception**: when recording or committing on the coordination branch is refused or fails, setup-plan says so with a named, actionable error. It never reports success while its own lifecycle events stay uncommitted.
 - **Stranded events** (operator ruling, Decision Moment `01M84SXYYJK8KRCW345X56VNQH`): the coordination health check reports a coordination Mission whose repository root checkout log holds lifecycle events that the coordination record lacks. It reports only: no repair, no migration.
 
+## Premise correction (operator ruling, Decision Moment `01M853E34H1MN0CQGQ9209P8MR`, 2026-11-23)
+
+A reproduction through the real CLI on an explicit `lanes_with_coord` Mission (main @ `1890a6c`) showed that setup-plan **already writes** its three lifecycle events to the coordination worktree's log; the repository root checkout stays clean. The defect is only that the events stay **uncommitted** in the coordination worktree. The operator ruled:
+
+- FR-001 becomes a ratchet (the placement already holds); the writes move onto the single write-location authority for status records with no behaviour change.
+- FR-005 is folded into the existing `doctor coordination` warning `COORDINATION_WORKTREE_DIRTY`, which already reports that residue; no new doctor check.
+
+The Intent Summary above is kept as confirmed; where it says "repository root checkout" for the place the events land today, read "coordination worktree".
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - setup-plan leaves a coordination Mission clean (Priority: P1)
 
-An agent finishes the specification of a coordination Mission and runs setup-plan. Today the plan is committed, but the three lifecycle events land in the repository root checkout's copy of the status log and are never committed, so the coordination record misses them and the checkout stays dirty. The agent (or orchestrator) has to hand-commit `kitty-specs/`, or later commands refuse on the dirt.
+An agent finishes the specification of a coordination Mission and runs setup-plan. Today the plan is committed, and the three lifecycle events are written to the coordination worktree's status log but never committed there, so the coordination branch misses them and the coordination worktree stays dirty. The agent (or orchestrator) has to hand-commit `kitty-specs/`, or later commands refuse on the dirt.
 
 **Why this priority**: it is the last open part of #3933 and recurs once per coordination Mission. Every hand commit is a step outside governed tooling.
 
@@ -25,7 +34,7 @@ An agent finishes the specification of a coordination Mission and runs setup-pla
 
 **Acceptance Scenarios**:
 
-1. **Given** a coordination Mission with a committed substantive spec, **When** setup-plan runs and writes a substantive plan, **Then** the coordination branch holds `SpecifyCompleted`, `PlanStarted` and `PlanCompleted` for this Mission, committed, and the repository root checkout has no uncommitted change to the Mission's status log.
+1. **Given** a coordination Mission with a committed substantive spec, **When** setup-plan runs and writes a substantive plan, **Then** the coordination branch holds `SpecifyCompleted`, `PlanStarted` and `PlanCompleted` for this Mission, committed, and neither the repository root checkout nor the coordination worktree has an uncommitted change to the Mission's status log.
 2. **Given** the same Mission, **When** setup-plan reports its result, **Then** the result names the coordination commit that recorded the events.
 3. **Given** a coordination Mission whose coordination commit is refused (for example a protected or diverged coordination surface), **When** setup-plan runs, **Then** it exits non-zero with a named error code and says which events were not recorded, instead of reporting success.
 
@@ -46,14 +55,13 @@ An agent runs setup-plan on a `single_branch` or `lanes` Mission, or on a defaul
 
 An operator of a repository that ran setup-plan on coordination Missions before this fix runs the coordination health check.
 
-**Why this priority**: existing Missions keep stranded events; the operator needs to see them, but this Mission repairs nothing (operator ruling).
+**Why this priority**: existing Missions keep uncommitted lifecycle events in their coordination worktree; the operator needs to see them, but this Mission repairs nothing (operator rulings).
 
-**Independent Test**: build a coordination Mission whose repository root checkout log holds lifecycle events missing from the coordination record, run the health check, and read its report.
+**Independent Test**: the existing `COORDINATION_WORKTREE_DIRTY` warning of `doctor coordination` already reports a coordination worktree with uncommitted changes (folded, ruling `01M853E34H1MN0CQGQ9209P8MR`); its existing tests cover it.
 
 **Acceptance Scenarios**:
 
-1. **Given** a coordination Mission with stranded lifecycle events, **When** the coordination health check runs, **Then** it reports that Mission and the stranded event types, and changes no file.
-2. **Given** a coordination Mission with no stranded events, **When** the health check runs, **Then** it reports nothing for that Mission.
+1. **Given** a coordination Mission whose coordination worktree holds uncommitted lifecycle events, **When** the coordination health check runs, **Then** it warns `COORDINATION_WORKTREE_DIRTY` for that worktree and changes no file.
 
 ### Edge Cases
 
@@ -68,11 +76,11 @@ An operator of a repository that ran setup-plan on coordination Missions before 
 
 | ID | Title | User Story | Priority | Status | Delivery | No-op passable? |
 |----|-------|------------|----------|--------|----------|-----------------|
-| FR-001 | Record on the coordination surface | As an agent running setup-plan on a coordination Mission, I want its three lifecycle events recorded on the coordination record, not the repository root checkout's log, so that the Mission's record is in one place. | High | Open | [build] | no — today the events land in the repository root checkout's log |
+| FR-001 | Record on the coordination surface | As an agent running setup-plan on a coordination Mission, I want its three lifecycle events recorded on the coordination record, through the single write location for status records, so that the Mission's record is in one place. | High | Open | [ratchet] | yes — paired with FR-002 on the same coordination fixture, which a no-op fails |
 | FR-002 | Commit in the same run | As an agent, I want those events committed on the coordination branch in the same setup-plan run, so that no checkout is left dirty by setup-plan. | High | Open | [build] | no — today they stay uncommitted |
 | FR-003 | Non-coordination topologies unchanged | As an agent on a Mission without a coordination branch, I want the lifecycle log to keep riding the plan commit with the reported commit naming it, so that #7562's fix holds. | High | Open | [ratchet] | yes — paired with FR-001/FR-002 on the coordination fixture, which a no-op fails |
 | FR-004 | Fail loud on a refused commit | As an agent, I want a refused or failed coordination commit to end setup-plan with a named error code that lists the unrecorded events, so that success is never reported while the events are uncommitted. | High | Open | [build] | no — today a refusal cannot occur because nothing is committed |
-| FR-005 | Report stranded events | As an operator, I want the coordination health check to report each coordination Mission whose repository root checkout log holds lifecycle events missing from its coordination record, without changing any file, so that I can see the residue of the old behaviour. | Medium | Open | [build] | no — today nothing reports them |
+| FR-005 | Report stranded events | As an operator, I want the coordination health check to report a coordination worktree left with uncommitted lifecycle events, without changing any file, so that I can see the residue of the old behaviour. | Medium | Open | [folded] | yes — satisfied by the existing `COORDINATION_WORKTREE_DIRTY` warning (ruling `01M853E34H1MN0CQGQ9209P8MR`) |
 
 ### Non-Functional Requirements
 
@@ -86,21 +94,21 @@ An operator of a repository that ran setup-plan on coordination Missions before 
 | ID | Title | Constraint | Category | Priority | Status |
 |----|-------|------------|----------|----------|--------|
 | C-001 | Default Mission before settlement out of scope | A default Mission before finalize-tasks settles its topology is out of scope (operator ruling, Decision Moment `01M84SZDGPKXA5PBJ6HM6HQX08`); the open question is tracked in #7827. | Technical | High | Open |
-| C-002 | No migration | Lifecycle events already stranded in repository root checkout logs are reported, never migrated or deleted, by this Mission (operator ruling, Decision Moment `01M84SXYYJK8KRCW345X56VNQH`). | Business | High | Open |
+| C-002 | No migration | Lifecycle events already stranded (uncommitted) in coordination worktrees are reported, never migrated, committed or deleted, by this Mission (operator ruling, Decision Moment `01M84SXYYJK8KRCW345X56VNQH`). | Business | High | Open |
 | C-003 | Existing seams only | Placement uses the existing placement seam's write location for status records, and the commit goes through the existing mission commit entry point; no new seam and no ADR. | Technical | High | Open |
 
 ### Key Entities
 
 - **Lifecycle event**: a Mission milestone (`SpecifyCompleted`, `PlanStarted`, `PlanCompleted`) appended to the Mission's status log.
 - **Coordination record**: the Mission's status log on its coordination branch, the authority for status on a coordination topology.
-- **Stranded event**: a lifecycle event present in the repository root checkout's log of a coordination Mission and absent from its coordination record.
+- **Stranded event**: a lifecycle event written to a coordination Mission's coordination worktree log but left uncommitted there.
 
 ## Success Criteria *(mandatory)*
 
 - **SC-001**: After setup-plan on a coordination Mission, 0 uncommitted changes to the Mission's status log remain in any checkout, and all 3 lifecycle events are on the coordination branch. — [build] · no-op passable: no
 - **SC-002**: The regression fixtures for Missions without a coordination branch show 0 differences in written files and commits. — [ratchet] · no-op passable: yes (paired with SC-001)
 - **SC-003**: A refused coordination commit produces a non-zero exit with a named error code in 100% of the refusal fixtures. — [build] · no-op passable: no
-- **SC-004**: The coordination health check names every stranded-event fixture Mission and changes 0 files. — [build] · no-op passable: no
+- **SC-004**: The coordination health check warns for a coordination worktree with uncommitted lifecycle events and changes 0 files. — [folded] · no-op passable: yes (existing `COORDINATION_WORKTREE_DIRTY` warning)
 
 ## Assumptions
 

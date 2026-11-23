@@ -16,7 +16,7 @@ The Mission's `status.events.jsonl` in the coordination worktree, on the coordin
 
 ## Stranded event
 
-A setup-plan lifecycle event present in the repository root checkout's log of a coordination Mission and absent (by event type) from its coordination record. Reported by `doctor coordination` as a warning; never migrated or deleted (C-002).
+A setup-plan lifecycle event written to a coordination Mission's coordination worktree log and left uncommitted there by an earlier CLI. Reported by the existing `doctor coordination` warning `COORDINATION_WORKTREE_DIRTY`; never migrated, committed or deleted by this Mission (C-002).
 
 ## setup-plan JSON result (additions)
 

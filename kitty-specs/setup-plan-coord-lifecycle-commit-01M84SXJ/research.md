@@ -2,8 +2,9 @@
 
 ## Code grounding (main @ 1890a6c)
 
-- `mission_setup_plan._emit_lifecycle_phase_markers` appends `SpecifyCompleted` and `PlanStarted` to `feature_dir`; `_commit_plan_if_substantive` appends `PlanCompleted` to `feature_dir`. On every topology `feature_dir` is the PRIMARY Mission directory.
-- `_lifecycle_log_for_plan_commit` returns the log only when the topology does not route through coordination, so on a coordination Mission the three events stay uncommitted in the repository root checkout (PR #7562, Deferred section).
+- `mission_setup_plan._emit_lifecycle_phase_markers` appends `SpecifyCompleted` and `PlanStarted` to `feature_dir`; `_commit_plan_if_substantive` appends `PlanCompleted` to `feature_dir`. `feature_dir` comes from the coordination-aware read resolver (`_find_feature_directory`): on a materialized coordination topology it is the coordination worktree's Mission directory.
+- `_lifecycle_log_for_plan_commit` returns the log only when the topology does not route through coordination, so on a coordination Mission the three events stay uncommitted in the coordination worktree (PR #7562, Deferred section).
+- **Reproduction (2026-11-23, main @ 1890a6c)**: explicit `lanes_with_coord` Mission, create, commit a substantive spec, setup-plan twice. Repository root checkout clean; coordination worktree ` M kitty-specs/<slug>/status.events.jsonl` holding `SpecifyCompleted`, `PlanStarted`, `PlanCompleted`. Led to the premise correction (Decision Moment `01M853E34H1MN0CQGQ9209P8MR`, operator answer 1A).
 - The other lifecycle writers already place through the coordination surface: create (`mission_creation_events._commit_coord_create_events`, `commit_for_mission(kind=STATUS_STATE)`) and finalize-tasks (`_emit_tasks_started`, `mission_finalize_bootstrap` WPCreated / TasksCompleted via `write_dir(STATUS_STATE)`).
 - `doctor coordination` (`_coordination_doctor.run_coordination_health`) iterates the coordination Missions and emits `DoctorFinding`s; `warning` exits 0, `error` exits 1.
 
@@ -31,10 +32,10 @@
 - **Decision**: a router result other than `committed` / `unchanged` makes setup-plan exit 1 with `error_code: SETUP_PLAN_LIFECYCLE_UNCOMMITTED`, naming the events and the router diagnostic. A plan commit that already landed is kept and reported.
 - **Rationale**: operator ruling (fail loud, #7792 precedent) and FR-004.
 
-### D5 — Stranded events are a doctor coordination warning
+### D5 — Stranded events: the existing doctor warning (superseded)
 
-- **Decision**: a per-Mission helper compares the lifecycle events (`SpecifyCompleted`, `PlanStarted`, `PlanCompleted`) in the repository root checkout log with the coordination log, keyed by event type (the Mission is fixed per log). Any present only in the former yields a `warning` finding (exit 0) with a stable `error_code`; `--fix` never acts on it. An unreadable log yields a warning naming it, never a crash.
-- **Rationale**: operator rulings 1A and the alignment answer (warning, exit 0); C-002.
+- **Original decision**: a new per-Mission doctor helper comparing the root checkout log with the coordination log.
+- **Superseded by** Decision Moment `01M853E34H1MN0CQGQ9209P8MR` (operator answer 1A): the residue lives in the coordination worktree, which `doctor coordination` already reports as the `COORDINATION_WORKTREE_DIRTY` warning (exit 0). FR-005 is folded; no doctor change.
 
 ## Open items
 
