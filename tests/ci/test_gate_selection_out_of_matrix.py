@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -248,6 +249,11 @@ def _router_scan_script() -> str:
     return script
 
 
+def _venv_path() -> str:
+    """PATH with the test interpreter first: the step calls bare ``python3``, which must have PyYAML."""
+    return f"{Path(sys.executable).parent}{os.pathsep}{os.environ.get('PATH', '')}"
+
+
 def test_router_step_runs_the_helper_and_never_fails(tmp_path: Path) -> None:
     """Execute the router step as written against a two-commit repo."""
     repo = tmp_path / "repo"
@@ -274,6 +280,7 @@ def test_router_step_runs_the_helper_and_never_fails(tmp_path: Path) -> None:
     summary = tmp_path / "summary.md"
     env = dict(
         os.environ,
+        PATH=_venv_path(),
         EVENT_NAME="pull_request",
         BASE_SHA=base,
         HEAD_SHA=head,
@@ -311,6 +318,7 @@ def test_router_step_surfaces_a_helper_crash_as_a_warning(tmp_path: Path) -> Non
     git("commit", "-qam", "head")
     env = dict(
         os.environ,
+        PATH=_venv_path(),
         EVENT_NAME="pull_request",
         BASE_SHA=base,
         HEAD_SHA=git("rev-parse", "HEAD"),
@@ -326,7 +334,15 @@ def test_router_step_surfaces_a_helper_crash_as_a_warning(tmp_path: Path) -> Non
 
 def test_router_step_is_quiet_on_a_degenerate_base(tmp_path: Path) -> None:
     env = dict(
-        os.environ, EVENT_NAME="push", BASE_SHA="", HEAD_SHA="HEAD", PUSH_BEFORE="0" * 40, MERGE_GROUP_BASE="", PYTHONPATH=str(ROOT), RUNNER_TEMP=str(tmp_path)
+        os.environ,
+        PATH=_venv_path(),
+        EVENT_NAME="push",
+        BASE_SHA="",
+        HEAD_SHA="HEAD",
+        PUSH_BEFORE="0" * 40,
+        MERGE_GROUP_BASE="",
+        PYTHONPATH=str(ROOT),
+        RUNNER_TEMP=str(tmp_path),
     )
     result = subprocess.run(["bash", "-c", _router_scan_script()], cwd=tmp_path, env=env, capture_output=True, text=True)
     assert result.returncode == 0, result.stdout + result.stderr
