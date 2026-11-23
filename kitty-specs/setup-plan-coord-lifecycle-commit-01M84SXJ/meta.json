@@ -18,6 +18,14 @@
   "slug": "setup-plan-coord-lifecycle-commit-01M84SXJ",
   "target_branch": "issue-3933-lifecycle-event-placement",
   "topology": "single_branch",
-  "topology_settled": false,
+  "topology_decision": {
+    "code_lane_count": 1,
+    "from": "single_branch",
+    "rule": "wp_count_le_2",
+    "target_protected": false,
+    "to": "single_branch",
+    "wp_count": 1
+  },
+  "topology_settled": true,
   "topology_source": "default"
 }
