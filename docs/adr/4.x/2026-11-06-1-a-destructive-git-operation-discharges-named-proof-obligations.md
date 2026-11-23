@@ -146,9 +146,11 @@ therefore never pass such a lane. Consolidate kept every lane of an ordinary squ
 lanes with `CONTENT_NOT_ON_PRIMARY` (#7747).
 
 **Decision.** O3's absorption evidence for a Mission lane is
-`specify_cli.lanes.lane_tip.is_absorbed_but_for_mission_bookkeeping`. Consolidate's lane cleanup uses
-it, and so does `doctor workspaces`, for the lanes of a released Mission only (consolidated or
-pr-accepted, no active consolidation record, no retention). Every other worktree keeps the plain proof.
+`specify_cli.lanes.lane_tip.is_absorbed_but_for_mission_bookkeeping`. Consolidate's lane cleanup and
+the `accept --mode pr` lane cleanup use it (the latter by operator ruling 2026-11-23, 3A: it matters
+when the pushed head does not carry the coordination history a lane merged). `doctor workspaces` uses
+it for the lanes of a released Mission only (consolidated or pr-accepted, no active consolidation
+record, no retention). Every other worktree keeps the plain proof.
 A lane is landed when its tip is an ancestor of the landing ref, or when every difference is accounted
 for:
 
@@ -162,7 +164,9 @@ for:
    one of those commits changed it. A merge counts as authoring a path only when its result for that
    path is none of its merged-in parents' versions, so a merge-driver or conflict resolution counts as
    authored. Separately, a version the landing ref's own history holds also passes.
-4. **A `kitty-specs/` file the lane has no copy of and did not delete**: nothing to lose.
+4. **A `kitty-specs/` file the lane did not author** whose lane copy is the merge base's copy (only
+   the landing ref moved it), or that the lane has no copy of: nothing to lose. This is a blob
+   comparison, not a merge result.
 
 No merge or merge-driver result is evidence for a `kitty-specs/` path (#7302 item 3). Everything else
 fails closed: any other `kitty-specs/` difference, a deletion the lane made, an unknown ref, or any
@@ -177,8 +181,8 @@ remover. A lane is kept with `LANDING_PROOF_UNAVAILABLE`, its branch untouched, 
 - no tip can be named.
 
 A lane whose worktree and branch are both gone is reported removed. The retained-branch leg (worktree
-removed, branch kept by policy) stays on the guarded worktree removal: it deletes no branch. This is
-plan decision PD-1 and is open to the operator. The guard itself is unchanged.
+removed, branch kept by policy) stays on the guarded worktree removal: it deletes no branch (plan
+decision PD-1, decided by the operator on 2026-11-23, ruling 4A). The guard itself is unchanged.
 
 **Residual.** A version that a lane merged in from a branch other than the coordination branch, for
 example a dependency lane, counts as not authored on this lane. That branch's own lane is judged on its
