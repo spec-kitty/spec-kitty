@@ -52,6 +52,7 @@ from specify_cli.lanes.models import LanesManifest
 from specify_cli.workspace.process_probe import ProcessProbeResult, processes_with_cwd_under
 
 __all__ = [
+    "LANDING_PROOF_UNAVAILABLE",
     "LANE_CLEANUP_FAILED",
     "GuardedLaneRemover",
     "LaneCleanupOutcome",
@@ -72,6 +73,8 @@ __all__ = [
 BACKSTOP_COMMAND = "spec-kitty doctor workspaces --prune"
 #: Running processes cannot be checked on this platform (no ``/proc``).
 PROCESS_PROOF_UNAVAILABLE = "PROCESS_PROOF_UNAVAILABLE"
+#: Cleanup had no usable landing proof for the lane (#7325): it is kept, worktree and branch as they are.
+LANDING_PROOF_UNAVAILABLE = "LANDING_PROOF_UNAVAILABLE"
 #: The remover itself failed unexpectedly; the lane is kept and nothing more is attempted.
 LANE_CLEANUP_FAILED = "LANE_CLEANUP_FAILED"
 #: ``git branch -D`` itself refused (for example the branch is checked out elsewhere).
@@ -328,8 +331,8 @@ def kept_after_coordination_refusal(items: Iterable[LaneCleanupItem]) -> LaneCle
     return LaneCleanupReport(results=results)
 
 
-def _kept(item: LaneCleanupItem, code: str, remedy: str, *, detail: str | None) -> LaneCleanupResult:
-    return LaneCleanupResult(item=item, outcome=LaneCleanupOutcome.KEPT, code=code, remedy=remedy, command=BACKSTOP_COMMAND, detail=detail)
+def _kept(item: LaneCleanupItem, code: str, remedy: str, *, detail: str | None, command: str | None = BACKSTOP_COMMAND) -> LaneCleanupResult:
+    return LaneCleanupResult(item=item, outcome=LaneCleanupOutcome.KEPT, code=code, remedy=remedy, command=command, detail=detail)
 
 
 ProcessProbe = Callable[[Sequence[Path]], ProcessProbeResult]
@@ -464,8 +467,12 @@ class GuardedLaneRemover:
     reconciliation PASS tip), pr-mode's :class:`RemoteRef` the named-remote proof. The tip is the
     claim-validated ``expected_tip`` (else the live branch tip, which the guard still proves landed
     and checks the worktree against). A guard refusal keeps the lane with the guard's code; the guard
-    never forces a removal. Every other leg (no landing proof, no worktree left, a retained branch)
-    goes to :class:`MainTodayRemover`, today's guarded primitives.
+    never forces a removal. A lane with no usable landing proof (none given, an empty PASS anchor, its
+    worktree gone while its branch remains, or no tip to name) is kept with
+    ``LANDING_PROOF_UNAVAILABLE``, its branch untouched (#7325); a lane whose worktree and branch are
+    both gone is removed (nothing remains). Only the retained-branch leg (the worktree goes, no branch
+    is deleted) still goes to :class:`MainTodayRemover` (plan decision PD-1, operator ruling
+    2026-11-23).
 
     ``mission_slug`` (consolidate and ``orchestrator-api consolidate-mission``) makes the absorption
     proof :func:`specify_cli.lanes.lane_tip.is_absorbed_but_for_mission_bookkeeping`, which sets aside
@@ -491,9 +498,15 @@ class GuardedLaneRemover:
         self._fallback = MainTodayRemover(repo_root, context=context, creation_base=creation_base, probe=probe, after_worktree_removed=after_worktree_removed)
 
     def remove(self, item: LaneCleanupItem, *, landing: LandingProof | None) -> LaneCleanupResult:
-        removal = _guarded_removal(self._repo_root, item, landing)
-        if removal is None or landing is None or item.worktree is None or item.branch is None:
+        if item.branch is None:
+            # PD-1 (operator ruling 2026-11-23): the retained-branch leg removes the worktree only.
             return self._fallback.remove(item, landing=landing)
+        unavailable = self._proof_unavailable(item, item.branch, landing)
+        if unavailable is not None:
+            return unavailable
+        removal = _guarded_removal(self._repo_root, item, landing)
+        if removal is None or landing is None or item.worktree is None:  # unreachable after the check above
+            return _kept(item, LANDING_PROOF_UNAVAILABLE, "no landing proof could be built", detail=None)
         try:
             result = guarded_landed_removal(
                 self._repo_root,
@@ -516,6 +529,20 @@ class GuardedLaneRemover:
             lane_tip.clear_tip(self._repo_root, item.branch)
         return LaneCleanupResult(item=item, outcome=LaneCleanupOutcome.REMOVED, recreate=result.recreate)
 
+    def _proof_unavailable(self, item: LaneCleanupItem, branch: str, landing: LandingProof | None) -> LaneCleanupResult | None:
+        """A result when the guard cannot be given a landing proof for this lane, else ``None`` (#7325)."""
+        worktree_present = item.worktree is not None and safe_is_dir(item.worktree)
+        branch_tip = _branch_tip(self._repo_root, branch)
+        if not worktree_present and branch_tip is None:
+            # Nothing is left to remove; a missing branch keeps its lane-tip ref (FR-034).
+            return LaneCleanupResult(item=item, outcome=LaneCleanupOutcome.REMOVED)
+        reason = _proof_unavailable_reason(landing, worktree_present=worktree_present, tip=item.expected_tip or branch_tip)
+        if reason is None:
+            return None
+        ref = _landing_ref_name(landing)
+        remedy = f"{reason}; check {branch} with `git log {ref}..{branch}` and delete it by hand only if its work is on {ref}"
+        return _kept(item, LANDING_PROOF_UNAVAILABLE, remedy, detail=None, command=BACKSTOP_COMMAND if worktree_present else None)
+
     def _busy(self, path: Path) -> bool | None:
         """O2: ``None`` when the probe cannot tell (off Linux): the guard then keeps the lane (NFR-008)."""
         probe = self._probe([path])
@@ -531,6 +558,27 @@ class GuardedLaneRemover:
             return is_absorbed(self._repo_root, tip, landing_ref, base=None)
         except AbsorptionUnsupported:
             return False
+
+
+def _proof_unavailable_reason(landing: LandingProof | None, *, worktree_present: bool, tip: str | None) -> str | None:
+    """Why no landing proof can be handed to the guard, or ``None`` when one can (#7325)."""
+    if landing is None:
+        return "no landing proof was given"
+    if isinstance(landing, LocalTargetAtPass) and not landing.passed_sha.strip():
+        return "no reconciliation PASS anchor was recorded"
+    if not worktree_present:
+        return "its worktree is gone, so the landing cannot be proven here"
+    if not tip:
+        return "no tip can be named for it"
+    return None
+
+
+def _landing_ref_name(landing: LandingProof | None) -> str:
+    if isinstance(landing, LocalTargetAtPass):
+        return landing.target_ref
+    if isinstance(landing, RemoteRef):
+        return landing.ref
+    return "the target branch"
 
 
 def _guarded_removal(repo_root: Path, item: LaneCleanupItem, landing: LandingProof | None) -> LandedRemoval | None:
