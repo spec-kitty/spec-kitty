@@ -12,7 +12,8 @@ coordination history into one commit, so the plain absorption proof keeps every 
 * ``status.json``, ``meta.json`` and ``tasks/WP*.md`` of the lane's own Mission: both sides have the
   file and the lane never authored its copy (no commit the lane made itself changed it, except a
   merge that took it whole from the merged-in side), or the landing ref's history holds that copy;
-* a ``kitty-specs/`` file the lane does not have and did not delete: nothing to lose.
+* a ``kitty-specs/`` file whose lane copy is the merge base's copy, or that the lane does not have
+  and did not delete: nothing to lose.
 
 Everything else, and any git error, is "not landed". A merge or merge-driver result is never
 evidence for a ``kitty-specs/`` path (operator rulings 2026-11-22 and 2026-11-23, Option A).
@@ -245,3 +246,20 @@ def test_a_lane_version_the_target_history_holds_is_set_aside(landed: Landed) ->
 def test_a_mission_file_only_the_target_has_is_nothing_to_lose(landed: Landed) -> None:
     assert landed.proof()
     assert _git(landed.lane, "ls-tree", "--name-only", "HEAD", _RETRO) == ""
+
+
+def test_a_mission_file_only_the_target_moved_since_the_merge_base_is_nothing_to_lose(tmp_path: Path) -> None:
+    """Another Mission's file the target changed after the lane forked: the lane's copy is the base's."""
+    root = tmp_path / "repo"
+    _init(root)
+    other = f"kitty-specs/{_OTHER_SLUG}/spec.md"
+    _commit(root, "another Mission's spec", {other: "# other\n"})
+    lane = root / ".worktrees" / "lane-a"
+    _git(root, "worktree", "add", "-q", "-b", _LANE, str(lane))
+    _commit(lane, "feat(WP01)", {_PRODUCT: "x = 1\n"})
+    _git(root, "checkout", "-q", _LANE, "--", _PRODUCT)
+    _commit(root, "land the lane, then another Mission moves on", {other: "# other, revised\n", _META: '{"v": 1}\n'})
+    tip = _git(lane, "rev-parse", "HEAD")
+    assert is_absorbed_but_for_mission_bookkeeping(root, tip, _TARGET, _SLUG)
+    _commit(lane, "the lane edits that file after all", {other: "# other, lane edit\n"})
+    assert not is_absorbed_but_for_mission_bookkeeping(root, _git(lane, "rev-parse", "HEAD"), _TARGET, _SLUG)
