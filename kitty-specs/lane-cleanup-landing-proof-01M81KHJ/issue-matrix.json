@@ -44,9 +44,9 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "lane_cleanup still falls back to MainTodayRemover for lanes with no landing proof, no worktree, or an empty PASS tip",
+      "verdict": "in-mission",
+      "wp": "WP03"
     },
     "#7747": {
       "evidence_ref": "<link or commit>",
