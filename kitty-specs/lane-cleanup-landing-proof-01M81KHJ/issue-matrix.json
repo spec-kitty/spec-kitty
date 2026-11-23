@@ -95,6 +95,18 @@
       "title": "<fill at WP-implementation time>",
       "verdict": "not-applicable",
       "wp": null
+    },
+    "#7789": {
+      "evidence_ref": "Cited for context only; this Mission owes it no work (scope: #7747, #7325).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
     }
   },
   "schema_version": 1
