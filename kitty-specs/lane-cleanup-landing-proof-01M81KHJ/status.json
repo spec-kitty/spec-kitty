@@ -55,7 +55,7 @@
     },
     "WP02": {
       "actor": "claude",
-      "agent": null,
+      "agent": "claude::python-pedro",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -65,7 +65,8 @@
       "last_transition_at": "2026-11-23T22:44:46.267778+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "WP02 ready: doctor judges released Mission lanes with the shared landing proof. Lane tip 6364d35a pushed."
+        "WP02 ready: doctor judges released Mission lanes with the shared landing proof. Lane tip 6364d35a pushed.",
+        "Review cycle 1 F1 fixed: ancestry proven before the merge-tree gate (28d86e40, red-first 91e68bd2)"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
