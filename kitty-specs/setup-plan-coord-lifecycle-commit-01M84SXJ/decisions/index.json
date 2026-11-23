@@ -48,6 +48,30 @@
       "status": "resolved",
       "step_id": null,
       "summary_json": null
+    },
+    {
+      "created_at": "2026-11-23T19:09:28.366735Z",
+      "decision_id": "01M84X0BXENG3QN8NJBWP6YKJP",
+      "final_answer": null,
+      "input_key": "engineering_alignment",
+      "mission_id": "01M84SXJFEKFMQVX449HTV68AN",
+      "mission_slug": "setup-plan-coord-lifecycle-commit-01M84SXJ",
+      "opened_by": "cli",
+      "options": [
+        "confirmed",
+        "stranded-event finding should be an error (exit 1)",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Confirm the Engineering Alignment: one coordination commit at the end of each setup-plan run (after the plan commit, also on a scaffold-only run); fail-loud code SETUP_PLAN_LIFECYCLE_UNCOMMITTED (exit 1, the plan commit is kept); stranded events are a doctor coordination WARNING (exit 0), never touched by --fix.",
+      "rationale": null,
+      "resolved_at": null,
+      "resolved_by": null,
+      "slot_key": "plan.architecture.engineering-alignment",
+      "status": "open",
+      "step_id": null,
+      "summary_json": null
     }
   ],
   "mission_id": "01M84SXJFEKFMQVX449HTV68AN",
