@@ -57,14 +57,10 @@ def _run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, diff: str, sources: di
 def test_empty_scored_diff_says_the_gate_was_not_applied(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     output, summary = _run(tmp_path, monkeypatch, "", {})
     out = capsys.readouterr().out
-    assert f"::notice::{GATE_NOT_APPLIED}" in out
+    assert "::notice::diff-cover gate not applied: no changed executable critical-path statements" in out
     assert EVIDENCE_LINE not in out
     assert GATE_NOT_APPLIED in summary.read_text(encoding="utf-8")
     assert output.read_text(encoding="utf-8") == ""
-
-
-def test_gate_not_applied_wording_is_the_ruled_text() -> None:
-    assert GATE_NOT_APPLIED == "diff-cover gate not applied: no changed executable critical-path statements"
 
 
 def test_scored_statements_keep_the_evidence_line(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
