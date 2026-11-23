@@ -64,6 +64,9 @@
       "last_event_id": "01M85726TRGPBX76GFCNWKQ3H1",
       "last_transition_at": "2026-11-23T22:05:14.456157+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "WP02 ready: doctor judges released Mission lanes with the shared landing proof. Lane tip 6364d35a pushed."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 17788,
