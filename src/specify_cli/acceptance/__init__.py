@@ -2260,7 +2260,8 @@ def pr_mode_lane_cleanup(
     remote = _pr_head_remote(repo_root, branch)
     landing = lane_cleanup.RemoteRef(remote=remote, ref=f"refs/remotes/{remote}/{branch}")
     context = residue_context_or_strictest(repo_root, manifest.mission_slug, CheckoutRole.LANE)
-    remover = lane_cleanup.GuardedLaneRemover(repo_root, context=context, probe=probe or processes_with_cwd_under)
+    # #7747 (G1): the Mission slug makes the landing proof set aside the bookkeeping a lane never authored.
+    remover = lane_cleanup.GuardedLaneRemover(repo_root, context=context, probe=probe or processes_with_cwd_under, mission_slug=manifest.mission_slug)
     return lane_cleanup.apply(items, remover, landing=landing, retention=retention)
 
 

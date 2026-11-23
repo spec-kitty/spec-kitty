@@ -33,7 +33,6 @@ from specify_cli.consolidation.lane_cleanup import (
     LaneCleanupOutcome,
     LocalTargetAtPass,
     _refusal_detail,
-    _absorbed_but_for_status_log,
     cleanup_expected_tips,
     own_auto_rebase_move,
 )
@@ -43,6 +42,7 @@ from specify_cli.consolidation.state import ConsolidationState, load_state
 from specify_cli.coordination.coherence import NothingIsResidue
 from specify_cli.git.destructive_guard import BRANCH_HAS_UNIQUE_COMMITS, NOT_LANDED_ON_NAMED_REMOTE, WORKTREE_TIP_MOVED, DestructiveOpRefused
 from specify_cli.lanes.lane_tip import is_absorbed
+from specify_cli.lanes.lane_tip import is_absorbed_but_for_mission_bookkeeping as _absorbed_but_for_status_log  # #7747: the shared proof
 from specify_cli.orchestrator_api.consolidation import _follow_own_auto_rebase
 from specify_cli.workspace.process_probe import ProcessProbeResult
 
