@@ -375,9 +375,16 @@ class _MissionFileJudge:
         self._mission_dir = f"{_MISSION_ROOT}/{mission_slug}"
         self._log_path = f"{self._mission_dir}/{EVENTS_FILENAME}"
         self._authored = _authored_paths(repo_root, tip, landing_ref)
+        self._bases = tuple(_git_lines(repo_root, "merge-base", "--all", tip, landing_ref))
+
+    def _unchanged_since_base(self, path: str, lane_blob: str | None) -> bool:
+        """The lane's copy is the merge base's copy: the lane changed nothing there (a blob comparison, no merge)."""
+        return bool(self._bases) and all(_blob_id(self._repo_root, base, path) == lane_blob for base in self._bases)
 
     def accounted(self, path: str) -> bool:
         lane_blob = _blob_id(self._repo_root, self._tip, path)
+        if path not in self._authored and self._unchanged_since_base(path, lane_blob):
+            return True  # the lane made no change there; only the landing ref moved it
         if lane_blob is None and path not in self._authored:
             return True  # the lane has no copy and deleted none: nothing of it can be lost
         if path == self._log_path:
@@ -422,7 +429,8 @@ def is_absorbed_but_for_mission_bookkeeping(repo_root: Path, tip: str, landing_r
       have the file and the lane never authored its copy -- no commit the lane made itself changed
       it, a merge counting only when its result is none of its merged-in parents' versions -- or
       the landing ref's history holds the lane's version;
-    * any ``kitty-specs/`` file the lane has no copy of and did not delete: nothing to lose.
+    * any ``kitty-specs/`` file the lane did not author whose lane copy is the merge base's copy
+      (only the landing ref moved it), or that the lane has no copy of: nothing to lose.
 
     Everything else is ``False``: another ``kitty-specs/`` difference, a deletion the lane made, a
     git error, an unknown ref, or a git without ``merge-tree --write-tree``. A merge or merge-driver
