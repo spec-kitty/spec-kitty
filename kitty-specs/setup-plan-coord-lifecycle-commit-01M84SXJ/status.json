@@ -20,7 +20,7 @@
   "work_packages": {
     "WP01": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": null,
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 1,
@@ -34,6 +34,7 @@
         "Ready for review"
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/kitty-specs/setup-plan-coord-lifecycle-commit-01M84SXJ/tasks/WP01-setup-plan-coord-lifecycle-commit/review-cycle-1.md",
         "reference": "review-cycle://setup-plan-coord-lifecycle-commit-01M84SXJ/WP01-setup-plan-coord-lifecycle-commit/review-cycle-1.md",
@@ -41,15 +42,15 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 12403,
-      "shell_pid_created_at": "1795471567.55",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done",
-        "T005": "done",
-        "T006": "done"
+        "T001": "planned",
+        "T002": "planned",
+        "T003": "planned",
+        "T004": "planned",
+        "T005": "planned",
+        "T006": "planned"
       }
     }
   }
