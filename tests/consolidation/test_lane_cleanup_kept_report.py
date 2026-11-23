@@ -215,6 +215,8 @@ def test_retained_by_policy_distinct_from_kept(
 
 def test_missing_branch_keeps_lane_tip_ref(tmp_path: Path) -> None:
     mission = _three_lane_mission(tmp_path, "01M7280C")
+    # #7325: only a lane with a worktree reaches the landing proof; lane-c has none and is kept.
+    add_lane_worktrees(mission, ("lane-b",))
     removed_branch = lane_branch(mission, "lane-a")
     tip = mission.rev(removed_branch)
     # The lane-tip ref is (re)recorded after the run's ``done`` bookkeeping, which clears the tip of a
@@ -234,6 +236,9 @@ def test_missing_branch_keeps_lane_tip_ref(tmp_path: Path) -> None:
     assert not ref_exists(mission.repo, f"refs/heads/{lane_branch(mission, 'lane-b')}"), out
     assert not ref_exists(mission.repo, f"{_LANE_TIP_PREFIX}{lane_branch(mission, 'lane-b')}"), out
     assert outcome_line(lane_cleanup_block(result), "lane-a").startswith("Removed"), out
+    # #7325: a lane whose worktree is gone while its branch remains is kept, never deleted unproven.
+    assert "LANDING_PROOF_UNAVAILABLE" in outcome_line(lane_cleanup_block(result), "lane-c"), out
+    assert ref_exists(mission.repo, f"refs/heads/{lane_branch(mission, 'lane-c')}"), out
 
 
 def _kill_after_first_lane_leg() -> str:
@@ -252,6 +257,7 @@ _lane_tip.clear_tip = clear_tip
 
 def test_abort_after_partial_cleanup_never_restores_lane_branches(tmp_path: Path) -> None:
     mission = _three_lane_mission(tmp_path, "01M7280D")
+    add_lane_worktrees(mission, ("lane-a", "lane-b", "lane-c"))  # #7325: a lane branch is deleted only through the guard
     lane_tips = {lane_id: mission.rev(lane_branch(mission, lane_id)) for lane_id in ("lane-a", "lane-b", "lane-c")}
     killed = run_patched(mission, consolidate_args(mission), _kill_after_first_lane_leg())
     assert killed.returncode == 137, output(killed)
