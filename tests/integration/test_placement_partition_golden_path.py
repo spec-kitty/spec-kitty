@@ -472,7 +472,10 @@ def test_lifecycle_mutation_bookkeeping_lands_on_correct_surface(
 
     # Snapshot AFTER bootstrap (the seed event itself is not the mutation
     # under test) — the move-task call below is the WRITE this test proves.
-    primary_events_before = primary_events.read_text(encoding="utf-8")
+    # #3933: on a coordination Mission setup-plan now writes its lifecycle events
+    # through the coordination write location, so no PRIMARY "decoy" log need
+    # exist; a missing log reads as empty and must stay missing (or unchanged).
+    primary_events_before = primary_events.read_text(encoding="utf-8") if primary_events.exists() else ""
     coord_events_before = coord_events.read_text(encoding="utf-8") if coord_events else ""
 
     with setup_mocked_env(
@@ -492,7 +495,7 @@ def test_lifecycle_mutation_bookkeeping_lands_on_correct_surface(
     move_payload = _parse_json_output(move_result.output)
     assert move_payload.get("new_lane") == "claimed", move_payload
 
-    primary_events_after = primary_events.read_text(encoding="utf-8")
+    primary_events_after = primary_events.read_text(encoding="utf-8") if primary_events.exists() else ""
 
     if topology is MissionTopology.COORD:
         assert coord_events is not None
