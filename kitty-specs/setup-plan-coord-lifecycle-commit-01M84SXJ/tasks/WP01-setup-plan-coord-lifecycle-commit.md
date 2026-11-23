@@ -104,6 +104,7 @@ On a Mission whose coordination branch exists when setup-plan runs (created with
 4. `test_coord_scaffold_only_run_commits_the_events_recorded_so_far`: only the scaffold run; assert the coordination worktree is clean and `SpecifyCompleted` + `PlanStarted` are on the coordination branch.
 5. `test_coord_rerun_makes_no_new_commit` (NFR-001): after the full flow, record the coordination tip, run setup-plan again, assert the tip is unchanged and `lifecycle_commit.status == "unchanged"`.
 6. `test_single_branch_setup_plan_is_unchanged` (FR-003/NFR-002): `--topology single_branch` flow; assert the plan commit contains `plan.md` and `status.events.jsonl` (as today), `dirty(repo) == []`, and `"lifecycle_commit" not in payload`.
+6b. Parametrize that test over `--topology single_branch` and a default Mission (no `--topology`, C-001): both take the unchanged path. `lanes` shares the same non-coordination branch of `routes_through_coordination` and is already pinned by the partition test in `tests/specify_cli/cli/commands/agent/test_setup_plan_commits_lifecycle_3933.py`.
 7. Run them: the coordination cases must FAIL today (worktree dirty / no `lifecycle_commit`); the single_branch case passes (ratchet). Record the red output in the WP history.
 
 **Files**: `tests/coordination/test_setup_plan_coord_lifecycle_3933.py` (new, ~200 lines).

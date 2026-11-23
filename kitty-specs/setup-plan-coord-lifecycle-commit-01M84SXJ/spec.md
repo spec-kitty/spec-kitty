@@ -94,7 +94,7 @@ An operator of a repository that ran setup-plan on coordination Missions before 
 | ID | Title | Constraint | Category | Priority | Status |
 |----|-------|------------|----------|----------|--------|
 | C-001 | Default Mission before settlement out of scope | A default Mission before finalize-tasks settles its topology is out of scope (operator ruling, Decision Moment `01M84SZDGPKXA5PBJ6HM6HQX08`); the open question is tracked in #7827. | Technical | High | Open |
-| C-002 | No migration | Lifecycle events already stranded (uncommitted) in coordination worktrees are reported, never migrated, committed or deleted, by this Mission (operator ruling, Decision Moment `01M84SXYYJK8KRCW345X56VNQH`). | Business | High | Open |
+| C-002 | No migration | Lifecycle events already stranded (uncommitted) in coordination worktrees are reported, never migrated, repaired or deleted, by this Mission; a setup-plan run's own commit of the whole status log may carry earlier lines along with its own events (operator ruling, Decision Moment `01M84SXYYJK8KRCW345X56VNQH`). | Business | High | Open |
 | C-003 | Existing seams only | Placement uses the existing placement seam's write location for status records, and the commit goes through the existing mission commit entry point; no new seam and no ADR. | Technical | High | Open |
 
 ### Key Entities
