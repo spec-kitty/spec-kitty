@@ -19,6 +19,7 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.workspace import landed_worktrees
 from specify_cli.workspace.landed_worktrees import Reason, Verdict, WorktreeAssessment, WorktreeVerdict, assess_worktrees, prune_landed
 from specify_cli.workspace.process_probe import ProcessProbeResult
 
@@ -127,3 +128,19 @@ def test_a_released_lane_whose_own_commit_edited_its_prompt_is_not_landed(landed
     assert verdict.verdict is Verdict.NOT_LANDED and verdict.reason is Reason.CONTENT_NOT_ON_PRIMARY, verdict
     assert prune_landed(root, current_dir=root, probe=_idle) == []
     assert lane.exists()
+
+
+def test_an_old_git_leaves_a_released_lane_unproven(landed: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without ``merge-tree --write-tree`` the shared proof cannot run: unproven, and the guard gets no proof."""
+    root, lane = landed
+    _released(root, merged_at="2026-11-23T00:00:00+00:00")
+    monkeypatch.setattr(landed_worktrees, "merge_tree_write_tree_available", lambda _repo: False)
+    verdict = _verdict(assess_worktrees(root, current_dir=root, probe=_idle), lane)
+    assert verdict.verdict is Verdict.UNPROVEN and verdict.reason is Reason.ABSORPTION_UNSUPPORTED, verdict
+    proof = landed_worktrees._absorption_proof(root, _SLUG)
+    assert proof(_git(lane, "rev-parse", "HEAD"), "refs/remotes/origin/main") is False
+
+
+def test_a_detached_head_has_no_mission(landed: tuple[Path, Path]) -> None:
+    root, _lane = landed
+    assert landed_worktrees._lane_mission_slug(root, None) is None
