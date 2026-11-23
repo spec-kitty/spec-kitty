@@ -167,7 +167,7 @@ def test_a_squash_landed_lane_is_landed_but_for_its_mission_bookkeeping(landed: 
 
 
 def test_a_lane_tip_on_the_landing_ref_is_landed(landed: Landed) -> None:
-    _git(landed.root, "merge", "-q", "--no-ff", "--no-edit", _LANE)
+    _git(landed.root, "merge", "-q", "-s", "ours", "--no-edit", _LANE)  # the landing ref now reaches the tip
     assert landed.proof()
 
 
