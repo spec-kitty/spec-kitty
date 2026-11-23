@@ -362,3 +362,50 @@ def test_setup_plan_events_in_log_edges(tmp_path: Path) -> None:
     )
 
     assert mission_setup_plan._setup_plan_events_in_log(tmp_path) == ["PlanStarted", "SpecifyCompleted"]
+
+
+# ---------------------------------------------------------------------------
+# Review cycle 2, B2: the commit is bound to the HEAD the guard checked (compare-and-swap)
+# B3: a divergence refusal never tells the operator to commit the stale log
+# ---------------------------------------------------------------------------
+
+
+def test_foreign_commit_after_the_guard_is_never_erased(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.cli.commands.agent import mission_setup_plan
+
+    mission = _mission(tmp_path, "lanes_with_coord")
+    mission.setup_plan()  # scaffold
+    mission.write_plan()
+    real_guard = mission_setup_plan._lifecycle_log_divergence
+    injected: dict[str, str] = {}
+
+    def _guard_then_foreign_writer(surface_root: Path, log: Path) -> Any:
+        verdict = real_guard(surface_root, log)
+        injected["tip"], injected["event_id"] = _advance_coord_branch_with_foreign_event(mission)
+        return verdict
+
+    monkeypatch.setattr(mission_setup_plan, "_lifecycle_log_divergence", _guard_then_foreign_writer)
+
+    code, payload = _run_setup_plan_in_process(mission, monkeypatch)
+
+    assert injected, "the guard must run on a coordination Mission"
+    assert code == 1, payload
+    assert payload["error_code"] == "SETUP_PLAN_LIFECYCLE_UNCOMMITTED", payload
+    assert git(mission.repo, "rev-parse", mission.coord_branch) == injected["tip"], "the foreign commit must stay the branch tip"
+    assert injected["event_id"] in git(mission.repo, "show", f"{mission.coord_branch}:kitty-specs/{mission.slug}/status.events.jsonl")
+
+
+def test_divergence_refusal_never_says_commit_the_checkout(tmp_path: Path) -> None:
+    mission = _mission(tmp_path, "lanes_with_coord")
+    mission.setup_plan()  # scaffold
+    _advance_coord_branch_with_foreign_event(mission)
+    mission.write_plan()
+
+    proc = run_sk(mission.repo, mission.env, "agent", "mission", "setup-plan", "--mission", mission.slug)
+
+    assert proc.returncode == 1, flat(proc)[-2000:]
+    text = flat(proc)
+    assert "COORD_STATUS_SURFACE_DIVERGED" in text
+    assert "commit them in that checkout" not in text, "committing the stale log erases the committed events"
+    assert "Do not commit this checkout's status log" in text
+    assert "re-run setup-plan" in text
