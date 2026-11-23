@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, NamedTuple
 
-from specify_cli.consolidation.approved_bound import approval_stamp
+from specify_cli.consolidation.approved_bound import approval_presync_stamp, approval_stamp
 from specify_cli.consolidation.git_probes import (
     GitProbeError,
     changed_paths_of,
@@ -285,9 +285,15 @@ def _approved_stamps(lane: object, work_packages: Mapping[str, Mapping[str, obje
         return ()
     stamps: list[str] = []
     for wp in getattr(lane, "wp_ids", ()):
-        stamp = presence.approval_stamps.get(wp)
-        if stamp and str((work_packages.get(wp) or {}).get("lane", "")) in _APPROVED_MEMBERSHIP_LANES:
-            stamps.append(stamp)
+        if str((work_packages.get(wp) or {}).get("lane", "")) not in _APPROVED_MEMBERSHIP_LANES:
+            continue
+        # #7802: the pre-sync stamp is a reach anchor too. It is a first-parent ancestor
+        # of ``lane_head``, so it never keeps a merge ``lane_head`` would not keep, and it
+        # still reaches the lane's earlier merges in a clone that lacks the reviewer's
+        # unpushed sync merge (``lane_head``).
+        for stamp in (presence.approval_stamps.get(wp), presence.approval_presync_stamps.get(wp)):
+            if stamp:
+                stamps.append(stamp)
     return tuple(stamps)
 
 
@@ -560,6 +566,8 @@ class _PresenceScope:
     canceled: frozenset[str]
     #: Each WP's newest approval stamp (:func:`approval_stamp`), ``None`` when unstamped (#7307).
     approval_stamps: Mapping[str, str | None] = field(default_factory=dict)
+    #: Each WP's newest approval's pre-sync stamp (:func:`approval_presync_stamp`), ``None`` when absent (#7802).
+    approval_presync_stamps: Mapping[str, str | None] = field(default_factory=dict)
     #: The Mission branch's frozen tip (SHA) the run measures from, ``None`` when none is known (#7626).
     mission_tip: str | None = None
 
@@ -582,8 +590,18 @@ def _presence_scope(
     lane_bases = {lane.lane_id: first_governed_open_stamp(events, frozenset(lane.wp_ids)) for lane in lanes_manifest.lanes} if events is not None else {}
     # The gate-time presence axis reads the dependency-lane tips live (FR-015 freezes the claim-time readers only).
     canceled = _fully_canceled_lane_commits(repo_root, lanes_manifest, excluded_ids, base, base, frozen_tips=None)
-    stamps = {wp: approval_stamp(events, wp) for lane in lanes_manifest.lanes for wp in lane.wp_ids} if events is not None else {}
-    return _PresenceScope(base=base, carried=carried, lane_bases=lane_bases, canceled=canceled, approval_stamps=stamps, mission_tip=mission_tip)
+    wp_ids = [wp for lane in lanes_manifest.lanes for wp in lane.wp_ids] if events is not None else []
+    stamps = {wp: approval_stamp(events, wp) for wp in wp_ids} if events is not None else {}
+    presync = {wp: approval_presync_stamp(events, wp) for wp in wp_ids} if events is not None else {}
+    return _PresenceScope(
+        base=base,
+        carried=carried,
+        lane_bases=lane_bases,
+        canceled=canceled,
+        approval_stamps=stamps,
+        approval_presync_stamps=presync,
+        mission_tip=mission_tip,
+    )
 
 
 def _presence_range_unreadable_refusal(

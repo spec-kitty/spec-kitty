@@ -249,6 +249,14 @@ modules:
   - specify_cli.workspace
   tier: standard
   shard_count: 1
+  # #7789: promoted tests/specify_cli/lanes from out_of_matrix_test_dirs (nightly-only),
+  # in the same change that made every src/specify_cli/lanes/* file a diff-cover
+  # critical path: a critical-path lanes change needs its secondary test tree in the
+  # per-PR shard that produces its coverage evidence. The explicit test_dirs list
+  # REPLACES the tests/lanes fallback claim, so tests/lanes stays named.
+  test_dirs:
+  - tests/lanes
+  - tests/specify_cli/lanes
 - module: upgrade
   roots:
   - src/specify_cli/upgrade/**
@@ -864,6 +872,11 @@ modules:
 # neither fail a PR nor contribute coverage evidence). Adding a directory here
 # is a reasoned decision; the right fix for a directory that SHOULD gate per-PR
 # is a registry row with measured durations, never a silent default.
+# per_pr_home (#7801): a record whose tests run per PR in a ci-router.yml job, not a
+# module row, names that job. gate_selection.per_pr_home_violations proves the claim
+# (the job's if: groups cover the dirs, a pytest command names them, no -m narrowing),
+# enforced by tests/ci/test_gate_selection_out_of_matrix.py. Records without it are
+# reported to a PR that changes them as nightly-only (scripts/ci/gate_selection.py).
 out_of_matrix_test_dirs:
 
 - reason: >-
@@ -877,12 +890,14 @@ out_of_matrix_test_dirs:
 - reason: >-
     Per-PR home is ci-router.yml's 'tests (docs)' path-routed job, which runs this
     directory directly; claiming it in a module row too would only double-run it per PR.
+  per_pr_home: tests-docs
   dirs:
   - tests/docs
 
 - reason: >-
     Per-PR home is ci-router.yml's 'tests (e2e)' path-routed job, which runs this
     directory directly; claiming it in a module row too would only double-run it per PR.
+  per_pr_home: tests-e2e
   dirs:
   - tests/e2e
 
@@ -899,6 +914,7 @@ out_of_matrix_test_dirs:
     (below): the fast roster plus the file-partitioned shards of ci-router.yml's
     'architectural battery' job, and the always-on terminology / layer-rules /
     archive-freeze lanes; a module row would only double-run it.
+  per_pr_home: architectural-heavy
   dirs:
   - tests/architectural
   - tests/architectural/tool_artifact_enrolment
@@ -983,16 +999,6 @@ out_of_matrix_test_dirs:
   dirs:
   - tests/specify_cli/cli/commands/charter
   - tests/specify_cli/cli/commands/review
-
-- reason: >-
-    Deferred-promotion (spec-kitty#4374 disposition ledger, WP01): existing owning row
-    lanes (cov_targets specify_cli.lanes; import census confirms 15x
-    specify_cli.lanes.worktree_allocator, 7x .models, 7x .recovery). Not in the Phase-S
-    capped promotion set (merge/status/dashboard/auth only) -- promotion warranted;
-    deferred to a follow-up (#4732) to respect the bounded single-PR cap, never
-    silently absorbed.
-  dirs:
-  - tests/specify_cli/lanes
 
 - reason: >-
     Deferred-promotion (spec-kitty#4374 disposition ledger, WP01): existing owning row

@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "mission_slug": "single-branch-planning-pin-rebase-01M81KRS",
+  "mission_id": "01M81KRSCYPVJE3WS74AE674YP",
+  "mission_branch": "kitty/mission-single-branch-planning-pin-rebase-01M81KRS",
+  "target_branch": "issue-7793-single-branch-planning-pin",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/2026-10-04-5-approval-stamp-bounds-the-approved-claim.md",
+        "docs/changelog/unreleased/7793-single-branch-planning-pin.fixed.md",
+        "src/specify_cli/cli/commands/_mission_state_doctor.py",
+        "src/specify_cli/cli/commands/agent/mission_finalize_planning_pin.py",
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "src/specify_cli/lanes/planning_base.py",
+        "src/specify_cli/migration/mission_state.py",
+        "tests/integration/migration/test_doctor_rebuild_derived_pin_7210.py",
+        "tests/integration/test_7793_single_branch_repin_patch_id.py",
+        "tests/lanes/test_planning_base.py",
+        "tests/lanes/test_planning_base_pin_authority.py",
+        "tests/specify_cli/cli/commands/agent/test_finalize_pin_decisions_7297.py",
+        "tests/specify_cli/cli/commands/agent/test_single_branch_refusal_wording.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-22T12:37:48.248094+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "f8fee580bbd0025da039336c94fa3a8fc6ae068f"
+}

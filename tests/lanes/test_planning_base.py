@@ -8,11 +8,16 @@ from pathlib import Path
 import pytest
 
 from specify_cli.lanes.branch_naming import code_lane_branch_name
-from specify_cli.lanes.planning_base import mission_dir_pathspec, mission_wp_tasks_pathspec, resolve_finalize_planning_base, resolve_planning_base_commit
+from specify_cli.lanes.planning_base import mission_dir_pathspec, resolve_finalize_planning_base, resolve_planning_base_commit
 
 pytestmark = pytest.mark.git_repo
 
 SLUG = "demo-mission"
+
+
+def mission_wp_tasks_pathspec(mission_slug: str) -> str:
+    """The #7210 work package task-file pathspec, kept here as a fixture for the first-appearance walk."""
+    return f":(glob)kitty-specs/{mission_slug}/tasks/WP*.md"
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -127,3 +132,52 @@ def test_a_shallow_repository_has_no_derivable_base(repo: Path, tmp_path: Path) 
     _git(tmp_path, "clone", "-q", "--depth", "1", repo.as_uri(), shallow.as_posix())
 
     assert resolve_planning_base_commit(shallow, "main", mission_wp_tasks_pathspec(SLUG)) is None
+
+
+def test_finalize_base_anchors_on_the_re_add_after_tasks_were_removed(repo: Path) -> None:
+    """#7297 item 4: tasks removed and re-added anchor on the re-add, not the first-ever add."""
+    _commit(repo, "README.md", "init")
+    _commit(repo, f"kitty-specs/{SLUG}/tasks/WP01-first.md", "add WP01")
+    (repo / f"kitty-specs/{SLUG}/tasks/WP01-first.md").unlink()
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "remove the tasks")
+    before_re_add = _commit(repo, "src/unrelated.py", "unrelated work while no task existed")
+    _commit(repo, f"kitty-specs/{SLUG}/tasks/WP01-first.md", "re-add WP01")
+
+    assert resolve_finalize_planning_base(repo, "main", SLUG) == before_re_add
+
+
+def test_finalize_base_follows_a_task_file_renamed_into_wp(repo: Path) -> None:
+    """#7297 item 5: a task file renamed to WP* after work landed anchors on its first commit."""
+    base = _commit(repo, "README.md", "init")
+    _commit(repo, f"kitty-specs/{SLUG}/tasks/first.md", "a task under another name")
+    _commit(repo, "src/m1/a.py", "the implementation")
+    _git(repo, "mv", f"kitty-specs/{SLUG}/tasks/first.md", f"kitty-specs/{SLUG}/tasks/WP01-first.md")
+    _git(repo, "commit", "-q", "-m", "rename into WP01")
+
+    assert resolve_finalize_planning_base(repo, "main", SLUG) == base
+
+
+def test_finalize_base_ignores_the_scaffold_tasks_readme(repo: Path) -> None:
+    """``mission create`` scaffolds tasks/README.md; it is no task and never anchors."""
+    _commit(repo, "README.md", "init")
+    _commit(repo, f"kitty-specs/{SLUG}/tasks/README.md", "scaffold")
+    before_wps = _commit(repo, f"kitty-specs/{SLUG}/spec.md", "spec")
+    _commit(repo, f"kitty-specs/{SLUG}/tasks/WP01-first.md", "add WP01")
+
+    assert resolve_finalize_planning_base(repo, "main", SLUG) == before_wps
+
+
+def test_finalize_base_is_none_in_a_shallow_clone(repo: Path, tmp_path: Path) -> None:
+    _commit(repo, "README.md", "init")
+    _commit(repo, f"kitty-specs/{SLUG}/tasks/WP01-first.md", "add WP01")
+    shallow = tmp_path / "shallow-finalize"
+    _git(tmp_path, "clone", "-q", "--depth", "1", repo.as_uri(), shallow.as_posix())
+
+    assert resolve_finalize_planning_base(shallow, "main", SLUG) is None
+
+
+def test_finalize_base_is_none_for_an_unknown_branch(repo: Path) -> None:
+    _commit(repo, f"kitty-specs/{SLUG}/tasks/WP01-first.md", "add WP01")
+
+    assert resolve_finalize_planning_base(repo, "no-such-branch", SLUG) is None

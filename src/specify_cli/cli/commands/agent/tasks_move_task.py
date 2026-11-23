@@ -1223,6 +1223,7 @@ def _mt_require_implementation_evidence(st: _MoveTaskState) -> None:
 
 def _mt_require_single_branch_evidence(st: _MoveTaskState, manifest: LanesManifest) -> None:
     """The single_branch leg of :func:`_mt_require_implementation_evidence` (#5939 codes and wording)."""
+    from specify_cli.cli.commands.agent.mission_finalize_pin_window import MANUAL_PIN_REMEDY
     from specify_cli.consolidation import wp_evidence
     from specify_cli.consolidation.git_probes import GitProbeError
     from specify_cli.lanes import single_branch_landing
@@ -1233,9 +1234,14 @@ def _mt_require_single_branch_evidence(st: _MoveTaskState, manifest: LanesManife
         # planning_commit_sha): fail CLOSED -- we cannot verify an implementation exists (#5939).
         raise ActionContextError(
             wp_evidence.SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE,
+            # #7297 items 2 and 3: a plain finalize derives the planning commit from the mission
+            # branch; where nothing is derivable, it says so and names --refresh-planning-commit.
             f"Cannot verify a committed implementation for {st.task_id}: this single_branch mission records no "
-            "planning commit, so the implementation-evidence window cannot be computed. Run "
-            "`spec-kitty agent mission finalize-tasks` to record the planning commit, then retry.",
+            "planning commit or no mission branch, so the implementation-evidence window cannot be computed. Run "
+            f"`spec-kitty agent mission finalize-tasks --mission {manifest.mission_slug}`: it derives the planning "
+            "commit from the mission branch. If it reports that none can be derived, "
+            f"{MANUAL_PIN_REMEDY} (--refresh-planning-commit records the branch tip, which leaves work already "
+            "committed outside the window).",
         )
     base, tip = window
     try:
@@ -1257,8 +1263,12 @@ def _mt_require_single_branch_evidence(st: _MoveTaskState, manifest: LanesManife
             # "no implementation commit" is the phrase lanes/for_review_gate.py and the consolidate
             # axis use; this gate runs before for_review_gate, so its words are what operators read (#6369).
             f"{st.task_id} cannot move into review: no implementation commit touching its owned_files on the "
-            "single_branch mission branch. Commit the work package's implementation to its owned_files, then "
-            f"retry ({_NOT_SHIPPED_CODE}).",
+            f"single_branch mission branch (window {base}..{tip}). Commit the work package's implementation to its "
+            f"owned_files, then retry ({_NOT_SHIPPED_CODE}). If the work is committed: when the mission branch was "
+            "rebased after its planning commit was recorded (#7793), run `spec-kitty agent mission finalize-tasks "
+            f"--mission {manifest.mission_slug} --refresh-planning-commit --allow-orphaned`, which follows the planning "
+            "commit to its rebased copy. If both ends of the window are the same commit, an earlier finalize moved the "
+            f"pin to the branch tip and no command can recover it: {MANUAL_PIN_REMEDY}.",
         )
 
 

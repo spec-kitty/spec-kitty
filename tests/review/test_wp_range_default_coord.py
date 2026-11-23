@@ -17,6 +17,7 @@ from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.review.wp_range import RangeSource, RangeStatus, resolve_wp_review_range
 from specify_cli.status.emit import emit_status_transition
 from tests.specify_cli.cli.commands.agent.test_finalize_topology_settlement import (
+    MISSION_DIR_TOKEN,
     _quiet_status_fanout,  # noqa: F401 -- autouse fixture re-exported into this module
     git,
     make_default_mission,
@@ -25,7 +26,9 @@ from tests.specify_cli.cli.commands.agent.test_finalize_topology_settlement impo
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
-_PLANNING_PATH = "docs/plan.md"
+# Confined to the Mission directory so the WP stays on lane-planning (a docs/ path is
+# normalised to code_change on a lane of its own, #7809).
+_PLANNING_FILE = "plan.md"
 
 
 def _transition(write_dir: Path, slug: str, to_lane: str) -> str:
@@ -42,7 +45,7 @@ def _transition(write_dir: Path, slug: str, to_lane: str) -> str:
 def test_default_settled_coord_planning_wp_still_gets_the_derived_range(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     for key in ("SPEC_KITTY_NO_NAG", "SPEC_KITTY_NON_INTERACTIVE"):
         monkeypatch.delenv(key, raising=False)
-    mission = make_default_mission(tmp_path, (_PLANNING_PATH, "src/one.py", "src/two.py"), planning=(1,))
+    mission = make_default_mission(tmp_path, (f"{MISSION_DIR_TOKEN}/{_PLANNING_FILE}", "src/one.py", "src/two.py"), planning=(1,))
     code, payload = run_finalize(mission)
     assert code == 0, payload
     seam = placement_seam(mission.root, mission.slug)
@@ -52,20 +55,21 @@ def test_default_settled_coord_planning_wp_still_gets_the_derived_range(tmp_path
     assert planning_lane is not None and planning_lane.lane_id == "lane-planning", "precondition"
     write_dir = seam.write_dir(MissionArtifactKind.STATUS_STATE).path
     checkout = write_dir.parents[1]
+    planning_path = f"kitty-specs/{mission.slug}/{_PLANNING_FILE}"
 
     claim = _transition(write_dir, mission.slug, "claimed")
-    (checkout / _PLANNING_PATH).parent.mkdir(parents=True, exist_ok=True)
-    (checkout / _PLANNING_PATH).write_text("# plan\n", encoding="utf-8")
-    git(checkout, "add", _PLANNING_PATH)
+    (checkout / planning_path).parent.mkdir(parents=True, exist_ok=True)
+    (checkout / planning_path).write_text("# plan\n", encoding="utf-8")
+    git(checkout, "add", planning_path)
     git(checkout, "commit", "-qm", "docs: WP01 plan")
     work = git(checkout, "rev-parse", "HEAD")
     _transition(write_dir, mission.slug, "in_progress")
     tip = _transition(write_dir, mission.slug, "for_review")
 
-    found = resolve_wp_review_range(mission.root, mission.slug, "WP01", owned_files=(_PLANNING_PATH,))
+    found = resolve_wp_review_range(mission.root, mission.slug, "WP01", owned_files=(planning_path,))
 
     assert found.status is RangeStatus.DERIVED, found
     assert (found.base, found.base_source) == (claim, RangeSource.EVENT_COMMIT)
     assert (found.tip, found.tip_source) == (tip, RangeSource.EVENT_COMMIT)
     assert [commit.sha for commit in found.commits] == [work]
-    assert [change.path for change in found.files] == [_PLANNING_PATH]
+    assert [change.path for change in found.files] == [planning_path]

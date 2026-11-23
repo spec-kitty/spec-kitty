@@ -157,6 +157,9 @@ _SCAFFOLD_NON_GATING_EVIDENCE = "<auto-classified: no action required>"
 #     directly followed by a word character is not a terminator)
 #   * cross-repo shorthand like ``owner/repo#1234`` (a ``/`` leads only after a digit)
 #   * runs of seven-plus digits (out of GitHub's typical issue-number range)
+#   * a digit run with a leading zero (``#000``, ``#000000``, ``#0123``, and the
+#     same in a URL): no issue number starts with ``0``, and an all-zero colour
+#     used to read as issue 0 (#7808)
 #   * ``/pull/<n>`` URLs (a PR is not an issue)
 #
 # The prefix alternation is written as a non-capturing OUTER group so the
@@ -166,11 +169,11 @@ _SCAFFOLD_NON_GATING_EVIDENCE = "<auto-classified: no action required>"
 # the named group ``url_number`` instead, since ``owner``/``repo`` must be
 # captured first to mirror the URL's own left-to-right shape.
 _GH_ISSUE_PATTERN = re.compile(
-    r"(?:^|\s|\(|\[|[`*]|(?<=\d)/)#(\d{2,6})"
+    r"(?:^|\s|\(|\[|[`*]|(?<=\d)/)#([1-9][0-9]{1,5})"
     r"(?=\s|\)|\]|,|;|\.|[`*\"'|\u2014\u2013]|[:!?_](?!\w)|/(?=#)|$)"
     r"|"
     r"https?://github\.com/(?P<owner>[\w.-]+)/(?P<repo>[\w.-]+)/issues/"
-    r"(?P<url_number>\d{2,6})(?!\w)",
+    r"(?P<url_number>[1-9][0-9]{1,5})(?!\w)",
     re.MULTILINE,
 )
 
@@ -189,6 +192,80 @@ _LEGACY_REPO_SLUGS = frozenset({"priivacy-ai/spec-kitty"})
 _SAME_REPO_SLUGS = frozenset({_CANONICAL_REPO_SLUG.casefold()}) | _LEGACY_REPO_SLUGS
 
 
+# #7808: an all-digit hex colour in CSS declaration form is never an issue
+# reference. Declaration form is a real colour-bearing CSS property name -- or a
+# custom property (``--brand``) -- as a WHOLE token, a colon, the value, then a
+# declaration terminator (``;``, ``}``, ``!important``, or a closing backtick or
+# quote of inline code): ``color: #112233;``, ``border-color:#445566}``,
+# ```--brand: #778899```.
+#
+# Fail-safe by construction, because a 4-digit ``#RGBA`` colour looks exactly
+# like a 4-digit issue:
+#   * only the text DIRECTLY around the value counts, never a CSS word elsewhere
+#     on the line (a keyword-anywhere filter would drop real references);
+#   * the property must start a token (``(?<![\w-])``) and be one of the listed
+#     names, so ``Backfill: #4521`` or ``tasks-outline: #7808`` stay references;
+#   * the name is lower case (CSS convention), so ``Background: #4521`` stays one;
+#   * without a terminator (``background: #4521 reported``) it stays one;
+#   * the property must START a declaration: the start of the line (after any
+#     indentation), or right after ``{``, ``;``, a backtick or a quote, or after
+#     plain whitespace only inside a ``{`` block opened earlier on the line --
+#     so prose such as ``Fix text color: #4521;`` stays a reference;
+#   * the value has a valid hex-colour length (3, 4, 6 or 8 digits), so
+#     ``fill: #12345;`` stays a reference.
+_CSS_COLOUR_DECLARATION_PREFIX = re.compile(
+    r"(?<![\w-])(?:--[\w-]+|color|background(?:-color)?|border(?:-(?:top|right|bottom|left|block|inline))?(?:-color)?"
+    r"|outline(?:-color)?|fill|stroke|(?:box|text)-shadow|caret-color|accent-color|column-rule(?:-color)?"
+    r"|text-decoration(?:-color)?)\s*:\s*$"
+)
+_CSS_DECLARATION_TERMINATOR = re.compile(r"\s*(?:[;}`\"']|!important)")
+_CSS_DECLARATION_OPENERS = frozenset("{;`\"'")
+# A quote or backtick only closes a declaration that the same character opened
+# (```color: #112233```, ``style="color: #112233"``), so an apostrophe in prose
+# (``color: #4521's fix``) is not a terminator.
+_CSS_QUOTE_DELIMITERS = frozenset("`\"'")
+_CSS_HEX_COLOUR_LENGTHS = frozenset({3, 4, 6, 8})
+# How much text before the ``#`` the declaration check looks at; a property name
+# plus its colon never needs more, and the bound keeps the check per-match O(1).
+_CSS_DECLARATION_LOOKBEHIND = 64
+
+
+def _declaration_opener(text: str, property_start: int) -> str | None:
+    """What opens the CSS declaration whose property begins at ``property_start`` (#7808).
+
+    ``""`` for the start of a line or whitespace inside a ``{`` block opened
+    earlier on the line, the opening character for ``{``, ``;``, a backtick or
+    a quote, and ``None`` when the property does not start a declaration.
+    """
+    line_start = text.rfind("\n", 0, property_start) + 1
+    before = text[line_start:property_start]
+    preceding = before.rstrip()
+    if not preceding:
+        return ""
+    if preceding[-1] in _CSS_DECLARATION_OPENERS:
+        return preceding[-1]
+    block_open = before.rfind("{")
+    return "" if block_open != -1 and "}" not in before[block_open:] else None
+
+
+def _is_css_colour_value(match: re.Match[str]) -> bool:
+    """True iff this hash-arm match is the value of a CSS colour declaration (#7808)."""
+    if len(match.group(1)) not in _CSS_HEX_COLOUR_LENGTHS:
+        return False
+    text = match.string
+    hash_index = match.start(1) - 1
+    window_start = max(0, hash_index - _CSS_DECLARATION_LOOKBEHIND)
+    prefix = _CSS_COLOUR_DECLARATION_PREFIX.search(text, window_start, hash_index)
+    if prefix is None:
+        return False
+    opener = _declaration_opener(text, prefix.start())
+    terminator = _CSS_DECLARATION_TERMINATOR.match(text, match.end(1))
+    if opener is None or terminator is None:
+        return False
+    closing = terminator.group().strip()[:1]
+    return closing not in _CSS_QUOTE_DELIMITERS or closing == opener
+
+
 def _matched_issue_number(match: re.Match[str]) -> int | None:
     """Extract the same-repo issue number from a ``_GH_ISSUE_PATTERN`` match.
 
@@ -196,9 +273,12 @@ def _matched_issue_number(match: re.Match[str]) -> int | None:
     ANY ``owner/repo``, and this is the single Python-side filter that keeps
     a cross-repo URL from ever becoming an :class:`IssueReference` -- so it
     cannot newly require an issue-matrix row / block the completeness gate
-    (SC-008).
+    (SC-008). Also ``None`` for an all-digit hex colour in CSS declaration
+    form (#7808); a leading-zero run never matches the pattern at all.
     """
     if match.group(1) is not None:
+        if _is_css_colour_value(match):
+            return None
         return int(match.group(1))
     # GitHub owner/repo slugs are case-insensitive, so a same-repo URL authored
     # with non-canonical casing (e.g. ``priivacy-ai/spec-kitty``) must still be
@@ -260,21 +340,30 @@ class IssueReference(NamedTuple):
     classification: GatingClass = GatingClass.IMPLEMENTATION_TARGET
 
 
-def issue_numbers_in_text(text: str) -> list[int]:
-    """Every same-repo GH issue number in free text, in order of appearance (#7011).
+def issue_citations_in_line(line: str) -> list[tuple[int, int]]:
+    """Every same-repo citation in one line as ``(number, offset)`` pairs, in order.
 
-    The ONE text-level entry point to the canonical ``#NNNN`` / issue-URL pattern
-    (:data:`_GH_ISSUE_PATTERN`): cross-repo URLs are filtered exactly as in
-    :func:`detect_issue_references`, so a caller that needs to read a number out
-    of a line (the Mission's ``**Input**:`` header, say) reuses this definition
-    instead of adding a second pattern.
+    The offset is the column of the citation inside ``line`` (the ``#`` of a
+    bare reference, the ``h`` of an issue URL) -- the ``ref_offset`` an
+    :class:`~specify_cli.tasks.issue_reference_discovery.Occurrence` carries.
+    The ONE text-level entry point to the canonical ``#NNNN`` / issue-URL
+    pattern (:data:`_GH_ISSUE_PATTERN`, #7011): cross-repo URLs and filtered
+    values are dropped exactly as in :func:`detect_issue_references`, so a
+    caller that needs a number -- or where it sits, for a closing keyword or a
+    citation label leading into it -- reuses this definition instead of adding
+    a second pattern. ``line`` may span several lines; offsets are then relative
+    to the whole text.
     """
-    numbers: list[int] = []
-    for match in _GH_ISSUE_PATTERN.finditer(text):
+    citations: list[tuple[int, int]] = []
+    for match in _GH_ISSUE_PATTERN.finditer(line):
         number = _matched_issue_number(match)
-        if number is not None:
-            numbers.append(number)
-    return numbers
+        # ``_citation_offset`` only returns ``None`` for a negative offset, which
+        # cannot happen with no leading whitespace to subtract (``leading=0``);
+        # the check narrows the ``Optional`` for the type checker.
+        offset = _citation_offset(match, 0)
+        if number is not None and offset is not None:
+            citations.append((number, offset))
+    return citations
 
 
 def _citation_offset(match: re.Match[str], leading: int) -> int | None:
@@ -295,10 +384,11 @@ def _citation_offset(match: re.Match[str], leading: int) -> int | None:
 def detect_issue_references(spec_md_path: Path) -> list[IssueReference]:
     """Return the unique list of GH issue refs in a file, ordered by first appearance.
 
-    Recognises ``#NNNN`` (2-6 digits) and same-repo GitHub issue URLs alike
-    (FR-012, #1738; see ``_GH_ISSUE_PATTERN``). Skips refs that look like
-    markdown anchor links (``#section-name``) and cross-repo/prior-art
-    issue URLs (never returned as a reference -- SC-008).
+    Recognises ``#NNNN`` (2-6 digits, no leading zero) and same-repo GitHub
+    issue URLs alike (FR-012, #1738; see ``_GH_ISSUE_PATTERN``). Skips refs that
+    look like markdown anchor links (``#section-name``), cross-repo/prior-art
+    issue URLs (never returned as a reference -- SC-008), and all-digit hex
+    colours in CSS declaration form (#7808).
 
     WP01 (#3469, FR-015): every line the number appears on within this file
     is retained as an :class:`~specify_cli.tasks.issue_reference_discovery.

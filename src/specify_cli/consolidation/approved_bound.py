@@ -10,7 +10,10 @@ code lane against it (plan D-2):
 * an approved work package with no approval stamp refuses (``APPROVAL_STAMP_MISSING``);
   the stamp is never replaced by the lane tip;
 * an approval stamp that is not on the lane (a rewritten lane) refuses
-  (``APPROVAL_STAMP_NOT_ON_LANE``);
+  (``APPROVAL_STAMP_NOT_ON_LANE``). The approval may also record ``lane_head_presync``, the lane
+  tip before the review's own sync merge(s) (#7802); the effective stamp is whichever recorded
+  stamp the lane contains (:func:`effective_stamp`), and a stamp whose object is not in this
+  clone at all gets its own remedy (push the lane from the reviewer's clone);
 * a content commit reachable from no approval stamp, from no anchor and not from the claim
   base refuses (``LANE_MOVED_AFTER_APPROVAL``). Nothing a canceled work package of the lane
   does covers a commit (#5720): this module reads no event of a canceled work package and
@@ -35,10 +38,10 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from specify_cli.status import StatusEvent, is_migration_event, stamp_of
+from specify_cli.status import LANE_HEAD_KEY, LANE_HEAD_PRESYNC_KEY, StatusEvent, is_migration_event, stamp_of
 
 from .canceled_attestation import ATTESTATION_KEY
-from .git_probes import GitProbeError, changed_paths_of, commits_in_range, is_merge_commit, resolve_commit, sha_reachable_from
+from .git_probes import GitProbeError, changed_paths_of, commit_in_clone, commits_in_range, is_merge_commit, resolve_commit, sha_reachable_from
 from .wp_attribution import lane_exempt_commits
 
 logger = logging.getLogger(__name__)
@@ -68,6 +71,71 @@ class BoundRefusalCode(StrEnum):
     APPROVAL_STAMP_NOT_ON_LANE = "APPROVAL_STAMP_NOT_ON_LANE"
 
 
+class StampDetail(StrEnum):
+    """Why no recorded approval stamp is on the lane (#7802); the refusal code stays ``APPROVAL_STAMP_NOT_ON_LANE``."""
+
+    #: No recorded stamp names a commit in this clone: the reviewer's clone holds it and never pushed it.
+    ABSENT_FROM_CLONE = "absent_from_clone"
+    #: A recorded stamp is in this clone but the lane does not reach it: the lane was rewritten.
+    NOT_ON_LANE = "not_on_lane"
+
+
+@dataclass(frozen=True)
+class StampVerdict:
+    """The effective approval stamp of one approval on one lane tip (:func:`effective_stamp`).
+
+    ``stamp`` is the newest recorded stamp the lane contains (``lane_head``, else
+    ``lane_head_presync``), ``None`` when none is on the lane or the approval is unstamped.
+    ``recorded`` is the approval's ``lane_head``. ``detail`` says why ``stamp`` is ``None`` for a
+    stamped approval, and is ``None`` otherwise.
+    """
+
+    stamp: str | None
+    recorded: str | None
+    detail: StampDetail | None = None
+
+
+def _recorded_sha(metadata: Mapping[str, object] | None, key: str) -> str | None:
+    value = metadata.get(key) if isinstance(metadata, Mapping) else None
+    return value if isinstance(value, str) and value else None
+
+
+def effective_stamp(repo_root: Path, event_metadata: Mapping[str, object] | None, lane_tip: str) -> StampVerdict:
+    """The recorded approval stamp *lane_tip* contains: ``lane_head`` when reachable, else ``lane_head_presync`` (#7802).
+
+    *event_metadata* is the approval event's ``policy_metadata``. An approval with no ``lane_head``
+    is unstamped (``StampVerdict(None, None)``): a pre-sync stamp alone never stands in for it.
+    The pre-sync stamp is consulted only when ``lane_head`` is absent from this clone (the
+    reviewer's unpushed sync merge). A ``lane_head`` present in the clone but off the lane means
+    the lane was rewritten after the approval and refuses ``not_on_lane``. When no recorded stamp
+    is on the lane the detail is ``absent_from_clone`` when neither names a commit in this clone,
+    else ``not_on_lane``.
+
+    The pre-sync stamp keeps the bound sound: the status pipeline records it only when every
+    commit between it and ``lane_head`` is a merge commit, and both tiers of the bound drop merge
+    commits, so measuring from it judges every content commit ``lane_head`` would have judged.
+    A happy-path lane costs one ``merge-base --is-ancestor``, as before. A git failure in the
+    absence probe raises :class:`~specify_cli.consolidation.git_probes.GitProbeError`.
+    """
+    head = _recorded_sha(event_metadata, LANE_HEAD_KEY)
+    if head is None:
+        return StampVerdict(None, None)
+    if sha_reachable_from(repo_root, head, lane_tip):
+        return StampVerdict(head, head)
+    if commit_in_clone(repo_root, head):
+        # ``lane_head`` is here but off the lane: the lane was rewritten after the approval.
+        # The pre-sync fallback is only for a ``lane_head`` this clone never received
+        # (the reviewer's unpushed sync merge), so it never stands in here (Tier R N1).
+        return StampVerdict(None, head, StampDetail.NOT_ON_LANE)
+    presync = _recorded_sha(event_metadata, LANE_HEAD_PRESYNC_KEY)
+    if presync is None or presync == head:
+        return StampVerdict(None, head, StampDetail.ABSENT_FROM_CLONE)
+    if sha_reachable_from(repo_root, presync, lane_tip):
+        return StampVerdict(presync, head)
+    detail = StampDetail.NOT_ON_LANE if commit_in_clone(repo_root, presync) else StampDetail.ABSENT_FROM_CLONE
+    return StampVerdict(None, head, detail)
+
+
 @dataclass(frozen=True)
 class BoundRefusal:
     """One lane the approved bound refuses, with what the operator needs to act."""
@@ -82,6 +150,8 @@ class BoundRefusal:
     #: A window refusal only: the commit precedes every newest approval stamp on the branch, so ``wp_ids``
     #: names the first work package approved after it, and approving again cannot cover it.
     precedes_approvals: bool = False
+    #: ``APPROVAL_STAMP_NOT_ON_LANE`` only: why no recorded stamp is on the lane (#7802).
+    stamp_detail: StampDetail | None = None
 
     def render(self, mission_slug: str) -> str:
         """The operator-facing text of this one refusal, led by ``<CODE>: `` like the other claim refusals."""
@@ -149,16 +219,39 @@ def _missing_block(group: Sequence[BoundRefusal], mission: str, term: _StampTerm
     ]
 
 
-def _not_on_lane_block(group: Sequence[BoundRefusal], mission: str, term: _StampTerm) -> list[str]:
-    findings = [
-        f"{refusal.wp_ids[0]}'s {term()} is {_short(refusal.stamp)}, which is not on branch '{refusal.branch}' (lane {refusal.lane_id}): "
-        "the lane was rewritten after review approved it."
-        for refusal in group
+def _is_absent(refusal: BoundRefusal) -> bool:
+    return refusal.stamp_detail is StampDetail.ABSENT_FROM_CLONE
+
+
+def _not_on_lane_finding(refusal: BoundRefusal, term: _StampTerm) -> str:
+    where = f"branch '{refusal.branch}' (lane {refusal.lane_id})"
+    if _is_absent(refusal):
+        return (
+            f"{refusal.wp_ids[0]}'s {term()} is {_short(refusal.stamp)}, which is not in this clone: "
+            f"the reviewer's clone recorded it and {where} here does not hold it."
+        )
+    return f"{refusal.wp_ids[0]}'s {term()} is {_short(refusal.stamp)}, which is not on {where}: the lane was rewritten after review approved it."
+
+
+def _push_recovery(absent: Sequence[BoundRefusal]) -> list[str]:
+    """The push alternative of an absent stamp (#7802): one ``git push`` per lane, run in the reviewer's clone."""
+    branches = list(dict.fromkeys(refusal.branch for refusal in absent))
+    return [
+        f"Recovery for {', '.join(_distinct_wp_ids(absent))}: push the lane from the reviewer's clone, which holds that commit:",
+        *(f"{_COMMAND_INDENT}git push <remote> {branch}" for branch in branches),
+        "then re-run spec-kitty consolidate. Otherwise rework, review and approve again:",
     ]
+
+
+def _not_on_lane_block(group: Sequence[BoundRefusal], mission: str, term: _StampTerm) -> list[str]:
+    findings = [_not_on_lane_finding(refusal, term) for refusal in group]
+    absent = [refusal for refusal in group if _is_absent(refusal)]
+    purpose = "the lane is reviewed again" if absent else "the rewritten lane is reviewed"
     return [
         f"{BoundRefusalCode.APPROVAL_STAMP_NOT_ON_LANE.value}: {findings[0]}",
         *findings[1:],
-        *_send_back_recovery(_distinct_wp_ids(group), mission, "the rewritten lane is reviewed"),
+        *(_push_recovery(absent) if absent else []),
+        *_send_back_recovery(_distinct_wp_ids(group), mission, purpose),
     ]
 
 
@@ -307,6 +400,17 @@ def _newest_approval(events: Sequence[StatusEvent], wp_id: str) -> StatusEvent |
         if event.wp_id == wp_id and not is_migration_event(event) and _is_approval(events, index):
             newest = event
     return newest
+
+
+def approval_metadata(events: Sequence[StatusEvent], wp_id: str) -> Mapping[str, object] | None:
+    """The ``policy_metadata`` of *wp_id*'s newest approval (the input of :func:`effective_stamp`), ``None`` when it has none."""
+    newest = _newest_approval(events, wp_id)
+    return None if newest is None else newest.policy_metadata
+
+
+def approval_presync_stamp(events: Sequence[StatusEvent], wp_id: str) -> str | None:
+    """The ``lane_head_presync`` stamp of *wp_id*'s newest approval (#7802), ``None`` when it records none."""
+    return _recorded_sha(approval_metadata(events, wp_id), LANE_HEAD_PRESYNC_KEY)
 
 
 def approval_stamp(events: Sequence[StatusEvent], wp_id: str) -> str | None:
@@ -493,23 +597,41 @@ def approval_stamps(events: Sequence[StatusEvent], wp_ids: Iterable[str]) -> dic
     return {wp_id: approval_stamp(events, wp_id) for wp_id in wp_ids}
 
 
-def stamp_refusal(repo_root: Path, *, stamps: Mapping[str, str | None], lane_id: str, branch: str, tip: str | None = None) -> BoundRefusal | None:
-    """Refuse when an approval stamp in *stamps* is missing or not on the branch, else ``None``.
+def approval_presync_stamps(events: Sequence[StatusEvent], wp_ids: Iterable[str]) -> dict[str, str | None]:
+    """``{wp_id: pre-sync stamp or None}`` for *wp_ids*, in the given order (:func:`approval_presync_stamp` each, #7802)."""
+    return {wp_id: approval_presync_stamp(events, wp_id) for wp_id in wp_ids}
 
-    The stamp-resolution half of :func:`check_lane`: every work package with no stamp
-    refuses together (``APPROVAL_STAMP_MISSING``), before any reachability probe; else the
-    first stamp, in *stamps* order, that *tip* (default *branch*) does not reach refuses
-    (``APPROVAL_STAMP_NOT_ON_LANE``). A probe error raises
+
+def _resolve_stamps(
+    repo_root: Path,
+    *,
+    stamps: Mapping[str, str | None],
+    presync_stamps: Mapping[str, str | None] | None,
+    lane_id: str,
+    branch: str,
+    lane_tip: str,
+) -> tuple[BoundRefusal | None, dict[str, str]]:
+    """``(refusal, {wp_id: effective stamp})`` for *stamps* on *lane_tip* (the stamp-resolution half of :func:`check_lane`).
+
+    Every work package with no stamp refuses together (``APPROVAL_STAMP_MISSING``), before any
+    reachability probe; else the first work package, in *stamps* order, whose effective stamp
+    (:func:`effective_stamp`: its ``lane_head``, else its *presync_stamps* entry) *lane_tip* does
+    not reach refuses (``APPROVAL_STAMP_NOT_ON_LANE``, with the ``absent_from_clone`` /
+    ``not_on_lane`` detail). A probe error raises
     :class:`~specify_cli.consolidation.git_probes.GitProbeError`.
     """
     missing = tuple(wp_id for wp_id, stamp in stamps.items() if stamp is None)
     if missing:
-        return BoundRefusal(BoundRefusalCode.APPROVAL_STAMP_MISSING, lane_id, branch, missing)
-    lane_tip = tip or branch
+        return BoundRefusal(BoundRefusalCode.APPROVAL_STAMP_MISSING, lane_id, branch, missing), {}
+    effective: dict[str, str] = {}
     for wp_id, stamp in stamps.items():
-        if stamp is not None and not sha_reachable_from(repo_root, stamp, lane_tip):
-            return BoundRefusal(BoundRefusalCode.APPROVAL_STAMP_NOT_ON_LANE, lane_id, branch, (wp_id,), stamp=stamp)
-    return None
+        metadata = {LANE_HEAD_KEY: stamp, LANE_HEAD_PRESYNC_KEY: (presync_stamps or {}).get(wp_id)}
+        verdict = effective_stamp(repo_root, metadata, lane_tip)
+        if verdict.stamp is None:
+            refusal = BoundRefusal(BoundRefusalCode.APPROVAL_STAMP_NOT_ON_LANE, lane_id, branch, (wp_id,), stamp=stamp, stamp_detail=verdict.detail)
+            return refusal, {}
+        effective[wp_id] = verdict.stamp
+    return None, effective
 
 
 def check_lane(
@@ -533,7 +655,8 @@ def check_lane(
     other lanes' approval stamps); *claim_base* bounds the lane's own range and must
     predate every commit the run merges (a live mission-branch tip does not).
     Only *approved_wp_ids* are read from *events*: a canceled work package of the lane
-    covers no commit, whatever it recorded. A lane with no commit
+    covers no commit, whatever it recorded. Each approval is measured from its effective stamp
+    (:func:`effective_stamp`, #7802). A lane with no commit
     beyond *claim_base* has nothing to bound and is not refused. A *claim_base* or lane tip that
     does not resolve raises :class:`~specify_cli.consolidation.git_probes.GitProbeError`: the
     check never passes for want of an answer, and every caller turns the error into a refusal.
@@ -541,21 +664,62 @@ def check_lane(
     (:func:`~specify_cli.consolidation.wp_attribution.lane_exempt_commits`, once per lane,
     NFR-007); ``None`` computes it here, as every caller before the window model did.
     """
+    refusal, _effective = check_lane_effective(
+        repo_root,
+        events=events,
+        lane_id=lane_id,
+        branch=branch,
+        approved_wp_ids=approved_wp_ids,
+        claim_base=claim_base,
+        anchors=anchors,
+        is_bookkeeping=is_bookkeeping,
+        tip=tip,
+        exempt=exempt,
+    )
+    return refusal
+
+
+def check_lane_effective(
+    repo_root: Path,
+    *,
+    events: Sequence[StatusEvent],
+    lane_id: str,
+    branch: str,
+    approved_wp_ids: Iterable[str],
+    claim_base: str,
+    anchors: Iterable[str],
+    is_bookkeeping: Callable[[str], bool],
+    tip: str | None = None,
+    exempt: frozenset[str] | None = None,
+) -> tuple[BoundRefusal | None, dict[str, str] | None]:
+    """:func:`check_lane`'s verdict plus ``{wp_id: effective stamp}`` (#7802), read with no extra git probe.
+
+    The second item is ``None`` when the lane has no commit beyond *claim_base* (nothing to
+    bound, nothing for a second tier to judge) or the lane refused on its stamps; otherwise it
+    maps every work package of *approved_wp_ids* to the stamp the lane contains, which a second
+    tier (``write_branch_bound``) uses as its window end.
+    """
     lane_tip = tip or branch
     if not commits_in_range(repo_root, claim_base, lane_tip):
-        return None
+        return None, None
     approved = tuple(sorted(approved_wp_ids))
-    stamps = approval_stamps(events, approved)
-    refusal = stamp_refusal(repo_root, stamps=stamps, lane_id=lane_id, branch=branch, tip=lane_tip)
+    refusal, effective = _resolve_stamps(
+        repo_root,
+        stamps=approval_stamps(events, approved),
+        presync_stamps=approval_presync_stamps(events, approved),
+        lane_id=lane_id,
+        branch=branch,
+        lane_tip=lane_tip,
+    )
     if refusal is not None:
-        return refusal
-    covered = [stamp for stamp in stamps.values() if stamp is not None]
+        return refusal, None
+    covered = list(effective.values())
     exempt_set = lane_exempt_commits(repo_root, claim_base, anchors) if exempt is None else exempt
     beyond = [sha for sha in commits_beyond(repo_root, lane_tip, [claim_base, *covered]) if sha not in exempt_set]
     content = content_commits(repo_root, beyond, is_bookkeeping)
     if not content:
-        return None
-    return BoundRefusal(
+        return None, effective
+    moved = BoundRefusal(
         BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL,
         lane_id,
         branch,
@@ -563,6 +727,7 @@ def check_lane(
         commits=tuple(sha for sha, _path in content),
         path=content[0][1],
     )
+    return moved, effective
 
 
 __all__ = [
@@ -570,10 +735,12 @@ __all__ = [
     "ATTEST_APPROVED_FLAG",
     "BoundRefusal",
     "BoundRefusalCode",
+    "approval_presync_stamp",
     "approval_stamp",
     "approval_stamps",
     "approval_warnings",
     "check_lane",
+    "check_lane_effective",
     "commits_beyond",
     "content_commits",
     "is_approved_reviewed_attestation",

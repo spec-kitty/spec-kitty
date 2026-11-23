@@ -116,6 +116,28 @@ def prose_only_new_file_fixture(tmp_path: Path) -> tuple[Path, dict, str]:
     return repo, run, base
 
 
+def lanes_module_fixture(tmp_path: Path) -> tuple[Path, dict, str]:
+    """A change confined to ``src/specify_cli/lanes/stale_check.py`` (#7789).
+
+    Before #7789 only ``lanes/branch_naming.py`` was a critical path, so a lanes
+    change outside that one file produced an empty scored diff.
+    """
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    lanes_dir = repo / "src/specify_cli/lanes"
+    lanes_dir.mkdir(parents=True)
+    (lanes_dir / "stale_check.py").write_text("value = 1\n")
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "base")
+    base = git(repo, "rev-parse", "HEAD")
+    (lanes_dir / "stale_check.py").write_text("value = 1\nstale = 2\n")
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "source")
+    head = git(repo, "rev-parse", "HEAD")
+    run = _finalize_fixture(repo, base, head)
+    return repo, run, base
+
+
 def run_source(repo: Path, run: dict) -> subprocess.CompletedProcess[str]:
     source = repo / "source-run.json"
     source.write_text(json.dumps(run))
@@ -170,6 +192,18 @@ def test_prose_only_new_critical_file_stays_in_diff_fail_closed(tmp_path: Path) 
     critical_patch = (repo / "out/aggregate/source/critical.diff.patch").read_text()
     assert "src/kernel/new_module.py" in critical_patch
     assert "Just a docstring, nothing else." in critical_patch
+
+
+def test_lanes_module_change_is_a_scored_critical_path(tmp_path: Path) -> None:
+    """#7789: every ``src/specify_cli/lanes/*`` file is critical, not just branch_naming.py."""
+    repo, run, _ = lanes_module_fixture(tmp_path)
+    result = run_source(repo, run)
+    assert result.returncode == 0, result.stderr
+    critical_patch = (repo / "out/aggregate/source/critical.diff.patch").read_text()
+    assert "src/specify_cli/lanes/stale_check.py" in critical_patch
+    assert "stale = 2" in critical_patch
+    sources = json.loads((repo / "out/aggregate/source/critical-sources.json").read_text())
+    assert "src/specify_cli/lanes/stale_check.py" in sources
 
 
 @pytest.mark.parametrize(

@@ -2482,9 +2482,49 @@ def _reconcile_review_lane(workspace: ResolvedWorkspace, main_repo_root: Path, w
         print(f"Warning: {action.message}; reviewing the last-known {branch} ({wp_id}).")
     elif action.kind is ReviewLaneKind.FAST_FORWARD:
         _fast_forward_review_lane(workspace, main_repo_root, branch, action, agent)
-    elif action.kind is ReviewLaneKind.CREATE_FROM and not workspace.exists:
+    # #7806: the claim's lane sync and the review worktree need a local head; a
+    # teammate's clone may hold the lane only as the owning remote's tracking ref.
+    _materialize_review_lane(workspace, main_repo_root, wp_id, branch, refreshed=action.kind is ReviewLaneKind.CREATE_FROM)
+    if action.kind is ReviewLaneKind.CREATE_FROM and not workspace.exists:
         return action.remote_ref
     return None
+
+
+def _materialize_review_lane(workspace: ResolvedWorkspace, main_repo_root: Path, wp_id: str, branch: str, *, refreshed: bool) -> None:
+    """Create a missing local lane branch from its owning remote's tracking ref, with ``--track`` (#7806).
+
+    A no-op when the lane is already a local head, or when this clone holds no
+    tracking ref for it (an ambiguous owner included): nothing is created and the
+    claim's lane sync refuses as before (fail-closed). A recorded lane work tip
+    the tracking ref does not contain is stranded local work: the review refuses
+    with the destroyed-lane refusal instead of cutting the lane from the remote.
+    *refreshed* is ``False`` when the origin check did not refresh the ref (off,
+    unreachable, ambiguous), so the creation prints a not-refreshed warning.
+    """
+    from kernel.git.tracking_branch import ensure_local_tracking_branch, is_local_head, owning_tracking_ref
+    from specify_cli.lanes.lane_tip import read_tip
+    from specify_cli.lanes.worktree_allocator import DestroyedLaneError
+
+    if is_local_head(main_repo_root, branch):
+        return
+    start = owning_tracking_ref(main_repo_root, branch)
+    if start is None:
+        return
+    tip = read_tip(main_repo_root, branch)
+    if tip is not None and _git_capture(["git", "merge-base", "--is-ancestor", tip, start], main_repo_root).returncode != 0:
+        refusal = DestroyedLaneError(
+            lane_id=workspace.lane_id or branch,
+            wp_id=wp_id,
+            branch_name=branch,
+            tip_sha=tip,
+            rerun_command=f"spec-kitty agent action review {wp_id}",
+        )
+        raise _refuse_review_lane(f"{refusal.error_code}: {refusal}")
+    shown = start.removeprefix("refs/remotes/")
+    if not refreshed:
+        print(f"Warning: {shown} was not refreshed from the remote; creating {branch} from it as last fetched.")
+    if ensure_local_tracking_branch(main_repo_root, branch):
+        print(f"Created {branch} from {shown} (tracking).")
 
 
 def _git_capture(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:

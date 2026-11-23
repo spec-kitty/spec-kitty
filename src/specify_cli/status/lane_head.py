@@ -35,7 +35,7 @@ pre-implementation state, not a lost stamp.
 those are imported function-locally inside :func:`_read_lane_head`, mirroring
 ``lanes/for_review_gate.py::_resolve_lane`` and the cold-import discipline
 ``tests/architectural/test_cold_import_status_boundary.py`` enforces on the
-``status`` package. ``LANE_HEAD_KEY``, :class:`LaneHeadReading`
+``status`` package. ``LANE_HEAD_KEY``, ``LANE_HEAD_PRESYNC_KEY``, :class:`LaneHeadReading`
 and :class:`LaneHeadReader` are the only symbols a pure caller
 (``status/transition_pipeline.py``) needs, and none requires those imports.
 
@@ -68,6 +68,19 @@ logger = logging.getLogger(__name__)
 #: ``status`` package (SR-2, ``tests/architectural/test_status_module_boundary.py``).
 LANE_HEAD_KEY: Final = "lane_head"
 
+#: #7802: the ``policy_metadata`` key of the lane tip before the review's own sync merge(s).
+#: Written beside ``lane_head`` only when the lane head sits on top of nothing but merge commits
+#: made since the tip :func:`review_presync_ref` records. Re-exported from the facade (SR-2).
+LANE_HEAD_PRESYNC_KEY: Final = "lane_head_presync"
+
+#: #7802: the clone-local ref namespace ``attempt_auto_rebase`` records a lane's pre-merge tip under.
+REVIEW_PRESYNC_REF_PREFIX: Final = "refs/spec-kitty/review-presync/"
+
+
+def review_presync_ref(branch: str) -> str:
+    """The clone-local ref that holds *branch*'s tip from before the last sync merge that created a commit (#7802)."""
+    return f"{REVIEW_PRESYNC_REF_PREFIX}{branch}"
+
 
 @dataclass(frozen=True)
 class LaneHeadReading:
@@ -77,23 +90,29 @@ class LaneHeadReading:
     package not in ``lanes.json``, no ``lanes.json``); ``cause`` is set (an applicable
     reading that failed). A violation is a programming error (``ValueError``), never a
     capture failure.
+
+    ``presync_sha`` (#7802) is extra, valid only beside ``sha`` and never equal to it: the lane
+    tip before the review's own sync merge(s), when ``sha`` sits on top of nothing but merges.
     """
 
     sha: str | None
     applicable: bool
     cause: CaptureCause | None
     detail: str = ""
+    presync_sha: str | None = None
 
     def __post_init__(self) -> None:
         states = (self.sha is not None, not self.applicable, self.cause is not None)
         if sum(states) != 1 or self.sha == "":
             raise ValueError(f"LaneHeadReading needs exactly one of sha / not applicable / cause, got {self!r}")
+        if self.presync_sha is not None and (self.sha is None or self.presync_sha in ("", self.sha)):
+            raise ValueError(f"LaneHeadReading.presync_sha needs a distinct sha beside it, got {self!r}")
         if len(self.detail) > GAP_DETAIL_MAX_LENGTH:
             object.__setattr__(self, "detail", self.detail[:GAP_DETAIL_MAX_LENGTH])
 
     @classmethod
-    def of_sha(cls, sha: str) -> LaneHeadReading:
-        return cls(sha=sha, applicable=True, cause=None)
+    def of_sha(cls, sha: str, presync_sha: str | None = None) -> LaneHeadReading:
+        return cls(sha=sha, applicable=True, cause=None, presync_sha=presync_sha)
 
     @classmethod
     def not_applicable(cls) -> LaneHeadReading:
@@ -230,6 +249,61 @@ def _branch_head(repo_root: Path, branch: str) -> str | None:
     return sha or None
 
 
+def sits_on_through_merges(repo_root: Path, tip: str, head: str) -> bool:
+    """True iff *head* sits on *tip* through merge commits only (#7802), the one predicate of the pre-sync record.
+
+    *tip* must differ from *head*, and every commit on *head*'s first-parent path down to *tip*
+    must be a merge commit: the oldest such commit's first parent is *tip* itself (so *tip* is a
+    first-parent ancestor), and every listed commit has two or more parents
+    (``rev-list --first-parent --no-merges`` would list none). The lane-head reader uses it to
+    accept a recorded tip, and ``attempt_auto_rebase`` to keep one across a later sync merge. Any
+    git failure is ``False``.
+    """
+    from specify_cli.core.git_ops import run_command
+
+    if not tip or tip == head:
+        return False
+    try:
+        ret, out, _err = run_command(
+            ["git", "rev-list", "--first-parent", "--parents", f"{tip}..{head}"],
+            capture=True,
+            check_return=False,
+            cwd=repo_root,
+        )
+    except Exception:  # noqa: BLE001 — best-effort (C-1): an unreadable path is "not on it", never an error
+        logger.debug("sits_on_through_merges: could not walk %s..%s", tip, head, exc_info=True)
+        return False
+    rows = [line.split() for line in out.splitlines() if line.strip()] if ret == 0 else []
+    return bool(rows) and all(len(row) >= _MERGE_ROW_MIN_FIELDS for row in rows) and rows[-1][1] == tip
+
+
+def _presync_of(repo_root: Path, branch: str, head: str) -> str | None:
+    """#7802: the recorded pre-sync tip of *branch* when *head* sits on it through merges only, else ``None``.
+
+    The tip is the clone-local :func:`review_presync_ref`; :func:`sits_on_through_merges` judges
+    it. A missing ref or any git failure is ``None``: the pre-sync stamp is extra, so its absence
+    never fails or changes the ``lane_head`` reading.
+    """
+    from specify_cli.core.git_ops import run_command
+
+    try:
+        ret, out, _err = run_command(
+            ["git", "rev-parse", "--verify", "--quiet", f"{review_presync_ref(branch)}^{{commit}}"],
+            capture=True,
+            check_return=False,
+            cwd=repo_root,
+        )
+    except Exception:  # noqa: BLE001 — best-effort (C-1): the extra stamp never fails the reading
+        logger.debug("read_lane_head: could not read the review pre-sync tip of %s", branch, exc_info=True)
+        return None
+    presync = out.strip() if ret == 0 else ""
+    return presync if sits_on_through_merges(repo_root, presync, head) else None
+
+
+#: A ``rev-list --parents`` row of a merge commit: the commit and at least two parents.
+_MERGE_ROW_MIN_FIELDS: Final = 3
+
+
 def _any_branch_exists(repo_root: Path, branches: Iterable[str]) -> bool:
     """Whether any of *branches* exists; a git failure counts as "exists" (it only raises the log level)."""
     for branch in branches:
@@ -315,7 +389,7 @@ def _read_lane_head(*, repo_root: Path, mission_slug: str, wp_id: str, owned: Ow
         _warn_no_stamp(mission_slug, wp_id, lane.lane_id, f"git error: {exc}")
         return LaneHeadReading.failed(CaptureCause.GIT_ERROR, _redacted(str(exc), repo_root))
     if sha is not None:
-        return LaneHeadReading.of_sha(sha)
+        return LaneHeadReading.of_sha(sha, _presync_of(repo_root, branch, sha))
     other_branches = (lane_created_branch(manifest, other.lane_id) for other in manifest.lanes if other.lane_id != lane.lane_id and not is_planning_lane(other))
     if _any_branch_exists(repo_root, other_branches):
         _warn_no_stamp(mission_slug, wp_id, lane.lane_id, f"lane branch {branch} does not exist")

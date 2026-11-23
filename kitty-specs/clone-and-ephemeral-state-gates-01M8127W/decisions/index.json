@@ -1,0 +1,170 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-22T07:24:14.492894Z",
+      "decision_id": "01M8128ARWKN0AK2MVPDT4VE0C",
+      "final_answer": "Docs WPs get a lane",
+      "input_key": "planning_evidence_home",
+      "mission_id": "01M8127W3JTX5R46HKHR22P571",
+      "mission_slug": "clone-and-ephemeral-state-gates-01M8127W",
+      "opened_by": "cli",
+      "options": [
+        "Either branch",
+        "Docs WPs get a lane",
+        "Target only + guidance"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "#7809: where may a planning-artifact WP's work live in a lane Mission?",
+      "rationale": null,
+      "resolved_at": "2026-11-22T07:24:17.046393Z",
+      "resolved_by": null,
+      "slot_key": "specify.planning.evidence_home",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-22T07:24:19.509443Z",
+      "decision_id": "01M8128FNNMHBTVAGDAB77ZMGY",
+      "final_answer": "Fold #7759 in",
+      "input_key": "fold_7759",
+      "mission_id": "01M8127W3JTX5R46HKHR22P571",
+      "mission_slug": "clone-and-ephemeral-state-gates-01M8127W",
+      "opened_by": "cli",
+      "options": [
+        "Fold #7759 in",
+        "Keep #7759 separate"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Fold #7759 into this Mission?",
+      "rationale": null,
+      "resolved_at": "2026-11-22T07:24:21.898400Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.fold_7759",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-22T07:24:24.489578Z",
+      "decision_id": "01M8128MH9KQHB5SJK4Z0MMSF5",
+      "final_answer": "Dual stamp",
+      "input_key": "approval_stamp_strategy",
+      "mission_id": "01M8127W3JTX5R46HKHR22P571",
+      "mission_slug": "clone-and-ephemeral-state-gates-01M8127W",
+      "opened_by": "cli",
+      "options": [
+        "Dual stamp",
+        "Approval pushes lane",
+        "Remedy text only"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "#7802: how should the approval stamp stop depending on the review's unpushed merge?",
+      "rationale": null,
+      "resolved_at": "2026-11-22T07:24:26.932703Z",
+      "resolved_by": null,
+      "slot_key": "specify.approval.stamp_7802",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-22T07:24:29.499106Z",
+      "decision_id": "01M8128SDVVPS8X575JY9CGVFX",
+      "final_answer": "Auto-create, stack",
+      "input_key": "lane_materialize",
+      "mission_id": "01M8127W3JTX5R46HKHR22P571",
+      "mission_slug": "clone-and-ephemeral-state-gates-01M8127W",
+      "opened_by": "cli",
+      "options": [
+        "Auto-create, stack",
+        "Auto-create, wait",
+        "No auto-create"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "#7806: auto-create the local lane branch from the remote-tracking ref?",
+      "rationale": null,
+      "resolved_at": "2026-11-22T07:24:32.010068Z",
+      "resolved_by": null,
+      "slot_key": "specify.review.lane_materialize_7806",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-22T07:24:34.723114Z",
+      "decision_id": "01M8128YH3KY94DPK85T0YQGXM",
+      "final_answer": "Normalise kind",
+      "input_key": "planning_lane_rule",
+      "mission_id": "01M8127W3JTX5R46HKHR22P571",
+      "mission_slug": "clone-and-ephemeral-state-gates-01M8127W",
+      "opened_by": "cli",
+      "options": [
+        "Normalise kind",
+        "Route by lane only"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How is the docs-WP-gets-a-lane rule implemented?",
+      "rationale": null,
+      "resolved_at": "2026-11-22T07:24:37.298893Z",
+      "resolved_by": null,
+      "slot_key": "specify.planning.lane_rule",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-22T07:24:39.992606Z",
+      "decision_id": "01M81293NR57KQENPSHCKQ65FF",
+      "final_answer": "Refuse, split it",
+      "input_key": "mixed_planning_wp",
+      "mission_id": "01M8127W3JTX5R46HKHR22P571",
+      "mission_slug": "clone-and-ephemeral-state-gates-01M8127W",
+      "opened_by": "cli",
+      "options": [
+        "Refuse, split it",
+        "Keep on lane-planning"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Mixed kitty-specs + other-path planning WP in a lane topology?",
+      "rationale": null,
+      "resolved_at": "2026-11-22T07:24:42.571246Z",
+      "resolved_by": null,
+      "slot_key": "specify.planning.mixed_wp",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-22T07:24:45.081050Z",
+      "decision_id": "01M81298MS97SQBQZ2612VFH3Z",
+      "final_answer": "Count it",
+      "input_key": "settlement_count",
+      "mission_id": "01M8127W3JTX5R46HKHR22P571",
+      "mission_slug": "clone-and-ephemeral-state-gates-01M8127W",
+      "opened_by": "cli",
+      "options": [
+        "Don't count",
+        "Count it"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Does a docs WP that gets a lane count toward topology settlement size?",
+      "rationale": null,
+      "resolved_at": "2026-11-22T07:24:47.621910Z",
+      "resolved_by": null,
+      "slot_key": "specify.planning.settlement_count",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M8127W3JTX5R46HKHR22P571",
+  "version": 1
+}

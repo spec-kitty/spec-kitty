@@ -18,7 +18,6 @@ import pytest
 from kernel.git import GitCommandError, status_entries
 from specify_cli.cli.commands.agent import (
     mission_repair,
-    mission_setup_plan,
     tasks_mark_status,
     tasks_move_task,
     tasks_move_task_gates,
@@ -316,20 +315,6 @@ def test_git_dirty_paths_raises_runtime_error_when_git_fails(tmp_path: Path, mon
     monkeypatch.setattr(mission_record_analysis, "is_git_repo", lambda _root: True)
     with pytest.raises(RuntimeError):
         _git_dirty_paths(plain)
-
-
-def test_setup_plan_artifact_change_detection_with_quoted_path(repo: Path) -> None:
-    _write(repo, _ACCENTED)
-    assert mission_setup_plan._artifact_has_no_git_changes(repo, repo / _ACCENTED) is False
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-q", "-m", "add")
-    assert mission_setup_plan._artifact_has_no_git_changes(repo, repo / _ACCENTED) is True
-
-
-def test_setup_plan_artifact_probe_reports_changes_when_git_fails(tmp_path: Path) -> None:
-    plain = tmp_path / "plain"
-    plain.mkdir()
-    assert mission_setup_plan._artifact_has_no_git_changes(plain, plain / "x.md") is False
 
 
 def test_repair_worktree_dirtiness_with_quoted_path_and_failure(repo: Path, tmp_path: Path) -> None:

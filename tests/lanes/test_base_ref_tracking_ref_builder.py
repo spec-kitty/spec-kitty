@@ -83,3 +83,15 @@ def test_implement_base_unresolvable_everywhere_is_none(tmp_path: Path) -> None:
     repo, _tip = _repo_with_pushed_lane(tmp_path, "origin")
 
     assert resolve_base_ref(repo, "kitty/nowhere") is None
+
+
+def test_lane_base_with_an_ambiguous_owner_falls_back_to_origin(tmp_path: Path) -> None:
+    """M17: two remotes, neither ``origin`` and no ``branch.<b>.remote``: no owner resolves, so ``origin`` is the documented fallback owner."""
+    repo, tip = _repo_with_pushed_lane(tmp_path, "upstream")
+    _git(repo, "remote", "add", "fork", str(tmp_path / "fork.git"))
+    _git(repo, "update-ref", tracking_ref("origin", _LANE), tip)
+
+    assert resolve_lane_base_ref(repo, _LANE, fallback_base="main") == tracking_ref("origin", _LANE)
+
+    _git(repo, "update-ref", "-d", tracking_ref("origin", _LANE))
+    assert resolve_lane_base_ref(repo, _LANE, fallback_base="main") == "main"

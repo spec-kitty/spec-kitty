@@ -6,6 +6,7 @@ import argparse
 import base64
 import io
 import json
+import os
 import tokenize
 from pathlib import Path
 from typing import cast
@@ -17,6 +18,28 @@ from diff_cover.diff_reporter import GitDiffReporter  # type: ignore[import-unty
 from diff_cover.git_diff import GitDiffFileTool  # type: ignore[import-untyped]
 from diff_cover.git_path import GitPathTool  # type: ignore[import-untyped]
 from diff_cover.violationsreporters.violations_reporter import XmlCoverageReporter  # type: ignore[import-untyped]
+
+# #7789: an empty scored diff applies no gate. Say so instead of claiming evidence.
+GATE_NOT_APPLIED = "diff-cover gate not applied: no changed executable critical-path statements"
+EVIDENCE_PRESENT = "ci-aggregate: changed executable critical statements have coverage evidence"
+
+
+def report_scored(output: Path, normalized: list[str]) -> None:
+    """Write the scoring patch and report whether the gate has anything to score.
+
+    diff-cover passes an empty patch with "No lines with coverage information",
+    so an empty ``normalized`` is reported as a notice and a step-summary line,
+    never as coverage evidence.
+    """
+    output.write_text("".join(normalized), encoding="utf-8")
+    if normalized:
+        print(EVIDENCE_PRESENT)
+        return
+    print(f"::notice::{GATE_NOT_APPLIED}")
+    summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary:
+        with open(summary, "a", encoding="utf-8") as fh:
+            fh.write(f"{GATE_NOT_APPLIED}\n")
 
 
 def statement_lines(text: str, changed: set[int], exclusions: list[str]) -> set[int]:
@@ -69,8 +92,7 @@ def validate(diff_file: Path, sources_file: Path, reports: list[Path], exclude: 
                 normalized.extend([f"@@ -0,0 +{line},1 @@\n", f"+{source_lines[line - 1]}\n"])
     if missing:
         raise ValueError(f"missing coverage evidence for changed executable lines: {missing}")
-    output.write_text("".join(normalized), encoding="utf-8")
-    print("ci-aggregate: changed executable critical statements have coverage evidence")
+    report_scored(output, normalized)
 
 
 def main() -> None:
