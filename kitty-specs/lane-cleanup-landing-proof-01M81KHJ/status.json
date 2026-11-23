@@ -30,7 +30,8 @@
       "last_transition_at": "2026-11-23T20:10:03.694473+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "WP01 ready: landing proof (T001-T006) + pr-mode adoption (T014, ruling 3A). Lane tip 0653c20a48 pushed."
+        "WP01 ready: landing proof (T001-T006) + pr-mode adoption (T014, ruling 3A). Lane tip 0653c20a48 pushed.",
+        "Approved by claude::reviewer-renata: R71 core sound; non-blocking follow-ups in the review notes"
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
