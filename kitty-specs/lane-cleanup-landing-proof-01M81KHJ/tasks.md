@@ -17,6 +17,7 @@ description: "Work packages for One landing proof for lane cleanup"
 | T004 | Public predicate with the per-path rules | WP01 | |
 | T005 | Consolidate adoption; delete the private status-log proof; re-pin the #6736 import | WP01 | |
 | T006 | ADR 2026-11-06-1 amendment to O3 | WP01 | [P] |
+| T014 | `accept --mode pr` lane cleanup passes the Mission slug (G1, ruling 3A) | WP01 | |
 | T007 | Red-first doctor unit tests (released lane vs other worktree) | WP02 | |
 | T008 | Red-first doctor acceptance on a real landing pushed to origin | WP02 | [P] |
 | T009 | Released Mission slug resolver | WP02 | |
@@ -42,6 +43,7 @@ T003 Lane-own commits and authored paths helpers (WP01)
 T004 Public predicate with the per-path rules (WP01)
 T005 Consolidate adoption; delete the private status-log proof; re-pin the #6736 import (WP01)
 T006 ADR 2026-11-06-1 amendment to O3 (WP01)
+T014 `accept --mode pr` lane cleanup passes the Mission slug (G1, ruling 3A) (WP01)
 
 ### Implementation Notes
 

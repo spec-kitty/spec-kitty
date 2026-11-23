@@ -21,6 +21,9 @@ requirement_refs:
 planning_base_branch: fix/7747-lane-cleanup-landing-proof
 merge_target_branch: fix/7747-lane-cleanup-landing-proof
 branch_strategy: Planning artifacts for this mission were generated on fix/7747-lane-cleanup-landing-proof. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/7747-lane-cleanup-landing-proof unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-lane-cleanup-landing-proof-01M81KHJ
+base_commit: 8f162f0f0d23d31d8e8651e79364818e2b6524bf
+created_at: '2026-11-23T18:20:15.412900+00:00'
 subtasks:
 - T001
 - T002
@@ -28,6 +31,7 @@ subtasks:
 - T004
 - T005
 - T006
+- T014
 phase: Phase 1 - Landing proof
 history:
 - at: '2026-11-23T18:30:00+00:00'
@@ -159,6 +163,13 @@ Implement with `spec-kitty agent action implement WP01 --agent claude --mission 
 ### Subtask T006 – ADR amendment
 
 - `docs/adr/4.x/2026-11-06-1-...md`: add `## Amendment 2026-11-23: Mission bookkeeping in the O3 absorption proof` (keep the O3 row; append a pointer sentence to it). Record: the #6736 status-log set-aside (never recorded before); the #7747 extension to `status.json`, `meta.json`, `tasks/WP*.md` of the lane's own Mission under the never-authored rule (Option A, lane-own graph); no merge/driver result on `kitty-specs/**`; doctor uses it only for released Mission lanes; the residual (a version merged in from a non-coordination branch); the #7325 kept legs (`LANDING_PROOF_UNAVAILABLE`, WP03). Also update the paragraph at the Scope section ("a caller whose proof is not a remote-tracking ref ... needs an amendment to O3 first") only if it is now inaccurate.
+
+### Subtask T014 – `accept --mode pr` adopts the proof (G1, operator ruling 2026-11-23, 3A)
+
+- **Purpose**: the pr-mode lane cleanup (`src/specify_cli/acceptance/__init__.py::pr_mode_lane_cleanup`) built `GuardedLaneRemover` without a Mission slug, so it kept the plain proof and the #7747 symptom.
+- **Red-first test**: `tests/consolidation/test_pr_mode_landing_proof_7747.py` (in-matrix: the `consolidation` row's roots include `src/specify_cli/acceptance/**`; `tests/acceptance/` is nightly-only). A pushed PR head that squashed the coordination tip and the lane's product: today the lane is kept `NOT_LANDED_ON_NAMED_REMOTE`; after, removed. Negative: a lane with product code the head lacks stays kept.
+- **Change**: pass `mission_slug=manifest.mission_slug` to `GuardedLaneRemover`.
+- **Out-of-map edit (rationale)**: both files are outside WP01's `owned_files`; the operator placed G1 in this Mission after finalize, and WP01 owns the adoption concern. No other WP touches them.
 
 ## Test Strategy
 
