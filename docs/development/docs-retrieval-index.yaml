@@ -3205,6 +3205,7 @@ pages:
     - {slug: "d4-lever-ssot-classification-governs-requirement-verdict-governs-resolution-fr-013", text: "D4 — Lever SSOT: classification governs requirement, verdict governs resolution (FR-013)", level: 3}
     - {slug: "d5-cli-surface-verdict-and-evidence-ref-document-both-new-existing-rules", text: "D5 — CLI surface: `--verdict` and `--evidence-ref` document both new/existing rules", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "amendment-2026-11-22-scope-decides-color-values-and-commit-citations-are-not-owed", text: "Amendment 2026-11-22 — scope decides; color values and commit citations are not owed", level: 2}
     - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
     - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/3.x/2026-09-21-1-kebab-canonical-doctrine-artifact-slug.md"
@@ -3562,6 +3563,8 @@ pages:
     - {slug: "amendment-2026-11-08-lane-approvals-are-judged-by-recorded-work-package-windows-7403", text: "Amendment 2026-11-08: lane approvals are judged by recorded work-package windows (#7403)", level: 2}
     - {slug: "amendment-2026-11-10-the-implement-claim-records-its-dispatch-identity-and-a-submission-refines-it-7159", text: "Amendment 2026-11-10: the implement claim records its dispatch identity, and a submission refines it (#7159)", level: 2}
     - {slug: "amendment-2026-11-18-a-forced-or-foreign-claim-never-replaces-the-implementer-of-record-and-an-explicit-re-submission-completes-a-bare-claim-7712", text: "Amendment 2026-11-18: a forced or foreign claim never replaces the implementer of record, and an explicit re-submission completes a bare claim (#7712)", level: 2}
+    - {slug: "amendment-2026-11-22-the-single-branch-planning-pin-follows-the-planning-commit-across-a-rebase-7793-7297", text: "Amendment 2026-11-22: the single_branch planning pin follows the planning commit across a rebase (#7793, #7297)", level: 2}
+    - {slug: "amendment-2026-11-22-the-approval-stamp-survives-the-review-s-own-sync-merge-7802", text: "Amendment 2026-11-22: the approval stamp survives the review's own sync merge (#7802)", level: 2}
   - path: "docs/adr/4.x/2026-10-05-1-bare-slug-coordination-directory-alias.md"
     title: "ADR: a bare-slug coordination Mission has one exact directory alias set, and one directory on the target"
     divio_type: "none"
@@ -4187,6 +4190,7 @@ pages:
     - {slug: "one-landed-signal", text: "One landed signal", level: 3}
     - {slug: "moved-onto-the-door-in-this-change", text: "Moved onto the door in this change", level: 3}
     - {slug: "amendment-2026-11-11-owned-coordination-checkouts-read-vs-dispatch", text: "Amendment 2026-11-11: owned coordination checkouts, read vs dispatch", level: 2}
+    - {slug: "amendment-2026-11-20-a-remote-only-branch-is-a-typed-refusal-5287", text: "Amendment 2026-11-20: a remote-only branch is a typed refusal (#5287)", level: 2}
   - path: "docs/adr/4.x/2026-11-06-3-topology-is-settled-once-at-first-finalize.md"
     title: "ADR: a default Mission topology is settled once, by size, at the first finalize"
     divio_type: "none"
@@ -4216,6 +4220,7 @@ pages:
     - {slug: "option-6-land-planning-commits-on-an-unprotected-target-at-settlement-and-settle-to-lanes", text: "Option 6: land planning commits on an unprotected target at settlement and settle to `lanes`", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
     - {slug: "amendment-2026-11-13-an-explicit-lanes-create-on-a-protected-target-is-refused", text: "Amendment 2026-11-13: an explicit `lanes` create on a protected target is refused", level: 2}
+    - {slug: "amendment-2026-11-22-a-docs-work-package-gets-its-own-lane-in-a-lane-topology", text: "Amendment 2026-11-22: a docs work package gets its own lane in a lane topology", level: 2}
   - path: "docs/adr/4.x/2026-11-06-4-coordination-branch-written-by-commit.md"
     title: "ADR: a coordination branch is written by commit, not through a coordination worktree"
     divio_type: "none"
@@ -4354,6 +4359,7 @@ pages:
     - {slug: "k-flat-sibling-modules-chosen", text: "K. Flat sibling modules (chosen)", level: 3}
     - {slug: "amendment-2026-11-12-7578-commit-to-target-single-branch-missions-record-their-window-points", text: "Amendment 2026-11-12 (#7578): commit-to-target single_branch Missions record their window points", level: 2}
     - {slug: "amendment-2026-11-18-7726-the-bulk-edit-review-gate-reads-the-review-range", text: "Amendment 2026-11-18 (#7726): the bulk-edit review gate reads the review range", level: 2}
+    - {slug: "amendment-2026-11-22-7759-a-bookkeeping-only-planning-range-is-withheld", text: "Amendment 2026-11-22 (#7759): a bookkeeping-only planning range is withheld", level: 2}
     - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/4.x/README.md"
     title: "4.x Architectural Decision Records"
