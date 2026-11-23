@@ -753,9 +753,28 @@ def _lifecycle_write_location(repo_root: Path, mission_slug: str, owned: OwnedCh
     return location
 
 
-def _lifecycle_refusal(diagnostic: str) -> CommitRouterResult:
-    """A refused coordination commit of the lifecycle log, rendered by ``_refuse_uncommitted_lifecycle``."""
-    return CommitRouterResult(status="error", placement_ref="", diagnostic=diagnostic)
+#: ``CommitRouterResult.reason`` of a refusal where committing this checkout's log
+#: would erase events the coordination branch holds (#3933 review cycle 2, B3).
+_LIFECYCLE_LOSS_RISK: Final = "coordination_log_would_lose_events"
+
+
+def _lifecycle_refusal(diagnostic: str, *, loss_risk: bool = False) -> CommitRouterResult:
+    """A refused coordination commit of the lifecycle log, rendered by ``_refuse_uncommitted_lifecycle``.
+
+    ``loss_risk`` marks a refusal where committing the checkout's log by hand
+    would drop committed events, so the rendered remedy must never suggest it.
+    """
+    return CommitRouterResult(status="error", placement_ref="", diagnostic=diagnostic, reason=_LIFECYCLE_LOSS_RISK if loss_risk else None)
+
+
+def _checkout_head(surface_root: Path) -> str | None:
+    """The commit the coordination worktree's HEAD names, or ``None`` when it cannot be resolved."""
+    from kernel.git import GitCommandError, run_git
+
+    try:
+        return run_git(surface_root, "rev-parse", "--verify", "HEAD").stdout.decode("utf-8").strip() or None
+    except GitCommandError:
+        return None
 
 
 def _lifecycle_log_divergence(surface_root: Path, log: Path) -> CommitRouterResult | None:
@@ -776,10 +795,11 @@ def _lifecycle_log_divergence(surface_root: Path, log: Path) -> CommitRouterResu
     try:
         missing = committed_events_missing_from_worktree(surface_root, log)
     except BookkeepingStatusSurfaceUnreadable as unreadable:
-        return _lifecycle_refusal(str(unreadable))
+        return _lifecycle_refusal(str(unreadable), loss_risk=True)
     if not missing:
         return None
-    return _lifecycle_refusal(str(BookkeepingStatusSurfaceDiverged(worktree_root=surface_root, events_path=log, missing_event_ids=missing)))
+    diverged = BookkeepingStatusSurfaceDiverged(worktree_root=surface_root, events_path=log, missing_event_ids=missing)
+    return _lifecycle_refusal(f"the coordination branch holds events this checkout's status log lacks. {diverged}", loss_risk=True)
 
 
 def _commit_lifecycle_events_on_coordination(
@@ -797,8 +817,11 @@ def _commit_lifecycle_events_on_coordination(
     holds every line, so a re-run makes no commit (NFR-001). Every other outcome
     is a refusal (``status="error"``) the caller renders as
     ``SETUP_PLAN_LIFECYCLE_UNCOMMITTED`` (FR-004): no log where setup-plan just
-    wrote its events, a worktree log that lost committed events (review B1), or a
-    router that raised (review S1).
+    wrote its events, a worktree log that lost committed events (review B1), a
+    router that raised (review S1), or a coordination branch that moved after
+    the guard checked it (review B2): the commit is a compare-and-swap on the
+    HEAD and the exact log bytes the guard read, so a writer landing in between
+    is refused, never overwritten.
     """
     from mission_runtime import resolve_topology, routes_through_coordination
     from specify_cli.coordination.commit_router import commit_for_mission
@@ -811,20 +834,31 @@ def _commit_lifecycle_events_on_coordination(
     log = mission_event_log_path(location.path)
     if not log.is_file():
         return _lifecycle_refusal(f"no status log at {log}; the lifecycle events were not recorded")
+    checked_head = _checkout_head(location.surface_root)
+    if checked_head is None:
+        return _lifecycle_refusal(f"the coordination worktree HEAD at {location.surface_root} could not be resolved", loss_risk=True)
+    log_bytes = log.read_bytes()
     divergence = _lifecycle_log_divergence(location.surface_root, log)
     if divergence is not None:
         return divergence
     try:
-        return commit_for_mission(
+        result = commit_for_mission(
             repo_root,
             mission_slug,
             files=(log,),
             message=f"chore({mission_slug}): record setup-plan lifecycle events",
             policy=ProtectionPolicy.resolve_for_mission(repo_root, mission_slug),
             kind=MissionArtifactKind.STATUS_STATE,
+            expected_parent_sha=checked_head,
+            expected_path_bytes={log: log_bytes},
         )
     except Exception as exc:  # noqa: BLE001 -- FR-004: any router failure must reach the named refusal, never the generic error arm
-        return _lifecycle_refusal(f"{type(exc).__name__}: {exc}")
+        result = _lifecycle_refusal(f"{type(exc).__name__}: {exc}")
+    if _lifecycle_commit_refused(result) and _checkout_head(location.surface_root) != checked_head:
+        # B2: the compare-and-swap lost; the branch moved after the guard checked it.
+        moved = f"the coordination branch moved after setup-plan checked it (from {checked_head}); nothing was committed. {result.diagnostic or ''}"
+        return _lifecycle_refusal(moved.strip(), loss_risk=True)
+    return result
 
 
 def _setup_plan_events_in_log(status_dir: Path) -> list[str]:
@@ -1306,10 +1340,17 @@ def _refuse_uncommitted_lifecycle(
     """Render the ``SETUP_PLAN_LIFECYCLE_UNCOMMITTED`` refusal and exit 1 (#3933, FR-004)."""
     events = _setup_plan_events_in_log(status_dir)
     diagnostic = result.diagnostic or f"commit router status {result.status!r}"
+    if result.reason == _LIFECYCLE_LOSS_RISK:
+        # B3: committing this checkout's log would erase the events the branch holds.
+        remedy = (
+            "Do not commit this checkout's status log: it would erase events the coordination branch holds. "
+            "Follow the remedy above, then re-run setup-plan to record its own lifecycle events again."
+        )
+    else:
+        remedy = "They stay uncommitted there; commit them in that checkout or re-run setup-plan once the refusal is fixed."
     message = (
         f"setup-plan could not commit its status log in {status_dir} on the coordination branch "
-        f"(setup-plan lifecycle events present in the log: {', '.join(events) or 'none'}): {diagnostic}. They stay uncommitted there; "
-        "commit them in that checkout or re-run setup-plan once the refusal is fixed."
+        f"(setup-plan lifecycle events present in the log: {', '.join(events) or 'none'}): {diagnostic} {remedy}"
     )
     payload.update(
         {

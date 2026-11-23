@@ -409,3 +409,19 @@ def test_divergence_refusal_never_says_commit_the_checkout(tmp_path: Path) -> No
     assert "commit them in that checkout" not in text, "committing the stale log erases the committed events"
     assert "Do not commit this checkout's status log" in text
     assert "re-run setup-plan" in text
+
+
+def test_unresolvable_coordination_head_is_a_loss_risk_refusal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import mission_runtime
+    from mission_runtime import MissionTopology
+    from specify_cli.cli.commands.agent import mission_setup_plan
+
+    assert mission_setup_plan._checkout_head(tmp_path) is None, "a directory that is not a checkout has no HEAD"
+    (tmp_path / "status.events.jsonl").write_text(json.dumps({"event_type": "PlanStarted"}) + "\n", encoding="utf-8")
+    monkeypatch.setattr(mission_runtime, "resolve_topology", lambda *_a, **_k: MissionTopology.LANES_WITH_COORD)
+
+    result = mission_setup_plan._commit_lifecycle_events_on_coordination(tmp_path, "m", _coordination_location(tmp_path), None)
+
+    assert result is not None and result.status == "error"
+    assert "could not be resolved" in str(result.diagnostic)
+    assert result.reason == mission_setup_plan._LIFECYCLE_LOSS_RISK
