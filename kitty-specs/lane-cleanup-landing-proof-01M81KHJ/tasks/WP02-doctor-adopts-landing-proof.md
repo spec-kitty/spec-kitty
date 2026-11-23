@@ -10,6 +10,9 @@ requirement_refs:
 planning_base_branch: fix/7747-lane-cleanup-landing-proof
 merge_target_branch: fix/7747-lane-cleanup-landing-proof
 branch_strategy: Planning artifacts for this mission were generated on fix/7747-lane-cleanup-landing-proof. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/7747-lane-cleanup-landing-proof unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-lane-cleanup-landing-proof-01M81KHJ
+base_commit: d9bada4c79aaedd9d095bffbb7ac3f7e75b163a0
+created_at: '2026-11-23T21:22:39.642700+00:00'
 subtasks:
 - T007
 - T008
