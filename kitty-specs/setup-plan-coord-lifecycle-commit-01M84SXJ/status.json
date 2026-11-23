@@ -31,7 +31,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-23T21:36:57Z – claude – shell_pid=3905 – Red: 6 coordination cases failed on base (coordination worktree left with status.events.jsonl modified; no lifecycle_commit; refusal exited 0). Green after fix. Tests: tests/coordination + setup-plan/integration blast (58 files) 2406 passed, 2 failed -> 1 fixed by re-pin (golden path, out of matrix), 1 pre-existing on base (orchestrator_api kind_normalised, out of matrix). make test-fast 3222 passed, 7 skipped.",
-        "Ready for review"
+        "Ready for review",
+        "- 2026-11-23T22:37:55Z – unknown – Cycle 2: B1 fixed (status-surface guard before the whole-log commit; COORD_STATUS_SURFACE_DIVERGED/UNREADABLE via SETUP_PLAN_LIFECYCLE_UNCOMMITTED), S1 (raising router -> named refusal), S2 (absent log on coordination = refusal), S3 (diff coverage 100%, 75 lines, subprocess coverage), N1 (refusal wording). Red-first on cycle-1 source: 4 failed (B1 rc 0 + lifecycle committed). make test-fast 3222 passed; blast 2413 passed, 1 failed pre-existing (kind_normalised, fails on main). Merge target pushed to origin."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -45,12 +46,12 @@
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
-        "T001": "planned",
-        "T002": "planned",
-        "T003": "planned",
-        "T004": "planned",
-        "T005": "planned",
-        "T006": "planned"
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
       }
     }
   }
