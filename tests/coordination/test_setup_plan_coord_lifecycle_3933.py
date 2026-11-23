@@ -199,3 +199,166 @@ def test_refused_coordination_commit_fails_loud(tmp_path: Path, monkeypatch: pyt
     uncommitted = payload["uncommitted_lifecycle_events"]
     assert isinstance(uncommitted, list) and set(_SETUP_PLAN_EVENTS) <= set(uncommitted)
     assert payload["commit_hash"], "the plan commit that landed must still be reported"
+
+
+# ---------------------------------------------------------------------------
+# Review cycle 1, B1: never commit a worktree log that lost events the coordination branch committed
+# ---------------------------------------------------------------------------
+
+
+def _advance_coord_branch_with_foreign_event(mission: _Mission) -> tuple[str, str]:
+    """Another writer appends one event on the coordination branch by plumbing; the worktree is not resynced.
+
+    Returns ``(new_tip, foreign_event_id)``.
+    """
+    import os
+    import subprocess
+
+    branch = mission.coord_branch
+    head = git(mission.repo, "rev-parse", branch)
+    rel = f"kitty-specs/{mission.slug}/status.events.jsonl"
+    committed = git(mission.repo, "show", f"{head}:{rel}")
+    template = json.loads(committed.splitlines()[-1])
+    foreign_id = "01ZZZZZZZZZZZZZZZZZZZZZZZZ"
+    template.update({"event_id": foreign_id, "event_type": "ForeignWriterEvent"})
+    content = committed + "\n" + json.dumps(template, sort_keys=True) + "\n"
+    blob = subprocess.run(["git", "hash-object", "-w", "--stdin"], cwd=mission.repo, input=content, capture_output=True, text=True, check=True).stdout.strip()
+    env = {**os.environ, "GIT_INDEX_FILE": str(mission.repo / ".git" / "foreign-writer.index")}
+    subprocess.run(["git", "read-tree", head], cwd=mission.repo, env=env, check=True)
+    subprocess.run(["git", "update-index", "--cacheinfo", f"100644,{blob},{rel}"], cwd=mission.repo, env=env, check=True)
+    tree = subprocess.run(["git", "write-tree"], cwd=mission.repo, env=env, capture_output=True, text=True, check=True).stdout.strip()
+    commit = git(mission.repo, "-c", "user.email=t@example.com", "-c", "user.name=t", "commit-tree", tree, "-p", head, "-m", "foreign writer")
+    git(mission.repo, "update-ref", f"refs/heads/{branch}", commit, head)
+    return commit, foreign_id
+
+
+def test_coord_setup_plan_never_erases_events_the_branch_committed(tmp_path: Path) -> None:
+    mission = _mission(tmp_path, "lanes_with_coord")
+    mission.setup_plan()  # scaffold
+    tip, foreign_id = _advance_coord_branch_with_foreign_event(mission)
+    mission.write_plan()
+
+    proc = run_sk(mission.repo, mission.env, "agent", "mission", "setup-plan", "--mission", mission.slug, "--json")
+
+    assert proc.returncode == 1, flat(proc)[-2000:]
+    payload = json_of(proc)
+    assert payload["error_code"] == "SETUP_PLAN_LIFECYCLE_UNCOMMITTED", payload
+    assert "COORD_STATUS_SURFACE_DIVERGED" in str(payload["lifecycle_diagnostic"])
+    assert git(mission.repo, "rev-parse", mission.coord_branch) == tip, "the coordination branch must not move"
+    assert foreign_id in git(mission.repo, "show", f"{mission.coord_branch}:kitty-specs/{mission.slug}/status.events.jsonl")
+
+
+# ---------------------------------------------------------------------------
+# Review cycle 1, S1/S2/S3: every failure reaches the named refusal; the helpers' edges
+# ---------------------------------------------------------------------------
+
+
+def test_raising_router_reaches_the_named_refusal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from mission_runtime import MissionArtifactKind
+    from specify_cli.coordination import commit_router
+    from specify_cli.coordination.commit_router import CommitRouterResult
+
+    mission = _mission(tmp_path, "lanes_with_coord")
+    real = commit_router.commit_for_mission
+
+    def _raise_on_status(*args: Any, **kwargs: Any) -> CommitRouterResult:
+        if kwargs.get("kind") is MissionArtifactKind.STATUS_STATE:
+            raise RuntimeError("coordination worktree could not be resolved (test)")
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(commit_router, "commit_for_mission", _raise_on_status)
+
+    code, payload = _run_setup_plan_in_process(mission, monkeypatch)
+
+    assert code == 1, payload
+    assert payload["error_code"] == "SETUP_PLAN_LIFECYCLE_UNCOMMITTED", payload
+    assert "RuntimeError: coordination worktree could not be resolved (test)" in str(payload["lifecycle_diagnostic"])
+
+
+def test_refusal_renders_in_text_mode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from typer.testing import CliRunner
+
+    from mission_runtime import MissionArtifactKind
+    from specify_cli.cli.commands.agent import mission as mission_module
+    from specify_cli.coordination import commit_router
+    from specify_cli.coordination.commit_router import CommitRouterResult
+
+    mission = _mission(tmp_path, "lanes_with_coord")
+    real = commit_router.commit_for_mission
+
+    def _refuse_status(*args: Any, **kwargs: Any) -> CommitRouterResult:
+        if kwargs.get("kind") is MissionArtifactKind.STATUS_STATE:
+            return CommitRouterResult(status="error", placement_ref=mission.coord_branch, diagnostic="refused [for a test]")
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(commit_router, "commit_for_mission", _refuse_status)
+    for key, value in mission.env.items():
+        monkeypatch.setenv(key, value)
+    monkeypatch.chdir(mission.repo)
+    monkeypatch.setattr(mission_module, "locate_project_root", lambda *a, **k: mission.repo)
+
+    result = CliRunner().invoke(mission_module.app, ["setup-plan", "--mission", mission.slug], catch_exceptions=False)
+
+    assert result.exit_code == 1, result.output
+    flat_output = " ".join(result.output.split())
+    assert "SETUP_PLAN_LIFECYCLE_UNCOMMITTED" in flat_output
+    assert "refused [for a test]" in flat_output, "an untrusted diagnostic must render literally, never as markup"
+
+
+def _coordination_location(path: Path) -> Any:
+    from types import SimpleNamespace
+
+    return SimpleNamespace(path=path, surface_root=path)
+
+
+def test_absent_log_on_a_coordination_topology_is_a_refusal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import mission_runtime
+    from mission_runtime import MissionTopology
+    from specify_cli.cli.commands.agent import mission_setup_plan
+
+    monkeypatch.setattr(mission_runtime, "resolve_topology", lambda *_a, **_k: MissionTopology.LANES_WITH_COORD)
+
+    result = mission_setup_plan._commit_lifecycle_events_on_coordination(tmp_path, "m", _coordination_location(tmp_path), None)
+
+    assert result is not None and result.status == "error"
+    assert "no status log" in str(result.diagnostic)
+
+
+def test_unreadable_committed_log_is_a_refusal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.cli.commands.agent import mission_setup_plan
+    from specify_cli.coordination import status_surface_guard
+    from specify_cli.coordination.transaction_errors import BookkeepingStatusSurfaceUnreadable
+
+    log = tmp_path / "status.events.jsonl"
+
+    def _unreadable(worktree_root: Path, events_path: Path) -> list[str]:
+        raise BookkeepingStatusSurfaceUnreadable(worktree_root=worktree_root, events_path=events_path, reason="torn (test)")
+
+    monkeypatch.setattr(status_surface_guard, "committed_events_missing_from_worktree", _unreadable)
+
+    result = mission_setup_plan._lifecycle_log_divergence(tmp_path, log)
+
+    assert result is not None and result.status == "error"
+    assert "COORD_STATUS_SURFACE_UNREADABLE" in str(result.diagnostic)
+
+
+def test_setup_plan_events_in_log_edges(tmp_path: Path) -> None:
+    from specify_cli.cli.commands.agent import mission_setup_plan
+
+    assert mission_setup_plan._setup_plan_events_in_log(tmp_path / "missing") == []
+    (tmp_path / "status.events.jsonl").write_text(
+        "\n".join(
+            [
+                json.dumps({"event_type": "PlanStarted"}),
+                "{not json",
+                json.dumps(["not", "an", "object"]),
+                json.dumps({"event_type": "SpecifyCompleted"}),
+                json.dumps({"event_type": "PlanStarted"}),
+                json.dumps({"event_type": "MissionCreated"}),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    assert mission_setup_plan._setup_plan_events_in_log(tmp_path) == ["PlanStarted", "SpecifyCompleted"]
