@@ -33,7 +33,9 @@ _OUTCOME_WORDS = {"Removed": "removed", "Kept": "kept", "Retained": "retained_by
 
 def _build(tmp_path: Path, mid8: str) -> CoordMission:
     mission = build_coord_mission(tmp_path, wps=("WP01", "WP02"), mid8=mid8)
-    add_lane_worktrees(mission, ("lane-a",))
+    # #7325: a lane is removed only through the landing proof, which needs its worktree;
+    # a worktree-less lane is kept on both paths alike (LANDING_PROOF_UNAVAILABLE).
+    add_lane_worktrees(mission, ("lane-a", "lane-b"))
     return mission
 
 
@@ -64,6 +66,6 @@ def test_orchestrator_and_executor_same_lane_outcome(tmp_path: Path) -> None:
     assert api_outcomes == [("lane-a", "removed"), ("lane-b", "removed")]
     for entry in cleanup:
         assert set(entry) == {"lane_id", "branch", "worktree", "outcome", "code", "remedy", "command", "recreate"}, entry
-    assert not lane_worktree(api_mission, "lane-a").exists(), output(api)
     for lane_id in ("lane-a", "lane-b"):
+        assert not lane_worktree(api_mission, lane_id).exists(), output(api)
         assert not ref_exists(api_mission.repo, f"refs/heads/{lane_branch(api_mission, lane_id)}"), output(api)
