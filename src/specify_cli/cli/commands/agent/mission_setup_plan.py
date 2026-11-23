@@ -41,7 +41,7 @@ import typer
 
 from charter.activation.mission_type_profiles import resolve_mission_type_context
 from charter.resolution import ResolutionResult
-from mission_runtime import MissionArtifactKind, OwnedCheckout, placement_seam
+from mission_runtime import MissionArtifactKind, OwnedCheckout, WriteLocation, placement_seam
 from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption
 from specify_cli.coordination.commit_outcome import STATUS_COMMITTED, STATUS_UNCHANGED, SurfaceOutcome, commit_outcome_payload, render_commit_outcome
 from specify_cli.coordination.commit_router import CommitRouterResult
@@ -740,8 +740,8 @@ SETUP_PLAN_LIFECYCLE_UNCOMMITTED: Final = "SETUP_PLAN_LIFECYCLE_UNCOMMITTED"
 SETUP_PLAN_LIFECYCLE_EVENT_TYPES: Final = ("SpecifyCompleted", "PlanStarted", "PlanCompleted")
 
 
-def _lifecycle_status_dir(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None) -> Path:
-    """The directory setup-plan appends its lifecycle events to: the write location for status records (#3933).
+def _lifecycle_write_location(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None) -> WriteLocation:
+    """Where setup-plan appends its lifecycle events: the write location for status records (#3933).
 
     One write authority for the Mission's status log, as finalize-tasks uses
     (``_emit_tasks_started``): the coordination worktree's Mission directory on a
@@ -749,22 +749,56 @@ def _lifecycle_status_dir(repo_root: Path, mission_slug: str, owned: OwnedChecko
     caller outside any best-effort ``try`` so a named write-location refusal fails
     setup-plan closed instead of degrading to a debug line.
     """
-    return placement_seam(repo_root, mission_slug, owned=owned).write_dir(MissionArtifactKind.STATUS_STATE).path
+    location: WriteLocation = placement_seam(repo_root, mission_slug, owned=owned).write_dir(MissionArtifactKind.STATUS_STATE)
+    return location
+
+
+def _lifecycle_refusal(diagnostic: str) -> CommitRouterResult:
+    """A refused coordination commit of the lifecycle log, rendered by ``_refuse_uncommitted_lifecycle``."""
+    return CommitRouterResult(status="error", placement_ref="", diagnostic=diagnostic)
+
+
+def _lifecycle_log_divergence(surface_root: Path, log: Path) -> CommitRouterResult | None:
+    """Refuse when the worktree log lost events its branch HEAD committed (#3933 review B1).
+
+    The log is committed whole, so committing a copy that lags the coordination
+    branch would erase the missing events from the status authority. The same
+    guard ``BookkeepingTransaction`` runs before a coordination status write
+    (``committed_events_missing_from_worktree``) answers the question; its two
+    named refusals become the diagnostic.
+    """
+    from specify_cli.coordination.status_surface_guard import committed_events_missing_from_worktree
+    from specify_cli.coordination.transaction_errors import (
+        BookkeepingStatusSurfaceDiverged,
+        BookkeepingStatusSurfaceUnreadable,
+    )
+
+    try:
+        missing = committed_events_missing_from_worktree(surface_root, log)
+    except BookkeepingStatusSurfaceUnreadable as unreadable:
+        return _lifecycle_refusal(str(unreadable))
+    if not missing:
+        return None
+    return _lifecycle_refusal(str(BookkeepingStatusSurfaceDiverged(worktree_root=surface_root, events_path=log, missing_event_ids=missing)))
 
 
 def _commit_lifecycle_events_on_coordination(
     repo_root: Path,
     mission_slug: str,
-    status_dir: Path,
+    location: WriteLocation,
     owned: OwnedCheckout | None,
 ) -> CommitRouterResult | None:
     """Commit setup-plan's lifecycle log on the coordination branch (#3933, FR-002).
 
-    Returns ``None`` on a topology without a coordination branch: there the log
-    already rides the plan commit (:func:`_lifecycle_log_for_plan_commit`). On a
-    coordination topology the log is committed whole, once, through the mission
+    Returns ``None`` only on a topology without a coordination branch: there the
+    log already rides the plan commit (:func:`_lifecycle_log_for_plan_commit`). On
+    a coordination topology the log is committed whole, once, through the mission
     commit entry point; the router answers ``unchanged`` when the branch already
-    holds every line, so a re-run makes no commit (NFR-001).
+    holds every line, so a re-run makes no commit (NFR-001). Every other outcome
+    is a refusal (``status="error"``) the caller renders as
+    ``SETUP_PLAN_LIFECYCLE_UNCOMMITTED`` (FR-004): no log where setup-plan just
+    wrote its events, a worktree log that lost committed events (review B1), or a
+    router that raised (review S1).
     """
     from mission_runtime import resolve_topology, routes_through_coordination
     from specify_cli.coordination.commit_router import commit_for_mission
@@ -774,17 +808,23 @@ def _commit_lifecycle_events_on_coordination(
     topology = owned.topology if owned is not None else resolve_topology(repo_root, mission_slug)
     if not routes_through_coordination(topology):
         return None
-    log = mission_event_log_path(status_dir)
+    log = mission_event_log_path(location.path)
     if not log.is_file():
-        return None
-    return commit_for_mission(
-        repo_root,
-        mission_slug,
-        files=(log,),
-        message=f"chore({mission_slug}): record setup-plan lifecycle events",
-        policy=ProtectionPolicy.resolve_for_mission(repo_root, mission_slug),
-        kind=MissionArtifactKind.STATUS_STATE,
-    )
+        return _lifecycle_refusal(f"no status log at {log}; the lifecycle events were not recorded")
+    divergence = _lifecycle_log_divergence(location.surface_root, log)
+    if divergence is not None:
+        return divergence
+    try:
+        return commit_for_mission(
+            repo_root,
+            mission_slug,
+            files=(log,),
+            message=f"chore({mission_slug}): record setup-plan lifecycle events",
+            policy=ProtectionPolicy.resolve_for_mission(repo_root, mission_slug),
+            kind=MissionArtifactKind.STATUS_STATE,
+        )
+    except Exception as exc:  # noqa: BLE001 -- FR-004: any router failure must reach the named refusal, never the generic error arm
+        return _lifecycle_refusal(f"{type(exc).__name__}: {exc}")
 
 
 def _setup_plan_events_in_log(status_dir: Path) -> list[str]:
@@ -809,7 +849,7 @@ def _setup_plan_events_in_log(status_dir: Path) -> list[str]:
 
 def _lifecycle_commit_payload(result: CommitRouterResult) -> dict[str, object]:
     """The ``lifecycle_commit`` JSON block for a coordination commit outcome."""
-    return {"status": result.status, "commit_hash": result.commit_hash, "branch": result.placement_ref}
+    return {"status": result.status, "commit_hash": result.commit_hash, "branch": result.placement_ref or None}
 
 
 def _lifecycle_commit_refused(result: CommitRouterResult) -> bool:
@@ -1267,8 +1307,8 @@ def _refuse_uncommitted_lifecycle(
     events = _setup_plan_events_in_log(status_dir)
     diagnostic = result.diagnostic or f"commit router status {result.status!r}"
     message = (
-        f"setup-plan recorded its lifecycle events ({', '.join(events) or 'none found'}) in {status_dir} "
-        f"but could not commit them on the coordination branch: {diagnostic}. They stay uncommitted there; "
+        f"setup-plan could not commit its status log in {status_dir} on the coordination branch "
+        f"(setup-plan lifecycle events present in the log: {', '.join(events) or 'none'}): {diagnostic}. They stay uncommitted there; "
         "commit them in that checkout or re-run setup-plan once the refusal is fixed."
     )
     payload.update(
@@ -1486,7 +1526,8 @@ def setup_plan(
         _scaffold_plan_template(plan_file, plan_template)
         # #3933: the lifecycle events go to the write location for status records,
         # resolved here, outside every best-effort emission ``try``.
-        status_dir = _lifecycle_status_dir(repo_root, mission_slug, owned)
+        lifecycle_location = _lifecycle_write_location(repo_root, mission_slug, owned)
+        status_dir = lifecycle_location.path
         _emit_spec_plan_phase_events(status_dir, mission_slug, spec_file, git_root, owned=owned)
 
         from specify_cli.missions._substantive import is_substantive
@@ -1517,7 +1558,7 @@ def setup_plan(
 
         # #3933 (FR-002): one commit of the lifecycle log on the coordination branch,
         # after the plan commit and on a scaffold-only or blocked run alike.
-        lifecycle_result = _commit_lifecycle_events_on_coordination(repo_root, mission_slug, status_dir, owned)
+        lifecycle_result = _commit_lifecycle_events_on_coordination(repo_root, mission_slug, lifecycle_location, owned)
 
         gap_analysis_path, generators_detected = _run_documentation_wiring(
             mission_slug, git_root, target_branch=target_branch, json_output=json_output, owned=owned
