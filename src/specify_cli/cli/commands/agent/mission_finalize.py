@@ -253,6 +253,23 @@ from specify_cli.cli.commands.agent.mission_finalize_planning_pin import (
     _refuse_planning_pin_with_code as _refuse_planning_pin_with_code,
     _single_branch_refresh_resolution as _single_branch_refresh_resolution,
 )
+from specify_cli.cli.commands.agent.mission_finalize_pin_window import (
+    MANUAL_PIN_REMEDY as MANUAL_PIN_REMEDY,
+    NO_PATCH_ID_MATCH as NO_PATCH_ID_MATCH,
+    PATCH_ID_AMBIGUOUS as PATCH_ID_AMBIGUOUS,
+    WOULD_EMPTY_WINDOW as WOULD_EMPTY_WINDOW,
+    PinWindowUnreadable as PinWindowUnreadable,
+    _OrphanFollow as _OrphanFollow,
+    _PinLine as _PinLine,
+    _bounds_the_mission as _bounds_the_mission,
+    _own_changed_paths as _own_changed_paths,
+    _owned_patterns_by_wp as _owned_patterns_by_wp,
+    _remote_tracking_refs as _remote_tracking_refs,
+    _resolves as _resolves,
+    follow_orphaned_pin as follow_orphaned_pin,
+    resolve_pin_line as resolve_pin_line,
+    window_keeps_owned_work as window_keeps_owned_work,
+)
 from specify_cli.cli.commands.agent.mission_finalize_lanes import (
     _cause_detail as _cause_detail,
     _committed_coordination_log as _committed_coordination_log,

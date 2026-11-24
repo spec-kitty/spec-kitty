@@ -682,13 +682,12 @@ def _prepare_primary_pin_refresh_commit(
     from specify_cli.cli.commands.agent import mission_finalize as _mf
 
     from mission_runtime import is_primary_artifact_kind, placement_seam
-    from specify_cli.cli.commands.agent.mission_finalize_pin_window import resolve_pin_line
     from specify_cli.git.commit_helpers import preflight_commit
 
     primary_root = owned.repository_root if owned else repo_root
     # #7297 item 2: a minted single_branch Mission places lanes.json on its mission branch, the
     # line its pin is captured on; comparing against the target branch refused every refresh.
-    target_branch = resolve_pin_line(primary_root, mission_slug, target_branch, owned=owned).branch
+    target_branch = _mf.resolve_pin_line(primary_root, mission_slug, target_branch, owned=owned).branch
     worktree_root = owned.owned_root if owned else repo_root
     lanes_path = planning_dir / "lanes.json"
     destination = placement_seam(
@@ -1320,11 +1319,10 @@ def _preserve_or_capture_planning_commit_sha(
     """
 
     from specify_cli.cli.commands.agent import mission_finalize as _mf
-    from specify_cli.cli.commands.agent.mission_finalize_pin_window import resolve_pin_line
 
     # #7297 item 2: a single_branch Mission's pin lives on its mission branch, the tip of its
     # evidence window; capture, classification, refresh and derivation all read that line.
-    pin_line = resolve_pin_line(repo_root, mission_slug, target_branch, owned=owned)
+    pin_line = _mf.resolve_pin_line(repo_root, mission_slug, target_branch, owned=owned)
     target_branch = pin_line.branch
     single_branch_planning_dir = planning_dir if pin_line.single_branch else None
     execution_has_begun = _mf._execution_has_begun(repo_root, mission_slug, owned=owned)
