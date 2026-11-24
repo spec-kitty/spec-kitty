@@ -69,6 +69,9 @@
             cp -R ${self}/. "$out/"
             chmod -R u+w "$out"
             mkdir -p "$out/packs"
+            # The Internal pack never ships (ADR 2026-08-16-3): drop it explicitly, so
+            # a path: fetch of a synced checkout cannot bring it in.
+            rm -rf "$out/packs/internal"
             cp -R ${builtInPack}/packs/built-in "$out/packs/built-in"
           '';
           packageOverlay = _final: previous: {
