@@ -29,6 +29,7 @@
   "purpose_context": "After a clean squash landing of a lanes_with_coord Mission, cleanup keeps every lane because the lanes carry older copies of tool-written Mission files, and doctor workspaces --prune refuses the same lanes. One shared landing proof sets those files aside only when the lane never authored them, and lanes with no usable proof are kept instead of going through the older remover (#7747, #7325).",
   "purpose_tldr": "Consolidate and doctor remove every lane whose work has landed, and keep, with a named code, every lane they cannot prove landed.",
   "slug": "lane-cleanup-landing-proof-01M81KHJ",
+  "status_phase": "1",
   "target_branch": "fix/7747-lane-cleanup-landing-proof",
   "topology": "lanes_with_coord",
   "topology_decision": {
