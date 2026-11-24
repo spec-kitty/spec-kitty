@@ -13,16 +13,16 @@
       "wp": "WP01"
     },
     "#7562": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "test_non_coordination_setup_plan_is_unchanged[single_branch|default_before_settlement] + tests/integration/test_placement_partition_golden_path.py pass at 095dad45",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "setup-plan lifecycle events on non-coordination topologies",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
     },
     "#7827": {
       "evidence_ref": "<link or commit>",
