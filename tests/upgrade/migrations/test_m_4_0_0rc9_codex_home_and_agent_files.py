@@ -195,8 +195,52 @@ class TestCodexHomeExclusion:
         result = ExcludeProjectLocalCodexHomeMigration().apply(project)
 
         assert not result.success
-        assert "Could not exclude /.codex/" in result.errors[0]
+        assert "Could not write /.codex/ to .git/info/exclude" in result.errors[0]
         assert not result.changes_made
+
+    @pytest.mark.parametrize("negation", ["!.codex/", "!/.codex/"])
+    def test_an_operator_rule_that_unignores_the_folder_wins_without_failing(self, tmp_path: Path, negation: str) -> None:
+        """Review cycle 2, N1: an operator's own whole-folder negation is respected; no upgrade fails over it."""
+        project = _project(tmp_path)
+        with (project / ".gitignore").open("a", encoding="utf-8") as handle:
+            handle.write(f"{negation}\n")
+        _write(project, ".codex/version.json", ".codex/config.toml")
+        migration = ExcludeProjectLocalCodexHomeMigration()
+
+        first = migration.apply(project)
+        second = migration.apply(project)
+
+        for result in (first, second):
+            assert result.success, result.errors
+            assert result.manual_review_required
+            assert "a rule of your own in a .gitignore un-ignores" in result.warnings[0]
+        assert _exclude_lines(project).count(_ROOT_RULE) == 1
+        assert ".codex/config.toml" in _untracked(project)  # the operator's rule decides
+
+    def test_a_narrow_negation_is_pre_empted_by_the_folder_rule(self, tmp_path: Path) -> None:
+        """Review cycle 2, N2 (a recorded choice): git never descends into the excluded Codex home."""
+        project = _project(tmp_path)
+        with (project / ".gitignore").open("a", encoding="utf-8") as handle:
+            handle.write("!.codex/config.toml\n")
+        _write(project, ".codex/version.json", ".codex/config.toml")
+
+        result = ExcludeProjectLocalCodexHomeMigration().apply(project)
+
+        assert result.success, result.errors
+        assert _untracked(project) == []
+        assert "git add -f" in result.warnings[0]
+
+    def test_an_unreadable_exclude_file_reads_as_not_written(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(exclusion, "git_exclude_file", lambda _path: None)
+
+        assert not exclusion._exclude_has_rule(tmp_path, _ROOT_RULE)
+
+    def test_an_exclude_file_read_error_reads_as_not_written(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        directory = tmp_path / "exclude-is-a-directory"
+        directory.mkdir()
+        monkeypatch.setattr(exclusion, "git_exclude_file", lambda _path: directory)
+
+        assert not exclusion._exclude_has_rule(tmp_path, _ROOT_RULE)
 
     def test_outside_a_repository_nothing_happens(self, tmp_path: Path) -> None:
         migration = ExcludeProjectLocalCodexHomeMigration()
