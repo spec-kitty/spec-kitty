@@ -34,7 +34,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from kernel.git import GitCommandError, status_entries
+from kernel.git import GitCommandError, run_git, status_entries
 from kernel.git_topology import GitTopologyError, git_toplevel_uncached
 from specify_cli.agent_utils.codex_home import CODEX_DIR, is_codex_home
 from specify_cli.core.git_ops import exclude_from_git_index, git_exclude_file, is_git_repo
@@ -87,9 +87,37 @@ def _exclude_has_rule(project_path: Path, rule: str) -> bool:
     if exclude_file is None:
         return False
     try:
-        return rule in {line.strip() for line in exclude_file.read_text(encoding="utf-8").splitlines()}
+        return rule in exclude_file.read_text(encoding="utf-8").splitlines()
     except OSError:
         return False
+
+
+#: Characters a gitignore pattern reads as glob syntax or an escape.
+_GITIGNORE_SPECIAL = frozenset("\\[]*?")
+
+
+def _escape_gitignore(path: str) -> str:
+    """*path* as a literal gitignore pattern: glob characters and a trailing space are backslash-escaped."""
+    escaped = "".join(f"\\{char}" if char in _GITIGNORE_SPECIAL else char for char in path)
+    return f"{escaped[:-1]}\\ " if escaped.endswith(" ") else escaped
+
+
+def _exclude_alone_hides(project_path: Path, codex_dir: str) -> bool:
+    """Whether ``info/exclude`` by itself hides every untracked file under *codex_dir*.
+
+    ``git status`` ranks a ``.gitignore`` above ``info/exclude``, so files that this file alone hides but
+    ``git status`` still shows are shown by an operator's ``!`` negation in a ``.gitignore``. A failed read
+    proves nothing and reads as False.
+    """
+    exclude_file = git_exclude_file(project_path)
+    if exclude_file is None:
+        return False
+    try:
+        top = git_toplevel_uncached(project_path)
+        result = run_git(top, "--literal-pathspecs", "ls-files", "-o", "-z", f"--exclude-from={exclude_file.resolve()}", "--", codex_dir)
+    except (GitCommandError, GitTopologyError, OSError):
+        return False
+    return not result.stdout.strip(b"\0")
 
 
 def _overridden_warning(rule: str, visible: list[str]) -> str:
@@ -126,7 +154,7 @@ class ExcludeProjectLocalCodexHomeMigration(BaseMigration):
             return MigrationResult(success=True, changes_made=["No Codex home to exclude in this clone"])
 
         codex_dir, _visible = exposed
-        rule = f"/{codex_dir}"
+        rule = f"/{_escape_gitignore(codex_dir)}"
         if dry_run:
             return MigrationResult(success=True, changes_made=[f"Would add {rule} to .git/info/exclude (this clone's .codex/ is a Codex home)"])
 
@@ -134,9 +162,14 @@ class ExcludeProjectLocalCodexHomeMigration(BaseMigration):
         if not _exclude_has_rule(project_path, rule):
             return MigrationResult(success=False, errors=[f"Could not write {rule} to .git/info/exclude; this clone's Codex home files stay visible"])
         still_visible = _visible_codex_files(project_path, codex_dir)
+        if still_visible and not _exclude_alone_hides(project_path, codex_dir):
+            return MigrationResult(
+                success=False,
+                errors=[f"The rule {rule} in .git/info/exclude does not hide this clone's Codex home; git still shows {still_visible[0]}"],
+            )
         if still_visible:
-            # The rule is written, so a higher-precedence rule of the operator's own (``!.codex/`` in a
-            # .gitignore) un-ignores the folder. Respect it: warn once and do not fail every upgrade.
+            # The exclude file alone hides the files, so only a higher-precedence rule of the operator's own
+            # (a ``!`` negation in a .gitignore) can show them. Respect it: warn once and do not fail every upgrade.
             return MigrationResult(
                 success=True,
                 changes_made=[f"Added {rule} to .git/info/exclude (this clone's .codex/ is a Codex home)"],
