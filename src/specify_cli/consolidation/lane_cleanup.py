@@ -580,12 +580,14 @@ def _proof_unavailable_remedy(reason: str, branch: str, landing: LandingProof | 
     if landing is None:
         return f"{reason}; delete {branch} by hand only once you have checked that its work is on the target branch"
     ref = _landing_ref_name(landing)
+    # A squash landing rewrites the lane's commits, so `git log <ref>..<lane>` lists them even when
+    # their content landed: the remedy compares content instead.
     if branch_present:
-        return f"{reason}; check {branch} with `git log {ref}..{branch}` and delete it by hand only if its work is on {ref}"
-    # The branch ref is gone: find the lane's last commit another way, then check it.
+        return f"{reason}; compare {branch} with {ref} (`git diff {ref} {branch}`) and delete it by hand only if its work is on {ref}"
+    # The branch ref is gone: name the lane's recorded work tip, then compare it.
     return (
-        f"{reason}; find its last commit with `git -C {worktree} reflog -1` or `git rev-parse refs/spec-kitty/lane-tip/{branch}`, "
-        f"check it with `git log {ref}..<sha>`, and remove the worktree by hand only if that work is on {ref}"
+        f"{reason}; its last commit is `git rev-parse refs/spec-kitty/lane-tip/{branch}` (if that ref is missing, look in "
+        f"`git fsck --lost-found`); compare it with {ref} (`git diff {ref} <sha>`) and remove {worktree} by hand only if that work is on {ref}"
     )
 
 

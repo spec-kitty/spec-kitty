@@ -138,7 +138,7 @@ from specify_cli.git.destructive_guard import (
 )
 from specify_cli.lanes.branch_naming import parse_mission_slug_from_branch, resolve_mid8
 from specify_cli.git.merge_tree_probe import MERGE_TREE_WRITE_TREE_MIN_VERSION, merge_tree_write_tree_available
-from specify_cli.lanes.lane_tip import AbsorptionUnsupported, is_absorbed, is_absorbed_but_for_mission_bookkeeping
+from specify_cli.lanes.lane_tip import AbsorptionUnsupported, is_absorbed, is_absorbed_but_for_mission_bookkeeping, is_ancestor
 from specify_cli.workspace.process_probe import ProcessProbeResult, processes_with_cwd_under
 
 __all__ = [
@@ -864,7 +864,7 @@ def _landed_on(repo_root: Path, tip: str, landing_ref: str, mission_slug: str | 
     if mission_slug is None:
         plain: bool = is_absorbed(repo_root, tip, landing_ref, base=None)
         return plain
-    if run_git(repo_root, "merge-base", "--is-ancestor", tip, landing_ref, check=False).returncode == 0:
+    if is_ancestor(repo_root, tip, landing_ref):
         return True
     if not merge_tree_write_tree_available(repo_root):
         raise AbsorptionUnsupported(f"git merge-tree --write-tree needs git >= {MERGE_TREE_WRITE_TREE_MIN_VERSION[0]}.{MERGE_TREE_WRITE_TREE_MIN_VERSION[1]}")

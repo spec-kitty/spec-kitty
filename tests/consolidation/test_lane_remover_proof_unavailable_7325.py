@@ -30,6 +30,7 @@ from specify_cli.consolidation.lane_cleanup import (
     LaneCleanupReport,
     LaneRetention,
     LocalTargetAtPass,
+    RemoteRef,
 )
 from specify_cli.coordination.coherence import NothingIsResidue
 from specify_cli.workspace.process_probe import ProcessProbeResult
@@ -105,7 +106,8 @@ def test_a_gone_worktree_with_a_unique_commit_keeps_the_branch(landed: tuple[Pat
     assert result.code == LANDING_PROOF_UNAVAILABLE
     assert _branch_tip(root) == unique
     assert result.command is None  # no worktree left for the prune backstop to judge
-    assert _LANE in (result.remedy or "") and f"git log main..{_LANE}" in (result.remedy or "")
+    assert _LANE in (result.remedy or "") and f"git diff main {_LANE}" in (result.remedy or "")
+    assert "git log" not in (result.remedy or "")  # a squash landing rewrites commits: compare content
     [kept] = LaneCleanupReport(results=(result,)).render_lines()[1:3][1:]
     assert kept.strip() == f"Remedy: {result.remedy}", kept  # review cycle 1: never "then run: None"
 
@@ -144,7 +146,8 @@ def test_no_tip_to_name_keeps_the_lane(landed: tuple[Path, Path, str]) -> None:
     # Review cycle 1: the branch ref is gone, so the remedy must not name it as a revision.
     remedy = result.remedy or ""
     assert f"main..{_LANE}" not in remedy, remedy
-    assert f"git -C {worktree} reflog" in remedy and f"refs/spec-kitty/lane-tip/{_LANE}" in remedy, remedy
+    assert f"git rev-parse refs/spec-kitty/lane-tip/{_LANE}" in remedy and "git fsck --lost-found" in remedy, remedy
+    assert "reflog" not in remedy  # a worktree still on the deleted branch has no reflog to read
 
 
 def test_a_lane_with_nothing_left_is_removed(landed: tuple[Path, Path, str]) -> None:
@@ -163,4 +166,15 @@ def test_a_retained_branch_keeps_todays_worktree_removal(landed: tuple[Path, Pat
     assert result.outcome is LaneCleanupOutcome.RETAINED_BY_POLICY, result
     assert "worktree removed; branch retained" in (result.detail or "")
     assert not worktree.exists()
+    assert _branch_tip(root) == tip
+
+
+def test_a_remote_landing_names_the_remote_ref_in_the_remedy(landed: tuple[Path, Path, str]) -> None:
+    """``accept --mode pr`` / ``--push`` pass a remote ref: the remedy compares against that ref."""
+    root, worktree, tip = landed
+    _git(root, "worktree", "remove", str(worktree))
+    result = _remover(root).remove(_item(worktree, tip), landing=RemoteRef(remote="origin", ref="refs/remotes/origin/main"))
+    assert result.outcome is LaneCleanupOutcome.KEPT, result
+    assert result.code == LANDING_PROOF_UNAVAILABLE
+    assert f"git diff refs/remotes/origin/main {_LANE}" in (result.remedy or ""), result.remedy
     assert _branch_tip(root) == tip
