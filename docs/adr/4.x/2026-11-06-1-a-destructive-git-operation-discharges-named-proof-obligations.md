@@ -221,10 +221,13 @@ proof.
 - **A.** Before the coordination teardown deletes the Mission branch, `consolidate` records, per
   lane, whether
   `lane_tip.is_landed_through_mission_branch` holds: the lane tip is an ancestor of the Mission branch
-  tip, every path outside `kitty-specs/` the Mission branch changed since its merge base with the
+  tip, every path outside `kitty-specs/` the lane itself changed either has the lane's own final blob
+  on the anchor or was changed later by a non-merge commit of another approved lane that is on the
+  Mission branch (operator ruling 2026-11-24 on Tier R B1, option (b): a revert or rewrite made on
+  the Mission branch outside any lane keeps the lane; any probe or attribution error keeps it too),
+  every path outside `kitty-specs/` the Mission branch changed since its merge base with the
   reconciliation PASS anchor has the Mission branch's blob on the anchor (the target keeps its own
-  content elsewhere), and every
-  `kitty-specs/` difference between the lane and the anchor is accounted for by the rules above (a
+  content elsewhere), and every `kitty-specs/` difference between the lane and the anchor is accounted for by the rules above (a
   `meta.json` or `tasks/WP*.md` version the lane authored may also be in the Mission branch's history,
   since a squash keeps only that branch's last version). The proven tips and the anchor reach the
   guard as `MissionBranchProjection` on the `LocalTargetAtPass` proof; the guard's O3 evidence
