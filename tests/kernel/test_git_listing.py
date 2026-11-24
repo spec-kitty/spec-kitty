@@ -12,8 +12,9 @@ real-git round trip lives in ``tests/git/test_kernel_git_real.py``.
 
 from __future__ import annotations
 
+from contextlib import AbstractContextManager
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -157,12 +158,12 @@ def test_parse_tree_entries() -> None:
 # ---------------------------------------------------------------------------
 
 
-def _stub(stdout: bytes = b""):
+def _stub(stdout: bytes = b"") -> AbstractContextManager[MagicMock]:
     return patch.object(listing, "run_git", return_value=GitResult(returncode=0, stdout=stdout, stderr=b""))
 
 
-def _argv(run) -> tuple[str, ...]:
-    return run.call_args.args[1:]
+def _argv(run: MagicMock) -> tuple[str, ...]:
+    return tuple(run.call_args.args[1:])
 
 
 def test_status_entries_argv_and_env(tmp_path: Path) -> None:
@@ -206,6 +207,14 @@ def test_tree_paths(tmp_path: Path) -> None:
         paths = listing.tree_paths(tmp_path, "HEAD", pathspecs=("src",))
     assert _argv(run) == ("--literal-pathspecs", "ls-tree", "--full-tree", "-r", "--name-only", "-z", "HEAD", "--", "src")
     assert P("a b/f") in paths and isinstance(paths, frozenset)
+
+
+def test_untracked_paths_reads_only_the_given_exclude_file(tmp_path: Path) -> None:
+    exclude = tmp_path / "exclude"
+    with _stub(b"svc/.codex/config.toml\x00") as run:
+        paths = listing.untracked_paths(tmp_path, exclude_from=exclude, pathspecs=("svc/.codex/",))
+    assert _argv(run) == ("--literal-pathspecs", "ls-files", "--others", "--full-name", "-z", f"--exclude-from={exclude}", "--", "svc/.codex/")
+    assert paths == (P("svc/.codex/config.toml"),)
 
 
 def test_changed_paths(tmp_path: Path) -> None:

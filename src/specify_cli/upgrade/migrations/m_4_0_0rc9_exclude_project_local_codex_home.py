@@ -34,7 +34,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from kernel.git import GitCommandError, run_git, status_entries
+from kernel.git import GitCommandError, status_entries, untracked_paths
 from kernel.git_topology import GitTopologyError, git_toplevel_uncached
 from specify_cli.agent_utils.codex_home import CODEX_DIR, is_codex_home
 from specify_cli.core.git_ops import exclude_from_git_index, git_exclude_file, is_git_repo
@@ -114,10 +114,10 @@ def _exclude_alone_hides(project_path: Path, codex_dir: str) -> bool:
         return False
     try:
         top = git_toplevel_uncached(project_path)
-        result = run_git(top, "--literal-pathspecs", "ls-files", "-o", "-z", f"--exclude-from={exclude_file.resolve()}", "--", codex_dir)
-    except (GitCommandError, GitTopologyError, OSError):
+        shown = untracked_paths(top, exclude_from=exclude_file.resolve(), pathspecs=[codex_dir])
+    except (GitCommandError, GitTopologyError, OSError, ValueError):
         return False
-    return not result.stdout.strip(b"\0")
+    return not shown
 
 
 def _overridden_warning(rule: str, visible: list[str]) -> str:
