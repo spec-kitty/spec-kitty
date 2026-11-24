@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#3933": {
+      "evidence_ref": "WP01 commits 34329e65 (red) + 46da50b1 (fix); tests/coordination/test_setup_plan_coord_lifecycle_3933.py 17/17; review cycle 3",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "setup-plan lifecycle events placement on coordination Missions (Slice 1b)",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#7562": {
+      "evidence_ref": "test_non_coordination_setup_plan_is_unchanged[single_branch|default_before_settlement] + tests/integration/test_placement_partition_golden_path.py pass at 095dad45",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "setup-plan lifecycle events on non-coordination topologies",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#7809": {
+      "evidence_ref": "cited in WP01 prompt as a no-overlap coordination note; this WP does not touch mission_finalize",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "finalize bootstrap Mission (cited for coordination only)",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#7827": {
+      "evidence_ref": "Follow-up: #7827 (spec C-001, operator ruling 01M84SZDGPKXA5PBJ6HM6HQX08)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "default Mission before topology settlement",
+      "verdict": "deferred-with-followup",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
