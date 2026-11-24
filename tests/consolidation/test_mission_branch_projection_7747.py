@@ -201,3 +201,11 @@ def test_a_projection_proven_against_another_anchor_is_not_used(landed: Landed) 
     projection = MissionBranchProjection(mission_tip=landed.mission_tip, proven_tips=frozenset({landed.tip(landed.lane_a)}), anchor_sha="0" * 40)
     outcome = _remove_lane_a(landed, LocalTargetAtPass(target_ref="main", passed_sha=landed.passed, projection=projection))
     assert outcome is LaneCleanupOutcome.KEPT
+
+
+def test_a_projection_stays_valid_when_the_pass_anchor_is_carried_over_an_own_commit(landed: Landed) -> None:
+    """Consolidate advances the PASS anchor over its own post-landing commits (FR-035)."""
+    projection = MissionBranchProjection(mission_tip=landed.mission_tip, proven_tips=frozenset({landed.tip(landed.lane_a)}), anchor_sha=landed.passed)
+    carried = _commit(landed.root, "flatten coordination metadata", {f"{_MD}/meta.json": '{"flattened": true}\n'})
+    outcome = _remove_lane_a(landed, LocalTargetAtPass(target_ref="main", passed_sha=carried, projection=projection))
+    assert outcome is LaneCleanupOutcome.REMOVED
