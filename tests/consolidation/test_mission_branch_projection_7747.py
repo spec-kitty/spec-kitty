@@ -17,6 +17,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.consolidation.lane_cleanup import (
+    LANE_CLEANUP_FAILED,
     GuardedLaneRemover,
     LaneCleanupItem,
     LaneCleanupOutcome,
@@ -24,6 +25,7 @@ from specify_cli.consolidation.lane_cleanup import (
     LaneCleanupResult,
     LocalTargetAtPass,
     MissionBranchProjection,
+    _remove_one,
     mission_branch_projection,
 )
 from specify_cli.coordination.coherence import NothingIsResidue
@@ -350,3 +352,52 @@ def test_a_reopened_work_package_on_a_kept_ref_is_classified_destroyed_not_unkno
         _refuse_on_tip(landed.root, lane_id="lane-a", wp_id="WP01", branch=_LANE_A, target_branch="main", tip=read_tip(landed.root, _LANE_A), context=None)
     assert refused.value.error_code == "DESTROYED_LANE"
     assert tip in str(refused.value)
+
+
+# --- Tier R confirm 4 nit 1: the lane-tip ref is written before the branch is removed ------------------
+
+
+def _item_a(landed: Landed) -> LaneCleanupItem:
+    return LaneCleanupItem(lane_id="lane-a", worktree=landed.lane_a, branch=_LANE_A, expected_tip=landed.tip(landed.lane_a))
+
+
+def test_a_lane_tip_write_failure_keeps_the_lane_and_its_branch(landed: Landed, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The ref is written first, so a failed write stops the removal: the branch is never gone without a named tip."""
+
+    def fail(*args: object, **kwargs: object) -> str:
+        raise OSError("ref store unwritable")
+
+    monkeypatch.setattr("specify_cli.lanes.lane_tip.record_tip", fail)
+    remover = GuardedLaneRemover(landed.root, context=NothingIsResidue(), probe=_idle, mission_slug=_SLUG)
+    result = _remove_one(remover, _item_a(landed), _projection_of_both(landed))
+    assert result.outcome is LaneCleanupOutcome.KEPT
+    assert result.code == LANE_CLEANUP_FAILED
+    assert _git(landed.root, "branch", "--list", _LANE_A) != ""
+    assert landed.lane_a.exists()
+
+
+def test_an_interruption_after_the_branch_removal_leaves_the_tip_named(landed: Landed) -> None:
+    """Killed right after the guard removed worktree and branch (recorder inactive): the ref already names the tip."""
+    tip = landed.tip(landed.lane_a)
+    landing = _projection_of_both(landed)
+    clear_tip(landed.root, _LANE_A)
+
+    def interrupted() -> None:
+        raise KeyboardInterrupt
+
+    remover = GuardedLaneRemover(landed.root, context=NothingIsResidue(), probe=_idle, mission_slug=_SLUG, after_worktree_removed=interrupted)
+    with pytest.raises(KeyboardInterrupt):
+        remover.remove(_item_a(landed), landing=landing)
+    assert _git(landed.root, "branch", "--list", _LANE_A) == ""
+    assert read_tip(landed.root, _LANE_A) == tip
+
+
+def test_a_lane_the_guard_keeps_has_its_earlier_lane_tip_ref_restored(landed: Landed) -> None:
+    """Control: without the projection lane A is kept, and the ref written before the guard ran is put back."""
+    record_tip(landed.root, _LANE_A, _git(landed.root, "rev-parse", f"{landed.tip(landed.lane_a)}^"))
+    before = read_tip(landed.root, _LANE_A)
+    assert _remove_lane_a(landed, LocalTargetAtPass(target_ref="main", passed_sha=landed.passed)) is LaneCleanupOutcome.KEPT
+    assert read_tip(landed.root, _LANE_A) == before
+    clear_tip(landed.root, _LANE_A)
+    assert _remove_lane_a(landed, LocalTargetAtPass(target_ref="main", passed_sha=landed.passed)) is LaneCleanupOutcome.KEPT
+    assert read_tip(landed.root, _LANE_A) is None
