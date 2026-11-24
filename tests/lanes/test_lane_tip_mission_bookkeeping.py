@@ -418,3 +418,9 @@ def test_a_lane_commit_the_coordination_branch_merged_back_is_still_the_lanes(la
     _git(landed.coord, "merge", "-q", "--no-ff", "--no-edit", _LANE)
     _git(landed.lane, "merge", "-q", "--no-ff", "--no-edit", _COORD)  # the resync; the landing keeps "r0"
     assert not landed.proof()
+
+
+def test_a_status_log_the_lane_only_synced_is_set_aside_when_the_landing_rewrote_it(landed: Landed) -> None:
+    """B for the log: a copy the lane never wrote holds no lane event, even when the landing's log no longer has its lines."""
+    _commit(landed.root, "the landing's log is rewritten", {_LOG: _log("x1"), _SNAPSHOT: '{"v": "x"}\n'})
+    assert landed.proof()
