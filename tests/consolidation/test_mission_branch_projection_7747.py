@@ -209,3 +209,43 @@ def test_a_projection_stays_valid_when_the_pass_anchor_is_carried_over_an_own_co
     carried = _commit(landed.root, "flatten coordination metadata", {f"{_MD}/meta.json": '{"flattened": true}\n'})
     outcome = _remove_lane_a(landed, LocalTargetAtPass(target_ref="main", passed_sha=carried, projection=projection))
     assert outcome is LaneCleanupOutcome.REMOVED
+
+
+# --- Tier R B1, operator ruling 2026-11-24 (b): supersession must come from an approved lane ------
+
+
+def _squash(root: Path, mission_tip: str, message: str) -> str:
+    _git(root, "checkout", "-q", mission_tip, "--", ".")
+    _git(root, "commit", "-q", "--allow-empty", "-m", message)
+    return _git(root, "rev-parse", "HEAD")
+
+
+def test_a_lane_change_the_mission_branch_merged_then_reverted_is_not_landed(tmp_path: Path) -> None:
+    """The Tier R probe: content proof False, Mission-branch proof must be False too."""
+    root = tmp_path / "repo"
+    root.mkdir()
+    _git(root, "init", "-q", "-b", "main")
+    _git(root, "config", "user.email", "t@example.invalid")
+    _git(root, "config", "user.name", "T")
+    _git(root, "config", "commit.gpgsign", "false")
+    _commit(root, "base", {".gitignore": ".worktrees/\n", "README.md": "base\n"})
+    _git(root, "branch", _MISSION)
+    lane = root / ".worktrees" / "lane-a"
+    _git(root, "worktree", "add", "-q", "-b", _LANE_A, str(lane), _MISSION)
+    lane_tip = _commit(lane, "feat(WP01)", {"src/lane.py": "lane work\n"})
+    mission = root / ".worktrees" / "mission"
+    _git(root, "worktree", "add", "-q", str(mission), _MISSION)
+    _git(mission, "merge", "-q", "--no-ff", "--no-edit", _LANE_A)
+    _git(mission, "revert", "-m", "1", "--no-edit", "HEAD")
+    mission_tip = _git(mission, "rev-parse", "HEAD")
+    passed = _squash(root, mission_tip, "squash merge of the Mission")
+    assert not is_absorbed_but_for_mission_bookkeeping(root, lane_tip, passed, _SLUG)
+    assert not is_landed_through_mission_branch(root, lane_tip, mission_tip, passed, _SLUG)
+
+
+def test_a_rewrite_no_approved_lane_made_does_not_prove_the_lane(landed: Landed) -> None:
+    """A commit made on the Mission branch itself (outside any lane) superseding lane B's line keeps lane B."""
+    mission = landed.root / ".worktrees" / "mission"
+    mission_tip = _commit(mission, "an out-of-workflow edit", {"src/two.py": "y = 99\n"})
+    passed = _squash(landed.root, mission_tip, "squash again")
+    assert not is_landed_through_mission_branch(landed.root, landed.tip(landed.lane_b), mission_tip, passed, _SLUG)
