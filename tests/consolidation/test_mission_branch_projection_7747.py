@@ -147,7 +147,7 @@ def test_the_projection_names_the_proven_tips(landed: Landed) -> None:
     _commit(landed.lane_b, "late work", {"src/late.py": "z = 3\n"})
     landing = LocalTargetAtPass(target_ref="main", passed_sha=landed.passed)
     projection = mission_branch_projection(landed.root, _MISSION, landing, [landed.tip(landed.lane_a), landed.tip(landed.lane_b)], _SLUG)
-    assert projection == MissionBranchProjection(mission_tip=landed.mission_tip, proven_tips=frozenset({landed.tip(landed.lane_a)}))
+    assert projection == MissionBranchProjection(mission_tip=landed.mission_tip, proven_tips=frozenset({landed.tip(landed.lane_a)}), anchor_sha=landed.passed)
 
 
 def test_no_mission_branch_means_no_projection(landed: Landed) -> None:
@@ -167,7 +167,7 @@ def _remove_lane_a(landed: Landed, landing: LocalTargetAtPass) -> LaneCleanupOut
 
 
 def test_the_guard_removes_a_lane_the_projection_proves(landed: Landed) -> None:
-    projection = MissionBranchProjection(mission_tip=landed.mission_tip, proven_tips=frozenset({landed.tip(landed.lane_a)}))
+    projection = MissionBranchProjection(mission_tip=landed.mission_tip, proven_tips=frozenset({landed.tip(landed.lane_a)}), anchor_sha=landed.passed)
     outcome = _remove_lane_a(landed, LocalTargetAtPass(target_ref="main", passed_sha=landed.passed, projection=projection))
     assert outcome is LaneCleanupOutcome.REMOVED
     assert not landed.lane_a.exists()
@@ -177,3 +177,27 @@ def test_the_guard_removes_a_lane_the_projection_proves(landed: Landed) -> None:
 def test_without_the_projection_the_rewritten_lane_is_kept(landed: Landed) -> None:
     assert _remove_lane_a(landed, LocalTargetAtPass(target_ref="main", passed_sha=landed.passed)) is LaneCleanupOutcome.KEPT
     assert landed.lane_a.exists()
+
+
+# --- R24 adversarial squad folds (2026-11-24) -----------------------------------------------------
+
+
+def test_a_prompt_the_lane_wrote_and_the_mission_branch_moved_past_is_landed(tmp_path: Path) -> None:
+    """A squash keeps only the Mission branch's last version; the lane's earlier one is in that branch's history."""
+    landed = Landed(tmp_path)
+    prompt = f"{_MD}/tasks/WP01.md"
+    _commit(landed.lane_a, "the lane edits its prompt", {prompt: "lane edit\n"})
+    mission = landed.root / ".worktrees" / "mission"
+    _git(mission, "merge", "-q", "--no-ff", "--no-edit", _LANE_A)
+    mission_tip = _commit(mission, "a rework note on the prompt", {prompt: "lane edit, then a rework note\n"})
+    _git(landed.root, "checkout", "-q", mission_tip, "--", ".")
+    _git(landed.root, "commit", "-q", "-m", "squash again")
+    passed = _git(landed.root, "rev-parse", "HEAD")
+    assert is_landed_through_mission_branch(landed.root, landed.tip(landed.lane_a), mission_tip, passed, _SLUG)
+
+
+def test_a_projection_proven_against_another_anchor_is_not_used(landed: Landed) -> None:
+    """The proof names the PASS anchor it was proven against; a landing with another anchor ignores it."""
+    projection = MissionBranchProjection(mission_tip=landed.mission_tip, proven_tips=frozenset({landed.tip(landed.lane_a)}), anchor_sha="0" * 40)
+    outcome = _remove_lane_a(landed, LocalTargetAtPass(target_ref="main", passed_sha=landed.passed, projection=projection))
+    assert outcome is LaneCleanupOutcome.KEPT
