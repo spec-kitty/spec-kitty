@@ -258,7 +258,7 @@ proof.
   depends on it changed that path later) is tracked as follow-up #7838.
 - Supersession is judged per path, not per line (operator ruling 2026-11-24 on Tier R confirm 2
   N1, option (a); line attribution is not used). An approved lane that edits another line of the
-  same file therefore supersedes an out-of-workflow revert of this lane's line, and the lane is
+  same file therefore supersedes an out-of-workflow revert or rewrite of this lane's line, and the lane is
   removed. Such a removal is recoverable: a lane that only the Mission-branch proof discharged (the
   content proof runs first and failed) keeps `refs/spec-kitty/lane-tip/<branch>` at the removed tip
   instead of having it cleared, and its `Removed` line names it
