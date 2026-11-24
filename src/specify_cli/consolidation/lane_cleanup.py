@@ -113,6 +113,7 @@ class LaneCleanupResult:
     command: str | None = None  # e.g. "spec-kitty doctor workspaces --prune"
     recreate: str | None = None  # e.g. "git branch <b> <sha>"
     detail: str | None = None  # e.g. the retention key that kept the lane
+    recoverable: str | None = None  # the lane-tip ref kept for a lane removed on the Mission-branch proof
 
     def to_json(self, repo_root: Path | None = None) -> dict[str, str | None]:
         """The contract object (``contracts/consolidate-cleanup-report.md``)."""
@@ -163,6 +164,8 @@ def _render_result(result: LaneCleanupResult) -> list[str]:
         return lines
     branch = result.item.branch or ""
     suffix = f"   (recreate: {result.recreate})" if result.recreate else ""
+    if result.recoverable:
+        suffix += f"   (recoverable: {result.recoverable})"
     return [f"  Removed   {lane}  {branch}{suffix}".rstrip()]
 
 
@@ -565,6 +568,7 @@ class GuardedLaneRemover:
         self._probe = probe
         self._after_worktree_removed = after_worktree_removed
         self._fallback = MainTodayRemover(repo_root, context=context, creation_base=creation_base, probe=probe, after_worktree_removed=after_worktree_removed)
+        self._superseded_tips: set[str] = set()
 
     def remove(self, item: LaneCleanupItem, *, landing: LandingProof | None) -> LaneCleanupResult:
         if item.branch is None:
@@ -593,10 +597,23 @@ class GuardedLaneRemover:
         if result.refusal is not None:
             return replace(_kept(item, result.refusal, f"the worktree was removed but {item.branch} was kept", detail=None), recreate=result.recreate)
         if result.branch_deleted:
-            from specify_cli.lanes import lane_tip
-
-            lane_tip.clear_tip(self._repo_root, item.branch)
+            return self._after_branch_deleted(item, item.branch, removal.tip, recreate=result.recreate)
         return LaneCleanupResult(item=item, outcome=LaneCleanupOutcome.REMOVED, recreate=result.recreate)
+
+    def _after_branch_deleted(self, item: LaneCleanupItem, branch: str, tip: str, *, recreate: str | None) -> LaneCleanupResult:
+        """Clear the lane-tip ref, except for a lane removed on the Mission-branch proof alone.
+
+        Operator ruling 2026-11-24: such a lane's exact work is not on the target (later approved work
+        superseded it, judged per path), so its ref is kept at the removed tip and named in the report.
+        A lane the content proof discharged has its work on the target: nothing to recover.
+        """
+        from specify_cli.lanes import lane_tip
+
+        if tip not in self._superseded_tips:
+            lane_tip.clear_tip(self._repo_root, branch)
+            return LaneCleanupResult(item=item, outcome=LaneCleanupOutcome.REMOVED, recreate=recreate)
+        lane_tip.record_tip(self._repo_root, branch, tip)
+        return LaneCleanupResult(item=item, outcome=LaneCleanupOutcome.REMOVED, recreate=recreate, recoverable=lane_tip.tip_ref(branch))
 
     def _proof_unavailable(self, item: LaneCleanupItem, branch: str, landing: LandingProof | None) -> LaneCleanupResult | None:
         """A result when the guard cannot be given a landing proof for this lane, else ``None`` (#7325)."""
@@ -617,14 +634,28 @@ class GuardedLaneRemover:
         return (path in probe.busy) if probe.available else None
 
     def _absorption_proof(self, landing: LandingProof) -> Callable[[str, str], bool]:
-        """O3: a tip the Mission branch proved landed (#7747, A), else the content proof."""
+        """O3: the content proof, else a tip the Mission branch proved landed (#7747, A).
+
+        The content proof runs first so that a tip discharged only by the Mission branch is known: its
+        lane-tip ref is kept after the removal (operator ruling 2026-11-24).
+        """
         if not isinstance(landing, LocalTargetAtPass) or landing.projection is None:
             return self._absorbed
         projection = landing.projection
         if not _anchor_carried_to(self._repo_root, projection.anchor_sha, landing.passed_sha.strip()):
             return self._absorbed
         proven = projection.proven_tips
-        return lambda tip, landing_ref: tip in proven or self._absorbed(tip, landing_ref)
+
+        def absorbed(tip: str, landing_ref: str) -> bool:
+            if self._absorbed(tip, landing_ref):
+                self._superseded_tips.discard(tip)
+                return True
+            if tip in proven:
+                self._superseded_tips.add(tip)
+                return True
+            return False
+
+        return absorbed
 
     def _absorbed(self, tip: str, landing_ref: str) -> bool:
         from specify_cli.lanes.lane_tip import AbsorptionUnsupported, is_absorbed, is_absorbed_but_for_mission_bookkeeping

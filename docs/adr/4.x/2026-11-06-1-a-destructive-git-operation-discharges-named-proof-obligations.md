@@ -259,10 +259,16 @@ proof.
 - Supersession is judged per path, not per line (operator ruling 2026-11-24 on Tier R confirm 2
   N1, option (a); line attribution is not used). An approved lane that edits another line of the
   same file therefore supersedes an out-of-workflow revert of this lane's line, and the lane is
-  removed. Cleanup clears the lane's `refs/spec-kitty/lane-tip/<branch>` when it deletes the
-  branch, so afterwards the lane's tip is named only by the `Removed` line's
-  `(recreate: git branch <branch> <sha>)` hint, and its commits stay reachable only until git prunes
-  unreachable objects. Tracked in #7838.
+  removed. Such a removal is recoverable: a lane that only the Mission-branch proof discharged (the
+  content proof runs first and failed) keeps `refs/spec-kitty/lane-tip/<branch>` at the removed tip
+  instead of having it cleared, and its `Removed` line names it
+  (`(recoverable: refs/spec-kitty/lane-tip/<branch>)`; operator ruling 2026-11-24). A lane the
+  content proof discharged still has its ref cleared: its work is on the target. The kept ref reads
+  like any lane whose branch is gone (FR-034): a cleanup re-run reports the lane removed and leaves
+  the ref, `git branch <branch> refs/spec-kitty/lane-tip/<branch>` recreates the lane, and a work
+  package reopened on it is refused `DESTROYED_LANE` naming the tip (its work is not on the target),
+  not `LANE_WORK_TIP_UNKNOWN`; `git update-ref -d` on the ref abandons it. The JSON cleanup report is
+  unchanged. Tracked in #7838.
 - A `--resume` whose earlier attempt already tore down the Mission branch runs without the
   projection; the projection is not persisted.
 - `orchestrator-api consolidate-mission` has no reconciliation PASS anchor, so it does not use the
