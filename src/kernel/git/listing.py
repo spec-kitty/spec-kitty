@@ -312,8 +312,11 @@ def status_entries(
             ``?? dir/`` entry), ``"all"`` (every untracked file), or ``None``
             to pass no flag so the repository's ``status.showUntrackedFiles``
             decides.
-        ignored: Include ignored entries (``!!``); an ignored directory is
-            reported collapsed as ``!! dir/``.
+        ignored: Include ignored entries (``!!``). With ``untracked`` other
+            than ``"all"`` a wholly ignored directory is reported collapsed as
+            ``!! dir/``; with ``"all"`` each ignored file is listed, and only
+            content git does not descend into (a nested repository) stays a
+            ``!! dir/`` entry.
         optional_locks: ``False`` passes ``--no-optional-locks`` so a
             read-only probe never refreshes (writes) the index.
     """

@@ -384,7 +384,45 @@ def _path_obstructs_target_tree(path: GitPath, target_paths: Collection[GitPath]
     obstruct ``storehouse`` and a path git would print quoted still matches.
     The repository root never obstructs.
     """
+    if isinstance(target_paths, _TargetOverlapIndex):
+        return target_paths.overlaps(path)
     return any(path.overlaps(target) for target in target_paths)
+
+
+class _TargetOverlapIndex(Collection[GitPath]):
+    """The target tree's paths, indexed so one overlap test costs ``O(depth)`` (#7746).
+
+    :meth:`GitPath.overlaps` against every target path costs ``O(target
+    paths)`` per local path, so judging many local files was ``O(files x
+    target paths)``. The index answers the same relation from two sets: the
+    target paths themselves (exact match, or a target that is an ancestor of
+    the local path) and every proper ancestor of a target path (a local path
+    that contains a target). It iterates, sizes and tests membership as the
+    plain path collection it wraps.
+    """
+
+    def __init__(self, target_paths: Collection[GitPath]) -> None:
+        self._paths = frozenset(target_paths)
+        self._parts = frozenset(path.parts for path in self._paths)
+        self._ancestor_parts = frozenset(path.parts[:depth] for path in self._paths for depth in range(1, len(path.parts)))
+
+    def overlaps(self, path: GitPath) -> bool:
+        """Whether *path* overlaps any target path, exactly as :meth:`GitPath.overlaps` would; the root never does."""
+        parts = path.parts
+        if not parts:
+            return False
+        if parts in self._parts or parts in self._ancestor_parts:
+            return True
+        return any(parts[:depth] in self._parts for depth in range(1, len(parts)))
+
+    def __contains__(self, item: object) -> bool:
+        return item in self._paths
+
+    def __iter__(self) -> Iterator[GitPath]:
+        return iter(self._paths)
+
+    def __len__(self) -> int:
+        return len(self._paths)
 
 
 def _decode_meta_named(raw: str, *, source: str) -> dict[str, object]:
@@ -551,6 +589,8 @@ def _dirty_verdicts(
         entries = _status_for_dirty_check(worktree, env)
     except GitCommandError as exc:
         raise RefAdvanceError(f"Could not inspect worktree state at {worktree}: {exc}") from exc
+    if not isinstance(target_paths, _TargetOverlapIndex):
+        target_paths = _TargetOverlapIndex(target_paths)
     dirty: list[tuple[_DirtyReason, str]] = []
     for entry in entries:
         reason = _dirty_reason(
