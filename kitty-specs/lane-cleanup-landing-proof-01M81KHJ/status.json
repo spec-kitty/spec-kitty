@@ -99,7 +99,8 @@
       "last_transition_at": "2026-11-24T00:59:07.757836+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Review cycle 1 findings 1-4 folded (red ea15993f, fix 0d4ca468)"
+        "Review cycle 1 findings 1-4 folded (red ea15993f, fix 0d4ca468)",
+        "Review cycle 2 approved (claude::reviewer-renata), lane-c tip a3411275. All cycle-1 findings resolved: B1 (no 'then run: None' in real CLI consolidate output), N2, N3, N4 (kept-case parity pinned; consolidate and orchestrator-api agree). Red-first: on a596f0cf, 3 unit tests and the parity test fail for the stated reasons. _absorbed typed locals: annotation only; without them mypy reports 2 no-any-return errors. Tests: targeted 83 passed; tests/consolidation 3518 passed; lanes, specify_cli/lanes and acceptance 2000 passed; make test-fast 3222 passed; 0 failed. ruff, format and mypy clean. Diff-cover 93.8%. Non-blocking: (a) git -C <wt> reflog -1 fails ('does not have any commits yet') when the worktree is still on the deleted branch; it works only when detached. The lane-tip rev-parse alternative works when a tip was recorded. (b) The RemoteRef remedy line (lane_cleanup.py:595, the accept path) is not covered. (c) Under squash, git log <ref>..<branch> always lists the lane commits, so the check can make landed work look unlanded (pre-existing wording)."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
