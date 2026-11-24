@@ -263,7 +263,10 @@ proof.
   content proof runs first and failed) keeps `refs/spec-kitty/lane-tip/<branch>` at the removed tip
   instead of having it cleared, and its `Removed` line names it
   (`(recoverable: refs/spec-kitty/lane-tip/<branch>)`; operator ruling 2026-11-24). A lane the
-  content proof discharged still has its ref cleared: its work is on the target. The kept ref reads
+  content proof discharged still has its ref cleared: its work is on the target. The ref is written
+  at the tip before the guard may delete the branch and cleared afterwards only on the content-proof
+  leg, so a failed write keeps the lane and an interruption after the delete still leaves the tip
+  named; a lane the guard keeps gets its earlier ref back (Tier R confirm 4). The kept ref reads
   like any lane whose branch is gone (FR-034): a cleanup re-run reports the lane removed and leaves
   the ref, `git branch <branch> refs/spec-kitty/lane-tip/<branch>` recreates the lane, and a work
   package reopened on it is refused `DESTROYED_LANE` naming the tip (its work is not on the target),
