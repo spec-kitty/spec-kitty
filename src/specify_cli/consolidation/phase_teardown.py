@@ -1239,7 +1239,8 @@ def _mark_cleanup_started(run: _MergeRunState) -> None:
 
 def _lane_cleanup_items(run: _MergeRunState) -> tuple[LaneCleanupItem, ...]:
     expected = cleanup_expected_tips(run.state.pre_mutation_refs, run.state.lane_rebase_moves)  # #6736
-    return plan_lane_cleanup(run.lanes_manifest, repo_root=run.main_repo, expected_tips=expected)
+    items: tuple[LaneCleanupItem, ...] = plan_lane_cleanup(run.lanes_manifest, repo_root=run.main_repo, expected_tips=expected)
+    return items
 
 
 def _pass_landing(run: _MergeRunState) -> LocalTargetAtPass:
@@ -1250,8 +1251,12 @@ def _mission_branch_projection(run: _MergeRunState, items: tuple[LaneCleanupItem
     """#7747 (operator ruling 2026-11-24, A): read before the coordination teardown deletes the Mission branch."""
     if not items:
         return None
-    tips = projection_tips(items, run.main_repo)
-    return mission_branch_projection(run.main_repo, run.lanes_manifest.mission_branch, _pass_landing(run), tips, run.lanes_manifest.mission_slug)
+    try:
+        tips = projection_tips(items, run.main_repo)
+        return mission_branch_projection(run.main_repo, run.lanes_manifest.mission_branch, _pass_landing(run), tips, run.lanes_manifest.mission_slug)
+    except Exception as exc:  # the proof is optional evidence after the verified landing: never abort cleanup
+        logger.warning("Mission-branch proof unavailable (%s); lanes are judged by the content proof alone", exc)
+        return None
 
 
 def _lane_cleanup_report(
