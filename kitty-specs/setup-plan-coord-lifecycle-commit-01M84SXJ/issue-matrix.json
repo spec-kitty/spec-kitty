@@ -25,16 +25,16 @@
       "wp": "WP01"
     },
     "#7827": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Follow-up: #7827 (spec C-001, operator ruling 01M84SZDGPKXA5PBJ6HM6HQX08)",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "default Mission before topology settlement",
+      "verdict": "deferred-with-followup",
+      "wp": "WP01"
     }
   },
   "schema_version": 1
