@@ -18,11 +18,11 @@
       "criterion_id": "FR-002",
       "description": "Verify FR-002 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/coordination/test_setup_plan_coord_lifecycle_3933.py::test_coord_setup_plan_commits_lifecycle_events_on_the_coordination_branch, ::test_coord_scaffold_only_run_commits_the_events_recorded_so_far, ::test_coord_rerun_makes_no_new_commit",
+      "pass_fail": "pass",
+      "verified_by": "claude::implementer-ivan",
+      "verified_at": "2026-11-24T00:03:12.660146+00:00",
+      "notes": "Committed on the coordination branch in the same run; scaffold-only commits; re-run unchanged (NFR-001)."
     },
     {
       "criterion_id": "FR-003",
