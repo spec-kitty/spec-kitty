@@ -70,8 +70,6 @@
             chmod -R u+w "$out"
             mkdir -p "$out/packs"
             cp -R ${builtInPack}/packs/built-in "$out/packs/built-in"
-            substituteInPlace "$out/src/specify_cli/__init__.py" \
-              --replace-fail '\n\nSet SPEC_KITTY_NO_UPGRADE_CHECK=1 to disable the upgrade-check notice.' ""
           '';
           packageOverlay = _final: previous: {
             "spec-kitty-cli" = previous."spec-kitty-cli".overrideAttrs (_: {
