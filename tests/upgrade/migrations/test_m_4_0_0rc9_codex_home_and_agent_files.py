@@ -245,6 +245,30 @@ class TestCodexHomeExclusion:
         assert "does not hide" in result.errors[0]
         assert ".codex/config.toml" in _untracked(project)
 
+    @pytest.mark.parametrize(
+        ("path", "pattern"),
+        [
+            (".codex/", ".codex/"),
+            ("apps/foo[1]/.codex/", "apps/foo\\[1\\]/.codex/"),
+            ("a*b?/.codex/", "a\\*b\\?/.codex/"),
+            ("back\\slash/.codex/", "back\\\\slash/.codex/"),
+            ("trailing ", "trailing\\ "),
+        ],
+    )
+    def test_escape_gitignore(self, path: str, pattern: str) -> None:
+        assert exclusion._escape_gitignore(path) == pattern
+
+    def test_the_negation_probe_reads_a_failed_git_call_as_unproven(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        project = _project(tmp_path)
+
+        def _fail(*_args: object, **_kwargs: object) -> object:
+            raise OSError("git missing")
+
+        monkeypatch.setattr(exclusion, "run_git", _fail)
+        assert not exclusion._exclude_alone_hides(project, ".codex/")
+        monkeypatch.setattr(exclusion, "git_exclude_file", lambda _path: None)
+        assert not exclusion._exclude_alone_hides(project, ".codex/")
+
     def test_a_narrow_negation_is_pre_empted_by_the_folder_rule(self, tmp_path: Path) -> None:
         """Review cycle 2, N2 (a recorded choice): git never descends into the excluded Codex home."""
         project = _project(tmp_path)
