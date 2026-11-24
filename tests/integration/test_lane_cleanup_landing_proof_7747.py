@@ -138,8 +138,14 @@ def test_the_reworked_mission_reproduces_the_three_shapes(reworked: tuple[Built,
     _ok(proc)
     assert git(built.root, "show", "work:src/one.py") == "X = 10"
     assert "Edited after the last sync." in git(built.root, "show", f"work:{built.rel}/spec.md")
-    subject = git(built.root, "log", "-1", "--format=%s", _lane_c_tip(_cleanup_block(proc.stdout)))
+    tip = _lane_c_tip(_cleanup_block(proc.stdout))
+    subject = git(built.root, "log", "-1", "--format=%s", tip)
     assert subject.startswith("auto-rebase(lane=lane-c)"), subject
+    # C's dogfood signature: the merge driver's status.json is neither parent's version.
+    snapshot = f"{built.rel}/status.json"
+    merged = git(built.root, "rev-parse", f"{tip}:{snapshot}")
+    parents = [git(built.root, "rev-parse", f"{tip}^{n}:{snapshot}") for n in (1, 2)]
+    assert merged not in parents, (merged, parents)
 
 
 def test_every_lane_of_the_reworked_mission_is_removed(reworked: tuple[Built, subprocess.CompletedProcess[str]]) -> None:
