@@ -66,13 +66,13 @@
     },
     {
       "criterion_id": "FR-007",
-      "description": "Verify FR-007 is satisfied",
+      "description": "doctor applies the set-aside to released Mission lanes only, plain proof elsewhere",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/workspace/test_landed_worktrees_mission_bookkeeping.py; tests/integration/test_doctor_prunes_landed_mission_lanes_7747.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-24T01:02:17.349924+00:00",
+      "notes": "Approved WP review + local run 2026-11-24"
     },
     {
       "criterion_id": "FR-008",
