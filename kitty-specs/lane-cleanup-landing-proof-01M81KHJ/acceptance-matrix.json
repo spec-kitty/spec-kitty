@@ -56,13 +56,13 @@
     },
     {
       "criterion_id": "FR-006",
-      "description": "Verify FR-006 is satisfied",
+      "description": "consolidate and accept --mode pr lane cleanup remove every lane the proof shows landed",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/integration/test_lane_cleanup_landing_proof_7747.py; tests/consolidation/test_pr_mode_landing_proof_7747.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-24T01:02:09.432607+00:00",
+      "notes": "Approved WP review + local run 2026-11-24"
     },
     {
       "criterion_id": "FR-007",
