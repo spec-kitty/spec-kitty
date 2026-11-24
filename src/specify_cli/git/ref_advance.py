@@ -562,9 +562,69 @@ def _dirty_verdicts(
             is_disposable=is_disposable,
             treat_untracked_as_dirty=treat_untracked_as_dirty,
         )
-        if reason is not None:
-            dirty.append(reason)
+        if reason is None:
+            continue
+        if _is_collapsed_ignored_obstruction(entry, reason) and not _collapsed_ignored_directory_obstructs(
+            worktree, env, entry, new_sha=new_sha, target_paths=target_paths, is_disposable=is_disposable
+        ):
+            continue
+        dirty.append(reason)
     return dirty
+
+
+def _is_collapsed_ignored_obstruction(entry: StatusEntry, reason: tuple[_DirtyReason, str]) -> bool:
+    """Whether *entry* is a collapsed ``!! dir/`` that overlaps the target tree only as a directory."""
+    return reason[0] is _DirtyReason.OBSTRUCTION and entry.is_ignored and entry.is_directory
+
+
+def _collapsed_ignored_directory_obstructs(
+    worktree: Path,
+    env: dict[str, str] | None,
+    entry: StatusEntry,
+    *,
+    new_sha: str,
+    target_paths: Collection[GitPath],
+    is_disposable: Callable[[str], bool] | None,
+) -> bool:
+    """Re-judge a collapsed ignored directory that overlaps the target tree, file by file (#7746).
+
+    :func:`_status_for_dirty_check` keeps ignored directories collapsed so a
+    build tree is not listed file by file. A collapsed directory overlaps the
+    target tree as soon as the target tracks *any* path under it, though the
+    reset only overwrites the ignored files that themselves collide. The
+    repository-root ``kitty-specs/<mission>/`` holding nothing but the
+    decisions runtime lock is that shape: the directory overlaps the incoming
+    ``spec.md`` while the lock collides with nothing, and the depth-exact
+    ``is_disposable`` exemption (#6628) never saw the lock's own path.
+
+    Only this entry is expanded, so trees that do not overlap the target
+    (``.venv/``, caches) stay collapsed. Each ignored file under it gets the
+    ordinary :func:`_dirty_reason` verdict; the directory still blocks when any
+    of them would be overwritten, and it is still reported as the one
+    collapsed entry the operator sees in ``git status``. Fail-closed: an
+    expansion that lists nothing (a race, or content git will not list)
+    keeps the directory-level verdict, a nested repository git reports as a
+    directory is judged at that granularity, and a git error refuses.
+    """
+    try:
+        children = [child for child in status_entries(worktree, pathspecs=(str(entry.path),), untracked="all", ignored=True, env=env) if child.is_ignored]
+    except GitCommandError as exc:
+        raise RefAdvanceError(f"Could not inspect ignored directory {entry.display()} at {worktree}: {exc}") from exc
+    if not children:
+        return True
+    return any(
+        _dirty_reason(
+            worktree,
+            env,
+            child,
+            new_sha=new_sha,
+            target_paths=target_paths,
+            is_disposable=is_disposable,
+            treat_untracked_as_dirty=False,
+        )
+        is not None
+        for child in children
+    )
 
 
 def _dirty_reason(
