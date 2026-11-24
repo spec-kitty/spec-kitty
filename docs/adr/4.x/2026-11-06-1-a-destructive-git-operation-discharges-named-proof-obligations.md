@@ -254,7 +254,7 @@ proof.
 
 - `doctor workspaces` after a push has no Mission branch to read, so a lane in shape A is still
   rated `not_landed` there. A per-path rule (a lane path is superseded when an approved lane that
-  depends on it changed that path later) is proposed as a follow-up.
+  depends on it changed that path later) is tracked as follow-up #7838.
 - A `--resume` whose earlier attempt already tore down the Mission branch runs without the
   projection; the projection is not persisted.
 - `orchestrator-api consolidate-mission` has no reconciliation PASS anchor, so it does not use the
