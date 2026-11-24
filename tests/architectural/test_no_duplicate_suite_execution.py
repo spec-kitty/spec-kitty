@@ -196,6 +196,11 @@ NON_CHANGE_TRIGGERED_WORKFLOWS: dict[str, str] = {
         "called by ci-router.yml's docs-site job and, at cutover, the Pages deploy. It runs no "
         "test suite; counting it standalone would double-count the caller's job."
     ),
+    "nix-flake.yml": (
+        "schedule + workflow_dispatch only: the daily Nix flake build (#7845). It runs no "
+        "pytest suite, has no pull_request/push trigger, and never enters a merge-blocking "
+        "needs chain."
+    ),
     "release.yml": "tags-only push + workflow_dispatch: a publication event, not a change.",
 }
 
