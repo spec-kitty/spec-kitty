@@ -256,6 +256,13 @@ proof.
 - `doctor workspaces` after a push has no Mission branch to read, so a lane in shape A is still
   rated `not_landed` there. A per-path rule (a lane path is superseded when an approved lane that
   depends on it changed that path later) is tracked as follow-up #7838.
+- Supersession is judged per path, not per line (operator ruling 2026-11-24 on Tier R confirm 2
+  N1, option (a); line attribution is not used). An approved lane that edits another line of the
+  same file therefore supersedes an out-of-workflow revert of this lane's line, and the lane is
+  removed. Cleanup clears the lane's `refs/spec-kitty/lane-tip/<branch>` when it deletes the
+  branch, so afterwards the lane's tip is named only by the `Removed` line's
+  `(recreate: git branch <branch> <sha>)` hint, and its commits stay reachable only until git prunes
+  unreachable objects. Tracked in #7838.
 - A `--resume` whose earlier attempt already tore down the Mission branch runs without the
   projection; the projection is not persisted.
 - `orchestrator-api consolidate-mission` has no reconciliation PASS anchor, so it does not use the
