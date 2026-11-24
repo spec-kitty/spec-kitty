@@ -1,0 +1,50 @@
+# Nix Flake -- keeps the contributed Nix install path (flake.nix, #7845) building.
+#
+# Its own scheduled workflow, deliberately NOT a job in ci-nightly.yml: the release
+# nightly gate requires a fully green CI Nightly run, and the flake is a best-effort
+# install channel that must not block a release when nixos-unstable or the uv2nix
+# overlay moves under it. A red run here is visible in Actions and on the workflow
+# badge only.
+#
+# `schedule` + `workflow_dispatch` ONLY: no `pull_request` / `push` trigger, so it
+# never enters a merge-blocking `needs:` chain. All `uses:` references are SHA-pinned.
+
+name: Nix Flake
+
+on:
+  schedule:
+    # 04:41 UTC daily -- after CI Nightly, off a round hour.
+    - cron: '41 4 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: nix-flake
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+# Fork guard: automated runs (schedule) are core-repo only. On a fork the guarded
+# job skips; workflow_dispatch still runs everywhere. Pinned by tests/ci/test_fork_guard.py.
+jobs:
+  nix-flake:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
+    name: Nix flake build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Check and build the flake
+        run: |
+          nix flake check --print-build-logs
+          nix build --no-link --print-build-logs .#default
+          nix run .# -- --help
+          nix develop --command codespell --version
+          nix develop --command env PYTHONPATH=src python3 -m scripts.docs.check_spelling --pass unreleased
