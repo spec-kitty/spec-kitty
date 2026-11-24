@@ -30,6 +30,7 @@
   "purpose_context": "setup-plan appends SpecifyCompleted, PlanStarted and PlanCompleted to the Mission's status log. On a Mission with a coordination branch these land in the repository root checkout's copy of the log and are never committed, so the coordination record misses them and the checkout stays dirty. This is the last open part of issue #3933 after #7562.",
   "purpose_tldr": "On a coordination-topology Mission, setup-plan records and commits its own lifecycle events on the coordination branch instead of leaving them uncommitted in the repository root checkout.",
   "slug": "setup-plan-coord-lifecycle-commit-01M84SXJ",
+  "status_phase": "1",
   "target_branch": "issue-3933-lifecycle-event-placement",
   "topology": "single_branch",
   "topology_decision": {
