@@ -188,7 +188,47 @@ A lane whose worktree and branch are both gone is reported removed. The retained
 removed, branch kept by policy) stays on the guarded worktree removal: it deletes no branch (plan
 decision PD-1, decided by the operator on 2026-11-23, ruling 4A). The guard itself is unchanged.
 
-**Residual.** A version that a lane merged in from a branch other than the coordination branch, for
+**Residual (amended 2026-11-24, below).** A version that a lane merged in from a branch other than the coordination branch, for
 example a dependency lane, counts as not authored on this lane. That branch's own lane is judged on its
 own, and only the bookkeeping kinds above can be set aside.
 
+
+## Amendment 2026-11-24: the lane's own changes only, the snapshot as a projection, and the Mission-branch proof
+
+**Ruling.** Operator ruling 2026-11-24, after the Mission's own landing kept all three of its lanes
+(dogfood run on `lane-cleanup-landing-proof-01M81KHJ`). It amends rules 3 and 4 above and adds one
+proof.
+
+**Problem.** Three shapes of an ordinary Mission still kept its lanes:
+
+- **A.** A dependent lane rewrote lines an earlier lane wrote. The squash's merge base is the
+  pre-Mission tip, so the earlier lane's exact version conflicts with the landing in `merge-tree`,
+  although approved work superseded it.
+- **B.** A planning file (`spec.md`, `analysis-report.md`, `acceptance-matrix.json`) changed on the
+  coordination branch after a lane's last sync. The lane never wrote its copy, but rule 4 above only
+  set aside a copy equal to the merge base's.
+- **C.** Consolidate's own auto-rebase merged the coordination branch into a stale lane, and the
+  status-snapshot merge driver produced a `status.json` equal to neither parent, which rule 3 counted
+  as the lane's authoring.
+
+**Decision.**
+
+- **B.** A file under the lane's own `kitty-specs/<mission>/` that the lane never authored does not
+  keep it, whatever the target did with it. Authorship is read as in rule 3 (merge results are still
+  distrusted). Rule 4 stays for other Missions' files, which still fail closed otherwise.
+- **C.** `status.json` is a projection of the status log. It is accounted for when the lane's
+  `status.events.jsonl` is contained in the landing's log (rule 2); its authorship is never read.
+- **A.** Before the coordination teardown deletes the Mission branch, `consolidate` (and
+  `orchestrator-api consolidate-mission`) records, per lane, whether
+  `lane_tip.is_landed_through_mission_branch` holds: the lane tip is an ancestor of the Mission branch
+  tip, every path outside `kitty-specs/` the Mission branch changed since its merge base with the
+  reconciliation PASS anchor has the Mission branch's blob on the anchor (the target keeps its own
+  content elsewhere), and every
+  `kitty-specs/` difference between the lane and the anchor is accounted for by the rules above. The
+  proven tips reach the guard as `MissionBranchProjection` on the `LocalTargetAtPass` proof, and the
+  guard's O3 evidence accepts them besides the content proof.
+
+**Residual.** `doctor workspaces` after a push has no Mission branch to read, so a lane in shape A is
+still rated `not_landed` there. A per-path rule (a lane path is superseded when an approved lane that
+depends on it changed that path later) is proposed as a follow-up. A `--resume` whose earlier attempt
+already tore down the Mission branch also runs without the projection.

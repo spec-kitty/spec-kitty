@@ -35,6 +35,7 @@ __all__ = [
     "is_absorbed",
     "is_absorbed_but_for_mission_bookkeeping",
     "is_ancestor",
+    "is_landed_through_mission_branch",
     "read_tip",
     "record_tip",
     "record_tip_for_wp",
@@ -355,12 +356,10 @@ def _in_landing_history(repo_root: Path, landing_ref: str, path: str, blob: str)
 
 
 def _is_bookkeeping(path: str, mission_dir: str) -> bool:
-    """``status.json``, ``meta.json`` or a ``tasks/WP*.md`` prompt of the lane's own Mission."""
-    from specify_cli.status.reducer import SNAPSHOT_FILENAME
-
+    """``meta.json`` or a ``tasks/WP*.md`` prompt of the lane's own Mission (the snapshot is judged by its log)."""
     pure = PurePosixPath(path)
     if str(pure.parent) == mission_dir:
-        return pure.name in {SNAPSHOT_FILENAME, "meta.json"}
+        return pure.name == "meta.json"
     return str(pure.parent) == f"{mission_dir}/tasks" and fnmatch.fnmatchcase(pure.name, _WORK_PACKAGE_PROMPT)
 
 
@@ -368,6 +367,7 @@ class _MissionFileJudge:
     """Research R3: whether one differing ``kitty-specs/`` path loses nothing if the lane goes."""
 
     def __init__(self, repo_root: Path, tip: str, landing_ref: str, mission_slug: str) -> None:
+        from specify_cli.status.reducer import SNAPSHOT_FILENAME
         from specify_cli.status.store import EVENTS_FILENAME
 
         self._repo_root = repo_root
@@ -375,6 +375,7 @@ class _MissionFileJudge:
         self._landing_ref = landing_ref
         self._mission_dir = f"{_MISSION_ROOT}/{mission_slug}"
         self._log_path = f"{self._mission_dir}/{EVENTS_FILENAME}"
+        self._snapshot_path = f"{self._mission_dir}/{SNAPSHOT_FILENAME}"
         self._authored = _authored_paths(repo_root, tip, landing_ref)
         self._bases = tuple(_git_lines(repo_root, "merge-base", "--all", tip, landing_ref))
 
@@ -383,18 +384,21 @@ class _MissionFileJudge:
         return bool(self._bases) and all(_blob_id(self._repo_root, base, path) == lane_blob for base in self._bases)
 
     def accounted(self, path: str) -> bool:
+        if path in (self._log_path, self._snapshot_path):
+            # The status log is append-only and judged by its events (#6736); the snapshot is its
+            # projection, so its authorship is never read (operator ruling 2026-11-24, C).
+            return _status_log_contained(self._repo_root, self._tip, self._landing_ref, self._log_path)
         lane_blob = _blob_id(self._repo_root, self._tip, path)
-        if path not in self._authored and self._unchanged_since_base(path, lane_blob):
-            return True  # the lane made no change there; only the landing ref moved it
-        if lane_blob is None and path not in self._authored:
-            return True  # the lane has no copy and deleted none: nothing of it can be lost
-        if path == self._log_path:
-            return _status_log_contained(self._repo_root, self._tip, self._landing_ref, path)
+        if path not in self._authored:
+            if path.startswith(f"{self._mission_dir}/"):
+                return True  # ruling 2026-11-24, B: a file of its own Mission the lane never wrote
+            # Another Mission's file: the lane made no change there, or it has no copy and deleted none.
+            return lane_blob is None or self._unchanged_since_base(path, lane_blob)
         if lane_blob is None or not _is_bookkeeping(path, self._mission_dir):
             return False
         if _blob_id(self._repo_root, self._landing_ref, path) is None:
             return False
-        return path not in self._authored or _in_landing_history(self._repo_root, self._landing_ref, path, lane_blob)
+        return _in_landing_history(self._repo_root, self._landing_ref, path, lane_blob)
 
 
 def _outside_mission_files(paths: Sequence[object]) -> list[str]:
@@ -426,27 +430,66 @@ def is_absorbed_but_for_mission_bookkeeping(repo_root: Path, tip: str, landing_r
     ``tip`` is an ancestor of ``landing_ref``, or when every difference is accounted for:
 
     * outside ``kitty-specs/``: merging ``tip`` into ``landing_ref`` conflicts on and changes nothing;
-    * the lane's own Mission status log: every lane event line is in the landing's log (#6736);
-    * ``status.json``, ``meta.json`` and ``tasks/WP*.md`` of the lane's own Mission: both sides
-      have the file and the lane never authored its copy -- no commit the lane made itself changed
-      it, a merge counting only when its result is none of its merged-in parents' versions -- or
-      the landing ref's history holds the lane's version;
-    * any ``kitty-specs/`` file the lane did not author whose lane copy is the merge base's copy
-      (only the landing ref moved it), or that the lane has no copy of: nothing to lose.
+    * the lane's own Mission status log: every lane event line is in the landing's log (#6736); its
+      ``status.json`` is that log's projection and is judged the same way, never by authorship
+      (operator ruling 2026-11-24, C);
+    * any other file of the lane's own Mission that the lane never authored -- no commit the lane
+      made itself changed it, a merge counting only when its result is none of its merged-in
+      parents' versions (ruling 2026-11-24, B);
+    * ``meta.json`` and ``tasks/WP*.md`` the lane authored, when the landing ref's history holds the
+      lane's version;
+    * another Mission's ``kitty-specs/`` file the lane did not author whose lane copy is the merge
+      base's copy (only the landing ref moved it), or that the lane has no copy of: nothing to lose.
 
-    Everything else is ``False``: another ``kitty-specs/`` change the lane made, a deletion the lane
-    made (except of its own Mission's status log: the log is append-only and its events are judged by
-    containment, so a lane without a copy has none to lose), a git error, an unknown ref, or a git
-    without ``merge-tree --write-tree``. "Set aside" applies to the lane's own changes only: a file
-    the lane left untouched (rule 4) is no lane change, whatever its kind. A merge or merge-driver
-    result is never evidence for a ``kitty-specs/`` path. Residual (ADR 2026-11-06-1, Amendment
-    2026-11-23): a version merged in from a branch other than the coordination branch counts as
-    not authored on this lane.
+    Everything else is ``False``: another change the lane made to a ``kitty-specs/`` file, a deletion
+    the lane made (except of its own Mission's status log: the log is append-only and its events are
+    judged by containment, so a lane without a copy has none to lose), a git error, an unknown ref,
+    or a git without ``merge-tree --write-tree``. A merge or merge-driver result is never evidence for
+    a ``kitty-specs/`` path. Residual (ADR 2026-11-06-1, Amendment 2026-11-23): a version merged in
+    from a branch other than the coordination branch counts as not authored on this lane. A lane
+    whose lines a later lane rewrote is proven by :func:`is_landed_through_mission_branch` instead.
     """
     try:
         if is_ancestor(repo_root, tip, landing_ref):
             return True
         if not _product_absorbed(repo_root, tip, landing_ref):
+            return False
+        judge = _MissionFileJudge(repo_root, tip, landing_ref, mission_slug)
+        mission_paths = [str(path) for path in changed_paths(repo_root, landing_ref, tip) if str(path).startswith(f"{_MISSION_ROOT}/")]
+        return all(judge.accounted(path) for path in mission_paths)
+    except (GitCommandError, OSError):
+        return False
+
+
+def _mission_branch_landed(repo_root: Path, mission_tip: str, landing_ref: str) -> bool:
+    """Every product path the Mission branch changed since its merge base with the landing has its blob there."""
+    bases = _git_lines(repo_root, "merge-base", "--all", mission_tip, landing_ref)
+    if not bases:
+        return False
+    integrated = {str(path) for base in bases for path in changed_paths(repo_root, base, mission_tip)}
+    return all(_blob_id(repo_root, landing_ref, path) == _blob_id(repo_root, mission_tip, path) for path in _outside_mission_files(sorted(integrated)))
+
+
+def is_landed_through_mission_branch(repo_root: Path, tip: str, mission_tip: str, landing_ref: str, mission_slug: str) -> bool:
+    """A lane landed through the Mission branch it was consolidated into (#7747, operator ruling 2026-11-24, A).
+
+    A squash landing's merge base is the pre-Mission tip, so a lane whose lines a dependent lane later
+    rewrote conflicts with the landing in ``merge-tree``: its exact version is not on the target,
+    although approved work superseded it. While the Mission branch still exists, the lane's work is
+    proven landed when:
+
+    * ``tip`` is an ancestor of ``mission_tip`` (the Mission branch integrated all of it);
+    * every path outside ``kitty-specs/`` the Mission branch changed since its merge base with
+      ``landing_ref`` (the reconciliation PASS anchor) has the Mission branch's blob on
+      ``landing_ref``: what the Mission branch integrated is what landed, while the target keeps its
+      own content elsewhere;
+    * every ``kitty-specs/`` difference between ``tip`` and ``landing_ref`` is accounted for by the
+      same rules as :func:`is_absorbed_but_for_mission_bookkeeping`.
+
+    Anything else, an unknown revision and a git error included, is ``False``.
+    """
+    try:
+        if not is_ancestor(repo_root, tip, mission_tip) or not _mission_branch_landed(repo_root, mission_tip, landing_ref):
             return False
         judge = _MissionFileJudge(repo_root, tip, landing_ref, mission_slug)
         mission_paths = [str(path) for path in changed_paths(repo_root, landing_ref, tip) if str(path).startswith(f"{_MISSION_ROOT}/")]
