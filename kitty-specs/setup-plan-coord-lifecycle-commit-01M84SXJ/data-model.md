@@ -21,4 +21,5 @@ A setup-plan lifecycle event written to a coordination Mission's coordination wo
 ## setup-plan JSON result (additions)
 
 - `lifecycle_commit`: on a coordination Mission, the router outcome of the coordination commit (`committed` with its hash, or `unchanged`); absent on other topologies.
-- On refusal: `result: error`, `error_code: SETUP_PLAN_LIFECYCLE_UNCOMMITTED`, the unrecorded event types and the router diagnostic.
+- On refusal: `result: error`, `phase_complete: false`, `error_code: SETUP_PLAN_LIFECYCLE_UNCOMMITTED`, `lifecycle_events_in_log` (setup-plan event types present in the worktree log) and `lifecycle_diagnostic` (the router or guard diagnostic); the plan commit that landed stays reported as `commit_hash`.
+- A concurrent status write that already committed setup-plan's events (the branch moved, every setup-plan event id is on it) is `lifecycle_commit.status: unchanged`, not a refusal.
