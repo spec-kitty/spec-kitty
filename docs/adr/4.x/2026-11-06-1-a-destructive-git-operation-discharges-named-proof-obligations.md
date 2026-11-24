@@ -221,10 +221,15 @@ proof.
 - **A.** Before the coordination teardown deletes the Mission branch, `consolidate` records, per
   lane, whether
   `lane_tip.is_landed_through_mission_branch` holds: the lane tip is an ancestor of the Mission branch
-  tip, every path outside `kitty-specs/` the lane itself changed either has the lane's own final blob
-  on the anchor or was changed later by a non-merge commit of another approved lane that is on the
-  Mission branch (operator ruling 2026-11-24 on Tier R B1, option (b): a revert or rewrite made on
-  the Mission branch outside any lane keeps the lane; any probe or attribution error keeps it too),
+  tip, every path outside `kitty-specs/` the lane changed since its merge base with the anchor (read
+  from the tree diff, so a fast-forwarded lane is judged too) either has the lane's own final blob on
+  the anchor or was changed again by later approved work: an own non-merge commit of another
+  approved lane (a lane whose every work package is in the run's approved claim; the same
+  first-parent walk as authorship) that is on the Mission branch and descends from the lane's last
+  commit changing that path (operator ruling 2026-11-24 on Tier R B1, option (b), and the Tier R
+  confirm pass). A revert or rewrite made on the Mission branch outside any lane, a parallel lane's
+  edit of the same file, and work another lane only merged in (a resync) keep the lane; any probe or
+  attribution error keeps it too,
   every path outside `kitty-specs/` the Mission branch changed since its merge base with the
   reconciliation PASS anchor has the Mission branch's blob on the anchor (the target keeps its own
   content elsewhere), and every `kitty-specs/` difference between the lane and the anchor is accounted for by the rules above (a
@@ -259,5 +264,7 @@ proof.
   authored on this lane.
 - A lane fast-forwarded to a coordination merge that contains its own commit loses that commit's
   authorship: the commit then sits behind a second parent, off the lane's first-parent chain. Spec
-  Kitty's own syncs merge with `--no-ff`, so only a hand fast-forward reaches this; the content is
-  still in the landing's history (the squash holds it).
+  Kitty's own syncs merge with `--no-ff`, so only a hand fast-forward reaches this. The Mission-branch
+  proof reads the lane's product paths from the tree diff, so it still judges such a lane path by
+  path; the authorship loss affects only the `kitty-specs/` rules, where a lane-written Mission file
+  of a fast-forwarded lane is treated as not authored (set aside).
