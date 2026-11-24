@@ -856,9 +856,43 @@ def _commit_lifecycle_events_on_coordination(
         result = _lifecycle_refusal(f"{type(exc).__name__}: {exc}")
     if _lifecycle_commit_refused(result) and _checkout_head(location.surface_root) != checked_head:
         # B2: the compare-and-swap lost; the branch moved after the guard checked it.
+        if _lifecycle_events_landed(location.surface_root, log, log_bytes):
+            # A concurrent status write committed the whole log, setup-plan's lines included.
+            return CommitRouterResult(status=STATUS_UNCHANGED, placement_ref=result.placement_ref, diagnostic="another status write committed these events")
         moved = f"the coordination branch moved after setup-plan checked it (from {checked_head}); nothing was committed. {result.diagnostic or ''}"
         return _lifecycle_refusal(moved.strip(), loss_risk=True)
     return result
+
+
+def _setup_plan_event_ids(raw: str) -> set[str]:
+    """Event ids of the setup-plan lifecycle lines in a status-log text (malformed lines are skipped)."""
+    ids: set[str] = set()
+    for line in raw.splitlines():
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(event, dict) and event.get("event_type") in SETUP_PLAN_LIFECYCLE_EVENT_TYPES and event.get("event_id"):
+            ids.add(str(event["event_id"]))
+    return ids
+
+
+def _lifecycle_events_landed(surface_root: Path, log: Path, log_bytes: bytes) -> bool:
+    """True when the coordination branch now holds every setup-plan event of the log setup-plan checked.
+
+    Answers the squad finding on B2: a concurrent status write (``move-task``)
+    commits the whole log under the status lock, setup-plan's lines included, and
+    moves the branch; setup-plan's compare-and-swap then loses although nothing
+    of its own is missing. Any read error answers ``False`` (the refusal stands).
+    """
+    from kernel.git import GitCommandError, blob_at
+
+    ours = _setup_plan_event_ids(log_bytes.decode("utf-8", "replace"))
+    try:
+        committed = blob_at(surface_root, "HEAD", log.relative_to(surface_root).as_posix())
+    except (GitCommandError, ValueError):
+        return False
+    return bool(ours) and committed is not None and ours <= _setup_plan_event_ids(committed.decode("utf-8", "replace"))
 
 
 def _setup_plan_events_in_log(status_dir: Path) -> list[str]:
@@ -869,7 +903,7 @@ def _setup_plan_events_in_log(status_dir: Path) -> list[str]:
     found: list[str] = []
     try:
         lines = log.read_text(encoding="utf-8").splitlines()
-    except OSError:
+    except (OSError, ValueError):  # ValueError: UnicodeDecodeError on a damaged log; the refusal must still render
         return found
     for line in lines:
         try:
@@ -898,7 +932,8 @@ def _lifecycle_log_for_plan_commit(feature_dir: Path, repo_root: Path, mission_s
     On a topology without a coordination branch that log is a PRIMARY-partition
     file, committed beside the plan. On a coordination topology the log's kind
     routes to the coordination branch, whose own log the primary copy must never
-    overwrite, so it is left out (a recorded residual of #3933). An owned run
+    overwrite, so it is left out; :func:`_commit_lifecycle_events_on_coordination`
+    commits it there instead (#3933). An owned run
     reads the topology off its validated fact, never re-resolving the repository.
     """
     from mission_runtime import resolve_topology, routes_through_coordination
@@ -1344,20 +1379,23 @@ def _refuse_uncommitted_lifecycle(
         # B3: committing this checkout's log would erase the events the branch holds.
         remedy = (
             "Do not commit this checkout's status log: it would erase events the coordination branch holds. "
-            "Follow the remedy above, then re-run setup-plan to record its own lifecycle events again."
+            "Do what the diagnostic says (a moved branch needs nothing more), then re-run setup-plan to record its own lifecycle events again."
         )
     else:
         remedy = "They stay uncommitted there; commit them in that checkout or re-run setup-plan once the refusal is fixed."
+    plan_commit = payload.get("commit_hash")
+    kept = f" The plan commit {plan_commit} was kept." if plan_commit else ""
     message = (
         f"setup-plan could not commit its status log in {status_dir} on the coordination branch "
-        f"(setup-plan lifecycle events present in the log: {', '.join(events) or 'none'}): {diagnostic} {remedy}"
+        f"(setup-plan lifecycle events present in the log: {', '.join(events) or 'none'}): {diagnostic} {remedy}{kept}"
     )
     payload.update(
         {
             "result": "error",
+            "phase_complete": False,
             "error_code": SETUP_PLAN_LIFECYCLE_UNCOMMITTED,
             "error": message,
-            "uncommitted_lifecycle_events": events,
+            "lifecycle_events_in_log": events,
             "lifecycle_diagnostic": diagnostic,
         }
     )
