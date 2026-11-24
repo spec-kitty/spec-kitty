@@ -104,8 +104,9 @@ def mission_terminal_acceptability(
     """Return whether every WP in ``work_packages`` has reached an acceptable ending.
 
     The single mission-level, provenance-aware readiness aggregate (FR-009,
-    contract ``C-SHARED-AUTHORITY``), consumed by ``merge`` and ``mission
-    close`` so neither re-inlines its own acceptable-ending loop (C-001).
+    contract ``C-SHARED-AUTHORITY``), consumed by ``merge``, ``mission
+    close`` and ``orchestrator-api accept-mission`` (#5818) so none re-inlines its
+    own acceptable-ending loop (C-001).
     ``accept``'s lane-bucket views (``gates_core``/``summary_core``) are
     deliberately provenance-blind and are NOT rerouted onto this aggregate —
     see the WP01 scope note in ``terminus-safety-invariant-01M2XFT7``.

@@ -320,11 +320,28 @@ def _create_test_feature(
         from ulid import ULID
 
         now = now_utc_iso()
+        # #5781: the accept gate reads the implementer of record from the implementing claim in
+        # the event log, so the fixture records the claim its done WP would carry.
+        seed_status_event(
+            feature_dir,
+            StatusEvent(
+                event_id=str(ULID()),
+                mission_slug=mission_slug,
+                wp_id="WP01",
+                from_lane=Lane.PLANNED,
+                to_lane=Lane.CLAIMED,
+                at="2020-01-01T00:00:00+00:00",  # strictly before the done event below
+                actor="test-agent",
+                force=False,
+                execution_mode="direct_repo",
+                policy_metadata={"agent": "test-agent"},
+            ),
+        )
         event = StatusEvent(
             event_id=str(ULID()),
             mission_slug=mission_slug,
             wp_id="WP01",
-            from_lane=Lane.PLANNED,
+            from_lane=Lane.CLAIMED,
             to_lane=Lane.DONE,
             at=now,
             actor="test-agent",

@@ -1159,7 +1159,7 @@
      "deprecated": false
     },
     "accept-mission": {
-     "help": "Accept a mission after all WPs are approved or done.",
+     "help": "Accept a Mission once every WP is approved, done, or canceled with operator provenance.",
      "hidden": false,
      "deprecated": false
     },

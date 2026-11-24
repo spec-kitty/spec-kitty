@@ -280,3 +280,55 @@ def test_short_circuits_when_no_pending_targets(tmp_path: Path) -> None:
     updated = populate_criteria_from_review_evidence(feature_dir, criteria)
 
     assert updated is criteria
+
+
+def _cancel_event(mission_slug: str, wp_id: str, *, reason_source: str) -> StatusEvent:
+    return StatusEvent(
+        event_id=f"evt-{wp_id}-canceled",
+        mission_slug=mission_slug,
+        wp_id=wp_id,
+        from_lane=Lane.PLANNED,
+        to_lane=Lane.CANCELED,
+        at="2026-08-29T00:00:00+00:00",
+        actor="operator",
+        force=reason_source == "synthetic",
+        execution_mode="worktree",
+        reason="descoped" if reason_source == "operator" else "Force move to canceled",
+        reason_source=reason_source,
+    )
+
+
+def test_a_wp_canceled_with_operator_provenance_keeps_criteria_pending(tmp_path: Path) -> None:
+    """Matrix criteria carry no work-package mapping, so the reviews of the remaining WPs cannot
+    vouch for scope a descoped WP owned: the rows stay pending for an explicit acceptance verdict
+    (#5781 PR review; the auto-derivation stall on descoped Missions is a recorded follow-up)."""
+    feature_dir = tmp_path / "kitty-specs" / "demo"
+    feature_dir.mkdir(parents=True)
+    seed_status_event(feature_dir, _approve_event("demo", "WP01"))
+    seed_status_event(feature_dir, _cancel_event("demo", "WP02", reason_source="operator"))
+
+    updated = populate_criteria_from_review_evidence(feature_dir, [_criterion()])
+
+    assert updated[0].pass_fail == "pending"
+    assert not updated[0].evidence
+
+
+def test_a_synthetic_cancellation_still_blocks_auto_population(tmp_path: Path) -> None:
+    feature_dir = tmp_path / "kitty-specs" / "demo"
+    feature_dir.mkdir(parents=True)
+    seed_status_event(feature_dir, _approve_event("demo", "WP01"))
+    seed_status_event(feature_dir, _cancel_event("demo", "WP02", reason_source="synthetic"))
+
+    updated = populate_criteria_from_review_evidence(feature_dir, [_criterion()])
+
+    assert updated[0].pass_fail == "pending"
+
+
+def test_a_mission_whose_only_wps_were_canceled_derives_nothing(tmp_path: Path) -> None:
+    feature_dir = tmp_path / "kitty-specs" / "demo"
+    feature_dir.mkdir(parents=True)
+    seed_status_event(feature_dir, _cancel_event("demo", "WP01", reason_source="operator"))
+
+    updated = populate_criteria_from_review_evidence(feature_dir, [_criterion()])
+
+    assert updated[0].pass_fail == "pending"

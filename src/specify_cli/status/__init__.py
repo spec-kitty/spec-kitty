@@ -163,6 +163,7 @@ from .actor import (
     role_for_hop,
     role_for_wp,
 )
+from .claim_release import planned_claim_release_delta, planned_claim_release_fields
 from .emit import (
     TransitionError,
     build_claim_policy_metadata,
@@ -362,6 +363,8 @@ from .review_roles import (
     IMPLEMENTER_RESUBMISSION_ROLE,
     is_implementer_resubmission_hop,
     implementer_identities,
+    implementer_claim_target,
+    implementer_release_target,
     independent_of_implementers,
     is_latest_implementer,
     latest_implementer_actor,
@@ -657,6 +660,8 @@ __all__ = [
     "WPInnerStateDelta",
     "annotate",
     "build_claim_policy_metadata",
+    "planned_claim_release_delta",
+    "planned_claim_release_fields",
     "claim_policy_metadata",
     "build_resolved_actor",
     "is_cut_over",
@@ -731,6 +736,8 @@ __all__ = [
     "latest_implementer_actor",
     "latest_implementer_event",
     "latest_implementer_identity",
+    "implementer_claim_target",
+    "implementer_release_target",
     "latest_review_claimant",
     "profileless_claim_warning",
     "profileless_identity_warning",

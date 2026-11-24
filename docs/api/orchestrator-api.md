@@ -3,7 +3,7 @@ title: Orchestrator API Reference
 description: Machine-contract API for external orchestration providers.
 doc_status: active
 kind: Reference
-updated: '2026-10-27T00:00:00Z'
+updated: '2026-11-20T00:00:00Z'
 related:
 - api/event-envelope
 - migrations/feature-flag-deprecation
@@ -31,7 +31,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.29.0`
+- `CONTRACT_VERSION`: `1.30.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -277,6 +277,17 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   `data.preflight_error_code` / `data.preflight_error_codes` carry `CHECKOUT_SKIP_WORKTREE_ENTRIES`.
   A call that could answer `success: true` (the bit on a file this path never writes) now refuses
   too, so a minor bump; no field or `error_code` is removed or renamed.
+- `1.30.0` — an orchestrator-claimed Mission, and a descoped one, can be accepted (#5781, #5818,
+  #7644). `start-implementation` and `transition --to claimed` record `agent` = `--actor` in the
+  claim's `policy_metadata` beside the `--policy` keys, which cannot override it, so the snapshot
+  names an owner and the host `move-task` ownership guard applies to API-claimed work packages.
+  `transition --to planned` releases the runtime claim and clears the review override, as
+  `move-task --to planned` does. `accept-mission` lists in `incomplete_wps` only work packages that
+  are not at an acceptable ending: a work package canceled with operator provenance is no longer
+  listed, a synthetic cancellation still is. Its readiness gate reads the implementer from the
+  event log and asks for none on a work package canceled before any claim. A call that refused
+  `MISSION_NOT_READY` can now succeed, and the success payload gains `canceled_wps` (the descoped
+  work packages), so a minor bump; no field or `error_code` is removed or renamed.
 
 ## Response Envelope
 
@@ -284,7 +295,7 @@ Every command returns exactly one JSON object with these 7 top-level keys:
 
 ```json
 {
-  "contract_version": "1.29.0",
+  "contract_version": "1.30.0",
   "command": "orchestrator-api.mission-state",
   "timestamp": "2026-04-08T12:00:00+00:00",
   "correlation_id": "corr-0123456789abcdef",
@@ -440,8 +451,8 @@ in_review -> in_progress -> for_review
 
 ## Acceptance Payload
 
-`accept-mission` requires every WP to be `approved` or `done`. On success it
-returns:
+`accept-mission` requires every WP to be at an acceptable ending: `approved`, `done`, or
+(contract >= 1.30.0) `canceled` with operator provenance. On success it returns:
 
 | Field | Meaning |
 |---|---|
@@ -449,13 +460,14 @@ returns:
 | `approved_wps` | Review-passed WPs still awaiting merge/integration |
 | `done_wps` | WPs already merged/integrated |
 | `merge_pending_wps` | Alias of `approved_wps`; WPs accepted-ready but not done |
+| `canceled_wps` | (contract >= 1.30.0) WPs canceled with operator provenance, accepted as descoped |
 
 `accept-mission` does not move WPs from `approved` to `done`; merge owns that
 transition.
 
 ### `MISSION_NOT_READY` (contract >= 1.7.0)
 
-Once every WP is `approved`/`done`, `accept-mission` additionally applies the
+Once every WP is at an acceptable ending, `accept-mission` additionally applies the
 SAME host readiness verdict the `accept` CLI computes via
 `collect_feature_summary(..., strict_metadata=True)` — one readiness
 authority, never a second computation of it. Before that summary is collected

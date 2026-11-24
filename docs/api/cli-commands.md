@@ -5092,7 +5092,8 @@ _Machine-contract API for external orchestrators (JSON-first)_
 │ transition            Emit a single lane transition for a WP.                │
 │ append-history        Append a history entry via an ``InnerStateChanged``    │
 │                       ``note`` annotation.                                   │
-│ accept-mission        Accept a mission after all WPs are approved or done.   │
+│ accept-mission        Accept a Mission once every WP is approved, done, or   │
+│                       canceled with operator provenance.                     │
 │ consolidate-mission   Consolidate a lane-based mission into target.          │
 │ specify               Create a mission scaffold, matching the host CLI's     │
 │                       enriched ``specify --json`` contract.                  │
@@ -5150,7 +5151,8 @@ _Machine-contract API for external orchestrators (JSON-first)_
 ```
  Usage: spec-kitty orchestrator-api accept-mission [OPTIONS]
 
- Accept a mission after all WPs are approved or done.
+ Accept a Mission once every WP is approved, done, or canceled with operator
+ provenance.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --mission               <str>       Mission slug [required]               │

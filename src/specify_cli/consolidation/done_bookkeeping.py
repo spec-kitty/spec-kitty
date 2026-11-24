@@ -158,6 +158,22 @@ def _has_transition_to(
     )
 
 
+def _lane_approved_reviewer(event_stream: EventStream, wp_id: str) -> str:
+    """The reviewer lane-approved done evidence names: the actor of *wp_id*'s latest approval.
+
+    Never the snapshot ``agent`` slot: that is the claim holder, i.e. the implementer, and
+    every claim path fills it (#5781), so reading it would record a work package's
+    implementer as its own reviewer. ``unknown`` when no approval is on the log.
+    """
+    from specify_cli.status import Lane as _Lane
+    from specify_cli.status import actor_identity_str
+
+    for event in reversed(event_stream.transitions):
+        if event.wp_id == wp_id and _Lane(event.to_lane) == _Lane.APPROVED:
+            return actor_identity_str(event.actor) or "unknown"
+    return "unknown"
+
+
 def _resolve_snapshot_done_evidence(
     event_stream: EventStream,
     wp_id: str,
@@ -355,7 +371,6 @@ def _mark_wp_merged_done(
         ReviewApproval,
         TransitionError,
         TransitionRequest,
-        reduce,
     )
 
     event_stream = read_event_stream_transactional(
@@ -363,11 +378,6 @@ def _mark_wp_merged_done(
         mission_slug=mission_slug,
         repo_root=repo_root,
     )
-    wp_snapshot = reduce(
-        event_stream.transitions,
-        event_stream.annotations,
-    ).work_packages.get(wp_id, {})
-
     lane = read_current_wp_state_transactional(
         feature_dir=feature_dir,
         mission_slug=mission_slug,
@@ -396,11 +406,9 @@ def _mark_wp_merged_done(
     evidence = _resolve_snapshot_done_evidence(event_stream, wp_id)
     if evidence is None:
         if lane == _Lane.APPROVED:
-            runtime_agent = wp_snapshot.get("agent")
-            reviewer = runtime_agent.strip() if isinstance(runtime_agent, str) else "unknown"
             evidence = DoneEvidence(
                 review=ReviewApproval(
-                    reviewer=reviewer or "unknown",
+                    reviewer=_lane_approved_reviewer(event_stream, wp_id),
                     verdict=APPROVED,
                     reference=f"lane-approved:{wp_id}",
                 )

@@ -22,7 +22,7 @@ Error codes used:
                                  TransitionError); the refusal's own code
                                  travels in data.bookkeeping_error_code
   WP_ALREADY_CLAIMED          -- WP claimed by a different actor
-  MISSION_NOT_READY           -- not all WPs approved/done (for accept-mission)
+  MISSION_NOT_READY           -- a WP is not at an acceptable ending (for accept-mission)
   HISTORY_COMMIT_FAILED       -- append-history could not create its commit
   PLACEMENT_RESOLUTION_REQUIRED -- append-history's write placement could not be
                                  resolved (D11 fail-closed; FR-004 -- never a
