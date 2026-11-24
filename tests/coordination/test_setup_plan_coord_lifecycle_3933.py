@@ -474,3 +474,38 @@ def test_moved_branch_without_our_events_stays_a_refusal(tmp_path: Path) -> None
 
     assert mission_setup_plan._lifecycle_events_landed(tmp_path, tmp_path / "status.events.jsonl", b"") is False
     assert mission_setup_plan._setup_plan_event_ids('{"event_type":"PlanStarted","event_id":"A"}\nnot json\n[1]\n') == {"A"}
+
+
+class _NamedWriteLocationError(RuntimeError):
+    error_code = "COORD_SEED_FORK_REFUSED"
+
+
+def test_write_location_refusal_keeps_its_error_code(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """N2: a write-location error now ends the run before the plan commit, so its code must reach the JSON."""
+    from specify_cli.cli.commands.agent import mission_setup_plan
+
+    mission = _mission(tmp_path, "lanes_with_coord")
+
+    def _refuse(*_a: object, **_k: object) -> None:
+        raise _NamedWriteLocationError("coordination seed refused")
+
+    monkeypatch.setattr(mission_setup_plan, "_lifecycle_write_location", _refuse)
+    exit_code, payload = _run_setup_plan_in_process(mission, monkeypatch)
+
+    assert exit_code == 1
+    assert payload["error"] == "coordination seed refused"
+    assert payload["error_code"] == "COORD_SEED_FORK_REFUSED"
+
+
+@pytest.mark.parametrize(
+    ("exc", "expected"),
+    [
+        (RuntimeError("plain"), {"error": "plain"}),
+        (type("Coded", (RuntimeError,), {"code": "STATUS_LOCK_HELD"})("held"), {"error": "held", "error_code": "STATUS_LOCK_HELD"}),
+        (type("NonStr", (RuntimeError,), {"code": 3})("n"), {"error": "n"}),
+    ],
+)
+def test_generic_error_payload(exc: Exception, expected: dict[str, object]) -> None:
+    from specify_cli.cli.commands.agent import mission_setup_plan
+
+    assert mission_setup_plan._generic_error_payload(exc) == expected

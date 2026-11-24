@@ -864,6 +864,22 @@ def _commit_lifecycle_events_on_coordination(
     return result
 
 
+def _generic_error_payload(exc: Exception) -> dict[str, object]:
+    """The JSON for setup-plan's generic error arm, keeping a named error's code.
+
+    A write-location error (for example a coordination seed refusal) now ends the
+    run before the plan commit (#3933), so its own ``error_code`` (or ``code``)
+    must reach the operator instead of being dropped.
+    """
+    payload: dict[str, object] = {"error": str(exc)}
+    for attr in ("error_code", "code"):
+        value = getattr(exc, attr, None)
+        if isinstance(value, str) and value:
+            payload["error_code"] = value
+            break
+    return payload
+
+
 def _setup_plan_event_ids(raw: str) -> set[str]:
     """Event ids of the setup-plan lifecycle lines in a status-log text (malformed lines are skipped)."""
     ids: set[str] = set()
@@ -1684,7 +1700,7 @@ def setup_plan(
         raise typer.Exit(1) from None
     except Exception as e:
         if json_output:
-            _emit_json({"error": str(e)})
+            _emit_json(_generic_error_payload(e))
         else:
             console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from None
