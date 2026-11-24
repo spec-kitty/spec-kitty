@@ -229,9 +229,48 @@ def test_a_merge_driver_result_is_never_evidence_for_a_mission_file(landed: Land
     assert not landed.proof()
 
 
-def test_an_older_non_bookkeeping_mission_file_keeps_the_lane(landed: Landed) -> None:
-    """Only the four bookkeeping kinds are set aside (C-004); an older spec.md fails closed."""
-    _commit(landed.root, "spec edited after landing", {_SPEC: "# spec, revised\n"})
+def test_a_planning_file_the_lane_wrote_keeps_the_lane(landed: Landed) -> None:
+    """Ruling B (2026-11-24) sets aside only what the lane never wrote: its own spec edit keeps it."""
+    _commit(landed.lane, "the lane edits the spec", {_SPEC: "# spec, lane edit\n"})
+    assert not landed.proof()
+
+
+# --- operator ruling 2026-11-24 (B, C): the lane's own changes only -------------------------
+
+
+def test_an_older_planning_file_the_lane_never_wrote_is_set_aside(landed: Landed) -> None:
+    """B: a planning edit on the coordination branch after the lane's last sync does not keep the lane."""
+    _commit(landed.root, "spec edited after the last sync", {_SPEC: "# spec, revised\n"})
+    assert landed.proof()
+
+
+def test_another_missions_planning_file_is_not_set_aside(landed: Landed) -> None:
+    """B covers the lane's own Mission only: another Mission's file both sides moved keeps it."""
+    other = f"kitty-specs/{_OTHER_SLUG}/spec.md"
+    _commit(landed.coord, "another Mission's spec", {other: "# other\n"})
+    _git(landed.lane, "merge", "-q", "--no-ff", "--no-edit", _COORD)
+    _commit(landed.root, "that Mission moves on", {other: "# other, revised\n"})
+    assert not landed.proof()
+
+
+def test_a_snapshot_a_merge_rematerialized_is_set_aside_when_its_log_landed(landed: Landed) -> None:
+    """C: status.json is a projection of the log; a merge (or driver) result for it is not read."""
+    _git(landed.lane, "merge", "-q", "--no-ff", "--no-commit", _COORD)
+    (landed.lane / _SNAPSHOT).write_text('{"v": "rematerialized"}\n', encoding="utf-8")
+    _git(landed.lane, "add", _SNAPSHOT)
+    _git(landed.lane, "commit", "-q", "--no-edit")
+    assert landed.proof()
+
+
+def test_a_snapshot_the_lane_committed_is_set_aside_when_its_log_landed(landed: Landed) -> None:
+    """C: authorship of status.json is never read."""
+    _commit(landed.lane, "the lane writes the snapshot", {_SNAPSHOT: '{"v": "lane"}\n'})
+    assert landed.proof()
+
+
+def test_a_snapshot_whose_log_did_not_land_keeps_the_lane(landed: Landed) -> None:
+    """C: the snapshot is judged by its log, so a lane-only event keeps it."""
+    _commit(landed.lane, "a lane-only event and its snapshot", {_LOG: _log("e1", "e2", "lane-only"), _SNAPSHOT: '{"v": "lane"}\n'})
     assert not landed.proof()
 
 
@@ -278,10 +317,17 @@ def test_a_lane_that_deleted_its_own_status_log_is_landed(landed: Landed) -> Non
     assert landed.proof()
 
 
-def test_a_bookkeeping_file_the_target_no_longer_has_keeps_the_lane(landed: Landed) -> None:
-    """FR-003: both sides must have the file; the lane's copy of a file the target dropped is not set aside."""
+def test_a_bookkeeping_file_the_lane_wrote_and_the_target_dropped_keeps_the_lane(landed: Landed) -> None:
+    """A lane-written copy of a file the target no longer has is not set aside."""
+    _commit(landed.lane, "lane writes meta", {_META: '{"v": "lane"}\n'})
     _commit(landed.root, "the target drops meta.json", {_META: None})
     assert not landed.proof()
+
+
+def test_a_synced_bookkeeping_file_the_target_dropped_is_set_aside(landed: Landed) -> None:
+    """Ruling B (2026-11-24): a copy the lane only synced is not the lane's change, whatever the target did."""
+    _commit(landed.root, "the target drops meta.json", {_META: None})
+    assert landed.proof()
 
 
 def test_another_missions_snapshot_is_not_set_aside(landed: Landed) -> None:

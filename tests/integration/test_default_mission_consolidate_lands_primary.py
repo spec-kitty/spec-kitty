@@ -32,7 +32,7 @@ import json
 import os
 import subprocess
 import sys
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -156,8 +156,18 @@ def _lane_worktree(built: Built, index: int) -> Path:
     return built.root / ".worktrees" / f"{built.slug}-lane-{'abc'[index - 1]}"
 
 
-def build(tmp_path: Path, *, explicit: str | None = None) -> Built:
-    """Create (default or *explicit* topology), finalize, implement and approve three code WPs."""
+def build(
+    tmp_path: Path,
+    *,
+    explicit: str | None = None,
+    after_lane_commit: Callable[[Built, int], None] | None = None,
+    after_approvals: Callable[[Built], None] | None = None,
+) -> Built:
+    """Create (default or *explicit* topology), finalize, implement and approve three code WPs.
+
+    ``after_lane_commit(built, index)`` runs after lane *index* committed its product, before its
+    review; ``after_approvals(built)`` runs once every WP is approved (#7747 fixture shapes).
+    """
     mission = make_default_mission(tmp_path, THREE_LANES, standing_on=_TARGET, explicit=explicit)
     code, payload = run_finalize(mission)
     assert code == 0, payload
@@ -178,10 +188,14 @@ def build(tmp_path: Path, *, explicit: str | None = None) -> Built:
         (lane / owned).write_text(f"X = {index}\n", encoding="utf-8")
         git(lane, "add", owned)
         git(lane, "-c", "user.name=e", "-c", "user.email=e@x", "commit", "-qm", f"feat(WP0{index})")
+        if after_lane_commit is not None:
+            after_lane_commit(built, index)
         for to, agent, force in (("for_review", "impl", ()), ("in_review", "rev", ()), ("approved", "rev", ("--force",))):
             _ok(cli(built, "agent", "tasks", "move-task", f"WP0{index}", "--to", to, "--mission", built.slug, "--agent", agent, *force, "--note", agent))
     _commit_all(built.coord_worktree, "status")
     _commit_all(built.root, "status")
+    if after_approvals is not None:
+        after_approvals(built)
     return built
 
 
