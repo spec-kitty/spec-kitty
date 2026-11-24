@@ -20,11 +20,18 @@ from pathlib import Path
 
 import pytest
 
+from kernel.git import GitPath
+from specify_cli.coordination.coherence import is_decisions_runtime_lock
 from specify_cli.git.ref_advance import (
     RefAdvanceDirtyWorktreeError,
+    _dirty_verdicts,
+    _path_obstructs_target_tree,
+    _TargetOverlapIndex,
+    _target_tree_paths,
     advance_branch_ref,
     reset_would_obstruct_untracked,
 )
+from tests.residue_predicate import residue_when
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -160,3 +167,86 @@ def test_nested_repository_in_an_overlapping_ignored_directory_still_refuses(rep
         advance_branch_ref(repo, _BRANCH, new_sha)
 
     assert (nested / "local.txt").read_text(encoding="utf-8") == _LOCAL
+
+
+_MANY_IGNORED = 400
+_MANY_TRACKED = 2000
+
+
+def test_expansion_cost_does_not_scale_with_files_times_target_paths(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Judging an expanded directory must not compare every ignored file with every target path.
+
+    The guard used to test each ignored file against the whole target tree,
+    ``O(files x tracked paths)``: 2,000 ignored files against 40,000 tracked
+    paths took about 95 s. The bound is a count of pairwise path comparisons,
+    not wall-clock time, so it cannot flake.
+    """
+    _write(repo, ".gitignore", "dist/\n")
+    _git(repo, "add", "--", ".gitignore")
+    _git(repo, "commit", "-qm", "ignore dist")
+    new_sha = _incoming_with(repo, "dist/tracked.txt")
+    for index in range(_MANY_IGNORED):
+        _write(repo, f"dist/build/{index:04d}.o", "object\n")
+    target_paths = frozenset(_target_tree_paths(repo, new_sha, None)) | frozenset(
+        GitPath.parse(f"src/pkg{index // 100}/mod{index}.py") for index in range(_MANY_TRACKED)
+    )
+    comparisons = 0
+    original = GitPath.overlaps
+
+    def counting(self: GitPath, other: GitPath) -> bool:
+        nonlocal comparisons
+        comparisons += 1
+        return original(self, other)
+
+    monkeypatch.setattr(GitPath, "overlaps", counting)
+
+    verdicts = _dirty_verdicts(repo, None, new_sha=new_sha, target_paths=target_paths)
+
+    assert verdicts == []
+    assert comparisons <= len(target_paths) + _MANY_IGNORED, comparisons
+
+
+def test_injected_classifier_exempts_the_lock_even_where_it_would_collide(repo: Path) -> None:
+    """The expanded lock path reaches the injected ``is_disposable`` (#6628), not only the overlap test.
+
+    A target that tracks the lock path itself makes the lock a real obstruction,
+    so only the classifier can exempt it: without one the advance refuses, with
+    :func:`is_decisions_runtime_lock` injected it proceeds.
+    """
+    new_sha = _incoming_with(repo, f"{_MISSION}/spec.md", _LOCK)
+    _plant_lock_only_mission_dir(repo)
+    assert f"!! {_MISSION}/" in _git(repo, "status", "--porcelain", "--ignored").splitlines()
+
+    with pytest.raises(RefAdvanceDirtyWorktreeError):
+        advance_branch_ref(repo, _BRANCH, new_sha)
+
+    advance_branch_ref(repo, _BRANCH, new_sha, context=residue_when(is_decisions_runtime_lock))
+
+    assert _git(repo, "rev-parse", _BRANCH) == new_sha
+
+
+_TARGETS = ("src/store", "src/local data/notes.txt", "kitty-specs/m/spec.md", "README.md")
+
+
+@pytest.mark.parametrize(
+    "local",
+    [
+        "src/store",  # exact
+        "src/store/local.txt",  # under a target file (#5400)
+        "src/local data",  # contains a target (#5392)
+        "src",  # contains targets
+        "src/storehouse",  # shares text, not a component
+        "kitty-specs/m/decisions/index.json.lock",  # sibling of a target
+        "kitty-specs/m",  # contains a target
+        "docs",  # unrelated
+        "README.md/x",  # under a target file
+    ],
+)
+def test_overlap_index_matches_pairwise_overlaps(local: str) -> None:
+    targets = frozenset(GitPath.parse(path) for path in _TARGETS)
+    path = GitPath.parse(local)
+    index = _TargetOverlapIndex(targets)
+
+    assert index.overlaps(path) is any(path.overlaps(target) for target in targets)
+    assert _path_obstructs_target_tree(path, index) is _path_obstructs_target_tree(path, targets)
+    assert set(index) == targets and len(index) == len(targets) and GitPath.parse("README.md") in index
