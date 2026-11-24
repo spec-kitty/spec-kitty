@@ -580,6 +580,7 @@ class GuardedLaneRemover:
         removal = _guarded_removal(self._repo_root, item, landing)
         if removal is None or landing is None or item.worktree is None:  # unreachable after the check above
             return _kept(item, _LANDING_PROOF_UNAVAILABLE, "no landing proof could be built", detail=None)
+        prior_tip = self._name_tip_before_removal(item.branch, removal.tip)
         try:
             result = guarded_landed_removal(
                 self._repo_root,
@@ -591,28 +592,52 @@ class GuardedLaneRemover:
         except DestructiveOpRefused as refusal:
             # A lane consolidate did not land (all its WPs canceled, or absorption unprovable) is kept
             # with the guard's code: falling back to the older remover deleted its only copy (#7316 landing).
+            self._restore_tip(item.branch, prior_tip)
             return _kept(item, refusal.error_code, refusal.remediation, detail=_refusal_detail(refusal, item.worktree))
         if self._after_worktree_removed is not None:
             self._after_worktree_removed()
+        if not result.branch_deleted:
+            self._restore_tip(item.branch, prior_tip)
         if result.refusal is not None:
             return replace(_kept(item, result.refusal, f"the worktree was removed but {item.branch} was kept", detail=None), recreate=result.recreate)
         if result.branch_deleted:
             return self._after_branch_deleted(item, item.branch, removal.tip, recreate=result.recreate)
         return LaneCleanupResult(item=item, outcome=LaneCleanupOutcome.REMOVED, recreate=result.recreate)
 
+    def _name_tip_before_removal(self, branch: str, tip: str) -> str | None:
+        """Write the lane-tip ref at ``tip`` before the guard may delete the branch; return the ref's earlier value.
+
+        Tier R confirm 4: a failed write keeps the lane (nothing is removed yet), and an interruption
+        after the branch delete still leaves its tip named.
+        """
+        from specify_cli.lanes import lane_tip
+
+        prior: str | None = lane_tip.read_tip(self._repo_root, branch)
+        lane_tip.record_tip(self._repo_root, branch, tip)
+        return prior
+
+    def _restore_tip(self, branch: str, prior: str | None) -> None:
+        """Put back the lane-tip ref a kept lane had before :meth:`_name_tip_before_removal` wrote it."""
+        from specify_cli.lanes import lane_tip
+
+        if prior is None:
+            lane_tip.clear_tip(self._repo_root, branch)
+        else:
+            lane_tip.record_tip(self._repo_root, branch, prior)
+
     def _after_branch_deleted(self, item: LaneCleanupItem, branch: str, tip: str, *, recreate: str | None) -> LaneCleanupResult:
         """Clear the lane-tip ref, except for a lane removed on the Mission-branch proof alone.
 
         Operator ruling 2026-11-24: such a lane's exact work is not on the target (later approved work
-        superseded it, judged per path), so its ref is kept at the removed tip and named in the report.
-        A lane the content proof discharged has its work on the target: nothing to recover.
+        superseded it, judged per path), so its ref, written before the removal, stays at the removed
+        tip and is named in the report. A lane the content proof discharged has its work on the target:
+        nothing to recover, so its ref is cleared.
         """
         from specify_cli.lanes import lane_tip
 
         if tip not in self._superseded_tips:
             lane_tip.clear_tip(self._repo_root, branch)
             return LaneCleanupResult(item=item, outcome=LaneCleanupOutcome.REMOVED, recreate=recreate)
-        lane_tip.record_tip(self._repo_root, branch, tip)
         return LaneCleanupResult(item=item, outcome=LaneCleanupOutcome.REMOVED, recreate=recreate, recoverable=lane_tip.tip_ref(branch))
 
     def _proof_unavailable(self, item: LaneCleanupItem, branch: str, landing: LandingProof | None) -> LaneCleanupResult | None:
