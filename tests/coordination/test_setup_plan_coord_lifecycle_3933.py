@@ -247,6 +247,10 @@ def test_coord_setup_plan_never_erases_events_the_branch_committed(tmp_path: Pat
     payload = json_of(proc)
     assert payload["error_code"] == "SETUP_PLAN_LIFECYCLE_UNCOMMITTED", payload
     assert "COORD_STATUS_SURFACE_DIVERGED" in str(payload["lifecycle_diagnostic"])
+    error = str(payload["error"])
+    assert "commit them in that checkout" not in error, "committing the stale log erases the committed events"
+    assert "Do not commit this checkout's status log" in error
+    assert "re-run setup-plan" in error
     assert git(mission.repo, "rev-parse", mission.coord_branch) == tip, "the coordination branch must not move"
     assert foreign_id in git(mission.repo, "show", f"{mission.coord_branch}:kitty-specs/{mission.slug}/status.events.jsonl")
 
@@ -366,6 +370,11 @@ def test_setup_plan_events_in_log_edges(tmp_path: Path) -> None:
 
     assert mission_setup_plan._setup_plan_events_in_log(tmp_path) == ["PlanStarted", "SpecifyCompleted"]
 
+    damaged = tmp_path / "damaged"
+    damaged.mkdir()
+    (damaged / "status.events.jsonl").write_bytes(b"\xff\xfe not utf-8\n")
+    assert mission_setup_plan._setup_plan_events_in_log(damaged) == []
+
 
 # ---------------------------------------------------------------------------
 # Review cycle 2, B2: the commit is bound to the HEAD the guard checked (compare-and-swap)
@@ -400,22 +409,6 @@ def test_foreign_commit_after_the_guard_is_never_erased(tmp_path: Path, monkeypa
     assert injected["event_id"] in git(mission.repo, "show", f"{mission.coord_branch}:kitty-specs/{mission.slug}/status.events.jsonl")
 
 
-def test_divergence_refusal_never_says_commit_the_checkout(tmp_path: Path) -> None:
-    mission = _mission(tmp_path, "lanes_with_coord")
-    mission.setup_plan()  # scaffold
-    _advance_coord_branch_with_foreign_event(mission)
-    mission.write_plan()
-
-    proc = run_sk(mission.repo, mission.env, "agent", "mission", "setup-plan", "--mission", mission.slug)
-
-    assert proc.returncode == 1, flat(proc)[-2000:]
-    text = flat(proc)
-    assert "COORD_STATUS_SURFACE_DIVERGED" in text
-    assert "commit them in that checkout" not in text, "committing the stale log erases the committed events"
-    assert "Do not commit this checkout's status log" in text
-    assert "re-run setup-plan" in text
-
-
 def test_unresolvable_coordination_head_is_a_loss_risk_refusal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     import mission_runtime
     from mission_runtime import MissionTopology
@@ -431,14 +424,6 @@ def test_unresolvable_coordination_head_is_a_loss_risk_refusal(tmp_path: Path, m
     assert result is not None and result.status == "error"
     assert "could not be resolved" in str(result.diagnostic)
     assert result.reason == mission_setup_plan._LIFECYCLE_LOSS_RISK
-
-
-def test_damaged_log_still_reaches_the_named_refusal(tmp_path: Path) -> None:
-    from specify_cli.cli.commands.agent import mission_setup_plan
-
-    (tmp_path / "status.events.jsonl").write_bytes(b"\xff\xfe not utf-8\n")
-
-    assert mission_setup_plan._setup_plan_events_in_log(tmp_path) == []
 
 
 def test_concurrent_status_write_that_carried_our_events_is_not_a_refusal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -469,10 +454,11 @@ def test_concurrent_status_write_that_carried_our_events_is_not_a_refusal(tmp_pa
     assert "PlanCompleted" in mission.coord_events()
 
 
-def test_moved_branch_without_our_events_stays_a_refusal(tmp_path: Path) -> None:
+def test_events_landed_is_false_outside_a_checkout_and_event_ids_skip_malformed_lines(tmp_path: Path) -> None:
     from specify_cli.cli.commands.agent import mission_setup_plan
 
-    assert mission_setup_plan._lifecycle_events_landed(tmp_path, tmp_path / "status.events.jsonl", b"") is False
+    ours = b'{"event_type":"PlanStarted","event_id":"A"}\n'
+    assert mission_setup_plan._lifecycle_events_landed(tmp_path, tmp_path / "status.events.jsonl", ours) is False
     assert mission_setup_plan._setup_plan_event_ids('{"event_type":"PlanStarted","event_id":"A"}\nnot json\n[1]\n') == {"A"}
 
 
