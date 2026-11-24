@@ -1246,19 +1246,22 @@ def _pass_landing(run: _MergeRunState) -> LocalTargetAtPass:
     return LocalTargetAtPass(target_ref=run.lanes_manifest.target_branch, passed_sha=run.state.reconciliation_passed_target_sha or "")
 
 
-def _mission_branch_projection(run: _MergeRunState) -> MissionBranchProjection | None:
+def _mission_branch_projection(run: _MergeRunState, items: tuple[LaneCleanupItem, ...]) -> MissionBranchProjection | None:
     """#7747 (operator ruling 2026-11-24, A): read before the coordination teardown deletes the Mission branch."""
-    items = _lane_cleanup_items(run)
     if not items:
         return None
     tips = projection_tips(items, run.main_repo)
     return mission_branch_projection(run.main_repo, run.lanes_manifest.mission_branch, _pass_landing(run), tips, run.lanes_manifest.mission_slug)
 
 
-def _lane_cleanup_report(run: _MergeRunState, projection: MissionBranchProjection | None = None) -> LaneCleanupReport:
+def _lane_cleanup_report(
+    run: _MergeRunState,
+    items: tuple[LaneCleanupItem, ...] | None = None,
+    projection: MissionBranchProjection | None = None,
+) -> LaneCleanupReport:
     """The lane legs (S5): one module, kept lanes reported, never raised after the verified landing."""
     lanes_manifest = run.lanes_manifest
-    items = _lane_cleanup_items(run)
+    items = _lane_cleanup_items(run) if items is None else items
     retention = LaneRetention(remove_worktree=run.remove_worktree, delete_branch=run.delete_branch)
     if not items:
         return LaneCleanupReport(results=())
@@ -1300,11 +1303,12 @@ def _phase_cleanup_worktrees_and_branches(run: _MergeRunState) -> None:
     # -- #3131 T008: MISSION/coordination branch + marker + worktree --
     # Topology-aware and (for coord) coupled under ``teardown_coordination``;
     # see ``_cleanup_mission_branch_and_coordination`` for the INV-2 rationale.
-    projection = _mission_branch_projection(run)  # #7747 A: the Mission branch goes in the teardown below
+    items = _lane_cleanup_items(run)
+    projection = _mission_branch_projection(run, items)  # #7747 A: the Mission branch goes in the teardown below
     try:
         _cleanup_mission_branch_and_coordination(run)
     except Exception:
         _print_lane_cleanup(_coordination_refused_report(run))
         raise
-    run.lane_cleanup = _lane_cleanup_report(run, projection)
+    run.lane_cleanup = _lane_cleanup_report(run, items, projection)
     _print_lane_cleanup(run.lane_cleanup)

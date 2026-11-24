@@ -218,17 +218,31 @@ proof.
   distrusted). Rule 4 stays for other Missions' files, which still fail closed otherwise.
 - **C.** `status.json` is a projection of the status log. It is accounted for when the lane's
   `status.events.jsonl` is contained in the landing's log (rule 2); its authorship is never read.
-- **A.** Before the coordination teardown deletes the Mission branch, `consolidate` (and
-  `orchestrator-api consolidate-mission`) records, per lane, whether
+- **A.** Before the coordination teardown deletes the Mission branch, `consolidate` records, per
+  lane, whether
   `lane_tip.is_landed_through_mission_branch` holds: the lane tip is an ancestor of the Mission branch
   tip, every path outside `kitty-specs/` the Mission branch changed since its merge base with the
   reconciliation PASS anchor has the Mission branch's blob on the anchor (the target keeps its own
   content elsewhere), and every
-  `kitty-specs/` difference between the lane and the anchor is accounted for by the rules above. The
-  proven tips reach the guard as `MissionBranchProjection` on the `LocalTargetAtPass` proof, and the
-  guard's O3 evidence accepts them besides the content proof.
+  `kitty-specs/` difference between the lane and the anchor is accounted for by the rules above (a
+  `meta.json` or `tasks/WP*.md` version the lane authored may also be in the Mission branch's history,
+  since a squash keeps only that branch's last version). The proven tips and the anchor reach the
+  guard as `MissionBranchProjection` on the `LocalTargetAtPass` proof; the guard's O3 evidence
+  accepts a proven tip, besides the content proof, only for a landing at that same anchor.
+- **Authorship** (R24 squad): a lane's own commits are its first-parent commits that no merged-in
+  branch's own first-parent line holds, so a lane commit the coordination branch merged back (and the
+  lane then resynced) stays the lane's; changed names are read NUL-separated, so a name git quotes is
+  still matched.
 
-**Residual.** `doctor workspaces` after a push has no Mission branch to read, so a lane in shape A is
-still rated `not_landed` there. A per-path rule (a lane path is superseded when an approved lane that
-depends on it changed that path later) is proposed as a follow-up. A `--resume` whose earlier attempt
-already tore down the Mission branch also runs without the projection.
+**Residuals.**
+
+- `doctor workspaces` after a push has no Mission branch to read, so a lane in shape A is still
+  rated `not_landed` there. A per-path rule (a lane path is superseded when an approved lane that
+  depends on it changed that path later) is proposed as a follow-up.
+- A `--resume` whose earlier attempt already tore down the Mission branch runs without the
+  projection; the projection is not persisted.
+- `orchestrator-api consolidate-mission` has no reconciliation PASS anchor, so it does not use the
+  Mission-branch proof: a lane in shape A is kept there.
+- A lane commit that a branch other than the coordination branch carries on its own first-parent
+  line (for example a dependency lane forked from it, merged back into the lane) counts as not
+  authored on this lane.
