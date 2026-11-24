@@ -11,6 +11,18 @@
       "title": "<fill at WP-implementation time>",
       "verdict": "fixed",
       "wp": "WP01"
+    },
+    "#7782": {
+      "evidence_ref": "https://github.com/spec-kitty/spec-kitty/pull/7778#issuecomment-7048441583",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP01"
     }
   },
   "schema_version": 1
