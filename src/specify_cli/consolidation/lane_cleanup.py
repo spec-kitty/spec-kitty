@@ -395,8 +395,10 @@ def mission_branch_projection(
 ) -> MissionBranchProjection | None:
     """Prove each lane tip landed through the Mission branch, before that branch is torn down (#7747, A).
 
-    ``None`` when there is no PASS anchor or no Mission branch to read: the lanes are then judged
-    by the content proof alone.
+    ``tips`` are the consolidated lanes' tips. A lane's path superseded by another of them counts
+    only through that lane's commits on the Mission branch (approved work the run merged; a fully
+    canceled lane is never merged). ``None`` when there is no PASS anchor or no Mission branch to
+    read: the lanes are then judged by the content proof alone.
     """
     from specify_cli.lanes.lane_tip import is_landed_through_mission_branch
 
@@ -404,7 +406,8 @@ def mission_branch_projection(
     mission_tip = _branch_tip(repo_root, mission_branch)
     if not passed or mission_tip is None:
         return None
-    proven = frozenset(tip for tip in tips if is_landed_through_mission_branch(repo_root, tip, mission_tip, passed, mission_slug))
+    approved = tuple(tips)
+    proven = frozenset(tip for tip in approved if is_landed_through_mission_branch(repo_root, tip, mission_tip, passed, mission_slug, approved_tips=approved))
     return MissionBranchProjection(mission_tip=mission_tip, proven_tips=proven, anchor_sha=passed)
 
 

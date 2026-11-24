@@ -89,8 +89,12 @@ class Landed:
     def tip(self, lane: Path) -> str:
         return _git(lane, "rev-parse", "HEAD")
 
+    def approved(self) -> tuple[str, ...]:
+        """The consolidated lanes' tips (both lanes are approved and merged into the Mission branch)."""
+        return (self.tip(self.lane_a), self.tip(self.lane_b))
+
     def through_mission(self, lane: Path, landing: str | None = None) -> bool:
-        proven: bool = is_landed_through_mission_branch(self.root, self.tip(lane), self.mission_tip, landing or self.passed, _SLUG)
+        proven: bool = is_landed_through_mission_branch(self.root, self.tip(lane), self.mission_tip, landing or self.passed, _SLUG, approved_tips=self.approved())
         return proven
 
 
@@ -136,11 +140,11 @@ def test_a_mission_file_the_lane_wrote_that_did_not_land_is_no_proof(landed: Lan
     mission = landed.root / ".worktrees" / "mission"
     _git(mission, "merge", "-q", "--no-ff", "--no-edit", _LANE_A)  # the Mission branch has it; the landing does not
     mission_tip = _git(mission, "rev-parse", "HEAD")
-    assert not is_landed_through_mission_branch(landed.root, landed.tip(landed.lane_a), mission_tip, landed.passed, _SLUG)
+    assert not is_landed_through_mission_branch(landed.root, landed.tip(landed.lane_a), mission_tip, landed.passed, _SLUG, approved_tips=landed.approved())
 
 
 def test_an_unknown_mission_tip_is_no_proof(landed: Landed) -> None:
-    assert not is_landed_through_mission_branch(landed.root, landed.tip(landed.lane_a), "0" * 40, landed.passed, _SLUG)
+    assert not is_landed_through_mission_branch(landed.root, landed.tip(landed.lane_a), "0" * 40, landed.passed, _SLUG, approved_tips=landed.approved())
 
 
 def test_the_projection_names_the_proven_tips(landed: Landed) -> None:
@@ -193,7 +197,7 @@ def test_a_prompt_the_lane_wrote_and_the_mission_branch_moved_past_is_landed(tmp
     _git(landed.root, "checkout", "-q", mission_tip, "--", ".")
     _git(landed.root, "commit", "-q", "-m", "squash again")
     passed = _git(landed.root, "rev-parse", "HEAD")
-    assert is_landed_through_mission_branch(landed.root, landed.tip(landed.lane_a), mission_tip, passed, _SLUG)
+    assert is_landed_through_mission_branch(landed.root, landed.tip(landed.lane_a), mission_tip, passed, _SLUG, approved_tips=landed.approved())
 
 
 def test_a_projection_proven_against_another_anchor_is_not_used(landed: Landed) -> None:
@@ -240,7 +244,7 @@ def test_a_lane_change_the_mission_branch_merged_then_reverted_is_not_landed(tmp
     mission_tip = _git(mission, "rev-parse", "HEAD")
     passed = _squash(root, mission_tip, "squash merge of the Mission")
     assert not is_absorbed_but_for_mission_bookkeeping(root, lane_tip, passed, _SLUG)
-    assert not is_landed_through_mission_branch(root, lane_tip, mission_tip, passed, _SLUG)
+    assert not is_landed_through_mission_branch(root, lane_tip, mission_tip, passed, _SLUG, approved_tips=(lane_tip,))
 
 
 def test_a_rewrite_no_approved_lane_made_does_not_prove_the_lane(landed: Landed) -> None:
@@ -248,4 +252,31 @@ def test_a_rewrite_no_approved_lane_made_does_not_prove_the_lane(landed: Landed)
     mission = landed.root / ".worktrees" / "mission"
     mission_tip = _commit(mission, "an out-of-workflow edit", {"src/two.py": "y = 99\n"})
     passed = _squash(landed.root, mission_tip, "squash again")
-    assert not is_landed_through_mission_branch(landed.root, landed.tip(landed.lane_b), mission_tip, passed, _SLUG)
+    assert not is_landed_through_mission_branch(landed.root, landed.tip(landed.lane_b), mission_tip, passed, _SLUG, approved_tips=landed.approved())
+
+
+def test_an_approved_dependent_lane_rewriting_the_path_still_proves_the_lane(landed: Landed) -> None:
+    """Positive control for B1 (b): lane B (approved, merged) rewrote lane A's line, so lane A landed."""
+    assert landed.through_mission(landed.lane_a)
+
+
+def test_a_rewrite_by_a_lane_the_mission_branch_never_merged_does_not_count(landed: Landed) -> None:
+    """Only commits on the Mission branch are approved work: before lane B's merge, its rewrite does not count."""
+    from specify_cli.lanes import lane_tip
+
+    mission = landed.root / ".worktrees" / "mission"
+    before_lane_b = _git(mission, "rev-parse", "HEAD^^1")  # the Mission branch with only lane A merged
+    args = (landed.root, landed.tip(landed.lane_a))
+    assert lane_tip._superseded_by_approved_lane(*args, landed.mission_tip, "src/one.py", landed.approved())
+    assert not lane_tip._superseded_by_approved_lane(*args, before_lane_b, "src/one.py", landed.approved())
+
+
+def test_a_probe_error_while_attributing_keeps_the_lane(landed: Landed, monkeypatch: pytest.MonkeyPatch) -> None:
+    from kernel.git import GitCommandError
+    from specify_cli.lanes import lane_tip
+
+    def fail(*args: object, **kwargs: object) -> list[str]:
+        raise GitCommandError(argv=("rev-list",), cwd=landed.root, returncode=128, stderr="boom")
+
+    monkeypatch.setattr(lane_tip, "_git_lines", fail)
+    assert not landed.through_mission(landed.lane_a)

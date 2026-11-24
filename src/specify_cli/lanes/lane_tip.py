@@ -487,7 +487,42 @@ def _mission_branch_landed(repo_root: Path, mission_tip: str, landing_ref: str) 
     return all(_blob_id(repo_root, landing_ref, path) == _blob_id(repo_root, mission_tip, path) for path in _outside_mission_files(sorted(integrated)))
 
 
-def is_landed_through_mission_branch(repo_root: Path, tip: str, mission_tip: str, landing_ref: str, mission_slug: str) -> bool:
+def _superseded_by_approved_lane(repo_root: Path, tip: str, mission_tip: str, path: str, approved_tips: Sequence[str]) -> bool:
+    """A non-merge commit of another approved lane, not in this lane and on the Mission branch, changed ``path``."""
+    for other in approved_tips:
+        if other == tip:
+            continue
+        commits = _git_lines(repo_root, "rev-list", "--no-merges", other, f"^{tip}", "--", path)
+        if any(is_ancestor(repo_root, commit, mission_tip) for commit in commits):
+            return True
+    return False
+
+
+def _lane_product_landed_or_superseded(repo_root: Path, tip: str, mission_tip: str, landing_ref: str, approved_tips: Sequence[str]) -> bool:
+    """Every product path the lane itself changed landed with the lane's blob, or an approved lane changed it later.
+
+    "Later" is a non-merge commit reachable from another approved lane's tip, not from this lane's
+    tip, and on the Mission branch: approved work reached through that lane's merge. A revert or
+    rewrite made on the Mission branch outside any lane is no such commit (operator ruling
+    2026-11-24, Tier R B1 (b)).
+    """
+    for path in _outside_mission_files(sorted(_authored_paths(repo_root, tip, landing_ref))):
+        if _blob_id(repo_root, landing_ref, path) == _blob_id(repo_root, tip, path):
+            continue
+        if not _superseded_by_approved_lane(repo_root, tip, mission_tip, path, approved_tips):
+            return False
+    return True
+
+
+def is_landed_through_mission_branch(
+    repo_root: Path,
+    tip: str,
+    mission_tip: str,
+    landing_ref: str,
+    mission_slug: str,
+    *,
+    approved_tips: Sequence[str],
+) -> bool:
     """A lane landed through the Mission branch it was consolidated into (#7747, operator ruling 2026-11-24, A).
 
     A squash landing's merge base is the pre-Mission tip, so a lane whose lines a dependent lane later
@@ -496,6 +531,10 @@ def is_landed_through_mission_branch(repo_root: Path, tip: str, mission_tip: str
     proven landed when:
 
     * ``tip`` is an ancestor of ``mission_tip`` (the Mission branch integrated all of it);
+    * every path outside ``kitty-specs/`` the lane itself changed either has the lane's own final
+      blob on ``landing_ref``, or a later commit of another of ``approved_tips`` (the approved lanes
+      the Mission branch merged) changed it; a revert or rewrite made outside the workflow keeps
+      the lane (operator ruling 2026-11-24, Tier R B1 (b));
     * every path outside ``kitty-specs/`` the Mission branch changed since its merge base with
       ``landing_ref`` (the reconciliation PASS anchor) has the Mission branch's blob on
       ``landing_ref``: what the Mission branch integrated is what landed, while the target keeps its
@@ -509,6 +548,8 @@ def is_landed_through_mission_branch(repo_root: Path, tip: str, mission_tip: str
     """
     try:
         if not is_ancestor(repo_root, tip, mission_tip) or not _mission_branch_landed(repo_root, mission_tip, landing_ref):
+            return False
+        if not _lane_product_landed_or_superseded(repo_root, tip, mission_tip, landing_ref, approved_tips):
             return False
         return _mission_files_accounted(repo_root, tip, landing_ref, mission_slug, integrated_by=mission_tip)
     except (GitCommandError, OSError):
