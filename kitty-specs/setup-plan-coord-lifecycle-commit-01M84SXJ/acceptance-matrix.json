@@ -8,11 +8,11 @@
       "criterion_id": "FR-001",
       "description": "Verify FR-001 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/coordination/test_setup_plan_coord_lifecycle_3933.py::test_coord_setup_plan_commits_lifecycle_events_on_the_coordination_branch; tests/integration/test_placement_partition_golden_path.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::implementer-ivan",
+      "verified_at": "2026-11-24T00:03:09.426032+00:00",
+      "notes": "Events written through write_dir(STATUS_STATE); coordination log holds all three; reviewer cycle 3 approved."
     },
     {
       "criterion_id": "FR-002",
