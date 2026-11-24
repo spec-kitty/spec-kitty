@@ -20,12 +20,15 @@ from specify_cli.consolidation.lane_cleanup import (
     GuardedLaneRemover,
     LaneCleanupItem,
     LaneCleanupOutcome,
+    LaneCleanupReport,
+    LaneCleanupResult,
     LocalTargetAtPass,
     MissionBranchProjection,
     mission_branch_projection,
 )
 from specify_cli.coordination.coherence import NothingIsResidue
-from specify_cli.lanes.lane_tip import is_absorbed_but_for_mission_bookkeeping, is_landed_through_mission_branch
+from specify_cli.lanes.lane_tip import clear_tip, is_absorbed_but_for_mission_bookkeeping, is_landed_through_mission_branch, read_tip, record_tip, tip_ref
+from specify_cli.lanes.worktree_allocator import DestroyedLaneError, _refuse_on_tip
 from specify_cli.workspace.process_probe import ProcessProbeResult
 
 pytestmark = [pytest.mark.git_repo]
@@ -282,3 +285,68 @@ def test_a_probe_error_while_attributing_keeps_the_lane(landed: Landed, monkeypa
 
     monkeypatch.setattr(lane_tip, "_git_lines", fail)
     assert not landed.through_mission(landed.lane_a)
+
+
+# --- Operator ruling 2026-11-24: a lane removed on proof A keeps its lane-tip ref ---------------------
+
+
+def _projection_of_both(landed: Landed, approved: tuple[str, ...] | None = None) -> LocalTargetAtPass:
+    proven = frozenset(approved or landed.approved())
+    projection = MissionBranchProjection(mission_tip=landed.mission_tip, proven_tips=proven, anchor_sha=landed.passed)
+    return LocalTargetAtPass(target_ref="main", passed_sha=landed.passed, projection=projection)
+
+
+def _remove(landed: Landed, lane: Path, branch: str, lane_id: str) -> LaneCleanupResult:
+    remover = GuardedLaneRemover(landed.root, context=NothingIsResidue(), probe=_idle, mission_slug=_SLUG)
+    item = LaneCleanupItem(lane_id=lane_id, worktree=lane, branch=branch, expected_tip=landed.tip(lane))
+    return remover.remove(item, landing=_projection_of_both(landed))
+
+
+def test_a_lane_removed_on_the_mission_branch_proof_keeps_its_lane_tip_ref(landed: Landed) -> None:
+    """Lane A's line is not on the target (lane B rewrote it): its removed tip stays recoverable from the ref."""
+    tip = landed.tip(landed.lane_a)
+    clear_tip(landed.root, _LANE_A)  # recorder inactive: cleanup writes the ref itself
+    result = _remove(landed, landed.lane_a, _LANE_A, "lane-a")
+    assert result.outcome is LaneCleanupOutcome.REMOVED
+    assert _git(landed.root, "branch", "--list", _LANE_A) == ""
+    assert read_tip(landed.root, _LANE_A) == tip
+    assert result.recoverable == tip_ref(_LANE_A)
+    assert f"(recoverable: {tip_ref(_LANE_A)})" in LaneCleanupReport(results=(result,)).render_lines()[1]
+
+
+def test_a_lane_removed_on_the_content_proof_still_clears_its_lane_tip_ref(landed: Landed) -> None:
+    """Control: lane B's content is on the target, so nothing needs recovering; the content proof is tried first."""
+    record_tip(landed.root, _LANE_B, landed.tip(landed.lane_b))
+    result = _remove(landed, landed.lane_b, _LANE_B, "lane-b")
+    assert result.outcome is LaneCleanupOutcome.REMOVED
+    assert read_tip(landed.root, _LANE_B) is None
+    assert result.recoverable is None
+    assert "recoverable" not in LaneCleanupReport(results=(result,)).render_lines()[1]
+
+
+def test_a_kept_lane_tip_ref_does_not_block_a_cleanup_rerun_and_recreates_the_lane(landed: Landed) -> None:
+    """A re-run finds nothing left and leaves the ref; ``git branch <b> <ref>`` brings the lane back."""
+    tip = landed.tip(landed.lane_a)
+    approved = landed.approved()
+    _remove(landed, landed.lane_a, _LANE_A, "lane-a")
+    rerun = _remove_again(landed, approved)
+    assert rerun.outcome is LaneCleanupOutcome.REMOVED
+    assert read_tip(landed.root, _LANE_A) == tip
+    _git(landed.root, "branch", _LANE_A, tip_ref(_LANE_A))
+    assert _git(landed.root, "rev-parse", _LANE_A) == tip
+
+
+def _remove_again(landed: Landed, approved: tuple[str, ...]) -> LaneCleanupResult:
+    remover = GuardedLaneRemover(landed.root, context=NothingIsResidue(), probe=_idle, mission_slug=_SLUG)
+    item = LaneCleanupItem(lane_id="lane-a", worktree=landed.lane_a, branch=_LANE_A, expected_tip=None)
+    return remover.remove(item, landing=_projection_of_both(landed, approved))
+
+
+def test_a_reopened_work_package_on_a_kept_ref_is_classified_destroyed_not_unknown(landed: Landed) -> None:
+    """The kept tip is not on the target, so the allocator's guard names it (DESTROYED_LANE), never LANE_WORK_TIP_UNKNOWN."""
+    tip = landed.tip(landed.lane_a)
+    _remove(landed, landed.lane_a, _LANE_A, "lane-a")
+    with pytest.raises(DestroyedLaneError) as refused:
+        _refuse_on_tip(landed.root, lane_id="lane-a", wp_id="WP01", branch=_LANE_A, target_branch="main", tip=read_tip(landed.root, _LANE_A), context=None)
+    assert refused.value.error_code == "DESTROYED_LANE"
+    assert tip in str(refused.value)
