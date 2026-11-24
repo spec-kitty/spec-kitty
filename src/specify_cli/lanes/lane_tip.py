@@ -23,8 +23,7 @@ import subprocess
 from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 
-from kernel.git import GitCommandError, changed_paths, merge_tree, run_git, tree_entry
-from kernel.git.listing import parse_paths_z
+from kernel.git import GitCommandError, changed_paths, merge_tree, run_git, tree_entry, tree_paths
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.git.merge_tree_probe import MERGE_TREE_WRITE_TREE_MIN_VERSION, merge_tree_write_tree_available
 from specify_cli.git.ref_advance import delete_bookkeeping_ref, write_bookkeeping_ref
@@ -311,10 +310,12 @@ def _blob_id(repo_root: Path, rev: str, path: str) -> str | None:
 
 
 def _paths_changed_by(repo_root: Path, commit: str, parents: Sequence[str]) -> list[str]:
-    """NUL-separated names: a quoted name (``core.quotePath``) would never match the unquoted path it names."""
-    revs = ("--root", commit) if not parents else (parents[0], commit)
-    raw = run_git(repo_root, "diff-tree", "-r", "-z", "--no-commit-id", "--name-only", "--no-renames", *revs).stdout
-    return [str(path) for path in parse_paths_z(raw)]
+    """The paths ``commit`` changed against its first parent (every path of a root commit), via ``kernel.git``.
+
+    Paths come decoded from ``kernel.git``, so a name git would quote (``core.quotePath``) still matches.
+    """
+    paths = changed_paths(repo_root, parents[0], commit) if parents else tree_paths(repo_root, commit)
+    return [str(path) for path in paths]
 
 
 def _taken_whole_from_merged_in(repo_root: Path, commit: str, merged_in: Sequence[str], path: str) -> bool:
@@ -357,8 +358,8 @@ def _status_log_contained(repo_root: Path, tip: str, landing_ref: str, log_path:
 
 def _in_landing_history(repo_root: Path, landing_ref: str, path: str, blob: str) -> bool:
     """The landing ref's own history of ``path`` holds the version ``blob`` (it was recorded there, then moved past)."""
-    raw = _git_lines(repo_root, "log", "--full-history", "-m", "--raw", "--no-abbrev", "--no-renames", "--format=", landing_ref, "--", path)
-    return any(blob in line.split()[2:4] for line in raw if line.startswith(":"))
+    commits = _git_lines(repo_root, "rev-list", "--full-history", landing_ref, "--", path)
+    return any(_blob_id(repo_root, commit, path) == blob for commit in commits)
 
 
 def _is_bookkeeping(path: str, mission_dir: str) -> bool:
@@ -373,8 +374,7 @@ class _MissionFileJudge:
     """Research R3: whether one differing ``kitty-specs/`` path loses nothing if the lane goes."""
 
     def __init__(self, repo_root: Path, tip: str, landing_ref: str, mission_slug: str, *, integrated_by: str | None = None) -> None:
-        from specify_cli.status.reducer import SNAPSHOT_FILENAME
-        from specify_cli.status.store import EVENTS_FILENAME
+        from specify_cli.status import EVENTS_FILENAME, SNAPSHOT_FILENAME
 
         self._repo_root = repo_root
         self._tip = tip

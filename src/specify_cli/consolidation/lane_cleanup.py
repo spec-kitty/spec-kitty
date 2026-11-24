@@ -52,7 +52,6 @@ from specify_cli.lanes.models import LanesManifest
 from specify_cli.workspace.process_probe import ProcessProbeResult, processes_with_cwd_under
 
 __all__ = [
-    "LANDING_PROOF_UNAVAILABLE",
     "LANE_CLEANUP_FAILED",
     "GuardedLaneRemover",
     "LaneCleanupOutcome",
@@ -77,7 +76,7 @@ BACKSTOP_COMMAND = "spec-kitty doctor workspaces --prune"
 #: Running processes cannot be checked on this platform (no ``/proc``).
 PROCESS_PROOF_UNAVAILABLE = "PROCESS_PROOF_UNAVAILABLE"
 #: Cleanup had no usable landing proof for the lane (#7325): it is kept, worktree and branch as they are.
-LANDING_PROOF_UNAVAILABLE = "LANDING_PROOF_UNAVAILABLE"
+_LANDING_PROOF_UNAVAILABLE = "LANDING_PROOF_UNAVAILABLE"
 #: The remover itself failed unexpectedly; the lane is kept and nothing more is attempted.
 LANE_CLEANUP_FAILED = "LANE_CLEANUP_FAILED"
 #: ``git branch -D`` itself refused (for example the branch is checked out elsewhere).
@@ -573,7 +572,7 @@ class GuardedLaneRemover:
             return unavailable
         removal = _guarded_removal(self._repo_root, item, landing)
         if removal is None or landing is None or item.worktree is None:  # unreachable after the check above
-            return _kept(item, LANDING_PROOF_UNAVAILABLE, "no landing proof could be built", detail=None)
+            return _kept(item, _LANDING_PROOF_UNAVAILABLE, "no landing proof could be built", detail=None)
         try:
             result = guarded_landed_removal(
                 self._repo_root,
@@ -607,7 +606,7 @@ class GuardedLaneRemover:
         if reason is None:
             return None
         remedy = _proof_unavailable_remedy(reason, branch, landing, branch_present=branch_tip is not None, worktree=item.worktree)
-        return _kept(item, LANDING_PROOF_UNAVAILABLE, remedy, detail=None, command=BACKSTOP_COMMAND if worktree_present else None)
+        return _kept(item, _LANDING_PROOF_UNAVAILABLE, remedy, detail=None, command=BACKSTOP_COMMAND if worktree_present else None)
 
     def _busy(self, path: Path) -> bool | None:
         """O2: ``None`` when the probe cannot tell (off Linux): the guard then keeps the lane (NFR-008)."""
