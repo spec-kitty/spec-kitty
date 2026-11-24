@@ -46,13 +46,13 @@
     },
     {
       "criterion_id": "FR-005",
-      "description": "Verify FR-005 is satisfied",
+      "description": "every other change, deletion and read error keeps the lane (status-log deletion excepted)",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/lanes/test_lane_tip_mission_bookkeeping.py (git-failure parametrize, deletion negatives)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-24T01:02:01.311128+00:00",
+      "notes": "Approved WP review + local run 2026-11-24"
     },
     {
       "criterion_id": "FR-006",
