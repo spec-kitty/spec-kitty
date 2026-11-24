@@ -217,6 +217,34 @@ class TestCodexHomeExclusion:
         assert _exclude_lines(project).count(_ROOT_RULE) == 1
         assert ".codex/config.toml" in _untracked(project)  # the operator's rule decides
 
+    @pytest.mark.parametrize("folder", ["foo[1]", "a*b", "what?", "back\\slash"])
+    def test_a_project_path_with_glob_characters_is_excluded(self, tmp_path: Path, folder: str) -> None:
+        """Review cycle 3, F1(a): the written rule escapes gitignore glob characters, so it matches the project."""
+        repo = _init(tmp_path / "repo")
+        project = _narrowed(repo / "apps" / folder)
+        _write(project, ".codex/version.json", ".codex/config.toml")
+
+        result = ExcludeProjectLocalCodexHomeMigration().apply(project)
+
+        assert result.success, result.errors
+        assert _untracked(repo, f"apps/{folder}/.codex/") == []
+        assert "un-ignores" not in " ".join(result.warnings)
+
+    def test_files_still_visible_without_an_operator_negation_is_a_failure(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Review cycle 3, F1(b): only a proven operator negation turns 'still visible' into a warning."""
+        project = _project(tmp_path)
+        _write(project, ".codex/version.json", ".codex/config.toml")
+
+        # The rule reads as written but matches nothing (as an unescaped glob would); no operator rule exists.
+        monkeypatch.setattr(exclusion, "exclude_from_git_index", lambda *_args, **_kwargs: None)
+        monkeypatch.setattr(exclusion, "_exclude_has_rule", lambda _project, _rule: True)
+
+        result = ExcludeProjectLocalCodexHomeMigration().apply(project)
+
+        assert not result.success
+        assert "does not hide" in result.errors[0]
+        assert ".codex/config.toml" in _untracked(project)
+
     def test_a_narrow_negation_is_pre_empted_by_the_folder_rule(self, tmp_path: Path) -> None:
         """Review cycle 2, N2 (a recorded choice): git never descends into the excluded Codex home."""
         project = _project(tmp_path)
