@@ -1,7 +1,7 @@
 {
-  "event_count": 26,
-  "last_event_id": "01M85FFN5HBGSX8TBQY7SASE1R",
-  "materialized_at": "2026-11-24T00:32:23.729836+00:00",
+  "event_count": 27,
+  "last_event_id": "01M85GYK9C45TFA19X68SAY548",
+  "materialized_at": "2026-11-24T00:58:01.900485+00:00",
   "mission_number": "",
   "mission_slug": "lane-cleanup-landing-proof-01M81KHJ",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 0
   },
   "work_packages": {
@@ -89,14 +89,14 @@
     },
     "WP03": {
       "actor": "claude",
-      "agent": "claude::python-pedro",
+      "agent": "claude::reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude::python-pedro",
-      "lane": "for_review",
-      "last_event_id": "01M85FFN5HBGSX8TBQY7SASE1R",
-      "last_transition_at": "2026-11-24T00:32:23.729836+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M85GYK9C45TFA19X68SAY548",
+      "last_transition_at": "2026-11-24T00:58:01.900485+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Review cycle 1 findings 1-4 folded (red ea15993f, fix 0d4ca468)"
@@ -109,9 +109,9 @@
         "reviewer": "claude::reviewer-renata",
         "verdict": "changes_requested"
       },
-      "role": "implementer",
-      "shell_pid": null,
-      "shell_pid_created_at": null,
+      "role": "reviewer",
+      "shell_pid": 4471,
+      "shell_pid_created_at": "1795481872.54",
       "subtasks": {
         "T011": "done",
         "T012": "done",
