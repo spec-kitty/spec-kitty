@@ -225,9 +225,10 @@ proof.
   from the tree diff, so a fast-forwarded lane is judged too) either has the lane's own final blob on
   the anchor or was changed again by later approved work: an own non-merge commit of another
   approved lane (a lane whose every work package is in the run's approved claim; the same
-  first-parent walk as authorship) that is on the Mission branch and descends from the lane's last
-  commit changing that path (operator ruling 2026-11-24 on Tier R B1, option (b), and the Tier R
-  confirm pass). A revert or rewrite made on the Mission branch outside any lane, a parallel lane's
+  first-parent walk as authorship, less the Mission branch's own first-parent line) that is on the
+  Mission branch and descends from the lane's last commit changing that path (operator ruling
+  2026-11-24 on Tier R B1, option (b), and the Tier R confirm passes). A revert or rewrite made on the
+  Mission branch outside any lane, including one an approved lane forked from, a parallel lane's
   edit of the same file, and work another lane only merged in (a resync) keep the lane; any probe or
   attribution error keeps it too,
   every path outside `kitty-specs/` the Mission branch changed since its merge base with the

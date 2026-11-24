@@ -515,12 +515,15 @@ class _ApprovedWork:
     def __init__(self, repo_root: Path, tip: str, mission_tip: str, landing_ref: str, approved_tips: Sequence[str]) -> None:
         self._repo_root = repo_root
         self._tip = tip
+        # The Mission branch's own first-parent line is coordination history, never a lane's work: a
+        # lane forked from it walks those commits on its own first-parent chain (Tier R confirm 2 B1).
+        coordination = set(_git_lines(repo_root, "rev-list", "--first-parent", mission_tip, f"^{landing_ref}"))
         self._commits = [
             (commit, paths)
             for other in approved_tips
             if other != tip
             for commit, paths in _own_changes(repo_root, other, landing_ref)
-            if not is_ancestor(repo_root, commit, tip) and is_ancestor(repo_root, commit, mission_tip)
+            if commit not in coordination and not is_ancestor(repo_root, commit, tip) and is_ancestor(repo_root, commit, mission_tip)
         ]
 
     def supersedes(self, path: str) -> bool:
@@ -528,7 +531,9 @@ class _ApprovedWork:
 
         Only a commit descending from the lane's version counts (Tier R confirm B1): a parallel lane
         that touched the same file is not "later". Only another lane's own commit counts (B2): a
-        commit it merged in, such as an out-of-workflow rewrite carried by a resync, is not its work.
+        commit it merged in, such as an out-of-workflow rewrite carried by a resync, is not its work,
+        and neither is a commit on the Mission branch's own first-parent line that the lane forked
+        from (confirm 2 B1).
         """
         lane_commit = _git_lines(self._repo_root, "rev-list", "-n", "1", self._tip, "--", path)
         if not lane_commit:
