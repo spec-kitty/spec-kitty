@@ -388,3 +388,33 @@ def test_is_ancestor_is_true_only_when_git_confirms_it(tmp_path: Path) -> None:
     assert lane_tip.is_ancestor(tmp_path, first, "refs/heads/main")
     assert not lane_tip.is_ancestor(tmp_path, _git(tmp_path, "rev-parse", "HEAD"), first)
     assert not lane_tip.is_ancestor(tmp_path, "0" * 40, "refs/heads/main")
+
+
+# --- R24 adversarial squad folds (2026-11-24) -----------------------------------------------------
+
+
+def test_a_non_ascii_mission_file_the_lane_wrote_keeps_the_lane(landed: Landed) -> None:
+    """A path git quotes (core.quotePath) is still the lane's authoring: authorship reads NUL-separated names."""
+    _commit(landed.lane, "lane notes", {f"{_MD}/notes-\u00e9.md": "lane notes\n"})
+    assert not landed.proof()
+
+
+def test_a_mission_sharing_the_slug_prefix_is_another_mission(landed: Landed) -> None:
+    """``demo-01ABCDEF-2`` is not under ``demo-01ABCDEF/``: its files keep the other-Mission rule."""
+    sibling = f"kitty-specs/{_SLUG}-2/spec.md"
+    _commit(landed.coord, "a sibling Mission's spec", {sibling: "# sibling\n"})
+    _git(landed.lane, "merge", "-q", "--no-ff", "--no-edit", _COORD)
+    _commit(landed.root, "the sibling Mission moves on", {sibling: "# sibling, revised\n"})
+    assert not landed.proof()
+
+
+def test_a_lane_commit_the_coordination_branch_merged_back_is_still_the_lanes(landed: Landed) -> None:
+    """The lane's own commit stays authored after the coordination branch merged it and the lane resynced."""
+    research = f"{_MD}/research.md"
+    _commit(landed.root, "research baseline", {research: "r0\n"})
+    _commit(landed.coord, "research baseline", {research: "r0\n"})
+    _git(landed.lane, "merge", "-q", "--no-ff", "--no-edit", _COORD)
+    _commit(landed.lane, "lane research", {research: "LANE NOTES\n"})
+    _git(landed.coord, "merge", "-q", "--no-ff", "--no-edit", _LANE)
+    _git(landed.lane, "merge", "-q", "--no-ff", "--no-edit", _COORD)  # the resync; the landing keeps "r0"
+    assert not landed.proof()
