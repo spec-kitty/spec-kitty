@@ -6,7 +6,7 @@ kind: Explanation
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.
-updated: '2026-11-01T00:00:00Z'
+updated: '2026-11-24T00:00:00Z'
 related:
 - changelog/4.0.0
 - changelog
@@ -144,13 +144,63 @@ Theme 4's hosted *backend* lane is frozen; its **consumer side was re-scoped on 
 
 ## Release posture
 
-*Read 2026-10-06. Verify live state with `gh issue view <n> --repo spec-kitty/spec-kitty`
-before acting; milestones and counts move between release candidates.*
+### Current state (2026-11-24)
 
-**Five release candidates have shipped; rc6 is open on `main`.** PyPI upload dates: rc1
-2026-09-13, rc2 09-14, rc3 09-17, rc4 09-21, rc5 10-02. `main` carries the unreleased
-`4.0.0rc6` (`[Unreleased]` in [`CHANGELOG.md`](https://github.com/spec-kitty/spec-kitty/blob/main/CHANGELOG.md), `version` in
-`pyproject.toml`).
+**Eight release candidates have shipped; rc9 is open on `main`.** The last tag is
+`v4.0.0rc8` (2026-11-09). `main` carries the unreleased `4.0.0rc9` (`[Unreleased] - 4.0.0rc9`
+in [`CHANGELOG.md`](https://github.com/spec-kitty/spec-kitty/blob/main/CHANGELOG.md),
+`version` in `pyproject.toml`). The rc6 to rc8 scope is what each shipped; the changelog
+section of each candidate is its record:
+
+- **rc6 (2026-10-08):** the `consolidate` fixes made after rc5, and the review-verdict rule:
+  a work package leaves `for_review`, `in_review` or `approved` only through a review verdict
+  or an operator force with a note (#5446, #5721).
+- **rc7 (2026-10-15):** the charter pack cutover, `doctrine` renamed to `charter` with no
+  alias (#3732).
+- **rc8 (2026-11-09):** charter activation moves into `.kittify/charter/activation.yaml`
+  (#6496), the command skills are renamed to `spec-kitty-<command>` (#6475), and a new Mission
+  starts on one topic branch whose topology is settled by size at the first `finalize-tasks`
+  (#7282).
+
+**rc9 scope is what has merged since rc8.** No further scope is declared here; the source is
+the fragments in `docs/changelog/unreleased/`, which the release
+assembles into the rc9 section. As of 2026-11-24 they group as follows:
+
+- **Status writes are committed.** `move-task` and `mark-status` commit their whole status
+  record even with `auto_commit: false` (#3933); `init` commits its writes and makes the root
+  commit of an empty repository (#7555, #7612); `finalize-tasks` and `accept` commit in the
+  checkout that holds the Mission branch of a settled default Mission (#7792, #7550, #7546).
+- **Status reads go through the read door.** `next` and `implement --recover` read the
+  committed coordination branch when the coordination worktree is empty or missing (#7507,
+  delivered by #7541 as a slice of #7310), and read status once per invocation (#7539).
+- **Consolidation.** Recorded work-package windows refuse a commit made between two approvals
+  on a lane (#7403); `--target <branch> --retarget` (#7692); pre-Mission history is no longer
+  read as Mission work (#7560); about 30% fewer `git` processes per run (#7689); plus rollback,
+  resume and abort fixes (#5406, #5867, #5931, #7491, #7540, #7626, #7664).
+- **Review.** The review prompt shows the work package's own review range (#7578); a forced
+  rewind no longer changes who implemented a work package (#7712); fixes to review claims and
+  reports (#7589, #7637, #7726, #7753).
+- **Create and `next`.** `--topology lanes` refuses a protected target up front (#7632); a
+  hook-aborted coordination create rolls back fully (#7494); `next` names the command to run
+  next in `next_command` (#7553) and its prompts name the commit step (#7510).
+- **New operator surfaces.** `archive reclaim` (#4041), `move-task --reset-subtasks` (#7582),
+  per-Mission-type path conventions (#7748), and `doctor` reports of kept or stale user-global
+  skill and command files (#5983, #7723).
+- **Upgrade notes.** `doctor coordination --fix` needs `--mission` or `--all-missions`
+  (#7552); the first-Mission skill is now `spk-start-first-mission` (#7725); the unused `mcp`
+  runtime dependency is dropped.
+- **Docs.** `docs.spec-kitty.ai` is built with doc-kitty and DocFX is retired (#6938, #6943);
+  the decision records of the hosted surfaces removed in #6164 read Superseded (#7683).
+
+### State on 2026-10-06 (history)
+
+*Read 2026-10-06 and kept as the record of that date; the counts and the "rc6 needs" wording
+below describe the cycle before rc6 shipped. Verify live state with `gh issue view <n> --repo
+spec-kitty/spec-kitty` before acting; milestones and counts move between release candidates.*
+
+**Five release candidates had shipped; rc6 was open on `main`.** PyPI upload dates: rc1
+2026-09-13, rc2 09-14, rc3 09-17, rc4 09-21, rc5 10-02. `main` then carried the unreleased
+`4.0.0rc6`.
 
 **rc5 shipped under a waiver.** The release workflow requires a green nightly on the release
 commit (#5034). No nightly has been green since 2026-09-15, so on 2026-10-02 a `skip_nightly`
