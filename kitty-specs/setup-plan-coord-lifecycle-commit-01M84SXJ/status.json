@@ -20,7 +20,7 @@
   "work_packages": {
     "WP01": {
       "actor": "claude",
-      "agent": "claude:reviewer-renata",
+      "agent": "claude::reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
@@ -35,7 +35,8 @@
         "- 2026-11-23T22:37:55Z – unknown – Cycle 2: B1 fixed (status-surface guard before the whole-log commit; COORD_STATUS_SURFACE_DIVERGED/UNREADABLE via SETUP_PLAN_LIFECYCLE_UNCOMMITTED), S1 (raising router -> named refusal), S2 (absent log on coordination = refusal), S3 (diff coverage 100%, 75 lines, subprocess coverage), N1 (refusal wording). Red-first on cycle-1 source: 4 failed (B1 rc 0 + lifecycle committed). make test-fast 3222 passed; blast 2413 passed, 1 failed pre-existing (kind_normalised, fails on main). Merge target pushed to origin.",
         "Cycle 2: review findings addressed",
         "- 2026-11-23T23:27:51Z – unknown – Cycle 3: B2 (compare-and-swap on the guard's HEAD + exact log bytes), B3 (loss-risk refusals never say commit the checkout), N3, N4. Red-first: 2 failed on cycle-2 source (race rc 0; 'commit them in that checkout'). Diff coverage measured directly from coverage XML vs git diff: 96.8% before the HEAD test (missed 776-777, 839), those 3 now covered. make test-fast 3222 passed; blast 2456 passed, 1 pre-existing (kind_normalised).",
-        "Cycle 3: review-cycle-2 findings addressed"
+        "Cycle 3: review-cycle-2 findings addressed",
+        "Review cycle 3 APPROVED (claude::reviewer-renata). B2 fixed: CAS verified end to end (commit_for_mission expected_parent_sha/expected_path_bytes -> safe_commit temp-index tree seeded from the parent, staged blob checked against exact bytes with hash-object --no-filters, commit-tree -p parent, 3-arg update-ref <ref> <new> <old>); no git commit --only on this path. Race probe on 095dad45: rc 1, foreign tip kept, event survives; mutation (drop the CAS args) turns the race test red (rc 0); new tests fail on 3be41b81 (3/3). B3 fixed: loss-risk tail only on the 4 loss-class refusals, old tail otherwise. B1/S1/S2 still hold; non-coordination topologies unchanged. Tests: new file 17/17; make test-fast 3222 passed; blast radius (tests/coordination + 63 setup-plan files + golden path) 2216 passed, 2 failed, both also red on the base (archive-root byte-identity, kind_normalised key shape #7829); arch gates 221 passed; ruff/format/C901/mypy clean; diff coverage 96.8% (94 lines). Issue matrix (unfilled; reviewer recorded): #3933 fixed, #7562 verified-already-fixed, #7827 deferred-with-followup, #7809 not-applicable. Nits, not blocking: (n1) the moved-branch refusal says 'Follow the remedy above' but only the git CAS error precedes it; (n2) no test asserts the old tail on a non-loss refusal; (n3) inherited divergence text still speaks of consolidation (lead line added, N3 partially addressed). Single WP, no shared-file ownership."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
