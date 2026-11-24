@@ -2,7 +2,7 @@
   "mission_slug": "lane-cleanup-landing-proof-01M81KHJ",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
@@ -86,13 +86,13 @@
     },
     {
       "criterion_id": "FR-009",
-      "description": "Verify FR-009 is satisfied",
+      "description": "ADR 2026-11-06-1 O3 amended with the Mission-file and #6736 status-log set-aside",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "docs/adr/4.x/2026-11-06-1-a-destructive-git-operation-discharges-named-proof-obligations.md (Amendment 2026-11-23)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-24T01:02:33.035491+00:00",
+      "notes": "Approved WP review + local run 2026-11-24"
     }
   ],
   "negative_invariants": []
