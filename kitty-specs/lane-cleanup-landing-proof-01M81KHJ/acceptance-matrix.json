@@ -6,13 +6,13 @@
   "criteria": [
     {
       "criterion_id": "FR-001",
-      "description": "Verify FR-001 is satisfied",
+      "description": "consolidate and doctor judge a lane by one public landing proof (lane_tip.is_absorbed_but_for_mission_bookkeeping)",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/lanes/test_lane_tip_mission_bookkeeping.py; tests/specify_cli/workspace/test_landed_worktrees_mission_bookkeeping.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-24T01:01:26.656886+00:00",
+      "notes": "Approved WP review + local run 2026-11-24"
     },
     {
       "criterion_id": "FR-002",
