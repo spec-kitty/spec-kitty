@@ -174,7 +174,7 @@ class MissionBranchProjection:
     ``mission_tip`` is the Mission branch tip read before the coordination teardown; ``proven_tips``
     are the lane tips :func:`specify_cli.lanes.lane_tip.is_landed_through_mission_branch` proved
     against it and ``anchor_sha``, the reconciliation PASS anchor. The guard uses the proof only for
-    a landing whose PASS anchor is that same SHA.
+    a landing whose PASS anchor is that SHA or was carried from it.
     """
 
     mission_tip: str
@@ -374,6 +374,17 @@ def _branch_tip(repo_root: Path, branch: str) -> str | None:
 def branch_tip(repo_root: Path, branch: str) -> str | None:
     """The SHA ``refs/heads/<branch>`` resolves to, or ``None``."""
     return _branch_tip(repo_root, branch)
+
+
+def _anchor_carried_to(repo_root: Path, anchor: str, passed: str) -> bool:
+    """The landing's PASS anchor is the one the projection was proven against, or carried from it.
+
+    Consolidate advances the PASS anchor only over its own post-landing commits (FR-035), so a
+    landing anchor that descends from the proven one is the same landing.
+    """
+    if not anchor or not passed:
+        return False
+    return anchor == passed or _git(repo_root, "merge-base", "--is-ancestor", anchor, passed).returncode == 0
 
 
 def mission_branch_projection(
@@ -608,7 +619,7 @@ class GuardedLaneRemover:
         if not isinstance(landing, LocalTargetAtPass) or landing.projection is None:
             return self._absorbed
         projection = landing.projection
-        if projection.anchor_sha != landing.passed_sha.strip():
+        if not _anchor_carried_to(self._repo_root, projection.anchor_sha, landing.passed_sha.strip()):
             return self._absorbed
         proven = projection.proven_tips
         return lambda tip, landing_ref: tip in proven or self._absorbed(tip, landing_ref)
