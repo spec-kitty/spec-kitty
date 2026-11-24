@@ -24,7 +24,7 @@ from specify_cli.lanes.branch_naming import code_lane_branch_name
 from specify_cli.lanes.models import ExecutionLane
 from specify_cli.consolidation import executor as ex
 from specify_cli.consolidation.config import MergeStrategy
-from specify_cli.consolidation.lane_cleanup import LANDING_PROOF_UNAVAILABLE, LaneCleanupOutcome
+from specify_cli.consolidation.lane_cleanup import LaneCleanupOutcome
 from specify_cli.consolidation.state import ConsolidationState
 
 from tests.consolidation._divergent_shapes import (
@@ -45,6 +45,9 @@ from specify_cli.consolidation import (
 )
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
+
+#: The kept code (a contract string, ``contracts/landing-proof.md``).
+LANDING_PROOF_UNAVAILABLE = "LANDING_PROOF_UNAVAILABLE"
 
 
 # ---------------------------------------------------------------------------
