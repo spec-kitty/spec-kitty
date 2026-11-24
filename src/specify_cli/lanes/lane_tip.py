@@ -487,29 +487,68 @@ def _mission_branch_landed(repo_root: Path, mission_tip: str, landing_ref: str) 
     return all(_blob_id(repo_root, landing_ref, path) == _blob_id(repo_root, mission_tip, path) for path in _outside_mission_files(sorted(integrated)))
 
 
-def _superseded_by_approved_lane(repo_root: Path, tip: str, mission_tip: str, path: str, approved_tips: Sequence[str]) -> bool:
-    """A non-merge commit of another approved lane, not in this lane and on the Mission branch, changed ``path``."""
-    for other in approved_tips:
-        if other == tip:
-            continue
-        commits = _git_lines(repo_root, "rev-list", "--no-merges", other, f"^{tip}", "--", path)
-        if any(is_ancestor(repo_root, commit, mission_tip) for commit in commits):
-            return True
-    return False
+def _lane_changed_product_paths(repo_root: Path, tip: str, landing_ref: str) -> list[str]:
+    """The product paths ``tip`` changed since its merge base(s) with the landing.
+
+    Read from the tree diff, not from authorship, so a fast-forwarded lane (whose own commit sits
+    behind a second parent) is still judged path by path (Tier R confirm N1).
+    """
+    bases = _git_lines(repo_root, "merge-base", "--all", tip, landing_ref)
+    if not bases:
+        raise GitCommandError(argv=("merge-base", "--all", tip, landing_ref), cwd=repo_root, returncode=1, stderr="no merge base")
+    changed = {str(path) for base in bases for path in changed_paths(repo_root, base, tip)}
+    return _outside_mission_files(sorted(changed))
+
+
+def _own_changes(repo_root: Path, lane_tip: str, landing_ref: str) -> list[tuple[str, frozenset[str]]]:
+    """The lane's own non-merge commits with the paths each changed (the authorship walk's commits)."""
+    return [
+        (commit, frozenset(_paths_changed_by(repo_root, commit, parents)))
+        for commit, parents in _lane_own_commits(repo_root, lane_tip, landing_ref)
+        if len(parents) <= 1
+    ]
+
+
+class _ApprovedWork:
+    """Later approved work: other approved lanes' own non-merge commits on the Mission branch."""
+
+    def __init__(self, repo_root: Path, tip: str, mission_tip: str, landing_ref: str, approved_tips: Sequence[str]) -> None:
+        self._repo_root = repo_root
+        self._tip = tip
+        self._commits = [
+            (commit, paths)
+            for other in approved_tips
+            if other != tip
+            for commit, paths in _own_changes(repo_root, other, landing_ref)
+            if not is_ancestor(repo_root, commit, tip) and is_ancestor(repo_root, commit, mission_tip)
+        ]
+
+    def supersedes(self, path: str) -> bool:
+        """An approved lane's own commit built on this lane's last change to ``path`` changed it again.
+
+        Only a commit descending from the lane's version counts (Tier R confirm B1): a parallel lane
+        that touched the same file is not "later". Only another lane's own commit counts (B2): a
+        commit it merged in, such as an out-of-workflow rewrite carried by a resync, is not its work.
+        """
+        lane_commit = _git_lines(self._repo_root, "rev-list", "-n", "1", self._tip, "--", path)
+        if not lane_commit:
+            return False
+        return any(path in paths and is_ancestor(self._repo_root, lane_commit[0], commit) for commit, paths in self._commits)
 
 
 def _lane_product_landed_or_superseded(repo_root: Path, tip: str, mission_tip: str, landing_ref: str, approved_tips: Sequence[str]) -> bool:
-    """Every product path the lane itself changed landed with the lane's blob, or an approved lane changed it later.
+    """Every product path the lane changed landed with the lane's blob, or later approved work changed it.
 
-    "Later" is a non-merge commit reachable from another approved lane's tip, not from this lane's
-    tip, and on the Mission branch: approved work reached through that lane's merge. A revert or
-    rewrite made on the Mission branch outside any lane is no such commit (operator ruling
-    2026-11-24, Tier R B1 (b)).
+    Operator ruling 2026-11-24 on Tier R B1, option (b); "later approved work" per the Tier R confirm
+    pass (:class:`_ApprovedWork`). A revert or rewrite made on the Mission branch outside any lane
+    keeps the lane.
     """
-    for path in _outside_mission_files(sorted(_authored_paths(repo_root, tip, landing_ref))):
+    work: _ApprovedWork | None = None
+    for path in _lane_changed_product_paths(repo_root, tip, landing_ref):
         if _blob_id(repo_root, landing_ref, path) == _blob_id(repo_root, tip, path):
             continue
-        if not _superseded_by_approved_lane(repo_root, tip, mission_tip, path, approved_tips):
+        work = work or _ApprovedWork(repo_root, tip, mission_tip, landing_ref, approved_tips)
+        if not work.supersedes(path):
             return False
     return True
 
@@ -531,10 +570,12 @@ def is_landed_through_mission_branch(
     proven landed when:
 
     * ``tip`` is an ancestor of ``mission_tip`` (the Mission branch integrated all of it);
-    * every path outside ``kitty-specs/`` the lane itself changed either has the lane's own final
-      blob on ``landing_ref``, or a later commit of another of ``approved_tips`` (the approved lanes
-      the Mission branch merged) changed it; a revert or rewrite made outside the workflow keeps
-      the lane (operator ruling 2026-11-24, Tier R B1 (b));
+    * every path outside ``kitty-specs/`` the lane changed since its merge base with ``landing_ref``
+      either has the lane's own final blob on ``landing_ref``, or was changed again by an own
+      non-merge commit of another of ``approved_tips`` that is on the Mission branch and descends
+      from the lane's last commit changing that path; a revert or rewrite made outside the
+      workflow, a parallel edit and work another lane only merged in keep the lane (operator
+      ruling 2026-11-24, Tier R B1 (b), and the Tier R confirm pass);
     * every path outside ``kitty-specs/`` the Mission branch changed since its merge base with
       ``landing_ref`` (the reconciliation PASS anchor) has the Mission branch's blob on
       ``landing_ref``: what the Mission branch integrated is what landed, while the target keeps its

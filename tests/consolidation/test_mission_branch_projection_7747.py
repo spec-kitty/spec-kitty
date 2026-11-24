@@ -266,9 +266,11 @@ def test_a_rewrite_by_a_lane_the_mission_branch_never_merged_does_not_count(land
 
     mission = landed.root / ".worktrees" / "mission"
     before_lane_b = _git(mission, "rev-parse", "HEAD^^1")  # the Mission branch with only lane A merged
-    args = (landed.root, landed.tip(landed.lane_a))
-    assert lane_tip._superseded_by_approved_lane(*args, landed.mission_tip, "src/one.py", landed.approved())
-    assert not lane_tip._superseded_by_approved_lane(*args, before_lane_b, "src/one.py", landed.approved())
+    tip_a = landed.tip(landed.lane_a)
+    merged = lane_tip._ApprovedWork(landed.root, tip_a, landed.mission_tip, landed.passed, landed.approved())
+    not_yet = lane_tip._ApprovedWork(landed.root, tip_a, before_lane_b, landed.passed, landed.approved())
+    assert merged.supersedes("src/one.py")
+    assert not not_yet.supersedes("src/one.py")
 
 
 def test_a_probe_error_while_attributing_keeps_the_lane(landed: Landed, monkeypatch: pytest.MonkeyPatch) -> None:
