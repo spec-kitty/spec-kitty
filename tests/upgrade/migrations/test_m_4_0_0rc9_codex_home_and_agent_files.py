@@ -264,7 +264,7 @@ class TestCodexHomeExclusion:
         def _fail(*_args: object, **_kwargs: object) -> object:
             raise OSError("git missing")
 
-        monkeypatch.setattr(exclusion, "run_git", _fail)
+        monkeypatch.setattr(exclusion, "untracked_paths", _fail)
         assert not exclusion._exclude_alone_hides(project, ".codex/")
         monkeypatch.setattr(exclusion, "git_exclude_file", lambda _path: None)
         assert not exclusion._exclude_alone_hides(project, ".codex/")

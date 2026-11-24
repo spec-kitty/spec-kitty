@@ -544,6 +544,25 @@ def tracked_paths(
     return parse_paths_z(_git(cwd, ["ls-files", "--full-name", "-z"], pathspecs, glob=glob, env=env, timeout=timeout))
 
 
+def untracked_paths(
+    cwd: Path,
+    *,
+    exclude_from: Path,
+    pathspecs: Sequence[str] = (),
+    glob: bool = False,
+    env: Env = None,
+    timeout: float | None = None,
+) -> tuple[GitPath, ...]:
+    """Untracked paths (repository-root relative) that the patterns in *exclude_from* alone leave visible.
+
+    ``ls-files --others --exclude-from=<file>`` reads no ``.gitignore`` and no
+    ``info/exclude`` beyond *exclude_from*, so a caller can ask what one ignore
+    file hides by itself.
+    """
+    args = ["ls-files", "--others", "--full-name", "-z", f"--exclude-from={exclude_from}"]
+    return parse_paths_z(_git(cwd, args, pathspecs, glob=glob, env=env, timeout=timeout))
+
+
 def index_entries(
     cwd: Path,
     *,
