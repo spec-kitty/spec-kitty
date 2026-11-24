@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-24T00:03:28.210802+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "5953c36d6f4db5c4fb671b34ed14d4a19571cca8"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-24T00:03:28.210802+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "5953c36d6f4db5c4fb671b34ed14d4a19571cca8",
   "contracts": "none",
   "contracts_rationale": "The Mission changes internal CLI behaviour (where setup-plan records and commits its lifecycle events, and one doctor finding); it adds no API, schema or interface.",
   "create_return_branch": "issue-3933-lifecycle-event-placement",
