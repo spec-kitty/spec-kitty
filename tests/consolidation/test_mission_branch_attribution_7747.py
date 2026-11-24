@@ -17,6 +17,7 @@ Real repositories, the public ``lane_tip`` predicates.
 from __future__ import annotations
 
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -152,3 +153,34 @@ def test_a_dependent_lane_building_on_the_lanes_line_still_supersedes_it(repo: R
     landing = repo.squash()
     assert not is_absorbed_but_for_mission_bookkeeping(repo.root, repo.tip(repo.lane_a), landing, _SLUG)
     assert repo.proof_a(repo.lane_a, landing)
+
+
+def _rename(cwd: Path, new: str, message: str) -> str:
+    _git(cwd, "mv", _FILE, new)
+    _git(cwd, "commit", "-q", "-m", message)
+    return _git(cwd, "rev-parse", "HEAD")
+
+
+@pytest.mark.parametrize(
+    "operator_change",
+    [
+        pytest.param(lambda coord: _edit_line(coord, 1, "'X'", "operator: rewrite lane A's line"), id="rewrite"),
+        pytest.param(lambda coord: _edit_line(coord, 1, "1", "operator: revert lane A's line"), id="revert"),
+        pytest.param(lambda coord: _rename(coord, "src/r.py", "operator: rename lane A's file"), id="rename"),
+    ],
+)
+def test_confirm2_b1_coordination_history_a_lane_forked_from_is_not_its_own_work(repo: Repo, operator_change: Callable[[Path], str]) -> None:
+    """Tier R confirm 2, B1: lane B forks from coord after an operator change to A's line, then edits only q.py.
+
+    The coordination commits before B's fork point sit on B's first-parent chain; they are the
+    Mission branch's history, not B's own work, so they never supersede lane A.
+    """
+    _edit_line(repo.lane_a, 1, "'A'", "feat(WP01): line 1")
+    _git(repo.coord, "merge", "-q", "--no-ff", "--no-edit", _LANE_A)
+    operator_change(repo.coord)
+    _git(repo.lane_b, "merge", "-q", "--ff-only", _COORD)  # lane B forks from the coordination tip
+    _write(repo.lane_b, "src/q.py", "q = 1\n", "feat(WP02): q.py only")
+    _git(repo.coord, "merge", "-q", "--no-ff", "--no-edit", _LANE_B)
+    landing = repo.squash()
+    assert not is_absorbed_but_for_mission_bookkeeping(repo.root, repo.tip(repo.lane_a), landing, _SLUG)
+    assert not repo.proof_a(repo.lane_a, landing)
