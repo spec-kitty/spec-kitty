@@ -11,6 +11,9 @@ requirement_refs:
 planning_base_branch: fix/7747-lane-cleanup-landing-proof
 merge_target_branch: fix/7747-lane-cleanup-landing-proof
 branch_strategy: Planning artifacts for this mission were generated on fix/7747-lane-cleanup-landing-proof. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/7747-lane-cleanup-landing-proof unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-lane-cleanup-landing-proof-01M81KHJ
+base_commit: b4990b07205bf36bce6eb60c4d9f5154730f41c4
+created_at: '2026-11-23T21:07:43.836965+00:00'
 subtasks:
 - T011
 - T012
@@ -106,6 +109,15 @@ Implement with `spec-kitty agent action implement WP03 --agent claude --mission 
 - Remedy: `"{reason}; check {branch} with `git log {landing_ref}..{branch}` and delete it by hand only if its work is on {landing_ref}"`.
 - `command`: `BACKSTOP_COMMAND` only when the worktree still exists (extend `_kept` with an optional `command`, default unchanged).
 - Update the module and class docstrings (the fallback is now only the retained-branch leg).
+
+### WP01 review folds (dispatcher relay 2026-11-23)
+
+The WP01 reviewer's non-blocking findings 1-3 are folded here, not on the approved lane-a:
+- the status-log-deletion exception is pinned by a test and stated in the docstring, the ADR, FR-005 and C-004;
+- direct tests cover the both-sides clause, the own-Mission-only set-aside, the git-error path, the root-commit helper and the lost-through-a-sync-merge rule;
+- the ADR says the set-aside applies to the lane's own changes only.
+
+**Out-of-map edits (rationale):** `src/specify_cli/consolidation/lane_cleanup.py`, `src/specify_cli/lanes/lane_tip.py` (docstring), `tests/lanes/test_lane_tip_mission_bookkeeping.py`, the ADR, and `tests/consolidation/test_lane_cleanup_kept_report.py`. Two cases in that last file relied on the old fallback deleting the branch of a worktree-less lane, so they are re-pinned. WP01 is approved and no other WP touches these files.
 
 ## Test Strategy
 
