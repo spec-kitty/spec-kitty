@@ -329,3 +329,16 @@ def test_a_mission_file_the_lane_lost_through_a_sync_merge_is_nothing_to_lose(tm
     _git(root, "checkout", "-q", _LANE, "--", _PRODUCT)
     _git(root, "commit", "-q", "-m", "land the lane's product")
     assert is_absorbed_but_for_mission_bookkeeping(root, _git(lane, "rev-parse", "HEAD"), _TARGET, _SLUG)
+
+
+def test_is_ancestor_is_true_only_when_git_confirms_it(tmp_path: Path) -> None:
+    """The ancestry check shared with ``doctor workspaces``: an unknown revision is no proof."""
+    _git(tmp_path, "init", "-q", "-b", "main")
+    _git(tmp_path, "config", "user.email", "t@example.invalid")
+    _git(tmp_path, "config", "user.name", "T")
+    _git(tmp_path, "commit", "-q", "--allow-empty", "-m", "one")
+    first = _git(tmp_path, "rev-parse", "HEAD")
+    _git(tmp_path, "commit", "-q", "--allow-empty", "-m", "two")
+    assert lane_tip.is_ancestor(tmp_path, first, "refs/heads/main")
+    assert not lane_tip.is_ancestor(tmp_path, _git(tmp_path, "rev-parse", "HEAD"), first)
+    assert not lane_tip.is_ancestor(tmp_path, "0" * 40, "refs/heads/main")

@@ -34,6 +34,7 @@ __all__ = [
     "clear_tip",
     "is_absorbed",
     "is_absorbed_but_for_mission_bookkeeping",
+    "is_ancestor",
     "read_tip",
     "record_tip",
     "record_tip_for_wp",
@@ -412,7 +413,8 @@ def _product_absorbed(repo_root: Path, tip: str, landing_ref: str) -> bool:
     return not _outside_mission_files(changed_paths(repo_root, landing_ref, merged.tree))
 
 
-def _is_ancestor(repo_root: Path, tip: str, landing_ref: str) -> bool:
+def is_ancestor(repo_root: Path, tip: str, landing_ref: str) -> bool:
+    """``True`` only when git confirms ``tip`` is an ancestor of ``landing_ref``; any error is ``False`` (no proof)."""
     return run_git(repo_root, "merge-base", "--is-ancestor", tip, landing_ref, check=False).returncode == 0
 
 
@@ -442,7 +444,7 @@ def is_absorbed_but_for_mission_bookkeeping(repo_root: Path, tip: str, landing_r
     not authored on this lane.
     """
     try:
-        if _is_ancestor(repo_root, tip, landing_ref):
+        if is_ancestor(repo_root, tip, landing_ref):
             return True
         if not _product_absorbed(repo_root, tip, landing_ref):
             return False
