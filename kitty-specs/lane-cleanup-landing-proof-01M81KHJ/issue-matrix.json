@@ -1,0 +1,113 @@
+{
+  "rows": {
+    "#5604": {
+      "evidence_ref": "Cited for context only; this Mission owes it no work (scope: #7747, #7325).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6736": {
+      "evidence_ref": "Cited for context only; this Mission owes it no work (scope: #7747, #7325).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7276": {
+      "evidence_ref": "Cited for context only; this Mission owes it no work (scope: #7747, #7325).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7280": {
+      "evidence_ref": "Cited for context only; this Mission owes it no work (scope: #7747, #7325).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7302": {
+      "evidence_ref": "Cited for context only; this Mission owes it no work (scope: #7747, #7325).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7325": {
+      "evidence_ref": "<link or commit>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "lane_cleanup still falls back to MainTodayRemover for lanes with no landing proof, no worktree, or an empty PASS tip",
+      "verdict": "in-mission",
+      "wp": "WP03"
+    },
+    "#7747": {
+      "evidence_ref": "<link or commit>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "consolidate keeps every lane worktree after a clean squash landing on lanes_with_coord",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    },
+    "#7767": {
+      "evidence_ref": "Cited for context only; this Mission owes it no work (scope: #7747, #7325).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7789": {
+      "evidence_ref": "Cited for context only; this Mission owes it no work (scope: #7747, #7325).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
