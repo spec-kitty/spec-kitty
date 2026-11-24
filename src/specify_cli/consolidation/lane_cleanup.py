@@ -60,13 +60,16 @@ __all__ = [
     "LaneRetention",
     "LocalTargetAtPass",
     "MainTodayRemover",
+    "MissionBranchProjection",
     "apply",
     "branch_exists",
     "branch_tip",
     "cleanup_expected_tips",
     "kept_after_coordination_refusal",
+    "mission_branch_projection",
     "own_auto_rebase_move",
     "plan_lane_cleanup",
+    "projection_tips",
 ]
 
 #: The backstop every kept lane names (contracts/consolidate-cleanup-report.md).
@@ -165,11 +168,29 @@ def _render_result(result: LaneCleanupResult) -> list[str]:
 
 
 @dataclass(frozen=True)
+class MissionBranchProjection:
+    """The lane tips the Mission branch proved landed, read before its teardown (#7747, operator ruling 2026-11-24, A).
+
+    ``mission_tip`` is the Mission branch tip read before the coordination teardown; ``proven_tips``
+    are the lane tips :func:`specify_cli.lanes.lane_tip.is_landed_through_mission_branch` proved
+    against it and the reconciliation PASS anchor.
+    """
+
+    mission_tip: str
+    proven_tips: frozenset[str]
+
+
+@dataclass(frozen=True)
 class LocalTargetAtPass:
-    """Landing proof of ``consolidate``: the local target sat at the reconciliation PASS anchor."""
+    """Landing proof of ``consolidate``: the local target sat at the reconciliation PASS anchor.
+
+    ``projection`` adds the lane tips the Mission branch proved landed (#7747, A); the guard accepts
+    them as O3 evidence besides the content proof.
+    """
 
     target_ref: str
     passed_sha: str
+    projection: MissionBranchProjection | None = None
 
 
 @dataclass(frozen=True)
@@ -353,6 +374,38 @@ def branch_tip(repo_root: Path, branch: str) -> str | None:
     return _branch_tip(repo_root, branch)
 
 
+def mission_branch_projection(
+    repo_root: Path,
+    mission_branch: str,
+    landing: LocalTargetAtPass,
+    tips: Iterable[str],
+    mission_slug: str,
+) -> MissionBranchProjection | None:
+    """Prove each lane tip landed through the Mission branch, before that branch is torn down (#7747, A).
+
+    ``None`` when there is no PASS anchor or no Mission branch to read: the lanes are then judged
+    by the content proof alone.
+    """
+    from specify_cli.lanes.lane_tip import is_landed_through_mission_branch
+
+    passed = landing.passed_sha.strip()
+    mission_tip = _branch_tip(repo_root, mission_branch)
+    if not passed or mission_tip is None:
+        return None
+    proven = frozenset(tip for tip in tips if is_landed_through_mission_branch(repo_root, tip, mission_tip, passed, mission_slug))
+    return MissionBranchProjection(mission_tip=mission_tip, proven_tips=proven)
+
+
+def projection_tips(items: Iterable[LaneCleanupItem], repo_root: Path) -> list[str]:
+    """The tip each lane's cleanup will judge: the claim-validated one, else the live branch tip."""
+    tips = []
+    for item in items:
+        tip = item.expected_tip or (_branch_tip(repo_root, item.branch) if item.branch else None)
+        if tip:
+            tips.append(tip)
+    return tips
+
+
 def branch_exists(repo_root: Path, branch: str) -> bool:
     """True when ``refs/heads/<branch>`` resolves."""
     return _branch_tip(repo_root, branch) is not None
@@ -514,7 +567,7 @@ class GuardedLaneRemover:
                 removal,
                 context=self._context,
                 processes_in=self._busy,
-                absorbed=self._absorbed,
+                absorbed=self._absorption_proof(landing),
             )
         except DestructiveOpRefused as refusal:
             # A lane consolidate did not land (all its WPs canceled, or absorption unprovable) is kept
@@ -547,6 +600,14 @@ class GuardedLaneRemover:
         """O2: ``None`` when the probe cannot tell (off Linux): the guard then keeps the lane (NFR-008)."""
         probe = self._probe([path])
         return (path in probe.busy) if probe.available else None
+
+    def _absorption_proof(self, landing: LandingProof) -> Callable[[str, str], bool]:
+        """O3: a tip the Mission branch proved landed (#7747, A), else the content proof."""
+        projection = landing.projection if isinstance(landing, LocalTargetAtPass) else None
+        if projection is None:
+            return self._absorbed
+        proven = projection.proven_tips
+        return lambda tip, landing_ref: tip in proven or self._absorbed(tip, landing_ref)
 
     def _absorbed(self, tip: str, landing_ref: str) -> bool:
         from specify_cli.lanes.lane_tip import AbsorptionUnsupported, is_absorbed, is_absorbed_but_for_mission_bookkeeping
