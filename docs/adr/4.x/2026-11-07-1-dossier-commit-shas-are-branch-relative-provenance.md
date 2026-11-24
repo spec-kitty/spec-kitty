@@ -5,7 +5,7 @@ status: Proposed
 doc_status: active
 kind: ADR
 date: '2026-11-07'
-updated: '2026-11-13T00:00:00Z'
+updated: '2026-11-24T00:00:00Z'
 ---
 
 # Dossier commit SHAs are branch-relative provenance
@@ -36,7 +36,9 @@ A Mission dossier under `kitty-specs/<mission>/` records git commit SHAs as evid
   `acceptance_history[]`, `mission_base_sha` (the commit the Mission branch was cut from, written
   once at create, #7560), and, on the pull-request route, `pr_merge_commit`;
 - `lanes.json`: `planning_commit_sha`;
-- `status.events.jsonl`: `policy_metadata.lane_head` on every lifecycle transition, and
+- `status.events.jsonl`: `policy_metadata.lane_head` on every lifecycle transition,
+  `policy_metadata.lane_head_presync` beside it on an approval recorded after a review-sync merge
+  (the lane tip before that merge, #7802), and
   `policy_metadata.pre_review_gate.evidence_tree.head` on a `for_review` transition whose
   pre-review gate ran tests (the HEAD of the lane or write checkout the verdict was produced in,
   #7547);
