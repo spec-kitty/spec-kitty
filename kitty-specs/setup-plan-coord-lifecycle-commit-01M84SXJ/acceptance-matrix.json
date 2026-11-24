@@ -28,11 +28,11 @@
       "criterion_id": "FR-003",
       "description": "Verify FR-003 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/coordination/test_setup_plan_coord_lifecycle_3933.py::test_non_coordination_setup_plan_is_unchanged[single_branch|default_before_settlement]; tests/specify_cli/cli/commands/agent/test_setup_plan_commits_lifecycle_3933.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::implementer-ivan",
+      "verified_at": "2026-11-24T00:03:15.696416+00:00",
+      "notes": "Non-coordination topologies byte-identical; no lifecycle_commit key; reviewer probed lanes on base vs head."
     },
     {
       "criterion_id": "FR-004",
