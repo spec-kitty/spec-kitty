@@ -20,9 +20,9 @@
   "work_packages": {
     "WP01": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
+      "agent": "claude::python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "implementer_of_record": "claude::python-pedro",
       "lane": "for_review",
@@ -34,7 +34,8 @@
         "- 2026-11-20T20:38:20Z – unknown – Review cycle 1 folded in 482d17dd: (1) repro + migration tests moved to tests/upgrade (per-PR); (2) nested projects via repo-root prefix + anchored rule; (3) notice split into 4.0.0rc9_report_newly_visible_agent_files so exclusion settles only after excluding; (4) exclusion verified after write; (5) dogfood .gitignore Codex rows committed; (6) PR body commit refs updated; relative CODEX_HOME read from the project.",
         "Review cycle 1 folded (all six findings) in 482d17dd; tests/upgrade + owning dirs 3487 passed",
         "Independent adversarial review (cycle 2) on 699588c4: all 6 cycle-1 findings verified folded; red-first verified; upgrade dirs 3496 passed, test-fast 3167 passed. Non-blocking findings N1-N4 in the PR comment.",
-        "Rework after cycle-2 approval to fold reviewer findings N1 (whole-folder .codex negation fails every upgrade) and N3 (settle wording); needs re-approval"
+        "Rework after cycle-2 approval to fold reviewer findings N1 (whole-folder .codex negation fails every upgrade) and N3 (settle wording); needs re-approval",
+        "Cycle-2 findings folded: N1 fixed (ab7be20f, red-first 4590d8cb), N2 recorded as a tested choice, N3 docstring + #7782, N4 filed, N5 noted"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -44,7 +45,7 @@
         "reviewer": "claude::reviewer-renata",
         "verdict": "approved"
       },
-      "role": "reviewer",
+      "role": "implementer",
       "shell_pid": 3444,
       "shell_pid_created_at": "1795541562.49",
       "subtasks": {
