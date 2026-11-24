@@ -1,16 +1,16 @@
 {
   "rows": {
     "#3933": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP01 commits 34329e65 (red) + 46da50b1 (fix); tests/coordination/test_setup_plan_coord_lifecycle_3933.py 17/17; review cycle 3",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "setup-plan lifecycle events placement on coordination Missions (Slice 1b)",
+      "verdict": "fixed",
+      "wp": "WP01"
     },
     "#7562": {
       "evidence_ref": "<link or commit>",
