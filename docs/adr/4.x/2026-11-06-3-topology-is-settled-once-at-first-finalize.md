@@ -1,16 +1,16 @@
 ---
 title: 'ADR: a default Mission topology is settled once, by size, at the first finalize'
 description: 'Create without --topology mints one topic branch; the first finalize-tasks settles single_branch or lanes_with_coord by size, once, and only then materializes it.'
-status: Proposed
+status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-11-06'
-updated: '2026-11-13T00:00:00Z'
+updated: '2026-11-24T00:00:00Z'
 ---
 
 # A default Mission topology is settled once, by size, at the first finalize
 
-**Status:** Proposed (2026-11-06). The operator accepts it by merging the pull request that carries it.
+**Status:** Accepted (2026-11-24; proposed 2026-11-06). Acceptance record: [operator acceptance on PR #7840](https://github.com/spec-kitty/spec-kitty/pull/7840#issuecomment-7139051264).
 
 **Date:** 2026-11-06
 

@@ -3,7 +3,7 @@ title: '4.x Executive Overview'
 description: 'Summary of the 4.x cycle for decision owners: where 4.0.0 stands, what the release candidates delivered, what still gates GA, and the calls to make.'
 doc_status: active
 kind: Explanation
-updated: '2026-10-12T00:00:00Z'
+updated: '2026-11-24T00:00:00Z'
 audience:
 - profile: external/product-manager-evaluator
   guidance_text: Written for the External Product Manager Evaluator reader.
@@ -17,6 +17,11 @@ related:
 
 # 4.x Executive Overview
 
+> **Status note (2026-11-24).** rc6 (2026-10-08), rc7 (2026-10-15) and rc8 (2026-11-09) have
+> shipped since this summary was written, and rc9 is open on `main`. The release posture and
+> the rc9 scope are in the [4.0.0 Milestone Roadmap](4-0-0-milestone-roadmap.md#release-posture).
+> The rest of this page is the 2026-10-06 snapshot; its counts and the rc6 call are history.
+
 *A point-in-time summary for decision owners (CEO, CPO, CTO, PO), read against the live
 tracker on 2026-10-06. It replaces the
 [3.2.x Executive Overview](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/3-2-x-executive-overview.md).
@@ -27,7 +32,7 @@ for today's numbers.*
 
 ## Bottom line
 
-4.0.0 is close. Five release candidates have shipped. **GA now ships "done when done" — it is
+4.0.0 is close. Eight release candidates have shipped (five when this summary was written). **GA now ships "done when done" — it is
 no longer pinned to a date** (direction update, 12 October); release candidates keep going out
 to early adopters off `main` in the meantime. The GA gate has also **grown beyond local
 integrity**: alongside the data-safety work, it now covers **charter modular extraction** and
@@ -35,7 +40,7 @@ the **mission-status API backend** (the open-core producer surface). The local-i
 stands at **210 items closed, with 14 open**. Most of the cycle went into one thing customers
 will feel directly: **the CLI no longer loses or overwrites their work without saying so**.
 Every data-safety P0 that was open on 1 October has closed. One P0 is left on that leg, a red
-performance suite in the nightly. The open questions are when to ship rc6, and whether two new
+performance suite in the nightly. The open questions on 2026-10-06 were when to ship rc6, and whether two new
 collaboration P0s belong in 4.0.0.
 
 ## Where 4.0.0 stands
@@ -43,8 +48,8 @@ collaboration P0s belong in 4.0.0.
 | Item | State |
 | --- | --- |
 | Last 3.x release | 3.2.7, 2026-09-10 |
-| Release candidates shipped | rc1 (09-13), rc2 (09-14), rc3 (09-17), rc4 (09-21), rc5 (10-02) |
-| Next candidate | rc6, open on `main` with the `consolidate` fixes made after rc5 |
+| Release candidates shipped | rc1 (09-13), rc2 (09-14), rc3 (09-17), rc4 (09-21), rc5 (10-02), rc6 (10-08), rc7 (10-15), rc8 (11-09) |
+| Next candidate | rc9, open on `main` (see the [roadmap](4-0-0-milestone-roadmap.md#release-posture) for its scope) |
 | GA timing | done-when-done — not date-gated; RCs keep shipping to early adopters off `main` |
 | GA gate | three legs: local integrity ([milestone 11](https://github.com/spec-kitty/spec-kitty/milestone/11): 210 closed, 14 open) · charter modular extraction (#645) · the mission-status API backend (#5528) |
 | Nightly | 56 of 57 jobs green on 2026-10-06; not fully green since 2026-09-15 |
@@ -141,7 +146,7 @@ the hosted backend stays frozen. The roadmap was re-anchored to this direction o
 
 ## Calls that need product ownership
 
-1. **When to ship rc6.** Users on rc5 have the known `consolidate` defects until it ships. The
+1. **When to ship rc6 (decided: rc6 shipped 2026-10-08).** Users on rc5 have the known `consolidate` defects until it ships. The
    release rule needs a green nightly; the last run had one red job (#5419). Wait for it, or
    waive the rule again as was done for rc5. (RCs keep shipping to early adopters regardless of
    the GA date, which no longer exists.)
