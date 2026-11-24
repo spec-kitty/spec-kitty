@@ -173,11 +173,13 @@ class MissionBranchProjection:
 
     ``mission_tip`` is the Mission branch tip read before the coordination teardown; ``proven_tips``
     are the lane tips :func:`specify_cli.lanes.lane_tip.is_landed_through_mission_branch` proved
-    against it and the reconciliation PASS anchor.
+    against it and ``anchor_sha``, the reconciliation PASS anchor. The guard uses the proof only for
+    a landing whose PASS anchor is that same SHA.
     """
 
     mission_tip: str
     proven_tips: frozenset[str]
+    anchor_sha: str
 
 
 @dataclass(frozen=True)
@@ -393,7 +395,7 @@ def mission_branch_projection(
     if not passed or mission_tip is None:
         return None
     proven = frozenset(tip for tip in tips if is_landed_through_mission_branch(repo_root, tip, mission_tip, passed, mission_slug))
-    return MissionBranchProjection(mission_tip=mission_tip, proven_tips=proven)
+    return MissionBranchProjection(mission_tip=mission_tip, proven_tips=proven, anchor_sha=passed)
 
 
 def projection_tips(items: Iterable[LaneCleanupItem], repo_root: Path) -> list[str]:
@@ -603,8 +605,10 @@ class GuardedLaneRemover:
 
     def _absorption_proof(self, landing: LandingProof) -> Callable[[str, str], bool]:
         """O3: a tip the Mission branch proved landed (#7747, A), else the content proof."""
-        projection = landing.projection if isinstance(landing, LocalTargetAtPass) else None
-        if projection is None:
+        if not isinstance(landing, LocalTargetAtPass) or landing.projection is None:
+            return self._absorbed
+        projection = landing.projection
+        if projection.anchor_sha != landing.passed_sha.strip():
             return self._absorbed
         proven = projection.proven_tips
         return lambda tip, landing_ref: tip in proven or self._absorbed(tip, landing_ref)

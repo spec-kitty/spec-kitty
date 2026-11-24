@@ -24,6 +24,8 @@ from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 
 from kernel.git import GitCommandError, changed_paths, merge_tree, run_git, tree_entry
+from kernel.git.listing import parse_paths_z
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.git.merge_tree_probe import MERGE_TREE_WRITE_TREE_MIN_VERSION, merge_tree_write_tree_available
 from specify_cli.git.ref_advance import delete_bookkeeping_ref, write_bookkeeping_ref
 
@@ -278,7 +280,7 @@ def is_absorbed(repo_root: Path, tip: str, target: str, base: str | None) -> boo
 
 # --- #7747: the landing proof that sets aside Mission bookkeeping the lane never authored ---------
 
-_MISSION_ROOT = "kitty-specs"
+_MISSION_ROOT = KITTY_SPECS_DIR
 _WORK_PACKAGE_PROMPT = "WP*.md"
 
 
@@ -287,17 +289,20 @@ def _git_lines(repo_root: Path, *args: str) -> list[str]:
 
 
 def _lane_own_commits(repo_root: Path, tip: str, landing_ref: str) -> tuple[tuple[str, tuple[str, ...]], ...]:
-    """The lane's own commits, each with its parents: first-parent commits no merged-in branch reaches.
+    """The lane's own commits, each with its parents: first-parent commits no merged-in branch's line holds.
 
     A lane forks from the coordination branch and syncs with it by merging it in, so its
     first-parent chain also walks the coordination history it started from. Every non-first parent
-    of a first-parent merge names history the lane took in whole; the commits that history (and the
-    landing ref) reaches are not the lane's own.
+    of a first-parent merge names a branch the lane took in whole; the commits on that branch's own
+    first-parent line (and the landing ref's history) are not the lane's own. A lane commit the
+    branch merged back is not on its first-parent line, so it stays the lane's.
     """
     chain = [line.split() for line in _git_lines(repo_root, "rev-list", "--first-parent", "--parents", tip, f"^{landing_ref}")]
     merged_in = sorted({parent for entry in chain for parent in entry[2:]})
-    own = set(_git_lines(repo_root, "rev-list", "--first-parent", tip, f"^{landing_ref}", *(f"^{sha}" for sha in merged_in)))
-    return tuple((entry[0], tuple(entry[1:])) for entry in chain if entry[0] in own)
+    # Only a merged-in branch's own first-parent line is history the lane took: a lane commit that
+    # branch merged back (the coordination branch consolidating the lane, then a resync) stays the lane's.
+    taken = {sha for parent in merged_in for sha in _git_lines(repo_root, "rev-list", "--first-parent", parent, f"^{landing_ref}")}
+    return tuple((entry[0], tuple(entry[1:])) for entry in chain if entry[0] not in taken)
 
 
 def _blob_id(repo_root: Path, rev: str, path: str) -> str | None:
@@ -306,9 +311,10 @@ def _blob_id(repo_root: Path, rev: str, path: str) -> str | None:
 
 
 def _paths_changed_by(repo_root: Path, commit: str, parents: Sequence[str]) -> list[str]:
-    if not parents:
-        return _git_lines(repo_root, "diff-tree", "-r", "--root", "--no-commit-id", "--name-only", "--no-renames", commit)
-    return _git_lines(repo_root, "diff-tree", "-r", "--no-commit-id", "--name-only", "--no-renames", parents[0], commit)
+    """NUL-separated names: a quoted name (``core.quotePath``) would never match the unquoted path it names."""
+    revs = ("--root", commit) if not parents else (parents[0], commit)
+    raw = run_git(repo_root, "diff-tree", "-r", "-z", "--no-commit-id", "--name-only", "--no-renames", *revs).stdout
+    return [str(path) for path in parse_paths_z(raw)]
 
 
 def _taken_whole_from_merged_in(repo_root: Path, commit: str, merged_in: Sequence[str], path: str) -> bool:
@@ -366,13 +372,14 @@ def _is_bookkeeping(path: str, mission_dir: str) -> bool:
 class _MissionFileJudge:
     """Research R3: whether one differing ``kitty-specs/`` path loses nothing if the lane goes."""
 
-    def __init__(self, repo_root: Path, tip: str, landing_ref: str, mission_slug: str) -> None:
+    def __init__(self, repo_root: Path, tip: str, landing_ref: str, mission_slug: str, *, integrated_by: str | None = None) -> None:
         from specify_cli.status.reducer import SNAPSHOT_FILENAME
         from specify_cli.status.store import EVENTS_FILENAME
 
         self._repo_root = repo_root
         self._tip = tip
         self._landing_ref = landing_ref
+        self._integrated_by = integrated_by  # the Mission branch tip the lane was proven into (#7747, A)
         self._mission_dir = f"{_MISSION_ROOT}/{mission_slug}"
         self._log_path = f"{self._mission_dir}/{EVENTS_FILENAME}"
         self._snapshot_path = f"{self._mission_dir}/{SNAPSHOT_FILENAME}"
@@ -398,7 +405,15 @@ class _MissionFileJudge:
             return False
         if _blob_id(self._repo_root, self._landing_ref, path) is None:
             return False
-        return _in_landing_history(self._repo_root, self._landing_ref, path, lane_blob)
+        histories = (self._landing_ref,) if self._integrated_by is None else (self._landing_ref, self._integrated_by)
+        return any(_in_landing_history(self._repo_root, ref, path, lane_blob) for ref in histories)
+
+
+def _mission_files_accounted(repo_root: Path, tip: str, landing_ref: str, mission_slug: str, *, integrated_by: str | None = None) -> bool:
+    """Every ``kitty-specs/`` difference between ``tip`` and ``landing_ref`` is accounted for (:class:`_MissionFileJudge`)."""
+    judge = _MissionFileJudge(repo_root, tip, landing_ref, mission_slug, integrated_by=integrated_by)
+    mission_paths = [str(path) for path in changed_paths(repo_root, landing_ref, tip) if str(path).startswith(f"{_MISSION_ROOT}/")]
+    return all(judge.accounted(path) for path in mission_paths)
 
 
 def _outside_mission_files(paths: Sequence[object]) -> list[str]:
@@ -454,9 +469,7 @@ def is_absorbed_but_for_mission_bookkeeping(repo_root: Path, tip: str, landing_r
             return True
         if not _product_absorbed(repo_root, tip, landing_ref):
             return False
-        judge = _MissionFileJudge(repo_root, tip, landing_ref, mission_slug)
-        mission_paths = [str(path) for path in changed_paths(repo_root, landing_ref, tip) if str(path).startswith(f"{_MISSION_ROOT}/")]
-        return all(judge.accounted(path) for path in mission_paths)
+        return _mission_files_accounted(repo_root, tip, landing_ref, mission_slug)
     except (GitCommandError, OSError):
         return False
 
@@ -484,15 +497,15 @@ def is_landed_through_mission_branch(repo_root: Path, tip: str, mission_tip: str
       ``landing_ref``: what the Mission branch integrated is what landed, while the target keeps its
       own content elsewhere;
     * every ``kitty-specs/`` difference between ``tip`` and ``landing_ref`` is accounted for by the
-      same rules as :func:`is_absorbed_but_for_mission_bookkeeping`.
+      same rules as :func:`is_absorbed_but_for_mission_bookkeeping`, where a ``meta.json`` or
+      ``tasks/WP*.md`` version the lane authored may also be in the Mission branch's history (a
+      squash keeps only that branch's last version).
 
     Anything else, an unknown revision and a git error included, is ``False``.
     """
     try:
         if not is_ancestor(repo_root, tip, mission_tip) or not _mission_branch_landed(repo_root, mission_tip, landing_ref):
             return False
-        judge = _MissionFileJudge(repo_root, tip, landing_ref, mission_slug)
-        mission_paths = [str(path) for path in changed_paths(repo_root, landing_ref, tip) if str(path).startswith(f"{_MISSION_ROOT}/")]
-        return all(judge.accounted(path) for path in mission_paths)
+        return _mission_files_accounted(repo_root, tip, landing_ref, mission_slug, integrated_by=mission_tip)
     except (GitCommandError, OSError):
         return False
