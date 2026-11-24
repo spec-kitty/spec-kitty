@@ -105,7 +105,7 @@ def test_coord_setup_plan_commits_lifecycle_events_on_the_coordination_branch(tm
     assert all(event in events for event in _SETUP_PLAN_EVENTS), events
     lifecycle = payload["lifecycle_commit"]
     assert isinstance(lifecycle, dict)
-    assert lifecycle["status"] in {"committed", "unchanged"}
+    assert lifecycle["status"] == "committed", "the run that adds PlanCompleted must commit"
     assert git(mission.repo, "rev-parse", mission.coord_branch) == git(mission.coord_root, "rev-parse", "HEAD")
 
 
@@ -137,7 +137,7 @@ def test_coord_rerun_makes_no_new_commit(tmp_path: Path) -> None:
     assert dirty(mission.coord_root) == []
 
 
-@pytest.mark.parametrize("topology", ["single_branch", None], ids=["single_branch", "default_before_settlement"])
+@pytest.mark.parametrize("topology", ["single_branch", "lanes", None], ids=["single_branch", "lanes", "default_before_settlement"])
 def test_non_coordination_setup_plan_is_unchanged(tmp_path: Path, topology: str | None) -> None:
     mission = _mission(tmp_path, topology)
     mission.setup_plan()
@@ -196,9 +196,12 @@ def test_refused_coordination_commit_fails_loud(tmp_path: Path, monkeypatch: pyt
     assert code == 1, payload
     assert payload["error_code"] == "SETUP_PLAN_LIFECYCLE_UNCOMMITTED", payload
     assert "coordination surface refused (test)" in str(payload["lifecycle_diagnostic"])
-    uncommitted = payload["uncommitted_lifecycle_events"]
+    uncommitted = payload["lifecycle_events_in_log"]
     assert isinstance(uncommitted, list) and set(_SETUP_PLAN_EVENTS) <= set(uncommitted)
     assert payload["commit_hash"], "the plan commit that landed must still be reported"
+    assert payload["phase_complete"] is False
+    assert "commit them in that checkout" in str(payload["error"]), "a non-loss refusal keeps the plain remedy"
+    assert f"The plan commit {payload['commit_hash']} was kept" in str(payload["error"])
 
 
 # ---------------------------------------------------------------------------
@@ -392,6 +395,8 @@ def test_foreign_commit_after_the_guard_is_never_erased(tmp_path: Path, monkeypa
     assert code == 1, payload
     assert payload["error_code"] == "SETUP_PLAN_LIFECYCLE_UNCOMMITTED", payload
     assert git(mission.repo, "rev-parse", mission.coord_branch) == injected["tip"], "the foreign commit must stay the branch tip"
+    assert "moved after setup-plan checked it" in str(payload["lifecycle_diagnostic"])
+    assert "Do not commit this checkout's status log" in str(payload["error"])
     assert injected["event_id"] in git(mission.repo, "show", f"{mission.coord_branch}:kitty-specs/{mission.slug}/status.events.jsonl")
 
 
@@ -416,6 +421,7 @@ def test_unresolvable_coordination_head_is_a_loss_risk_refusal(tmp_path: Path, m
     from mission_runtime import MissionTopology
     from specify_cli.cli.commands.agent import mission_setup_plan
 
+    # Assumes pytest's basetemp is not inside a git checkout (true under the repository's pytest config).
     assert mission_setup_plan._checkout_head(tmp_path) is None, "a directory that is not a checkout has no HEAD"
     (tmp_path / "status.events.jsonl").write_text(json.dumps({"event_type": "PlanStarted"}) + "\n", encoding="utf-8")
     monkeypatch.setattr(mission_runtime, "resolve_topology", lambda *_a, **_k: MissionTopology.LANES_WITH_COORD)
@@ -425,3 +431,46 @@ def test_unresolvable_coordination_head_is_a_loss_risk_refusal(tmp_path: Path, m
     assert result is not None and result.status == "error"
     assert "could not be resolved" in str(result.diagnostic)
     assert result.reason == mission_setup_plan._LIFECYCLE_LOSS_RISK
+
+
+def test_damaged_log_still_reaches_the_named_refusal(tmp_path: Path) -> None:
+    from specify_cli.cli.commands.agent import mission_setup_plan
+
+    (tmp_path / "status.events.jsonl").write_bytes(b"\xff\xfe not utf-8\n")
+
+    assert mission_setup_plan._setup_plan_events_in_log(tmp_path) == []
+
+
+def test_concurrent_status_write_that_carried_our_events_is_not_a_refusal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Squad finding on B2: another status write commits the whole log (ours included) and wins the race."""
+    from mission_runtime import MissionArtifactKind
+    from specify_cli.coordination import commit_router
+    from specify_cli.coordination.commit_router import CommitRouterResult
+
+    mission = _mission(tmp_path, "lanes_with_coord")
+    mission.setup_plan()
+    mission.write_plan()
+    real = commit_router.commit_for_mission
+
+    def _another_writer_commits_first(*args: Any, **kwargs: Any) -> CommitRouterResult:
+        if kwargs.get("kind") is MissionArtifactKind.STATUS_STATE:
+            git(mission.coord_root, "add", f"kitty-specs/{mission.slug}/status.events.jsonl")
+            git(mission.coord_root, "-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-qm", "move-task status write")
+            return CommitRouterResult(status="error", placement_ref=mission.coord_branch, diagnostic="conditional advance failed (test)")
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(commit_router, "commit_for_mission", _another_writer_commits_first)
+
+    code, payload = _run_setup_plan_in_process(mission, monkeypatch)
+
+    assert code == 0, payload
+    lifecycle = payload["lifecycle_commit"]
+    assert isinstance(lifecycle, dict) and lifecycle["status"] == "unchanged"
+    assert "PlanCompleted" in mission.coord_events()
+
+
+def test_moved_branch_without_our_events_stays_a_refusal(tmp_path: Path) -> None:
+    from specify_cli.cli.commands.agent import mission_setup_plan
+
+    assert mission_setup_plan._lifecycle_events_landed(tmp_path, tmp_path / "status.events.jsonl", b"") is False
+    assert mission_setup_plan._setup_plan_event_ids('{"event_type":"PlanStarted","event_id":"A"}\nnot json\n[1]\n') == {"A"}
