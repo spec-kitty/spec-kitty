@@ -1247,12 +1247,29 @@ def _pass_landing(run: _MergeRunState) -> LocalTargetAtPass:
     return LocalTargetAtPass(target_ref=run.lanes_manifest.target_branch, passed_sha=run.state.reconciliation_passed_target_sha or "")
 
 
+def _approved_lane_items(run: _MergeRunState, items: tuple[LaneCleanupItem, ...]) -> tuple[LaneCleanupItem, ...]:
+    """The lanes whose every work package is in the run's approved claim (Tier R confirm N2).
+
+    Only those lanes are proven through the Mission branch or credited as later approved work; a
+    lane with a canceled or unclaimed work package is judged by the content proof alone. No claim
+    means no lane.
+    """
+    claim = run.approved_wp_set
+    if claim is None:
+        return ()
+    approved = set(claim.approved)
+    wp_ids = {lane.lane_id: set(lane.wp_ids) for lane in run.lanes_manifest.lanes}
+    return tuple(item for item in items if wp_ids.get(item.lane_id) and wp_ids[item.lane_id] <= approved)
+
+
 def _mission_branch_projection(run: _MergeRunState, items: tuple[LaneCleanupItem, ...]) -> MissionBranchProjection | None:
     """#7747 (operator ruling 2026-11-24, A): read before the coordination teardown deletes the Mission branch."""
     if not items:
         return None
     try:
-        tips = projection_tips(items, run.main_repo)
+        tips = projection_tips(_approved_lane_items(run, items), run.main_repo)
+        if not tips:
+            return None
         return mission_branch_projection(run.main_repo, run.lanes_manifest.mission_branch, _pass_landing(run), tips, run.lanes_manifest.mission_slug)
     except Exception as exc:  # the proof is optional evidence after the verified landing: never abort cleanup
         logger.warning("Mission-branch proof unavailable (%s); lanes are judged by the content proof alone", exc)
