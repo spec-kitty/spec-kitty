@@ -391,10 +391,14 @@ class _MissionFileJudge:
         return bool(self._bases) and all(_blob_id(self._repo_root, base, path) == lane_blob for base in self._bases)
 
     def accounted(self, path: str) -> bool:
-        if path in (self._log_path, self._snapshot_path):
-            # The status log is append-only and judged by its events (#6736); the snapshot is its
-            # projection, so its authorship is never read (operator ruling 2026-11-24, C).
-            return _status_log_contained(self._repo_root, self._tip, self._landing_ref, self._log_path)
+        if path == self._snapshot_path:
+            # The snapshot is the log's projection: it follows the log's verdict, and its own
+            # authorship is never read (operator ruling 2026-11-24, C).
+            return self.accounted(self._log_path)
+        if path == self._log_path:
+            # A log the lane never wrote holds no lane event (B); one it wrote is judged by its
+            # events, append-only (#6736).
+            return path not in self._authored or _status_log_contained(self._repo_root, self._tip, self._landing_ref, path)
         lane_blob = _blob_id(self._repo_root, self._tip, path)
         if path not in self._authored:
             if path.startswith(f"{self._mission_dir}/"):
