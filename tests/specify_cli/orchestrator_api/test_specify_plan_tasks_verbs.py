@@ -196,6 +196,8 @@ _TASKS_SUCCESS_DATA_KEYS = frozenset(
         "commit_surfaces",
         "dependencies_parsed",
         "files_committed",
+        # #7809 / contract 1.30.0: the WPs finalize recorded as code_change (empty list when none).
+        "kind_normalised",
         "lanes",
         "mission_slug",
         "modified_wps",

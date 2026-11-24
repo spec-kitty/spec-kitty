@@ -31,7 +31,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.29.0`
+- `CONTRACT_VERSION`: `1.30.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -277,6 +277,11 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   `data.preflight_error_code` / `data.preflight_error_codes` carry `CHECKOUT_SKIP_WORKTREE_ENTRIES`.
   A call that could answer `success: true` (the bit on a file this path never writes) now refuses
   too, so a minor bump; no field or `error_code` is removed or renamed.
+- `1.30.0` — the `tasks` verb's pass-through `data` gains `kind_normalised` (#7829): the work
+  packages finalize-tasks recorded as `code_change` in a lane topology because they own paths
+  outside `kitty-specs/` (#7809), each `{"wp_id", "from", "to", "paths_outside_kitty_specs"}`.
+  The list is empty when no work package was rewritten, and the key is present on every successful
+  run and on `--validate-only`. Purely additive.
 
 ## Response Envelope
 
@@ -284,7 +289,7 @@ Every command returns exactly one JSON object with these 7 top-level keys:
 
 ```json
 {
-  "contract_version": "1.29.0",
+  "contract_version": "1.30.0",
   "command": "orchestrator-api.mission-state",
   "timestamp": "2026-04-08T12:00:00+00:00",
   "correlation_id": "corr-0123456789abcdef",
@@ -595,6 +600,12 @@ run and on `--validate-only`:
 | `wp_count` / `code_lane_count` | Non-canceled work packages (planning-artifact ones included) / code lanes (without `lane-planning`). |
 | `target_protected` | Informational: the outcome is the same on an unprotected target. |
 | `preview` | `true` under `--validate-only`: nothing was written. |
+
+Response `data` (contract >= 1.30.0) also carries `kind_normalised`, present on every successful
+run and on `--validate-only`: one entry per work package finalize-tasks recorded as `code_change`
+in a lane topology because it owns paths outside `kitty-specs/` (#7809), shaped
+`{"wp_id": "WP03", "from": "planning_artifact", "to": "code_change", "paths_outside_kitty_specs": ["docs/x.md"]}`.
+The list is empty when no work package was rewritten, and always empty on a `single_branch` Mission.
 
 Error codes: `POLICY_METADATA_REQUIRED`, `POLICY_VALIDATION_FAILED`,
 `MISSION_NOT_FOUND`, `TASKS_FINALIZE_FAILED` (delegate call failed with no
