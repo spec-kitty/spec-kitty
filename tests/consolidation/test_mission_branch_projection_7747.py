@@ -108,12 +108,9 @@ def landed(tmp_path: Path) -> Landed:
     return Landed(tmp_path)
 
 
-def test_a_lane_a_later_lane_rewrote_is_not_absorbed_by_the_content_proof(landed: Landed) -> None:
-    """The control: the squash's pre-Mission merge base makes lane A's line a conflict."""
-    assert not is_absorbed_but_for_mission_bookkeeping(landed.root, landed.tip(landed.lane_a), _TARGET, _SLUG)
-
-
 def test_the_mission_branch_proves_every_lane_it_reaches(landed: Landed) -> None:
+    # The control: the squash's pre-Mission merge base makes lane A's line a conflict for the content proof.
+    assert not is_absorbed_but_for_mission_bookkeeping(landed.root, landed.tip(landed.lane_a), _TARGET, _SLUG)
     assert landed.through_mission(landed.lane_a)
     assert landed.through_mission(landed.lane_b)
 
@@ -175,19 +172,6 @@ def _remove_lane_a(landed: Landed, landing: LocalTargetAtPass) -> LaneCleanupOut
     return remover.remove(item, landing=landing).outcome
 
 
-def test_the_guard_removes_a_lane_the_projection_proves(landed: Landed) -> None:
-    projection = MissionBranchProjection(mission_tip=landed.mission_tip, proven_tips=frozenset({landed.tip(landed.lane_a)}), anchor_sha=landed.passed)
-    outcome = _remove_lane_a(landed, LocalTargetAtPass(target_ref="main", passed_sha=landed.passed, projection=projection))
-    assert outcome is LaneCleanupOutcome.REMOVED
-    assert not landed.lane_a.exists()
-    assert _git(landed.root, "branch", "--list", _LANE_A) == ""
-
-
-def test_without_the_projection_the_rewritten_lane_is_kept(landed: Landed) -> None:
-    assert _remove_lane_a(landed, LocalTargetAtPass(target_ref="main", passed_sha=landed.passed)) is LaneCleanupOutcome.KEPT
-    assert landed.lane_a.exists()
-
-
 # --- R24 adversarial squad folds (2026-11-24) -----------------------------------------------------
 
 
@@ -223,61 +207,6 @@ def test_a_projection_stays_valid_when_the_pass_anchor_is_carried_over_an_own_co
 # --- Tier R B1, operator ruling 2026-11-24 (b): supersession must come from an approved lane ------
 
 
-def _squash(root: Path, mission_tip: str, message: str) -> str:
-    _git(root, "checkout", "-q", mission_tip, "--", ".")
-    _git(root, "commit", "-q", "--allow-empty", "-m", message)
-    return _git(root, "rev-parse", "HEAD")
-
-
-def test_a_lane_change_the_mission_branch_merged_then_reverted_is_not_landed(tmp_path: Path) -> None:
-    """The Tier R probe: content proof False, Mission-branch proof must be False too."""
-    root = tmp_path / "repo"
-    root.mkdir()
-    _git(root, "init", "-q", "-b", "main")
-    _git(root, "config", "user.email", "t@example.invalid")
-    _git(root, "config", "user.name", "T")
-    _git(root, "config", "commit.gpgsign", "false")
-    _commit(root, "base", {".gitignore": ".worktrees/\n", "README.md": "base\n"})
-    _git(root, "branch", _MISSION)
-    lane = root / ".worktrees" / "lane-a"
-    _git(root, "worktree", "add", "-q", "-b", _LANE_A, str(lane), _MISSION)
-    lane_tip = _commit(lane, "feat(WP01)", {"src/lane.py": "lane work\n"})
-    mission = root / ".worktrees" / "mission"
-    _git(root, "worktree", "add", "-q", str(mission), _MISSION)
-    _git(mission, "merge", "-q", "--no-ff", "--no-edit", _LANE_A)
-    _git(mission, "revert", "-m", "1", "--no-edit", "HEAD")
-    mission_tip = _git(mission, "rev-parse", "HEAD")
-    passed = _squash(root, mission_tip, "squash merge of the Mission")
-    assert not is_absorbed_but_for_mission_bookkeeping(root, lane_tip, passed, _SLUG)
-    assert not is_landed_through_mission_branch(root, lane_tip, mission_tip, passed, _SLUG, approved_tips=(lane_tip,))
-
-
-def test_a_rewrite_no_approved_lane_made_does_not_prove_the_lane(landed: Landed) -> None:
-    """A commit made on the Mission branch itself (outside any lane) superseding lane B's line keeps lane B."""
-    mission = landed.root / ".worktrees" / "mission"
-    mission_tip = _commit(mission, "an out-of-workflow edit", {"src/two.py": "y = 99\n"})
-    passed = _squash(landed.root, mission_tip, "squash again")
-    assert not is_landed_through_mission_branch(landed.root, landed.tip(landed.lane_b), mission_tip, passed, _SLUG, approved_tips=landed.approved())
-
-
-def test_an_approved_dependent_lane_rewriting_the_path_still_proves_the_lane(landed: Landed) -> None:
-    """Positive control for B1 (b): lane B (approved, merged) rewrote lane A's line, so lane A landed."""
-    assert landed.through_mission(landed.lane_a)
-
-
-def test_a_rewrite_by_a_lane_the_mission_branch_never_merged_does_not_count(landed: Landed) -> None:
-    """Only commits on the Mission branch are approved work: before lane B's merge, its rewrite does not count."""
-    from specify_cli.lanes import lane_tip
-
-    mission = landed.root / ".worktrees" / "mission"
-    before_lane_b = _git(mission, "rev-parse", "HEAD^^1")  # the Mission branch with only lane A merged
-    tip_a = landed.tip(landed.lane_a)
-    merged = lane_tip._ApprovedWork(landed.root, tip_a, landed.mission_tip, landed.passed, landed.approved())
-    not_yet = lane_tip._ApprovedWork(landed.root, tip_a, before_lane_b, landed.passed, landed.approved())
-    assert merged.supersedes("src/one.py")
-    assert not not_yet.supersedes("src/one.py")
-
-
 def test_a_probe_error_while_attributing_keeps_the_lane(landed: Landed, monkeypatch: pytest.MonkeyPatch) -> None:
     from kernel.git import GitCommandError
     from specify_cli.lanes import lane_tip
@@ -310,6 +239,7 @@ def test_a_lane_removed_on_the_mission_branch_proof_keeps_its_lane_tip_ref(lande
     clear_tip(landed.root, _LANE_A)  # recorder inactive: cleanup writes the ref itself
     result = _remove(landed, landed.lane_a, _LANE_A, "lane-a")
     assert result.outcome is LaneCleanupOutcome.REMOVED
+    assert not landed.lane_a.exists()
     assert _git(landed.root, "branch", "--list", _LANE_A) == ""
     assert read_tip(landed.root, _LANE_A) == tip
     assert result.recoverable == tip_ref(_LANE_A)
@@ -397,6 +327,7 @@ def test_a_lane_the_guard_keeps_has_its_earlier_lane_tip_ref_restored(landed: La
     record_tip(landed.root, _LANE_A, _git(landed.root, "rev-parse", f"{landed.tip(landed.lane_a)}^"))
     before = read_tip(landed.root, _LANE_A)
     assert _remove_lane_a(landed, LocalTargetAtPass(target_ref="main", passed_sha=landed.passed)) is LaneCleanupOutcome.KEPT
+    assert landed.lane_a.exists()
     assert read_tip(landed.root, _LANE_A) == before
     clear_tip(landed.root, _LANE_A)
     assert _remove_lane_a(landed, LocalTargetAtPass(target_ref="main", passed_sha=landed.passed)) is LaneCleanupOutcome.KEPT

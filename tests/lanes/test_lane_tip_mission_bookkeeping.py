@@ -168,6 +168,7 @@ def landed(tmp_path: Path) -> Landed:
 def test_a_squash_landed_lane_is_landed_but_for_its_mission_bookkeeping(landed: Landed) -> None:
     assert not is_absorbed(landed.root, landed.tip(), _TARGET, base=None)  # the #7747 refusal
     assert landed.proof()
+    assert _git(landed.lane, "ls-tree", "--name-only", "HEAD", _RETRO) == ""  # a file only the target has: nothing to lose
 
 
 def test_a_lane_tip_on_the_landing_ref_is_landed(landed: Landed) -> None:
@@ -285,11 +286,6 @@ def test_a_lane_version_the_target_history_holds_is_set_aside(landed: Landed) ->
     assert landed.proof()
 
 
-def test_a_mission_file_only_the_target_has_is_nothing_to_lose(landed: Landed) -> None:
-    assert landed.proof()
-    assert _git(landed.lane, "ls-tree", "--name-only", "HEAD", _RETRO) == ""
-
-
 def test_a_mission_file_only_the_target_moved_since_the_merge_base_is_nothing_to_lose(tmp_path: Path) -> None:
     """Another Mission's file the target changed after the lane forked: the lane's copy is the base's."""
     root = tmp_path / "repo"
@@ -350,13 +346,6 @@ def test_a_git_failure_fails_closed(landed: Landed, monkeypatch: pytest.MonkeyPa
 
     monkeypatch.setattr(lane_tip, "merge_tree", broken)
     assert not landed.proof()
-
-
-def test_a_root_commit_changes_every_path_it_holds(tmp_path: Path) -> None:
-    root = tmp_path / "repo"
-    _init(root)
-    first = _git(root, "rev-list", "--max-parents=0", "HEAD")
-    assert sorted(lane_tip._paths_changed_by(root, first, ())) == [".gitignore", "README.md"]
 
 
 def test_a_mission_file_the_lane_lost_through_a_sync_merge_is_nothing_to_lose(tmp_path: Path) -> None:

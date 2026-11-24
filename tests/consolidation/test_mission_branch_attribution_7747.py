@@ -167,6 +167,7 @@ def _rename(cwd: Path, new: str, message: str) -> str:
         pytest.param(lambda coord: _edit_line(coord, 1, "'X'", "operator: rewrite lane A's line"), id="rewrite"),
         pytest.param(lambda coord: _edit_line(coord, 1, "1", "operator: revert lane A's line"), id="revert"),
         pytest.param(lambda coord: _rename(coord, "src/r.py", "operator: rename lane A's file"), id="rename"),
+        pytest.param(lambda coord: _git(coord, "revert", "-m", "1", "--no-edit", "HEAD"), id="merge-revert"),
     ],
 )
 def test_confirm2_b1_coordination_history_a_lane_forked_from_is_not_its_own_work(repo: Repo, operator_change: Callable[[Path], str]) -> None:

@@ -65,16 +65,13 @@ def _quiet_status_fanout(monkeypatch: pytest.MonkeyPatch) -> None:
     _quiet(monkeypatch)
 
 
-def test_every_lane_of_the_landed_mission_is_rated_landed(pushed: Built) -> None:
+def test_every_lane_of_the_landed_mission_is_rated_landed_and_pruned(pushed: Built) -> None:
     assessment = assess_worktrees(pushed.root, current_dir=pushed.root, probe=_idle)
     assert assessment.error is None, assessment.error
     by_path = {verdict.path.resolve(): verdict for verdict in assessment.verdicts}
     for index in _LANE_INDICES:
         verdict = by_path[_lane_worktree(pushed, index).resolve()]
         assert verdict.verdict is Verdict.LANDED, verdict
-
-
-def test_prune_removes_every_lane(pushed: Built) -> None:
     outcomes = prune_landed(pushed.root, current_dir=pushed.root, probe=_idle)
     removed = {outcome.path.resolve() for outcome in outcomes if outcome.removed and outcome.branch_deleted}
     assert {_lane_worktree(pushed, index).resolve() for index in _LANE_INDICES} <= removed, outcomes

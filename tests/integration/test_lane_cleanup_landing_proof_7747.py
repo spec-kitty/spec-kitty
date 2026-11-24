@@ -68,11 +68,6 @@ def test_every_lane_of_a_squash_landing_is_removed(landed: tuple[Built, subproce
     assert not [line for line in block if line.lstrip().startswith("Kept")], "\n".join(block)
     removed = {line.split()[1] for line in block if line.lstrip().startswith("Removed")}
     assert removed == set(_LANES), "\n".join(block)
-
-
-def test_no_lane_worktree_or_branch_is_left(landed: tuple[Built, subprocess.CompletedProcess[str]]) -> None:
-    built, proc = landed
-    _ok(proc)
     for index in (1, 2, 3):
         assert not _lane_worktree(built, index).exists()
     assert git(built.root, "branch", "--list", f"kitty/mission-{built.slug}-lane-*") == ""
