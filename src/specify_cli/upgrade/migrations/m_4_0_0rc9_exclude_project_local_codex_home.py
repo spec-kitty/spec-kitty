@@ -16,9 +16,17 @@ team ``.codex/`` in the same repository stays visible. Files already committed
 there stay tracked.
 
 The effect lives outside version control, so the migration is clone-local: it
-is pending in every clone until it has excluded a Codex home there. A clone
-without one is not settled (``detect()`` is False, so the run records nothing
-that settles it) and is checked again on its next upgrade. Listing the other
+is pending in every clone until it has excluded a Codex home there. On the
+upgrade path a clone without one is not settled (``detect()`` is False, so the
+run records nothing that settles it) and is checked again on its next upgrade.
+A clone seeded by ``spec-kitty init`` is the exception: the init seed records
+every clone-local step whose ``detect()`` is False as done, so a Codex home that
+appears there later is covered by the committed block only (``config.toml``
+stays visible; tracked in #7782). An operator's own higher-precedence rule that
+un-ignores ``.codex/`` (``!.codex/`` in a ``.gitignore``) wins over the exclude
+rule: the step warns and succeeds rather than failing every upgrade. A narrower
+negation (``!.codex/config.toml``) is pre-empted by the folder rule, since git
+does not descend into an excluded folder; the note names ``git add -f``. Listing the other
 agent-folder files git now shows is ``4.0.0rc9_report_newly_visible_agent_files``.
 """
 
@@ -29,7 +37,7 @@ from pathlib import Path
 from kernel.git import GitCommandError, status_entries
 from kernel.git_topology import GitTopologyError, git_toplevel_uncached
 from specify_cli.agent_utils.codex_home import CODEX_DIR, is_codex_home
-from specify_cli.core.git_ops import exclude_from_git_index, is_git_repo
+from specify_cli.core.git_ops import exclude_from_git_index, git_exclude_file, is_git_repo
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -73,6 +81,25 @@ def _exposed_codex_home(project_path: Path) -> tuple[str, list[str]] | None:
     return (codex_dir, visible) if visible else None
 
 
+def _exclude_has_rule(project_path: Path, rule: str) -> bool:
+    """Whether the common-dir ``info/exclude`` holds *rule* as a line of its own."""
+    exclude_file = git_exclude_file(project_path)
+    if exclude_file is None:
+        return False
+    try:
+        return rule in {line.strip() for line in exclude_file.read_text(encoding="utf-8").splitlines()}
+    except OSError:
+        return False
+
+
+def _overridden_warning(rule: str, visible: list[str]) -> str:
+    return (
+        f"Added {rule} to .git/info/exclude, but a rule of your own in a .gitignore un-ignores this clone's Codex home, "
+        f"so git still shows {len(visible)} file(s) there, for example {visible[0]}. Spec Kitty keeps your rule; "
+        "remove it, or add your own ignore rule for the personal Codex files, before you stage everything."
+    )
+
+
 @MigrationRegistry.register
 class ExcludeProjectLocalCodexHomeMigration(BaseMigration):
     """Exclude a Codex-home ``.codex/`` in this clone's ``.git/info/exclude`` (#7729)."""
@@ -104,11 +131,17 @@ class ExcludeProjectLocalCodexHomeMigration(BaseMigration):
             return MigrationResult(success=True, changes_made=[f"Would add {rule} to .git/info/exclude (this clone's .codex/ is a Codex home)"])
 
         exclude_from_git_index(project_path, [rule])
+        if not _exclude_has_rule(project_path, rule):
+            return MigrationResult(success=False, errors=[f"Could not write {rule} to .git/info/exclude; this clone's Codex home files stay visible"])
         still_visible = _visible_codex_files(project_path, codex_dir)
         if still_visible:
+            # The rule is written, so a higher-precedence rule of the operator's own (``!.codex/`` in a
+            # .gitignore) un-ignores the folder. Respect it: warn once and do not fail every upgrade.
             return MigrationResult(
-                success=False,
-                errors=[f"Could not exclude {rule} in .git/info/exclude; git still shows {len(still_visible)} Codex home file(s), for example {still_visible[0]}"],
+                success=True,
+                changes_made=[f"Added {rule} to .git/info/exclude (this clone's .codex/ is a Codex home)"],
+                warnings=[_overridden_warning(rule, still_visible)],
+                manual_review_required=True,
             )
         return MigrationResult(
             success=True,
