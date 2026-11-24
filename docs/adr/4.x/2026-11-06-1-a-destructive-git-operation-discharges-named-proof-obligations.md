@@ -228,7 +228,15 @@ proof.
   `meta.json` or `tasks/WP*.md` version the lane authored may also be in the Mission branch's history,
   since a squash keeps only that branch's last version). The proven tips and the anchor reach the
   guard as `MissionBranchProjection` on the `LocalTargetAtPass` proof; the guard's O3 evidence
-  accepts a proven tip, besides the content proof, only for a landing at that same anchor.
+  accepts a proven tip, besides the content proof, only for a landing whose PASS anchor is the proven
+  anchor or descends from it. A descendant is accepted because consolidate carries the PASS anchor
+  over its own post-landing commits (`_carry_pass_anchor_over_own_commit`, FR-035), and the
+  projection lives only in memory within that one cleanup phase, so nothing else can advance it.
+  The check is ancestry only, not that the commits in between are consolidate's own: if the
+  projection is ever persisted (the `--resume` residual below), this becomes a gap, to be closed by
+  recording the carried SHAs or requiring the commits in between to touch only bookkeeping paths.
+  Building the projection never aborts cleanup: any error yields no projection, and the lanes are
+  judged by the content proof alone.
 - **Authorship** (R24 squad): a lane's own commits are its first-parent commits that no merged-in
   branch's own first-parent line holds, so a lane commit the coordination branch merged back (and the
   lane then resynced) stays the lane's; changed names are read NUL-separated, so a name git quotes is
@@ -246,3 +254,7 @@ proof.
 - A lane commit that a branch other than the coordination branch carries on its own first-parent
   line (for example a dependency lane forked from it, merged back into the lane) counts as not
   authored on this lane.
+- A lane fast-forwarded to a coordination merge that contains its own commit loses that commit's
+  authorship: the commit then sits behind a second parent, off the lane's first-parent chain. Spec
+  Kitty's own syncs merge with `--no-ff`, so only a hand fast-forward reaches this; the content is
+  still in the landing's history (the squash holds it).
