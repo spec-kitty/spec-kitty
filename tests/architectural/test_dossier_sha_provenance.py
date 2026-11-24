@@ -123,6 +123,9 @@ DOSSIER_SHA_FIELDS: Mapping[tuple[str, str], ShaProvenance] = {
     # status/lane_head.py: the lane branch tip at each transition (append-only
     # log; consumed at consolidate time, before landing).
     ("status.events.jsonl", "policy_metadata.lane_head"): _BR,
+    # status/transition_pipeline.py (#7802): the lane tip before a review-sync merge,
+    # written beside lane_head on an approval; provenance of the lane branch, like it.
+    ("status.events.jsonl", "policy_metadata.lane_head_presync"): _BR,
     # status/transition_pipeline.py: the window-open SHA on a work package's
     # opening transition (wp_window, Mission consolidation-window-provenance-01M6Y84D);
     # provenance of the lane branch, valid for one consolidation attempt.
