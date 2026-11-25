@@ -1,16 +1,16 @@
 ---
 title: 'ADR: One status read contract'
 description: 'Every status read resolves through one door to one declared source per topology and coordination state; never a lane checkout, a missing path or a silent fallback.'
-status: Proposed
+status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-11-06'
-updated: '2026-11-11T00:00:00Z'
+updated: '2026-11-24T00:00:00Z'
 ---
 
 # One status read contract
 
-**Status:** Proposed (2026-11-06). The operator accepts it by merging the pull request that carries it. Amended 2026-11-08 (below).
+**Status:** Accepted (2026-11-24; proposed 2026-11-06). Acceptance record: [operator acceptance on PR #7840](https://github.com/spec-kitty/spec-kitty/pull/7840#issuecomment-7139051264). Amended 2026-11-08 (below).
 
 **Date:** 2026-11-06
 
@@ -282,7 +282,9 @@ not make the answer right.
   missing ref is a typed error, not a read of the repository root checkout).
 - PR #6884 and its contract `status-read-root.md`.
 
-## Amendment 2026-11-08 (Proposed): the call-site gate lands with a priced allowlist, and "landed" has one signal
+## Amendment 2026-11-08 (Accepted): the call-site gate lands with a priced allowlist, and "landed" has one signal
+
+*Accepted with the ADR (operator ruling 2026-11-25, [PR #7840](https://github.com/spec-kitty/spec-kitty/pull/7840#issuecomment-7155130353)).*
 
 **Deciders:** Stijn Dejongh (operator). Accepted by merging the pull request that carries it.
 **Technical Story:** [#7408](https://github.com/spec-kitty/spec-kitty/issues/7408) (S5 of epic
