@@ -1,7 +1,7 @@
 {
-  "event_count": 22,
-  "last_event_id": "01M8ADEE5ABK6EWAXSBG53A456",
-  "materialized_at": "2026-11-25T22:32:57.963433+00:00",
+  "event_count": 24,
+  "last_event_id": "01M8AE53XS9TKE3THREHFED350",
+  "materialized_at": "2026-11-25T22:45:21.977994+00:00",
   "mission_number": "",
   "mission_slug": "planning-lane-write-branch-01M8A725",
   "mission_type": "software-dev",
@@ -13,21 +13,21 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
-    "in_review": 0,
+    "in_progress": 0,
+    "in_review": 1,
     "planned": 4
   },
   "work_packages": {
     "WP01": {
       "actor": "claude",
-      "agent": null,
+      "agent": "claude::reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 3,
       "implementer_of_record": "claude::python-pedro",
-      "lane": "in_progress",
-      "last_event_id": "01M8ADEE5ABK6EWAXSBG53A456",
-      "last_transition_at": "2026-11-25T22:32:57.963433+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M8AE53XS9TKE3THREHFED350",
+      "last_transition_at": "2026-11-25T22:45:21.977994+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-25T21:38:38Z – claude::python-pedro – shell_pid=6546 – Out-of-map edits (ownership leeway): src/mission_runtime/__init__.py and tests/architectural/test_mission_runtime_surface.py. resolution.py is import-forbidden from outside mission_runtime (MR-1/MR-2), so the new names (PlanningWriteRef, PlanningWriteRefUnavailable, planning_write_ref) are exported on the package root and pinned in the public surface, following precedent 2c1caf39 (no version bump). The WP prompt's 'do not touch __init__.py' is superseded by that rule; the CLAUDE.md __init__ version-bump rule is read as targeting specify_cli/__init__.py (flagged to the dispatcher). The missing-meta Mission-branch probe lives in coordination/planning_commit.py, not mission_runtime, so the mission_runtime outbound ledger does not grow.",
@@ -36,7 +36,9 @@
         "- 2026-11-25T22:11:44Z – unknown – Review cycle 1 folded (b292615c): F1 HIGH probe scans kitty/mission-* and accepts only a branch whose own meta.json names it as mission_branch (slug-without-mid8 and lane-branch tests); F2 planning_write_ref itself raises PlanningCheckoutMissing/PlanningWriteRefUnavailable, 3-field PlanningWriteRef per data model; F3 non-vacuous unreadable-landing-record test (merged_at + StoreError -> not landed -> Mission branch); F4 probe helper gone, run_git and blob_at failure paths tested; F5 default_mission_rule_applies shared with default_mission_primary_ref (+ test); F6 ADR Fail-closed bullet matches code. Dispatcher ruling: no version bump for the mission_runtime export (note in PR). Tests: 28 passed (new + surface pin); blast tests/mission_runtime tests/coordination tests/specify_cli/coordination + surface + layer rules: 2642 passed, 11 skipped; ruff/format/C901/mypy clean; spelling 0 findings.",
         "Review cycle 1 folded (b292615c)",
         "- 2026-11-25T22:26:56Z – unknown – Review cycle 2 folded (63b4f6c3): probe accepts only a ref whose own meta records a default not-landed Mission naming that branch (explicit topology keeps today's behaviour, FR-006); probes refs/remotes/*/kitty/mission-* (fresh clone refuses with git branch <b> <remote>/<b> + coordination doctor; local wins); full refnames instead of refname:short. Tests 33 passed (+explicit single_branch, landed, fresh clone, local-over-remote, same-named tag). Blast: tests/mission_runtime tests/coordination tests/specify_cli/coordination + surface + layer rules (see run log); ruff/format/C901/mypy clean; spelling 0.",
-        "Review cycle 2 folded (63b4f6c3)"
+        "Review cycle 2 folded (63b4f6c3)",
+        "- 2026-11-25T22:42:16Z – unknown – Review cycle 3 folded (ea0adc94): PLANNING_CHECKOUT_MISSING names the coordination doctor only when the Mission records a coordination branch, else 'git switch <branch>' in the repository root checkout (probe reads coordination_branch off the claiming meta; planning_lane_target asks routes_through_coordination); remote-tracking refs listed under refs/remotes/ and split on /kitty/mission- (remote 'my/fork' probed). Tests 37 passed; blast see run; ruff/format/C901/mypy clean; spelling 0.",
+        "Review cycle 3 folded (ea0adc94)"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -46,14 +48,14 @@
         "reviewer": "claude::reviewer-renata",
         "verdict": "changes_requested"
       },
-      "role": "implementer",
-      "shell_pid": null,
-      "shell_pid_created_at": null,
+      "role": "reviewer",
+      "shell_pid": 24598,
+      "shell_pid_created_at": "1795646712.38",
       "subtasks": {
-        "T001": "planned",
-        "T002": "planned",
-        "T003": "planned",
-        "T004": "planned"
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
       }
     },
     "WP02": {
