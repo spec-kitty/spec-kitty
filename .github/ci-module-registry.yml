@@ -613,6 +613,16 @@ modules:
   # cli/commands/agent, status and acceptance; ~23 s serial (94 tests). Untimed node ids
   # take the module median until the nightly recapture records them.
   - tests/characterization
+  # #7846: both orchestrator-api test trees promoted from out_of_matrix_test_dirs
+  # (nightly-only). #7809 added a finalize-tasks JSON key that the orchestrator-api `tasks`
+  # verb passes through; the key-set pin in tests/specify_cli/orchestrator_api ran only in
+  # the nightly, so main went red there (#7829/#7835) and blocked the RC9 cut. This row
+  # roots both src/specify_cli/orchestrator_api/** and the finalize-tasks source
+  # (src/specify_cli/cli/commands/agent/**). The root-level mirror tests/orchestrator_api
+  # (the consolidate-mission and destructive-op guard envelopes) exercises the same src
+  # package, so it moves with it. Pinned by tests/ci/test_orchestrator_api_routing.py.
+  - tests/specify_cli/orchestrator_api
+  - tests/orchestrator_api
 - module: core_misc
   roots:
   - src/kernel/**
@@ -1098,7 +1108,6 @@ out_of_matrix_test_dirs:
   - tests/specify_cli/invocation
   - tests/specify_cli/invocation/cli
   - tests/specify_cli/migration
-  - tests/specify_cli/orchestrator_api
   - tests/specify_cli/ownership
   - tests/specify_cli/regression
   - tests/specify_cli/retrospect
@@ -1107,19 +1116,6 @@ out_of_matrix_test_dirs:
   - tests/specify_cli/shims
   - tests/specify_cli/tasks
   - tests/specify_cli/test_cli
-
-- reason: >-
-    Root-level mirror of the rootless tests/specify_cli/orchestrator_api tree (already
-    recorded above in this same out_of_matrix_test_dirs block). Added by the
-    merge-destructive-op-safety mission (#4752/#4753/#4754) to hold destructive-op-guard
-    regression coverage for the orchestrator-api surface
-    (test_merge_mission_destructive_refusal.py, test_worktree_cleanup_guard.py) alongside
-    its sibling tree rather than nesting it under specify_cli/. Secondary coverage: the
-    primary #4752/#4753 guard behavior is matrixed via tests/merge, tests/coordination,
-    and tests/integration; this mirror is exercised by the full/nightly run
-    (make test-full / ci-nightly.yml), not per-PR.
-  dirs:
-  - tests/orchestrator_api
 
 - reason: >-
     Nightly home is ci-nightly.yml's `integration-next-shard-<N>` jobs (#7456: the
