@@ -21,6 +21,9 @@ from __future__ import annotations
 import ast
 import json
 import re
+import shlex
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -45,13 +48,16 @@ CONTRACT_MODULE = "tests/contract/test_orchestrator_api.py"
 CONTRACT_CONFTEST = "tests/contract/conftest.py"
 
 #: The changes that can break the contract-shape module, each alone: the verb surface, the vendored
-#: contract the conftest loads, the error classes the module imports, the two prose surfaces it parses
-#: (read through ``_REPO_ROOT / relative``) and the module and conftest themselves.
+#: contract the conftest loads, the contract layer every envelope passes through, the error classes the
+#: module imports, the two prose surfaces it parses (read through ``_REPO_ROOT / relative``) and the
+#: module and conftest themselves.
 POSITIVE_PATHS: tuple[str, ...] = (
     "src/specify_cli/orchestrator_api/commands.py",
     "src/specify_cli/orchestrator_api/envelope.py",
     "src/specify_cli/orchestrator_api/decision_verbs.py",
     "src/specify_cli/core/upstream_contract.json",
+    "src/specify_cli/core/contract_gate.py",
+    "src/specify_cli/missions/_read_path_resolver.py",
     "src/specify_cli/git/commit_helpers.py",
     "docs/api/orchestrator-api.md",
     "src/charter/offering/skills/spec-kitty-orchestrator-api-operator/references/orchestrator-api-contract.md",
@@ -68,6 +74,11 @@ NEGATIVE_PATHS: tuple[str, ...] = (
 )
 
 
+#: Paths that can change the outcome yet are not shape surfaces: what the tests run on (the
+#: contract_tools precedent). Each must select the lane too.
+ENVIRONMENT_PATHS: tuple[str, ...] = ("tests/conftest.py", "pytest.ini", "pyproject.toml", "uv.lock")
+
+
 def _jobs() -> dict[str, Any]:
     return dict(yaml.safe_load(ROUTER.read_text(encoding="utf-8"))["jobs"])
 
@@ -77,6 +88,12 @@ def _pytest_command(job: dict[str, Any]) -> str:
     commands = [line for line in logical.splitlines() if re.search(r"(?<![\w-])pytest(?![\w-])", line)]
     assert len(commands) == 1, f"the lane must run exactly one pytest command, found {commands}"
     return commands[0]
+
+
+def _pytest_arguments(command: str) -> list[str]:
+    """The arguments after ``pytest`` in the lane's command, shell-split."""
+    words = shlex.split(command)
+    return words[words.index("pytest") + 1 :]
 
 
 def _src_files_imported_by(module: str) -> set[str]:
@@ -110,7 +127,7 @@ def _repo_files_read_by(module: str) -> set[str]:
     return {literal for literal in literals if literal.startswith(("docs/", "src/")) and "." in literal.rsplit("/", 1)[-1] and (ROOT / literal).is_file()}
 
 
-@pytest.mark.parametrize("path", POSITIVE_PATHS)
+@pytest.mark.parametrize("path", POSITIVE_PATHS + ENVIRONMENT_PATHS)
 def test_a_path_that_can_break_the_contract_selects_the_lane(path: str) -> None:
     router = load_router()
 
@@ -130,12 +147,17 @@ def test_an_unrelated_diff_does_not_select_the_lane(path: str) -> None:
 
 @pytest.mark.parametrize("module", CONTRACT_SHAPE_PR_PATHS)
 def test_every_src_file_and_prose_surface_a_lane_module_reads_selects_the_lane(module: str) -> None:
-    """Derived per module, so a #7874 module that joins CONTRACT_SHAPE_PR_PATHS is held to the same rule."""
+    """Derived per module, so a #7874 module that joins CONTRACT_SHAPE_PR_PATHS is held to the same rule.
+
+    The property is "the job runs", not "the group matches": a bare package ``__init__`` (``from
+    specify_cli import orchestrator_api`` names ``src/specify_cli/__init__.py``) is deliberately left to
+    the FR-004 fail-closed catch-all, which runs every gated job, this lane included.
+    """
     imported, read = _src_files_imported_by(module), _repo_files_read_by(module)
     assert imported, f"non-vacuity: the import scan found no src file in {module}"
     router = load_router()
 
-    missing = sorted(path for path in imported | read | {module} if GROUP not in select_gates([path], router=router).matched_groups)
+    missing = sorted(path for path in imported | read | {module} if JOB not in select_gates([path], router=router).selected_jobs)
 
     assert missing == [], f"a change to these files runs no `{JOB_NAME}`: {missing}"
 
@@ -151,18 +173,31 @@ def test_the_module_still_reads_both_prose_surfaces() -> None:
 def test_the_lane_runs_exactly_the_registered_modules_with_no_narrowing() -> None:
     """One invocation naming CONTRACT_SHAPE_PR_PATHS, no ``-m``/``-k``/``--ignore``: nothing can collect zero silently."""
     job = _jobs()[JOB]
-    command = _pytest_command(job)
+    arguments = _pytest_arguments(_pytest_command(job))
 
     assert job["name"] == JOB_NAME
     assert CONTRACT_MODULE in CONTRACT_SHAPE_PR_PATHS
-    assert re.findall(r"tests/\S+", command) == list(CONTRACT_SHAPE_PR_PATHS), command
-    assert not any(flag in f" {command} " for flag in (" -m ", " -k ", "--ignore", "--deselect", "-m=", "-k=")), command
+    assert [argument for argument in arguments if not argument.startswith("-")] == list(CONTRACT_SHAPE_PR_PATHS), arguments
+    narrowing = ("-m", "-k", "--markexpr", "--keyword", "--ignore", "--deselect")
+    assert not [argument for argument in arguments if argument.startswith(narrowing)], arguments
 
 
-def test_the_lane_modules_are_not_corpus_marked() -> None:
-    """A corpus-marked module already has its one home in the two corpus jobs (test_contracts_routing.py)."""
-    for module in CONTRACT_SHAPE_PR_PATHS:
-        assert "corpus" not in (ROOT / module).read_text(encoding="utf-8"), f"{module} is corpus-marked: it belongs to the corpus jobs"
+def _collected(paths: tuple[str, ...], marker: str) -> list[str]:
+    result = subprocess.run(
+        [sys.executable, "-m", "pytest", *paths, "-m", marker, "--collect-only", "-q", "-p", "no:cacheprovider"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return [line for line in result.stdout.splitlines() if "::" in line]
+
+
+def test_the_lane_modules_collect_nothing_under_the_corpus_jobs_marker() -> None:
+    """Really collected, not text-searched: a corpus-marked test already has its one home in the corpus jobs
+    (test_contracts_routing.py), so the lane would double-run it; and the gap this lane closes is real."""
+    assert _collected(CONTRACT_SHAPE_PR_PATHS, "corpus and not windows_ci") == []
+    assert _collected(CONTRACT_SHAPE_PR_PATHS, "not corpus"), "non-vacuity: the lane modules collect tests"
 
 
 def test_the_lane_is_blocking_and_gated_on_the_group_alone() -> None:

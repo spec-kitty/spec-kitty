@@ -732,13 +732,19 @@
         "**/specify_cli/orchestrator_api/**",
         "**/specify_cli/git/commit_helpers.py",
         "**/specify_cli/core/upstream_contract.json",
+        "**/specify_cli/core/contract_gate.py",
+        "**/specify_cli/missions/_read_path_resolver.py",
         "**/charter/offering/skills/spec-kitty-orchestrator-api-operator/references/orchestrator-api-contract.md",
         "docs/api/orchestrator-api.md",
         "tests/contract/test_orchestrator_api.py",
-        "tests/contract/conftest.py"
+        "tests/contract/conftest.py",
+        "tests/conftest.py",
+        "pytest.ini",
+        "pyproject.toml",
+        "uv.lock"
       ],
       "census_evidence": "known-live",
-      "note": "#7870 (operator ruling 2026-11-25, option A): the orchestrator-api contract-shape module (tests/contract/test_orchestrator_api.py) carries no corpus mark, so both tests/contract router jobs (-m \"corpus and not windows_ci\") deselect it and no per-PR job ran it -- the class that blocked the RC9 cut (#7829/#7835/#7846). Gates only tests (orchestrator-api contract), which runs gate_selection.CONTRACT_SHAPE_PR_PATHS; the globs are what the module reads (the verb package incl. docstrings via inspect.getsource, the error classes it imports, the vendored contract its conftest loads, the two prose surfaces whose error-code enumerations it parses, the module and conftest). NON-src on purpose, like path_literal_audit: every src path named is already mapped by a src-backed group, so this is an extra narrow lane, never a code-shard group. #7874 widens it to the other non-corpus tests/contract modules."
+      "note": "#7870 (operator ruling 2026-11-25, option A): the orchestrator-api contract-shape module (tests/contract/test_orchestrator_api.py) carries no corpus mark, so both tests/contract router jobs (-m \"corpus and not windows_ci\") deselect it and no per-PR job ran it -- the class that blocked the RC9 cut (#7829/#7835/#7846). Gates only tests (orchestrator-api contract), which runs gate_selection.CONTRACT_SHAPE_PR_PATHS; the globs are what the module reads (the verb package incl. docstrings via inspect.getsource, the error classes it imports, the vendored contract its conftest loads, the contract layer every envelope passes through (core/contract_gate.py, missions/_read_path_resolver.py), the two prose surfaces whose error-code enumerations it parses, the module and conftest, and the test environment inputs (tests/conftest.py, pytest.ini, pyproject.toml, uv.lock; the contract_tools precedent). The package's other transitive imports are behaviour, covered by the execution_context shard's tests/specify_cli/orchestrator_api. NON-src on purpose, like path_literal_audit: every src path named is already mapped by a src-backed group, so this is an extra narrow lane, never a code-shard group. #7874 widens it to the other non-corpus tests/contract modules."
     },
     {
       "group": "path_literal_audit",
