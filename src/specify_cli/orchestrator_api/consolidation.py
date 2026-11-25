@@ -588,7 +588,13 @@ def _refuse_post_approval_lane_content(main_repo_root: Path, mission_dir: Path, 
     (:func:`~specify_cli.consolidation.reconciliation.approved_bound_refusal`) must
     precede the first merge. The excluded work packages and the window base are the
     ones the executor resolves for a fresh run. Anything that stops the check from
-    answering (an unreadable status log, an unresolvable base) refuses as well.
+    answering (an unreadable status log, an unresolvable base, a git probe error) refuses as well.
+
+    The codes it can carry (``ApprovedBoundRefused.error_code`` / ``error_codes``, read with
+    :func:`~specify_cli.consolidation.approved_bound.refusal_codes`): ``LANE_MOVED_AFTER_APPROVAL``,
+    ``APPROVAL_STAMP_MISSING``, ``APPROVAL_STAMP_NOT_ON_LANE`` and, since contract 1.31.0,
+    ``RESOLUTION_MERGE_UNREVIEWED`` (FR-004: a merge on an approved lane that carries its own content
+    and that no review approval of the lane reaches).
     """
     from specify_cli.consolidation.approved_bound import refusal_codes
     from specify_cli.consolidation.done_bookkeeping import acceptably_canceled_wp_ids

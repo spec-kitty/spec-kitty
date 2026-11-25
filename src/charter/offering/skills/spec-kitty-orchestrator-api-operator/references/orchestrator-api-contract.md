@@ -414,6 +414,21 @@ spec-kitty orchestrator-api consolidate-mission \
 | `strategy` | string | Merge strategy that was used |
 | `worktree_removed` | bool | Whether worktrees were cleaned up |
 
+**Preflight refusal codes (`PREFLIGHT_FAILED`, in `data.preflight_error_code` / `data.preflight_error_codes`):**
+checked before the first lane is merged, so no branch moves (this command has no rollback and no
+attestation flag). Besides the evidence codes listed under `accept-mission`:
+
+| Code | Contract | Meaning | What to do |
+|------|----------|---------|------------|
+| `LANE_MOVED_AFTER_APPROVAL` | >= 1.10.0 | A lane holds a content commit made after review approved it | Move the WP back for review, approve it again, re-run |
+| `APPROVAL_STAMP_MISSING` | >= 1.10.0 | An approved WP records no lane head | Move it back for review and approve again, or attest with the host `spec-kitty consolidate --attest-approved-reviewed` |
+| `APPROVAL_STAMP_NOT_ON_LANE` | >= 1.10.0 | The approval names a commit no longer on the lane (the lane was rewritten) | Move the WP back for review, approve it again, re-run |
+| `RESOLUTION_MERGE_UNREVIEWED` | >= 1.31.0 | A merge on an approved lane carries content of its own (a hand conflict resolution, or a merge inside a canceled WP's window) and no review approval of the lane reaches it | Send the WP back (`move-task <WP> --to planned --review-feedback-file <file>`), `implement <WP> --incorporate <lane> --agent <agent>`, resolve and commit, `for_review`, an independent approval, re-run; for a canceled WP's window, rebuild the lane. No attestation lifts it |
+
+When a lane is stale (a sibling lane consolidated ahead of it changed the same file),
+`data.errors` carries the same re-review route the host `consolidate` prints (contract >= 1.31.0
+for an approved lane). Earlier lanes stay consolidated into the Mission branch on this path.
+
 **Usage notes:**
 
 - Mission should be accepted before merging
