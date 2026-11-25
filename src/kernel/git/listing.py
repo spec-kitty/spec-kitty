@@ -22,6 +22,7 @@ from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+import kernel.paths as _kernel_paths
 from kernel.git.paths import GitPath
 from kernel.git.runner import GitCommandError, decode_path, run_git
 
@@ -345,9 +346,25 @@ def tree_paths(
     return frozenset(parse_paths_z(raw))
 
 
+def _tree_spelling(path: str) -> str:
+    """*path* as git names a tree entry: ``/``-separated (#7849).
+
+    On Windows a caller may pass the native ``\\`` spelling (``str(Path)``), which git
+    accepts as a pathspec but never reports for a tree entry, so the exact match below
+    would read an existing entry as absent. On POSIX ``\\`` is a filename character and
+    is kept. The OS check goes through the module attribute so tests can patch it.
+    The cost: on Windows a literal ``\\`` in a POSIX-authored filename cannot be named
+    here, a file Windows cannot check out anyway.
+    """
+    return path.replace("\\", "/") if _kernel_paths.is_windows() else path
+
+
 def tree_entry(cwd: Path, ref: str, path: str, *, env: Env = None, timeout: float | None = None) -> TreeEntry | None:
-    """The entry for exactly *path* in *ref*'s tree, or ``None`` when *ref* has no such path."""
-    wanted = GitPath.parse(path)
+    """The entry for exactly *path* in *ref*'s tree, or ``None`` when *ref* has no such path.
+
+    On Windows a native ``\\``-separated *path* names the same entry as ``/``.
+    """
+    wanted = GitPath.parse(_tree_spelling(path))
     entries = parse_tree_z(_git(cwd, ["ls-tree", "--full-tree", "-z", ref], (str(wanted),), env=env, timeout=timeout))
     return next((entry for entry in entries if entry.path == wanted), None)
 
