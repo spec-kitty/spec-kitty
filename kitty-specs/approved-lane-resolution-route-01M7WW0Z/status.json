@@ -278,7 +278,7 @@
     },
     "WP07": {
       "actor": "claude",
-      "agent": null,
+      "agent": "claude::python-pedro",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -305,7 +305,8 @@
         "Approved-lane stale remedy prints the implement --incorporate route (one command per line, --agent named); FR-009 lane_rebase_moves recorded on every auto-rebase; --incorporate merge-attribute guard (INCORPORATE_MERGE_ATTRIBUTES_REFUSED, Mission-tip attributes source, pinned merge env, window probe); #7861 fixed: review-cycle evidence of the reopen goes through the coordination router, so main's reopen line runs on protected coordination targets. T036 runs every printed command through the CLI and the Mission lands.",
         "- 2026-11-25T17:02:07Z – unknown – review-1 item 1 (9e9f7910c3): matrix destination assert limited to single_branch (coord_protected is a patched flag on a single-branch repo); new real protected coord-topology cell test_real_protected_coord_topology_review_cycle_lands_on_coord_ref_and_main_is_untouched drives the #7861 hand-back (--to planned --review-feedback-file, no --note: --note on a protected coord branch refuses WP_METADATA_UNSUPPORTED_ON_PROTECTED_COORD_BRANCH) and asserts review-cycle-1.md on the coordination branch, absent on main, main unmoved. Mutation proof: (i) mutating REVIEW_CYCLE->WORK_PACKAGE_TASK in _review_cycle_write_location and the commit kind did NOT move the evidence (the commit seam still landed it on the coordination branch; both tests passed, meaning no route to main); (ii) a mutation in review/cycle.py::_commit_review_cycle_artifact that commits the evidence on main and reports durable(destination main) made both test_real_protected_coord_topology... and test_main_reopen_line_runs_on_a_protected_coordination_target FAIL ('review-cycle-1.md is NOT on the coordination ref ...'). Reverted.",
         "- 2026-11-25T17:02:13Z – unknown – review-1 item 2: renamed T050 test now asserts the refusing router's concrete typed outcome on both call sites: outcome.classification == 'persistence_failed', skip_reason == 'commit_error', verdict_durably_persisted False. Item 3: _DURABILITY_REASON_PROTECTED_TARGET_BRANCH and its notice-map entry removed (no src producer left); VerdictDurabilitySignal docstring updated; the pre-fix naive-gate test docstring notes the T050 gate retirement.",
-        "- 2026-11-25T17:22:53Z – unknown – review-1 tests at 9e9f7910c3: durability/persistence/review_cycle-referencing tests + tests/specify_cli/cli/commands/agent + WP07 test files, -n 3: 5845 passed, 20 skipped, 3 xfailed; test_no_dead_symbols -n0: 37 passed; test-fast markers -n 3: 3222 passed, 7 skipped; ruff/format/mypy/C901 clean."
+        "- 2026-11-25T17:22:53Z – unknown – review-1 tests at 9e9f7910c3: durability/persistence/review_cycle-referencing tests + tests/specify_cli/cli/commands/agent + WP07 test files, -n 3: 5845 passed, 20 skipped, 3 xfailed; test_no_dead_symbols -n0: 37 passed; test-fast markers -n 3: 3222 passed, 7 skipped; ruff/format/mypy/C901 clean.",
+        "Review cycle 1 fixes: real protected coord-topology durability cell (evidence on coordination branch, main untouched; mutation committing to main fails it), concrete T050 outcome asserts, dead protected_target_branch reason removed."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
