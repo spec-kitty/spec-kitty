@@ -17,10 +17,14 @@ Guarantees (``contracts/rollback-authority.md``; record-anchored since #5686):
    expected). Any other tip is ``NOT_RESTORED`` -- never restored and never
    reported untouched, so ``--abort`` keeps the record. Each branch is restored
    to its record restore target (:func:`begin_attempt`).
-2a. Lane branches (``state.snapshot_lane_branches``) are REPORT-ONLY: consolidation
-   never moves a lane branch, so a lane move is another actor's. Lanes are
-   snapshotted for the report, never recorded, never restored
-   (``UNCHANGED_BY_RUN`` / ``ALREADY_AT_SNAPSHOT``).
+2a. Lane branches (``state.snapshot_lane_branches``) are report-only EXCEPT the run's
+   own recorded auto-rebase move (``state.lane_rebase_moves``, FR-009), which is
+   restored under compare-and-swap from ``after`` to ``before`` (only from the lane's
+   restore target, only while the lane is still at ``after``); the lane checkout is
+   resynced, its work-tip ref reset and its durable auto-rebase record deleted. Any
+   other lane move is never restored (``UNCHANGED_BY_RUN`` / ``ALREADY_AT_SNAPSHOT``);
+   a lane that moved again since its recorded merge is ``LANE_MOVED_SINCE_AUTO_REBASE``
+   (kept, its record kept). Lanes are never recorded in ``post_mutation_refs``.
 2b. A phase records a post tip only for a run-movable branch whose tip CHANGED
    during that phase AND whose tip at phase entry was the tip the record
    expected (:func:`movable_branch_tips` and :func:`expected_tips` at phase
@@ -82,6 +86,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from kernel.git.read_cache import cached_ref_read
+from specify_cli.consolidation.git_probes import GitProbeError, commit_parents
 from specify_cli.consolidation.landed_coordination import clear_landed_coordination_ref
 from specify_cli.consolidation.state import UNSETTLED_ALL, ConsolidationState, reconciliation_passed_for_tip, save_state
 from specify_cli.coordination.coherence import CheckoutRole, ResidueContext, is_status_state_path
@@ -92,8 +97,11 @@ from specify_cli.git.ref_advance import (
     RefRestoreError,
     restore_branch_ref,
     resync_checkouts_to_tip,
+    write_bookkeeping_ref,
 )
+from specify_cli.lanes import auto_rebase_record
 from specify_cli.lanes.compute import lane_created_branch
+from specify_cli.lanes.lane_tip import tip_ref
 from specify_cli.lanes.models import LanesManifest
 
 # Only the entry points other modules call. The report/outcome types and
@@ -131,7 +139,9 @@ _SEEDED_HEADER = f"Rollback to the snapshot (pre-consolidation unless marked [{_
 _SNAPSHOT_HEADER = "Rollback to the pre-consolidation snapshot:"
 #: F5: at least one branch went to an ADR-A2 restore target, not its snapshot.
 _RESTORE_TARGETS_HEADER = "Rollback, restored to the record's restore targets:"
-_LANE_REPORT_ONLY_REASON = "lane branch: not moved by consolidation"
+_LANE_REPORT_ONLY_REASON = "lane branch: no auto-rebase move of this run recorded"
+_LANE_MOVED_REASON = "moved since this run's auto-rebase merge"
+_MOVE_UNPROVEN_REASON = "recorded auto-rebase move could not be verified; not restored"
 _UNRECORDED_MOVE_REASON = "moved since the snapshot but no post-mutation tip was recorded (interrupted phase?); inspect before re-running"
 _KEPT_WARNING = "may contain this consolidation's unverified changes"
 _ADOPTED_NOTE = "adopted interrupted advance"
@@ -186,6 +196,10 @@ class BranchOutcomeKind(StrEnum):
     # An operator release (``--abort --release-branch``) kept a branch that would
     # otherwise be NOT_RESTORED at the released SHA. OK for the report, never a restore.
     KEPT_BY_OPERATOR = "kept_by_operator"
+    # FR-009: a lane that moved after this run's own auto-rebase merge (``expected_sha``, the
+    # recorded ``after``) is never reset; ``restored_to_sha`` is the recorded ``before``.
+    # OK for the report (``--abort`` may finish: a lane has no release), never re-baselineable.
+    LANE_MOVED_SINCE_AUTO_REBASE = "lane_moved_since_auto_rebase"
 
 
 @dataclass(frozen=True)
@@ -220,8 +234,13 @@ _OK_KINDS = frozenset(
         BranchOutcomeKind.UNCHANGED_BY_RUN,
         BranchOutcomeKind.LANE_MISSING,
         BranchOutcomeKind.KEPT_BY_OPERATOR,
+        BranchOutcomeKind.LANE_MOVED_SINCE_AUTO_REBASE,
     }
 )
+#: Outcomes that keep a record the re-baseline must not drop (#6770, FR-009).
+_NOT_REBASELINEABLE_KINDS = frozenset({BranchOutcomeKind.KEPT_BY_OPERATOR, BranchOutcomeKind.LANE_MISSING, BranchOutcomeKind.LANE_MOVED_SINCE_AUTO_REBASE})
+#: A lane whose recorded auto-rebase move outlives the rollback (FR-009, T022).
+_LANE_MOVE_KEPT_KINDS = frozenset({BranchOutcomeKind.LANE_MOVED_SINCE_AUTO_REBASE, BranchOutcomeKind.NOT_RESTORED, BranchOutcomeKind.LANE_MISSING})
 #: Outcomes that settle a run-movable branch (FR-003).
 _SETTLING_KINDS = frozenset({BranchOutcomeKind.RESTORED, BranchOutcomeKind.ALREADY_AT_SNAPSHOT, BranchOutcomeKind.KEPT_BY_OPERATOR})
 #: #5638: a coordination branch the rollback did not move keeps its tip; its checkout must match it.
@@ -252,12 +271,14 @@ class RollbackReport:
         """True when this rollback may re-baseline the record (#6770): the attempt is undone AND
         nothing it left is load-bearing.
 
-        Stricter than :attr:`fully_restored` in exactly two places. ``KEPT_BY_OPERATOR`` means an
+        Stricter than :attr:`fully_restored` in exactly three places. ``KEPT_BY_OPERATOR`` means an
         operator release deliberately left a branch at its post-mutation tip: that content is
         still there, it is the operator's, and the record is the only place that says so — a
         re-baseline would drop the release and its reason. ``LANE_MISSING`` means the record holds
         the last persisted copy of a deleted lane branch's snapshot SHA (the recreate hint is
-        printed once), so re-baselining throws that away.
+        printed once), so re-baselining throws that away. ``LANE_MOVED_SINCE_AUTO_REBASE`` (FR-009)
+        means a lane still carries this run's auto-rebase merge under later commits, and the record's
+        ``lane_rebase_moves`` entry is the only place that says so.
 
         ``KEPT_BY_OPERATOR`` cannot reach the door today (releases are recorded only by ``--abort``,
         which clears the record itself, and ``begin_attempt`` wipes them before the mutation span),
@@ -268,7 +289,7 @@ class RollbackReport:
         """
         if not self.fully_restored:
             return False
-        return not any(outcome.kind in (BranchOutcomeKind.KEPT_BY_OPERATOR, BranchOutcomeKind.LANE_MISSING) for outcome in self.outcomes)
+        return not any(outcome.kind in _NOT_REBASELINEABLE_KINDS for outcome in self.outcomes)
 
     @property
     def advanced_branches(self) -> tuple[str, ...]:
@@ -334,9 +355,25 @@ def _then_follow_up(follow_up: RollbackFollowUp) -> str:
 
 
 def _next_step(outcome: BranchOutcome, follow_up: RollbackFollowUp) -> str | None:
-    """The next step for one NOT_RESTORED outcome, in terms of the command that ran the rollback; ``None`` when none applies."""
-    if outcome.kind is not BranchOutcomeKind.NOT_RESTORED:
-        return None
+    """The next step for one outcome, in terms of the command that ran the rollback; ``None`` when none applies."""
+    if outcome.kind is BranchOutcomeKind.LANE_MOVED_SINCE_AUTO_REBASE:
+        return _moved_lane_step(outcome)
+    if outcome.kind is BranchOutcomeKind.NOT_RESTORED:
+        return _not_restored_step(outcome, follow_up)
+    return None
+
+
+def _moved_lane_step(outcome: BranchOutcome) -> str:
+    """FR-009: a lane that holds this run's auto-rebase merge under later commits; nothing was reset (no destructive recipe)."""
+    before, after, live = _short(outcome.restored_to_sha), _short(outcome.expected_sha), _short(outcome.observed_sha)
+    return (
+        f"{outcome.branch}: it holds this run's auto-rebase merge {after} under later commits "
+        f"(git log --oneline {before}..{live}); nothing was reset. The next consolidate judges those commits as it does today."
+    )
+
+
+def _not_restored_step(outcome: BranchOutcome, follow_up: RollbackFollowUp) -> str | None:
+    """The next step for one NOT_RESTORED outcome; ``None`` when none applies."""
     if outcome.cause is NotRestoredCause.MISSING:
         recreate_at = outcome.restored_to_sha or outcome.snapshot_sha
         return f"{outcome.branch}: recreate it (`git branch {outcome.branch} {recreate_at}`), then {_then_follow_up(follow_up)}."
@@ -366,7 +403,10 @@ def _render_outcome_line(outcome: BranchOutcome, width: int) -> str:
     kind = outcome.kind
     if kind is BranchOutcomeKind.RESTORED:
         line = f"  restored   {name}  {_short(outcome.observed_sha)} -> {_short(outcome.restored_to_sha or outcome.snapshot_sha)}"
-        return f"{line} ({_ADOPTED_NOTE})" if outcome.adopted_intent else line
+        notes = [note for note in (_ADOPTED_NOTE if outcome.adopted_intent else None, outcome.reason) if note]
+        return f"{line} ({'; '.join(notes)})" if notes else line
+    if kind is BranchOutcomeKind.LANE_MOVED_SINCE_AUTO_REBASE:
+        return f"  kept       {name}  ({_LANE_MOVED_REASON} {_short(outcome.expected_sha)}, now at {_short(outcome.observed_sha)}; not restored)"
     if kind is BranchOutcomeKind.KEPT_BY_OPERATOR:
         return f"  kept       {name}  (released by operator: {outcome.reason or ''}; at {_short(outcome.observed_sha)}; {_KEPT_WARNING})"
     if kind is BranchOutcomeKind.ALREADY_AT_SNAPSHOT:
@@ -697,7 +737,15 @@ def own_moves_across(
 
 
 def _lane_attempt_start(state: ConsolidationState, branch: str, snapshot: str, live: str) -> _AttemptStart:
-    """Lane branches keep the pre-#5686 rule: report-only, restore target for the report."""
+    """Lane branches keep the pre-#5686 rule: report-only, restore target for the report.
+
+    One exception (FR-009): a lane still at the ``after`` of this record's own auto-rebase move, recorded
+    from its current restore target, keeps that target, so a ``--resume`` of an interrupted run can still
+    undo the move. Any other move between attempts re-anchors the lane at its live tip.
+    """
+    move = _own_lane_move(state, branch, state.restore_targets.get(branch, snapshot))
+    if move is not None and move[1] == live:
+        return _AttemptStart(live, move[0])
     previous_post = state.post_mutation_refs.get(branch)
     target = snapshot if live in (snapshot, previous_post) else live
     return _AttemptStart(live, target, previous_post if live == previous_post else None)
@@ -997,7 +1045,7 @@ def _rollback_branch(repo_root: Path, state: ConsolidationState, branch: str, sn
     if live == restore_to:
         return BranchOutcome(branch, BranchOutcomeKind.ALREADY_AT_SNAPSHOT, snapshot, live)
     if branch in state.snapshot_lane_branches:
-        return BranchOutcome(branch, BranchOutcomeKind.UNCHANGED_BY_RUN, snapshot, live, reason=_LANE_REPORT_ONLY_REASON)
+        return _rollback_lane(repo_root, state, branch, snapshot, restore_to, live, context)
     post = _effective_post(state, branch, live)
     if not rollback_would_restore(state, branch, live) or post is None:  # ``post is None`` only narrows the type
         reason = _UNRECORDED_MOVE_REASON if post is None else _MOVED_BY_OTHER_REASON
@@ -1005,6 +1053,84 @@ def _rollback_branch(repo_root: Path, state: ConsolidationState, branch: str, sn
         return _kept_if_released(state, moved)
     adopted = post != state.post_mutation_refs.get(branch)
     return _restore_one(repo_root, branch, snapshot, restore_to, live, post, adopted=adopted, context=context)
+
+
+def _own_lane_move(state: ConsolidationState, branch: str, restore_to: str) -> tuple[str, str] | None:
+    """``(before, after)`` of this record's own auto-rebase move of ``branch``, recorded from ``restore_to``; else ``None``.
+
+    The ONLY restore source for a lane (FR-009): ``post_mutation_refs`` never makes a lane restorable.
+    A malformed entry (not exactly two non-empty SHAs) or one recorded from another tip (an earlier
+    attempt's, whose snapshot was re-captured) is not this attempt's move (fail closed).
+    """
+    move = state.lane_rebase_moves.get(branch)
+    if not isinstance(move, list) or len(move) != 2 or not all(isinstance(sha, str) and sha for sha in move):
+        return None
+    before, after = move
+    if before != restore_to or before == after:
+        return None
+    return before, after
+
+
+def _rollback_lane(
+    repo_root: Path, state: ConsolidationState, branch: str, snapshot: str, restore_to: str, live: str, context: _RunResidue | None
+) -> BranchOutcome:
+    """FR-009: undo this run's own recorded auto-rebase move of a lane; every other lane move stays report-only."""
+    move = _own_lane_move(state, branch, restore_to)
+    if move is None:
+        return BranchOutcome(branch, BranchOutcomeKind.UNCHANGED_BY_RUN, snapshot, live, reason=_LANE_REPORT_ONLY_REASON)
+    before, after = move
+    try:
+        unverified = _unverified_move_reason(repo_root, branch, before, after)
+    except (GitProbeError, auto_rebase_record.AutoRebaseRecordError) as exc:
+        reason = f"{_MOVE_UNPROVEN_REASON}: {exc}"
+        return BranchOutcome(branch, BranchOutcomeKind.NOT_RESTORED, snapshot, live, after, reason, cause=NotRestoredCause.RESTORE_REFUSED)
+    if unverified is not None:
+        return BranchOutcome(branch, BranchOutcomeKind.UNCHANGED_BY_RUN, snapshot, live, reason=f"{_LANE_REPORT_ONLY_REASON} ({unverified})")
+    if live != after:
+        return BranchOutcome(branch, BranchOutcomeKind.LANE_MOVED_SINCE_AUTO_REBASE, snapshot, live, after, _LANE_MOVED_REASON, restored_to_sha=before)
+    # ``restore_branch_ref(..., resync_checkouts=True)`` dirty-checks and resyncs every checkout of the lane.
+    outcome = _restore_one(repo_root, branch, snapshot, before, live, after, adopted=False, context=context)
+    if outcome.kind is BranchOutcomeKind.RESTORED:
+        outcome = _after_lane_restore(repo_root, state, outcome, before, after)
+    return outcome
+
+
+def _unverified_move_reason(repo_root: Path, branch: str, before: str, after: str) -> str | None:
+    """Why the recorded move ``[before, after]`` is not provably this run's auto-rebase merge; ``None`` when it is.
+
+    The record is state, not proof (review cycle 1): a stale or edited entry may name any commit. A lane
+    is restorable only when ``after`` is a two-parent merge whose first parent is ``before`` AND the
+    durable auto-rebase record (WP02) names it. Every other answer keeps the lane report-only.
+
+    Raises:
+        GitProbeError: the parents of ``after`` could not be read.
+        AutoRebaseRecordError: the durable record could not be read.
+    """
+    parents = commit_parents(repo_root, after)
+    if len(parents) != 2 or parents[0] != before:
+        return f"{after[:12]} is not an auto-rebase merge of {before[:12]}"
+    if not auto_rebase_record.is_recorded(repo_root, branch, after):
+        return f"no auto-rebase record names {after[:12]}"
+    return None
+
+
+def _after_lane_restore(repo_root: Path, state: ConsolidationState, outcome: BranchOutcome, before: str, after: str) -> BranchOutcome:
+    """Reset the lane work-tip ref, delete the durable auto-rebase record and drop the spent entry.
+
+    The branch IS restored, so a failed follow-up never turns the outcome into NOT_RESTORED; the
+    residue is named in the outcome's reason. A left auto-rebase record is harmless: it names a merge
+    no longer on the lane.
+    """
+    branch = outcome.branch
+    residue: list[str] = []
+    if not write_bookkeeping_ref(repo_root, tip_ref(branch), before):
+        residue.append(f"lane work-tip ref {tip_ref(branch)} not reset to {before[:12]}")
+    if not auto_rebase_record.delete(repo_root, branch, after):
+        residue.append(f"auto-rebase record {after[:12]} not deleted")
+    state.lane_rebase_moves.pop(branch, None)
+    if not residue:
+        return outcome
+    return replace(outcome, reason="restored; " + "; ".join(residue))
 
 
 def _settle_outcomes(state: ConsolidationState, outcomes: Iterable[BranchOutcome]) -> None:
@@ -1074,8 +1200,8 @@ def rebaseline_after_full_restore(state: ConsolidationState, outcomes: Iterable[
     topology they are KEPT, because they are required: the H5 guard (``phase_claim.
     _refuse_unanchored_resume``) refuses a resume whose coordination anchor has no tip for a lane,
     and ``_resolve_pre_mutation_coord_sha`` returns the persisted anchor without re-capturing them.
-    Lanes are report-only and never restored, so one may move during the failed attempt; that is
-    safe, since the per-lane CAS (``lane_tip_cas_ok``) accepts an equal, descendant or ancestor tip
+    A lane is restored only from this run's own recorded auto-rebase move (FR-009); any other lane
+    move during the failed attempt is report-only, and that is safe, since the per-lane CAS (``lane_tip_cas_ok``) accepts an equal, descendant or ancestor tip
     and refuses only true divergence (a rewritten lane), failing closed with the abort hint.
 
     A retarget record (#7692) stays too, re-marked ``committed=False``: the restore undid its
@@ -1087,16 +1213,26 @@ def rebaseline_after_full_restore(state: ConsolidationState, outcomes: Iterable[
     trail, and this repository's contract is that ``--resume`` re-derives its anchors rather than
     refusing to exist.
 
+    ``lane_rebase_moves`` keeps the entries of lanes the rollback did not restore
+    (``LANE_MOVED_SINCE_AUTO_REBASE``, ``NOT_RESTORED``, ``LANE_MISSING``; FR-009): those lanes may still
+    carry this run's merge. Such an outcome is never re-baselineable, so the executor's door never
+    calls this then; the rule is defence in depth for any future caller.
+
     Idempotent, no I/O: returns ``True`` when something actually changed, so the caller decides
     whether a save (and an operator line) is needed.
     """
+    outcomes = tuple(outcomes)
+    kept_moves = _kept_lane_moves(state, outcomes)
     _clear_bookkeeping(state, outcomes)
 
     changed = False
     if state.pre_mutation_target_sha is not None:
         state.pre_mutation_target_sha = None
         changed = True
-    for field_name in ("pre_mutation_refs", "restore_targets", "post_mutation_refs", "advance_intents", "lane_rebase_moves", "released_refs", "release_reasons"):
+    if state.lane_rebase_moves != kept_moves:
+        state.lane_rebase_moves = kept_moves
+        changed = True
+    for field_name in ("pre_mutation_refs", "restore_targets", "post_mutation_refs", "advance_intents", "released_refs", "release_reasons"):
         value = getattr(state, field_name)
         if value:
             setattr(state, field_name, {})
@@ -1123,6 +1259,12 @@ def rebaseline_after_full_restore(state: ConsolidationState, outcomes: Iterable[
     if state.retarget is not None and state.retarget.pop(_ATTESTATION_UNDO_KEY, None) is not None:
         changed = True
     return changed
+
+
+def _kept_lane_moves(state: ConsolidationState, outcomes: Iterable[BranchOutcome]) -> dict[str, list[str]]:
+    """The ``lane_rebase_moves`` entries of lanes the rollback did not restore (FR-009, T022)."""
+    kept_lanes = {o.branch for o in outcomes if o.kind in _LANE_MOVE_KEPT_KINDS}
+    return {branch: list(move) for branch, move in state.lane_rebase_moves.items() if branch in kept_lanes}
 
 
 def _coord_anchor_is_the_target(state: ConsolidationState) -> bool:
