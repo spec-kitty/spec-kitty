@@ -1195,7 +1195,7 @@ def build_coord_mission_mixed_lane_canceled(
         # claimed->in_progress alone): the lane branch already exists by the
         # time WP02 (sharing lane-a with WP01) is claimed, so a real governed
         # workflow would stamp planned->claimed too (contract C1, "every
-        # persisted transition"). wp_attribution._windows() records a
+        # persisted transition"). wp_attribution.wp_windows() records a
         # window's open_head from the FIRST transition into its class only
         # (same-class continuations never overwrite it) -- an unstamped
         # planned->claimed would therefore leave the whole implementation
@@ -1249,7 +1249,7 @@ def build_coord_mission_mixed_lane_canceled(
         for idx, change in enumerate(survivor_after):
             _plant_change(mission.repo, change, message=f"feat({slug}): {survivor_wp} {change.path} (after #{idx})")
         head_at_rework_close = _lane_head()
-        # This closes the rework IMPLEMENTATION window (`_windows()` reads the
+        # This closes the rework IMPLEMENTATION window (`wp_windows()` reads the
         # CLOSING event's own stamp, not the opening one) -- must carry the
         # SAME real stamp as the "approved" event below, or WP01's rework
         # window is unresolvable (NO_STAMP) and REFUSEs the whole mixed-lane
