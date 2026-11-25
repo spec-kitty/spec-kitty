@@ -32,7 +32,8 @@
       "notes": [
         "- 2026-11-25T21:38:38Z – claude::python-pedro – shell_pid=6546 – Out-of-map edits (ownership leeway): src/mission_runtime/__init__.py and tests/architectural/test_mission_runtime_surface.py. resolution.py is import-forbidden from outside mission_runtime (MR-1/MR-2), so the new names (PlanningWriteRef, PlanningWriteRefUnavailable, planning_write_ref) are exported on the package root and pinned in the public surface, following precedent 2c1caf39 (no version bump). The WP prompt's 'do not touch __init__.py' is superseded by that rule; the CLAUDE.md __init__ version-bump rule is read as targeting specify_cli/__init__.py (flagged to the dispatcher). The missing-meta Mission-branch probe lives in coordination/planning_commit.py, not mission_runtime, so the mission_runtime outbound ledger does not grow.",
         "- 2026-11-25T21:45:39Z – claude::python-pedro – shell_pid=6546 – Tests: red-first on pre-WP01 base e6dd59d5~1 -> ImportError PlanningWriteRefUnavailable (collection error). Green: tests/mission_runtime/test_planning_write_ref.py + tests/coordination/test_planning_lane_target.py 16 passed. Blast: pytest tests/mission_runtime tests/coordination tests/specify_cli/coordination tests/architectural/test_mission_runtime_surface.py tests/architectural/test_layer_rules.py -n 4 --dist loadfile -> 2637 passed, 11 skipped. ruff/format/C901/mypy clean on 6 files; check_spelling --pass all 0 findings.",
-        "WP01 ready: planning_write_ref + planning_lane_target + ADR 2026-11-06-3 amendment (Proposed)"
+        "WP01 ready: planning_write_ref + planning_lane_target + ADR 2026-11-06-3 amendment (Proposed)",
+        "- 2026-11-25T22:11:44Z – unknown – Review cycle 1 folded (b292615c): F1 HIGH probe scans kitty/mission-* and accepts only a branch whose own meta.json names it as mission_branch (slug-without-mid8 and lane-branch tests); F2 planning_write_ref itself raises PlanningCheckoutMissing/PlanningWriteRefUnavailable, 3-field PlanningWriteRef per data model; F3 non-vacuous unreadable-landing-record test (merged_at + StoreError -> not landed -> Mission branch); F4 probe helper gone, run_git and blob_at failure paths tested; F5 default_mission_rule_applies shared with default_mission_primary_ref (+ test); F6 ADR Fail-closed bullet matches code. Dispatcher ruling: no version bump for the mission_runtime export (note in PR). Tests: 28 passed (new + surface pin); blast tests/mission_runtime tests/coordination tests/specify_cli/coordination + surface + layer rules: 2642 passed, 11 skipped; ruff/format/C901/mypy clean; spelling 0 findings."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -46,10 +47,10 @@
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
-        "T001": "planned",
-        "T002": "planned",
-        "T003": "planned",
-        "T004": "planned"
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
       }
     },
     "WP02": {
