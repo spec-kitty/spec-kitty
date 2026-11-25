@@ -138,3 +138,48 @@ def test_implement_resume_path_runs_the_lane_sync_point() -> None:
     assert calls, "the resume path no longer commits through _commit_workflow_change"
     flags = [kw.value for call in calls for kw in call.keywords if kw.arg == "auto_rebase_lane_after_commit"]
     assert any(isinstance(flag, ast.Constant) and flag.value is True for flag in flags)
+
+
+# --- WP07 ratchet (US1 AS3): without a sibling lane, the remedy text is unchanged byte for byte ----
+
+#: The no-sibling code-lane remedy as of the #7754/#7755 fix, before WP07 (the reopen step, then auto-rebase re-entry).
+_NO_SIBLING_TEXT = (
+    f"Lane lane-a must incorporate changes from {COORD_BRANCH} before it is consolidated. "
+    "The lane's work package is approved and `spec-kitty agent action implement` refuses an approved work package, "
+    f"so reopen it first (this costs a re-review): spec-kitty agent tasks move-task WP01 --to planned --review-feedback-file <file> --mission {MISSION_SLUG}. "
+    f"Then re-enter it with {REENTRY_COMMAND}, which refreshes the lane through auto-rebase; if the auto-rebase stops on a conflict, "
+    "resolve it in the lane checkout the command names and commit there. "
+    f"Then hand the lane's work back for review; once it is approved again, re-run: spec-kitty consolidate --mission {MISSION_SLUG}"
+)
+
+
+def test_non_sibling_callers_keep_the_a10_text(tmp_path: Path) -> None:
+    """Ratchet: the stale check, and a refinement that names no sibling (with or without a halt), keep today's text."""
+    from specify_cli.lanes.stale_check import refine_stale_result
+
+    repo, _worktree = _stale_repo(tmp_path)
+
+    result = check_lane_staleness(_lane(), LANE_BRANCH, COORD_BRANCH, repo, mission_slug=MISSION_SLUG)
+    assert result.remediation == _NO_SIBLING_TEXT
+
+    refined = refine_stale_result(result, _lane(), LANE_BRANCH, COORD_BRANCH, mission_slug=MISSION_SLUG, sibling_lanes=())
+    assert refined.remediation == _NO_SIBLING_TEXT
+    halted = refine_stale_result(result, _lane(), LANE_BRANCH, COORD_BRANCH, mission_slug=MISSION_SLUG, auto_rebase_halt="stop")
+    assert halted.remediation == f"The in-run auto-rebase of lane lane-a onto {COORD_BRANCH} stopped: stop. {_NO_SIBLING_TEXT}"
+
+
+def test_planning_lane_text_is_unchanged_by_a_sibling(tmp_path: Path) -> None:
+    """Ratchet: the planning lane keeps its manual steps whatever siblings are named."""
+    from specify_cli.lanes.stale_check import SiblingLane, _stale_remediation
+
+    planning = ExecutionLane(lane_id="lane-planning", wp_ids=("WP01",), write_scope=("**",), predicted_surfaces=(), depends_on_lanes=(), parallel_group=0)
+    expected = (
+        "Lane lane-planning must incorporate mission changes before merging. "
+        "This lane runs in the repository-root checkout (no worktree) on branch 'main'. From the repository root: "
+        f"git checkout main && git merge {COORD_BRANCH}. "
+        "If that merge reports a conflict on status.json (a derived projection of status.events.jsonl that git cannot text-merge), "
+        "do not hand-edit it -- rebuild it from the event log instead: "
+        "spec-kitty agent status materialize --mission <id> && git add kitty-specs/<id>/status.json"
+    )
+    sibling = (SiblingLane("lane-a", LANE_BRANCH),)
+    assert _stale_remediation(planning, "main", COORD_BRANCH, mission_slug=MISSION_SLUG, sibling_lanes=sibling) == expected

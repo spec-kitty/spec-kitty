@@ -28,7 +28,7 @@ import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import pytest
 
@@ -503,7 +503,13 @@ def test_incorporate_sibling_probe_errors_refuse(tmp_path: Path, monkeypatch: py
     git(repo, "reset", "-q", "--hard", "HEAD~1")
     _commit_in(repo, "shared.txt", "own\n", "own work")
 
-    def _diff_fails(*_args: object, **_kwargs: object) -> tuple[()]:
+    real_changed_paths = incorporate.changed_paths
+
+    def _diff_fails(*args: Any, **kwargs: Any) -> Any:
+        # Only the conflict listing after the merge fails; the WP07 merge-attribute guard's
+        # pre-merge listing still runs (its own failure refuses INCORPORATE_MERGE_ATTRIBUTES_REFUSED).
+        if kwargs.get("diff_filter") != "U":
+            return real_changed_paths(*args, **kwargs)
         raise GitCommandError(argv=("diff",), cwd=repo, returncode=128, stderr="boom")
 
     with monkeypatch.context() as patch:
@@ -932,15 +938,16 @@ def test_canceled_content_inside_a_merge_is_refused(tmp_path: Path) -> None:
 
 def test_unreadable_merge_in_a_canceled_window_refuses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.consolidation import git_probes
-    from specify_cli.lanes.incorporate import IncorporateCode
 
     lane, merge = _canceled_merge_with_own_content(tmp_path)
 
-    def _unreadable(_root: Path, sha: str) -> list[str]:
+    def _unreadable(_root: Path, sha: str, **_kwargs: object) -> list[str]:
         raise git_probes.GitProbeError(f"cannot judge {sha}")
 
     monkeypatch.setattr(git_probes, "merge_own_changed_paths", _unreadable)
-    message = _refused(lane.resolve, IncorporateCode.CANCELED_CONTENT_UNDER_STAMP)
+    # WP07 (binding DoD, ruling DM-01M88RZDBP57ZTYJHC5NP0ZH4R): a probe error of the window-merge probe
+    # refuses with the merge-attribute code, still before any merge (fail closed).
+    message = _refused(lane.resolve, "INCORPORATE_MERGE_ATTRIBUTES_REFUSED")
 
     assert f"cannot judge {merge}" in message, message
 
