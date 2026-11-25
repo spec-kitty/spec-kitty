@@ -258,7 +258,7 @@
     },
     "WP10": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": "claude::implementer-ivan",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 3,
@@ -286,7 +286,8 @@
         "Review addendum fixed (2402dc94): resolution commands pin --attr-source to the range base; merge=union fixture test. Targeted 467 + no_dead_symbols 37 passed; make test-fast 3144 passed 7 skipped.",
         "review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
         "APPROVE cycle 2 (fe066bc6, 2402dc94): review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
-        "Rebase onto 753fd3a9 rewrote lane-j; re-approval loop for the new head 05584e913c (operator ruling)"
+        "Rebase onto 753fd3a9 rewrote lane-j; re-approval loop for the new head 05584e913c (operator ruling)",
+        "Rebased head 05584e913c submitted for delta re-review"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -296,7 +297,7 @@
         "reviewer": "claude::reviewer-renata",
         "verdict": "approved"
       },
-      "role": "reviewer",
+      "role": "implementer",
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
