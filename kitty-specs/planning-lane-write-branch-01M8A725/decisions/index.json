@@ -1,0 +1,79 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-25T20:41:45.172950Z",
+      "decision_id": "01M8A72RYMDMHF5YDA8W8S88JA",
+      "final_answer": "Default Missions before landing (topic branch is the write branch); explicit topologies and landed Missions unchanged. Source: operator ruling A' 2026-11-25 on #7860.",
+      "input_key": "which_missions",
+      "mission_id": "01M8A725BGBKAK98Y7F392ZFZ5",
+      "mission_slug": "planning-lane-write-branch-01M8A725",
+      "opened_by": "cli",
+      "options": [
+        "Default Missions before landing (topic branch is the write branch); explicit topologies and landed Missions unchanged",
+        "All lanes_with_coord Missions",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which Missions does the one write-branch rule change?",
+      "rationale": null,
+      "resolved_at": "2026-11-25T20:41:56.031707Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.which-missions",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-25T20:41:47.645469Z",
+      "decision_id": "01M8A72VBXGSG12B7X9PJX8G30",
+      "final_answer": "Review-range folding onto the shared reader (after #5604), pre-review gate coverage (#6851), #7856 attribution. Source: operator ruling A' 2026-11-25 (folding deferred until #5604).",
+      "input_key": "out_of_scope",
+      "mission_id": "01M8A725BGBKAK98Y7F392ZFZ5",
+      "mission_slug": "planning-lane-write-branch-01M8A725",
+      "opened_by": "cli",
+      "options": [
+        "Review-range folding onto the shared reader (after #5604), pre-review gate coverage (#6851), #7856 attribution",
+        "Include review-range folding now",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "What stays out of this Mission?",
+      "rationale": null,
+      "resolved_at": "2026-11-25T20:41:58.420819Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.out-of-scope",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-25T20:41:50.119983Z",
+      "decision_id": "01M8A72XS74148VWC20FR52SH8",
+      "final_answer": null,
+      "input_key": "in_flight_story",
+      "mission_id": "01M8A725BGBKAK98Y7F392ZFZ5",
+      "mission_slug": "planning-lane-write-branch-01M8A725",
+      "opened_by": "cli",
+      "options": [
+        "Guidance only: refusal names the fix (move the commit to the Mission branch) plus a doctor/upgrade notice",
+        "Transition window: also accept target-branch planning work for WPs claimed before the upgrade",
+        "Migration that rewrites in-flight state",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How are Missions already in flight handled when planning work was committed on the target under the old implement guidance?",
+      "rationale": null,
+      "resolved_at": null,
+      "resolved_by": null,
+      "slot_key": "specify.migration.in-flight",
+      "status": "open",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M8A725BGBKAK98Y7F392ZFZ5",
+  "version": 1
+}
