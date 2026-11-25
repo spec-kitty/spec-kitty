@@ -232,7 +232,7 @@ CLI_COMMAND_MODULE_FANOUT: dict[str, frozenset[str]] = {
 # tests/specify_cli/skills, so #7769 edited two shipped skills without regenerating
 # src/specify_cli/skills/data/historical_skill_renders.json, went green per PR and reddened the nightly.
 # ``cli`` claims tests/specify_cli/skills (its digest-freshness assertion names the regeneration command),
-# so the group fans out to ``cli`` only. NON-src (**/-prefixed) and ungated BY DESIGN, like the group above.
+# so the group fans out to ``cli`` only. NON-src (no src/ glob) and ungated BY DESIGN, like the group above.
 # Pinned by tests/ci/test_skill_source_routing.py.
 ASSET_SURFACE_MODULE_FANOUT: dict[str, frozenset[str]] = {
     "upgrade_asset_surface": frozenset({"upgrade", "cli"}),

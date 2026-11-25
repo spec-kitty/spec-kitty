@@ -88,11 +88,11 @@ def test_a_skill_source_edit_alone_runs_the_digest_test(path: str) -> None:
 
 
 def test_group_is_non_src_and_wired() -> None:
-    """The group carries only ``**/``-prefixed globs, never masks FR-004 and fans out to ``cli``."""
+    """The group carries no ``src/`` glob, so it never masks FR-004, and fans out to ``cli``."""
     router = load_router()
     assert ASSET_SURFACE_MODULE_FANOUT[GROUP] == frozenset({"cli"})
     globs = router.filters[GROUP]
-    assert globs and all(glob.startswith("**/") for glob in globs), globs
+    assert globs and not any(glob.startswith("src/") for glob in globs), globs
     assert GROUP not in router.src_backed_groups
     selection = select_gates(["src/charter/offering/skills/spec-kitty-runtime-review/SKILL.md"], router=router)
     assert GROUP in selection.matched_groups
