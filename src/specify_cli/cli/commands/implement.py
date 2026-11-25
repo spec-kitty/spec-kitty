@@ -37,6 +37,7 @@ from specify_cli.review.lane_test_invocation import (
     workspace_lane_test_invocation,
 )
 from specify_cli.task_utils import TaskCliError, find_repo_root
+from specify_cli.workspace.context import MISSION_BRANCH_CHECKOUT_KIND, mission_branch_label
 
 from specify_cli.cli.commands import implement_phases, implement_recover
 
@@ -313,16 +314,40 @@ def _report_workspace_created(tracker: StepTracker, result: Any, workspace_path:
     console.print(tracker.render())
     if result.mission_branch:
         console.print(f"[cyan]→ Mission branch: {result.mission_branch}[/cyan]")
-    if result.branch_name:
+    if _in_mission_branch_checkout(result):
+        console.print(f"[cyan]→ Workspace contract: planning workspace on {mission_branch_label(result.branch_name)}[/cyan]")
+    elif result.branch_name:
         console.print(f"[cyan]→ Lane branch: {result.branch_name}[/cyan]")
     else:
         console.print("[cyan]→ Workspace contract: repository root planning workspace[/cyan]")
 
 
+def _in_mission_branch_checkout(result: Any) -> bool:
+    """Whether *result* is a default Mission's planning workspace on its Mission branch (#7860)."""
+    return getattr(result, "resolution_kind", None) == MISSION_BRANCH_CHECKOUT_KIND
+
+
+def _print_mission_branch_checkout_banner(result: Any, workspace_path: Path) -> None:
+    """The "workspace ready" banner of a default Mission's planning WP (#7860, FR-002, contract C1)."""
+    console.print("\n[bold green]✓ Planning workspace ready[/bold green]")
+    console.print()
+    console.print(_BANNER_OPEN + "=" * 72 + _BANNER_CLOSE)
+    console.print(_BANNER_OPEN + f"Planning-artifact work for this WP is committed on {mission_branch_label(result.branch_name)}" + _BANNER_CLOSE)
+    console.print(_BANNER_OPEN + "=" * 72 + _BANNER_CLOSE)
+    console.print()
+    console.print(f"  [bold]cd {workspace_path}[/bold]")
+    console.print()
+    console.print("[dim]Commit your planning-artifact changes there; `spec-kitty consolidate` lands them on the target branch.[/dim]")
+
+
 def _print_workspace_ready_banner(result: Any, workspace_path: Path, lane_test_invocation: _InvocationOutcome = None) -> None:
-    """Human-readable "workspace ready" banner (repo-root planning vs lane
-    worktree), plus the FR-006 lane-test-env export block and the #7547 lane
-    test invocation block."""
+    """Human-readable "workspace ready" banner (repo-root planning, a default
+    Mission's Mission-branch checkout, or a lane worktree), plus the FR-006
+    lane-test-env export block and the #7547 lane test invocation block."""
+    if _in_mission_branch_checkout(result):
+        _print_mission_branch_checkout_banner(result, workspace_path)
+        _print_lane_test_invocation(lane_test_invocation)
+        return
     if result.lane_id is None:
         console.print("\n[bold green]✓ Repository-root workspace ready[/bold green]")
         console.print()

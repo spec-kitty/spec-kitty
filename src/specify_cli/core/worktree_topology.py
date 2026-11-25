@@ -12,13 +12,24 @@ import json
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from mission_runtime import OwnedCheckout
 from specify_cli.core.dependency_graph import build_dependency_graph, topological_sort
 from specify_cli.core.paths import get_main_repo_root, get_feature_target_branch
 from specify_cli.mission_metadata import mission_identity_fields, resolve_mission_identity
 from specify_cli.status import CanonicalStatusNotFoundError, Lane, get_wp_lane
-from specify_cli.workspace.context import get_normalized_wp, resolve_workspace_for_wp
+from specify_cli.workspace.context import (
+    MISSION_BRANCH_CHECKOUT_KIND,
+    get_normalized_wp,
+    is_shared_checkout_kind,
+    mission_branch_label,
+    resolve_workspace_for_wp,
+)
+
+if TYPE_CHECKING:
+    from specify_cli.lanes.models import ExecutionLane
+    from specify_cli.workspace.context import ResolvedWorkspace
 
 
 @dataclass
@@ -65,7 +76,7 @@ class FeatureTopology:
 
     def get_actual_base_for_wp(self, wp_id: str) -> str | None:
         entry = self.get_entry(wp_id)
-        if entry is not None and entry.resolution_kind == "repo_root":
+        if entry is not None and is_shared_checkout_kind(entry.resolution_kind):
             return entry.base_branch
         if entry is not None and entry.base_branch:
             return entry.base_branch
@@ -102,6 +113,19 @@ def _count_commits_ahead(worktree_path: Path, base_branch: str) -> int:
     return 0
 
 
+def _entry_branch_name(workspace: ResolvedWorkspace, lane_entry: ExecutionLane | None, mission_slug: str, target_branch: str) -> str | None:
+    """The branch a topology entry names: the lane's branch, or the resolved Mission branch (#7860).
+
+    A default Mission's planning lane writes on its Mission branch, which the lane name alone
+    (``lane-planning`` -> the target) does not tell, so that entry names the resolved branch.
+    """
+    if lane_entry is None or workspace.resolution_kind == MISSION_BRANCH_CHECKOUT_KIND:
+        return workspace.branch_name
+    from specify_cli.lanes.branch_naming import lane_branch_name
+
+    return lane_branch_name(mission_slug, lane_entry.lane_id, target_branch=target_branch)
+
+
 def _planning_claim_commit(feature_dir: Path, wp_id: str) -> str | None:
     """The WP's claim commit (FR-025), or ``None`` when no single one is provable.
 
@@ -130,7 +154,6 @@ def materialize_worktree_topology(repo_root: Path, mission_slug: str, *, owned: 
         resolve_read_dir_or_degrade,
     )
     from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
-    from specify_cli.lanes.branch_naming import lane_branch_name
     from specify_cli.lanes.persistence import read_lanes_json
 
     main_repo_root = get_main_repo_root(repo_root)
@@ -190,12 +213,13 @@ def materialize_worktree_topology(repo_root: Path, mission_slug: str, *, owned: 
         workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id, owned=owned)
         normalized_wp = get_normalized_wp(main_repo_root, mission_slug, wp_id, owned=owned)
         lane_entry = lanes_manifest.lane_for_wp(wp_id) if lanes_manifest is not None else None
-        if lane_entry is None and workspace.resolution_kind != "repo_root":
+        shared_checkout = workspace.is_shared_checkout
+        if lane_entry is None and not shared_checkout:
             raise ValueError(f"{wp_id} is not assigned to any lane in lanes.json")
 
         worktree_exists = workspace.exists
         commits_ahead = 0
-        if workspace.resolution_kind == "repo_root":
+        if shared_checkout:
             base_branch: str | None = _planning_claim_commit(feature_dir, wp_id)
         else:
             base_branch = lanes_manifest.mission_branch if lane_entry and lanes_manifest is not None else None
@@ -209,15 +233,7 @@ def materialize_worktree_topology(repo_root: Path, mission_slug: str, *, owned: 
                 resolution_kind=workspace.resolution_kind,
                 lane_id=lane_entry.lane_id if lane_entry else workspace.lane_id,
                 lane_wp_ids=list(lane_entry.wp_ids) if lane_entry else list(workspace.lane_wp_ids),
-                branch_name=(
-                    lane_branch_name(
-                        mission_slug,
-                        lane_entry.lane_id,
-                        target_branch=target_branch,
-                    )
-                    if lane_entry
-                    else workspace.branch_name
-                ),
+                branch_name=_entry_branch_name(workspace, lane_entry, mission_slug, target_branch),
                 base_branch=base_branch,
                 review_paths=(
                     list(normalized_wp.metadata.owned_files)
@@ -253,9 +269,10 @@ def _workspace_diff_command(topology: FeatureTopology, current_wp_id: str) -> st
     """The implement-side ``diff_command``: the work package's lane base up to ``HEAD``."""
     current_entry = topology.get_entry(current_wp_id)
     diff_base = topology.get_actual_base_for_wp(current_wp_id)
-    if current_entry and current_entry.resolution_kind == "repo_root" and not diff_base:
+    shared_checkout = current_entry is not None and is_shared_checkout_kind(current_entry.resolution_kind)
+    if shared_checkout and not diff_base:
         return "unavailable: no deterministic implementation claim commit found"
-    if current_entry and current_entry.resolution_kind == "repo_root" and current_entry.review_paths and diff_base:
+    if shared_checkout and current_entry is not None and current_entry.review_paths and diff_base:
         return f"git diff {diff_base}..HEAD -- {' '.join(current_entry.review_paths)}"
     return f"git diff {diff_base}..HEAD"
 
@@ -303,16 +320,7 @@ def render_topology_json(topology: FeatureTopology, current_wp_id: str, *, diff_
         "current_wp": current_wp_id,
         "diff_command": diff_command,
         "shared_lane": bool(current_entry and len(current_entry.lane_wp_ids) > 1),
-        "note": (
-            f"{current_wp_id} runs in the repository root planning workspace."
-            if current_entry and current_entry.resolution_kind == "repo_root"
-            else f"{current_wp_id} shares lane {current_entry.lane_id} with {', '.join(current_entry.lane_wp_ids)}. "
-            "Sequential WPs in the same lane reuse one worktree."
-            if current_entry and len(current_entry.lane_wp_ids) > 1
-            else f"{current_wp_id} owns lane {current_entry.lane_id} alone."
-            if current_entry
-            else f"{current_wp_id} is not in the computed topology."
-        ),
+        "note": _topology_note(current_entry, current_wp_id),
         "entries": entries_json,
     }
 
@@ -321,6 +329,21 @@ def render_topology_json(topology: FeatureTopology, current_wp_id: str, *, diff_
         json.dumps(payload, indent=2),
         "<!-- /WORKTREE_TOPOLOGY -->",
     ]
+
+
+def _topology_note(current_entry: WPTopologyEntry | None, current_wp_id: str) -> str:
+    """The ``note`` of the rendered topology: where the current work package runs."""
+    if current_entry is None:
+        return f"{current_wp_id} is not in the computed topology."
+    if current_entry.resolution_kind == MISSION_BRANCH_CHECKOUT_KIND:
+        # #7860: a default Mission's planning lane writes on its Mission branch.
+        return f"{current_wp_id} runs in the planning workspace on {mission_branch_label(current_entry.branch_name)}."
+    if current_entry.resolution_kind == "repo_root":
+        return f"{current_wp_id} runs in the repository root planning workspace."
+    if len(current_entry.lane_wp_ids) > 1:
+        shared = ", ".join(current_entry.lane_wp_ids)
+        return f"{current_wp_id} shares lane {current_entry.lane_id} with {shared}. Sequential WPs in the same lane reuse one worktree."
+    return f"{current_wp_id} owns lane {current_entry.lane_id} alone."
 
 
 __all__ = [
