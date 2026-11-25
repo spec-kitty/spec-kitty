@@ -36,6 +36,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#3536": {
+      "evidence_ref": "Context only: cited in a WP prompt as a code/ADR reference; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Context citation in WP prompts",
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#3936": {
       "evidence_ref": "Context only: cross-referenced by Mission approved-lane-resolution-route-01M7WW0Z (scope C-005 or constraint); no work owed here",
       "fr": null,
@@ -45,6 +57,18 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "Guided dependency-lane conflict resolution",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4997": {
+      "evidence_ref": "Context only: cited in a WP prompt of Mission approved-lane-resolution-route-01M7WW0Z as a code/ADR reference; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Context citation in WP prompts",
       "verdict": "not-applicable",
       "wp": null
     },
@@ -60,6 +84,30 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#5371": {
+      "evidence_ref": "Context only: cited in a WP prompt of Mission approved-lane-resolution-route-01M7WW0Z as a code/ADR reference; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Context citation in WP prompts",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5372": {
+      "evidence_ref": "Context only: cited in a WP prompt of Mission approved-lane-resolution-route-01M7WW0Z as a code/ADR reference; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Context citation in WP prompts",
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#5604": {
       "evidence_ref": "Mission approved-lane-resolution-route-01M7WW0Z (route: WP07/WP08, refusal: WP05, proof: WP12)",
       "fr": null,
@@ -71,6 +119,18 @@
       "title": "Reconciliation refuses approved-lane merge resolution; stale remedy contradicts gate",
       "verdict": "in-mission",
       "wp": "WP07"
+    },
+    "#5638": {
+      "evidence_ref": "Context only: cited in a WP prompt of Mission approved-lane-resolution-route-01M7WW0Z as a code/ADR reference; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Context citation in WP prompts",
+      "verdict": "not-applicable",
+      "wp": null
     },
     "#5721": {
       "evidence_ref": "Mission approved-lane-resolution-route-01M7WW0Z WP05 (merge-commit slice only)",
@@ -96,6 +156,30 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#5965": {
+      "evidence_ref": "Context only: cited in a WP prompt of Mission approved-lane-resolution-route-01M7WW0Z as a code/ADR reference; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Context citation in WP prompts",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5968": {
+      "evidence_ref": "Context only: cited in a WP prompt of Mission approved-lane-resolution-route-01M7WW0Z as a code/ADR reference; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Context citation in WP prompts",
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#6715": {
       "evidence_ref": "Context only: cross-referenced by Mission approved-lane-resolution-route-01M7WW0Z (scope C-005 or constraint); no work owed here",
       "fr": null,
@@ -105,6 +189,18 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "Owned-file evidence and review independence",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6955": {
+      "evidence_ref": "Context only: cited in a WP prompt of Mission approved-lane-resolution-route-01M7WW0Z as a code/ADR reference; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Context citation in WP prompts",
       "verdict": "not-applicable",
       "wp": null
     },
@@ -144,6 +240,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#7382": {
+      "evidence_ref": "Context only: cited in a WP prompt of Mission approved-lane-resolution-route-01M7WW0Z as a code/ADR reference; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Context citation in WP prompts",
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#7497": {
       "evidence_ref": "Mission approved-lane-resolution-route-01M7WW0Z WP11 (red at base, fixed)",
       "fr": null,
@@ -156,6 +264,42 @@
       "verdict": "in-mission",
       "wp": "WP11"
     },
+    "#7560": {
+      "evidence_ref": "Context only: cited in a WP prompt of Mission approved-lane-resolution-route-01M7WW0Z as a code/ADR reference; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Context citation in WP prompts",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7578": {
+      "evidence_ref": "Context only: cited in a WP prompt of Mission approved-lane-resolution-route-01M7WW0Z as a code/ADR reference; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Context citation in WP prompts",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7626": {
+      "evidence_ref": "Context only: cited in a WP prompt of Mission approved-lane-resolution-route-01M7WW0Z as a code/ADR reference; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Context citation in WP prompts",
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#7630": {
       "evidence_ref": "Context only: cross-referenced by Mission approved-lane-resolution-route-01M7WW0Z (scope C-005 or constraint); no work owed here",
       "fr": null,
@@ -165,6 +309,18 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "Reviewed merges author their content (PR)",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7726": {
+      "evidence_ref": "Context only: cited in a WP prompt of Mission approved-lane-resolution-route-01M7WW0Z as a code/ADR reference; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Context citation in WP prompts",
       "verdict": "not-applicable",
       "wp": null
     },
