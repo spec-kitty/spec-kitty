@@ -1,7 +1,7 @@
 {
-  "event_count": 145,
-  "last_event_id": "01M8A3TR8NR7ZS6EAZXPHR26H7",
-  "materialized_at": "2026-11-25T19:44:55.730721+00:00",
+  "event_count": 150,
+  "last_event_id": "01M8A95N9CKCPXDD9DWMKH0FRX",
+  "materialized_at": "2026-11-25T21:18:15.958031+00:00",
   "mission_number": "",
   "mission_slug": "approved-lane-resolution-route-01M7WW0Z",
   "mission_type": "software-dev",
@@ -549,19 +549,48 @@
     },
     "WP12": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 0,
+      "force_count": 1,
       "implementer_of_record": "claude",
       "lane": "in_progress",
-      "last_event_id": "01M8A3TR8NR7ZS6EAZXPHR26H7",
-      "last_transition_at": "2026-11-25T19:44:55.730721+00:00",
+      "last_event_id": "01M8A95N9CKCPXDD9DWMKH0FRX",
+      "last_transition_at": "2026-11-25T21:18:15.958031+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-25T20:41:42Z – claude – shell_pid=6293 – red: before the WP12 lane held the route, the first happy-path run failed at the approval: move-task WP02 --to approved --note ... exited 1 'Cannot persist WP frontmatter/activity metadata on protected branch main while coordination topology is active: activity_log' (the route steps up to the review claim were green)",
+        "- 2026-11-25T20:41:46Z – claude – shell_pid=6293 – red: binding DoD (a)-(d) tests in tests/review/test_review_context_merge_lines.py run against the base context_block/wp_range: ImportError cannot import name 'resolution_command' (and no attributes_source/attr_source_available fields); green after the change: 18 passed",
+        "- 2026-11-25T20:41:51Z – claude – shell_pid=6293 – leeway: src/specify_cli/review/context_block.py and review/wp_range.py edited per the reviewer-accepted binding DoD (WP10 review): pinned -c flags from MERGE_PROBE_CONFIG_PINS, --no-ext-diff --no-textconv, attribute source = target branch tip (pre-run target tip, wp_range._target_tip), cannot-neutralise line on git<2.40 via check_attr_source_available, cannot-show form for unlisted merges on git<2.36; tests/review/test_review_context_merge_lines.py updated for the new command form (tests of the changed file)",
+        "- 2026-11-25T20:41:55Z – claude – shell_pid=6293 – superseded step: T048 step 1 'halt reason conflict' - the landed refusal's halt reason is 'The in-run auto-rebase of lane lane-b onto <mission branch> stopped: no classifier rule matched <path>'; asserted verbatim prefix in order with WP07's text (stale_remedy_parts). contracts/stale-remedy.md superseded per WP07 landed text (WP13 updates it)",
+        "- 2026-11-25T20:42:01Z – claude – shell_pid=6293 – superseded step: T049 N3 forced - after a forced re-approval consolidate refuses at the review-artifact consistency gate (REJECTED_REVIEW_ARTIFACT_CONFLICT: the reopen recorded a changes_requested review cycle, a forced approval writes no approved one) before the claim, so RESOLUTION_MERGE_UNREVIEWED is not reached; asserted that code, the unchanged approval stamp and no branch moved. N3 self: move-task --to approved by the implementer identity refuses REVIEW_NOT_INDEPENDENT",
+        "- 2026-11-25T20:42:05Z – claude – shell_pid=6293 – superseded step: T048 step 4 review-context line - the landed command is 'RESOLUTION MERGE (...): git -c ... --attr-source=<target tip> show --remerge-diff --no-ext-diff --no-textconv <sha>' (binding DoD), and agent action review prints it in the review prompt file (cat <path>), not on stdout; the range also lists the re-entry's own merge, so the line is matched by the resolution merge SHA",
+        "- 2026-11-25T20:42:10Z – claude – shell_pid=6293 – trace(tooling-friction): spec-kitty agent tasks move-task WP02 --to approved --agent <reviewer> --note 'x' --mission <m> exits 1 on a coordination Mission targeting protected main ('Cannot persist WP frontmatter/activity metadata on protected branch main ... activity_log'); the printed approve line from agent action review carries --note 'Review passed', so it fails as printed there. Route drops --note. Not filed yet: runner to triage",
+        "- 2026-11-25T20:42:15Z – claude – shell_pid=6293 – trace(approach): unforced independent approval that works through the CLI: implementer claude::implementer-ivan runs reopen/implement/--incorporate/move-task --to for_review --agent <impl>; reviewer claude::reviewer-renata runs 'agent action review WP02 --agent claude::reviewer-renata --mission <m>' then 'agent tasks move-task WP02 --to approved --agent claude::reviewer-renata --mission <m>' (no --note); approval lane_head descends from the resolution merge",
+        "- 2026-11-25T20:42:20Z – claude – shell_pid=6293 – trace(design-decisions): matrix = coord topology x {squash, merge} for the happy path, N1 (keep_both, novel_line) and SC-003 and the residual control; N2/N3 squash only. Runtime per cell (-n 3, loaded machine): happy path 40-47s, residual 41s, SC-003 with control 42-43s, N2 39s, N3 34-38s, N1 9s, partial 11s, smoke 9s; module 15 passed in 540s. lanes topology cells are WP14's. Fresh re-entry: stale refusal re-baselines the record, asserted no snapshot before the final run",
+        "- 2026-11-25T20:42:25Z – claude – shell_pid=6293 – trace(design-decisions): WP06 partial shape end-to-end: a hand merge on approved lane-b recorded as a tool merge (lanes.auto_rebase_record.record) passes the claim-time exemption, is dropped by the gate (no lane-b stamp reaches it) and named in unreviewed_merges; foreign content committed on the coordination branch is the rest. Gate FAIL hint: re-review sentence + 'move-task WP02 --to in_progress' first, then 'For the remaining content (1 item(s) ...)', --dependency-ref exactly once",
+        "- 2026-11-25T20:42:29Z – claude – shell_pid=6293 – trace(design-decisions): three-lane builder (WP14): lane-c (WP03) depends on lane-b and rewrites line 4 of src/pkg/shared.py (GAMMA = 3, lane-b's line) so it overlaps lane-b and conflicts once lane-a's line 3 lands via lane-b's resolution; lane-d (WP04) edits only src/pkg/other.py. Support module avoids private helpers of other modules: own bootstrap and HOME template; consolidate_in_process uses the public typer app via CliRunner",
+        "- 2026-11-25T20:42:34Z – claude – shell_pid=6293 – trace(tooling-friction): spec-kitty agent action implement WP12 failed once on a transient index.lock in the coordination worktree (another git process); a retry succeeded",
+        "- 2026-11-25T20:55:48Z – claude – shell_pid=6293 – tests: module 15 passed (540s, -n 3); regression list A 160 passed; list B 20 passed; residuals+7307+tests/review 888 passed 7 skipped, 1 collection error tests/review/test_verdict_save_performance.py (ModuleNotFoundError pytest_benchmark: stale venv, unrelated); review merge-line file 18 passed; test_no_legacy_terminology+test_no_dead_symbols 135 passed; make test-fast 3222 passed 7 skipped; ruff/format/mypy clean",
+        "Route e2e via real CLI (squash+merge), N1/N2/N3, SC-003 with discriminating control, residual novel-line control, WP06 partial-shape hint, three-lane builder smoke; binding DoD (a)-(d) in review/context_block.py+wp_range.py as recorded leeway. 15 passed; regression lists green; make test-fast 3222 passed."
+      ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP12-end-to-end-route/review-cycle-1.md",
+        "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP12-end-to-end-route/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "changes_requested"
+      },
       "role": "implementer",
-      "shell_pid": 6293,
-      "shell_pid_created_at": "1795635915.73"
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T047": "planned",
+        "T048": "planned",
+        "T049": "planned",
+        "T050": "planned"
+      }
     },
     "WP13": {
       "actor": "finalize-tasks",
