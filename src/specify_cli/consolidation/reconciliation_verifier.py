@@ -200,33 +200,33 @@ def _merge_covers(merge: UnreviewedMerge, divergence: Divergence) -> bool:
     )
 
 
-def _all_items_covered(divergence: Divergence, merges: Sequence[UnreviewedMerge]) -> bool:
-    """True when EVERY un-attributable item of *divergence* is one of *merges*' own content (commit, blob or deletion)."""
+def _uncovered_count(divergence: Divergence, merges: Sequence[UnreviewedMerge]) -> int:
+    """How many un-attributable items of *divergence* are NOT one of *merges*' own content (commit, blob or deletion)."""
     shas = {merge.sha for merge in merges}
     blobs = {item for merge in merges for item in merge.own_blobs}
     deletions = {path for merge in merges for path in _merge_deleted_paths(merge)}
     return (
-        all(sha in shas for sha, _pid in divergence.unattributable_content)
-        and all(item in blobs for item in divergence.unattributable_blobs)
-        and all(path in deletions for path in divergence.unattributable_deletions)
+        sum(1 for sha, _pid in divergence.unattributable_content if sha not in shas)
+        + sum(1 for item in divergence.unattributable_blobs if item not in blobs)
+        + sum(1 for path in divergence.unattributable_deletions if path not in deletions)
     )
 
 
 def _dropped_merges_covering(divergence: Divergence, claim: ApprovedWpCommitSet) -> tuple[UnreviewedMerge, ...] | None:
-    """The dropped, unreviewed merges (FR-006) that explain ALL of *divergence*'s un-attributable content, else ``None``.
+    """The dropped, unreviewed merges (FR-006) that explain at least one of *divergence*'s un-attributable items, else ``None``.
 
     Reads ``claim.unreviewed_merges`` (filled where the claim builder drops a merge no approval
     stamp of its lane reaches); it never re-derives which merges were dropped (C-003). ``None``
     (today's ``--dependency-ref`` hint) when the divergence also names canceled or removed work
     (N4: ``canceled_content``, ``canceled_reachable_via_dependency``, ``reachable_excluded``), when
-    no merge was dropped, when any un-attributable item is not a dropped merge's own content (a
-    partial match keeps the hint foreign content needs), or when a covering merge names no work
-    package (a re-review cannot be routed). The covering merges come back ordered by lane, then SHA.
+    no merge was dropped, when no un-attributable item is a dropped merge's own content, or when a
+    covering merge names no work package (a re-review cannot be routed). A partial match returns the
+    covering merges; :func:`_uncovered_count` counts the rest. They come back ordered by lane, then SHA.
     """
     if divergence.canceled_content or divergence.canceled_reachable_via_dependency or divergence.reachable_excluded:
         return None
     merges = tuple(claim.unreviewed_merges)
-    if not merges or not _has_unattributable(divergence) or not _all_items_covered(divergence, merges):
+    if not merges or not _has_unattributable(divergence):
         return None
     covering = tuple(sorted((merge for merge in merges if _merge_covers(merge, divergence)), key=lambda merge: (merge.lane_id, merge.sha)))
     if not covering or any(not merge.wp_ids for merge in covering):
@@ -264,7 +264,9 @@ def _with_attribution_hint(result: VerifyResult, claim: ApprovedWpCommitSet) -> 
     commits reported as un-attributable, which reads as "removed work would ship" and names no
     way out; the ``--dependency-ref`` hint names the declaration that resolves it. FR-006 (#5604):
     when every un-attributable item is the own content of a merge the claim dropped as unreviewed
-    (:func:`_dropped_merges_covering`), the hint names the re-review route instead. A hint is
+    (:func:`_dropped_merges_covering`), the hint names the re-review route instead; when only some
+    items are, the ``--dependency-ref`` hint follows, scoped to the items no dropped merge explains
+    (operator ruling: it never reads as the route for the merge's content). A hint is
     added ONLY when the claim declared nothing (a declared run is refused for a different,
     self-explaining reason) and only to the un-attributable axes — never to a refusal, and never to
     a divergence this change does not own. It changes no verdict and leaves ``describe()`` alone.
@@ -274,7 +276,12 @@ def _with_attribution_hint(result: VerifyResult, claim: ApprovedWpCommitSet) -> 
     if not _has_unattributable(result.divergence):
         return result
     merges = _dropped_merges_covering(result.divergence, claim)
-    hint = _re_review_hint(merges, claim.mission_slug) if merges else _DEPENDENCY_REF_HINT
+    if not merges:
+        return replace(result, attribution_hint=_DEPENDENCY_REF_HINT)
+    hint = _re_review_hint(merges, claim.mission_slug)
+    remaining = _uncovered_count(result.divergence, merges)
+    if remaining:
+        hint = f"{hint} For the remaining content ({remaining} item(s) no dropped merge explains): {_DEPENDENCY_REF_HINT}"
     return replace(result, attribution_hint=hint)
 
 

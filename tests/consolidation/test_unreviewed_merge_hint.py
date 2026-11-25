@@ -3,8 +3,11 @@
 The reconciliation gate (and the ``--dry-run`` forecast) prints ``VerifyResult.attribution_hint``
 after an un-attributable FAIL. When EVERY un-attributable item is the own content of a merge the
 claim recorded in ``unreviewed_merges`` (a merge on an approved lane that no approval stamp of its
-lane reaches), the way out is a review that reaches the merge, not ``--dependency-ref``. Anything
-else (foreign content, a partial match, a canceled or removed-work clause) keeps today's hint.
+lane reaches), the way out is a review that reaches the merge, not ``--dependency-ref``. When only
+SOME items are a dropped merge's content (operator ruling, review cycle 1), the re-review route is
+printed for those and the ``--dependency-ref`` hint is scoped to the remaining items. Foreign content
+alone, a canceled or removed-work clause, and a covering merge that names no work package keep
+today's hint byte for byte.
 
 These are renderer-level tests on hand-built claims: once the claim-time refusal of the hand
 merge shape exists, this path is reachable end to end only for tool merges with own content,
@@ -132,18 +135,46 @@ def test_foreign_content_keeps_dependency_ref_hint(merges: tuple[UnreviewedMerge
     assert hint == DEPENDENCY_REF_HINT
 
 
+def _remainder(count: int) -> str:
+    return f"For the remaining content ({count} item(s) no dropped merge explains): {DEPENDENCY_REF_HINT}"
+
+
+def _assert_partial(hint: str | None, merge: UnreviewedMerge, remaining: int) -> None:
+    """Re-review for the covered part first, then the ``--dependency-ref`` hint scoped to the remainder, once."""
+    assert hint is not None
+    re_review, _, rest = hint.partition(" For the remaining content")
+    _assert_re_review(re_review, merge)
+    assert hint == f"{re_review} {_remainder(remaining)}"
+    assert hint.count("--dependency-ref") == 1
+
+
 @pytest.mark.unit
-def test_partial_match_keeps_dependency_ref_hint() -> None:
-    """One blob from the merge and one foreign blob on another path: the all-items rule keeps today's hint."""
+def test_partial_match_names_re_review_and_scopes_dependency_ref_to_the_rest() -> None:
+    """One blob from the merge and one foreign blob on another path: re-review for the merge, the ref hint for the one foreign item."""
     divergence = Divergence(unattributable_blobs=(("src/x.py", BLOB_X), ("src/z.py", BLOB_FOREIGN)))
-    assert _hint(divergence, _claim(MERGE)) == DEPENDENCY_REF_HINT
+    _assert_partial(_hint(divergence, _claim(MERGE)), MERGE, remaining=1)
 
 
 @pytest.mark.unit
-def test_partial_match_on_one_shared_path_keeps_dependency_ref_hint() -> None:
-    """A coarse path rule (the path has a dropped merge) would match; the blob does not, so the hint stays."""
-    divergence = Divergence(unattributable_blobs=(("src/x.py", BLOB_X), ("src/x.py", BLOB_FOREIGN)))
-    assert _hint(divergence, _claim(MERGE)) == DEPENDENCY_REF_HINT
+def test_partial_match_on_one_shared_path_scopes_dependency_ref_to_the_foreign_blob() -> None:
+    """Two blobs on the merge's own path: only the merge's blob is covered (blob match, not a coarse path rule)."""
+    divergence = Divergence(unattributable_blobs=(("src/x.py", BLOB_X), ("src/x.py", BLOB_FOREIGN), ("src/z.py", BLOB_FOREIGN)))
+    _assert_partial(_hint(divergence, _claim(MERGE)), MERGE, remaining=2)
+
+
+@pytest.mark.unit
+def test_partial_match_whose_covered_part_is_a_deletion() -> None:
+    """The merge's own deletion is covered; a foreign commit and an unrelated deletion are the remainder."""
+    divergence = Divergence(unattributable_deletions=("src/gone.py", "src/other.py"), unattributable_content=(("feedface" * 5, PATCH_ID),))
+    _assert_partial(_hint(divergence, _claim(MERGE)), MERGE, remaining=2)
+
+
+@pytest.mark.unit
+def test_partial_match_with_a_merge_naming_no_work_package_keeps_dependency_ref_hint() -> None:
+    """The empty ``wp_ids`` fallback holds for a partial match too: today's hint, unscoped."""
+    orphan = UnreviewedMerge(sha=MERGE_SHA, lane_id="lane-a", wp_ids=(), own_paths=("src/x.py",), own_blobs=(("src/x.py", BLOB_X),))
+    divergence = Divergence(unattributable_blobs=(("src/x.py", BLOB_X), ("src/z.py", BLOB_FOREIGN)))
+    assert _hint(divergence, _claim(orphan)) == DEPENDENCY_REF_HINT
 
 
 @pytest.mark.unit
@@ -242,17 +273,43 @@ def test_dropped_merges_covering_is_none_for_each_n4_clause(divergence: Divergen
 
 @pytest.mark.unit
 @pytest.mark.parametrize(
-    "divergence",
+    ("divergence", "uncovered"),
     [
-        pytest.param(Divergence(unattributable_blobs=(("src/x.py", BLOB_X), ("src/z.py", BLOB_FOREIGN))), id="partial_blob"),
-        pytest.param(Divergence(unattributable_content=((MERGE_SHA, PATCH_ID), ("feedface" * 5, PATCH_ID))), id="partial_commit"),
-        pytest.param(Divergence(unattributable_content=(("", PATCH_ID),)), id="patch_id_only_commit"),
-        pytest.param(Divergence(unattributable_deletions=("src/gone.py", "src/other.py")), id="unmatched_deletion"),
-        pytest.param(Divergence(unattributable_blobs=(("src/x.py", BLOB_X),), unattributable_deletions=("src/other.py",)), id="axes_mixed_one_unmatched"),
+        pytest.param(Divergence(unattributable_blobs=(("src/x.py", BLOB_X), ("src/z.py", BLOB_FOREIGN))), 1, id="partial_blob"),
+        pytest.param(Divergence(unattributable_content=((MERGE_SHA, PATCH_ID), ("feedface" * 5, PATCH_ID))), 1, id="partial_commit"),
+        pytest.param(Divergence(unattributable_deletions=("src/gone.py", "src/other.py")), 1, id="partial_deletion"),
+        pytest.param(Divergence(unattributable_blobs=(("src/x.py", BLOB_X),), unattributable_deletions=("src/other.py",)), 1, id="axes_mixed_one_unmatched"),
+        pytest.param(Divergence(unattributable_blobs=(("src/x.py", BLOB_X),), unattributable_content=((MERGE_SHA, PATCH_ID),)), 0, id="all_covered"),
     ],
 )
-def test_dropped_merges_covering_is_none_for_a_partial_match(divergence: Divergence) -> None:
+def test_dropped_merges_covering_a_partial_match_returns_the_covering_merge(divergence: Divergence, uncovered: int) -> None:
+    """A partial match still returns the merge that covers an item; the remainder is counted separately."""
+    merges = rv._dropped_merges_covering(divergence, _claim(MERGE, OTHER_MERGE))
+    assert merges == (MERGE,)
+    assert rv._uncovered_count(divergence, merges) == uncovered
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "divergence",
+    [
+        pytest.param(Divergence(unattributable_content=(("", PATCH_ID),)), id="patch_id_only_commit"),
+        pytest.param(Divergence(unattributable_deletions=("src/other.py", "src/x.py")), id="unmatched_deletions"),
+        pytest.param(Divergence(unattributable_blobs=(("src/z.py", BLOB_FOREIGN),)), id="foreign_blob"),
+    ],
+)
+def test_dropped_merges_covering_is_none_when_nothing_is_covered(divergence: Divergence) -> None:
     assert rv._dropped_merges_covering(divergence, _claim(MERGE, OTHER_MERGE)) is None
+
+
+@pytest.mark.unit
+def test_uncovered_count_spans_all_three_axes() -> None:
+    divergence = Divergence(
+        unattributable_content=((MERGE_SHA, PATCH_ID), ("feedface" * 5, PATCH_ID)),
+        unattributable_blobs=(("src/y.py", BLOB_Y), ("src/y.py", BLOB_FOREIGN)),
+        unattributable_deletions=("src/gone.py", "src/y.py"),
+    )
+    assert rv._uncovered_count(divergence, (MERGE, OTHER_MERGE)) == 3
 
 
 @pytest.mark.unit
