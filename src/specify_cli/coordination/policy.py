@@ -20,7 +20,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from kernel.git.read_cache import cached_ref_read
+from kernel.git.read_cache import Depends, cached_git_read, cached_ref_read
 from mission_runtime import CommitTarget, OwnedCheckout
 from specify_cli.coordination.types import (
     Allowed,
@@ -154,8 +154,18 @@ def _remote_tracking_branch_exists(repo_root: Path, branch: str) -> bool:
     return any(_ref_exists(repo_root, candidate) for candidate in candidates)
 
 
+def _ref_lookup_candidates(name: str) -> tuple[str, ...]:
+    """Every ref ``git rev-parse`` tries for *name*, in git's own order (gitrevisions(7))."""
+    return (name, f"refs/{name}", f"refs/tags/{name}", f"refs/heads/{name}", f"refs/remotes/{name}", f"refs/remotes/{name}/HEAD")
+
+
 def _ref_exists(repo_root: Path, ref: str) -> bool:
-    """``git rev-parse --verify --quiet <ref>`` succeeds; cached for the run on that one ref (#7848)."""
+    """``git rev-parse --verify --quiet <ref>`` succeeds; cached for the run (#7848).
+
+    The answer depends on every ref git's lookup rules try for the name, not only the exact one
+    (``refs/heads/refs/remotes/origin/x`` also satisfies ``refs/remotes/origin/x``), so a write to
+    any of them invalidates it.
+    """
 
     def compute() -> bool:
         result = subprocess.run(
@@ -169,7 +179,7 @@ def _ref_exists(repo_root: Path, ref: str) -> bool:
         )
         return result.returncode == 0
 
-    return cached_ref_read(repo_root, ref, ("exists",), compute)
+    return cached_git_read(repo_root, ("ref_exists", ref), compute, depends=Depends(refs=_ref_lookup_candidates(ref)))
 
 
 class WorkflowMutationPolicy:

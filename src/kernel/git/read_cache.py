@@ -107,7 +107,9 @@ class Depends:
     covers the repository config files. ``everything`` covers every ref, every
     ``HEAD``, the config and the linked-worktree administrative files (what
     ``git worktree list`` reads). ``history`` covers the files that change which
-    parents git reads for an object id: ``shallow`` and ``info/grafts``.
+    parents git reads for an object id: ``shallow`` and ``info/grafts``. ``trees``
+    are directories under the common dir whose every file the answer may read
+    (``git remote`` also lists ``remotes/`` and ``branches/`` entries).
     """
 
     refs: tuple[str, ...] = ()
@@ -115,6 +117,7 @@ class Depends:
     config: bool = False
     everything: bool = False
     history: bool = False
+    trees: tuple[str, ...] = ()
 
 
 #: The whole-metadata dependency.
@@ -359,6 +362,8 @@ def _fingerprint(repo: _Repo, depends: Depends) -> bytes:
         _feed_file(digest, repo.git_dir, "config.worktree")
     for name in _HISTORY_FILES if depends.history else ():
         _feed_file(digest, repo.common_dir, name)
+    for tree in depends.trees:
+        _feed_tree(digest, repo.common_dir, tree)
     return digest.digest()
 
 
