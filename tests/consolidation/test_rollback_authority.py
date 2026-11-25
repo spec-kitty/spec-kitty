@@ -51,6 +51,7 @@ from specify_cli.consolidation.rollback import (
     unexplained_branches,
 )
 from specify_cli.consolidation.state import UNSETTLED_ALL, ConsolidationState, get_state_path, load_state
+from specify_cli.lanes import auto_rebase_record
 from specify_cli.lanes.compute import lane_created_branch
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 
@@ -398,6 +399,7 @@ def _own_auto_rebase_merge(env: Env, lane: str) -> tuple[str, str]:
     tree = _git(env.repo, "rev-parse", f"{before}^{{tree}}")
     after = _git(env.repo, "commit-tree", tree, "-p", before, "-p", _rev(env.repo, _MISSION_BRANCH), "-m", "auto-rebase merge")
     _git(env.repo, "update-ref", f"refs/heads/{lane}", after, before)
+    assert auto_rebase_record.record(env.repo, lane, after)  # the durable record the auto-rebase writes (WP02)
     return before, after
 
 

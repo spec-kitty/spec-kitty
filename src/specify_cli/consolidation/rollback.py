@@ -86,6 +86,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from kernel.git.read_cache import cached_ref_read
+from specify_cli.consolidation.git_probes import GitProbeError, commit_parents
 from specify_cli.consolidation.landed_coordination import clear_landed_coordination_ref
 from specify_cli.consolidation.state import UNSETTLED_ALL, ConsolidationState, reconciliation_passed_for_tip, save_state
 from specify_cli.coordination.coherence import CheckoutRole, ResidueContext, is_status_state_path
@@ -140,6 +141,7 @@ _SNAPSHOT_HEADER = "Rollback to the pre-consolidation snapshot:"
 _RESTORE_TARGETS_HEADER = "Rollback, restored to the record's restore targets:"
 _LANE_REPORT_ONLY_REASON = "lane branch: no auto-rebase move of this run recorded"
 _LANE_MOVED_REASON = "moved since this run's auto-rebase merge"
+_MOVE_UNPROVEN_REASON = "recorded auto-rebase move could not be verified; not restored"
 _UNRECORDED_MOVE_REASON = "moved since the snapshot but no post-mutation tip was recorded (interrupted phase?); inspect before re-running"
 _KEPT_WARNING = "may contain this consolidation's unverified changes"
 _ADOPTED_NOTE = "adopted interrupted advance"
@@ -1077,6 +1079,13 @@ def _rollback_lane(
     if move is None:
         return BranchOutcome(branch, BranchOutcomeKind.UNCHANGED_BY_RUN, snapshot, live, reason=_LANE_REPORT_ONLY_REASON)
     before, after = move
+    try:
+        unverified = _unverified_move_reason(repo_root, branch, before, after)
+    except (GitProbeError, auto_rebase_record.AutoRebaseRecordError) as exc:
+        reason = f"{_MOVE_UNPROVEN_REASON}: {exc}"
+        return BranchOutcome(branch, BranchOutcomeKind.NOT_RESTORED, snapshot, live, after, reason, cause=NotRestoredCause.RESTORE_REFUSED)
+    if unverified is not None:
+        return BranchOutcome(branch, BranchOutcomeKind.UNCHANGED_BY_RUN, snapshot, live, reason=f"{_LANE_REPORT_ONLY_REASON} ({unverified})")
     if live != after:
         return BranchOutcome(branch, BranchOutcomeKind.LANE_MOVED_SINCE_AUTO_REBASE, snapshot, live, after, _LANE_MOVED_REASON, restored_to_sha=before)
     # ``restore_branch_ref(..., resync_checkouts=True)`` dirty-checks and resyncs every checkout of the lane.
@@ -1084,6 +1093,25 @@ def _rollback_lane(
     if outcome.kind is BranchOutcomeKind.RESTORED:
         outcome = _after_lane_restore(repo_root, state, outcome, before, after)
     return outcome
+
+
+def _unverified_move_reason(repo_root: Path, branch: str, before: str, after: str) -> str | None:
+    """Why the recorded move ``[before, after]`` is not provably this run's auto-rebase merge; ``None`` when it is.
+
+    The record is state, not proof (review cycle 1): a stale or edited entry may name any commit. A lane
+    is restorable only when ``after`` is a two-parent merge whose first parent is ``before`` AND the
+    durable auto-rebase record (WP02) names it. Every other answer keeps the lane report-only.
+
+    Raises:
+        GitProbeError: the parents of ``after`` could not be read.
+        AutoRebaseRecordError: the durable record could not be read.
+    """
+    parents = commit_parents(repo_root, after)
+    if len(parents) != 2 or parents[0] != before:
+        return f"{after[:12]} is not an auto-rebase merge of {before[:12]}"
+    if not auto_rebase_record.is_recorded(repo_root, branch, after):
+        return f"no auto-rebase record names {after[:12]}"
+    return None
 
 
 def _after_lane_restore(repo_root: Path, state: ConsolidationState, outcome: BranchOutcome, before: str, after: str) -> BranchOutcome:

@@ -652,6 +652,89 @@ def test_a_resumed_attempt_still_at_the_recorded_merge_keeps_the_move_restorable
     assert _git(env.repo, "rev-parse", f"refs/heads/{env.lane}") == env.before
 
 
+def test_a_recorded_move_to_a_reviewed_non_merge_commit_is_never_restored(tmp_path: Path) -> None:
+    """Review cycle 1 repro: a stale or edited entry ``[before, live]`` naming a reviewed non-merge commit.
+
+    The rollback must not trust the entry: ``after`` is not a two-parent merge of ``before``, so the
+    lane is reported and never rewound past the reviewed commit, and its work-tip ref is kept.
+    """
+    env = _env(tmp_path)
+    _git(env.worktree, "reset", "-q", "--hard", env.before)  # the lane at ``before`` again (test-local raw git)
+    reviewed = _commit_here(env.worktree, "reviewed-work-after-snapshot")
+    _git(env.repo, "update-ref", tip_ref(env.lane), reviewed)
+    assert auto_rebase_record.record(env.repo, env.lane, reviewed), "even a durable record does not make a non-merge restorable"
+    env.state.lane_rebase_moves[env.lane] = [env.before, reviewed]
+
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+
+    outcome = _lane_outcome(report, env.lane)
+    assert outcome.kind is BranchOutcomeKind.UNCHANGED_BY_RUN
+    assert outcome.reason is not None and "not an auto-rebase merge" in outcome.reason
+    assert _git(env.repo, "rev-parse", f"refs/heads/{env.lane}") == reviewed, "the reviewed commit is never rewound"
+    assert _git(env.repo, "rev-parse", tip_ref(env.lane)) == reviewed, "the lane work-tip ref is kept"
+    kept = {f"{_AUTO_REBASE_PREFIX}{env.lane}/{sha}" for sha in (env.after, reviewed)}
+    assert set(_auto_rebase_refs(env.repo, env.lane)) == kept, "no record is deleted"
+    _assert_checkout_matches(env.worktree, reviewed)
+
+
+def test_a_merge_with_another_first_parent_is_never_restored(tmp_path: Path) -> None:
+    """``after`` is a two-parent merge, but not of ``before``: not this run's auto-rebase move."""
+    env = _env(tmp_path)
+    other_first = _git(env.repo, "rev-parse", f"refs/heads/{_TARGET}")
+    tree = _git(env.repo, "rev-parse", f"{env.after}^{{tree}}")
+    forged = _git(env.repo, "commit-tree", tree, "-p", other_first, "-p", env.before, "-m", "a merge of something else")
+    _git(env.repo, "update-ref", f"refs/heads/{env.lane}", forged, env.after)
+    _git(env.worktree, "reset", "-q", "--hard", forged)
+    assert auto_rebase_record.record(env.repo, env.lane, forged)
+    env.state.lane_rebase_moves[env.lane] = [env.before, forged]
+
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+
+    assert _lane_outcome(report, env.lane).kind is BranchOutcomeKind.UNCHANGED_BY_RUN
+    assert _git(env.repo, "rev-parse", f"refs/heads/{env.lane}") == forged
+
+
+def test_an_unrecorded_merge_is_never_restored(tmp_path: Path) -> None:
+    """A genuine merge of ``before`` without the durable auto-rebase record is not proven to be the tool's."""
+    env = _env(tmp_path)
+    _git(env.repo, "update-ref", "-d", f"{_AUTO_REBASE_PREFIX}{env.lane}/{env.after}")
+
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+
+    outcome = _lane_outcome(report, env.lane)
+    assert outcome.kind is BranchOutcomeKind.UNCHANGED_BY_RUN
+    assert outcome.reason is not None and "no auto-rebase record" in outcome.reason
+    assert _git(env.repo, "rev-parse", f"refs/heads/{env.lane}") == env.after
+
+
+@pytest.mark.parametrize("failing", ["commit_parents", "is_recorded"])
+def test_a_probe_error_is_not_restored_and_keeps_the_record(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failing: str) -> None:
+    """NFR-002: a git probe that cannot answer never reads as "verified"; the lane is NOT_RESTORED and keeps its record."""
+    env = _env(tmp_path)
+    if failing == "commit_parents":
+
+        def broken_parents(*_a: object, **_k: object) -> list[str]:
+            raise rollback.GitProbeError("injected: git rev-list failed")
+
+        monkeypatch.setattr(rollback, "commit_parents", broken_parents)
+    else:
+
+        def broken_record(*_a: object, **_k: object) -> bool:
+            raise auto_rebase_record.AutoRebaseRecordError("injected: git rev-parse failed")
+
+        monkeypatch.setattr(rollback.auto_rebase_record, "is_recorded", broken_record)
+
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+
+    outcome = _lane_outcome(report, env.lane)
+    assert outcome.kind is BranchOutcomeKind.NOT_RESTORED and outcome.cause is NotRestoredCause.RESTORE_REFUSED
+    assert outcome.reason is not None and "injected" in outcome.reason
+    assert _git(env.repo, "rev-parse", f"refs/heads/{env.lane}") == env.after
+    assert env.state.lane_rebase_moves[env.lane] == [env.before, env.after]
+    assert _auto_rebase_refs(env.repo, env.lane) == [f"{_AUTO_REBASE_PREFIX}{env.lane}/{env.after}"]
+    assert report.fully_restored is False
+
+
 def test_rebaseline_keeps_the_moves_of_unrestored_lanes() -> None:
     state = ConsolidationState(mission_id="M1", mission_slug=_SLUG, target_branch=_TARGET, wp_order=["WP01"])
     state.lane_rebase_moves = {"lane-x": ["a" * 40, "b" * 40], "lane-y": ["c" * 40, "d" * 40], "lane-z": ["e" * 40, "f" * 40]}
