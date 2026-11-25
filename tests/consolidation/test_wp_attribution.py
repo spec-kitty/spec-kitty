@@ -22,7 +22,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.consolidation import wp_attribution as wpa
-from specify_cli.consolidation.git_probes import GitProbeError
+from specify_cli.consolidation.git_probes import GitProbeError, is_merge_commit
 from specify_cli.status import LANE_HEAD_KEY, MIGRATION_ACTOR_PREFIX, Lane, StatusEvent, window_opener_events
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -331,7 +331,7 @@ def test_conflict_resolved_merge_listing_the_path_does_not_supersede(tmp_path: P
     _git(repo, "add", "src/pkg/m.py")
     _git(repo, "commit", "-qm", "sync merge resolves conflict")
     merge_sha = _git(repo, "rev-parse", "HEAD")
-    assert wpa.is_merge_commit(repo, merge_sha)
+    assert is_merge_commit(repo, merge_sha)
     assert "src/pkg/m.py" in _git(repo, "show", "--name-only", "--format=", "--no-renames", merge_sha)
 
     events = [

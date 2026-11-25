@@ -38,10 +38,23 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
+from kernel.git import GitCommandError, tree_entry
+from specify_cli.core import git_ops
 from specify_cli.status import LANE_HEAD_KEY, LANE_HEAD_PRESYNC_KEY, StatusEvent, is_migration_event, stamp_of
 
 from .canceled_attestation import ATTESTATION_KEY
-from .git_probes import GitProbeError, changed_paths_of, commit_in_clone, commits_in_range, is_merge_commit, resolve_commit, sha_reachable_from
+from .git_probes import (
+    GitProbeError,
+    changed_paths_of,
+    commit_in_clone,
+    commit_parents,
+    commits_in_range,
+    is_merge_commit,
+    merge_own_changed_paths,
+    paths_changed_against_parents,
+    resolve_commit,
+    sha_reachable_from,
+)
 from .wp_attribution import lane_exempt_commits
 
 logger = logging.getLogger(__name__)
@@ -64,11 +77,16 @@ _COMMAND_INDENT = "  "
 
 
 class BoundRefusalCode(StrEnum):
-    """The stable codes of the three refusals this module produces."""
+    """The stable codes of the four refusals this module produces.
+
+    ``RESOLUTION_MERGE_UNREVIEWED`` (FR-004) is the last member, so a renderer or code reader that
+    iterates the enum keeps the three older codes first.
+    """
 
     LANE_MOVED_AFTER_APPROVAL = "LANE_MOVED_AFTER_APPROVAL"
     APPROVAL_STAMP_MISSING = "APPROVAL_STAMP_MISSING"
     APPROVAL_STAMP_NOT_ON_LANE = "APPROVAL_STAMP_NOT_ON_LANE"
+    RESOLUTION_MERGE_UNREVIEWED = "RESOLUTION_MERGE_UNREVIEWED"
 
 
 class StampDetail(StrEnum):
@@ -152,6 +170,12 @@ class BoundRefusal:
     precedes_approvals: bool = False
     #: ``APPROVAL_STAMP_NOT_ON_LANE`` only: why no recorded stamp is on the lane (#7802).
     stamp_detail: StampDetail | None = None
+    #: ``RESOLUTION_MERGE_UNREVIEWED`` only: how many non-bookkeeping paths the merge resolved itself.
+    own_path_count: int = 0
+    #: ``RESOLUTION_MERGE_UNREVIEWED`` only: the canceled work package whose window holds the merge, if any.
+    canceled_wp: str | None = None
+    #: ``RESOLUTION_MERGE_UNREVIEWED`` only: every own path equals one parent's committed entry (a one-sided resolution).
+    kept_one_side: bool = False
 
     def render(self, mission_slug: str) -> str:
         """The operator-facing text of this one refusal, led by ``<CODE>: `` like the other claim refusals."""
@@ -275,6 +299,39 @@ def _moved_block(group: Sequence[BoundRefusal], mission: str, term: _StampTerm) 
     ]
 
 
+def _unreviewed_merge_finding(refusal: BoundRefusal) -> str:
+    head = (
+        f"lane {refusal.lane_id} ({', '.join(refusal.wp_ids)}): merge {_short(refusal.commits[0])} carries its own content "
+        f"on {refusal.own_path_count} path(s) (e.g. '{refusal.path}')"
+    )
+    side = " The merge kept one side of a conflicted path; the other side's change is dropped." if refusal.kept_one_side else ""
+    if refusal.canceled_wp is not None:
+        return f"{head} and was made inside canceled {refusal.canceled_wp}'s window, so no review approval of the lane covers it.{side}"
+    return f"{head} and no review approval of the lane reaches it.{side}"
+
+
+def _unreviewed_merge_block(group: Sequence[BoundRefusal], mission: str, term: _StampTerm) -> list[str]:
+    """FR-004: one line per unreviewed resolution merge, then one recovery: send back, re-review so the new approval reaches it."""
+    del term  # the approval stamp is not named here; the signature is the renderer's
+    findings = [_unreviewed_merge_finding(refusal) for refusal in group]
+    wp_ids = _distinct_wp_ids(group)
+    merges = ", ".join(dict.fromkeys(_short(refusal.commits[0]) for refusal in group))
+    canceled = [refusal for refusal in group if refusal.canceled_wp is not None]
+    lines = [
+        f"{BoundRefusalCode.RESOLUTION_MERGE_UNREVIEWED.value}: {findings[0]}",
+        *findings[1:],
+        f"Recovery: send {', '.join(wp_ids)} back for review:",
+        *(f"{_COMMAND_INDENT}{move_back_command(wp_id, mission)}" for wp_id in wp_ids),
+        'A work package that is already done needs --force --note "<why>" on that command.',
+        f"Resolve the conflict if needed, submit for review, and have an independent reviewer approve again: the new approval must reach merge {merges}.",
+    ]
+    if canceled:
+        named = ", ".join(dict.fromkeys(_short(refusal.commits[0]) for refusal in canceled))
+        lines.append(f"A merge made inside a canceled work package's window stays refused after a new approval: rebuild the lane without merge {named}.")
+    lines.append(f"Then re-run: spec-kitty consolidate --mission {mission}")
+    return lines
+
+
 def render_refusals(refusals: Sequence[BoundRefusal], mission_slug: str) -> str:
     """One operator-facing text for *refusals*: a short line per refused lane or work package, then ONE recovery block per code.
 
@@ -290,8 +347,13 @@ def render_refusals(refusals: Sequence[BoundRefusal], mission_slug: str) -> str:
         BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL: _moved_block,
         BoundRefusalCode.APPROVAL_STAMP_MISSING: _missing_block,
         BoundRefusalCode.APPROVAL_STAMP_NOT_ON_LANE: _not_on_lane_block,
+        BoundRefusalCode.RESOLUTION_MERGE_UNREVIEWED: _unreviewed_merge_block,
     }
-    return "\n".join(line for code, group in groups.items() for line in blocks[code](group, mission_slug, term))
+    # The three older codes keep their order of first appearance; FR-004's block always comes last,
+    # so the first line (the orchestrator reads ``codes[0]``) is never the new code beside an older one.
+    last = BoundRefusalCode.RESOLUTION_MERGE_UNREVIEWED
+    order: list[BoundRefusalCode] = [code for code in groups if code != last] + [code for code in groups if code == last]
+    return "\n".join(line for code in order for line in blocks[code](groups[code], mission_slug, term))
 
 
 def refusal_codes(text: str) -> list[str]:
@@ -583,6 +645,161 @@ def content_commits(repo_root: Path, commits: Iterable[str], is_bookkeeping: Cal
     return content
 
 
+def merges_beyond(repo_root: Path, tip: str, excluded: Sequence[str], *, first_parent: bool = False) -> list[str]:
+    """The merge commits reachable from *tip* that none of *excluded* reaches, newest first (FR-004).
+
+    ONE history query (``git rev-list --merges <tip> ^<excluded>...``). By default it walks every
+    parent, so a hand merge hidden behind a clean merge (off the first-parent spine) is found too;
+    *first_parent* restricts it to the spine (``--first-parent``), the walk the gate's authorship
+    reads. Raises :class:`~specify_cli.consolidation.git_probes.GitProbeError` on any git error: an
+    unreadable history is never read as "no merge" (NFR-002).
+    """
+    walk = ["--first-parent"] if first_parent else []
+    argv = ["git", "rev-list", *walk, "--merges", tip, *(f"^{ref}" for ref in excluded)]
+    ret, out, err = git_ops.run_command(argv, capture=True, check_return=False, cwd=repo_root)
+    if ret != 0:
+        raise GitProbeError(f"git {' '.join(argv[1:])} failed (exit {ret}): {(err or '').strip()}")
+    return [line.strip() for line in (out or "").splitlines() if line.strip()]
+
+
+def _entry_key(repo_root: Path, ref: str, path: str) -> tuple[str, str] | None:
+    entry = tree_entry(repo_root, ref, path)
+    return None if entry is None else (entry.mode, entry.oid)
+
+
+def kept_one_side(repo_root: Path, sha: str, own_paths: Sequence[str]) -> bool:
+    """True iff every one of *own_paths* is, in merge *sha*'s committed tree, the same ``(mode, oid)`` as in one of its parents.
+
+    Such a merge resolved each conflicted path by keeping one side, so the other side's change is
+    dropped. Text only, never a verdict: any probe error reads as False (the refusal stands, the
+    sentence is omitted), and a merge is never exempted for it.
+    """
+    if not own_paths:
+        return False
+    try:
+        parents = commit_parents(repo_root, sha)
+        return all(any(_entry_key(repo_root, sha, path) == _entry_key(repo_root, parent, path) for parent in parents) for path in own_paths)
+    except (GitProbeError, GitCommandError, ValueError):
+        logger.debug("merge %s: whether it kept one side cannot be read; the sentence is omitted", sha, exc_info=True)
+        return False
+
+
+def unreviewed_merge_candidates(
+    repo_root: Path, merges: Iterable[str], own_stamps: Sequence[str], canceled_window: Mapping[str, str] | None = None
+) -> tuple[str, ...]:
+    """The merges of *merges* that no review covers: no own stamp reaches them, or they lie in a canceled window (FR-004).
+
+    The one statement of which merges FR-004 judges, read by the claim-time verdict
+    (:func:`unreviewed_resolution_merges`) and by the gate's advisory ``unreviewed_merges`` alike.
+    The reach rule is the gate's own predicate
+    (:func:`~specify_cli.consolidation.reconciliation_authorship.merge_reviewed_by_own_stamps`): only
+    the merge's OWN lane's approval stamps count, pre-sync stamps included. A merge *canceled_window*
+    names (``{merge: canceled work package}``) was made inside that canceled work package's window, so a
+    later approval reaching it does not review it (addendum 6).
+    """
+    from .reconciliation_authorship import merge_reviewed_by_own_stamps
+
+    window = canceled_window or {}
+    return tuple(sha for sha in merges if sha in window or not merge_reviewed_by_own_stamps(repo_root, sha, own_stamps))
+
+
+def _attributes_at(repo_root: Path, paths: Sequence[str], source: str) -> list[str]:
+    from .merge_attribute_guard import check_merge_attributes
+
+    return [values["merge"] for values in check_merge_attributes(repo_root, paths, source=source)]
+
+
+def _recorded_merge_attributes_hold(repo_root: Path, sha: str, attributes_source: str | None) -> bool:
+    """True iff a recorded merge *sha* was made under the merge attributes the claim trusts (binding addendum 1).
+
+    The FR-010 guard runs on every path the merge changed against either parent, with the claim's
+    pre-run target tip as *attributes_source*. The guard reads the checkout this run works in, while
+    the tool made the merge in the lane's checkout: so the ``merge`` attribute of each path, read from
+    the merge commit and from each parent (``git check-attr --source``, git >= 2.40), must also equal
+    the one the target tip commits. Any refusal, probe error, missing source or older git is False:
+    the merge is then judged as a hand merge (fail closed).
+    """
+    from specify_cli.git.merge_tree_probe import check_attr_source_available
+
+    from .merge_attribute_guard import assert_registered_merge_behaviour
+
+    if attributes_source is None:
+        return False
+    try:
+        parents = commit_parents(repo_root, sha)
+        paths = paths_changed_against_parents(repo_root, sha, parents)
+        assert_registered_merge_behaviour(repo_root, paths, attributes_source=attributes_source)
+        if not paths:
+            return True
+        if not check_attr_source_available(repo_root):
+            return False
+        trusted = _attributes_at(repo_root, paths, attributes_source)
+        return all(_attributes_at(repo_root, paths, source) == trusted for source in (sha, *parents))
+    except GitProbeError:
+        logger.debug("recorded merge %s: its merge attributes cannot be confirmed; judged as a hand merge", sha, exc_info=True)
+        return False
+
+
+def _own_paths(repo_root: Path, sha: str, attributes_source: str | None, memo: dict[str, tuple[str, ...]] | None) -> tuple[str, ...]:
+    """*sha*'s own-content paths from THIS call of the raising probe; a success is stored in *memo* for the claim's advisory reader."""
+    own = tuple(merge_own_changed_paths(repo_root, sha, attributes_source=attributes_source))
+    if memo is not None:
+        memo[sha] = own
+    return own
+
+
+def unreviewed_resolution_merges(
+    repo_root: Path,
+    *,
+    lane_id: str,
+    branch: str,
+    wp_ids: Sequence[str],
+    merges: Iterable[str],
+    is_recorded: Callable[[str], bool],
+    is_bookkeeping: Callable[[str], bool],
+    attributes_source: str | None = None,
+    canceled_window: Mapping[str, str] | None = None,
+    memo: dict[str, tuple[str, ...]] | None = None,
+) -> tuple[BoundRefusal, ...]:
+    """``RESOLUTION_MERGE_UNREVIEWED`` refusals for *lane_id*: merges carrying their own content that no review covers (FR-004).
+
+    *merges* are the lane's merges no review covers (:func:`unreviewed_merge_candidates` over
+    :func:`merges_beyond`, every parent walked). *canceled_window* names the ones made inside a
+    canceled work package's window, for the text. Each one is skipped, cheapest check first (NFR-001), when
+
+    * *is_recorded* says the tool made it (the auto-rebase record, exact SHA) AND its merge
+      attributes hold (:func:`_recorded_merge_attributes_hold`); otherwise it is a hand merge;
+    * its own content (:func:`~specify_cli.consolidation.git_probes.merge_own_changed_paths`, run
+      here behind the FR-010 guard with *attributes_source*) has no non-bookkeeping path.
+
+    The verdict comes only from this function's own probe call; *memo* only records a successful
+    result for the claim's advisory reader. Every probe error, an *is_recorded* error included,
+    raises :class:`~specify_cli.consolidation.git_probes.GitProbeError` (NFR-002): nothing passes
+    for want of an answer.
+    """
+    refusals: list[BoundRefusal] = []
+    for sha in merges:
+        canceled_wp = (canceled_window or {}).get(sha)
+        if is_recorded(sha) and _recorded_merge_attributes_hold(repo_root, sha, attributes_source):
+            continue
+        own = [path for path in _own_paths(repo_root, sha, attributes_source, memo) if not is_bookkeeping(path)]
+        if own:
+            refusals.append(
+                BoundRefusal(
+                    BoundRefusalCode.RESOLUTION_MERGE_UNREVIEWED,
+                    lane_id,
+                    branch,
+                    tuple(wp_ids),
+                    commits=(sha,),
+                    path=own[0],
+                    own_path_count=len(own),
+                    canceled_wp=canceled_wp,
+                    kept_one_side=kept_one_side(repo_root, sha, own),
+                )
+            )
+    return tuple(refusals)
+
+
 def resolves_commit(repo_root: Path, ref: str) -> bool:
     """True iff *ref* names a commit now."""
     try:
@@ -743,9 +960,12 @@ __all__ = [
     "check_lane_effective",
     "commits_beyond",
     "content_commits",
+    "merges_beyond",
     "is_approved_reviewed_attestation",
     "move_back_command",
     "refusal_codes",
     "render_refusals",
     "resolves_commit",
+    "unreviewed_merge_candidates",
+    "unreviewed_resolution_merges",
 ]
