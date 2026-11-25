@@ -383,6 +383,18 @@
       "title": "Consolidate's own lane auto-rebase merges survive a rollback",
       "verdict": "in-mission",
       "wp": "WP03"
+    },
+    "#7802": {
+      "evidence_ref": "Context only: #7802 (review pre-sync stamps) is already merged on main. It is cited in the WP05 binding addendum and the WP04 rebase resolution as code this Mission integrates with; no work is owed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
     }
   },
   "schema_version": 1
