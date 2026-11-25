@@ -138,6 +138,13 @@
       "last_event_id": "01M89WFJAGFS5GAKPRDX05PDX6",
       "last_transition_at": "2026-11-25T17:36:29.139667+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-25T17:45:56Z – claude – shell_pid=3682 – red (T019): uv run --frozen pytest tests/consolidation/test_rollback_authority.py -k <new+re-pinned> at HEAD -> 1 failed 4 passed; test_a_recorded_move_is_restored: assert UNCHANGED_BY_RUN is RESTORED. Controls (no entry / move from another tip) and the re-pinned post_mutation_refs test pass at HEAD as designed. Truth-table row fails collection at HEAD (AttributeError: LANE_MOVED_SINCE_AUTO_REBASE).",
+        "- 2026-11-25T17:53:23Z – claude – shell_pid=3682 – red (T018/T021/T022): uv run --frozen pytest -n 3 tests/consolidation/test_rollback_own_lane_moves.py at HEAD -> 17 failed 1 passed (test_a_deleted_lane_branch_keeps_its_record passes at HEAD, a control). T018 test1 clean+auto_resolved: 'lane-b still carries the run's own merge <sha>'; test3 resync: lane checkout HEAD != pre tip; test4 (lane consolidation failed after the auto-rebase): lane-b still carries the merge. T018 red at HEAD: clean shape -> second run exit 0, but its output names the first run's own merge on the lane-b cleanup line (the merge stayed on the lane); so test 2 is red at HEAD, not a ratchet. Default topology of the local builder: LANES (no coordination branch).",
+        "- 2026-11-25T18:07:48Z – claude – shell_pid=3682 – trace(design-decisions): LANE_MOVED_SINCE_AUTO_REBASE is in _OK_KINDS (fully_restored stays True so --abort can finish: a lane has no release mechanism) and NOT re-baselineable (the lane_rebase_moves entry is the only record that the lane carries this run's merge under the operator's commit). Operator may overrule; only the two sets and the truth-table row change then.",
+        "- 2026-11-25T18:07:53Z – claude – shell_pid=3682 – trace(approach): narrow source rule: the only restore source for a lane is state.lane_rebase_moves, and only for an entry [before, after] with before == the lane's restore target and live == after (rollback._own_lane_move); post_mutation_refs never makes a lane restorable (re-pinned test). resync_checkouts_to_tip is not called separately: restore_branch_ref(..., resync_checkouts=True) dirty-checks before the CAS and hard-resyncs every checkout of the lane. Work-tip reset uses git.ref_advance.write_bookkeeping_ref(tip_ref(branch), before) instead of lane_tip.record_tip because record_tip discards the write result; a failed reset or record delete keeps RESTORED and names the residue in the reason.",
+        "- 2026-11-25T18:07:58Z – claude – shell_pid=3682 – trace(design-decisions): _lane_attempt_start (begin_attempt) keeps a lane's restore target when the lane is still at the after of its own recorded move from that target, so a --resume of an interrupted run can still undo the move (test_a_resumed_attempt_still_at_the_recorded_merge_keeps_the_move_restorable); any other between-attempt move re-anchors as before (test_a_resumed_attempt_after_a_moved_lane_treats_the_kept_move_as_report_only). rebaseline keeps entries for LANE_MOVED_SINCE_AUTO_REBASE, NOT_RESTORED and LANE_MISSING (LANE_MISSING added beyond the prompt's two: a deleted lane's move must not vanish either)."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 3682,
@@ -400,10 +407,20 @@
       "last_event_id": "01M89WFVNEYFXVAH9E18YTQJQ0",
       "last_transition_at": "2026-11-25T17:36:38.605361+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-25T17:43:09Z – claude – shell_pid=3728 – red: uv run --frozen pytest tests/orchestrator_api/test_consolidate_mission_resolution_merge.py -> 2 failed/6 passed at lane base 5dff5a7e13. test_contract_version_is_1_31_0: AssertionError '1.30.0' == '1.31.0'; test_doc_contract_version_matches_envelope: no 1.31.0 history entry naming RESOLUTION_MERGE_UNREVIEWED. The 6 behaviour cells (refusal before any lane merges [lanes|coord], two codes first-code-first [LANE_MOVED_AFTER_APPROVAL, RESOLUTION_MERGE_UNREVIEWED], clean-merge control, probe error fails closed, stale approved-lane route via orchestrator path) are green at base: WP05's code and WP07's renderer already reach this path through approved_bound_refusal and consolidate_lane_into_mission -> _explain_stale; they are characterization pins for this surface.",
+        "- 2026-11-25T18:03:56Z – claude – shell_pid=3728 – trace(design-decisions): T045 has no code change. The landed consolidate_lane_into_mission(repo_root, mission_slug, lane_id, lanes_manifest) takes no approved_wp_ids/sibling keywords; per the binding ruling (DM-01M88RZDBP57ZTYJHC5NP0ZH4R) the orchestrator path gets the #7755 sibling naming, the #7754 reopen step and WP07's --incorporate route through _explain_stale -> refine_stale_result. Pinned instead by test_stale_approved_lane_prints_the_approved_lane_route: the orchestrator envelope's data.errors carries the reopen line and exactly the CLI route lines (implement --agent, implement --incorporate lane-a --agent, move-task --to for_review, consolidate), no git merge, no cd .worktrees. Observation for WP13: on this path earlier lanes stay consolidated (no rollback), yet the shared text still names 'spec-kitty consolidate' as the re-run and says the rollback restores the Mission branch; not forked here (C-006).",
+        "- 2026-11-25T18:04:01Z – claude – shell_pid=3728 – trace(design-decisions): CONTRACT_VERSION 1.30.0 -> 1.31.0 (base read 1.30.0 as the ruling required). The new module asserts CONTRACT_VERSION >= 1.31.0 rather than an exact pin, because test_contract_version.py declares itself the only place allowed to spell the current version; the exact pin there is re-pinned to 1.31.0. Skill reference had no consolidate-mission code table: added one under section 9 (the three #5668 codes at >= 1.10.0 and RESOLUTION_MERGE_UNREVIEWED at >= 1.31.0). mypy on consolidation.py reports 2 pre-existing call-overload errors at :930/:1054 (typer.Option click_type), lines untouched by this WP."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 3728,
-      "shell_pid_created_at": "1795628157.9"
+      "shell_pid_created_at": "1795628157.9",
+      "subtasks": {
+        "T044": "done",
+        "T045": "done",
+        "T046": "done"
+      }
     },
     "WP10": {
       "actor": "claude",
