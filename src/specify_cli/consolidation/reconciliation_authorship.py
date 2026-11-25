@@ -134,7 +134,9 @@ def _dropped_own_change(holder: ApprovedLaneContent, path: str, base: str | None
     A content without ``tip`` / ``fork_point`` (hand-built) is read as cut from the
     pre-consolidation target: only the net-change fact applies, against *base*.
     """
-    final = holder.final_state[path]
+    # ``ApprovedLaneContent.final_state`` maps a path to its blob, or ``None`` when deleted. Stated here
+    # because a narrow-file ``mypy`` run skips the claim-types module (``follow_imports = "skip"``).
+    final: str | None = holder.final_state[path]
     if state_at is None or holder.tip is None or holder.fork_point is None:
         return final != base
     found_at_fork = state_at(holder.fork_point, path)
