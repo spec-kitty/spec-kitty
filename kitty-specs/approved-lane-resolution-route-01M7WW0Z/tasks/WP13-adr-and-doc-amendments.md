@@ -208,6 +208,7 @@ This WP cannot own `kitty-specs/` paths. Record notes with `spec-kitty agent tas
 ## Residuals to record (analysis A14)
 
 - The review context labels every merge inside the review window "operator-authored", including recorded tool auto-rebase merges. Record this as a documented residual in the ADR 2026-11-08-2 amendment.
+- A lane superseded under the 2026-11-24 ruling: lane cleanup keeps its lane-tip ref but clears its auto-rebase records (WP02, `_after_branch_deleted`). If an operator recreates that branch from the kept tip and resumes, its tool merges read as hand merges. This fails closed toward `RESOLUTION_MERGE_UNREVIEWED`. Record it as a residual in the ADR 2026-10-04-5 amendment (reviewer note, WP02 rebase delta 2026-11-25).
 
 ## Review Guidance
 
