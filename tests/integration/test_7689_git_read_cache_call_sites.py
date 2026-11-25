@@ -277,7 +277,7 @@ def test_configured_remotes_is_read_per_checkout(repo: Path, tmp_path: Path) -> 
     _git(repo, "worktree", "add", "-q", str(linked), "side")
     extra = tmp_path / "extra.cfg"
     extra.write_text('[remote "linked"]\n\turl = /dev/null\n')
-    _git(repo, "config", "includeIf.gitdir:**/worktrees/linked/.path", str(extra))
+    _git(repo, "config", "includeIf.onbranch:side.path", str(extra))  # the linked checkout holds side
     with git_read_cache_scope():
         assert configured_remotes(repo) == []
         assert configured_remotes(linked) == ["linked"]

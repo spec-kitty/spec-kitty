@@ -299,7 +299,11 @@ def _by_objects(repo_root: Path, revs: tuple[str, ...], key: Hashable, compute: 
 
 
 def _git_lines(repo_root: Path, *args: str, revs: tuple[str, ...] = ()) -> tuple[str, ...]:
-    """The output lines of ``git <args>``; *revs* are the revisions the answer is a function of."""
+    """The output lines of ``git <args>``; *revs* are the revisions the answer is a function of.
+
+    Run in ``repo_root``, a checkout root, so a pathspec in *args* names the same path from any
+    caller: the cache key does not carry the working directory.
+    """
 
     def read() -> tuple[str, ...]:
         return tuple(run_git(repo_root, *args).stdout.decode("utf-8", "replace").splitlines())
@@ -330,12 +334,12 @@ def _lane_own_commits(repo_root: Path, tip: str, landing_ref: str) -> tuple[tupl
     return tuple((entry[0], tuple(entry[1:])) for entry in chain if entry[0] not in taken)
 
 
-def _blob_scope(path: str) -> str:
-    """The subtree one listing reads for ``path``: its Mission's folder, else its top-level entry."""
+def _mission_folder(path: str) -> str | None:
+    """The ``kitty-specs/<mission>`` folder ``path`` lies in, or ``None`` for any other path."""
     parts = PurePosixPath(path).parts
     if len(parts) > 2 and parts[0] == _MISSION_ROOT:
         return f"{parts[0]}/{parts[1]}"
-    return parts[0] if parts else path
+    return None
 
 
 def _subtree_oids(repo_root: Path, rev: str, scope: str) -> Mapping[str, str]:
@@ -350,14 +354,22 @@ def _subtree_oids(repo_root: Path, rev: str, scope: str) -> Mapping[str, str]:
 def _blob_id(repo_root: Path, rev: str, path: str) -> str | None:
     """The object id of ``path`` in ``rev`` (a tree for a directory), or ``None`` when ``rev`` has none.
 
-    Inside a consolidate run, a commit id's subtree is listed once and every path in it is answered
-    from that listing (#7848); a ref name, or a read outside a run, asks git for the one path.
+    Inside a consolidate run (#7848), a commit id's Mission folder is listed once and every path in
+    it is answered from that listing; any other path of a commit id is read once, alone, so a large
+    product tree is never listed whole. A ref name, or a read outside a run, asks git each time.
     """
-    if git_read_cache_active() and is_object_id(rev):
-        wanted = str(GitPath.parse(path))
-        return _subtree_oids(repo_root, rev, _blob_scope(wanted)).get(wanted)
-    entry = tree_entry(repo_root, rev, path)
-    return entry.oid if entry is not None else None
+
+    def read() -> str | None:
+        entry = tree_entry(repo_root, rev, path)
+        return entry.oid if entry is not None else None
+
+    if not (git_read_cache_active() and is_object_id(rev)):
+        return read()
+    wanted = str(GitPath.parse(path))
+    folder = _mission_folder(wanted)
+    if folder is None:
+        return _by_objects(repo_root, (rev,), ("blob", wanted), read)
+    return _subtree_oids(repo_root, rev, folder).get(wanted)
 
 
 def _paths_changed_by(repo_root: Path, commit: str, parents: Sequence[str]) -> list[str]:
@@ -514,7 +526,10 @@ def _pinned(repo_root: Path, landing_ref: str) -> str:
     """
     if not git_read_cache_active() or is_object_id(landing_ref):
         return landing_ref
-    resolved = run_git(repo_root, "rev-parse", "--verify", "--end-of-options", f"{landing_ref}^{{commit}}")
+    if landing_ref.startswith("-"):
+        raise GitCommandError(argv=("rev-parse", landing_ref), cwd=repo_root, returncode=128, stderr="not a revision")
+    # No ``--end-of-options``: ``rev-parse`` accepts it only from git 2.30, the project supports 2.25.
+    resolved = run_git(repo_root, "rev-parse", "--verify", f"{landing_ref}^{{commit}}")
     return resolved.stdout.decode("utf-8", "replace").strip()
 
 
