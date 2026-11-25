@@ -83,6 +83,7 @@ from mission_runtime.resolution import (
     ActionContextError,
     IssueMatrixRefReadError,
     PlacementSeam,
+    PlanningCheckoutMissing,
     PlanningWriteRef,
     PlanningWriteRefUnavailable,
     coord_read_dir_for,
@@ -160,7 +161,8 @@ __all__ = [
     "OwnedCheckout",
     "OwnedRefusalCode",
     "PlacementSeam",
-    # #7860: the planning lane's write branch and its typed refusal.
+    # #7860: the planning lane's write branch and its typed refusals.
+    "PlanningCheckoutMissing",
     "PlanningWriteRef",
     "PlanningWriteRefUnavailable",
     "ReadDegradeStrategy",

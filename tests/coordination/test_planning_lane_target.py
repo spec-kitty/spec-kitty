@@ -3,6 +3,7 @@
 Real git. A default Mission that has not landed writes its planning work on its Mission branch,
 in the checkout holding it (the coordination worktree once settled). A missing checkout refuses
 with ``PLANNING_CHECKOUT_MISSING``; it never falls back to the repository root checkout (NFR-002).
+The write-branch rule itself is tested in ``tests/mission_runtime/test_planning_write_ref.py``.
 """
 
 from __future__ import annotations
@@ -12,9 +13,9 @@ from pathlib import Path
 
 import pytest
 
-from mission_runtime import PlanningWriteRefUnavailable
+from mission_runtime import PlanningCheckoutMissing
 from specify_cli.coordination import planning_commit
-from specify_cli.coordination.planning_commit import PlanningCheckoutMissing, planning_lane_target, planning_lane_write_ref
+from specify_cli.coordination.planning_commit import planning_lane_target
 from tests._support.git_cli import git_out
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
@@ -106,17 +107,8 @@ def test_a_removed_coordination_worktree_refuses_and_names_the_mission_branch(tm
         planning_lane_target(repo, _SLUG, _TARGET)
 
     assert refused.value.error_code == "PLANNING_CHECKOUT_MISSING"
-    assert _MISSION_BRANCH in str(refused.value)
+    assert refused.value.mission_branch == _MISSION_BRANCH
     assert f"spec-kitty doctor coordination --mission {_SLUG} --fix" in str(refused.value)
-
-
-def test_a_legacy_mission_with_no_meta_anywhere_keeps_the_target(tmp_path: Path) -> None:
-    repo = tmp_path / "repo"
-    _init(repo)
-
-    ref = planning_lane_write_ref(repo, _SLUG, _TARGET)
-
-    assert (ref.branch, ref.on_mission_branch, ref.meta_found) == (_TARGET, False, False)
 
 
 def test_a_default_mission_whose_branch_no_checkout_holds_refuses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -128,18 +120,13 @@ def test_a_default_mission_whose_branch_no_checkout_holds_refuses(tmp_path: Path
         planning_lane_target(repo, _SLUG, _TARGET)
 
 
-def test_a_git_failure_while_probing_the_mission_branch_fails_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from kernel.git import GitCommandError
+def test_the_target_follows_the_one_write_branch_reader(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``planning_lane_target`` reads ``mission_runtime.planning_write_ref`` at call time (FR-005 pin hook)."""
+    import mission_runtime
 
-    repo, holder = _settled_default_mission(tmp_path)
-    git_out(repo, "worktree", "remove", "--force", str(holder))
+    repo = tmp_path / "repo"
+    _init(repo)
+    sentinel = mission_runtime.PlanningWriteRef(branch="sentinel", on_mission_branch=False, landed=False)
+    monkeypatch.setattr(mission_runtime, "planning_write_ref", lambda *_a, **_k: sentinel)
 
-    def _broken(*_a: object, **_k: object) -> object:
-        raise GitCommandError(argv=("ls-tree",), cwd=repo, returncode=128, stderr="boom")
-
-    import kernel.git
-
-    monkeypatch.setattr(kernel.git, "tree_entry", _broken)
-
-    with pytest.raises(PlanningWriteRefUnavailable):
-        planning_lane_write_ref(repo, _SLUG, _TARGET)
+    assert planning_lane_target(repo, _SLUG, _TARGET).branch == "sentinel"

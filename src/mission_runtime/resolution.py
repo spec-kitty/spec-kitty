@@ -114,6 +114,7 @@ __all__ = [
     "IssueMatrixRefReadError",
     "PlacementSeam",
     # #7860: the planning lane's write branch (one rule for workspace, claim base and evidence window).
+    "PlanningCheckoutMissing",
     "PlanningWriteRef",
     "PlanningWriteRefUnavailable",
     # ResolvedSurface / SurfaceLocations / translate_surface: demoted -- the
@@ -1088,6 +1089,16 @@ def single_branch_write_ref(
     return target_branch
 
 
+def default_mission_rule_applies(topology_source: object, mission_branch: object, landed: bool) -> bool:
+    """Whether FR-061's default-Mission rule puts the PRIMARY partition on ``mission_branch`` -- pure.
+
+    True for a ``topology_source: default`` Mission that has not landed and records a Mission
+    branch. The one predicate :func:`default_mission_primary_ref` and :func:`planning_write_ref`
+    share (#7860, C-004).
+    """
+    return topology_source == "default" and not landed and isinstance(mission_branch, str) and bool(mission_branch)
+
+
 def default_mission_primary_ref(topology_source: object, mission_branch: object, landed: bool, fallback_ref: str) -> str:
     """The PRIMARY write ref of a ``topology_source: default`` Mission (FR-061) -- pure.
 
@@ -1098,10 +1109,8 @@ def default_mission_primary_ref(topology_source: object, mission_branch: object,
     callers also use it for status and code writes. The review range (#7578) reads it to tell
     whether a coordination Mission's planning work shares the coordination branch.
     """
-    if topology_source != "default" or landed:
-        return fallback_ref
-    if isinstance(mission_branch, str) and mission_branch:
-        return mission_branch
+    if default_mission_rule_applies(topology_source, mission_branch, landed):
+        return str(mission_branch)
     return fallback_ref
 
 
@@ -1134,8 +1143,11 @@ def _default_mission_facts(primary_root: Path, mission_slug: str, *, resolver: M
     return facts if facts is not None else (None, None, False)
 
 
+PLANNING_CHECKOUT_MISSING = "PLANNING_CHECKOUT_MISSING"
+
+
 class PlanningWriteRefUnavailable(RuntimeError):
-    """The planning lane's write branch cannot be decided: the PRIMARY ``meta.json`` is unreadable (#7860, NFR-002)."""
+    """The planning lane's write branch cannot be decided: ``meta.json`` or git is unreadable (#7860, NFR-002)."""
 
     def __init__(self, mission_slug: str, reason: str) -> None:
         self.mission_slug = mission_slug
@@ -1143,23 +1155,69 @@ class PlanningWriteRefUnavailable(RuntimeError):
         super().__init__(f"cannot decide the planning lane's write branch of Mission {mission_slug!r}: {reason}")
 
 
+class PlanningCheckoutMissing(RuntimeError):
+    """No checkout holds the Mission branch a default Mission's planning lane writes to (#7860).
+
+    Raised instead of falling back to the repository root checkout or the target (NFR-002): the
+    planning work of a default Mission that has not landed belongs on its Mission branch.
+    """
+
+    error_code = PLANNING_CHECKOUT_MISSING
+
+    def __init__(self, mission_slug: str, mission_branch: str) -> None:
+        from mission_runtime.coord_remedy import coordination_doctor_command
+
+        self.mission_slug = mission_slug
+        self.mission_branch = mission_branch
+        super().__init__(
+            f"{PLANNING_CHECKOUT_MISSING}: no checkout holds the Mission branch {mission_branch} (the coordination branch) of "
+            f"Mission {mission_slug!r}, where its planning work is written until it lands. Restore the coordination worktree "
+            f"with {coordination_doctor_command(mission_slug)}, then retry."
+        )
+
+
 @dataclass(frozen=True)
 class PlanningWriteRef:
     """Where a Mission's planning lane writes (#7860, ADR 2026-11-06-3 Amendment 2026-11-25).
 
     ``branch`` is the write branch. ``on_mission_branch`` is True when the default-Mission rule
-    (FR-061) put it on ``meta.mission_branch``: a ``topology_source: default`` Mission that has
-    not landed. ``landed`` is the one "landed" signal (:func:`mission_has_landed`, non-raising:
-    an unreadable landing record reads as not landed, so the caller keeps the Mission branch
-    and fails closed if that branch is gone). ``meta_found`` is False when the PRIMARY
-    ``meta.json`` is absent where the placement seam looked; the caller then decides between a
-    missing Mission-branch checkout and a legacy Mission (``coordination.planning_commit``).
+    (FR-061, :func:`default_mission_rule_applies`) put it on ``meta.mission_branch``. ``landed``
+    is the one "landed" signal (:func:`mission_has_landed`, non-raising: an unreadable landing
+    record reads as not landed, so the Mission branch is kept and a reader of a deleted branch
+    fails closed downstream).
     """
 
     branch: str
     on_mission_branch: bool
     landed: bool
-    meta_found: bool
+
+
+#: The Mission branch namespace (``kitty/mission-<slug>[-<mid8>]``); lane branches share it.
+_MISSION_BRANCH_REFS = "refs/heads/kitty/mission-"
+
+
+def _branch_claiming_mission(repo_root: Path, mission_slug: str) -> str | None:
+    """The local branch whose own ``meta.json`` records it as this Mission's ``mission_branch``, or ``None``.
+
+    Used only when no PRIMARY ``meta.json`` was found where the placement seam looked. A branch
+    qualifies only when its ``kitty-specs/<slug>/meta.json`` names that same branch, so a lane
+    branch that merged the Mission branch (and carries its ``meta.json``) never qualifies, and no
+    branch name is guessed from the slug. Any git or decode failure raises
+    :class:`PlanningWriteRefUnavailable` (fail closed).
+    """
+    from kernel.git import blob_at, run_git
+    from kernel.meta_decode import MetaDecodeError, decode_meta
+
+    meta_path = f"kitty-specs/{mission_slug}/meta.json"
+    try:
+        listing = run_git(repo_root, "for-each-ref", "--format=%(refname:short)", _MISSION_BRANCH_REFS + "*").stdout
+        for branch in listing.decode("utf-8", errors="replace").split():
+            raw = blob_at(repo_root, branch, meta_path)
+            if raw is not None and (decode_meta(raw) or {}).get("mission_branch") == branch:
+                return branch
+    except (GitCommandError, MetaDecodeError) as exc:
+        raise PlanningWriteRefUnavailable(mission_slug, f"could not probe the Mission branches ({exc})") from exc
+    return None
 
 
 def planning_write_ref(repo_root: Path, mission_slug: str, target_branch: str, *, resolver: MissionResolver | None = None) -> PlanningWriteRef:
@@ -1168,26 +1226,37 @@ def planning_write_ref(repo_root: Path, mission_slug: str, target_branch: str, *
     FR-061 extended to the planning lane (#7860): before a default Mission lands, its planning
     lane writes to its Mission branch; otherwise to the write ref every Mission already uses
     (:func:`resolve_single_branch_write_ref`: the minted Mission branch of a stored
-    ``single_branch`` Mission, else the target). Unlike the non-raising placement reader
-    :func:`_default_mission_facts`, an unreadable ``meta.json`` raises
-    :class:`PlanningWriteRefUnavailable` and never reads as "not a default Mission".
+    ``single_branch`` Mission, else the target).
 
-    Consumers look this up at call time (``mission_runtime.planning_write_ref``) so one
-    monkeypatch reaches every use.
+    Never falls back silently (NFR-002):
+
+    * an unreadable PRIMARY ``meta.json``, or a git failure while probing, raises
+      :class:`PlanningWriteRefUnavailable`;
+    * no PRIMARY ``meta.json`` where the placement seam looked, while a local branch's own
+      ``meta.json`` records it as this Mission's branch (its checkout is gone), raises
+      :class:`PlanningCheckoutMissing`;
+    * no ``meta.json`` anywhere is a legacy Mission: the target, as today.
+
+    The non-raising placement reader :func:`_default_mission_facts` is unchanged. Consumers look
+    this up at call time (``mission_runtime.planning_write_ref``) so one monkeypatch reaches
+    every use.
     """
     from specify_cli.core.paths import MissionMetaReadError, get_main_repo_root
 
+    main_root = get_main_repo_root(repo_root)
     try:
-        facts = _default_mission_facts_strict(get_main_repo_root(repo_root), mission_slug, resolver=resolver)
+        facts = _default_mission_facts_strict(main_root, mission_slug, resolver=resolver)
     except MissionMetaReadError as exc:
         raise PlanningWriteRefUnavailable(mission_slug, f"meta.json is unreadable ({exc})") from exc
     fallback = resolve_single_branch_write_ref(repo_root, mission_slug, target_branch, resolver=resolver)
     if facts is None:
-        return PlanningWriteRef(branch=fallback, on_mission_branch=False, landed=False, meta_found=False)
+        claimed = _branch_claiming_mission(main_root, mission_slug)
+        if claimed is not None and claimed != fallback:
+            raise PlanningCheckoutMissing(mission_slug, claimed)
+        return PlanningWriteRef(branch=fallback, on_mission_branch=False, landed=False)
     topology_source, mission_branch, landed = facts
-    branch = default_mission_primary_ref(topology_source, mission_branch, landed, fallback)
-    on_mission_branch = topology_source == "default" and not landed and isinstance(mission_branch, str) and bool(mission_branch)
-    return PlanningWriteRef(branch=branch, on_mission_branch=on_mission_branch, landed=landed, meta_found=True)
+    applies = default_mission_rule_applies(topology_source, mission_branch, landed)
+    return PlanningWriteRef(branch=str(mission_branch) if applies else fallback, on_mission_branch=applies, landed=landed)
 
 
 def resolve_single_branch_write_ref(

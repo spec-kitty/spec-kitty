@@ -110,7 +110,8 @@ _PUBLIC_SURFACE = sorted(
         # (this surface list is not a WP01 owned file, but every new
         # mission_runtime public symbol must be pinned here).
         "PlacementSeam",
-        # #7860: the planning lane's write branch, its facts value and its typed refusal.
+        # #7860: the planning lane's write branch, its facts value and its typed refusals.
+        "PlanningCheckoutMissing",
         "PlanningWriteRef",
         "PlanningWriteRefUnavailable",
         # lifecycle-gate-execution-context-01KY72GQ WP02 (IC-11): the stamped
