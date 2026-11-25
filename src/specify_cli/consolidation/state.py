@@ -498,7 +498,8 @@ def get_state_path(repo_root: Path, mission_id: str | None = None) -> Path:
         .kittify/merge-state.json
     """
     if mission_id is not None:
-        return get_merge_runtime_dir(mission_id, repo_root) / _STATE_FILE
+        state_path: Path = get_merge_runtime_dir(mission_id, repo_root) / _STATE_FILE
+        return state_path
     # Legacy path — only used by the CLI's --abort/--resume handlers
     return repo_root / ".kittify" / "merge-state.json"
 
@@ -869,7 +870,7 @@ def is_merge_locked(mission_id: str, repo_root: Path) -> bool:
         mission_id: Mission/feature slug identifier
         repo_root: Repository root path
     """
-    lock_path = get_merge_runtime_dir(mission_id, repo_root) / _LOCK_FILE
+    lock_path: Path = get_merge_runtime_dir(mission_id, repo_root) / _LOCK_FILE
     return lock_path.exists()
 
 
