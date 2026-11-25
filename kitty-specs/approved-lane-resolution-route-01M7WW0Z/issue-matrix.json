@@ -408,6 +408,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#7854": {
+      "evidence_ref": "Context only: #7854 is cited in WP13's ADR notes (presence axis #5571; #7854/#7855 hotfix asymmetry). It is handled outside this Mission, so no work is owed here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#7861": {
       "evidence_ref": "Operator ruling DM-01M89KDT5DZQ4DX6ZFX54HY3J3: move-task --to planned on protected coordination targets is fixed in WP07 (binding addition)",
       "fr": null,
