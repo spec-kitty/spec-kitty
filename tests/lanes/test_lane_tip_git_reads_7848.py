@@ -13,6 +13,7 @@ Real repositories; no CLI.
 
 from __future__ import annotations
 
+import os
 import subprocess
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -174,3 +175,46 @@ def test_the_content_proof_reads_one_snapshot_of_a_named_landing_ref(tmp_path: P
         lane_tip.is_absorbed_but_for_mission_bookkeeping(root, tip, "refs/heads/main", "m")
     assert sum("refs/heads/main" in " ".join(argv) for argv in spawned) == 1
     assert lane_tip.is_absorbed_but_for_mission_bookkeeping(root, tip, "refs/heads/no-such-branch", "m") is False
+
+
+#: A DAG (parent indexes, committer-date offset) where ``rev-list --first-parent c4 c2 ^c7`` prints
+#: ``c2`` although ``c2`` is an ancestor of ``c7`` (through second parents) and each single-tip call
+#: excludes it: the multi-tip walk's date-ordered stop differs (#7848 review LOW-1, git 2.43).
+_SKEWED_DAG: tuple[tuple[tuple[int, ...], int], ...] = (
+    ((), 26),
+    ((0,), 11),
+    ((1, 0), 19),
+    ((2,), -10),
+    ((0, 3), 15),
+    ((1,), 6),
+    ((0, 4), 4),
+    ((6, 5), -21),
+)
+
+
+def _skewed_dag(root: Path) -> list[str]:
+    root.mkdir()
+    _git(root, "init", "-q")
+    tree = subprocess.run(["git", "mktree"], cwd=root, input="", capture_output=True, text=True, check=True).stdout.strip()
+    commits: list[str] = []
+    for index, (parents, offset) in enumerate(_SKEWED_DAG):
+        date = f"{1_700_000_000 + offset} +0000"
+        env = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@e", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@e"}
+        env |= {"GIT_AUTHOR_DATE": date, "GIT_COMMITTER_DATE": date, "PATH": os.environ["PATH"]}
+        argv = ["git", "commit-tree", tree, *(arg for parent in parents for arg in ("-p", commits[parent])), "-m", str(index)]
+        commits.append(subprocess.run(argv, cwd=root, env=env, capture_output=True, text=True, check=True).stdout.strip())
+    return commits
+
+
+def test_merged_in_lines_are_the_per_parent_union_within_the_lane_chain(tmp_path: Path) -> None:
+    """The one multi-tip read keeps only commits of the lane's own chain, as the per-parent calls did."""
+    root = tmp_path / "repo"
+    commits = _skewed_dag(root)
+    landing, merged_in = commits[7], [commits[4], commits[2]]
+    union = {sha for parent in merged_in for sha in _git(root, "rev-list", "--first-parent", parent, f"^{landing}").splitlines()}
+    chain = frozenset(commits) - set(_git(root, "rev-list", landing).splitlines())
+
+    taken = lane_tip._merged_in_first_parent_lines(root, merged_in, landing, chain)
+
+    assert taken == union & chain
+    assert commits[2] not in taken  # an ancestor of the landing ref is never "taken" history

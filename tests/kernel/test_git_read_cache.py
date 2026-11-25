@@ -480,3 +480,22 @@ def test_a_config_shaped_object_id_read_follows_config_writes(repo: Path) -> Non
         _git(repo, "config", "diff.ignoreSubmodules", "all")  # a config write invalidates it
         cached_object_read(repo, ("show", sha), (sha,), read, config=True)
     assert read.calls == 2
+
+
+@pytest.mark.parametrize("history_file", ["shallow", "info/grafts"])
+def test_an_object_id_read_follows_a_history_rewrite(repo: Path, history_file: str) -> None:
+    """#7848 review LOW-2: ``shallow`` and ``info/grafts`` change what git reads for an object id."""
+    from kernel.git.read_cache import cached_object_read
+
+    sha = _git(repo, "rev-parse", "HEAD")
+    read = _Counter(repo, "rev-list", "--parents", "-n1", sha)
+    with git_read_cache_scope():
+        cached_object_read(repo, ("parents", sha), (sha,), read)
+        cached_object_read(repo, ("parents", sha), (sha,), read)
+        assert read.calls == 1
+        target = repo / ".git" / history_file
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(f"{sha}\n", encoding="ascii")
+        cached_object_read(repo, ("parents", sha), (sha,), read)
+        cached_object_read(repo, ("parents", sha), (sha,), read)
+    assert read.calls == 2
