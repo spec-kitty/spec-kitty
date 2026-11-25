@@ -35,6 +35,11 @@ Only reads whose answer is a function of the declared metadata may be routed
 through :func:`cached_git_read`. Working-tree and index reads (``status``,
 ``diff``, ``add``) are not, and must never be.
 
+Reads keyed only on full object ids (:func:`cached_object_read`, #7848) need
+no ref at all: an object id names immutable content. What they do depend on is
+what rewrites the commit graph git presents for those ids (replace refs, the
+``shallow`` file, ``info/grafts``), and that is their fingerprint.
+
 The one deliberate exception, documented at its call site, is the remote's
 advertised default branch (``git remote show``). It is remote state, which no
 local mutation of the run can change; within one run it is read once per local
@@ -57,8 +62,11 @@ from typing import TypeVar, cast
 __all__ = [
     "Depends",
     "cached_git_read",
+    "cached_object_read",
     "cached_ref_read",
+    "git_read_cache_active",
     "git_read_cache_scope",
+    "is_object_id",
 ]
 
 T = TypeVar("T")
@@ -89,6 +97,13 @@ _MAX_SYMREF_DEPTH = 5
 #: fingerprint covers.
 _COMMON_FILES = ("HEAD", "packed-refs", "config", "config.worktree", "shallow", "reftable/tables.list")
 
+#: Files that rewrite the commit graph git presents for an object id (plus the
+#: ``refs/replace/`` tree and ``packed-refs``, which can hold replace refs).
+_HISTORY_FILES = ("shallow", "info/grafts", "packed-refs")
+
+#: A full SHA-1 or SHA-256 object id, as git prints it.
+_OBJECT_ID_RE = re.compile(r"\A(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
+
 #: Files under each ``worktrees/<name>/`` administrative directory.
 _WORKTREE_FILES = ("HEAD", "gitdir", "locked", "config.worktree", "commondir")
 
@@ -102,17 +117,23 @@ class Depends:
     ``head`` covers the ``HEAD`` of the checkout the read runs in. ``config``
     covers the repository config files. ``everything`` covers every ref, every
     ``HEAD``, the config and the linked-worktree administrative files (what
-    ``git worktree list`` reads).
+    ``git worktree list`` reads). ``history`` covers what rewrites the commit
+    graph git presents for an object id: replace refs, ``shallow`` and
+    ``info/grafts``.
     """
 
     refs: tuple[str, ...] = ()
     head: bool = False
     config: bool = False
     everything: bool = False
+    history: bool = False
 
 
 #: The whole-metadata dependency.
 EVERYTHING = Depends(everything=True)
+
+#: The dependency of a read keyed only on object ids.
+HISTORY = Depends(history=True)
 
 
 @dataclass
@@ -153,6 +174,16 @@ def git_read_cache_scope() -> Iterator[_GitReadCacheStats]:
         yield scope.stats
     finally:
         _ACTIVE.reset(token)
+
+
+def git_read_cache_active() -> bool:
+    """Whether a :func:`git_read_cache_scope` is open (a caller may then batch reads it will repeat)."""
+    return _ACTIVE.get() is not None
+
+
+def is_object_id(text: str) -> bool:
+    """A full, lowercase SHA-1 or SHA-256 object id (never a ref name, an abbreviation or ``^id``)."""
+    return _OBJECT_ID_RE.match(text) is not None
 
 
 def cached_git_read(
@@ -212,6 +243,27 @@ def cached_ref_read(cwd: Path, ref: str, key: Hashable, compute: Callable[[], T]
     """
     depends = Depends(refs=(ref,)) if ref.startswith("refs/") else EVERYTHING
     return cached_git_read(cwd, ("ref", ref, key), compute, depends=depends, env=env)
+
+
+def cached_object_read(
+    cwd: Path,
+    revs: tuple[str, ...],
+    key: Hashable,
+    compute: Callable[[], T],
+    *,
+    env: Mapping[str, str] | None = None,
+    store_if: Callable[[T], bool] | None = None,
+) -> T:
+    """Cache a read whose answer is a function of the objects *revs* name only (#7848).
+
+    Every entry of *revs* must be a full object id (:func:`is_object_id`); otherwise the
+    read simply runs, uncached, since a ref name or an abbreviation can name another
+    object later. *key* must include every other argument that shapes the answer. The
+    entry stays valid until something rewrites the commit graph (:data:`HISTORY`).
+    """
+    if not revs or not all(is_object_id(rev) for rev in revs):
+        return compute()
+    return cached_git_read(cwd, ("objects", revs, key), compute, depends=HISTORY, env=env, store_if=store_if)
 
 
 # ---------------------------------------------------------------------------
@@ -298,6 +350,10 @@ def _fingerprint(repo: _Repo, depends: Depends) -> bytes:
         return digest.digest()
     for name in _REF_STORES if (depends.refs or depends.head) else ():
         _feed_file(digest, repo.common_dir, name)
+    if depends.history:
+        for name in _HISTORY_FILES:
+            _feed_file(digest, repo.common_dir, name)
+        _feed_tree(digest, repo.common_dir, "refs/replace")
     for ref in depends.refs:
         _feed_ref(digest, repo, ref, _MAX_SYMREF_DEPTH)
     if depends.head:
