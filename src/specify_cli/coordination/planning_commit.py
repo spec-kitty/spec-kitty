@@ -17,6 +17,9 @@ from mission_runtime import (
     ActionContextError,
     CommitTarget,
     MissionArtifactKind,
+    PlanningWriteRef,
+    PlanningWriteRefUnavailable,
+    coordination_doctor_command,
     placement_seam,
     resolve_action_context,
     resolve_topology,
@@ -253,6 +256,110 @@ def planning_checkout_root(repo_root: Path, artifact_source_dir: Path, mission_s
     if resolved == repo_root.resolve() or not artifact_source_dir.resolve().is_relative_to(resolved):
         return repo_root
     return holder
+
+
+PLANNING_CHECKOUT_MISSING = "PLANNING_CHECKOUT_MISSING"
+
+
+class PlanningCheckoutMissing(RuntimeError):
+    """No checkout holds the Mission branch a default Mission's planning lane writes to (#7860).
+
+    Raised instead of falling back to the repository root checkout (NFR-002): the planning work
+    of a default Mission that has not landed belongs on its Mission branch.
+    """
+
+    error_code = PLANNING_CHECKOUT_MISSING
+
+    def __init__(self, mission_slug: str, mission_branch: str) -> None:
+        self.mission_slug = mission_slug
+        self.mission_branch = mission_branch
+        super().__init__(
+            f"{PLANNING_CHECKOUT_MISSING}: no checkout holds the Mission branch {mission_branch} (the coordination branch) of "
+            f"Mission {mission_slug!r}, where its planning work is written until it lands. Restore the coordination worktree "
+            f"with {coordination_doctor_command(mission_slug)}, then retry."
+        )
+
+
+@dataclass(frozen=True)
+class PlanningLaneTarget:
+    """The planning lane's write branch and the checkout that holds it (#7860)."""
+
+    branch: str
+    checkout: Path
+    on_mission_branch: bool
+
+
+def _branch_exists(repo_root: Path, branch: str) -> bool:
+    from kernel.git import GitCommandError, run_git
+
+    try:
+        result = run_git(repo_root, "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}", check=False)
+    except GitCommandError as exc:
+        raise PlanningWriteRefUnavailable(branch, f"git could not read refs/heads/{branch} ({exc})") from exc
+    return result.returncode == 0
+
+
+def _mission_branch_carries_meta(repo_root: Path, mission_slug: str, branch: str) -> bool:
+    """Whether *branch* exists and tracks ``kitty-specs/<slug>/meta.json`` (fail closed on a git error)."""
+    from kernel.git import GitCommandError, tree_entry
+
+    if not _branch_exists(repo_root, branch):
+        return False
+    try:
+        return tree_entry(repo_root, branch, f"kitty-specs/{mission_slug}/meta.json") is not None
+    except GitCommandError as exc:
+        raise PlanningWriteRefUnavailable(mission_slug, f"git could not read {branch} ({exc})") from exc
+
+
+def planning_lane_write_ref(repo_root: Path, mission_slug: str, target_branch: str) -> PlanningWriteRef:
+    """:func:`mission_runtime.planning_write_ref`, plus the missing-``meta.json`` decision (#7860).
+
+    When the placement seam finds no PRIMARY ``meta.json``, either the checkout holding the
+    Mission branch is gone (the branch still carries ``meta.json``: raise
+    :class:`PlanningCheckoutMissing`) or the Mission is legacy and never had one (keep the
+    target, today's behaviour). No silent fallback: the first case refuses.
+    """
+    import mission_runtime
+
+    from specify_cli.core.paths import get_main_repo_root
+    from specify_cli.lanes.branch_naming import mission_branch_name
+
+    ref = mission_runtime.planning_write_ref(repo_root, mission_slug, target_branch)
+    if ref.meta_found:
+        return ref
+    main_root = get_main_repo_root(repo_root)
+    mission_branch = mission_branch_name(mission_slug)
+    if mission_branch != ref.branch and _mission_branch_carries_meta(main_root, mission_slug, mission_branch):
+        raise PlanningCheckoutMissing(mission_slug, mission_branch)
+    return ref
+
+
+def planning_lane_target(repo_root: Path, mission_slug: str, target_branch: str) -> PlanningLaneTarget:
+    """The planning lane's write branch and the checkout holding it: one answer for every surface (#7860).
+
+    A default Mission that has not landed writes on its Mission branch, in the checkout that
+    holds it (:func:`primary_partition_checkout`: the coordination worktree once settled, or the
+    repository root checkout while it still holds the branch). Every other Mission keeps the
+    repository root checkout. Owned checkouts are resolved by their own arm in
+    ``workspace.context`` and never reach this function.
+
+    Raises:
+        PlanningCheckoutMissing: the Mission branch is the write branch but no checkout holds it.
+        mission_runtime.PlanningWriteRefUnavailable: ``meta.json`` (or a git read) is unreadable.
+    """
+    from specify_cli.core.git_ops import get_current_branch
+    from specify_cli.core.paths import get_main_repo_root
+
+    ref = planning_lane_write_ref(repo_root, mission_slug, target_branch)
+    main_root = get_main_repo_root(repo_root)
+    if not ref.on_mission_branch:
+        return PlanningLaneTarget(branch=ref.branch, checkout=main_root, on_mission_branch=False)
+    holder = primary_partition_checkout(repo_root, mission_slug)
+    if holder is not None:
+        return PlanningLaneTarget(branch=ref.branch, checkout=holder, on_mission_branch=True)
+    if get_current_branch(main_root) == ref.branch:
+        return PlanningLaneTarget(branch=ref.branch, checkout=main_root, on_mission_branch=True)
+    raise PlanningCheckoutMissing(mission_slug, ref.branch)
 
 
 def planning_artifact_source_dir(repo_root: Path, feature_dir: Path, mission_slug: str) -> Path:

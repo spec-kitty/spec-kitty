@@ -113,6 +113,9 @@ __all__ = [
     # at all and fell back to a bare ``Exception`` catch.
     "IssueMatrixRefReadError",
     "PlacementSeam",
+    # #7860: the planning lane's write branch (one rule for workspace, claim base and evidence window).
+    "PlanningWriteRef",
+    "PlanningWriteRefUnavailable",
     # ResolvedSurface / SurfaceLocations / translate_surface: demoted -- the
     # stamped output, the input bundle, and the member->path translation of
     # ``resolve_artifact_surface`` are consumed as *instances* by src/ callers,
@@ -123,6 +126,7 @@ __all__ = [
     "declared_read_surface",
     "mission_context_for",
     "placement_seam",
+    "planning_write_ref",
     "read_issue_matrix_ref_content",
     "resolve_action_context",
     "resolve_artifact_surface",
@@ -1101,20 +1105,89 @@ def default_mission_primary_ref(topology_source: object, mission_branch: object,
     return fallback_ref
 
 
-def _default_mission_facts(primary_root: Path, mission_slug: str, *, resolver: MissionResolver | None = None) -> tuple[object, object, bool]:
-    """``(topology_source, mission_branch, landed)`` from the PRIMARY ``meta.json`` (non-raising)."""
-    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
+def _default_mission_facts_strict(primary_root: Path, mission_slug: str, *, resolver: MissionResolver | None = None) -> tuple[object, object, bool] | None:
+    """``(topology_source, mission_branch, landed)`` from the PRIMARY ``meta.json``, or ``None`` when it is absent.
+
+    Raises :class:`specify_cli.core.paths.MissionMetaReadError` when ``meta.json`` exists but
+    cannot be read. The one parser behind both :func:`_default_mission_facts` (placement,
+    non-raising) and :func:`planning_write_ref` (raising, #7860).
+    """
+    from specify_cli.core.paths import load_meta_fail_closed
 
     from .landing import mission_has_landed
 
     primary_dir = read_dir_for(primary_root, mission_slug, kind=MissionArtifactKind.PRIMARY_METADATA, resolver=resolver)
+    meta = load_meta_fail_closed(primary_dir)
+    if not meta:
+        return None
+    return meta.get("topology_source"), meta.get("mission_branch"), mission_has_landed(primary_dir)
+
+
+def _default_mission_facts(primary_root: Path, mission_slug: str, *, resolver: MissionResolver | None = None) -> tuple[object, object, bool]:
+    """``(topology_source, mission_branch, landed)`` from the PRIMARY ``meta.json`` (non-raising)."""
+    from specify_cli.core.paths import MissionMetaReadError
+
     try:
-        meta = load_meta_fail_closed(primary_dir)
+        facts = _default_mission_facts_strict(primary_root, mission_slug, resolver=resolver)
     except MissionMetaReadError:
         return None, None, False
-    if not meta:
-        return None, None, False
-    return meta.get("topology_source"), meta.get("mission_branch"), mission_has_landed(primary_dir)
+    return facts if facts is not None else (None, None, False)
+
+
+class PlanningWriteRefUnavailable(RuntimeError):
+    """The planning lane's write branch cannot be decided: the PRIMARY ``meta.json`` is unreadable (#7860, NFR-002)."""
+
+    def __init__(self, mission_slug: str, reason: str) -> None:
+        self.mission_slug = mission_slug
+        self.reason = reason
+        super().__init__(f"cannot decide the planning lane's write branch of Mission {mission_slug!r}: {reason}")
+
+
+@dataclass(frozen=True)
+class PlanningWriteRef:
+    """Where a Mission's planning lane writes (#7860, ADR 2026-11-06-3 Amendment 2026-11-25).
+
+    ``branch`` is the write branch. ``on_mission_branch`` is True when the default-Mission rule
+    (FR-061) put it on ``meta.mission_branch``: a ``topology_source: default`` Mission that has
+    not landed. ``landed`` is the one "landed" signal (:func:`mission_has_landed`, non-raising:
+    an unreadable landing record reads as not landed, so the caller keeps the Mission branch
+    and fails closed if that branch is gone). ``meta_found`` is False when the PRIMARY
+    ``meta.json`` is absent where the placement seam looked; the caller then decides between a
+    missing Mission-branch checkout and a legacy Mission (``coordination.planning_commit``).
+    """
+
+    branch: str
+    on_mission_branch: bool
+    landed: bool
+    meta_found: bool
+
+
+def planning_write_ref(repo_root: Path, mission_slug: str, target_branch: str, *, resolver: MissionResolver | None = None) -> PlanningWriteRef:
+    """The planning lane's write branch: one rule for the workspace, the claim base and the evidence window.
+
+    FR-061 extended to the planning lane (#7860): before a default Mission lands, its planning
+    lane writes to its Mission branch; otherwise to the write ref every Mission already uses
+    (:func:`resolve_single_branch_write_ref`: the minted Mission branch of a stored
+    ``single_branch`` Mission, else the target). Unlike the non-raising placement reader
+    :func:`_default_mission_facts`, an unreadable ``meta.json`` raises
+    :class:`PlanningWriteRefUnavailable` and never reads as "not a default Mission".
+
+    Consumers look this up at call time (``mission_runtime.planning_write_ref``) so one
+    monkeypatch reaches every use.
+    """
+    from specify_cli.core.paths import MissionMetaReadError, get_main_repo_root
+
+    try:
+        facts = _default_mission_facts_strict(get_main_repo_root(repo_root), mission_slug, resolver=resolver)
+    except MissionMetaReadError as exc:
+        raise PlanningWriteRefUnavailable(mission_slug, f"meta.json is unreadable ({exc})") from exc
+    fallback = resolve_single_branch_write_ref(repo_root, mission_slug, target_branch, resolver=resolver)
+    if facts is None:
+        return PlanningWriteRef(branch=fallback, on_mission_branch=False, landed=False, meta_found=False)
+    topology_source, mission_branch, landed = facts
+    branch = default_mission_primary_ref(topology_source, mission_branch, landed, fallback)
+    on_mission_branch = topology_source == "default" and not landed and isinstance(mission_branch, str) and bool(mission_branch)
+    return PlanningWriteRef(branch=branch, on_mission_branch=on_mission_branch, landed=landed, meta_found=True)
 
 
 def resolve_single_branch_write_ref(
