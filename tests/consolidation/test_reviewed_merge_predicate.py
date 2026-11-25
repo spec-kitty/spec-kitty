@@ -324,6 +324,24 @@ def test_own_stamps_are_the_newest_approval_of_approved_wps_only() -> None:
     assert own_approval_stamps(lane, work_packages, stamps) == ("s5", "s1")
 
 
+def test_own_stamps_carry_each_wp_s_presync_stamp_after_its_lane_head() -> None:
+    """#7802: the pre-sync stamp is an own reach anchor, right after its WP's ``lane_head`` stamp."""
+    from specify_cli.consolidation.reconciliation_authorship import own_approval_stamps
+
+    lane = ExecutionLane(
+        lane_id="lane-x",
+        wp_ids=("WP01", "WP02", "WP03"),
+        write_scope=("u",),
+        predicted_surfaces=("code",),
+        depends_on_lanes=(),
+        parallel_group=0,
+    )
+    work_packages = _wp_status(WP01="approved", WP02="done", WP03="canceled")
+    stamps: dict[str, str | None] = {"WP01": "h1", "WP02": None, "WP03": "h3"}
+    presync: dict[str, str | None] = {"WP01": "p1", "WP02": "p2", "WP03": "p3"}
+    assert own_approval_stamps(lane, work_packages, stamps, presync) == ("h1", "p1", "p2")
+
+
 # --- T010: the claim field ---------------------------------------------------------------------
 
 
