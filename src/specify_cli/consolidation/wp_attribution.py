@@ -667,7 +667,7 @@ def first_governed_open_stamp(events: Sequence[StatusEvent], wp_ids: frozenset[s
     """
     for event in events:
         if event.wp_id in wp_ids and not is_migration_event(event) and _classify(event.to_lane) is WindowKind.IMPLEMENTATION:
-            stamp = stamp_of(event)
+            stamp: str | None = stamp_of(event)
             if stamp is not None:
                 return stamp
     return None
