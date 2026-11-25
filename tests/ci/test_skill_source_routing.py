@@ -23,6 +23,7 @@ import yaml
 from scripts.ci.gate_selection import (
     ASSET_SURFACE_MODULE_FANOUT,
     DEFAULT_REGISTRY_PATH,
+    PACK_PIN_GLOB,
     load_router,
     out_of_matrix_test_paths,
     select_gates,
@@ -110,3 +111,21 @@ def test_group_is_non_src_and_wired() -> None:
 def test_a_neighbouring_path_does_not_match_the_group(path: str) -> None:
     """Negative controls: a glob matching everything cannot satisfy the positives vacuously."""
     assert GROUP not in select_gates([path], router=load_router()).matched_groups
+
+
+def test_a_built_in_pin_bump_runs_the_skill_tests() -> None:
+    """Review M1 on #7853: the command-skill snapshots in tests/specify_cli/skills render from
+    packs/built-in/missions/mission-steps/**, whose only in-repo signal is the pin lockfile.
+
+    The pin routes through the census-scoped ``mission_pack_content`` fan-out (the pin may trigger
+    only the PACK_CONTENT_SCOPES groups), so a pin bump must select a module that runs the tests.
+    """
+    assert select_modules([PACK_PIN_GLOB]) & _digest_test_owners()
+
+
+def test_asset_surface_fanout_key_set_is_pinned() -> None:
+    """Review N1 on #7853: no fan-out group joins this table silently."""
+    assert ASSET_SURFACE_MODULE_FANOUT == {
+        "upgrade_asset_surface": frozenset({"upgrade", "cli"}),
+        "skill_sources": frozenset({"cli"}),
+    }
