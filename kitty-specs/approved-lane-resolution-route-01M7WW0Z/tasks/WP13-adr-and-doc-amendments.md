@@ -216,9 +216,34 @@ This WP cannot own `kitty-specs/` paths. Record notes with `spec-kitty agent tas
 - `merge.renormalize=true`: the named refusal at consolidate is KEPT (operator ruling DM-01M8982NAYZYWKTG4ZQRAFCYRD), together with the probe pin. Document the refusal and its remedy in the ADR amendment and in the user docs.
 - Review-window semantics: an approved commit that lies only inside a canceled WP's review window is refused as `CONTESTED_COMMIT`. `--attest-canceled-superseded` lifts the refusal. This Mission keeps that behaviour (operator ruling DM-01M8982ZZ67KACF9KEQDD1SDZ2); a separate issue is filed. Document it as today's rule.
 - `--incorporate` is "at least as strict as consolidate", not exactly as strict. The only closed-world anchors are attestation stamps, and `planning_prefix=None`. Both choices fail toward refusal (WP08 review 3).
-- Usability gap: only `spec-kitty consolidate --attest-canceled-superseded` can record the attestation that `--incorporate` needs, and running it also starts a consolidation. Document the gap (WP08 cycle 3).
+- Usability gap: only `spec-kitty consolidate --attest-canceled-superseded` can record the attestation that `--incorporate` needs, and running it also starts a consolidation. Document the gap (WP08 cycle 3). A follow-up is filed as #7866.
 - Accepted behaviour change (WP06 review 1): a recorded tool merge dropped as unreviewed, carrying auto-resolved content, now gets the re-review hint. When only some items are covered, the scoped `--dependency-ref` sentence follows (WP06 cycle 2).
 - `contracts/stale-remedy.md` is superseded by main's #7754 reopen step (`move-task <WP> --to planned --review-feedback-file <file>`) and by WP07's `--incorporate` refresh line (scope ruling DM-01M88RZDBP57ZTYJHC5NP0ZH4R). Update the contract to match the landed text.
+
+## Further items to document (review rulings, 2026-11-25, second batch)
+
+ADR 2026-10-04-5 amendment:
+- `RESOLUTION_MERGE_UNREVIEWED` judges every merge a lane reaches through any parent, not only its first-parent spine (WP05 cycle 2). A merge on another bound lane's own spine is left to that lane.
+- Named sub-case: a merge inside a canceled WP's window is refused under the same code. Re-approval cannot lift it; the remedy is to rebuild the lane (reviewer ruling, WP05 review 1).
+- Asymmetry for one-side conflict resolutions (reviewer ruling, 2026-11-25):
+  - The gate's attribution axis treats a byte-for-byte one-side resolution as non-content (#7854/#7855 hotfix). A dropped approved change belongs to the presence axis: `APPROVED_CONTENT_MISSING`, pinned by `test_one_side_merge_dropping_an_approved_edit_fails_approved_content_missing`. By design (#5571) the presence axis judges only paths the landing side left alone; when the landing side also edited the path, the gate still FAILs, through the unattributable axis.
+  - The claim check refuses the same merge with `RESOLUTION_MERGE_UNREVIEWED`, naming it ("The merge kept one side of a conflicted path; the other side's change is dropped."), because it is an unreviewed resolution decision.
+  - The claim check is the stricter of the two and runs first, so the combined outcome fails closed.
+- Addendum 2 result: a forged auto-rebase record skips the claim-time refusal, but the gate still FAILs attribution and the target is restored (defence in depth).
+- The residual "content inside a merge commit" (`:174`) is closed for merges that carry their own non-bookkeeping content.
+
+ADR 2026-09-19-1 amendment and CLAUDE.md rollback paragraph:
+- Lanes are no longer purely "report-only". A lane is restored only from the run's own recorded and verified auto-rebase move: a 2-parent merge whose first parent is `before`, named by WP02's durable record. The restore is a compare-and-swap that refuses when a checkout is dirty. An unverified move is reported as `UNCHANGED_BY_RUN`; a probe error is reported as `NOT_RESTORED`.
+- New outcome `LANE_MOVED_SINCE_AUTO_REBASE`. It counts as OK for `fully_restored`, so `--abort` can finish, but it is not re-baselineable, so its record stays.
+- Residual: a rollback killed between a lane restore and saving the record leaves a stale entry. A second `--abort` clears it, and lane cleanup keeps the lane (fails closed).
+- Remove "lane auto-rebase merge commits" from the CLAUDE.md "survive a rollback" residual list.
+
+Stale remedy, #7861 and the orchestrator path (ADR and CLAUDE.md):
+- Replace the CLAUDE.md #7755 sentence (sibling branch "to `git merge`") with the `implement <WP> --mission <m> --incorporate <lane> --agent <agent>` route at the sibling's approval stamp (scope ruling DM-01M88RZDBP57ZTYJHC5NP0ZH4R).
+- Every printed `implement` line carries `--agent`.
+- #7861 / T050 reversal (operator ruling DM-01M89KDT5DZQ4DX6ZFX54HY3J3): REVIEW_CYCLE is a COORD-partition kind, so `move-task --to planned --review-feedback-file` now commits its evidence to the coordination branch on a protected-main coordination Mission. With no coordination surface it still fails closed.
+- The orchestrator-api `consolidate-mission` path has no rollback door. Lanes consolidated before a refusal stay on the Mission branch, and the re-run is `orchestrator-api consolidate-mission` (or the host `consolidate`). The shared stale text says rolling back "can" remove the change (WP09 review).
+- `--incorporate` attribute-source residuals (WP07 review): the attributes are read from the Mission branch tip, not the pre-run target tip. A Mission-branch move between that read and the merge only affects honouring an already-reviewed union.
 
 ## Review Guidance
 

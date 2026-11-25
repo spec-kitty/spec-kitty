@@ -1,7 +1,7 @@
 {
-  "event_count": 143,
-  "last_event_id": "01M8A3RGS186M9BBQTGW170DPJ",
-  "materialized_at": "2026-11-25T19:43:43.393771+00:00",
+  "event_count": 145,
+  "last_event_id": "01M8A3TR8NR7ZS6EAZXPHR26H7",
+  "materialized_at": "2026-11-25T19:44:55.730721+00:00",
   "mission_number": "",
   "mission_slug": "approved-lane-resolution-route-01M7WW0Z",
   "mission_type": "software-dev",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 3
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
@@ -548,11 +548,20 @@
       }
     },
     "WP12": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M7X14ZW7K8REBMF1WTH04WZC",
-      "last_transition_at": "2026-11-20T17:47:58.727333+00:00"
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M8A3TR8NR7ZS6EAZXPHR26H7",
+      "last_transition_at": "2026-11-25T19:44:55.730721+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 6293,
+      "shell_pid_created_at": "1795635915.73"
     },
     "WP13": {
       "actor": "finalize-tasks",

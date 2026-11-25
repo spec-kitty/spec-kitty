@@ -18,6 +18,9 @@ requirement_refs:
 planning_base_branch: fix/approved-lane-resolution-route
 merge_target_branch: fix/approved-lane-resolution-route
 branch_strategy: Planning artifacts for this mission were generated on fix/approved-lane-resolution-route. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/approved-lane-resolution-route unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-approved-lane-resolution-route-01M7WW0Z
+base_commit: 575530b0bfebba2bd27ee5d600bcdc35fef44182
+created_at: '2026-11-25T19:44:51.736770+00:00'
 subtasks:
 - T047
 - T048

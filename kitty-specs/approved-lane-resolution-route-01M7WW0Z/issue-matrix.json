@@ -419,6 +419,18 @@
       "title": null,
       "verdict": "not-applicable",
       "wp": null
+    },
+    "#7866": {
+      "evidence_ref": "Follow-up filed for the standalone canceled-superseded attestation usability gap. Outside #5604; WP13 documents the gap.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
     }
   },
   "schema_version": 1
