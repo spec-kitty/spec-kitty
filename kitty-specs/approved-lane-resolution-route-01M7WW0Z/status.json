@@ -129,7 +129,7 @@
     },
     "WP03": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -149,6 +149,7 @@
         "- 2026-11-25T18:42:51Z – claude::python-pedro – shell_pid=3682 – campsite fix (coordinator request): 1e6a09ba33 types state.py get_state_path / is_merge_locked locals as Path (baseline mypy no-any-return at state.py:501/:873, caused by follow_imports skip). mypy rollback.py+state.py: Success, 0 errors; ruff check + format clean; tests: test_rollback_own_lane_moves + test_rollback_authority + every test file referencing consolidation.state (105 files) at -n 3 loadfile -> 2201 passed 1 skipped 1 xfailed."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP03-rollback-own-lane-moves/review-cycle-1.md",
         "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP03-rollback-own-lane-moves/review-cycle-1.md",
@@ -156,14 +157,14 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 3682,
-      "shell_pid_created_at": "1795628157.42",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T018": "done",
-        "T019": "done",
-        "T020": "done",
-        "T021": "done",
-        "T022": "done"
+        "T018": "planned",
+        "T019": "planned",
+        "T020": "planned",
+        "T021": "planned",
+        "T022": "planned"
       }
     },
     "WP04": {
