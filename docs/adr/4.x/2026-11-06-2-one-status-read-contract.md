@@ -286,7 +286,7 @@ not make the answer right.
 
 *Accepted with the ADR (operator ruling 2026-11-25, [PR #7840](https://github.com/spec-kitty/spec-kitty/pull/7840#issuecomment-7155130353)).*
 
-**Deciders:** Stijn Dejongh (operator). Accepted by merging the pull request that carries it.
+**Deciders:** Stijn Dejongh (operator).
 **Technical Story:** [#7408](https://github.com/spec-kitty/spec-kitty/issues/7408) (S5 of epic
 [#3893](https://github.com/spec-kitty/spec-kitty/issues/3893)),
 [#7310](https://github.com/spec-kitty/spec-kitty/issues/7310) (the deferred FR-005/FR-006 of Mission
@@ -419,9 +419,11 @@ command closed instead of rendering an empty board), the canceled-set read of
 warning of `workflow_executor`. `tests/status/test_status_readers_cross_cwd_parity.py` carries
 `agent tasks status` in its matrix.
 
-## Amendment 2026-11-11: owned coordination checkouts, read vs dispatch
+## Amendment 2026-11-11 (Accepted): owned coordination checkouts, read vs dispatch
 
-**Deciders:** Stijn Dejongh (operator). Accepted by merging the pull request that carries it.
+*Accepted with the ADR (operator acceptance 2026-11-24, [PR #7840](https://github.com/spec-kitty/spec-kitty/pull/7840#issuecomment-7139051264)), which this amendment predates.*
+
+**Deciders:** Stijn Dejongh (operator).
 **Technical Story:** Mission `runtime-status-read-door-01M73HHB` (FR-007, FR-012), Decision Moment
 `01M73HKG7WSR4VDRFXG9JWTGM8` (DM-1). The body and the 2026-11-08 amendment above are kept as written.
 
@@ -450,7 +452,9 @@ refuses for it. The code is raised by `mission_runtime.resolution._resolve_statu
 (an empty owned coordination worktree) and mapped to the typed `blocked` decision by
 `runtime.next.runtime_bridge._owned_coordination_unavailable_decision`.
 
-## Amendment 2026-11-20: a remote-only branch is a typed refusal (#5287)
+## Amendment 2026-11-20 (Accepted): a remote-only branch is a typed refusal (#5287)
+
+*Accepted with the ADR (operator acceptance 2026-11-24, [PR #7840](https://github.com/spec-kitty/spec-kitty/pull/7840#issuecomment-7139051264)), which this amendment predates.*
 
 The ref reader rule above gains one case. When a ref-sourced read (`COORD_BRANCH_REF` or
 `MISSION_BRANCH_REF`) fails and the branch has no local head (`refs/heads/<branch>` does not
