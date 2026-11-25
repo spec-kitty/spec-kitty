@@ -20,7 +20,7 @@
   "work_packages": {
     "WP01": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -35,6 +35,7 @@
         "WP01 ready: planning_write_ref + planning_lane_target + ADR 2026-11-06-3 amendment (Proposed)"
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/planning-lane-write-branch-01M8A725-coord/kitty-specs/planning-lane-write-branch-01M8A725/tasks/WP01-planning-write-ref/review-cycle-1.md",
         "reference": "review-cycle://planning-lane-write-branch-01M8A725/WP01-planning-write-ref/review-cycle-1.md",
@@ -42,13 +43,13 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 14091,
-      "shell_pid_created_at": "1795643670.4",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done"
+        "T001": "planned",
+        "T002": "planned",
+        "T003": "planned",
+        "T004": "planned"
       }
     },
     "WP02": {
