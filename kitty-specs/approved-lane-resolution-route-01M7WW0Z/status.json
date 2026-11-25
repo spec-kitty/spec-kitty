@@ -560,8 +560,8 @@
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
-      "shell_pid": 3159,
-      "shell_pid_created_at": "1795635853.73"
+      "shell_pid": 6293,
+      "shell_pid_created_at": "1795635915.73"
     },
     "WP13": {
       "actor": "finalize-tasks",
