@@ -106,7 +106,8 @@
         "- 2026-11-20T19:36:00Z – unknown – Cycle 2 tests: tests/lanes/test_auto_rebase_record.py 36 passed; targeted set + arch gates (merge_pipeline_ratchets, destructive_op_routing, git_path_listing_owner, layer_rules, no_dead_symbols) 412 passed; make test-fast 3144 passed, 7 skipped; ruff check, C901, ruff format --check --force-exclude, mypy (3 src files) clean.",
         "Cycle 2: dead-symbol gate green (narrowed __all__, internal ref helpers); record bound to the tool-staged tree in both commit paths, hook-altered merges undone and unrecorded; real pre-commit hook tests on both shapes.",
         "review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
-        "APPROVE cycle 2 (2ba0c493): review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner"
+        "APPROVE cycle 2 (2ba0c493): review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
+        "Rebase onto 753fd3a9 rewrote lane-b; re-approval loop for the new head 37fecdf47e (operator ruling)"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
