@@ -4,7 +4,7 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: approved-lane-resolution-route-01M7WW0Z
 mission_id: 01M7WW0ZHE3JCZ0KW6RP8X34G4
-generated_at: '2026-11-20T20:27:50.174832+00:00'
+generated_at: '2026-11-25T09:22:28.094644+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
@@ -22,9 +22,9 @@ input_artifacts:
 verdict: ready
 issue_counts:
   medium: 0
+  high: 0
   low: 2
   critical: 0
-  high: 0
   info: 0
 findings:
 - id: A12
@@ -109,3 +109,9 @@ Third pass, after remediation commit 4c8c0ab and the reviewer-accepted task refi
 - Critical issues: 0.
 
 **Next actions:** proceed to implementation. Recheck A12 at accept time.
+
+## Addendum 2026-11-25 (post-rebase deltas)
+
+- WP05 binding addendum item 5: the claim-time check passes pre-sync stamps through WP04's `own_approval_stamps`, the same definition the gate uses after main's #7802. This adds no new requirement: it is the FR-004 shared-predicate rule applied to the rebased reader.
+- WP13 residuals: a superseded lane's records are cleared while its lane-tip ref is kept. This fails closed. Documentation only.
+- No change to the spec, plan or FR set. The coverage matrix is unchanged.
