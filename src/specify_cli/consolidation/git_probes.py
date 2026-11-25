@@ -33,6 +33,7 @@ from kernel.git import (
     status_entries,
     tree_entry,
 )
+from kernel.git.read_cache import cached_object_read
 from specify_cli.cli.console import console
 from specify_cli.coordination.coherence import CheckoutRole, ResidueContext
 from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
@@ -422,6 +423,11 @@ class MergeDriverFailedError(GitProbeError):
     """
 
 
+def _probe_key(name: str) -> tuple[str, str]:
+    """The read cache key of one commit-id probe (#7848); the ids themselves are its ``revs``."""
+    return ("git_probes", name)
+
+
 def sha_reachable_from(repo_root: Path, sha: str, ref: str) -> bool:
     """Return True iff *sha* is an ancestor of (reachable from) *ref*.
 
@@ -432,13 +438,19 @@ def sha_reachable_from(repo_root: Path, sha: str, ref: str) -> bool:
     """
     if not sha:
         return False
-    ret, _out, _err = run_command(
-        ["git", "merge-base", "--is-ancestor", sha, ref],
-        capture=True,
-        check_return=False,
-        cwd=repo_root,
-    )
-    return bool(ret == 0)
+
+    def read() -> int:
+        ret, _out, _err = run_command(
+            ["git", "merge-base", "--is-ancestor", sha, ref],
+            capture=True,
+            check_return=False,
+            cwd=repo_root,
+        )
+        return int(ret)
+
+    # Inside a consolidate run a definite answer about two commit ids is read once (#7848);
+    # an error (neither 0 nor 1) is asked again.
+    return cached_object_read(repo_root, (sha, ref), _probe_key("is-ancestor"), read, store_if=lambda code: code in (0, 1)) == 0
 
 
 def commit_in_clone(repo_root: Path, sha: str) -> bool:
@@ -529,16 +541,21 @@ def resolve_commit(repo_root: Path, ref: str) -> str:
     needs a reference frozen before a run mutates anything (the approved-bound anchors)
     resolves it here once; a branch name would move with the run.
     """
-    ret, out, err = run_command(
-        ["git", "rev-parse", "--verify", f"{ref}^{{commit}}"],
-        capture=True,
-        check_return=False,
-        cwd=repo_root,
-    )
-    sha = (out or "").strip()
-    if ret != 0 or not sha:
-        raise GitProbeError(f"git rev-parse --verify {ref}^{{commit}} failed (exit {ret}): {(err or '').strip()}")
-    return sha
+
+    def read() -> str:
+        ret, out, err = run_command(
+            ["git", "rev-parse", "--verify", f"{ref}^{{commit}}"],
+            capture=True,
+            check_return=False,
+            cwd=repo_root,
+        )
+        sha = (out or "").strip()
+        if ret != 0 or not sha:
+            raise GitProbeError(f"git rev-parse --verify {ref}^{{commit}} failed (exit {ret}): {(err or '').strip()}")
+        return sha
+
+    # Only a commit id is read once per run (#7848); a branch name is resolved every time.
+    return cached_object_read(repo_root, (ref,), _probe_key("resolve-commit"), read)
 
 
 def commits_in_range(repo_root: Path, base: str, tip: str) -> list[str]:
@@ -552,15 +569,19 @@ def commits_in_range(repo_root: Path, base: str, tip: str) -> list[str]:
     claim translate that into a REFUSE-shaped claim; the verifier translates it
     into a REFUSE result — never a vacuous PASS.
     """
-    ret, out, err = run_command(
-        ["git", "rev-list", f"{base}..{tip}"],
-        capture=True,
-        check_return=False,
-        cwd=repo_root,
-    )
-    if ret != 0:
-        raise GitProbeError(f"git rev-list {base}..{tip} failed (exit {ret}): {(err or '').strip()}")
-    return [line for line in out.splitlines() if line.strip()]
+
+    def read() -> tuple[str, ...]:
+        ret, out, err = run_command(
+            ["git", "rev-list", f"{base}..{tip}"],
+            capture=True,
+            check_return=False,
+            cwd=repo_root,
+        )
+        if ret != 0:
+            raise GitProbeError(f"git rev-list {base}..{tip} failed (exit {ret}): {(err or '').strip()}")
+        return tuple(line for line in out.splitlines() if line.strip())
+
+    return list(cached_object_read(repo_root, (base, tip), _probe_key("range"), read))
 
 
 def patch_id_of(repo_root: Path, sha: str) -> str:
@@ -804,18 +825,22 @@ def commit_parents(repo_root: Path, sha: str) -> list[str]:
     one, a merge two or more. Raises :class:`GitProbeError` on any git error (an unresolvable
     *sha*, a corrupt object store, ...); an error is never read as "no parents".
     """
-    ret, out, err = run_command(
-        ["git", "rev-list", "--parents", "-n1", sha],
-        capture=True,
-        check_return=False,
-        cwd=repo_root,
-    )
-    if ret != 0:
-        raise GitProbeError(f"git rev-list --parents -n1 {sha} failed (exit {ret}): {(err or '').strip()}")
-    tokens = (out or "").split()
-    if not tokens:
-        raise GitProbeError(f"git rev-list --parents -n1 {sha} produced no output")
-    return tokens[1:]
+
+    def read() -> tuple[str, ...]:
+        ret, out, err = run_command(
+            ["git", "rev-list", "--parents", "-n1", sha],
+            capture=True,
+            check_return=False,
+            cwd=repo_root,
+        )
+        if ret != 0:
+            raise GitProbeError(f"git rev-list --parents -n1 {sha} failed (exit {ret}): {(err or '').strip()}")
+        tokens = (out or "").split()
+        if not tokens:
+            raise GitProbeError(f"git rev-list --parents -n1 {sha} produced no output")
+        return tuple(tokens[1:])
+
+    return list(cached_object_read(repo_root, (sha,), _probe_key("parents"), read))
 
 
 def is_merge_commit(repo_root: Path, sha: str) -> bool:

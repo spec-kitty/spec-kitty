@@ -221,4 +221,8 @@ def test_git_common_dir_is_read_once_per_checkout(repo: Path, tmp_path: Path, sp
         linked_dir = _no_spawn_on_repeat(spawns, lambda: _git_common_dir(linked))
     assert main_dir is not None and linked_dir is not None
     assert Path(str(main_dir)).resolve() == Path(str(linked_dir)).resolve() == (repo / ".git").resolve()
-    assert _git_common_dir(tmp_path / "nowhere") is None
+    plain = tmp_path / "plain"
+    plain.mkdir()
+    with git_read_cache_scope():
+        assert _git_common_dir(plain) is None, "outside a repository there is no common dir, and none is kept"
+        assert _git_common_dir(plain) is None

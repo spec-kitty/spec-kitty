@@ -98,8 +98,16 @@ _MAX_SYMREF_DEPTH = 5
 _COMMON_FILES = ("HEAD", "packed-refs", "config", "config.worktree", "shallow", "reftable/tables.list")
 
 #: Files that rewrite the commit graph git presents for an object id (plus the
-#: ``refs/replace/`` tree and ``packed-refs``, which can hold replace refs).
-_HISTORY_FILES = ("shallow", "info/grafts", "packed-refs")
+#: ``refs/replace/`` tree): ``packed-refs`` and the reftable stack can hold
+#: replace refs, and ``config`` carries ``core.useReplaceRefs``. A reftable
+#: repository never reaches a fingerprint (:func:`_uses_reftable`); its stack
+#: file is listed as a backstop.
+_HISTORY_FILES = ("shallow", "info/grafts", "packed-refs", "reftable/tables.list", "config")
+
+#: Environment variables that change which commit graph git presents for an
+#: object id, through state the history fingerprint does not read. With any of
+#: them set, an object read steps aside.
+_HISTORY_ENV = ("GIT_REPLACE_REF_BASE", "GIT_NO_REPLACE_OBJECTS", "GIT_GRAFT_FILE", "GIT_SHALLOW_FILE")
 
 #: A full SHA-1 or SHA-256 object id, as git prints it.
 _OBJECT_ID_RE = re.compile(r"\A(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
@@ -182,7 +190,12 @@ def git_read_cache_active() -> bool:
 
 
 def is_object_id(text: str) -> bool:
-    """A full, lowercase SHA-1 or SHA-256 object id (never a ref name, an abbreviation or ``^id``)."""
+    """A full, lowercase SHA-1 or SHA-256 object id (never a ref name, an abbreviation or ``^id``).
+
+    Judged by shape alone: in a SHA-256 repository git would read a 40-hex string as an
+    abbreviation. Callers pass ids git itself printed, which are full ids of the repository's
+    own object format.
+    """
     return _OBJECT_ID_RE.match(text) is not None
 
 
@@ -261,7 +274,10 @@ def cached_object_read(
     object later. *key* must include every other argument that shapes the answer. The
     entry stays valid until something rewrites the commit graph (:data:`HISTORY`).
     """
-    if not revs or not all(is_object_id(rev) for rev in revs):
+    if not revs or not all(is_object_id(rev) for rev in revs) or _env_has(env, _HISTORY_ENV):
+        if (scope := _ACTIVE.get()) is not None:
+            with scope.lock:
+                scope.stats.bypassed += 1
         return compute()
     return cached_git_read(cwd, ("objects", revs, key), compute, depends=HISTORY, env=env, store_if=store_if)
 
@@ -271,8 +287,12 @@ def cached_object_read(
 # ---------------------------------------------------------------------------
 
 
+def _env_has(env: Mapping[str, str] | None, names: tuple[str, ...]) -> bool:
+    return any((env or {}).get(name) for name in names) or any(os.environ.get(name) for name in names)
+
+
 def _redirects(env: Mapping[str, str] | None) -> bool:
-    return any((env or {}).get(name) for name in _REDIRECTING_ENV) or any(os.environ.get(name) for name in _REDIRECTING_ENV)
+    return _env_has(env, _REDIRECTING_ENV)
 
 
 def _locate(cwd: Path) -> _Repo | None:

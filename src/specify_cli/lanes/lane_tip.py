@@ -22,6 +22,7 @@ import fnmatch
 import subprocess
 from collections.abc import Callable, Hashable, Mapping, Sequence
 from pathlib import Path, PurePosixPath
+from types import MappingProxyType
 from typing import TypeVar
 
 from kernel.git import GitCommandError, GitPath, changed_paths, merge_tree, run_git, subtree_entries, tree_entry, tree_paths
@@ -341,7 +342,7 @@ def _subtree_oids(repo_root: Path, rev: str, scope: str) -> Mapping[str, str]:
     """Every entry at or under ``scope`` in commit ``rev``: path to object id (blobs and trees)."""
 
     def read() -> Mapping[str, str]:
-        return {str(entry.path): entry.oid for entry in subtree_entries(repo_root, rev, scope)}
+        return MappingProxyType({str(entry.path): entry.oid for entry in subtree_entries(repo_root, rev, scope)})
 
     return _by_objects(repo_root, (rev,), ("subtree", scope), read)
 
@@ -503,6 +504,20 @@ def is_ancestor(repo_root: Path, tip: str, landing_ref: str) -> bool:
     return returncode == 0
 
 
+def _pinned(repo_root: Path, landing_ref: str) -> str:
+    """Inside a consolidate run, the commit a landing ref name points at now; else ``landing_ref`` unchanged.
+
+    Lane cleanup hands the proof ``refs/heads/<target>`` (#7848): pinned once, every read of the
+    proof is keyed on one commit id, so the run's read cache can answer its repeats, and the whole
+    proof judges one commit even if the ref moves while it runs. Raises
+    :class:`~kernel.git.GitCommandError` when the ref does not name a commit.
+    """
+    if not git_read_cache_active() or is_object_id(landing_ref):
+        return landing_ref
+    resolved = run_git(repo_root, "rev-parse", "--verify", "--end-of-options", f"{landing_ref}^{{commit}}")
+    return resolved.stdout.decode("utf-8", "replace").strip()
+
+
 def is_absorbed_but_for_mission_bookkeeping(repo_root: Path, tip: str, landing_ref: str, mission_slug: str) -> bool:
     """Return True iff no lane content is lost when the lane at ``tip`` goes, given ``landing_ref``.
 
@@ -531,6 +546,7 @@ def is_absorbed_but_for_mission_bookkeeping(repo_root: Path, tip: str, landing_r
     whose lines a later lane rewrote is proven by :func:`is_landed_through_mission_branch` instead.
     """
     try:
+        landing_ref = _pinned(repo_root, landing_ref)
         if is_ancestor(repo_root, tip, landing_ref):
             return True
         if not _product_absorbed(repo_root, tip, landing_ref):
