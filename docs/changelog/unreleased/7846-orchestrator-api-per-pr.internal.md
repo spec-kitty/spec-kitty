@@ -1,1 +1,1 @@
-- **A change to `src/specify_cli/orchestrator_api/**` or to the finalize-tasks payload runs `tests/specify_cli/orchestrator_api` and `tests/orchestrator_api` in the `execution_context` module shard on its pull request** (#7846).
+- **A change to `src/specify_cli/orchestrator_api/**` or to the finalize-tasks payload runs `tests/specify_cli/orchestrator_api` in the `execution_context` module shard on its pull request** (#7846).

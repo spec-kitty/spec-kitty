@@ -613,16 +613,17 @@ modules:
   # cli/commands/agent, status and acceptance; ~23 s serial (94 tests). Untimed node ids
   # take the module median until the nightly recapture records them.
   - tests/characterization
-  # #7846: both orchestrator-api test trees promoted from out_of_matrix_test_dirs
+  # #7846: tests/specify_cli/orchestrator_api promoted from out_of_matrix_test_dirs
   # (nightly-only). #7809 added a finalize-tasks JSON key that the orchestrator-api `tasks`
-  # verb passes through; the key-set pin in tests/specify_cli/orchestrator_api ran only in
-  # the nightly, so main went red there (#7829/#7835) and blocked the RC9 cut. This row
-  # roots both src/specify_cli/orchestrator_api/** and the finalize-tasks source
-  # (src/specify_cli/cli/commands/agent/**). The root-level mirror tests/orchestrator_api
-  # (the consolidate-mission and destructive-op guard envelopes) exercises the same src
-  # package, so it moves with it. Pinned by tests/ci/test_orchestrator_api_routing.py.
+  # verb passes through; the key-set pin in this tree ran only in the nightly, so main went
+  # red there (#7829/#7835) and blocked the RC9 cut. This row is the only one that roots both
+  # src/specify_cli/orchestrator_api/** and the finalize-tasks source that builds every key of
+  # that payload (src/specify_cli/cli/commands/agent/**). Residual: a change elsewhere that
+  # alters only payload VALUES (design/**, core/wps_manifest.py, lanes/**) does not select this
+  # row; the pin checks keys. The root-level mirror tests/orchestrator_api stays out of the
+  # matrix (691 s serial locally for 87 tests, consolidate-mission envelopes): #7869.
+  # Pinned by tests/architectural/test_orchestrator_api_per_pr_claim.py.
   - tests/specify_cli/orchestrator_api
-  - tests/orchestrator_api
 - module: core_misc
   roots:
   - src/kernel/**
@@ -756,7 +757,7 @@ modules:
   # (same precedent as the bootstrap/config/live_work enrolments above).
   - tests/specify_cli/workspace
   # governed planning (#5846): the specify_cli.design package's own tests. They
-  # lived under the out-of-matrix tests/specify_cli/orchestrator_api tree, which
+  # lived under the then out-of-matrix tests/specify_cli/orchestrator_api tree, which
   # left the new package in_matrix_dark (a shrink-only baseline). No row roots
   # src/specify_cli/design/**; this row's `specify_cli` cov_target covers it, so
   # the tree is enrolled here for per-PR execution (same precedent as above).
@@ -1116,6 +1117,21 @@ out_of_matrix_test_dirs:
   - tests/specify_cli/shims
   - tests/specify_cli/tasks
   - tests/specify_cli/test_cli
+
+- reason: >-
+    Root-level mirror of tests/specify_cli/orchestrator_api (that tree runs per PR in the
+    execution_context row since #7846). Added by the merge-destructive-op-safety mission
+    (#4752/#4753/#4754) to hold the orchestrator-api consolidate-mission and accept-mission
+    envelope and destructive-op guard regressions (test_merge_mission_destructive_refusal.py,
+    test_worktree_cleanup_guard.py, test_consolidate_mission_*.py). Kept out of the per-PR
+    matrix for cost: 87 tests take 691 s serial locally (three lane-evidence cases about
+    150-180 s each), against 681 s for the whole execution_context row, and their real
+    dependencies (consolidation/**, lanes/**) do not select that row. The primary
+    #4752/#4753 guard behavior runs per PR via tests/consolidation and tests/coordination
+    (and nightly via tests/integration); this tree runs in the full/nightly run
+    (make test-full / ci-nightly.yml). A per-PR home is tracked by #7869.
+  dirs:
+  - tests/orchestrator_api
 
 - reason: >-
     Nightly home is ci-nightly.yml's `integration-next-shard-<N>` jobs (#7456: the
