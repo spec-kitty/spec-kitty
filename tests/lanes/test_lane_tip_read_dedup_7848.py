@@ -25,6 +25,7 @@ from kernel.git.read_cache import git_read_cache_scope
 from specify_cli.lanes import lane_tip
 from specify_cli.lanes.lane_tip import is_absorbed_but_for_mission_bookkeeping
 from tests.lanes.landed_mission_support import (
+    _COORD,
     _LOG,
     _MD,
     _META,
@@ -273,3 +274,30 @@ def test_the_landing_ref_pin_runs_on_the_oldest_supported_git(landed: Landed) ->
     pins = [args for args in seen if args[:1] == ("rev-parse",)]
     assert pins, "the landing ref is pinned inside a run"
     assert all("--end-of-options" not in args for args in pins)
+
+
+def _pins_seen(run: Callable[[], object]) -> list[tuple[str, ...]]:
+    seen: list[tuple[str, ...]] = []
+    real = lane_tip.run_git
+
+    def recording(cwd: Path, *args: str, **kwargs: Any) -> Any:
+        seen.append(args)
+        return real(cwd, *args, **kwargs)
+
+    with mock.patch.object(lane_tip, "run_git", recording):
+        run()
+    return [args for args in seen if args[:2] == ("rev-parse", "--verify")]
+
+
+def test_both_proofs_pin_a_ref_name_outside_a_run_too(landed: Landed) -> None:
+    """#7848 review: one proof judges one commit whether or not a cache scope is open."""
+    content = _pins_seen(lambda: _proof(landed, _TARGET))
+    assert content == [("rev-parse", "--verify", f"{_TARGET}^{{commit}}")]
+    through = _pins_seen(lambda: lane_tip.is_landed_through_mission_branch(landed.root, landed.tip(), _COORD, _TARGET, _SLUG, approved_tips=(landed.tip(),)))
+    assert ("rev-parse", "--verify", f"{_COORD}^{{commit}}") in through
+    assert ("rev-parse", "--verify", f"{_TARGET}^{{commit}}") in through
+
+
+def test_a_commit_id_is_never_pinned_again(landed: Landed) -> None:
+    landing = _landing_sha(landed)
+    assert _pins_seen(lambda: _proof(landed, landing)) == []

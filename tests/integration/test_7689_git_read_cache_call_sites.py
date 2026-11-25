@@ -282,3 +282,14 @@ def test_configured_remotes_is_read_per_checkout(repo: Path, tmp_path: Path) -> 
         assert configured_remotes(repo) == []
         assert configured_remotes(linked) == ["linked"]
         assert configured_remotes(repo) == []
+
+
+def test_a_failed_remote_tracking_probe_is_asked_again(repo: Path) -> None:
+    """#7848 review: like the coordination-ref probe, only a definite answer (exit 0 or 1) is kept."""
+    from specify_cli.coordination import policy
+
+    failed = subprocess.CompletedProcess(args=["git"], returncode=128, stdout="", stderr="boom")
+    with mock.patch.object(policy.subprocess, "run", return_value=failed) as run, git_read_cache_scope():
+        assert policy._remote_tracking_branch_exists(repo, "origin/side") is False
+        assert policy._remote_tracking_branch_exists(repo, "origin/side") is False
+    assert run.call_count == 2
