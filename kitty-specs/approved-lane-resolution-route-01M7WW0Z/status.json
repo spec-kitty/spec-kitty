@@ -187,7 +187,7 @@
     },
     "WP05": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -211,6 +211,7 @@
         "- 2026-11-25T11:10:59Z – claude::python-pedro – shell_pid=11493 – fold (coordinator, reviewer ruling on WP08: no private cross-module imports): cherry-picked -x c1c4c7a9b6 (wp_windows/window_stamps public) with the incorporate.py hunk dropped (WP08-only file absent on lane-e) and -x 93aa2771d0 (identical one-line mypy annotation in wp_attribution); leeway on WP01 files: git_probes._paths_changed_against_parents -> paths_changed_against_parents, merge_attribute_guard._check_attr -> check_merge_attributes (exported, pure rename); approved_bound enumerates through core.git_ops.run_command (mypy attr-defined on git_probes' unexported binding); mypy fixes in test_reviewed_merge_predicate (Callable annotation) and test_wp_attribution (is_merge_commit from git_probes). No behaviour change; WP05 stays for_review."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP05-resolution-merge-unreviewed/review-cycle-1.md",
         "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP05-resolution-merge-unreviewed/review-cycle-1.md",
@@ -218,15 +219,15 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 11493,
-      "shell_pid_created_at": "1795599577.25",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T023": "done",
-        "T024": "done",
-        "T025": "done",
-        "T026": "done",
-        "T027": "done",
-        "T028": "done"
+        "T023": "planned",
+        "T024": "planned",
+        "T025": "planned",
+        "T026": "planned",
+        "T027": "planned",
+        "T028": "planned"
       }
     },
     "WP06": {
