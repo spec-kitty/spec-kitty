@@ -1384,13 +1384,18 @@ def test_pre_fix_naive_commit_router_gating_crashes_on_protected_target_branch(
     )
 
 
-def test_protected_target_branch_retains_evidence_but_refuses_automatic_success(
+def test_protected_primary_flag_still_routes_the_review_cycle_through_the_router(
     tmp_path: Path,
 ) -> None:
-    """T050 green: the FIXED ``_persist_approved_review_cycle`` (this diff)
-    consults ``skip_target_branch_commit`` and passes ``commit_router=None``
-    instead of attempting -- and crashing on -- the protected-branch commit.
-    Both the approval and rejection call sites are exercised.
+    """#7861 (operator ruling DM-01M89KDT5DZQ4DX6ZFX54HY3J3), reversing T050's gate.
+
+    ``skip_target_branch_commit`` (a protected primary under coordination
+    topology) is the WP-file flag; it no longer suppresses the review-cycle
+    commit, because REVIEW_CYCLE is a COORD-partition kind the router commits
+    to the coordination branch. The commit is therefore ATTEMPTED through the
+    router on both call sites; a router that refuses still yields a typed,
+    non-durable failure with the evidence retained (fail closed, never a
+    silent success). Both the approval and rejection call sites are exercised.
     """
     repo = tmp_path
     _init_repo(repo)
@@ -1417,13 +1422,10 @@ def test_protected_target_branch_retains_evidence_but_refuses_automatic_success(
         _tvp._persist_approved_review_cycle(st, ports)
     signal = failure.value.signal
 
-    assert router.artifact_calls == [], (
-        "commit_artifact was invoked despite skip_target_branch_commit=True -- "
-        "the protected-branch attempt should never happen"
-    )
+    assert len(router.artifact_calls) == 1, "the review-cycle commit goes through the router (its placement decides the branch)"
     assert signal is not None
     assert signal.durably_persisted is False
-    assert signal.skip_reason == _tvp._DURABILITY_REASON_PROTECTED_TARGET_BRANCH
+    assert signal.skip_reason != _tvp._DURABILITY_REASON_PROTECTED_TARGET_BRANCH
 
     wp_dir = _wp_dir(repo)
     artifact = wp_dir / "review-cycle-2.md"
@@ -1453,9 +1455,9 @@ def test_protected_target_branch_retains_evidence_but_refuses_automatic_success(
     with pytest.raises(_tvp.VerdictPersistenceFailure) as failure2:
         _tvp.persist_rejected_review_cycle_for_rollback(st2, ports2)
     signal2 = failure2.value.signal
-    assert router2.artifact_calls == []
+    assert len(router2.artifact_calls) == 1
     assert signal2.durably_persisted is False
-    assert signal2.skip_reason == _tvp._DURABILITY_REASON_PROTECTED_TARGET_BRANCH
+    assert signal2.skip_reason != _tvp._DURABILITY_REASON_PROTECTED_TARGET_BRANCH
 
 
 # ---------------------------------------------------------------------------

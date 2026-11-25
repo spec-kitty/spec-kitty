@@ -10,6 +10,7 @@ lane through auto-rebase.
 from __future__ import annotations
 
 import ast
+import re
 import subprocess
 from pathlib import Path
 
@@ -26,6 +27,8 @@ MISSION_SLUG = "stale-remedy"
 COORD_BRANCH = f"kitty/mission-{MISSION_SLUG}"
 LANE_BRANCH = f"kitty/mission-{MISSION_SLUG}-lane-a"
 REENTRY_COMMAND = f"spec-kitty agent action implement WP01 --mission {MISSION_SLUG}"
+#: The re-entry line as printed: ``implement`` refuses to start or resume without ``--agent`` (#7861 ruling).
+PRINTED_REENTRY = f"{REENTRY_COMMAND} --agent <agent>"
 WORKFLOW_EXECUTOR = Path(__file__).resolve().parents[2] / "src" / "specify_cli" / "cli" / "commands" / "agent" / "workflow_executor.py"
 
 
@@ -147,7 +150,7 @@ _NO_SIBLING_TEXT = (
     f"Lane lane-a must incorporate changes from {COORD_BRANCH} before it is consolidated. "
     "The lane's work package is approved and `spec-kitty agent action implement` refuses an approved work package, "
     f"so reopen it first (this costs a re-review): spec-kitty agent tasks move-task WP01 --to planned --review-feedback-file <file> --mission {MISSION_SLUG}. "
-    f"Then re-enter it with {REENTRY_COMMAND}, which refreshes the lane through auto-rebase; if the auto-rebase stops on a conflict, "
+    f"Then re-enter it with {PRINTED_REENTRY}, which refreshes the lane through auto-rebase; if the auto-rebase stops on a conflict, "
     "resolve it in the lane checkout the command names and commit there. "
     f"Then hand the lane's work back for review; once it is approved again, re-run: spec-kitty consolidate --mission {MISSION_SLUG}"
 )
@@ -183,3 +186,14 @@ def test_planning_lane_text_is_unchanged_by_a_sibling(tmp_path: Path) -> None:
     )
     sibling = (SiblingLane("lane-a", LANE_BRANCH),)
     assert _stale_remediation(planning, "main", COORD_BRANCH, mission_slug=MISSION_SLUG, sibling_lanes=sibling) == expected
+
+
+def test_every_printed_implement_line_names_the_agent(tmp_path: Path) -> None:
+    """#7861 ruling item 4: each printed ``agent action implement`` line carries ``--agent <agent>``, so it runs as printed."""
+    repo, _worktree = _stale_repo(tmp_path)
+
+    result = check_lane_staleness(_lane(), LANE_BRANCH, COORD_BRANCH, repo, mission_slug=MISSION_SLUG)
+
+    assert result.remediation is not None
+    implement_lines = re.findall(r"spec-kitty agent action implement [^\s,]+ --mission [^\s,]+(?: --[a-z-]+ [^\s,]+)*", result.remediation)
+    assert implement_lines == [PRINTED_REENTRY], result.remediation

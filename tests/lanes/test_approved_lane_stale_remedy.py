@@ -504,6 +504,66 @@ def _assert_no_approved_refusal(result: subprocess.CompletedProcess[str], comman
         assert wording not in text, f"{command}: {text}"
 
 
+def _assert_review_cycle_on_coordination_branch(mission: CoordMission, wp_id: str) -> None:
+    """The reopen's review-cycle evidence is committed on the coordination branch (its COORD-partition home)."""
+    listed = subprocess.run(
+        ["git", "-C", str(mission.repo), "ls-tree", "-r", "--name-only", mission.coord_branch, f"kitty-specs/{mission.slug}/tasks/"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.split()
+    assert any(f"/{wp_id}-" in path and path.endswith("/review-cycle-1.md") for path in listed), listed
+
+
+@pytest.mark.integration
+@pytest.mark.slow
+def test_main_reopen_line_runs_on_a_protected_coordination_target(tmp_path: Path) -> None:
+    """#7861 on WP08's ``build_route`` fixture: main's reopen line, then re-entry with ``--agent``, run as printed.
+
+    Red at the WP07 base: ``move-task --to planned --review-feedback-file`` exited 1 with "Automatic verdict
+    evidence could not be committed because the governed destination branch is protected".
+    """
+    from tests.lanes.test_incorporate_sibling_lane import build_route
+
+    mission = build_route(tmp_path, conflict=True, send_back=False).mission
+    target_before = git_rev(mission.repo, mission.target_branch)
+    feedback = mission.home / "WP02-feedback.md"
+    feedback.write_text("Incorporate lane-a and resolve the shared.py overlap.\n", encoding="utf-8")
+
+    reopened = _run_printed(mission, f"spec-kitty agent tasks move-task WP02 --to planned --review-feedback-file {feedback} --mission {mission.slug}")
+
+    assert reopened.returncode == 0, _output(reopened)
+    assert git_rev(mission.repo, mission.target_branch) == target_before, "the reopen never commits to the protected target"
+    _assert_review_cycle_on_coordination_branch(mission, "WP02")
+    reentered = _run_printed(mission, f"spec-kitty agent action implement WP02 --mission {mission.slug} --agent <agent>")
+    assert reentered.returncode == 0, _output(reentered)
+    _assert_no_approved_refusal(reentered, "implement")
+    incorporated = _run_printed(mission, f"spec-kitty agent action implement WP02 --mission {mission.slug} --incorporate lane-a --agent <agent>")
+    assert incorporated.returncode == 3, _output(incorporated)  # the add/add conflict, left for resolution
+
+
+@pytest.mark.integration
+@pytest.mark.slow
+def test_reopen_without_a_coordination_surface_never_commits_to_the_protected_target(tmp_path: Path) -> None:
+    """Fail closed (#7861 ruling item 6): with the coordination worktree and branch gone the reopen refuses by name."""
+    from tests.lanes.test_incorporate_sibling_lane import build_route
+
+    mission = build_route(tmp_path, conflict=True, send_back=False).mission
+    coord_checkout = next(path for path in (mission.repo / ".worktrees").iterdir() if path.name.endswith("-coord"))
+    git(mission.repo, "worktree", "remove", "--force", str(coord_checkout))
+    git(mission.repo, "branch", "-D", mission.coord_branch)
+    target_before = git_rev(mission.repo, mission.target_branch)
+    feedback = mission.home / "WP02-feedback.md"
+    feedback.write_text("Incorporate lane-a.\n", encoding="utf-8")
+
+    reopened = _run_printed(mission, f"spec-kitty agent tasks move-task WP02 --to planned --review-feedback-file {feedback} --mission {mission.slug}")
+
+    assert reopened.returncode == 1, _output(reopened)
+    # The existing named protected-primary refusal (``_protected_branch_status_commit_error``), before any write.
+    assert "Refusing to run `spec-kitty agent tasks move-task` with auto-commit on protected branch 'main'" in " ".join(_output(reopened).split())
+    assert git_rev(mission.repo, mission.target_branch) == target_before, "never a fallback commit on the protected target"
+
+
 @pytest.mark.integration
 @pytest.mark.slow
 def test_every_printed_route_command_runs_and_the_mission_lands(tmp_path: Path) -> None:
@@ -525,19 +585,16 @@ def test_every_printed_route_command_runs_and_the_mission_lands(tmp_path: Path) 
         f"spec-kitty consolidate --mission {mission.slug}",
     ], output
 
-    # The reopen step is main's #7754 text, kept verbatim by the 2026-11-25 ruling. Its printed form
-    # (``move-task --to planned --review-feedback-file``) refuses on this protected target today (the
-    # review-cycle evidence commit to ``main`` is refused, reported to the operator as a route gap of the
-    # reopen step, outside WP07's three changes). The send-back here is the move-back command the
-    # approved-bound refusals print (``approved_bound.move_back_command``) through the CLI, with review
-    # feedback; every command WP07 itself prints then runs exactly as printed.
-    from specify_cli.consolidation.approved_bound import move_back_command
-
+    # Main's #7754 reopen line, run exactly as printed (operator ruling DM-01M89KDT5DZQ4DX6ZFX54HY3J3, #7861):
+    # its review-cycle evidence goes to the coordination branch, never to the protected target.
     assert reopen == f"spec-kitty agent tasks move-task WP02 --to planned --review-feedback-file <file> --mission {mission.slug}"
+    target_before = git_rev(mission.repo, mission.target_branch)
     feedback = mission.home / "WP02-feedback.md"
     feedback.write_text("Incorporate lane-a at its approval stamp and resolve the Popup.vue overlap.\n", encoding="utf-8")
-    sent_back = _run_printed(mission, f"{move_back_command('WP02', mission.slug)} --review-feedback-file {feedback}")
+    sent_back = _run_printed(mission, reopen.replace("<file>", str(feedback)))
     assert sent_back.returncode == 0, _output(sent_back)
+    assert git_rev(mission.repo, mission.target_branch) == target_before, "the reopen never commits to the protected target"
+    _assert_review_cycle_on_coordination_branch(mission, "WP02")
 
     reentered = _run_printed(mission, commands[0])
     assert reentered.returncode == 0, _output(reentered)

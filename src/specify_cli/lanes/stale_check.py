@@ -217,9 +217,13 @@ def refine_stale_result(
 
 
 def _reentry_command(lane: ExecutionLane, mission_slug: str | None) -> str:
-    """The A-10 re-entry command: re-running ``implement`` runs the lane sync point (auto-rebase)."""
+    """The A-10 re-entry command: re-running ``implement`` runs the lane sync point (auto-rebase).
+
+    It carries ``--agent <agent>`` because ``implement`` refuses to start or resume a work package
+    without it, so the line runs as printed once the operator names themselves (#7861 ruling).
+    """
     wp_id = lane.wp_ids[0] if len(lane.wp_ids) == 1 else WP_PLACEHOLDER
-    return f"spec-kitty agent action implement {wp_id} --mission {mission_slug or MISSION_PLACEHOLDER}"
+    return f"spec-kitty agent action implement {wp_id} --mission {mission_slug or MISSION_PLACEHOLDER} --agent {AGENT_PLACEHOLDER}"
 
 
 def _reopen_step(lane: ExecutionLane, handle: str) -> str:
