@@ -211,7 +211,9 @@ No user-reachable settlement ships in a release without the per-WP approval wind
 - Decision Moments: `01M6QY2SJ9ND1SKMH2230FS7JA` (ruling 1), `01M6QY46RJGFZN6WBVQQXCZSY6` (deferred materialization), `01M6QZ02HDACM7A0VNYSAQ8MQB` and `01M6R0B954ZPQN5NV4R1ZRE7NY` (the "lanes otherwise" mapping), `01M6R0BDYC29D6XMDY72R22CP9` (provisional representation), `01M6R0BJQ6Q1MV6492EH6HB66H` (contract bump), `01M6R0QJVPVZG2QT8MWQD4NXJR` (PRIMARY placement), `01M6R0QQM5FCPY736008AD4W6V` (`--pr-bound`).
 - Related: [ADR 2026-06-22-1](../3.x/2026-06-22-1-mission-topology-ssot.md) (stored topology, amended), [ADR 2026-10-04-5](2026-10-04-5-approval-stamp-bounds-the-approved-claim.md) (approval bound, amended for S8), [ADR 2026-11-06-2](2026-11-06-2-one-status-read-contract.md) (status read contract), [`docs/context/topology.md`](../../context/topology.md).
 
-## Amendment 2026-11-13: an explicit `lanes` create on a protected target is refused
+## Amendment 2026-11-13 (Accepted): an explicit `lanes` create on a protected target is refused
+
+*Accepted with the ADR (operator acceptance 2026-11-24, [PR #7840](https://github.com/spec-kitty/spec-kitty/pull/7840#issuecomment-7139051264)), which this amendment predates.*
 
 Operator ruling Q2 (2026-11-13), [#7632](https://github.com/spec-kitty/spec-kitty/issues/7632).
 
@@ -222,7 +224,9 @@ Operator ruling Q2 (2026-11-13), [#7632](https://github.com/spec-kitty/spec-kitt
 
 Nothing else in this record changes.
 
-## Amendment 2026-11-22: a docs work package gets its own lane in a lane topology
+## Amendment 2026-11-22 (Accepted): a docs work package gets its own lane in a lane topology
+
+*Accepted with the ADR (operator acceptance 2026-11-24, [PR #7840](https://github.com/spec-kitty/spec-kitty/pull/7840#issuecomment-7139051264)), which this amendment predates.*
 
 Operator rulings of 2026-11-22 (Decision Moments `specify.planning.lane_rule`, `specify.planning.mixed_wp`, `specify.planning.settlement_count`), [#7809](https://github.com/spec-kitty/spec-kitty/issues/7809). Related: [#7759](https://github.com/spec-kitty/spec-kitty/issues/7759).
 

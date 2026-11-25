@@ -146,10 +146,11 @@ the hosted backend stays frozen. The roadmap was re-anchored to this direction o
 
 ## Calls that need product ownership
 
-1. **When to ship rc6 (decided: rc6 shipped 2026-10-08).** Users on rc5 have the known `consolidate` defects until it ships. The
-   release rule needs a green nightly; the last run had one red job (#5419). Wait for it, or
-   waive the rule again as was done for rc5. (RCs keep shipping to early adopters regardless of
-   the GA date, which no longer exists.)
+1. **When to ship rc6 (decided: rc6 shipped 2026-10-08).** The open question was: users on rc5
+   had the known `consolidate` defects until rc6 shipped, and the release rule needed a green
+   nightly while the last run had one red job (#5419), so either wait for it or waive the rule
+   again as was done for rc5. (RCs keep shipping to early adopters regardless of the GA date,
+   which no longer exists.)
 2. **Whether #5780 and #5758 are in 4.0.0.** Both mean a teammate's rejection can be ignored.
    Neither has an owner or a milestone.
 3. **Scope at each release candidate, not a date.** GA is done-when-done, so the cut-off is a
