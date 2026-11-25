@@ -330,7 +330,15 @@ modules:
   - specify_cli.template
   - specify_cli.workspace
   tier: standard
-  shard_count: 2
+  # shard_count=3 (#7788/#7790): adding tests/specify_cli/skills doubled the row's measured weight.
+  # Recaptured by `python scripts/ci/capture_shard_timings.py --module cli --run-id
+  # local-7853-cli-skills --part <dir> --part-output <file>` for tests/cli, tests/init and
+  # tests/specify_cli/skills, then `--from-parts ... --write`: 2055 tests, 857.2 s serial locally (tests/cli
+  # 292.0 s, tests/init 137.1 s, tests/specify_cli/skills 428.1 s). LPT-3 bins [285.7 s x 3], skew 0.00%.
+  # Two shards would carry ~429 s each locally, about 11 min of tests per shard on CI at the
+  # consolidation row's measured CI/local ratio (~1.55) plus ~3 min setup, too close to the NFR-006
+  # 15 min per-shard bound; three keep each near 10 min.
+  shard_count: 3
   # #7235: tests/init promoted from out_of_matrix_test_dirs (no lane reached it, so three
   # stale cases sat red on main unnoticed). It exercises cli/commands/init.py; ~146 s serial
   # (127 tests), about +75 s per shard. An explicit test_dirs list replaces the tests/cli
