@@ -349,7 +349,7 @@
       "wp": "WP07"
     },
     "#7755": {
-      "evidence_ref": "Mission approved-lane-resolution-route-01M7WW0Z WP07",
+      "evidence_ref": "Fixed on main by Mission stale-lane-sibling-recovery-01M7X1QS (002d56e7 and related); remaining approval-stamp merge gap tracked under #5604 (WP07 --incorporate)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -357,7 +357,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "Stale refusal after conflicting in-run auto-rebase is unrecoverable",
-      "verdict": "in-mission",
+      "verdict": "verified-already-fixed",
       "wp": "WP07"
     },
     "#7766": {
