@@ -4,7 +4,7 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: approved-lane-resolution-route-01M7WW0Z
 mission_id: 01M7WW0ZHE3JCZ0KW6RP8X34G4
-generated_at: '2026-11-25T11:01:53.841918+00:00'
+generated_at: '2026-11-25T14:59:17.709135+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
@@ -21,8 +21,8 @@ input_artifacts:
     sha256: 83874f7451d21cf0615682164d7bb883844ee032e7622bb1359a343fd0e6fb03
 verdict: ready
 issue_counts:
-  low: 2
   critical: 0
+  low: 2
   medium: 0
   high: 0
   info: 0
@@ -122,3 +122,12 @@ Third pass, after remediation commit 4c8c0ab and the reviewer-accepted task refi
   - WP07 changes only three things: the refresh step to `--incorporate`, FR-009 recording, and the attribute guard (now also wrapping incorporate's window-merge probe).
   - WP09 passes no siblings and bumps CONTRACT_VERSION 1.30.0 -> 1.31.0.
   - The FR set is unchanged. Where they conflict, `contracts/stale-remedy.md` is superseded by main's reopen step; WP13 updates the contract.
+- Operator rulings, 2026-11-25:
+  - The renormalize refusal is kept (DM-01M8982NAYZYWKTG4ZQRAFCYRD).
+  - Review-window semantics are out of scope (DM-01M8982ZZ67KACF9KEQDD1SDZ2).
+- WP12: the partial-shape e2e assertion is now binding.
+- WP13: six documentation items added.
+- No FR changes.
+- Operator ruling DM-01M89KDT5DZQ4DX6ZFX54HY3J3 (option b). WP07 now also fixes `move-task --to planned` on protected coordination targets (#7861): the verdict evidence commit goes to the coordination branch, and implement finds the feedback artifact. It also adds `--agent` to main's no-sibling re-entry line.
+  - This is scope added under FR-001 (the remedy must be runnable). No new FR.
+  - #7861 is recorded as in-mission (WP07).

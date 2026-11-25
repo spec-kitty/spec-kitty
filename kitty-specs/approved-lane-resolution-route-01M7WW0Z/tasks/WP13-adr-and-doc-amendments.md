@@ -211,6 +211,15 @@ This WP cannot own `kitty-specs/` paths. Record notes with `spec-kitty agent tas
 - A lane superseded under the 2026-11-24 ruling: lane cleanup keeps its lane-tip ref but clears its auto-rebase records (WP02, `_after_branch_deleted`). If an operator recreates that branch from the kept tip and resumes, its tool merges read as hand merges. This fails closed toward `RESOLUTION_MERGE_UNREVIEWED`. Record it as a residual in the ADR 2026-10-04-5 amendment (reviewer note, WP02 rebase delta 2026-11-25).
 - `merge.renormalize=true`: consolidate now refuses a clone with this setting, with a named reason. Mixed Windows/Unix teams often set it for line-ending hygiene. Say this in the operator docs and the ADR 2026-10-04-5 amendment, and name the setting to change. The probes pin it off regardless (WP01 `MERGE_PROBE_CONFIG_PINS`). The refusal is kept, per the reviewer's recommendation on WP01 cycle 3 (2026-11-25), because without it a renormalized merge would surface as unattributable content.
 
+## Further items to document (rulings and review notes of 2026-11-25)
+
+- `merge.renormalize=true`: the named refusal at consolidate is KEPT (operator ruling DM-01M8982NAYZYWKTG4ZQRAFCYRD), together with the probe pin. Document the refusal and its remedy in the ADR amendment and in the user docs.
+- Review-window semantics: an approved commit that lies only inside a canceled WP's review window is refused as `CONTESTED_COMMIT`. `--attest-canceled-superseded` lifts the refusal. This Mission keeps that behaviour (operator ruling DM-01M8982ZZ67KACF9KEQDD1SDZ2); a separate issue is filed. Document it as today's rule.
+- `--incorporate` is "at least as strict as consolidate", not exactly as strict. The only closed-world anchors are attestation stamps, and `planning_prefix=None`. Both choices fail toward refusal (WP08 review 3).
+- Usability gap: only `spec-kitty consolidate --attest-canceled-superseded` can record the attestation that `--incorporate` needs, and running it also starts a consolidation. Document the gap (WP08 cycle 3).
+- Accepted behaviour change (WP06 review 1): a recorded tool merge dropped as unreviewed, carrying auto-resolved content, now gets the re-review hint. When only some items are covered, the scoped `--dependency-ref` sentence follows (WP06 cycle 2).
+- `contracts/stale-remedy.md` is superseded by main's #7754 reopen step (`move-task <WP> --to planned --review-feedback-file <file>`) and by WP07's `--incorporate` refresh line (scope ruling DM-01M88RZDBP57ZTYJHC5NP0ZH4R). Update the contract to match the landed text.
+
 ## Review Guidance
 
 - Check each of the seven checklist points above against the merged code (squad 2 dispositions in `squads/01-pre-spec-and-post-specify.md`: FR-013 must cover 2026-10-04-5, 2026-09-29-1, 2026-09-19-1, 2026-11-08-2 plus the contract, the #7285 rule and the CLAUDE.md residual sentence).

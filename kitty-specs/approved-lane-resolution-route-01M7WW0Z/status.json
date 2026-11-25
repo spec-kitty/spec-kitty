@@ -1,20 +1,20 @@
 {
-  "event_count": 112,
-  "last_event_id": "01M895ZK5NYYMMACP8GFZ41HE0",
-  "materialized_at": "2026-11-25T11:03:16.606955+00:00",
+  "event_count": 125,
+  "last_event_id": "01M89S6TJTCSW8JHEKAWA3P6C2",
+  "materialized_at": "2026-11-25T16:39:16.973158+00:00",
   "mission_number": "",
   "mission_slug": "approved-lane-resolution-route-01M7WW0Z",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 6,
+    "approved": 8,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 1,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 5
   },
   "work_packages": {
@@ -187,14 +187,14 @@
     },
     "WP05": {
       "actor": "claude",
-      "agent": "claude::python-pedro",
+      "agent": "claude::reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 0,
+      "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "for_review",
-      "last_event_id": "01M895KEJPA33VZ6RH5F8EFDYD",
-      "last_transition_at": "2026-11-25T10:56:40.023036+00:00",
+      "lane": "approved",
+      "last_event_id": "01M89CGC7KER7E1RNSE3DQD1BT",
+      "last_transition_at": "2026-11-25T12:57:19.347717+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-25T09:48:28Z – claude – shell_pid=11493 – trace(approach): T027 step 1, observed pre-fix codes at the base (lane-e 93fa7b1c4e): test_post_approval_dependency_merge_with_own_content_fails_under_merge/_squash: claim.refusal is None (no early return taken; claim.unreviewed_merges names the evil merge with own path u/evil.txt); test_post_approval_merge_of_canceled_dependency_fails: claim refuses with the canceled-dependency no_stamp text for WP03 compounded with LANE_MOVED_AFTER_APPROVAL on lane-b (9b1301d, u/c.txt), so it returned early and pinned nothing. Residual test (--runxfail): consolidate lands every lane, then gate FAIL (src/alpha/late.py un-attributable) and rollback; no LANE_MOVED_AFTER_APPROVAL.",
@@ -207,12 +207,25 @@
         "- 2026-11-25T10:31:31Z – claude – shell_pid=11493 – leeway: tests/consolidation/test_reviewed_merge_predicate.py (WP04-owned, found by the Test Strategy grep and run): _claim now builds the claim with reconciliation_bound.unreviewed_resolution_merges bypassed, because test_claim_records_the_dropped_merge / test_three_lane_claim_names_the_merge_s_own_lane / test_unreadable_own_content_records_no_entry / test_replace_keeps_the_unreviewed_merges / test_existing_claim_fields_are_byte_identical[two-lane,three-lane] pin WP04's advisory unreviewed_merges on claims holding a post-approval merge with own content, which now (correctly) refuse RESOLUTION_MERGE_UNREVIEWED before the field is built (old: claim.refusal None; new: refused; golden digests unchanged on the bypassed claim). Added test_the_plain_claim_refuses_the_unreviewed_merge so both layers stay visible. No assertion removed or weakened. Also: auto_rebase_record.__all__ gains is_recorded and reconciliation_authorship.__all__ gains own_approval_stamps / merge_reviewed_by_own_stamps (addendum 3), now that a caller exists.",
         "- 2026-11-25T10:31:36Z – claude – shell_pid=11493 – trace(design-decisions): merge enumeration = ONE 'git rev-list --first-parent --merges <frozen tip> ^<coord_base_ref> ^<claim base>' per lane (the gate's spine coord_base..lane, less what the pre-run target tip holds); a coord base that does not resolve is left out (more merges judged, the presence refusal still fires; precedence-matrix witness evidence__presence kept). Short SHA width: 7 (renderer convention _short), not the contract's sha12. Own stamps via own_approval_stamps(lane, wps, approval_stamps, approval_presync_stamps) (addendum 5). attributes_source = pre-run target tip when it is the claim base, else None (refuses any union). Addendum 1: a record exempts only when the FR-010 guard passes on the merge's paths vs either parent AND the 'merge' attribute of those paths read with check-attr --source at the merge and at each parent equals the one at the target tip (the guard alone reads this checkout's work tree, while the tool merged in the lane's checkout; without the --source comparison a lane-committed merge=union recorded merge passed). Addendum 6: a merge inside a canceled WP's window (wp_attribution._windows; a window with a missing stamp counts as holding every merge) is not exempted by an own stamp; rendered with 'made inside canceled WPxx's window' and a rebuild-the-lane remedy. Forecast needed no forecast.py change.",
         "- 2026-11-25T10:47:54Z – claude – shell_pid=11493 – trace(approach): WP13 pickup - ADR 2026-10-04-5 residual 'content inside a merge commit' is closed by FR-004 (test_approved_bound_residuals.py converted, lanes+coord). Addendum 2 result: a forged record (git update-ref refs/spec-kitty/auto-rebase/<lane>/<sha>) on a hand merge with own content skips the claim-time refusal, but consolidate exits 1, the gate FAILs src/alpha/late.py on the attribution axis and the target is restored (test_forged_record_is_harmless_the_gate_still_fails) - defence in depth. Baseline note: mypy reports one pre-existing no-any-return in tests/consolidation/test_reviewed_merge_predicate.py ('return real(repo_root, sha)', untouched WP04 line).",
-        "FR-004 claim-time RESOLUTION_MERGE_UNREVIEWED (approved_bound.unreviewed_resolution_merges, wired in reconciliation_bound._lane_verdict after tiers 1/2); addenda 1-6 covered by real-git tests; #5668 residual xfail converted; #7307 tests pin codes + bypassed gate layer; per-claim remerge memo (one remerge per merge). Leeway (recorded in history): memo pass-through in reconciliation_authorship/claim, __all__ exports, re-pin of WP04's test_reviewed_merge_predicate._claim."
+        "FR-004 claim-time RESOLUTION_MERGE_UNREVIEWED (approved_bound.unreviewed_resolution_merges, wired in reconciliation_bound._lane_verdict after tiers 1/2); addenda 1-6 covered by real-git tests; #5668 residual xfail converted; #7307 tests pin codes + bypassed gate layer; per-claim remerge memo (one remerge per merge). Leeway (recorded in history): memo pass-through in reconciliation_authorship/claim, __all__ exports, re-pin of WP04's test_reviewed_merge_predicate._claim.",
+        "- 2026-11-25T11:10:59Z – claude::python-pedro – shell_pid=11493 – fold (coordinator, reviewer ruling on WP08: no private cross-module imports): cherry-picked -x c1c4c7a9b6 (wp_windows/window_stamps public) with the incorporate.py hunk dropped (WP08-only file absent on lane-e) and -x 93aa2771d0 (identical one-line mypy annotation in wp_attribution); leeway on WP01 files: git_probes._paths_changed_against_parents -> paths_changed_against_parents, merge_attribute_guard._check_attr -> check_merge_attributes (exported, pure rename); approved_bound enumerates through core.git_ops.run_command (mypy attr-defined on git_probes' unexported binding); mypy fixes in test_reviewed_merge_predicate (Callable annotation) and test_wp_attribution (is_merge_commit from git_probes). No behaviour change; WP05 stays for_review.",
+        "- 2026-11-25T12:01:41Z – unknown – cycle 2 red (lane-e 7b90e4ea9c, cycle-1 sources): pytest tests/consolidation/test_resolution_merge_unreviewed.py -k 'off_spine or hidden or hand_merge_off or resume_with' -n 3 => 6 failed: agreement[off_spine] claimed=set() (the hidden merge is not judged); claim-level hidden hand merge: no RESOLUTION_MERGE_UNREVIEWED; advisory field: KeyError (unreviewed_merges does not name the off-spine merge); CLI repro [squash, merge]: exit 1 at the gate after landing+rollback, no claim-time code; resume with a hand merge added after the interrupt: run lands then gate-FAILs (no claim/bound code named).",
+        "- 2026-11-25T12:07:16Z – unknown – cycle 2 fix: approved_bound.merges_beyond (one 'git rev-list --merges <tip> ^coord_base ^claim_base' per lane, every parent; first_parent=True only for other lanes' own spines) replaces first_parent_merges_beyond; merges on another bound lane's own first-parent spine are left to that lane (one cached first-parent query per other lane, only when the lane has merges). approved_bound.unreviewed_merge_candidates is the single authority for which merges are judged (own-stamp predicate, canceled window); its result feeds both unreviewed_resolution_merges (record+FR-010, then own content) and the advisory unreviewed_merges (bound.unreviewed_candidates -> _collect_authored -> _record_unreviewed, recorded leeway on WP04 files, dedup with the spine drop), so WP06's hint names a hidden merge. Canceled-window membership now uses commits_in_range(open, close) (any parent). Mutation check: reverting the window to first_parent_commits_in_range turns test_hidden_merge_inside_a_canceled_window_is_refused red (claim passes). Resume with a hidden hand merge added after the interrupt: the resumed claim refuses RESOLUTION_MERGE_UNREVIEWED at claim time naming the hidden merge (pinned). Ruling kept: canceled-window merges stay on RESOLUTION_MERGE_UNREVIEWED.",
+        "- 2026-11-25T12:17:37Z – unknown – cycle 2 reviewer ruling (one-sided resolutions): no import or mirror of the #7854 gate exemption. Red (cec1e37fa7): test_one_sided_conflict_resolution_is_refused_and_named failed on the missing sentence (the refusal itself already fired: --remerge-diff lists the conflicted path), test_one_side_probe_error_omits_the_sentence_and_still_refuses failed (no tree_entry seam); controls green: unforced re-approval reaching the merge lifts it, a new-file evil merge gets no sentence. Fix: approved_bound.kept_one_side compares committed (mode, oid) tree entries (kernel tree_entry) of every own path against each parent; any probe error omits the sentence and never exempts. Green: 4 passed.",
+        "Cycle 2: every merge a lane reaches is judged (one rev-list --merges per lane; other bound lanes' own spines excluded); approved_bound.unreviewed_merge_candidates is the single authority feeding the claim verdict and the advisory unreviewed_merges; canceled windows hold merges through any parent; one-sided resolutions refuse and are named; review repro (squash+merge), hidden canceled-window merge and resume tests added.",
+        "- 2026-11-25T12:57:32Z – claude::reviewer-renata – correction (reviewer, cycle 2): on the 7b90e4ea9c sources the red-first run of test_resolution_merge_unreviewed.py was 9 failed / 37 passed. The earlier note split this into 6 hidden-merge failures + 2 one-sided naming failures; the remaining failure was not attributed."
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 11493,
-      "shell_pid_created_at": "1795599577.25",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP05-resolution-merge-unreviewed/review-cycle-2.md",
+        "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP05-resolution-merge-unreviewed/review-cycle-2.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
         "T023": "done",
         "T024": "done",
@@ -229,9 +242,9 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "in_review",
-      "last_event_id": "01M895YMEPQ92Q72E7HF9TH4W6",
-      "last_transition_at": "2026-11-25T11:02:46.486337+00:00",
+      "lane": "approved",
+      "last_event_id": "01M89607WXS7ZQGE75YZN5N7KF",
+      "last_transition_at": "2026-11-25T11:03:39.165441+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-25T09:46:48Z – claude – shell_pid=11398 – red: uv run --frozen pytest tests/consolidation/test_unreviewed_merge_hint.py -n0 -> 26 failed, 18 passed at lane base. Behaviour reds: test_hand_merge_blob/commit/deletion get the --dependency-ref hint (assert '--dependency-ref' not in hint fails); helper tests AttributeError (_has_unattributable/_dropped_merges_covering/_re_review_hint/_DEPENDENCY_REF_HINT absent); probe-source tests raise MergeAttributeRefused 'union' with excluded_window_base set (attributes_source not passed). Controls (foreign, partial, N4, declared ref, describe) pass at base, as intended.",
@@ -243,15 +256,16 @@
         "- 2026-11-25T10:14:43Z – claude::python-pedro – shell_pid=11398 – campsite fix (coordinator fold): f5a0a46056 typed locals for the two baseline mypy no-any-return findings (_refusal_reason: refusal: str | None; _is_bookkeeping_path: bookkeeping: bool); mypy on reconciliation_verifier.py alone now 0 errors; ruff/format clean; test_unreviewed_merge_hint.py + test_reconciliation.py -n 3: 262 passed, 1 xfailed. No behaviour change.",
         "- 2026-11-25T10:28:14Z – unknown – red (review cycle 1, partial match): pytest tests/consolidation/test_unreviewed_merge_hint.py -n0 -m unit -> 9 failed, 39 passed. The three partial-match hint tests (blob, shared path, covered deletion) get the unscoped --dependency-ref hint only (assert hint == f'{re_review} {remainder}' fails, re-review sentences absent); _dropped_merges_covering returns None for a partial match; _uncovered_count AttributeError.",
         "- 2026-11-25T10:43:13Z – unknown – green (review cycle 1 fix, b2a83616e5): partial match now prints re-review for covering merges + 'For the remaining content (<n> item(s) no dropped merge explains): <_DEPENDENCY_REF_HINT>'; nothing covered keeps the hint byte-identical; empty wp_ids still falls back. _all_items_covered replaced by _uncovered_count. Tests: new file 50 passed; blast radius -n 3: 555 passed, 6 xfailed; test_no_dead_symbols + layer_rules + no_legacy_terminology -n0: 215 passed; fast-tier dirs -n 3: 3222 passed, 7 skipped. ruff/format/mypy/C901 clean. Note for WP12: its real-git e2e must include this partial shape (reviewer).",
-        "Cycle 1 fix: partial match prints re-review for the covering merges, then the --dependency-ref hint scoped to the remaining items; nothing covered keeps today's hint byte-identical; empty wp_ids fallback kept."
+        "Cycle 1 fix: partial match prints re-review for the covering merges, then the --dependency-ref hint scoped to the remaining items; nothing covered keeps today's hint byte-identical; empty wp_ids fallback kept.",
+        "- 2026-11-25T11:03:55Z – claude::reviewer-renata – correction (reviewer, cycle 2): the red-first count was 9 failed / 41 passed, not 9/39; the file has 50 tests"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
       "review_result": {
-        "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP06-gate-hint-re-review/review-cycle-1.md",
-        "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP06-gate-hint-re-review/review-cycle-1.md",
+        "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP06-gate-hint-re-review/review-cycle-2.md",
+        "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP06-gate-hint-re-review/review-cycle-2.md",
         "reviewer": "claude::reviewer-renata",
-        "verdict": "changes_requested"
+        "verdict": "approved"
       },
       "role": "reviewer",
       "shell_pid": null,
@@ -264,19 +278,50 @@
     },
     "WP07": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 0,
+      "force_count": 1,
       "implementer_of_record": "claude",
       "lane": "in_progress",
-      "last_event_id": "01M895ZK5NYYMMACP8GFZ41HE0",
-      "last_transition_at": "2026-11-25T11:03:16.606955+00:00",
+      "last_event_id": "01M89S6TJTCSW8JHEKAWA3P6C2",
+      "last_transition_at": "2026-11-25T16:39:16.973158+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-25T11:17:48Z – claude – shell_pid=11787 – T032 red (scope ruling DM-01M88RZDBP57ZTYJHC5NP0ZH4R): pytest tests/lanes/test_approved_lane_stale_remedy.py tests/lanes/test_stale_sibling_lanes.py tests/lanes/test_stale_remediation_cli_command.py -k 'not every_printed_route' -> 13 failed, 15 passed. Remedy: test_refined_remedy_leads_with_the_halt_and_names_the_sibling_branch + test_remedy_names_every_sibling_and_reopens_every_wp_of_a_multi_wp_lane fail on \"assert 'git merge' not in ...\" (main's refresh step prints git merge <sibling branch>). FR-009: test_auto_rebase_move_recorded_when_the_lane_consolidation_fails fails 'assert {} == {lane: [before, merge]}' (recording gated on success). Guard: 7 merge-guard tests TypeError SiblingStamp has no attributes_source; behavioural red at base: incorporate_sibling on a lane committing '*.py merge=union' with a conflicting sibling returns merged=True, file 'a = own\\na = sibling' (bytes neither side wrote). Window probe: unreviewed-union case refuses CANCELED_CONTENT_UNDER_STAMP not INCORPORATE_MERGE_ATTRIBUTES_REFUSED; Mission-branch union case refuses 'cannot be cleared: merge attribute union ...' (no attributes_source threaded). Ratchets (green, labelled ratchet): test_non_sibling_callers_keep_the_a10_text, test_planning_lane_text_is_unchanged_by_a_sibling.",
+        "- 2026-11-25T12:00:04Z – claude – shell_pid=11787 – trace(design-decisions): superseded steps per ruling DM-01M88RZDBP57ZTYJHC5NP0ZH4R: no SiblingCandidate/sibling_candidates_before/_narrow_siblings/render_stale_remediation, no new StaleCheckResult fields, no new consolidate_lane_into_mission keywords, no halt_reason enum / MERGE_HEAD pre-probe (T032 tests 1,3-6c,7 and T033/T034/T035 steps 1-3,5 superseded); main's find_sibling_lanes/_explain_stale/_reopen_step/_cause_sentence stay the authority. WP07 changes only _refresh_step (sibling case -> _incorporate_route), FR-009 recording, and the --incorporate merge-attribute guard.",
+        "- 2026-11-25T12:00:08Z – claude – shell_pid=11787 – trace(design-decisions): sibling route prints one command per line after main's reopen sentence: implement <first WP> --agent <agent>; per sibling: implement <WP> --incorporate <lane> --agent <agent> + resolve-and-commit line; move-task --to for_review per WP (other WPs of the lane re-entered first); independent review line; consolidate. Deviation from the ruling's literal line: '--agent <agent>' appended, because 'agent action implement' refuses without --agent ('--agent parameter required when starting implementation'), proven by T036. Multi-WP lanes use the lane's first WP for the incorporate lines (never <WP>). No-sibling and planning-lane text byte-identical (ratchets).",
+        "- 2026-11-25T12:00:13Z – claude – shell_pid=11787 – trace(design-decisions): FR-009: WP02's durable auto_rebase_record lives in lane-b, not in this lane's base (WP07 depends on WP01+WP08 only); its writer is inside attempt_auto_rebase, so every consolidation auto-rebase move is recorded there once lane-b and lane-g meet (WP03's lane). The only gap on the phase_advance path was the in-state lane_rebase_moves record (WP03's restore source) gated on lane_result.success; _record_own_auto_rebase now runs after every consolidate_lane_into_mission call (own_auto_rebase_move exact-shape check untouched). No second record added.",
+        "- 2026-11-25T12:00:18Z – claude – shell_pid=11787 – trace(design-decisions): incorporate guard: attributes_source = Mission branch tip, read once per sibling resolution (_read_attributes_source in _resolve_sibling_stamp, carried on SiblingStamp.attributes_source, default None); an unreadable tip yields None, which honours no committed union (fail closed) rather than a refusal, so the existing SPINE_UNREADABLE refusal still surfaces. Merge guard paths = changed_paths(merge-base..HEAD) + changed_paths(merge-base..stamp) in the lane checkout; missing merge base or any GitCommandError/GitProbeError -> INCORPORATE_MERGE_ATTRIBUTES_REFUSED before any merge. Merge runs with merge_probe_env(_make_merge_env()). Window probe: merge_own_changed_paths(..., attributes_source=tip); any GitProbeError from it -> INCORPORATE_MERGE_ATTRIBUTES_REFUSED (window computation errors keep CANCELED_CONTENT_UNDER_STAMP).",
+        "- 2026-11-25T12:00:23Z – claude – shell_pid=11787 – leeway: edited src/specify_cli/lanes/incorporate.py (WP08's file) for the binding DoD merge-attribute guard; edited tests/lanes/test_stale_sibling_lanes.py and tests/consolidation/test_7755_stale_sibling_lane_recovery.py (main's tests asserting 'git merge <branch>', per the ruling's red-first instruction; 7755 recovery now incorporates through prepare_incorporation/incorporate_sibling); edited tests/lanes/test_incorporate_sibling_lane.py::test_unreadable_merge_in_a_canceled_window_refuses (its fake now accepts attributes_source and it expects INCORPORATE_MERGE_ATTRIBUTES_REFUSED per the ruling). No private helper newly imported across modules (pre-existing _make_merge_env/_is_bookkeeping imports in incorporate.py left as WP08 wrote them).",
+        "- 2026-11-25T12:00:28Z – claude – shell_pid=11787 – trace(tooling-friction): ROUTE GAP in main's reopen step (kept verbatim by the ruling): 'spec-kitty agent tasks move-task WP02 --to planned --review-feedback-file <file> --mission <m>' exits 1 on a coordination Mission targeting protected main: 'Automatic verdict evidence could not be committed because the governed destination branch is protected; complete evidence is retained at kitty-specs/<m>/tasks/WP02-work/review-cycle-1.md'. Reproduced on WP08's build_route fixture and on T036's fixture. The approved-bound move-back form ('move-task WP02 --to in_progress --mission <m> --review-feedback-file <f>') exits 0 there, and T036 uses it; every WP07-printed command then runs and the Mission lands. Also: tests.consolidation.stale_sibling_lane_support lower-cases the mid8 in its slug, so the CLI's coordination lookup (_coord_topology_active, mission_id=None) misses the -coord worktree and every CLI status commit refuses there; T036 builds the same shape under a real-cased slug.",
+        "- 2026-11-25T12:17:19Z – claude – shell_pid=11787 – tests (commit 2bfeb48f04): blast radius (31 files incl. tests/lanes stale/incorporate/auto_rebase, tests/consolidation 7755/6736/rollback/merge_attribute_guard, orchestrator_api post_approval, terminus 5051, arch gates merge_pipeline_ratchets/commit_scope_owner/coord_read_residuals_closeout/no_worktree_name_guess/layer_rules/no_legacy_terminology/no_dead_symbols) -n 3 --dist loadfile: 757 passed, 1 skipped, 1 failed -> test_incorporate_sibling_probe_errors_refuse (its changed_paths fake now also hit the new pre-merge guard listing; narrowed to the diff_filter='U' conflict read, leeway edit) -> 1 passed. T036 test_every_printed_route_command_runs_and_the_mission_lands: 1 passed (send-back via move_back_command, every WP07-printed command via CLI, consolidate exit 0). make test-fast equivalent at -n 3: 3222 passed, 7 skipped. ruff check/format --force-exclude/mypy clean on all changed files.",
+        "- 2026-11-25T15:04:42Z – claude – shell_pid=11787 – #7861 red (ruling DM-01M89KDT5DZQ4DX6ZFX54HY3J3): pytest -n 3 tests/lanes/test_stale_remediation_cli_command.py tests/lanes/test_approved_lane_stale_remedy.py -k 'names_the_agent or keep_the_a10 or main_reopen_line or every_printed_route' -> 4 failed. WP08 build_route fixture (test_main_reopen_line_runs_on_a_protected_coordination_target) and T036 fixture (test_every_printed_route_command_runs_and_the_mission_lands, now running main's exact reopen line): 'move-task WP02 --to planned --review-feedback-file <f> --mission <m>' exit 1 'Automatic verdict evidence could not be committed because the governed destination branch is protected; complete evidence is retained at kitty-specs/<m>/tasks/WP02-work/review-cycle-1.md'. _reentry_command pin: test_every_printed_implement_line_names_the_agent 'spec-kitty agent action implement WP01 --mission stale-remedy' != '... --agent <agent>'; ratchet test_non_sibling_callers_keep_the_a10_text updated to the --agent form (red by the same diff).",
+        "- 2026-11-25T15:29:21Z – claude – shell_pid=11787 – trace(design-decisions) #7861 root cause: src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py:507/512 (base 2bfeb48f04) passed commit_router=None when st.skip_target_branch_commit, and :523-539 then raised VerdictPersistenceFailure(protected_target_branch). skip_target_branch_commit (tasks_shared.py:472 _skip_target_branch_commit) is the WP-file flag for a protected primary under coordination topology; REVIEW_CYCLE has been a COORD-partition kind since review-cycle-verdict-seam-rebuild WP04 (mission_runtime/artifacts.py:251), so the router (commit_for_mission, kind=REVIEW_CYCLE) commits it to the coordination branch. The T050 gate predates that and refused every hand-back with feedback on a protected coordination target. Fix: always route the evidence through ports.coord; removed the protected_target_branch raise. No placement rule changed, no second commit path, no env var.",
+        "- 2026-11-25T15:29:26Z – claude – shell_pid=11787 – trace(design-decisions) #7861 fail closed: skip_target_branch_commit is only true when the -coord worktree exists, so the router always has a coordination surface on that arm; without one (coord worktree and branch removed) move-task refuses earlier with the existing named protected-primary refusal (tasks_shared._protected_branch_status_commit_error), target untouched (test_reopen_without_a_coordination_surface_never_commits_to_the_protected_target). Re-entry: _reentry_command now prints '--agent <agent>' (implement refuses without it); pinned by test_every_printed_implement_line_names_the_agent.",
+        "- 2026-11-25T15:29:31Z – claude – shell_pid=11787 – leeway (#7861 ruling): src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py - route the review-cycle commit through the coordination router instead of the WP-file skip flag (7 lines in, 21 out). tests/integration/test_review_durability_matrix.py - coord_protected auto-commit cells now commit through the router (durable 3->6, insulated 9->6), docstring records the reversal. tests/specify_cli/cli/commands/agent/test_move_task_durability.py - T050 test renamed test_protected_primary_flag_still_routes_the_review_cycle_through_the_router: commit attempted, refusing router -> typed non-durable failure. tests/specify_cli/cli/commands/agent/test_move_task_rejection_agent_7588.py - the coord skip-arm rejection now succeeds (exit 0, lane planned) and still leaves the owner untouched.",
+        "- 2026-11-25T15:29:36Z – claude – shell_pid=11787 – T036 updated: runs main's exact reopen line through the CLI (no move-back substitute), asserts the protected target tip unchanged and review-cycle-1.md committed on the coordination branch; then every printed implement/for_review/consolidate line; Mission lands. New: test_main_reopen_line_runs_on_a_protected_coordination_target (WP08 build_route fixture: reopen exit 0, re-entry with --agent exit 0, incorporate exit 3). Green after fix: those 4 red tests -> 4 passed; durability/rejection files 115 passed, 2 skipped.",
+        "- 2026-11-25T15:53:11Z – claude – shell_pid=11787 – tests at 68dccc137e: blast radius (persistence/review/agent-command/lanes/consolidation/orchestrator/terminus files + arch gates commit_scope_owner, layer_rules, merge_pipeline_ratchets, coord_read_residuals_closeout, no_worktree_name_guess, no_legacy_terminology, status_read_single_door, status_state_read_dir_single_authority) -n 3: 6538 passed, 15 skipped, 3 xfailed, 1 failed -> tests/integration/test_consolidate_upgraded_mission_recovery.py (main's #7755 test pinning 'git merge <sibling branch>'; updated to the incorporate lines, leeway per the ruling) -> 9 passed. test_no_dead_symbols -n0: 37 passed. test-fast tier -n 3: 3222 passed, 7 skipped. ruff/format --force-exclude/mypy/C901 clean.",
+        "Approved-lane stale remedy prints the implement --incorporate route (one command per line, --agent named); FR-009 lane_rebase_moves recorded on every auto-rebase; --incorporate merge-attribute guard (INCORPORATE_MERGE_ATTRIBUTES_REFUSED, Mission-tip attributes source, pinned merge env, window probe); #7861 fixed: review-cycle evidence of the reopen goes through the coordination router, so main's reopen line runs on protected coordination targets. T036 runs every printed command through the CLI and the Mission lands."
+      ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP07-approved-lane-stale-remedy/review-cycle-1.md",
+        "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP07-approved-lane-stale-remedy/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "changes_requested"
+      },
       "role": "implementer",
-      "shell_pid": 11787,
-      "shell_pid_created_at": "1795604578.08"
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T032": "planned",
+        "T033": "planned",
+        "T034": "planned",
+        "T035": "planned",
+        "T036": "planned"
+      }
     },
     "WP08": {
       "actor": "claude",

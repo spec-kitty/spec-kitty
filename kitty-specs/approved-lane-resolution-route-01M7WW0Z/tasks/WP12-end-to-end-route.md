@@ -200,6 +200,10 @@ Accepted by the reviewer on 2026-11-20. These are blocking checks in WP12's revi
 - (c) The attribute source is the one WP01's guard uses: the PRE-RUN TARGET TIP, not the range base. Red test: a real-git fixture where `merge=union` is committed on the lane before the window base; the printed command must list the path.
 - (d) When `merges_unlisted` is true and remerge-diff is unavailable (git < 2.36), print the cannot-show form, not a `show --remerge-diff` instruction. Add a test.
 
+## Binding addition (WP06 review 1, 2026-11-25)
+
+- The real-git end-to-end test also covers the partial shape: a dropped hand merge explains part of a gate FAIL, and foreign content explains the rest. Assert that the gate hint gives the re-review route for the covering merge first, followed by `For the remaining content (<n> item(s) no dropped merge explains): ...` with the `--dependency-ref` hint appearing exactly once.
+
 ## Test Strategy
 
 This WP is the test. Keep the module's wall time reasonable: build each fixture once per test (no module-scoped mutation sharing), parametrize narrowly. Marks: `pytest.mark.integration`, `pytest.mark.git_repo`, `pytest.mark.regression`. Unset harness variables per test where behaviour depends on them (`monkeypatch.delenv("SPEC_KITTY_NO_NAG", raising=False)`, `SPEC_KITTY_NON_INTERACTIVE`).

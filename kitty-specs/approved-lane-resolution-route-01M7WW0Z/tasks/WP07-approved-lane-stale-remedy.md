@@ -286,6 +286,21 @@ WP07 changes only three things:
 
 Use WP08's public `wp_attribution.wp_windows` / `window_stamps` and WP01's public helpers. Never import a private helper across modules. Where a step above conflicts with this section, this section wins; record each superseded step in WP history.
 
+## Binding addition: fix the reopen route on protected coordination targets (operator ruling 2026-11-25, DM-01M89KDT5DZQ4DX6ZFX54HY3J3; #7861)
+
+Option (b). Keep main's #7754 reopen text exactly as it is: `spec-kitty agent tasks move-task <WP> --to planned --review-feedback-file <file> --mission <m>`. Fix the CLI so the command works on a coordination Mission (`lanes_with_coord`) whose target is a protected `main`.
+
+1. The verdict-evidence commit made by `move-task --to planned --review-feedback-file` must land on the allowed branch, which is the coordination branch, and never on the protected target. Route it through the existing placement/commit seam (`commit_for_mission`, the coordination partition). Do not add a second commit path, and do not set any env-var bypass.
+2. After that reopen, `spec-kitty agent action implement <WP> --mission <m> --agent <agent>` must find the review-feedback artifact on the surface it reads, and must re-enter the lane.
+3. Red first, on the two real-git fixtures that reproduced the bug: WP08's `build_route` fixture and T036's fixture. Record each red run.
+   - Then T036 must run main's exact reopen line end to end through the CLI, with no move-back substitute, and the Mission must land.
+4. Fold the `--agent <agent>` token into main's no-sibling re-entry line as well (`_reentry_command`). Every printed `implement` line must run as printed. Pin it with a test.
+5. Ownership:
+   - Edits to the move-task / review-feedback / commit-routing files are recorded leeway for this WP. Give a one-line rationale per file in WP history and keep each change minimal.
+   - If the fix needs a change to the placement seam's routing rules themselves (not just calling them correctly), stop and report before editing.
+6. Fail closed. When the coordination surface cannot be resolved, refuse with the existing named error. Never fall back to the protected target.
+7. This fixes #7861, which closes with this Mission's PR.
+
 ## Test Strategy
 
 Red first (NFR-004). Commands (targeted files only, no directory sweeps):
