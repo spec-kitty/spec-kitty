@@ -20,10 +20,12 @@ from __future__ import annotations
 
 import fnmatch
 import subprocess
-from collections.abc import Sequence
+from collections.abc import Callable, Hashable, Mapping, Sequence
 from pathlib import Path, PurePosixPath
+from typing import TypeVar
 
-from kernel.git import GitCommandError, changed_paths, merge_tree, run_git, tree_entry, tree_paths
+from kernel.git import GitCommandError, GitPath, changed_paths, merge_tree, run_git, subtree_entries, tree_entry, tree_paths
+from kernel.git.read_cache import cached_object_read, git_read_cache_active, is_object_id
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.git.merge_tree_probe import MERGE_TREE_WRITE_TREE_MIN_VERSION, merge_tree_write_tree_available
 from specify_cli.git.ref_advance import delete_bookkeeping_ref, write_bookkeeping_ref
@@ -283,8 +285,30 @@ _MISSION_ROOT = KITTY_SPECS_DIR
 _WORK_PACKAGE_PROMPT = "WP*.md"
 
 
-def _git_lines(repo_root: Path, *args: str) -> list[str]:
-    return run_git(repo_root, *args).stdout.decode("utf-8", "replace").splitlines()
+_T = TypeVar("_T")
+
+
+def _by_objects(repo_root: Path, revs: tuple[str, ...], key: Hashable, compute: Callable[[], _T]) -> _T:
+    """``compute()``, read once per consolidate run when *revs* are all commit ids (#7848).
+
+    Both landing proofs of one run (the Mission branch projection and lane cleanup) walk the same
+    commits by id; an answer keyed only on object ids cannot change within the run.
+    """
+    return cached_object_read(repo_root, revs, ("lane_tip", key), compute)
+
+
+def _git_lines(repo_root: Path, *args: str, revs: tuple[str, ...] = ()) -> tuple[str, ...]:
+    """The output lines of ``git <args>``; *revs* are the revisions the answer is a function of."""
+
+    def read() -> tuple[str, ...]:
+        return tuple(run_git(repo_root, *args).stdout.decode("utf-8", "replace").splitlines())
+
+    return _by_objects(repo_root, revs, args, read)
+
+
+def _diff_paths(repo_root: Path, old: str, new: str) -> tuple[str, ...]:
+    """The paths that differ between ``old`` and ``new`` (decoded by ``kernel.git``)."""
+    return _by_objects(repo_root, (old, new), ("diff", old, new), lambda: tuple(str(path) for path in changed_paths(repo_root, old, new)))
 
 
 def _lane_own_commits(repo_root: Path, tip: str, landing_ref: str) -> tuple[tuple[str, tuple[str, ...]], ...]:
@@ -296,15 +320,41 @@ def _lane_own_commits(repo_root: Path, tip: str, landing_ref: str) -> tuple[tupl
     first-parent line (and the landing ref's history) are not the lane's own. A lane commit the
     branch merged back is not on its first-parent line, so it stays the lane's.
     """
-    chain = [line.split() for line in _git_lines(repo_root, "rev-list", "--first-parent", "--parents", tip, f"^{landing_ref}")]
+    revs = (tip, landing_ref)
+    chain = [line.split() for line in _git_lines(repo_root, "rev-list", "--first-parent", "--parents", tip, f"^{landing_ref}", revs=revs)]
     merged_in = sorted({parent for entry in chain for parent in entry[2:]})
     # Only a merged-in branch's own first-parent line is history the lane took: a lane commit that
     # branch merged back (the coordination branch consolidating the lane, then a resync) stays the lane's.
-    taken = {sha for parent in merged_in for sha in _git_lines(repo_root, "rev-list", "--first-parent", parent, f"^{landing_ref}")}
+    taken = {sha for parent in merged_in for sha in _git_lines(repo_root, "rev-list", "--first-parent", parent, f"^{landing_ref}", revs=(parent, landing_ref))}
     return tuple((entry[0], tuple(entry[1:])) for entry in chain if entry[0] not in taken)
 
 
+def _blob_scope(path: str) -> str:
+    """The subtree one listing reads for ``path``: its Mission's folder, else its top-level entry."""
+    parts = PurePosixPath(path).parts
+    if len(parts) > 2 and parts[0] == _MISSION_ROOT:
+        return f"{parts[0]}/{parts[1]}"
+    return parts[0] if parts else path
+
+
+def _subtree_oids(repo_root: Path, rev: str, scope: str) -> Mapping[str, str]:
+    """Every entry at or under ``scope`` in commit ``rev``: path to object id (blobs and trees)."""
+
+    def read() -> Mapping[str, str]:
+        return {str(entry.path): entry.oid for entry in subtree_entries(repo_root, rev, scope)}
+
+    return _by_objects(repo_root, (rev,), ("subtree", scope), read)
+
+
 def _blob_id(repo_root: Path, rev: str, path: str) -> str | None:
+    """The object id of ``path`` in ``rev`` (a tree for a directory), or ``None`` when ``rev`` has none.
+
+    Inside a consolidate run, a commit id's subtree is listed once and every path in it is answered
+    from that listing (#7848); a ref name, or a read outside a run, asks git for the one path.
+    """
+    if git_read_cache_active() and is_object_id(rev):
+        wanted = str(GitPath.parse(path))
+        return _subtree_oids(repo_root, rev, _blob_scope(wanted)).get(wanted)
     entry = tree_entry(repo_root, rev, path)
     return entry.oid if entry is not None else None
 
@@ -314,8 +364,9 @@ def _paths_changed_by(repo_root: Path, commit: str, parents: Sequence[str]) -> l
 
     Paths come decoded from ``kernel.git``, so a name git would quote (``core.quotePath``) still matches.
     """
-    paths = changed_paths(repo_root, parents[0], commit) if parents else tree_paths(repo_root, commit)
-    return [str(path) for path in paths]
+    if parents:
+        return list(_diff_paths(repo_root, parents[0], commit))
+    return list(_by_objects(repo_root, (commit,), ("tree-paths",), lambda: tuple(str(path) for path in tree_paths(repo_root, commit))))
 
 
 def _taken_whole_from_merged_in(repo_root: Path, commit: str, merged_in: Sequence[str], path: str) -> bool:
@@ -340,11 +391,16 @@ def _authored_paths(repo_root: Path, tip: str, landing_ref: str) -> frozenset[st
 
 
 def _event_lines(repo_root: Path, rev: str, path: str) -> set[str] | None:
-    entry = tree_entry(repo_root, rev, path)
-    if entry is None:
+    oid = _blob_id(repo_root, rev, path)
+    if oid is None:
         return None
-    text = run_git(repo_root, "cat-file", "blob", entry.oid).stdout.decode("utf-8", "replace")
-    return {line for line in text.splitlines() if line.strip()}
+    blob = oid
+
+    def read() -> frozenset[str]:
+        text = run_git(repo_root, "cat-file", "blob", blob).stdout.decode("utf-8", "replace")
+        return frozenset(line for line in text.splitlines() if line.strip())
+
+    return set(_by_objects(repo_root, (blob,), ("event-lines",), read))
 
 
 def _status_log_contained(repo_root: Path, tip: str, landing_ref: str, log_path: str) -> bool:
@@ -358,7 +414,7 @@ def _status_log_contained(repo_root: Path, tip: str, landing_ref: str, log_path:
 
 def _in_landing_history(repo_root: Path, landing_ref: str, path: str, blob: str) -> bool:
     """The landing ref's own history of ``path`` holds the version ``blob`` (it was recorded there, then moved past)."""
-    commits = _git_lines(repo_root, "rev-list", "--full-history", landing_ref, "--", path)
+    commits = _git_lines(repo_root, "rev-list", "--full-history", landing_ref, "--", path, revs=(landing_ref,))
     return any(_blob_id(repo_root, commit, path) == blob for commit in commits)
 
 
@@ -384,7 +440,7 @@ class _MissionFileJudge:
         self._log_path = f"{self._mission_dir}/{EVENTS_FILENAME}"
         self._snapshot_path = f"{self._mission_dir}/{SNAPSHOT_FILENAME}"
         self._authored = _authored_paths(repo_root, tip, landing_ref)
-        self._bases = tuple(_git_lines(repo_root, "merge-base", "--all", tip, landing_ref))
+        self._bases = _git_lines(repo_root, "merge-base", "--all", tip, landing_ref, revs=(tip, landing_ref))
 
     def _unchanged_since_base(self, path: str, lane_blob: str | None) -> bool:
         """The lane's copy is the merge base's copy: the lane changed nothing there (a blob comparison, no merge)."""
@@ -416,7 +472,7 @@ class _MissionFileJudge:
 def _mission_files_accounted(repo_root: Path, tip: str, landing_ref: str, mission_slug: str, *, integrated_by: str | None = None) -> bool:
     """Every ``kitty-specs/`` difference between ``tip`` and ``landing_ref`` is accounted for (:class:`_MissionFileJudge`)."""
     judge = _MissionFileJudge(repo_root, tip, landing_ref, mission_slug, integrated_by=integrated_by)
-    mission_paths = [str(path) for path in changed_paths(repo_root, landing_ref, tip) if str(path).startswith(f"{_MISSION_ROOT}/")]
+    mission_paths = [path for path in _diff_paths(repo_root, landing_ref, tip) if path.startswith(f"{_MISSION_ROOT}/")]
     return all(judge.accounted(path) for path in mission_paths)
 
 
@@ -433,12 +489,18 @@ def _product_absorbed(repo_root: Path, tip: str, landing_ref: str) -> bool:
     merged = merge_tree(repo_root, landing_ref, tip)
     if not merged.tree or _outside_mission_files(merged.conflicted):
         return False
-    return not _outside_mission_files(changed_paths(repo_root, landing_ref, merged.tree))
+    return not _outside_mission_files(_diff_paths(repo_root, landing_ref, merged.tree))
 
 
 def is_ancestor(repo_root: Path, tip: str, landing_ref: str) -> bool:
     """``True`` only when git confirms ``tip`` is an ancestor of ``landing_ref``; any error is ``False`` (no proof)."""
-    return run_git(repo_root, "merge-base", "--is-ancestor", tip, landing_ref, check=False).returncode == 0
+
+    def read() -> int:
+        return run_git(repo_root, "merge-base", "--is-ancestor", tip, landing_ref, check=False).returncode
+
+    # Only a definite answer (0 yes, 1 no) is kept: an error is asked again next time.
+    returncode = cached_object_read(repo_root, (tip, landing_ref), ("lane_tip", "is-ancestor"), read, store_if=lambda code: code in (0, 1))
+    return returncode == 0
 
 
 def is_absorbed_but_for_mission_bookkeeping(repo_root: Path, tip: str, landing_ref: str, mission_slug: str) -> bool:
@@ -480,10 +542,10 @@ def is_absorbed_but_for_mission_bookkeeping(repo_root: Path, tip: str, landing_r
 
 def _mission_branch_landed(repo_root: Path, mission_tip: str, landing_ref: str) -> bool:
     """Every product path the Mission branch changed since its merge base with the landing has its blob there."""
-    bases = _git_lines(repo_root, "merge-base", "--all", mission_tip, landing_ref)
+    bases = _git_lines(repo_root, "merge-base", "--all", mission_tip, landing_ref, revs=(mission_tip, landing_ref))
     if not bases:
         return False
-    integrated = {str(path) for base in bases for path in changed_paths(repo_root, base, mission_tip)}
+    integrated = {path for base in bases for path in _diff_paths(repo_root, base, mission_tip)}
     return all(_blob_id(repo_root, landing_ref, path) == _blob_id(repo_root, mission_tip, path) for path in _outside_mission_files(sorted(integrated)))
 
 
@@ -493,10 +555,10 @@ def _lane_changed_product_paths(repo_root: Path, tip: str, landing_ref: str) -> 
     Read from the tree diff, not from authorship, so a fast-forwarded lane (whose own commit sits
     behind a second parent) is still judged path by path (Tier R confirm N1).
     """
-    bases = _git_lines(repo_root, "merge-base", "--all", tip, landing_ref)
+    bases = _git_lines(repo_root, "merge-base", "--all", tip, landing_ref, revs=(tip, landing_ref))
     if not bases:
         raise GitCommandError(argv=("merge-base", "--all", tip, landing_ref), cwd=repo_root, returncode=1, stderr="no merge base")
-    changed = {str(path) for base in bases for path in changed_paths(repo_root, base, tip)}
+    changed = {path for base in bases for path in _diff_paths(repo_root, base, tip)}
     return _outside_mission_files(sorted(changed))
 
 
@@ -517,7 +579,7 @@ class _ApprovedWork:
         self._tip = tip
         # The Mission branch's own first-parent line is coordination history, never a lane's work: a
         # lane forked from it walks those commits on its own first-parent chain (Tier R confirm 2 B1).
-        coordination = set(_git_lines(repo_root, "rev-list", "--first-parent", mission_tip, f"^{landing_ref}"))
+        coordination = set(_git_lines(repo_root, "rev-list", "--first-parent", mission_tip, f"^{landing_ref}", revs=(mission_tip, landing_ref)))
         self._commits = [
             (commit, paths)
             for other in approved_tips
@@ -535,7 +597,7 @@ class _ApprovedWork:
         and neither is a commit on the Mission branch's own first-parent line that the lane forked
         from (confirm 2 B1).
         """
-        lane_commit = _git_lines(self._repo_root, "rev-list", "-n", "1", self._tip, "--", path)
+        lane_commit = _git_lines(self._repo_root, "rev-list", "-n", "1", self._tip, "--", path, revs=(self._tip,))
         if not lane_commit:
             return False
         return any(path in paths and is_ancestor(self._repo_root, lane_commit[0], commit) for commit, paths in self._commits)

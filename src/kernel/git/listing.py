@@ -369,6 +369,14 @@ def tree_entry(cwd: Path, ref: str, path: str, *, env: Env = None, timeout: floa
     return next((entry for entry in entries if entry.path == wanted), None)
 
 
+def subtree_entries(cwd: Path, ref: str, prefix: str, *, env: Env = None, timeout: float | None = None) -> tuple[TreeEntry, ...]:
+    """Every entry (blobs and the trees on the way) at or under *prefix* in *ref*'s tree, in one ``ls-tree -r -t`` call.
+
+    *prefix* is a literal path relative to the checkout root; a *ref* without it yields ``()``.
+    """
+    return parse_tree_z(_git(cwd, ["ls-tree", "--full-tree", "-r", "-t", "-z", ref], (prefix,), env=env, timeout=timeout))
+
+
 def blob_at(cwd: Path, ref: str, path: str, *, env: Env = None, timeout: float | None = None) -> bytes | None:
     """Bytes of ``<ref>:<path>``, or ``None`` when *ref* is readable and does not track *path*.
 
