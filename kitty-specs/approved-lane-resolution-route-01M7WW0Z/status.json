@@ -549,7 +549,7 @@
     },
     "WP12": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -575,6 +575,7 @@
         "Route e2e via real CLI (squash+merge), N1/N2/N3, SC-003 with discriminating control, residual novel-line control, WP06 partial-shape hint, three-lane builder smoke; binding DoD (a)-(d) in review/context_block.py+wp_range.py as recorded leeway. 15 passed; regression lists green; make test-fast 3222 passed."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP12-end-to-end-route/review-cycle-1.md",
         "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP12-end-to-end-route/review-cycle-1.md",
@@ -582,13 +583,13 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 6293,
-      "shell_pid_created_at": "1795635915.73",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T047": "done",
-        "T048": "done",
-        "T049": "done",
-        "T050": "done"
+        "T047": "planned",
+        "T048": "planned",
+        "T049": "planned",
+        "T050": "planned"
       }
     },
     "WP13": {
