@@ -125,7 +125,7 @@ def test_a_built_in_pin_bump_runs_the_skill_tests() -> None:
 
 def test_asset_surface_fanout_key_set_is_pinned() -> None:
     """Review N1 on #7853: no fan-out group joins this table silently."""
-    assert ASSET_SURFACE_MODULE_FANOUT == {
+    assert {
         "upgrade_asset_surface": frozenset({"upgrade", "cli"}),
         "skill_sources": frozenset({"cli"}),
-    }
+    } == ASSET_SURFACE_MODULE_FANOUT
