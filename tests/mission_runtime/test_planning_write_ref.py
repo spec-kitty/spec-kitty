@@ -242,3 +242,81 @@ def test_a_git_failure_while_probing_the_mission_branches_fails_closed(tmp_path:
 
     with pytest.raises(mission_runtime.PlanningWriteRefUnavailable, match="could not probe the Mission branches"):
         mission_runtime.planning_write_ref(repo, _SLUG, _TARGET)
+
+
+# ---------------------------------------------------------------- review cycle 2
+
+
+def _branch_with_meta(repo: Path, tmp_path: Path, branch: str, meta: dict[str, object], slug: str = _SLUG) -> None:
+    """Commit *meta* for *slug* on a new local *branch* without leaving a checkout behind."""
+    git_out(repo, "branch", branch)
+    holder = tmp_path / f"holder-{branch.replace('/', '-')}"
+    git_out(repo, "worktree", "add", "-q", str(holder), branch)
+    _write_meta(holder, slug, meta)
+    git_out(repo, "worktree", "remove", "--force", str(holder))
+
+
+def test_an_explicit_single_branch_mission_off_its_branch_keeps_todays_behaviour(tmp_path: Path) -> None:
+    """FR-006: a branch carrying an explicit Mission's meta never makes the probe refuse."""
+    repo = tmp_path / "repo"
+    _init(repo)
+    branch = "kitty/mission-sb-01M8BBBB"
+    _branch_with_meta(repo, tmp_path, branch, {"mission_slug": _SLUG, "target_branch": _TARGET, "topology": "single_branch", "mission_branch": branch})
+
+    ref = mission_runtime.planning_write_ref(repo, _SLUG, _TARGET)
+
+    assert (ref.branch, ref.on_mission_branch) == (_TARGET, False)
+
+
+def test_a_landed_default_missions_branch_is_not_claimed(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _init(repo)
+    _branch_with_meta(repo, tmp_path, _MISSION_BRANCH, _default_meta(_SLUG, _MISSION_BRANCH) | {"merged_at": "2026-11-25T00:00:00+00:00"})
+
+    ref = mission_runtime.planning_write_ref(repo, _SLUG, _TARGET)
+
+    assert (ref.branch, ref.on_mission_branch) == (_TARGET, False)
+
+
+def test_a_fresh_clone_with_a_remote_only_mission_branch_refuses_with_the_fetch_remedy(tmp_path: Path) -> None:
+    """NFR-002: the Mission branch exists only as ``origin/<branch>``; never a silent fallback to the target."""
+    upstream = tmp_path / "upstream"
+    _init(upstream)
+    _branch_with_meta(upstream, tmp_path, _MISSION_BRANCH, _default_meta(_SLUG, _MISSION_BRANCH))
+    clone = tmp_path / "clone"
+    git_out(tmp_path, "clone", "-q", str(upstream), str(clone))
+
+    with pytest.raises(mission_runtime.PlanningCheckoutMissing) as refused:
+        mission_runtime.planning_write_ref(clone, _SLUG, _TARGET)
+
+    assert (refused.value.mission_branch, refused.value.remote) == (_MISSION_BRANCH, "origin")
+    assert f"git branch {_MISSION_BRANCH} origin/{_MISSION_BRANCH}" in str(refused.value)
+    assert f"spec-kitty doctor coordination --mission {_SLUG} --fix" in str(refused.value)
+
+
+def test_a_local_mission_branch_wins_over_its_remote_tracking_copy(tmp_path: Path) -> None:
+    upstream = tmp_path / "upstream"
+    _init(upstream)
+    _branch_with_meta(upstream, tmp_path, _MISSION_BRANCH, _default_meta(_SLUG, _MISSION_BRANCH))
+    clone = tmp_path / "clone"
+    git_out(tmp_path, "clone", "-q", str(upstream), str(clone))
+    git_out(clone, "branch", _MISSION_BRANCH, f"origin/{_MISSION_BRANCH}")
+
+    with pytest.raises(mission_runtime.PlanningCheckoutMissing) as refused:
+        mission_runtime.planning_write_ref(clone, _SLUG, _TARGET)
+
+    assert refused.value.remote is None
+    assert "git branch" not in str(refused.value)
+
+
+def test_a_tag_sharing_the_branch_name_does_not_hide_the_mission_branch(tmp_path: Path) -> None:
+    """``refname:short`` would print ``heads/<branch>`` here; full refnames keep the match."""
+    repo = tmp_path / "repo"
+    _init(repo)
+    _branch_with_meta(repo, tmp_path, _MISSION_BRANCH, _default_meta(_SLUG, _MISSION_BRANCH))
+    git_out(repo, "tag", _MISSION_BRANCH)
+
+    with pytest.raises(mission_runtime.PlanningCheckoutMissing) as refused:
+        mission_runtime.planning_write_ref(repo, _SLUG, _TARGET)
+
+    assert refused.value.mission_branch == _MISSION_BRANCH

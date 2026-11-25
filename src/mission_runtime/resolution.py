@@ -1159,20 +1159,25 @@ class PlanningCheckoutMissing(RuntimeError):
     """No checkout holds the Mission branch a default Mission's planning lane writes to (#7860).
 
     Raised instead of falling back to the repository root checkout or the target (NFR-002): the
-    planning work of a default Mission that has not landed belongs on its Mission branch.
+    planning work of a default Mission that has not landed belongs on its Mission branch. When
+    the branch exists only as a remote-tracking ref (*remote* set, e.g. a fresh clone), the
+    remedy first creates the local branch.
     """
 
     error_code = PLANNING_CHECKOUT_MISSING
 
-    def __init__(self, mission_slug: str, mission_branch: str) -> None:
+    def __init__(self, mission_slug: str, mission_branch: str, *, remote: str | None = None) -> None:
         from mission_runtime.coord_remedy import coordination_doctor_command
 
         self.mission_slug = mission_slug
         self.mission_branch = mission_branch
+        self.remote = remote
+        where = f"exists only as {remote}/{mission_branch}" if remote else "is not checked out anywhere"
+        first = f"create it with `git branch {mission_branch} {remote}/{mission_branch}`, then " if remote else ""
         super().__init__(
-            f"{PLANNING_CHECKOUT_MISSING}: no checkout holds the Mission branch {mission_branch} (the coordination branch) of "
-            f"Mission {mission_slug!r}, where its planning work is written until it lands. Restore the coordination worktree "
-            f"with {coordination_doctor_command(mission_slug)}, then retry."
+            f"{PLANNING_CHECKOUT_MISSING}: the Mission branch {mission_branch} (the coordination branch) of Mission "
+            f"{mission_slug!r} {where}; its planning work is written there until it lands. To restore the coordination "
+            f"worktree, {first}run {coordination_doctor_command(mission_slug)}, then retry."
         )
 
 
@@ -1192,32 +1197,61 @@ class PlanningWriteRef:
     landed: bool
 
 
-#: The Mission branch namespace (``kitty/mission-<slug>[-<mid8>]``); lane branches share it.
-_MISSION_BRANCH_REFS = "refs/heads/kitty/mission-"
+#: Local and remote-tracking Mission branch refs (``kitty/mission-<slug>[-<mid8>]``); lane branches share the namespace.
+_MISSION_BRANCH_PATTERNS = ("refs/heads/kitty/mission-*", "refs/remotes/*/kitty/mission-*")
 
 
-def _branch_claiming_mission(repo_root: Path, mission_slug: str) -> str | None:
-    """The local branch whose own ``meta.json`` records it as this Mission's ``mission_branch``, or ``None``.
+@dataclass(frozen=True)
+class _ClaimingBranch:
+    """A ref whose own ``meta.json`` records it as a default, not-landed Mission's ``mission_branch``."""
 
-    Used only when no PRIMARY ``meta.json`` was found where the placement seam looked. A branch
-    qualifies only when its ``kitty-specs/<slug>/meta.json`` names that same branch, so a lane
-    branch that merged the Mission branch (and carries its ``meta.json``) never qualifies, and no
-    branch name is guessed from the slug. Any git or decode failure raises
-    :class:`PlanningWriteRefUnavailable` (fail closed).
+    branch: str
+    remote: str | None
+
+
+def _branch_and_remote(refname: str) -> tuple[str, str | None]:
+    """``refs/heads/<b>`` -> ``(<b>, None)``; ``refs/remotes/<r>/<b>`` -> ``(<b>, <r>)`` (full refnames, never ``:short``)."""
+    if refname.startswith("refs/heads/"):
+        return refname.removeprefix("refs/heads/"), None
+    remote, _, branch = refname.removeprefix("refs/remotes/").partition("/")
+    return branch, remote
+
+
+def _claims_default_mission(meta: Mapping[str, Any] | None, branch: str) -> bool:
+    """Whether *meta* (read off *branch*) is a default, not-landed Mission recording *branch* as its Mission branch."""
+    if not meta or meta.get("mission_branch") != branch:
+        return False
+    return default_mission_rule_applies(meta.get("topology_source"), branch, bool(meta.get("merged_at")))
+
+
+def _branch_claiming_mission(repo_root: Path, mission_slug: str) -> _ClaimingBranch | None:
+    """The Mission branch a default, not-landed Mission's own ``meta.json`` records, found off any local or remote ref.
+
+    Used only when no PRIMARY ``meta.json`` was found where the placement seam looked. A ref
+    qualifies only when its ``kitty-specs/<slug>/meta.json`` records that same branch as the
+    ``mission_branch`` of a default Mission that has not landed: a lane branch carrying a copy
+    names another branch, and an explicit-topology Mission (FR-006) never qualifies. No branch
+    name is guessed from the slug. A local branch wins over a remote-tracking one. Any git or
+    decode failure raises :class:`PlanningWriteRefUnavailable` (fail closed).
     """
     from kernel.git import blob_at, run_git
     from kernel.meta_decode import MetaDecodeError, decode_meta
 
     meta_path = f"kitty-specs/{mission_slug}/meta.json"
+    remote_claim: _ClaimingBranch | None = None
     try:
-        listing = run_git(repo_root, "for-each-ref", "--format=%(refname:short)", _MISSION_BRANCH_REFS + "*").stdout
-        for branch in listing.decode("utf-8", errors="replace").split():
-            raw = blob_at(repo_root, branch, meta_path)
-            if raw is not None and (decode_meta(raw) or {}).get("mission_branch") == branch:
-                return branch
+        listing = run_git(repo_root, "for-each-ref", "--format=%(refname)", *_MISSION_BRANCH_PATTERNS).stdout
+        for refname in listing.decode("utf-8", errors="replace").split():
+            branch, remote = _branch_and_remote(refname)
+            raw = blob_at(repo_root, refname, meta_path)
+            if raw is None or not _claims_default_mission(decode_meta(raw), branch):
+                continue
+            if remote is None:
+                return _ClaimingBranch(branch=branch, remote=None)
+            remote_claim = remote_claim or _ClaimingBranch(branch=branch, remote=remote)
     except (GitCommandError, MetaDecodeError) as exc:
         raise PlanningWriteRefUnavailable(mission_slug, f"could not probe the Mission branches ({exc})") from exc
-    return None
+    return remote_claim
 
 
 def planning_write_ref(repo_root: Path, mission_slug: str, target_branch: str, *, resolver: MissionResolver | None = None) -> PlanningWriteRef:
@@ -1232,10 +1266,12 @@ def planning_write_ref(repo_root: Path, mission_slug: str, target_branch: str, *
 
     * an unreadable PRIMARY ``meta.json``, or a git failure while probing, raises
       :class:`PlanningWriteRefUnavailable`;
-    * no PRIMARY ``meta.json`` where the placement seam looked, while a local branch's own
-      ``meta.json`` records it as this Mission's branch (its checkout is gone), raises
+    * no PRIMARY ``meta.json`` where the placement seam looked, while a local or remote-tracking
+      branch's own ``meta.json`` records it as this default, not-landed Mission's branch (its
+      checkout is gone, or the branch was never fetched locally), raises
       :class:`PlanningCheckoutMissing`;
-    * no ``meta.json`` anywhere is a legacy Mission: the target, as today.
+    * otherwise (no such ``meta.json`` on any ref: a legacy or explicit-topology Mission) the
+      target, as today.
 
     The non-raising placement reader :func:`_default_mission_facts` is unchanged. Consumers look
     this up at call time (``mission_runtime.planning_write_ref``) so one monkeypatch reaches
@@ -1251,8 +1287,8 @@ def planning_write_ref(repo_root: Path, mission_slug: str, target_branch: str, *
     fallback = resolve_single_branch_write_ref(repo_root, mission_slug, target_branch, resolver=resolver)
     if facts is None:
         claimed = _branch_claiming_mission(main_root, mission_slug)
-        if claimed is not None and claimed != fallback:
-            raise PlanningCheckoutMissing(mission_slug, claimed)
+        if claimed is not None:
+            raise PlanningCheckoutMissing(mission_slug, claimed.branch, remote=claimed.remote)
         return PlanningWriteRef(branch=fallback, on_mission_branch=False, landed=False)
     topology_source, mission_branch, landed = facts
     applies = default_mission_rule_applies(topology_source, mission_branch, landed)
