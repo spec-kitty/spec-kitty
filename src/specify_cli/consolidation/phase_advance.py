@@ -198,6 +198,9 @@ def _lane_completed_but_branch_gone(run: _MergeRunState, lane: ExecutionLane, la
 def _record_own_auto_rebase(run: _MergeRunState, branch: str, *, before: str | None, mission_before: str | None) -> None:
     """#6736: persist the lane's move by this run's own auto-rebase, so cleanup expects the merged tip.
 
+    Called after every lane consolidation attempt, successful or not (FR-009, WP07): the rollback
+    reads the same record to undo a move the run made on a lane it then failed to consolidate.
+
     Only the exact merge ``consolidate_lane_into_mission`` makes is recorded (and only from the
     snapshot tip); any other move stays unrecorded and cleanup keeps the lane (fail closed).
     """
@@ -418,8 +421,11 @@ def _phase_merge_lanes(run: _MergeRunState) -> None:
         console.print(f"  [dim]Checking and merging {lane.lane_id}...[/dim]")
         lane_before, mission_before = branch_tip(run.main_repo, _lane_branch), branch_tip(run.main_repo, lanes_manifest.mission_branch)
         lane_result = consolidate_lane_into_mission(run.main_repo, run.mission_slug, lane.lane_id, lanes_manifest)
+        # FR-009 / R-03 (WP07): record this run's own auto-rebase move whatever the lane's consolidation
+        # did next (still stale, or a failed merge), so the rollback can undo it; ``own_auto_rebase_move``
+        # still records only the exact merge the auto-rebase makes.
+        _record_own_auto_rebase(run, _lane_branch, before=lane_before, mission_before=mission_before)
         if lane_result.success:
-            _record_own_auto_rebase(run, _lane_branch, before=lane_before, mission_before=mission_before)
             console.print(f"  [green]✓[/green] {lane.lane_id} → {lanes_manifest.mission_branch}")
         else:
             # T005: tolerate already-merged lanes on retry

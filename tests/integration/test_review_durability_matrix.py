@@ -50,15 +50,17 @@ prompt names).
 * **Auto-commit**: ``True`` / ``False`` (``--no-auto-commit``, FR-013).
 
 **T068 -- the non-vacuity proof.** :func:`test_matrix_is_sensitive_to_commit_
-removal` re-drives the 3 cells where a commit is actually attempted
-(``auto_commit=True`` AND ``single_branch``) with ``commit_artifact``
+removal` re-drives the 6 cells where a commit is actually attempted
+(``auto_commit=True``, either topology) with ``commit_artifact``
 monkeypatched to the documented no-op (``CommitArtifactResult(status=
-"unchanged", ...)``) and asserts each one now raises. The other 9 cells
-(``auto_commit=False``, or ``coord_protected``) never call ``commit_artifact``
-at all by design (T050's skip gate fires BEFORE the call). Explicit local-only
-cells return normally; protected automatic cells return the exact fail-closed
-``persistence_failed/protected_target_branch`` envelope. The dedicated
-insulation test pins both outcomes and proves neither emits a verdict event.
+"unchanged", ...)``) and asserts each one now raises. The other 6 cells
+(``auto_commit=False``) never call ``commit_artifact`` at all by design and
+return their local-only skip reason; the dedicated insulation test pins that.
+Since #7861 (operator ruling DM-01M89KDT5DZQ4DX6ZFX54HY3J3) the
+``coord_protected`` axis no longer skips the attempt: T050's gate keyed the
+REVIEW_CYCLE commit on the WP-file protected-primary flag, which refused every
+hand-back on a protected coordination target although the router commits that
+COORD-partition kind to the coordination branch.
 
 **T069a/b -- real router, real git (single_branch), and the SIGKILL cell.**
 :func:`test_real_router_commit_lands_on_disk_and_git_history` and
@@ -205,7 +207,6 @@ _MISSION = "durability-matrix"
 _WP_ID = "WP01"
 _WP_SLUG = f"{_WP_ID}-test"
 _REASON_NO_AUTO_COMMIT = "no_auto_commit"
-_REASON_PROTECTED_TARGET_BRANCH = "protected_target_branch"
 _REVIEW_GATE_BYPASS: dict[str, Any] = {
     "_validate_ready_for_review": (True, []),
     "_check_unchecked_subtasks": [],
@@ -240,11 +241,15 @@ _MATRIX_CELLS: tuple[_MatrixCell, ...] = tuple(
 # auto-commit value changes this number visibly rather than silently.
 assert len(_MATRIX_CELLS) == 3 * 2 * 2 == 12
 
-_DURABLE_CELLS: tuple[_MatrixCell, ...] = tuple(cell for cell in _MATRIX_CELLS if cell[1] == "single_branch" and cell[2] is True)
-assert len(_DURABLE_CELLS) == 3
+# #7861 (operator ruling DM-01M89KDT5DZQ4DX6ZFX54HY3J3): ``skip_target_branch_commit`` (the
+# WP-file flag for a protected primary under coordination topology) no longer suppresses the
+# review-cycle commit. REVIEW_CYCLE is a COORD-partition kind, so the router commits it where the
+# placement seam puts it; only ``auto_commit=False`` stays local-only.
+_DURABLE_CELLS: tuple[_MatrixCell, ...] = tuple(cell for cell in _MATRIX_CELLS if cell[2] is True)
+assert len(_DURABLE_CELLS) == 6
 
 _INSULATED_CELLS: tuple[_MatrixCell, ...] = tuple(cell for cell in _MATRIX_CELLS if cell not in _DURABLE_CELLS)
-assert len(_INSULATED_CELLS) == 9
+assert len(_INSULATED_CELLS) == 6
 
 
 def _cell_id(cell: _MatrixCell) -> str:
@@ -556,34 +561,8 @@ def test_durability_matrix_cell(tmp_path: Path, cell: _MatrixCell, capsys: pytes
     feature_dir = _seed_fixture(repo, _MISSION, _WP_ID, old_lane="in_review", seed_rejected_cycle=seed_rejected)
     wp_dir = _wp_dir(repo, _MISSION, _WP_ID)
     skip_target_branch_commit = topology == "coord_protected"
-    expected_durable = auto_commit and not skip_target_branch_commit
+    expected_durable = auto_commit  # #7861: the protected-primary flag no longer suppresses the review-cycle commit
     router: CoordCommitRouter = _FaultInjectableCoordRouter(write_dir=feature_dir) if expected_durable else FakeCoordCommitRouter(write_dir=feature_dir)
-    event_ids_before = {event.event_id for event in read_events(feature_dir)}
-
-    if auto_commit and skip_target_branch_commit:
-        with pytest.raises(typer.Exit) as exc_info:
-            _drive_scenario(
-                repo,
-                mission=_MISSION,
-                wp_id=_WP_ID,
-                scenario=scenario,
-                router=router,
-                auto_commit=auto_commit,
-                skip_target_branch_commit=skip_target_branch_commit,
-            )
-        assert exc_info.value.exit_code == 1
-        payload = _last_json_payload(capsys)
-        evidence_ref = _assert_persistence_failure(
-            payload,
-            reason=_REASON_PROTECTED_TARGET_BRANCH,
-            destination_ref=None,
-        )
-        assert (repo / evidence_ref).is_file(), payload
-        _assert_no_new_status_event(feature_dir, event_ids_before)
-        assert isinstance(router, FakeCoordCommitRouter)
-        assert router.artifact_calls == [], "protected routing must fail before commit"
-        assert router.status_calls == [], "protected routing must fail before event emission"
-        return
 
     _drive_scenario(
         repo,
@@ -600,8 +579,7 @@ def test_durability_matrix_cell(tmp_path: Path, cell: _MatrixCell, capsys: pytes
     if expected_durable:
         assert "verdict_durability_skip_reason" not in payload, payload
     else:
-        expected_reason = _REASON_NO_AUTO_COMMIT if not auto_commit else _REASON_PROTECTED_TARGET_BRANCH
-        assert payload["verdict_durability_skip_reason"] == expected_reason, payload
+        assert payload["verdict_durability_skip_reason"] == _REASON_NO_AUTO_COMMIT, payload
 
     latest = ReviewCycleArtifact.latest(wp_dir)
     assert latest is not None, f"cell {_cell_id(cell)}: expected a written review-cycle artifact"
@@ -619,10 +597,17 @@ def test_durability_matrix_cell(tmp_path: Path, cell: _MatrixCell, capsys: pytes
     # proxy for "which scenario actually wrote this".
     _assert_body_matches_scenario_verdict(latest.body, scenario.verdict, cell=_cell_id(cell))
 
-    if expected_durable:
+    # The destination is asserted only for ``single_branch``: ``coord_protected`` here is a patched flag on a
+    # single-branch repo with no coordination branch, so these cells cannot say where the evidence lands
+    # (their durable payload above is the router's verified commit). That placement is pinned on a real,
+    # protected coordination topology by
+    # test_real_protected_coord_topology_review_cycle_lands_on_coord_ref_and_main_is_untouched, and end to
+    # end by tests/lanes/test_approved_lane_stale_remedy.py
+    # (test_main_reopen_line_runs_on_a_protected_coordination_target and T036).
+    if expected_durable and topology == "single_branch":
         evidence_ref = (wp_dir / f"review-cycle-{latest.cycle_number}.md").relative_to(repo).as_posix()
         _assert_exact_blob_at_ref(repo, "main", evidence_ref)
-    else:
+    elif not expected_durable:
         assert isinstance(router, FakeCoordCommitRouter)
         assert router.artifact_calls == [], (
             f"cell {_cell_id(cell)}: durability signal reported non-durable "
@@ -641,7 +626,7 @@ def test_durability_matrix_cell(tmp_path: Path, cell: _MatrixCell, capsys: pytes
 def test_matrix_is_sensitive_to_commit_removal(tmp_path: Path, cell: _MatrixCell, capsys: pytest.CaptureFixture[str], caplog: pytest.LogCaptureFixture) -> None:
     """A neutered automatic evidence router fails closed before emission."""
     scenario, topology, auto_commit = cell
-    assert topology == "single_branch" and auto_commit is True  # documents the subset
+    assert auto_commit is True  # documents the subset (both topologies since #7861)
 
     repo = tmp_path
     seed_rejected = scenario.verdict == "approved"
@@ -668,7 +653,7 @@ def test_matrix_is_sensitive_to_commit_removal(tmp_path: Path, cell: _MatrixCell
             scenario=scenario,
             router=router,
             auto_commit=True,
-            skip_target_branch_commit=False,
+            skip_target_branch_commit=topology == "coord_protected",
         )
 
     assert exc_info.value.exit_code == 1
@@ -698,12 +683,12 @@ def test_matrix_is_sensitive_to_commit_removal(tmp_path: Path, cell: _MatrixCell
 @pytest.mark.fast
 @pytest.mark.parametrize("cell", _INSULATED_CELLS, ids=[_cell_id(c) for c in _INSULATED_CELLS])
 def test_protected_and_no_auto_commit_cells_never_invoke_commit_artifact(tmp_path: Path, cell: _MatrixCell, capsys: pytest.CaptureFixture[str]) -> None:
-    """The other half of T068's edge case: for the 9 cells where
-    ``auto_commit=False`` or the topology is ``coord_protected``, the skip
-    gate (in ``_persist_review_cycle_with_queue``) must prevent ``commit_artifact``
-    from ever being called. Explicit local-only cells return their stable skip
-    reason; protected automatic cells fail nonzero with retained evidence and
-    no event. Mutating an unreachable commit method must alter neither path."""
+    """The other half of T068's edge case: for the 6 cells where
+    ``auto_commit=False``, ``_persist_review_cycle_with_queue`` must never call
+    ``commit_artifact``; they return their stable local-only skip reason.
+    Mutating an unreachable commit method must not alter that outcome. (Since
+    #7861 the ``coord_protected`` axis no longer skips: REVIEW_CYCLE evidence is
+    committed through the router to its COORD-partition home.)"""
     scenario, topology, auto_commit = cell
     repo = tmp_path
     seed_rejected = scenario.verdict == "approved"
@@ -714,49 +699,25 @@ def test_protected_and_no_auto_commit_cells_never_invoke_commit_artifact(tmp_pat
     )
     skip_target_branch_commit = topology == "coord_protected"
 
-    event_ids_before = {event.event_id for event in read_events(feature_dir)}
-    if auto_commit:
-        assert skip_target_branch_commit
-        with pytest.raises(typer.Exit) as exc_info:
-            _drive_scenario(
-                repo,
-                mission=_MISSION,
-                wp_id=_WP_ID,
-                scenario=scenario,
-                router=router,
-                auto_commit=auto_commit,
-                skip_target_branch_commit=skip_target_branch_commit,
-            )
-        assert exc_info.value.exit_code == 1
-        payload = _last_json_payload(capsys)
-        evidence_ref = _assert_persistence_failure(
-            payload,
-            reason=_REASON_PROTECTED_TARGET_BRANCH,
-            destination_ref=None,
-        )
-        assert (repo / evidence_ref).is_file(), payload
-        _assert_no_new_status_event(feature_dir, event_ids_before)
-    else:
-        _drive_scenario(
-            repo,
-            mission=_MISSION,
-            wp_id=_WP_ID,
-            scenario=scenario,
-            router=router,
-            auto_commit=auto_commit,
-            skip_target_branch_commit=skip_target_branch_commit,
-        )
-        payload = _last_json_payload(capsys)
-        assert payload["verdict_durably_persisted"] is False, payload
-        assert payload["verdict_durability_skip_reason"] == _REASON_NO_AUTO_COMMIT
+    assert auto_commit is False  # #7861: only --no-auto-commit skips the attempt now
+    _drive_scenario(
+        repo,
+        mission=_MISSION,
+        wp_id=_WP_ID,
+        scenario=scenario,
+        router=router,
+        auto_commit=auto_commit,
+        skip_target_branch_commit=skip_target_branch_commit,
+    )
+    payload = _last_json_payload(capsys)
+    assert payload["verdict_durably_persisted"] is False, payload
+    assert payload["verdict_durability_skip_reason"] == _REASON_NO_AUTO_COMMIT
 
     assert router.artifact_calls == [], (
         f"cell {_cell_id(cell)}: commit_artifact was invoked even though this "
         "cell is supposed to skip the attempt entirely -- the mutation should "
         "be irrelevant to (and must not have altered) this outcome"
     )
-    if auto_commit:
-        assert router.status_calls == [], "protected failure must precede event emission"
 
 
 # ---------------------------------------------------------------------------
@@ -1283,6 +1244,40 @@ def _run_coord_cell_approval(ctx: CoordTopologyContext, *, wp_id: str, router: _
         )
 
 
+def _run_coord_cell_rejection(ctx: CoordTopologyContext, *, wp_id: str, router: _FaultInjectableCoordRouter, feedback: Path) -> None:
+    """The #7861 hand-back (``--to planned --review-feedback-file``) through the REAL ``_do_move_task``, no ``--note``."""
+    with setup_mocked_env(
+        ctx.repo,
+        mission_slug=ctx.slug,
+        target_branch="main",
+        extra_patches=dict(_REVIEW_GATE_BYPASS),
+    ):
+        _do_move_task(
+            _MoveTaskArgs(
+                task_id=wp_id,
+                to="planned",
+                mission=ctx.slug,
+                agent="reviewer-matrix",
+                assignee=None,
+                shell_pid=None,
+                note=None,
+                review_feedback_file=feedback,
+                approval_ref=None,
+                reviewer=None,
+                self_review_fallback=False,
+                intended_reviewer=None,
+                reviewer_failure_reason=None,
+                done_override_reason=None,
+                force=False,
+                tracker_ref=None,
+                skip_review_artifact_check=False,
+                auto_commit=True,
+                json_output=True,
+            ),
+            ports=_coord_cell_ports(ctx, router),
+        )
+
+
 def _seed_coord_rejected_cycle(ctx: CoordTopologyContext, wp_id: str) -> None:
     created = create_rejected_review_cycle(
         main_repo_root=ctx.repo,
@@ -1326,6 +1321,35 @@ def _coord_review_cycle_rel(ctx: CoordTopologyContext, wp_id: str, cycle: int) -
 
 def _git_show(repo: Path, ref: str, rel: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["git", "show", f"{ref}:{rel}"], cwd=repo, capture_output=True, text=True)
+
+
+@pytest.mark.integration
+@pytest.mark.git_repo
+def test_real_protected_coord_topology_review_cycle_lands_on_coord_ref_and_main_is_untouched(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """#7861: the matrix's ``coord_protected`` axis, on a REAL coordination topology with ``main`` protected.
+
+    The real resolver sees the real coord worktree, so ``skip_target_branch_commit`` is genuinely true
+    here (the WP-file flag); the REVIEW_CYCLE evidence must still be committed, on the coordination
+    branch, and ``main`` must not move. A regression that sends the evidence to protected ``main``
+    (refused, or landed) fails this test.
+    """
+    ctx = _build_coord_topology(tmp_path, write_husk_meta=False)
+    _seed_coord_wp_in_review(ctx, "WP01")
+    main_before = subprocess.run(["git", "rev-parse", "main"], cwd=ctx.repo, capture_output=True, text=True, check=True).stdout.strip()
+    feedback = tmp_path / "feedback.md"
+    feedback.write_text(_SEED_FEEDBACK_BODY, encoding="utf-8")
+
+    router = _FaultInjectableCoordRouter(write_dir=ctx.coord_feature_dir)
+    _run_coord_cell_rejection(ctx, wp_id="WP01", router=router, feedback=feedback)
+
+    payload = _last_json_payload(capsys)
+    assert payload["verdict_durably_persisted"] is True, payload
+    rel = _coord_review_cycle_rel(ctx, "WP01", 1)
+    coord_show = _git_show(ctx.repo, ctx.coord_branch, rel)
+    assert coord_show.returncode == 0, f"review-cycle-1.md is NOT on the coordination ref {ctx.coord_branch!r}: {coord_show.stderr}"
+    assert _git_show(ctx.repo, "main", rel).returncode != 0, "review-cycle-1.md was committed to the protected primary 'main'"
+    main_after = subprocess.run(["git", "rev-parse", "main"], cwd=ctx.repo, capture_output=True, text=True, check=True).stdout.strip()
+    assert main_after == main_before, "the protected primary 'main' moved"
 
 
 @pytest.mark.integration
