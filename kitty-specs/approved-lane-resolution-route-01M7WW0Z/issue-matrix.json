@@ -407,6 +407,18 @@
       "title": null,
       "verdict": "in-mission",
       "wp": "WP07"
+    },
+    "#7864": {
+      "evidence_ref": "Follow-up filed from the WP07 review: the move-task --note refusal on protected coordination targets is outside #5604 scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
     }
   },
   "schema_version": 1
