@@ -13,6 +13,9 @@ requirement_refs:
 planning_base_branch: fix/7860-planning-evidence-window
 merge_target_branch: fix/7860-planning-evidence-window
 branch_strategy: Planning artifacts for this mission were generated on fix/7860-planning-evidence-window. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/7860-planning-evidence-window unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-planning-lane-write-branch-01M8A725
+base_commit: 8d68ec77ca8bf7ea107a787749089977160a0fa8
+created_at: '2026-11-25T23:07:39.024474+00:00'
 subtasks:
 - T005
 - T006
