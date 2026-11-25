@@ -212,7 +212,7 @@
     },
     "WP06": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -231,6 +231,7 @@
         "- 2026-11-25T10:14:43Z – claude::python-pedro – shell_pid=11398 – campsite fix (coordinator fold): f5a0a46056 typed locals for the two baseline mypy no-any-return findings (_refusal_reason: refusal: str | None; _is_bookkeeping_path: bookkeeping: bool); mypy on reconciliation_verifier.py alone now 0 errors; ruff/format clean; test_unreviewed_merge_hint.py + test_reconciliation.py -n 3: 262 passed, 1 xfailed. No behaviour change."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP06-gate-hint-re-review/review-cycle-1.md",
         "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP06-gate-hint-re-review/review-cycle-1.md",
@@ -238,12 +239,12 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 11398,
-      "shell_pid_created_at": "1795599576.74",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T029": "done",
-        "T030": "done",
-        "T031": "done"
+        "T029": "planned",
+        "T030": "planned",
+        "T031": "planned"
       }
     },
     "WP07": {
