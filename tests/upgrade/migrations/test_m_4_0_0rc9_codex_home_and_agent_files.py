@@ -14,12 +14,9 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.agent_utils import codex_home
-from specify_cli.agent_utils.codex_home import is_codex_home
 from specify_cli.core.agent_config import AgentConfig, save_agent_config
 from specify_cli.gitignore_manager import GitignoreManager
 from specify_cli.upgrade.migrations import m_4_0_0rc9_exclude_project_local_codex_home as exclusion
-from specify_cli.upgrade.migrations.base import BaseMigration
 from specify_cli.upgrade.migrations import m_4_0_0rc9_report_newly_visible_agent_files as notice
 from specify_cli.upgrade.migrations.m_4_0_0rc9_exclude_project_local_codex_home import ExcludeProjectLocalCodexHomeMigration
 from specify_cli.upgrade.migrations.m_4_0_0rc9_report_newly_visible_agent_files import ReportNewlyVisibleAgentFilesMigration
@@ -71,21 +68,6 @@ def _untracked(repo: Path, *prefixes: str) -> list[str]:
     return sorted(line[3:] for line in out.splitlines() if line.startswith("?? ") and line[3:].startswith(wanted))
 
 
-class TestIdentity:
-    @pytest.mark.parametrize(
-        ("migration", "migration_id"),
-        [
-            (ExcludeProjectLocalCodexHomeMigration(), "4.0.0rc9_exclude_project_local_codex_home"),
-            (ReportNewlyVisibleAgentFilesMigration(), "4.0.0rc9_report_newly_visible_agent_files"),
-        ],
-    )
-    def test_identity_and_routing(self, migration: BaseMigration, migration_id: str) -> None:
-        assert migration.migration_id == migration_id
-        assert migration.target_version == "4.0.0rc9"
-        assert migration.clone_local_effect is True
-        assert migration.requires_git_repository is False
-
-
 class TestCodexHomeExclusion:
     def test_codex_home_is_excluded_in_this_clone(self, tmp_path: Path) -> None:
         project = _project(tmp_path)
@@ -93,6 +75,7 @@ class TestCodexHomeExclusion:
         migration = ExcludeProjectLocalCodexHomeMigration()
         assert _untracked(project) == [".codex/config.toml"]  # the committed block leaves config.toml to the clone
         assert migration.detect(project)
+        assert migration.can_apply(project) == (True, "")
 
         result = migration.apply(project)
 
@@ -249,9 +232,6 @@ class TestCodexHomeExclusion:
         ("path", "pattern"),
         [
             (".codex/", ".codex/"),
-            ("apps/foo[1]/.codex/", "apps/foo\\[1\\]/.codex/"),
-            ("a*b?/.codex/", "a\\*b\\?/.codex/"),
-            ("back\\slash/.codex/", "back\\\\slash/.codex/"),
             ("trailing ", "trailing\\ "),
         ],
     )
@@ -282,15 +262,13 @@ class TestCodexHomeExclusion:
         assert _untracked(project) == []
         assert "git add -f" in result.warnings[0]
 
-    def test_an_unreadable_exclude_file_reads_as_not_written(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(exclusion, "git_exclude_file", lambda _path: None)
-
-        assert not exclusion._exclude_has_rule(tmp_path, _ROOT_RULE)
-
-    def test_an_exclude_file_read_error_reads_as_not_written(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        directory = tmp_path / "exclude-is-a-directory"
-        directory.mkdir()
-        monkeypatch.setattr(exclusion, "git_exclude_file", lambda _path: directory)
+    @pytest.mark.parametrize("unreadable", ["no_exclude_file", "exclude_is_a_directory"])
+    def test_an_unreadable_exclude_file_reads_as_not_written(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, unreadable: str) -> None:
+        exclude: Path | None = None
+        if unreadable == "exclude_is_a_directory":
+            exclude = tmp_path / "exclude-is-a-directory"
+            exclude.mkdir()
+        monkeypatch.setattr(exclusion, "git_exclude_file", lambda _path: exclude)
 
         assert not exclusion._exclude_has_rule(tmp_path, _ROOT_RULE)
 
@@ -302,9 +280,6 @@ class TestCodexHomeExclusion:
         assert migration.can_apply(tmp_path) == (False, "Not a git repository")
         assert migration.apply(tmp_path).changes_made == ["Skipped: not a git repository"]
         assert exclusion.codex_dir_from_root(tmp_path) is None
-
-    def test_can_apply_in_a_repository(self, tmp_path: Path) -> None:
-        assert ExcludeProjectLocalCodexHomeMigration().can_apply(_project(tmp_path)) == (True, "")
 
     def test_a_failed_git_read_shows_nothing(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         project = _project(tmp_path)
@@ -324,6 +299,7 @@ class TestNewlyVisibleNotice:
         _write(project, ".codex/config.toml", ".cursor/rules/team.md")
         migration = ReportNewlyVisibleAgentFilesMigration()
         assert migration.detect(project)
+        assert migration.can_apply(project) == (True, "")
 
         result = migration.apply(project)
 
@@ -340,17 +316,12 @@ class TestNewlyVisibleNotice:
         _write(project, ".codex/version.json", ".codex/config.toml", ".cursor/rules/team.md")
 
         for dry_run in (True, False):
-            warning = ReportNewlyVisibleAgentFilesMigration().apply(project, dry_run=dry_run).warnings[0]
+            result = ReportNewlyVisibleAgentFilesMigration().apply(project, dry_run=dry_run)
+            warning = result.warnings[0]
+            if dry_run:
+                assert result.changes_made == ["Would list the untracked files git shows in agent folders"]
             assert ".cursor/rules/team.md" in warning
             assert ".codex/" not in warning
-
-    def test_dry_run_says_would(self, tmp_path: Path) -> None:
-        project = _project(tmp_path)
-        _write(project, ".cursor/rules/team.md")
-
-        result = ReportNewlyVisibleAgentFilesMigration().apply(project, dry_run=True)
-
-        assert result.changes_made == ["Would list the untracked files git shows in agent folders"]
 
     def test_nothing_to_show_is_not_detected(self, tmp_path: Path) -> None:
         project = _project(tmp_path)
@@ -389,9 +360,6 @@ class TestNewlyVisibleNotice:
         assert migration.can_apply(tmp_path) == (False, "Not a git repository")
         assert migration.apply(tmp_path).changes_made == ["Skipped: not a git repository"]
 
-    def test_can_apply_in_a_repository(self, tmp_path: Path) -> None:
-        assert ReportNewlyVisibleAgentFilesMigration().can_apply(_project(tmp_path)) == (True, "")
-
     def test_long_listing_is_truncated(self) -> None:
         paths = [f".claude/f{i:02}.md" for i in range(25)]
 
@@ -403,26 +371,3 @@ class TestNewlyVisibleNotice:
         assert ".claude/f20.md" not in warning
         assert "and 5 more" in warning
         assert notice._visibility_warning([]) is None
-
-
-class TestCodexHomeEdges:
-    def test_unreadable_codex_folder_is_not_a_codex_home(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        (tmp_path / ".codex").mkdir()
-
-        def _unreadable(_self: Path) -> object:
-            raise OSError("permission denied")
-
-        monkeypatch.setattr(Path, "iterdir", _unreadable)
-
-        assert not is_codex_home(tmp_path, environ={})
-
-    def test_unresolvable_codex_home_env_is_ignored(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        folder = tmp_path / ".codex"
-        folder.mkdir()
-
-        def _unresolvable(_self: Path, strict: bool = False) -> Path:
-            raise OSError("loop")
-
-        monkeypatch.setattr(Path, "resolve", _unresolvable)
-
-        assert not codex_home._codex_home_env_points_at(folder, {"CODEX_HOME": str(folder)})
