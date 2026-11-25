@@ -29,6 +29,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.consolidation.rollback import (
+    _LANE_REPORT_ONLY_REASON,
     BranchOutcome,
     BranchOutcomeKind,
     OwnMove,
@@ -359,8 +360,12 @@ def test_operator_fix_without_attempt_in_flight_is_unchanged_by_run(tmp_path: Pa
     assert _rev(env.repo, lane) == fix
 
 
-def test_lane_branches_are_report_only_even_with_a_recorded_post_tip(tmp_path: Path) -> None:
-    """Slice-10 F2: consolidation never moves a lane branch, so a lane move is another actor's and is never reverted."""
+def test_a_lane_named_only_in_post_mutation_refs_is_report_only(tmp_path: Path) -> None:
+    """Slice-10 F2, narrowed by FR-009: consolidation moves a lane only through its own recorded auto-rebase.
+
+    That move lives in ``lane_rebase_moves``; any other lane move is another actor's and is never
+    reverted, even when a (legacy) record names the lane in ``post_mutation_refs``.
+    """
     env = make_env(tmp_path)
     _snapshot_and_begin(env)
     lane = env.lane_branches[0]
@@ -373,10 +378,11 @@ def test_lane_branches_are_report_only_even_with_a_recorded_post_tip(tmp_path: P
     assert _rev(env.repo, lane) == foreign, "another actor's lane commit must never be rolled back"
     assert _kinds(report)[lane] is BranchOutcomeKind.UNCHANGED_BY_RUN
     assert report.fully_restored, "a report-only lane never blocks the restore of the run's own branches"
-    assert "lane branch: not moved by consolidation" in report.render()
+    assert _LANE_REPORT_ONLY_REASON in report.render()
 
 
 def test_record_never_records_a_lane_branch(tmp_path: Path) -> None:
+    """A lane move is never recorded as a post tip; the run's own auto-rebase move lives in ``lane_rebase_moves``."""
     env = make_env(tmp_path)
     _snapshot_and_begin(env)
     lane = env.lane_branches[0]
@@ -384,6 +390,65 @@ def test_record_never_records_a_lane_branch(tmp_path: Path) -> None:
     _advance_run(env)
     assert lane not in env.state.post_mutation_refs
     assert set(env.state.post_mutation_refs) == {_TARGET, _MISSION_BRANCH}
+
+
+def _own_auto_rebase_merge(env: Env, lane: str) -> tuple[str, str]:
+    """Move ``lane`` by a real two-parent merge ``[lane, mission]``, as the auto-rebase does; return ``(before, after)``."""
+    before = _rev(env.repo, lane)
+    tree = _git(env.repo, "rev-parse", f"{before}^{{tree}}")
+    after = _git(env.repo, "commit-tree", tree, "-p", before, "-p", _rev(env.repo, _MISSION_BRANCH), "-m", "auto-rebase merge")
+    _git(env.repo, "update-ref", f"refs/heads/{lane}", after, before)
+    return before, after
+
+
+def test_a_lane_moved_by_a_commit_that_is_not_the_run_s_auto_rebase_is_report_only(tmp_path: Path) -> None:
+    """Control for FR-009: with no ``lane_rebase_moves`` entry a lane move stays another actor's."""
+    env = make_env(tmp_path)
+    _snapshot_and_begin(env)
+    lane = env.lane_branches[0]
+    _advance_run(env)
+    foreign = _commit_on(env.repo, lane, "foreign-lane-commit")
+
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+
+    assert _kinds(report)[lane] is BranchOutcomeKind.UNCHANGED_BY_RUN
+    assert _rev(env.repo, lane) == foreign
+
+
+def test_a_recorded_move_from_another_tip_is_report_only(tmp_path: Path) -> None:
+    """A move recorded from a tip that is not the lane's restore target is not this attempt's (cf. ``cleanup_expected_tips``)."""
+    env = make_env(tmp_path)
+    _snapshot_and_begin(env)
+    lane = env.lane_branches[0]
+    _advance_run(env)
+    _before, after = _own_auto_rebase_merge(env, lane)
+    other = _git(env.repo, "rev-parse", f"refs/heads/{_TARGET}")
+    assert other != env.state.restore_targets[lane]
+    env.state.lane_rebase_moves[lane] = [other, after]
+
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+
+    assert _kinds(report)[lane] is BranchOutcomeKind.UNCHANGED_BY_RUN
+    assert _rev(env.repo, lane) == after
+    assert env.state.lane_rebase_moves[lane] == [other, after], "a move the rollback did not undo keeps its entry"
+
+
+def test_a_recorded_move_is_restored(tmp_path: Path) -> None:
+    """FR-009: the run's own recorded auto-rebase move is undone under compare-and-swap."""
+    env = make_env(tmp_path)
+    snap = _snapshot_and_begin(env)
+    lane = env.lane_branches[0]
+    _advance_run(env)
+    before, after = _own_auto_rebase_merge(env, lane)
+    assert before == snap[lane]
+    env.state.lane_rebase_moves[lane] = [before, after]
+
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+
+    assert _kinds(report)[lane] is BranchOutcomeKind.RESTORED
+    assert _rev(env.repo, lane) == snap[lane]
+    assert lane not in env.state.lane_rebase_moves, "a restored lane's entry is spent"
+    assert report.fully_restored
 
 
 @pytest.mark.parametrize(
@@ -1207,6 +1272,7 @@ def _report(*kinds: BranchOutcomeKind) -> RollbackReport:
         ((BranchOutcomeKind.RESTORED, BranchOutcomeKind.NOT_RESTORED), False),
         ((BranchOutcomeKind.RESTORED, BranchOutcomeKind.KEPT_BY_OPERATOR), False),
         ((BranchOutcomeKind.RESTORED, BranchOutcomeKind.LANE_MISSING), False),
+        ((BranchOutcomeKind.RESTORED, BranchOutcomeKind.LANE_MOVED_SINCE_AUTO_REBASE), False),
     ],
 )
 def test_rebaselineable_is_stricter_than_fully_restored_for_kept_and_missing_branches(kinds: tuple[BranchOutcomeKind, ...], expected: bool) -> None:
@@ -1214,7 +1280,7 @@ def test_rebaselineable_is_stricter_than_fully_restored_for_kept_and_missing_bra
     report = _report(*kinds)
 
     assert report.rebaselineable is expected
-    if BranchOutcomeKind.KEPT_BY_OPERATOR in kinds or BranchOutcomeKind.LANE_MISSING in kinds:
+    if {BranchOutcomeKind.KEPT_BY_OPERATOR, BranchOutcomeKind.LANE_MISSING, BranchOutcomeKind.LANE_MOVED_SINCE_AUTO_REBASE} & set(kinds):
         assert report.fully_restored is True, "the two verdicts differ exactly here"
 
 

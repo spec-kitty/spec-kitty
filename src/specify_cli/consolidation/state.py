@@ -347,12 +347,15 @@ class ConsolidationState:
     # the gate against lane branches it already deleted. Additive, read with a default; the
     # record is cleared at the end of the run, so it is never carried across ``--abort``.
     cleanup_started: bool = False
-    # #6736: lane branch -> ``[claim-validated tip, tip after this run's own auto-rebase]``,
-    # recorded by ``phase_advance`` only when the lane moved by exactly that merge
-    # (``lane_cleanup.own_auto_rebase_move``) and saved, so a ``--resume`` cleanup still knows the
-    # lane's new tip. Cleanup follows a move only from the snapshot tip it starts from
-    # (``lane_cleanup.cleanup_expected_tips``). Absent or malformed -> ``{}`` (fail closed: the
-    # cleanup expects the snapshot tip and keeps a moved lane).
+    # #6736 / FR-009: lane branch -> ``[before, after]``, the lane's claim-validated tip and its tip
+    # after this run's own auto-rebase merge. Written by ``phase_advance`` after EVERY lane
+    # consolidation attempt (WP07), only when the lane moved by exactly that merge
+    # (``lane_cleanup.own_auto_rebase_move``), and saved. Two readers: lane cleanup follows a move
+    # only from the snapshot tip it starts from (``lane_cleanup.cleanup_expected_tips``), and the
+    # rollback (``rollback._rollback_lane``) restores ``after -> before`` under compare-and-swap and
+    # drops the entry; the entry of a lane reported ``LANE_MOVED_SINCE_AUTO_REBASE`` (or not
+    # restored) is kept. Absent or malformed -> ``{}`` (fail closed: the cleanup expects the
+    # snapshot tip and keeps a moved lane; the rollback restores no lane without a well-formed record).
     lane_rebase_moves: dict[str, list[str]] = field(default_factory=dict)
     # #7692: ``consolidate --target <b> --retarget``. ``{"from", "to", "actor", "at", "reason",
     # "committed"}``: written with ``committed=False`` on a fresh retarget run (before the claim),
