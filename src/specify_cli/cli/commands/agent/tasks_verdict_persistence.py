@@ -113,7 +113,6 @@ if TYPE_CHECKING:
 # ``VerdictDurabilitySignal``'s docstring). Named constants (Sonar S1192):
 # each string is referenced from two sites (the resolver + its tests).
 _DURABILITY_REASON_NO_AUTO_COMMIT = "no_auto_commit"
-_DURABILITY_REASON_PROTECTED_TARGET_BRANCH = "protected_target_branch"
 
 # #3773 item 1: a THIRD, structurally distinct busy/timeout reason. The
 # checkout-wide verdict-save queue (``acquire_verdict_save_queue``) already
@@ -159,16 +158,12 @@ class VerdictDurabilitySignal:
     """Whether a review-cycle verdict write was durably committed, and why not.
 
     T049 (FR-013): ``--no-auto-commit`` is the ONE sanctioned non-durable
-    path. T050: a protected-primary-coord topology is a SECOND, structurally
-    different cause -- ``st.skip_target_branch_commit`` -- that today is not
-    consulted here at all, so the review-cycle-artifact commit attempts to
-    land on the same protected branch the status-event commit already
-    declined to touch, raising ``ReviewCycleError`` uncaught from
-    ``_mt_finalize_plan`` and crashing BOTH the approval and rejection paths.
-    The two causes are kept distinguishable (``skip_reason``) rather than
-    collapsed onto one message/key, per this WP's explicit design
-    requirement -- a machine consumer needs to tell "the operator chose this"
-    apart from "the topology forced this".
+    path; every other non-durable outcome is a typed failure whose
+    ``skip_reason`` names its cause, so a machine consumer can tell "the
+    operator chose this" apart from a failed commit. (T050's separate
+    protected-primary-coord cause was retired by #7861: REVIEW_CYCLE is a
+    COORD-partition kind, so the router commits it to the coordination
+    branch, never to the protected primary.)
 
     ``artifact_path``/``cycle_number`` are populated whenever a write actually
     happened (durable or not) -- T048's revert-compensator needs them to
@@ -505,11 +500,16 @@ def _persist_review_cycle_with_queue(
         # no Git repository or persistence outcome; retain that injection seam
         # while production always takes the real checkout-wide queue.
         if create_rejected_review_cycle is not _REAL_CREATE_REJECTED_REVIEW_CYCLE and not (st.main_repo_root / ".git").exists():
-            review_cycle = create(None if st.skip_target_branch_commit else ports.coord)
+            review_cycle = create(ports.coord)
         else:
             queue_root = st.owned.owned_root if st.owned is not None else st.main_repo_root
             with acquire_verdict_save_queue(queue_root):
-                review_cycle = create(None if st.skip_target_branch_commit else ports.coord)
+                # #7861: REVIEW_CYCLE is a COORD-partition kind, so the router commits it where the
+                # placement seam puts it (the coordination branch on a coordination Mission). The
+                # WP-file flag ``skip_target_branch_commit`` (a protected primary under coordination
+                # topology) says nothing about this kind and no longer suppresses its commit; a
+                # surface the router cannot resolve is its own typed refusal, never the target.
+                review_cycle = create(ports.coord)
     except VerdictSaveBusy as exc:
         _raise_verdict_busy_failure(reason="verdict_save_busy", cause=exc)
     except FeatureStatusLockTimeoutError as exc:
@@ -521,25 +521,6 @@ def _persist_review_cycle_with_queue(
         # an unhandled crash, not the truthful non-durable failure every
         # OTHER busy path here produces.
         _raise_verdict_busy_failure(reason=_DURABILITY_REASON_FEATURE_STATUS_LOCK_BUSY, cause=exc)
-
-    if st.skip_target_branch_commit:
-        local = review_cycle.persistence
-        signal = _build_durability_signal(
-            review_cycle,
-            outcome=VerdictPersistenceOutcome(
-                classification="persistence_failed",
-                verdict_durably_persisted=False,
-                evidence_ref=local.evidence_ref,
-                destination_ref=None,
-                reason=_DURABILITY_REASON_PROTECTED_TARGET_BRANCH,
-                message=(
-                    "Automatic verdict evidence could not be committed because "
-                    "the governed destination branch is protected; complete "
-                    f"evidence is retained at {local.evidence_ref}."
-                ),
-            ),
-        )
-        raise VerdictPersistenceFailure(signal)
 
     persistence = getattr(review_cycle, "persistence", None)
     if not isinstance(persistence, VerdictPersistenceOutcome):
@@ -559,7 +540,6 @@ def _persist_review_cycle_with_queue(
 
 _DURABILITY_NOTICE_BY_REASON = {
     _DURABILITY_REASON_NO_AUTO_COMMIT: "--no-auto-commit",
-    _DURABILITY_REASON_PROTECTED_TARGET_BRANCH: ("protected target branch under coordination topology"),
 }
 
 

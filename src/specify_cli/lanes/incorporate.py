@@ -19,6 +19,15 @@ Every precondition refuses with an :class:`IncorporateRefused` that names an
 :class:`IncorporateCode`, before any side effect; a probe that cannot answer refuses
 too (fail closed). The merge runs through the merge-conclusion owner
 (:func:`specify_cli.git.merge_conclusion.run_committing_op`). This module never prints.
+
+Merge attributes (FR-010, WP07): git computes a merge with clone-local and unreviewed merge
+attributes and drivers (a ``merge=union`` turns a conflict into bytes neither side wrote). Before
+its merge, and inside its canceled-window merge probe, ``--incorporate`` runs WP01's guard
+(:func:`~specify_cli.consolidation.merge_attribute_guard.assert_registered_merge_behaviour`) with the
+Mission branch tip, read once per resolution, as the committed attributes source, and the merge
+runs with WP01's pinned config (``merge_probe_env``). A guard refusal or a probe error refuses with
+``INCORPORATE_MERGE_ATTRIBUTES_REFUSED`` before any merge; an unreadable Mission branch tip honours
+no committed ``union`` (fail closed).
 """
 
 from __future__ import annotations
@@ -30,6 +39,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from kernel.git import GitCommandError, changed_paths, status_entries
+from specify_cli.core.vcs.git import git_merge_base
+from specify_cli.git.merge_conclusion import run_committing_op
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.compute import is_planning_lane, is_repo_root_lane
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
@@ -75,6 +86,7 @@ class IncorporateCode(StrEnum):
     WP_NOT_SENT_BACK = "INCORPORATE_WP_NOT_SENT_BACK"
     CHECKOUT_BUSY = "INCORPORATE_CHECKOUT_BUSY"
     PROBE_FAILED = "INCORPORATE_PROBE_FAILED"
+    MERGE_ATTRIBUTES_REFUSED = "INCORPORATE_MERGE_ATTRIBUTES_REFUSED"
 
 
 class IncorporateRefused(RuntimeError):
@@ -94,6 +106,9 @@ class SiblingStamp:
     branch: str
     stamp: str
     wp_ids: tuple[str, ...]
+    #: The Mission branch tip whose committed ``.gitattributes`` may set a reviewed ``union`` (WP07);
+    #: ``None`` (unread) honours no committed ``union``.
+    attributes_source: str | None = None
 
 
 @dataclass(frozen=True)
@@ -284,19 +299,40 @@ def _canceled_window_merges(repo_root: Path, events: Sequence[StatusEvent], wp_i
     return merges
 
 
-def _refuse_canceled_merges(repo_root: Path, events: Sequence[StatusEvent], lane_id: str, wp_id: str, stamp: str) -> None:
+_ATTRIBUTES_REMEDY = (
+    "nothing was merged. Remove the clone-local or uncommitted merge attribute or driver the reason names, "
+    "or commit it to the Mission branch through a reviewed change, then re-run the command."
+)
+
+
+def _attributes_refusal(subject: str, exc: Exception) -> IncorporateRefused:
+    """``INCORPORATE_MERGE_ATTRIBUTES_REFUSED``: a merge git would compute under unreviewed merge settings, or one that cannot be judged."""
+    message = f"{subject} cannot be judged under the effective merge attributes ({exc}); {_ATTRIBUTES_REMEDY}"
+    return IncorporateRefused(IncorporateCode.MERGE_ATTRIBUTES_REFUSED, message)
+
+
+def _merge_own_paths(repo_root: Path, merge: str, lane_id: str, attributes_source: str | None) -> list[str]:
+    """WP01's window-merge probe under its guard and pinned config; any probe error refuses with the merge-attribute code."""
+    from specify_cli.consolidation import git_probes
+
+    try:
+        return list(git_probes.merge_own_changed_paths(repo_root, merge, attributes_source=attributes_source))
+    except git_probes.GitProbeError as exc:
+        raise _attributes_refusal(f"{lane_id}: merge {_short(merge)} in a canceled work window", exc) from exc
+
+
+def _refuse_canceled_merges(repo_root: Path, events: Sequence[StatusEvent], lane_id: str, wp_id: str, stamp: str, *, attributes_source: str | None) -> None:
     """Refuse when the stamp reaches a merge in the canceled WP's window that adds content of its own, or cannot be judged."""
     from specify_cli.consolidation import git_probes
 
     try:
-        for merge in _canceled_window_merges(repo_root, events, wp_id):
-            if not git_probes.sha_reachable_from(repo_root, merge, stamp):
-                continue
-            own = git_probes.merge_own_changed_paths(repo_root, merge)
-            if own:
-                raise _refusal(lane_id, wp_id, stamp, f"reaches merge {_short(merge)}, whose own resolution changed {', '.join(own)} in the window")
+        merges = [merge for merge in _canceled_window_merges(repo_root, events, wp_id) if git_probes.sha_reachable_from(repo_root, merge, stamp)]
     except git_probes.GitProbeError as exc:
         raise _refusal(lane_id, wp_id, stamp, f"cannot be cleared: a merge in the window cannot be judged ({exc})") from exc
+    for merge in merges:
+        own = _merge_own_paths(repo_root, merge, lane_id, attributes_source)
+        if own:
+            raise _refusal(lane_id, wp_id, stamp, f"reaches merge {_short(merge)}, whose own resolution changed {', '.join(own)} in the window")
 
 
 def _refuse_canceled_content_under_stamp(
@@ -308,6 +344,7 @@ def _refuse_canceled_content_under_stamp(
     branch: str,
     base_ref: str,
     route: _IncorporateRoute,
+    attributes_source: str | None,
 ) -> None:
     """Refuse when a canceled work package of the sibling lane has content the stamp reaches.
 
@@ -342,7 +379,7 @@ def _refuse_canceled_content_under_stamp(
                 continue
             raise _unattributable_refusal(sibling.lane_id, wp_id, outcome, overridable=outcome.reason in OVERRIDABLE_REASONS, route=route)
         _refuse_attributed_commits(repo_root, outcome.commits, sibling.lane_id, wp_id, stamp)
-        _refuse_canceled_merges(repo_root, events, sibling.lane_id, wp_id, stamp)
+        _refuse_canceled_merges(repo_root, events, sibling.lane_id, wp_id, stamp, attributes_source=attributes_source)
 
 
 def _resolve_sibling_stamp(
@@ -356,6 +393,7 @@ def _resolve_sibling_stamp(
     wp_id: str,
 ) -> SiblingStamp:
     """Resolve *sibling_lane_id*'s branch and newest approval stamp, or refuse (no side effect)."""
+    attributes_source = _read_attributes_source(repo_root, manifest.mission_branch)
     sibling = _sibling_lane(manifest, own_lane_id, sibling_lane_id)
     branch = lane_branch_name(mission_slug, sibling.lane_id, target_branch=manifest.target_branch)
     stamps = _approved_stamps(events, sibling.wp_ids, sibling.lane_id)
@@ -369,8 +407,19 @@ def _resolve_sibling_stamp(
         branch=branch,
         base_ref=f"refs/heads/{manifest.mission_branch}",
         route=_IncorporateRoute(wp_id=wp_id, mission_slug=mission_slug, sibling_lane_id=sibling.lane_id),
+        attributes_source=attributes_source,
     )
-    return SiblingStamp(lane_id=sibling.lane_id, branch=branch, stamp=stamp, wp_ids=tuple(sibling.wp_ids))
+    return SiblingStamp(lane_id=sibling.lane_id, branch=branch, stamp=stamp, wp_ids=tuple(sibling.wp_ids), attributes_source=attributes_source)
+
+
+def _read_attributes_source(repo_root: Path, mission_branch: str) -> str | None:
+    """The Mission branch tip, the committed attributes source of the guard; ``None`` when it cannot be read (no ``union`` is honoured then)."""
+    from specify_cli.consolidation.git_probes import GitProbeError, resolve_commit
+
+    try:
+        return str(resolve_commit(repo_root, f"refs/heads/{mission_branch}"))
+    except GitProbeError:
+        return None
 
 
 def _read_manifest(repo_root: Path, mission_slug: str) -> LanesManifest:
@@ -428,11 +477,30 @@ def prepare_incorporation(repo_root: Path, mission_slug: str, wp_id: str, siblin
 
 def _merge_env() -> dict[str, str]:
     # The lane-consolidation pipeline's single environment authority, so spec-kitty's registered
-    # merge drivers resolve to the running spec-kitty (the auto-rebase uses the same one).
+    # merge drivers resolve to the running spec-kitty (the auto-rebase uses the same one), with
+    # WP01's pinned merge config over every other source (WP07), so a value set after the guard's
+    # read cannot change the merge.
+    from specify_cli.consolidation.merge_attribute_guard import merge_probe_env
     from specify_cli.lanes.consolidation import _make_merge_env
 
-    env: dict[str, str] = _make_merge_env()
+    env: dict[str, str] = merge_probe_env(_make_merge_env())
     return env
+
+
+def _guard_merge_attributes(checkout: Path, sibling: SiblingStamp, env: dict[str, str]) -> None:
+    """WP01's guard over every path either side changed since the merge base, before the merge; any failure refuses."""
+    from specify_cli.consolidation.git_probes import GitProbeError
+    from specify_cli.consolidation.merge_attribute_guard import assert_registered_merge_behaviour
+
+    subject = f"the merge of {sibling.lane_id} at approval stamp {_short(sibling.stamp)} into {checkout}"
+    base = git_merge_base(checkout, "HEAD", sibling.stamp)
+    if base is None:
+        raise _attributes_refusal(subject, GitProbeError(f"the merge base of HEAD and {_short(sibling.stamp)} cannot be read"))
+    try:
+        paths = [str(path) for side in ("HEAD", sibling.stamp) for path in changed_paths(checkout, base, side, env=env)]
+        assert_registered_merge_behaviour(checkout, paths, attributes_source=sibling.attributes_source)
+    except (GitCommandError, GitProbeError) as exc:
+        raise _attributes_refusal(subject, exc) from exc
 
 
 def _require_idle_checkout(checkout: Path, env: dict[str, str]) -> None:
@@ -461,12 +529,12 @@ def merge_message(sibling: SiblingStamp) -> str:
 def incorporate_sibling(checkout: Path, sibling: SiblingStamp) -> IncorporateOutcome:
     """Merge *sibling*'s approval stamp into *checkout*; stop with the merge in progress on a conflict."""
     from specify_cli.consolidation.git_probes import GitProbeError, resolve_commit, sha_reachable_from
-    from specify_cli.git.merge_conclusion import run_committing_op
 
     env = _merge_env()
     _require_idle_checkout(checkout, env)
     if sha_reachable_from(checkout, sibling.stamp, "HEAD"):
         return IncorporateOutcome(sibling, merged=False, already_present=True, merge_sha=None, conflicted_paths=(), checkout=checkout)
+    _guard_merge_attributes(checkout, sibling, env)
     result = run_committing_op(checkout, "merge", ["--no-ff", "-m", merge_message(sibling), sibling.stamp], env=env, disable_gpgsign=False)
     if result.returncode == 0:
         try:
