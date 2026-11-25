@@ -1,7 +1,7 @@
 {
-  "event_count": 145,
-  "last_event_id": "01M8A3TR8NR7ZS6EAZXPHR26H7",
-  "materialized_at": "2026-11-25T19:44:55.730721+00:00",
+  "event_count": 146,
+  "last_event_id": "01M8A8ATZX3R9RSTWAWENVS2EK",
+  "materialized_at": "2026-11-25T21:03:37.981406+00:00",
   "mission_number": "",
   "mission_slug": "approved-lane-resolution-route-01M7WW0Z",
   "mission_type": "software-dev",
@@ -12,8 +12,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 2
   },
@@ -554,9 +554,9 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M8A3TR8NR7ZS6EAZXPHR26H7",
-      "last_transition_at": "2026-11-25T19:44:55.730721+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M8A8ATZX3R9RSTWAWENVS2EK",
+      "last_transition_at": "2026-11-25T21:03:37.981406+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-25T20:41:42Z – claude – shell_pid=6293 – red: before the WP12 lane held the route, the first happy-path run failed at the approval: move-task WP02 --to approved --note ... exited 1 'Cannot persist WP frontmatter/activity metadata on protected branch main while coordination topology is active: activity_log' (the route steps up to the review claim were green)",
@@ -570,7 +570,8 @@
         "- 2026-11-25T20:42:20Z – claude – shell_pid=6293 – trace(design-decisions): matrix = coord topology x {squash, merge} for the happy path, N1 (keep_both, novel_line) and SC-003 and the residual control; N2/N3 squash only. Runtime per cell (-n 3, loaded machine): happy path 40-47s, residual 41s, SC-003 with control 42-43s, N2 39s, N3 34-38s, N1 9s, partial 11s, smoke 9s; module 15 passed in 540s. lanes topology cells are WP14's. Fresh re-entry: stale refusal re-baselines the record, asserted no snapshot before the final run",
         "- 2026-11-25T20:42:25Z – claude – shell_pid=6293 – trace(design-decisions): WP06 partial shape end-to-end: a hand merge on approved lane-b recorded as a tool merge (lanes.auto_rebase_record.record) passes the claim-time exemption, is dropped by the gate (no lane-b stamp reaches it) and named in unreviewed_merges; foreign content committed on the coordination branch is the rest. Gate FAIL hint: re-review sentence + 'move-task WP02 --to in_progress' first, then 'For the remaining content (1 item(s) ...)', --dependency-ref exactly once",
         "- 2026-11-25T20:42:29Z – claude – shell_pid=6293 – trace(design-decisions): three-lane builder (WP14): lane-c (WP03) depends on lane-b and rewrites line 4 of src/pkg/shared.py (GAMMA = 3, lane-b's line) so it overlaps lane-b and conflicts once lane-a's line 3 lands via lane-b's resolution; lane-d (WP04) edits only src/pkg/other.py. Support module avoids private helpers of other modules: own bootstrap and HOME template; consolidate_in_process uses the public typer app via CliRunner",
-        "- 2026-11-25T20:42:34Z – claude – shell_pid=6293 – trace(tooling-friction): spec-kitty agent action implement WP12 failed once on a transient index.lock in the coordination worktree (another git process); a retry succeeded"
+        "- 2026-11-25T20:42:34Z – claude – shell_pid=6293 – trace(tooling-friction): spec-kitty agent action implement WP12 failed once on a transient index.lock in the coordination worktree (another git process); a retry succeeded",
+        "- 2026-11-25T20:55:48Z – claude – shell_pid=6293 – tests: module 15 passed (540s, -n 3); regression list A 160 passed; list B 20 passed; residuals+7307+tests/review 888 passed 7 skipped, 1 collection error tests/review/test_verdict_save_performance.py (ModuleNotFoundError pytest_benchmark: stale venv, unrelated); review merge-line file 18 passed; test_no_legacy_terminology+test_no_dead_symbols 135 passed; make test-fast 3222 passed 7 skipped; ruff/format/mypy clean"
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
