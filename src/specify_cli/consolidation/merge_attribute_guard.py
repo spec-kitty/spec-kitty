@@ -21,15 +21,16 @@ claim's pre-run target tip) a built-in ``union`` is honoured only when git >= 2.
 committed value at that tip is the effective one, no clone-local source sets it (read with the
 empty tree as source), and no ``merge.union.*`` driver is configured.
 
-Content conversion (review cycle 1): an effective ``merge.renormalize`` (any scope or the
-environment) refuses, and so does any effective ``filter``, ``ident`` or
-``working-tree-encoding`` attribute on a probed path (read in the same batched ``check-attr``):
-renormalizing runs each side through a clean filter, which can rewrite it into a hand resolution.
-The probes also run git with :func:`merge_probe_env`, which pins
-:data:`MERGE_PROBE_CONFIG_PINS` (``merge.directoryRenames``, ``merge.renames``,
-``diff.algorithm``, ``merge.conflictStyle``) over every other config source.
+Content conversion: git runs clean filters and line-ending conversion during a merge only when
+``merge.renormalize`` is on, and a hostile clean filter can then rewrite either side into a hand
+resolution. An effective ``merge.renormalize`` (any scope or the environment) refuses, naming the
+cause; ``filter``, ``ident`` and ``working-tree-encoding`` attributes alone are inert in a merge
+and are not refused (git-lfs repositories keep working). The probes also run git with
+:func:`merge_probe_env`, which pins :data:`MERGE_PROBE_CONFIG_PINS` (``merge.directoryRenames``,
+``merge.renames``, ``diff.algorithm``, ``merge.conflictStyle``, ``merge.renormalize=false``)
+over every other config source, so a value changed after the guard's read cannot take effect.
 
-Cost (NFR-001): one batched ``git check-attr --stdin`` per call (three when a committed
+Cost (NFR-001): one batched ``git check-attr --stdin merge`` per call (three when a committed
 ``union`` is judged), plus targeted ``git config --get`` reads (``merge.renormalize``,
 ``merge.default`` and the names in play; never a name listing, since a value may span lines)
 cached for the run.
@@ -67,22 +68,16 @@ _MERGE_DEFAULT_KEY = "merge.default"
 _DRIVER = "driver"
 _RECURSIVE = "recursive"
 
-#: Attributes that convert content before git merges it (when ``merge.renormalize`` is on, or a
-#: driver reads the working tree form): any effective value but unset/unspecified refuses.
-_CONVERSION_ATTRIBUTES = ("filter", "ident", "working-tree-encoding")
-
-#: The attributes one batched ``check-attr`` reads for every probed path.
-_EFFECTIVE_ATTRIBUTES = ("merge", *_CONVERSION_ATTRIBUTES)
-
 _UNSPECIFIED = "unspecified"
-_NEUTRAL_STATES = frozenset({_UNSPECIFIED, "unset"})
 
 _RENORMALIZE_KEY = "merge.renormalize"
 
 #: Config every merge probe runs with, whatever any config scope or the environment says (review
 #: cycle 1): a user ``merge.directoryRenames=true`` turns a file-location conflict into a clean
 #: merge, ``merge.renames`` and ``diff.algorithm`` change what the automatic merge is, and
-#: ``merge.conflictStyle`` changes the conflicted content a re-merge compares against. One table
+#: ``merge.conflictStyle`` changes the conflicted content a re-merge compares against, and
+#: ``merge.renormalize`` runs each side through clean filters (review cycle 2: pinned off, so a
+#: renormalize turned on after the guard's read cannot launder through a filter). One table
 #: for every merge a verdict depends on (the probes; later the incorporate merge and the printed
 #: review command), so they cannot drift.
 MERGE_PROBE_CONFIG_PINS: tuple[tuple[str, str], ...] = (
@@ -90,6 +85,7 @@ MERGE_PROBE_CONFIG_PINS: tuple[tuple[str, str], ...] = (
     ("merge.renames", "true"),
     ("diff.algorithm", "myers"),
     ("merge.conflictStyle", "merge"),
+    ("merge.renormalize", "false"),
 )
 
 _REFUSAL_TAIL = "refusing to classify a merge whose resolution git would compute with an unregistered driver"
@@ -211,15 +207,6 @@ def merge_probe_env(base: Mapping[str, str] | None = None) -> dict[str, str]:
     inherited = env.get("GIT_CONFIG_PARAMETERS", "").strip()
     env["GIT_CONFIG_PARAMETERS"] = f"{inherited} {pins}" if inherited else pins
     return env
-
-
-def _conversion_refusal(path: str, attributes: Mapping[str, str]) -> str:
-    """Refusal for a content conversion attribute in effect on *path*, or ``""``."""
-    for name in _CONVERSION_ATTRIBUTES:
-        value = attributes[name]
-        if value not in _NEUTRAL_STATES:
-            return f"attribute '{name}' ('{value}') from the effective git attributes applies to {path}; it converts content before git merges it; {_REFUSAL_TAIL}"
-    return ""
 
 
 def _run_git(repo_root: Path, argv: Sequence[str], stdin: str | None = None) -> subprocess.CompletedProcess[str]:
@@ -370,11 +357,7 @@ def assert_registered_merge_behaviour(repo_root: Path, paths: Sequence[str], *, 
     renormalize = _renormalize_refusal(repo_root, unique)
     if renormalize:
         raise MergeAttributeRefused(renormalize)
-    effective = _check_attr(repo_root, unique, attributes=_EFFECTIVE_ATTRIBUTES)
-    conversions = [reason for path, attributes in zip(unique, effective, strict=True) if (reason := _conversion_refusal(path, attributes))]
-    if conversions:
-        raise MergeAttributeRefused("; ".join(conversions))
-    values = [attributes["merge"] for attributes in effective]
+    values = [attributes["merge"] for attributes in _check_attr(repo_root, unique)]
     registry = _registry()
     config = _merge_config(repo_root, values, registry)
     refusals = {path: reason for path, value in zip(unique, values, strict=True) if (reason := _path_refusal(path, value, config, registry))}

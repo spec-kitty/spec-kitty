@@ -746,9 +746,9 @@ def test_renormalize_with_a_clean_filter_refuses_both_probes(tmp_path: Path, mon
     case = Laundered(tmp_path / "repo")
     case.filter_evil()
     _renormalize(case.repo, how, monkeypatch)
-    with pytest.raises(GitProbeError, match="renormalize|filter"):
+    with pytest.raises(GitProbeError, match="merge.renormalize"):
         git_probes.merge_own_changed_paths(case.repo, case.merge)
-    with pytest.raises(GitProbeError, match="renormalize|filter"):
+    with pytest.raises(GitProbeError, match="merge.renormalize"):
         git_probes.n_way_merge_blob(case.repo, [f"{case.merge}^1", f"{case.merge}^2"], "f")
 
 
@@ -762,23 +762,70 @@ def test_renormalize_alone_refuses_both_probes(tmp_path: Path, monkeypatch: pyte
         git_probes.n_way_merge_blob(case.repo, [case.one, case.two], "f")
 
 
+def _assert_hand_edit_is_seen(case: Laundered) -> None:
+    """Both probes still see the hand edit: it is own content of ``M``, and the fold of its parents is not the hand blob."""
+    hand_blob = git_probes.path_state_at(case.repo, case.merge, "f")
+    assert git_probes.merge_own_changed_paths(case.repo, case.merge) == ["f"]
+    folded = git_probes.n_way_merge_blob(case.repo, [f"{case.merge}^1", f"{case.merge}^2"], "f")
+    assert folded is not None
+    assert folded != hand_blob
+
+
+def test_a_hostile_clean_filter_is_inert_without_renormalize(tmp_path: Path) -> None:
+    """git runs a clean filter during a merge only when renormalizing, so the filter alone does not launder."""
+    case = Laundered(tmp_path / "repo")
+    case.filter_evil()
+    _assert_hand_edit_is_seen(case)
+
+
+@pytest.mark.parametrize("how", ["config_file", "git_config_count"])
+def test_the_renormalize_pin_keeps_a_hostile_clean_filter_inert(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, how: str) -> None:
+    """Even past the guard's read (renormalize turned on after it), the probe's own git runs with renormalize pinned off."""
+    from specify_cli.consolidation import merge_attribute_guard
+
+    case = Laundered(tmp_path / "repo")
+    case.filter_evil()
+    _renormalize(case.repo, how, monkeypatch)
+    monkeypatch.setattr(merge_attribute_guard, "_renormalize_refusal", lambda repo_root, paths: "")
+    _assert_hand_edit_is_seen(case)
+
+
 @pytest.mark.parametrize(
-    ("line", "named"),
+    "line",
     [
-        pytest.param("f filter=evil", "filter", id="filter"),
-        pytest.param("f ident", "ident", id="ident"),
-        pytest.param("f working-tree-encoding=UTF-16", "working-tree-encoding", id="working_tree_encoding"),
+        pytest.param("f filter=lfs diff=lfs merge=lfs -text", id="lfs_with_merge_lfs"),
+        pytest.param("f filter=lfs", id="lfs"),
+        pytest.param("f ident", id="ident"),
+        pytest.param("f working-tree-encoding=UTF-16", id="working_tree_encoding"),
     ],
 )
-def test_a_content_conversion_attribute_refuses_both_probes(tmp_path: Path, line: str, named: str) -> None:
+def test_a_content_conversion_attribute_alone_is_not_refused(tmp_path: Path, line: str) -> None:
+    from specify_cli.consolidation.merge_attribute_guard import assert_registered_merge_behaviour
+
     case = Laundered(tmp_path / "repo")
     info = case.repo / ".git" / "info"
     info.mkdir(parents=True, exist_ok=True)
     (info / "attributes").write_text(line + "\n", encoding="utf-8")
-    with pytest.raises(GitProbeError, match=named):
-        git_probes.merge_own_changed_paths(case.repo, case.merge)
-    with pytest.raises(GitProbeError, match=named):
-        git_probes.n_way_merge_blob(case.repo, [case.one, case.two], "f")
+    if "merge=lfs" in line:
+        with pytest.raises(GitProbeError, match="'lfs'"):
+            assert_registered_merge_behaviour(case.repo, ["f"])
+        return
+    assert_registered_merge_behaviour(case.repo, ["f"])
+
+
+def test_filter_lfs_on_a_probed_path_is_not_refused(tmp_path: Path) -> None:
+    """An LFS repository (``filter=lfs``) with no renormalize: both probes run and see the hand edit."""
+    case = Laundered(tmp_path / "repo")
+    info = case.repo / ".git" / "info"
+    info.mkdir(parents=True, exist_ok=True)
+    (info / "attributes").write_text("f filter=lfs\n", encoding="utf-8")
+    _assert_hand_edit_is_seen(case)
+
+
+def test_the_pin_table_turns_renormalize_off() -> None:
+    from specify_cli.consolidation.merge_attribute_guard import MERGE_PROBE_CONFIG_PINS
+
+    assert ("merge.renormalize", "false") in MERGE_PROBE_CONFIG_PINS
 
 
 def test_renormalize_false_passes(tmp_path: Path) -> None:
