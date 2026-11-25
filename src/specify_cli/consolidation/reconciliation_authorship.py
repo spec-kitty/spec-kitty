@@ -295,7 +295,8 @@ def own_approval_stamps(
     approval_stamps: Mapping[str, str | None],
     presync_stamps: Mapping[str, str | None] | None = None,
 ) -> tuple[str, ...]:
-    """The newest approval stamp of each of *lane*'s approved or done WPs, in manifest order (#7307, FR-004).
+    """The approval stamps of each of *lane*'s approved or done WPs — its newest ``lane_head`` stamp,
+    then its #7802 pre-sync stamp — in manifest order (#7307, FR-004).
 
     The single own-stamp reader of the reviewed-merge rule. A WP in any other status lane
     (a canceled WP included) never counts, and neither does a WP with no stamp. Duplicates
