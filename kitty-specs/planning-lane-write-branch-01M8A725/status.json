@@ -40,7 +40,8 @@
         "- 2026-11-25T22:42:16Z – unknown – Review cycle 3 folded (ea0adc94): PLANNING_CHECKOUT_MISSING names the coordination doctor only when the Mission records a coordination branch, else 'git switch <branch>' in the repository root checkout (probe reads coordination_branch off the claiming meta; planning_lane_target asks routes_through_coordination); remote-tracking refs listed under refs/remotes/ and split on /kitty/mission- (remote 'my/fork' probed). Tests 37 passed; blast see run; ruff/format/C901/mypy clean; spelling 0.",
         "Review cycle 3 folded (ea0adc94)",
         "- 2026-11-25T22:57:35Z – unknown – Review cycle 4 folded (06400330): probe and planning_lane_target both use routes_through_coordination over the stored-or-derived topology (topology_from_meta) - one check; uncoordinated refusal reworded (no 'checked out' contradiction), both refusal texts pinned verbatim; test for stored lanes_with_coord meta without coordination_branch. Tests + layer/surface gates 118 passed; blast see run; ruff/format/C901/mypy clean; spelling 0.",
-        "Review cycle 4 folded (06400330)"
+        "Review cycle 4 folded (06400330)",
+        "Cycle 5: all review findings resolved; one raising write-branch rule, fail-closed probe (local+remote, default-only, canonical coordination predicate), refusal texts pinned; 118 tests, ruff/format/mypy clean"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
