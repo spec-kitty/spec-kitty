@@ -572,7 +572,12 @@
         "- 2026-11-25T20:42:29Z – claude – shell_pid=6293 – trace(design-decisions): three-lane builder (WP14): lane-c (WP03) depends on lane-b and rewrites line 4 of src/pkg/shared.py (GAMMA = 3, lane-b's line) so it overlaps lane-b and conflicts once lane-a's line 3 lands via lane-b's resolution; lane-d (WP04) edits only src/pkg/other.py. Support module avoids private helpers of other modules: own bootstrap and HOME template; consolidate_in_process uses the public typer app via CliRunner",
         "- 2026-11-25T20:42:34Z – claude – shell_pid=6293 – trace(tooling-friction): spec-kitty agent action implement WP12 failed once on a transient index.lock in the coordination worktree (another git process); a retry succeeded",
         "- 2026-11-25T20:55:48Z – claude – shell_pid=6293 – tests: module 15 passed (540s, -n 3); regression list A 160 passed; list B 20 passed; residuals+7307+tests/review 888 passed 7 skipped, 1 collection error tests/review/test_verdict_save_performance.py (ModuleNotFoundError pytest_benchmark: stale venv, unrelated); review merge-line file 18 passed; test_no_legacy_terminology+test_no_dead_symbols 135 passed; make test-fast 3222 passed 7 skipped; ruff/format/mypy clean",
-        "Route e2e via real CLI (squash+merge), N1/N2/N3, SC-003 with discriminating control, residual novel-line control, WP06 partial-shape hint, three-lane builder smoke; binding DoD (a)-(d) in review/context_block.py+wp_range.py as recorded leeway. 15 passed; regression lists green; make test-fast 3222 passed."
+        "Route e2e via real CLI (squash+merge), N1/N2/N3, SC-003 with discriminating control, residual novel-line control, WP06 partial-shape hint, three-lane builder smoke; binding DoD (a)-(d) in review/context_block.py+wp_range.py as recorded leeway. 15 passed; regression lists green; make test-fast 3222 passed.",
+        "- 2026-11-25T21:52:56Z – unknown – cycle 2 red: 4 new/changed tests in tests/review/test_review_context_merge_lines.py failed against cycle-1 code (4 failed, 16 passed): test_unreadable_target_never_falls_back_to_the_range_base (command carried --attr-source=<range base>), test_resolved_empty_tree_is_named_as_the_empty_tree and the two union-before-window tests (no attributes_from_target field). Green after the fix: 20 passed (-n0)",
+        "- 2026-11-25T21:53:00Z – unknown – cycle 2 item 1: wp_range falls back to git's empty tree (git hash-object -t tree /dev/null) when the target tip is unreadable, sets WpReviewRange.attributes_from_target=False; context_block never uses the range base: the note names 'the empty tree (the target branch could not be read, so no committed attribute applies)', and with no source at all the command uses --attr-source=$(git hash-object -t tree /dev/null). Test: unreadable target + union committed before the window base -> command uses the empty tree and lists src/pkg/a.py",
+        "- 2026-11-25T21:53:05Z – unknown – cycle 2 item 2: WP05's tests/consolidation/test_resolution_merge_unreviewed.py has no forced-approval case (only unforced re-approval controls), so added test_n3_forced_re_approval_keeps_the_claim_refusal[forced_from_for_review|forced_from_in_review] in the route module: from the incorporation-merge state, a forced approval without an approved review result keeps approval_stamp unchanged and build_approved_wp_set refuses RESOLUTION_MERGE_UNREVIEWED naming the merge. A pinning test of landed behaviour (green at first run); its control is the unforced route test, which lands",
+        "- 2026-11-25T21:53:09Z – unknown – cycle 2 item 3: partial-shape docstring says 'tool-merge simulation (same writer)'. The merge now has the auto-rebase shape, parents [before, mission tip] (asserted): lane-a's stamp is merged into the coordination branch first (the mid-run state), then the Mission tip is merged into lane-b with an own-content resolution and recorded with auto_rebase_record.record. Red: the first attempt merged a Mission tip without lane-a, so lane-b went stale and no gate hint printed",
+        "- 2026-11-25T21:53:14Z – unknown – cycle 2 tests (-n0): tests/review/ 868 passed 7 skipped (verdict_save_performance ignored: pytest_benchmark missing, stale venv); WP12 module 17 passed (459s); test_no_dead_symbols 37 passed; ruff/format/mypy clean on the 5 changed files; also fixed mypy attr-defined (wp_range.run_git) in the merge-line tests"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -586,10 +591,10 @@
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
-        "T047": "planned",
-        "T048": "planned",
-        "T049": "planned",
-        "T050": "planned"
+        "T047": "done",
+        "T048": "done",
+        "T049": "done",
+        "T050": "done"
       }
     },
     "WP13": {
