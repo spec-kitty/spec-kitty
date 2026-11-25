@@ -703,43 +703,251 @@ def test_canceled_wp_without_commits_does_not_refuse(tmp_path: Path) -> None:
     assert sibling.stamp == approval_stamp(events, "WP01")
 
 
-def test_unbounded_canceled_window_refuses() -> None:
-    from specify_cli.lanes.incorporate import _window_commits_under
+# --- Review cycle 2: canceled content is judged by the one window authority (wp_attribution) ---------
 
-    with pytest.raises(ValueError, match="no recorded lane head"):
-        _window_commits_under(Path("."), ("a" * 40, None), "b" * 40)
+_MIXED_SLUG = "m-01M7WW0Z"
+_MIXED_MISSION_BRANCH = "kitty/mission-m-01M7WW0Z"
+_REVIEWER = "independent-reviewer"
 
 
-def _event(wp_id: str, from_lane: str, to_lane: str, index: int, lane_head: str | None) -> object:
-    from specify_cli.status import StatusEvent
+class _MixedLane:
+    """A plain repository with one shared sibling lane (``lane-a``: WP01, WP02) and its status events.
 
-    return StatusEvent.from_dict(
-        {
+    Every event carries the real ``lane_head`` at the moment it is recorded, the way the
+    governed workflow stamps it, so ``wp_attribution`` reconstructs the windows itself.
+    """
+
+    def __init__(self, root: Path) -> None:
+        from specify_cli.lanes.branch_naming import lane_branch_name
+
+        self.repo = _plain_repo(root)
+        self.branch = lane_branch_name(_MIXED_SLUG, LANE_A, target_branch="main")
+        git(self.repo, "branch", _MIXED_MISSION_BRANCH)
+        git(self.repo, "checkout", "-q", "-b", self.branch)
+        self.events: list[object] = []
+
+    def head(self) -> str:
+        return git_rev(self.repo, "HEAD")
+
+    def move(self, wp_id: str, from_lane: str, to_lane: str, **extra: object) -> None:
+        from specify_cli.status import StatusEvent
+
+        index = len(self.events) + 1
+        approved = to_lane == "approved"
+        data: dict[str, object] = {
             "event_id": f"01M7WW0Z{index:018d}",
-            "mission_slug": "m",
+            "mission_slug": _MIXED_SLUG,
             "wp_id": wp_id,
             "from_lane": from_lane,
             "to_lane": to_lane,
-            "at": f"2026-11-20T00:00:{index:02d}+00:00",
-            "actor": "t",
+            "at": f"2026-11-20T00:{index // 60:02d}:{index % 60:02d}+00:00",
+            "actor": _REVIEWER if to_lane in ("in_review", "approved") else "implementer",
             "force": to_lane == "canceled",
             "execution_mode": "worktree",
-            "reason": "test" if to_lane == "canceled" else None,
-            "policy_metadata": {"lane_head": lane_head} if lane_head else None,
+            "reason": "descoped" if to_lane == "canceled" else None,
+            "review_ref": "review-1" if approved else None,
+            "review_result": {"reviewer": _REVIEWER, "verdict": "approved", "reference": "review-1"} if approved else None,
+            "policy_metadata": {"lane_head": self.head()},
         }
+        data.update(extra)
+        self.events.append(StatusEvent.from_dict(data))
+
+    def claim(self, wp_id: str) -> None:
+        self.move(wp_id, "planned", "claimed")
+        self.move(wp_id, "claimed", "in_progress")
+
+    def approve(self, wp_id: str) -> None:
+        self.move(wp_id, "in_progress", "for_review")
+        self.move(wp_id, "for_review", "in_review")
+        self.move(wp_id, "in_review", "approved")
+
+    def commit(self, path: str, content: str) -> str:
+        return _commit_in(self.repo, path, content, f"work on {path}")
+
+    def resolve(self) -> SiblingStamp:
+        from specify_cli.lanes.incorporate import _resolve_sibling_stamp
+
+        lanes = [
+            ExecutionLane(lane_id=lane_id, wp_ids=wps, write_scope=("src",), predicted_surfaces=("code",), depends_on_lanes=(), parallel_group=0)
+            for lane_id, wps in ((LANE_A, ("WP01", "WP02")), ("lane-own", ("WP77",)))
+        ]
+        manifest = LanesManifest(
+            version=1,
+            mission_slug=_MIXED_SLUG,
+            mission_id="01M7WW0Z" + "0" * 18,
+            mission_branch=_MIXED_MISSION_BRANCH,
+            target_branch="main",
+            lanes=lanes,
+            computed_at="2026-11-20T00:00:00+00:00",
+            computed_from="unit",
+        )
+        return _resolve_sibling_stamp(self.repo, _MIXED_SLUG, manifest, own_lane_id="lane-own", sibling_lane_id=LANE_A, events=self.events)
+
+
+def _review_window_overlap(root: Path) -> tuple[_MixedLane, str]:
+    """The review-cycle-2 repro: WP02 claimed at h0, no commits, to for_review; WP01 commits w1, approved at w1; WP02 canceled."""
+    lane = _MixedLane(root)
+    lane.claim("WP01")
+    lane.claim("WP02")
+    lane.move("WP02", "in_progress", "for_review")
+    w1 = lane.commit("src/wp01.py", "WP01 = 1\n")
+    lane.approve("WP01")
+    lane.move("WP02", "for_review", "canceled")
+    return lane, w1
+
+
+def test_approved_work_in_a_canceled_review_window_is_not_named_canceled_content(tmp_path: Path) -> None:
+    """w1 is WP01's approved work, never "a commit of canceled WP02": no canceled-content claim names it.
+
+    The single window authority (``wp_attribution.resolve_canceled_wp``) reads w1, which lies in
+    WP01's implementation window and in canceled WP02's review window, as CONTESTED (R5/R7), the
+    verdict ``consolidate`` gives this lane too; the refusal says so and does not call w1 canceled.
+    """
+    from specify_cli.lanes.incorporate import IncorporateCode
+
+    lane, w1 = _review_window_overlap(tmp_path)
+
+    message = _refused(lane.resolve, IncorporateCode.CANCELED_CONTENT_UNDER_STAMP)
+
+    assert "shares commit(s)" in message, message
+    assert f"reaches commits of canceled WP02 ({w1[:12]})" not in message, message
+
+
+def test_attested_contested_canceled_wp_does_not_refuse(tmp_path: Path) -> None:
+    """An operator's canceled-superseded attestation lifts an overridable refusal, as it does in ``consolidate`` (FR-012)."""
+    from specify_cli.consolidation.canceled_attestation import ATTESTATION_KEY, CANCELED_SUPERSEDED
+    from specify_cli.status_lanes import OPERATOR_REASON_SOURCE
+
+    lane, _w1 = _review_window_overlap(tmp_path)
+    lane.move(
+        "WP02",
+        "canceled",
+        "canceled",
+        reason="operator: WP02 authored nothing",
+        reason_source=OPERATOR_REASON_SOURCE,
+        policy_metadata={"lane_head": lane.head(), ATTESTATION_KEY: CANCELED_SUPERSEDED},
     )
+
+    sibling = lane.resolve()
+
+    assert sibling.stamp == approval_stamp(lane.events, "WP01")
+
+
+def test_canceled_wp_canceled_before_the_sibling_worked_does_not_refuse(tmp_path: Path) -> None:
+    lane = _MixedLane(tmp_path)
+    lane.claim("WP02")
+    lane.move("WP02", "in_progress", "canceled")
+    lane.claim("WP01")
+    lane.commit("src/wp01.py", "WP01 = 1\n")
+    lane.approve("WP01")
+
+    assert lane.resolve().stamp == lane.head()
+
+
+def test_canceled_commit_under_the_stamp_is_refused(tmp_path: Path) -> None:
+    from specify_cli.lanes.incorporate import IncorporateCode
+
+    lane = _MixedLane(tmp_path)
+    lane.claim("WP02")
+    c1 = lane.commit("src/canceled.py", "CANCELED = True\n")
+    lane.move("WP02", "in_progress", "canceled")
+    lane.claim("WP01")
+    lane.commit("src/wp01.py", "WP01 = 1\n")
+    lane.approve("WP01")
+
+    message = _refused(lane.resolve, IncorporateCode.CANCELED_CONTENT_UNDER_STAMP)
+
+    assert f"reaches commits ({c1[:12]}) of canceled WP02" in message, message
+
+
+def _canceled_merge_with_own_content(root: Path) -> tuple[_MixedLane, str]:
+    """The review-cycle-2 merge repro: in canceled WP02's window a merge's resolution adds src/canceled.py."""
+    lane = _MixedLane(root)
+    lane.claim("WP02")
+    git(lane.repo, "checkout", "-q", "-b", "side", lane.head())
+    _commit_in(lane.repo, "src/side.py", "SIDE = 1\n", "side work")
+    git(lane.repo, "checkout", "-q", lane.branch)
+    git(lane.repo, "merge", "-q", "--no-ff", "--no-commit", "side")
+    (lane.repo / "src" / "canceled.py").write_text("CANCELED = True\n", encoding="utf-8")
+    git(lane.repo, "add", "src/canceled.py")
+    git(lane.repo, "commit", "-qm", "merge side")
+    merge = lane.head()
+    lane.move("WP02", "in_progress", "canceled")
+    lane.claim("WP01")
+    lane.commit("src/wp01.py", "WP01 = 1\n")
+    lane.approve("WP01")
+    return lane, merge
+
+
+def test_canceled_content_inside_a_merge_is_refused(tmp_path: Path) -> None:
+    from specify_cli.lanes.incorporate import IncorporateCode
+
+    lane, merge = _canceled_merge_with_own_content(tmp_path)
+
+    message = _refused(lane.resolve, IncorporateCode.CANCELED_CONTENT_UNDER_STAMP)
+
+    assert merge[:12] in message and "src/canceled.py" in message, message
+
+
+def test_unreadable_merge_in_a_canceled_window_refuses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.consolidation import git_probes
+    from specify_cli.lanes.incorporate import IncorporateCode
+
+    lane, merge = _canceled_merge_with_own_content(tmp_path)
+
+    def _unreadable(_root: Path, sha: str) -> list[str]:
+        raise git_probes.GitProbeError(f"cannot judge {sha}")
+
+    monkeypatch.setattr(git_probes, "merge_own_changed_paths", _unreadable)
+    message = _refused(lane.resolve, IncorporateCode.CANCELED_CONTENT_UNDER_STAMP)
+
+    assert f"cannot judge {merge}" in message, message
 
 
 def test_canceled_window_without_lane_heads_refuses(tmp_path: Path) -> None:
-    from specify_cli.lanes.incorporate import IncorporateCode, _active_windows, _refuse_canceled_content_under_stamp
+    from specify_cli.lanes.incorporate import IncorporateCode
 
-    repo = _plain_repo(tmp_path)
-    stamp = git_rev(repo, "HEAD")
-    events = [_event("WP05", "planned", "claimed", 1, None), _event("WP05", "claimed", "in_progress", 2, None), _event("WP05", "in_progress", "canceled", 3, None)]
-    lane = ExecutionLane(lane_id="lane-s", wp_ids=("WP05",), write_scope=("src",), predicted_surfaces=("code",), depends_on_lanes=(), parallel_group=0)
+    lane = _MixedLane(tmp_path)
+    lane.move("WP02", "planned", "claimed", policy_metadata=None)
+    lane.move("WP02", "claimed", "in_progress", policy_metadata=None)
+    lane.commit("src/canceled.py", "CANCELED = True\n")
+    lane.move("WP02", "in_progress", "canceled", policy_metadata=None)
+    lane.claim("WP01")
+    lane.commit("src/wp01.py", "WP01 = 1\n")
+    lane.approve("WP01")
 
-    assert _active_windows(events, "WP05") == [(None, None)]
-    message = _refused(lambda: _refuse_canceled_content_under_stamp(repo, events, lane, stamp), IncorporateCode.CANCELED_CONTENT_UNDER_STAMP)
-    assert "cannot be bounded" in message
-    assert _active_windows(events[:1], "WP05") == [(None, None)]
-    assert _active_windows([_event("WP05", "planned", "claimed", 1, stamp)], "WP05") == [(stamp, None)]
+    message = _refused(lane.resolve, IncorporateCode.CANCELED_CONTENT_UNDER_STAMP)
+
+    assert "no commit attribution" in message, message
+
+
+def test_canceled_merge_the_stamp_does_not_reach_is_not_judged(tmp_path: Path) -> None:
+    """A merge made in canceled WP02's window after WP01's approval stays out of the stamp, so it is not incorporated."""
+    lane = _MixedLane(tmp_path)
+    lane.claim("WP01")
+    lane.commit("src/wp01.py", "WP01 = 1\n")
+    lane.approve("WP01")
+    stamp = lane.head()
+    lane.claim("WP02")
+    git(lane.repo, "checkout", "-q", "-b", "side", lane.head())
+    _commit_in(lane.repo, "src/side.py", "SIDE = 1\n", "side work")
+    git(lane.repo, "checkout", "-q", lane.branch)
+    git(lane.repo, "merge", "-q", "--no-ff", "--no-commit", "side")
+    (lane.repo / "src" / "canceled.py").write_text("CANCELED = True\n", encoding="utf-8")
+    git(lane.repo, "add", "src/canceled.py")
+    git(lane.repo, "commit", "-qm", "merge side")
+    lane.move("WP02", "in_progress", "canceled")
+
+    assert lane.resolve().stamp == stamp
+
+
+def test_canceled_window_merges_refuse_an_unbounded_window(tmp_path: Path) -> None:
+    from specify_cli.consolidation.git_probes import GitProbeError
+    from specify_cli.lanes.incorporate import _canceled_window_merges
+
+    lane = _MixedLane(tmp_path)
+    lane.move("WP02", "planned", "claimed", policy_metadata=None)
+    lane.move("WP02", "claimed", "canceled", policy_metadata=None)
+
+    with pytest.raises(GitProbeError, match="no recorded lane head"):
+        _canceled_window_merges(lane.repo, lane.events, "WP02")

@@ -55,8 +55,6 @@ _MAY_INCORPORATE = frozenset({Lane.CLAIMED, Lane.IN_PROGRESS})
 _APPROVED_LANES = frozenset({Lane.APPROVED, Lane.DONE})
 #: The lanes a work package leaves with the move-back command.
 _SEND_BACK_LANES = frozenset({Lane.FOR_REVIEW, Lane.IN_REVIEW, Lane.APPROVED, Lane.DONE})
-#: A canceled work package's active lanes: a window opens on entering one and closes on leaving them all.
-_ACTIVE_LANES = frozenset({Lane.CLAIMED, Lane.IN_PROGRESS, Lane.BLOCKED, Lane.FOR_REVIEW, Lane.IN_REVIEW})
 _IN_PROGRESS_REFS = ("MERGE_HEAD", "REBASE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD")
 _SHORT = 12
 
@@ -207,71 +205,101 @@ def _canceled_wp_ids(events: Sequence[StatusEvent], wp_ids: Sequence[str]) -> li
     return [wp for wp in wp_ids if str((snapshot.work_packages.get(wp) or {}).get("lane")) == Lane.CANCELED]
 
 
-def _active_windows(events: Sequence[StatusEvent], wp_id: str) -> list[tuple[str | None, str | None]]:
-    """``(open lane_head, close lane_head)`` of every stretch *wp_id* spent in an active lane, in order.
+def _refusal(lane_id: str, wp_id: str, stamp: str, why: str) -> IncorporateRefused:
+    return IncorporateRefused(
+        IncorporateCode.CANCELED_CONTENT_UNDER_STAMP,
+        f"{lane_id}'s approval stamp {_short(stamp)} {why} of canceled {wp_id}; incorporating it would bring canceled work into this lane. "
+        "Rework that lane first so its approved stamp no longer carries them.",
+    )
 
-    Migration-synthesized events never open or close a window (FR-011). A window still
-    open at the end of the log has ``None`` as its close stamp.
+
+def _refuse_attributed_commits(repo_root: Path, commits: frozenset[str], lane_id: str, wp_id: str, stamp: str) -> None:
+    """Refuse when the stamp reaches a commit the window authority attributed to the canceled WP."""
+    from specify_cli.consolidation.git_probes import sha_reachable_from
+
+    under = sorted(sha for sha in commits if sha_reachable_from(repo_root, sha, stamp))
+    if under:
+        raise _refusal(lane_id, wp_id, stamp, f"reaches commits ({', '.join(_short(sha) for sha in under)})")
+
+
+def _canceled_window_merges(repo_root: Path, events: Sequence[StatusEvent], wp_id: str) -> list[str]:
+    """The first-parent merge commits inside *wp_id*'s work windows, as ``wp_attribution`` bounds them.
+
+    ``resolve_canceled_wp`` never attributes a merge to a work package, so content folded
+    into a merge's own resolution needs this separate look. Raises ``GitProbeError`` for a
+    window with no recorded lane head at either end (the caller refuses).
     """
-    from specify_cli.status import is_migration_event, stamp_of
+    from specify_cli.consolidation.git_probes import GitProbeError, first_parent_commits_in_range, is_merge_commit
+    from specify_cli.consolidation.wp_attribution import _window_stamps, _windows
 
-    windows: list[tuple[str | None, str | None]] = []
-    open_head: str | None = None
-    is_open = False
-    for event in events:
-        if event.wp_id != wp_id or is_migration_event(event):
-            continue
-        entering = str(event.to_lane) in _ACTIVE_LANES
-        if entering and not is_open:
-            open_head, is_open = stamp_of(event), True
-        elif not entering and is_open:
-            windows.append((open_head, stamp_of(event)))
-            is_open = False
-    if is_open:
-        windows.append((open_head, None))
-    return windows
+    merges: list[str] = []
+    for window in _windows(events, frozenset({wp_id}))[wp_id]:
+        bounds = _window_stamps(window)
+        if bounds is None:
+            raise GitProbeError(f"a work window of {wp_id} has no recorded lane head at one end")
+        merges.extend(sha for sha in first_parent_commits_in_range(repo_root, *bounds) if is_merge_commit(repo_root, sha))
+    return merges
 
 
-def _window_commits_under(repo_root: Path, window: tuple[str | None, str | None], stamp: str) -> list[str]:
-    """The canceled window's own (first-parent, non-merge) commits that *stamp* reaches; an unbounded window raises."""
-    from specify_cli.consolidation.git_probes import first_parent_commits_in_range, is_merge_commit, sha_reachable_from
+def _refuse_canceled_merges(repo_root: Path, events: Sequence[StatusEvent], lane_id: str, wp_id: str, stamp: str) -> None:
+    """Refuse when the stamp reaches a merge in the canceled WP's window that adds content of its own, or cannot be judged."""
+    from specify_cli.consolidation import git_probes
 
-    open_head, close_head = window
-    if open_head is None or close_head is None:
-        raise ValueError("the window has no recorded lane head at one end")
-    return [
-        sha
-        for sha in first_parent_commits_in_range(repo_root, open_head, close_head)
-        if not is_merge_commit(repo_root, sha) and sha_reachable_from(repo_root, sha, stamp)
-    ]
+    try:
+        for merge in _canceled_window_merges(repo_root, events, wp_id):
+            if not git_probes.sha_reachable_from(repo_root, merge, stamp):
+                continue
+            own = git_probes.merge_own_changed_paths(repo_root, merge)
+            if own:
+                raise _refusal(lane_id, wp_id, stamp, f"reaches merge {_short(merge)}, whose own resolution changed {', '.join(own)} in the window")
+    except git_probes.GitProbeError as exc:
+        raise _refusal(lane_id, wp_id, stamp, f"cannot be cleared: a merge in the window cannot be judged ({exc})") from exc
 
 
-def _refuse_canceled_content_under_stamp(repo_root: Path, events: Sequence[StatusEvent], sibling: ExecutionLane, stamp: str) -> None:
-    """Refuse when a canceled work package of the sibling lane has commits the stamp reaches.
+def _refuse_canceled_content_under_stamp(
+    repo_root: Path,
+    events: Sequence[StatusEvent],
+    sibling: ExecutionLane,
+    stamp: str,
+    *,
+    branch: str,
+    base_ref: str,
+    mission_slug: str,
+) -> None:
+    """Refuse when a canceled work package of the sibling lane has content the stamp reaches.
 
-    Incorporating the stamp would bring that canceled work into this lane, where the
-    reconciliation gate's canceled-content axis would fail it. A window that cannot be
-    bounded (a missing lane-head stamp) refuses too: its commits cannot be ruled out.
+    The canceled WP's commits come from the one window authority,
+    ``wp_attribution.resolve_canceled_wp``, read exactly as ``consolidate`` reads them: an
+    ``Unattributable`` result refuses (fail closed) unless an operator canceled-superseded
+    attestation lifts it (FR-012, ``OVERRIDABLE_REASONS``). A merge in the canceled window
+    whose own resolution changed paths refuses too, since the resolver never attributes merges.
     """
-    from specify_cli.consolidation.git_probes import GitProbeError
+    from specify_cli.consolidation.canceled_attestation import OVERRIDABLE_REASONS, attestation_stamps
+    from specify_cli.consolidation.reconciliation_kernel import _is_bookkeeping
+    from specify_cli.consolidation.wp_attribution import Unattributable, resolve_canceled_wp
 
-    for wp_id in _canceled_wp_ids(events, sibling.wp_ids):
-        for window in _active_windows(events, wp_id):
-            try:
-                under = _window_commits_under(repo_root, window, stamp)
-            except (GitProbeError, ValueError) as exc:
-                raise IncorporateRefused(
-                    IncorporateCode.CANCELED_CONTENT_UNDER_STAMP,
-                    f"{sibling.lane_id}: the commits of canceled {wp_id} cannot be bounded ({exc}), "
-                    f"so they cannot be ruled out of the approval stamp {_short(stamp)}.",
-                ) from exc
-            if under:
-                listed = ", ".join(_short(sha) for sha in under)
-                raise IncorporateRefused(
-                    IncorporateCode.CANCELED_CONTENT_UNDER_STAMP,
-                    f"{sibling.lane_id}'s approval stamp {_short(stamp)} reaches commits of canceled {wp_id} ({listed}); "
-                    "incorporating it would bring canceled work into this lane. Rework that lane first so its approved stamp no longer carries them.",
-                )
+    attested = attestation_stamps(events)
+    canceled = _canceled_wp_ids(events, sibling.wp_ids)
+    anchors = [anchor for wp in canceled if (anchor := attested.get(wp))]
+    for wp_id in canceled:
+        outcome = resolve_canceled_wp(
+            repo_root,
+            events=events,
+            lane_id=sibling.lane_id,
+            lane_wp_ids=sibling.wp_ids,
+            canceled_wp_id=wp_id,
+            lane_branch=branch,
+            coord_base_ref=base_ref,
+            is_bookkeeping=lambda path: _is_bookkeeping(path, mission_slug, None),
+            closed_world_anchors=anchors,
+            never_exempt_commits=frozenset(),
+        )
+        if isinstance(outcome, Unattributable):
+            if wp_id in attested and outcome.reason in OVERRIDABLE_REASONS:
+                continue
+            raise _refusal(sibling.lane_id, wp_id, stamp, f"cannot be cleared: the work {outcome.detail}")
+        _refuse_attributed_commits(repo_root, outcome.commits, sibling.lane_id, wp_id, stamp)
+        _refuse_canceled_merges(repo_root, events, sibling.lane_id, wp_id, stamp)
 
 
 def _resolve_sibling_stamp(
@@ -289,7 +317,9 @@ def _resolve_sibling_stamp(
     stamps = _approved_stamps(events, sibling.wp_ids, sibling.lane_id)
     stamp = _newest_stamp(repo_root, stamps, sibling.lane_id)
     _require_stamp_on_branch(repo_root, stamp, branch, sibling.lane_id)
-    _refuse_canceled_content_under_stamp(repo_root, events, sibling, stamp)
+    _refuse_canceled_content_under_stamp(
+        repo_root, events, sibling, stamp, branch=branch, base_ref=f"refs/heads/{manifest.mission_branch}", mission_slug=mission_slug
+    )
     return SiblingStamp(lane_id=sibling.lane_id, branch=branch, stamp=stamp, wp_ids=tuple(sibling.wp_ids))
 
 
