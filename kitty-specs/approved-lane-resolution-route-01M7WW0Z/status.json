@@ -214,7 +214,7 @@
     },
     "WP06": {
       "actor": "claude",
-      "agent": null,
+      "agent": "claude::python-pedro",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -232,7 +232,8 @@
         "Gate hint names re-review (merge SHA, lane, WPs, move_back_command) when every un-attributable item is a dropped unreviewed merge's own content; N4/partial/foreign keep the exact --dependency-ref hint; describe() and verdicts unchanged; excluded_window_base passed as attributes_source at both probe sites; FR-010 docstring fixed.",
         "- 2026-11-25T10:14:43Z – claude::python-pedro – shell_pid=11398 – campsite fix (coordinator fold): f5a0a46056 typed locals for the two baseline mypy no-any-return findings (_refusal_reason: refusal: str | None; _is_bookkeeping_path: bookkeeping: bool); mypy on reconciliation_verifier.py alone now 0 errors; ruff/format clean; test_unreviewed_merge_hint.py + test_reconciliation.py -n 3: 262 passed, 1 xfailed. No behaviour change.",
         "- 2026-11-25T10:28:14Z – unknown – red (review cycle 1, partial match): pytest tests/consolidation/test_unreviewed_merge_hint.py -n0 -m unit -> 9 failed, 39 passed. The three partial-match hint tests (blob, shared path, covered deletion) get the unscoped --dependency-ref hint only (assert hint == f'{re_review} {remainder}' fails, re-review sentences absent); _dropped_merges_covering returns None for a partial match; _uncovered_count AttributeError.",
-        "- 2026-11-25T10:43:13Z – unknown – green (review cycle 1 fix, b2a83616e5): partial match now prints re-review for covering merges + 'For the remaining content (<n> item(s) no dropped merge explains): <_DEPENDENCY_REF_HINT>'; nothing covered keeps the hint byte-identical; empty wp_ids still falls back. _all_items_covered replaced by _uncovered_count. Tests: new file 50 passed; blast radius -n 3: 555 passed, 6 xfailed; test_no_dead_symbols + layer_rules + no_legacy_terminology -n0: 215 passed; fast-tier dirs -n 3: 3222 passed, 7 skipped. ruff/format/mypy/C901 clean. Note for WP12: its real-git e2e must include this partial shape (reviewer)."
+        "- 2026-11-25T10:43:13Z – unknown – green (review cycle 1 fix, b2a83616e5): partial match now prints re-review for covering merges + 'For the remaining content (<n> item(s) no dropped merge explains): <_DEPENDENCY_REF_HINT>'; nothing covered keeps the hint byte-identical; empty wp_ids still falls back. _all_items_covered replaced by _uncovered_count. Tests: new file 50 passed; blast radius -n 3: 555 passed, 6 xfailed; test_no_dead_symbols + layer_rules + no_legacy_terminology -n0: 215 passed; fast-tier dirs -n 3: 3222 passed, 7 skipped. ruff/format/mypy/C901 clean. Note for WP12: its real-git e2e must include this partial shape (reviewer).",
+        "Cycle 1 fix: partial match prints re-review for the covering merges, then the --dependency-ref hint scoped to the remaining items; nothing covered keeps today's hint byte-identical; empty wp_ids fallback kept."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
