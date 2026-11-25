@@ -24,6 +24,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#17": {
+      "evidence_ref": "Not an issue reference: a research.md R-03 finding number cited in the WP05 prompt",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#5604": {
       "evidence_ref": "Cited for context only; this Mission owes it no work",
       "fr": null,
