@@ -24,7 +24,7 @@ import pytest
 from kernel.git.read_cache import git_read_cache_scope
 from specify_cli.lanes import lane_tip
 from specify_cli.lanes.lane_tip import is_absorbed_but_for_mission_bookkeeping
-from tests.lanes.test_lane_tip_mission_bookkeeping import (
+from tests.lanes.landed_mission_support import (
     _LOG,
     _MD,
     _META,
@@ -36,12 +36,9 @@ from tests.lanes.test_lane_tip_mission_bookkeeping import (
     _commit,
     _git,
     _log,
-    landed,
 )
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
-
-__all__ = ["landed"]  # the fixture, re-used from the #7747 proof tests
 
 _REAL_POPEN = subprocess.Popen
 
@@ -184,3 +181,59 @@ def test_a_landing_ref_that_moved_between_proofs_is_judged_at_its_new_commit(lan
 def test_an_unknown_landing_ref_fails_closed_inside_a_run(landed: Landed) -> None:
     with git_read_cache_scope():
         assert not _proof(landed, "refs/heads/nope")
+
+
+@pytest.fixture
+def shapes(tmp_path: Path) -> tuple[Path, str]:
+    """A commit with a sibling-prefix Mission, a file-as-directory path, non-ASCII names and gitlinks."""
+    root = tmp_path / "shapes"
+    root.mkdir()
+    _git(root, "init", "-q", "-b", "main")
+    _git(root, "config", "user.email", "t@example.invalid")
+    _git(root, "config", "user.name", "T")
+    _git(root, "config", "commit.gpgsign", "false")
+    _commit(
+        root,
+        "shapes",
+        {
+            "README": "r\n",
+            "kitty-specs/foo/tasks/WP01.md": "w\n",
+            "kitty-specs/foo-bar/x": "x\n",
+            "kitty-specs/fo o/x": "y\n",
+            "kitty-specs/top.md": "t\n",
+            'dir/ünï/q"t': "q\n",
+        },
+    )
+    head = _git(root, "rev-parse", "HEAD")
+    _git(root, "update-index", "--add", "--cacheinfo", f"160000,{head},kitty-specs/foo/mod")
+    _git(root, "update-index", "--add", "--cacheinfo", f"160000,{head},gl")
+    _git(root, "commit", "-q", "-m", "gitlinks")
+    return root, _git(root, "rev-parse", "HEAD")
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "kitty-specs/foo/tasks/WP01.md",
+        "kitty-specs/foo",
+        "kitty-specs/foo/",
+        "kitty-specs",
+        "kitty-specs/top.md",
+        "kitty-specs/foo-bar/x",
+        "kitty-specs/fo o/x",
+        'dir/ünï/q"t',
+        "dir/ünï",
+        "README",
+        "README/x",
+        "kitty-specs/foo/missing",
+        "kitty-specs/foo/mod",
+        "gl",
+        "gl/x",
+    ],
+)
+def test_a_blob_lookup_inside_a_run_matches_the_per_path_read(shapes: tuple[Path, str], path: str) -> None:
+    root, rev = shapes
+    outside = lane_tip._blob_id(root, rev, path)
+    with git_read_cache_scope():
+        inside = lane_tip._blob_id(root, rev, path)
+    assert inside == outside
