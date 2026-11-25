@@ -499,3 +499,18 @@ def test_an_object_id_read_follows_a_history_rewrite(repo: Path, history_file: s
         cached_object_read(repo, ("parents", sha), (sha,), read)
         cached_object_read(repo, ("parents", sha), (sha,), read)
     assert read.calls == 2
+
+
+def test_a_config_shaped_object_id_read_also_follows_a_history_rewrite(repo: Path) -> None:
+    """#7848 confirm review nit 3: the config variant depends on ``shallow`` too."""
+    from kernel.git.read_cache import cached_object_read
+
+    sha = _git(repo, "rev-parse", "HEAD")
+    read = _Counter(repo, "show", "--name-only", "--format=", sha)
+    with git_read_cache_scope():
+        cached_object_read(repo, ("show", sha), (sha,), read, config=True)
+        cached_object_read(repo, ("show", sha), (sha,), read, config=True)
+        assert read.calls == 1
+        (repo / ".git" / "shallow").write_text(f"{sha}\n", encoding="ascii")
+        cached_object_read(repo, ("show", sha), (sha,), read, config=True)
+    assert read.calls == 2

@@ -218,3 +218,30 @@ def test_merged_in_lines_are_the_per_parent_union_within_the_lane_chain(tmp_path
 
     assert taken == union & chain
     assert commits[2] not in taken  # an ancestor of the landing ref is never "taken" history
+
+
+def _commit_tree(root: Path, tree: str, *parents: str) -> str:
+    env = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@e", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@e", "PATH": os.environ["PATH"]}
+    argv = ["git", "commit-tree", tree, *(arg for parent in parents for arg in ("-p", parent)), "-m", "lane"]
+    return subprocess.run(argv, cwd=root, env=env, capture_output=True, text=True, check=True).stdout.strip()
+
+
+def test_lane_own_commits_on_the_skewed_dag_match_the_per_parent_rule(tmp_path: Path) -> None:
+    """``_lane_own_commits`` on a lane that merged in c4 and c2 gives the per-parent answer.
+
+    #7848 confirm review nit 2. The leaked c2 is a landing ancestor, which the chain walk leaves
+    out, so on this DAG the own-commit list was already right before the LOW-1 fix: this pins the
+    behaviour end to end; the helper test above is the one that goes red without the restriction.
+    """
+    root = tmp_path / "repo"
+    commits = _skewed_dag(root)
+    landing = commits[7]
+    tree = _git(root, "rev-parse", f"{commits[0]}^{{tree}}")
+    own = _commit_tree(root, tree, commits[5])
+    tip = _commit_tree(root, tree, own, commits[4], commits[2])
+    chain = [line.split() for line in _git(root, "rev-list", "--first-parent", "--parents", tip, f"^{landing}").splitlines()]
+    taken = {sha for entry in chain for parent in entry[2:] for sha in _git(root, "rev-list", "--first-parent", parent, f"^{landing}").splitlines()}
+    expected = tuple((entry[0], tuple(entry[1:])) for entry in chain if entry[0] not in taken)
+
+    assert lane_tip._lane_own_commits(root, tip, landing) == expected
+    assert {commit for commit, _parents in expected} == {own, tip}
