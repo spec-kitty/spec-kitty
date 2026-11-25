@@ -1,20 +1,20 @@
 {
-  "event_count": 135,
-  "last_event_id": "01M8A051W9XHZBGNEKV5PE6BJZ",
-  "materialized_at": "2026-11-25T18:40:39.817692+00:00",
+  "event_count": 136,
+  "last_event_id": "01M8A066JMSH2RKNNEPKY8TXWJ",
+  "materialized_at": "2026-11-25T18:41:17.396376+00:00",
   "mission_number": "",
   "mission_slug": "approved-lane-resolution-route-01M7WW0Z",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 9,
+    "approved": 10,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 1,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 3
   },
   "work_packages": {
@@ -412,9 +412,9 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_review",
-      "last_event_id": "01M8A051W9XHZBGNEKV5PE6BJZ",
-      "last_transition_at": "2026-11-25T18:40:39.817692+00:00",
+      "lane": "approved",
+      "last_event_id": "01M8A066JMSH2RKNNEPKY8TXWJ",
+      "last_transition_at": "2026-11-25T18:41:17.396376+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-25T17:43:09Z – claude – shell_pid=3728 – red: uv run --frozen pytest tests/orchestrator_api/test_consolidate_mission_resolution_merge.py -> 2 failed/6 passed at lane base 5dff5a7e13. test_contract_version_is_1_31_0: AssertionError '1.30.0' == '1.31.0'; test_doc_contract_version_matches_envelope: no 1.31.0 history entry naming RESOLUTION_MERGE_UNREVIEWED. The 6 behaviour cells (refusal before any lane merges [lanes|coord], two codes first-code-first [LANE_MOVED_AFTER_APPROVAL, RESOLUTION_MERGE_UNREVIEWED], clean-merge control, probe error fails closed, stale approved-lane route via orchestrator path) are green at base: WP05's code and WP07's renderer already reach this path through approved_bound_refusal and consolidate_lane_into_mission -> _explain_stale; they are characterization pins for this surface.",
@@ -423,6 +423,12 @@
         "Contract 1.31.0: RESOLUTION_MERGE_UNREVIEWED documented (envelope history, docs page version/history/preflight row, operator-skill reference table); test_contract_version re-pinned; new tests pin the PREFLIGHT_FAILED envelope with no branch moved [lanes|coord], two-code order, clean-merge control, probe-error fail-closed, and the stale approved-lane route via the orchestrator path. T045 needed no code (binding ruling: route arrives via _explain_stale)."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP09-orchestrator-api-surface/review-cycle-1.md",
+        "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP09-orchestrator-api-surface/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 3728,
       "shell_pid_created_at": "1795628157.9",
