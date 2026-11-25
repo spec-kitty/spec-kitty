@@ -1,7 +1,7 @@
 {
-  "event_count": 89,
-  "last_event_id": "01M890KG7RJD3PHXKYXY6WZF80",
-  "materialized_at": "2026-11-25T09:29:17.842536+00:00",
+  "event_count": 90,
+  "last_event_id": "01M890W5RDX8FRGQ2Z18E1EM29",
+  "materialized_at": "2026-11-25T09:34:03.021593+00:00",
   "mission_number": "",
   "mission_slug": "approved-lane-resolution-route-01M7WW0Z",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 3,
+    "for_review": 2,
     "in_progress": 1,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 8
   },
   "work_packages": {
@@ -231,7 +231,8 @@
         "- 2026-11-20T19:59:03Z – unknown – trace(design-decisions): review item 3 (merge-attribute guard, INCORPORATE_MERGE_ATTRIBUTES_REFUSED) is DEFERRED, not dropped: lane-h's base does not contain WP01's assert_registered_merge_behaviour; per the runner, it is proposed that WP07 (depends on WP01 and WP08) delivers it as recorded leeway. No second attribute check is implemented here.",
         "- 2026-11-20T20:25:47Z – unknown – review cycle 1 addressed in eb3fd25da7: (1) check_wp_may_incorporate/resolve_sibling_stamp made private, removed from __all__ -> test_no_dead_symbols green. (2) comment now 'lane-consolidation pipeline' -> test_no_legacy_terminology green. (3) DEFERRED to WP07 (see prior note). (4) in-process real-git + CliRunner tests: incorporate.py 100% line coverage, diff-cover vs WP08 base 100% (225 lines, 0 missing); covers CHECKOUT_BUSY (MERGE_HEAD, dirty), every PROBE_FAILED path, diverged stamps, already_present, stamp-moved print, conflict exit on the fix-prompt path, --force refusal. (5) new INCORPORATE_CANCELED_CONTENT_UNDER_STAMP: refuses when a canceled WP of the sibling lane has first-parent non-merge commits in its active windows that the stamp reaches, or an active window lacks a lane_head at either end (fail closed); real-git tests with build_coord_mission_mixed_lane_canceled (refuse) and a commitless control (pass). (6) except narrowed to (OSError, StoreError, ValueError, StatusReadPathNotFound, StatusSurfaceRefUnreadable, WorktreeRegistryUnavailable), as origin_freshness does. (7) conflict block adds 'To back out instead, run in <checkout>: git merge --abort'; the A-10 test assertion now forbids any printed 'git merge' except 'git merge --abort'.",
         "- 2026-11-20T20:25:51Z – unknown – green (cycle 1): test_incorporate_sibling_lane.py 29 passed; targeted set 196 passed; gates no_dead_symbols/commit_scope_owner/no_worktree_name_guess/merge_pipeline_ratchets/layer_rules/no_legacy_terminology 311 passed; make test-fast 3144 passed 7 skipped; ruff/format/mypy clean.",
-        "Review cycle 1 fixes: private helpers, terminology, canceled-content refusal, typed excepts, merge --abort hint, in-process coverage 100%; item 3 deferred to WP07."
+        "Review cycle 1 fixes: private helpers, terminology, canceled-content refusal, typed excepts, merge --abort hint, in-process coverage 100%; item 3 deferred to WP07.",
+        "- 2026-11-25T09:32:49Z – unknown – red (review cycle 2): pytest tests/lanes/test_incorporate_sibling_lane.py -k 'review_window or attested_contested or canceled_before or commit_under_the_stamp or inside_a_merge or unreadable_merge or without_lane_heads' -> 5 failed, 2 passed at 1b55ea66a9 sources. Item 1 reproduced: the review-cycle-2 scenario (WP02 claimed at h0 without commits, to for_review; WP01 commits w1 and is approved at w1; WP02 canceled) is refused naming w1 as a commit of canceled WP02, and an operator attestation cannot lift it. Item 2 reproduced: a merge in canceled WP02's window whose resolution adds src/canceled.py is not refused (DID NOT RAISE), and neither is an unreadable merge probe. The controls (commit of canceled WP02 under the stamp refused; WP02 canceled before WP01 worked not refused) pass on both."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -265,9 +266,9 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 3,
       "implementer_of_record": "claude",
-      "lane": "for_review",
-      "last_event_id": "01M88ZXCXMK2YG2JFV00ZYNJTB",
-      "last_transition_at": "2026-11-25T09:17:14.548640+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M890W5RDX8FRGQ2Z18E1EM29",
+      "last_transition_at": "2026-11-25T09:34:03.021593+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-20T18:01:04Z – claude – shell_pid=24797 – red: uv run --frozen pytest -q tests/review/test_review_context_merge_lines.py -> 9 failed: TypeError WpReviewRange.__init__() unexpected keyword 'merges'/'remerge_available' (renderer tests), AttributeError 'WpReviewRange' object has no attribute 'merges' (range-level git tests incl. two-merge full-history and fail-soft)",
@@ -299,7 +300,7 @@
         "reviewer": "claude::reviewer-renata",
         "verdict": "approved"
       },
-      "role": "implementer",
+      "role": "reviewer",
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
