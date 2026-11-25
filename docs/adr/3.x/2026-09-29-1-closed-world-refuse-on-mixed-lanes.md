@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-09-29'
-updated: '2026-11-12T00:00:00Z'
+updated: '2026-11-25T00:00:00Z'
 ---
 
 ## Context and Problem Statement
@@ -566,3 +566,57 @@ window axis (operator rulings, Decision Moments `01M78XBQS8NE8PPMSTZHMDJ610`,
 - The exemption is by exact SHA, so a re-lettered copy of a pre-Mission commit (a new SHA with
   the same patch, for example after a rebase) is still judged as window content. This is
   fail-closed.
+
+## Amendment 2026-11-25: the squash forecast does not re-judge the Mission branch commit by commit (#7854, #7855)
+
+**Status: Accepted** (operator ruling 2026-11-25, recorded on PR #7857:
+https://github.com/spec-kitty/spec-kitty/pull/7857#issuecomment-7167569902). An earlier
+operator ruling the same day: "consolidate is a must; if core needs a hotfix, it is to be
+done." Two doc-kitty Missions passed `accept` and were then refused by the
+`consolidate --dry-run` forecast with "content commit ... belongs to NO approved WP":
+
+- #7854: a merge of `main` into the Mission branch (patch-id printed empty, as for every merge);
+- #7855: early planning-artifact docs commits on the Mission branch of a Mission finalized
+  before #7816, whose content a later Mission branch commit brought back to the approved
+  content the target already holds.
+
+Both were reported by the lane scan of the squash forecast (`forecast_content_verdict`): it
+judges the Mission branch by blob over the staged squash tree, then scans each lane commit by
+commit (#7268). The lanes had merged the Mission branch, so the scan judged the Mission
+branch's own commits a second time, commit by commit, although the real squash gate never does.
+
+- **The squash forecast's lane scan skips what the squashed tree judged.** Window commits the
+  Mission branch reaches (`excluded_window_base..<mission branch>`) are not scanned again on
+  the lanes (`MergeOutcomeVerifier._judged_by_squashed_tree`). Their content is in the squashed
+  tree, which the squash blob attribution judged; that is the content the real squash gate
+  judges. A commit only a lane reaches is still scanned, and squashed-tree content no approved
+  WP authored still FAILs.
+- **The merge / rebase closed world is unchanged** (operator ruling 2026-11-25). Every
+  resolution of a merge stays content, as the 2026-11-07 amendment says, including one that
+  keeps one side: keeping one side where both sides changed a path drops the other side's
+  change, which may be a target fix, and no other gate judges that drop. An intermediate rule
+  (a resolution taking one side's own change is not content) was drafted and withdrawn in
+  review for this reason; the regression tests it produced stay as controls
+  (`test_one_side_merge_reverting_target_content_to_a_stale_state_fails`,
+  `test_merge_keeping_the_lanes_stale_state_against_a_target_fix_fails`,
+  `test_merge_keeping_the_lanes_change_over_a_target_fix_fails`,
+  `test_one_side_merge_dropping_an_approved_edit_fails_approved_content_missing`).
+
+**Why this stays fail-closed.**
+
+- The real gates are untouched; only the forecast's lane scan changes, and it skips only
+  commits whose content the squash blob attribution judged in the same forecast.
+- No commit is exempt by name, and no attestation is added. The approved bound (#5668, ADR
+  `2026-10-04-5`) is not touched.
+
+**Residuals.**
+
+- Under `--strategy merge` or `rebase`, both doc-kitty shapes are still refused: the closed
+  world judges commits, and a conflict resolution or a superseded commit lands in the target's
+  history. The default squash landing and its forecast are what this amendment unblocks.
+- The squash landing (the real gate and the forecast) does not judge a dropped TARGET change
+  where both sides changed a path and a merge kept the Mission side's change: the final blob is
+  the approved lane's own, so blob attribution accepts it. This predates this amendment;
+  tracked by #7862.
+- The remerge path set depends on the clone's merge attributes and drivers (pre-existing since
+  #7307; tracked by #5604 WP01).
