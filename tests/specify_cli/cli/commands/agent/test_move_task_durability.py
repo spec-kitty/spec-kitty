@@ -1337,6 +1337,14 @@ def test_pre_fix_naive_commit_router_gating_crashes_on_protected_target_branch(
     raising_after_fix``'s ``router.artifact_calls == []`` assertion), it just
     no longer crashes when that attempt is refused.
 
+    #7861 (operator ruling DM-01M89KDT5DZQ4DX6ZFX54HY3J3) retired the T050
+    skip gate: the production path now ATTEMPTS this commit too, through the
+    router, because REVIEW_CYCLE is a COORD-partition kind committed to the
+    coordination branch (see
+    ``test_protected_primary_flag_still_routes_the_review_cycle_through_the_router``).
+    What this test still pins is that a refused attempt is logged, never
+    dropped.
+
     This does not call ``_persist_approved_review_cycle`` itself (that
     function is ALREADY fixed in this diff) -- it inlines the exact
     pre-fix expression (``ports.coord if st.resolved_auto_commit else
@@ -1425,7 +1433,10 @@ def test_protected_primary_flag_still_routes_the_review_cycle_through_the_router
     assert len(router.artifact_calls) == 1, "the review-cycle commit goes through the router (its placement decides the branch)"
     assert signal is not None
     assert signal.durably_persisted is False
-    assert signal.skip_reason != _tvp._DURABILITY_REASON_PROTECTED_TARGET_BRANCH
+    # The refusing router's own typed outcome (its simulated ProtectedBranchRefused), never a silent success.
+    assert signal.outcome.classification == "persistence_failed", signal.outcome
+    assert signal.skip_reason == "commit_error", signal.outcome
+    assert signal.outcome.verdict_durably_persisted is False
 
     wp_dir = _wp_dir(repo)
     artifact = wp_dir / "review-cycle-2.md"
@@ -1457,7 +1468,10 @@ def test_protected_primary_flag_still_routes_the_review_cycle_through_the_router
     signal2 = failure2.value.signal
     assert len(router2.artifact_calls) == 1
     assert signal2.durably_persisted is False
-    assert signal2.skip_reason != _tvp._DURABILITY_REASON_PROTECTED_TARGET_BRANCH
+    # The refusing router's own typed outcome (its simulated ProtectedBranchRefused), never a silent success.
+    assert signal2.outcome.classification == "persistence_failed", signal2.outcome
+    assert signal2.skip_reason == "commit_error", signal2.outcome
+    assert signal2.outcome.verdict_durably_persisted is False
 
 
 # ---------------------------------------------------------------------------

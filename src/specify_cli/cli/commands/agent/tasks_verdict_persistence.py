@@ -113,7 +113,6 @@ if TYPE_CHECKING:
 # ``VerdictDurabilitySignal``'s docstring). Named constants (Sonar S1192):
 # each string is referenced from two sites (the resolver + its tests).
 _DURABILITY_REASON_NO_AUTO_COMMIT = "no_auto_commit"
-_DURABILITY_REASON_PROTECTED_TARGET_BRANCH = "protected_target_branch"
 
 # #3773 item 1: a THIRD, structurally distinct busy/timeout reason. The
 # checkout-wide verdict-save queue (``acquire_verdict_save_queue``) already
@@ -159,16 +158,12 @@ class VerdictDurabilitySignal:
     """Whether a review-cycle verdict write was durably committed, and why not.
 
     T049 (FR-013): ``--no-auto-commit`` is the ONE sanctioned non-durable
-    path. T050: a protected-primary-coord topology is a SECOND, structurally
-    different cause -- ``st.skip_target_branch_commit`` -- that today is not
-    consulted here at all, so the review-cycle-artifact commit attempts to
-    land on the same protected branch the status-event commit already
-    declined to touch, raising ``ReviewCycleError`` uncaught from
-    ``_mt_finalize_plan`` and crashing BOTH the approval and rejection paths.
-    The two causes are kept distinguishable (``skip_reason``) rather than
-    collapsed onto one message/key, per this WP's explicit design
-    requirement -- a machine consumer needs to tell "the operator chose this"
-    apart from "the topology forced this".
+    path; every other non-durable outcome is a typed failure whose
+    ``skip_reason`` names its cause, so a machine consumer can tell "the
+    operator chose this" apart from a failed commit. (T050's separate
+    protected-primary-coord cause was retired by #7861: REVIEW_CYCLE is a
+    COORD-partition kind, so the router commits it to the coordination
+    branch, never to the protected primary.)
 
     ``artifact_path``/``cycle_number`` are populated whenever a write actually
     happened (durable or not) -- T048's revert-compensator needs them to
@@ -545,7 +540,6 @@ def _persist_review_cycle_with_queue(
 
 _DURABILITY_NOTICE_BY_REASON = {
     _DURABILITY_REASON_NO_AUTO_COMMIT: "--no-auto-commit",
-    _DURABILITY_REASON_PROTECTED_TARGET_BRANCH: ("protected target branch under coordination topology"),
 }
 
 
