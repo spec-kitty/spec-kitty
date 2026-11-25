@@ -248,6 +248,44 @@ Accepted by the reviewer on 2026-11-20. It is a blocking check in WP07's review 
 - On `GitProbeError`, refuse with a new named code, `INCORPORATE_MERGE_ATTRIBUTES_REFUSED`, before any merge. Exit 1, like the other refusals.
 - Red first: a real-git test where the lane commits `*.py merge=union` and the sibling stamp conflicts on a `.py` file. Today the merge exits 0 with content neither side wrote. After the fix it refuses with the new code, and nothing is merged.
 
+## Binding scope ruling (operator, 2026-11-25, DM-01M88RZDBP57ZTYJHC5NP0ZH4R). It supersedes every conflicting step above.
+
+Main's #7754/#7755 fix landed under this Mission and is now in WP07's base. It is the single authority for naming siblings and for the remedy text:
+- `lanes/stale_check.py`: `SiblingLane(lane_id, branch)`, `find_sibling_lanes`, `refine_stale_result`, `_reopen_step`, `_cause_sentence`, `_refresh_step`, `_stale_remediation`, and `StaleCheckResult.auto_rebase_halt` / `.sibling_lanes`.
+- `lanes/consolidation.py`: `_explain_stale`. Both callers reach it through `consolidate_lane_into_mission`: `phase_advance` and `orchestrator_api/consolidation.py:794`.
+
+Do NOT add any of the following:
+- `SiblingCandidate`, `sibling_candidates_before`, `_narrow_siblings` or `render_stale_remediation`;
+- a second `SiblingLane`;
+- new `StaleCheckResult` fields that duplicate the halt reason or the siblings;
+- new sibling keyword parameters on `consolidate_lane_into_mission`.
+
+If you truly need more data on main's `SiblingLane`, append optional fields with defaults and record why in history.
+
+WP07 changes only three things:
+
+1. **Refresh step** (restores ruling (b) and A-10). In `_refresh_step`, when siblings are known, replace `git merge <sibling branch>` with one line per sibling: `spec-kitty agent action implement <WP> --mission <slug> --incorporate <sibling lane_id>`. That is WP08's command; it merges at the sibling's approval stamp. Then come, in order:
+   - resolve and commit in the checkout that command names;
+   - `spec-kitty agent tasks move-task <WP> --to for_review --mission <slug>`;
+   - independent review and approval;
+   - `spec-kitty consolidate --mission <slug>`.
+
+   Keep these unchanged:
+   - main's reopen step, exactly (`move-task <WP> --to planned --review-feedback-file <file>`, plus the re-review cost sentence);
+   - main's cause sentence and halt reason;
+   - without siblings, main's auto-rebase wording;
+   - the planning-lane wording.
+
+   No printed line may contain `git merge` (except a `git merge --abort` back-out) or `cd .worktrees`. The `--to in_progress` send-back line of `contracts/stale-remedy.md` is superseded by main's reopen step; WP13 updates the contract. Red first: change main's tests that assert `git merge <branch>` so they assert the new lines, and record the red run.
+2. **FR-009: record every auto-rebase move made during consolidation** with WP02's `auto_rebase_record`, so WP03 can undo it. Verify that the `phase_advance` path, including main's `_explain_stale` route, records each move. Fill only the gaps; never add a second record.
+3. **Merge-attribute guard on `--incorporate`**: the binding DoD section above. It now also covers the window-merge probe that WP08 cycle 3 added in `incorporate.py`.
+   - Wrap its `merge_own_changed_paths` with WP01's guard and pinned env (`merge_probe_env`).
+   - `attributes_source` is the Mission branch tip, read once at the start of `--incorporate`.
+   - A guard refusal or a probe error refuses with `INCORPORATE_MERGE_ATTRIBUTES_REFUSED` (fail closed).
+   - Red first: a committed `merge=union` on a path that a canceled-window merge touches.
+
+Use WP08's public `wp_attribution.wp_windows` / `window_stamps` and WP01's public helpers. Never import a private helper across modules. Where a step above conflicts with this section, this section wins; record each superseded step in WP history.
+
 ## Test Strategy
 
 Red first (NFR-004). Commands (targeted files only, no directory sweeps):

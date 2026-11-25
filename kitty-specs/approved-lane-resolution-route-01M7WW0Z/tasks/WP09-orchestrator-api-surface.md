@@ -177,6 +177,21 @@ Implement command: `spec-kitty agent action implement WP09 --agent claude --miss
 - **Validation**: `uv run --frozen pytest tests/contract/test_orchestrator_api.py -q` (the error-code prose guard reads only the anchored `error_code` region, not preflight sub-codes; it must stay green), plus `tests/agent/test_envelope_unit.py`, `tests/specify_cli/orchestrator_api/test_contract_version.py` (re-pinned, green) and the new doc-version test.
 - **Definition of Done for T046** (all required): `CONTRACT_VERSION == "1.30.0"` with its history comment; `docs/api/orchestrator-api.md` version line, 1.30.0 history bullet and `RESOLUTION_MERGE_UNREVIEWED` preflight row; the operator-skill contract reference row; `test_contract_version.py` re-pinned; the doc-version test green.
 
+## Binding scope ruling (operator, 2026-11-25, DM-01M88RZDBP57ZTYJHC5NP0ZH4R; rebase ruling DM-01M88RZ308V571DYGPKD17ZWDA). It supersedes the conflicting steps above.
+
+- **No sibling helper.** WP07 adds no `sibling_candidates_before`, no `SiblingCandidate` and no new sibling keywords on `consolidate_lane_into_mission`.
+  - The orchestrator path (`orchestrator_api/consolidation.py:794`) already gets main's #7755 sibling naming, and WP07's `--incorporate` refresh step, through `consolidate_lane_into_mission` -> `_explain_stale`. Do not compute or pass siblings here.
+  - The stale-remedy text test through the orchestrator path asserts the same lines as the CLI path (C-006: one renderer).
+- **Contract version.** After the rebase, main's `CONTRACT_VERSION` is already `1.30.0`, so this WP bumps it to `1.31.0`, not `1.30.0`. Every `1.30.0` in this prompt's version steps means `1.31.0`:
+  - the `# 1.31.0:` comment block after main's 1.30.0 block;
+  - the docs page version line and its history bullet;
+  - the operator-skill reference;
+  - `test_contract_version_is_1_31_0`;
+  - the re-pin of `test_contract_version.py`;
+  - the docs-equals-envelope test.
+
+  Read the value from the base first. If it is not `1.30.0`, stop and report.
+
 ## Test Strategy
 
 ```bash
