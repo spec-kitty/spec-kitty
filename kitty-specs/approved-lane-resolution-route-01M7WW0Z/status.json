@@ -1,20 +1,20 @@
 {
-  "event_count": 90,
-  "last_event_id": "01M890W5RDX8FRGQ2Z18E1EM29",
-  "materialized_at": "2026-11-25T09:34:03.021593+00:00",
+  "event_count": 91,
+  "last_event_id": "01M890X2X46Q671EGMJWAXHR8Z",
+  "materialized_at": "2026-11-25T09:34:32.868293+00:00",
   "mission_number": "",
   "mission_slug": "approved-lane-resolution-route-01M7WW0Z",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 2,
+    "approved": 3,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 2,
     "in_progress": 1,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 8
   },
   "work_packages": {
@@ -266,9 +266,9 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 3,
       "implementer_of_record": "claude",
-      "lane": "in_review",
-      "last_event_id": "01M890W5RDX8FRGQ2Z18E1EM29",
-      "last_transition_at": "2026-11-25T09:34:03.021593+00:00",
+      "lane": "approved",
+      "last_event_id": "01M890X2X46Q671EGMJWAXHR8Z",
+      "last_transition_at": "2026-11-25T09:34:32.868293+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-20T18:01:04Z – claude – shell_pid=24797 – red: uv run --frozen pytest -q tests/review/test_review_context_merge_lines.py -> 9 failed: TypeError WpReviewRange.__init__() unexpected keyword 'merges'/'remerge_available' (renderer tests), AttributeError 'WpReviewRange' object has no attribute 'merges' (range-level git tests incl. two-merge full-history and fail-soft)",
@@ -295,8 +295,7 @@
       "provider": "__resolved_provider_absent__",
       "review": null,
       "review_result": {
-        "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP10-review-context-merge-lines/review-cycle-2.md",
-        "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP10-review-context-merge-lines/review-cycle-2.md",
+        "reference": "session:session_019C2Tk5ehA3TXonKhbxbaMR",
         "reviewer": "claude::reviewer-renata",
         "verdict": "approved"
       },
