@@ -1,7 +1,7 @@
 {
-  "event_count": 15,
-  "last_event_id": "01M8ACHARADAQ2CD6XAQ0KYAQX",
-  "materialized_at": "2026-11-25T22:17:05.034528+00:00",
+  "event_count": 17,
+  "last_event_id": "01M8ACJW1ZYYMMXH0Z2YF9SECB",
+  "materialized_at": "2026-11-25T22:17:54.658867+00:00",
   "mission_number": "",
   "mission_slug": "planning-lane-write-branch-01M8A725",
   "mission_type": "software-dev",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 5
+    "planned": 4
   },
   "work_packages": {
     "WP01": {
@@ -25,9 +25,9 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "implementer_of_record": "claude::python-pedro",
-      "lane": "planned",
-      "last_event_id": "01M8ACHARADAQ2CD6XAQ0KYAQX",
-      "last_transition_at": "2026-11-25T22:17:05.034528+00:00",
+      "lane": "in_progress",
+      "last_event_id": "01M8ACJW1ZYYMMXH0Z2YF9SECB",
+      "last_transition_at": "2026-11-25T22:17:54.658867+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-25T21:38:38Z – claude::python-pedro – shell_pid=6546 – Out-of-map edits (ownership leeway): src/mission_runtime/__init__.py and tests/architectural/test_mission_runtime_surface.py. resolution.py is import-forbidden from outside mission_runtime (MR-1/MR-2), so the new names (PlanningWriteRef, PlanningWriteRefUnavailable, planning_write_ref) are exported on the package root and pinned in the public surface, following precedent 2c1caf39 (no version bump). The WP prompt's 'do not touch __init__.py' is superseded by that rule; the CLAUDE.md __init__ version-bump rule is read as targeting specify_cli/__init__.py (flagged to the dispatcher). The missing-meta Mission-branch probe lives in coordination/planning_commit.py, not mission_runtime, so the mission_runtime outbound ledger does not grow.",
@@ -44,7 +44,7 @@
         "reviewer": "claude::reviewer-renata",
         "verdict": "changes_requested"
       },
-      "role": "reviewer",
+      "role": "implementer",
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
