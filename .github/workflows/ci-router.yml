@@ -518,6 +518,13 @@ jobs:
               - '**/specify_cli/skills/**'
               - '**/specify_cli/tool_surface/**'
               - '**/specify_cli/runtime/**'
+            # Skill-source group (#7788/#7790): NON-src (**/-prefixed), out of the unmatched loop, gates no
+            # router job BY DESIGN. A shipped-skill edit must re-run the historical-digest assertion in
+            # tests/specify_cli/skills; gate_selection.ASSET_SURFACE_MODULE_FANOUT fans it out to cli, the
+            # module that claims that directory. Pinned by tests/ci/test_skill_source_routing.py.
+            skill_sources:
+              - '**/charter/offering/skills/**'
+              - '**/scripts/skills/**'
             agent:
               - 'src/specify_cli/agent_utils/**'
               - 'src/specify_cli/acceptance/**'

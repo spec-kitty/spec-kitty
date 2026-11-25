@@ -226,8 +226,17 @@ CLI_COMMAND_MODULE_FANOUT: dict[str, frozenset[str]] = {
 # (tests/upgrade drives the preparation; tests/specify_cli/upgrade is out of matrix, nightly only, #4732)
 # and ``cli`` (tests/init runs init).
 # Pinned by tests/ci/test_upgrade_asset_surface_routing.py.
+#
+# ``skill_sources`` (#7788, #7790): the shipped skill sources (src/charter/offering/skills/**) and the
+# historical-digest generator (scripts/skills/**). Their src routing (charter, core_misc) runs no shard of
+# tests/specify_cli/skills, so #7769 edited two shipped skills without regenerating
+# src/specify_cli/skills/data/historical_skill_renders.json, went green per PR and reddened the nightly.
+# ``cli`` claims tests/specify_cli/skills (its digest-freshness assertion names the regeneration command),
+# so the group fans out to ``cli`` only. NON-src (**/-prefixed) and ungated BY DESIGN, like the group above.
+# Pinned by tests/ci/test_skill_source_routing.py.
 ASSET_SURFACE_MODULE_FANOUT: dict[str, frozenset[str]] = {
     "upgrade_asset_surface": frozenset({"upgrade", "cli"}),
+    "skill_sources": frozenset({"cli"}),
 }
 
 # The groups that fan out: the keys of GROUP_MODULE_FANOUT, named once so the census

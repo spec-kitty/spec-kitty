@@ -336,9 +336,15 @@ modules:
   # (127 tests), about +75 s per shard. An explicit test_dirs list replaces the tests/cli
   # mirror, so tests/cli is named too. Untimed node ids take the module median until the
   # nightly recapture records them.
+  # #7788/#7790: tests/specify_cli/skills promoted from out_of_matrix_test_dirs. #7769 edited two
+  # shipped skills without regenerating the historical-digest list, and the assertion that catches it
+  # (test_historical_renders.py) ran only in the nightly. This row's cov_targets carry
+  # specify_cli.skills; a shipped-skill edit reaches it through the non-src router group
+  # skill_sources (gate_selection.ASSET_SURFACE_MODULE_FANOUT).
   test_dirs:
   - tests/cli
   - tests/init
+  - tests/specify_cli/skills
 - module: charter
   roots:
   - src/charter/**
@@ -1091,7 +1097,6 @@ out_of_matrix_test_dirs:
   - tests/specify_cli/retrospective
   - tests/specify_cli/session_presence
   - tests/specify_cli/shims
-  - tests/specify_cli/skills
   - tests/specify_cli/tasks
   - tests/specify_cli/test_cli
 
