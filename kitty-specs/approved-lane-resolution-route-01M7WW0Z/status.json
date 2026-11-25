@@ -278,7 +278,7 @@
     },
     "WP07": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -305,6 +305,7 @@
         "Approved-lane stale remedy prints the implement --incorporate route (one command per line, --agent named); FR-009 lane_rebase_moves recorded on every auto-rebase; --incorporate merge-attribute guard (INCORPORATE_MERGE_ATTRIBUTES_REFUSED, Mission-tip attributes source, pinned merge env, window probe); #7861 fixed: review-cycle evidence of the reopen goes through the coordination router, so main's reopen line runs on protected coordination targets. T036 runs every printed command through the CLI and the Mission lands."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP07-approved-lane-stale-remedy/review-cycle-1.md",
         "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP07-approved-lane-stale-remedy/review-cycle-1.md",
@@ -312,14 +313,14 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 11787,
-      "shell_pid_created_at": "1795604578.08",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T032": "done",
-        "T033": "done",
-        "T034": "done",
-        "T035": "done",
-        "T036": "done"
+        "T032": "planned",
+        "T033": "planned",
+        "T034": "planned",
+        "T035": "planned",
+        "T036": "planned"
       }
     },
     "WP08": {
