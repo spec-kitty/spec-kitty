@@ -112,7 +112,10 @@ GROUP_MODULE_FANOUT: dict[str, frozenset[str]] = {
     # governance-profile.yaml, built_in_step_contracts/**). Per-module evidence: the census
     # ``via`` field (.github/ci-consumer-census.json). upgrade (#6637): the rc8 template-fork
     # retirement migration's tests assert a repaired project resolves the real pack template bytes.
-    "mission_pack_content": frozenset({"charter", "next", "missions", "execution_context", "dossier", "specify_cli_runtime", "review", "upgrade"}),
+    # cli (#7853 review M1): since #7853 the cli row runs tests/specify_cli/skills, whose command-skill
+    # snapshots (test_command_renderer.py) pin the bytes rendered from mission-steps/**, so a pin bump
+    # must run them; cli moved here from FANOUT_ALLOWLIST (the census already derived it).
+    "mission_pack_content": frozenset({"charter", "next", "missions", "execution_context", "dossier", "specify_cli_runtime", "review", "upgrade", "cli"}),
     # #6166 landing review -- packs/built-in/missions/mission_types/** (the mission-type YAMLs).
     "mission_type_definitions": frozenset({"charter", "core_misc", "upgrade"}),
     # #6166 task B -- src/specify_cli/cli/commands/lifecycle.py already routes to `cli`; add the
@@ -233,6 +236,10 @@ CLI_COMMAND_MODULE_FANOUT: dict[str, frozenset[str]] = {
 # src/specify_cli/skills/data/historical_skill_renders.json, went green per PR and reddened the nightly.
 # ``cli`` claims tests/specify_cli/skills (its digest-freshness assertion names the regeneration command),
 # so the group fans out to ``cli`` only. NON-src (no src/ glob) and ungated BY DESIGN, like the group above.
+# Its globs are deliberately mixed: ``**/charter/offering/skills/**`` follows the asset-surface shape, while
+# ``scripts/skills/**`` is root-anchored because a ``**/`` prefix matches no repo-rooted path (dead-glob guard).
+# A built-in pin bump reaches ``cli`` through GROUP_MODULE_FANOUT["mission_pack_content"], not here: the pin
+# may trigger only the PACK_CONTENT_SCOPES groups (tests/architectural/test_consumer_census_routing.py).
 # Pinned by tests/ci/test_skill_source_routing.py.
 ASSET_SURFACE_MODULE_FANOUT: dict[str, frozenset[str]] = {
     "upgrade_asset_surface": frozenset({"upgrade", "cli"}),
@@ -305,9 +312,6 @@ FANOUT_ALLOWLIST: dict[str, dict[str, str]] = {
         "upgrade": _INCIDENTAL_DOSSIER,
     },
     "mission_pack_content": {
-        # #7235: tests/init (now in the cli module) resolves the documentation mission's
-        # templates via test_init_minimal_integration.py's template_repository fixture.
-        "cli": _INCIDENTAL_TEMPLATES,
         "core_misc": _INCIDENTAL_TEMPLATES,
         "status": _INCIDENTAL_TEMPLATES,
         "unit": _INCIDENTAL_TEMPLATES,
