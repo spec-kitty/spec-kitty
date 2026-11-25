@@ -1346,6 +1346,14 @@ EVENTS_CONSUMER_PR_PATHS: tuple[str, ...] = (
 )
 
 
+# The per-PR `tests (orchestrator-api contract)` router job (#7870, operator ruling 2026-11-25): on an
+# ``orchestrator_api_contract`` match it runs the non-corpus tests/contract modules listed here, which the
+# two corpus-marker jobs deselect. The other non-corpus tests/contract modules (#7874) join by appending
+# a module here and its triggers to the group. ci-router.yml must name exactly these paths (GitHub
+# Actions needs literal YAML), pinned by tests/ci/test_orchestrator_api_contract_routing.py.
+CONTRACT_SHAPE_PR_PATHS: tuple[str, ...] = ("tests/contract/test_orchestrator_api.py",)
+
+
 def events_latest_lane_paths(repo_root: Path | None = None) -> tuple[str, ...]:
     """The ``events-latest`` nightly lane's pytest paths: EVENTS_LATEST_LANE_PATHS, then every
     ``tests/**/test_*.py`` ``spec_kitty_events`` importer they do not already contain, less

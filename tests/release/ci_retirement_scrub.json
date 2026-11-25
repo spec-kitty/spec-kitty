@@ -727,6 +727,20 @@
       "note": "The doc-kitty docsite build inputs (#6930, ADR 2026-10-31-1 D-11): the pages, the site/ project, its folder contract, the built-site publication check and the link-gate wrapper (#6932), the legacy redirect map generator, its self-test and the moves ledger (#6933), the live-site probe the build runs on site/dist (#6938), the router workflow and the shared build definition it calls (#6937); gates only docs-site; non-src, no --cov subject."
     },
     {
+      "group": "orchestrator_api_contract",
+      "roots": [
+        "**/specify_cli/orchestrator_api/**",
+        "**/specify_cli/git/commit_helpers.py",
+        "**/specify_cli/core/upstream_contract.json",
+        "**/charter/offering/skills/spec-kitty-orchestrator-api-operator/references/orchestrator-api-contract.md",
+        "docs/api/orchestrator-api.md",
+        "tests/contract/test_orchestrator_api.py",
+        "tests/contract/conftest.py"
+      ],
+      "census_evidence": "known-live",
+      "note": "#7870 (operator ruling 2026-11-25, option A): the orchestrator-api contract-shape module (tests/contract/test_orchestrator_api.py) carries no corpus mark, so both tests/contract router jobs (-m \"corpus and not windows_ci\") deselect it and no per-PR job ran it -- the class that blocked the RC9 cut (#7829/#7835/#7846). Gates only tests (orchestrator-api contract), which runs gate_selection.CONTRACT_SHAPE_PR_PATHS; the globs are what the module reads (the verb package incl. docstrings via inspect.getsource, the error classes it imports, the vendored contract its conftest loads, the two prose surfaces whose error-code enumerations it parses, the module and conftest). NON-src on purpose, like path_literal_audit: every src path named is already mapped by a src-backed group, so this is an extra narrow lane, never a code-shard group. #7874 widens it to the other non-corpus tests/contract modules."
+    },
+    {
       "group": "path_literal_audit",
       "roots": [
         "**/specify_cli/status/**",

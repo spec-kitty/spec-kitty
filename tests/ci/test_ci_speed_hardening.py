@@ -92,6 +92,7 @@ def test_static_checks_have_one_owner_and_required_router_waits() -> None:
         "tests-contract-tools",
         "tests-events-consumers",
         "tests-path-literal-audit",
+        "tests-orchestrator-api-contract",
         "mission-state-audit",
         "docs-site",  # required since #6937 (QW11)
     ]

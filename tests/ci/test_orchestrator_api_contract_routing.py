@@ -105,7 +105,8 @@ def _repo_files_read_by(module: str) -> set[str]:
 
     Adjacent literals are joined first (``"a/" "b.md"``), the way the module spells its long skill path.
     """
-    literals = [node.value for node in ast.walk(ast.parse((ROOT / module).read_text(encoding="utf-8"))) if isinstance(node, ast.Constant) and isinstance(node.value, str)]
+    tree = ast.parse((ROOT / module).read_text(encoding="utf-8"))
+    literals = [node.value for node in ast.walk(tree) if isinstance(node, ast.Constant) and isinstance(node.value, str)]
     return {literal for literal in literals if literal.startswith(("docs/", "src/")) and "." in literal.rsplit("/", 1)[-1] and (ROOT / literal).is_file()}
 
 

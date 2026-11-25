@@ -273,6 +273,14 @@ AUTHORIZED_PER_CHANGE_SUITE_JOBS: dict[JobKey, str] = {
         "architectural batteries are file-partitioned over tests/architectural with one suite invocation per "
         "job. tests/ci/test_path_literal_audit_routing.py pins the group, the job and its negative controls."
     ),
+    ("ci-router.yml", "tests-orchestrator-api-contract"): (
+        "Path-routed lane: the non-corpus tests/contract modules in gate_selection.CONTRACT_SHAPE_PR_PATHS "
+        "(today the orchestrator-api contract-shape module), on the `orchestrator_api_contract` group (#7870, "
+        "operator ruling 2026-11-25). One invocation naming exactly those files, so no other lane can host them: "
+        "tests/contract is out_of_matrix_test_dirs and both tests/contract router jobs select only the corpus "
+        "marker. tests/ci/test_orchestrator_api_contract_routing.py pins the group, the job and its negative "
+        "controls; #7874 widens the list to the other non-corpus contract modules."
+    ),
     ("ci-windows.yml", "windows-critical"): ("Platform lane: the windows_ci marker family, which no Linux gate can run."),
     ("packs.yml", "built-in-pack-manifest"): "Packs lane: the pack-manifest guard.",
     ("packs.yml", "built-in-corpus-suite"): "Packs lane: corpus suite, sole owner bar the blocking node-ids; advisory (continue-on-error), FR-009.",
