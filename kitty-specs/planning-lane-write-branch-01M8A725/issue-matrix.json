@@ -61,7 +61,7 @@
       "wp": null
     },
     "#7759": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "A' makes the Mission branch the one planning write branch; in-flight #7759-shaped work gets the guidance-only refusal (operator ruling 2026-11-25)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -69,7 +69,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "in-mission",
       "wp": null
     },
     "#7809": {
