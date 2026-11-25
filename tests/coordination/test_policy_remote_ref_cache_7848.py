@@ -54,3 +54,17 @@ def test_remote_tracking_probe_follows_the_ref_inside_a_run(tmp_path: Path) -> N
         assert policy._remote_tracking_branch_exists(root, "feature") is False
         _git(root, "update-ref", "refs/remotes/origin/feature", head)
         assert policy._remote_tracking_branch_exists(root, "origin/feature") is True
+
+
+def test_remote_tracking_probe_follows_every_ref_rev_parse_would_resolve(tmp_path: Path) -> None:
+    """#7848 review NIT-2: ``rev-parse --verify`` also resolves the name under ``refs/heads/`` and the like."""
+    root = tmp_path / "repo"
+    root.mkdir()
+    _git(root, "init", "-q", "-b", "main")
+    _git(root, "-c", "user.name=t", "-c", "user.email=t@e", "-c", "commit.gpgsign=false", "commit", "-q", "--allow-empty", "-m", "one")
+    head = _git(root, "rev-parse", "HEAD")
+    with git_read_cache_scope():
+        assert policy._remote_tracking_branch_exists(root, "origin/feature") is False
+        _git(root, "update-ref", "refs/heads/refs/remotes/origin/feature", head)
+        uncached = subprocess.run(["git", "rev-parse", "--verify", "--quiet", "refs/remotes/origin/feature"], cwd=root, check=False).returncode == 0
+        assert policy._remote_tracking_branch_exists(root, "origin/feature") is uncached

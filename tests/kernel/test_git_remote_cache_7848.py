@@ -57,3 +57,18 @@ def test_a_failed_listing_is_not_stored(tmp_path: Path) -> None:
         _git(outside, "init", "-q")
         _git(outside, "remote", "add", "origin", "https://example.invalid/r.git")
         assert configured_remotes(outside) == ["origin"]
+
+
+@pytest.mark.parametrize("legacy_dir", ["remotes", "branches"])
+def test_configured_remotes_follows_legacy_remote_files(tmp_path: Path, legacy_dir: str) -> None:
+    """#7848 review NIT-1: ``git remote`` also lists ``.git/remotes/`` and ``.git/branches/`` entries."""
+    root = tmp_path / "repo"
+    root.mkdir()
+    _git(root, "init", "-q")
+    with git_read_cache_scope():
+        assert configured_remotes(root) == []
+        legacy = root / ".git" / legacy_dir
+        legacy.mkdir(exist_ok=True)
+        content = "URL: https://example.invalid/r.git\n" if legacy_dir == "remotes" else "https://example.invalid/r.git\n"
+        (legacy / "legacy").write_text(content, encoding="utf-8")
+        assert configured_remotes(root) == ["legacy"]
