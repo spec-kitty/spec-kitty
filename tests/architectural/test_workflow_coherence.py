@@ -358,6 +358,12 @@ def needs_declaration_violations(model: gc.WorkflowModel) -> list[str]:
 #   Gates no router job BY DESIGN: ``ASSET_SURFACE_MODULE_FANOUT`` fans it out to ``upgrade`` and ``cli``.
 #   Every glob is ``**/``-prefixed (non-src), so the group stays out of the ``unmatched`` union. Pinned by
 #   tests/ci/test_upgrade_asset_surface_routing.py.
+#
+# * ``skill_sources`` (#7788/#7790) — ``**/charter/offering/skills/**`` and ``**/scripts/skills/**``, the
+#   shipped skill sources and the historical-digest generator. Gates no router job BY DESIGN:
+#   ``ASSET_SURFACE_MODULE_FANOUT`` fans it out to ``cli``, whose shard runs tests/specify_cli/skills (the
+#   digest-freshness assertion). Non-src like ``upgrade_asset_surface``. Pinned by
+#   tests/ci/test_skill_source_routing.py.
 _DELIBERATELY_UNGATED_FILTER_GROUPS = frozenset(
     {
         "any_src",
@@ -385,6 +391,7 @@ _DELIBERATELY_UNGATED_FILTER_GROUPS = frozenset(
         "cli_cmd_service",
         "cli_cmd_agent_subdir",
         "upgrade_asset_surface",
+        "skill_sources",
     }
 )
 
