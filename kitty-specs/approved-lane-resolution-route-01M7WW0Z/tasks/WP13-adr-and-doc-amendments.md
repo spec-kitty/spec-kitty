@@ -209,6 +209,7 @@ This WP cannot own `kitty-specs/` paths. Record notes with `spec-kitty agent tas
 
 - The review context labels every merge inside the review window "operator-authored", including recorded tool auto-rebase merges. Record this as a documented residual in the ADR 2026-11-08-2 amendment.
 - A lane superseded under the 2026-11-24 ruling: lane cleanup keeps its lane-tip ref but clears its auto-rebase records (WP02, `_after_branch_deleted`). If an operator recreates that branch from the kept tip and resumes, its tool merges read as hand merges. This fails closed toward `RESOLUTION_MERGE_UNREVIEWED`. Record it as a residual in the ADR 2026-10-04-5 amendment (reviewer note, WP02 rebase delta 2026-11-25).
+- `merge.renormalize=true`: consolidate now refuses a clone with this setting, with a named reason. Mixed Windows/Unix teams often set it for line-ending hygiene. Say this in the operator docs and the ADR 2026-10-04-5 amendment, and name the setting to change. The probes pin it off regardless (WP01 `MERGE_PROBE_CONFIG_PINS`). The refusal is kept, per the reviewer's recommendation on WP01 cycle 3 (2026-11-25), because without it a renormalized merge would surface as unattributable content.
 
 ## Review Guidance
 
