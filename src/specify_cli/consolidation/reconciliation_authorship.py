@@ -16,6 +16,7 @@ every name, so no caller changes (C-005).
 from __future__ import annotations
 
 import functools
+import logging
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -29,6 +30,7 @@ from specify_cli.consolidation.git_probes import (
     commits_in_range,
     first_parent_changed_paths,
     is_merge_commit,
+    merge_own_changed_paths,
     patch_id_of,
     path_state_at,
     sha_reachable_from,
@@ -41,6 +43,7 @@ from specify_cli.consolidation.reconciliation_claim_types import (
     LaneContribution,
     MissingApprovedContent,
     PresenceGap,
+    UnreviewedMerge,
 )
 from specify_cli.consolidation.reconciliation_kernel import (
     _APPROVED_MEMBERSHIP_LANES,
@@ -53,6 +56,8 @@ from specify_cli.consolidation.reconciliation_kernel import (
 from specify_cli.consolidation.wp_attribution import first_governed_open_stamp, lane_dependency_merges, lane_own_commits
 from specify_cli.lanes.compute import is_planning_lane
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
+
+logger = logging.getLogger(__name__)
 
 
 def _unsuperseded_holders(holders: Sequence[ApprovedLaneContent]) -> list[ApprovedLaneContent]:
@@ -129,7 +134,9 @@ def _dropped_own_change(holder: ApprovedLaneContent, path: str, base: str | None
     A content without ``tip`` / ``fork_point`` (hand-built) is read as cut from the
     pre-consolidation target: only the net-change fact applies, against *base*.
     """
-    final = holder.final_state[path]
+    # ``ApprovedLaneContent.final_state`` maps a path to its blob, or ``None`` when deleted. Stated here
+    # because a narrow-file ``mypy`` run skips the claim-types module (``follow_imports = "skip"``).
+    final: str | None = holder.final_state[path]
     if state_at is None or holder.tip is None or holder.fork_point is None:
         return final != base
     found_at_fork = state_at(holder.fork_point, path)
@@ -279,22 +286,55 @@ def _lane_content(
     )
 
 
+def _approved_wp_ids(lane: object, work_packages: Mapping[str, Mapping[str, object]]) -> tuple[str, ...]:
+    """*lane*'s WPs whose status lane is an approved membership lane (``approved``/``done``), in manifest order."""
+    return tuple(wp for wp in getattr(lane, "wp_ids", ()) if str((work_packages.get(wp) or {}).get("lane", "")) in _APPROVED_MEMBERSHIP_LANES)
+
+
+def own_approval_stamps(
+    lane: object,
+    work_packages: Mapping[str, Mapping[str, object]],
+    approval_stamps: Mapping[str, str | None],
+    presync_stamps: Mapping[str, str | None] | None = None,
+) -> tuple[str, ...]:
+    """The approval stamps of each of *lane*'s approved or done WPs — its newest ``lane_head`` stamp,
+    then its #7802 pre-sync stamp — in manifest order (#7307, FR-004).
+
+    The single own-stamp reader of the reviewed-merge rule. A WP in any other status lane
+    (a canceled WP included) never counts, and neither does a WP with no stamp. Duplicates
+    (two WPs approved at one commit) are kept.
+
+    #7802: each WP's pre-sync stamp (*presync_stamps*, :func:`approval_presync_stamp`) follows its
+    ``lane_head`` stamp as a reach anchor too. It is a first-parent ancestor of ``lane_head``, so it
+    never keeps a merge ``lane_head`` would not keep, and it still reaches the lane's earlier merges
+    in a clone that lacks the reviewer's unpushed sync merge (``lane_head``).
+    """
+    presync = presync_stamps or {}
+    stamps: list[str] = []
+    for wp in _approved_wp_ids(lane, work_packages):
+        stamps.extend(stamp for stamp in (approval_stamps.get(wp), presync.get(wp)) if stamp)
+    return tuple(stamps)
+
+
+def merge_reviewed_by_own_stamps(repo_root: Path, sha: str, own_stamps: Sequence[str]) -> bool:
+    """True iff one of *own_stamps* (the merge's OWN lane's approval stamps) reaches merge *sha* (#7307, FR-004).
+
+    The single definition of a reviewed merge, shared by the gate (:func:`_drop_unreviewed_merges`)
+    and the claim-time ``RESOLUTION_MERGE_UNREVIEWED`` check. Another lane's stamp never counts:
+    pass only :func:`own_approval_stamps` of the lane whose first-parent spine holds the merge.
+    A git error reads as "not reached" (:func:`~specify_cli.consolidation.git_probes.sha_reachable_from`),
+    so an unreadable reach leaves the merge unreviewed (fail closed); no stamp reviews nothing.
+
+    Import constraint: this module imports :mod:`specify_cli.consolidation.approved_bound` at module
+    top, so ``approved_bound`` must import this function function-locally (or reach it through
+    ``reconciliation_bound``), never at its own module top, or the two modules form an import cycle.
+    """
+    return any(sha_reachable_from(repo_root, sha, stamp) for stamp in own_stamps)
+
+
 def _approved_stamps(lane: object, work_packages: Mapping[str, Mapping[str, object]], presence: _PresenceScope | None) -> tuple[str, ...]:
     """The approval stamps of *lane*'s WPs that are in an approved membership lane (#7307); canceled WPs never count."""
-    if presence is None:
-        return ()
-    stamps: list[str] = []
-    for wp in getattr(lane, "wp_ids", ()):
-        if str((work_packages.get(wp) or {}).get("lane", "")) not in _APPROVED_MEMBERSHIP_LANES:
-            continue
-        # #7802: the pre-sync stamp is a reach anchor too. It is a first-parent ancestor
-        # of ``lane_head``, so it never keeps a merge ``lane_head`` would not keep, and it
-        # still reaches the lane's earlier merges in a clone that lacks the reviewer's
-        # unpushed sync merge (``lane_head``).
-        for stamp in (presence.approval_stamps.get(wp), presence.approval_presync_stamps.get(wp)):
-            if stamp:
-                stamps.append(stamp)
-    return tuple(stamps)
+    return () if presence is None else own_approval_stamps(lane, work_packages, presence.approval_stamps, presence.approval_presync_stamps)
 
 
 def _drop_unreviewed_merges(repo_root: Path, spine: list[str], stamps: Sequence[str]) -> list[str]:
@@ -311,11 +351,77 @@ def _drop_unreviewed_merges(repo_root: Path, spine: list[str], stamps: Sequence[
         except GitProbeError:
             dropped = True
             continue
-        if not merge or any(sha_reachable_from(repo_root, sha, stamp) for stamp in stamps):
+        if not merge or merge_reviewed_by_own_stamps(repo_root, sha, stamps):
             kept.append(sha)
         else:
             dropped = True
     return kept if dropped else spine
+
+
+def _dropped_merges(repo_root: Path, spine: Sequence[str], reviewed: Sequence[str]) -> tuple[str, ...]:
+    """The known merges of *spine* that :func:`_drop_unreviewed_merges` left out of *reviewed*, in spine order.
+
+    A SHA dropped because its parents could not be read is not listed: it is not known to be a merge.
+    """
+    kept = set(reviewed)
+    dropped: list[str] = []
+    for sha in spine:
+        if sha in kept:
+            continue
+        try:
+            if is_merge_commit(repo_root, sha):
+                dropped.append(sha)
+        except GitProbeError:
+            continue
+    return tuple(dropped)
+
+
+def _unreviewed_merge(
+    repo_root: Path, sha: str, lane_id: str, wp_ids: tuple[str, ...], own_paths_memo: Mapping[str, tuple[str, ...]] | None = None
+) -> UnreviewedMerge | None:
+    """The :class:`UnreviewedMerge` record of *sha*, or ``None`` when its own content cannot be read.
+
+    Advisory only (FR-006, C-002): a probe error is logged and the entry skipped, never raised
+    out of the claim builder and never read as "no own content". The gate still judges the merge.
+    *own_paths_memo* holds the claim's successful FR-004 probe results (one remerge per merge per
+    claim, NFR-001); a merge it does not hold is probed here.
+    """
+    try:
+        memo = (own_paths_memo or {}).get(sha)
+        own_paths = memo if memo is not None else tuple(merge_own_changed_paths(repo_root, sha))
+        own_blobs = tuple((path, blob) for path in own_paths if (blob := path_state_at(repo_root, sha, path)) is not None)
+    except GitProbeError as exc:
+        logger.debug("unreviewed merge %s on %s: own content unreadable, no hint entry recorded: %s", sha, lane_id, exc)
+        return None
+    return UnreviewedMerge(sha=sha, lane_id=lane_id, wp_ids=wp_ids, own_paths=own_paths, own_blobs=own_blobs)
+
+
+def _record_unreviewed(
+    repo_root: Path,
+    lane: ExecutionLane,
+    work_packages: Mapping[str, Mapping[str, object]],
+    spine: list[str],
+    reviewed: list[str],
+    sink: list[UnreviewedMerge] | None,
+    own_paths_memo: Mapping[str, tuple[str, ...]] | None = None,
+    candidates: Sequence[str] = (),
+) -> None:
+    """Append to *sink* one :class:`UnreviewedMerge` per merge the drop removed from *lane*'s *spine* (FR-006),
+    then one per *candidates* merge not already named.
+
+    *candidates* are the lane's merges no review covers as the approved bound judged them
+    (:func:`~specify_cli.consolidation.approved_bound.unreviewed_merge_candidates`, every parent walked),
+    so a hand merge hidden behind a clean merge, off the spine, is named too (WP05 review cycle 1).
+    No-op without a sink, or when nothing was dropped and there is no candidate.
+    """
+    if sink is None or (reviewed is spine and not candidates):
+        return
+    wp_ids = _approved_wp_ids(lane, work_packages)
+    dropped = _dropped_merges(repo_root, spine, reviewed) if reviewed is not spine else ()
+    for sha in dict.fromkeys((*dropped, *candidates)):
+        entry = _unreviewed_merge(repo_root, sha, lane.lane_id, wp_ids, own_paths_memo)
+        if entry is not None:
+            sink.append(entry)
 
 
 def _own_dependency_merges(
@@ -695,6 +801,9 @@ def _collect_authored(
     *,
     canceled_lane_commits: frozenset[str],
     presence: _PresenceScope | None = None,
+    unreviewed_sink: list[UnreviewedMerge] | None = None,
+    own_paths_memo: Mapping[str, tuple[str, ...]] | None = None,
+    unreviewed_candidates: Mapping[str, Sequence[str]] | None = None,
 ) -> _AuthoredClaim:
     """Approved lanes → their OWN first-parent SHAs + patch-ids + FINAL blobs + FINAL deletions + multi-lane paths.
 
@@ -774,6 +883,10 @@ def _collect_authored(
         # what it adds beyond its parents (a clean merge carries nothing; any own
         # content FAILs), on the closed-world and the squash blob axes alike.
         reviewed = full_authored if is_planning_lane(lane) else _drop_unreviewed_merges(repo_root, full_authored, _approved_stamps(lane, work_packages, presence))
+        # FR-006: name every merge just dropped, for the gate's hint only (never authorship).
+        _record_unreviewed(
+            repo_root, lane, work_packages, full_authored, reviewed, unreviewed_sink, own_paths_memo, (unreviewed_candidates or {}).get(lane.lane_id, ())
+        )
         # Presence (#5788/#5571): measured from the FULL ``coord_base_ref..lane``
         # spine, unchanged — approved content must be PRESENT on the target.
         if not is_planning_lane(lane):
@@ -866,5 +979,7 @@ __all__ = [
     "_record_lane_path_contribution",
     "_started_from",
     "_unsuperseded_holders",
+    "merge_reviewed_by_own_stamps",
+    "own_approval_stamps",
     "unmet_approved_content",
 ]

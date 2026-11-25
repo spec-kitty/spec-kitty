@@ -576,6 +576,11 @@ def merge_driver_attribute_lines() -> tuple[str, ...]:
     return tuple(dict.fromkeys(spec.attributes_line for spec in _MERGE_DRIVERS))
 
 
+def registered_merge_driver_specs() -> tuple[tuple[str, str, str], ...]:
+    """``(config_key, command, pattern)`` of every registered driver, in registry order: the FR-010 merge attribute guard's allowance."""
+    return tuple((spec.config_key, spec.command, spec.pattern) for spec in _MERGE_DRIVERS)
+
+
 def _ensure_info_attributes(repo_root: Path) -> list[str]:
     """Map the driver patterns in the shared ``.git/info/attributes``.
 

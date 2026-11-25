@@ -25,6 +25,13 @@ Shape (``?`` lines are optional; an optional line renders with the two-space ite
     REVIEW COMMANDS:
       git log --oneline <base>..<tip> -- <listing pathspecs>
       git diff <base>..<tip> -- <listing pathspecs>
+    ? RESOLUTION MERGE (operator-authored, review these bytes): git <pins> --attr-source=<target tip> show --remerge-diff --no-ext-diff --no-textconv <sha>
+    ? RESOLUTION MERGE <sha12>: this git cannot show the resolution (needs git >= 2.36); review the merge by hand
+    ? RESOLUTION MERGES: could not be listed; run git rev-list --merges --full-history <base>..<tip> and review each with
+        git <pins> --attr-source=<target tip> show --remerge-diff --no-ext-diff --no-textconv <sha>   (one line in the output)
+    ? RESOLUTION MERGES: could not be listed, and this git cannot show a resolution (needs git >= 2.36); …
+    ? note: the resolution commands read .gitattributes from the target branch tip <tip12> and pin git's merge config; …
+    ? note: this git cannot neutralise attributes (--attr-source needs git >= 2.40); …
     CITED REQUIREMENTS:
       <ref> — <text>
     ? … <k> more cited (see spec.md)
@@ -40,7 +47,23 @@ provenance lines are always kept, and the commit list, the file list and the out
 filled in that order until the budget is reached, the rest of each replaced by one ``… <k> more``
 line. The command lines are printed in full on top of the budget, so they run verbatim over the
 listing pathspecs; a work package that owns many files can exceed 4,096 bytes in total. No patch
-text is ever rendered (C-001): only command strings, commit subjects and numstat counts.
+text is ever rendered (C-001): only command strings, commit subjects and numstat counts. The
+RESOLUTION MERGE lines (one per merge of the range, ``WpReviewRange.merges``; FR-007 of Mission
+``approved-lane-resolution-route``) are commands too: they point the reviewer at each merge's own
+resolution and, like the REVIEW COMMANDS lines, are printed in full outside the budget. On a git
+without ``--remerge-diff`` (``WpReviewRange.remerge_available`` false) each prints a cannot-show
+line instead; when the merge listing itself failed, one line names the command that lists them
+(full SHAs), since the pathspec-scoped commands above can hide merges, or, on such a git, says it
+cannot show them. The commands are the FR-010 guard's own merge (Mission
+``approved-lane-resolution-route``, WP01): they pin the attribute source to the trusted pre-run
+target tip (``WpReviewRange.attributes_source``; the empty tree when the target cannot be read),
+never the range base, because a ``merge=union`` committed on the lane before the window opened is
+in the base; they pin git's merge config with the guard's own table
+(:data:`~specify_cli.consolidation.merge_attribute_guard.MERGE_PROBE_CONFIG_PINS`, as ``-c`` flags);
+and they carry ``--no-ext-diff --no-textconv``, since a ``diff=<driver>`` textconv or a ``-diff``
+attribute can change or hide the bytes shown. On a git without ``--attr-source`` (git < 2.40,
+``WpReviewRange.attr_source_available`` false) the flag is left out and one closing line says that
+this git cannot neutralise attributes. The review proceeds either way.
 """
 
 from __future__ import annotations
@@ -49,6 +72,7 @@ import shlex
 import unicodedata
 from collections.abc import Callable, Sequence
 
+from specify_cli.consolidation.merge_attribute_guard import MERGE_PROBE_CONFIG_PINS
 from specify_cli.requirement_mapping.text import TEXT_LIMIT, TRUNCATION_MARKER, CitedRequirement, Resolution
 from specify_cli.review.wp_range import FileChange, RangeSource, RangeStatus, WpReviewRange
 
@@ -66,6 +90,24 @@ _ELLIPSIS = "…"
 _REQUIREMENT_SEPARATOR = " — "
 
 UNSCOPED_LINE = f"{_INDENT}scope: unscoped (no owned_files declared)"
+_MERGE_LABEL = "RESOLUTION MERGE (operator-authored, review these bytes):"
+_MERGE_ATTRIBUTES_NOTE = (
+    f"{_INDENT}note: the resolution commands read .gitattributes from {{source}} and pin git's merge config,"
+    " so a merge driver or a merge setting committed in the range, such as merge=union, cannot hide the resolution"
+)
+#: git < 2.40 (WP01's ``check_attr_source_available``): the commands run without ``--attr-source``.
+_MERGE_ATTRIBUTES_UNPINNED = (
+    f"{_INDENT}note: this git cannot neutralise attributes (--attr-source needs git >= 2.40): the resolution commands read"
+    " .gitattributes from the checkout, so a merge driver committed in the range, such as merge=union, can hide the"
+    " resolution; review the merges with git >= 2.40"
+)
+_MERGE_CANNOT_SHOW = "RESOLUTION MERGE {label}: this git cannot show the resolution (needs git >= 2.36); review the merge by hand"
+_MERGES_UNLISTED_CANNOT_SHOW = (
+    "RESOLUTION MERGES: could not be listed, and this git cannot show a resolution (needs git >= 2.36); list them with"
+    " git rev-list --merges --full-history {range} and review each merge by hand"
+)
+#: The FR-010 guard's pinned merge config, rendered once as ``-c`` flags, so the printed command cannot drift from it.
+_PINNED_CONFIG = " ".join(f"-c {shlex.quote(f'{key}={value}')}" for key, value in MERGE_PROBE_CONFIG_PINS)
 UNAVAILABLE_COMMAND_LINE = f"{_INDENT}(no deterministic range; inspect `spec-kitty agent tasks status` and the WP's commits)"
 
 _COMMANDS_HEADING = "REVIEW COMMANDS:"
@@ -221,6 +263,55 @@ def _command_lines(review_range: WpReviewRange) -> list[str]:
     ]
 
 
+#: git computes its empty tree when the resolver could not name one; the command still runs as printed in ``bash``.
+_EMPTY_TREE_COMMAND = "$(git hash-object -t tree /dev/null)"
+_EMPTY_TREE_NOTE = "the empty tree (the target branch could not be read, so no committed attribute applies)"
+
+
+def _attributes_source(review_range: WpReviewRange) -> str:
+    """The trusted attribute source: the target tip, else the empty tree; never the range base (it can hold a lane's union)."""
+    return review_range.attributes_source or _EMPTY_TREE_COMMAND
+
+
+def resolution_command(review_range: WpReviewRange) -> str:
+    """The command that shows one merge's resolution (``<sha>`` appended): the guard's pinned merge, as the reviewer runs it.
+
+    Pinned config as ``-c`` flags, the trusted attribute source (when this git can pin it), and no
+    external diff driver or textconv, so the bytes shown are the bytes the merge committed.
+    """
+    attributes = f" --attr-source={_attributes_source(review_range)}" if review_range.attr_source_available else ""
+    return f"git {_PINNED_CONFIG}{attributes} show --remerge-diff --no-ext-diff --no-textconv"
+
+
+def _attributes_note(review_range: WpReviewRange) -> str:
+    """The closing line: what the attribute pin does, or, on git < 2.40, that this git cannot neutralise attributes."""
+    if not review_range.attr_source_available:
+        return _MERGE_ATTRIBUTES_UNPINNED
+    source = review_range.attributes_source
+    named = f"the target branch tip {_label(source)}" if source and review_range.attributes_from_target else _EMPTY_TREE_NOTE
+    return _MERGE_ATTRIBUTES_NOTE.format(source=named)
+
+
+def _merge_lines(review_range: WpReviewRange) -> list[str]:
+    """One command line per merge of the range (full SHA), or the cannot-show line when this git lacks ``--remerge-diff``.
+
+    When the merge listing failed, one line names the listing command and the resolution command
+    (or, on a git without ``--remerge-diff``, says no resolution can be shown).
+    """
+    show = resolution_command(review_range)
+    if review_range.merges_unlisted:
+        if not review_range.remerge_available:
+            return [f"{_INDENT}{_MERGES_UNLISTED_CANNOT_SHOW.format(range=f'{review_range.base}..{review_range.tip}')}"]
+        return [
+            f"{_INDENT}RESOLUTION MERGES: could not be listed; run git rev-list --merges --full-history "
+            f"{review_range.base}..{review_range.tip} and review each with {show} <sha>",
+            _attributes_note(review_range),
+        ]
+    if review_range.remerge_available and review_range.merges:
+        return [*(f"{_INDENT}{_MERGE_LABEL} {show} {sha}" for sha in review_range.merges), _attributes_note(review_range)]
+    return [f"{_INDENT}{_MERGE_CANNOT_SHOW.format(label=_label(sha))}" for sha in review_range.merges]
+
+
 def _fill_list(items: Sequence[str], more: Callable[[int], str], remaining: int) -> tuple[list[str], int]:
     """Take *items* while they fit in *remaining* bytes, then one *more* line naming how many were left out.
 
@@ -357,5 +448,6 @@ def render_review_context(
         *files,
         *outside,
         *commands,
+        *_merge_lines(review_range),
         *_requirement_lines(cited),
     ]
