@@ -155,7 +155,7 @@ def _remote_tracking_branch_exists(repo_root: Path, branch: str) -> bool:
 
 
 def _ref_resolves(repo_root: Path, ref: str) -> bool:
-    """Whether the full ref name *ref* resolves (#7848: read once per state of that ref)."""
+    """Whether the full ref name *ref* resolves (#7848: a definite answer is read once per state of that ref)."""
     result = cached_ref_read(
         repo_root,
         ref,
@@ -169,6 +169,7 @@ def _ref_resolves(repo_root: Path, ref: str) -> bool:
             errors="replace",
             check=False,
         ),
+        store_if=lambda answer: answer.returncode in (0, 1),
     )
     return result.returncode == 0
 
