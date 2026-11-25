@@ -93,6 +93,8 @@ _COMMON_FILES = ("HEAD", "packed-refs", "config", "config.worktree", "shallow", 
 
 #: Files under each ``worktrees/<name>/`` administrative directory.
 _WORKTREE_FILES = ("HEAD", "gitdir", "locked", "config.worktree", "commondir")
+#: Files that rewrite the history git reads for an object id (#7848 review LOW-2).
+_HISTORY_FILES = ("shallow", "info/grafts")
 
 
 @dataclass(frozen=True)
@@ -104,13 +106,15 @@ class Depends:
     ``head`` covers the ``HEAD`` of the checkout the read runs in. ``config``
     covers the repository config files. ``everything`` covers every ref, every
     ``HEAD``, the config and the linked-worktree administrative files (what
-    ``git worktree list`` reads).
+    ``git worktree list`` reads). ``history`` covers the files that change which
+    parents git reads for an object id: ``shallow`` and ``info/grafts``.
     """
 
     refs: tuple[str, ...] = ()
     head: bool = False
     config: bool = False
     everything: bool = False
+    history: bool = False
 
 
 #: The whole-metadata dependency.
@@ -219,14 +223,16 @@ def cached_ref_read(cwd: Path, ref: str, key: Hashable, compute: Callable[[], T]
 #: A full SHA-1 or SHA-256 object id, optionally behind a ``^`` exclusion (``rev-list a ^b``).
 _OBJECT_ID = re.compile(r"\^?(?:[0-9a-f]{40}|[0-9a-f]{64})")
 
-#: No git metadata at all: the answer is a function of object ids alone (#7848).
+#: The answer is a function of object ids alone (#7848), save for the history files.
 #:
 #: Objects are content-addressed and immutable, the premise :func:`cached_ref_read` already
-#: states for peeling. Caveat: ``refs/replace/*``, ``info/grafts`` and the ``shallow`` file can
-#: change what git reads for an object id. No spec-kitty run writes them; a read that must
-#: follow such a change mid-run cannot use this dependency.
-_OBJECTS_ONLY = Depends()
-_OBJECTS_AND_CONFIG = Depends(config=True)
+#: states for peeling. ``shallow`` and ``info/grafts`` change which parents git reads for an
+#: object id, so they are part of the dependency. Caveat: a ``refs/replace/*`` ref also changes
+#: what git reads for an object id and is NOT covered (fingerprinting it would follow every
+#: ``packed-refs`` rewrite); no spec-kitty run writes one, and a read that must follow such a
+#: change mid-run cannot use this dependency.
+_OBJECTS_ONLY = Depends(history=True)
+_OBJECTS_AND_CONFIG = Depends(config=True, history=True)
 
 
 def is_object_id(rev: str) -> bool:
@@ -351,6 +357,8 @@ def _fingerprint(repo: _Repo, depends: Depends) -> bytes:
     if depends.config:
         _feed_file(digest, repo.common_dir, "config")
         _feed_file(digest, repo.git_dir, "config.worktree")
+    for name in _HISTORY_FILES if depends.history else ():
+        _feed_file(digest, repo.common_dir, name)
     return digest.digest()
 
 

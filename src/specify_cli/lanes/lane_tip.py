@@ -339,8 +339,22 @@ def _lane_own_commits(repo_root: Path, tip: str, landing_ref: str) -> tuple[tupl
     merged_in = sorted({parent for entry in chain for parent in entry[2:]})
     # Only a merged-in branch's own first-parent line is history the lane took: a lane commit that
     # branch merged back (the coordination branch consolidating the lane, then a resync) stays the lane's.
-    taken = set(_git_lines(repo_root, "rev-list", "--first-parent", *merged_in, f"^{landing_ref}")) if merged_in else set()
+    taken = _merged_in_first_parent_lines(repo_root, merged_in, landing_ref, frozenset(entry[0] for entry in chain))
     return tuple((entry[0], tuple(entry[1:])) for entry in chain if entry[0] not in taken)
+
+
+def _merged_in_first_parent_lines(repo_root: Path, merged_in: Sequence[str], landing_ref: str, chain: frozenset[str]) -> frozenset[str]:
+    """The lane-chain commits on a merged-in branch's own first-parent line, in one ``rev-list``.
+
+    Exactly the per-parent union ``rev-list --first-parent <p> ^<landing>`` restricted to
+    ``chain`` (#7848). The multi-tip walk alone is not that union: with skewed commit dates it
+    can print a tip that is an ancestor of the landing ref through second parents, which every
+    single-tip call excludes. ``chain`` holds no landing ancestor, so intersecting with it
+    removes exactly those, and no commit of the chain is lost.
+    """
+    if not merged_in:
+        return frozenset()
+    return frozenset(_git_lines(repo_root, "rev-list", "--first-parent", *merged_in, f"^{landing_ref}")) & chain
 
 
 def _blob_id(repo_root: Path, rev: str, path: str) -> str | None:
