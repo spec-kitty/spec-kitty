@@ -38,6 +38,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from kernel.clock import now_utc, now_utc_iso, timedelta
+from kernel.git.read_cache import Depends, cached_git_read
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar
 
@@ -172,13 +173,18 @@ def _current_branch(repo_root: Path) -> str:
 
 
 def _repo_supports_transactions(repo_root: Path) -> bool:
-    result = subprocess.run(
-        ["git", "-C", str(repo_root), "rev-parse", "--is-inside-work-tree"],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    return result.returncode == 0 and result.stdout.strip() == "true"
+    """Whether *repo_root* is inside a work tree (#7848: read once per checkout and config state)."""
+
+    def read() -> bool:
+        result = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "--is-inside-work-tree"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        return result.returncode == 0 and result.stdout.strip() == "true"
+
+    return cached_git_read(repo_root, ("is-inside-work-tree", str(repo_root)), read, depends=Depends(head=True, config=True))
 
 
 def _transaction_dir_name(mission_slug: str, mid8: str) -> str:

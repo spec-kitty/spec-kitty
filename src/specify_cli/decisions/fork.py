@@ -38,6 +38,7 @@ from pathlib import Path
 from typing import Literal
 
 from kernel.git import GitCommandError, GitPath, tree_entry, tree_paths
+from kernel.git.read_cache import EVERYTHING, Depends, cached_git_read
 
 from mission_runtime import MissionArtifactKind, placement_seam
 from spec_kitty_events.decisionpoint import DECISION_POINT_OPENED, DECISION_POINT_RESOLVED
@@ -409,12 +410,20 @@ def _coordination_ref_resolves(repo_root: Path, ref: str) -> bool:
     other non-zero exit (a broken repository, ...) means the probe itself failed
     and raises :class:`LedgerProbeError`.
     """
-    ret, _out, err = run_command(
-        ["git", "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"],
-        capture=True,
-        check_return=False,
-        cwd=repo_root,
-    )
+
+    def probe() -> tuple[int, str]:
+        ret, _out, err = run_command(
+            ["git", "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"],
+            capture=True,
+            check_return=False,
+            cwd=repo_root,
+        )
+        return int(ret), err
+
+    # #7848: a definite answer is read once per state of the ref (any ref, for a short name);
+    # a failed probe is asked again.
+    depends = Depends(refs=(ref,)) if ref.startswith("refs/") else EVERYTHING
+    ret, err = cached_git_read(repo_root, ("coordination-ref-resolves", ref), probe, depends=depends, store_if=lambda answer: answer[0] in (0, 1))
     if ret == 0:
         return True
     if ret == 1:
