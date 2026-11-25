@@ -292,7 +292,8 @@ def planning_lane_target(repo_root: Path, mission_slug: str, target_branch: str)
         return PlanningLaneTarget(branch=ref.branch, checkout=holder, on_mission_branch=True)
     if get_current_branch(main_root) == ref.branch:
         return PlanningLaneTarget(branch=ref.branch, checkout=main_root, on_mission_branch=True)
-    raise mission_runtime.PlanningCheckoutMissing(mission_slug, ref.branch)
+    coordinated = routes_through_coordination(resolve_topology(repo_root, mission_slug))
+    raise mission_runtime.PlanningCheckoutMissing(mission_slug, ref.branch, coordinated=coordinated)
 
 
 def planning_artifact_source_dir(repo_root: Path, feature_dir: Path, mission_slug: str) -> Path:

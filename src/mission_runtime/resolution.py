@@ -1161,23 +1161,32 @@ class PlanningCheckoutMissing(RuntimeError):
     Raised instead of falling back to the repository root checkout or the target (NFR-002): the
     planning work of a default Mission that has not landed belongs on its Mission branch. When
     the branch exists only as a remote-tracking ref (*remote* set, e.g. a fresh clone), the
-    remedy first creates the local branch.
+    remedy first creates the local branch. A *coordinated* Mission (one that records a
+    coordination branch) is restored through the coordination doctor; any other default Mission
+    (settled ``single_branch``) writes in the repository root checkout, which is switched back to
+    its Mission branch.
     """
 
     error_code = PLANNING_CHECKOUT_MISSING
 
-    def __init__(self, mission_slug: str, mission_branch: str, *, remote: str | None = None) -> None:
+    def __init__(self, mission_slug: str, mission_branch: str, *, remote: str | None = None, coordinated: bool = True) -> None:
         from mission_runtime.coord_remedy import coordination_doctor_command
 
         self.mission_slug = mission_slug
         self.mission_branch = mission_branch
         self.remote = remote
+        self.coordinated = coordinated
         where = f"exists only as {remote}/{mission_branch}" if remote else "is not checked out anywhere"
         first = f"create it with `git branch {mission_branch} {remote}/{mission_branch}`, then " if remote else ""
+        if coordinated:
+            name = "the coordination branch"
+            restore = f"To restore the coordination worktree, {first}run {coordination_doctor_command(mission_slug)}"
+        else:
+            name = "checked out in the repository root checkout"
+            restore = f"To restore it, {first}run `git switch {mission_branch}` in the repository root checkout"
         super().__init__(
-            f"{PLANNING_CHECKOUT_MISSING}: the Mission branch {mission_branch} (the coordination branch) of Mission "
-            f"{mission_slug!r} {where}; its planning work is written there until it lands. To restore the coordination "
-            f"worktree, {first}run {coordination_doctor_command(mission_slug)}, then retry."
+            f"{PLANNING_CHECKOUT_MISSING}: the Mission branch {mission_branch} ({name}) of Mission {mission_slug!r} {where}; "
+            f"its planning work is written there until it lands. {restore}, then retry."
         )
 
 
@@ -1197,8 +1206,10 @@ class PlanningWriteRef:
     landed: bool
 
 
-#: Local and remote-tracking Mission branch refs (``kitty/mission-<slug>[-<mid8>]``); lane branches share the namespace.
-_MISSION_BRANCH_PATTERNS = ("refs/heads/kitty/mission-*", "refs/remotes/*/kitty/mission-*")
+#: The Mission branch namespace (``kitty/mission-<slug>[-<mid8>]``); lane branches share it.
+_MISSION_BRANCH_PREFIX = "kitty/mission-"
+#: Local Mission branches, and every remote-tracking ref (filtered by name: a remote name may contain ``/``).
+_MISSION_BRANCH_PATTERNS = (f"refs/heads/{_MISSION_BRANCH_PREFIX}*", "refs/remotes/")
 
 
 @dataclass(frozen=True)
@@ -1207,14 +1218,22 @@ class _ClaimingBranch:
 
     branch: str
     remote: str | None
+    coordinated: bool
 
 
-def _branch_and_remote(refname: str) -> tuple[str, str | None]:
-    """``refs/heads/<b>`` -> ``(<b>, None)``; ``refs/remotes/<r>/<b>`` -> ``(<b>, <r>)`` (full refnames, never ``:short``)."""
+def _branch_and_remote(refname: str) -> tuple[str, str | None] | None:
+    """``refs/heads/<b>`` -> ``(<b>, None)``; ``refs/remotes/<r>/<b>`` -> ``(<b>, <r>)``; ``None`` off the namespace.
+
+    Full refnames, never ``:short`` (a same-named tag makes it ambiguous). The remote is
+    everything before the first ``/kitty/mission-``, so a remote name containing ``/`` is kept.
+    """
     if refname.startswith("refs/heads/"):
         return refname.removeprefix("refs/heads/"), None
-    remote, _, branch = refname.removeprefix("refs/remotes/").partition("/")
-    return branch, remote
+    rest = refname.removeprefix("refs/remotes/")
+    remote, sep, tail = rest.partition("/" + _MISSION_BRANCH_PREFIX)
+    if not sep or not remote:
+        return None
+    return _MISSION_BRANCH_PREFIX + tail, remote
 
 
 def _claims_default_mission(meta: Mapping[str, Any] | None, branch: str) -> bool:
@@ -1242,13 +1261,18 @@ def _branch_claiming_mission(repo_root: Path, mission_slug: str) -> _ClaimingBra
     try:
         listing = run_git(repo_root, "for-each-ref", "--format=%(refname)", *_MISSION_BRANCH_PATTERNS).stdout
         for refname in listing.decode("utf-8", errors="replace").split():
-            branch, remote = _branch_and_remote(refname)
-            raw = blob_at(repo_root, refname, meta_path)
-            if raw is None or not _claims_default_mission(decode_meta(raw), branch):
+            parsed = _branch_and_remote(refname)
+            if parsed is None:
                 continue
+            branch, remote = parsed
+            raw = blob_at(repo_root, refname, meta_path)
+            meta = decode_meta(raw) if raw is not None else None
+            if not _claims_default_mission(meta, branch):
+                continue
+            claim = _ClaimingBranch(branch=branch, remote=remote, coordinated=bool((meta or {}).get("coordination_branch")))
             if remote is None:
-                return _ClaimingBranch(branch=branch, remote=None)
-            remote_claim = remote_claim or _ClaimingBranch(branch=branch, remote=remote)
+                return claim
+            remote_claim = remote_claim or claim
     except (GitCommandError, MetaDecodeError) as exc:
         raise PlanningWriteRefUnavailable(mission_slug, f"could not probe the Mission branches ({exc})") from exc
     return remote_claim
@@ -1288,7 +1312,7 @@ def planning_write_ref(repo_root: Path, mission_slug: str, target_branch: str, *
     if facts is None:
         claimed = _branch_claiming_mission(main_root, mission_slug)
         if claimed is not None:
-            raise PlanningCheckoutMissing(mission_slug, claimed.branch, remote=claimed.remote)
+            raise PlanningCheckoutMissing(mission_slug, claimed.branch, remote=claimed.remote, coordinated=claimed.coordinated)
         return PlanningWriteRef(branch=fallback, on_mission_branch=False, landed=False)
     topology_source, mission_branch, landed = facts
     applies = default_mission_rule_applies(topology_source, mission_branch, landed)

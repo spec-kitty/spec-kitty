@@ -130,3 +130,19 @@ def test_the_target_follows_the_one_write_branch_reader(tmp_path: Path, monkeypa
     monkeypatch.setattr(mission_runtime, "planning_write_ref", lambda *_a, **_k: sentinel)
 
     assert planning_lane_target(repo, _SLUG, _TARGET).branch == "sentinel"
+
+
+def test_an_uncoordinated_default_mission_off_its_branch_gets_the_switch_remedy(tmp_path: Path) -> None:
+    """Review cycle 3: a default ``single_branch`` Mission whose root checkout left its Mission branch."""
+    repo = tmp_path / "repo"
+    _init(repo)
+    meta = _default_meta() | {"topology": "single_branch"}
+    del meta["coordination_branch"]
+    _commit_meta(repo, meta)
+
+    with pytest.raises(PlanningCheckoutMissing) as refused:
+        planning_lane_target(repo, _SLUG, _TARGET)
+
+    assert refused.value.coordinated is False
+    assert f"`git switch {_MISSION_BRANCH}`" in str(refused.value)
+    assert "doctor coordination" not in str(refused.value)

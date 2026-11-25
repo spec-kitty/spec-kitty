@@ -320,3 +320,49 @@ def test_a_tag_sharing_the_branch_name_does_not_hide_the_mission_branch(tmp_path
         mission_runtime.planning_write_ref(repo, _SLUG, _TARGET)
 
     assert refused.value.mission_branch == _MISSION_BRANCH
+
+
+# ---------------------------------------------------------------- review cycle 3
+
+
+def test_an_uncoordinated_default_mission_gets_the_switch_remedy_not_the_coordination_doctor(tmp_path: Path) -> None:
+    """A default Mission settled ``single_branch`` has no coordination branch: switch the root checkout back."""
+    repo = tmp_path / "repo"
+    _init(repo)
+    meta = _default_meta(_SLUG, _MISSION_BRANCH) | {"topology": "single_branch"}
+    del meta["coordination_branch"]
+    _branch_with_meta(repo, tmp_path, _MISSION_BRANCH, meta)
+
+    with pytest.raises(mission_runtime.PlanningCheckoutMissing) as refused:
+        mission_runtime.planning_write_ref(repo, _SLUG, _TARGET)
+
+    assert refused.value.coordinated is False
+    assert f"`git switch {_MISSION_BRANCH}` in the repository root checkout" in str(refused.value)
+    assert "doctor coordination" not in str(refused.value)
+    assert "the coordination branch" not in str(refused.value)
+
+
+def test_a_remote_whose_name_contains_a_slash_is_still_probed(tmp_path: Path) -> None:
+    """NFR-002: ``refs/remotes/my/fork/kitty/mission-*`` is found; the remote is ``my/fork``."""
+    upstream = tmp_path / "upstream"
+    _init(upstream)
+    _branch_with_meta(upstream, tmp_path, _MISSION_BRANCH, _default_meta(_SLUG, _MISSION_BRANCH))
+    repo = tmp_path / "repo"
+    _init(repo)
+    git_out(repo, "remote", "add", "my/fork", str(upstream))
+    git_out(repo, "fetch", "-q", "my/fork")
+
+    with pytest.raises(mission_runtime.PlanningCheckoutMissing) as refused:
+        mission_runtime.planning_write_ref(repo, _SLUG, _TARGET)
+
+    assert (refused.value.mission_branch, refused.value.remote) == (_MISSION_BRANCH, "my/fork")
+    assert f"git branch {_MISSION_BRANCH} my/fork/{_MISSION_BRANCH}" in str(refused.value)
+
+
+def test_remote_refs_off_the_mission_namespace_are_ignored() -> None:
+    from mission_runtime.resolution import _branch_and_remote
+
+    assert _branch_and_remote("refs/remotes/origin/HEAD") is None
+    assert _branch_and_remote("refs/remotes/origin/main") is None
+    assert _branch_and_remote(f"refs/remotes/a/b/{_MISSION_BRANCH}") == (_MISSION_BRANCH, "a/b")
+    assert _branch_and_remote(f"refs/heads/{_MISSION_BRANCH}") == (_MISSION_BRANCH, None)
