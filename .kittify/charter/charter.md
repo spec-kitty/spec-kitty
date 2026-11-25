@@ -2,6 +2,9 @@
 
 > Created: 2026-01-27
 > Version: 1.7.0
+> Updated: 2026-11-25 — `charter.activation`'s switch to the charter surface is a 4.0
+> deliverable, not a post-GA rework (ADR `2026-10-16-1`, Amendment 2026-10-20; operator ruling
+> 2026-11-25 on PR #7840). Proposed amendment: the operator accepts it by merging this change.
 > Updated: 2026-11-01 — the events cut-over is done (#6915): core pins the read service from
 > `spec-kitty-events` `service-v0.1.0-rc.1` (`pins/read-service.source.yaml`, CI conformance only);
 > `services/`, the moving `contracts/` modules and tools, and the three workflows that built and
@@ -421,8 +424,11 @@ EventBridge to the launcher (#6195).
 external contract package, and nothing Python moves to `spec-kitty-charter`. The Python
 charter stays in core until it is retired: the offering's reads cut over to the
 `spec-kitty-charter` service through `charter.offering.api` (core's frozen seam), and the
-Python offering is replaced in place, not extracted; `charter.activation` stays in core until
-its post-GA rework (ADR `2026-10-16-1`, Amendment 2026-10-19). The 4.0.0 GA leg is that frozen
+Python offering is replaced in place, not extracted; `charter.activation` stays in core, and
+its switch to the charter surface is a 4.0 deliverable, no longer post-GA: after the charter
+contract's 1.0.0 remote cutover the charter service is authoritative for activation and the
+activation ledger is its mapped local copy (ADR `2026-10-16-1`, Amendments 2026-10-19 and
+2026-10-20). The 4.0.0 GA leg is that frozen
 seam plus a green conformance corpus (epic #6099, re-scoped); the move of the
 `specify_cli → charter` imports onto the seam is done (#645, closed via #6188). ADR
 `2026-10-03-1` (Amendment 2026-10-19) governs the seam routing. ADR `2026-10-12-2` (extraction
