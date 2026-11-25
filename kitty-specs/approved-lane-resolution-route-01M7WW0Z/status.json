@@ -1,7 +1,7 @@
 {
-  "event_count": 120,
-  "last_event_id": "01M89CGC7KER7E1RNSE3DQD1BT",
-  "materialized_at": "2026-11-25T12:57:19.347717+00:00",
+  "event_count": 121,
+  "last_event_id": "01M89Q1XE29KTE6HR3A32B8GW2",
+  "materialized_at": "2026-11-25T16:01:39.778667+00:00",
   "mission_number": "",
   "mission_slug": "approved-lane-resolution-route-01M7WW0Z",
   "mission_type": "software-dev",
@@ -12,8 +12,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 5
   },
@@ -283,9 +283,9 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M895ZK5NYYMMACP8GFZ41HE0",
-      "last_transition_at": "2026-11-25T11:03:16.606955+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M89Q1XE29KTE6HR3A32B8GW2",
+      "last_transition_at": "2026-11-25T16:01:39.778667+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-25T11:17:48Z – claude – shell_pid=11787 – T032 red (scope ruling DM-01M88RZDBP57ZTYJHC5NP0ZH4R): pytest tests/lanes/test_approved_lane_stale_remedy.py tests/lanes/test_stale_sibling_lanes.py tests/lanes/test_stale_remediation_cli_command.py -k 'not every_printed_route' -> 13 failed, 15 passed. Remedy: test_refined_remedy_leads_with_the_halt_and_names_the_sibling_branch + test_remedy_names_every_sibling_and_reopens_every_wp_of_a_multi_wp_lane fail on \"assert 'git merge' not in ...\" (main's refresh step prints git merge <sibling branch>). FR-009: test_auto_rebase_move_recorded_when_the_lane_consolidation_fails fails 'assert {} == {lane: [before, merge]}' (recording gated on success). Guard: 7 merge-guard tests TypeError SiblingStamp has no attributes_source; behavioural red at base: incorporate_sibling on a lane committing '*.py merge=union' with a conflicting sibling returns merged=True, file 'a = own\\na = sibling' (bytes neither side wrote). Window probe: unreviewed-union case refuses CANCELED_CONTENT_UNDER_STAMP not INCORPORATE_MERGE_ATTRIBUTES_REFUSED; Mission-branch union case refuses 'cannot be cleared: merge attribute union ...' (no attributes_source threaded). Ratchets (green, labelled ratchet): test_non_sibling_callers_keep_the_a10_text, test_planning_lane_text_is_unchanged_by_a_sibling.",
@@ -300,7 +300,8 @@
         "- 2026-11-25T15:29:21Z – claude – shell_pid=11787 – trace(design-decisions) #7861 root cause: src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py:507/512 (base 2bfeb48f04) passed commit_router=None when st.skip_target_branch_commit, and :523-539 then raised VerdictPersistenceFailure(protected_target_branch). skip_target_branch_commit (tasks_shared.py:472 _skip_target_branch_commit) is the WP-file flag for a protected primary under coordination topology; REVIEW_CYCLE has been a COORD-partition kind since review-cycle-verdict-seam-rebuild WP04 (mission_runtime/artifacts.py:251), so the router (commit_for_mission, kind=REVIEW_CYCLE) commits it to the coordination branch. The T050 gate predates that and refused every hand-back with feedback on a protected coordination target. Fix: always route the evidence through ports.coord; removed the protected_target_branch raise. No placement rule changed, no second commit path, no env var.",
         "- 2026-11-25T15:29:26Z – claude – shell_pid=11787 – trace(design-decisions) #7861 fail closed: skip_target_branch_commit is only true when the -coord worktree exists, so the router always has a coordination surface on that arm; without one (coord worktree and branch removed) move-task refuses earlier with the existing named protected-primary refusal (tasks_shared._protected_branch_status_commit_error), target untouched (test_reopen_without_a_coordination_surface_never_commits_to_the_protected_target). Re-entry: _reentry_command now prints '--agent <agent>' (implement refuses without it); pinned by test_every_printed_implement_line_names_the_agent.",
         "- 2026-11-25T15:29:31Z – claude – shell_pid=11787 – leeway (#7861 ruling): src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py - route the review-cycle commit through the coordination router instead of the WP-file skip flag (7 lines in, 21 out). tests/integration/test_review_durability_matrix.py - coord_protected auto-commit cells now commit through the router (durable 3->6, insulated 9->6), docstring records the reversal. tests/specify_cli/cli/commands/agent/test_move_task_durability.py - T050 test renamed test_protected_primary_flag_still_routes_the_review_cycle_through_the_router: commit attempted, refusing router -> typed non-durable failure. tests/specify_cli/cli/commands/agent/test_move_task_rejection_agent_7588.py - the coord skip-arm rejection now succeeds (exit 0, lane planned) and still leaves the owner untouched.",
-        "- 2026-11-25T15:29:36Z – claude – shell_pid=11787 – T036 updated: runs main's exact reopen line through the CLI (no move-back substitute), asserts the protected target tip unchanged and review-cycle-1.md committed on the coordination branch; then every printed implement/for_review/consolidate line; Mission lands. New: test_main_reopen_line_runs_on_a_protected_coordination_target (WP08 build_route fixture: reopen exit 0, re-entry with --agent exit 0, incorporate exit 3). Green after fix: those 4 red tests -> 4 passed; durability/rejection files 115 passed, 2 skipped."
+        "- 2026-11-25T15:29:36Z – claude – shell_pid=11787 – T036 updated: runs main's exact reopen line through the CLI (no move-back substitute), asserts the protected target tip unchanged and review-cycle-1.md committed on the coordination branch; then every printed implement/for_review/consolidate line; Mission lands. New: test_main_reopen_line_runs_on_a_protected_coordination_target (WP08 build_route fixture: reopen exit 0, re-entry with --agent exit 0, incorporate exit 3). Green after fix: those 4 red tests -> 4 passed; durability/rejection files 115 passed, 2 skipped.",
+        "- 2026-11-25T15:53:11Z – claude – shell_pid=11787 – tests at 68dccc137e: blast radius (persistence/review/agent-command/lanes/consolidation/orchestrator/terminus files + arch gates commit_scope_owner, layer_rules, merge_pipeline_ratchets, coord_read_residuals_closeout, no_worktree_name_guess, no_legacy_terminology, status_read_single_door, status_state_read_dir_single_authority) -n 3: 6538 passed, 15 skipped, 3 xfailed, 1 failed -> tests/integration/test_consolidate_upgraded_mission_recovery.py (main's #7755 test pinning 'git merge <sibling branch>'; updated to the incorporate lines, leeway per the ruling) -> 9 passed. test_no_dead_symbols -n0: 37 passed. test-fast tier -n 3: 3222 passed, 7 skipped. ruff/format --force-exclude/mypy/C901 clean."
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
