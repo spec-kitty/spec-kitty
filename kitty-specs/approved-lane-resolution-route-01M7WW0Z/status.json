@@ -1,7 +1,7 @@
 {
-  "event_count": 136,
-  "last_event_id": "01M8A066JMSH2RKNNEPKY8TXWJ",
-  "materialized_at": "2026-11-25T18:41:17.396376+00:00",
+  "event_count": 137,
+  "last_event_id": "01M8A1M60CDDHMJJJ4ABJKE7FW",
+  "materialized_at": "2026-11-25T19:06:24.140514+00:00",
   "mission_number": "",
   "mission_slug": "approved-lane-resolution-route-01M7WW0Z",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 3
   },
   "work_packages": {
@@ -134,9 +134,9 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "for_review",
-      "last_event_id": "01M89ZQT48J0RN37GR33QYNCYG",
-      "last_transition_at": "2026-11-25T18:33:25.896101+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M8A1M60CDDHMJJJ4ABJKE7FW",
+      "last_transition_at": "2026-11-25T19:06:24.140514+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-25T17:45:56Z – claude – shell_pid=3682 – red (T019): uv run --frozen pytest tests/consolidation/test_rollback_authority.py -k <new+re-pinned> at HEAD -> 1 failed 4 passed; test_a_recorded_move_is_restored: assert UNCHANGED_BY_RUN is RESTORED. Controls (no entry / move from another tip) and the re-pinned post_mutation_refs test pass at HEAD as designed. Truth-table row fails collection at HEAD (AttributeError: LANE_MOVED_SINCE_AUTO_REBASE).",
@@ -145,10 +145,11 @@
         "- 2026-11-25T18:07:53Z – claude – shell_pid=3682 – trace(approach): narrow source rule: the only restore source for a lane is state.lane_rebase_moves, and only for an entry [before, after] with before == the lane's restore target and live == after (rollback._own_lane_move); post_mutation_refs never makes a lane restorable (re-pinned test). resync_checkouts_to_tip is not called separately: restore_branch_ref(..., resync_checkouts=True) dirty-checks before the CAS and hard-resyncs every checkout of the lane. Work-tip reset uses git.ref_advance.write_bookkeeping_ref(tip_ref(branch), before) instead of lane_tip.record_tip because record_tip discards the write result; a failed reset or record delete keeps RESTORED and names the residue in the reason.",
         "- 2026-11-25T18:07:58Z – claude – shell_pid=3682 – trace(design-decisions): _lane_attempt_start (begin_attempt) keeps a lane's restore target when the lane is still at the after of its own recorded move from that target, so a --resume of an interrupted run can still undo the move (test_a_resumed_attempt_still_at_the_recorded_merge_keeps_the_move_restorable); any other between-attempt move re-anchors as before (test_a_resumed_attempt_after_a_moved_lane_treats_the_kept_move_as_report_only). rebaseline keeps entries for LANE_MOVED_SINCE_AUTO_REBASE, NOT_RESTORED and LANE_MISSING (LANE_MISSING added beyond the prompt's two: a deleted lane's move must not vanish either).",
         "- 2026-11-25T18:25:36Z – claude – shell_pid=3682 – green: test_rollback_own_lane_moves.py + test_rollback_authority.py 109 passed; blast radius (single_rollback_authority, lane_cleanup_auto_rebase_6736, teardown_refusal_resume, executor_rollback_wiring, late_window_base_resume, state_snapshot_fields, abort_remedies, terminus rollback_record_rebaseline/abort_restores_snapshot, arch merge_pipeline_ratchets/layer_rules/no_dead_symbols, lanes approved_lane_stale_remedy) 424 passed; rollback_door/anchor_p0/7755/stale_sibling/retarget etc 156 passed; tests/consolidation full -n 3 loadfile 3687 passed 1 skipped 11 xfailed; make test-fast 3222 passed 7 skipped. ruff check + format clean; mypy rollback.py+state.py: 2 errors in state.py lines 501/873 (no-any-return), pre-existing, my state.py change is a comment only (single-file mypy of HEAD rollback.py shows the same 3 baseline no-any-return errors).",
-        "FR-009: rollback restores the run's own recorded auto-rebase lane move under CAS (lane checkout resynced, work-tip ref reset, auto-rebase record deleted); moved lane -> LANE_MOVED_SINCE_AUTO_REBASE (kept, record kept, not re-baselineable, OK for --abort); dirty/CAS-refused -> NOT_RESTORED; every other lane move report-only. Red-first evidence and design decisions in history."
+        "FR-009: rollback restores the run's own recorded auto-rebase lane move under CAS (lane checkout resynced, work-tip ref reset, auto-rebase record deleted); moved lane -> LANE_MOVED_SINCE_AUTO_REBASE (kept, record kept, not re-baselineable, OK for --abort); dirty/CAS-refused -> NOT_RESTORED; every other lane move report-only. Red-first evidence and design decisions in history.",
+        "- 2026-11-25T18:42:51Z – claude::python-pedro – shell_pid=3682 – campsite fix (coordinator request): 1e6a09ba33 types state.py get_state_path / is_merge_locked locals as Path (baseline mypy no-any-return at state.py:501/:873, caused by follow_imports skip). mypy rollback.py+state.py: Success, 0 errors; ruff check + format clean; tests: test_rollback_own_lane_moves + test_rollback_authority + every test file referencing consolidation.state (105 files) at -n 3 loadfile -> 2201 passed 1 skipped 1 xfailed."
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
+      "role": "reviewer",
       "shell_pid": 3682,
       "shell_pid_created_at": "1795628157.42",
       "subtasks": {
