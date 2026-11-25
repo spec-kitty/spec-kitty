@@ -517,14 +517,14 @@ def is_ancestor(repo_root: Path, tip: str, landing_ref: str) -> bool:
 
 
 def _pinned(repo_root: Path, landing_ref: str) -> str:
-    """Inside a consolidate run, the commit a landing ref name points at now; else ``landing_ref`` unchanged.
+    """The commit a ref name points at now; a commit id unchanged (#7848).
 
-    Lane cleanup hands the proof ``refs/heads/<target>`` (#7848): pinned once, every read of the
-    proof is keyed on one commit id, so the run's read cache can answer its repeats, and the whole
-    proof judges one commit even if the ref moves while it runs. Raises
+    A proof pins its refs once, so it judges one commit even if a ref moves while it runs (lane
+    cleanup hands the content proof ``refs/heads/<target>``), and inside a consolidate run every
+    read of the proof is keyed on commit ids, which the run's read cache can answer. Raises
     :class:`~kernel.git.GitCommandError` when the ref does not name a commit.
     """
-    if not git_read_cache_active() or is_object_id(landing_ref):
+    if is_object_id(landing_ref):
         return landing_ref
     if landing_ref.startswith("-"):
         raise GitCommandError(argv=("rev-parse", landing_ref), cwd=repo_root, returncode=128, stderr="not a revision")
@@ -686,6 +686,8 @@ def is_landed_through_mission_branch(
     Anything else, an unknown revision and a git error included, is ``False``.
     """
     try:
+        mission_tip = _pinned(repo_root, mission_tip)
+        landing_ref = _pinned(repo_root, landing_ref)
         if not is_ancestor(repo_root, tip, mission_tip) or not _mission_branch_landed(repo_root, mission_tip, landing_ref):
             return False
         if not _lane_product_landed_or_superseded(repo_root, tip, mission_tip, landing_ref, approved_tips):

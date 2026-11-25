@@ -38,7 +38,7 @@ from pathlib import Path
 from typing import Literal
 
 from kernel.git import GitCommandError, GitPath, tree_entry, tree_paths
-from kernel.git.read_cache import EVERYTHING, Depends, cached_git_read
+from kernel.git.read_cache import cached_ref_read
 
 from mission_runtime import MissionArtifactKind, placement_seam
 from spec_kitty_events.decisionpoint import DECISION_POINT_OPENED, DECISION_POINT_RESOLVED
@@ -422,8 +422,7 @@ def _coordination_ref_resolves(repo_root: Path, ref: str) -> bool:
 
     # #7848: a definite answer is read once per state of the ref (any ref, for a short name);
     # a failed probe is asked again.
-    depends = Depends(refs=(ref,)) if ref.startswith("refs/") else EVERYTHING
-    ret, err = cached_git_read(repo_root, ("coordination-ref-resolves", ref), probe, depends=depends, store_if=lambda answer: answer[0] in (0, 1))
+    ret, err = cached_ref_read(repo_root, ref, "coordination-ref-resolves", probe, store_if=lambda answer: answer[0] in (0, 1))
     if ret == 0:
         return True
     if ret == 1:

@@ -60,8 +60,6 @@ from pathlib import Path
 from typing import TypeVar, cast
 
 __all__ = [
-    "EVERYTHING",
-    "HISTORY",
     "Depends",
     "cached_git_read",
     "cached_object_read",
@@ -142,8 +140,8 @@ class Depends:
 #: The whole-metadata dependency.
 EVERYTHING = Depends(everything=True)
 
-#: The dependency of a read keyed only on object ids.
-HISTORY = Depends(history=True)
+#: The dependency of a read keyed only on object ids (reached only through :func:`cached_object_read`).
+_HISTORY = Depends(history=True)
 
 
 @dataclass
@@ -248,16 +246,25 @@ def cached_git_read(
     return value
 
 
-def cached_ref_read(cwd: Path, ref: str, key: Hashable, compute: Callable[[], T], *, env: Mapping[str, str] | None = None) -> T:
+def cached_ref_read(
+    cwd: Path,
+    ref: str,
+    key: Hashable,
+    compute: Callable[[], T],
+    *,
+    env: Mapping[str, str] | None = None,
+    store_if: Callable[[T], bool] | None = None,
+) -> T:
     """Cache a read whose answer is a function of one full ref name (``refs/...``) only.
 
     Peeling (``^{commit}``) is allowed in the read: objects are content-addressed
     and immutable, so only the ref's own value can change the answer. A *ref*
     that is not a full ``refs/`` name falls back to the whole-metadata
     dependency, since git may resolve a short name against several refs.
+    *store_if* is as for :func:`cached_git_read`.
     """
     depends = Depends(refs=(ref,)) if ref.startswith("refs/") else EVERYTHING
-    return cached_git_read(cwd, ("ref", ref, key), compute, depends=depends, env=env)
+    return cached_git_read(cwd, ("ref", ref, key), compute, depends=depends, env=env, store_if=store_if)
 
 
 def cached_object_read(
@@ -281,7 +288,7 @@ def cached_object_read(
             with scope.lock:
                 scope.stats.bypassed += 1
         return compute()
-    return cached_git_read(cwd, ("objects", revs, key), compute, depends=HISTORY, env=env, store_if=store_if)
+    return cached_git_read(cwd, ("objects", revs, key), compute, depends=_HISTORY, env=env, store_if=store_if)
 
 
 # ---------------------------------------------------------------------------
