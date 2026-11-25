@@ -22,9 +22,11 @@ from kernel.git.read_cache import git_read_cache_scope
 from kernel.git.remote import configured_remotes
 from mission_runtime.lifecycle_phase import _target_ref_exists
 from specify_cli.consolidation.rollback import _live_tip
-from specify_cli.coordination.policy import _local_branch_exists
+from specify_cli.coordination.policy import _local_branch_exists, _remote_tracking_branch_exists
+from specify_cli.coordination.status_transition import _repo_supports_transactions
 from specify_cli.coordination.surface_resolver import read_worktree_registry
 from specify_cli.core.git_ops import _origin_head_branch, get_current_branch
+from specify_cli.decisions.fork import _coordination_ref_resolves
 from specify_cli.git.protection_policy import _remote_default_branch
 from specify_cli.git.ref_advance import advance_branch_ref, worktrees_with_branch_checked_out
 from specify_cli.lanes.consolidation import _git_common_dir, _git_config_get, _set_local_git_config
@@ -226,3 +228,33 @@ def test_git_common_dir_is_read_once_per_checkout(repo: Path, tmp_path: Path, sp
     with git_read_cache_scope():
         assert _git_common_dir(plain) is None, "outside a repository there is no common dir, and none is kept"
         assert _git_common_dir(plain) is None
+
+
+def test_remote_tracking_branch_exists_sees_create_and_delete(repo: Path, spawns: _GitSpawns) -> None:
+    """#7848: the bookkeeping policy asks this four times per consolidate run."""
+    with git_read_cache_scope():
+        assert _no_spawn_on_repeat(spawns, lambda: _remote_tracking_branch_exists(repo, "side")) is False
+        _git(repo, "update-ref", "refs/remotes/origin/side", "side")
+        assert _remote_tracking_branch_exists(repo, "side") is True
+        _git(repo, "update-ref", "-d", "refs/remotes/origin/side")
+        assert _remote_tracking_branch_exists(repo, "side") is False
+
+
+def test_coordination_ref_resolves_sees_create_move_and_delete(repo: Path, spawns: _GitSpawns) -> None:
+    """#7848: the decision ledger probes the coordination branch four times per consolidate run."""
+    with git_read_cache_scope():
+        assert _no_spawn_on_repeat(spawns, lambda: _coordination_ref_resolves(repo, "coord")) is False
+        _git(repo, "branch", "coord")
+        assert _no_spawn_on_repeat(spawns, lambda: _coordination_ref_resolves(repo, "coord")) is True
+        _git(repo, "branch", "-D", "coord")
+        assert _coordination_ref_resolves(repo, "coord") is False
+
+
+def test_repo_supports_transactions_follows_core_bare(repo: Path, spawns: _GitSpawns) -> None:
+    """#7848: the status transaction checks the checkout four times per consolidate run."""
+    with git_read_cache_scope():
+        assert _no_spawn_on_repeat(spawns, lambda: _repo_supports_transactions(repo)) is True
+        _git(repo, "config", "core.bare", "true")
+        assert _repo_supports_transactions(repo) is False
+        _git(repo, "--work-tree", str(repo), "config", "core.bare", "false")
+        assert _repo_supports_transactions(repo) is True
