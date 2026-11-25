@@ -60,6 +60,8 @@ from pathlib import Path
 from typing import TypeVar, cast
 
 __all__ = [
+    "EVERYTHING",
+    "HISTORY",
     "Depends",
     "cached_git_read",
     "cached_object_read",

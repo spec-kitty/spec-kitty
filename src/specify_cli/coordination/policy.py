@@ -151,19 +151,26 @@ def _remote_tracking_branch_exists(repo_root: Path, branch: str) -> bool:
     candidates = [f"refs/remotes/{branch}"]
     if "/" not in branch:
         candidates.append(f"refs/remotes/origin/{branch}")
-    for candidate in candidates:
-        result = subprocess.run(
-            ["git", "rev-parse", "--verify", "--quiet", candidate],
+    return any(_ref_resolves(repo_root, candidate) for candidate in candidates)
+
+
+def _ref_resolves(repo_root: Path, ref: str) -> bool:
+    """Whether the full ref name *ref* resolves (#7848: read once per state of that ref)."""
+    result = cached_ref_read(
+        repo_root,
+        ref,
+        "rev-parse-verify",
+        lambda: subprocess.run(
+            ["git", "rev-parse", "--verify", "--quiet", ref],
             cwd=repo_root,
             capture_output=True,
             text=True,
             encoding="utf-8",
             errors="replace",
             check=False,
-        )
-        if result.returncode == 0:
-            return True
-    return False
+        ),
+    )
+    return result.returncode == 0
 
 
 class WorkflowMutationPolicy:
