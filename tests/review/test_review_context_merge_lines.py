@@ -16,7 +16,7 @@ from typing import Any
 
 import pytest
 
-from kernel.git import GitCommandError
+from kernel.git import GitCommandError, run_git
 from runtime.next.prompt_builder import _review_command_lines
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
 from specify_cli.consolidation.merge_attribute_guard import MERGE_PROBE_CONFIG_PINS
@@ -216,7 +216,7 @@ def test_range_without_merges_is_unchanged(tmp_path: Path, monkeypatch: pytest.M
 @pytest.mark.git_repo
 def test_merge_listing_failure_is_fail_soft(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     mission, _ = _lane_with_merges(tmp_path, mid8="01M7WM04", merges=(("docs/side.md", "A = 4\n"),))
-    real_run_git = wp_range.run_git
+    real_run_git = run_git
 
     def _failing(repo_root: Path, *args: str, **kwargs: Any) -> Any:
         if "--merges" in args:
@@ -360,7 +360,7 @@ def test_unlisted_merges_on_git_without_remerge_diff_print_the_cannot_show_form(
 def test_failed_listing_probes_this_gits_abilities(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """(a)/(d): a failed merge listing still probes ``--remerge-diff`` and ``--attr-source`` support (WP01's probes)."""
     mission, _ = _lane_with_merges(tmp_path, mid8="01M7WM06", merges=(("docs/side.md", "A = 6\n"),))
-    real_run_git = wp_range.run_git
+    real_run_git = run_git
 
     def _failing(repo_root: Path, *args: str, **kwargs: Any) -> Any:
         if "--merges" in args:
@@ -442,7 +442,7 @@ def test_unreadable_target_reads_attributes_from_the_empty_tree(tmp_path: Path, 
     """Review cycle 1: with the target branch unreadable the command reads attributes from the empty tree, never the
     range base (which holds the lane's union), so running it still lists the union-hidden path."""
     shaped, repo, merge = _union_before_the_window(tmp_path, "01M7WM09")
-    real_run_git = wp_range.run_git
+    real_run_git = run_git
 
     def _target_unreadable(repo_root: Path, *args: str, **kwargs: Any) -> Any:
         if "rev-parse" in args and any(arg.startswith("refs/heads/main") for arg in args):
