@@ -20,11 +20,12 @@ from pathlib import Path
 
 from specify_cli.git.ref_advance import delete_bookkeeping_ref, write_bookkeeping_ref
 
-# ``is_recorded`` (WP05), ``recorded_merges`` (WP05) and ``delete`` (WP03) are public but join
-# ``__all__`` only once a caller outside this module exists (the dead-symbol gate).
+# ``recorded_merges`` and ``delete`` (WP03) are public but join ``__all__`` only once a caller
+# outside this module exists (the dead-symbol gate); ``is_recorded`` has one (FR-004's claim check).
 __all__ = [
     "AutoRebaseRecordError",
     "delete_for_lane",
+    "is_recorded",
     "record",
 ]
 

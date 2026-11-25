@@ -10,23 +10,27 @@ from __future__ import annotations
 
 import functools
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from specify_cli.consolidation.approved_bound import (
     BoundRefusal,
     BoundRefusalCode,
+    approval_presync_stamps,
     approval_stamp,
     approval_stamps,
     check_lane,
     commits_beyond,
     content_commits,
+    first_parent_merges_beyond,
     render_refusals,
     resolves_commit,
+    unreviewed_resolution_merges,
 )
-from specify_cli.consolidation.git_probes import GitProbeError, resolve_commit
-from specify_cli.consolidation.wp_attribution import GapEntry
+from specify_cli.consolidation.git_probes import GitProbeError, first_parent_commits_in_range, resolve_commit
+from specify_cli.consolidation.reconciliation_authorship import own_approval_stamps
+from specify_cli.consolidation.wp_attribution import GapEntry, _windows, _window_stamps
 from specify_cli.consolidation.write_branch_bound import (
     bind_lane_predicates,
     check_lane_windows,
@@ -43,6 +47,7 @@ from specify_cli.consolidation.reconciliation_kernel import (
     _planning_prefix,
 )
 from specify_cli.lanes._git import branch_exists
+from specify_cli.lanes.auto_rebase_record import AutoRebaseRecordError, is_recorded
 from specify_cli.lanes.compute import is_planning_lane, lane_fully_canceled
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.status import WindowGap, WindowOpen
@@ -60,15 +65,20 @@ class _BoundVerdict:
     lane_tips: tuple[tuple[str, str], ...] = ()
     lane_branches: tuple[tuple[str, str], ...] = ()
     window_gaps: tuple[GapEntry, ...] = ()
+    #: ``{merge sha: own paths}`` of every merge the FR-004 check probed successfully, for the claim's
+    #: advisory ``unreviewed_merges`` reader (one remerge per merge per claim, NFR-001). Never a verdict.
+    merge_own_paths: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
 class _LaneVerdict:
-    """One code lane's approved-bound outcome: tier-1 refusals (today's text), tier-2 window refusals, and its gaps."""
+    """One code lane's approved-bound outcome: tier-1 refusals (today's text), tier-2 window refusals, FR-004 refusals, and its gaps."""
 
     tier_one: tuple[BoundRefusal, ...] = ()
     tier_two: tuple[BoundRefusal, ...] = ()
     gaps: tuple[GapEntry, ...] = ()
+    #: ``RESOLUTION_MERGE_UNREVIEWED`` refusals (FR-004), rendered after the tier-1 and tier-2 parts.
+    unreviewed: tuple[BoundRefusal, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -89,6 +99,10 @@ class _LaneScope:
     canceled_commits: Mapping[str, frozenset[str]]
     #: The declared, pinned external dependency refs' commits (#6771, the closed world's own set), tier-2 exempt.
     dependency_commits: frozenset[str] = frozenset()
+    #: The gate's spine base (FR-004): merges are enumerated on ``coord_base_ref..lane`` (first parent), as the gate reads them.
+    coord_base_ref: str = ""
+    #: ``{merge sha: own paths}``, filled by the FR-004 check with successful probe results only (one per claim).
+    merge_own_paths: dict[str, tuple[str, ...]] = field(default_factory=dict)
 
 
 def _bound_events_unreadable_text(lane_id: str) -> str:
@@ -228,6 +242,7 @@ def _approved_bound_verdict(
         is_bookkeeping=functools.partial(_is_bookkeeping, mission_slug=lanes_manifest.mission_slug, planning_prefix=planning_prefix),
         canceled_commits=canceled_commits or {},
         dependency_commits=dependency_commits,
+        coord_base_ref=coord_base_ref,
     )
     verdicts: list[_LaneVerdict] = []
     tips: list[tuple[str, str]] = []
@@ -243,7 +258,7 @@ def _approved_bound_verdict(
     refusal = _render_lane_verdicts(verdicts, lanes_manifest.mission_slug)
     if refusal is not None:
         return _BoundVerdict(refusal=refusal, window_gaps=gaps)
-    return _BoundVerdict(lane_tips=tuple(tips), window_gaps=gaps)
+    return _BoundVerdict(lane_tips=tuple(tips), window_gaps=gaps, merge_own_paths=dict(scope.merge_own_paths))
 
 
 def _stamps_by_lane(
@@ -293,7 +308,8 @@ def _lane_verdict(scope: _LaneScope, lane: ExecutionLane, *, branch: str, tip: s
             is_bookkeeping=scope.is_bookkeeping,
             tip=tip,
         )
-        return _LaneVerdict(tier_one=() if found is None else (found,), gaps=gaps)
+        tier_one = () if found is None else (found,)
+        return _LaneVerdict(tier_one=tier_one, gaps=gaps, unreviewed=_unreviewed_lane_merges(scope, lane, branch=branch, tip=tip, tier_one=tier_one))
     others = [stamp for lane_id, stamps in scope.stamps_by_lane.items() if lane_id != lane.lane_id for stamp in stamps]
     tier_one, tier_two = check_lane_windows(
         scope.repo_root,
@@ -309,18 +325,94 @@ def _lane_verdict(scope: _LaneScope, lane: ExecutionLane, *, branch: str, tip: s
         canceled_exempt=_canceled_window_exempt(scope, lane),
         dependency_exempt=scope.dependency_commits,
     )
-    return _LaneVerdict(tier_one=tier_one, tier_two=tier_two, gaps=gaps)
+    return _LaneVerdict(tier_one=tier_one, tier_two=tier_two, gaps=gaps, unreviewed=_unreviewed_lane_merges(scope, lane, branch=branch, tip=tip, tier_one=tier_one))
+
+
+_STAMP_UNKNOWN = frozenset({BoundRefusalCode.APPROVAL_STAMP_MISSING, BoundRefusalCode.APPROVAL_STAMP_NOT_ON_LANE})
+_CANCELED_LANE = "canceled"
+
+
+def _record_reader(repo_root: Path, branch: str) -> Callable[[str], bool]:
+    """WP02's exact-SHA record read for *branch*; a read git cannot answer (or a record naming another commit) raises :class:`GitProbeError`."""
+
+    def recorded(sha: str) -> bool:
+        try:
+            return bool(is_recorded(repo_root, branch, sha))
+        except (AutoRebaseRecordError, ValueError) as exc:
+            raise GitProbeError(f"the auto-rebase record of merge {sha} on {branch} cannot be read: {exc}") from exc
+
+    return recorded
+
+
+def _canceled_window_merges(scope: _LaneScope, lane: ExecutionLane, merges: Sequence[str]) -> dict[str, str]:
+    """``{merge: canceled work package}`` for each of *merges* inside a canceled work package's window on *lane* (addendum 6).
+
+    The windows come from the one window reconstruction (:mod:`~specify_cli.consolidation.wp_attribution`).
+    A window with a missing stamp cannot be bounded, so every merge is read as inside it (fail closed);
+    a range git cannot read raises :class:`GitProbeError`.
+    """
+    canceled = [wp for wp in lane.wp_ids if wp in scope.excluded or str((scope.work_packages.get(wp) or {}).get("lane", "")) == _CANCELED_LANE]
+    if not canceled or not merges:
+        return {}
+    pending = set(merges)
+    inside: dict[str, str] = {}
+    for wp_id, windows in _windows(scope.events, frozenset(canceled)).items():
+        for window in windows:
+            stamps = None if window.still_open else _window_stamps(window)
+            held = pending if stamps is None else pending.intersection(first_parent_commits_in_range(scope.repo_root, *stamps))
+            for sha in held:
+                inside.setdefault(sha, wp_id)
+    return inside
+
+
+def _unreviewed_lane_merges(scope: _LaneScope, lane: ExecutionLane, *, branch: str, tip: str, tier_one: Sequence[BoundRefusal]) -> tuple[BoundRefusal, ...]:
+    """FR-004 for one code lane: its spine merges beyond the claim base that carry their own content and no review covers.
+
+    Skipped when tier 1 could not place the lane's own approval stamps (``APPROVAL_STAMP_MISSING`` /
+    ``APPROVAL_STAMP_NOT_ON_LANE`` already refuse it). Reads the gate's spine (``coord_base_ref..tip``,
+    first parent) at the frozen *tip*, less what the claim base holds, in ONE history query; the own
+    stamps are the gate's (:func:`~specify_cli.consolidation.reconciliation_authorship.own_approval_stamps`,
+    pre-sync stamps included, #7802). A lane with no such merge runs no own-content probe (NFR-001).
+    """
+    if any(refusal.code in _STAMP_UNKNOWN for refusal in tier_one):
+        return ()
+    # The claim base always resolves (checked by the caller). A coord base that does not resolve is left
+    # out, so MORE merges are judged (the fail-closed direction) and the presence check still names it.
+    coord_base = scope.coord_base_ref if scope.coord_base_ref and resolves_commit(scope.repo_root, scope.coord_base_ref) else None
+    excluded = [ref for ref in dict.fromkeys((coord_base, scope.claim_base)) if ref]
+    merges = first_parent_merges_beyond(scope.repo_root, tip, excluded)
+    if not merges:
+        return ()
+    wp_ids = list(lane.wp_ids)
+    own_stamps = own_approval_stamps(lane, scope.work_packages, approval_stamps(scope.events, wp_ids), approval_presync_stamps(scope.events, wp_ids))
+    attributes_source = scope.window_base if scope.window_base and scope.window_base == scope.claim_base else None
+    return unreviewed_resolution_merges(
+        scope.repo_root,
+        lane_id=lane.lane_id,
+        branch=branch,
+        wp_ids=_bound_approved_wp_ids(lane, scope.work_packages, scope.excluded),
+        spine_merges=merges,
+        own_stamps=own_stamps,
+        is_recorded=_record_reader(scope.repo_root, branch),
+        is_bookkeeping=scope.is_bookkeeping,
+        attributes_source=attributes_source,
+        canceled_window=_canceled_window_merges(scope, lane, merges),
+        memo=scope.merge_own_paths,
+    )
 
 
 def _render_lane_verdicts(verdicts: Sequence[_LaneVerdict], mission_slug: str) -> str | None:
-    """Tier-1 refusals of every lane in today's text, then the tier-2 window block; ``None`` when nothing refused."""
+    """Tier-1 refusals of every lane in today's text, then the tier-2 window block, then FR-004's block; ``None`` when nothing refused."""
     tier_one = [refusal for verdict in verdicts for refusal in verdict.tier_one]
     tier_two = [refusal for verdict in verdicts for refusal in verdict.tier_two]
+    unreviewed = [refusal for verdict in verdicts for refusal in verdict.unreviewed]
     parts: list[str] = []
     if tier_one:
         parts.append(render_refusals(tier_one, mission_slug))
     if tier_two:
         parts.append(render_lane_window_refusals(tier_two, mission_slug))
+    if unreviewed:
+        parts.append(render_refusals(unreviewed, mission_slug))
     return "\n".join(parts) if parts else None
 
 
