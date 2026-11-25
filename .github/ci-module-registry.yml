@@ -598,6 +598,13 @@ modules:
   - specify_cli.version_utils
   - specify_cli.workspace
   tier: standard
+  # shard_count=3 kept (#7846): recaptured with tests/specify_cli/orchestrator_api by
+  # `python scripts/ci/capture_shard_timings.py --module execution_context --run-id
+  # local-7846-execution-context --part <dir> --part-output <file>` for each test_dirs entry, then
+  # `--from-parts ... --write`: 7037 tests, 1223.4 s serial locally (the new tree 239 tests, 121.0 s).
+  # LPT-3 bins [407.8 s x 3], skew 0.00%. The CI-runner capture of the same row before this change
+  # (#7850) was 709.1 s for 6797 tests, so the added tree is ~78 s of CI time (121.0 x 709.1 / 1102.4) and each shard carries
+  # ~260 s of tests, well inside the NFR-006 15 min per-shard bound; a fourth shard buys nothing.
   shard_count: 3
   # AGGREGATE module: no single tests/<module> mirror exists for
   # "execution_context" -- the roots above are covered by these real
