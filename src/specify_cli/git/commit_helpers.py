@@ -1380,7 +1380,7 @@ def _build_expected_parent_tree(
         raise RuntimeError(f"safe_commit: commit hook changed requested path contents after staging; refusing expected-parent commit for {requested}")
     _verify_expected_parent_tree_bytes(worktree_root, tree, expected_path_bytes, env=env)
     for removed_path in index_only_removals:
-        if tree_entry(worktree_root, tree, removed_path, env=env) is not None:
+        if tree_entry(worktree_root, tree, to_posix(Path(removed_path)), env=env) is not None:
             raise RuntimeError("safe_commit: decision runtime lock remains in candidate tree")
     return tree
 
@@ -1445,6 +1445,8 @@ def _normalize_expected_parent_path_bytes(
     if expected_path_bytes is None:
         return {}
     root = worktree_root.resolve()
+    # Tree object paths need "/" (#7849); Path() first, so a POSIX "\\" stays a filename character.
+    staged_paths = {to_posix(Path(staged)) for staged in normalized_files}
     normalized: dict[str, bytes] = {}
     for requested_path, contents in expected_path_bytes.items():
         candidate = Path(requested_path)
@@ -1455,8 +1457,8 @@ def _normalize_expected_parent_path_bytes(
                 raise RuntimeError(f"safe_commit: expected raw-bytes path must be inside the worktree: {requested_path}") from exc
         if candidate.is_absolute() or ".." in candidate.parts:
             raise RuntimeError(f"safe_commit: expected raw-bytes path must be worktree-relative: {requested_path}")
-        relative_path = str(candidate)
-        if relative_path not in normalized_files:
+        relative_path = to_posix(candidate)
+        if relative_path not in staged_paths:
             raise RuntimeError(f"safe_commit: expected raw-bytes path was not requested for staging: {relative_path!r}")
         if relative_path in normalized:
             raise RuntimeError(f"safe_commit: duplicate expected raw-bytes path: {relative_path!r}")
@@ -1798,9 +1800,10 @@ def _is_gitlink(worktree_root: Path, rel_path: str) -> bool:
     owner of that git argv) and only runs for a path the filesystem stat already
     found to be a directory, so the healthy commit path never pays for it.
     """
-    wanted = GitPath.parse(rel_path)
+    git_path = to_posix(Path(rel_path))
+    wanted = GitPath.parse(git_path)
     try:
-        entries = index_entries(worktree_root, pathspecs=[rel_path])
+        entries = index_entries(worktree_root, pathspecs=[git_path])
     except GitCommandError:
         return False  # an unreadable index is not proof of a gitlink: refuse as a directory
     return any(entry.path == wanted and entry.mode == "160000" for entry in entries)
