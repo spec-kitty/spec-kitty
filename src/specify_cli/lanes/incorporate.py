@@ -230,11 +230,11 @@ def _canceled_window_merges(repo_root: Path, events: Sequence[StatusEvent], wp_i
     window with no recorded lane head at either end (the caller refuses).
     """
     from specify_cli.consolidation.git_probes import GitProbeError, first_parent_commits_in_range, is_merge_commit
-    from specify_cli.consolidation.wp_attribution import _window_stamps, _windows
+    from specify_cli.consolidation.wp_attribution import window_stamps, wp_windows
 
     merges: list[str] = []
-    for window in _windows(events, frozenset({wp_id}))[wp_id]:
-        bounds = _window_stamps(window)
+    for window in wp_windows(events, frozenset({wp_id}))[wp_id]:
+        bounds = window_stamps(window)
         if bounds is None:
             raise GitProbeError(f"a work window of {wp_id} has no recorded lane head at one end")
         merges.extend(sha for sha in first_parent_commits_in_range(repo_root, *bounds) if is_merge_commit(repo_root, sha))

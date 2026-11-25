@@ -5,7 +5,7 @@ D-3; data-model.md; contracts/attribution-and-verdicts.md; research.md R-1..
 R-10). Builds throwaway repos in ``tmp_path`` with real commits; synthetic
 ``StatusEvent``s use the canonical event shape with real SHAs as stamps.
 
-Window/stamp tests that need no git repo exercise ``_windows`` directly
+Window/stamp tests that need no git repo exercise ``wp_windows`` directly
 (module-private, same-package access — mirrors the ``git_probes`` seam test's
 own pattern of testing private helpers by qualified name). Content/contest/
 merge/error tests exercise the public ``resolve_canceled_wp`` end-to-end
@@ -111,7 +111,7 @@ def test_claimed_and_in_progress_share_one_implementation_window() -> None:
         _event("e2", "WP02", Lane.CLAIMED, Lane.IN_PROGRESS, "2026-01-01T00:01:00Z", stamp="sha-mid"),
         _event("e3", "WP02", Lane.IN_PROGRESS, Lane.FOR_REVIEW, "2026-01-01T00:02:00Z", stamp="sha-close"),
     ]
-    windows = wpa._windows(events, frozenset({"WP02"}))
+    windows = wpa.wp_windows(events, frozenset({"WP02"}))
     assert windows["WP02"] == [
         wpa.WorkWindow(
             wp_id="WP02",
@@ -138,7 +138,7 @@ def test_rework_round_opens_a_new_implementation_window() -> None:
         _event("e4", "WP02", Lane.IN_REVIEW, Lane.IN_PROGRESS, "t3", stamp="s2"),
         _event("e5", "WP02", Lane.IN_PROGRESS, Lane.FOR_REVIEW, "t4", stamp="s3"),
     ]
-    windows = wpa._windows(events, frozenset({"WP02"}))
+    windows = wpa.wp_windows(events, frozenset({"WP02"}))
     impl_windows = [w for w in windows["WP02"] if w.kind is wpa.WindowKind.IMPLEMENTATION]
     assert impl_windows == [
         wpa.WorkWindow(wp_id="WP02", kind=wpa.WindowKind.IMPLEMENTATION, open_head="s0", close_head="s1", still_open=False),
@@ -153,7 +153,7 @@ def test_blocked_is_counted_as_implementation() -> None:
         _event("e3", "WP02", Lane.BLOCKED, Lane.IN_PROGRESS, "t2", stamp="s-unblocked"),
         _event("e4", "WP02", Lane.IN_PROGRESS, Lane.FOR_REVIEW, "t3", stamp="s1"),
     ]
-    windows = wpa._windows(events, frozenset({"WP02"}))
+    windows = wpa.wp_windows(events, frozenset({"WP02"}))
     impl_windows = [w for w in windows["WP02"] if w.kind is wpa.WindowKind.IMPLEMENTATION]
     assert len(impl_windows) == 1
     assert impl_windows[0].open_head == "s0"
@@ -165,7 +165,7 @@ def test_window_with_missing_stamp_records_none_head() -> None:
         _event("e1", "WP02", Lane.PLANNED, Lane.CLAIMED, "t0", stamp=None),
         _event("e2", "WP02", Lane.IN_PROGRESS, Lane.FOR_REVIEW, "t1", stamp="s1"),
     ]
-    windows = wpa._windows(events, frozenset({"WP02"}))
+    windows = wpa.wp_windows(events, frozenset({"WP02"}))
     impl = windows["WP02"][0]
     assert impl.open_head is None
     assert impl.close_head == "s1"
@@ -176,7 +176,7 @@ def test_window_with_no_closing_event_is_still_open() -> None:
     events = [
         _event("e1", "WP02", Lane.PLANNED, Lane.CLAIMED, "t0", stamp="s0"),
     ]
-    windows = wpa._windows(events, frozenset({"WP02"}))
+    windows = wpa.wp_windows(events, frozenset({"WP02"}))
     impl = windows["WP02"][0]
     assert impl.close_head is None
     assert impl.still_open is True
@@ -185,7 +185,7 @@ def test_window_with_no_closing_event_is_still_open() -> None:
 def test_windows_processes_events_in_append_order_not_sorted_by_at() -> None:
     """Review cycle 1, issue 3: the closing event is SECOND in the (append-
     order) list even though its ``at`` timestamp is EARLIER than the opening
-    event's -- if ``_windows`` ever sorted by ``at`` instead of consuming
+    event's -- if ``wp_windows`` ever sorted by ``at`` instead of consuming
     events in append/causal order (the reducer-duality caveat, CLAUDE.md),
     this would silently read as a still-open window instead.
     """
@@ -193,7 +193,7 @@ def test_windows_processes_events_in_append_order_not_sorted_by_at() -> None:
         _event("e1", "WP02", Lane.PLANNED, Lane.CLAIMED, "2026-01-02T00:00:00Z", stamp="A"),
         _event("e2", "WP02", Lane.IN_PROGRESS, Lane.FOR_REVIEW, "2026-01-01T00:00:00Z", stamp="B"),
     ]
-    windows = wpa._windows(events, frozenset({"WP02"}))
+    windows = wpa.wp_windows(events, frozenset({"WP02"}))
     impl = windows["WP02"][0]
     assert impl.open_head == "A"
     assert impl.close_head == "B"
@@ -937,7 +937,7 @@ def test_seed_event_after_cancel_does_not_reopen_a_window() -> None:
         _event("e2", "WP02", Lane.IN_PROGRESS, Lane.CANCELED, "t1", stamp="s-close"),
         _event("e3", "WP02", Lane.PLANNED, Lane.CLAIMED, "t2", actor=_BACKFILL_ACTOR),
     ]
-    windows = wpa._windows(events, frozenset({"WP02"}))
+    windows = wpa.wp_windows(events, frozenset({"WP02"}))
     assert windows["WP02"] == [
         wpa.WorkWindow(wp_id="WP02", kind=wpa.WindowKind.IMPLEMENTATION, open_head="s-open", close_head="s-close", still_open=False),
     ]
