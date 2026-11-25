@@ -3,10 +3,10 @@
 > Created: 2026-01-27
 > Version: 1.8.0
 > Updated: 2026-11-25 — `charter.activation`'s switch to the charter surface is a 4.0
-> deliverable, not a post-GA rework (ADR `2026-10-16-1`, Amendment 2026-10-20; operator ruling
-> 2026-11-25 on PR #7840). Version 1.8.0: a change in stated direction is a substantive
-> governance change (operator ruling 2026-11-25). Proposed amendment: the operator accepts it
-> by merging this change.
+> deliverable, not a post-GA rework (ADR `2026-10-16-1`, Amendments 2026-10-19 and 2026-10-20;
+> operator ruling 2026-11-25 on PR #7840). Version 1.8.0: a change in stated direction is a
+> substantive governance change (operator ruling 2026-11-25). Proposed amendment: the operator
+> accepts it by merging this change.
 > Updated: 2026-11-01 — the events cut-over is done (#6915): core pins the read service from
 > `spec-kitty-events` `service-v0.1.0-rc.1` (`pins/read-service.source.yaml`, CI conformance only);
 > `services/`, the moving `contracts/` modules and tools, and the three workflows that built and
