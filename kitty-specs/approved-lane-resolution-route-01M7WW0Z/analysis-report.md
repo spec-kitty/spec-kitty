@@ -4,7 +4,7 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: approved-lane-resolution-route-01M7WW0Z
 mission_id: 01M7WW0ZHE3JCZ0KW6RP8X34G4
-generated_at: '2026-11-25T11:40:41.543490+00:00'
+generated_at: '2026-11-25T14:59:17.709135+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
@@ -22,9 +22,9 @@ input_artifacts:
 verdict: ready
 issue_counts:
   critical: 0
-  high: 0
   low: 2
   medium: 0
+  high: 0
   info: 0
 findings:
 - id: A12
@@ -128,3 +128,6 @@ Third pass, after remediation commit 4c8c0ab and the reviewer-accepted task refi
 - WP12: the partial-shape e2e assertion is now binding.
 - WP13: six documentation items added.
 - No FR changes.
+- Operator ruling DM-01M89KDT5DZQ4DX6ZFX54HY3J3 (option b). WP07 now also fixes `move-task --to planned` on protected coordination targets (#7861): the verdict evidence commit goes to the coordination branch, and implement finds the feedback artifact. It also adds `--agent` to main's no-sibling re-entry line.
+  - This is scope added under FR-001 (the remedy must be runnable). No new FR.
+  - #7861 is recorded as in-mission (WP07).
