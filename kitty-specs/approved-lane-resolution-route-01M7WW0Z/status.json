@@ -55,7 +55,8 @@
         "review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
         "REJECT cycle 2: review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
         "- 2026-11-25T07:16:04Z – unknown – cycle-3 red (review cycle 2): on c93350986c, 'pytest -q tests/consolidation/test_merge_attribute_guard.py -k \"inert or not_refused or pin_table or renormalize\"' -> 8 failed, 7 passed: the new inert / not-refused tests failed with the unconditional filter/ident/working-tree-encoding refusal, and the pin-table test failed. After dropping that refusal but before adding the pin: 3 failed with the laundering symptom itself (test_the_renormalize_pin_keeps_a_hostile_clean_filter_inert[config_file|git_config_count]: 'assert [] == [\"f\"]', i.e. merge_own_changed_paths read the hand edit as no own content) plus the pin-table assertion. All green after the pin.",
-        "- 2026-11-25T07:16:09Z – unknown – review cycle 2 addressed (9573434bb6): (1) MERGE_PROBE_CONFIG_PINS gains ('merge.renormalize','false'), so the probes' own git never renormalizes whatever changed after the guard's read; WP07/WP12 get it through the same table. (2) The named merge.renormalize refusal is kept unchanged. (3) The unconditional filter/ident/working-tree-encoding refusal is dropped; check-attr reads only 'merge' again (not kept for messages: simpler, and the renormalize message already names the cause). LFS (filter=lfs) and ident repos are not refused; a merge=lfs attribute still refuses as an unregistered driver, as before. (4) Tests: hostile clean filter inert without renormalize; inert with the pin when renormalize=true is set by config file or GIT_CONFIG_COUNT after the guard's read (guard read monkeypatched away to simulate the gap) - both probes report ['f'] and n_way_merge_blob does not return the hand blob; filter=lfs / ident / working-tree-encoding not refused; filter=lfs end-to-end on both probes; pin-table test for merge.renormalize."
+        "- 2026-11-25T07:16:09Z – unknown – review cycle 2 addressed (9573434bb6): (1) MERGE_PROBE_CONFIG_PINS gains ('merge.renormalize','false'), so the probes' own git never renormalizes whatever changed after the guard's read; WP07/WP12 get it through the same table. (2) The named merge.renormalize refusal is kept unchanged. (3) The unconditional filter/ident/working-tree-encoding refusal is dropped; check-attr reads only 'merge' again (not kept for messages: simpler, and the renormalize message already names the cause). LFS (filter=lfs) and ident repos are not refused; a merge=lfs attribute still refuses as an unregistered driver, as before. (4) Tests: hostile clean filter inert without renormalize; inert with the pin when renormalize=true is set by config file or GIT_CONFIG_COUNT after the guard's read (guard read monkeypatched away to simulate the gap) - both probes report ['f'] and n_way_merge_blob does not return the hand blob; filter=lfs / ident / working-tree-encoding not refused; filter=lfs end-to-end on both probes; pin-table test for merge.renormalize.",
+        "- 2026-11-25T08:45:54Z – unknown – tests (cycle 3, 9573434bb6): guard file 111 passed; ruff/format/mypy clean. Host was saturated by parallel WP runs (load avg ~18-21 on 4 CPUs). First runs: tests/consolidation+tests/lanes -n 8 -> 4763 passed, 21 failed, 16 errors in 65 min (cycle 2: 18 min, all green); make test-fast -> 3142 passed, 2 failed; arch gates -> 180 passed, 1 failed. Classified: every one of the 40 reds was a timeout (28 pytest-timeout >240s, 9 subprocess TimeoutExpired, plus the 3 arch/fast ones), no assertion failure. Isolated rerun of all 40 node ids (-n 2): 39 passed; the remaining one, test_no_dead_symbols::test_m11c_gate_reads_the_widened_section_it_is_given, again hit only its 240s budget, and its verdict with --timeout=0 is green: tests/architectural/test_no_dead_symbols.py 37 passed. Baseline-red category: environmental (load), not this diff, which touches only merge_attribute_guard.py and its test."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -69,11 +70,11 @@
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
-        "T001": "planned",
-        "T002": "planned",
-        "T003": "planned",
-        "T004": "planned",
-        "T005": "planned"
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
       }
     },
     "WP02": {
