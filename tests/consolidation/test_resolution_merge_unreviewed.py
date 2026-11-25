@@ -496,9 +496,12 @@ def test_three_lane_case_uses_the_own_lane_predicate(tmp_path: Path) -> None:
     assert _refused_merges(claim) == {m_b[:7]}, "lane-c's own (reviewed) merge is not refused"
 
 
-def _canceled_window_merge(tmp_path: Path) -> tuple[Path, Path, LanesManifest, str, str]:
+def _canceled_window_merge(tmp_path: Path, *, hidden: bool = False) -> tuple[Path, Path, LanesManifest, str, str]:
     """One lane, WP01 and WP02. WP02 claims, the lane gets a merge whose resolution adds ``u/canceled.txt``,
-    WP02 is canceled at that merge; WP01 then claims, commits ``w1`` and is approved at ``w1`` (which reaches the merge)."""
+    WP02 is canceled at that merge; WP01 then claims, commits ``w1`` and is approved at ``w1`` (which reaches the merge).
+
+    With *hidden* the hand merge sits behind a clean merge ``T = merge(base, hand)``: only T is on the spine,
+    and WP02 is canceled at T. Returns the hand merge's SHA either way."""
     repo, feature_dir, manifest, base = _init_repo(tmp_path)
     manifest.lanes = [replace(_lane("lane-a", "WP01"), wp_ids=("WP01", "WP02"))]
     (feature_dir / "tasks" / "WP03-work.md").unlink()
@@ -511,6 +514,10 @@ def _canceled_window_merge(tmp_path: Path) -> tuple[Path, Path, LanesManifest, s
     _git(repo, "merge", "--no-ff", "--no-commit", "side")
     _write(repo, "u/canceled.txt", "canceled work\n")
     merge = _commit(repo, "merge side, folding in canceled work")
+    hand = merge
+    if hidden:
+        merge = _git(repo, "commit-tree", f"{hand}^{{tree}}", "-p", base, "-p", hand, "-m", "clean merge hiding the canceled hand merge")
+        _git(repo, "reset", "-q", "--hard", merge)
     _write(repo, "u/w1.txt", "w1\n")
     w1 = _commit(repo, "WP01: w1")
     rows = [
@@ -524,7 +531,15 @@ def _canceled_window_merge(tmp_path: Path) -> tuple[Path, Path, LanesManifest, s
         events.append(_row(len(events), "WP01", frm, to, stamp, actor="reviewer-renata" if to in ("in_review", "approved") else "claude"))
     _write_events(feature_dir, [], extra=events)
     _git(repo, "checkout", "-q", "main")
-    return repo, feature_dir, manifest, base, merge
+    return repo, feature_dir, manifest, base, hand
+
+
+def test_hidden_merge_inside_a_canceled_window_is_refused(tmp_path: Path) -> None:
+    """Review cycle 1 x addendum 6: a canceled window holds a hand merge reached through any parent, not only on the spine."""
+    repo, feature_dir, manifest, base, hand = _canceled_window_merge(tmp_path, hidden=True)
+    assert hand not in _git(repo, "rev-list", "--first-parent", _branch("lane-a")).split(), "fixture: the hand merge is off the spine"
+    claim = _claim(repo, feature_dir, manifest, base, canceled=("WP02",))
+    assert claim.refusal is not None and f"merge {hand[:7]}" in claim.refusal and "inside canceled WP02's window" in claim.refusal, claim.refusal
 
 
 def test_merge_inside_a_canceled_window_is_refused_although_a_later_stamp_reaches_it(tmp_path: Path) -> None:
@@ -540,7 +555,16 @@ def test_merge_inside_a_canceled_window_is_refused_although_a_later_stamp_reache
 # --------------------------------------------------------------------------- predicate agreement (T023 #7)
 
 
-@pytest.mark.parametrize("fixture", ["evil", "three_lane", "clean", "forged_message"])
+def _off_spine(repo: Path, evil: str) -> str:
+    """Hide the evil merge behind a clean one: ``T = merge(evil^1, evil)`` with evil's tree; only T is on lane-b's first-parent spine."""
+    hider = _git(repo, "commit-tree", f"{evil}^{{tree}}", "-p", f"{evil}^1", "-p", evil, "-m", "clean merge hiding the hand merge")
+    _git(repo, "branch", "-f", _branch("lane-b"), hider)
+    assert git_probes.merge_own_changed_paths(repo, hider) == [], "fixture: the hiding merge is clean"
+    assert evil not in _git(repo, "rev-list", "--first-parent", _branch("lane-b")).split(), "fixture: the hand merge is off the spine"
+    return hider
+
+
+@pytest.mark.parametrize("fixture", ["evil", "three_lane", "clean", "forged_message", "off_spine"])
 def test_claim_and_gate_agree_on_dropped_merges(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fixture: str) -> None:
     """The claim refuses exactly the merges the gate drops (``claim.unreviewed_merges`` on a bypassed claim) that carry own content."""
     if fixture == "three_lane":
@@ -553,6 +577,8 @@ def test_claim_and_gate_agree_on_dropped_merges(tmp_path: Path, monkeypatch: pyt
             parents = _git(repo, "rev-list", "--parents", "-n1", evil).split()[1:]
             forged = _git(repo, "commit-tree", f"{evil}^{{tree}}", *[a for p in parents for a in ("-p", p)], "-m", _FORGED_MESSAGE)
             _git(repo, "branch", "-f", _branch("lane-b"), forged)
+        elif fixture == "off_spine":
+            _off_spine(repo, evil)
     claimed = _refused_merges(_claim(repo, feature_dir, manifest, base))
     with monkeypatch.context() as patch:
         patch.setattr(reconciliation_bound, "unreviewed_resolution_merges", lambda *_a, **_k: ())
@@ -699,3 +725,69 @@ def test_canceled_window_with_a_missing_stamp_holds_every_merge(tmp_path: Path) 
     log.write_text("".join(json.dumps(row, sort_keys=True) + "\n" for row in rows), encoding="utf-8")
     claim = _claim(repo, feature_dir, manifest, base, canceled=("WP02",))
     assert claim.refusal is not None and "inside canceled WP02's window" in claim.refusal, claim.refusal
+
+
+# --------------------------------------------------------------------------- review cycle 1: a hand merge off the first-parent spine
+
+
+def test_claim_refuses_a_hand_merge_hidden_behind_a_clean_merge(tmp_path: Path) -> None:
+    repo, feature_dir, manifest, base, evil = _evil_claim(tmp_path)
+    _off_spine(repo, evil)
+    claim = _claim(repo, feature_dir, manifest, base)
+    assert _CODE in _codes(claim) and _refused_merges(claim) == {evil[:7]}, claim.refusal
+
+
+def test_advisory_field_names_the_hidden_hand_merge(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """WP06's hint reads ``unreviewed_merges``: on a claim built as the gate sees it, the hidden merge is named with its own content."""
+    repo, feature_dir, manifest, base, evil = _evil_claim(tmp_path)
+    hider = _off_spine(repo, evil)
+    with monkeypatch.context() as patch:
+        patch.setattr(reconciliation_bound, "unreviewed_resolution_merges", lambda *_a, **_k: ())
+        claim = _claim(repo, feature_dir, manifest, base)
+    entries = {entry.sha: entry for entry in claim.unreviewed_merges}
+    assert entries[evil].lane_id == "lane-b" and entries[evil].own_paths == (_EVIL,)
+    assert entries[hider].own_paths == (), "the spine's clean merge stays recorded as before"
+
+
+def _hide_behind_clean_merge(mission: CoordMission) -> str:
+    """The review repro: X = hand merge with its own content (-p A -p <mission tip>), T = clean merge (-p A -p X), lane reset to T."""
+    worktree = lane_worktree(mission, "lane-a")
+    approved_tip = git_rev(worktree, "HEAD")
+    mission_tip = git_rev(mission.repo, mission.coord_branch)
+    (worktree / LATE_PATH).parent.mkdir(parents=True, exist_ok=True)
+    (worktree / LATE_PATH).write_text(LATE_CONTENT, encoding="utf-8")
+    _git(worktree, "add", LATE_PATH)
+    tree = _git(worktree, "write-tree")
+    hand = _git(worktree, "commit-tree", tree, "-p", approved_tip, "-p", mission_tip, "-m", "hand merge")
+    hider = _git(worktree, "commit-tree", tree, "-p", approved_tip, "-p", hand, "-m", "clean merge")
+    _git(worktree, "reset", "-q", "--hard", hider)
+    return hand
+
+
+@pytest.mark.parametrize("strategy", ["squash", "merge"])
+def test_hand_merge_off_the_spine_is_refused_before_any_branch_moves(tmp_path: Path, strategy: str) -> None:
+    mission = build_post_approval_mission(tmp_path, "lanes")
+    hand = _hide_behind_clean_merge(mission)
+    before = _reflog_lengths(mission)
+
+    code, flat = _consolidate(mission, "--yes", "--strategy", strategy)
+
+    assert code != 0 and _CODE in flat and f"merge {hand[:7]}" in flat, flat
+    assert "Reconciliation FAILED" not in flat, flat
+    _assert_no_mutation(mission, before)
+
+
+def test_resume_with_a_hand_merge_added_after_the_interrupt_does_not_land(tmp_path: Path) -> None:
+    """The frozen lane tip and the gate re-check (``lane_tips_moved_refusal``) keep a hand merge made during the interrupt off the target."""
+    mission = build_post_approval_mission(tmp_path, "coord")
+    shape = _shape(mission, "coord")
+    record = cs.interrupt_after_claim(shape)
+    assert record.get("pre_interrupt_lane_tips"), sorted(record)
+    hand = _hide_behind_clean_merge(mission)
+
+    code, flat = _consolidate(mission, "--resume", "--yes")
+
+    assert code != 0, flat
+    assert LATE_PATH not in _git(mission.repo, "ls-tree", "-r", "--name-only", mission.target_branch).split(), flat
+    # The resume rebuilds the claim, so the claim-time refusal names the hidden merge before any branch moves.
+    assert "at claim time, before any change" in flat and _CODE in flat and f"merge {hand[:7]}" in flat, flat

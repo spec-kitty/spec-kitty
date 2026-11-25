@@ -641,19 +641,40 @@ def content_commits(repo_root: Path, commits: Iterable[str], is_bookkeeping: Cal
     return content
 
 
-def first_parent_merges_beyond(repo_root: Path, tip: str, excluded: Sequence[str]) -> list[str]:
-    """The merge commits on *tip*'s first-parent spine that none of *excluded* reaches, newest first (FR-004).
+def merges_beyond(repo_root: Path, tip: str, excluded: Sequence[str], *, first_parent: bool = False) -> list[str]:
+    """The merge commits reachable from *tip* that none of *excluded* reaches, newest first (FR-004).
 
-    ONE history query (``git rev-list --first-parent --merges <tip> ^<excluded>...``): the gate's
-    spine (``coord_base..lane``, first parent) restricted to merges and to what the claim base does
-    not already hold. Raises :class:`~specify_cli.consolidation.git_probes.GitProbeError` on any git
-    error: an unreadable spine is never read as "no merge" (NFR-002).
+    ONE history query (``git rev-list --merges <tip> ^<excluded>...``). By default it walks every
+    parent, so a hand merge hidden behind a clean merge (off the first-parent spine) is found too;
+    *first_parent* restricts it to the spine (``--first-parent``), the walk the gate's authorship
+    reads. Raises :class:`~specify_cli.consolidation.git_probes.GitProbeError` on any git error: an
+    unreadable history is never read as "no merge" (NFR-002).
     """
-    argv = ["git", "rev-list", "--first-parent", "--merges", tip, *(f"^{ref}" for ref in excluded)]
+    walk = ["--first-parent"] if first_parent else []
+    argv = ["git", "rev-list", *walk, "--merges", tip, *(f"^{ref}" for ref in excluded)]
     ret, out, err = git_ops.run_command(argv, capture=True, check_return=False, cwd=repo_root)
     if ret != 0:
-        raise GitProbeError(f"git rev-list --first-parent --merges {tip} failed (exit {ret}): {(err or '').strip()}")
+        raise GitProbeError(f"git {' '.join(argv[1:])} failed (exit {ret}): {(err or '').strip()}")
     return [line.strip() for line in (out or "").splitlines() if line.strip()]
+
+
+def unreviewed_merge_candidates(
+    repo_root: Path, merges: Iterable[str], own_stamps: Sequence[str], canceled_window: Mapping[str, str] | None = None
+) -> tuple[str, ...]:
+    """The merges of *merges* that no review covers: no own stamp reaches them, or they lie in a canceled window (FR-004).
+
+    The one statement of which merges FR-004 judges, read by the claim-time verdict
+    (:func:`unreviewed_resolution_merges`) and by the gate's advisory ``unreviewed_merges`` alike.
+    The reach rule is the gate's own predicate
+    (:func:`~specify_cli.consolidation.reconciliation_authorship.merge_reviewed_by_own_stamps`): only
+    the merge's OWN lane's approval stamps count, pre-sync stamps included. A merge *canceled_window*
+    names (``{merge: canceled work package}``) was made inside that canceled work package's window, so a
+    later approval reaching it does not review it (addendum 6).
+    """
+    from .reconciliation_authorship import merge_reviewed_by_own_stamps
+
+    window = canceled_window or {}
+    return tuple(sha for sha in merges if sha in window or not merge_reviewed_by_own_stamps(repo_root, sha, own_stamps))
 
 
 def _attributes_at(repo_root: Path, paths: Sequence[str], source: str) -> list[str]:
@@ -707,8 +728,7 @@ def unreviewed_resolution_merges(
     lane_id: str,
     branch: str,
     wp_ids: Sequence[str],
-    spine_merges: Iterable[str],
-    own_stamps: Sequence[str],
+    merges: Iterable[str],
     is_recorded: Callable[[str], bool],
     is_bookkeeping: Callable[[str], bool],
     attributes_source: str | None = None,
@@ -717,14 +737,10 @@ def unreviewed_resolution_merges(
 ) -> tuple[BoundRefusal, ...]:
     """``RESOLUTION_MERGE_UNREVIEWED`` refusals for *lane_id*: merges carrying their own content that no review covers (FR-004).
 
-    *spine_merges* are the merges on the lane's first-parent spine beyond the claim base
-    (:func:`first_parent_merges_beyond`). Each one is skipped, cheapest check first (NFR-001), when
+    *merges* are the lane's merges no review covers (:func:`unreviewed_merge_candidates` over
+    :func:`merges_beyond`, every parent walked). *canceled_window* names the ones made inside a
+    canceled work package's window, for the text. Each one is skipped, cheapest check first (NFR-001), when
 
-    * one of *own_stamps* (the lane's OWN approval stamps, pre-sync stamps included) reaches it,
-      through the predicate the gate shares
-      (:func:`~specify_cli.consolidation.reconciliation_authorship.merge_reviewed_by_own_stamps`),
-      unless *canceled_window* names it (``{merge: canceled work package}``: it was made inside
-      that canceled work package's window, so the later approval does not review it);
     * *is_recorded* says the tool made it (the auto-rebase record, exact SHA) AND its merge
       attributes hold (:func:`_recorded_merge_attributes_hold`); otherwise it is a hand merge;
     * its own content (:func:`~specify_cli.consolidation.git_probes.merge_own_changed_paths`, run
@@ -735,13 +751,9 @@ def unreviewed_resolution_merges(
     raises :class:`~specify_cli.consolidation.git_probes.GitProbeError` (NFR-002): nothing passes
     for want of an answer.
     """
-    from .reconciliation_authorship import merge_reviewed_by_own_stamps
-
     refusals: list[BoundRefusal] = []
-    for sha in spine_merges:
+    for sha in merges:
         canceled_wp = (canceled_window or {}).get(sha)
-        if canceled_wp is None and merge_reviewed_by_own_stamps(repo_root, sha, own_stamps):
-            continue
         if is_recorded(sha) and _recorded_merge_attributes_hold(repo_root, sha, attributes_source):
             continue
         own = [path for path in _own_paths(repo_root, sha, attributes_source, memo) if not is_bookkeeping(path)]
@@ -921,11 +933,12 @@ __all__ = [
     "check_lane_effective",
     "commits_beyond",
     "content_commits",
-    "first_parent_merges_beyond",
+    "merges_beyond",
     "is_approved_reviewed_attestation",
     "move_back_command",
     "refusal_codes",
     "render_refusals",
     "resolves_commit",
+    "unreviewed_merge_candidates",
     "unreviewed_resolution_merges",
 ]

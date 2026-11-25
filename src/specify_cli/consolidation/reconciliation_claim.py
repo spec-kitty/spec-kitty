@@ -382,6 +382,7 @@ def _build_claim(
         presence=presence,
         unreviewed_sink=unreviewed,
         own_paths_memo=bound.merge_own_paths,
+        unreviewed_candidates=bound.unreviewed_candidates,
     )
     excluded_shas, excluded_patch_ids = _collect_excluded(
         repo_root,
