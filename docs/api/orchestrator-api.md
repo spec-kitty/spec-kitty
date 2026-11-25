@@ -31,7 +31,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.30.0`
+- `CONTRACT_VERSION`: `1.31.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -282,6 +282,15 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   outside `kitty-specs/` (#7809), each `{"wp_id", "from", "to", "paths_outside_kitty_specs"}`.
   The list is empty when no work package was rewritten, and the key is present on every successful
   run and on `--validate-only`. Purely additive.
+- `1.31.0` — `consolidate-mission` can newly refuse before it consolidates any lane when a merge on
+  an approved code lane carries content of its own and no review approval of that lane reaches it
+  (#5604): a hand resolution of a conflict, or a merge made inside a canceled work package's
+  window. The envelope `error_code` stays `PREFLIGHT_FAILED`; `data.preflight_error_code` /
+  `data.preflight_error_codes` carry `RESOLUTION_MERGE_UNREVIEWED`. The stale-lane failure text in
+  `data.errors` for an approved lane now prints the re-review route (reopen the work package,
+  `implement --incorporate <sibling lane>`, resolve, `for_review`, an independent approval, re-run);
+  text only, no new field. A call that could answer `success: true` now refuses, so a minor bump;
+  no field or `error_code` is removed or renamed.
 
 ## Response Envelope
 
@@ -289,7 +298,7 @@ Every command returns exactly one JSON object with these 7 top-level keys:
 
 ```json
 {
-  "contract_version": "1.30.0",
+  "contract_version": "1.31.0",
   "command": "orchestrator-api.mission-state",
   "timestamp": "2026-04-08T12:00:00+00:00",
   "correlation_id": "corr-0123456789abcdef",
@@ -1195,6 +1204,7 @@ envelope code, puts the message in `data.errors`, and carries a stable code in
 | `LANE_MOVED_AFTER_APPROVAL` | The lane holds a content commit made after review approved it. | Move the work package back for review, approve it again, re-run. |
 | `APPROVAL_STAMP_MISSING` | An approved work package records no lane head, so what review approved cannot be determined. | Move it back for review and approve it again, or attest the approval with `spec-kitty consolidate --attest-approved-reviewed` (the host command only). |
 | `APPROVAL_STAMP_NOT_ON_LANE` | The approval names a commit that is not on the lane: the lane was rewritten after review. | Move the work package back for review, approve it again, re-run. |
+| `RESOLUTION_MERGE_UNREVIEWED` | (1.31.0, #5604) A merge on an approved code lane carries content of its own (a path it resolved itself beyond git's re-merge of its parents) and no review approval of the lane reaches it: a hand resolution of a conflict, an evil merge, or a merge made inside a canceled work package's window. The message names the merge by its short SHA; a one-sided resolution says the other side's change is dropped. | Send the work package back for review (`spec-kitty agent tasks move-task <WP> --to planned --review-feedback-file <file>`), re-enter it and bring the sibling lane in with `spec-kitty agent action implement <WP> --incorporate <lane> --agent <agent>`, resolve and commit, move it to `for_review`, have an independent reviewer approve it again, re-run. For a merge inside a canceled work package's window, rebuild the lane without it. No attestation lifts it. |
 | `IMPLEMENTATION_MISSING` | (1.21.0) An approved work package's evidence window holds no change to its `owned_files` (Mission files the CLI writes itself, such as `tasks/`, `lanes.json` or `acceptance-matrix.json`, never count). | Commit the work package's change to its owned files and have it reviewed and approved again, or record `spec-kitty accept` / `spec-kitty consolidate --attest-no-implementation <WP> --attest-reason "<why>"` (host commands only) when it owes none. |
 | `REVIEW_NOT_INDEPENDENT` | (1.21.0) The approver is not provably another identity than the implementer of record: the same tool with no model or profile recorded on both sides that differs, or an identity that is not recorded (a placeholder such as `user` included). | Have a reviewer with another identity review and approve it (`--agent <tool>:<model>:<profile>`). No attestation lifts it. |
 | `IMPLEMENTATION_UNREADABLE` | (1.21.0) The evidence window cannot be diffed, for example the lane branch or the recorded planning commit is gone. A lane branch that is truly absent is reported as absent, with its own cause. | Restore or fetch actual recorded lane history and the planning commit where they existed. Local refs, including sibling presence, do not prove the missing lane ever existed; never manufacture its window from target-branch work. No local lane refs is also consistent with target-branch execution, pruning or an incomplete fetch. The verified PR-merge route (`accept --mode pr --merge-commit <sha>`) stays available under its existing checks. Without that landing or a lane window to restore, escalate [#7120](https://github.com/spec-kitty/spec-kitty/issues/7120) instead of retrying that window. |

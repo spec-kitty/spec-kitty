@@ -232,7 +232,16 @@ from kernel.clock import now_utc_iso
 # (#7809): a list of ``{wp_id, from, to, paths_outside_kitty_specs}``, empty when none. Present on
 # every successful run and on ``--validate-only``. Purely additive; no field or ``error_code`` is
 # removed or renamed.
-CONTRACT_VERSION = "1.30.0"
+# 1.31.0: ``consolidate-mission`` can newly refuse before it consolidates any lane when a merge on
+# an approved code lane carries content of its own and no review approval of that lane reaches it
+# (#5604): a hand resolution of a conflict, or a merge made inside a canceled work package's window.
+# ``PREFLIGHT_FAILED`` with ``data.preflight_error_code`` / ``preflight_error_codes`` =
+# ``RESOLUTION_MERGE_UNREVIEWED``. The stale-lane failure text in ``data.errors`` for an approved
+# lane now prints the re-review route (reopen, ``implement --incorporate <sibling lane>``, resolve,
+# ``for_review``, an independent approval, re-run); text only, no new field. A call that could
+# answer ``success: true`` now refuses, so a minor bump; no field or ``error_code`` is removed or
+# renamed.
+CONTRACT_VERSION = "1.31.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose
