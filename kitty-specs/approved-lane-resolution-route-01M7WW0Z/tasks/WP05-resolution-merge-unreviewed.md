@@ -273,6 +273,11 @@ Implement command: `spec-kitty agent action implement WP05 --agent claude --miss
    - `tests/architectural/test_no_dead_symbols.py` must be green on WP05's lane.
 4. `is_recorded` raises on a record that names a different commit. Treat that as a refusal.
    - A missing `unreviewed_merges` entry never means "clean": re-probe or refuse (WP04 reviewer note).
+5. Pre-sync stamps (orchestrator ruling 2026-11-25, WP04 rebase delta). After the rebase, WP04's shared reader is `own_approval_stamps(lane, work_packages, approval_stamps, presync_stamps=None)`. Main's #7802 makes each approved WP's pre-sync stamp a reach anchor after its `lane_head` stamp.
+   - The claim-time check MUST pass the pre-sync stamps, as `_approved_stamps` does (`presence.approval_presync_stamps`), so that the claim and the gate read one definition.
+   - Red test: a merge reached only by an approved WP's pre-sync stamp, and not by its `lane_head` stamp, is treated as reviewed at claim time, the same as at the gate.
+6. Merge inside a canceled WP's window (reviewer binding probe, WP08 review cycle 2, 2026-11-25). The setup: a merge whose resolution adds its own content (for example `src/canceled.py`) sits inside a canceled WP's window, and that WP is canceled at that merge. Later, an approved WP on the same lane is approved at a commit whose stamp reaches the merge. Today the merge is dropped from the canceled window and counts as "reviewed" under #7307, although no approved WP's review window held it.
+   - Add a real-git test of exactly this shape. The test must refuse, either with RESOLUTION_MERGE_UNREVIEWED or through the canceled-content axis. It must never land.
 
 ## Test Strategy
 

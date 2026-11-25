@@ -1,18 +1,18 @@
 {
-  "event_count": 74,
-  "last_event_id": "01M88RPFTVSWRMQ670GXFJQGE9",
-  "materialized_at": "2026-11-25T07:11:07.226307+00:00",
+  "event_count": 89,
+  "last_event_id": "01M890KG7RJD3PHXKYXY6WZF80",
+  "materialized_at": "2026-11-25T09:29:17.842536+00:00",
   "mission_number": "",
   "mission_slug": "approved-lane-resolution-route-01M7WW0Z",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 3,
+    "approved": 2,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 2,
+    "for_review": 3,
     "in_progress": 1,
     "in_review": 0,
     "planned": 8
@@ -20,14 +20,14 @@
   "work_packages": {
     "WP01": {
       "actor": "claude",
-      "agent": null,
+      "agent": "claude::reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M88RPFTVSWRMQ670GXFJQGE9",
-      "last_transition_at": "2026-11-25T07:11:07.226307+00:00",
+      "lane": "approved",
+      "last_event_id": "01M890BE2ZA7CNS0TTX7YBAWC9",
+      "last_transition_at": "2026-11-25T09:24:54.495093+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-20T18:04:16Z – claude – shell_pid=24964 – T001 red: uv run --frozen pytest -q tests/consolidation/test_merge_attribute_guard.py on HEAD -> 23 failed, 2 passed. Every attack route (info_attributes, worktree_gitattributes, core_attributes_file, custom_driver, merge_default, builtin binary/text redefined, registered driver redefined on wrong and on own pattern, registered shipped command on wrong pattern) x both probes fails with 'DID NOT RAISE GitProbeError'; also red: union on non-conflicting path, either-parent guard, git --version once per run scope (HEAD spawns one per call). Controls green: attribute on another path, single-commit fold.",
@@ -55,25 +55,29 @@
         "review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
         "REJECT cycle 2: review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
         "- 2026-11-25T07:16:04Z – unknown – cycle-3 red (review cycle 2): on c93350986c, 'pytest -q tests/consolidation/test_merge_attribute_guard.py -k \"inert or not_refused or pin_table or renormalize\"' -> 8 failed, 7 passed: the new inert / not-refused tests failed with the unconditional filter/ident/working-tree-encoding refusal, and the pin-table test failed. After dropping that refusal but before adding the pin: 3 failed with the laundering symptom itself (test_the_renormalize_pin_keeps_a_hostile_clean_filter_inert[config_file|git_config_count]: 'assert [] == [\"f\"]', i.e. merge_own_changed_paths read the hand edit as no own content) plus the pin-table assertion. All green after the pin.",
-        "- 2026-11-25T07:16:09Z – unknown – review cycle 2 addressed (9573434bb6): (1) MERGE_PROBE_CONFIG_PINS gains ('merge.renormalize','false'), so the probes' own git never renormalizes whatever changed after the guard's read; WP07/WP12 get it through the same table. (2) The named merge.renormalize refusal is kept unchanged. (3) The unconditional filter/ident/working-tree-encoding refusal is dropped; check-attr reads only 'merge' again (not kept for messages: simpler, and the renormalize message already names the cause). LFS (filter=lfs) and ident repos are not refused; a merge=lfs attribute still refuses as an unregistered driver, as before. (4) Tests: hostile clean filter inert without renormalize; inert with the pin when renormalize=true is set by config file or GIT_CONFIG_COUNT after the guard's read (guard read monkeypatched away to simulate the gap) - both probes report ['f'] and n_way_merge_blob does not return the hand blob; filter=lfs / ident / working-tree-encoding not refused; filter=lfs end-to-end on both probes; pin-table test for merge.renormalize."
+        "- 2026-11-25T07:16:09Z – unknown – review cycle 2 addressed (9573434bb6): (1) MERGE_PROBE_CONFIG_PINS gains ('merge.renormalize','false'), so the probes' own git never renormalizes whatever changed after the guard's read; WP07/WP12 get it through the same table. (2) The named merge.renormalize refusal is kept unchanged. (3) The unconditional filter/ident/working-tree-encoding refusal is dropped; check-attr reads only 'merge' again (not kept for messages: simpler, and the renormalize message already names the cause). LFS (filter=lfs) and ident repos are not refused; a merge=lfs attribute still refuses as an unregistered driver, as before. (4) Tests: hostile clean filter inert without renormalize; inert with the pin when renormalize=true is set by config file or GIT_CONFIG_COUNT after the guard's read (guard read monkeypatched away to simulate the gap) - both probes report ['f'] and n_way_merge_blob does not return the hand blob; filter=lfs / ident / working-tree-encoding not refused; filter=lfs end-to-end on both probes; pin-table test for merge.renormalize.",
+        "- 2026-11-25T08:45:54Z – unknown – tests (cycle 3, 9573434bb6): guard file 111 passed; ruff/format/mypy clean. Host was saturated by parallel WP runs (load avg ~18-21 on 4 CPUs). First runs: tests/consolidation+tests/lanes -n 8 -> 4763 passed, 21 failed, 16 errors in 65 min (cycle 2: 18 min, all green); make test-fast -> 3142 passed, 2 failed; arch gates -> 180 passed, 1 failed. Classified: every one of the 40 reds was a timeout (28 pytest-timeout >240s, 9 subprocess TimeoutExpired, plus the 3 arch/fast ones), no assertion failure. Isolated rerun of all 40 node ids (-n 2): 39 passed; the remaining one, test_no_dead_symbols::test_m11c_gate_reads_the_widened_section_it_is_given, again hit only its 240s budget, and its verdict with --timeout=0 is green: tests/architectural/test_no_dead_symbols.py 37 passed. Baseline-red category: environmental (load), not this diff, which touches only merge_attribute_guard.py and its test.",
+        "- 2026-11-25T08:48:47Z – unknown – shell_pid=13582 – trace(tooling-friction): 'spec-kitty agent tasks move-task WP01 --to for_review --mission approved-lane-resolution-route-01M7WW0Z --agent claude::python-pedro' refused: lane behind kitty/mission-approved-lane-resolution-route-01M7WW0Z by 378 commits (181 non-ledger), and its remedy printed a manual 'cd .worktrees/...-lane-a && git rebase kitty/mission-...' recipe. CLAUDE.md names 'spec-kitty agent action implement <WP> --mission <handle>' as the lane sync point and says never to use a cd + git recipe, so the two canonical surfaces disagree. Used the implement re-entry: it produced a63c072dd6 'auto-rebase(lane=lane-a): 14 conflicts resolved by classifier rules' (coordination/status artifacts only), lane now 0 behind, my commits kept by SHA (9573434bb6 is an ancestor). Of WP01's owned/leeway files only lanes/consolidation.py changed in the sync (WP07's own work); registered_merge_driver_specs() is still present. Suggest move-task print the implement remedy instead of git rebase.",
+        "- 2026-11-25T08:53:40Z – unknown – shell_pid=13582 – tests on the synced lane (HEAD a63c072dd6, after implement's auto-rebase onto the mission branch): guard + targeted blast radius (12 files incl. test_merge_attribute_guard, test_reconciliation, test_merge_tree_probe, test_lane_tip) -> 494 passed, 1 xfailed; ruff/format/mypy clean on all WP01 files.",
+        "Cycle-3 fixes (9573434bb6), per operator ruling 2026-11-25: MERGE_PROBE_CONFIG_PINS gains merge.renormalize=false; the named merge.renormalize refusal is kept; the unconditional filter/ident/working-tree-encoding refusal is dropped (LFS and ident repos are not refused). Tests: hostile clean filter inert without renormalize and inert with the pin past the guard (config file and GIT_CONFIG_COUNT); filter=lfs not refused on both probes; pin-table row. Lane synced through implement (a63c072dd6). Guard 111 passed; targeted on synced lane 494 passed; dead-symbol gate 37 passed; load-induced timeouts all reran green in isolation."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
       "review_result": {
-        "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP01-merge-probe-attribute-guard/review-cycle-2.md",
-        "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP01-merge-probe-attribute-guard/review-cycle-2.md",
+        "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP01-merge-probe-attribute-guard/review-cycle-3.md",
+        "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP01-merge-probe-attribute-guard/review-cycle-3.md",
         "reviewer": "claude::reviewer-renata",
-        "verdict": "changes_requested"
+        "verdict": "approved"
       },
-      "role": "implementer",
-      "shell_pid": null,
-      "shell_pid_created_at": null,
+      "role": "reviewer",
+      "shell_pid": 13582,
+      "shell_pid_created_at": "1795596415.97",
       "subtasks": {
-        "T001": "planned",
-        "T002": "planned",
-        "T003": "planned",
-        "T004": "planned",
-        "T005": "planned"
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
       }
     },
     "WP02": {
@@ -81,11 +85,11 @@
       "agent": "claude::reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 1,
+      "force_count": 2,
       "implementer_of_record": "claude",
       "lane": "approved",
-      "last_event_id": "01M7X81DTAAS549YB31X9QSZRH",
-      "last_transition_at": "2026-11-20T19:48:21.962185+00:00",
+      "last_event_id": "01M88ZK6V27Z1SVQFC6V056NXA",
+      "last_transition_at": "2026-11-25T09:11:40.642318+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-20T18:04:07Z – claude – shell_pid=25208 – T006 red: uv run --frozen pytest -q tests/lanes/test_auto_rebase_record.py -> 24 failed, 2 passed. Writer tests fail on assertions (clean/auto-resolved: _ref_value(...auto-rebase/<lane>/<head>) is None; report tests: AttributeError no merge_sha); reader/cleanup tests ImportError (module absent). Controls green at HEAD: test_halted_auto_rebase_records_nothing, test_already_up_to_date_records_nothing. Record-failure test 6 is ImportError at HEAD (it patches the new module); its assertion red is shown after T007.",
@@ -102,13 +106,14 @@
         "- 2026-11-20T19:36:00Z – unknown – Cycle 2 tests: tests/lanes/test_auto_rebase_record.py 36 passed; targeted set + arch gates (merge_pipeline_ratchets, destructive_op_routing, git_path_listing_owner, layer_rules, no_dead_symbols) 412 passed; make test-fast 3144 passed, 7 skipped; ruff check, C901, ruff format --check --force-exclude, mypy (3 src files) clean.",
         "Cycle 2: dead-symbol gate green (narrowed __all__, internal ref helpers); record bound to the tool-staged tree in both commit paths, hook-altered merges undone and unrecorded; real pre-commit hook tests on both shapes.",
         "review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
-        "APPROVE cycle 2 (2ba0c493): review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner"
+        "APPROVE cycle 2 (2ba0c493): review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
+        "Rebase onto 753fd3a9 rewrote lane-b; re-approval loop for the new head 37fecdf47e (operator ruling)",
+        "Rebased head 37fecdf47e submitted for delta re-review"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
       "review_result": {
-        "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP02-auto-rebase-record/review-cycle-2.md",
-        "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP02-auto-rebase-record/review-cycle-2.md",
+        "reference": "session:session_019C2Tk5ehA3TXonKhbxbaMR",
         "reviewer": "claude::reviewer-renata",
         "verdict": "approved"
       },
@@ -131,14 +136,14 @@
     },
     "WP04": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": "claude::implementer-ivan",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 1,
+      "force_count": 2,
       "implementer_of_record": "claude",
-      "lane": "approved",
-      "last_event_id": "01M7X7Z8BJ3WRGST6NQS2Q7N4Y",
-      "last_transition_at": "2026-11-20T19:47:10.834603+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M8904FMKX7YTWYJ9KVK7TGMG",
+      "last_transition_at": "2026-11-25T09:21:06.707944+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-20T18:05:54Z – claude – shell_pid=24982 – T010 red: uv run --frozen pytest -q tests/consolidation/test_reviewed_merge_predicate.py at base -> 13 failed, 5 passed. Predicate tests (6) fail with ImportError: cannot import name 'merge_reviewed_by_own_stamps'/'own_approval_stamps' from reconciliation_authorship; claim tests fail with ImportError UnreviewedMerge or 'assert None == ()' / 'assert None is not None' (getattr(claim,'unreviewed_merges',None) is None); replace test AttributeError no attribute 'unreviewed_merges'.",
@@ -159,7 +164,9 @@
         "- 2026-11-20T19:21:58Z – unknown – trace(tooling-friction): the octopus fixture first used 'git add -A' on the lane branch, which committed the uncommitted status.events.jsonl into the merge tree and removed it on checkout, silently emptying the claim (approved={}, no refusal). Fixed by staging only the fixture paths.",
         "Review cycle 1 addressed: names out of __all__ (no_dead_symbols green); octopus and is_merge_commit probe-error tests added. Targeted 546 passed/1 xfailed; test-fast 3144 passed.",
         "Review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
-        "APPROVE cycle 2 (1b474a4e): review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner"
+        "APPROVE cycle 2 (1b474a4e): review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
+        "Rebase onto 753fd3a9 rewrote lane-d (+adapt commit 4e1fa6fb15); re-approval loop (operator ruling)",
+        "Rebased head 4e1fa6fb15 submitted for delta re-review"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -169,7 +176,7 @@
         "reviewer": "claude::reviewer-renata",
         "verdict": "approved"
       },
-      "role": "reviewer",
+      "role": "implementer",
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
@@ -202,14 +209,14 @@
     },
     "WP08": {
       "actor": "claude",
-      "agent": "claude::python-pedro",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 1,
+      "force_count": 2,
       "implementer_of_record": "claude",
-      "lane": "for_review",
-      "last_event_id": "01M7XAA3Q391YRR4K3KTJ6CQX4",
-      "last_transition_at": "2026-11-20T20:28:03.683689+00:00",
+      "lane": "in_progress",
+      "last_event_id": "01M890KG7RJD3PHXKYXY6WZF80",
+      "last_transition_at": "2026-11-25T09:29:17.842536+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-20T18:09:00Z – claude – shell_pid=20158 – red: uv run --frozen pytest -q -n 4 tests/lanes/test_incorporate_sibling_lane.py -> 13 failed, 1 passed at base. CLI tests fail with typer exit 2 'No such option: --incorporate'; unit tests fail ModuleNotFoundError specify_cli.lanes.incorporate. test_without_flag_implement_is_unchanged is a RATCHET, green at base by construction: golden recorded at base (normalised SHAs/ULIDs/timestamps/tmp/HOME and the claim PID, which is volatile per run), determinism precondition asserted by building the fixture twice.",
@@ -229,8 +236,8 @@
       "provider": "__resolved_provider_absent__",
       "review": null,
       "review_result": {
-        "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP08-implement-incorporate/review-cycle-1.md",
-        "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP08-implement-incorporate/review-cycle-1.md",
+        "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP08-implement-incorporate/review-cycle-2.md",
+        "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP08-implement-incorporate/review-cycle-2.md",
         "reviewer": "claude::reviewer-renata",
         "verdict": "changes_requested"
       },
@@ -238,10 +245,10 @@
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
-        "T014": "done",
-        "T015": "done",
-        "T016": "done",
-        "T017": "done"
+        "T014": "planned",
+        "T015": "planned",
+        "T016": "planned",
+        "T017": "planned"
       }
     },
     "WP09": {
@@ -253,14 +260,14 @@
     },
     "WP10": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": "claude::implementer-ivan",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 2,
+      "force_count": 3,
       "implementer_of_record": "claude",
-      "lane": "approved",
-      "last_event_id": "01M7X9RGJTEGF8RVKR64B2TB7Y",
-      "last_transition_at": "2026-11-20T20:18:27.034586+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M88ZXCXMK2YG2JFV00ZYNJTB",
+      "last_transition_at": "2026-11-25T09:17:14.548640+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-20T18:01:04Z – claude – shell_pid=24797 – red: uv run --frozen pytest -q tests/review/test_review_context_merge_lines.py -> 9 failed: TypeError WpReviewRange.__init__() unexpected keyword 'merges'/'remerge_available' (renderer tests), AttributeError 'WpReviewRange' object has no attribute 'merges' (range-level git tests incl. two-merge full-history and fail-soft)",
@@ -280,7 +287,9 @@
         "- 2026-11-20T20:03:18Z – claude::python-pedro – trace(design-decisions): no public git >= 2.40 probe is reachable from lane-j (the --attr-source probe _CHECK_ATTR_SOURCE_MIN_VERSION exists only on lane-a, WP01, which WP10 does not depend on), so per the coordinator ruling the --attr-source form prints unconditionally with a 'needs git >= 2.40' note instead of a second version authority. The attribute source is the range base (window open), not the empty tree. Follow-up for WP13/integration: once lane-a lands, gate the form on that probe and print a 'cannot neutralise attributes' line on older git.",
         "Review addendum fixed (2402dc94): resolution commands pin --attr-source to the range base; merge=union fixture test. Targeted 467 + no_dead_symbols 37 passed; make test-fast 3144 passed 7 skipped.",
         "review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
-        "APPROVE cycle 2 (fe066bc6, 2402dc94): review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner"
+        "APPROVE cycle 2 (fe066bc6, 2402dc94): review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
+        "Rebase onto 753fd3a9 rewrote lane-j; re-approval loop for the new head 05584e913c (operator ruling)",
+        "Rebased head 05584e913c submitted for delta re-review"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -290,7 +299,7 @@
         "reviewer": "claude::reviewer-renata",
         "verdict": "approved"
       },
-      "role": "reviewer",
+      "role": "implementer",
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
