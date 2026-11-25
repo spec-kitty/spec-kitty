@@ -84,3 +84,29 @@ def test_committed_owned_work_is_not_refused(single_branch_window: list[str]) ->
     single_branch_window.append("src/wp01/greeting.py")
 
     move_task_module._mt_require_implementation_evidence(_state(Lane.FOR_REVIEW))
+
+
+def test_missing_implementation_names_the_rebase_re_pin(single_branch_window: list[str]) -> None:
+    """#7793 / #7297: after a rebase the committed work can sit outside the window; the refusal names the route back."""
+    with pytest.raises(ActionContextError) as refused:
+        move_task_module._mt_require_implementation_evidence(_state(Lane.FOR_REVIEW))
+
+    message = str(refused.value)
+    assert "plan0000..mission-branch" in message
+    assert "finalize-tasks --mission sb --refresh-planning-commit --allow-orphaned" in message
+
+
+def test_uncomputable_window_names_derivation_then_the_refresh(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7297 items 2 and 3: plain finalize derives the pin; --refresh-planning-commit is the fallback it names."""
+    monkeypatch.setattr(persistence, "require_lanes_json", lambda _feature_dir: SimpleNamespace(mission_slug="sb"))
+    monkeypatch.setattr(single_branch_landing, "is_single_branch_mission", lambda _repo, _manifest: True)
+    monkeypatch.setattr(single_branch_landing, "single_branch_evidence_window", lambda _repo, _manifest, **_kw: None)
+
+    with pytest.raises(ActionContextError) as refused:
+        move_task_module._mt_require_implementation_evidence(_state(Lane.FOR_REVIEW))
+
+    assert refused.value.code == "SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE"
+    message = str(refused.value)
+    assert "finalize-tasks --mission sb" in message
+    assert "derives the planning commit from the mission branch" in message
+    assert "--refresh-planning-commit" in message

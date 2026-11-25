@@ -1,0 +1,48 @@
+{
+  "accept_commit": "864e116af177c860b23fdc4334474bed712a147e",
+  "acceptance_history": [
+    {
+      "accept_commit": "864e116af177c860b23fdc4334474bed712a147e",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-11-20T19:50:32.468335+00:00",
+      "accepted_by": "claude::python-pedro",
+      "accepted_from_commit": "4b8c8db8ed6e82e0d347e050afb256f6a679de0e"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-11-20T19:50:32.468335+00:00",
+  "accepted_by": "claude::python-pedro",
+  "accepted_from_commit": "4b8c8db8ed6e82e0d347e050afb256f6a679de0e",
+  "baseline_merge_commit": "cfa681365583ddedf4fe0d2ce653e43d6e490a67",
+  "contracts": "none",
+  "contracts_rationale": "Bugfix Mission defines no interfaces: it changes operator-facing stale-refusal text and an internal stale-check result type; no contracts/ deliverable.",
+  "create_return_branch": "fix/7755-stale-lane-auto-rebase-recovery",
+  "created_at": "2026-11-20T17:58:16.258193+00:00",
+  "flattened": false,
+  "friendly_name": "Recoverable stale-lane refusal after a halted in-run auto-rebase",
+  "merged_at": "2026-11-20T19:51:55.029584+00:00",
+  "merged_commit": "9bd9b9b1609dd2fa2995f39fa76025ebd3e3945b",
+  "mid8": "01M7X1QS",
+  "mission_base_sha": "cfa681365583ddedf4fe0d2ce653e43d6e490a67",
+  "mission_id": "01M7X1QSXKVTHS52Z1CQHMVZ03",
+  "mission_number": 264,
+  "mission_slug": "stale-lane-sibling-recovery-01M7X1QS",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "When consolidate refuses a lane as stale after its in-run auto-rebase stops on a conflict with a sibling lane merged earlier in the same run, the operator today gets a remedy that cannot work: the rollback removes the sibling's change from the Mission branch, and the named implement command refuses approved work packages (#7755, #7754).",
+  "purpose_tldr": "Make a consolidate stale-lane refusal name the real cause and a remedy that works for approved work packages.",
+  "slug": "stale-lane-sibling-recovery-01M7X1QS",
+  "status_phase": "1",
+  "target_branch": "fix/7755-stale-lane-auto-rebase-recovery",
+  "topology": "single_branch",
+  "topology_decision": {
+    "code_lane_count": 1,
+    "from": "single_branch",
+    "rule": "wp_count_le_2",
+    "target_protected": false,
+    "to": "single_branch",
+    "wp_count": 1
+  },
+  "topology_settled": true,
+  "topology_source": "default"
+}

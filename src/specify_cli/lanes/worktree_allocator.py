@@ -233,7 +233,19 @@ class DestroyedLaneError(StructuredError):
 
     error_code: str = "DESTROYED_LANE"
 
-    def __init__(self, *, lane_id: str, wp_id: str, branch_name: str, tip_sha: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        lane_id: str,
+        wp_id: str,
+        branch_name: str,
+        tip_sha: str | None = None,
+        rerun_command: str | None = None,
+    ) -> None:
+        # ``rerun_command`` names the caller's own next step (#7806 review follow-up):
+        # the review path says "re-run `spec-kitty agent action review <WP>`"; the
+        # allocator default keeps the historical implement wording byte-identical.
+        rerun = f"`{rerun_command}`" if rerun_command else f"the implement command for {wp_id!r}"
         self.lane_id = lane_id
         self.wp_id = wp_id
         self.branch_name = branch_name
@@ -244,7 +256,7 @@ class DestroyedLaneError(StructuredError):
                 f"first: check `git reflog {branch_name}` (if the reflog entry survived) "
                 f"or `git fsck --lost-found` (dangling commits) in the repository, "
                 f"re-create the branch with `git branch {branch_name} <recovered-sha>`, "
-                f"then re-run the implement command for {wp_id!r}."
+                f"then re-run {rerun}."
             )
             super().__init__(
                 f"cannot allocate lane {lane_id!r} for {wp_id!r}: its branch "
@@ -259,8 +271,7 @@ class DestroyedLaneError(StructuredError):
         self.next_step = (
             f"the recorded lane work tip is {tip_sha} ({tip_ref_name}) -- restore it "
             f"with `git branch {branch_name} {tip_ref_name}`, or deliberately abandon "
-            f"it with `git update-ref -d {tip_ref_name}`, then re-run the implement "
-            f"command for {wp_id!r}."
+            f"it with `git update-ref -d {tip_ref_name}`, then re-run {rerun}."
         )
         super().__init__(
             f"cannot allocate lane {lane_id!r} for {wp_id!r}: its branch "

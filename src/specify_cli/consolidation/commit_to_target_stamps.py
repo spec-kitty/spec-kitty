@@ -23,10 +23,11 @@ import dataclasses
 from pathlib import Path
 from typing import Final
 
-from specify_cli.status import LANE_HEAD_KEY, WP_WINDOW_KEY, StatusEvent
+from specify_cli.status import LANE_HEAD_KEY, LANE_HEAD_PRESYNC_KEY, WP_WINDOW_KEY, StatusEvent
 
-#: The ``policy_metadata`` keys consolidation ignores on a commit-to-target Mission's events.
-WINDOW_STAMP_KEYS: Final = frozenset({LANE_HEAD_KEY, WP_WINDOW_KEY})
+#: The ``policy_metadata`` keys consolidation ignores on a commit-to-target Mission's events (the
+#: #7802 pre-sync stamp travels with ``lane_head``, so it is dropped with it).
+WINDOW_STAMP_KEYS: Final = frozenset({LANE_HEAD_KEY, LANE_HEAD_PRESYNC_KEY, WP_WINDOW_KEY})
 
 
 def is_commit_to_target_mission(feature_dir: Path) -> bool:
@@ -38,7 +39,7 @@ def is_commit_to_target_mission(feature_dir: Path) -> bool:
 
 
 def without_window_stamps(event: StatusEvent) -> StatusEvent:
-    """*event* with ``lane_head`` and ``wp_window`` removed from its ``policy_metadata`` (``None`` when nothing is left)."""
+    """*event* with ``lane_head``, ``lane_head_presync`` and ``wp_window`` removed from its ``policy_metadata`` (``None`` when nothing is left)."""
     metadata = event.policy_metadata
     if not metadata or WINDOW_STAMP_KEYS.isdisjoint(metadata):
         return event

@@ -9,10 +9,10 @@ equality raised ``Completed command output changed`` (#4776) or re-planned the
 
 These tests pin the surgical relaxation: gated on the canonical patchable
 ``kernel.paths.is_windows`` seam, scoped to same-kind effects whose *only*
-divergence from the plan is ``mode``. Originally directory-only, the
-relaxation was generalized to file/symlink kinds under the same authority
-(#4927, T005) so a converged Windows project's managed *files* also stop
-phantom-repairing (see ``test_helper_windows_only_dir_mode`` below). POSIX
+divergence from the plan is ``mode``. Since #4927/#4810 the relaxation is the
+one shared predicate in ``tool_surface.operations`` (``state_equivalent``):
+on Windows a directory compares kind only and a file its write bit (see
+``test_equivalence_on_windows_compares_kind_and_write_bit`` below). POSIX
 mode correctness is never weakened (NFR-003).
 """
 
@@ -24,8 +24,7 @@ from pathlib import Path
 import pytest
 
 from kernel import paths as kernel_paths
-from specify_cli.skills.command_installer import windows_dir_mode_only_divergence
-from specify_cli.tool_surface.operations import FileState, OwnerApplyResult
+from specify_cli.tool_surface.operations import FileState, OwnerApplyResult, state_equivalent
 from specify_cli.tool_surface.providers.managed_skills import ManagedSkillsProvider
 
 # The shared cold-owner harness already exercises the real command + doctrine
@@ -141,57 +140,56 @@ def test_posix_wrong_dir_mode_still_refuses(tmp_path: Path, monkeypatch: pytest.
     assert any(d.code == "shared_parent_changed" for r in results for d in r.diagnostics), results
 
 
-def test_helper_is_dir_scoped_and_host_gated() -> None:
-    """T012 (NFR-003): the gate never relaxes on POSIX, regardless of kind."""
-    dir_755 = FileState("directory", mode=0o755)
-    dir_700 = FileState("directory", mode=0o700)
-    file_644 = FileState("file", sha256="a" * 64, mode=0o644)
-    file_600 = FileState("file", sha256="a" * 64, mode=0o600)
+def test_equivalence_is_exact_on_posix(monkeypatch: pytest.MonkeyPatch) -> None:
+    """T012 (NFR-003): on POSIX nothing is excused, for a directory OR a file.
 
-    # On POSIX (the real test host, is_windows False) nothing is ever excused --
-    # for a directory OR a file. Pinning the file kind here keeps FR-007 (a
-    # genuine mode divergence on a real POSIX host still repairs) regression-proof
-    # rather than implied only by the unconditional is_windows early return.
-    assert windows_dir_mode_only_divergence(dir_700, dir_755) is False
-    assert windows_dir_mode_only_divergence(file_600, file_644) is False
-
-
-def test_helper_windows_only_dir_mode(monkeypatch: pytest.MonkeyPatch) -> None:
-    """T005/T007/T012 (FR-007/NFR-003): under Windows, mode-only divergence is excused
-    for directory, file, and symlink kinds alike -- but a kind mismatch or an
-    additional (non-mode) divergence is still refused.
+    Re-pinned from the retired ``windows_dir_mode_only_divergence`` to the one
+    shared predicate (#4927/#4810, operator ruling 2026-11-20).
     """
     dir_755 = FileState("directory", mode=0o755)
     dir_700 = FileState("directory", mode=0o700)
     file_644 = FileState("file", sha256="a" * 64, mode=0o644)
     file_600 = FileState("file", sha256="a" * 64, mode=0o600)
 
+    monkeypatch.setattr(kernel_paths, "is_windows", lambda: False)
+    assert state_equivalent(dir_700, dir_755) is False
+    assert state_equivalent(file_600, file_644) is False
+
+
+def test_equivalence_on_windows_compares_kind_and_write_bit(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Windows (ruling 2026-11-20): a directory compares kind only, a file its write bit.
+
+    The contract changed from "ignore every Windows file mode" (#4927 T005) to
+    "compare the read-only attribute"; the assertions below were re-pinned
+    accordingly (DIRECTIVE_041: re-pin a stale assertion, keep the test).
+    """
+    dir_755 = FileState("directory", mode=0o755)
+    dir_700 = FileState("directory", mode=0o700)
+    file_644 = FileState("file", sha256="a" * 64, mode=0o644)
+    file_600 = FileState("file", sha256="a" * 64, mode=0o600)
+    file_444 = FileState("file", sha256="a" * 64, mode=0o444)
+
     monkeypatch.setattr(kernel_paths, "is_windows", lambda: True)
-    # Directory diverging only by mode: excused.
-    assert windows_dir_mode_only_divergence(dir_700, dir_755) is True
-    # T005 (#4927): file modes are relaxed too, once the sole divergence is
-    # the host-unrepresentable POSIX mode (the contract changed here --
-    # delete-the-assertion-not-the-test, DIRECTIVE_041).
-    assert windows_dir_mode_only_divergence(file_600, file_644) is True
-    # A kind mismatch (dir vs file) is not a mode-only divergence.
-    assert windows_dir_mode_only_divergence(dir_700, file_644) is False
-    # A directory that also diverges by content-kind is not mode-only.
-    assert windows_dir_mode_only_divergence(dir_755, FileState("absent")) is False
+    assert state_equivalent(dir_700, dir_755) is True
+    assert state_equivalent(file_600, file_644) is True  # both writable
+    assert state_equivalent(file_444, file_644) is False  # read-only drift is representable
+    assert state_equivalent(dir_700, file_644) is False  # a kind mismatch never matches
+    assert state_equivalent(dir_755, FileState("absent")) is False
 
 
-def test_helper_calls_is_windows_through_module_attribute(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_equivalence_calls_is_windows_through_module_attribute(monkeypatch: pytest.MonkeyPatch) -> None:
     """The host check resolves ``kernel.paths.is_windows`` at call time.
 
     Monkeypatching the module attribute (never faking ``os.name``) must flip the
-    gate, proving the seam is patchable per the canonical contract.
+    predicate, proving the seam is patchable per the canonical contract.
     """
     dir_700 = FileState("directory", mode=0o700)
     dir_755 = FileState("directory", mode=0o755)
 
     monkeypatch.setattr(kernel_paths, "is_windows", lambda: False)
-    assert windows_dir_mode_only_divergence(dir_700, dir_755) is False
+    assert state_equivalent(dir_700, dir_755) is False
     monkeypatch.setattr(kernel_paths, "is_windows", lambda: True)
-    assert windows_dir_mode_only_divergence(dir_700, dir_755) is True
+    assert state_equivalent(dir_700, dir_755) is True
 
     # Guard: no test in this module fakes os.name (that flips pathlib on Windows).
     assert os.name in {"posix", "nt"}

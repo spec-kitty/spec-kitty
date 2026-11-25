@@ -127,6 +127,14 @@ from mission_runtime.write_location import (
     WriteLocation,
 )
 
+# #5287: the one remote-only branch remedy, shared by the coordination refusals,
+# the doctor and the status read door (MR-1/MR-2: consumers import it from here).
+from mission_runtime.coord_remedy import (
+    coordination_doctor_command,
+    remote_only_branch,
+    remote_only_steps,
+)
+
 __all__ = [
     "ActionContextError",
     "CheckoutIdentityError",
@@ -172,6 +180,7 @@ __all__ = [
     # #7578 (IC-03): the general event-commit lookup (``claim_commit.py``).
     "commit_introducing_status_event",
     "coord_read_dir_for",
+    "coordination_doctor_command",
     "declared_read_surface",
     # #7578 (H1): the pure PRIMARY write-ref rule of a default Mission (FR-061), read by the review range.
     "default_mission_primary_ref",
@@ -194,6 +203,8 @@ __all__ = [
     # target-branch helpers use (not PlacementSeam.read_dir, which recurses via
     # resolve_lifecycle_phase); they may only import it from the package root.
     "read_dir_for",
+    "remote_only_branch",
+    "remote_only_steps",
     "resolve_action_context",
     "resolve_artifact_surface",
     "resolve_create_time_write_target",

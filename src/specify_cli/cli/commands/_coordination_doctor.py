@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -106,9 +107,7 @@ _COORD_BRANCH_ABSENT_HINT = (
 #: after WP01 -- these hints cover the independent case where the FIX is
 #: reached anyway (a future probe regression, a race). Fail-closed toward
 #: "do not destroy": HIT and ERROR both skip the flatten.
-_COORD_BRANCH_REMOTE_HIT_SKIP_HINT = (
-    "still exists on a remote; run `git fetch` to materialize it locally -- not flattened"
-)
+_COORD_BRANCH_REMOTE_HIT_SKIP_LEAD = "still exists on a remote -- not flattened."
 _COORD_BRANCH_REMOTE_ERROR_SKIP_HINT = (
     "could not be verified against the remote (network error or timeout); "
     "leaving meta.json unchanged until connectivity is restored -- not flattened"
@@ -512,26 +511,30 @@ def _coord_worktree_missing_remote_only_steps(
     repo_root: Path, mission_slug: str, coord_branch: str,
 ) -> str:
     """#5113 / FR-014: the truthful ordered remedy
-    for a coordination branch that exists ONLY as a remote-tracking ref (a
-    fresh clone / CI checkout where the lane exists solely on
-    ``origin/<branch>``).
+    for a coordination branch with neither a local head nor the owning
+    remote's tracking ref in this clone (a single-branch / shallow / CI clone).
 
     ``spec-kitty doctor coordination --fix`` alone REFUSES this state
-    (``materialize_coord_surface_for_write`` never auto-materializes a
-    remote-only branch) -- naming it as the LEADING remedy loops the operator
+    (``materialize_coord_surface_for_write`` materializes from the tracking ref
+    only, #5936) -- naming it as the LEADING remedy loops the operator
     back to a command that just refused. The single construction site
     (S1192): both the ``COORDINATION_WORKTREE_MISSING`` finding builder
     (:func:`_check_coordination_worktree_health`) and the ``--fix`` fixer's
     warning (:func:`_apply_missing_worktree_fix`) call this so the two
-    truthful texts can never drift apart. Mirrors
-    :func:`~mission_runtime.write_target_degrade.assert_coord_write_materialized`'s
-    remote-only arm (T040) in shape, though that site cannot import this one
-    (runtime/mission_runtime -> specify_cli is a one-way ledger).
+    truthful texts can never drift apart.
+
+    #5287: the steps themselves are composed by
+    :func:`mission_runtime.coord_remedy.remote_only_steps`, the one owner shared
+    with the unmaterialized-coordination refusal and the coordination write
+    refusal: they name the remote that owns the branch (never a hard-coded
+    ``origin``) and skip the fetch when this clone already holds the tracking ref.
     """
-    return (
-        f"Run in order: `git -C {repo_root} fetch`, then "
-        f"`git -C {repo_root} branch {coord_branch} origin/{coord_branch}`, "
-        f"then `spec-kitty doctor coordination --mission {mission_slug} --fix`."
+    from mission_runtime import coordination_doctor_command, remote_only_branch, remote_only_steps
+
+    return remote_only_steps(
+        remote_only_branch(repo_root, coord_branch),
+        repo_root,
+        coordination_doctor_command(mission_slug),
     )
 
 
@@ -572,6 +575,7 @@ def _check_coordination_worktree_health(
         from specify_cli.coordination.surface_resolver import (
             _coord_branch_exists,
             _coord_branch_is_local_head,
+            coord_branch_tracking_ref,
         )
 
         if not _coord_branch_exists(repo_root, coord_branch):
@@ -602,17 +606,20 @@ def _check_coordination_worktree_health(
             "git", "-C", str(repo_root), "worktree", "add",
             str(worktree), coord_branch,
         ]
-        # #5113: a branch that exists ONLY as a
-        # remote-tracking ref (a fresh clone / CI checkout) is never
-        # auto-materialized by `--fix` (materialize_coord_surface_for_write
-        # refuses it) -- leading with the bare `--fix` command there is a
-        # remedy that refuses and loops the operator back to itself. Classify
-        # it here and lead with the truthful ordered steps instead.
+        # #5113: a branch this clone has no ref for at all (a single-branch /
+        # shallow / CI clone that never fetched it) is never auto-materialized
+        # by `--fix` (materialize_coord_surface_for_write refuses it) -- leading
+        # with the bare `--fix` command there is a remedy that refuses and loops
+        # the operator back to itself. Classify it here and lead with the
+        # truthful ordered steps instead.
+        # #5936: a branch this clone holds as a remote-tracking ref (a teammate's
+        # clone / pull) IS materialized by `--fix`, which creates the local head
+        # from that ref first, so it gets the same `--fix`-led remedy.
         is_local_head = _coord_branch_is_local_head(repo_root, coord_branch)
-        if is_local_head:
+        if is_local_head or coord_branch_tracking_ref(repo_root, coord_branch) is not None:
             next_step = (
                 f"Run: `spec-kitty doctor coordination --mission {mission_slug} --fix` "
-                f"(or, manually: `git -C {repo_root} worktree add {worktree} {coord_branch}`)"
+                f"(or, manually: `git -C {shlex.quote(str(repo_root))} worktree add {shlex.quote(str(worktree))} {coord_branch}`)"
             )
         else:
             next_step = _coord_worktree_missing_remote_only_steps(
@@ -1235,7 +1242,7 @@ def _collect_coordination_findings(
     return findings
 
 
-def _coord_branch_remote_skip_reason(repo_root: Path, coord_branch: str) -> str | None:
+def _coord_branch_remote_skip_reason(repo_root: Path, coord_branch: str, mission_slug: str) -> str | None:
     """Re-verify *coord_branch* against the remote before a destructive flatten.
 
     Returns ``None`` when the flatten may proceed (the WP01 shared
@@ -1253,7 +1260,12 @@ def _coord_branch_remote_skip_reason(repo_root: Path, coord_branch: str) -> str 
 
     outcome = remote_branch_lookup(repo_root, coord_branch)
     if outcome is RemoteLookup.HIT:
-        return _COORD_BRANCH_REMOTE_HIT_SKIP_HINT
+        # #5287: the canonical remote-only steps, never a bare `git fetch` (which
+        # creates no local branch).
+        from mission_runtime import coordination_doctor_command, remote_only_branch, remote_only_steps
+
+        steps = remote_only_steps(remote_only_branch(repo_root, coord_branch), repo_root, coordination_doctor_command(mission_slug))
+        return f"{_COORD_BRANCH_REMOTE_HIT_SKIP_LEAD} {steps}"
     if outcome is RemoteLookup.ERROR:
         return _COORD_BRANCH_REMOTE_ERROR_SKIP_HINT
     return None
@@ -1298,7 +1310,7 @@ def _fix_never_created_branches(
         if not coord_branch:
             continue
         if repo_root is not None:
-            skip_reason = _coord_branch_remote_skip_reason(repo_root, str(coord_branch))
+            skip_reason = _coord_branch_remote_skip_reason(repo_root, str(coord_branch), mission_dir.name)
             if skip_reason is not None:
                 console.print(
                     f"[yellow]Skipped:[/yellow] {mission_dir.name}/meta.json -- "
@@ -1807,7 +1819,8 @@ def _apply_missing_worktree_fix(
                 message = (
                     f"Could not materialize the coordination worktree for "
                     f"mission {mission_slug!r}: the coordination branch "
-                    f"{coord_branch!r} exists only as a remote-tracking ref. "
+                    f"{coord_branch!r} has no local branch, and this clone holds "
+                    f"no remote-tracking ref for it from its owning remote. "
                     f"{next_step}"
                 )
             else:
@@ -2301,7 +2314,8 @@ def run_coordination_health(
     which routes through the canonical
     :func:`~specify_cli.coordination.surface_resolver.materialize_coord_surface_for_write`
     materializer (idempotent; refuses with a ``warning`` finding, never a crash,
-    when the branch is remote-only). It also removes stale ``coordination_branch``
+    when the clone holds neither a local head nor the owning remote's tracking
+    ref for the branch, #5936). It also removes stale ``coordination_branch``
     keys from ``meta.json`` for any ``COORDINATION_WORKTREE_NEVER_CREATED``
     findings, re-runs :func:`~specify_cli.migration.backfill_topology.backfill_topology_repo`
     with ``runtime_reading=True`` (never a derived ``single_branch``), then attempts the WP06

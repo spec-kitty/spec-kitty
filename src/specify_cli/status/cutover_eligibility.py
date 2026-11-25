@@ -48,7 +48,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from specify_cli.mission_metadata import load_meta
-from specify_cli.status.lane_head import LANE_HEAD_KEY
+from specify_cli.status.lane_head import LANE_HEAD_KEY, LANE_HEAD_PRESYNC_KEY
 from specify_cli.status.wp_window import WP_WINDOW_KEY
 from specify_cli.status.reducer import materialize_snapshot, wp_snapshot_state
 from specify_cli.status.store import StoreError, read_event_stream
@@ -90,8 +90,9 @@ REASON_LEGACY_UNDECIDABLE = f"{_NOT_FLIPPED}: legacy WP runtime could not be rea
 
 #: The provenance keys the status pipeline stamps on its own (never operator or runtime state):
 #: the WP03 ``lane_head`` stamp and the window-open record ``wp_window`` (Mission
-#: consolidation-window-provenance-01M6Y84D, written on every window-opening move).
-_PROVENANCE_KEYS: frozenset[str] = frozenset({LANE_HEAD_KEY, WP_WINDOW_KEY})
+#: consolidation-window-provenance-01M6Y84D, written on every window-opening move), and the
+#: #7802 pre-sync stamp ``lane_head_presync`` written beside ``lane_head``.
+_PROVENANCE_KEYS: frozenset[str] = frozenset({LANE_HEAD_KEY, LANE_HEAD_PRESYNC_KEY, WP_WINDOW_KEY})
 
 
 def _policy_metadata_carries_runtime_evidence(policy_metadata: Mapping[str, Any] | None) -> bool:

@@ -790,7 +790,7 @@ def move_task(
             help=(
                 "Path to review feedback file. Required for review-rejection edges "
                 "(--to planned, incl. with --force; and in_review->in_progress); "
-                "omitting it there makes the status event contract-invalid. "
+                "the move is refused without it. "
                 "On --to approved/done its content is recorded when the move writes "
                 "a new approval review-cycle record; otherwise a warning on stderr "
                 "says it was not recorded (JSON stdout is unchanged). Refused "
@@ -903,9 +903,10 @@ def move_task(
 
     Review-rejection edges (a backward move out of review — ``--to planned`` from
     in_progress/for_review/in_review/approved, or ``in_review → in_progress``) MUST
-    carry a rationale: pass ``--review-feedback-file`` (or ``--note``/``--reason``).
-    That rationale is emitted as the status event's ``review_ref``/reason and is
-    required by the shared status contract; the move is refused without it.
+    carry a rationale: pass ``--review-feedback-file``. That rationale is emitted
+    as the status event's ``review_ref``/reason and is required by the shared
+    status contract; the move is refused without it, also with ``--force``, and a
+    ``--note``/``--reason`` alone does not satisfy it.
 
     ``--actor``/``--reason`` are accepted as aliases of ``--agent``/``--note``
     (matching ``issue-verdict``'s vocabulary, #3469) — use whichever spelling

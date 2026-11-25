@@ -1,0 +1,1 @@
+- CI routes every `src/` package to the modules whose tests import it (the `upgrade` and `cli` shards now run for skills, tool-surface and `specify_cli/runtime` changes), runs every shard when any one `src/` path matches no router group, and the `make_mission` parity test pins its first-commit dates (#7775, #7776).

@@ -352,6 +352,29 @@ MISSION_REVIEW_DEAD_CODE_EVIDENCE_INCOMPLETE: baseline anchor evidence is not re
 
 ---
 
+## REPORT_PATH_OCCUPIED
+
+**Code**: `MISSION_REVIEW_REPORT_PATH_OCCUPIED`
+
+**When it fires**: `kitty-specs/<slug>/mission-review-report.md` already exists and is not a machine report this command wrote (spec-kitty#7753). A machine report starts with YAML frontmatter that records `verdict` (`pass`, `pass_with_notes` or `fail`), `reviewed_at` and an integer `findings` count; reports written since #7753 also carry `generator: spec-kitty review`, and a `generator` naming anything else is foreign. The message names the reason: the file is not such a report (typically a mission review an agent wrote with the `spec-kitty-mission-review` skill), the path is a symlink, it is not a regular file, or it is unreadable as UTF-8 text. The check runs before any gate and again at the write, where an absent path is created exclusively and a previous machine report is replaced atomically, so a file that appears while the gates run is refused too. Nothing is written when it fires. A previous machine report is still replaced on every run. Known residual: a hand-written file whose frontmatter has no `generator` key but carries a `verdict` from that set, a `reviewed_at` and an integer `findings` count matches the shape of a pre-#7753 machine report and is replaced; the `spec-kitty-mission-review` report template carries no frontmatter, and requiring `generator` once pre-#7753 reports have aged out closes it.
+
+Besides the console text, the command writes one JSON line to stdout, like its other exit-1 refusals: `{"diagnostic_code": "MISSION_REVIEW_REPORT_PATH_OCCUPIED", "message": ..., "remediation": "git mv <report> <slug dir>/mission-review.md"}`.
+
+**JSON stability**: this code string is stable across minor releases; consumers may match it as an opaque identifier.
+
+**Remediation**:
+1. Move the file to `kitty-specs/<slug>/mission-review.md`, the path the `spec-kitty-mission-review` skill names for its report: `git mv kitty-specs/<slug>/mission-review-report.md kitty-specs/<slug>/mission-review.md` (plain `mv` when the file is untracked).
+2. Re-run `spec-kitty review --mission <slug>`.
+
+**Body example**:
+
+```text
+MISSION_REVIEW_REPORT_PATH_OCCUPIED: kitty-specs/my-mission/mission-review-report.md is not a report spec-kitty review wrote (no generator/verdict/reviewed_at/findings frontmatter); refusing to overwrite it. Nothing was written.
+{"diagnostic_code": "MISSION_REVIEW_REPORT_PATH_OCCUPIED", "message": "kitty-specs/my-mission/mission-review-report.md is not a report spec-kitty review wrote (no generator/verdict/reviewed_at/findings frontmatter); refusing to overwrite it. Nothing was written.", "remediation": "git mv kitty-specs/my-mission/mission-review-report.md kitty-specs/my-mission/mission-review.md"}
+```
+
+---
+
 ## ENV_SKEW
 
 **Code**: `MISSION_REVIEW_ENV_SKEW`

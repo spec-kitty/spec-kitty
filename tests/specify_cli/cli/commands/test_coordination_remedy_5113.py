@@ -68,6 +68,7 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
 import subprocess
 from pathlib import Path
 
@@ -326,6 +327,10 @@ def test_write_target_degrade_remote_only_round_trip(
     _git(repo, "remote", "add", "origin", str(remote))
     _git(repo, "fetch", "origin")
     _git(repo, "branch", "-D", coord_branch)
+    # #5936: a clone holding the branch as a remote-tracking ref gets its local
+    # head from that ref; this remedy is for a clone that never fetched it, so
+    # it must lead with a targeted fetch from the resolved remote (#5287).
+    _git(repo, "update-ref", "-d", f"refs/remotes/origin/{coord_branch}")
 
     monkeypatch.chdir(repo)
     with pytest.raises(ActionContextError) as excinfo:
@@ -348,8 +353,8 @@ def test_write_target_degrade_remote_only_round_trip(
     command_steps = [s for s in steps if s.startswith(("git ", "spec-kitty "))]
     assert len(command_steps) == 3, f"expected exactly 3 ordered command steps (fetch, branch-create, doctor --fix), got {command_steps!r} from: {text!r}"
     fetch_step, branch_step, doctor_step = command_steps
-    assert fetch_step.split() == ["git", "fetch"]
-    assert branch_step.split() == ["git", "branch", coord_branch, f"origin/{coord_branch}"]
+    assert fetch_step.split() == ["git", "-C", str(repo), "fetch", "origin", f"{coord_branch}:refs/remotes/origin/{coord_branch}"]
+    assert branch_step.split() == ["git", "-C", str(repo), "branch", coord_branch, f"refs/remotes/origin/{coord_branch}"]
     assert doctor_step.split() == [
         "spec-kitty",
         "doctor",
@@ -360,8 +365,8 @@ def test_write_target_degrade_remote_only_round_trip(
     ]
 
     # Run the extracted steps in order, exactly as named.
-    subprocess.run(["git", "-C", str(repo), *fetch_step.split()[1:]], check=True, capture_output=True)
-    subprocess.run(["git", "-C", str(repo), *branch_step.split()[1:]], check=True, capture_output=True)
+    subprocess.run(shlex.split(fetch_step), check=True, capture_output=True)
+    subprocess.run(shlex.split(branch_step), check=True, capture_output=True)
 
     from specify_cli.cli.commands.doctor import app as doctor_app
 
@@ -411,6 +416,10 @@ def test_doctor_fix_remote_only_does_not_materialize(
     _git(repo, "remote", "add", "origin", str(remote))
     _git(repo, "fetch", "origin")
     _git(repo, "branch", "-D", coord_branch)
+    # #5936: a clone that holds the branch as a remote-tracking ref now gets its
+    # local head from that ref (`--fix` materializes it). The remote-only state
+    # these steps are for is a clone that never fetched the branch at all.
+    _git(repo, "update-ref", "-d", f"refs/remotes/origin/{coord_branch}")
     meta_path = repo / "kitty-specs" / mission_slug / "meta.json"
     meta_before = meta_path.read_text(encoding="utf-8")
 
@@ -437,10 +446,11 @@ def test_doctor_fix_remote_only_does_not_materialize(
     warning = fixer_warnings[0]
     next_step = warning["next_step"]
     steps = [s for s in _BACKTICK_RE.findall(next_step) if s.startswith(("git ", "spec-kitty "))]
+    # #5287: no tracking ref in this clone, so the canonical remedy leads with a targeted fetch.
     assert len(steps) == 3, f"expected 3 ordered backticked steps, got {steps!r} from: {next_step!r}"
     fetch_step, branch_step, doctor_step = steps
-    assert "fetch" in fetch_step
-    assert branch_step.split()[-3:] == ["branch", coord_branch, f"origin/{coord_branch}"]
+    assert fetch_step.split() == ["git", "-C", str(repo), "fetch", "origin", f"{coord_branch}:refs/remotes/origin/{coord_branch}"]
+    assert branch_step.split() == ["git", "-C", str(repo), "branch", coord_branch, f"refs/remotes/origin/{coord_branch}"]
     assert doctor_step.split() == [
         "spec-kitty",
         "doctor",
@@ -497,6 +507,10 @@ def test_missing_worktree_finding_remote_only_leads_with_ordered_steps(
     _git(repo, "remote", "add", "origin", str(remote))
     _git(repo, "fetch", "origin")
     _git(repo, "branch", "-D", coord_branch)
+    # #5936: a clone that holds the branch as a remote-tracking ref now gets its
+    # local head from that ref (`--fix` materializes it). The remote-only state
+    # these steps are for is a clone that never fetched the branch at all.
+    _git(repo, "update-ref", "-d", f"refs/remotes/origin/{coord_branch}")
 
     monkeypatch.chdir(repo)
     from specify_cli.cli.commands.doctor import app as doctor_app
@@ -513,10 +527,11 @@ def test_missing_worktree_finding_remote_only_leads_with_ordered_steps(
     # -- never a bare leading `--fix` (the cycle-1 loop defect), and never
     # just re-asserting the recovery_args' `git worktree add` fallback either.
     steps = [s for s in _BACKTICK_RE.findall(next_step) if s.startswith(("git ", "spec-kitty "))]
+    # #5287: no tracking ref in this clone, so the canonical remedy leads with a targeted fetch.
     assert len(steps) == 3, f"expected 3 ordered steps, got {steps!r} from: {next_step!r}"
     fetch_step, branch_step, doctor_step = steps
-    assert "fetch" in fetch_step
-    assert branch_step.split()[-3:] == ["branch", coord_branch, f"origin/{coord_branch}"]
+    assert fetch_step.split() == ["git", "-C", str(repo), "fetch", "origin", f"{coord_branch}:refs/remotes/origin/{coord_branch}"]
+    assert branch_step.split() == ["git", "-C", str(repo), "branch", coord_branch, f"refs/remotes/origin/{coord_branch}"]
     assert doctor_step.split() == [
         "spec-kitty",
         "doctor",
@@ -530,8 +545,8 @@ def test_missing_worktree_finding_remote_only_leads_with_ordered_steps(
     assert not worktree.exists()
 
     # Round trip: run the extracted steps in order and prove they materialize.
-    subprocess.run(["git", "-C", str(repo), *fetch_step.split()[1:]], check=True, capture_output=True)
-    subprocess.run(["git", "-C", str(repo), *branch_step.split()[1:]], check=True, capture_output=True)
+    subprocess.run(shlex.split(fetch_step), check=True, capture_output=True)
+    subprocess.run(shlex.split(branch_step), check=True, capture_output=True)
     fix_result = CliRunner().invoke(doctor_app, doctor_step.split()[2:])
     assert fix_result.exit_code == 0, fix_result.output
     assert worktree.exists()

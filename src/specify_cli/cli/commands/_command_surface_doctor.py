@@ -46,6 +46,7 @@ from ._doctor_shared import (
 if TYPE_CHECKING:
     from specify_cli.core.agent_config import AgentConfig
     from specify_cli.skills.command_installer import VerifyReport
+    from specify_cli.runtime.doctor import LeftoverFile
     from specify_cli.skills.manifest_store import SkillsManifest
 
 # ``__all__`` lists this sibling's cross-module public contract only: the
@@ -382,7 +383,8 @@ def _repair_command_skill_state(
     from specify_cli.skills import command_installer
     from specify_cli.skills.vibe_config import ensure_project_skill_path
 
-    if not (report.gaps or report.stale or uninstalled_agents or vibe_config_missing or legacy_managed):
+    # #5281: an outdated file (manifest-matching, but not today's render) is repaired by the install pass.
+    if not (report.gaps or report.stale or report.outdated or uninstalled_agents or vibe_config_missing or legacy_managed):
         return [], [], [], False
     refusal = _repair_refusal(report)
     if refusal is not None:
@@ -432,6 +434,7 @@ def _command_skill_payload(
     has_issues = bool(
         report.drift
         or report.gaps
+        or report.outdated
         or report.orphans
         or report.stale
         or report.unsafe
@@ -448,6 +451,7 @@ def _command_skill_payload(
         "canonical_commands": len(command_installer.CANONICAL_COMMANDS),
         "drift": sorted(report.drift),
         "gaps": sorted(report.gaps),
+        "outdated": sorted(report.outdated),
         "orphans": sorted(report.orphans),
         "stale": sorted(report.stale),
         "unsafe": sorted(report.unsafe),
@@ -485,8 +489,10 @@ _LEGACY_RECORDED_KEY = "_legacy_recorded"
 _NO_STATED_AGENT_LIST_KEY = "_no_stated_agent_list"
 #: The honest human summary line for a project with no CLI-managed agents (#6493).
 _EMPTY_AGENT_LIST_KEY = "_empty_agent_list"
+#: The proven skill leftovers under a moved agent root, for the human report (#7723).
+_LEFTOVER_FILES_KEY = "_old_root_leftover_files"
 _HUMAN_ONLY_KEYS = frozenset(
-    {_LEGACY_OWNED_KEY, _LEGACY_RECORDED_KEY, _NO_STATED_AGENT_LIST_KEY, _EMPTY_AGENT_LIST_KEY}
+    {_LEGACY_OWNED_KEY, _LEGACY_RECORDED_KEY, _NO_STATED_AGENT_LIST_KEY, _EMPTY_AGENT_LIST_KEY, _LEFTOVER_FILES_KEY}
 )
 
 #: The truthful summary clause for an audit that examined nothing in a legacy project
@@ -654,6 +660,7 @@ def _print_command_skill_report(payload: dict[str, object], fix: bool) -> None:
         cast(list[str], payload["drift"]),
     )
     _print_command_skill_paths("Missing managed files", cast(list[str], payload["gaps"]))
+    _print_command_skill_paths("Outdated managed files (not today's render)", cast(list[str], payload["outdated"]))
     _print_command_skill_paths(
         "Unmanaged spec-kitty skill files", cast(list[str], payload["orphans"])
     )
@@ -713,17 +720,44 @@ def _resolve_or_exit(exit_code: int, json_output: bool) -> Path:
     return _doctor_shared.resolve_project_root_or_exit(locate_project_root, json_output, exit_code=exit_code)
 
 
+_LEFTOVER_ISSUE = "leftover copy under the previous user-global root"
+_INFO = "info"
+
+
+def _command_leftover_rows(project_path: Path) -> tuple[list[dict[str, str]], list[LeftoverFile]]:
+    """Info rows for proven command files left under a moved agent root (#7723), report only."""
+    from specify_cli.runtime.doctor import find_old_root_leftovers, resolve_command_file_dirs
+
+    leftovers = find_old_root_leftovers(list(resolve_command_file_dirs(project_path)), kinds=("command",))
+    rows = [{"agent": item.agent, "command": item.path.name, "file": str(item.path), "issue": _LEFTOVER_ISSUE, "severity": _INFO} for item in leftovers]
+    return rows, leftovers
+
+
+def _print_leftovers(leftovers: list[LeftoverFile]) -> None:
+    """Name each moved root's proven leftovers and the ``rm`` line; nothing is removed (#7723)."""
+    from specify_cli.runtime.doctor import leftover_removal_hint
+
+    for old_root in sorted({item.old_root for item in leftovers}):
+        group = [item for item in leftovers if item.old_root == old_root]
+        console.print(f"\n[yellow]Leftover copies under {old_root}[/yellow] (Spec Kitty no longer reads them for this config):", highlight=False, soft_wrap=True)
+        for item in group:
+            console.print(f"  {item.path}", highlight=False, soft_wrap=True, markup=False)
+        console.print(f"  To remove them: {leftover_removal_hint(group)}", highlight=False, soft_wrap=True, markup=False)
+
+
 def run_command_files(json_output: bool) -> None:
-    """Entry point for ``doctor command-files`` (0 healthy / 1 issues)."""
+    """Entry point for ``doctor command-files`` (0 healthy / 1 issues; ``info`` rows never fail it)."""
     from specify_cli.runtime.doctor import check_command_file_health
 
     project_path = _resolve_or_exit(1, json_output)
     issues = check_command_file_health(project_path)
+    leftover_rows, leftovers = _command_leftover_rows(project_path)
 
     if json_output:
-        console.print_json(json.dumps(issues, indent=2))
+        console.print_json(json.dumps(issues + leftover_rows, indent=2))
         raise typer.Exit(1 if issues else 0)
 
+    _print_leftovers(leftovers)
     if not issues:
         empty_line = _empty_agent_list_report_best_effort(project_path)
         if empty_line is not None:
@@ -817,6 +851,7 @@ def run_skills_audit(
     _print_pack_skill_findings(cast(list[dict[str, str]], payload["pack_skills"]))
     for folder in cast(list[dict[str, object]], payload["tool_folders"]):
         console.print(f"\n  ! [{folder['kind']}] {folder['message']}", markup=False)
+    _print_leftovers(cast("list[LeftoverFile]", payload[_LEFTOVER_FILES_KEY]))
 
     raise typer.Exit(0 if payload["ok"] else 1)
 
@@ -834,6 +869,8 @@ def _assemble_skills_payload(
     project_path: Path, fix: bool, state: _SkillState
 ) -> dict[str, object]:
     """Build the fused command-skill + slash-command payload from loaded *state*."""
+    from specify_cli.runtime.doctor import find_old_root_leftovers
+
     (
         manifest,
         report,
@@ -893,6 +930,10 @@ def _assemble_skills_payload(
     payload["pack_skills"] = [finding.to_dict() for finding in pack_findings]
     tool_folders = _tool_folder_findings(project_path)
     payload["tool_folders"] = tool_folders
+    # #7723: report only; never flips ``ok`` and never writes.
+    leftovers = find_old_root_leftovers(kinds=("skill",))
+    payload["old_root_leftovers"] = [str(item.path) for item in leftovers]
+    payload[_LEFTOVER_FILES_KEY] = leftovers
     payload["ok"] = bool(payload["ok"]) and bool(slash_payload["ok"]) and not pack_findings and not tool_folders
     # #6891: only after the FINAL ``ok`` — a real slash-command, pack-skill or tool-folder
     # finding must keep its own report rather than be replaced by "nothing to check".

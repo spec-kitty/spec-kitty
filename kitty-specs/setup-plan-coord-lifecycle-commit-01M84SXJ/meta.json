@@ -1,0 +1,48 @@
+{
+  "accept_commit": "d04d9560246550bae6968e600b7615bbba73a13c",
+  "acceptance_history": [
+    {
+      "accept_commit": "d04d9560246550bae6968e600b7615bbba73a13c",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-24T00:03:28.210802+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "5953c36d6f4db5c4fb671b34ed14d4a19571cca8"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-24T00:03:28.210802+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "5953c36d6f4db5c4fb671b34ed14d4a19571cca8",
+  "baseline_merge_commit": "1890a6c29db4a0ac20e80a24fa658fc911db37d4",
+  "contracts": "none",
+  "contracts_rationale": "The Mission changes internal CLI behaviour (where setup-plan records and commits its lifecycle events, and one doctor finding); it adds no API, schema or interface.",
+  "create_return_branch": "issue-3933-lifecycle-event-placement",
+  "created_at": "2026-11-23T18:15:32.128274+00:00",
+  "flattened": false,
+  "friendly_name": "setup-plan commits its lifecycle events on coordination Missions",
+  "merged_at": "2026-11-24T00:04:36.356860+00:00",
+  "merged_commit": "d5f41faa02d7613a32661b49479685c265a37f5b",
+  "mid8": "01M84SXJ",
+  "mission_base_sha": "1890a6c29db4a0ac20e80a24fa658fc911db37d4",
+  "mission_id": "01M84SXJFEKFMQVX449HTV68AN",
+  "mission_number": 266,
+  "mission_slug": "setup-plan-coord-lifecycle-commit-01M84SXJ",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "setup-plan appends SpecifyCompleted, PlanStarted and PlanCompleted to the Mission's status log. On a Mission with a coordination branch these land in the repository root checkout's copy of the log and are never committed, so the coordination record misses them and the checkout stays dirty. This is the last open part of issue #3933 after #7562.",
+  "purpose_tldr": "On a coordination-topology Mission, setup-plan records and commits its own lifecycle events on the coordination branch instead of leaving them uncommitted in the repository root checkout.",
+  "slug": "setup-plan-coord-lifecycle-commit-01M84SXJ",
+  "status_phase": "1",
+  "target_branch": "issue-3933-lifecycle-event-placement",
+  "topology": "single_branch",
+  "topology_decision": {
+    "code_lane_count": 1,
+    "from": "single_branch",
+    "rule": "wp_count_le_2",
+    "target_protected": false,
+    "to": "single_branch",
+    "wp_count": 1
+  },
+  "topology_settled": true,
+  "topology_source": "default"
+}

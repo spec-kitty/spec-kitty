@@ -24,6 +24,7 @@ from specify_cli.lanes.branch_naming import code_lane_branch_name
 from specify_cli.lanes.models import ExecutionLane
 from specify_cli.consolidation import executor as ex
 from specify_cli.consolidation.config import MergeStrategy
+from specify_cli.consolidation.lane_cleanup import LaneCleanupOutcome
 from specify_cli.consolidation.state import ConsolidationState
 
 from tests.consolidation._divergent_shapes import (
@@ -44,6 +45,9 @@ from specify_cli.consolidation import (
 )
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
+
+#: The kept code (a contract string, ``contracts/landing-proof.md``).
+LANDING_PROOF_UNAVAILABLE = "LANDING_PROOF_UNAVAILABLE"
 
 
 # ---------------------------------------------------------------------------
@@ -76,6 +80,21 @@ def _state(mission: DivergentMission, **overrides: object) -> ConsolidationState
             state.pre_mutation_refs[lane_branch] = tip.stdout.strip()
     for key, value in overrides.items():
         setattr(state, key, value)
+    return state
+
+
+def _landed_state(mission: DivergentMission) -> ConsolidationState:
+    """The record after a verified landing: each code lane merged into the target, the PASS anchor at its tip.
+
+    #7325: lane cleanup removes a lane only through the landed-removal guard, which needs a landing
+    proof; a run without a PASS anchor keeps every lane (``LANDING_PROOF_UNAVAILABLE``).
+    """
+    state = _state(mission)
+    for _worktree, lane_branch in mission.lanes.values():
+        if lane_branch in state.pre_mutation_refs:
+            subprocess.run(["git", "-C", str(mission.repo_root), "merge", "-q", "--no-ff", "--no-edit", lane_branch], check=True, capture_output=True)
+    target_tip = subprocess.run(["git", "-C", str(mission.repo_root), "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+    state.reconciliation_passed_target_sha = target_tip
     return state
 
 
@@ -461,23 +480,28 @@ def test_remove_lane_worktrees_removes_created_worktree_and_tombstones_context(t
     context_path.parent.mkdir(parents=True, exist_ok=True)
     context_path.write_text("{}", encoding="utf-8")
 
-    run = _run(mission, _state(mission))
+    run = _run(mission, _landed_state(mission))
     phase_teardown._lane_cleanup_report(run)
 
     assert not wt_path.exists(), "the allocator-CREATED worktree must be removed"
     assert not context_path.exists(), "the lane's workspace-context JSON must be tombstoned"
 
 
-def test_delete_lane_branches_deletes_created_branch(tmp_path: Path) -> None:
+def test_a_created_branch_whose_worktree_is_gone_is_kept_by_name(tmp_path: Path) -> None:
+    """The cleanup item names the allocator-CREATED branch; with its worktree gone no landing proof can
+    run, so the lane is kept and the branch survives (#7325; before, the older remover deleted it)."""
     mission = shape_mismatched_mid8(tmp_path)
     wt_path, branch = mission.lanes["lane-a"]
     subprocess.run(["git", "-C", str(mission.repo_root), "worktree", "remove", "--force", str(wt_path)], check=True)
     assert _branch_exists(mission.repo_root, branch)
 
-    run = _run(mission, _state(mission))
-    phase_teardown._lane_cleanup_report(run)
+    run = _run(mission, _landed_state(mission))
+    report = phase_teardown._lane_cleanup_report(run)
 
-    assert not _branch_exists(mission.repo_root, branch), "the allocator-CREATED branch must be deleted"
+    [result] = [r for r in report.results if r.item.lane_id == "lane-a"]
+    assert result.item.branch == branch, "cleanup must address the allocator-CREATED branch"
+    assert result.outcome is LaneCleanupOutcome.KEPT and result.code == LANDING_PROOF_UNAVAILABLE, result
+    assert _branch_exists(mission.repo_root, branch)
 
 
 def test_delete_lane_branches_skips_planning_lane(tmp_path: Path) -> None:
@@ -497,7 +521,7 @@ def test_cleanup_full_run_removes_no_orphans(tmp_path: Path) -> None:
     wt_path, branch = mission.lanes["lane-a"]
     subprocess.run(["git", "-C", str(mission.repo_root), "checkout", "-q", mission.manifest.target_branch], check=True)
 
-    run = _run(mission, _state(mission))
+    run = _run(mission, _landed_state(mission))
     run.baseline_mission_id = mission.mission_id  # the pre-fix orphaning input
     phase_teardown._lane_cleanup_report(run)  # S5: the lane legs, worktree then branch, per lane
 
@@ -536,7 +560,7 @@ def test_phase_cleanup_removes_created_worktree_and_branch_when_requested(tmp_pa
     subprocess.run(["git", "-C", str(mission.repo_root), "checkout", "-q", mission.manifest.target_branch], check=True)
     monkeypatch.setattr(phase_teardown, "_cleanup_mission_branch_and_coordination", lambda _run: None)
 
-    run = _run(mission, _state(mission))
+    run = _run(mission, _landed_state(mission))
     run.remove_worktree = True
     run.delete_branch = True
 

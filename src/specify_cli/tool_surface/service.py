@@ -9,11 +9,18 @@ renders the returned :class:`SurfaceReport` / :class:`RepairResult`.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from .docs import DocsLinter, DocsLintFinding
 from .enums import ToolSurfaceKind
+from .findings import (
+    GLOBAL_SKILL_KEPT_STALE,
+    RETIRED_SKILL_KEPT_EDITED,
+    SEVERITY_WARNING,
+    SurfaceFinding,
+    make_finding,
+)
 from .model import SurfacePlan
 from .operations import AssessmentInputs, OwnerAssessment
 from .plan import SurfacePlanBuilder
@@ -22,7 +29,7 @@ from .providers._registry import SurfaceProviderRegistry
 from .providers.plugin_bundle import PLUGIN_BUNDLE_TOOL_KEY
 from .providers.protocol import ReportingSurfaceProvider
 from .registry import ToolSurfaceRegistry
-from .repair import RepairResult, SurfaceRepairService
+from .repair import RepairResult, SurfaceRepairService, explain_skipped
 from .status import SurfaceReport, SurfaceStatusService
 
 # Operator-facing ``--kind`` tokens are kebab-case; map them to ToolSurfaceKind.
@@ -157,13 +164,73 @@ def run_tool_surfaces(
         plans = _filter_plans_by_kinds(plans, kind_set)
     report = SurfaceStatusService(providers).collect(project_root, plans, configured_tools=tools)
     if not fix:
-        return ToolSurfaceOutcome(report=report)
+        return ToolSurfaceOutcome(report=_with_global_skill_findings(report, kind_set, tool_filter))
     repair = SurfaceRepairService(providers).repair(project_root, report.surfaces, kinds=kind_set)
     plans = builder.build(plan_tools, project_root)
     if kind_set is not None:
         plans = _filter_plans_by_kinds(plans, kind_set)
     refreshed = SurfaceStatusService(providers).collect(project_root, plans, configured_tools=tools)
-    return ToolSurfaceOutcome(report=refreshed, repair=repair)
+    return ToolSurfaceOutcome(
+        report=_with_global_skill_findings(refreshed, kind_set, tool_filter),
+        repair=explain_skipped(repair, refreshed.surfaces),
+    )
+
+
+def _with_global_skill_findings(report: SurfaceReport, kind_set: set[ToolSurfaceKind] | None, tool_filter: str | None) -> SurfaceReport:
+    """Append the kept user-global skill files as warnings; they never flip ``ok`` (#5983)."""
+    if kind_set is not None and ToolSurfaceKind.CHARTER_SKILL not in kind_set:
+        return report
+    findings = _global_skill_findings(tool_filter)
+    if not findings:
+        return report
+    summary = replace(report.summary, warnings=report.summary.warnings + len(findings))
+    return replace(report, summary=summary, findings=report.findings + findings)
+
+
+_GLOBAL_KEPT_REMEDY = {
+    GLOBAL_SKILL_KEPT_STALE: "Review it; to take today's version, delete it and run any spec-kitty command.",
+    RETIRED_SKILL_KEPT_EDITED: "Review it and delete it when you no longer need it.",
+}
+
+
+def _global_skill_findings(tool_filter: str | None) -> tuple[SurfaceFinding, ...]:
+    """One finding per global skill file the sync keeps, read from the assessment only (no writes).
+
+    Uses :func:`kept_global_skill_files`, the rule the startup sync, ``upgrade`` and
+    ``doctor --fix`` share. ``tool_key`` names the agent whose global root holds the
+    file, or is ``None`` when several agents share that root.
+    """
+    from specify_cli.runtime.agent_skills import assess_global_agent_skills, kept_global_skill_files
+    from specify_cli.skills.paths import get_primary_global_skill_root, iter_installable_agents
+
+    roots = {agent: root for agent in iter_installable_agents() if (root := get_primary_global_skill_root(agent)) is not None}
+    findings = []
+    for item in kept_global_skill_files(assess_global_agent_skills()):
+        owners = [agent for agent, root in roots.items() if root in item.path.parents]
+        if tool_filter is not None and tool_filter not in owners:
+            continue
+        findings.append(_kept_finding(item.path, item.kind, item.reason, owners, roots))
+    return tuple(findings)
+
+
+def _kept_finding(path: Path, kind: str, reason: str, owners: Sequence[str], roots: dict[str, Path]) -> SurfaceFinding:
+    skill = path.relative_to(roots[owners[0]]).parts[0] if owners else path.parent.name
+    if kind == "stale_canonical":
+        code = GLOBAL_SKILL_KEPT_STALE
+        what = f"a file of the shipped skill '{skill}' whose bytes Spec Kitty cannot prove it wrote"
+    else:
+        code = RETIRED_SKILL_KEPT_EDITED
+        what = f"an edited copy of the retired skill '{skill}'"
+    remedy = _GLOBAL_KEPT_REMEDY[code]
+    return make_finding(
+        code,
+        SEVERITY_WARNING,
+        f"Kept {path}: {what} ({reason}). {remedy}",
+        tool_key=owners[0] if len(owners) == 1 else None,
+        path=path,
+        repair_command=remedy,
+        details={"skill": skill, "kept": kind, "reason": reason},
+    )
 
 
 def _selected_tools(configured_tools: Sequence[str], tool_filter: str | None) -> list[str]:

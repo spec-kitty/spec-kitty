@@ -755,14 +755,24 @@ _CONTRACTS_WAIVER_VALUE = "none"
 _CONTRACTS_FIELD = "contracts"
 _CONTRACTS_RATIONALE_FIELD = "contracts_rationale"
 
+#: The ONE accepted ``meta.json`` ``path_conventions`` value: the Mission
+#: declares that its type's path conventions do not apply to it (#7566,
+#: operator ruling Q1 of Mission path-conventions-per-type-01M7VRQM). Exact,
+#: case-sensitive -- anything else is malformed.
+_PATH_CONVENTIONS_WAIVER_VALUE = "waived"
+_PATH_CONVENTIONS_FIELD = "path_conventions"
+_PATH_CONVENTIONS_RATIONALE_FIELD = "path_conventions_rationale"
+
 
 @dataclass(frozen=True)
 class ContractsWaiver:
-    """Verdict of :func:`read_contracts_waiver_from_meta`.
+    """Verdict of a ``meta.json`` waiver reader.
 
-    ``waived`` is ``True`` only for a well-formed declaration, which then
-    carries its stripped ``rationale``. A present-but-malformed declaration is
-    NOT a waiver and carries an operator-facing ``warning`` instead.
+    Shared by :func:`read_contracts_waiver_from_meta` (#5298) and
+    :func:`read_path_conventions_waiver_from_meta` (#7566): ``waived`` is
+    ``True`` only for a well-formed declaration, which then carries its
+    stripped ``rationale``. A present-but-malformed declaration is NOT a
+    waiver and carries an operator-facing ``warning`` instead.
     """
 
     waived: bool
@@ -770,15 +780,70 @@ class ContractsWaiver:
     warning: str | None = None
 
 
-def _malformed_contracts_waiver(problem: str) -> ContractsWaiver:
+@dataclass(frozen=True)
+class _MetaWaiverSpec:
+    """The shape of one flat ``meta.json`` waiver: field, exact value, rationale field.
+
+    ``consequence`` completes the malformed-declaration warning ("<consequence>;
+    declare ... to waive <pronoun>").
+    """
+
+    field: str
+    value: str
+    rationale_field: str
+    consequence: str
+    pronoun: str
+
+
+_CONTRACTS_WAIVER = _MetaWaiverSpec(
+    field=_CONTRACTS_FIELD,
+    value=_CONTRACTS_WAIVER_VALUE,
+    rationale_field=_CONTRACTS_RATIONALE_FIELD,
+    consequence="The contracts/ requirement stays in force",
+    pronoun="it",
+)
+_PATH_CONVENTIONS_WAIVER = _MetaWaiverSpec(
+    field=_PATH_CONVENTIONS_FIELD,
+    value=_PATH_CONVENTIONS_WAIVER_VALUE,
+    rationale_field=_PATH_CONVENTIONS_RATIONALE_FIELD,
+    consequence="Path conventions stay in force",
+    pronoun="them",
+)
+
+
+def _malformed_waiver(spec: _MetaWaiverSpec, problem: str) -> ContractsWaiver:
     return ContractsWaiver(
         waived=False,
         warning=(
-            f"meta.json {_CONTRACTS_FIELD!r} waiver ignored: {problem}. The contracts/ "
-            f'requirement stays in force; declare "{_CONTRACTS_FIELD}": "{_CONTRACTS_WAIVER_VALUE}" '
-            f"with a non-empty {_CONTRACTS_RATIONALE_FIELD!r} to waive it."
+            f"meta.json {spec.field!r} waiver ignored: {problem}. {spec.consequence}; "
+            f'declare "{spec.field}": "{spec.value}" '
+            f"with a non-empty {spec.rationale_field!r} to waive {spec.pronoun}."
         ),
     )
+
+
+def _read_meta_waiver(primary_meta_dir: Path, spec: _MetaWaiverSpec) -> ContractsWaiver:
+    """Read one flat waiver declaration from ``meta.json``, fail-closed.
+
+    An absent field is "no waiver" (silent). An unknown or non-string value, an
+    explicit ``null``, or a missing / blank / non-string rationale keeps the
+    requirement in force and returns a ``warning`` naming the problem; nothing
+    is truthiness-coerced.
+
+    Raises:
+        MissionMetaReadError: When meta.json exists but is corrupt or
+            unreadable (propagated from :func:`load_meta_fail_closed`).
+    """
+    data = load_meta_fail_closed(primary_meta_dir)
+    if not data or spec.field not in data:
+        return ContractsWaiver(waived=False)
+    value = data[spec.field]
+    if value != spec.value:
+        return _malformed_waiver(spec, f"value {value!r} is not {spec.value!r}")
+    rationale = data.get(spec.rationale_field)
+    if not isinstance(rationale, str) or not rationale.strip():
+        return _malformed_waiver(spec, f"{spec.rationale_field!r} must be a non-empty string")
+    return ContractsWaiver(waived=True, rationale=rationale.strip())
 
 
 def read_contracts_waiver_from_meta(primary_meta_dir: Path) -> ContractsWaiver:
@@ -787,27 +852,31 @@ def read_contracts_waiver_from_meta(primary_meta_dir: Path) -> ContractsWaiver:
     The ONE authority for the waiver (no spec/plan-frontmatter source): a flat
     ``"contracts": "none"`` plus a required non-empty string
     ``contracts_rationale``. Thin adapter over :func:`load_meta_fail_closed`,
-    mirroring :func:`read_retention_from_meta`.
-
-    Fail-closed (never truthiness-coerced): an unknown or non-string value, an
-    explicit ``null``, or a missing / blank / non-string rationale keeps the
-    requirement in force and returns a ``warning`` naming the problem. An
-    absent field is simply "no waiver" (silent).
+    mirroring :func:`read_retention_from_meta`; the fail-closed rules live in
+    :func:`_read_meta_waiver`.
 
     Raises:
         MissionMetaReadError: When meta.json exists but is corrupt or
             unreadable (propagated from :func:`load_meta_fail_closed`).
     """
-    data = load_meta_fail_closed(primary_meta_dir)
-    if not data or _CONTRACTS_FIELD not in data:
-        return ContractsWaiver(waived=False)
-    value = data[_CONTRACTS_FIELD]
-    if value != _CONTRACTS_WAIVER_VALUE:
-        return _malformed_contracts_waiver(f"value {value!r} is not {_CONTRACTS_WAIVER_VALUE!r}")
-    rationale = data.get(_CONTRACTS_RATIONALE_FIELD)
-    if not isinstance(rationale, str) or not rationale.strip():
-        return _malformed_contracts_waiver(f"{_CONTRACTS_RATIONALE_FIELD!r} must be a non-empty string")
-    return ContractsWaiver(waived=True, rationale=rationale.strip())
+    return _read_meta_waiver(primary_meta_dir, _CONTRACTS_WAIVER)
+
+
+def read_path_conventions_waiver_from_meta(primary_meta_dir: Path) -> ContractsWaiver:
+    """Read the Mission's path-conventions waiver from ``meta.json`` (#7566).
+
+    The ONE authority for the per-Mission waiver: a flat
+    ``"path_conventions": "waived"`` plus a required non-empty string
+    ``path_conventions_rationale``. A well-formed waiver makes the Mission's
+    path-convention misses advisory on every accept path (operator ruling Q4);
+    it never touches metadata validation. Same fail-closed rules as the
+    contracts waiver (:func:`_read_meta_waiver`).
+
+    Raises:
+        MissionMetaReadError: When meta.json exists but is corrupt or
+            unreadable (propagated from :func:`load_meta_fail_closed`).
+    """
+    return _read_meta_waiver(primary_meta_dir, _PATH_CONVENTIONS_WAIVER)
 
 
 def read_commit_to_target(meta: dict[str, Any] | None) -> bool:
@@ -1197,6 +1266,7 @@ __all__ = [
     "read_target_branch_from_meta",
     "ContractsWaiver",
     "read_contracts_waiver_from_meta",
+    "read_path_conventions_waiver_from_meta",
     "get_feature_target_branch",
     "resolve_merge_target_branch",
     "require_explicit_feature",

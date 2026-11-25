@@ -22,6 +22,7 @@ FINALIZE_MODULE_PATHS: tuple[Path, ...] = (
     AGENT_DIR / "mission_finalize_validation.py",
     AGENT_DIR / "mission_finalize_bootstrap.py",
     AGENT_DIR / "mission_finalize_planning_pin.py",
+    AGENT_DIR / "mission_finalize_pin_window.py",
     AGENT_DIR / "mission_finalize_lanes.py",
     AGENT_DIR / "mission_finalize_commit.py",
 )

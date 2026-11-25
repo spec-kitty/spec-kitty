@@ -185,6 +185,9 @@ jobs:
       cli_cmd_plugin: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_cmd_plugin }}
       cli_cmd_service: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_cmd_service }}
       cli_cmd_agent_subdir: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_cmd_agent_subdir }}
+      # Asset-install surface group (#7775): non-src, like cli_cmd_* above; gates no job BY DESIGN
+      # (fanned out to upgrade + cli via gate_selection.ASSET_SURFACE_MODULE_FANOUT). Never in the unmatched loop.
+      upgrade_asset_surface: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.upgrade_asset_surface }}
       # Acceptance-scenarios group (cli-acceptance-bdd-nightly, FR-012/C-005): non-src, like
       # mission_state above; gates no job BY DESIGN (seed CLI scenarios run in the nightly
       # acceptance-bdd job). Never in the unmatched loop.
@@ -223,14 +226,37 @@ jobs:
         id: filter
         if: steps.green.outputs.skip != 'true'
         with:
+          # #7775: the per-path `unmatched` step reads each src group's `<group>_files` list.
+          list-files: json
           filters: |
             consolidation:
               - 'src/specify_cli/consolidation/**'
+              - 'src/specify_cli/acceptance/**'
+              - 'src/specify_cli/decisions/**'
+              - 'src/specify_cli/frontmatter.py'
+              - 'src/specify_cli/git/**'
+              - 'src/specify_cli/invocation/**'
+              - 'src/specify_cli/migration/**'
+              - 'src/specify_cli/orchestrator_api/**'
+              - 'src/specify_cli/ownership/**'
+              - 'src/specify_cli/policy/**'
+              - 'src/specify_cli/status_lanes.py'
+              - 'src/specify_cli/tasks/**'
+              - 'src/specify_cli/workspace/**'
             missions:
               - 'src/specify_cli/mission.py'
               - 'src/specify_cli/mission_metadata.py'
               - 'src/specify_cli/missions/**'
               - 'src/charter/offering/missions/**'
+              - 'src/specify_cli/acceptance/**'
+              - 'src/specify_cli/doc_analysis/**'
+              - 'src/specify_cli/git/**'
+              - 'src/specify_cli/invocation/**'
+              - 'src/specify_cli/migration/**'
+              - 'src/specify_cli/mission_step_contracts/**'
+              - 'src/specify_cli/mission_v1/**'
+              - 'src/specify_cli/retrospective/**'
+              - 'src/specify_cli/task_utils/**'
             post_merge:
               - 'src/specify_cli/post_merge/**'
             release:
@@ -238,6 +264,22 @@ jobs:
             status:
               - 'src/specify_cli/status/**'
               - 'src/specify_cli/coordination/**'
+              - 'src/specify_cli/acceptance/**'
+              - 'src/specify_cli/agent_tasks_ports.py'
+              - 'src/specify_cli/context/**'
+              - 'src/specify_cli/decisions/**'
+              - 'src/specify_cli/events/**'
+              - 'src/specify_cli/frontmatter.py'
+              - 'src/specify_cli/git/**'
+              - 'src/specify_cli/identity/**'
+              - 'src/specify_cli/invocation/**'
+              - 'src/specify_cli/migration/**'
+              - 'src/specify_cli/orchestrator_api/**'
+              - 'src/specify_cli/ownership/**'
+              - 'src/specify_cli/retrospective/**'
+              - 'src/specify_cli/status_lanes.py'
+              - 'src/specify_cli/task_utils/**'
+              - 'src/specify_cli/workspace/**'
             # issue #6879: the runtime-home path-literal guard
             # (tests/audit/test_no_legacy_path_literals.py) had NO per-PR lane -- tests/audit is
             # out_of_matrix_test_dirs and the only nightly lane naming it runs `-m "fast or unit"`,
@@ -260,22 +302,82 @@ jobs:
               - 'tests/audit/test_no_legacy_path_literals.py'
             review:
               - 'src/specify_cli/review/**'
+              - 'src/specify_cli/agent_tasks_ports.py'
+              - 'src/specify_cli/git/**'
+              - 'src/specify_cli/migration/**'
+              - 'src/specify_cli/mission_step_contracts/**'
+              - 'src/specify_cli/requirement_mapping/**'
+              - 'src/specify_cli/workspace/**'
             next:
               - 'src/specify_cli/runtime/**'
               - 'src/runtime/next/**'
               - 'src/mission_runtime/**'
+              - 'src/specify_cli/identity/**'
+              - 'src/specify_cli/invocation/**'
+              - 'src/specify_cli/requirement_mapping/**'
+              - 'src/specify_cli/status_lanes.py'
             lanes:
               - 'src/specify_cli/lanes/**'
+              - 'src/specify_cli/acceptance/**'
+              - 'src/specify_cli/analysis_report.py'
+              - 'src/specify_cli/git/**'
+              - 'src/specify_cli/gitignore_manager.py'
+              - 'src/specify_cli/manifest.py'
+              - 'src/specify_cli/migration/**'
+              - 'src/specify_cli/orchestrator_api/**'
+              - 'src/specify_cli/ownership/**'
+              - 'src/specify_cli/policy/**'
+              - 'src/specify_cli/tasks/**'
+              - 'src/specify_cli/workspace/**'
             upgrade:
               - 'src/specify_cli/upgrade/**'
+              - 'src/specify_cli/audit/**'
+              - 'src/specify_cli/context/**'
+              - 'src/specify_cli/frontmatter.py'
+              - 'src/specify_cli/git/**'
+              - 'src/specify_cli/gitignore_manager.py'
+              - 'src/specify_cli/invocation/**'
+              - 'src/specify_cli/migration/**'
+              - 'src/specify_cli/shims/**'
+              - 'src/specify_cli/skills/**'
+              - 'src/specify_cli/task_utils/**'
+              - 'src/specify_cli/template/**'
             cli:
               - 'src/specify_cli/cli/**'
+              - 'src/specify_cli/agent_tasks_ports.py'
+              - 'src/specify_cli/charter_activate.py'
+              - 'src/specify_cli/charter_packs/**'
+              - 'src/specify_cli/context/**'
+              - 'src/specify_cli/git/**'
+              - 'src/specify_cli/gitignore_manager.py'
+              - 'src/specify_cli/intake/**'
+              - 'src/specify_cli/migration/**'
+              - 'src/specify_cli/mission_brief.py'
+              - 'src/specify_cli/retrospective/**'
+              - 'src/specify_cli/shims/**'
+              - 'src/specify_cli/skills/**'
+              - 'src/specify_cli/state/**'
+              - 'src/specify_cli/task_utils/**'
+              - 'src/specify_cli/template/**'
+              - 'src/specify_cli/workspace/**'
             charter:
               - 'src/charter/**'
               - 'src/specify_cli/charter_runtime/**'
               # issue #6336: the activation ledger's kernel-side floor. Verbatim from the scrub
               # `charter` roots; its readers are tests/charter/activation/**, this group's test dirs.
               - 'src/kernel/activation_ledger_store.py'
+              - 'src/specify_cli/analysis_inputs.py'
+              - 'src/specify_cli/charter_packs/**'
+              - 'src/specify_cli/doc_analysis/**'
+              - 'src/specify_cli/frontmatter.py'
+              - 'src/specify_cli/invocation/**'
+              - 'src/specify_cli/migration/**'
+              - 'src/specify_cli/mission_step_contracts/**'
+              - 'src/specify_cli/ownership/**'
+              - 'src/specify_cli/provisioning/**'
+              - 'src/specify_cli/skills/**'
+              - 'src/specify_cli/task_utils/**'
+              - 'src/specify_cli/template/**'
             # issue #6336: activation-store group, NON-src (not in the unmatched loop, so it can
             # never mask an unmapped src/** change, FR-004). An edit to the charter activation store
             # (.kittify/charter/charter.yaml -- the charter read authority -- and
@@ -406,10 +508,36 @@ jobs:
               - '**/specify_cli/cli/commands/service.py'
             cli_cmd_agent_subdir:
               - '**/specify_cli/cli/commands/agent/**'
+            # Asset-install surface group (#7775): NON-src (**/-prefixed), so it stays out of the unmatched
+            # loop and gates no router job BY DESIGN. `spec-kitty upgrade` and `init` prepare skills and the
+            # command surface through these packages, but their own groups (core_misc, next,
+            # specify_cli_runtime; skills/** has none) never selected the upgrade module, so #7763 broke
+            # upgrade with no upgrade shard run. gate_selection.ASSET_SURFACE_MODULE_FANOUT fans it out to
+            # upgrade + cli. Pinned by tests/ci/test_upgrade_asset_surface_routing.py.
+            upgrade_asset_surface:
+              - '**/specify_cli/skills/**'
+              - '**/specify_cli/tool_surface/**'
+              - '**/specify_cli/runtime/**'
             agent:
               - 'src/specify_cli/agent_utils/**'
+              - 'src/specify_cli/acceptance/**'
+              - 'src/specify_cli/analysis_report.py'
+              - 'src/specify_cli/bulk_edit/**'
+              - 'src/specify_cli/doc_analysis/**'
+              - 'src/specify_cli/frontmatter.py'
+              - 'src/specify_cli/gitignore_manager.py'
+              - 'src/specify_cli/orchestrator_api/**'
+              - 'src/specify_cli/skills/**'
+              - 'src/specify_cli/task_utils/**'
+              - 'src/specify_cli/template/**'
+              - 'src/specify_cli/tracker/**'
+              - 'src/specify_cli/validators/**'
+              - 'src/specify_cli/workspace/**'
             kernel:
               - 'src/kernel/**'
+              - 'src/specify_cli/skills/**'
+              - 'src/specify_cli/task_utils/**'
+              - 'src/specify_cli/tracker/**'
             glossary:
               - 'src/glossary/**'
               # Not a src file: the pins name the torn-tail repair goldens (the pinned conformance-fixtures of spec-kitty-events,
@@ -420,6 +548,33 @@ jobs:
               - 'src/specify_cli/status/**'
               - 'src/runtime/next/**'
               - 'src/specify_cli/cli/commands/agent/**'
+              - 'src/specify_cli/acceptance/**'
+              - 'src/specify_cli/agent_tasks_ports.py'
+              - 'src/specify_cli/analysis_inputs.py'
+              - 'src/specify_cli/analysis_report.py'
+              - 'src/specify_cli/bulk_edit/**'
+              - 'src/specify_cli/context/**'
+              - 'src/specify_cli/decisions/**'
+              - 'src/specify_cli/diagnostics/**'
+              - 'src/specify_cli/events/**'
+              - 'src/specify_cli/frontmatter.py'
+              - 'src/specify_cli/git/**'
+              - 'src/specify_cli/invocation/**'
+              - 'src/specify_cli/meta_keys.py'
+              - 'src/specify_cli/migration/**'
+              - 'src/specify_cli/mission_loader/**'
+              - 'src/specify_cli/mission_step_contracts/**'
+              - 'src/specify_cli/orchestrator_api/**'
+              - 'src/specify_cli/ownership/**'
+              - 'src/specify_cli/requirement_mapping/**'
+              - 'src/specify_cli/retrospective/**'
+              - 'src/specify_cli/shims/**'
+              - 'src/specify_cli/skills/**'
+              - 'src/specify_cli/task_utils/**'
+              - 'src/specify_cli/tasks/**'
+              - 'src/specify_cli/template/**'
+              - 'src/specify_cli/version_utils.py'
+              - 'src/specify_cli/workspace/**'
             core_misc:
               - 'src/kernel/**'
               - 'src/charter/offering/**'
@@ -432,6 +587,38 @@ jobs:
               - 'pins/**'
               - 'scripts/sync_services.py'
               - '.github/actions/sync-services/**'
+              - 'src/specify_cli/agent_tasks_ports.py'
+              - 'src/specify_cli/analysis_report.py'
+              - 'src/specify_cli/asset_preservation/**'
+              - 'src/specify_cli/bootstrap/**'
+              - 'src/specify_cli/calibration/**'
+              - 'src/specify_cli/compat/**'
+              - 'src/specify_cli/config/**'
+              - 'src/specify_cli/context/**'
+              - 'src/specify_cli/decisions/**'
+              - 'src/specify_cli/design/**'
+              - 'src/specify_cli/distribution/**'
+              - 'src/specify_cli/events/**'
+              - 'src/specify_cli/frontmatter.py'
+              - 'src/specify_cli/git/**'
+              - 'src/specify_cli/gitignore_manager.py'
+              - 'src/specify_cli/invocation/**'
+              - 'src/specify_cli/meta_keys.py'
+              - 'src/specify_cli/migration/**'
+              - 'src/specify_cli/orchestrator_api/**'
+              - 'src/specify_cli/ownership/**'
+              - 'src/specify_cli/retrospective/**'
+              - 'src/specify_cli/session_presence/**'
+              - 'src/specify_cli/skills/**'
+              - 'src/specify_cli/state/**'
+              - 'src/specify_cli/status_lanes.py'
+              - 'src/specify_cli/task_metadata_validation.py'
+              - 'src/specify_cli/task_utils/**'
+              - 'src/specify_cli/tasks/**'
+              - 'src/specify_cli/tasks_authoring/**'
+              - 'src/specify_cli/text_sanitization.py'
+              - 'src/specify_cli/version_utils.py'
+              - 'src/specify_cli/workspace/**'
             # Test-inventory groups: tests/unit and tests/specify_cli/runtime had
             # no declared home in the module registry. Every glob below is a
             # verbatim copy of one another group already carries (scrub groups
@@ -441,10 +628,23 @@ jobs:
               - 'src/runtime/next/**'
               - 'src/charter/offering/missions/**'
               - 'src/kernel/**'
+              - 'src/specify_cli/contracts/**'
+              - 'src/specify_cli/frontmatter.py'
+              - 'src/specify_cli/git/**'
+              - 'src/specify_cli/intake/**'
+              - 'src/specify_cli/migration/**'
+              - 'src/specify_cli/mission_loader/**'
+              - 'src/specify_cli/task_utils/**'
+              - 'src/specify_cli/tracker/**'
+              - 'src/specify_cli/workspace/**'
             specify_cli_runtime:
               - 'src/specify_cli/runtime/**'
               - 'src/charter/offering/missions/**'
               - 'src/specify_cli/core/**'
+              - 'src/specify_cli/acceptance/**'
+              - 'src/specify_cli/analysis_report.py'
+              - 'src/specify_cli/shims/**'
+              - 'src/specify_cli/skills/**'
             docs:
               - 'docs/**'
               - 'tests/docs/**'
@@ -706,46 +906,49 @@ jobs:
               - '**/specify_cli/status/wp_view.py'
               - '**/specify_cli/upgrade/metadata.py'
               - '**/specify_cli/workspace/context.py'
-            # FR-004 probe: matches ANY src change. The `unmatched` step computes
-            # `any_src AND NOT (any named src group)` from the filter's own outputs.
+            # FR-004 probe: matches ANY src change. The `unmatched` step computes, PER PATH (#7775),
+            # `any_src_files MINUS the union of every named src group's files` from the filter's own outputs.
             # Never gate a job on `any_src` directly (contract Invariant 1).
             any_src:
               - 'src/**'
       - name: Compute fail-closed catch-all unmatched signal
         id: unmatched
         if: steps.green.outputs.skip != 'true'
+        # PER PATH (#7775): run-all when ANY src/** path matches no src-backed group. The old per-diff
+        # test (any src changed AND no src group matched) let one routed src path mask an unrouted one
+        # beside it (#7763). The file lists are dorny's `<group>_files` outputs (`list-files: json`),
+        # passed ONLY through env: file names are PR-controlled and never reach the script as `${{ }}`.
+        # SRC-BACKED groups ONLY (docs/corpus/e2e are non-src, so a data-only path never covers a src
+        # path). Mirrors gate_selection.unrouted_src_paths; executed by tests/ci/test_unmatched_is_per_path.py.
         env:
-          ANY_SRC: ${{ steps.filter.outputs.any_src }}
+          ANY_SRC_FILES: ${{ steps.filter.outputs.any_src_files }}
+          SRC_GROUP_FILES_consolidation: ${{ steps.filter.outputs.consolidation_files }}
+          SRC_GROUP_FILES_missions: ${{ steps.filter.outputs.missions_files }}
+          SRC_GROUP_FILES_post_merge: ${{ steps.filter.outputs.post_merge_files }}
+          SRC_GROUP_FILES_release: ${{ steps.filter.outputs.release_files }}
+          SRC_GROUP_FILES_status: ${{ steps.filter.outputs.status_files }}
+          SRC_GROUP_FILES_review: ${{ steps.filter.outputs.review_files }}
+          SRC_GROUP_FILES_next: ${{ steps.filter.outputs.next_files }}
+          SRC_GROUP_FILES_lanes: ${{ steps.filter.outputs.lanes_files }}
+          SRC_GROUP_FILES_upgrade: ${{ steps.filter.outputs.upgrade_files }}
+          SRC_GROUP_FILES_cli: ${{ steps.filter.outputs.cli_files }}
+          SRC_GROUP_FILES_charter: ${{ steps.filter.outputs.charter_files }}
+          SRC_GROUP_FILES_dossier: ${{ steps.filter.outputs.dossier_files }}
+          SRC_GROUP_FILES_agent: ${{ steps.filter.outputs.agent_files }}
+          SRC_GROUP_FILES_kernel: ${{ steps.filter.outputs.kernel_files }}
+          SRC_GROUP_FILES_glossary: ${{ steps.filter.outputs.glossary_files }}
+          SRC_GROUP_FILES_execution_context: ${{ steps.filter.outputs.execution_context_files }}
+          SRC_GROUP_FILES_core_misc: ${{ steps.filter.outputs.core_misc_files }}
+          SRC_GROUP_FILES_unit: ${{ steps.filter.outputs.unit_files }}
+          SRC_GROUP_FILES_specify_cli_runtime: ${{ steps.filter.outputs.specify_cli_runtime_files }}
         run: |
-          matched=false
-          # Union of the SRC-BACKED filter groups ONLY (docs/corpus/e2e are non-src,
-          # excluded so a data-only path can never mask an unmapped src/** change).
-          for group_hit in \
-            "${{ steps.filter.outputs.consolidation }}" \
-            "${{ steps.filter.outputs.missions }}" \
-            "${{ steps.filter.outputs.post_merge }}" \
-            "${{ steps.filter.outputs.release }}" \
-            "${{ steps.filter.outputs.status }}" \
-            "${{ steps.filter.outputs.review }}" \
-            "${{ steps.filter.outputs.next }}" \
-            "${{ steps.filter.outputs.lanes }}" \
-            "${{ steps.filter.outputs.upgrade }}" \
-            "${{ steps.filter.outputs.cli }}" \
-            "${{ steps.filter.outputs.charter }}" \
-            "${{ steps.filter.outputs.dossier }}" \
-            "${{ steps.filter.outputs.agent }}" \
-            "${{ steps.filter.outputs.kernel }}" \
-            "${{ steps.filter.outputs.glossary }}" \
-            "${{ steps.filter.outputs.execution_context }}" \
-            "${{ steps.filter.outputs.core_misc }}" \
-            "${{ steps.filter.outputs.unit }}" \
-            "${{ steps.filter.outputs.specify_cli_runtime }}"; do
-            if [ "$group_hit" = "true" ]; then
-              matched=true
-            fi
-          done
-          if [ "$ANY_SRC" = "true" ] && [ "$matched" = "false" ]; then
-            echo "::warning::src/** change matched by NO named filter group — forcing run-all (FR-004 fail-closed catch-all). Add a named group for this directory."
+          unrouted="$(jq -n -c '
+            def files($v): if ($v // "") == "" then [] else ($v | fromjson) end;
+            ([env | to_entries[] | select(.key | startswith("SRC_GROUP_FILES_")) | files(.value)[]] | unique) as $covered
+            | [files(env.ANY_SRC_FILES)[] | select(startswith("src/"))] - $covered')"
+          if [ "$unrouted" != "[]" ]; then
+            echo "::warning::src/** paths matched by NO named filter group — forcing run-all (FR-004 fail-closed catch-all). Add a named group for their directory."
+            echo "unrouted src paths (JSON): $unrouted"
             echo "unmatched=true" >> "$GITHUB_OUTPUT"
           else
             echo "unmatched=false" >> "$GITHUB_OUTPUT"
@@ -911,6 +1114,61 @@ jobs:
           fi
           echo "prose_only=${prose_only:-false}" >> "$GITHUB_OUTPUT"
           echo "scan_scope_match=${scan_scope_match:-false}" >> "$GITHUB_OUTPUT"
+      # #7801: name every changed test file that runs in no per-PR shard (an
+      # out_of_matrix_test_dirs record in .github/ci-module-registry.yml), so a PR
+      # editing a nightly-only test cannot read its own green as a run of that test.
+      # REPORT ONLY: a ::warning plus a step-summary list, never a failure
+      # (continue-on-error, and the script exits 0 on every path). The mapping is
+      # gate_selection.out_of_matrix_test_paths; executed by
+      # tests/ci/test_gate_selection_out_of_matrix.py.
+      - name: Name changed tests that only the nightly runs
+        id: out-of-matrix
+        continue-on-error: true
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          set -uo pipefail
+          base=""
+          case "$EVENT_NAME" in
+            pull_request) base="$BASE_SHA" ;;
+            push) base="$PUSH_BEFORE" ;;
+            merge_group) base="$MERGE_GROUP_BASE" ;;
+          esac
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            echo "out-of-matrix scan: no trustworthy base, nothing to report"
+            exit 0
+          fi
+          # The diff travels in a FILE (never an env var: E2BIG past ~2000 paths, #6915).
+          diff_file="$RUNNER_TEMP/out-of-matrix-diff.txt"
+          # Deleted files are left out (--diff-filter=d): there is nothing left to run.
+          if ! git diff --name-only --diff-filter=d "$base" "$HEAD_SHA" > "$diff_file" 2>/dev/null; then
+            echo "out-of-matrix scan: diff unavailable, nothing to report"
+            exit 0
+          fi
+          OOM_DIFF_FILE="$diff_file" python3 - <<'PY' || echo "::warning::out-of-matrix scan failed: changed nightly-only tests were not checked (#7801)"
+          import os
+          import sys
+
+          sys.path.insert(0, os.environ.get("PYTHONPATH", "."))
+          from scripts.ci.gate_selection import out_of_matrix_test_paths, render_out_of_matrix_report
+
+          with open(os.environ["OOM_DIFF_FILE"], encoding="utf-8") as fh:
+              paths = [line for line in fh.read().splitlines() if line]
+          warnings, summary = render_out_of_matrix_report(out_of_matrix_test_paths(paths))
+          for line in warnings:
+              print(line)
+          if summary and os.environ.get("GITHUB_STEP_SUMMARY"):
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as out:
+                  out.write(summary)
+          print(f"out-of-matrix scan: {len(warnings)} changed nightly-only test path(s)")
+          PY
+          exit 0
 
   # ===========================================================================
   # Shift-left front (FR-005): the cheapest static / lint / regen gates. Every

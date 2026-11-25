@@ -31,9 +31,10 @@ from specify_cli.git.merge_conclusion import MergeConclusionRefused, conclude_in
 from specify_cli.git.ref_advance import RefAdvanceDirtyWorktreeError, advance_branch_ref
 from specify_cli.lanes._git import branch_exists as _shared_branch_exists
 from specify_cli.lanes.branch_naming import lane_branch_name, worktree_path as _worktree_path
+from specify_cli.lanes.compute import is_planning_lane
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import read_lanes_json
-from specify_cli.lanes.stale_check import StaleCheckResult, check_lane_staleness
+from specify_cli.lanes.stale_check import SiblingLane, StaleCheckResult, check_lane_staleness, find_sibling_lanes, refine_stale_result
 from specify_cli.consolidation._constants import TARGET_BRANCH_CONTENT_CONFLICT
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.drivers import META_DRIVER_TWO_WAY_ENV
@@ -232,19 +233,58 @@ def _try_auto_rebase_if_stale(
     mission_branch: str,
     mission_slug: str,
     repo_root: Path,
-) -> StaleCheckResult:
-    """If the lane is stale and a worktree exists, attempt auto-rebase and recheck."""
+) -> tuple[StaleCheckResult, str | None]:
+    """If the lane is stale and a worktree exists, attempt auto-rebase and recheck.
+
+    Returns the (re)checked result and, when the auto-rebase ran and stopped, its halt
+    reason, so the refusal can say why (#7755); ``None`` when no auto-rebase ran or it
+    succeeded.
+    """
     if not stale.is_stale:
-        return stale
+        return stale, None
     worktree_path = _worktree_path(repo_root, mission_slug, lane_id=lane.lane_id)
     if not worktree_path.exists():
-        return stale
+        return stale, None
     from specify_cli.lanes.auto_rebase import attempt_auto_rebase
 
     report = attempt_auto_rebase(lane, branch, mission_branch, repo_root, worktree_path, mission_slug=mission_slug)
     if report.succeeded:
-        return check_lane_staleness(lane, branch, mission_branch, repo_root, mission_slug=mission_slug)
-    return stale
+        return check_lane_staleness(lane, branch, mission_branch, repo_root, mission_slug=mission_slug), None
+    return stale, report.halt_reason
+
+
+def _explain_stale(
+    stale: StaleCheckResult,
+    halt_reason: str | None,
+    lane: ExecutionLane,
+    branch: str,
+    lanes_manifest: LanesManifest,
+    mission_slug: str,
+    repo_root: Path,
+) -> StaleCheckResult:
+    """Add the auto-rebase halt reason and the sibling lanes behind the overlap to a stale result (#7755).
+
+    The run's rollback restores the Mission branch, so a sibling lane consolidated earlier in
+    this run is the only source left that holds the change the lane lacks; its branch is
+    never moved by the rollback.
+    """
+    if not stale.is_stale:
+        return stale
+    candidates = [
+        SiblingLane(other.lane_id, lane_branch_name(mission_slug, other.lane_id, target_branch=lanes_manifest.target_branch))
+        for other in lanes_manifest.lanes
+        if other.lane_id != lane.lane_id and not is_planning_lane(other)
+    ]
+    siblings = find_sibling_lanes(repo_root, branch, lanes_manifest.mission_branch, candidates, stale.stale_files)
+    return refine_stale_result(
+        stale,
+        lane,
+        branch,
+        lanes_manifest.mission_branch,
+        mission_slug=mission_slug,
+        auto_rebase_halt=halt_reason,
+        sibling_lanes=siblings,
+    )
 
 
 _RESUME_HINT = "  Then resume the consolidation (`spec-kitty consolidate --resume`)."
@@ -326,7 +366,7 @@ def consolidate_lane_into_mission(
         )
 
     stale = check_lane_staleness(lane, branch, mission_branch, repo_root, mission_slug=mission_slug)
-    stale = _try_auto_rebase_if_stale(
+    stale, halt_reason = _try_auto_rebase_if_stale(
         stale,
         lane,
         branch,
@@ -334,6 +374,7 @@ def consolidate_lane_into_mission(
         mission_slug,
         repo_root,
     )
+    stale = _explain_stale(stale, halt_reason, lane, branch, lanes_manifest, mission_slug, repo_root)
     if stale.is_stale:
         return LaneConsolidationResult(
             success=False,

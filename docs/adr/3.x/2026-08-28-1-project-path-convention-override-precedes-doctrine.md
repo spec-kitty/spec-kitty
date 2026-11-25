@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-08-28'
-updated: '2026-11-10T00:00:00Z'
+updated: '2026-11-20T00:00:00Z'
 ---
 
 # ADR: A project `path_conventions` override precedes the doctrine default, without changing the blocking policy
@@ -205,3 +205,73 @@ now carries the same remap guidance. A missing Mission artifact path (`deliverab
 prefixed paths sit in the Mission's own deliverables directory, are Mission output rather than
 build layout, and are not offered the remap. Which paths are checked, and whether a missing path blocks, is unchanged, so a
 plain Python project whose `src/` is really missing still blocks, but no longer sees a `mkdir` hint.
+
+## Amendment 2026-11-20: per-Mission-type sections and narrow waivers (#7566, #7748)
+
+Mission `path-conventions-per-type-01M7VRQM`. A plain `project.path_conventions` key remapped
+the path for every Mission type that declared it, so a repository could not change one type's
+layout without moving the others (#7748). And the only in-command escape from a path miss,
+`accept --lenient`, also skipped the work-package metadata checks (#7566).
+
+### Per-type sections
+
+A mapping value under `project.path_conventions` is a per-type section, keyed by a Mission type
+id; a string value keeps its plain meaning. The value's shape decides, so `documentation` (both
+a path key and a Mission type) is a plain value when it is a string and the documentation
+type's section when it is a mapping.
+
+```yaml
+project:
+  path_conventions:
+    workspace: apps/        # every Mission type that declares workspace
+    software-dev:
+      workspace: packs/     # software-dev Missions only
+```
+
+For a Mission of type `T` and a key `k` the Mission declares, the resolved directory is:
+
+1. the Mission type default, when `k` is artifact-routed (`deliverables`);
+2. otherwise `project.path_conventions.T.k`, when set;
+3. otherwise `project.path_conventions.k`, when set;
+4. otherwise the Mission type default.
+
+`T` is the Mission's `meta.json` `mission_type` (software-dev when absent), the value the
+Mission itself is loaded from. The remap is still remap-only, research's `path_prefix` still
+applies after it, and the blocking decision is unchanged: a remap to a missing directory still
+blocks.
+
+Fail-closed rules extend to sections: an id outside the project's layered Mission type roster
+(built-in, org, project), a section that is not a mapping, an unknown key, and a non-string,
+blank, absolute or `..` value each raise `PathConventionsConfigError`. When a section exists
+and the roster cannot be read, that also raises. `deliverables` inside a section is warned
+about and ignored, as in the plain form. The roster is read only when a section exists.
+
+### Remedy order
+
+The failure text now reads, in order: the misses; the per-type remap snippet for the failing
+Mission type; the two narrow waivers, then `accept --lenient`; the `mission.yaml` copy, as a
+last resort that freezes the Mission type definition; and `mkdir -p` only for real
+deliverables (Mission artifact and research deliverable paths), with the `contracts: none`
+waiver named beside `contracts/`. `--lenient` still precedes every `mkdir -p` (#3783), and no
+remappable path gets one (#7512). The advisory text keeps the remap and the last-resort line
+and drops the waiver lines.
+
+### Narrow waivers
+
+Both make the misses of remappable layout paths warnings while strict metadata validation is
+unchanged. Neither waives a missing Mission artifact such as `contracts/`: that still blocks
+unless the Mission declares the #5298 `"contracts": "none"` waiver.
+
+- **Per run:** `accept --waive-path-conventions --waive-reason "<why>"` (forwarded by
+  `agent mission accept`). A missing or blank reason, or a reason without the flag, is refused
+  before any work. The reason is recorded as `path_conventions_waived` on the acceptance
+  history entry. `orchestrator-api` has no per-run waiver.
+- **Per Mission:** `"path_conventions": "waived"` with a non-empty `"path_conventions_rationale"`
+  in `meta.json`, read by `core.paths.read_path_conventions_waiver_from_meta`, which shares the
+  #5298 contracts waiver's fail-closed rules. Every accept path honors it, `orchestrator-api`
+  included (operator ruling Q4), and the rationale is printed in the accept warnings. Trust
+  model: anyone who can write the Mission's `meta.json` can set it, the same trust model as
+  the contracts waiver; the printed rationale and the committed `meta.json` keep it auditable.
+
+The strict failure text names the per-run flag on every path; on `orchestrator-api`, use the
+`meta.json` declaration instead.

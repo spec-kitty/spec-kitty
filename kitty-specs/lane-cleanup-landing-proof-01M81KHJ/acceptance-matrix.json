@@ -1,0 +1,99 @@
+{
+  "mission_slug": "lane-cleanup-landing-proof-01M81KHJ",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "consolidate and doctor judge a lane by one public landing proof (lane_tip.is_absorbed_but_for_mission_bookkeeping)",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_lane_tip_mission_bookkeeping.py; tests/specify_cli/workspace/test_landed_worktrees_mission_bookkeeping.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-24T01:01:26.656886+00:00",
+      "notes": "Approved WP review + local run 2026-11-24"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "the lane's own status log is set aside only when every event line is on the target",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_lane_tip_mission_bookkeeping.py (status-log containment, lane-only event negative)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-24T01:01:35.827152+00:00",
+      "notes": "Approved WP review + local run 2026-11-24"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "status.json/meta.json/tasks WP*.md set aside only when both sides have the file and the lane never authored its copy",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_lane_tip_mission_bookkeeping.py; tests/integration/test_lane_cleanup_landing_proof_7747.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-24T01:01:44.725009+00:00",
+      "notes": "Approved WP review + local run 2026-11-24"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "no merge or merge-driver result counts as evidence for kitty-specs/** paths",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_lane_tip_mission_bookkeeping.py (merge-driver negative, lost-through-sync-merge)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-24T01:01:52.839792+00:00",
+      "notes": "Approved WP review + local run 2026-11-24"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "every other change, deletion and read error keeps the lane (status-log deletion excepted)",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_lane_tip_mission_bookkeeping.py (git-failure parametrize, deletion negatives)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-24T01:02:01.311128+00:00",
+      "notes": "Approved WP review + local run 2026-11-24"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "consolidate and accept --mode pr lane cleanup remove every lane the proof shows landed",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_lane_cleanup_landing_proof_7747.py; tests/consolidation/test_pr_mode_landing_proof_7747.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-24T01:02:09.432607+00:00",
+      "notes": "Approved WP review + local run 2026-11-24"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "doctor applies the set-aside to released Mission lanes only, plain proof elsewhere",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/workspace/test_landed_worktrees_mission_bookkeeping.py; tests/integration/test_doctor_prunes_landed_mission_lanes_7747.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-24T01:02:17.349924+00:00",
+      "notes": "Approved WP review + local run 2026-11-24"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "a lane with no usable landing proof is kept with LANDING_PROOF_UNAVAILABLE, branch untouched",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_lane_remover_proof_unavailable_7325.py; tests/orchestrator_api/test_consolidate_mission_lane_cleanup.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-24T01:02:25.138215+00:00",
+      "notes": "Approved WP review + local run 2026-11-24"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "ADR 2026-11-06-1 O3 amended with the Mission-file and #6736 status-log set-aside",
+      "proof_type": "automated_test",
+      "evidence": "docs/adr/4.x/2026-11-06-1-a-destructive-git-operation-discharges-named-proof-obligations.md (Amendment 2026-11-23)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-24T01:02:33.035491+00:00",
+      "notes": "Approved WP review + local run 2026-11-24"
+    }
+  ],
+  "negative_invariants": []
+}

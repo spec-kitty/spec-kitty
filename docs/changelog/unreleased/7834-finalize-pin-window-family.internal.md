@@ -1,0 +1,1 @@
+- **The finalize module family includes `mission_finalize_pin_window`** (#7834): the finalize source helper lists it, the `mission_finalize` facade re-exports it, and `planning_pin` reaches `resolve_pin_line` through the facade.

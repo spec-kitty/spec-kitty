@@ -25,7 +25,9 @@ Attesting a work package whose newest approval is an earlier attestation is ther
 accepted only while its lane has not moved past that attestation's ``lane_head`` (no content
 commit beyond it, and the stamp still on the lane): the
 lane is checked through :func:`~specify_cli.consolidation.approved_bound.check_lane`, the
-check the claim itself runs. When it holds, the attestation is **re-recorded** as a fresh
+check the claim itself runs, which measures from the effective stamp
+(:func:`~specify_cli.consolidation.approved_bound.effective_stamp`: the recorded ``lane_head``,
+else the pre-sync ``lane_head_presync`` of #7802). When it holds, the attestation is **re-recorded** as a fresh
 operator act with its own reason (like ``--attest-canceled-superseded``), so a run that
 failed for an unrelated reason after attesting is repeatable with the same command; the new
 bound is the lane's current tip, which the check just proved is the same content. When the

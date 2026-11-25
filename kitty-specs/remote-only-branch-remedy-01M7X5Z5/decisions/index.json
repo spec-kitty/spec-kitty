@@ -1,0 +1,29 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-20T19:12:22.743414Z",
+      "decision_id": "01M7X5ZH6Q8WMSNFVTYHTRNERY",
+      "final_answer": "Yes, binding as stated (operator rulings 2026-11-20, relayed by the orchestrator; Phase 2 design debrief sent, no new ruling required)",
+      "input_key": "operator_rulings_scope",
+      "mission_id": "01M7X5Z5RAEZ14ZPBDGQSYCYEZ",
+      "mission_slug": "remote-only-branch-remedy-01M7X5Z5",
+      "opened_by": "cli",
+      "options": [
+        "Yes, binding as stated",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Are the operator rulings of 2026-11-20 for #5287 (typed remote-only refusal at the status read door with no remote-tracking read source; #5936 and #7449 out of scope; one canonical remedy using the resolved remote; MISSION_BRANCH_REF gets the same refusal) the binding scope?",
+      "rationale": null,
+      "resolved_at": "2026-11-20T19:12:24.886344Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.operator-rulings",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M7X5Z5RAEZ14ZPBDGQSYCYEZ",
+  "version": 1
+}

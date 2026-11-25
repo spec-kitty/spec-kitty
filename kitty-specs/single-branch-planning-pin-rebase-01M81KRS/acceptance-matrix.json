@@ -1,0 +1,109 @@
+{
+  "mission_slug": "single-branch-planning-pin-rebase-01M81KRS",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_7793_single_branch_repin_patch_id.py::test_repin_after_rebase_follows_planning_commit_and_keeps_the_work; tests/specify_cli/cli/commands/agent/test_finalize_pin_decisions_7297.py::test_repin_follows_the_planning_commit_by_patch_id",
+      "pass_fail": "pass",
+      "verified_by": "claude::implementer-ivan",
+      "verified_at": "2026-11-22T15:29:34.220341+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_7793_single_branch_repin_patch_id.py::test_repin_with_no_patch_id_match_refuses_and_writes_nothing; tests/integration/test_7793_single_branch_repin_patch_id.py::test_minted_repin_refuses_when_the_planning_change_is_only_upstream; tests/specify_cli/cli/commands/agent/test_finalize_pin_decisions_7297.py::test_repin_with_two_copies_refuses_as_ambiguous",
+      "pass_fail": "pass",
+      "verified_by": "claude::implementer-ivan",
+      "verified_at": "2026-11-22T15:29:38.067449+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_finalize_pin_decisions_7297.py::test_refresh_to_the_tip_refuses_when_it_empties_the_window; tests/specify_cli/cli/commands/agent/test_finalize_pin_decisions_7297.py::test_window_guard_is_judged_per_work_package",
+      "pass_fail": "pass",
+      "verified_by": "claude::implementer-ivan",
+      "verified_at": "2026-11-22T15:29:41.816049+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_finalize_tasks_commit_surface.py::test_a_derived_pin_survives_later_plain_finalizes; tests/specify_cli/cli/commands/agent/test_finalize_tasks_commit_surface.py::test_an_explicit_refresh_clears_the_derived_marker",
+      "pass_fail": "pass",
+      "verified_by": "claude::implementer-ivan",
+      "verified_at": "2026-11-22T15:29:45.723708+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_7793_single_branch_repin_patch_id.py::test_repin_after_rebase_follows_planning_commit_and_keeps_the_work[minted]; tests/cli/test_tasks_finalize_lanes_minting.py::test_finalize_tasks_captures_a_single_branch_pin_on_its_mission_branch; tests/unit/migration/test_rebuilt_planning_commit_7297.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::implementer-ivan",
+      "verified_at": "2026-11-22T15:29:49.648289+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_finalize_pin_decisions_7297.py::test_indeterminate_reason_names_what_is_missing; tests/specify_cli/cli/commands/agent/test_finalize_pin_decisions_7297.py::test_kept_pin_warnings_name_a_next_step",
+      "pass_fail": "pass",
+      "verified_by": "claude::implementer-ivan",
+      "verified_at": "2026-11-22T15:29:53.190261+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_single_branch_refusal_wording.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::implementer-ivan",
+      "verified_at": "2026-11-22T15:29:56.891604+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_planning_base.py::test_finalize_base_anchors_on_the_re_add_after_tasks_were_removed",
+      "pass_fail": "pass",
+      "verified_by": "claude::implementer-ivan",
+      "verified_at": "2026-11-22T15:30:00.379745+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_planning_base.py::test_finalize_base_follows_a_task_file_renamed_into_wp",
+      "pass_fail": "pass",
+      "verified_by": "claude::implementer-ivan",
+      "verified_at": "2026-11-22T15:30:04.445095+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/migration/test_doctor_rebuild_derived_pin_7210.py::test_fix_warns_when_the_rebuilt_pin_stays_unset",
+      "pass_fail": "pass",
+      "verified_by": "claude::implementer-ivan",
+      "verified_at": "2026-11-22T15:30:08.122774+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

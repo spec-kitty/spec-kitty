@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-09-20'
-updated: '2026-09-20T00:00:00Z'
+updated: '2026-11-22T00:00:00Z'
 ---
 
 ## Context and Problem Statement
@@ -168,6 +168,92 @@ than discovered only after a validation failure.
 - The `merge_gates.py` comment naming "WP09" is left in place (out of this WP's owned
   files) pending WP03's pass over that module; this ADR is the authoritative record that
   its `not_applicable` intent is superseded by `IssueMatrixVerdict.NOT_APPLICABLE`.
+
+## Amendment 2026-11-22 — scope decides; color values and commit citations are not owed
+
+Mission `issue-matrix-over-matching-01M81KK0` (#7808, #5297, #5516; operator rulings
+"One Mission, all three" and "Scope decides") narrows what D3 gates. The FR-011
+fail-safe default, under which an unmarked bare `#NNNN` gates, now holds **inside the
+gating scope only**:
+
+- **Gating scope (an allowlist).** References in `spec.md` and in `tasks/*.md` keep
+  the FR-011 default. A reference found in any other scanned artefact is *cited*: it
+  classifies as `context_only` (non-gating) and stays in the audit trail. Today that
+  covers `plan.md`, `research.md`, `analysis-report.md` and `contracts/*.md`, and any
+  artefact added to the scan later defaults to cited. A planted-break label
+  ("Break #N"), a research-table id and background prose therefore need no row.
+  Discovery marks each `Occurrence` with `in_gating_scope`, and `classify_occurrence`
+  remains the one classifier that reads it.
+- **Closing keywords gate everywhere.** A non-negated closing keyword
+  (`close`/`fix`/`resolve` family, optional colon, optionally emphasised) that leads
+  into a citation makes that occurrence an `implementation_target` in any scanned
+  artefact. The citation may be wrapped in backticks, emphasis or a markdown link, or be an issue URL. The
+  keyword binds to the one citation it leads into, as GitHub's does, so in
+  `Closes #A and #B` only `#A` is closed. It takes
+  precedence over every demoting rule, including the commit rule below. The same
+  helper feeds the Mission source-issue derivation (#7011), so the two cannot drift.
+- **Commit citations.** A backticked 7-40 character hex SHA that contains at least one
+  letter `a-f` and one digit, and sits within 16 characters of the citation on either
+  side, classes the occurrence as `pr_or_commit_ref`, as in ``(`<sha>`, #N)``. An
+  all-digit backticked token, or an all-letter word such as `defaced`, stays gating.
+- **Number filter.** No issue-number pattern accepts a leading zero, so `#000` and
+  `#000000` are no longer issue 0. The rule is not limited to colors: zero-padded
+  prose such as `#083` (a Mission number) is no longer a reference either. Digits are
+  ASCII only. An all-digit hex color in CSS
+  declaration form is not a reference. Declaration form means a listed lower-case
+  color-bearing property name (`color`, `background`, `border-color`, `fill`, and so
+  on) or a `--custom-property`, as a whole token. The property must start a
+  declaration: at line start, after `{`, `;`, a backtick or a quote, or after
+  whitespace inside a `{` block opened earlier on the line. Then come a colon, the
+  value, and a declaration terminator (`;`, `}`, `!important`, or a closing backtick
+  or quote that also opened the declaration, so a prose apostrophe in `color: #N's fix`
+  is not one). The value must have a hex-color length (3, 4, 6 or 8 digits). Prose
+  such as `Backfill: #N`, `Border-color: #N tracks this`, `Fix text color: #N;` or
+  `fill: #12345;` stays a reference. This is narrower than plan D1 of the Mission,
+  whose regex was case-insensitive and unanchored; review cycle 1 found that version
+  dropped real references. A CSS
+  word elsewhere on the line does not filter anything, because a 4-digit `#RGBA`
+  color is indistinguishable from a 4-digit issue. The closing-keyword and
+  source-description patterns now read numbers only through `_GH_ISSUE_PATTERN` and
+  `_matched_issue_number`, leaving one number-recognition authority.
+
+**Promotion layer.** The Mission source-issue promotion (#7011) still runs after
+`classify_occurrence`. A Mission's own issue therefore gates wherever it is cited,
+including when it is cited only out of scope. This is a documented guarantee layered
+on top of the classifier, not a second classifier.
+
+**Accepted narrowings.** The closing-keyword and source-description labels now read
+the number through the canonical detector. Forms that detector deliberately rejects
+are therefore no longer source issues:
+- a hyphen or other non-terminator glued to the number (`Closes #N-fix`, `Issue #N-color`);
+- no boundary before the `#` (`Fixes:#N`, `Closes#N`);
+- a keyword and number split across lines.
+
+A negation such as "does not fix" is now judged within the line only. Of these forms,
+only the keyword split across lines still gates in `spec.md` and `tasks/`, under the
+scope default. The glued and boundary-less forms (`#N-fix`, `Fixes:#N`, `Closes#N`)
+are not detected anywhere, so they neither gate nor appear in the audit trail. The
+detector on main never found them either, so this is not a regression; it is recorded
+so no fail-safe is claimed for them.
+
+**Known residual over-match (within the rulings).** The closing-keyword label also
+gates noun uses ("the fix #N regressed"), past-tense history ("PR #M fixed #N",
+"closed #N") and negations outside the existing list ("must not close #N", "do not
+fix #N"). The commit-citation window also demotes a backticked hex-only identifier
+next to a citation. Outside `spec.md` and `tasks/` the closing-keyword cases all
+gated before this amendment as well. Extending the negation list and narrowing the
+keyword to imperative use are follow-ups.
+
+**Scaffold.** `scaffold_issue_matrix` still detects on `spec.md` alone. It agrees with
+discovery there. References that gate only through `tasks/` or a closing keyword
+elsewhere are reported as missing rows by the gates rather than pre-scaffolded, as
+before.
+
+`GatingClass` is unchanged. "Cited" is the existing `context_only` value, so persisted
+rows and scaffold verdicts keep their vocabulary. D2, D4 and D5 are unaffected. The
+default inside the gating scope still fails safe: no reference in `spec.md` or `tasks/`
+that gated before stops gating, unless it is a color, a leading-zero number or a
+commit citation. Tests: `tests/tasks/test_issue_matrix_over_matching.py`.
 
 ## Alternatives Considered
 

@@ -47,6 +47,8 @@ Frozen success-path fields:
 | `pruned` | list[str] | Entries pruned by `--fix` |
 | `repaired_vibe_config` | bool | Vibe config repaired by `--fix` |
 | `repair_errors` | list[str] | Errors during `--fix` |
+| `outdated` | list[str] | Managed command-skill files whose bytes are a proven earlier Spec Kitty render, not today's; `--fix` refreshes them (additive, #5281) |
+| `old_root_leftovers` | list[str] | Files Spec Kitty provably wrote under an agent's previous user-global root (for example `~/.claude/skills` after `CLAUDE_CONFIG_DIR` moved it); reported only, never removed, and they do not change `ok` (additive, #7723) |
 | `pack_skills` | list[object] | Pack-skill drift / stale / orphaned findings, each naming its pack `source_ref` (additive, #5193) |
 | `slash_commands` | object | Nested report: `configured_agents`, `gaps`, `repaired`, `errors`, `ok` |
 

@@ -465,6 +465,7 @@ def _apply_lane_merge_cleanup(
     items = lane_cleanup.plan_lane_cleanup(lanes_manifest, repo_root=main_repo_root, expected_tips=lane_tips)
     context = residue_context_or_strictest(main_repo_root, lanes_manifest.mission_slug, CheckoutRole.LANE)
     target = lanes_manifest.target_branch
+    # No Mission-branch proof here (#7747, A): this path has no reconciliation PASS anchor to prove against.
     landing = lane_cleanup.LocalTargetAtPass(target_ref=target, passed_sha=_branch_tip_sha(main_repo_root, target) or "")
     retention_legs = lane_cleanup.LaneRetention(remove_worktree=retention.remove_worktree, delete_branch=retention.delete_branch)
     remover = lane_cleanup.GuardedLaneRemover(main_repo_root, context=context, mission_slug=lanes_manifest.mission_slug)

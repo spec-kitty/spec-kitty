@@ -946,6 +946,68 @@ def _report_findings_count(frontmatter: dict[str, Any] | None) -> int | None:
     return None
 
 
+def _review_artifact_findings(
+    *,
+    text: str,
+    rel: str,
+    finding_id_counters: dict[str, list[int]],
+    ev_reg: _EvidenceRegistry,
+) -> tuple[list[GenFinding], list[GenFinding]]:
+    """Findings for one mission-review artifact (T037, #3793, #7753).
+
+    ``rel`` names the artifact in the finding text: the machine report
+    ``mission-review-report.md`` or the agent-written ``mission-review.md``.
+    A ``findings`` count in the leading frontmatter is reported as such;
+    without one the artifact is reported present but not machine-readable.
+    """
+    name = rel.rsplit("/", 1)[-1]
+    evidence_refs = [ev_reg.add_file(rel)]
+    count = _report_findings_count(_parse_leading_frontmatter(text))
+    if count is None:
+        return [], [
+            GenFinding(
+                id=_next_finding_id("n", finding_id_counters),
+                category="review_loop",
+                summary=f"{name} present; findings not machine-readable",
+                details=(
+                    f"A {name} artifact is present for "
+                    "this mission, but its leading frontmatter does not "
+                    "carry a machine-readable findings count; review it "
+                    "manually."
+                ),
+                evidence_refs=evidence_refs,
+            )
+        ]
+    if count > 0:
+        return [], [
+            GenFinding(
+                id=_next_finding_id("n", finding_id_counters),
+                category="review_loop",
+                summary=f"{name} records {count} finding(s)",
+                details=(
+                    f"The {name} artifact for this "
+                    f"mission records {count} finding(s) in its "
+                    "frontmatter. Review them to understand documented "
+                    "review outcomes."
+                ),
+                evidence_refs=evidence_refs,
+            )
+        ]
+    return [
+        GenFinding(
+            id=_next_finding_id("h", finding_id_counters),
+            category="review_loop",
+            summary=f"{name} present with no findings",
+            details=(
+                f"A {name} artifact is present and "
+                "its frontmatter records zero findings — the review "
+                "pass raised nothing."
+            ),
+            evidence_refs=evidence_refs,
+        )
+    ], []
+
+
 def _build_ingestor_findings(
     *,
     workflow_failures_text: str | None,
@@ -957,6 +1019,8 @@ def _build_ingestor_findings(
     finding_id_counters: dict[str, list[int]],
     ev_reg: _EvidenceRegistry,
     traces: list[tuple[str, str]] | None = None,
+    agent_review_text: str | None = None,
+    agent_review_rel: str = "",
 ) -> tuple[list[GenFinding], list[GenFinding], list[GenFinding]]:
     """Build helped/not_helpful/gaps findings from mission-local ingestor artifacts.
 
@@ -966,6 +1030,8 @@ def _build_ingestor_findings(
     (FR-007) extends this same seam — ``traces`` feed the same finding channels as
     the workflow-failures-log / analysis-report / mission-review artifacts.
     """
+    if agent_review_text is not None and not agent_review_rel:
+        raise ValueError("agent_review_text needs agent_review_rel: the finding's evidence path")
     helped: list[GenFinding] = []
     not_helpful: list[GenFinding] = []
     gaps: list[GenFinding] = []
@@ -1089,54 +1155,19 @@ def _build_ingestor_findings(
 
     # mission-review-report.md ingestor (T037) — content-checked, not
     # presence-only (#3793), same rule as the analysis-report ingestor above.
-    if review_report_text is not None:
-        review_frontmatter = _parse_leading_frontmatter(review_report_text)
-        review_count = _report_findings_count(review_frontmatter)
-        if review_count is not None:
-            if review_count > 0:
-                not_helpful.append(
-                    GenFinding(
-                        id=_next_finding_id("n", finding_id_counters),
-                        category="review_loop",
-                        summary=f"mission-review-report.md records {review_count} finding(s)",
-                        details=(
-                            "The mission-review-report.md artifact for this "
-                            f"mission records {review_count} finding(s) in its "
-                            "frontmatter. Review them to understand documented "
-                            "review outcomes."
-                        ),
-                        evidence_refs=[ev_reg.add_file(review_report_rel)],
-                    )
-                )
-            else:
-                helped.append(
-                    GenFinding(
-                        id=_next_finding_id("h", finding_id_counters),
-                        category="review_loop",
-                        summary="mission-review-report.md present with no findings",
-                        details=(
-                            "A mission-review-report.md artifact is present and "
-                            "its frontmatter records zero findings — the review "
-                            "pass raised nothing."
-                        ),
-                        evidence_refs=[ev_reg.add_file(review_report_rel)],
-                    )
-                )
-        else:
-            not_helpful.append(
-                GenFinding(
-                    id=_next_finding_id("n", finding_id_counters),
-                    category="review_loop",
-                    summary="mission-review-report.md present; findings not machine-readable",
-                    details=(
-                        "A mission-review-report.md artifact is present for "
-                        "this mission, but its leading frontmatter does not "
-                        "carry a machine-readable findings count; review it "
-                        "manually."
-                    ),
-                    evidence_refs=[ev_reg.add_file(review_report_rel)],
-                )
-            )
+    # The agent-written mission review (mission-review.md, the path the
+    # spec-kitty-mission-review skill names, #7753) is read by the same rule.
+    for text, rel in ((review_report_text, review_report_rel), (agent_review_text, agent_review_rel)):
+        if text is None:
+            continue
+        review_helped, review_not_helpful = _review_artifact_findings(
+            text=text,
+            rel=rel,
+            finding_id_counters=finding_id_counters,
+            ev_reg=ev_reg,
+        )
+        helped.extend(review_helped)
+        not_helpful.extend(review_not_helpful)
 
     # Tracer ingestor (T012 / FR-007) — extends this seam, same finding channels.
     trace_helped, trace_not_helpful, trace_gaps = _build_trace_findings(
@@ -1175,6 +1206,8 @@ def _build_findings(
     review_report_rel: str,
     generate_proposals: bool,
     ev_reg: _EvidenceRegistry,
+    agent_review_text: str | None = None,
+    agent_review_rel: str = "",
 ) -> tuple[list[GenFinding], list[GenFinding], list[GenFinding], list[GenProposal]]:
     """Classify events and artifacts into (helped, not_helpful, gaps, proposals).
 
@@ -1198,7 +1231,7 @@ def _build_findings(
     # are present, because those records document concrete failures that the
     # clean WPs avoided.
     has_ingestor_content = bool(
-        workflow_failures_text or analysis_report_text or review_report_text
+        workflow_failures_text or analysis_report_text or review_report_text or agent_review_text
     )
     # A WP with an undocumented implementation re-entry already carries a
     # not_helpful finding; it must never also appear in helped, whatever the
@@ -1350,6 +1383,8 @@ def _build_findings(
         traces=traces,
         finding_id_counters=finding_id_counters,
         ev_reg=ev_reg,
+        agent_review_text=agent_review_text,
+        agent_review_rel=agent_review_rel,
     )
     helped.extend(ingestor_helped)
     not_helpful.extend(ingestor_not_helpful)
@@ -1385,7 +1420,8 @@ def generate_retrospective(
     Reads mission artifacts in canonical order:
     meta.json → spec.md → plan.md → research.md → data-model.md
     → tasks.md → tasks/WP*.md → status.events.jsonl
-    → workflow-failures-log.md → analysis-report.md → mission-review-report.md.
+    → workflow-failures-log.md → analysis-report.md → mission-review-report.md
+    → mission-review.md.
 
     Missing optional artifacts become 'gaps' entries, NOT exceptions.
 
@@ -1441,6 +1477,9 @@ def generate_retrospective(
     workflow_failures_text = _read_optional_text(feature_dir / "workflow-failures-log.md")
     analysis_report_text = _read_optional_text(feature_dir / "analysis-report.md")
     review_report_text = _read_optional_text(feature_dir / "mission-review-report.md")
+    # The agent-written mission review (#7753): the spec-kitty-mission-review
+    # skill saves it here so `spec-kitty review` never overwrites it.
+    agent_review_text = _read_optional_text(feature_dir / "mission-review.md")
 
     # Tracer artifacts (T012 / FR-007): traces/*.md feed the ingestor seam.
     traces = _load_traces(repo_root, feature_dir)
@@ -1460,6 +1499,7 @@ def generate_retrospective(
     workflow_failures_rel = f"kitty-specs/{feature_dir.name}/workflow-failures-log.md"
     analysis_report_rel = f"kitty-specs/{feature_dir.name}/analysis-report.md"
     review_report_rel = f"kitty-specs/{feature_dir.name}/mission-review-report.md"
+    agent_review_rel = f"kitty-specs/{feature_dir.name}/mission-review.md"
 
     if meta:
         ev_reg.add_file(meta_rel)
@@ -1500,6 +1540,8 @@ def generate_retrospective(
         review_report_rel=review_report_rel,
         generate_proposals=policy.generate_proposals,
         ev_reg=ev_reg,
+        agent_review_text=agent_review_text,
+        agent_review_rel=agent_review_rel,
     )
 
     # ------------------------------------------------------------------

@@ -277,16 +277,23 @@ def test_the_check_runs_before_the_status_dir_can_materialize_the_coordination_w
     assert not worktree.exists(), "the coordination worktree was re-materialized before the origin check refused"
 
 
-def test_coordination_branch_only_on_the_remote_is_left_to_the_unmaterialized_path(coord: tuple[CoordMission, Path]) -> None:
-    """A coordination branch the clone never had is not an ``ORIGIN_`` refusal; the existing remedy handles it."""
+def test_coordination_branch_only_on_the_remote_is_materialized_from_origin(coord: tuple[CoordMission, Path]) -> None:
+    """A coordination branch the clone never had is not an ``ORIGIN_`` refusal.
+
+    #5936 re-pin: the origin-freshness gate fetches the branch, the write seam creates
+    the local head from origin's tip (never from the primary branch) and consolidation
+    lands. Before #5936 the run stopped on the unmaterialized-coordination refusal. A
+    clone that holds no ref for the branch while nothing fetches it still refuses
+    (``tests/cli/commands/test_merge_status_commit.py``, the never-fetched control).
+    """
     m, _ = coord
     _remove_coordination_worktree(m)
     _git(m.repo, "branch", "-D", m.coord_branch)
     _git(m.repo, "update-ref", "-d", f"refs/remotes/origin/{m.coord_branch}")
-    before = {ref: git_rev(m.repo, ref) for ref in [m.target_branch, *m.lane_branches.values()]}
+    target_before = git_rev(m.repo, m.target_branch)
     result = _consolidate(m)
     out = _out(result)
-    assert result.returncode != 0, out
+    assert result.returncode == 0, out
     assert "ORIGIN_" not in out, out
-    assert "unmaterialized" in out.lower() or "Create the local coordination branch" in out, out
-    assert {ref: git_rev(m.repo, ref) for ref in before} == before
+    assert "unmaterialized" not in out.lower(), out
+    assert git_rev(m.repo, m.target_branch) != target_before, "the Mission must land on the target branch"

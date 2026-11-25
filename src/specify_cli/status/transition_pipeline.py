@@ -44,7 +44,7 @@ from typing import TYPE_CHECKING, Any
 from kernel.clock import now_utc_iso
 
 from . import emit as _emit
-from .lane_head import LANE_HEAD_KEY
+from .lane_head import LANE_HEAD_KEY, LANE_HEAD_PRESYNC_KEY
 from .wp_window import WINDOW_OPENING_LANES, WP_WINDOW_KEY, encode_gap, encode_open
 from .models import (
     FORCE_NOTE_HINT,
@@ -215,7 +215,8 @@ def _stamped_policy_metadata(
     only a fallback for a request that omits it (the shells resolve and pass
     both, but ``request.repo_root`` wins so a caller that pre-populated the
     request is honored). The reading is taken ONCE (W-2, NFR-006) and feeds
-    both keys: ``lane_head`` iff it carries a sha (unchanged behaviour), and
+    both keys: ``lane_head`` iff it carries a sha (unchanged behaviour; ``lane_head_presync``
+    beside it iff the reading carries a pre-sync tip, #7802), and
     ``wp_window`` iff :func:`_wp_window_value` says the move opens a window.
     When neither key is added (no repo root, nothing to stamp -- the reader
     itself never raises), the request's ``policy_metadata`` is returned
@@ -241,6 +242,10 @@ def _stamped_policy_metadata(
     added: dict[str, Any] = {}
     if reading.sha:
         added[LANE_HEAD_KEY] = reading.sha
+        if reading.presync_sha:
+            # #7802: the lane tip before the review's own sync merge(s), so an approval stays
+            # verifiable in a clone that never received those local merges.
+            added[LANE_HEAD_PRESYNC_KEY] = reading.presync_sha
     window = _wp_window_value(request, reading, resolved_lane)
     if window is not None:
         added[WP_WINDOW_KEY] = window

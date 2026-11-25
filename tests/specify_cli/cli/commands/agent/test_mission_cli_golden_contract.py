@@ -145,6 +145,9 @@ _EXPECTED_FLAGS: dict[str, frozenset[str]] = {
     # operator attestation, so the agent lane must forward it too (2026-09-14).
     # `--owned-checkout` added by #6321: the agent `accept` wrapper now forwards
     # an explicit owned-checkout passthrough to the owned-capable top_level_accept.
+    # `--waive-path-conventions` / `--waive-reason` added by #7566 (Mission
+    # path-conventions-per-type-01M7VRQM, 2026-11-20): the agent lane forwards the
+    # narrow path-convention waiver to top_level_accept.
     "accept": frozenset(
         {
             "--mission",
@@ -157,6 +160,8 @@ _EXPECTED_FLAGS: dict[str, frozenset[str]] = {
             "--target-branch",
             "--attest-first-landing-commit",
             "--owned-checkout",
+            "--waive-path-conventions",
+            "--waive-reason",
         }
     ),
     "merge": frozenset(

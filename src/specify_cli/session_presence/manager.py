@@ -1,11 +1,13 @@
 """SessionPresenceManager — orchestrates session presence across all configured agents.
 
-Builds ``SessionPresenceContent`` from the current CLI version and the upgrade
-cache, then delegates to per-agent writers to install or update the orientation
-block in each agent's configuration files.
+Takes the committed ``SessionPresenceContent`` from the one content authority
+(:mod:`specify_cli.session_presence.projection`, #5215), then delegates to
+per-agent writers to install or update the orientation block in each agent's
+configuration files. :meth:`SessionPresenceManager.live_content` adds live
+health for the SessionStart hook only.
 
 This module is the single entry point for all session presence write operations.
-Writers are looked up via ``get_writer()`` and swallowed exceptions ensure callers
+Writers are selected via ``projection.orientation_writer()`` and swallowed exceptions ensure callers
 never need to guard against failures from this module.
 """
 
@@ -19,26 +21,13 @@ from typing import TYPE_CHECKING, Literal, NamedTuple
 from specify_cli.core.version_compare import is_version_newer
 
 from .content import SessionPresenceContent
+from .projection import expected_orientation, orientation_writer, resolve_project_slug
 from .upgrade_check import UpgradeChecker
-from .writers.registry import get_writer
 
 if TYPE_CHECKING:
     from specify_cli.core.agent_config import AgentConfig
 
 _logger = logging.getLogger(__name__)
-
-
-def local_presence_content(project_slug: str) -> SessionPresenceContent:
-    """Render installed-version orientation without consulting live health services."""
-    from importlib.metadata import version, PackageNotFoundError
-
-    try:
-        current = version("spec-kitty-cli")
-    except PackageNotFoundError as exc:
-        raise ValueError("Installed session content version is unavailable") from exc
-    if not current or not project_slug:
-        raise ValueError("Missing required local session content")
-    return SessionPresenceContent(current, project_slug, "healthy", None)
 
 
 class InstallResult(NamedTuple):
@@ -60,18 +49,22 @@ class SessionPresenceManager:
     project_root: Path
     agent_config: AgentConfig
 
-    def _project_slug(self) -> str:
-        """Read the canonical project identity, independent of agent settings."""
-        from specify_cli.identity.project import load_identity
-
-        return load_identity(self.project_root / ".kittify" / "config.yaml").project_slug or "unknown"
-
     def _build_content(self) -> SessionPresenceContent:
-        """Build ``SessionPresenceContent`` from current version and upgrade cache.
+        """Return the committed orientation content (#5215).
 
-        Determines health status by checking for pending migrations and available
-        upgrades.  Falls back to ``"healthy"`` on any error so callers are never
-        blocked.
+        Deterministic: the identity project name and ``healthy``. The shipped
+        session-presence migrations write through this method, so it must never
+        carry live health. Delegates to the one content authority,
+        :func:`specify_cli.session_presence.projection.expected_orientation`.
+        """
+        return expected_orientation(self.project_root)
+
+    def live_content(self) -> SessionPresenceContent:
+        """Return the orientation the SessionStart hook prints, with live health.
+
+        Same version and project name as :meth:`_build_content`; health comes
+        from pending migrations and the upgrade cache. Falls back to the cached
+        upgrade state on any error so a session start is never blocked.
         """
         from importlib.metadata import version
 
@@ -80,7 +73,7 @@ class SessionPresenceManager:
         if avail is None:
             checker.check_in_background()
         current = version("spec-kitty-cli")
-        slug = self._project_slug()
+        slug = resolve_project_slug(self.project_root)
 
         health: Literal["healthy", "upgrade-available", "migration-required"]
         try:
@@ -126,9 +119,9 @@ class SessionPresenceManager:
         changes: list[str] = []
         warnings: list[str] = []
         for key in getattr(self.agent_config, "available", []):
-            writer = get_writer(key)
             try:
-                if writer.can_write(self.project_root) and not writer.has_presence(self.project_root):
+                writer = orientation_writer(self.project_root, key, None)
+                if writer is not None and not writer.has_presence(self.project_root):
                     writer.write(self.project_root, content)
                     changes.append(f"Wrote orientation for {key}")
                     warnings.extend(_writer_notices(writer, self.project_root))
@@ -155,14 +148,14 @@ class SessionPresenceManager:
         Returns:
             ``InstallResult`` with lists of changes (or would-be changes) and warnings.
         """
-        content = local_presence_content(self._project_slug()) if dry_run else self._build_content()
+        content = self._build_content()
         target_agents = agents if agents is not None else set(getattr(self.agent_config, "available", []))
         changes: list[str] = []
         warnings: list[str] = []
         for key in target_agents:
-            writer = get_writer(key)
             try:
-                if writer.can_write(self.project_root):
+                writer = orientation_writer(self.project_root, key, None)
+                if writer is not None:
                     if not dry_run:
                         writer.write(self.project_root, content)
                     changes.append(f"{'Would write' if dry_run else 'Wrote'} orientation for {key}")

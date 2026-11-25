@@ -25,6 +25,7 @@ import fnmatch
 import functools
 import json
 import re
+import shlex
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -39,6 +40,7 @@ __all__ = [
     "FANOUT_ALLOWLIST",
     "DEPENDENCY_MODULE_FANOUT",
     "ACTIVATION_STORE_MODULE_FANOUT",
+    "ASSET_SURFACE_MODULE_FANOUT",
     "CLI_COMMAND_MODULE_FANOUT",
     "FANOUT_GROUPS",
     "GROUP_MODULE_FANOUT",
@@ -62,7 +64,13 @@ __all__ = [
     "matches_declared_scan_scope",
     "pack_content_groups",
     "select_gates",
+    "unrouted_src_paths",
+    "UNROUTED_SRC_ALLOWLIST",
     "select_modules",
+    "out_of_matrix_test_paths",
+    "render_out_of_matrix_report",
+    "is_test_module",
+    "per_pr_home_violations",
 ]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -155,28 +163,9 @@ ACTIVATION_STORE_MODULE_FANOUT: dict[str, frozenset[str]] = {
 #
 # ``src/**`` events importers no registry row roots (a src change there is already run-all, FR-004),
 # mapped to the modules whose per-PR tests exercise them. Keys are a file or a ``/``-terminated prefix.
-REDUCER_LOCK_UNOWNED_IMPORTERS: dict[str, tuple[frozenset[str], str]] = {
-    "src/specify_cli/decisions/": (
-        frozenset({"core_misc"}),
-        "no registry row roots src/specify_cli/decisions/**; its per-PR tests are tests/decisions (core_misc)",
-    ),
-    "src/specify_cli/events/": (
-        frozenset({"execution_context"}),
-        "no registry row roots src/specify_cli/events/**; tests/runtime (execution_context) exercises decision_log through the runtime bridge",
-    ),
-    "src/specify_cli/state/retention.py": (
-        frozenset({"core_misc"}),
-        "no registry row roots src/specify_cli/state/**; tests/core/test_event_log_retention.py (core_misc) exercises it",
-    ),
-    "src/specify_cli/status_lanes.py": (
-        frozenset({"status", "core_misc", "consolidation"}),
-        "no registry row roots src/specify_cli/status_lanes.py; tests/status, tests/specify_cli/core and tests/consolidation exercise it",
-    ),
-    "src/specify_cli/retrospective/": (
-        frozenset({"agent", "cli", "status"}),
-        "no registry row roots src/specify_cli/retrospective/**; tests/agent, tests/cli and tests/status exercise its events module",
-    ),
-}
+# Empty since #7775 routed every src events importer to a registry row (decisions/, events/, state/,
+# status_lanes.py and retrospective/ each have owners now, so their entries were stale).
+REDUCER_LOCK_UNOWNED_IMPORTERS: dict[str, tuple[frozenset[str], str]] = {}
 EVENTS_PACKAGE = "spec_kitty_events"
 # The dependency-lock groups (keys of DEPENDENCY_MODULE_FANOUT), named without running the census.
 DEPENDENCY_GROUPS = frozenset({"reducer_lock"})
@@ -222,6 +211,23 @@ CLI_COMMAND_MODULE_FANOUT: dict[str, frozenset[str]] = {
     # agent/** already selects execution_context via that module's own glob; this adds the modules whose
     # tests exercise the agent command package but that execution_context does not reach.
     "cli_cmd_agent_subdir": frozenset({"agent", "status", "review", "core_misc", "lanes", "consolidation", "release"}),
+}
+
+# Asset-install surface fan-out (#7775). ``spec-kitty upgrade`` and ``spec-kitty init`` prepare the agent
+# skills and command surface through src/specify_cli/skills/**, src/specify_cli/tool_surface/** and
+# src/specify_cli/runtime/** (upgrade imports skills.*, tool_surface.* and runtime.generated_writer/home/
+# migrate/doctor/agent_commands directly, and reaches runtime.agent_skills/asset_preparation through them).
+# Their own routing never named the modules whose tests run that preparation: tool_surface/** -> core_misc,
+# runtime/** -> next + specify_cli_runtime, and skills/** matched no src group (run-all only when it was the
+# diff's sole src path: ``unmatched`` was per diff until #7775 made it per path, unrouted_src_paths). #7763 changed
+# all three, ran no upgrade shard, and broke ``spec-kitty upgrade`` on main. The group is NON-src
+# (**/-prefixed globs) like CLI_COMMAND_MODULE_FANOUT, so it never masks an unmapped src/** change (FR-004),
+# and gates no router job BY DESIGN (the module matrix is its per-PR executor). Targets: ``upgrade``
+# (tests/upgrade drives the preparation; tests/specify_cli/upgrade is out of matrix, nightly only, #4732)
+# and ``cli`` (tests/init runs init).
+# Pinned by tests/ci/test_upgrade_asset_surface_routing.py.
+ASSET_SURFACE_MODULE_FANOUT: dict[str, frozenset[str]] = {
+    "upgrade_asset_surface": frozenset({"upgrade", "cli"}),
 }
 
 # The groups that fan out: the keys of GROUP_MODULE_FANOUT, named once so the census
@@ -434,6 +440,101 @@ def _match_groups(paths: list[str], router: Router) -> frozenset[str]:
     return frozenset(hit)
 
 
+# Tracked src paths that DELIBERATELY match no src-backed group (#7775 operator ruling: route every src
+# file to its owning module's tests; the full matrix stays the fail-safe for genuinely unowned paths only).
+# A path here still forces run-all through unrouted_src_paths -- the allowlist does not exempt it, it only
+# records that run-all is the intended answer. Pinned by tests/ci/test_every_src_file_is_routed.py, which
+# reds on an unrouted path missing from this table and on a stale entry.
+UNROUTED_SRC_ALLOWLIST: dict[str, str] = {
+    "src/specify_cli/__init__.py": "the package root: every module imports it, so run-all is the right answer",
+    "src/specify_cli/__main__.py": "the `python -m specify_cli` entry point: it runs the whole CLI, so run-all is the right answer",
+    "src/runtime/__init__.py": "the `runtime` package root: every runtime.next importer loads it, so run-all is the right answer",
+    "src/specify_cli/paths/**": (
+        "the keystone path resolver: deliberately unmapped so the catch-all runs everything there (#6879; pinned by tests/ci/test_path_literal_audit_routing.py)"
+    ),
+    "src/specify_cli/.contextive/**": (
+        "generated Contextive glossary exports (scripts/generate_contextive_glossaries.py); no src code reads them "
+        "and their only test, tests/cross_cutting/encoding, is out of matrix"
+    ),
+    "src/specify_cli/schemas/**": (
+        "wps.schema.json is read only by scripts/ci/coverage_guard_lib.py; the `ci` group that owns it is non-src "
+        "by design (it gates no router job and stays out of the catch-all)"
+    ),
+    "src/specify_cli/_completion_manifest.json": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "shell-completion data read by completion.py, which no in-matrix test imports"
+    ),
+    "src/specify_cli/templates/**": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "init's packaged template files (AGENTS.md, claudeignore, vscode settings); data, which no in-matrix test imports by module"
+    ),
+    "src/specify_cli/agent_upgrade_prompt.py": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "reached only through skills/, runtime/ and template/ code"
+    ),
+    "src/specify_cli/ast_analysis/**": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "used by post_merge/stale_assertions.py and the architectural gates (tests/ast_analysis is out of matrix)"
+    ),
+    "src/specify_cli/bytecode_heal.py": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "used by the upgrade and doctor commands and compat/planner.py"
+    ),
+    "src/specify_cli/completion.py": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "imported only by the package root"
+    ),
+    "src/specify_cli/configured_command.py": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "used by review/ and acceptance/"
+    ),
+    "src/specify_cli/docs/**": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "used by the docs command and scripts/docs (tests/docs is out of matrix)"
+    ),
+    "src/specify_cli/doctor/**": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "used by the doctor command (tests/doctor is out of matrix)"
+    ),
+    "src/specify_cli/drg_writers/**": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "used by charter's DRG synthesizer and migration (tests/specify_cli/drg_writers is out of matrix)"
+    ),
+    "src/specify_cli/encoding.py": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "imported only by cli/__init__.py"
+    ),
+    "src/specify_cli/intake_sources.py": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "used by the intake command and intake/"
+    ),
+    "src/specify_cli/plan_validation.py": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "used by the research command"
+    ),
+    "src/specify_cli/readiness/**": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "used by cli/helpers.py and the upgrade command (tests/readiness is out of matrix)"
+    ),
+    "src/specify_cli/verify_enhanced.py": (
+        "no in-matrix test imports it, so no module may own it as a root without growing the dark-roots baseline (.github/ci-foreign-coverage-baseline.json); "
+        "used by the verify command"
+    ),
+}
+
+
+def unrouted_src_paths(paths: Iterable[str], router: Router) -> tuple[str, ...]:
+    """The ``src/**`` paths that match no src-backed group, each judged on its own (#7775).
+
+    FR-004's fail-closed catch-all is per path: one routed src path in a diff must not
+    mask an unrouted one beside it. Before #7775 the test was per diff (any src path
+    AND no src-backed group matched), so #7763's ``skills/**`` change rode along with
+    routed ``runtime/**`` paths and ran a narrowed module set.
+    """
+    src_globs = tuple(glob for group in sorted(router.src_backed_groups) for glob in router.filters[group])
+    return tuple(path for path in paths if path.startswith("src/") and not any(fnmatch.fnmatch(path, glob) for glob in src_globs))
+
+
 def select_gates(
     changed_paths: Iterable[str | Path],
     *,
@@ -442,8 +543,8 @@ def select_gates(
 ) -> GateSelection:
     """Return which jobs / code shards a changed-path set selects.
 
-    ``mode="full"`` (or an unmapped ``src/**`` change — the FR-004 fail-closed
-    catch-all) forces run-all: every routing group is selected. Otherwise only
+    ``mode="full"`` (or any unmapped ``src/**`` path, judged per path — the FR-004
+    fail-closed catch-all, :func:`unrouted_src_paths`) forces run-all: every routing group is selected. Otherwise only
     the groups the paths matched are selected. Always-on jobs (no filter group)
     are always included; ``selected_code_shards`` is the src-backed subset.
     """
@@ -451,8 +552,7 @@ def select_gates(
     paths = [str(path) for path in changed_paths]
     matched = _match_groups(paths, router)
 
-    any_src = any(path.startswith("src/") for path in paths)
-    unmatched_src = any_src and not (matched & router.src_backed_groups)
+    unmatched_src = bool(unrouted_src_paths(paths, router))
 
     run_all = mode == "full" or unmatched_src
     selected_groups = router.routing_groups if run_all else matched
@@ -818,11 +918,228 @@ def select_modules(
         *dependency.items(),
         *CLI_COMMAND_MODULE_FANOUT.items(),
         *ACTIVATION_STORE_MODULE_FANOUT.items(),
+        *ASSET_SURFACE_MODULE_FANOUT.items(),
     ):
         if group in selection.matched_groups:
             src_selected = src_selected | (targets & modules)
     test_selected = _modules_for_test_paths(paths, router=router, registry_path=registry_path, modules=modules)
     return src_selected | test_selected
+
+
+def _ancestors(path: str) -> list[str]:
+    """The directories containing ``path``, deepest first (``a/b/c.py`` -> ``a/b``, ``a``)."""
+    parts = path.split("/")[:-1]
+    return ["/".join(parts[:end]) for end in range(len(parts), 0, -1)]
+
+
+# pytest's default ``python_files`` (pytest.ini does not override it, #4388).
+_TEST_MODULE_PATTERNS = ("test_*.py", "*_test.py")
+
+
+def is_test_module(path: str) -> bool:
+    """Whether ``path`` is a module pytest collects (its ``python_files`` patterns)."""
+    name = path.rsplit("/", 1)[-1]
+    return any(fnmatch.fnmatchcase(name, pattern) for pattern in _TEST_MODULE_PATTERNS)
+
+
+# Options whose value is a separate token: the value is never a positional path.
+_PYTEST_VALUE_OPTIONS = frozenset(
+    {
+        "-m",
+        "-k",
+        "-p",
+        "-n",
+        "-c",
+        "-o",
+        "--dist",
+        "--deselect",
+        "--ignore",
+        "--ignore-glob",
+        "--junitxml",
+        "--rootdir",
+        "--maxfail",
+        "--timeout",
+        "--battery-part",
+        "--confcutdir",
+        "--basetemp",
+    }
+)
+# A -m expression made only of these negations deselects the parallel-unsafe families every
+# per-PR shard also deselects; it does not narrow a directory to a subset of its tests.
+_PER_PR_DESELECTED_FAMILIES = frozenset({"performance", "stress", "timing"})
+
+
+_PYTEST_PRECEDING_WORDS = frozenset({"run", "-m"})
+
+
+def _pytest_program_index(words: list[str]) -> int | None:
+    """Index of the ``pytest`` program word, or None when the line does not run pytest.
+
+    ``pytest`` counts as the program at the start of the line, after ``python -m`` /
+    ``uv run``, or after a ``--flag`` of the runner; an ``echo``/``printf`` line never does.
+    """
+    if words and words[0] in {"echo", "printf", "cat"}:
+        return None
+    for index, word in enumerate(words):
+        if word == "pytest" and (index == 0 or words[index - 1] in _PYTEST_PRECEDING_WORDS or words[index - 1].startswith("--")):
+            return index
+    return None
+
+
+def _pytest_invocations(run: str) -> list[tuple[list[str], str | None]]:
+    """``(positional paths, -m expression)`` of each pytest command in a shell ``run`` block.
+
+    The program must be pytest itself (:func:`_pytest_program_index`), so a comment or an
+    ``echo`` that merely mentions pytest is not one, and an option's separate value
+    (``--deselect tests/x``) is never a positional path.
+    """
+    invocations: list[tuple[list[str], str | None]] = []
+    for line in run.replace("\\\n", " ").splitlines():
+        try:
+            words = shlex.split(line, comments=True)
+        except ValueError:
+            continue
+        start = _pytest_program_index(words)
+        if start is None:
+            continue
+        positional: list[str] = []
+        marker: str | None = None
+        args = iter(words[start + 1 :])
+        for word in args:
+            if word in _PYTEST_VALUE_OPTIONS:
+                value = next(args, "")
+                marker = value if word == "-m" else marker
+            elif not word.startswith("-"):
+                positional.append(word.split("::", 1)[0].rstrip("/"))
+        invocations.append((positional, marker))
+    return invocations
+
+
+def _marker_keeps_whole_directory(marker: str | None) -> bool:
+    """Whether a ``-m`` expression only deselects the families every per-PR shard deselects."""
+    if marker is None:
+        return True
+    terms = [term.strip() for term in marker.split(" and ")]
+    return all(term.startswith("not ") and term[4:].strip() in _PER_PR_DESELECTED_FAMILIES for term in terms)
+
+
+def per_pr_home_violations(registry: dict[str, Any], workflow: dict[str, Any], *, router: Router) -> tuple[str, ...]:
+    """Why a ``per_pr_home`` claim in ``out_of_matrix_test_dirs`` is not proven (#7801 review B2).
+
+    A record may declare ``per_pr_home: <ci-router job>`` only when that job runs the whole
+    record on every PR that changes it: (1) the job exists; (2) its ``if:`` references a
+    filter group whose globs cover ``<dir>/**`` (not the scoped-leg ``arch_scan_scope`` group); (3) one of its pytest commands names the
+    directory (or an ancestor) as a positional path; (4) that command has no ``-m`` narrowing
+    beyond the parallel-unsafe negations. Anything unproven is a violation, so the exemption
+    fails closed. Pure: the caller supplies the parsed registry, workflow and router.
+    """
+    problems: list[str] = []
+    jobs = workflow.get("jobs") or {}
+    for record in registry.get("out_of_matrix_test_dirs") or ():
+        home = record.get("per_pr_home")
+        if home is None:
+            continue
+        job = jobs.get(home)
+        if not isinstance(job, dict):
+            problems.append(f"per_pr_home {home!r}: no job of that name in ci-router.yml")
+            continue
+        # BATTERY_SCOPE_GROUP selects a scoped heavy leg (only the gates whose scan scope the diff
+        # touches), never the whole job, so it cannot prove the job runs the record (#6994).
+        groups = router.job_gates.get(home, frozenset()) - {BATTERY_SCOPE_GROUP}
+        commands = [
+            invocation
+            for step in job.get("steps") or ()
+            if isinstance(step, dict) and isinstance(step.get("run"), str)
+            for invocation in _pytest_invocations(step["run"])
+        ]
+        for directory in record.get("dirs") or ():
+            probes = (f"{directory}/test_probe.py", f"{directory}/sub/test_probe.py")
+            if groups and not any(all(any(fnmatch.fnmatch(probe, glob) for glob in router.filters.get(group, ())) for probe in probes) for group in groups):
+                problems.append(f"per_pr_home {home!r}: its if: groups {sorted(groups)} do not cover {directory}/**")
+                continue
+            naming = [marker for paths, marker in commands if any(_within(directory, path) for path in paths)]
+            if not naming:
+                problems.append(f"per_pr_home {home!r}: no pytest command names {directory} as a positional path")
+            elif not any(_marker_keeps_whole_directory(marker) for marker in naming):
+                problems.append(f"per_pr_home {home!r}: every command naming {directory} narrows it with -m {naming}")
+    return tuple(problems)
+
+
+def out_of_matrix_test_paths(paths: Iterable[str | Path], *, registry_path: Path | None = None) -> tuple[tuple[str, str], ...]:
+    """Changed ``tests/**`` paths no per-PR shard or job runs, with the record that says so (#7801).
+
+    A path belongs to its deepest containing directory that the registry names: a row's effective
+    test dir (``test_dirs``, else ``tests/<module>``, the precedence
+    ``module-tests.yml`` applies) keeps it in the per-PR matrix; an
+    ``out_of_matrix_test_dirs`` record puts it out of the matrix, unless the record
+    declares a ``per_pr_home`` router job (verified by :func:`per_pr_home_violations`),
+    which runs it per PR instead. The record speaks for the test modules there; a conftest or support file under it may
+    also be loaded per PR, which :func:`render_out_of_matrix_report` words
+    accordingly. Returns sorted, de-duplicated ``(path, out_of_matrix_dir)``
+    pairs. Pure apart from reading the registry; it reports and never decides a gate.
+    """
+    registry = yaml.safe_load((registry_path or DEFAULT_REGISTRY_PATH).read_text(encoding="utf-8"))
+    claimed = {str(entry).rstrip("/") for row in registry["modules"] for entry in (row.get("test_dirs") or [f"tests/{row['module']}"])}
+    records = registry.get("out_of_matrix_test_dirs") or ()
+    recorded = {str(entry).rstrip("/"): record.get("per_pr_home") for record in records for entry in record.get("dirs") or ()}
+    hits: set[tuple[str, str]] = set()
+    for path in {str(raw) for raw in paths}:
+        if not _within(path, "tests") or path == "tests":
+            continue
+        for directory in _ancestors(path):
+            if directory in claimed:
+                break
+            if directory in recorded:
+                if recorded[directory] is None:
+                    hits.add((path, directory))
+                break
+    return tuple(sorted(hits))
+
+
+def _record_names_parent(path: str, directory: str) -> bool:
+    """Whether ``directory`` is the record of ``path``'s own directory (not a distant ancestor)."""
+    return path.rsplit("/", 1)[0] == directory
+
+
+def render_out_of_matrix_report(hits: Iterable[tuple[str, str]]) -> tuple[tuple[str, ...], str]:
+    """The workflow-command lines and step-summary markdown for :func:`out_of_matrix_test_paths` hits.
+
+    Every hit is a ``::warning`` naming the file. A test module is said to run
+    in no per-PR shard. Any other file (a conftest or helper) may be loaded per
+    PR too, so its claim is only that nightly-only tests there may depend on it.
+    """
+    pairs = tuple(hits)
+    if not pairs:
+        return (), ""
+    commands = tuple(
+        f"::warning file={path}::{path} is in out_of_matrix_test_dirs ({directory}): no per-PR shard runs it, only the nightly. "
+        "Run it locally and paste the result in the PR (#7801)."
+        if is_test_module(path) and _record_names_parent(path, directory)
+        else f"::warning file={path}::{path} sits below out_of_matrix_test_dirs ({directory}) in a directory the registry does not name: "
+        "it is not routed to any per-PR shard or job. Run it locally and paste the result in the PR (#7801)."
+        if is_test_module(path)
+        else f"::warning file={path}::{path} sits in out_of_matrix_test_dirs ({directory}): nightly-only tests there may depend on it. "
+        "Run them locally if they do (#7801)."
+        for path, directory in pairs
+    )
+    tests = [f"- `{path}` (out-of-matrix directory `{directory}`)" for path, directory in pairs if is_test_module(path) and _record_names_parent(path, directory)]
+    unrouted = [
+        f"- `{path}` (below out-of-matrix directory `{directory}`)"
+        for path, directory in pairs
+        if is_test_module(path) and not _record_names_parent(path, directory)
+    ]
+    support = [f"- `{path}` (out-of-matrix directory `{directory}`)" for path, directory in pairs if not is_test_module(path)]
+    lines: list[str] = []
+    if tests:
+        lines += ["### Changed tests that run only in the nightly (#7801)", "", *tests, ""]
+        lines += ["No per-PR shard runs these files. Run them locally and record the result under the PR's *Tests run*.", ""]
+    if unrouted:
+        lines += ["### Changed tests not routed to any per-PR shard or job (#7801)", "", *unrouted, ""]
+        lines += ["No registry row or record names their directory. Run them locally and record the result under the PR's *Tests run*.", ""]
+    if support:
+        lines += ["### Changed support files in nightly-only test directories (#7801)", "", *support, ""]
+        lines += ["Nightly-only tests in these directories may depend on them.", ""]
+    return commands, "\n".join(lines)
 
 
 _DYNAMIC_IMPORTERS = frozenset({"import_module", "__import__"})

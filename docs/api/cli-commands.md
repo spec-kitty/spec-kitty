@@ -254,7 +254,11 @@ guard's code; re-run `spec-kitty archive reclaim <mission>`.
 │                                                          and downgrade       │
 │                                                          missing             │
 │                                                          path-convention     │
-│                                                          checks to warnings  │
+│                                                          checks to warnings. │
+│                                                          To waive only the   │
+│                                                          path-convention     │
+│                                                          check, use          │
+│                                                          --waive-path-conve… │
 │ --no-commit                                              Report acceptance   │
 │                                                          readiness without   │
 │                                                          writing metadata or │
@@ -393,6 +397,34 @@ guard's code; re-run `spec-kitty archive reclaim <mission>`.
 │                                                          owed, recorded with │
 │                                                          --attest-no-implem… │
 │                                                          (required with it). │
+│ --waive-path-conv…                                       Treat missing       │
+│                                                          layout directories  │
+│                                                          (src/, tests/,      │
+│                                                          docs/...) as        │
+│                                                          warnings for this   │
+│                                                          run only; metadata  │
+│                                                          validation stays    │
+│                                                          strict and a        │
+│                                                          missing Mission     │
+│                                                          artifact such as    │
+│                                                          contracts/ still    │
+│                                                          blocks. Requires    │
+│                                                          --waive-reason; the │
+│                                                          reason is recorded  │
+│                                                          in the acceptance   │
+│                                                          history. To waive   │
+│                                                          them for every run, │
+│                                                          set                 │
+│                                                          "path_conventions": │
+│                                                          "waived" with a     │
+│                                                          "path_conventions_… │
+│                                                          in the Mission's    │
+│                                                          meta.json.          │
+│ --waive-reason                               <str>       Why path            │
+│                                                          conventions are     │
+│                                                          waived for this run │
+│                                                          (required with      │
+│                                                          --waive-path-conve… │
 │ --help              -h                                   Show this message   │
 │                                                          and exit.           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -1948,6 +1980,30 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
 │                                                            evidence.         │
 │                                                            Overrides         │
 │                                                            SPEC_KITTY_ORIGI… │
+│ --retarget                                                 Adopt --target as │
+│                                                            the mission's new │
+│                                                            recorded target   │
+│                                                            for this run, and │
+│                                                            record it         │
+│                                                            (meta.json        │
+│                                                            target_branch +   │
+│                                                            retarget_history) │
+│                                                            before anything   │
+│                                                            else moves.       │
+│                                                            Requires          │
+│                                                            --target;         │
+│                                                            --target naming   │
+│                                                            the recorded      │
+│                                                            target is not a   │
+│                                                            retarget. Not     │
+│                                                            with --abort.     │
+│ --retarget-reason                         <str>            Why the mission   │
+│                                                            is retargeted,    │
+│                                                            recorded in       │
+│                                                            retarget_history  │
+│                                                            with --retarget   │
+│                                                            (requires         │
+│                                                            --retarget).      │
 │ --help             -h                                      Show this message │
 │                                                            and exit.         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -2415,7 +2471,8 @@ _Project health diagnostics; a bare invocation runs the default check set_
  With ``--fix``, automatically materializes a missing coordination worktree
  whose declared branch still exists in git (#5113 / FR-014, via the
  canonical ``materialize_coord_surface_for_write`` helper — idempotent, and
- it refuses rather than crashing when the branch is remote-only), flattens
+ it refuses rather than crashing when this clone holds no ref for the branch),
+ flattens
  missions that have a stale ``coordination_branch`` key (branch never
  created or already deleted), re-derives topology, and attempts the Gap-1
  coord-vs-target fast-forward (FR-009) -- which fails loud with a unified
@@ -6097,8 +6154,10 @@ _Cross-mission retrospective summary._
  Validate a merged mission: WP lane check, dead-code scan, BLE001 audit.
 
  Writes kitty-specs/<slug>/mission-review-report.md with a machine-readable
- verdict.  See module docstring for known false-positive scenarios in the
- dead-code scan step.
+ verdict. A previous machine report there is replaced; any other file there
+ (an agent-written review, say) is left alone and the command refuses with
+ MISSION_REVIEW_REPORT_PATH_OCCUPIED.  See module docstring for known
+ false-positive scenarios in the dead-code scan step.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --mission          <str>  Mission handle (id, mid8, or slug).                │

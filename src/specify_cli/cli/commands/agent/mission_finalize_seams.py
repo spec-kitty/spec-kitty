@@ -61,6 +61,11 @@ LANE_COMPUTATION_ABORTED_EMPTY_INPUTS = "LANE_COMPUTATION_ABORTED_EMPTY_INPUTS"
 # commit. See ``_meta_json_delta_is_finalize_attributable``.
 # S7 (#7282): the first finalize is also the sole writer of the settlement keys.
 FINALIZE_ATTRIBUTABLE_META_FIELDS = frozenset({"target_branch", "merge_target_branch", "topology_settled", "topology_decision"})
+# #7792: the keys the S7 settlement restamp writes in one write
+# (``mission_metadata.restamp_topic_branch_as_coordination``). They are
+# finalize's own only for the delta that also first records the write-once
+# ``topology_decision``: ``topology`` alone has other writers (migrations).
+FINALIZE_SETTLEMENT_META_FIELDS = frozenset({"coordination_branch", "topology", "topology_settled", "topology_decision"})
 
 
 # FR-007/R-12 (WP13 T074): the additive ``stale_repository_root_copy`` envelope

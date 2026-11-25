@@ -167,11 +167,35 @@ def derive_build_id(project_uuid: UUID, node_id: str) -> str:
     return str(uuid5(_BUILD_ID_NAMESPACE, name))
 
 
+#: ``git remote get-url`` reads local config only; the bound keeps a wedged git
+#: from stalling the SessionStart hook, which may ask for the remote (#5215).
+_GIT_REMOTE_TIMEOUT_SECONDS = 10
+
+
 def derive_project_slug(repo_root: Path) -> str:
     """Derive project slug from git remote or directory name.
 
-    Attempts to extract repo name from git remote origin URL.
-    Falls back to directory name if no remote is configured.
+    Attempts to extract repo name from git remote origin URL
+    (:func:`slug_from_git_remote`). Falls back to directory name if no remote
+    is configured, or (since #5215) when the remote URL names no repository
+    (an empty last path segment), where it used to return ``""``.
+
+    Args:
+        repo_root: Path to repository root
+
+    Returns:
+        Kebab-case project slug
+    """
+    return slug_from_git_remote(repo_root) or _normalize_slug(repo_root.name)
+
+
+def slug_from_git_remote(repo_root: Path) -> str | None:
+    """Return the kebab-case repository name of the ``origin`` remote, or ``None``.
+
+    ``None`` when git is missing, there is no ``origin`` remote, or its URL
+    names no repository. Callers that must never show a directory name (the
+    session-presence orientation, #5215) use this without the directory
+    fallback of :func:`derive_project_slug`.
 
     Uses the transport view (``git remote get-url``, which applies any
     global ``url.<base>.insteadOf`` rewrite) rather than the raw configured
@@ -189,9 +213,8 @@ def derive_project_slug(repo_root: Path) -> str:
         repo_root: Path to repository root
 
     Returns:
-        Kebab-case project slug
+        Kebab-case repository name, or ``None``
     """
-    # Try git remote origin first
     try:
         result = subprocess.run(
             ["git", "remote", "get-url", "origin"],
@@ -201,28 +224,34 @@ def derive_project_slug(repo_root: Path) -> str:
             encoding="utf-8",
             errors="replace",
             check=True,
+            timeout=_GIT_REMOTE_TIMEOUT_SECONDS,
         )
         url = result.stdout.strip()
+    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+        return None
+    return _repository_name(url)
 
-        # Handle both SSH and HTTPS URLs
-        # SSH: git@github.com:user/repo.git
-        # HTTPS: https://github.com/user/repo.git
-        if url.endswith(".git"):
-            url = url[:-4]
 
-        # Extract repo name from URL
-        # For SSH URLs like git@github.com:user/repo, split on : first
-        if ":" in url and "@" in url:
-            # SSH format: git@host:user/repo
-            url = url.split(":")[-1]
+def _repository_name(url: str) -> str | None:
+    """Return the kebab-case repository name a remote URL ends in, or ``None``.
 
-        return _normalize_slug(url.split("/")[-1])
-
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        pass
-
-    # Fallback to directory name
-    return _normalize_slug(repo_root.name)
+    SSH ``git@github.com:user/repo.git`` and HTTPS ``https://github.com/user/repo.git``
+    both give ``repo``. A trailing ``/`` is ignored (#5215: it used to name no
+    repository, so the slug depended on how each clone spelled its remote), and a
+    URL with no path after the host names none.
+    """
+    url = url.rstrip("/")
+    if url.endswith(".git"):
+        url = url[:-4]
+    if "://" in url:
+        # Checked first: userinfo (https://user:token@host) is not a path.
+        url = url.split("://", 1)[1]
+        if "/" not in url:
+            return None
+    elif ":" in url and "@" in url:
+        # SSH format: git@host:user/repo
+        url = url.split(":")[-1]
+    return _normalize_slug(url.split("/")[-1]) or None
 
 
 def _normalize_slug(name: str) -> str:

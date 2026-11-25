@@ -13,8 +13,32 @@ modules:
 - module: consolidation
   roots:
   - src/specify_cli/consolidation/**
+  - src/specify_cli/acceptance/**
+  - src/specify_cli/decisions/**
+  - src/specify_cli/frontmatter.py
+  - src/specify_cli/git/**
+  - src/specify_cli/invocation/**
+  - src/specify_cli/migration/**
+  - src/specify_cli/orchestrator_api/**
+  - src/specify_cli/ownership/**
+  - src/specify_cli/policy/**
+  - src/specify_cli/status_lanes.py
+  - src/specify_cli/tasks/**
+  - src/specify_cli/workspace/**
   cov_targets:
   - specify_cli.consolidation
+  - specify_cli.acceptance
+  - specify_cli.decisions
+  - specify_cli.frontmatter
+  - specify_cli.git
+  - specify_cli.invocation
+  - specify_cli.migration
+  - specify_cli.orchestrator_api
+  - specify_cli.ownership
+  - specify_cli.policy
+  - specify_cli.status_lanes
+  - specify_cli.tasks
+  - specify_cli.workspace
   tier: standard
   # spec-kitty#3080 (consolidate-canonical-terminology): renamed from `merge`
   # -- the package/dir/tests moved from src/specify_cli/merge + tests/merge to
@@ -59,11 +83,29 @@ modules:
   - src/specify_cli/mission_metadata.py
   - src/specify_cli/missions/**
   - src/charter/offering/missions/**
+  - src/specify_cli/acceptance/**
+  - src/specify_cli/doc_analysis/**
+  - src/specify_cli/git/**
+  - src/specify_cli/invocation/**
+  - src/specify_cli/migration/**
+  - src/specify_cli/mission_step_contracts/**
+  - src/specify_cli/mission_v1/**
+  - src/specify_cli/retrospective/**
+  - src/specify_cli/task_utils/**
   cov_targets:
   - specify_cli.mission
   - specify_cli.mission_metadata
   - specify_cli.missions
   - charter.offering.missions
+  - specify_cli.acceptance
+  - specify_cli.doc_analysis
+  - specify_cli.git
+  - specify_cli.invocation
+  - specify_cli.migration
+  - specify_cli.mission_step_contracts
+  - specify_cli.mission_v1
+  - specify_cli.retrospective
+  - specify_cli.task_utils
   tier: standard
   shard_count: 1
   # issue #6221: claim tests/specify_cli/mission_step_contracts (previously out_of_matrix, so it ran in
@@ -93,9 +135,41 @@ modules:
   roots:
   - src/specify_cli/status/**
   - src/specify_cli/coordination/**
+  - src/specify_cli/acceptance/**
+  - src/specify_cli/agent_tasks_ports.py
+  - src/specify_cli/context/**
+  - src/specify_cli/decisions/**
+  - src/specify_cli/events/**
+  - src/specify_cli/frontmatter.py
+  - src/specify_cli/git/**
+  - src/specify_cli/identity/**
+  - src/specify_cli/invocation/**
+  - src/specify_cli/migration/**
+  - src/specify_cli/orchestrator_api/**
+  - src/specify_cli/ownership/**
+  - src/specify_cli/retrospective/**
+  - src/specify_cli/status_lanes.py
+  - src/specify_cli/task_utils/**
+  - src/specify_cli/workspace/**
   cov_targets:
   - specify_cli.status
   - specify_cli.coordination
+  - specify_cli.acceptance
+  - specify_cli.agent_tasks_ports
+  - specify_cli.context
+  - specify_cli.decisions
+  - specify_cli.events
+  - specify_cli.frontmatter
+  - specify_cli.git
+  - specify_cli.identity
+  - specify_cli.invocation
+  - specify_cli.migration
+  - specify_cli.orchestrator_api
+  - specify_cli.ownership
+  - specify_cli.retrospective
+  - specify_cli.status_lanes
+  - specify_cli.task_utils
+  - specify_cli.workspace
   tier: standard
   # spec-kitty#4374 (WP03 T009): promoted tests/specify_cli/status AND
   # tests/specify_cli/write_side (bundled -- write_side's top import is
@@ -111,8 +185,20 @@ modules:
 - module: review
   roots:
   - src/specify_cli/review/**
+  - src/specify_cli/agent_tasks_ports.py
+  - src/specify_cli/git/**
+  - src/specify_cli/migration/**
+  - src/specify_cli/mission_step_contracts/**
+  - src/specify_cli/requirement_mapping/**
+  - src/specify_cli/workspace/**
   cov_targets:
   - specify_cli.review
+  - specify_cli.agent_tasks_ports
+  - specify_cli.git
+  - specify_cli.migration
+  - specify_cli.mission_step_contracts
+  - specify_cli.requirement_mapping
+  - specify_cli.workspace
   tier: standard
   shard_count: 1
 - module: next
@@ -120,24 +206,84 @@ modules:
   - src/specify_cli/runtime/**
   - src/runtime/next/**
   - src/mission_runtime/**
+  - src/specify_cli/identity/**
+  - src/specify_cli/invocation/**
+  - src/specify_cli/requirement_mapping/**
+  - src/specify_cli/status_lanes.py
   cov_targets:
   - specify_cli.runtime
   - runtime.next
   - mission_runtime
+  - specify_cli.identity
+  - specify_cli.invocation
+  - specify_cli.requirement_mapping
+  - specify_cli.status_lanes
   tier: standard
   shard_count: 2
 - module: lanes
   roots:
   - src/specify_cli/lanes/**
+  - src/specify_cli/acceptance/**
+  - src/specify_cli/analysis_report.py
+  - src/specify_cli/git/**
+  - src/specify_cli/gitignore_manager.py
+  - src/specify_cli/manifest.py
+  - src/specify_cli/migration/**
+  - src/specify_cli/orchestrator_api/**
+  - src/specify_cli/ownership/**
+  - src/specify_cli/policy/**
+  - src/specify_cli/tasks/**
+  - src/specify_cli/workspace/**
   cov_targets:
   - specify_cli.lanes
+  - specify_cli.acceptance
+  - specify_cli.analysis_report
+  - specify_cli.git
+  - specify_cli.gitignore_manager
+  - specify_cli.manifest
+  - specify_cli.migration
+  - specify_cli.orchestrator_api
+  - specify_cli.ownership
+  - specify_cli.policy
+  - specify_cli.tasks
+  - specify_cli.workspace
   tier: standard
   shard_count: 1
+  # #7789: promoted tests/specify_cli/lanes from out_of_matrix_test_dirs (nightly-only),
+  # in the same change that made every src/specify_cli/lanes/* file a diff-cover
+  # critical path: a critical-path lanes change needs its secondary test tree in the
+  # per-PR shard that produces its coverage evidence. The explicit test_dirs list
+  # REPLACES the tests/lanes fallback claim, so tests/lanes stays named.
+  test_dirs:
+  - tests/lanes
+  - tests/specify_cli/lanes
 - module: upgrade
   roots:
   - src/specify_cli/upgrade/**
+  - src/specify_cli/audit/**
+  - src/specify_cli/context/**
+  - src/specify_cli/frontmatter.py
+  - src/specify_cli/git/**
+  - src/specify_cli/gitignore_manager.py
+  - src/specify_cli/invocation/**
+  - src/specify_cli/migration/**
+  - src/specify_cli/shims/**
+  - src/specify_cli/skills/**
+  - src/specify_cli/task_utils/**
+  - src/specify_cli/template/**
   cov_targets:
   - specify_cli.upgrade
+  - specify_cli.audit
+  - specify_cli.context
+  - specify_cli.frontmatter
+  - specify_cli.git
+  - specify_cli.gitignore_manager
+  - specify_cli.invocation
+  - specify_cli.migration
+  - specify_cli.shims
+  - specify_cli.skills
+  - specify_cli.task_utils
+  - specify_cli.template
   tier: standard
   # 4 shards: the module's ~840 tests run near-instant in pytest's measured
   # "call" phase (module_test_durations sums to ~5s) but each carries heavy
@@ -149,8 +295,40 @@ modules:
 - module: cli
   roots:
   - src/specify_cli/cli/**
+  - src/specify_cli/agent_tasks_ports.py
+  - src/specify_cli/charter_activate.py
+  - src/specify_cli/charter_packs/**
+  - src/specify_cli/context/**
+  - src/specify_cli/git/**
+  - src/specify_cli/gitignore_manager.py
+  - src/specify_cli/intake/**
+  - src/specify_cli/migration/**
+  - src/specify_cli/mission_brief.py
+  - src/specify_cli/retrospective/**
+  - src/specify_cli/shims/**
+  - src/specify_cli/skills/**
+  - src/specify_cli/state/**
+  - src/specify_cli/task_utils/**
+  - src/specify_cli/template/**
+  - src/specify_cli/workspace/**
   cov_targets:
   - specify_cli.cli
+  - specify_cli.agent_tasks_ports
+  - specify_cli.charter_activate
+  - specify_cli.charter_packs
+  - specify_cli.context
+  - specify_cli.git
+  - specify_cli.gitignore_manager
+  - specify_cli.intake
+  - specify_cli.migration
+  - specify_cli.mission_brief
+  - specify_cli.retrospective
+  - specify_cli.shims
+  - specify_cli.skills
+  - specify_cli.state
+  - specify_cli.task_utils
+  - specify_cli.template
+  - specify_cli.workspace
   tier: standard
   shard_count: 2
   # #7235: tests/init promoted from out_of_matrix_test_dirs (no lane reached it, so three
@@ -171,9 +349,33 @@ modules:
   # group still owns src/kernel/**; overlapping src roots are the scrub's existing shape). test_dirs,
   # cov_targets, tier and shard_count are unchanged by that addition.
   - src/kernel/activation_ledger_store.py
+  - src/specify_cli/analysis_inputs.py
+  - src/specify_cli/charter_packs/**
+  - src/specify_cli/doc_analysis/**
+  - src/specify_cli/frontmatter.py
+  - src/specify_cli/invocation/**
+  - src/specify_cli/migration/**
+  - src/specify_cli/mission_step_contracts/**
+  - src/specify_cli/ownership/**
+  - src/specify_cli/provisioning/**
+  - src/specify_cli/skills/**
+  - src/specify_cli/task_utils/**
+  - src/specify_cli/template/**
   cov_targets:
   - charter
   - specify_cli.charter_runtime
+  - specify_cli.analysis_inputs
+  - specify_cli.charter_packs
+  - specify_cli.doc_analysis
+  - specify_cli.frontmatter
+  - specify_cli.invocation
+  - specify_cli.migration
+  - specify_cli.mission_step_contracts
+  - specify_cli.ownership
+  - specify_cli.provisioning
+  - specify_cli.skills
+  - specify_cli.task_utils
+  - specify_cli.template
   tier: standard
   # shard_count=5 (WP05 T024, spec-kitty#4865; corrected per operator ruling,
   # Decision Moment 01M3584PY5A6F79DWX1QFDHW87 -- see mission decisions/):
@@ -249,8 +451,34 @@ modules:
 - module: agent
   roots:
   - src/specify_cli/agent_utils/**
+  - src/specify_cli/acceptance/**
+  - src/specify_cli/analysis_report.py
+  - src/specify_cli/bulk_edit/**
+  - src/specify_cli/doc_analysis/**
+  - src/specify_cli/frontmatter.py
+  - src/specify_cli/gitignore_manager.py
+  - src/specify_cli/orchestrator_api/**
+  - src/specify_cli/skills/**
+  - src/specify_cli/task_utils/**
+  - src/specify_cli/template/**
+  - src/specify_cli/tracker/**
+  - src/specify_cli/validators/**
+  - src/specify_cli/workspace/**
   cov_targets:
   - specify_cli.agent_utils
+  - specify_cli.acceptance
+  - specify_cli.analysis_report
+  - specify_cli.bulk_edit
+  - specify_cli.doc_analysis
+  - specify_cli.frontmatter
+  - specify_cli.gitignore_manager
+  - specify_cli.orchestrator_api
+  - specify_cli.skills
+  - specify_cli.task_utils
+  - specify_cli.template
+  - specify_cli.tracker
+  - specify_cli.validators
+  - specify_cli.workspace
   tier: standard
   # 3 shards: ~1173 tests at ~1.2s wall each (CliRunner + ensure_runtime
   # overhead the measured call-phase timings undercount) → ~23m SERIAL, which
@@ -271,8 +499,14 @@ modules:
 - module: kernel
   roots:
   - src/kernel/**
+  - src/specify_cli/skills/**
+  - src/specify_cli/task_utils/**
+  - src/specify_cli/tracker/**
   cov_targets:
   - kernel
+  - specify_cli.skills
+  - specify_cli.task_utils
+  - specify_cli.tracker
   tier: standard
   shard_count: 1
 - module: glossary
@@ -291,10 +525,64 @@ modules:
   - src/specify_cli/status/**
   - src/runtime/next/**
   - src/specify_cli/cli/commands/agent/**
+  - src/specify_cli/acceptance/**
+  - src/specify_cli/agent_tasks_ports.py
+  - src/specify_cli/analysis_inputs.py
+  - src/specify_cli/analysis_report.py
+  - src/specify_cli/bulk_edit/**
+  - src/specify_cli/context/**
+  - src/specify_cli/decisions/**
+  - src/specify_cli/diagnostics/**
+  - src/specify_cli/events/**
+  - src/specify_cli/frontmatter.py
+  - src/specify_cli/git/**
+  - src/specify_cli/invocation/**
+  - src/specify_cli/meta_keys.py
+  - src/specify_cli/migration/**
+  - src/specify_cli/mission_loader/**
+  - src/specify_cli/mission_step_contracts/**
+  - src/specify_cli/orchestrator_api/**
+  - src/specify_cli/ownership/**
+  - src/specify_cli/requirement_mapping/**
+  - src/specify_cli/retrospective/**
+  - src/specify_cli/shims/**
+  - src/specify_cli/skills/**
+  - src/specify_cli/task_utils/**
+  - src/specify_cli/tasks/**
+  - src/specify_cli/template/**
+  - src/specify_cli/version_utils.py
+  - src/specify_cli/workspace/**
   cov_targets:
   - mission_runtime
   - specify_cli.status
   - runtime.next
+  - specify_cli.acceptance
+  - specify_cli.agent_tasks_ports
+  - specify_cli.analysis_inputs
+  - specify_cli.analysis_report
+  - specify_cli.bulk_edit
+  - specify_cli.context
+  - specify_cli.decisions
+  - specify_cli.diagnostics
+  - specify_cli.events
+  - specify_cli.frontmatter
+  - specify_cli.git
+  - specify_cli.invocation
+  - specify_cli.meta_keys
+  - specify_cli.migration
+  - specify_cli.mission_loader
+  - specify_cli.mission_step_contracts
+  - specify_cli.orchestrator_api
+  - specify_cli.ownership
+  - specify_cli.requirement_mapping
+  - specify_cli.retrospective
+  - specify_cli.shims
+  - specify_cli.skills
+  - specify_cli.task_utils
+  - specify_cli.tasks
+  - specify_cli.template
+  - specify_cli.version_utils
+  - specify_cli.workspace
   tier: standard
   shard_count: 3
   # AGGREGATE module: no single tests/<module> mirror exists for
@@ -331,10 +619,74 @@ modules:
   - pins/**
   - scripts/sync_services.py
   - .github/actions/sync-services/**
+  - src/specify_cli/agent_tasks_ports.py
+  - src/specify_cli/analysis_report.py
+  - src/specify_cli/asset_preservation/**
+  - src/specify_cli/bootstrap/**
+  - src/specify_cli/calibration/**
+  - src/specify_cli/compat/**
+  - src/specify_cli/config/**
+  - src/specify_cli/context/**
+  - src/specify_cli/decisions/**
+  - src/specify_cli/design/**
+  - src/specify_cli/distribution/**
+  - src/specify_cli/events/**
+  - src/specify_cli/frontmatter.py
+  - src/specify_cli/git/**
+  - src/specify_cli/gitignore_manager.py
+  - src/specify_cli/invocation/**
+  - src/specify_cli/meta_keys.py
+  - src/specify_cli/migration/**
+  - src/specify_cli/orchestrator_api/**
+  - src/specify_cli/ownership/**
+  - src/specify_cli/retrospective/**
+  - src/specify_cli/session_presence/**
+  - src/specify_cli/skills/**
+  - src/specify_cli/state/**
+  - src/specify_cli/status_lanes.py
+  - src/specify_cli/task_metadata_validation.py
+  - src/specify_cli/task_utils/**
+  - src/specify_cli/tasks/**
+  - src/specify_cli/tasks_authoring/**
+  - src/specify_cli/text_sanitization.py
+  - src/specify_cli/version_utils.py
+  - src/specify_cli/workspace/**
   cov_targets:
   - specify_cli
   - glossary
   - mission_runtime
+  - specify_cli.agent_tasks_ports
+  - specify_cli.analysis_report
+  - specify_cli.asset_preservation
+  - specify_cli.bootstrap
+  - specify_cli.calibration
+  - specify_cli.compat
+  - specify_cli.config
+  - specify_cli.context
+  - specify_cli.decisions
+  - specify_cli.design
+  - specify_cli.distribution
+  - specify_cli.events
+  - specify_cli.frontmatter
+  - specify_cli.git
+  - specify_cli.gitignore_manager
+  - specify_cli.invocation
+  - specify_cli.meta_keys
+  - specify_cli.migration
+  - specify_cli.orchestrator_api
+  - specify_cli.ownership
+  - specify_cli.retrospective
+  - specify_cli.session_presence
+  - specify_cli.skills
+  - specify_cli.state
+  - specify_cli.status_lanes
+  - specify_cli.task_metadata_validation
+  - specify_cli.task_utils
+  - specify_cli.tasks
+  - specify_cli.tasks_authoring
+  - specify_cli.text_sanitization
+  - specify_cli.version_utils
+  - specify_cli.workspace
   tier: standard
   shard_count: 5
   # AGGREGATE module: no single tests/<module> mirror exists for "core_misc"
@@ -402,11 +754,29 @@ modules:
   - src/runtime/next/**
   - src/charter/offering/missions/**
   - src/kernel/**
+  - src/specify_cli/contracts/**
+  - src/specify_cli/frontmatter.py
+  - src/specify_cli/git/**
+  - src/specify_cli/intake/**
+  - src/specify_cli/migration/**
+  - src/specify_cli/mission_loader/**
+  - src/specify_cli/task_utils/**
+  - src/specify_cli/tracker/**
+  - src/specify_cli/workspace/**
   cov_targets:
   - specify_cli.status
   - runtime.next
   - charter.offering.missions
   - kernel
+  - specify_cli.contracts
+  - specify_cli.frontmatter
+  - specify_cli.git
+  - specify_cli.intake
+  - specify_cli.migration
+  - specify_cli.mission_loader
+  - specify_cli.task_utils
+  - specify_cli.tracker
+  - specify_cli.workspace
   tier: standard
   shard_count: 1
   # TEST-INVENTORY module (mission sonar-per-pr-coverage-reuse-01M2FR32,
@@ -426,10 +796,18 @@ modules:
   - src/specify_cli/runtime/**
   - src/charter/offering/missions/**
   - src/specify_cli/core/**
+  - src/specify_cli/acceptance/**
+  - src/specify_cli/analysis_report.py
+  - src/specify_cli/shims/**
+  - src/specify_cli/skills/**
   cov_targets:
   - specify_cli.runtime
   - charter.offering.missions
   - specify_cli.core
+  - specify_cli.acceptance
+  - specify_cli.analysis_report
+  - specify_cli.shims
+  - specify_cli.skills
   tier: standard
   shard_count: 1
   # TEST-INVENTORY module (same WP02 rationale as `unit` above). No
@@ -494,6 +872,11 @@ modules:
 # neither fail a PR nor contribute coverage evidence). Adding a directory here
 # is a reasoned decision; the right fix for a directory that SHOULD gate per-PR
 # is a registry row with measured durations, never a silent default.
+# per_pr_home (#7801): a record whose tests run per PR in a ci-router.yml job, not a
+# module row, names that job. gate_selection.per_pr_home_violations proves the claim
+# (the job's if: groups cover the dirs, a pytest command names them, no -m narrowing),
+# enforced by tests/ci/test_gate_selection_out_of_matrix.py. Records without it are
+# reported to a PR that changes them as nightly-only (scripts/ci/gate_selection.py).
 out_of_matrix_test_dirs:
 
 - reason: >-
@@ -507,12 +890,14 @@ out_of_matrix_test_dirs:
 - reason: >-
     Per-PR home is ci-router.yml's 'tests (docs)' path-routed job, which runs this
     directory directly; claiming it in a module row too would only double-run it per PR.
+  per_pr_home: tests-docs
   dirs:
   - tests/docs
 
 - reason: >-
     Per-PR home is ci-router.yml's 'tests (e2e)' path-routed job, which runs this
     directory directly; claiming it in a module row too would only double-run it per PR.
+  per_pr_home: tests-e2e
   dirs:
   - tests/e2e
 
@@ -529,6 +914,7 @@ out_of_matrix_test_dirs:
     (below): the fast roster plus the file-partitioned shards of ci-router.yml's
     'architectural battery' job, and the always-on terminology / layer-rules /
     archive-freeze lanes; a module row would only double-run it.
+  per_pr_home: architectural-heavy
   dirs:
   - tests/architectural
   - tests/architectural/tool_artifact_enrolment
@@ -613,16 +999,6 @@ out_of_matrix_test_dirs:
   dirs:
   - tests/specify_cli/cli/commands/charter
   - tests/specify_cli/cli/commands/review
-
-- reason: >-
-    Deferred-promotion (spec-kitty#4374 disposition ledger, WP01): existing owning row
-    lanes (cov_targets specify_cli.lanes; import census confirms 15x
-    specify_cli.lanes.worktree_allocator, 7x .models, 7x .recovery). Not in the Phase-S
-    capped promotion set (merge/status/dashboard/auth only) -- promotion warranted;
-    deferred to a follow-up (#4732) to respect the bounded single-PR cap, never
-    silently absorbed.
-  dirs:
-  - tests/specify_cli/lanes
 
 - reason: >-
     Deferred-promotion (spec-kitty#4374 disposition ledger, WP01): existing owning row
@@ -969,19 +1345,19 @@ special_tiers:
       # against the committed battery_file_durations seed, <= max_file_budget_seconds; checked statically
       # by tests/ci/test_battery_roster_budgets.py (committed numbers only, never wall-clock).
       roster:                   # {path, budget_seconds, reason}
-      - {path: tests/architectural/test_inline_meta_read_gate.py, budget_seconds: 42, reason: "red 8x in the 2026-09-30 census window"}
+      - {path: tests/architectural/test_inline_meta_read_gate.py, budget_seconds: 41, reason: "red 8x in the 2026-09-30 census window"}
       - {path: tests/architectural/test_ruff_format_exclude_ratchet.py, budget_seconds: 10, reason: "red 5x in the 2026-09-30 census window"}
-      - {path: tests/architectural/test_untrusted_path_containment.py, budget_seconds: 38, reason: "red 4x in the 2026-09-30 census window"}
+      - {path: tests/architectural/test_untrusted_path_containment.py, budget_seconds: 42, reason: "red 4x in the 2026-09-30 census window"}
       - {path: tests/architectural/test_issue_named_test_census.py, budget_seconds: 10, reason: "red 4x in the 2026-09-30 census window"}
       - {path: tests/architectural/test_finalize_refresh_pin_authority.py, budget_seconds: 10, reason: "red 4x in the 2026-09-30 census window"}
-      - {path: tests/architectural/test_no_manual_global_state_mutation.py, budget_seconds: 24, reason: "red 3x in the 2026-09-30 census window"}
+      - {path: tests/architectural/test_no_manual_global_state_mutation.py, budget_seconds: 23, reason: "red 3x in the 2026-09-30 census window"}
       - {path: tests/architectural/test_no_write_side_rederivation.py, budget_seconds: 13, reason: "red 2x in the 2026-09-30 census window"}
-      - {path: tests/architectural/test_mission_resolver_walker_gate.py, budget_seconds: 15, reason: "red 2x in the 2026-09-30 census window"}
+      - {path: tests/architectural/test_mission_resolver_walker_gate.py, budget_seconds: 10, reason: "red 2x in the 2026-09-30 census window"}
       - {path: tests/architectural/test_docs_cli_reference_parity.py, budget_seconds: 10, reason: "red 2x in the 2026-09-30 census window"}
-      - {path: tests/architectural/test_coord_read_residuals_closeout.py, budget_seconds: 21, reason: "red 2x in the 2026-09-30 census window"}
+      - {path: tests/architectural/test_coord_read_residuals_closeout.py, budget_seconds: 22, reason: "red 2x in the 2026-09-30 census window"}
       - {path: tests/architectural/tool_artifact_enrolment/test_enrolment_inventory.py, budget_seconds: 10, reason: "red 1x in the 2026-09-30 census window"}
       - {path: tests/architectural/test_timing_coverage_invariant.py, budget_seconds: 10, reason: "red 1x in the 2026-09-30 census window"}
-      - {path: tests/architectural/test_status_module_boundary.py, budget_seconds: 13, reason: "red 1x in the 2026-09-30 census window"}
+      - {path: tests/architectural/test_status_module_boundary.py, budget_seconds: 18, reason: "red 1x in the 2026-09-30 census window"}
       - {path: tests/architectural/test_src_reachability_guard.py, budget_seconds: 28, reason: "red 1x in the 2026-09-30 census window; reads tests/** and the foreign-coverage baseline through coverage_guard_lib, outside its scan scope, so it stays always-on (#7115)"}
       - {path: tests/architectural/test_events_cutover_absent.py, budget_seconds: 11, reason: "absence gate of the events cut-over (ADR 2026-10-29-1, #6915; replaces the D-9 freeze gate): its paths span the ci, corpus and packaging files, so it must run on every PR"}
       - {path: tests/architectural/test_no_tmp_paths_in_tests.py, budget_seconds: 10, reason: "red 1x in the 2026-09-30 census window"}
@@ -990,14 +1366,14 @@ special_tiers:
       - {path: tests/architectural/test_json_contract_enumeration.py, budget_seconds: 10, reason: "red 1x in the 2026-09-30 census window"}
       - {path: tests/architectural/test_completion_manifest_freshness.py, budget_seconds: 10, reason: "red 1x in the 2026-09-30 census window"}
       - {path: tests/architectural/test_cli_console_single_seam.py, budget_seconds: 10, reason: "red 1x in the 2026-09-30 census window"}
-      - {path: tests/architectural/test_gate_selection_authority.py, budget_seconds: 23, reason: "CI-config wiring verdict"}
+      - {path: tests/architectural/test_gate_selection_authority.py, budget_seconds: 27, reason: "CI-config wiring verdict"}
       - {path: tests/architectural/test_ci_integrity_oracle_nonvacuous.py, budget_seconds: 10, reason: "CI-config wiring verdict"}
       - {path: tests/architectural/test_dual_mode_contract.py, budget_seconds: 10, reason: "CI-config wiring verdict"}
       - {path: tests/architectural/test_ci_quality_path_filters.py, budget_seconds: 10, reason: "CI-config wiring verdict"}
       - {path: tests/architectural/test_no_duplicate_suite_execution.py, budget_seconds: 34, reason: "CI-config wiring verdict"}
       - {path: tests/architectural/test_pytest_ini_timeout_default.py, budget_seconds: 10, reason: "CI-config wiring verdict"}
       - {path: tests/architectural/test_makefile_tier_topology.py, budget_seconds: 10, reason: "CI-config wiring verdict"}
-      - {path: tests/architectural/test_workflow_coherence.py, budget_seconds: 16, reason: "CI-config wiring verdict"}
+      - {path: tests/architectural/test_workflow_coherence.py, budget_seconds: 18, reason: "CI-config wiring verdict"}
       - {path: tests/architectural/test_scenario_contract.py, budget_seconds: 10, reason: "per-PR scenario contract: .feature parse, tag vocabulary, step binding against the Java step definitions (no JDK), the absorption ledger and the CODEOWNERS ownership rules (ADR 2026-10-15-1); static, measured well under 5 s"}
       - {path: tests/architectural/test_dead_symbol_allowlist_loader.py, budget_seconds: 10, reason: "schema gate over the committed dead_symbol_allowlist.yaml (L1-L10 + real-file invariants); post-census file, measured 0.7 s / 47 tests single-file on 2026-10-01; never walks src/"}
       - {path: tests/architectural/test_battery_partition_proof.py, budget_seconds: 17, reason: "static three-way partition proof (FR-004); no collection, must gate every battery change"}

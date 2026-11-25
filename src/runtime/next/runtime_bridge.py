@@ -681,14 +681,42 @@ def _board_execution_has_begun(board: BoardStatus | None) -> bool:
     return any(lane not in (Lane.GENESIS, Lane.PLANNED) for lane in board.lanes.values())
 
 
-def _lanes_missing_answer(inputs: _GateInputs, board_step: str | None, board: BoardStatus | None, exc: MissingLanesError) -> Decision:
+def _history_execution_has_begun(mission_slug: str, repo_root: Path, owned: OwnedCheckout | None) -> bool:
+    """#7793 / Tier R N2: a work package that ever left ``planned`` (finalize's and doctor's shared rule).
+
+    Read through the one status door; any failure to read reads as not begun, as the board does.
+    """
+    from specify_cli.coordination.surface_resolver import StatusReadPathNotFound
+    from specify_cli.lanes.persistence import any_work_package_left_planned
+    from specify_cli.status import StoreError, read_status_stream, resolve_status_read
+
+    try:
+        transitions = read_status_stream(resolve_status_read(repo_root, mission_slug, owned=owned)).transitions
+    except (OSError, ValueError, RuntimeError, StatusReadPathNotFound, StoreError):
+        # A hint for the next command, never a refusal: an unreadable log degrades like an
+        # unreadable board (RuntimeError covers an unreadable coordination ref or worktree registry).
+        return False
+    began: bool = any_work_package_left_planned(transitions)
+    return began
+
+
+def _lanes_missing_answer(
+    inputs: _GateInputs,
+    board_step: str | None,
+    board: BoardStatus | None,
+    exc: MissingLanesError,
+    *,
+    repo_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
+) -> Decision:
     """Ruling plan.next.missing_lanes_fold: the board's WP dispatch needs a ``lanes.json`` that is absent.
 
     The reason is the error's own message (it names both remedies); ``next_command`` is the one
     that applies: ``finalize-tasks`` before execution has begun, ``doctor mission-state --fix``
     after (finalize refuses then, #4758: :func:`~specify_cli.lanes.persistence.is_execution_wedged`).
     """
-    wedged = is_execution_wedged(execution_has_begun=_board_execution_has_begun(board), lanes_present=False)
+    began = _board_execution_has_begun(board) or (repo_root is not None and _history_execution_has_begun(inputs.mission_slug, repo_root, owned))
+    wedged = is_execution_wedged(execution_has_begun=began, lanes_present=False)
     template = _cores.REBUILD_LANES_COMMAND if wedged else _cores.FINALIZE_TASKS_COMMAND
     return _gate_envelope(
         inputs,
@@ -791,7 +819,7 @@ def _dn_never_rewind_gate(
     try:
         board_action = _gate_board_action(resolved, inputs.mission_slug, repo_root, owned)
     except MissingLanesError as exc:
-        return _lanes_missing_answer(inputs, resolved.board_step, resolved.board, exc)
+        return _lanes_missing_answer(inputs, resolved.board_step, resolved.board, exc, repo_root=repo_root, owned=owned)
     if board_action is None or board_action.action is not None:
         return None
     if resolved.board_step.startswith("blocked:") and board_action.blocked_reason is not None:
@@ -1184,6 +1212,8 @@ def _front_phase_lanes_missing(ctx: DecideNextContext, exc: MissingLanesError) -
         finalized.board_step if finalized is not None else None,
         finalized.board if finalized is not None else None,
         exc,
+        repo_root=ctx.repo_root,
+        owned=ctx.owned,
     )
 
 

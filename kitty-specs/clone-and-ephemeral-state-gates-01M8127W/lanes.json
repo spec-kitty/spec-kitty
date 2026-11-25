@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "mission_slug": "clone-and-ephemeral-state-gates-01M8127W",
+  "mission_id": "01M8127W3JTX5R46HKHR22P571",
+  "mission_branch": "kitty/mission-clone-and-ephemeral-state-gates-01M8127W",
+  "target_branch": "issue-7809-clone-ephemeral-state-gates",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/7808.fixed.md",
+        "src/specify_cli/tasks/issue_matrix.py",
+        "src/specify_cli/tasks/issue_reference_discovery.py",
+        "tests/tasks/test_issue_reference_hex_colour_7808.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/7806.fixed.md",
+        "src/kernel/git/tracking_branch.py",
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/coordination/surface_resolver.py",
+        "src/specify_cli/workspace/context.py",
+        "tests/kernel/git/test_tracking_branch.py",
+        "tests/specify_cli/coordination/test_review_remote_only_lane_7806.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/2026-10-04-5-approval-stamp-bounds-the-approved-claim.md",
+        "docs/changelog/unreleased/7802.fixed.md",
+        "src/specify_cli/consolidation/approved_attestation.py",
+        "src/specify_cli/consolidation/approved_bound.py",
+        "src/specify_cli/consolidation/commit_to_target_stamps.py",
+        "src/specify_cli/consolidation/git_probes.py",
+        "src/specify_cli/consolidation/write_branch_bound.py",
+        "src/specify_cli/lanes/auto_rebase.py",
+        "src/specify_cli/status/__init__.py",
+        "src/specify_cli/status/cutover_eligibility.py",
+        "src/specify_cli/status/lane_head.py",
+        "src/specify_cli/status/transition_pipeline.py",
+        "tests/consolidation/test_approval_stamp_presync_7802.py",
+        "tests/status/test_lane_head_presync_7802.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/2026-11-06-3-topology-is-settled-once-at-first-finalize.md",
+        "docs/changelog/unreleased/7809.fixed.md",
+        "src/specify_cli/cli/commands/agent/mission_finalize.py",
+        "src/specify_cli/cli/commands/agent/mission_finalize_bootstrap.py",
+        "src/specify_cli/cli/commands/agent/mission_finalize_lanes.py",
+        "src/specify_cli/cli/commands/agent/mission_finalize_seams.py",
+        "src/specify_cli/ownership/kind_normalisation.py",
+        "tests/lanes/test_docs_wp_gets_a_lane_7809.py",
+        "tests/lanes/test_kind_normalisation_7809.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition.md",
+        "docs/changelog/unreleased/7759.fixed.md",
+        "src/specify_cli/review/context_block.py",
+        "src/specify_cli/review/wp_range.py",
+        "tests/review/test_planning_range_bookkeeping_only_7759.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-22T07:33:10.197158+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "fd3a8c7f0666f48a22daabf3fb444d75dc2b9a25"
+}

@@ -53,6 +53,7 @@ are NOT relocated here — WP08 moves them to ``commit_router``.
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, cast
@@ -83,7 +84,8 @@ from specify_cli.ownership.frontmatter_source import (
     FinalizeFrontmatterSource,
     resolve_wp_manifests,
 )
-from specify_cli.ownership.models import OwnershipManifest
+from specify_cli.ownership.kind_normalisation import KindNormalisation, KindRewrite
+from specify_cli.ownership.models import OwnershipManifest, WorkProductKind
 from specify_cli.status import BootstrapResult, WPMetadata
 from specify_cli.core.wps_manifest import (
     WpsManifest,
@@ -120,6 +122,7 @@ from specify_cli.lanes.planning_commit_classify import classify_recorded_pin as 
 from specify_cli.ownership.inference import detect_post_integration_acceptance as detect_post_integration_acceptance
 from specify_cli.cli.commands.agent.mission_finalize_seams import (
     FINALIZE_ATTRIBUTABLE_META_FIELDS as FINALIZE_ATTRIBUTABLE_META_FIELDS,
+    FINALIZE_SETTLEMENT_META_FIELDS as FINALIZE_SETTLEMENT_META_FIELDS,
     FINALIZE_TASKS_COMMAND_NAME as FINALIZE_TASKS_COMMAND_NAME,
     INVALID_WP_OWNED_FILES_KITTY_SPECS as INVALID_WP_OWNED_FILES_KITTY_SPECS,
     ISSUE_MATRIX_FILENAME as ISSUE_MATRIX_FILENAME,
@@ -193,6 +196,14 @@ from specify_cli.cli.commands.agent.mission_finalize_bootstrap import (
     _surface_post_integration_acceptance_warnings as _surface_post_integration_acceptance_warnings,
     _validate_owned_files_not_in_mission_specs as _validate_owned_files_not_in_mission_specs,
     _validate_ownership_manifests as _validate_ownership_manifests,
+    _persist_kind_rewrites as _persist_kind_rewrites,
+    _refuse_kitty_specs_owned_files as _refuse_kitty_specs_owned_files,
+    _refuse_mixed_normalised_wps as _refuse_mixed_normalised_wps,
+    _report_kind_rewrites as _report_kind_rewrites,
+    _wp_file_by_id as _wp_file_by_id,
+    _KIND_NORMALISED_NOTICE as _KIND_NORMALISED_NOTICE,
+    _MIXED_WP_SPLIT_REMEDY as _MIXED_WP_SPLIT_REMEDY,
+    _WP_FILE_ID_PATTERN as _WP_FILE_ID_PATTERN,
 )
 from specify_cli.cli.commands.agent.mission_finalize_planning_pin import (
     PlanningCommitResolution as PlanningCommitResolution,
@@ -232,6 +243,32 @@ from specify_cli.cli.commands.agent.mission_finalize_planning_pin import (
     _resolve_status_read_dir as _resolve_status_read_dir,
     _restore_planning_pin_candidate as _restore_planning_pin_candidate,
     _validate_only_planning_preview as _validate_only_planning_preview,
+    _INDETERMINATE_TIP_UNCAPTURABLE as _INDETERMINATE_TIP_UNCAPTURABLE,
+    _NO_PIN_UNDERIVABLE as _NO_PIN_UNDERIVABLE,
+    _WINDOW_UNREADABLE as _WINDOW_UNREADABLE,
+    _WINDOW_WOULD_EMPTY as _WINDOW_WOULD_EMPTY,
+    _any_work_package_left_planned as _any_work_package_left_planned,
+    _automatic_refresh_or_keep as _automatic_refresh_or_keep,
+    _kept_pin_warning as _kept_pin_warning,
+    _refuse_planning_pin_with_code as _refuse_planning_pin_with_code,
+    _single_branch_refresh_resolution as _single_branch_refresh_resolution,
+)
+from specify_cli.cli.commands.agent.mission_finalize_pin_window import (
+    MANUAL_PIN_REMEDY as MANUAL_PIN_REMEDY,
+    NO_PATCH_ID_MATCH as NO_PATCH_ID_MATCH,
+    PATCH_ID_AMBIGUOUS as PATCH_ID_AMBIGUOUS,
+    WOULD_EMPTY_WINDOW as WOULD_EMPTY_WINDOW,
+    PinWindowUnreadable as PinWindowUnreadable,
+    _OrphanFollow as _OrphanFollow,
+    _PinLine as _PinLine,
+    _bounds_the_mission as _bounds_the_mission,
+    _own_changed_paths as _own_changed_paths,
+    _owned_patterns_by_wp as _owned_patterns_by_wp,
+    _remote_tracking_refs as _remote_tracking_refs,
+    _resolves as _resolves,
+    follow_orphaned_pin as follow_orphaned_pin,
+    resolve_pin_line as resolve_pin_line,
+    window_keeps_owned_work as window_keeps_owned_work,
 )
 from specify_cli.cli.commands.agent.mission_finalize_lanes import (
     _cause_detail as _cause_detail,
@@ -250,6 +287,10 @@ from specify_cli.cli.commands.agent.mission_finalize_lanes import (
     _scaffold_acceptance_matrix_if_lane_based as _scaffold_acceptance_matrix_if_lane_based,
     _started_on_coordination_branch as _started_on_coordination_branch,
     _status_unreadable_error as _status_unreadable_error,
+    _is_lane_topology_this_run as _is_lane_topology_this_run,
+    _kind_normalisation_for as _kind_normalisation_for,
+    _is_settled_single_branch as _is_settled_single_branch,
+    _started_wp_ids_for_normalisation as _started_wp_ids_for_normalisation,
 )
 from specify_cli.cli.commands.agent.mission_finalize_commit import (
     OwnedCheckoutCandidateOutsidePlanningError as OwnedCheckoutCandidateOutsidePlanningError,
@@ -278,6 +319,10 @@ from specify_cli.cli.commands.agent.mission_finalize_commit import (
     _report_status_surface_leftover as _report_status_surface_leftover,
     _report_target_branch_revert_failure as _report_target_branch_revert_failure,
     _resolve_finalize_commit_candidates as _resolve_finalize_commit_candidates,
+    FINALIZE_WRITES_UNCOMMITTED as FINALIZE_WRITES_UNCOMMITTED,
+    _planning_checkout_root as _planning_checkout_root,
+    _refuse_uncommitted_finalize_writes as _refuse_uncommitted_finalize_writes,
+    _uncommitted_finalize_writes as _uncommitted_finalize_writes,
     _restore_mission_write_scope as _restore_mission_write_scope,
     _restore_mission_write_scope_beside_status as _restore_mission_write_scope_beside_status,
     _restore_status_surface as _restore_status_surface,
@@ -459,7 +504,9 @@ def _meta_json_delta_is_finalize_attributable(meta_path: Path, repo_root: Path) 
     - the committed (``HEAD``) side fails to parse as JSON while the working-tree
       copy is valid (our fix supersedes a malformed committed copy), or
     - the changed-field set is empty or a subset of
-      ``FINALIZE_ATTRIBUTABLE_META_FIELDS``.
+      ``FINALIZE_ATTRIBUTABLE_META_FIELDS``, or -- for the delta that first
+      records ``topology_decision`` (the S7 settlement restamp, #7792) -- a
+      subset of that set plus ``FINALIZE_SETTLEMENT_META_FIELDS``.
 
     Returns ``False`` (exclude the whole file) when the working-tree copy is
     unreadable or malformed. finalize-tasks did NOT commit meta.json before
@@ -527,7 +574,11 @@ def _meta_json_delta_is_finalize_attributable(meta_path: Path, repo_root: Path) 
         return True
 
     changed_keys = {key for key in {*committed_meta.keys(), *current_meta.keys()} if committed_meta.get(key) != current_meta.get(key)}
-    attributable: bool = changed_keys <= FINALIZE_ATTRIBUTABLE_META_FIELDS
+    owned_fields = FINALIZE_ATTRIBUTABLE_META_FIELDS
+    if "topology_decision" not in committed_meta and "topology_decision" in current_meta:
+        # #7792: the settlement restamp's delta (it first records the write-once decision).
+        owned_fields = owned_fields | FINALIZE_SETTLEMENT_META_FIELDS
+    attributable: bool = changed_keys <= owned_fields
     return attributable
 
 
@@ -1267,6 +1318,7 @@ class _FinalizeValidated:
     meta: dict[str, object] | None
     topology_decision: TopologyDecision | None
     frozen: FrozenLaneMembership | None
+    kind_rewrites: tuple[KindRewrite, ...] = ()
 
 
 def _finalize_validate_phase(
@@ -1312,6 +1364,13 @@ def _finalize_validate_phase(
 
     meta = _read_meta_for_emission(ctx.planning_dir)
     _warn_missing_meta(ctx.planning_dir, meta, json_output=json_output)
+    # #7809 "Count it": the size decision counts a docs WP that owns paths outside
+    # kitty-specs/ as a code lane; a refresh-only run never recomputes membership.
+    normalisation = (
+        None
+        if refresh_planning_commit
+        else _kind_normalisation_for(ctx.planning_dir, ctx.repo_root, ctx.mission_slug, own_gates.lane_wp_manifests, meta, owned=ctx.owned)
+    )
     # S7 (#7282, FR-053): decide a provisional Mission's topology by size before the
     # frozen preflight; it is settled (FR-055) before the run's first status write.
     topology_decision = (
@@ -1323,12 +1382,15 @@ def _finalize_validate_phase(
             meta,
             target_branch,
             eligible_wp_ids=eligible_wp_ids,
-            lane_wp_manifests=own_gates.lane_wp_manifests,
+            lane_wp_manifests=normalisation.manifests if normalisation is not None else own_gates.lane_wp_manifests,
             lane_wp_dependencies=own_gates.lane_wp_dependencies,
             lane_wp_bodies=own_gates.lane_wp_bodies,
         )
     )
     _bind_topology_decision(meta, topology_decision, settled=False, preview=validate_only)
+    own_gates, kind_rewrites = _apply_kind_normalisation(
+        ctx, own_gates, normalisation, meta, topology_decision, refresh_planning_commit=refresh_planning_commit, json_output=json_output
+    )
     # #5573: refuse a re-finalize that would move started work BEFORE the
     # first status write (``_emit_tasks_started``), ``--validate-only``
     # included; a refresh-only run never recomputes membership.
@@ -1347,7 +1409,54 @@ def _finalize_validate_phase(
             eligible_wp_ids=eligible_wp_ids,
             owned=ctx.owned,
         )
-    return _FinalizeValidated(req_gates=req_gates, own_gates=own_gates, meta=meta, topology_decision=topology_decision, frozen=frozen)
+    return _FinalizeValidated(req_gates=req_gates, own_gates=own_gates, meta=meta, topology_decision=topology_decision, frozen=frozen, kind_rewrites=kind_rewrites)
+
+
+def _apply_kind_normalisation(
+    ctx: _FinalizeContext,
+    own_gates: _FinalizeOwnershipGates,
+    normalisation: KindNormalisation | None,
+    meta: dict[str, object] | None,
+    decision: TopologyDecision | None,
+    *,
+    refresh_planning_commit: bool,
+    json_output: bool,
+) -> tuple[_FinalizeOwnershipGates, tuple[KindRewrite, ...]]:
+    """#7809 "Normalise kind": in a lane topology, a docs WP owning paths outside kitty-specs/ becomes ``code_change``.
+
+    ``single_branch`` (settled or explicit) keeps the authored kinds. A mixed WP
+    refuses ``INVALID_WP_OWNED_FILES_KITTY_SPECS`` with the split remedy. The
+    returned gates carry the normalised kinds into the frozen preflight, the
+    settlement lane write, the validate-only report and the commit pipeline.
+    """
+    if refresh_planning_commit:
+        return own_gates, ()
+    rewrites: tuple[KindRewrite, ...] = ()
+    if normalisation is not None and normalisation.rewritten and _is_lane_topology_this_run(meta, ctx.planning_dir, decision):
+        _refuse_mixed_normalised_wps(normalisation.mixed, own_gates.lane_wp_manifests, json_output=json_output)
+        rewrites = normalisation.rewritten
+        own_gates = _with_normalised_kinds(own_gates, normalisation)
+    _bind_kind_normalisation(rewrites)
+    _report_kind_rewrites(rewrites, json_output=json_output)
+    return own_gates, rewrites
+
+
+def _with_normalised_kinds(own_gates: _FinalizeOwnershipGates, normalisation: KindNormalisation) -> _FinalizeOwnershipGates:
+    """The ownership gates with the rewritten WPs' manifests and frontmatter recorded as ``code_change``."""
+    rewritten_ids = {rewrite.wp_id for rewrite in normalisation.rewritten}
+    code_change = WorkProductKind.CODE_CHANGE.value
+    wp_frontmatters = {
+        wp_id: (fm.builder().set(execution_mode=code_change).build() if wp_id in rewritten_ids else fm) for wp_id, fm in own_gates.wp_frontmatters.items()
+    }
+    wp_manifests = {**own_gates.wp_manifests, **{wp_id: normalisation.manifests[wp_id] for wp_id in rewritten_ids}}
+    return dataclasses.replace(own_gates, lane_wp_manifests=normalisation.manifests, wp_manifests=wp_manifests, wp_frontmatters=wp_frontmatters)
+
+
+def _bind_kind_normalisation(rewrites: tuple[KindRewrite, ...]) -> None:
+    """Add ``kind_normalised`` (``contracts/finalize-kind-normalisation.md``) to every later JSON payload of this run."""
+    extras = dict(_OWNED_ENVELOPE_EXTRAS.get() or {})
+    extras["kind_normalised"] = [rewrite.as_payload() for rewrite in rewrites]
+    _OWNED_ENVELOPE_EXTRAS.set(extras)
 
 
 @dataclass(frozen=True)
@@ -1385,6 +1494,16 @@ def _finalize_settle_phase(
         preexisting_primary_files=validated.req_gates.preexisting_primary_files,
         meta=validated.meta,
     )
+    if validated.kind_rewrites and not validate_only:
+        # #7809: persist the normalised kind before the settlement commit, beside the bootstrap flush.
+        _persist_kind_rewrites(
+            validated.kind_rewrites,
+            validated.req_gates.tasks_dir,
+            validated.req_gates.wp_files,
+            validated.own_gates.wp_frontmatters,
+            validated.own_gates.wp_bodies,
+            repo_root=_lock_root_of(ctx),
+        )
     decision = validated.topology_decision
     if decision is None or validate_only:
         return unchanged
@@ -1489,7 +1608,8 @@ def finalize_tasks(
             "--refresh-planning-commit",
             help=(
                 "Force a refresh-ONLY run: re-point the recorded planning_commit_sha in "
-                "lanes.json to the current target-branch tip and exit, without running the "
+                "lanes.json to the current tip of the branch the pin is recorded on (the Mission "
+                "branch for a single_branch Mission) and exit, without running the "
                 "rest of finalize-tasks (#4141). By default (no flag needed) a normal "
                 "re-finalize already advances the pin automatically whenever a PRIMARY "
                 "planning file genuinely changed since it was recorded (FR-012); use this "
@@ -1536,7 +1656,9 @@ def finalize_tasks(
     planning state instead of a stale snapshot (#4141). It is refused when the recorded
     SHA is not an ancestor of the tip (a history rewrite, not an amendment) -- unless
     that non-ancestor SHA is a proven ORPHAN (present, just unreachable -- a mid-mission
-    rebase), in which case add --allow-orphaned to re-point to the live tip (#4827).
+    rebase), in which case add --allow-orphaned to re-point it (#4827): a single_branch
+    Mission follows the planning commit to its rebased copy (#7793), other Missions move
+    to the live tip.
 
     Bootstrap Mutation Surface (FR-003 / SC-002)
     =============================================

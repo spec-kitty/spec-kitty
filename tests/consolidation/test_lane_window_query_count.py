@@ -27,7 +27,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 #: History queries one more approved work package may add to a passing lane's check (NFR-007):
 #: 1 ``on_lane`` merge-base for its chosen open SHA, at most k^2 = 4 topology merge-bases among
 #: its cycle's k = 2 recorded openers (claimed, in_progress), 2 window rev-lists (approval stamp
-#: and open SHA), and 1 tier-1 stamp merge-base (``stamp_refusal``).
+#: and open SHA), and 1 tier-1 stamp merge-base (``_resolve_stamps``).
 _PER_WP_BUDGET = 8
 _COUNTED = frozenset({"rev-list", "merge-base"})
 

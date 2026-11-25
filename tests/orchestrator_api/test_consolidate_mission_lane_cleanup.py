@@ -31,9 +31,11 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 _OUTCOME_WORDS = {"Removed": "removed", "Kept": "kept", "Retained": "retained_by_policy"}
 
 
-def _build(tmp_path: Path, mid8: str) -> CoordMission:
+def _build(tmp_path: Path, mid8: str, worktrees: tuple[str, ...] = ("lane-a", "lane-b")) -> CoordMission:
     mission = build_coord_mission(tmp_path, wps=("WP01", "WP02"), mid8=mid8)
-    add_lane_worktrees(mission, ("lane-a",))
+    # #7325: a lane is removed only through the landing proof, which needs its worktree;
+    # a worktree-less lane is kept on both paths alike (LANDING_PROOF_UNAVAILABLE).
+    add_lane_worktrees(mission, worktrees)
     return mission
 
 
@@ -64,6 +66,28 @@ def test_orchestrator_and_executor_same_lane_outcome(tmp_path: Path) -> None:
     assert api_outcomes == [("lane-a", "removed"), ("lane-b", "removed")]
     for entry in cleanup:
         assert set(entry) == {"lane_id", "branch", "worktree", "outcome", "code", "remedy", "command", "recreate"}, entry
-    assert not lane_worktree(api_mission, "lane-a").exists(), output(api)
     for lane_id in ("lane-a", "lane-b"):
+        assert not lane_worktree(api_mission, lane_id).exists(), output(api)
         assert not ref_exists(api_mission.repo, f"refs/heads/{lane_branch(api_mission, lane_id)}"), output(api)
+
+
+def test_orchestrator_and_executor_keep_a_worktreeless_lane_alike(tmp_path: Path) -> None:
+    """#7325 kept-case parity: lane-a has a worktree, lane-b has none; both paths keep lane-b the same way."""
+    host_mission = _build(tmp_path / "host", "01M7280J", worktrees=("lane-a",))
+    host = run_terminus(host_mission, consolidate_args(host_mission))
+    assert host.returncode == 0, output(host)
+
+    api_mission = _build(tmp_path / "api", "01M7280K", worktrees=("lane-a",))
+    api = run_terminus(api_mission, ["orchestrator-api", "consolidate-mission", "--mission", api_mission.slug])
+    assert api.returncode == 0, output(api)
+
+    cleanup = lane_cleanup_json(api)
+    api_outcomes = [(str(entry["lane_id"]), str(entry["outcome"])) for entry in cleanup]
+    assert api_outcomes == _executor_outcomes(host), f"{output(host)}\n{cleanup}"
+    assert api_outcomes == [("lane-a", "removed"), ("lane-b", "kept")]
+    [kept] = [entry for entry in cleanup if entry["lane_id"] == "lane-b"]
+    assert kept["code"] == "LANDING_PROOF_UNAVAILABLE" and kept["command"] is None, kept
+    assert "LANDING_PROOF_UNAVAILABLE" in "\n".join(lane_cleanup_block(host)), output(host)
+    assert "then run: None" not in output(host)
+    for mission in (host_mission, api_mission):
+        assert ref_exists(mission.repo, f"refs/heads/{lane_branch(mission, 'lane-b')}"), output(api)

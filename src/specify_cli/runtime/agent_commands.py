@@ -790,7 +790,7 @@ def assess_global_agent_commands(
         return short_circuit
 
     def _build() -> tuple[AssetPreparation, OwnerAssessment]:
-        prepared = AssetPreparation("slash_commands", root, home / "cache", _LOCK_FILENAME, consent)
+        prepared = AssetPreparation("slash_commands", root, home / "cache", _LOCK_FILENAME, consent, known_roots=all_roots)
         keys = requested_keys
         selected_roots: dict[str, Path] = {}
         canonical_names: set[str] = set()

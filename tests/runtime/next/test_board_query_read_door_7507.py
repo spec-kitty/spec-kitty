@@ -306,7 +306,11 @@ def test_board_names_an_unavailable_worktree_registry(tmp_path: Path, monkeypatc
 
 @pytest.mark.parametrize(
     ("error", "code"),
-    [("ref", "STATUS_SURFACE_REF_UNREADABLE"), ("registry", "WORKTREE_REGISTRY_UNAVAILABLE")],
+    [
+        ("ref", "STATUS_SURFACE_REF_UNREADABLE"),
+        ("remote_only", "STATUS_SURFACE_REF_REMOTE_ONLY"),
+        ("registry", "WORKTREE_REGISTRY_UNAVAILABLE"),
+    ],
 )
 def test_query_renders_an_unreadable_status_source_as_a_typed_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], error: str, code: str
@@ -321,12 +325,15 @@ def test_query_renders_an_unreadable_status_source_as_a_typed_error(
     import typer
 
     from specify_cli.cli.commands import next_cmd
-    from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
+    from specify_cli.coordination.status_service import StatusSurfaceRefRemoteOnly, StatusSurfaceRefUnreadable
     from specify_cli.coordination.surface_resolver import WorktreeRegistryUnavailable
 
     repo, slug = _coord_cell_mission(tmp_path, MissionTopology.COORD, MATERIALIZED)
 
     def _unreadable(*args: Any, **kwargs: Any) -> Any:
+        if error == "remote_only":
+            # #5287: the remote-only subtype keeps its own code through ``next`` query mode.
+            raise StatusSurfaceRefRemoteOnly(repo_root=repo, ref="refs/heads/x", path="kitty-specs/m/status.events.jsonl", branch="x", remedy="Run in order: ...")
         if error == "ref":
             raise StatusSurfaceRefUnreadable(repo_root=repo, ref="refs/heads/x", path="kitty-specs/m/status.events.jsonl", detail="bad object")
         raise WorktreeRegistryUnavailable(repo_root=repo, detail="injected worktree-list failure")

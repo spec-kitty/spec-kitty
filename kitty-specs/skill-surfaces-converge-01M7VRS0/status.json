@@ -1,0 +1,261 @@
+{
+  "event_count": 78,
+  "last_event_id": "01M7WFS0TV5T73MJ7RT1KB86R3",
+  "materialized_at": "2026-11-20T12:44:20.699902+00:00",
+  "mission_number": "263",
+  "mission_slug": "skill-surfaces-converge-01M7VRS0",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 7,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M7WFQMH7NFBHMV30HJ94FQ3N",
+      "last_transition_at": "2026-11-20T12:43:35.335615+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: reader + generator + frozen list (117 paths, 585 digests); 11 tests green; red commit edd9885eec",
+        "Review passed (independent reviewer, head 37c8e4fa8b). Red edd9885eec before code; nit fixes red cd419ea7f9 -> 37c8e4fa8b. 13/13 test_historical_renders; generator --check reproduces the committed JSON from full history (exit 0); all six #7700 blobs and eight retired names listed; reader fails closed; no git at runtime; generator records committed history only and refuses uncommitted sources; append-only build test; ruff/format clean, mypy --strict clean; make test-fast 3144 passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/skill-surfaces-converge-01M7VRS0-coord/kitty-specs/skill-surfaces-converge-01M7VRS0/tasks/WP01-historical-render-proof-source/review-cycle-1.md",
+        "reference": "review-cycle://skill-surfaces-converge-01M7VRS0/WP01-historical-render-proof-source/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 10545,
+      "shell_pid_created_at": "1795159364.73",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01M7WFQW7HBSXVKKZ5BDFY7NR4",
+      "last_transition_at": "2026-11-20T12:43:43.217712+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: schema-2 inventory (~/ or absolute keys), one-time schema-1 migration, retire byte proof; red 739add0ecf; tests/runtime+tests/specify_cli/runtime 2605 passed; make test-fast 3144 passed",
+        "Changes requested: B1 schema-2 inventory makes older CLIs fail every command (reproduced); see review-feedback-1.md",
+        "Review cycle 1 addressed: B1 inventory stays schema 1 in the same file (fixed home.parent anchor + marker; sidecar <owner>-external-assets.json for entries outside), older readers verified (base a053b674 startup runs after this lane); N1-N4 folded. red 02869bad4b, fix 119b4e5654. tests/runtime+specify_cli/runtime 2615 passed (1 env failure: lane .venv shim runs root checkout install); make test-fast 3144 passed",
+        "Changes requested (cycle 2): B1 resolved; B2 pre-#7722 records under a root outside home are dropped by migration confinement, regressing refresh vs base (reproduced); see review-feedback-2.md",
+        "Cycle 2 B2 fixed: known_roots widen legacy placement (red 60afe91822, fix bec3d96d89); spy fix",
+        "Review passed (independent reviewer, cycle 3, head 5cb93458e5). B1 (cycle 1) fixed: inventory stays schema 1 + anchor marker, external sidecar for out-of-home entries; older CLIs read it. B2 (cycle 2) fixed: known_roots widen legacy placement; red 60afe91822 (2 failed on the pre-fix sources, verified) -> bec3d96d89; reviewer end-to-end repro (pre-#7722 inventory, CLAUDE_CONFIG_DIR outside home, stale recorded skill) now plans the same refresh effect as base a053b674. N1/N3/N4 done. tests/runtime + tests/specify_cli/runtime 2618 passed 2 skipped. Note for orchestrator: the one-line known_roots edit in agent_skills.py lies in lane-c (WP03) write scope -- WP03 must merge it; agent_commands.py and test_build_serialized.py edits are outside owned_files."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/skill-surfaces-converge-01M7VRS0-coord/kitty-specs/skill-surfaces-converge-01M7VRS0/tasks/WP02-global-asset-preparation-primitives/review-cycle-3.md",
+        "reference": "review-cycle://skill-surfaces-converge-01M7VRS0/WP02-global-asset-preparation-primitives/review-cycle-3.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 13560,
+      "shell_pid_created_at": "1795164119.23",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M7WFRATFD6ZRNAXDKWXJ5BR2",
+      "last_transition_at": "2026-11-20T12:43:58.159874+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Install surfaces refresh proven historical renders; stamp withheld while canonical kept; kept_global_skill_files classifier; FR-011 agreement test",
+        "Changes requested: B1 historical lookup re-reads every destination file (NFR-001); measured lane-c +24% vs base (WP03 share +6-12%); see review-feedback-1.md",
+        "Cycle 2: B1 fixed (proof judged on asset()'s own observation); WP02 costs folded (anchored keys placed without probe, unchanged inventory not re-serialized); N1 folded",
+        "Review passed (independent reviewer, cycle 2, head 396e420f20). B1 fixed: asset() takes a PredecessorProof judged on its own observation (red 43df17539e -> 98c6723438). Operator NFR-001 ruling (fold WP02 costs here): anchored inventory keys placed without a lexists probe (confinement kept), unchanged canonical inventories not re-serialized (red 266ea31f98 -> 396e420f20); both deterministic guards verified red on the pre-fix sources. Reviewer timing, same protocol as cycle 1 (isolated HOME, 553 files, median of 7, three rounds): base 0.805/0.844/0.799 s, lane-c 0.838/0.833/0.790 s -- within +-5% of base a053b674 (NFR-001 met). Behaviour unchanged from cycle 1 (per-path proof, stamp withheld only for stale_canonical, project backup kept, FR-011 test); N1 folded. Tests: historical-proof files 11 passed; tests/specify_cli/runtime + tests/runtime + skills + tool_surface 4778 passed 2 skipped 1 xfailed; make test-fast 3153 passed; ruff/format/mypy clean on the 3 changed modules."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/skill-surfaces-converge-01M7VRS0-coord/kitty-specs/skill-surfaces-converge-01M7VRS0/tasks/WP03-install-surfaces-use-the-proof/review-cycle-2.md",
+        "reference": "review-cycle://skill-surfaces-converge-01M7VRS0/WP03-install-surfaces-use-the-proof/review-cycle-2.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 21895,
+      "shell_pid_created_at": "1795170356.65",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M7WFS0TV5T73MJ7RT1KB86R3",
+      "last_transition_at": "2026-11-20T12:44:20.699902+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "kept global skill findings (global-skill-kept-stale, retired-skill-kept-edited) + repair.skipped_reasons; red 3b4c4b8c1a, fix 5132a0f251; tool_surface dir 1269 passed, doctor/cli blast 477 passed 1 xfailed, make test-fast 3153 passed",
+        "Review passed (independent reviewer, head 5132a0f251). Red 3b4c4b8c1a: its own tests on its own sources give 4 behavioural failures (3 controls pass), verified; the fix commit's test edits tighten assertions (ok unchanged vs a baseline + warnings exactly +1) and add shared-root tool_key and explain_skipped tests. FR-003/FR-004: kept canonical / edited retired global files reported as warnings with path, reason and remedy, read from WP03's classifier via an assessment only (no writes); --kind/--tool filters honoured; warnings never flip ok (exit code follows report.ok). #2527: repair.skipped_reasons (additive) under --fix. Tests: test_global_skill_kept_findings 9 passed; tests/specify_cli/tool_surface + tests/specify_cli/cli/commands 8289 passed, 2 failed -- both charter cascade tests outside this diff that pass serially on base and on lane-d (parallel-load timing, not WP04). Residuals accepted: +~0.65s per doctor tool-surfaces run (doctor only, not startup); skipped reasons are JSON-only (human output still shows the refreshed drift finding)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/skill-surfaces-converge-01M7VRS0-coord/kitty-specs/skill-surfaces-converge-01M7VRS0/tasks/WP04-doctor-reports-kept-files/review-cycle-1.md",
+        "reference": "review-cycle://skill-surfaces-converge-01M7VRS0/WP04-doctor-reports-kept-files/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 20900,
+      "shell_pid_created_at": "1795174129.24",
+      "subtasks": {
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01M7WFRJGCMPBNMYE3EAG6VMR2",
+      "last_transition_at": "2026-11-20T12:44:06.028477+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "#5281 outdated + doctor skills --fix convergence; #7723 old-root leftovers reported only",
+        "Review passed (independent reviewer, head 2bafcf44ae). Red 0055040818: on pre-fix sources the dropped #5281 xfail test and 2 leftover tests fail (the unset-variable control passes on base, as it should) -> fix 6611db1918. #5281: VerifyReport.outdated (manifest-matching but not today's canonical_digest, cached per verify) triggers the existing install pass, so doctor skills --fix converges like tool-surfaces and upgrade (DIRECTIVE_044); verify() is doctor/tool-surface only, not on the startup path. #7723 (ruling Q2=A): report only -- command-files info rows never affect the exit code, doctor skills old_root_leftovers never flips ok, nothing written; proof = current render / #4609 predecessor marker (commands) or historical render at the exact skill path (skills); symlinks never followed; unset variable -> no output. Tests: crlf + leftovers 14 passed; tests/specify_cli/cli/commands -k 'doctor or skill or command_file' 745 passed 1 skipped. Nit: the ownership-record proof listed in the prompt is not used (report under-lists only; safe).",
+        "Operator ruling (option B): reopen WP05 to add the ownership-record proof (global inventory entry matching bytes) to find_old_root_leftovers",
+        "Ownership-record proof added to find_old_root_leftovers (operator ruling B): red 020516cc78, fix 98afbf9bf0; blast 292 passed, make test-fast 3150 passed",
+        "Re-review passed (independent reviewer, head 98afbf9bf0; operator ruling B on the ownership-record nit). Red 020516cc78: the new inventory-record test fails on the pre-fix sources, verified -> fix 98afbf9bf0. Proof is byte-exact (inventory sha256 == file digest), read through the inventory's own parser (#7722 anchoring), absent/unreadable inventory proves nothing (under-list only), symlinks still never followed, nothing written. test_old_root_leftovers + crlf 17 passed; ruff clean. Earlier WP05 evidence stands (cli/commands doctor/skill/command_file 745 passed).",
+        "Changes requested (aggregate finding A1): doctor skills --json gained outdated/old_root_leftovers but the frozen baseline doctor_skills_baseline.json and migration-compatibility.md were not updated; 2 tool_surface integration tests fail on lane-e. Reopened by the reviewer so the fix lands in a new window.",
+        "Review A1 fixed: doctor_skills_baseline.json + migration-compatibility.md gain outdated/old_root_leftovers (additive), 377fbb58d0; integration dir with PYTHONPATH=<lane>/src: 46 passed",
+        "Re-review passed (independent reviewer, cycle 3, head 949526dded; fix 377fbb58d0). A1 fixed additively: doctor_skills_baseline.json gains outdated/old_root_leftovers, migration-compatibility.md documents both (additive; old_root_leftovers does not change ok). Verified with the lane's own install (editable package resolved to the lane worktree): tests/specify_cli/tool_surface/integration + test_old_root_leftovers 52 passed; with the pre-fix baseline test_migration_compat fails, as expected. Earlier WP05 evidence stands."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "review-cycle://skill-surfaces-converge-01M7VRS0/WP05-doctor-skills-converge-and-leftovers/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M7WFR3AGBK3VENAFBYFTY7T0",
+      "last_transition_at": "2026-11-20T12:43:50.480970+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: VerifyResult.retired + provider probes retired managed entries as stale so --fix drains them; retirement keyed on RETIRED_CANONICAL_SKILL_NAMES; red 14f5656569, cb6b0b9efd; skills+tool_surface+2 migration suites 2163 passed; make test-fast 3144 passed",
+        "Review passed (independent reviewer, head 78d8c365b3). Red 14f5656569/a5a4a69855 before fix. Verified: non-empty-catalog guard plus retired-name authority (absence alone never retires); hash-clean retired entry reported (VerifyResult.retired, ok False) and drained by repair_skills and by provider probe->repair; edited retired copy never deleted (verifier path tested; provider path probed by reviewer: --fix skips it, bytes unchanged). tests/specify_cli/skills + tool_surface 2144 passed 1 xfailed; make test-fast 3144 passed; ruff/format clean; mypy only pre-existing managed_skills.py:374 (recheck, untouched). Nits: (1) provider probe marks an EDITED retired copy STALE 'still installed' before the hash check, so --fix lists it as skipped instead of reporting drift needing consent; (2) _retired_surface_ids is per-provider state never cleared between expand calls.",
+        "Fold reviewer nits (a) edited retired copy is drift, (b) clear _retired_surface_ids",
+        "Reviewer nits folded: edited retired copy is drift (hash check first); retired marks reset per expansion",
+        "Re-review passed (independent reviewer, head 4beafb5aef). Nit fixes: red 7d522b0ab9 (2 failed on pre-fix sources, verified) -> 4beafb5aef. (a) probe compares hash before the retired mark: an edited retired copy is DRIFTED (consent), never STALE/drained; (b) expand drops this tool's charter_skill retired marks before re-marking (prefix verified against _managed_surface_id; ToolSurfaceKind is a StrEnum). test_verify_retired_orphan 10 passed; tests/specify_cli/tool_surface 1246 passed. Earlier evidence (skills+tool_surface 2144 passed, make test-fast 3144) stands."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP06:20261120",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2572,
+      "shell_pid_created_at": "1795166250.57",
+      "subtasks": {
+        "T028": "done",
+        "T029": "done",
+        "T030": "done",
+        "T031": "done"
+      }
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M7WFRSTZVJFK74WA1AYVASV1",
+      "last_transition_at": "2026-11-20T12:44:13.535296+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Rename to spk-start-first-mission; old id retired; digest list regenerated (out-of-map, WP01-owned JSON)",
+        "Review passed (independent reviewer, head fb15c0506d). Red 8d0e9d0244 (4 failed on pre-rename sources, verified) -> 881df603ce rename (git mv, frontmatter name + heading), old id added to RETIRED_CANONICAL_SKILL_NAMES and to EVER_SHIPPED removed-list; spk-start-here 'New Mission'; skill map, skills README, docs/api/skills repointed. SC-004: git grep spk-start-first-feature -- src docs hits only retired.py, the frozen digest JSON and changelog text (occurrence-map exceptions). fb15c0506d regenerates historical_skill_renders.json (WP01-owned, prompt-sanctioned out-of-map edit); --check exit 0. Targeted: rename + retired completeness + historical renders + spk skill pack + terminology guard 133 passed. Note: the 'Start First Feature' prose heading in solo-developer-workflow.md is outside the skill-id scope (left as is)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "review-cycle://skill-surfaces-converge-01M7VRS0/WP07-rename-first-mission-skill/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 4226,
+      "shell_pid_created_at": "1795163043.36",
+      "subtasks": {
+        "T032": "done",
+        "T033": "done",
+        "T034": "done",
+        "T035": "done",
+        "T036": "done"
+      }
+    }
+  }
+}

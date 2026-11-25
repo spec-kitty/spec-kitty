@@ -14,6 +14,7 @@ another finalize module go through a lazy in-function
 
 from __future__ import annotations
 
+import dataclasses
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -95,7 +96,9 @@ def _execution_has_begun(
     Returns:
         ``True`` iff any WP's current lane is something other than
         ``planned`` (claimed, in_progress, for_review, ..., done, blocked,
-        canceled). ``False`` when the event log is absent, empty, every
+        canceled), or any WP ever left ``planned`` (#7793: a work package
+        rejected back to ``planned`` has committed work, and a re-finalize
+        must not re-capture the tip over it as if nothing had run). ``False`` when the event log is absent, empty, every
         seeded WP is still ``planned``, or the surface/event log cannot be
         read at all, except an unreadable coordination ref (degrades gracefully like this module's sibling
         ``capture_branch_tip`` — a signal-computation helper must
@@ -127,7 +130,30 @@ def _execution_has_begun(
         # Corrupted/malformed event log content. Degrade to "not begun"
         # rather than raise — see the docstring's graceful-degradation note.
         return False
-    return any(Lane(state.get("lane", Lane.GENESIS)) != Lane.PLANNED for state in work_packages.values())
+    if any(Lane(state.get("lane", Lane.GENESIS)) != Lane.PLANNED for state in work_packages.values()):
+        return True
+    return _any_work_package_left_planned(surface)
+
+
+def _any_work_package_left_planned(surface: object) -> bool:
+    """#7793: True when the log records a non-migration move of a work package past ``planned``.
+
+    Reads the same surface :func:`_execution_has_begun` reduced, through the shared predicate
+    :func:`specify_cli.lanes.persistence.any_work_package_left_planned`; an unreadable log degrades
+    to ``False`` like the snapshot read above.
+    """
+    from specify_cli.lanes.persistence import any_work_package_left_planned
+    from specify_cli.status import StoreError
+    from specify_cli.status import StatusReadSurface, read_status_stream
+
+    if not isinstance(surface, StatusReadSurface):
+        return False
+    try:
+        transitions = read_status_stream(surface).transitions
+    except StoreError:
+        return False
+    began: bool = any_work_package_left_planned(transitions)
+    return began
 
 
 @dataclass(frozen=True)
@@ -178,6 +204,12 @@ class PlanningCommitResolution:
     #: landed on its action -- currently only populated for
     #: ``"kept_with_warning"`` (the pin class name, e.g. ``"foreign"``).
     refusal_reason: str | None = None
+    #: #7793: ``"patch_id"`` when a re-pin followed the recorded planning commit to its rebased
+    #: copy by patch-id (a single_branch Mission); ``None`` otherwise.
+    matched_by: str | None = None
+    #: #7297 item 1: the pin is a git-derived one (#7210), freshly derived this run or kept from a
+    #: ``lanes.json`` that marks it; written back as ``planning_commit_derived``.
+    derived: bool = False
 
 
 @dataclass(frozen=True)
@@ -267,12 +299,15 @@ def _planning_commit_payload(
 ) -> dict[str, object]:
     """Build the one JSON representation of finalize's planning-pin decision."""
     resolved_sha = planning_sha.sha if planning_sha is not None else (lanes_manifest.planning_commit_sha if lanes_manifest is not None else None)
-    return {
+    payload: dict[str, object] = {
         "sha": resolved_sha,
         "action": planning_sha.action if planning_sha is not None else None,
         "previous_sha": planning_sha.previous_sha if planning_sha is not None else None,
         "branch_tip": planning_sha.branch_tip if planning_sha is not None else None,
     }
+    if planning_sha is not None and planning_sha.matched_by is not None:
+        payload["matched_by"] = planning_sha.matched_by
+    return payload
 
 
 def _validate_only_planning_preview(
@@ -337,8 +372,16 @@ def _resolve_refresh_planning_commit_decision(
     tip: str | None,
     allow_orphaned: bool,
     json_output: bool,
+    single_branch_planning_dir: Path | None = None,
+    upstream_refs: tuple[str, ...] = (),
 ) -> PlanningCommitResolution:
     """#4141/#4827: resolve the ``--refresh-planning-commit`` branch.
+
+    #7793: *single_branch_planning_dir* (set for a ``single_branch`` Mission only) applies that
+    Mission's evidence-window rules (:func:`_single_branch_refresh_resolution`): an orphaned pin
+    follows the planning commit by patch-id instead of jumping to the tip, and no candidate that
+    drops committed owned-file work out of the window is written. Lane Missions keep the #4827
+    re-pin to the tip.
 
     Advance-only by default (the #4141 contract, unchanged): an ADVANCED
     recorded SHA (an ancestor of the tip, or no recorded SHA at all to
@@ -377,13 +420,109 @@ def _resolve_refresh_planning_commit_decision(
             f"SHA {recorded} is not an ancestor of the {target_branch!r} tip {tip}. If this is a "
             "deliberate mid-mission rebase (the recorded commit is still present, just no longer "
             "reachable from the tip), re-run with --refresh-planning-commit --allow-orphaned to "
-            "re-point to the live tip. Otherwise the planning history was rewritten/diverged "
+            "re-point it (a single_branch Mission follows the planning commit to its rebased copy; "
+            "other Missions move to the live tip). Otherwise the planning history was rewritten/diverged "
             "rather than advanced by an amendment; resolve the divergence manually. Refusing to "
             "re-point.",
             json_output=json_output,
         )
+    if single_branch_planning_dir is not None:
+        return _single_branch_refresh_resolution(
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            target_branch=target_branch,
+            planning_dir=single_branch_planning_dir,
+            recorded=recorded,
+            tip=tip,
+            orphaned=pin_class is PinClass.ORPHANED,
+            json_output=json_output,
+            upstream_refs=upstream_refs,
+        )
     action = "repinned" if pin_class is PinClass.ORPHANED else "refreshed"
     return PlanningCommitResolution(sha=tip, action=action, previous_sha=recorded, branch_tip=tip)
+
+
+def _refuse_planning_pin_with_code(error_code: str, message: str, *, json_output: bool) -> NoReturn:
+    """#7793: refuse a pin decision with a named code before any write (the code leads the human text)."""
+
+    from specify_cli.cli.commands.agent import mission_finalize as _mf
+
+    if json_output:
+        _mf._emit_json({"error": message, "error_code": error_code})
+    else:
+        _mf.console.print(f"[red]Error:[/red] {error_code}: {message}")
+    raise typer.Exit(1)
+
+
+def _single_branch_refresh_resolution(
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    target_branch: str,
+    planning_dir: Path,
+    recorded: str | None,
+    tip: str,
+    orphaned: bool,
+    json_output: bool,
+    upstream_refs: tuple[str, ...] = (),
+) -> PlanningCommitResolution:
+    """#7793: the explicit refresh/re-pin of a ``single_branch`` Mission's pin.
+
+    A copy of the planning commit reachable from *upstream_refs* (the target and primary
+    branches) is the upstream's and never followed (review B2).
+
+    The window is ``pin..mission_branch``. An orphaned pin (a rebase) follows the recorded planning
+    commit to its rebased copy by patch-id, never to the tip; no match, or more than one, refuses
+    with a named code. Any candidate whose window loses the committed owned-file change the
+    recorded window holds refuses ``PLANNING_PIN_WOULD_EMPTY_WINDOW``. A probe failure refuses
+    ``PLANNING_REFRESH_FAIL_CLOSED``. Every refusal happens before ``lanes.json`` is written.
+    """
+    from specify_cli.cli.commands.agent import mission_finalize_pin_window as pin_window
+
+    candidate, matched_by = tip, None
+    try:
+        if orphaned and recorded is not None:
+            follow = pin_window.follow_orphaned_pin(repo_root, recorded, tip, upstream_refs=upstream_refs)
+            if follow.sha is None:
+                _refuse_planning_pin_with_code(
+                    follow.error_code or pin_window.NO_PATCH_ID_MATCH,
+                    f"Cannot re-pin planning_commit_sha for mission {mission_slug!r}: the recorded planning commit {recorded} "
+                    f"is orphaned (a rebase) and {follow.reason}. Re-pointing it to the {target_branch!r} tip {tip} would leave "
+                    f"the evidence window without the committed implementation. finalize-tasks did not change lanes.json: "
+                    f"{pin_window.MANUAL_PIN_REMEDY}.",
+                    json_output=json_output,
+                )
+            candidate, matched_by = follow.sha, "patch_id"
+        keeps = pin_window.window_keeps_owned_work(
+            repo_root, mission_slug, planning_dir, recorded=recorded, candidate=candidate, tip=tip, upstream_refs=upstream_refs
+        )
+    except pin_window.PinWindowUnreadable as exc:
+        _refuse_planning_pin_refresh(
+            f"{exc}. Check that the mission branch and the work package task files are readable, then retry. finalize-tasks did not change lanes.json.",
+            json_output=json_output,
+        )
+    if not keeps:
+        _refuse_planning_pin_with_code(
+            pin_window.WOULD_EMPTY_WINDOW,
+            f"Cannot move planning_commit_sha for mission {mission_slug!r} to {candidate}: the evidence window {candidate}..{tip} "
+            "would no longer include a work package's committed owned-file change from the Mission's own commits, so "
+            "move-task would refuse SINGLE_BRANCH_IMPLEMENTATION_MISSING. finalize-tasks did not change lanes.json. "
+            + (
+                f"The recorded pin is orphaned, so {pin_window.MANUAL_PIN_REMEDY}."
+                if orphaned
+                else "Keep the recorded pin: its evidence window already includes that work."
+                if recorded is not None
+                else f"No pin is recorded: {pin_window.MANUAL_PIN_REMEDY}."
+            ),
+            json_output=json_output,
+        )
+    return PlanningCommitResolution(
+        sha=candidate,
+        action="repinned" if orphaned else "refreshed",
+        previous_sha=recorded,
+        branch_tip=tip,
+        matched_by=matched_by,
+    )
 
 
 def _refuse_planning_pin_refresh(reason: str, *, json_output: bool) -> NoReturn:
@@ -395,7 +534,7 @@ def _refuse_planning_pin_refresh(reason: str, *, json_output: bool) -> NoReturn:
     if json_output:
         _mf._emit_json({"error": message, "error_code": "PLANNING_REFRESH_FAIL_CLOSED"})
     else:
-        _mf.console.print(f"[red]Error:[/red] {message}")
+        _mf.console.print(f"[red]Error:[/red] PLANNING_REFRESH_FAIL_CLOSED: {message}")
     raise typer.Exit(1)
 
 
@@ -546,6 +685,9 @@ def _prepare_primary_pin_refresh_commit(
     from specify_cli.git.commit_helpers import preflight_commit
 
     primary_root = owned.repository_root if owned else repo_root
+    # #7297 item 2: a minted single_branch Mission places lanes.json on its mission branch, the
+    # line its pin is captured on; comparing against the target branch refused every refresh.
+    target_branch = _mf.resolve_pin_line(primary_root, mission_slug, target_branch, owned=owned).branch
     worktree_root = owned.owned_root if owned else repo_root
     lanes_path = planning_dir / "lanes.json"
     destination = placement_seam(
@@ -780,6 +922,8 @@ def _commit_planning_pin_refresh_locked(
     if plan.lanes_path.read_bytes() != old_lanes_bytes:
         _refuse_planning_pin_refresh("lanes.json changed after refresh preparation; concurrent content was left untouched", json_output=json_output)
     lanes_manifest.planning_commit_sha = plan.new_sha
+    # #7297 item 1 / review B1: an explicit refresh is the operator's pin, never a derived one.
+    lanes_manifest.planning_commit_derived = False
     write_lanes_json(planning_dir, lanes_manifest)
     candidate_lanes_bytes = plan.lanes_path.read_bytes()
     try:
@@ -956,7 +1100,7 @@ def _derive_missing_pin(
     derived = planning_base.resolve_finalize_planning_base(repo_root, target_branch, mission_slug)
     if derived is None:
         return None
-    return PlanningCommitResolution(sha=derived, action="derived", previous_sha=None, branch_tip=tip, pin_class=PinClass.INDETERMINATE.value)
+    return PlanningCommitResolution(sha=derived, action="derived", previous_sha=None, branch_tip=tip, pin_class=PinClass.INDETERMINATE.value, derived=True)
 
 
 def _resolve_preserve_planning_commit_decision(
@@ -967,8 +1111,17 @@ def _resolve_preserve_planning_commit_decision(
     recorded: str | None,
     tip: str | None,
     json_output: bool,
+    single_branch_planning_dir: Path | None = None,
+    recorded_derived: bool = False,
+    upstream_refs: tuple[str, ...] = (),
 ) -> PlanningCommitResolution:
     """#3311/#4827/FR-012 (T083/T084): resolve the no-flag (preserve/auto-refresh) branch.
+
+    #7297 item 1: a pin ``lanes.json`` marks as derived (*recorded_derived*) is preserved; only
+    an explicit ``--refresh-planning-commit`` replaces it. #7793
+    (:func:`_automatic_refresh_or_keep`): a ``single_branch`` Mission (*single_branch_planning_dir*
+    set) keeps its pin with a warning whenever the refresh would drop committed owned-file work
+    out of its evidence window.
 
     Fails closed BEFORE any write only for a PROVEN ORPHAN against a
     capturable tip (D3/D4): the tool must not silently keep every
@@ -1013,7 +1166,8 @@ def _resolve_preserve_planning_commit_decision(
             f"{recorded} is orphaned — present in this repository but not an ancestor of the "
             f"{target_branch!r} tip {tip} (a mid-mission rebase). Lanes would keep merging a dead "
             "base. Re-run with --refresh-planning-commit --allow-orphaned to re-point the "
-            "recorded SHA to the live tip, or investigate the divergence manually. Refusing to "
+            "recorded SHA (a single_branch Mission follows the planning commit to its rebased "
+            "copy; other Missions move to the live tip), or investigate the divergence manually. Refusing to "
             "write lanes.json."
         )
         if json_output:
@@ -1021,6 +1175,8 @@ def _resolve_preserve_planning_commit_decision(
         else:
             _mf.console.print(f"[red]Error:[/red] {error_msg}")
         raise typer.Exit(1)
+    if pin_class is PinClass.ADVANCED and recorded_derived:
+        return PlanningCommitResolution(sha=recorded, action="preserved", previous_sha=recorded, branch_tip=tip, pin_class=pin_class.value, derived=True)
     if pin_class is PinClass.ADVANCED:
         planning_changed = (
             recorded is not None
@@ -1029,7 +1185,15 @@ def _resolve_preserve_planning_commit_decision(
             and not _drift_is_finalize_bookkeeping_only(repo_root, mission_slug, recorded, tip)
         )
         if planning_changed:
-            return PlanningCommitResolution(sha=tip, action="refreshed", previous_sha=recorded, branch_tip=tip, pin_class=pin_class.value)
+            assert recorded is not None and tip is not None  # narrowed by ``planning_changed`` above
+            return _automatic_refresh_or_keep(
+                repo_root=repo_root,
+                mission_slug=mission_slug,
+                recorded=recorded,
+                tip=tip,
+                single_branch_planning_dir=single_branch_planning_dir,
+                upstream_refs=upstream_refs,
+            )
     elif pin_class is PinClass.FOREIGN and recorded != tip:
         return PlanningCommitResolution(
             sha=recorded,
@@ -1058,9 +1222,49 @@ def _resolve_preserve_planning_commit_decision(
             previous_sha=recorded,
             branch_tip=tip,
             pin_class=pin_class.value,
-            refusal_reason="indeterminate_tip_uncapturable",
+            # #7297 item 3: a resolved tip with no pin and nothing derivable is not "uncapturable".
+            refusal_reason=_INDETERMINATE_TIP_UNCAPTURABLE if tip is None else _NO_PIN_UNDERIVABLE,
         )
     return PlanningCommitResolution(sha=recorded, action="preserved", previous_sha=recorded, branch_tip=tip, pin_class=pin_class.value)
+
+
+#: The automatic decision's ``kept_with_warning`` reasons (``planning_commit_refresh.reason``).
+_INDETERMINATE_TIP_UNCAPTURABLE: Final = "indeterminate_tip_uncapturable"
+_NO_PIN_UNDERIVABLE: Final = "no_pin_underivable"
+_WINDOW_WOULD_EMPTY: Final = "window_would_empty"
+_WINDOW_UNREADABLE: Final = "window_unreadable"
+
+
+def _automatic_refresh_or_keep(
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    recorded: str,
+    tip: str,
+    single_branch_planning_dir: Path | None,
+    upstream_refs: tuple[str, ...] = (),
+) -> PlanningCommitResolution:
+    """The no-flag refresh of an ADVANCED pin after a genuine planning change, or why it is kept.
+
+    * #7793: a ``single_branch`` Mission keeps its pin (``kept_with_warning``) when the refreshed
+      window would lose committed owned-file work, or when that cannot be read.
+    """
+    from specify_cli.cli.commands.agent import mission_finalize_pin_window as pin_window
+
+    advanced = PinClass.ADVANCED.value
+    if single_branch_planning_dir is not None:
+        try:
+            keeps = pin_window.window_keeps_owned_work(
+                repo_root, mission_slug, single_branch_planning_dir, recorded=recorded, candidate=tip, tip=tip, upstream_refs=upstream_refs
+            )
+            reason = None if keeps else _WINDOW_WOULD_EMPTY
+        except pin_window.PinWindowUnreadable:
+            reason = _WINDOW_UNREADABLE
+        if reason is not None:
+            return PlanningCommitResolution(
+                sha=recorded, action="kept_with_warning", previous_sha=recorded, branch_tip=tip, pin_class=advanced, refusal_reason=reason
+            )
+    return PlanningCommitResolution(sha=tip, action="refreshed", previous_sha=recorded, branch_tip=tip, pin_class=advanced)
 
 
 def _preserve_or_capture_planning_commit_sha(
@@ -1116,6 +1320,11 @@ def _preserve_or_capture_planning_commit_sha(
 
     from specify_cli.cli.commands.agent import mission_finalize as _mf
 
+    # #7297 item 2: a single_branch Mission's pin lives on its mission branch, the tip of its
+    # evidence window; capture, classification, refresh and derivation all read that line.
+    pin_line = _mf.resolve_pin_line(repo_root, mission_slug, target_branch, owned=owned)
+    target_branch = pin_line.branch
+    single_branch_planning_dir = planning_dir if pin_line.single_branch else None
     execution_has_begun = _mf._execution_has_begun(repo_root, mission_slug, owned=owned)
     if not execution_has_begun:
         previous_sha: str | None = None
@@ -1183,15 +1392,25 @@ def _preserve_or_capture_planning_commit_sha(
             tip=tip,
             allow_orphaned=allow_orphaned,
             json_output=json_output,
+            single_branch_planning_dir=single_branch_planning_dir,
+            upstream_refs=pin_line.upstream_refs,
         )
-    return _resolve_preserve_planning_commit_decision(
+    resolution = _resolve_preserve_planning_commit_decision(
         repo_root=repo_root,
         mission_slug=mission_slug,
         target_branch=target_branch,
         recorded=recorded,
         tip=tip,
         json_output=json_output,
+        single_branch_planning_dir=single_branch_planning_dir,
+        recorded_derived=existing.planning_commit_derived,
+        upstream_refs=pin_line.upstream_refs,
     )
+    # #7297 item 1: any decision that keeps the recorded derived pin keeps its marker, so a plain
+    # finalize with no planning change does not silently turn it back into a refreshable pin.
+    if existing.planning_commit_derived and resolution.sha == recorded and not resolution.derived:
+        return dataclasses.replace(resolution, derived=True)
+    return resolution
 
 
 # FR-013 (mission-writer-followups / #5885): finalize's bookkeeping subject
@@ -1264,6 +1483,40 @@ def _drift_is_finalize_bookkeeping_only(
     return bool(subjects) and all(subject in accepted for subject in subjects)
 
 
+def _kept_pin_warning(target_branch: str, planning_sha: PlanningCommitResolution, mission_slug: str | None) -> str | None:
+    """The ``kept_with_warning`` text for every reason but a FOREIGN pin, naming a next step (#7297 item 3)."""
+    reason = planning_sha.refusal_reason
+    recorded = planning_sha.previous_sha
+    mission_flag = f" --mission {mission_slug}" if mission_slug else ""
+    if reason == _INDETERMINATE_TIP_UNCAPTURABLE:
+        return (
+            f"The {target_branch!r} tip could not be resolved (a non-git workspace, or the branch does not exist yet), so "
+            f"planning_commit_sha {recorded or '(none recorded)'} could not be classified; it is kept unchanged. Create or "
+            f"fetch {target_branch!r}, then re-run finalize-tasks."
+        )
+    if reason == _NO_PIN_UNDERIVABLE:
+        return (
+            "No planning_commit_sha is recorded and none could be derived from git: this Mission's task files are not on "
+            f"the first-parent history of {target_branch!r} (tip {planning_sha.branch_tip}). The implementation evidence "
+            "window cannot be computed until one is recorded. Commit the task files on that branch and re-run "
+            f"finalize-tasks, or, only if no implementation is committed yet, record the current tip with: "
+            f"spec-kitty agent mission finalize-tasks{mission_flag} --refresh-planning-commit"
+        )
+    if reason == _WINDOW_WOULD_EMPTY:
+        return (
+            f"Kept planning_commit_sha {recorded}: refreshing it to the {target_branch!r} tip {planning_sha.branch_tip} would "
+            "drop the committed change to a work package's owned_files out of the evidence window. The recorded pin's "
+            "window already includes that work; no action is needed."
+        )
+    if reason == _WINDOW_UNREADABLE:
+        return (
+            f"Kept planning_commit_sha {recorded}: the evidence window could not be read to prove that refreshing it to the "
+            f"{target_branch!r} tip {planning_sha.branch_tip} keeps the committed work. Check that the branch and the "
+            "work package task files are readable, then re-run finalize-tasks."
+        )
+    return None
+
+
 def _report_planning_sha_decision(
     target_branch: str,
     planning_sha: PlanningCommitResolution | None,
@@ -1297,6 +1550,12 @@ def _report_planning_sha_decision(
 
     if json_output or planning_sha is None:
         return
+    if planning_sha.action == "repinned" and planning_sha.matched_by == "patch_id":
+        _mf.console.print(
+            f"[green]✓[/green] Re-pinned orphaned planning_commit_sha {planning_sha.previous_sha} -> {planning_sha.sha}, "
+            "the rebased copy of the planning commit (same patch-id); the evidence window keeps the committed work"
+        )
+        return
     if planning_sha.action == "repinned":
         _mf.console.print(
             f"[green]✓[/green] Re-pinned orphaned planning_commit_sha "
@@ -1327,21 +1586,9 @@ def _report_planning_sha_decision(
         # ``write_lanes_json`` already ran with the OLD sha unchanged) per
         # the #4178 print-after-write convention this function's docstring
         # documents.
-        if planning_sha.refusal_reason == "indeterminate_tip_uncapturable":
-            # WP15 cycle 2 (C2-1): both pieces may be missing (that is
-            # exactly what makes the pin INDETERMINATE), so the message
-            # names whichever is actually absent instead of assuming either
-            # is present.
-            recorded_desc = planning_sha.previous_sha or "(no pin recorded yet)"
-            tip_desc = planning_sha.branch_tip or "(uncapturable)"
-            _mf.console.print(
-                f"[yellow]⚠[/yellow] planning_commit_sha could not be classified against the "
-                f"{target_branch!r} tip: recorded={recorded_desc}, tip={tip_desc} (the target "
-                "branch tip could not be resolved -- e.g. a non-git workspace, or the branch "
-                "does not exist yet -- or there is no recorded pin to classify); keeping the "
-                "recorded pin unchanged. No action is needed unless the target branch is "
-                "expected to exist."
-            )
+        warning = _kept_pin_warning(target_branch, planning_sha, mission_slug)
+        if warning is not None:
+            _mf.console.print(f"[yellow]⚠[/yellow] {warning}")
             return
         # WP15 cycle 2 (B8): the remedy named below must actually work. A
         # FOREIGN pin's object cannot be inspected at all, so

@@ -56,6 +56,7 @@ from specify_cli.tool_surface.operations import (
     OwnerAssessment,
     OwnershipProof,
     PhysicalEffect,
+    effect_action,
 )
 
 from specify_cli.skills import manifest_store
@@ -80,7 +81,6 @@ from kernel.no_follow import chmod_fd
 from kernel.resolution import resolve_rejecting_loops
 from specify_cli.shims.registry import CONSUMER_SKILLS
 from specify_cli.state import contract as state_contract
-from kernel import paths as kernel_paths
 from kernel.paths import to_posix
 
 if TYPE_CHECKING:
@@ -123,6 +123,9 @@ CLI_WRAPPER_COMMANDS: tuple[str, ...] = (
 CANONICAL_COMMANDS: tuple[str, ...] = tuple(sorted((*PROMPT_BACKED_COMMANDS, *CLI_WRAPPER_COMMANDS)))
 
 assert set(CANONICAL_COMMANDS) == set(CONSUMER_SKILLS), "Command-skill installer must cover every consumer command"
+
+#: Canonical command-skill path -> its command, for the #5281 outdated check.
+_CANONICAL_COMMAND_BY_REL: dict[str, str] = {command_skill_rel_path(command): command for command in CANONICAL_COMMANDS}
 
 #: Disposition state of an edited legacy dotted skill kept on disk but no longer managed.
 LEGACY_KEPT = "legacy_kept"
@@ -318,6 +321,10 @@ class VerifyReport:
     collisions:
         Canonical ``SKILL.md`` paths occupied by content the manifest does not
         own and that is not today's canonical rendering (FR-019).
+    outdated:
+        Canonical entries whose file still matches the manifest-recorded hash
+        but differs from today's canonical rendering (#5281): a self-consistent
+        drift the next install repairs.
     """
 
     drift: list[str] = field(default_factory=list)
@@ -328,6 +335,7 @@ class VerifyReport:
     legacy: list[str] = field(default_factory=list)
     legacy_owned: list[str] = field(default_factory=list)
     collisions: list[str] = field(default_factory=list)
+    outdated: list[str] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -699,52 +707,6 @@ def _state(path: Path) -> FileState:
     raise InstallerError("unsafe_path", path=str(path), detail="Unsupported node kind")
 
 
-_MODE_RELAXABLE_KINDS = frozenset({"directory", "file", "symlink"})
-
-
-def windows_dir_mode_only_divergence(observed: FileState, planned: FileState) -> bool:
-    """Return True when a node diverges from the plan *only* by POSIX mode on Windows.
-
-    A freshly-created shared skills directory (e.g. ``.agents/skills``) carries a
-    POSIX ``mode`` of ``0o755`` in the plan, but Windows ``os.chmod`` cannot
-    represent those bits, so the observed directory mode can never match the plan.
-    Two gates compare that planned mode against the freshly-observed directory --
-    the completion re-check in the managed-skills provider AND the doctrine apply's
-    command-parent receipt check (``installer._command_parent_receipts``). Left
-    unhandled either makes ``upgrade`` unable to converge in one pass on Windows:
-    the re-check raises (#4776) or a ``chmod`` is re-planned forever (#4777), and
-    the charter skills never apply.
-
-    Treating that single, host-inherent divergence as satisfied lets ``upgrade``
-    converge in one pass with both command AND charter skills applied
-    (FR-005/006) and report zero dry-run repairs once converged (FR-007).
-
-    **File/symlink extension (#4927, T005).** Every managed *file*'s
-    Windows-representable mode differs from its planned POSIX mode too --
-    exactly the same host-inherent shape as the directory case above -- so
-    the relaxation is generalized to ``file``/``symlink`` kinds under this
-    SAME authority (C-002: no second divergence authority). The relaxation
-    stays deliberately narrow: same-kind effects only (``observed.kind ==
-    planned.kind``, restricted to ``directory``/``file``/``symlink``), only
-    when the *sole* remaining difference after equalizing ``mode`` is the
-    mode itself, and only on Windows -- the host check goes through the
-    canonical patchable ``kernel.paths.is_windows`` seam (module attribute
-    at call time, so tests monkeypatch ``kernel.paths.is_windows`` without
-    faking ``os.name``), so POSIX file- and directory-mode correctness is
-    never weakened (NFR-003/FR-007). Callers whose "planned" state does not
-    carry a comparable ``mtime_ns`` (e.g. the project-skill projection's
-    ``_expected_project_entries``, which never sets one) must normalize
-    ``mtime_ns`` on the observed side before calling, exactly as the
-    managed-skills completion re-check already does -- this helper does not
-    special-case ``mtime_ns`` itself.
-    """
-    if not kernel_paths.is_windows():
-        return False
-    if observed.kind != planned.kind or observed.kind not in _MODE_RELAXABLE_KINDS:
-        return False
-    return bool(replace(observed, mode=planned.mode) == planned)
-
-
 def _manifest_change_bytes(manifest: manifest_store.SkillsManifest) -> bytes:
     """Serialize a manifest with ``installed_at`` neutralized, for change detection only.
 
@@ -841,17 +803,8 @@ class _CommandBatch:
 
     def effect(self, rel: str, after: FileState, owners: tuple[str, ...], proof: OwnershipProof) -> None:
         before = self.observe_destination(rel)
-        if before.kind == "absent":
-            action = "create"
-        elif after.kind == "absent":
-            action = "delete"
-        elif before.kind != after.kind:
-            action = "replace"
-        elif before.sha256 != after.sha256:
-            action = "update"
-        elif before.mode != after.mode:
-            action = "chmod"
-        else:
+        action = effect_action(before, after)
+        if action is None:
             return
         effect = PhysicalEffect(
             _OWNER,
@@ -1609,7 +1562,8 @@ def verify(repo_root: Path) -> VerifyReport:
 
 
 def _verify_entries(repo_root: Path, manifest: manifest_store.SkillsManifest, report: VerifyReport) -> None:
-    """Classify each manifest entry as unsafe, legacy, stale, gap or drift."""
+    """Classify each manifest entry as unsafe, legacy, stale, gap, drift or outdated."""
+    canonical_digests: dict[str, str | None] = {}
     for entry in manifest.entries:
         if is_legacy_rel_path(entry.path):
             # Retired by the legacy rule on the next preparation, which never follows a link
@@ -1630,6 +1584,23 @@ def _verify_entries(repo_root: Path, manifest: manifest_store.SkillsManifest, re
         on_disk = manifest_store.fingerprint_file(abs_path)
         if on_disk != entry.content_hash:
             report.drift.append(entry.path)
+        elif _is_outdated(repo_root, entry.path, on_disk, canonical_digests):
+            report.outdated.append(entry.path)
+
+
+def _is_outdated(repo_root: Path, rel: str, on_disk: str, digests: dict[str, str | None]) -> bool:
+    """Whether the canonical command skill at *rel* differs from today's render (#5281).
+
+    *digests* caches one :func:`canonical_digest` per command for a single verify call;
+    a command with no single canonical render (``None``) is never reported.
+    """
+    command = _CANONICAL_COMMAND_BY_REL.get(rel)
+    if command is None:
+        return False
+    if command not in digests:
+        digests[command] = canonical_digest(repo_root, command)
+    expected = digests[command]
+    return expected is not None and expected != on_disk
 
 
 def _verify_legacy_folders(repo_root: Path, manifest_paths: set[str], report: VerifyReport) -> None:

@@ -30,7 +30,6 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
@@ -691,6 +690,50 @@ def test_finalize_derives_a_pin_from_git_when_none_is_recorded(tmp_path: Path, m
     )
 
 
+def test_a_derived_pin_survives_later_plain_finalizes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7297 item 1 (SC-003): run 1 derives, then plain finalizes with and without a planning change keep it.
+
+    Before the fix, run 2 after a genuine planning change classified the derived pin ADVANCED and
+    refreshed it to the tip (``IMPLEMENTATION_MISSING`` for real work), and nothing recorded that
+    the pin had been derived, so it was never derived again.
+    """
+    coord, original_pin = _blank_recorded_pin(monkeypatch, tmp_path, "issue-7297-frozen")
+    _run_real_finalize(monkeypatch, coord)
+    first = read_lanes_json(coord.root_mission_dir)
+    assert first is not None and (first.planning_commit_sha, first.planning_commit_derived) == (original_pin, True)
+
+    _run_real_finalize(monkeypatch, coord)  # no planning change: the marker must survive
+    (coord.root_mission_dir / "spec.md").write_text(
+        f"---\ntitle: Fixture Mission\n---\n\n## Requirements\n\n- {_FR_FIXTURE}: First requirement (amended)\n- FR-002: Second requirement\n",
+        encoding="utf-8",
+    )
+    _git_stdout(coord.repo_root, "add", "-A")
+    _git_stdout(coord.repo_root, "commit", "-q", "-m", "planning amendment")
+    success = _success_payload(_run_real_finalize(monkeypatch, coord))
+
+    after = read_lanes_json(coord.root_mission_dir)
+    assert after is not None and (after.planning_commit_sha, after.planning_commit_derived) == (original_pin, True)
+    refresh = success.get("planning_commit_refresh")
+    assert refresh is not None and refresh.get("status") == "preserved", refresh
+
+
+def test_an_explicit_refresh_clears_the_derived_marker(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review B1: ``--refresh-planning-commit`` writes the operator's pin, which is never frozen as derived."""
+    coord, original_pin = _blank_recorded_pin(monkeypatch, tmp_path, "issue-7297-explicit")
+    _run_real_finalize(monkeypatch, coord)
+    derived = read_lanes_json(coord.root_mission_dir)
+    assert derived is not None and (derived.planning_commit_sha, derived.planning_commit_derived) == (original_pin, True)
+    # The fixture tracks the coordination worktree as a gitlink; record where the plain finalize moved it.
+    _git_stdout(coord.repo_root, "add", "-A")
+    _git_stdout(coord.repo_root, "commit", "-q", "-m", "fixture: settle the coordination gitlink")
+
+    emitted = _run_real_finalize(monkeypatch, coord, refresh=True)
+
+    after = read_lanes_json(coord.root_mission_dir)
+    assert after is not None and after.planning_commit_sha != original_pin, emitted
+    assert after.planning_commit_derived is False
+
+
 def test_finalize_keeps_no_pin_when_a_lane_branch_lacks_the_derived_base(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#7210: a base the lane lacks reads the target's content as the lane's work, so it is not recorded."""
     from specify_cli.lanes.branch_naming import code_lane_branch_name
@@ -709,11 +752,15 @@ def test_finalize_keeps_no_pin_when_a_lane_branch_lacks_the_derived_base(tmp_pat
 def test_finalize_warns_and_keeps_no_pin_when_none_can_be_derived(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """C2-1 (WP15 cycle 2), narrowed by #7210: with no recorded pin AND no derivable one,
     the run stays a VISIBLE ``kept_with_warning`` (exit 0), never a silent ``preserved``.
+
+    #7297 item 3: the tip IS resolved here, so the reason is ``no_pin_underivable``, not
+    ``indeterminate_tip_uncapturable``. Derivation is disabled through its one seam,
+    ``resolve_finalize_planning_base`` (it no longer routes through ``resolve_planning_base_commit``).
     """
     from specify_cli.lanes import planning_base
 
     coord, _original_pin = _blank_recorded_pin(monkeypatch, tmp_path, "wp15-c21-indeterminate")
-    monkeypatch.setattr(planning_base, "resolve_planning_base_commit", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(planning_base, "resolve_finalize_planning_base", lambda *_args, **_kwargs: None)
 
     emitted = _run_real_finalize(monkeypatch, coord)
     success = _success_payload(emitted)
@@ -727,7 +774,7 @@ def test_finalize_warns_and_keeps_no_pin_when_none_can_be_derived(tmp_path: Path
         f"planning_commit_refresh must report 'kept_with_warning' for an INDETERMINATE pin, never a silent 'preserved'; got {refresh!r}"
     )
     assert refresh.get("pin_class") == "indeterminate", f"planning_commit_refresh.pin_class must report 'indeterminate'; got {refresh!r}"
-    assert refresh.get("reason") == "indeterminate_tip_uncapturable", f"an INDETERMINATE kept_with_warning must name its own reason; got {refresh!r}"
+    assert refresh.get("reason") == "no_pin_underivable", f"a resolved tip with no derivable pin must name its own reason; got {refresh!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -790,8 +837,10 @@ def test_report_planning_sha_decision_prints_indeterminate_kept_with_warning_tex
     )
     _report_planning_sha_decision("topic", resolution, json_output=False)
     output = capsys.readouterr().out
-    assert "could not be classified against" in output
-    assert "no pin recorded yet" in output and "uncapturable" in output
+    # #7297 item 3: the text names what is missing and the next step, never "no action is needed".
+    assert "could not be classified" in output and "could not be resolved" in output
+    assert "(none recorded)" in output and "re-run finalize-tasks" in output
+    assert "No action is needed" not in output
     # Never the FOREIGN-specific text (a different root cause).
     assert "could not be safely auto-refreshed" not in output
     assert "object is absent from this repository" not in output
@@ -1017,7 +1066,7 @@ def test_resolve_finalize_commit_candidates_sees_coord_only_dirt_with_clean_root
     this test fail (verified below by directly monkeypatching the coord-dirt
     probe to report clean, reproducing the mutation's effect).
     """
-    from specify_cli.cli.commands.agent.mission_finalize import _resolve_finalize_commit_candidates
+    from specify_cli.cli.commands.agent.mission_finalize import _CoordCandidateDirt, _resolve_finalize_commit_candidates
 
     coord = make_coord_mission(tmp_path, MissionTopology.COORD, slug="wp15-r10-unit")
     _write_coord_finalize_fixture(coord)
@@ -1055,7 +1104,7 @@ def test_resolve_finalize_commit_candidates_sees_coord_only_dirt_with_clean_root
     # leg were dropped from has_relevant_changes, a fully-clean root would
     # report no changes at all.
     with patch("specify_cli.cli.commands.agent.mission_finalize._coord_candidate_dirt") as mock_dirt:
-        mock_dirt.return_value = SimpleNamespace(files=[], is_dirty=False)
+        mock_dirt.return_value = _CoordCandidateDirt(files=[], is_dirty=False)
         mutated = _resolve_finalize_commit_candidates(
             planning_dir,
             tasks_dir,

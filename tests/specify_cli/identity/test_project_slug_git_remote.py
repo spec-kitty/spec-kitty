@@ -92,3 +92,51 @@ def test_slug_unaffected_by_a_global_insteadof_transport_rewrite(tmp_path: Path,
     clone = _clone(origin, tmp_path / "work" / "some-other-dirname")
     _git("remote", "set-url", "origin", "https://github.com/acme/acme-widgets.git", cwd=clone)
     assert derive_project_slug(clone) == "acme-widgets"
+
+
+def test_slug_from_git_remote_is_none_without_origin(tmp_path: Path) -> None:
+    """#5215: the remote-only lookup never falls back to the directory name."""
+    from specify_cli.identity.project import slug_from_git_remote
+
+    local = tmp_path / "dirname-differs"
+    local.mkdir()
+    _git("init", "-q", cwd=local)
+
+    assert slug_from_git_remote(local) is None
+    assert derive_project_slug(local) == "dirname-differs"
+
+
+def test_remote_url_naming_no_repository_falls_back_to_directory(tmp_path: Path) -> None:
+    """#5215: an empty last URL segment is "no repository", so the directory name is used."""
+    from specify_cli.identity.project import slug_from_git_remote
+
+    local = tmp_path / "dirname-differs"
+    local.mkdir()
+    _git("init", "-q", cwd=local)
+    _git("remote", "add", "origin", "https://example.invalid/", cwd=local)
+
+    assert slug_from_git_remote(local) is None
+    assert derive_project_slug(local) == "dirname-differs"
+
+
+@pytest.mark.parametrize(
+    ("url", "slug"),
+    [
+        ("https://example.invalid/acme/acme-widgets/", "acme-widgets"),
+        ("https://example.invalid/acme/acme-widgets.git/", "acme-widgets"),
+        ("git@example.invalid:acme/acme-widgets.git", "acme-widgets"),
+        ("https://example.invalid", None),
+        ("https://user:TOKEN@example.invalid", None),
+        ("https://user:TOKEN@example.invalid:8443/acme/acme-widgets.git", "acme-widgets"),
+    ],
+)
+def test_slug_from_git_remote_url_shapes(tmp_path: Path, url: str, slug: str | None) -> None:
+    """#5215 review L2: a trailing slash still names the repository; a bare host names none."""
+    from specify_cli.identity.project import slug_from_git_remote
+
+    local = tmp_path / "clone"
+    local.mkdir()
+    _git("init", "-q", cwd=local)
+    _git("remote", "add", "origin", url, cwd=local)
+
+    assert slug_from_git_remote(local) == slug

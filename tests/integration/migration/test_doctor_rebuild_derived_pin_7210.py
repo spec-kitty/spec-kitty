@@ -12,6 +12,7 @@ Runs the real ``doctor`` CLI in-process over a scratch git repository.
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
@@ -20,7 +21,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.doctor import app
 from specify_cli.lanes.persistence import read_lanes_json
-from specify_cli.migration.mission_state import LANES_REBUILT_ACTION, LANES_REBUILT_WITH_TARGET_TIP_ACTION
+from specify_cli.migration.mission_state import LANES_REBUILT_ACTION, LANES_REBUILT_PIN_UNSET_ACTION, LANES_REBUILT_WITH_TARGET_TIP_ACTION
 from tests.unit.migration.test_mission_state_lanes_rebuild import _seed_wedged_events, _write_meta, _write_owned_wp_files
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -83,6 +84,8 @@ def test_fix_rebuilds_lanes_with_the_derived_planning_commit(tmp_path: Path, mon
         f"the rebuild must record the commit before the WP task files ({base}), not the live tip ({tip}); got {lanes.planning_commit_sha}"
     )
     assert LANES_REBUILT_WITH_TARGET_TIP_ACTION not in output
+    # #7297 item 1 / review N1: a pin the rebuild derived is marked, so a later plain finalize keeps it.
+    assert lanes.planning_commit_derived is True
 
 
 def test_fix_keeps_the_live_tip_and_warns_when_no_base_can_be_derived(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -97,4 +100,30 @@ def test_fix_keeps_the_live_tip_and_warns_when_no_base_can_be_derived(tmp_path: 
     assert lanes.planning_commit_sha == tip, "with no derivable base the rebuild keeps today's behaviour: the live target tip"
     assert LANES_REBUILT_ACTION in output
     assert LANES_REBUILT_WITH_TARGET_TIP_ACTION in output
-    assert "records the live target-branch tip" in " ".join(output.split())
+    flat = " ".join(output.split())
+    assert "records the live branch tip" in flat
+    # #7297 item 6: the warning names the next step.
+    # Squad review: a refresh records the tip, so the next step is the manual edit, never a refresh.
+    assert "planning_commit_sha in lanes.json by hand" in flat
+    # Tier R N5: the lane Mission (this fixture) gets its own next step, the lane base on the target.
+    assert "target-branch commit its lane branches were cut from" in flat
+    assert "--refresh-planning-commit" not in flat
+    assert lanes.planning_commit_derived is False
+
+
+def test_fix_warns_when_the_rebuilt_pin_stays_unset(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7297 item 6: no derivable base and no capturable tip used to leave the pin None with no warning."""
+    root = tmp_path / "proj"
+    feature_dir, _base = _wedged_mission(root, commit_tasks=False)
+    meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    meta["target_branch"] = "no-such-branch"
+    (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+
+    output = _run_fix(root, monkeypatch)
+
+    lanes = read_lanes_json(feature_dir)
+    assert lanes is not None and lanes.planning_commit_sha is None, output
+    assert LANES_REBUILT_PIN_UNSET_ACTION in output
+    flat = " ".join(output.split())
+    assert "records no planning commit" in flat
+    assert f"finalize-tasks --mission {_SLUG}" in flat

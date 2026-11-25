@@ -212,6 +212,9 @@ class EventLogWriteContract:
 STATUS_SURFACE_REF_UNREADABLE = "STATUS_SURFACE_REF_UNREADABLE"
 """Error code of :class:`StatusSurfaceRefUnreadable` (``contracts/error-codes.yaml``)."""
 
+STATUS_SURFACE_REF_REMOTE_ONLY = "STATUS_SURFACE_REF_REMOTE_ONLY"
+"""Error code of :class:`StatusSurfaceRefRemoteOnly` (#5287; ADR 2026-11-06-2, Amendment 2026-11-20)."""
+
 _BATCH_MISSING_MARKERS = (b"missing", b"ambiguous")
 
 
@@ -233,6 +236,33 @@ class StatusSurfaceRefUnreadable(RuntimeError):
             f"Cannot read {path} from ref {ref!r} in {repo_root}: {detail}. "
             f"A status history is never assumed empty when its ref cannot be read. "
             f"Error code: {STATUS_SURFACE_REF_UNREADABLE}."
+        )
+
+
+class StatusSurfaceRefRemoteOnly(StatusSurfaceRefUnreadable):
+    """The status read's branch has no local head; a remote holds it (#5287).
+
+    A kind of :class:`StatusSurfaceRefUnreadable`, so every caller that handles an
+    unreadable ref handles this one, and relays its own ``error_code``. The door
+    never reads the remote-tracking ref instead (one declared source, no
+    fallback; ADR 2026-11-06-2): the message carries the canonical remedy from
+    :mod:`mission_runtime.coord_remedy`, which creates the local branch.
+    """
+
+    error_code: str = STATUS_SURFACE_REF_REMOTE_ONLY
+
+    def __init__(self, *, repo_root: Path, ref: str, path: str, branch: str, remedy: str) -> None:
+        self.repo_root = repo_root
+        self.ref = ref
+        self.path = path
+        self.detail = "no local branch"
+        self.branch = branch
+        self.remedy = remedy
+        RuntimeError.__init__(
+            self,
+            f"Cannot read {path}: the branch {branch!r} exists only on a remote; this checkout has no "
+            f"local branch for it. A status history is never read from a remote-tracking ref. "
+            f"{remedy} Error code: {STATUS_SURFACE_REF_REMOTE_ONLY}.",
         )
 
 
@@ -551,6 +581,7 @@ def merge_append_preserving_coordination_event_log_bytes(
 
 __all__ = [
     "EventLogReadContract",
+    "StatusSurfaceRefRemoteOnly",
     "EventLogWriteContract",
     "append_event_stream_log",
     "merge_append_preserving_coordination_event_log_bytes",

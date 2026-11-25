@@ -142,3 +142,32 @@ def test_finalize_tasks_is_idempotent_once_lanes_exist(
     second_lanes_bytes = (feature_dir / "lanes.json").read_bytes()
 
     assert first_lanes_bytes == second_lanes_bytes
+
+
+@patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+@patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+@patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
+def test_finalize_tasks_captures_a_single_branch_pin_on_its_mission_branch(
+    mock_slug: MagicMock,
+    mock_root: MagicMock,
+    mock_branch: MagicMock,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#7297 item 2 / review N1: the pin sits on the branch the evidence window reads, not the target."""
+    from specify_cli.core.vcs import git as vcs_git
+
+    feature_dir = _build_feature_with_owned_wps(tmp_path, _MISSION_SLUG)
+    meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    meta |= {"topology": "single_branch", "mission_branch": "kitty/mission-lanes-minting-01ARZ3ND", "target_branch": "main"}
+    (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    captured: list[str] = []
+    monkeypatch.setattr(vcs_git, "capture_branch_tip", lambda _repo, branch: captured.append(branch) or "a" * 40)
+    mock_root.return_value = tmp_path
+    mock_slug.return_value = _MISSION_SLUG
+    mock_branch.return_value = (tmp_path, "main")
+
+    result = runner.invoke(app, ["finalize-tasks", "--mission", _MISSION_SLUG, "--json"])
+
+    assert result.exit_code == 0, f"CLI error: {result.output}"
+    assert captured == ["kitty/mission-lanes-minting-01ARZ3ND"]

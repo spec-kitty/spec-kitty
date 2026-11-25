@@ -384,7 +384,11 @@ def _ft_apply_writes(st: _FinalizeState) -> None:
         raw_mission_id = raw_meta.get("mission_id")
         mission_id: str | None = raw_mission_id if isinstance(raw_mission_id, str) else None
 
-        planning_commit_sha = capture_branch_tip(st.main_repo_root, st.target_branch)
+        from specify_cli.lanes.planning_base import pin_branch_line
+
+        # #7297 item 2 / review N1: a single_branch Mission's pin is captured on its mission branch,
+        # the tip of its evidence window, as finalize-tasks captures it.
+        planning_commit_sha = capture_branch_tip(st.main_repo_root, pin_branch_line(raw_meta, st.target_branch))
         # #5100 M3 (review cycle-1 nit 3): derived from the ALREADY-loaded,
         # tolerant `raw_meta` above (never a second, stricter meta.json
         # read) -- this call site already tolerates a missing/malformed

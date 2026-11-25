@@ -29,6 +29,7 @@ opens at the claim base, exactly like a degraded ``single_branch`` window.
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
@@ -39,8 +40,7 @@ from specify_cli.status import StatusEvent, WindowGap, WindowOpen, window_open_o
 from .approved_bound import (
     BoundRefusal,
     BoundRefusalCode,
-    approval_stamps,
-    check_lane,
+    check_lane_effective,
     content_commits,
     move_back_command,
     render_refusals,
@@ -202,7 +202,7 @@ def check_write_branch(
     branch_tip = tip or branch
     approved = tuple(sorted(approved_wp_ids))
     anchor_list = list(anchors)
-    tier_one = check_lane(
+    tier_one, effective = check_lane_effective(
         repo_root,
         events=events,
         lane_id=lane_id,
@@ -215,7 +215,8 @@ def check_write_branch(
     )
     if tier_one is not None:
         return (tier_one,)
-    stamps = {wp_id: stamp for wp_id, stamp in approval_stamps(events, approved).items() if stamp is not None}
+    # #7802: each window ends at the approval's effective stamp, the recorded stamp the branch contains.
+    stamps = dict(effective or {})
     if not stamps:
         return ()
     opened = classes if classes is not None else _write_branch_classes(repo_root, events, approved, branch_tip)
@@ -362,7 +363,7 @@ def check_lane_windows(
     """
     anchors = list(exemption_anchors)
     exempt = lane_exempt_commits(repo_root, claim_base, anchors)
-    tier_one = check_lane(
+    tier_one, effective = check_lane_effective(
         repo_root,
         events=events,
         lane_id=lane_id,
@@ -376,7 +377,7 @@ def check_lane_windows(
     )
     if tier_one is not None:
         return (tier_one,), ()
-    if not windows:
+    if not windows or effective is None:
         return (), ()
     tier_two = _window_refusals(
         repo_root,
@@ -384,11 +385,22 @@ def check_lane_windows(
         branch=branch,
         tip=tip,
         claim_base=claim_base,
-        windows=windows,
+        windows=_effective_windows(windows, effective),
         exempt=exempt | canceled_exempt | dependency_exempt,
         is_bookkeeping=is_bookkeeping,
     )
     return (), tier_two
+
+
+def _effective_windows(windows: Sequence[ApprovalWindow], effective: Mapping[str, str]) -> tuple[ApprovalWindow, ...]:
+    """*windows* with each window end moved to its approval's effective stamp (#7802).
+
+    Tier 1 resolved, for every approved work package, the recorded stamp the lane contains
+    (``lane_head``, else the pre-sync ``lane_head_presync``). A window whose end is the recorded
+    ``lane_head`` of an unpushed review sync merge would name a commit this clone does not hold;
+    its pre-sync end judges the same content commits, because tier 2 drops merge commits.
+    """
+    return tuple(dataclasses.replace(window, approval_stamp=effective.get(window.wp_id, window.approval_stamp)) for window in windows)
 
 
 def _window_finding(refusal: BoundRefusal) -> str:

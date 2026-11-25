@@ -47,7 +47,10 @@ verdict rule (``data-model.md``, first match wins):
    ``refs/remotes/<remote>/<primary>`` missing -> ``unproven``
 9. tip not absorbed into it (``lane_tip.is_absorbed``: ancestor, else a
    ``merge-tree --write-tree`` no-op; covers merge, rebase and squash
-   landings) -> ``not_landed``; ``AbsorptionUnsupported`` -> ``unproven``
+   landings; a released Mission's lane is judged by
+   ``lane_tip.is_absorbed_but_for_mission_bookkeeping`` instead, which sets
+   aside the Mission bookkeeping the lane never authored, #7747) ->
+   ``not_landed``; ``AbsorptionUnsupported`` -> ``unproven``
 10. a branch whose tip is an ancestor of ``<remote>/<primary>`` and whose
     reflog records no commit (only creation, reset, pull, fast-forward merge,
     rebase... entries) ->
@@ -134,7 +137,8 @@ from specify_cli.git.destructive_guard import (
     recreate_command,
 )
 from specify_cli.lanes.branch_naming import parse_mission_slug_from_branch, resolve_mid8
-from specify_cli.lanes.lane_tip import AbsorptionUnsupported, is_absorbed
+from specify_cli.git.merge_tree_probe import MERGE_TREE_WRITE_TREE_MIN_VERSION, merge_tree_write_tree_available
+from specify_cli.lanes.lane_tip import AbsorptionUnsupported, is_absorbed, is_absorbed_but_for_mission_bookkeeping, is_ancestor
 from specify_cli.workspace.process_probe import ProcessProbeResult, processes_with_cwd_under
 
 __all__ = [
@@ -451,15 +455,18 @@ def _structural(entry: WorktreeEntry, is_main: bool, ctx: _Context) -> WorktreeV
     return None
 
 
-def _mission_meta_for_lane(repo_root: Path, branch: str) -> dict[str, Any] | None:
-    """The ``meta.json`` of the Mission whose lane ``branch`` is, matched by mid8 (new form) or slug (legacy); ``None`` when not exactly one."""
+def _mission_meta_for_lane(repo_root: Path, branch: str) -> tuple[str, dict[str, Any]] | None:
+    """The Mission directory name and ``meta.json`` of the Mission whose lane ``branch`` is.
+
+    Matched by mid8 (new form) or slug (legacy); ``None`` when not exactly one.
+    """
     parsed = parse_mission_slug_from_branch(branch)
     if parsed is None or parsed.lane_id is None:
         return None
     from specify_cli.context.mission_resolver import iter_kitty_specs_children
     from specify_cli.mission_metadata import load_meta_or_empty
 
-    matches: list[dict[str, Any]] = []
+    matches: list[tuple[str, dict[str, Any]]] = []
     for mission_dir in iter_kitty_specs_children(repo_root):
         # Missing or unreadable meta.json: the Mission is skipped, as before (#7276).
         meta = load_meta_or_empty(mission_dir)
@@ -471,7 +478,7 @@ def _mission_meta_for_lane(repo_root: Path, branch: str) -> dict[str, Any] | Non
         else:
             matched = mission_dir.name == parsed.slug
         if matched:
-            matches.append(meta)
+            matches.append((mission_dir.name, meta))
     return matches[0] if len(matches) == 1 else None
 
 
@@ -482,23 +489,31 @@ def _is_released(meta: dict[str, Any]) -> bool:
     return bool(str(meta.get("accepted_at") or "").strip()) and meta.get("acceptance_mode") == "pr"
 
 
-def released_mission_lane(repo_root: Path, branch: str) -> bool:
-    """FR-039: a lane of a consolidated or pr-accepted Mission with no active consolidation record and no retention.
+def released_mission_slug(repo_root: Path, branch: str) -> str | None:
+    """FR-039: the Mission directory name when ``branch`` is a released Mission's lane, else ``None``.
 
-    Such a lane leaves the report-only ``mission_owned`` scope and is judged by the same proofs as any
+    Released: a lane of a consolidated or pr-accepted Mission with no active consolidation record
+    and no retention. Such a lane leaves the report-only ``mission_owned`` scope and is judged by the same proofs as any
     landed worktree (absorption, local state, process probe, the guard). Anything unreadable, an
     active record (``.kittify/runtime/merge/<mission_id>/state.json``) or a declared retention
     (``retain_worktrees`` / ``retain_branches`` present and not ``false``: a malformed value retains) keeps it report-only.
     """
-    meta = _mission_meta_for_lane(repo_root, branch)
-    if meta is None or not _is_released(meta):
-        return False
+    found = _mission_meta_for_lane(repo_root, branch)
+    if found is None or not _is_released(found[1]):
+        return None
+    mission_slug, meta = found
     if any(key in meta and meta[key] is not False for key in ("retain_worktrees", "retain_branches")):
-        return False
+        return None
     mission_id = str(meta.get("mission_id") or "").strip()
     if not mission_id:
-        return False
-    return not os.path.lexists(repo_root / ".kittify" / "runtime" / "merge" / mission_id / "state.json")
+        return None
+    active = os.path.lexists(repo_root / ".kittify" / "runtime" / "merge" / mission_id / "state.json")
+    return None if active else mission_slug
+
+
+def released_mission_lane(repo_root: Path, branch: str) -> bool:
+    """FR-039: ``branch`` is a released Mission's lane (:func:`released_mission_slug`)."""
+    return released_mission_slug(repo_root, branch) is not None
 
 
 def _flagged_index_paths(worktree: Path) -> list[str]:
@@ -624,7 +639,7 @@ def _absorption(entry: WorktreeEntry, ctx: _Context) -> WorktreeVerdict | None:
     if entry.head is None:
         return _verdict(entry, Verdict.NOT_LANDED, Reason.CONTENT_NOT_ON_PRIMARY, "the worktree has no commit")
     try:
-        absorbed = is_absorbed(ctx.repo_root, entry.head, ctx.primary_ref, base=None)
+        absorbed = _landed_on(ctx.repo_root, entry.head, ctx.primary_ref, _lane_mission_slug(ctx.repo_root, entry.branch))
     except AbsorptionUnsupported as exc:
         return _verdict(entry, Verdict.UNPROVEN, Reason.ABSORPTION_UNSUPPORTED, str(exc))
     if not absorbed:
@@ -835,13 +850,34 @@ def _process_probe(ctx: _Context) -> ProcessProbe:
     return busy
 
 
-def _absorption_proof(repo_root: Path) -> AbsorptionProof:
-    """O3 evidence for the guard: ``lane_tip.is_absorbed``; an unsupported git is no proof."""
+def _lane_mission_slug(repo_root: Path, branch: str | None) -> str | None:
+    """The released Mission a lane branch belongs to (#7747): only its lanes get the bookkeeping set-aside (ruling 4)."""
+    return released_mission_slug(repo_root, branch) if branch is not None else None
+
+
+def _landed_on(repo_root: Path, tip: str, landing_ref: str, mission_slug: str | None) -> bool:
+    """The O3 proof: the shared landing proof for a released Mission's lane, the plain one for every other worktree.
+
+    A tip the landing reaches (a merge landing) is proven without ``merge-tree``, as the plain proof does.
+    Otherwise raises :class:`AbsorptionUnsupported` when git cannot run ``merge-tree --write-tree``.
+    """
+    if mission_slug is None:
+        plain: bool = is_absorbed(repo_root, tip, landing_ref, base=None)
+        return plain
+    if is_ancestor(repo_root, tip, landing_ref):
+        return True
+    if not merge_tree_write_tree_available(repo_root):
+        raise AbsorptionUnsupported(f"git merge-tree --write-tree needs git >= {MERGE_TREE_WRITE_TREE_MIN_VERSION[0]}.{MERGE_TREE_WRITE_TREE_MIN_VERSION[1]}")
+    proven: bool = is_absorbed_but_for_mission_bookkeeping(repo_root, tip, landing_ref, mission_slug)
+    return proven
+
+
+def _absorption_proof(repo_root: Path, mission_slug: str | None) -> AbsorptionProof:
+    """O3 evidence for the guard: the same proof the assessment used; an unsupported git is no proof."""
 
     def absorbed(tip: str, landing_ref: str) -> bool:
         try:
-            proven: bool = is_absorbed(repo_root, tip, landing_ref, base=None)
-            return proven
+            return _landed_on(repo_root, tip, landing_ref, mission_slug)
         except AbsorptionUnsupported:
             return False
 
@@ -877,7 +913,7 @@ def _prune_one(repo_root: Path, verdict: WorktreeVerdict, ctx: _Context) -> Prun
             removal,
             context=NothingIsResidue(),
             processes_in=_process_probe(ctx),
-            absorbed=_absorption_proof(repo_root),
+            absorbed=_absorption_proof(repo_root, _lane_mission_slug(repo_root, verdict.branch)),
         )
     except DestructiveOpRefused as exc:
         return _outcome(verdict, refusal=_GUARD_REFUSALS.get(exc.error_code, exc.error_code))

@@ -72,6 +72,7 @@ class TestDocstring:
         assert "workflow-failures-log.md" in doc
         assert "analysis-report.md" in doc
         assert "mission-review-report.md" in doc
+        assert "mission-review.md" in doc
 
 
 # ---------------------------------------------------------------------------
@@ -832,3 +833,89 @@ class TestIssue3793ContentCheckedFindings:
             f"expected a single-count arbiter override finding; got gaps={gap_summaries!r}"
         )
         assert not any("(2x)" in s for s in gap_summaries)
+
+
+# ---------------------------------------------------------------------------
+# #7753 — the agent-written mission review (mission-review.md) is ingested
+# ---------------------------------------------------------------------------
+
+
+_AGENT_REVIEW_REL = "kitty-specs/test/mission-review.md"
+_AGENT_REVIEW = "# Mission Review Report: test\n\n**Reviewer**: claude\n\n## Final Verdict\n\nPASS\n"
+
+
+def _ingest_with_agent_review(review_text: str | None, agent_text: str | None, ev_reg: _EvidenceRegistry):
+    return _build_ingestor_findings(
+        workflow_failures_text=None,
+        analysis_report_text=None,
+        review_report_text=review_text,
+        workflow_failures_rel="kitty-specs/test/workflow-failures-log.md",
+        analysis_report_rel="kitty-specs/test/analysis-report.md",
+        review_report_rel="kitty-specs/test/mission-review-report.md",
+        finding_id_counters={},
+        ev_reg=ev_reg,
+        agent_review_text=agent_text,
+        agent_review_rel=_AGENT_REVIEW_REL,
+    )
+
+
+class TestAgentMissionReviewIngestor:
+    """#7753: mission-review.md is read by the same rule as mission-review-report.md."""
+
+    def test_agent_review_without_frontmatter_is_reported_for_manual_review(self) -> None:
+        ev_reg = _EvidenceRegistry()
+        helped, not_helpful, _gaps = _ingest_with_agent_review(None, _AGENT_REVIEW, ev_reg)
+        assert helped == []
+        assert [f.summary for f in not_helpful] == ["mission-review.md present; findings not machine-readable"]
+        assert _AGENT_REVIEW_REL in {r.path for r in ev_reg.refs}
+
+    def test_agent_review_with_findings_frontmatter_counts_them(self) -> None:
+        ev_reg = _EvidenceRegistry()
+        _helped, not_helpful, _gaps = _ingest_with_agent_review(None, "---\nfindings: 3\n---\n# Review\n", ev_reg)
+        assert [f.summary for f in not_helpful] == ["mission-review.md records 3 finding(s)"]
+
+    def test_agent_review_text_without_a_path_is_refused(self) -> None:
+        with pytest.raises(ValueError, match="agent_review_rel"):
+            _build_ingestor_findings(
+                workflow_failures_text=None,
+                analysis_report_text=None,
+                review_report_text=None,
+                workflow_failures_rel="kitty-specs/test/workflow-failures-log.md",
+                analysis_report_rel="kitty-specs/test/analysis-report.md",
+                review_report_rel="kitty-specs/test/mission-review-report.md",
+                finding_id_counters={},
+                ev_reg=_EvidenceRegistry(),
+                agent_review_text=_AGENT_REVIEW,
+            )
+
+    def test_absent_agent_review_adds_nothing(self) -> None:
+        helped, not_helpful, _gaps = _ingest_with_agent_review(None, None, _EvidenceRegistry())
+        assert helped == []
+        assert not_helpful == []
+
+    def test_both_artifacts_are_ingested_side_by_side(self) -> None:
+        machine = "---\nverdict: pass\nreviewed_at: 2026-11-20T00:00:00+00:00\nfindings: 0\n---\n\nNo findings.\n"
+        helped, not_helpful, _gaps = _ingest_with_agent_review(machine, _AGENT_REVIEW, _EvidenceRegistry())
+        assert [f.summary for f in helped] == ["mission-review-report.md present with no findings"]
+        assert [f.summary for f in not_helpful] == ["mission-review.md present; findings not machine-readable"]
+
+    def test_generate_retrospective_reads_mission_review_md(self, tmp_path: Path) -> None:
+        slug = "mission-7753-agent-review"
+        feature_dir = tmp_path / "kitty-specs" / slug
+        feature_dir.mkdir(parents=True)
+        meta = {
+            "mission_id": "01TEST7753AGENTREVIEW0000",
+            "mission_slug": slug,
+            "friendly_name": "Agent review ingestion",
+            "mission_type": "software-dev",
+            "target_branch": "main",
+            "created_at": "2026-11-20T00:00:00+00:00",
+        }
+        (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+        (feature_dir / "mission-review.md").write_text(_AGENT_REVIEW, encoding="utf-8")
+
+        record = generate_retrospective(slug, _make_policy(), tmp_path, invoked_at=_TS, actor=_ACTOR)
+
+        review = [f for f in record.not_helpful if f.category == "review_loop"]
+        assert [f.summary for f in review] == ["mission-review.md present; findings not machine-readable"]
+        assert record.findings_status == "has_findings"

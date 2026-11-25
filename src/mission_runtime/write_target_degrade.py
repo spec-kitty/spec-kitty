@@ -204,9 +204,10 @@ def assert_coord_write_materialized(
 
     Raises ``ActionContextError`` (``COORD_WRITE_SURFACE_UNMATERIALIZED``) only
     for the #4970 remote-only shape: a coord-routing write whose coordination
-    worktree is absent AND whose coordination branch is not a local head
-    (deleted, or the fresh-clone / CI checkout where it exists only on
-    ``origin/<lane>``). Materializing that would fork from the primary branch.
+    worktree is absent AND whose coordination branch is not a local head and
+    cannot become one from this clone's remote-tracking ref (#5936: a teammate's
+    clone gets its local head from that ref first). Materializing without either
+    would fork from the primary branch.
 
     Research D22 (``establish_coord_write_location`` absorbs the coordination
     write gate, single write authority, C-001): this function used to be "the
@@ -224,7 +225,7 @@ def assert_coord_write_materialized(
     ``coordination.write_seam.write_artifact``).
     """
     from specify_cli.coordination.surface_resolver import (
-        _coord_branch_is_local_head,
+        ensure_coord_branch_local_head,
         resolve_declared_mid8,
     )
     from specify_cli.missions._read_path_resolver import (
@@ -247,8 +248,13 @@ def assert_coord_write_materialized(
     if state is CoordState.MATERIALIZED:
         _delegate_to_write_location_accessor(repo_root, mission_slug, kind, owned)
         return
-    is_local_head = _coord_branch_is_local_head(repo_root, coord_branch)
-    if state is CoordState.UNMATERIALIZED and is_local_head:
+    # #5936: a branch this clone holds only as a remote-tracking ref (a
+    # teammate's clone / pull) gets its local head from that ref first, so the
+    # artifact writers (issue matrix, acceptance, verdicts) materialize exactly
+    # like the status writers. With no such ref nothing local proves the
+    # branch's content and the write still refuses below.
+    is_local_head = state is CoordState.UNMATERIALIZED and ensure_coord_branch_local_head(repo_root, coord_branch)
+    if is_local_head:
         # D22 (research): the single write authority now owns this state --
         # materialize/seed/restore via the sanctioned accessor instead of
         # refusing a local head just because it already carries committed
@@ -274,22 +280,25 @@ def assert_coord_write_materialized(
         _delegate_to_write_location_accessor(repo_root, mission_slug, kind, owned)
         return
 
-    # (a) remote-only: the branch is declared and exists in git, but only as a
-    # remote-tracking ref (a fresh clone / CI checkout where the lane exists
-    # solely on `origin/<lane>`) -- `doctor coordination --fix` alone would
-    # refuse, because a remote-only branch is never auto-materialized.
+    # (a) remote-only: the branch is declared, but this clone has neither a
+    # local head nor its owning remote's tracking ref (a single-branch / shallow /
+    # CI clone that never fetched it) -- `doctor coordination --fix` alone would
+    # refuse too, because nothing local proves the branch's content.
+    # #5287: the recovery steps are the canonical remote-only remedy, shared
+    # with the doctor finding and the unmaterialized-coordination refusal.
+    from mission_runtime.coord_remedy import coordination_doctor_command, remote_only_branch, remote_only_steps
+
+    steps = remote_only_steps(remote_only_branch(repo_root, coord_branch), repo_root, coordination_doctor_command(mission_slug))
     raise ActionContextError(
         _COORD_WRITE_UNMATERIALIZED_CODE,
         f"Refusing a terminus WRITE of {kind.value!r} for mission {mission_slug!r}: "
         f"its authoritative coordination surface (branch {coord_branch!r}) is "
         f"unresolved or unmaterialized on this checkout — the coordination worktree "
         f"is absent and {coord_branch!r} is not a local branch head (e.g. a fresh "
-        f"clone / CI checkout where the lane exists only on origin). Writing would "
+        f"clone / CI checkout where the lane exists only on a remote). Writing would "
         f"degrade to the primary directory and overwrite committed coordination "
-        f"state (#4970). Materialize the coordination surface first: `git fetch`, "
-        f"create the local branch (`git branch {coord_branch} origin/{coord_branch}`), "
-        f"then run `spec-kitty doctor coordination --mission {mission_slug} --fix`; "
-        f"or check out {coord_branch!r} locally before retrying.",
+        f"state (#4970). Materialize the coordination surface first. {steps} "
+        f"Or check out {coord_branch!r} locally before retrying.",
     )
 
 

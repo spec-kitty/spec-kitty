@@ -1,0 +1,104 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-20T06:01:49.847947Z",
+      "decision_id": "01M7VRR00QYQ5DRXSRYV6TJQG7",
+      "final_answer": "C: both - per-run accept --waive-path-conventions --waive-reason recorded on the acceptance history entry, and a durable per-Mission meta.json waiver (path_conventions: waived + required rationale, mirroring contracts: none). Both waive path conventions only; metadata and orchestrator-api stay strict.",
+      "input_key": "escape_mechanism",
+      "mission_id": "01M7VRQM1E45PQDM459J7PTNYD",
+      "mission_slug": "path-conventions-per-type-01M7VRQM",
+      "opened_by": "cli",
+      "options": [
+        "A: accept --waive-path-conventions --waive-reason (per run, recorded in acceptance history)",
+        "B: meta.json path_conventions waived + rationale (per Mission, like contracts: none)",
+        "C: both",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Narrow escape for path conventions (distinct from accept --lenient): per-run flag, per-Mission meta.json waiver, or both?",
+      "rationale": null,
+      "resolved_at": "2026-11-20T06:31:00.956245Z",
+      "resolved_by": null,
+      "slot_key": "specify.escape.mechanism",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-20T06:01:52.439044Z",
+      "decision_id": "01M7VRR2HQZZ6DNR5FQNA52CCJ",
+      "final_answer": "a: mkdir -p only for real deliverables (contracts/, research deliverables); name the contracts: none waiver as the alternative.",
+      "input_key": "mkdir_secondary",
+      "mission_id": "01M7VRQM1E45PQDM459J7PTNYD",
+      "mission_slug": "path-conventions-per-type-01M7VRQM",
+      "opened_by": "cli",
+      "options": [
+        "a: never for remappable keys; kept for mission-artifact and research deliverable paths, with contracts: none named",
+        "b: dropped everywhere",
+        "c: kept everywhere as a secondary line",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Does mkdir -p stay as a secondary suggestion?",
+      "rationale": null,
+      "resolved_at": "2026-11-20T06:31:03.437321Z",
+      "resolved_by": null,
+      "slot_key": "specify.remedy.mkdir",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-20T06:01:54.921711Z",
+      "decision_id": "01M7VRR4Z91FGFD07XY9XM42D0",
+      "final_answer": "ii: the layered roster (built-in, org, project).",
+      "input_key": "valid_type_ids",
+      "mission_id": "01M7VRQM1E45PQDM459J7PTNYD",
+      "mission_slug": "path-conventions-per-type-01M7VRQM",
+      "opened_by": "cli",
+      "options": [
+        "i: built-in ids only",
+        "ii: the layered roster (built-in, org, project)",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which mission-type ids are valid per-type section keys under project.path_conventions?",
+      "rationale": null,
+      "resolved_at": "2026-11-20T06:31:05.881584Z",
+      "resolved_by": null,
+      "slot_key": "specify.config.type-ids",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-20T06:52:17.400462Z",
+      "decision_id": "01M7VVMCKR8V6NZ7TMH935QESH",
+      "final_answer": "b: honour the meta.json waiver everywhere, orchestrator-api included, like contracts: none; only the per-run flag is CLI-only; metadata stays strict on both paths.",
+      "input_key": "orchestrator_meta_waiver",
+      "mission_id": "01M7VRQM1E45PQDM459J7PTNYD",
+      "mission_slug": "path-conventions-per-type-01M7VRQM",
+      "opened_by": "cli",
+      "options": [
+        "a: honour neither waiver on orchestrator-api",
+        "b: honour the meta.json waiver everywhere; per-run flag CLI-only",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Does orchestrator-api honour the meta.json path-conventions waiver?",
+      "rationale": null,
+      "resolved_at": "2026-11-20T06:52:21.717170Z",
+      "resolved_by": null,
+      "slot_key": "plan.waiver.orchestrator-meta",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M7VRQM1E45PQDM459J7PTNYD",
+  "version": 1
+}

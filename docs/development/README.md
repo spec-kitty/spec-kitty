@@ -45,6 +45,7 @@ These pages moved to `docs/archive/`, which is not published. They are kept as r
 ## Start here
 
 - [Contributing to Spec Kitty](contributing.md) — developer setup, running tests, submitting PRs, AI-assistance disclosure, and the release process.
+- [Multi-session orchestration](multi-session-orchestration.md) — how a dispatcher session coordinates triager, runner, reviewer and lander sessions, with diagrams of the roles and a typical flow; run it with [the how-to](how-to/run-a-multi-session-orchestration.md) on [a shared cloud environment](how-to/cloud-environment-setup.md).
 - [The SkyKitty agent fleet](agent-fleet.md) — the company agent fleet that runs missions on this repo, the roles inside it, and the `ready-for-squad` handshake that hands work to the review squad and CI.
 
 ## Non-page artifacts

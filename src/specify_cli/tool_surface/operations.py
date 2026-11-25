@@ -13,6 +13,8 @@ import json
 from pathlib import Path, PurePosixPath, PureWindowsPath
 import re
 
+from kernel.file_modes import modes_equivalent
+
 
 PHASES = ("global_bootstrap", "migrations", "metadata", "provisioning", "manifest_repair", "surface_repair")
 
@@ -103,7 +105,43 @@ class OwnershipProof:
             raise ValueError("Ownership requires an exact reference")
 
 
-def _action(before: FileState, after: FileState) -> str | None:
+def mode_equivalent(observed: FileState, planned: FileState) -> bool:
+    """Same kind, and :func:`modes_equivalent` for that kind."""
+    return observed.kind == planned.kind and modes_equivalent(observed.kind, observed.mode, planned.mode)
+
+
+def state_equivalent(observed: FileState, planned: FileState, *, ignore_mtime: bool = True) -> bool:
+    """Whether an observed node satisfies a planned state on this host.
+
+    Kind, content digest and link target compare exactly; mode through
+    :func:`mode_equivalent`; ``mtime_ns`` only when *ignore_mtime* is False
+    (planned states rarely carry a comparable one).
+    """
+    same_identity = (observed.kind, observed.sha256, observed.target) == (planned.kind, planned.sha256, planned.target)
+    same_mtime = ignore_mtime or observed.mtime_ns == planned.mtime_ns
+    return same_identity and same_mtime and mode_equivalent(observed, planned)
+
+
+def expected_with_mode(expected: FileState, planned_mode: int | None, observed: FileState) -> FileState:
+    """*expected* carrying the planned mode, or the observed one when it satisfies it on this host.
+
+    For checks that compare an observation with a planned state through an
+    exact equality (for example a stamp substituted into an observation): on
+    Windows the planned POSIX mode is replaced by the observed mode when the
+    two are equivalent, so every other field, and POSIX modes, still compare
+    exactly.
+    """
+    equivalent = observed.kind == expected.kind and modes_equivalent(expected.kind, observed.mode, planned_mode)
+    return replace(expected, mode=observed.mode if equivalent else planned_mode)
+
+
+def effect_action(before: FileState, after: FileState) -> str | None:
+    """The single action an effect from *before* (observed) to *after* (planned) takes.
+
+    ``PhysicalEffect`` validates every effect against it, and every planner
+    decides its action through it, so a planner can never plan a permission
+    repair the host cannot represent (#4927).
+    """
     if before.kind == "absent":
         return "create" if after.kind != "absent" else None
     if after.kind == "absent":
@@ -114,7 +152,7 @@ def _action(before: FileState, after: FileState) -> str | None:
         return "update"
     if before.target != after.target:
         return "retarget"
-    return "chmod" if before.mode != after.mode else None
+    return None if mode_equivalent(before, after) else "chmod"
 
 
 @dataclass(frozen=True)
@@ -136,7 +174,7 @@ class PhysicalEffect:
     def __post_init__(self) -> None:
         _relative_path(self.path)
         _one_of(self.phase, PHASES, "phase")
-        if self.action != _action(self.before, self.after):
+        if self.action != effect_action(self.before, self.after):
             raise ValueError("Effect action does not match its before/after states")
         if not self.owner or not self.reason or not self.ownership or not self.logical_owners:
             raise ValueError("Effect requires owner, reason, exact ownership and logical owners")

@@ -175,3 +175,23 @@ def test_front_phase_names_every_unresolvable_dispatch(error: str, tmp_path: Pat
 
     assert decision.kind == DecisionKind.blocked, decision.to_dict()
     assert "cannot be dispatched" in str(decision.reason), decision.to_dict()
+
+
+def test_a_rejected_board_still_points_at_doctor(tmp_path: Path) -> None:
+    """#7793 / Tier R N2: every WP back in planned after a rejection is the wedge finalize refuses.
+
+    The board shows only planned lanes, but the log records WP01 leaving planned; ``next`` must name
+    ``doctor mission-state --fix`` (finalize refuses that Mission as wedged), not ``finalize-tasks``.
+    """
+    from runtime.next import runtime_bridge as bridge
+    from specify_cli.status import emit_status_transition
+
+    repo, slug, feature_dir = _board(tmp_path, {"WP01": Lane.PLANNED})
+    assert bridge._history_execution_has_begun(slug, repo, None) is False
+    emit_status_transition(feature_dir, wp_id="WP01", to_lane="claimed", actor="claude", mission_slug=slug, repo_root=repo, fan_out=False)
+    emit_status_transition(
+        feature_dir, wp_id="WP01", to_lane="planned", actor="reviewer", mission_slug=slug, repo_root=repo, fan_out=False, force=True, reason="rejected"
+    )
+
+    assert bridge._history_execution_has_begun(slug, repo, None) is True
+    assert bridge._history_execution_has_begun("no-such-mission", repo, None) is False

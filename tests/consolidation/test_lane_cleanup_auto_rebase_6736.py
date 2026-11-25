@@ -33,7 +33,6 @@ from specify_cli.consolidation.lane_cleanup import (
     LaneCleanupOutcome,
     LocalTargetAtPass,
     _refusal_detail,
-    _absorbed_but_for_status_log,
     cleanup_expected_tips,
     own_auto_rebase_move,
 )
@@ -43,6 +42,7 @@ from specify_cli.consolidation.state import ConsolidationState, load_state
 from specify_cli.coordination.coherence import NothingIsResidue
 from specify_cli.git.destructive_guard import BRANCH_HAS_UNIQUE_COMMITS, NOT_LANDED_ON_NAMED_REMOTE, WORKTREE_TIP_MOVED, DestructiveOpRefused
 from specify_cli.lanes.lane_tip import is_absorbed
+from specify_cli.lanes.lane_tip import is_absorbed_but_for_mission_bookkeeping  # #7747: the shared proof
 from specify_cli.orchestrator_api.consolidation import _follow_own_auto_rebase
 from specify_cli.workspace.process_probe import ProcessProbeResult
 
@@ -305,37 +305,37 @@ def coord_landed(tmp_path: Path) -> tuple[Path, Path, str]:
 def test_a_lane_carrying_an_older_status_log_is_absorbed_but_for_it(coord_landed: tuple[Path, Path, str]) -> None:
     root, _worktree, tip = coord_landed
     assert not is_absorbed(root, tip, "refs/heads/main", base=None)  # the plain proof cannot see it (the #6736 refusal)
-    assert _absorbed_but_for_status_log(root, tip, "refs/heads/main", _SLUG)
+    assert is_absorbed_but_for_mission_bookkeeping(root, tip, "refs/heads/main", _SLUG)
 
 
 def test_another_mission_s_status_log_is_not_set_aside(coord_landed: tuple[Path, Path, str]) -> None:
     root, _worktree, tip = coord_landed
-    assert not _absorbed_but_for_status_log(root, tip, "refs/heads/main", "other-01ABCDEF")
+    assert not is_absorbed_but_for_mission_bookkeeping(root, tip, "refs/heads/main", "other-01ABCDEF")
 
 
 def test_an_event_only_the_lane_holds_is_not_absorbed(coord_landed: tuple[Path, Path, str]) -> None:
     root, worktree, _tip = coord_landed
     _write(worktree, _LOG, '{"event_id": "e1"}\n{"event_id": "e2"}\n{"event_id": "lane-only"}\n')
     _git(worktree, "commit", "-q", "-m", "an event the target never got")
-    assert not _absorbed_but_for_status_log(root, _git(worktree, "rev-parse", "HEAD"), "refs/heads/main", _SLUG)
+    assert not is_absorbed_but_for_mission_bookkeeping(root, _git(worktree, "rev-parse", "HEAD"), "refs/heads/main", _SLUG)
 
 
 def test_unlanded_work_beside_the_status_log_is_not_absorbed(coord_landed: tuple[Path, Path, str]) -> None:
     root, worktree, _tip = coord_landed
     _commit(worktree, "late.py", "z = 3\n")
-    assert not _absorbed_but_for_status_log(root, _git(worktree, "rev-parse", "HEAD"), "refs/heads/main", _SLUG)
+    assert not is_absorbed_but_for_mission_bookkeeping(root, _git(worktree, "rev-parse", "HEAD"), "refs/heads/main", _SLUG)
 
 
 def test_a_lane_without_the_log_but_with_a_stale_snapshot_is_absorbed(coord_landed: tuple[Path, Path, str]) -> None:
     root, worktree, _tip = coord_landed
     _git(worktree, "rm", "-q", _LOG)
     _git(worktree, "commit", "-q", "-m", "drop the log copy")
-    assert _absorbed_but_for_status_log(root, _git(worktree, "rev-parse", "HEAD"), "refs/heads/main", _SLUG)
+    assert is_absorbed_but_for_mission_bookkeeping(root, _git(worktree, "rev-parse", "HEAD"), "refs/heads/main", _SLUG)
 
 
 def test_an_unknown_tip_is_not_absorbed(coord_landed: tuple[Path, Path, str]) -> None:
     root, _worktree, _tip = coord_landed
-    assert not _absorbed_but_for_status_log(root, "0" * 40, "refs/heads/main", _SLUG)
+    assert not is_absorbed_but_for_mission_bookkeeping(root, "0" * 40, "refs/heads/main", _SLUG)
 
 
 def test_the_remover_given_the_mission_slug_removes_the_coordination_lane(coord_landed: tuple[Path, Path, str]) -> None:
@@ -446,4 +446,4 @@ def test_a_binary_conflict_beside_the_status_log_is_not_absorbed(coord_landed: t
     (worktree / "blob.bin").write_bytes(b"\x00lane\x00")
     _git(worktree, "add", "blob.bin")
     _git(worktree, "commit", "-q", "-m", "lane binary")
-    assert not _absorbed_but_for_status_log(root, _git(worktree, "rev-parse", "HEAD"), "refs/heads/main", _SLUG)
+    assert not is_absorbed_but_for_mission_bookkeeping(root, _git(worktree, "rev-parse", "HEAD"), "refs/heads/main", _SLUG)

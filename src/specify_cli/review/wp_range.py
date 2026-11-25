@@ -23,7 +23,9 @@ Resolution (each derived anchor must be an ancestor of the tip, or it is skipped
   written to. On a coordination topology that holds only when the coordination branch is the
   planning lane's write branch (a default-settled Mission before its landing); otherwise the events
   sit on the coordination branch, apart from the work, and the range is unavailable
-  (``not_recorded``) rather than an empty derived one. A code-lane work package never uses them:
+  (``not_recorded``) rather than an empty derived one. A derived planning-lane range whose commits
+  all touch only bookkeeping paths (the work package's own commits are on another branch, #7759) is
+  unavailable too (``planning_range_bookkeeping_only``). A code-lane work package never uses them:
   its status log lives on the status branch, not its lane branch.
 * ``gap`` names why the recorded value was not used (the first reason seen).
 
@@ -152,6 +154,8 @@ class RangeGap(StrEnum):
     NO_SUBMISSION = "no_submission"
     UNRESOLVABLE_SHA = "unresolvable_sha"
     STATUS_UNREADABLE = "status_unreadable"
+    #: A derived planning-lane range whose commits all touch only bookkeeping paths (#7759).
+    PLANNING_RANGE_BOOKKEEPING_ONLY = "planning_range_bookkeeping_only"
 
 
 #: Each window gap reason as the range's own gap (an explicit map, so a new reason fails the check in the tests, never a resolution).
@@ -251,13 +255,32 @@ def _owned_pathspecs(owned_files: Sequence[str], mission_dir_name: str) -> tuple
     test errs towards excluding; a glob that cannot reach any bookkeeping path gets no exclude.
     """
     patterns: tuple[str, ...] = owned_patterns(owned_files)
-    # The gate's bookkeeping entries are prefixes (``status.`` means ``status.*``), so they keep the
-    # wildcard; the task index is one exact file, so an owned ``tasks.md.bak`` is never excluded.
-    tasks_index = mission_tasks_index_path(mission_dir_name)
-    candidates = (*((prefix, f"{prefix}*") for prefix in status_only_excluded_prefixes(mission_dir_name)), (tasks_index, tasks_index))
     leads = [_literal_lead(pattern) for pattern in patterns]
-    reached = [spec for prefix, spec in candidates if any(prefix.startswith(lead) or lead.startswith(prefix) for lead in leads)]
+    reached = [spec for prefix, spec in _bookkeeping_candidates(mission_dir_name) if any(prefix.startswith(lead) or lead.startswith(prefix) for lead in leads)]
     return (*patterns, *(f"{_EXCLUDE}{spec}" for spec in reached))
+
+
+def _bookkeeping_candidates(mission_dir_name: str) -> tuple[tuple[str, str], ...]:
+    """Each bookkeeping entry as ``(literal prefix, pathspec)``.
+
+    The gate's bookkeeping entries are prefixes (``status.`` means ``status.*``), so they keep the
+    wildcard; the task index is one exact file, so an owned ``tasks.md.bak`` is never excluded.
+    """
+    tasks_index = mission_tasks_index_path(mission_dir_name)
+    return (*((prefix, f"{prefix}*") for prefix in status_only_excluded_prefixes(mission_dir_name)), (tasks_index, tasks_index))
+
+
+def _owned_are_bookkeeping(owned_files: Sequence[str], mission_dir_name: str) -> bool:
+    """Whether every declared owned glob lies inside the bookkeeping set (none declared: ``False``).
+
+    A glob is inside it when its literal lead starts with a bookkeeping prefix, or when it is the
+    task index itself.
+    """
+    patterns = owned_patterns(owned_files)
+    if not patterns:
+        return False
+    candidates = _bookkeeping_candidates(mission_dir_name)
+    return all(any(pattern == spec if prefix == spec else _literal_lead(pattern).startswith(prefix) for prefix, spec in candidates) for pattern in patterns)
 
 
 def _bookkeeping_excludes(mission_slug: str) -> tuple[str, ...]:
@@ -588,6 +611,26 @@ def _read_context(repo_root: Path, mission_slug: str, wp_id: str, owned: OwnedCh
     )
 
 
+def _bookkeeping_only_planning_range(ctx: _Context, base: str, tip: str, bookkeeping: Sequence[str], *, owned_files: Sequence[str] = ()) -> bool:
+    """Whether a derived planning-lane range holds nothing but bookkeeping commits (#7759).
+
+    Only a work package no lane branch stamps, on a non-``single_branch`` topology, is judged (the
+    status-event path of rulings Q10 / Q12); code-lane ranges are never withheld. A work package
+    whose owned paths are all bookkeeping is never withheld either: its own commits are exactly
+    what the count leaves out. The count uses the range's own bookkeeping excludes. A failed count
+    keeps the range (fail-soft, NFR-004).
+    """
+    if ctx.lane_stamped or is_single_branch(ctx.surface.topology) or base == tip:
+        return False
+    if _owned_are_bookkeeping(owned_files, ctx.surface.mission_dir_name):
+        return False
+    try:
+        return _count(ctx.repo_root, f"{base}..{tip}", bookkeeping) == 0
+    except GitCommandError:
+        logger.debug("review range: bookkeeping count of %s..%s failed", base, tip, exc_info=True)
+        return False
+
+
 def _status_of(base_source: RangeSource, tip_source: RangeSource) -> RangeStatus:
     recorded = base_source is RangeSource.RECORDED_WINDOW and tip_source is RangeSource.RECORDED_SUBMISSION
     return RangeStatus.RECORDED if recorded else RangeStatus.DERIVED
@@ -617,6 +660,8 @@ def resolve_wp_review_range(
     if base is None:
         return WpReviewRange.unavailable(wp_id, base_gap or RangeGap.UNRESOLVABLE_SHA, owned_pathspecs)
     bookkeeping = _bookkeeping_excludes(ctx.surface.mission_dir_name)
+    if _bookkeeping_only_planning_range(ctx, base, tip, bookkeeping, owned_files=owned_files):
+        return WpReviewRange.unavailable(wp_id, RangeGap.PLANNING_RANGE_BOOKKEEPING_ONLY, owned_pathspecs)
     head = ctx.live_head
     tip_off_branch = head is not None and not ctx.is_ancestor(tip, head)
     listing = _listing(

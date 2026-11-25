@@ -243,7 +243,15 @@ def test_local_file_obstructing_target_descendant_still_refuses(tmp_path: Path) 
     assert (repo / "src" / "store").is_file()
 
 
-def test_ignored_directory_obstructing_target_descendant_still_refuses(tmp_path: Path) -> None:
+def test_ignored_directory_overlapping_target_keeps_its_non_colliding_file(tmp_path: Path) -> None:
+    """#7746: ``!! vendor/`` overlaps incoming ``vendor/lib.txt`` only as a directory.
+
+    ``git reset --hard`` writes ``vendor/lib.txt`` and leaves the ignored
+    ``vendor/notes.txt`` alone, so the collapsed entry is judged file by file
+    and the advance proceeds. A colliding ignored file still refuses
+    (:func:`test_exact_ignored_leaf_still_refuses`,
+    ``tests/git/test_ref_advance_collapsed_ignored_7746.py``).
+    """
     repo = tmp_path / "repo"
     _init_repo(repo)
     _write(repo, ".gitignore", "vendor/\n")
@@ -257,12 +265,12 @@ def test_ignored_directory_obstructing_target_descendant_still_refuses(tmp_path:
 
     new_sha = _commit_in_detached(repo, mutate)
     _write(repo, "vendor/notes.txt", "operator notes\n")
-    before = _CheckoutState(repo)
 
-    error = _refuse(repo, new_sha)
+    advance_branch_ref(repo, _BRANCH, new_sha)
 
-    assert "vendor" in str(error)
-    before.assert_unchanged(repo, files={"vendor/notes.txt": "operator notes\n", "README.md": "init\n"})
+    assert _git(repo, "rev-parse", f"refs/heads/{_BRANCH}") == new_sha
+    assert (repo / "vendor/lib.txt").read_text(encoding="utf-8") == "tracked lib\n"
+    assert (repo / "vendor/notes.txt").read_text(encoding="utf-8") == "operator notes\n"
 
 
 def test_storehouse_does_not_obstruct_store_and_survives_advance(tmp_path: Path) -> None:

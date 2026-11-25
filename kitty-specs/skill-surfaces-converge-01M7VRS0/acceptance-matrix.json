@@ -1,0 +1,129 @@
+{
+  "mission_slug": "skill-surfaces-converge-01M7VRS0",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "A file byte-equal to a historically shipped render of the same skill path counts as proven generated and is refreshed.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/skills/test_historical_renders.py (WP01)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:29:37.012341+00:00",
+      "notes": "Red-first test committed before the fix; WP approved by an independent reviewer (claude::generic-reviewer/reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "The global skill version stamp is not written as current while any canonical destination is kept.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/runtime/test_global_skills_historical_proof.py::test_unproven_canonical_file_is_kept_and_withholds_the_stamp (WP03)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:29:45.969492+00:00",
+      "notes": "Red-first test committed before the fix; WP approved by an independent reviewer (claude::generic-reviewer/reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "doctor tool-surfaces lists each kept canonical global skill file with its reason and a remedy, writing nothing.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/tool_surface/test_global_skill_kept_findings.py (WP04, global-skill-kept-stale)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:29:54.261437+00:00",
+      "notes": "Red-first test committed before the fix; WP approved by an independent reviewer (claude::generic-reviewer/reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "An edited copy of a retired skill in a global root is reported as kept (retired-skill-kept-edited) and never deleted.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/tool_surface/test_global_skill_kept_findings.py::test_edited_retired_global_skill_is_reported; tests/specify_cli/runtime/test_global_skills_historical_proof.py (WP03/WP04)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:30:03.032218+00:00",
+      "notes": "Red-first test committed before the fix; WP approved by an independent reviewer (claude::generic-reviewer/reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "doctor skills --fix repairs a command skill whose recorded hash matches non-canonical bytes, agreeing with doctor tool-surfaces and upgrade.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/skills/test_crlf_skill_render_4998.py (xfail removed); tests/specify_cli/cli/commands/test_doctor_skills.py (WP05)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:30:11.403501+00:00",
+      "notes": "Red-first test committed before the fix; WP approved by an independent reviewer (claude::generic-reviewer/reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verification reports a managed entry of a retired skill whose file still matches its recorded hash, so the retirement drain runs.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/skills/test_verify_retired_orphan.py (WP06)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:30:19.880396+00:00",
+      "notes": "Red-first test committed before the fix; WP approved by an independent reviewer (claude::generic-reviewer/reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Global asset ownership records stay valid when one agent root moves outside home (home-parent anchor + external sidecar).",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_global_asset_inventory_anchor.py (WP02)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:30:28.619473+00:00",
+      "notes": "Red-first test committed before the fix; WP approved by an independent reviewer (claude::generic-reviewer/reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Ownership records written by earlier releases keep resolving and are rewritten once in the new format.",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_global_asset_inventory_anchor.py (WP02, legacy-key placement and one-time rewrite)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:30:37.680479+00:00",
+      "notes": "Red-first test committed before the fix; WP approved by an independent reviewer (claude::generic-reviewer/reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "doctor command-files and doctor skills list proven Spec Kitty copies under the previous user-global root with an rm hint, writing nothing.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/runtime/test_old_root_leftovers.py (WP05)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:30:46.312435+00:00",
+      "notes": "Red-first test committed before the fix; WP approved by an independent reviewer (claude::generic-reviewer/reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "The skill is spk-start-first-mission; spk-start-first-feature is retired and every reference, including the New feature wording, is repointed.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/skills/test_first_mission_skill_rename.py; tests/specify_cli/skills/test_retired_skill_completeness.py (WP07)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:30:54.852534+00:00",
+      "notes": "Red-first test committed before the fix; WP approved by an independent reviewer (claude::generic-reviewer/reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "The startup sync, upgrade and doctor --fix reach the same refresh/keep verdict for the same file (one kept-file rule).",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/runtime/test_global_skills_historical_proof.py (startup sync vs run_tool_surfaces(fix=True) verdict test, WP03)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:31:03.308724+00:00",
+      "notes": "Red-first test committed before the fix; WP approved by an independent reviewer (claude::generic-reviewer/reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "#2527 reproduced on a053b674 and folded in: a project skill file holding an earlier shipped render is refreshed under --fix, with a backup; a user edit is kept.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/skills/test_project_skills_historical_proof.py (WP03; reproduced on a053b674, folded in)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T12:31:11.574504+00:00",
+      "notes": "Red-first test committed before the fix; WP approved by an independent reviewer (claude::generic-reviewer/reviewer-renata)."
+    }
+  ],
+  "negative_invariants": []
+}

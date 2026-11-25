@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "mission_slug": "stale-lane-sibling-recovery-01M7X1QS",
+  "mission_id": "01M7X1QSXKVTHS52Z1CQHMVZ03",
+  "mission_branch": "kitty/mission-stale-lane-sibling-recovery-01M7X1QS",
+  "target_branch": "fix/7755-stale-lane-auto-rebase-recovery",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "CLAUDE.md",
+        "docs/changelog/unreleased/7780.fixed.md",
+        "src/specify_cli/lanes/consolidation.py",
+        "src/specify_cli/lanes/stale_check.py",
+        "tests/consolidation/stale_sibling_lane_support.py",
+        "tests/consolidation/test_7755_stale_sibling_lane_recovery.py",
+        "tests/consolidation/test_p0_repro_7755_auto_rebase_halt_reason.py",
+        "tests/integration/test_consolidate_upgraded_mission_recovery.py",
+        "tests/lanes/test_stale_check.py",
+        "tests/lanes/test_stale_remediation_cli_command.py",
+        "tests/lanes/test_stale_sibling_lanes.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-20T18:02:11.412844+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "cfa681365583ddedf4fe0d2ce653e43d6e490a67"
+}

@@ -1,0 +1,99 @@
+{
+  "mission_slug": "orientation-content-authority-01M7X5W6",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Committed orientation content has one source (session_presence/projection.py) used by manager, migrations, provider, upgrade and doctor",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/session_presence/test_orientation_projection_5215.py::TestExpectedOrientation::test_manager_build_content_is_the_committed_content; tests/specify_cli/tool_surface/providers/test_session_presence_orientation_5215.py::TestConvergence",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T21:47:22.465891+00:00",
+      "notes": "Red first: collection error on base; provider tests red on WP01 tip"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "The block names project.slug, else the git remote repository name, else unknown; never the directory name",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/session_presence/test_orientation_projection_5215.py::TestResolveProjectSlug (4 tests); tests/specify_cli/identity/test_project_slug_git_remote.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T21:47:25.915988+00:00",
+      "notes": "Fixture dir dirname-differs vs slug local-agent-bus"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Committed blocks carry healthy and no upgrade line, even with a newer version cached",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/session_presence/test_orientation_projection_5215.py::TestExpectedOrientation::test_health_is_deterministic_even_when_an_upgrade_is_cached",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T21:47:29.169400+00:00",
+      "notes": "Operator ruling 2026-11-20 #1"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "A block whose content differs from the expected rendering probes stale; the expected block probes present",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/tool_surface/providers/test_session_presence_orientation_5215.py::TestS1WrongBlockAtCurrentVersion::test_probe_reports_stale + test_correct_block_is_present (positive control)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T21:47:32.398653+00:00",
+      "notes": "S1; red on WP01 tip"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "The writer rewrites a tool-written block whose bytes differ, and leaves an equal block untouched",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/session_presence/test_markdown_rules_writer.py::test_same_version_block_with_other_health_or_slug_converges_once + test_wp07_same_content_has_no_churn",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T21:47:35.501317+00:00",
+      "notes": "Version-only shortcut retired"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Upgrade surface repair and doctor --fix write identical bytes; a second pass changes nothing",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/tool_surface/providers/test_session_presence_orientation_5215.py::TestConvergence (wrong-slug, older, live-health) + test_second_pass_changes_nothing; live CLI repro idempotent",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T21:47:38.721249+00:00",
+      "notes": "S3/S4"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "The SessionStart hook keeps live health and names the same project as the files",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/session_presence/test_orientation_projection_5215.py::TestLiveContentAgreesWithFiles; tests/specify_cli/cli/commands/test_session_start.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T21:47:41.751990+00:00",
+      "notes": "Live health only in live_content"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Manager and provider select orientation-writable harnesses through projection.orientation_writer",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/session_presence/test_orientation_projection_5215.py::TestOrientationWriter + test_writer_selection_failure_is_a_warning_not_a_crash; provider tests green",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T21:47:44.938257+00:00",
+      "notes": "Provider keeps a pre-check only to observe the harness dir before the predicate reads it"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "A hand-edited managed block stays preserved",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/tool_surface/providers/test_session_presence_orientation_5215.py::TestHandEditedBlockPreserved; existing preserve tests in test_session_presence.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-11-20T21:47:48.061587+00:00",
+      "notes": "Unchanged behaviour"
+    }
+  ],
+  "negative_invariants": []
+}

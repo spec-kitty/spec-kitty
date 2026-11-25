@@ -35,8 +35,6 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Protocol
 
-from kernel.git import GitCommandError, blob_at, changed_paths, merge_tree
-from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.utils import safe_is_dir
 from specify_cli.git.destructive_guard import (
     MERGE_UNSAFE_WORKTREE_DIRTY,
@@ -51,7 +49,6 @@ from specify_cli.git.destructive_guard import (
 from specify_cli.git.ref_advance import ResidueClassifier
 from specify_cli.lanes.compute import is_repo_root_lane, lane_created_branch
 from specify_cli.lanes.models import LanesManifest
-from specify_cli.status import EVENTS_FILENAME, SNAPSHOT_FILENAME
 from specify_cli.workspace.process_probe import ProcessProbeResult, processes_with_cwd_under
 
 __all__ = [
@@ -62,19 +59,24 @@ __all__ = [
     "LaneRetention",
     "LocalTargetAtPass",
     "MainTodayRemover",
+    "MissionBranchProjection",
     "apply",
     "branch_exists",
     "branch_tip",
     "cleanup_expected_tips",
     "kept_after_coordination_refusal",
+    "mission_branch_projection",
     "own_auto_rebase_move",
     "plan_lane_cleanup",
+    "projection_tips",
 ]
 
 #: The backstop every kept lane names (contracts/consolidate-cleanup-report.md).
 BACKSTOP_COMMAND = "spec-kitty doctor workspaces --prune"
 #: Running processes cannot be checked on this platform (no ``/proc``).
 PROCESS_PROOF_UNAVAILABLE = "PROCESS_PROOF_UNAVAILABLE"
+#: Cleanup had no usable landing proof for the lane (#7325): it is kept, worktree and branch as they are.
+_LANDING_PROOF_UNAVAILABLE = "LANDING_PROOF_UNAVAILABLE"
 #: The remover itself failed unexpectedly; the lane is kept and nothing more is attempted.
 LANE_CLEANUP_FAILED = "LANE_CLEANUP_FAILED"
 #: ``git branch -D`` itself refused (for example the branch is checked out elsewhere).
@@ -111,6 +113,7 @@ class LaneCleanupResult:
     command: str | None = None  # e.g. "spec-kitty doctor workspaces --prune"
     recreate: str | None = None  # e.g. "git branch <b> <sha>"
     detail: str | None = None  # e.g. the retention key that kept the lane
+    recoverable: str | None = None  # the lane-tip ref kept for a lane removed on the Mission-branch proof
 
     def to_json(self, repo_root: Path | None = None) -> dict[str, str | None]:
         """The contract object (``contracts/consolidate-cleanup-report.md``)."""
@@ -156,19 +159,42 @@ def _render_result(result: LaneCleanupResult) -> list[str]:
         return [f"  Retained  {lane}  retained by policy ({result.detail})"]
     if result.outcome is LaneCleanupOutcome.KEPT:
         lines = [f"  Kept      {lane}  {result.code}  {result.detail or ''}".rstrip()]
-        lines.append(f"            Remedy: {result.remedy}, then run: {result.command}")
+        then_run = f", then run: {result.command}" if result.command else ""
+        lines.append(f"            Remedy: {result.remedy}{then_run}")
         return lines
     branch = result.item.branch or ""
     suffix = f"   (recreate: {result.recreate})" if result.recreate else ""
+    if result.recoverable:
+        suffix += f"   (recoverable: {result.recoverable})"
     return [f"  Removed   {lane}  {branch}{suffix}".rstrip()]
 
 
 @dataclass(frozen=True)
+class MissionBranchProjection:
+    """The lane tips the Mission branch proved landed, read before its teardown (#7747, operator ruling 2026-11-24, A).
+
+    ``mission_tip`` is the Mission branch tip read before the coordination teardown; ``proven_tips``
+    are the lane tips :func:`specify_cli.lanes.lane_tip.is_landed_through_mission_branch` proved
+    against it and ``anchor_sha``, the reconciliation PASS anchor. The guard uses the proof only for
+    a landing whose PASS anchor is that SHA or was carried from it.
+    """
+
+    mission_tip: str
+    proven_tips: frozenset[str]
+    anchor_sha: str
+
+
+@dataclass(frozen=True)
 class LocalTargetAtPass:
-    """Landing proof of ``consolidate``: the local target sat at the reconciliation PASS anchor."""
+    """Landing proof of ``consolidate``: the local target sat at the reconciliation PASS anchor.
+
+    ``projection`` adds the lane tips the Mission branch proved landed (#7747, A); the guard accepts
+    them as O3 evidence besides the content proof.
+    """
 
     target_ref: str
     passed_sha: str
+    projection: MissionBranchProjection | None = None
 
 
 @dataclass(frozen=True)
@@ -331,8 +357,8 @@ def kept_after_coordination_refusal(items: Iterable[LaneCleanupItem]) -> LaneCle
     return LaneCleanupReport(results=results)
 
 
-def _kept(item: LaneCleanupItem, code: str, remedy: str, *, detail: str | None) -> LaneCleanupResult:
-    return LaneCleanupResult(item=item, outcome=LaneCleanupOutcome.KEPT, code=code, remedy=remedy, command=BACKSTOP_COMMAND, detail=detail)
+def _kept(item: LaneCleanupItem, code: str, remedy: str, *, detail: str | None, command: str | None = BACKSTOP_COMMAND) -> LaneCleanupResult:
+    return LaneCleanupResult(item=item, outcome=LaneCleanupOutcome.KEPT, code=code, remedy=remedy, command=command, detail=detail)
 
 
 ProcessProbe = Callable[[Sequence[Path]], ProcessProbeResult]
@@ -350,6 +376,52 @@ def _branch_tip(repo_root: Path, branch: str) -> str | None:
 def branch_tip(repo_root: Path, branch: str) -> str | None:
     """The SHA ``refs/heads/<branch>`` resolves to, or ``None``."""
     return _branch_tip(repo_root, branch)
+
+
+def _anchor_carried_to(repo_root: Path, anchor: str, passed: str) -> bool:
+    """The landing's PASS anchor is the one the projection was proven against, or carried from it.
+
+    Consolidate advances the PASS anchor only over its own post-landing commits (FR-035), so a
+    landing anchor that descends from the proven one is the same landing.
+    """
+    if not anchor or not passed:
+        return False
+    return anchor == passed or _git(repo_root, "merge-base", "--is-ancestor", anchor, passed).returncode == 0
+
+
+def mission_branch_projection(
+    repo_root: Path,
+    mission_branch: str,
+    landing: LocalTargetAtPass,
+    tips: Iterable[str],
+    mission_slug: str,
+) -> MissionBranchProjection | None:
+    """Prove each lane tip landed through the Mission branch, before that branch is torn down (#7747, A).
+
+    ``tips`` are the consolidated lanes' tips. A lane's path superseded by another of them counts
+    only through that lane's commits on the Mission branch (approved work the run merged; a fully
+    canceled lane is never merged). ``None`` when there is no PASS anchor or no Mission branch to
+    read: the lanes are then judged by the content proof alone.
+    """
+    from specify_cli.lanes.lane_tip import is_landed_through_mission_branch
+
+    passed = landing.passed_sha.strip()
+    mission_tip = _branch_tip(repo_root, mission_branch)
+    if not passed or mission_tip is None:
+        return None
+    approved = tuple(tips)
+    proven = frozenset(tip for tip in approved if is_landed_through_mission_branch(repo_root, tip, mission_tip, passed, mission_slug, approved_tips=approved))
+    return MissionBranchProjection(mission_tip=mission_tip, proven_tips=proven, anchor_sha=passed)
+
+
+def projection_tips(items: Iterable[LaneCleanupItem], repo_root: Path) -> list[str]:
+    """The tip each lane's cleanup will judge: the claim-validated one, else the live branch tip."""
+    tips = []
+    for item in items:
+        tip = item.expected_tip or (_branch_tip(repo_root, item.branch) if item.branch else None)
+        if tip:
+            tips.append(tip)
+    return tips
 
 
 def branch_exists(repo_root: Path, branch: str) -> bool:
@@ -459,51 +531,6 @@ def _refusal_detail(refusal: DestructiveOpRefused, worktree: Path) -> str:
     return f"{worktree} was not removed."
 
 
-def _status_log_contained(repo_root: Path, tip: str, landing_ref: str, log_path: str) -> bool:
-    """Every event line of the lane's copy of the status log is also in the landing's copy (append-only, #6736).
-
-    Raises :class:`kernel.git.GitCommandError` when a ref or blob cannot be read.
-    """
-    lane = blob_at(repo_root, tip, log_path)
-    if lane is None:
-        return True  # the lane carries no copy: nothing of it can be lost
-    landed = blob_at(repo_root, landing_ref, log_path)
-    if landed is None:
-        return False
-    landed_lines = {line for line in landed.splitlines() if line.strip()}
-    return all(line in landed_lines for line in lane.splitlines() if line.strip())
-
-
-def _absorbed_but_for_status_log(repo_root: Path, tip: str, landing_ref: str, mission_slug: str) -> bool:
-    """True when ``tip`` is absorbed by ``landing_ref`` except for the Mission's status log and snapshot (#6736).
-
-    On a coordination topology a lane branch carries a copy of the Mission's status log and its
-    ``status.json`` snapshot: syncing the lane with the mission branch (``implement``, and the
-    auto-rebase consolidate runs on a stale lane) merges them in. After the landing the target
-    appends to that log (done transitions, the coordination flatten), so ``git merge-tree`` sees
-    two different additions of the same file and the plain absorption proof never holds for such a
-    lane, although nothing on it is lost.
-
-    This proof is deliberately narrow and fails closed. It holds only when merging ``tip`` into
-    ``landing_ref`` conflicts on, and changes, no path other than
-    ``kitty-specs/<slug>/status.events.jsonl`` and ``kitty-specs/<slug>/status.json``, AND every
-    event line of the lane's log is already in the landing's log (the log is append-only; the
-    snapshot is derived from it and is regenerated by the tool). Any other difference, a git error
-    or an unreadable blob is ``False``.
-    """
-    mission_dir = f"{KITTY_SPECS_DIR}/{mission_slug}"
-    log_path = f"{mission_dir}/{EVENTS_FILENAME}"
-    status_paths = {log_path, f"{mission_dir}/{SNAPSHOT_FILENAME}"}
-    try:
-        merged = merge_tree(repo_root, landing_ref, tip)
-        if not merged.tree or not {str(path) for path in merged.conflicted} <= status_paths:
-            return False
-        changed = {str(path) for path in changed_paths(repo_root, landing_ref, merged.tree)}
-        return changed <= status_paths and _status_log_contained(repo_root, tip, landing_ref, log_path)
-    except GitCommandError:
-        return False
-
-
 class GuardedLaneRemover:
     """The lane remover bound to the landed-removal guard (WP16, FR-037, C-004, ADR 2026-11-06-1).
 
@@ -512,12 +539,17 @@ class GuardedLaneRemover:
     reconciliation PASS tip), pr-mode's :class:`RemoteRef` the named-remote proof. The tip is the
     claim-validated ``expected_tip`` (else the live branch tip, which the guard still proves landed
     and checks the worktree against). A guard refusal keeps the lane with the guard's code; the guard
-    never forces a removal. Every other leg (no landing proof, no worktree left, a retained branch)
-    goes to :class:`MainTodayRemover`, today's guarded primitives.
+    never forces a removal. A lane with no usable landing proof (none given, an empty PASS anchor, its
+    worktree gone while its branch remains, or no tip to name) is kept with
+    ``LANDING_PROOF_UNAVAILABLE``, its branch untouched (#7325); a lane whose worktree and branch are
+    both gone is removed (nothing remains). Only the retained-branch leg (the worktree goes, no branch
+    is deleted) still goes to :class:`MainTodayRemover` (plan decision PD-1, operator ruling
+    2026-11-23).
 
-    ``mission_slug`` (consolidate and ``orchestrator-api consolidate-mission``) lets the absorption
-    proof set aside the Mission's own status log and snapshot under
-    :func:`_absorbed_but_for_status_log`; without it the proof is the plain ``is_absorbed``.
+    ``mission_slug`` (consolidate and ``orchestrator-api consolidate-mission``) makes the absorption
+    proof :func:`specify_cli.lanes.lane_tip.is_absorbed_but_for_mission_bookkeeping`, which sets aside
+    the Mission bookkeeping a ``lanes_with_coord`` lane carries from its syncs and never authored
+    (#6736, #7747); without it the proof is the plain ``is_absorbed``.
     """
 
     def __init__(
@@ -536,48 +568,167 @@ class GuardedLaneRemover:
         self._probe = probe
         self._after_worktree_removed = after_worktree_removed
         self._fallback = MainTodayRemover(repo_root, context=context, creation_base=creation_base, probe=probe, after_worktree_removed=after_worktree_removed)
+        self._superseded_tips: set[str] = set()
 
     def remove(self, item: LaneCleanupItem, *, landing: LandingProof | None) -> LaneCleanupResult:
-        removal = _guarded_removal(self._repo_root, item, landing)
-        if removal is None or landing is None or item.worktree is None or item.branch is None:
+        if item.branch is None:
+            # PD-1 (operator ruling 2026-11-23): the retained-branch leg removes the worktree only.
             return self._fallback.remove(item, landing=landing)
+        unavailable = self._proof_unavailable(item, item.branch, landing)
+        if unavailable is not None:
+            return unavailable
+        removal = _guarded_removal(self._repo_root, item, landing)
+        if removal is None or landing is None or item.worktree is None:  # unreachable after the check above
+            return _kept(item, _LANDING_PROOF_UNAVAILABLE, "no landing proof could be built", detail=None)
+        prior_tip = self._name_tip_before_removal(item.branch, removal.tip)
         try:
             result = guarded_landed_removal(
                 self._repo_root,
                 removal,
                 context=self._context,
                 processes_in=self._busy,
-                absorbed=self._absorbed,
+                absorbed=self._absorption_proof(landing),
             )
         except DestructiveOpRefused as refusal:
             # A lane consolidate did not land (all its WPs canceled, or absorption unprovable) is kept
             # with the guard's code: falling back to the older remover deleted its only copy (#7316 landing).
+            self._restore_tip(item.branch, prior_tip)
             return _kept(item, refusal.error_code, refusal.remediation, detail=_refusal_detail(refusal, item.worktree))
         if self._after_worktree_removed is not None:
             self._after_worktree_removed()
+        if not result.branch_deleted:
+            self._restore_tip(item.branch, prior_tip)
         if result.refusal is not None:
             return replace(_kept(item, result.refusal, f"the worktree was removed but {item.branch} was kept", detail=None), recreate=result.recreate)
         if result.branch_deleted:
-            from specify_cli.lanes import lane_tip
-
-            lane_tip.clear_tip(self._repo_root, item.branch)
+            return self._after_branch_deleted(item, item.branch, removal.tip, recreate=result.recreate)
         return LaneCleanupResult(item=item, outcome=LaneCleanupOutcome.REMOVED, recreate=result.recreate)
+
+    def _name_tip_before_removal(self, branch: str, tip: str) -> str | None:
+        """Write the lane-tip ref at ``tip`` before the guard may delete the branch; return the ref's earlier value.
+
+        Tier R confirm 4: a failed write keeps the lane (nothing is removed yet), and an interruption
+        after the branch delete still leaves its tip named.
+        """
+        from specify_cli.lanes import lane_tip
+
+        prior: str | None = lane_tip.read_tip(self._repo_root, branch)
+        lane_tip.record_tip(self._repo_root, branch, tip)
+        return prior
+
+    def _restore_tip(self, branch: str, prior: str | None) -> None:
+        """Put back the lane-tip ref a kept lane had before :meth:`_name_tip_before_removal` wrote it."""
+        from specify_cli.lanes import lane_tip
+
+        if prior is None:
+            lane_tip.clear_tip(self._repo_root, branch)
+        else:
+            lane_tip.record_tip(self._repo_root, branch, prior)
+
+    def _after_branch_deleted(self, item: LaneCleanupItem, branch: str, tip: str, *, recreate: str | None) -> LaneCleanupResult:
+        """Clear the lane-tip ref, except for a lane removed on the Mission-branch proof alone.
+
+        Operator ruling 2026-11-24: such a lane's exact work is not on the target (later approved work
+        superseded it, judged per path), so its ref, written before the removal, stays at the removed
+        tip and is named in the report. A lane the content proof discharged has its work on the target:
+        nothing to recover, so its ref is cleared.
+        """
+        from specify_cli.lanes import lane_tip
+
+        if tip not in self._superseded_tips:
+            lane_tip.clear_tip(self._repo_root, branch)
+            return LaneCleanupResult(item=item, outcome=LaneCleanupOutcome.REMOVED, recreate=recreate)
+        return LaneCleanupResult(item=item, outcome=LaneCleanupOutcome.REMOVED, recreate=recreate, recoverable=lane_tip.tip_ref(branch))
+
+    def _proof_unavailable(self, item: LaneCleanupItem, branch: str, landing: LandingProof | None) -> LaneCleanupResult | None:
+        """A result when the guard cannot be given a landing proof for this lane, else ``None`` (#7325)."""
+        worktree_present = item.worktree is not None and safe_is_dir(item.worktree)
+        branch_tip = _branch_tip(self._repo_root, branch)
+        if not worktree_present and branch_tip is None:
+            # Nothing is left to remove; a missing branch keeps its lane-tip ref (FR-034).
+            return LaneCleanupResult(item=item, outcome=LaneCleanupOutcome.REMOVED)
+        reason = _proof_unavailable_reason(landing, worktree_present=worktree_present, tip=item.expected_tip or branch_tip)
+        if reason is None:
+            return None
+        remedy = _proof_unavailable_remedy(reason, branch, landing, branch_present=branch_tip is not None, worktree=item.worktree)
+        return _kept(item, _LANDING_PROOF_UNAVAILABLE, remedy, detail=None, command=BACKSTOP_COMMAND if worktree_present else None)
 
     def _busy(self, path: Path) -> bool | None:
         """O2: ``None`` when the probe cannot tell (off Linux): the guard then keeps the lane (NFR-008)."""
         probe = self._probe([path])
         return (path in probe.busy) if probe.available else None
 
-    def _absorbed(self, tip: str, landing_ref: str) -> bool:
-        from specify_cli.lanes.lane_tip import AbsorptionUnsupported, is_absorbed
+    def _absorption_proof(self, landing: LandingProof) -> Callable[[str, str], bool]:
+        """O3: the content proof, else a tip the Mission branch proved landed (#7747, A).
 
-        try:
-            if is_absorbed(self._repo_root, tip, landing_ref, base=None):
+        The content proof runs first so that a tip discharged only by the Mission branch is known: its
+        lane-tip ref is kept after the removal (operator ruling 2026-11-24).
+        """
+        if not isinstance(landing, LocalTargetAtPass) or landing.projection is None:
+            return self._absorbed
+        projection = landing.projection
+        if not _anchor_carried_to(self._repo_root, projection.anchor_sha, landing.passed_sha.strip()):
+            return self._absorbed
+        proven = projection.proven_tips
+
+        def absorbed(tip: str, landing_ref: str) -> bool:
+            if self._absorbed(tip, landing_ref):
+                self._superseded_tips.discard(tip)
                 return True
+            if tip in proven:
+                self._superseded_tips.add(tip)
+                return True
+            return False
+
+        return absorbed
+
+    def _absorbed(self, tip: str, landing_ref: str) -> bool:
+        from specify_cli.lanes.lane_tip import AbsorptionUnsupported, is_absorbed, is_absorbed_but_for_mission_bookkeeping
+
+        if self._mission_slug is not None:
+            # #7747: never the plain proof first; its merge can hide a lane's Mission-file edit.
+            proven: bool = is_absorbed_but_for_mission_bookkeeping(self._repo_root, tip, landing_ref, self._mission_slug)
+            return proven
+        try:
+            plain: bool = is_absorbed(self._repo_root, tip, landing_ref, base=None)
+            return plain
         except AbsorptionUnsupported:
             return False
-        # #6736: a coordination-topology lane carries an older copy of the Mission's status log.
-        return self._mission_slug is not None and _absorbed_but_for_status_log(self._repo_root, tip, landing_ref, self._mission_slug)
+
+
+def _proof_unavailable_reason(landing: LandingProof | None, *, worktree_present: bool, tip: str | None) -> str | None:
+    """Why no landing proof can be handed to the guard, or ``None`` when one can (#7325)."""
+    if landing is None:
+        return "no landing proof was given"
+    if isinstance(landing, LocalTargetAtPass) and not landing.passed_sha.strip():
+        return "no reconciliation PASS anchor was recorded"
+    if not worktree_present:
+        return "its worktree is gone, so the landing cannot be proven here"
+    if not tip:
+        return "no tip can be named for it"
+    return None
+
+
+def _proof_unavailable_remedy(reason: str, branch: str, landing: LandingProof | None, *, branch_present: bool, worktree: Path | None) -> str:
+    """A remedy whose commands run as printed (#7325): it names a revision only when one exists."""
+    if landing is None:
+        return f"{reason}; delete {branch} by hand only once you have checked that its work is on the target branch"
+    ref = _landing_ref_name(landing)
+    # A squash landing rewrites the lane's commits, so `git log <ref>..<lane>` lists them even when
+    # their content landed: the remedy compares content instead.
+    if branch_present:
+        return f"{reason}; compare {branch} with {ref} (`git diff {ref} {branch}`) and delete it by hand only if its work is on {ref}"
+    # The branch ref is gone: name the lane's recorded work tip, then compare it.
+    return (
+        f"{reason}; its last commit is `git rev-parse refs/spec-kitty/lane-tip/{branch}` (if that ref is missing, look in "
+        f"`git fsck --lost-found`); compare it with {ref} (`git diff {ref} <sha>`) and remove {worktree} by hand only if that work is on {ref}"
+    )
+
+
+def _landing_ref_name(landing: LandingProof) -> str:
+    if isinstance(landing, LocalTargetAtPass):
+        return landing.target_ref
+    return landing.ref
 
 
 def _guarded_removal(repo_root: Path, item: LaneCleanupItem, landing: LandingProof | None) -> LandedRemoval | None:

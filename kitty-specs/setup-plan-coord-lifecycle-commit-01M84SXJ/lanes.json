@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "mission_slug": "setup-plan-coord-lifecycle-commit-01M84SXJ",
+  "mission_id": "01M84SXJFEKFMQVX449HTV68AN",
+  "mission_branch": "kitty/mission-setup-plan-coord-lifecycle-commit-01M84SXJ",
+  "target_branch": "issue-3933-lifecycle-event-placement",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/3933-setup-plan-coord-lifecycle.fixed.md",
+        "src/specify_cli/cli/commands/agent/mission_setup_plan.py",
+        "tests/coordination/test_setup_plan_coord_lifecycle_3933.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-23T21:08:44.705030+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "8fbfa3965a916c8fb064f36430e32646c6727197"
+}

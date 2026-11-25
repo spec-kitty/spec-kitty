@@ -41,6 +41,7 @@ from specify_cli.tool_surface.operations import (
     OwnershipProof,
     PhysicalEffect,
     coalesce_effects,
+    effect_action,
 )
 
 
@@ -73,20 +74,6 @@ def node_state(path: Path, *, read_content: bool = True) -> FileState:
         raise ValueError(f"Unsupported asset node: {path}")
     sha256 = digest(path.read_bytes()) if read_content else digest(b"")
     return FileState("file", sha256=sha256, mode=mode, mtime_ns=info.st_mtime_ns)
-
-
-def _action(before: FileState, after: FileState) -> str | None:
-    if before.kind == "absent":
-        return "create" if after.kind != "absent" else None
-    if after.kind == "absent":
-        return "delete"
-    if before.kind != after.kind:
-        return "replace"
-    if before.sha256 != after.sha256:
-        return "update"
-    if before.target != after.target:
-        return "retarget"
-    return "chmod" if before.mode != after.mode else None
 
 
 @dataclass(frozen=True)
@@ -200,11 +187,143 @@ def global_asset_root(owner: str, paths: tuple[Path, ...]) -> OperationRoot:
     return OperationRoot(owner, "global", anchor)
 
 
+#: Global asset inventory layout (#7722).
+#:
+#: Releases before #7722 keyed ``<owner>-assets.json`` relative to the reporting
+#: anchor ``commonpath(home, *roots).parent``, which moves when a user-global root
+#: resolves outside ``$HOME``, so every record stopped resolving. This build keeps
+#: the same file and ``schema_version`` 1 (older CLIs accept only that, and ignore
+#: unknown top-level keys) but always keys it relative to the fixed anchor
+#: ``home.parent`` and marks that with ``"anchor": "home-parent"``. Entries outside
+#: ``home.parent`` (a root moved away from home) go to the sidecar
+#: ``<owner>-external-assets.json`` with absolute keys, which older CLIs never read:
+#: for them those files are unproven and kept, never an error.
+_INVENTORY_SCHEMA = 1
+_ANCHOR_KEY = "anchor"
+_HOME_PARENT_ANCHOR = "home-parent"
+_ABSOLUTE_ANCHOR = "absolute"
+_UNCONFINED_ENTRY = "Unconfined global asset inventory entry"
+
+
+def _home_parent() -> Path:
+    return _normalized(Path.home()).parent
+
+
+def _check_record(record: object) -> dict[str, object]:
+    if not isinstance(record, dict):
+        raise ValueError("Invalid global asset inventory entry")
+    try:
+        FileState(**record)
+    except TypeError as exc:
+        raise ValueError("Invalid global asset inventory state") from exc
+    return record
+
+
+def _check_relative_key(key: object) -> str:
+    """The same confinement every earlier release enforced on a relative key."""
+    if not isinstance(key, str) or Path(key).is_absolute() or "\\" in key or ":" in key or any(part in {"", "..", "."} for part in key.split("/")):
+        raise ValueError(_UNCONFINED_ENTRY)
+    return key
+
+
+def _check_absolute_key(key: object) -> Path:
+    if not isinstance(key, str) or "\\" in key or not Path(key).is_absolute():
+        raise ValueError(_UNCONFINED_ENTRY)
+    body = key.split("/")[1:]
+    if not body or any(part in {"", "..", "."} for part in body):
+        raise ValueError(_UNCONFINED_ENTRY)
+    return Path(key)
+
+
+def _legacy_candidates() -> list[Path]:
+    """Anchors a pre-#7722 inventory may have been written under, deepest first."""
+    return list(_normalized(Path.home()).parents)
+
+
+def _place_legacy_key(relative: str, candidates: list[Path], confinement: tuple[Path, ...]) -> Path | None:
+    """The path a pre-#7722 key named, or ``None`` when it cannot be placed.
+
+    A key is placed under the deepest candidate anchor where its node exists and
+    the result lies inside ``$HOME``, the kittify home or one of the owner's
+    current roots (``known_roots``); otherwise under ``home.parent`` when that
+    lands inside ``$HOME``. Anything else -- a record under a root that has since
+    moved elsewhere -- is dropped from proof, never guessed.
+    """
+    for candidate in candidates:
+        placed = candidate / relative
+        if os.path.lexists(placed) and any(root in placed.parents for root in confinement):
+            return placed
+    default = candidates[0] / relative
+    return default if confinement[0] in default.parents else None
+
+
+def _confinement() -> tuple[Path, ...]:
+    from specify_cli.runtime.home import get_kittify_home
+
+    return (_normalized(Path.home()), _normalized(get_kittify_home()))
+
+
+def _read_inventory(payload: object, path: Path, known_roots: tuple[Path, ...] = ()) -> dict[Path, dict[str, object]]:
+    """Absolute path -> record for one inventory file (main or sidecar)."""
+    if not isinstance(payload, dict) or payload.get("schema_version") != _INVENTORY_SCHEMA or not isinstance(payload.get("entries"), dict):
+        raise ValueError(f"Invalid global asset inventory: {path}")
+    anchor = payload.get(_ANCHOR_KEY)
+    entries: dict[Path, dict[str, object]] = {}
+    if anchor == _ABSOLUTE_ANCHOR:
+        for key, record in payload["entries"].items():
+            entries[_check_absolute_key(key)] = _check_record(record)
+        return entries
+    confinement = (*_confinement(), *(_normalized(root) for root in known_roots))
+    if anchor == _HOME_PARENT_ANCHOR:
+        # The anchor is fixed, so a key names one path: no filesystem probe per key (NFR-001).
+        home_parent = _home_parent()
+        for key, record in payload["entries"].items():
+            placed = home_parent / _check_relative_key(key)
+            if any(root in placed.parents for root in confinement):
+                entries[placed] = _check_record(record)
+        return entries
+    candidates = _legacy_candidates()
+    for key, record in payload["entries"].items():
+        placed_legacy = _place_legacy_key(_check_relative_key(key), candidates, confinement)
+        if placed_legacy is not None:
+            entries[placed_legacy] = _check_record(record)
+    return entries
+
+
+def _inventory_in_canonical_form(payload: object, placed: dict[Path, dict[str, object]], *, sidecar: bool) -> bool:
+    """Whether re-serializing *placed* would reproduce this file's layout (#7722 NFR-001).
+
+    The main file is canonical when it is already home-parent anchored and kept every key;
+    the sidecar when it holds only paths outside ``home.parent``. Anything else (a pre-#7722
+    file, a dropped key, a record that moved across the anchor) needs one rewrite.
+    """
+    if not isinstance(payload, dict) or not isinstance(payload.get("entries"), dict):
+        return False
+    if len(placed) != len(payload["entries"]):
+        return False
+    if sidecar:
+        home_parent = _home_parent()
+        return payload.get(_ANCHOR_KEY) == _ABSOLUTE_ANCHOR and all(home_parent not in path.parents for path in placed)
+    return payload.get(_ANCHOR_KEY) == _HOME_PARENT_ANCHOR
+
+
+def _serialize_inventory(entries: dict[str, dict[str, object]], anchor: str) -> bytes:
+    payload = {"schema_version": _INVENTORY_SCHEMA, _ANCHOR_KEY: anchor, "entries": entries}
+    return (json.dumps(payload, sort_keys=True, indent=2) + "\n").encode()
+
+
 def _observation(path: Path, state: FileState, children: tuple[str, ...] | None = None, role: ObservationRole = "destination_probe") -> AssetObservation:
     if state.kind == "directory":
         info = path.lstat()
         return AssetObservation(path, replace(state, mtime_ns=None), children, (info.st_dev, info.st_ino), role)
     return AssetObservation(path, state, children, role=role)
+
+
+#: A caller's byte proof for a retired node with no inventory record: ``(path, sha256) -> proven``.
+RetireProof = Callable[[Path, "str | None"], bool]
+#: A caller's byte proof that an existing destination is an earlier canonical render, judged on
+#: :meth:`AssetPreparation.asset`'s own observation of it: ``(before) -> proven``.
+PredecessorProof = Callable[[FileState], bool]
 
 
 class AssetPreparation:
@@ -215,7 +334,7 @@ class AssetPreparation:
     Entries are committed last, so partial installation cannot certify work.
     """
 
-    def __init__(self, owner: str, root: OperationRoot, cache: Path, lock_name: str, consent: ApplyConsent) -> None:
+    def __init__(self, owner: str, root: OperationRoot, cache: Path, lock_name: str, consent: ApplyConsent, *, known_roots: tuple[Path, ...] = ()) -> None:
         self.owner, self.root, self.consent = owner, root, consent
         self.lock_path = cache / lock_name
         self.inventory = cache / f"{owner}-assets.json"
@@ -228,25 +347,30 @@ class AssetPreparation:
         self.selected: set[Path] = set()
         self.temporary_paths: set[Path] = set()
         self.environment = tuple((name, os.environ.get(name)) for name in _SOURCE_ENV)
-        state = self.observe(self.inventory, role="destination_probe")
-        if state.kind == "file":
-            payload = json.loads(self.inventory.read_bytes())
-            if not isinstance(payload, dict) or payload.get("schema_version") != 1 or not isinstance(payload.get("entries"), dict):
-                raise ValueError(f"Invalid global asset inventory: {self.inventory}")
-            for relative, record in payload["entries"].items():
-                if not isinstance(relative, str) or not isinstance(record, dict):
-                    raise ValueError("Invalid global asset inventory entry")
-                # PhysicalEffect validates this same confined relative spelling.
-                if Path(relative).is_absolute() or "\\" in relative or ":" in relative or any(p in {"", "..", "."} for p in relative.split("/")):
-                    raise ValueError("Unconfined global asset inventory entry")
-                try:
-                    FileState(**record)
-                except TypeError as exc:
-                    raise ValueError("Invalid global asset inventory state") from exc
-            self.previous = payload["entries"]
-            self.entries = dict(self.previous)
-        elif state.kind != "absent":
-            raise ValueError(f"Global inventory is not a regular file: {self.inventory}")
+        # #7722: every known record by absolute path; the anchor-relative view is ``previous``.
+        self.external_inventory = cache / f"{owner}-external-assets.json"
+        self._known: dict[Path, dict[str, object]] = {}
+        self._inventory_bytes: dict[Path, bytes | None] = {}
+        self._inventories_canonical = True
+        for inventory in (self.inventory, self.external_inventory):
+            state = self.observe(inventory, role="destination_probe")
+            if state.kind == "file":
+                data = inventory.read_bytes()
+                self._inventory_bytes[inventory] = data
+                payload = json.loads(data)
+                placed = _read_inventory(payload, inventory, known_roots)
+                self._inventories_canonical &= _inventory_in_canonical_form(payload, placed, sidecar=inventory == self.external_inventory)
+                self._known.update(placed)
+            elif state.kind == "absent":
+                self._inventory_bytes[inventory] = None
+            else:
+                raise ValueError(f"Global inventory is not a regular file: {inventory}")
+        for path, record in self._known.items():
+            try:
+                self.previous[path.relative_to(self.root.path).as_posix()] = record
+            except ValueError:
+                continue  # Outside this run's anchor: carried through unchanged by finish().
+        self.entries = dict(self.previous)
 
     def observe(self, path: Path, *, members: bool = False, role: ObservationRole = "source_read", read_content: bool = True) -> FileState:
         """Observe ancestry before opening a node; reject escaping parents.
@@ -309,7 +433,7 @@ class AssetPreparation:
 
     def _effect(self, path: Path, after: FileState, content: bytes | None, proof: OwnershipProof) -> None:
         before = self.observe(path, role="destination_probe")
-        action = _action(before, after)
+        action = effect_action(before, after)
         relative = path.relative_to(self.root.path).as_posix()
         if action is None:
             self.dispositions.append(Disposition(self.owner, self.root.root_id, relative, "unchanged", "Asset already matches"))
@@ -323,6 +447,7 @@ class AssetPreparation:
             self.owner, "global_bootstrap", self.root, relative, action, before, after, "Refresh canonical global asset", (proof,), (self.owner,)
         )
         previous = self.writes.get(path)
+        # Conflict check between two planned states: exact on every host.
         if previous is not None and previous.effect.after != after:
             raise ValueError(f"Conflicting global asset outputs: {path}")
         self.writes[path] = AssetWrite(effect, content)
@@ -376,9 +501,23 @@ class AssetPreparation:
             if state.kind == "absent":
                 self._effect(parent, FileState("directory", mode=0o755), None, OwnershipProof("managed_path", f"{self.owner}:required-parent"))
 
-    def asset(self, path: Path, content: bytes | None, mode: int, *, managed_tree: bool = False, canonical_predecessor: bool = False) -> None:
-        """Compare canonical output; preserve drift and unknown links/content."""
+    def asset(
+        self,
+        path: Path,
+        content: bytes | None,
+        mode: int,
+        *,
+        managed_tree: bool = False,
+        canonical_predecessor: bool | PredecessorProof = False,
+    ) -> None:
+        """Compare canonical output; preserve drift and unknown links/content.
+
+        *canonical_predecessor* is either a caller's verdict or a proof evaluated on this
+        method's own observation of *path* (#7700), so a byte proof never reads the file twice.
+        """
         before = self.observe(path, role="destination_probe")
+        if callable(canonical_predecessor):
+            canonical_predecessor = canonical_predecessor(before)
         self.selected.add(path)
         relative = path.relative_to(self.root.path).as_posix()
         desired = FileState("directory", mode=mode) if content is None else FileState("file", sha256=digest(content), mode=mode)
@@ -418,22 +557,37 @@ class AssetPreparation:
         data = self.source(path) if before.kind == "file" else None
         self._effect(target, replace(before, mtime_ns=None), data, OwnershipProof("manifest", f"{self.inventory.name}:{relative}"))
 
-    def retire(self, path: Path) -> bool:
-        """Remove only exact inventory-owned unchanged nodes; retain drift."""
+    def retire(self, path: Path, *, proven: RetireProof | None = None) -> bool:
+        """Remove only proven unchanged nodes; retain drift and report it.
+
+        Proof is an exact inventory record or, for a regular file the inventory
+        does not record (an older release wrote it), *proven* returning True for
+        its path and sha256 -- the caller's byte proof, never a name match. An
+        unrecorded directory is removed only when every child is; a symlink is
+        never proven by bytes.
+        """
         before = self.observe(path, members=True, role="destination_probe")
         if before.kind == "absent":
             return True
         relative = path.relative_to(self.root.path).as_posix()
         old = self.previous.get(relative)
-        if old is None or (before.kind, before.sha256, before.target) != (old.get("kind"), old.get("sha256"), old.get("target")):
+        recorded = old is not None and (before.kind, before.sha256, before.target) == (old.get("kind"), old.get("sha256"), old.get("target"))
+        # A directory has no bytes: with a byte proof it is judged by its children below.
+        byte_proven = not recorded and proven is not None and (before.kind == "directory" or (before.kind == "file" and proven(path, before.sha256)))
+        if not (recorded or byte_proven):
             self.preserve(path, "Unproven or edited retired asset", drift=old is not None)
             return False
         if before.kind == "directory":
-            removable = [self.retire(child) for child in sorted(path.iterdir())]
+            removable = [self.retire(child, proven=proven) for child in sorted(path.iterdir())]
             if not all(removable):
                 self.preserve(path, "Retired directory contains preserved content")
                 return False
-        self._effect(path, FileState("absent"), None, OwnershipProof("manifest", f"{self.inventory.name}:{relative}"))
+        proof = (
+            OwnershipProof("manifest", f"{self.inventory.name}:{relative}")
+            if recorded
+            else OwnershipProof("canonical_content", f"{self.owner}:{relative}:historical-render")
+        )
+        self._effect(path, FileState("absent"), None, proof)
         self.entries.pop(relative, None)
         return True
 
@@ -495,12 +649,33 @@ class AssetPreparation:
             else:
                 raise ValueError(f"Unsupported source asset kind: {child}")
 
+    def _stage_inventories(self) -> None:
+        """Write each inventory file whose bytes change (#7722); never touch an unchanged one.
+
+        Records outside this run's anchor are carried through unchanged; nothing
+        prunes them, since this run cannot observe their paths. A run that changed no
+        record and read both files in their canonical layout is not serialized again.
+        """
+        if self.entries == self.previous and self._inventories_canonical:
+            return
+        known = {path: record for path, record in self._known.items() if self.root.path not in path.parents}
+        known.update({self.root.path / relative: record for relative, record in self.entries.items()})
+        home_parent = _home_parent()
+        main = {path.relative_to(home_parent).as_posix(): record for path, record in known.items() if home_parent in path.parents}
+        external = {path.as_posix(): record for path, record in known.items() if home_parent not in path.parents}
+        for inventory, entries, anchor in ((self.inventory, main, _HOME_PARENT_ANCHOR), (self.external_inventory, external, _ABSOLUTE_ANCHOR)):
+            current = self._inventory_bytes.get(inventory)
+            if current is None and not entries:
+                continue
+            data = _serialize_inventory(entries, anchor)
+            if data != current:
+                self.parents(inventory)
+                proof = OwnershipProof("managed_path", f"{self.owner}:inventory")
+                self._effect(inventory, FileState("file", sha256=digest(data), mode=0o644), data, proof)
+
     def finish(self, version_path: Path | None, version: str) -> OwnerAssessment:
         """Retain supporting inventory/stamp bytes; never refresh equal content."""
-        if self.entries != self.previous:
-            data = (json.dumps({"schema_version": 1, "entries": self.entries}, sort_keys=True, indent=2) + "\n").encode()
-            self.parents(self.inventory)
-            self._effect(self.inventory, FileState("file", sha256=digest(data), mode=0o644), data, OwnershipProof("managed_path", f"{self.owner}:inventory"))
+        self._stage_inventories()
         if version_path is not None:
             self.parents(version_path)
             data = version.encode()
@@ -1016,6 +1191,7 @@ def check_assets(assessment: OwnerAssessment) -> tuple[Diagnostic, ...]:
                 # PermissionError drops exc.filename (it is None), leaving only
                 # "[Errno 13] Permission denied" -- undiagnosable as shipped.
                 raise ValueError(f"Could not read global asset {observation.path}: {exc}") from exc
+            # Guard: two observations of the same node, so exact on every host.
             drifted = (current.state, current.identity) != (observation.state, observation.identity)
             if drifted and not _is_cold_install_sentinel_materialization(observation, current, sentinel_ancestors):
                 write = writes_by_path.get(observation.path) if observation.role == "destination_probe" else None

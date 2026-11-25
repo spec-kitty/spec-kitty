@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "mission_slug": "path-conventions-per-type-01M7VRQM",
+  "mission_id": "01M7VRQM1E45PQDM459J7PTNYD",
+  "mission_branch": "kitty/mission-path-conventions-per-type-01M7VRQM",
+  "target_branch": "issue-7566-path-conventions-per-type",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/config/path_conventions.py",
+        "tests/specify_cli/config/test_path_conventions_reader.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/core/paths.py",
+        "src/specify_cli/mission_metadata.py",
+        "tests/core/test_path_conventions_waiver_reader.py",
+        "tests/specify_cli/test_record_acceptance_path_conventions_waiver.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/acceptance/summary_core.py",
+        "src/specify_cli/validators/paths.py",
+        "tests/agent/test_validators_unit.py",
+        "tests/specify_cli/acceptance/test_acceptance_support.py",
+        "tests/specify_cli/acceptance/test_path_conventions_all_types.py",
+        "tests/specify_cli/acceptance/test_path_conventions_per_type.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-c"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/acceptance/__init__.py",
+        "src/specify_cli/cli/commands/accept.py",
+        "src/specify_cli/cli/commands/agent/mission_accept_merge.py",
+        "tests/specify_cli/cli/commands/test_accept_lenient_help.py",
+        "tests/specify_cli/cli/commands/test_accept_waive_path_conventions.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/2026-08-28-1-project-path-convention-override-precedes-doctrine.md",
+        "docs/changelog/unreleased/7566-path-conventions-per-type.added.md",
+        "docs/guides/how-to/missions/accept-and-merge.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-11-20T06:39:00.871305+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP05"
+  ],
+  "planning_commit_sha": "a053b67434d9b073da708a387a5aec93e88fe227"
+}

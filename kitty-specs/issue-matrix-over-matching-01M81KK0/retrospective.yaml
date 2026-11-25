@@ -1,0 +1,210 @@
+schema_version: 1
+mission_id: 01M81KK0HZTTY9538Y0CPK19FZ
+mission_slug: issue-matrix-over-matching-01M81KK0
+mission_number: 265
+friendly_name: Issue-matrix reference over-matching
+mission_type: software-dev
+target_branch: issue-7808-issue-matrix-over-matching
+created_at: '2026-11-22T13:32:30.461552+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-11-22T13:32:30.461552+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: tooling
+  summary: "Tracer: [2026-11-22][plan] The Mission's own artefacts trip the detector it is fixing."
+  evidence_refs:
+  - e-013
+  details: "- **[2026-11-22][plan] The Mission's own artefacts trip the detector it is fixing.** Citing the bug's own examples
+    (all-zero colours, a planted-break label, a closing keyword with a small number) in spec.md or plan.md would create phantom
+    references, so the spec writes them with `#N` placeholders. Disposition: workaround; expected to disappear once the fix
+    lands."
+not_helpful:
+- id: n-004
+  category: doc
+  summary: analysis-report.md records 3 finding(s)
+  evidence_refs:
+  - e-010
+  details: The analysis-report.md artifact for this mission records 3 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-002
+  category: process
+  summary: WP01 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-008
+  details: WP WP01 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-003
+  category: process
+  summary: WP01 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-009
+  details: WP WP01 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP01 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-007
+  details: WP WP01 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-014
+  category: tooling
+  summary: 'Tracer: [2026-11-22][implement] First pytest run of a new file took about 100 s; reruns under 3 s.'
+  evidence_refs:
+  - e-013
+  details: '- **[2026-11-22][implement] First pytest run of a new file took about 100 s; reruns under 3 s.** The cost is a
+    cold collection or import cache, not the tests themselves. Disposition: noted, no action.'
+- id: n-006
+  category: tooling
+  summary: 'Tracer: [2026-11-22][implement] No re-pins were needed.'
+  evidence_refs:
+  - e-011
+  details: '- **[2026-11-22][implement] No re-pins were needed.** The new rules broke none of the 3010 tests in the issue-matrix
+    family (123 files): no existing test pinned a research, plan or contracts reference as gating, or a colour or commit citation
+    as a reference. Disposition: the change is narrower than feared; positive controls in the new test file carry the fail-safe
+    guarantee.'
+- id: n-013
+  category: tooling
+  summary: 'Tracer: [2026-11-22][implement] Squad findings deferred.'
+  evidence_refs:
+  - e-012
+  details: '- **[2026-11-22][implement] Squad findings deferred.** The duplicated evidence-handle check `#\d+` (`review/_issue_matrix.py`,
+    `issue_matrix_migration.py`) is matrix-evidence parsing, outside the owned files. Disposition: follow-up candidate for
+    a campsite pass.'
+- id: n-011
+  category: tooling
+  summary: 'Tracer: [2026-11-22][implement] Squad fold: the colour filter needs a whole-token property and a terminator.'
+  evidence_refs:
+  - e-012
+  details: '- **[2026-11-22][implement] Squad fold: the colour filter needs a whole-token property and a terminator.** All
+    three squad lenses found the substring property match dropped `Backfill: #N` and `tasks-outline: #N` in the gating scope.
+    The filter now takes an explicit lower-case property list anchored at a token start, plus a declaration terminator. Disposition:
+    fixed.'
+- id: n-012
+  category: tooling
+  summary: 'Tracer: [2026-11-22][implement] Squad fold: wrapped closing-keyword forms gate.'
+  evidence_refs:
+  - e-012
+  details: '- **[2026-11-22][implement] Squad fold: wrapped closing-keyword forms gate.** `**Closes** #N`, ``Fixes `#N` ``,
+    `[#N](url)` and an issue URL are now closing statements out of scope too. Narrowings from routing labels through the canonical
+    detector (`#N-fix`, `Fixes:#N`, keyword and number split across lines) are accepted and recorded in the ADR amendment.
+    Disposition: fixed or accepted.'
+- id: n-007
+  category: tooling
+  summary: 'Tracer: [2026-11-22][plan] "Cited" maps to the existing context-only class.'
+  evidence_refs:
+  - e-012
+  details: '- **[2026-11-22][plan] "Cited" maps to the existing context-only class.** No new GatingClass value, so the persisted
+    vocabulary and scaffold verdicts stay unchanged (C-001).'
+- id: n-009
+  category: tooling
+  summary: 'Tracer: [2026-11-22][plan] Closing keyword first.'
+  evidence_refs:
+  - e-012
+  details: '- **[2026-11-22][plan] Closing keyword first.** A non-negated close/fix/resolve that leads into a citation gates
+    in any artefact and wins over every demoting rule, the commit-SHA rule included.'
+- id: n-010
+  category: tooling
+  summary: 'Tracer: [2026-11-22][plan] Colour filter on declaration form only.'
+  evidence_refs:
+  - e-012
+  details: '- **[2026-11-22][plan] Colour filter on declaration form only.** Per the #7808 hand-off: a keyword-anywhere filter
+    would drop real 4-digit references.'
+- id: n-005
+  category: tooling
+  summary: 'Tracer: [2026-11-22][plan] One work package, red-first.'
+  evidence_refs:
+  - e-011
+  details: '- **[2026-11-22][plan] One work package, red-first.** The colour filter, the commit-citation rule, the scope rule
+    and the pattern convergence all touch the same two modules and one test family, so they ship as one work package. Acceptance
+    tests go in first through `discover_issue_references` and `classify_occurrence`.'
+- id: n-008
+  category: tooling
+  summary: 'Tracer: [2026-11-22][plan] Scope travels on the occurrence.'
+  evidence_refs:
+  - e-012
+  details: '- **[2026-11-22][plan] Scope travels on the occurrence.** A defaulted `in_gating_scope` flag set by discovery
+    and read only by the classifier keeps one gating authority. A basename cannot tell `tasks/` from `contracts/`.'
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/issue-matrix-over-matching-01M81KK0/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/issue-matrix-over-matching-01M81KK0/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/issue-matrix-over-matching-01M81KK0/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/issue-matrix-over-matching-01M81KK0/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/issue-matrix-over-matching-01M81KK0/tasks/WP01-narrow-detector-and-classifier.md
+- id: e-006
+  kind: file
+  path: kitty-specs/issue-matrix-over-matching-01M81KK0/status.events.jsonl
+- id: e-007
+  kind: event_range
+  path: kitty-specs/issue-matrix-over-matching-01M81KK0/status.events.jsonl
+  range: 01M81NVMK7HDYE0Y1BG6DK13N9
+- id: e-008
+  kind: event_range
+  path: kitty-specs/issue-matrix-over-matching-01M81KK0/status.events.jsonl
+  range: 01M81NH9CBFGRBGMNTPTYM42JK
+- id: e-009
+  kind: event_range
+  path: kitty-specs/issue-matrix-over-matching-01M81KK0/status.events.jsonl
+  range: 01M81NH9CBFGRBGMNTPTYM42JK
+- id: e-010
+  kind: file
+  path: kitty-specs/issue-matrix-over-matching-01M81KK0/analysis-report.md
+- id: e-011
+  kind: file
+  path: kitty-specs/issue-matrix-over-matching-01M81KK0/traces/approach.md
+- id: e-012
+  kind: file
+  path: kitty-specs/issue-matrix-over-matching-01M81KK0/traces/design-decisions.md
+- id: e-013
+  kind: file
+  path: kitty-specs/issue-matrix-over-matching-01M81KK0/traces/tooling-friction.md
+generator_version: '1.0'
+provenance_history: []

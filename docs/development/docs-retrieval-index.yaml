@@ -3036,6 +3036,10 @@ pages:
     - {slug: "confirmation", text: "Confirmation", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
     - {slug: "amendment-2026-11-10-no-mkdir-remedy-for-a-remappable-path-7512", text: "Amendment 2026-11-10: no `mkdir` remedy for a remappable path (#7512)", level: 2}
+    - {slug: "amendment-2026-11-20-per-mission-type-sections-and-narrow-waivers-7566-7748", text: "Amendment 2026-11-20: per-Mission-type sections and narrow waivers (#7566, #7748)", level: 2}
+    - {slug: "per-type-sections", text: "Per-type sections", level: 3}
+    - {slug: "remedy-order", text: "Remedy order", level: 3}
+    - {slug: "narrow-waivers", text: "Narrow waivers", level: 3}
   - path: "docs/adr/3.x/2026-08-31-1-expected-artifacts-loader-relocation.md"
     title: "ADR: Relocate the expected-artifacts.yaml loader authority into charter, sibling error model"
     divio_type: "none"
@@ -3201,6 +3205,7 @@ pages:
     - {slug: "d4-lever-ssot-classification-governs-requirement-verdict-governs-resolution-fr-013", text: "D4 — Lever SSOT: classification governs requirement, verdict governs resolution (FR-013)", level: 3}
     - {slug: "d5-cli-surface-verdict-and-evidence-ref-document-both-new-existing-rules", text: "D5 — CLI surface: `--verdict` and `--evidence-ref` document both new/existing rules", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "amendment-2026-11-22-scope-decides-color-values-and-commit-citations-are-not-owed", text: "Amendment 2026-11-22 — scope decides; color values and commit citations are not owed", level: 2}
     - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
     - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/3.x/2026-09-21-1-kebab-canonical-doctrine-artifact-slug.md"
@@ -3558,6 +3563,8 @@ pages:
     - {slug: "amendment-2026-11-08-lane-approvals-are-judged-by-recorded-work-package-windows-7403", text: "Amendment 2026-11-08: lane approvals are judged by recorded work-package windows (#7403)", level: 2}
     - {slug: "amendment-2026-11-10-the-implement-claim-records-its-dispatch-identity-and-a-submission-refines-it-7159", text: "Amendment 2026-11-10: the implement claim records its dispatch identity, and a submission refines it (#7159)", level: 2}
     - {slug: "amendment-2026-11-18-a-forced-or-foreign-claim-never-replaces-the-implementer-of-record-and-an-explicit-re-submission-completes-a-bare-claim-7712", text: "Amendment 2026-11-18: a forced or foreign claim never replaces the implementer of record, and an explicit re-submission completes a bare claim (#7712)", level: 2}
+    - {slug: "amendment-2026-11-22-the-single-branch-planning-pin-follows-the-planning-commit-across-a-rebase-7793-7297", text: "Amendment 2026-11-22: the single_branch planning pin follows the planning commit across a rebase (#7793, #7297)", level: 2}
+    - {slug: "amendment-2026-11-22-the-approval-stamp-survives-the-review-s-own-sync-merge-7802", text: "Amendment 2026-11-22: the approval stamp survives the review's own sync merge (#7802)", level: 2}
   - path: "docs/adr/4.x/2026-10-05-1-bare-slug-coordination-directory-alias.md"
     title: "ADR: a bare-slug coordination Mission has one exact directory alias set, and one directory on the target"
     divio_type: "none"
@@ -4183,6 +4190,7 @@ pages:
     - {slug: "one-landed-signal", text: "One landed signal", level: 3}
     - {slug: "moved-onto-the-door-in-this-change", text: "Moved onto the door in this change", level: 3}
     - {slug: "amendment-2026-11-11-owned-coordination-checkouts-read-vs-dispatch", text: "Amendment 2026-11-11: owned coordination checkouts, read vs dispatch", level: 2}
+    - {slug: "amendment-2026-11-20-a-remote-only-branch-is-a-typed-refusal-5287", text: "Amendment 2026-11-20: a remote-only branch is a typed refusal (#5287)", level: 2}
   - path: "docs/adr/4.x/2026-11-06-3-topology-is-settled-once-at-first-finalize.md"
     title: "ADR: a default Mission topology is settled once, by size, at the first finalize"
     divio_type: "none"
@@ -4212,6 +4220,7 @@ pages:
     - {slug: "option-6-land-planning-commits-on-an-unprotected-target-at-settlement-and-settle-to-lanes", text: "Option 6: land planning commits on an unprotected target at settlement and settle to `lanes`", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
     - {slug: "amendment-2026-11-13-an-explicit-lanes-create-on-a-protected-target-is-refused", text: "Amendment 2026-11-13: an explicit `lanes` create on a protected target is refused", level: 2}
+    - {slug: "amendment-2026-11-22-a-docs-work-package-gets-its-own-lane-in-a-lane-topology", text: "Amendment 2026-11-22: a docs work package gets its own lane in a lane topology", level: 2}
   - path: "docs/adr/4.x/2026-11-06-4-coordination-branch-written-by-commit.md"
     title: "ADR: a coordination branch is written by commit, not through a coordination worktree"
     divio_type: "none"
@@ -4350,6 +4359,7 @@ pages:
     - {slug: "k-flat-sibling-modules-chosen", text: "K. Flat sibling modules (chosen)", level: 3}
     - {slug: "amendment-2026-11-12-7578-commit-to-target-single-branch-missions-record-their-window-points", text: "Amendment 2026-11-12 (#7578): commit-to-target single_branch Missions record their window points", level: 2}
     - {slug: "amendment-2026-11-18-7726-the-bulk-edit-review-gate-reads-the-review-range", text: "Amendment 2026-11-18 (#7726): the bulk-edit review gate reads the review range", level: 2}
+    - {slug: "amendment-2026-11-22-7759-a-bookkeeping-only-planning-range-is-withheld", text: "Amendment 2026-11-22 (#7759): a bookkeeping-only planning range is withheld", level: 2}
     - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/4.x/README.md"
     title: "4.x Architectural Decision Records"
@@ -11989,14 +11999,27 @@ pages:
     - {slug: "the-ledger-from-6745-2026-10-31", text: "The ledger from #6745 (2026-10-31)", level: 2}
     - {slug: "what-this-audit-did-not-cover", text: "What this audit did not cover", level: 2}
     - {slug: "related", text: "Related", level: 2}
+  - path: "docs/development/how-to/cloud-environment-setup.md"
+    title: "Set Up a Claude Code Cloud Environment for Spec Kitty"
+    divio_type: "how-to"
+    abstract: "Configure the cloud environment that Claude Code cloud sessions run in for Spec Kitty work, covering network hosts, variables, the setup script, validation and the GitHub side."
+    anchors:
+    - {slug: "before-you-start", text: "Before you start", level: 2}
+    - {slug: "step-1-set-the-network-access", text: "Step 1: Set the network access", level: 2}
+    - {slug: "step-2-set-the-environment-variables", text: "Step 2: Set the environment variables", level: 2}
+    - {slug: "step-3-add-the-setup-script", text: "Step 3: Add the setup script", level: 2}
+    - {slug: "what-each-part-does", text: "What each part does", level: 3}
+    - {slug: "step-4-check-a-change-with-a-fresh-session", text: "Step 4: Check a change with a fresh session", level: 2}
+    - {slug: "step-5-connect-github", text: "Step 5: Connect GitHub", level: 2}
+    - {slug: "known-limits", text: "Known limits", level: 2}
+    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/how-to/cloud-session-setup.md"
     title: "Set Up a Claude Code Cloud Session"
     divio_type: "how-to"
     abstract: "Prepare a Claude Code cloud session so the Spec Kitty CLI, the test package and CodeGraph are ready before you run a Mission or an Op."
     anchors:
     - {slug: "step-1-add-the-environment-setup-script", text: "Step 1: Add the environment setup script", level: 2}
-    - {slug: "optional-resolve-maven-central-through-a-mirror", text: "Optional: resolve Maven Central through a mirror", level: 3}
-    - {slug: "optional-install-the-cli-when-core-is-not-attached", text: "Optional: install the CLI when core is not attached", level: 3}
+    - {slug: "the-full-environment-setup-script", text: "The full environment setup script", level: 3}
     - {slug: "optional-environment-variables", text: "Optional: environment variables", level: 3}
     - {slug: "step-2-run-the-repository-script-in-each-session", text: "Step 2: Run the repository script in each session", level: 2}
     - {slug: "optional-run-the-repository-script-from-the-environment-setup-script", text: "Optional: run the repository script from the environment setup script", level: 3}
@@ -12200,6 +12223,20 @@ pages:
     - {slug: "known-blind-spots", text: "Known blind spots", level: 3}
     - {slug: "shippable-doctrine-the-built-in-charter-pack-must-work-in-a-consumer-repo", text: "Shippable doctrine: the built-in Charter Pack must work in a consumer repo", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/development/how-to/run-a-multi-session-orchestration.md"
+    title: "Run a Multi-Session Orchestration"
+    divio_type: "how-to"
+    abstract: "Run a dispatcher session that spawns triager, runner, reviewer and lander sessions, relays rulings, keeps a ledger and applies the standing rules."
+    anchors:
+    - {slug: "before-you-start", text: "Before you start", level: 2}
+    - {slug: "step-1-pick-the-tool-surface", text: "Step 1: Pick the tool surface", level: 2}
+    - {slug: "step-2-start-the-ledger", text: "Step 2: Start the ledger", level: 2}
+    - {slug: "step-3-apply-the-standing-rules", text: "Step 3: Apply the standing rules", level: 2}
+    - {slug: "step-4-write-a-runner-brief", text: "Step 4: Write a runner brief", level: 2}
+    - {slug: "step-5-write-a-reviewer-brief", text: "Step 5: Write a reviewer brief", level: 2}
+    - {slug: "step-6-run-the-dispatcher-loop", text: "Step 6: Run the dispatcher loop", level: 2}
+    - {slug: "environment-limits-seen-in-practice", text: "Environment limits seen in practice", level: 2}
+    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/how-to/service-pins.md"
     title: "How to fetch, verify and bump the pinned service binaries"
     divio_type: "how-to"
@@ -12240,6 +12277,19 @@ pages:
     - {slug: "what-a-baselines-yaml-a-baseline-gives-you", text: "What a `_baselines.yaml` §(a) baseline gives you", level: 2}
     - {slug: "why-the-existing-controls-are-strictly-stronger", text: "Why the existing controls are strictly stronger", level: 2}
     - {slug: "consequence-re-evaluation-trigger", text: "Consequence / re-evaluation trigger", level: 2}
+  - path: "docs/development/multi-session-orchestration.md"
+    title: "Multi-Session Orchestration"
+    divio_type: "explanation"
+    abstract: "How a dispatcher session coordinates triager, runner, reviewer and lander sessions, what each role owns, and how sessions and the operator talk to each other."
+    anchors:
+    - {slug: "topology", text: "Topology", level: 2}
+    - {slug: "roles", text: "Roles", level: 2}
+    - {slug: "why-the-roles-are-split", text: "Why the roles are split", level: 3}
+    - {slug: "a-typical-flow", text: "A typical flow", level: 2}
+    - {slug: "ready-tiers", text: "Ready tiers", level: 2}
+    - {slug: "repository-access-is-per-session", text: "Repository access is per session", level: 2}
+    - {slug: "why-the-dispatcher-keeps-a-ledger", text: "Why the dispatcher keeps a ledger", level: 2}
+    - {slug: "relation-to-other-pages", text: "Relation to other pages", level: 2}
   - path: "docs/development/reference/README.md"
     title: "Reference (contributor policy & ledgers)"
     divio_type: "none"

@@ -17,12 +17,15 @@
 
 from __future__ import annotations
 
+import re
+
 from pathlib import Path
 
 import pytest
 
 from scripts.ci.gate_selection import (
     ACTIVATION_STORE_MODULE_FANOUT,
+    ASSET_SURFACE_MODULE_FANOUT,
     BATTERY_SCOPE_GROUP,
     CLI_COMMAND_MODULE_FANOUT,
     DEFAULT_ROUTER_PATH,
@@ -192,7 +195,8 @@ def test_authority_parses_the_yaml_not_a_hardcoded_map(tmp_path: Path) -> None:
 
     # Remove the whole `consolidation` filter block from a temp copy → `consolidation` no longer matches.
     text = DEFAULT_ROUTER_PATH.read_text(encoding="utf-8")
-    mutated = text.replace("            consolidation:\n              - 'src/specify_cli/consolidation/**'\n", "")
+    # Drop the header and every glob line of the block (#7775 gave it more than one glob).
+    mutated = re.sub(r"            consolidation:\n(?:              - '[^']*'\n)+", "", text, count=1)
     assert mutated != text, "mutation fixture no longer matches the router — update it"
     router_copy = tmp_path / "ci-router.yml"
     router_copy.write_text(mutated, encoding="utf-8")
@@ -338,6 +342,7 @@ def test_group_module_fanout_is_wired(router: Router) -> None:
         *DEPENDENCY_MODULE_FANOUT.items(),
         *CLI_COMMAND_MODULE_FANOUT.items(),
         *ACTIVATION_STORE_MODULE_FANOUT.items(),
+        *ASSET_SURFACE_MODULE_FANOUT.items(),
     ):
         assert group in router.filters, f"fan-out group {group!r} is not a router filter group"
         assert targets <= _registry_module_names(), f"fan-out targets of {group!r} are not all registry modules"

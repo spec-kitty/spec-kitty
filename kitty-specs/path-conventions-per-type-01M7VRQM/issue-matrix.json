@@ -1,0 +1,101 @@
+{
+  "rows": {
+    "#2330": {
+      "evidence_ref": "Item 1 only (per-mission-type path conventions, WP01/WP02); #2330 stays open for its other items; the PR references it, it does not close it.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    },
+    "#2744": {
+      "evidence_ref": "Cited as the deferred layout auto-detection follow-on; out of scope.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3783": {
+      "evidence_ref": "Cited for the blocking-policy and remedy-ordering contract this Mission keeps.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5298": {
+      "evidence_ref": "Cited for context: WP03 generalizes the existing contracts: none reader; its behaviour and text are unchanged.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7356": {
+      "evidence_ref": "Cited for context: the lenient history-entry pattern that the waiver reason mirrors.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7512": {
+      "evidence_ref": "Cited for the no-mkdir-for-remappable-paths rule this Mission keeps.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7566": {
+      "evidence_ref": "WP02 remedy text; WP03/WP04 narrow waivers",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "accept: software-dev path convention blocks content repositories; --lenient is the only, too-coarse escape",
+      "verdict": "in-mission",
+      "wp": "WP02"
+    },
+    "#7748": {
+      "evidence_ref": "WP01 per-type reader; WP02 seam resolution",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "path_conventions: support per-mission-type overrides",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

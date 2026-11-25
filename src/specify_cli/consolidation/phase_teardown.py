@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import functools
 import time
+from dataclasses import replace
 from typing import Any
 from pathlib import Path
 
@@ -50,12 +51,16 @@ from specify_cli.git.ref_advance import (
 from specify_cli.consolidation.git_probes import GitProbeError, _paths_have_status_changes, is_ancestor_strict
 from specify_cli.consolidation import landed_coordination, lane_cleanup
 from specify_cli.consolidation.lane_cleanup import (
+    LaneCleanupItem,
     LaneCleanupReport,
     LaneRetention,
     LocalTargetAtPass,
     GuardedLaneRemover,
+    MissionBranchProjection,
     cleanup_expected_tips,
+    mission_branch_projection,
     plan_lane_cleanup,
+    projection_tips,
 )
 from specify_cli.consolidation._constants import (
     COORD_LATE_PROJECTION_REFUSED_SUFFIX,
@@ -1232,11 +1237,53 @@ def _mark_cleanup_started(run: _MergeRunState) -> None:
         save_state(run.state, run.main_repo)
 
 
-def _lane_cleanup_report(run: _MergeRunState) -> LaneCleanupReport:
+def _lane_cleanup_items(run: _MergeRunState) -> tuple[LaneCleanupItem, ...]:
+    expected = cleanup_expected_tips(run.state.pre_mutation_refs, run.state.lane_rebase_moves)  # #6736
+    items: tuple[LaneCleanupItem, ...] = plan_lane_cleanup(run.lanes_manifest, repo_root=run.main_repo, expected_tips=expected)
+    return items
+
+
+def _pass_landing(run: _MergeRunState) -> LocalTargetAtPass:
+    return LocalTargetAtPass(target_ref=run.lanes_manifest.target_branch, passed_sha=run.state.reconciliation_passed_target_sha or "")
+
+
+def _approved_lane_items(run: _MergeRunState, items: tuple[LaneCleanupItem, ...]) -> tuple[LaneCleanupItem, ...]:
+    """The lanes whose every work package is in the run's approved claim (Tier R confirm N2).
+
+    Only those lanes are proven through the Mission branch or credited as later approved work; a
+    lane with a canceled or unclaimed work package is judged by the content proof alone. No claim
+    means no lane.
+    """
+    claim = run.approved_wp_set
+    if claim is None:
+        return ()
+    approved = set(claim.approved)
+    wp_ids = {lane.lane_id: set(lane.wp_ids) for lane in run.lanes_manifest.lanes}
+    return tuple(item for item in items if wp_ids.get(item.lane_id) and wp_ids[item.lane_id] <= approved)
+
+
+def _mission_branch_projection(run: _MergeRunState, items: tuple[LaneCleanupItem, ...]) -> MissionBranchProjection | None:
+    """#7747 (operator ruling 2026-11-24, A): read before the coordination teardown deletes the Mission branch."""
+    if not items:
+        return None
+    try:
+        tips = projection_tips(_approved_lane_items(run, items), run.main_repo)
+        if not tips:
+            return None
+        return mission_branch_projection(run.main_repo, run.lanes_manifest.mission_branch, _pass_landing(run), tips, run.lanes_manifest.mission_slug)
+    except Exception as exc:  # the proof is optional evidence after the verified landing: never abort cleanup
+        logger.warning("Mission-branch proof unavailable (%s); lanes are judged by the content proof alone", exc)
+        return None
+
+
+def _lane_cleanup_report(
+    run: _MergeRunState,
+    items: tuple[LaneCleanupItem, ...] | None = None,
+    projection: MissionBranchProjection | None = None,
+) -> LaneCleanupReport:
     """The lane legs (S5): one module, kept lanes reported, never raised after the verified landing."""
     lanes_manifest = run.lanes_manifest
-    expected = cleanup_expected_tips(run.state.pre_mutation_refs, run.state.lane_rebase_moves)  # #6736
-    items = plan_lane_cleanup(lanes_manifest, repo_root=run.main_repo, expected_tips=expected)
+    items = _lane_cleanup_items(run) if items is None else items
     retention = LaneRetention(remove_worktree=run.remove_worktree, delete_branch=run.delete_branch)
     if not items:
         return LaneCleanupReport(results=())
@@ -1251,7 +1298,7 @@ def _lane_cleanup_report(run: _MergeRunState) -> LaneCleanupReport:
         after_worktree_removed=(lambda: time.sleep(delay)) if delay > 0 else None,
         mission_slug=lanes_manifest.mission_slug,
     )
-    landing = LocalTargetAtPass(target_ref=lanes_manifest.target_branch, passed_sha=run.state.reconciliation_passed_target_sha or "")
+    landing = replace(_pass_landing(run), projection=projection)
     report = lane_cleanup.apply(items, remover, landing=landing, retention=retention)
     _tombstone_removed_lane_contexts(run, report)
     return report
@@ -1278,10 +1325,12 @@ def _phase_cleanup_worktrees_and_branches(run: _MergeRunState) -> None:
     # -- #3131 T008: MISSION/coordination branch + marker + worktree --
     # Topology-aware and (for coord) coupled under ``teardown_coordination``;
     # see ``_cleanup_mission_branch_and_coordination`` for the INV-2 rationale.
+    items = _lane_cleanup_items(run)
+    projection = _mission_branch_projection(run, items)  # #7747 A: the Mission branch goes in the teardown below
     try:
         _cleanup_mission_branch_and_coordination(run)
     except Exception:
         _print_lane_cleanup(_coordination_refused_report(run))
         raise
-    run.lane_cleanup = _lane_cleanup_report(run)
+    run.lane_cleanup = _lane_cleanup_report(run, items, projection)
     _print_lane_cleanup(run.lane_cleanup)

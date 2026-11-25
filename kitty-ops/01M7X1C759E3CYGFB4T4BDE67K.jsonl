@@ -1,0 +1,4 @@
+{"event": "started", "invocation_id": "01M7X1C759E3CYGFB4T4BDE67K", "profile_id": "python-pedro", "action": "generate", "request_text": "Fix P0 #7753: spec-kitty review overwrites an agent-written mission-review-report.md", "actor": "claude", "mode_of_work": "task_execution", "governance_context_hash": "d30e238a1bce52be", "governance_context_available": true, "started_at": "2026-11-20T17:51:59.146602+00:00"}
+{"event": "completed", "invocation_id": "01M7X1C759E3CYGFB4T4BDE67K", "completed_at": "2026-11-20T18:33:17.795059+00:00", "outcome": "done", "closed_by": "agent"}
+{"event": "artifact_link", "invocation_id": "01M7X1C759E3CYGFB4T4BDE67K", "at": "2026-11-20T18:33:17.799668+00:00", "kind": "artifact", "ref": "src/specify_cli/cli/commands/review/_report.py"}
+{"event": "commit_link", "invocation_id": "01M7X1C759E3CYGFB4T4BDE67K", "at": "2026-11-20T18:33:17.800463+00:00", "sha": "65b4ddc114b33de749823ca72b7e2e37a4a76df5"}

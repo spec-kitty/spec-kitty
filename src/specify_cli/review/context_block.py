@@ -91,6 +91,7 @@ _GAP_DESCRIPTIONS: dict[str, str] = {
     "no_submission": "the work package has no for_review submission",
     "unresolvable_sha": "no commit could be resolved for an end of the range",
     "status_unreadable": "the status surface could not be read",
+    "planning_range_bookkeeping_only": ("the derived range contains only status-bookkeeping commits; the work package's own commits are not on that branch"),
 }
 _REQUIREMENT_NOTES: dict[Resolution, str] = {
     Resolution.NOT_DECLARED: "not declared in this Mission's spec",

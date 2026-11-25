@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "mission_slug": "issue-matrix-over-matching-01M81KK0",
+  "mission_id": "01M81KK0HZTTY9538Y0CPK19FZ",
+  "mission_branch": "kitty/mission-issue-matrix-over-matching-01M81KK0",
+  "target_branch": "issue-7808-issue-matrix-over-matching",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/2026-09-20-1-issue-matrix-not-applicable-verdict.md",
+        "src/specify_cli/tasks/issue_matrix.py",
+        "src/specify_cli/tasks/issue_reference_discovery.py",
+        "tests/specify_cli/tasks/test_issue_reference_discovery.py",
+        "tests/specify_cli/tasks/test_issue_reference_terminators.py",
+        "tests/tasks/test_issue_matrix_citation_label_scope_7011.py",
+        "tests/tasks/test_issue_matrix_over_matching.py",
+        "tests/tasks/test_issue_matrix_source_issue_7011.py",
+        "tests/tasks/test_issue_reference_classification.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-22T12:31:24.368634+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "f8fee580bbd0025da039336c94fa3a8fc6ae068f"
+}

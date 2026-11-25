@@ -36,7 +36,7 @@ skills are agent-harness operating guides, not `spec-kitty` CLI commands.
 ## First-route table
 
 - New project or broken install → `spk-admin-setup-doctor`
-- New mission from scratch → `spk-start-first-feature`
+- New mission from scratch → `spk-start-first-mission`
 - Want a command list → `spk-start-command-map`
 - "Will this work in Codex or Claude?" → `spk-start-agent-surface`
 - Existing mission needs advancement → `spk-run-next`

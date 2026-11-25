@@ -835,6 +835,9 @@ def test_apply_missing_worktree_fix_remote_only_refusal_without_coord_branch_ext
     _git(fresh_mission_repo, "remote", "add", "origin", str(remote))
     _git(fresh_mission_repo, "fetch", "origin")
     _git(fresh_mission_repo, "branch", "-D", COORD_BRANCH)
+    # #5936: with a remote-tracking ref `--fix` now materializes the branch; the
+    # refusal these steps answer is a clone that never fetched it.
+    _git(fresh_mission_repo, "update-ref", "-d", f"refs/remotes/origin/{COORD_BRANCH}")
 
     no_branch_extra = DoctorFinding(
         severity="warning",
@@ -847,8 +850,8 @@ def test_apply_missing_worktree_fix_remote_only_refusal_without_coord_branch_ext
     warning = warnings[0]
     assert warning.next_step is not None
     assert warning.next_step.startswith("Run in order:")
-    assert f"branch {COORD_BRANCH} origin/{COORD_BRANCH}" in warning.next_step
-    assert "exists only as a remote-tracking ref" in warning.message
+    assert f"branch {COORD_BRANCH} refs/remotes/origin/{COORD_BRANCH}" in warning.next_step
+    assert "no remote-tracking ref for it from its owning remote" in warning.message
 
 
 def test_apply_missing_worktree_fix_generic_refusal_for_local_head_relays_next_step(

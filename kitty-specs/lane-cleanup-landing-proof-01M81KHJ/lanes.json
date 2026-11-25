@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "mission_slug": "lane-cleanup-landing-proof-01M81KHJ",
+  "mission_id": "01M81KHJ8AZPW0HCEZSX01C5B9",
+  "mission_branch": "kitty/mission-lane-cleanup-landing-proof-01M81KHJ",
+  "target_branch": "fix/7747-lane-cleanup-landing-proof",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/2026-11-06-1-a-destructive-git-operation-discharges-named-proof-obligations.md",
+        "src/specify_cli/consolidation/lane_cleanup.py",
+        "src/specify_cli/lanes/lane_tip.py",
+        "tests/consolidation/test_lane_cleanup_auto_rebase_6736.py",
+        "tests/integration/test_lane_cleanup_landing_proof_7747.py",
+        "tests/lanes/test_lane_tip_mission_bookkeeping.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/workspace/landed_worktrees.py",
+        "tests/integration/test_doctor_prunes_landed_mission_lanes_7747.py",
+        "tests/specify_cli/workspace/test_landed_worktrees_mission_bookkeeping.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/consolidation/test_lane_remover_proof_unavailable_7325.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-11-23T18:18:52.205122+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "1890a6c29db4a0ac20e80a24fa658fc911db37d4"
+}

@@ -1,0 +1,172 @@
+{
+  "version": 1,
+  "mission_slug": "skill-surfaces-converge-01M7VRS0",
+  "mission_id": "01M7VRS0Q6CPC1HP3VD1TPNXRC",
+  "mission_branch": "kitty/mission-skill-surfaces-converge-01M7VRS0",
+  "target_branch": "issue-7700-skill-surfaces-converge",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "RELEASE_CHECKLIST.md",
+        "scripts/skills/__init__.py",
+        "scripts/skills/build_historical_skill_digests.py",
+        "src/specify_cli/skills/data/historical_skill_renders.json",
+        "src/specify_cli/skills/historical_renders.py",
+        "tests/specify_cli/skills/test_historical_renders.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/7722.fixed.md",
+        "src/specify_cli/runtime/asset_preparation.py",
+        "tests/runtime/test_asset_preparation_retire_proof.py",
+        "tests/runtime/test_global_asset_inventory_anchor.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/2460.fixed.md",
+        "src/specify_cli/skills/verifier.py",
+        "src/specify_cli/tool_surface/providers/managed_skills.py",
+        "tests/specify_cli/skills/test_verify_retired_orphan.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/2527.fixed.md",
+        "docs/changelog/unreleased/7700.fixed.md",
+        "src/specify_cli/runtime/agent_skills.py",
+        "src/specify_cli/skills/installer.py",
+        "tests/specify_cli/runtime/test_global_skills_historical_proof.py",
+        "tests/specify_cli/skills/test_project_skills_historical_proof.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/5281.fixed.md",
+        "docs/changelog/unreleased/7723.added.md",
+        "src/specify_cli/cli/commands/_command_surface_doctor.py",
+        "src/specify_cli/runtime/doctor.py",
+        "src/specify_cli/skills/command_installer.py",
+        "tests/specify_cli/runtime/test_old_root_leftovers.py",
+        "tests/specify_cli/skills/test_crlf_skill_render_4998.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "docs/api/skills/README.md",
+        "docs/api/skills/spk-start-here.md",
+        "docs/changelog/unreleased/7725.changed.md",
+        "src/charter/offering/skills/README.md",
+        "src/charter/offering/skills/spk-meta-skill-map/references/spk-skill-map.md",
+        "src/charter/offering/skills/spk-start-first-feature/**",
+        "src/charter/offering/skills/spk-start-first-mission/**",
+        "src/charter/offering/skills/spk-start-here/SKILL.md",
+        "src/specify_cli/skills/retired.py",
+        "tests/charter_offering/test_spk_skill_pack.py",
+        "tests/specify_cli/skills/test_first_mission_skill_rename.py",
+        "tests/specify_cli/skills/test_retired_skill_completeness.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/5983.added.md",
+        "src/specify_cli/tool_surface/findings.py",
+        "src/specify_cli/tool_surface/repair.py",
+        "src/specify_cli/tool_surface/service.py",
+        "tests/specify_cli/tool_surface/test_global_skill_kept_findings.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-11-20T06:39:53.117523+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "a053b67434d9b073da708a387a5aec93e88fe227"
+}

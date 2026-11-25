@@ -13,6 +13,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass, replace
 from threading import RLock
 from kernel.clock import now_utc_iso
+from kernel.file_modes import modes_equivalent
 from kernel.no_follow import chmod_fd, chmod_no_follow, utime_no_follow
 from pathlib import Path
 from typing import cast
@@ -30,6 +31,7 @@ from specify_cli.core.agent_config import AgentConfigError, load_agent_config
 from specify_cli.core.safe_delete import safe_rmdir as _safe_rmdir
 from specify_cli.core.safe_delete import safe_unlink as _safe_unlink
 from specify_cli.skills.catalog import resolve_project_skill_catalog
+from specify_cli.skills.historical_renders import is_historical_render
 from specify_cli.skills.skill_frontmatter import SKILL_FILENAME, is_shared_root, project_skill_bytes
 from specify_cli.skills.manifest import (
     ManagedFileEntry,
@@ -49,7 +51,6 @@ from specify_cli.skills.paths import (
     recheck_skill_paths,
     skill_path_observations,
 )
-from specify_cli.skills.command_installer import windows_dir_mode_only_divergence
 from specify_cli.tool_surface.operations import (
     ApplyConsent,
     AssessmentInputs,
@@ -63,6 +64,8 @@ from specify_cli.tool_surface.operations import (
     OwnershipProof,
     PhysicalEffect,
     coalesce_effects,
+    effect_action,
+    state_equivalent,
 )
 from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 
@@ -472,11 +475,10 @@ def _command_parent_receipts(assessment: OwnerAssessment) -> dict[Path, SkillPat
         if len(matches) != 1:
             raise ValueError(f"Invalid command-created skill parent: {path}")
         effect = matches[0]
-        # #4776: on Windows a freshly-created shared parent cannot carry the
-        # planned POSIX 0o755, so accept a directory whose sole divergence from
-        # the plan is that host-unrepresentable mode (dir-scoped, host-gated via
-        # kernel.paths.is_windows). POSIX drift still refuses (NFR-003).
-        after_matches = effect.after == item.state or windows_dir_mode_only_divergence(item.state, effect.after)
+        # #4776/#4927: a receipt compared with a planned state goes through the
+        # host-aware equivalence -- on Windows a created directory reads 0o777,
+        # never the planned 0o755; on POSIX any mode drift still refuses.
+        after_matches = state_equivalent(item.state, effect.after, ignore_mtime=False)
         if effect.before.kind != "absent" or not after_matches or item.identity is None or item.state.kind != "directory":
             raise ValueError(f"Invalid command-created skill parent: {path}")
     recheck_skill_paths(tuple(receipts.values()))
@@ -559,28 +561,10 @@ class _ProjectSkillPreparation:
     ) -> None:
         if before.kind == after.kind == "absent":
             return
-        if before.kind == "absent":
-            action = "create"
-        elif after.kind == "absent":
-            action = "delete"
-        elif before.kind != after.kind:
-            action = "replace"
-        elif before.sha256 != after.sha256:
-            action = "update"
-        elif before.target != after.target:
-            action = "retarget"
-        elif before.mode != after.mode:
-            # #4927/T006: on Windows, `before` (observed) carries a real
-            # mtime the fixed-POSIX `after` (from _expected_project_entries)
-            # never sets, so mtime_ns is normalized before consulting the
-            # shared host-aware relaxation -- mirroring the same
-            # normalization the managed-skills completion re-check already
-            # does. A host-unrepresentable mode-only divergence emits no
-            # effect at all (FR-004); a genuine divergence still chmods.
-            if windows_dir_mode_only_divergence(replace(before, mtime_ns=after.mtime_ns), after):
-                return
-            action = "chmod"
-        else:
+        # #4927: the one host-aware action decision; a Windows mode the host
+        # cannot represent plans nothing, read-only drift still chmods.
+        action = effect_action(before, after)
+        if action is None:
             return
         proofs = tuple(
             OwnershipProof(
@@ -849,7 +833,8 @@ def _prepare_project_skills(
             and all(_managed_link(entry, project / path, before) for entry in owners)
         )
         canonical = wanted is not None and before.kind == "file" and before.sha256 == after.sha256
-        if _preserve_project_path(plan, path, before, managed, canonical, unchanged_owned):
+        shipped = wanted is not None and _is_shipped_render(before, owners or tuple(new_owners))
+        if _preserve_project_path(plan, path, before, managed, canonical or shipped, unchanged_owned):
             continue
         effect_owners = owners or tuple(new_owners)
         # New consumers share the effect, but cannot fabricate prior manifest proof.
@@ -928,6 +913,17 @@ def _finish_project_preparation(
         prepared=prepared,
         consent=plan.inputs.consent,
     )
+
+
+def _is_shipped_render(before: FileState, entries: tuple[ManagedFileEntry, ...]) -> bool:
+    """Whether *before* is a file holding a render Spec Kitty shipped for this skill path (#2527).
+
+    Such bytes are Spec Kitty's own earlier output, so they are replaced like canonical content
+    (the replacement still keeps a backup); a user's edit matches no shipped render.
+    """
+    if before.kind != "file":
+        return False
+    return any(bool(is_historical_render(entry.skill_name, entry.source_file, before.sha256)) for entry in entries)
 
 
 def _preserve_project_path(
@@ -1024,7 +1020,7 @@ def _apply_project_skill_write(write: PreparedProjectSkillWrite) -> None:
     elif after.kind == "symlink":
         assert after.target is not None
         path.symlink_to(after.target)
-        if stat.S_IMODE(path.lstat().st_mode) != after.mode:
+        if not modes_equivalent("symlink", stat.S_IMODE(path.lstat().st_mode), after.mode):
             assert after.mode is not None
             chmod_no_follow(path, after.mode)
     else:

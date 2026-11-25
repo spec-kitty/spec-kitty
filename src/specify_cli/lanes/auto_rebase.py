@@ -53,11 +53,11 @@ from specify_cli.consolidation.conflict_classifier import (
     validate_resolution,
 )
 from specify_cli.state.contract import is_target_owned_path
-from specify_cli.status import EventLogMergeError, materialize, merge_event_log_texts
+from specify_cli.status import EventLogMergeError, materialize, merge_event_log_texts, review_presync_ref, sits_on_through_merges
 from specify_cli.coordination.coherence import CheckoutRole, ResidueContext, is_coord_residue_churn
 from specify_cli.consolidation.git_probes import LagResidueContext
 from specify_cli.git.destructive_guard import DestructiveOpRefused, guarded_merge_abort
-from specify_cli.git.ref_advance import ResidueClassifier
+from specify_cli.git.ref_advance import ResidueClassifier, write_bookkeeping_ref
 from mission_runtime import (
     MissionArtifactKind,
     kind_for_mission_file,
@@ -523,6 +523,47 @@ def _resolve_managed_artifact_conflicts(
 def _merge_head_exists(worktree: Path) -> bool:
     result = _run(["git", "rev-parse", "-q", "--verify", "MERGE_HEAD"], worktree)
     return result.returncode == 0
+
+
+def _head_sha(worktree: Path) -> str | None:
+    """The commit ``HEAD`` names in *worktree*, ``None`` when it does not resolve."""
+    result = _run(["git", "rev-parse", "-q", "--verify", "HEAD^{commit}"], worktree)
+    sha = result.stdout.strip()
+    return sha if result.returncode == 0 and sha else None
+
+
+def _record_review_presync(repo_root: Path, worktree: Path, branch: str, pre_merge_sha: str | None) -> None:
+    """#7802: record the lane tip before the review's sync merge(s) as ``refs/spec-kitty/review-presync/<branch>``.
+
+    Acts only when the sync actually created a merge commit on top of *pre_merge_sha*
+    (``HEAD^1`` is that tip and ``HEAD^2`` exists); nothing is written when the merge was a
+    no-op. An existing record is KEPT when *pre_merge_sha* is that record or sits on it through
+    merge commits only (:func:`~specify_cli.status.sits_on_through_merges`, the predicate the
+    lane-head reader applies): a second sync must not replace the pushed tip with the first,
+    unpushed, sync merge (review cycle 1). It is overwritten with *pre_merge_sha* only when the
+    lane has non-merge work beyond the record (a new implementer commit) or the record is not
+    on the lane's first-parent path.
+
+    The ref is clone-local and never pushed: the lane-head reader turns it into the approval's
+    ``lane_head_presync`` stamp, so a reviewer who never pushes these merges still leaves an
+    approval stamp another clone holds. Best-effort: a failed write leaves the approval with
+    today's single stamp.
+    """
+    if pre_merge_sha is None:
+        return
+    head = _head_sha(worktree)
+    if head is None or head == pre_merge_sha:
+        return
+    first_parent = _run(["git", "rev-parse", "-q", "--verify", "HEAD^1"], worktree).stdout.strip()
+    second_parent = _run(["git", "rev-parse", "-q", "--verify", "HEAD^2"], worktree)
+    if first_parent != pre_merge_sha or second_parent.returncode != 0:
+        return
+    ref = review_presync_ref(branch)
+    recorded = _run(["git", "rev-parse", "-q", "--verify", f"{ref}^{{commit}}"], repo_root).stdout.strip()
+    if recorded and (recorded == pre_merge_sha or sits_on_through_merges(repo_root, recorded, pre_merge_sha)):
+        return
+    if not write_bookkeeping_ref(repo_root, ref, pre_merge_sha):
+        _LOG.debug("auto-rebase: could not record the review pre-sync tip of %s", branch)
 
 
 def _git_ref_has_path(worktree: Path, ref: str, rel_path: str) -> bool:
@@ -1036,6 +1077,7 @@ def attempt_auto_rebase(
     # driver here would pre-empt that classifier (#2709/#2711 regression).
     _ensure_merge_driver_git_config(repo_root)
 
+    pre_merge_sha = _head_sha(worktree_path)
     merge_result = _run(
         ["git", "merge", "--no-edit", "--no-ff", "--no-commit", mission_branch],
         worktree_path,
@@ -1065,6 +1107,7 @@ def attempt_auto_rebase(
                     f"merge commit failed: "
                     f"{(commit_result.stderr or commit_result.stdout).strip()}",
                 )
+            _record_review_presync(repo_root, worktree_path, branch, pre_merge_sha)
 
         return AutoRebaseReport(
             lane_id=lane.lane_id,
@@ -1113,7 +1156,10 @@ def attempt_auto_rebase(
         if is_init:
             init_py_touched.append(file_path)
 
-    return _finalize_auto_rebase(
+    report = _finalize_auto_rebase(
         lane.lane_id, worktree_path, repo_root,
         classifications, init_py_touched, uvlock_seen, branch, context,
     )
+    if report.succeeded:
+        _record_review_presync(repo_root, worktree_path, branch, pre_merge_sha)
+    return report

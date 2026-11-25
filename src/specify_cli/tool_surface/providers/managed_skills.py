@@ -47,7 +47,7 @@ from specify_cli.skills.manifest import (
 from specify_cli.skills.paths import SkillPathObservation, get_primary_project_skill_root, observe_skill_path, recheck_skill_paths
 from specify_cli.skills.catalog import PackSkillCatalogError, resolve_project_skill_catalog
 from specify_cli.skills.registry import SkillRegistry
-from specify_cli.skills.command_installer import windows_dir_mode_only_divergence
+from specify_cli.skills.retired import RETIRED_CANONICAL_SKILL_NAMES
 
 from ..enums import (
     ActivationMode,
@@ -60,11 +60,22 @@ from ..findings import (
     GENERATED_SURFACE_MISSING,
     MANAGED_FILE_DRIFT,
     SEVERITY_ERROR,
+    STALE_GENERATED_SURFACE,
     SEVERITY_WARNING,
     make_finding,
 )
 from ..model import SurfaceDefinition, SurfaceInstance, SurfaceSelection
-from ..operations import ApplyConsent, AssessmentInputs, Diagnostic, OperationRoot, OwnerAssessment, OwnerApplyResult, PhysicalEffect, coalesce_effects
+from ..operations import (
+    ApplyConsent,
+    AssessmentInputs,
+    Diagnostic,
+    OperationRoot,
+    OwnerAssessment,
+    OwnerApplyResult,
+    PhysicalEffect,
+    coalesce_effects,
+    state_equivalent,
+)
 from ..repair import RepairResult
 from ..bundles.projection import SelectedSkillBundle, completed_selected_skill_bundle, selected_skill_bundle_guard
 from ..bundles.model import PreparedBundle
@@ -72,6 +83,7 @@ from ..status import (
     STATE_DRIFTED,
     STATE_MISSING,
     STATE_PRESENT,
+    STATE_STALE,
     SurfaceStatus,
     _surface_id,
 )
@@ -161,8 +173,7 @@ def _recheck_command_completion(
         created_yaml = provisioning.write.recheck_applied()
     for effect in command_effects:
         state = observe_skill_path(effect.destination).state
-        normalized = replace(state, mtime_ns=effect.after.mtime_ns)
-        if normalized != effect.after and not windows_dir_mode_only_divergence(normalized, effect.after):
+        if not state_equivalent(state, effect.after):
             raise ValueError(f"Completed command output changed: {effect.destination}")
     for before in composition.parents:
         current = observe_skill_path(before.path, members=True)
@@ -256,6 +267,9 @@ class ManagedSkillsProvider:
         # catalog (built-in plus pack skills) through the one catalog seam.
         self._registry_factory: Callable[[], SkillRegistry] | None = registry_factory
         self._legacy_collaborators = verifier is not None or installer is not None
+        # Surface ids of manifest entries whose skill the (non-empty) catalog no
+        # longer ships, recorded by ``expand`` for ``probe`` (#2460).
+        self._retired_surface_ids: set[str] = set()
 
     def can_handle(self, definition: SurfaceDefinition) -> bool:
         return definition.kind is ToolSurfaceKind.CHARTER_SKILL
@@ -459,8 +473,16 @@ class ManagedSkillsProvider:
             entry.installed_path: entry
             for entry in self._expected_entries(tool_key, project_root)
         }
+        catalog_ships_skills = bool(entries_by_path)
+        # Marks describe this expansion only: drop the ones an earlier expansion left for this tool.
+        tool_prefix = f"{tool_key}.{ToolSurfaceKind.CHARTER_SKILL}."
+        self._retired_surface_ids = {sid for sid in self._retired_surface_ids if not sid.startswith(tool_prefix)}
         for entry in manifest_entries:
             expected = entries_by_path.get(entry.installed_path)
+            if expected is None and catalog_ships_skills and entry.skill_name in RETIRED_CANONICAL_SKILL_NAMES:
+                # #2460: a retired skill the catalog no longer ships; a hash-clean copy
+                # must still be actionable so the retirement drain runs.
+                self._retired_surface_ids.add(_managed_surface_id(tool_key, entry))
             entries_by_path[entry.installed_path] = (
                 replace(entry, content_hash=expected.content_hash) if expected is not None else entry
             )
@@ -491,7 +513,10 @@ class ManagedSkillsProvider:
         if instance.file_hash is not None:
             on_disk = self._content_hash(path)
             if on_disk != instance.file_hash:
+                # An edited copy is drift, retired or not: it needs consent, never the drain.
                 return self._drifted_status(instance)
+        if instance.surface_id in self._retired_surface_ids:
+            return self._retired_status(instance)
         return SurfaceStatus(instance=instance, state=STATE_PRESENT)
 
     @staticmethod
@@ -513,6 +538,24 @@ class ManagedSkillsProvider:
                     SEVERITY_ERROR,
                     f"Managed charter skill for {instance.owner} is missing: "
                     f"{instance.path}",
+                    tool_key=instance.owner,
+                    surface_id=_surface_id(instance),
+                    path=instance.path,
+                    repair_command=_REPAIR_HINT,
+                ),
+            ),
+        )
+
+    @staticmethod
+    def _retired_status(instance: SurfaceInstance) -> SurfaceStatus:
+        return SurfaceStatus(
+            instance=instance,
+            state=STATE_STALE,
+            findings=(
+                make_finding(
+                    STALE_GENERATED_SURFACE,
+                    SEVERITY_WARNING,
+                    f"Retired managed charter skill is still installed: {instance.path}",
                     tool_key=instance.owner,
                     surface_id=_surface_id(instance),
                     path=instance.path,
@@ -561,7 +604,7 @@ class ManagedSkillsProvider:
     ) -> RepairResult:
         """Prepare once, then report only actually permitted/completed repairs."""
         actionable = [
-            s for s in statuses if s.state in (STATE_MISSING, STATE_DRIFTED)
+            s for s in statuses if s.state in (STATE_MISSING, STATE_DRIFTED, STATE_STALE)
         ]
         if not actionable:
             return RepairResult(dry_run=dry_run)

@@ -836,6 +836,7 @@ def _collect_summary_with_optional_repair(
     mutate_matrix: bool,
     normalize_encoding: bool,
     owned: OwnedCheckout | None = None,
+    path_conventions_waiver_reason: str | None = None,
 ) -> AcceptanceSummary:
     """Collect the acceptance summary, optionally repairing artifact encoding.
 
@@ -854,6 +855,7 @@ def _collect_summary_with_optional_repair(
             strict_metadata=strict_metadata,
             mutate_matrix=mutate_matrix,
             owned=owned,
+            path_conventions_waiver_reason=path_conventions_waiver_reason,
         )
     except PathConventionsConfigError as exc:
         # A malformed ``project.path_conventions`` section is a fail-closed operator
@@ -882,6 +884,7 @@ def _collect_summary_with_optional_repair(
                 strict_metadata=strict_metadata,
                 mutate_matrix=mutate_matrix,
                 owned=owned,
+                path_conventions_waiver_reason=path_conventions_waiver_reason,
             )
         except ArtifactEncodingError as exc:
             raise AcceptanceError(
@@ -947,6 +950,8 @@ class _AcceptRun:
     provenance_note: str | None
     lenient: bool
     origin_warnings: tuple[str, ...] = ()
+    #: #7566: the per-run path-conventions waiver reason, ``None`` when not waived.
+    path_conventions_waiver_reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -1102,6 +1107,7 @@ def _plan_run(
     no_commit: bool,
     diagnose: bool,
     lenient: bool = False,
+    path_conventions_waiver_reason: str | None = None,
 ) -> _AcceptRun:
     """Announce the mission, pick the acceptance mode and register the remaining steps."""
     # T020 (#3255): computed unconditionally so the SC-008 advisory reaches
@@ -1131,6 +1137,7 @@ def _plan_run(
         commit_required=commit_required,
         provenance_note=provenance_note,
         lenient=lenient,
+        path_conventions_waiver_reason=path_conventions_waiver_reason,
     )
 
 
@@ -1188,6 +1195,26 @@ def _check_origin_freshness(run: _AcceptRun, origin_check: str | None, *, read_o
     for warning in warnings:
         typer.echo(f"Warning: {warning}", err=True)
     return replace(run, origin_warnings=tuple(warnings))
+
+
+#: #7566: the narrow per-run escape from path conventions (metadata stays strict).
+WAIVE_PATH_CONVENTIONS_FLAG = "--waive-path-conventions"
+WAIVE_REASON_FLAG = "--waive-reason"
+
+
+def _validated_path_conventions_waiver(json_output: bool, waive: bool, reason: str | None) -> str | None:
+    """CLI-boundary check of ``--waive-path-conventions`` (#7566 FR-011): the stripped reason, or ``None``.
+
+    Exit 2 before any work when the flag comes without a non-blank ``--waive-reason``,
+    or a reason comes without the flag. ``record_acceptance`` drops a blank reason,
+    so a blank one is refused here rather than recorded as nothing.
+    """
+    has_reason = reason is not None and bool(reason.strip())
+    if waive and not has_reason:
+        _fail(json_output, f'{WAIVE_PATH_CONVENTIONS_FLAG} requires a non-blank {WAIVE_REASON_FLAG} "<why>". Nothing was checked or recorded.', code=2)
+    if reason is not None and not waive:
+        _fail(json_output, f"{WAIVE_REASON_FLAG} is only valid with {WAIVE_PATH_CONVENTIONS_FLAG}. Nothing was checked or recorded.", code=2)
+    return reason.strip() if waive and reason is not None else None
 
 
 def _validated_no_implementation_request(
@@ -1438,6 +1465,7 @@ def _collect_summary_or_exit(
             # canonical normalize_feature_encoding before validating (default off).
             normalize_encoding=normalize_encoding,
             owned=run.owned,
+            path_conventions_waiver_reason=run.path_conventions_waiver_reason,
         )
     except (Pre30LayoutError, AcceptanceError, AcceptanceMatrixParseError) as exc:
         # #1057 / squad Blocker 1: a pre-3.0 lane-directory mission must hard-reject
@@ -1740,7 +1768,10 @@ def accept(
     lenient: bool = typer.Option(
         False,
         "--lenient",
-        help="Skip strict metadata validation and downgrade missing path-convention checks to warnings",
+        help=(
+            "Skip strict metadata validation and downgrade missing path-convention checks to warnings. "
+            f"To waive only the path-convention check, use {WAIVE_PATH_CONVENTIONS_FLAG}."
+        ),
     ),
     no_commit: bool = typer.Option(False, "--no-commit", help="Report acceptance readiness without writing metadata or status changes"),
     diagnose: bool = typer.Option(False, "--diagnose", help="Diagnose acceptance blockers without writing metadata or matrix artifacts"),
@@ -1824,9 +1855,26 @@ def accept(
         str | None,
         typer.Option(ATTEST_REASON_FLAG, help=f"Why no implementation is owed, recorded with {ATTEST_NO_IMPLEMENTATION_FLAG} (required with it)."),
     ] = None,
+    waive_path_conventions: Annotated[
+        bool,
+        typer.Option(
+            WAIVE_PATH_CONVENTIONS_FLAG,
+            help=(
+                "Treat missing layout directories (src/, tests/, docs/...) as warnings for this run only; metadata validation stays strict "
+                "and a missing Mission artifact such as contracts/ still blocks. "
+                f"Requires {WAIVE_REASON_FLAG}; the reason is recorded in the acceptance history. To waive them for every run, "
+                'set "path_conventions": "waived" with a "path_conventions_rationale" in the Mission\'s meta.json.'
+            ),
+        ),
+    ] = False,
+    waive_reason: Annotated[
+        str | None,
+        typer.Option(WAIVE_REASON_FLAG, help=f"Why path conventions are waived for this run (required with {WAIVE_PATH_CONVENTIONS_FLAG})."),
+    ] = None,
 ) -> None:
     """Validate mission readiness before merging to main."""
 
+    waiver_reason = _validated_path_conventions_waiver(json_output, waive_path_conventions, waive_reason)
     if not json_output:
         show_banner()
 
@@ -1850,6 +1898,7 @@ def accept(
         no_commit=no_commit,
         diagnose=diagnose,
         lenient=lenient,
+        path_conventions_waiver_reason=waiver_reason,
     )
     read_only_flag = "--diagnose" if diagnose else ("--no-commit" if no_commit else None)
     attested, reason = _validated_no_implementation_request(json_output, attest_no_implementation, attest_reason, read_only_flag=read_only_flag)

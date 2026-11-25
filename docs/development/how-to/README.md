@@ -23,6 +23,8 @@ Spec Kitty. Each page is scoped to one job you can pick up and finish.
 - [Auditing special-case workarounds](auditing-special-case-workarounds.md) — find, classify and remove the branches that tolerate a wrong input, a private seam or a test double, with the disposition ledger from #6745.
 - [Local overrides for cross-package development](local-overrides.md) — dev-only editable installs across `spec-kitty-cli`/`-events`/`-tracker` that must never be committed.
 - [Set up a Claude Code cloud session](cloud-session-setup.md) — make the `spec-kitty` CLI, test package and CodeGraph available in a cloud session.
+- [Set up a Claude Code cloud environment](cloud-environment-setup.md) — the shared environment underneath: network hosts, variables, the setup script (Java 25, Gradle mirror, core warm-up, CLI install), validation and the GitHub side.
+- [Run a multi-session orchestration](run-a-multi-session-orchestration.md) — run a dispatcher that spawns triager, runner, reviewer and lander sessions, with the standing rules, brief templates, ledger and loop.
 - [Managing the issue tracker](manage-issue-tracker.md) — epics vs. meta-trackers, native sub-issue parenting, and triage conventions.
 - [Contract pinning workflow](contract-pinning.md) — pinning the `spec-kitty-events` envelope contract in tests.
 - [Cut-over guard: fail-closed pre-merge gate](cutover-guard.md) — what `spec-kitty cutover-guard` checks, how it is wired into CI, and how to register it as a required status check.

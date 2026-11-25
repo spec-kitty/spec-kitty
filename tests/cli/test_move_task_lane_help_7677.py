@@ -11,9 +11,12 @@ print the pre-9-lane flow ``planned → doing → for_review → approved → do
 from __future__ import annotations
 
 import pytest
+from typer.main import get_command
 
 from specify_cli.cli.commands.agent.tasks import MOVE_TASK_TO_HELP, move_task
+from specify_cli.cli.commands.agent.tasks import app as tasks_app
 from specify_cli.status import NON_DISPLAY_LANES, Lane
+from tests import _click_universe as typer_click
 
 pytestmark = pytest.mark.fast
 
@@ -51,3 +54,33 @@ def test_to_option_help_lists_every_display_lane() -> None:
     listed = MOVE_TASK_TO_HELP[MOVE_TASK_TO_HELP.index("(") + 1 : MOVE_TASK_TO_HELP.index(";")]
     assert listed.split("/") == _DISPLAY_LANES
     assert "doing is accepted as an alias of in_progress" in MOVE_TASK_TO_HELP
+
+
+def _feedback_option_help() -> str:
+    """The ``--review-feedback-file`` help as the rendered command shows it."""
+    group = get_command(tasks_app)
+    assert isinstance(group, typer_click.Group)
+    command = group.commands["move-task"]
+    for param in command.params:
+        if isinstance(param, typer_click.Option) and "--review-feedback-file" in param.opts:
+            return str(param.help)
+    raise AssertionError("move-task has no --review-feedback-file option")
+
+
+def test_rejection_rationale_names_only_the_feedback_file() -> None:
+    """A rejection with only ``--note``/``--reason`` is refused (#7769).
+
+    ``_guard_planned_rollback`` accepts a non-empty review feedback file and
+    nothing else, so the help must not offer a note as an alternative.
+    """
+    doc = " ".join((move_task.__doc__ or "").split())
+    assert "(or ``--note``/``--reason``)" not in doc
+    assert "a ``--note``/``--reason`` alone does not satisfy it" in doc
+    assert "the move is refused without it, also with ``--force``" in doc
+
+
+def test_feedback_option_help_says_the_move_is_refused() -> None:
+    """Omitting the file is refused, not recorded as a contract-invalid event."""
+    help_text = _feedback_option_help()
+    assert "contract-invalid" not in help_text
+    assert "the move is refused without it" in help_text

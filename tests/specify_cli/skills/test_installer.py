@@ -1861,19 +1861,19 @@ def test_converged_windows_project_emits_zero_supporting_surface_repairs(tmp_pat
 
     Pre-T005/T006 this re-planned a `chmod` effect for the managed file whose
     Windows-observed mode differs from the fixed POSIX plan, even though the
-    project is otherwise fully converged; post-fix the divergence is
-    recognized as host-inherent and suppressed.
+    project is otherwise fully converged; the host-aware predicate now
+    compares only what NTFS can represent (the write bit).
     """
-    from kernel import paths as kernel_paths
     from specify_cli.skills.installer import assess_project_skills
+    from tests.specify_cli.tool_surface.ntfs_emulation import emulate_ntfs
 
-    installed, inputs, registry = _install_one_converged_skill(tmp_path)
-    # Simulate a Windows-observed mode for the already-installed, converged
-    # file: the real host mode is host-representable but differs from the
-    # fixed POSIX plan (`_expected_project_entries` strips write bits).
-    installed.chmod(0o666)
-
-    monkeypatch.setattr(kernel_paths, "is_windows", lambda: True)
+    _installed, inputs, registry = _install_one_converged_skill(tmp_path)
+    # Re-pinned (#4927/#4810, operator ruling 2026-11-20): a converged file on
+    # NTFS is read-only and reads 0o444, as planned (`_expected_project_entries`
+    # strips the write bits); only the write bit is compared, so nothing is
+    # planned. A *writable* copy is now real drift --
+    # see tests/specify_cli/skills/test_project_skill_windows_write_bit.py.
+    emulate_ntfs(monkeypatch)
     next_assessment = assess_project_skills(inputs, registry, ("claude",))
 
     assert next_assessment.complete, next_assessment.diagnostics
@@ -1899,13 +1899,12 @@ def test_posix_genuine_mode_divergence_still_repairs(tmp_path: Path) -> None:
 
 def test_converged_windows_project_stable_across_repeated_runs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#4927 (FR-006): the zero-repair count is stable across repeated dry-runs."""
-    from kernel import paths as kernel_paths
     from specify_cli.skills.installer import assess_project_skills
+    from tests.specify_cli.tool_surface.ntfs_emulation import emulate_ntfs
 
-    installed, inputs, registry = _install_one_converged_skill(tmp_path)
-    installed.chmod(0o666)
+    _installed, inputs, registry = _install_one_converged_skill(tmp_path)
 
-    monkeypatch.setattr(kernel_paths, "is_windows", lambda: True)
+    emulate_ntfs(monkeypatch)
     first = assess_project_skills(inputs, registry, ("claude",))
     second = assess_project_skills(inputs, registry, ("claude",))
 

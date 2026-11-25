@@ -40,7 +40,10 @@ def _all_steps(workflow: dict) -> list[dict]:
 def test_lock_only_change_selects_upgrade_and_status_not_everything() -> None:
     selected = select_modules(["uv.lock"], router=load_router())
     assert {"upgrade", "status"} <= selected
-    assert "charter" not in selected  # not a run-all / unmatched-src path
+    # Not a run-all / unmatched-src path. (Before #7775 this was pinned as "charter not selected"; since
+    # #7775 roots src/specify_cli/migration/** -- a reducer reader -- in every module whose tests import
+    # it, charter included, the derived fan-out reaches charter and the proxy no longer holds.)
+    assert selected < select_modules(["src/specify_cli/__unrouted_probe__.py"], router=load_router())
 
 
 def test_manifest_only_change_does_not_select_upgrade() -> None:

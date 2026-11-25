@@ -375,3 +375,194 @@ def run_global_checks(
         checks.append(check_stale_legacy_assets(project_dir))
         checks.append(check_governance_resolution(project_dir))
     return checks
+
+
+# --- leftovers under a previous user-global root (#7723) ----------------------
+
+#: How a leftover file was proven to be Spec Kitty's own output.
+PROOF_CURRENT_RENDER = "current_render"
+PROOF_CANONICAL_PREDECESSOR = "canonical_predecessor"
+PROOF_HISTORICAL_RENDER = "historical_render"
+PROOF_OWNERSHIP_RECORD = "ownership_record"
+
+
+@dataclass(frozen=True)
+class LeftoverFile:
+    """A file Spec Kitty wrote under an agent's previous user-global root, which it no longer reads.
+
+    Reported only (operator ruling Q2=A); removal is the operator's, see #7758.
+    """
+
+    kind: str  # "command" or "skill"
+    agent: str
+    path: Path
+    old_root: Path
+    proof: str
+
+
+def find_old_root_leftovers(agent_keys: list[str] | None = None, *, kinds: tuple[str, ...] = ("command", "skill")) -> list[LeftoverFile]:
+    """Proven Spec Kitty files left under the home mirror of a moved agent config root, read-only.
+
+    For each agent with a documented user-global config root (``$CLAUDE_CONFIG_DIR`` ...)
+    whose resolved command directory or skill root differs from the ``$HOME`` mirror of its
+    project path (``~/.claude/commands``, ``~/.claude/skills``), the mirror is scanned. A
+    command file is listed when it equals today's render or carries a Spec Kitty version
+    marker for the same command (#4609); a skill file when its bytes are a render shipped for
+    that exact skill path (#7700). Either is also listed when the global asset inventory
+    records it with these exact bytes (Spec Kitty's own ownership record, e.g. a projection an
+    older release wrote). Anything else is not listed. Symlinks are never followed.
+    """
+    from specify_cli.core.config import AGENT_PROJECT_CONFIG_DIRS, agent_user_config_root
+
+    found: list[LeftoverFile] = []
+    for agent in agent_keys if agent_keys is not None else list(AGENT_PROJECT_CONFIG_DIRS):
+        config_dir = AGENT_PROJECT_CONFIG_DIRS.get(agent)
+        if config_dir is None or agent_user_config_root(agent) is None:
+            continue
+        if "command" in kinds:
+            found.extend(_command_leftovers(agent))
+        if "skill" in kinds:
+            found.extend(_skill_leftovers(agent, Path.home() / config_dir / "skills"))
+    return found
+
+
+def _moved_mirror(mirror: Path, current: Path | None) -> bool:
+    """Whether *mirror* is a real directory the agent no longer reads from.
+
+    An alias of the current root (a symlinked ``$HOME``, a ``..`` spelling) is the same
+    directory, never a moved one: its files are the live install, not leftovers.
+    """
+    if current is None or not mirror.is_dir() or mirror.is_symlink():
+        return False
+    return not _same_directory(mirror, current)
+
+
+def _same_directory(left: Path, right: Path) -> bool:
+    """``os.path.samefile`` when both exist; else compare the resolved paths."""
+    import os
+
+    try:
+        return os.path.samefile(left, right)
+    except OSError:
+        return left.resolve() == right.resolve()
+
+
+def _command_leftovers(agent: str) -> list[LeftoverFile]:
+    from specify_cli.core.config import AGENT_COMMAND_CONFIG
+    from specify_cli.runtime.agent_commands import get_global_command_dir
+
+    config = AGENT_COMMAND_CONFIG.get(agent)
+    if config is None:
+        return []
+    mirror = Path.home() / str(config["dir"]).strip("/")
+    if not _moved_mirror(mirror, get_global_command_dir(agent)):
+        return []
+    renders = _current_command_renders(agent)
+    recorded = _recorded_file_digests("slash_commands")
+    found: list[LeftoverFile] = []
+    for path in sorted(mirror.iterdir()):
+        desired = renders.get(path.name)
+        if desired is None or path.is_symlink() or not path.is_file():
+            continue
+        existing = path.read_bytes()
+        proof = _command_proof(existing, desired) or _ownership_proof(path, existing, recorded)
+        if proof is not None:
+            found.append(LeftoverFile("command", agent, path, mirror, proof))
+    return found
+
+
+def _current_command_renders(agent: str) -> dict[str, bytes]:
+    """Today's ``{filename: bytes}`` for *agent*; empty (nothing proven) when rendering fails."""
+    from specify_cli.runtime.agent_commands import _get_command_templates_dir, _render_agent_commands, _resolve_script_type
+
+    try:
+        return dict(_render_agent_commands(agent, _get_command_templates_dir(), _resolve_script_type()))
+    except (OSError, ValueError, KeyError):
+        return {}
+
+
+def _command_proof(existing: bytes, desired: bytes) -> str | None:
+    from specify_cli.runtime.agent_commands import _is_canonical_predecessor
+    from specify_cli.runtime.bootstrap import _get_cli_version
+
+    if existing == desired:
+        return PROOF_CURRENT_RENDER
+    if _is_canonical_predecessor(existing, desired, _get_cli_version()):
+        return PROOF_CANONICAL_PREDECESSOR
+    return None
+
+
+def _skill_leftovers(agent: str, mirror: Path) -> list[LeftoverFile]:
+    from specify_cli.runtime.agent_skills import global_skill_names
+    from specify_cli.skills.paths import get_primary_global_skill_root
+    from specify_cli.skills.retired import RETIRED_CANONICAL_SKILL_NAMES
+
+    if not _moved_mirror(mirror, get_primary_global_skill_root(agent)):
+        return []
+    # The user-global skill owner names the shipped skills (built-in only, as for every global root).
+    names = set(global_skill_names()) | set(RETIRED_CANONICAL_SKILL_NAMES)
+    recorded = _recorded_file_digests("global_skills")
+    found: list[LeftoverFile] = []
+    for skill_dir in sorted(mirror.iterdir()):
+        if skill_dir.name in names and skill_dir.is_dir() and not skill_dir.is_symlink():
+            found.extend(_proven_skill_files(agent, mirror, skill_dir, recorded))
+    return found
+
+
+def _proven_skill_files(agent: str, mirror: Path, skill_dir: Path, recorded: dict[Path, str]) -> list[LeftoverFile]:
+    from specify_cli.runtime.asset_preparation import digest
+    from specify_cli.skills.historical_renders import is_historical_render
+
+    found: list[LeftoverFile] = []
+    for path in sorted(skill_dir.rglob("*")):
+        if path.is_symlink() or not path.is_file() or any(parent.is_symlink() for parent in path.parents if skill_dir in parent.parents):
+            continue
+        relative = path.relative_to(skill_dir).as_posix()
+        existing = path.read_bytes()
+        if is_historical_render(skill_dir.name, relative, str(digest(existing))):
+            found.append(LeftoverFile("skill", agent, path, mirror, PROOF_HISTORICAL_RENDER))
+        elif (proof := _ownership_proof(path, existing, recorded)) is not None:
+            found.append(LeftoverFile("skill", agent, path, mirror, proof))
+    return found
+
+
+def _recorded_file_digests(owner: str) -> dict[Path, str]:
+    """``{path: sha256}`` of the files *owner*'s global asset inventory records, read-only.
+
+    Reads ``<owner>-assets.json`` and its ``-external`` sidecar through the inventory's own
+    parser (#7722 anchoring included). An absent, unreadable or invalid inventory proves
+    nothing, so it yields no entries: the report can only under-list, never over-list.
+    """
+    import json
+
+    from specify_cli.runtime.asset_preparation import _read_inventory
+
+    cache = get_kittify_home() / "cache"
+    recorded: dict[Path, str] = {}
+    for name in (f"{owner}-assets.json", f"{owner}-external-assets.json"):
+        inventory = cache / name
+        if inventory.is_symlink() or not inventory.is_file():
+            continue
+        try:
+            entries = _read_inventory(json.loads(inventory.read_bytes()), inventory)
+        except (OSError, ValueError, UnicodeError):
+            continue  # an unreadable record proves nothing; the file stays unlisted
+        recorded.update({path: str(record["sha256"]) for path, record in entries.items() if record.get("kind") == "file" and record.get("sha256")})
+    return recorded
+
+
+def _ownership_proof(path: Path, existing: bytes, recorded: dict[Path, str]) -> str | None:
+    """``ownership_record`` when the inventory records *path* with exactly these bytes."""
+    import os
+
+    from specify_cli.runtime.asset_preparation import digest
+
+    sha256 = recorded.get(Path(os.path.abspath(path)))
+    return PROOF_OWNERSHIP_RECORD if sha256 is not None and sha256 == str(digest(existing)) else None
+
+
+def leftover_removal_hint(leftovers: list[LeftoverFile]) -> str:
+    """The ``rm`` line an operator can run to remove *leftovers* (quoted paths); nothing is run."""
+    import shlex
+
+    return "rm " + " ".join(shlex.quote(str(item.path)) for item in leftovers)

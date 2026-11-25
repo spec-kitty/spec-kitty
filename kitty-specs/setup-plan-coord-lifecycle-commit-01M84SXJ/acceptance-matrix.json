@@ -1,0 +1,59 @@
+{
+  "mission_slug": "setup-plan-coord-lifecycle-commit-01M84SXJ",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/coordination/test_setup_plan_coord_lifecycle_3933.py::test_coord_setup_plan_commits_lifecycle_events_on_the_coordination_branch; tests/integration/test_placement_partition_golden_path.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::implementer-ivan",
+      "verified_at": "2026-11-24T00:03:09.426032+00:00",
+      "notes": "Events written through write_dir(STATUS_STATE); coordination log holds all three; reviewer cycle 3 approved."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/coordination/test_setup_plan_coord_lifecycle_3933.py::test_coord_setup_plan_commits_lifecycle_events_on_the_coordination_branch, ::test_coord_scaffold_only_run_commits_the_events_recorded_so_far, ::test_coord_rerun_makes_no_new_commit",
+      "pass_fail": "pass",
+      "verified_by": "claude::implementer-ivan",
+      "verified_at": "2026-11-24T00:03:12.660146+00:00",
+      "notes": "Committed on the coordination branch in the same run; scaffold-only commits; re-run unchanged (NFR-001)."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/coordination/test_setup_plan_coord_lifecycle_3933.py::test_non_coordination_setup_plan_is_unchanged[single_branch|default_before_settlement]; tests/specify_cli/cli/commands/agent/test_setup_plan_commits_lifecycle_3933.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::implementer-ivan",
+      "verified_at": "2026-11-24T00:03:15.696416+00:00",
+      "notes": "Non-coordination topologies byte-identical; no lifecycle_commit key; reviewer probed lanes on base vs head."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/coordination/test_setup_plan_coord_lifecycle_3933.py::test_refused_coordination_commit_fails_loud, ::test_raising_router_reaches_the_named_refusal, ::test_coord_setup_plan_never_erases_events_the_branch_committed, ::test_foreign_commit_after_the_guard_is_never_erased, ::test_divergence_refusal_never_says_commit_the_checkout",
+      "pass_fail": "pass",
+      "verified_by": "claude::implementer-ivan",
+      "verified_at": "2026-11-24T00:03:18.711832+00:00",
+      "notes": "SETUP_PLAN_LIFECYCLE_UNCOMMITTED exit 1 on refusal, exception, divergence and a moved branch (compare-and-swap); no committed event is ever erased."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "spec.md FR-005 [folded]; existing doctor coordination COORDINATION_WORKTREE_DIRTY warning and its tests (tests/specify_cli/cli/commands/test_doctor_coordination.py)",
+      "pass_fail": "pass",
+      "verified_by": "claude::implementer-ivan",
+      "verified_at": "2026-11-24T00:03:21.492801+00:00",
+      "notes": "Folded by operator ruling 01M853E34H1MN0CQGQ9209P8MR; no doctor change."
+    }
+  ],
+  "negative_invariants": []
+}

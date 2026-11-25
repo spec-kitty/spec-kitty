@@ -494,3 +494,28 @@ class TestFixModeCharacterization:
         assert emitted["manifest_path"] == manifest
         assert emitted["quarantine_root_path"] == quarantine
         assert emitted["summary"]["quarantined_rows"] == 2
+
+
+def test_fix_mode_names_a_next_step_for_both_pin_fallbacks(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7297 item 6 / Tier R N5: each rebuilt-pin warning names a working next step, per topology."""
+    from specify_cli.migration.mission_state import LANES_REBUILT_ACTION, LANES_REBUILT_PIN_UNSET_ACTION, LANES_REBUILT_WITH_TARGET_TIP_ACTION
+
+    def mission(slug: str, *actions: str) -> MagicMock:
+        result = MagicMock()
+        result.status, result.mission_slug, result.validation_errors, result.meta_actions = "updated", slug, [], [LANES_REBUILT_ACTION, *actions]
+        return result
+
+    report = MagicMock()
+    report.missions = [mission("tip-mission", LANES_REBUILT_WITH_TARGET_TIP_ACTION), mission("unset-mission", LANES_REBUILT_PIN_UNSET_ACTION)]
+    report.to_dict.return_value = {"summary": {"missions_updated": 2, "missions_unchanged": 0, "missions_error": 0}}
+    report.manifest_path = ".kittify/mission-state-audit/test-run.json"
+    monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
+
+    with patch("specify_cli.migration.mission_state.repair_repo", return_value=report):
+        result = runner.invoke(app, ["mission-state", "--fix", "--allow-dirty"])
+
+    flat = " ".join(((result.output or "") + (result.stderr or "")).split())
+    assert result.exit_code == 0, result.output
+    assert "tip-mission" in flat and "on a single_branch Mission" in flat and "lane branches were cut from" in flat
+    assert "unset-mission" in flat and "records no planning commit" in flat
+    assert "SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE" in flat and "finalize-tasks --mission unset-mission" in flat

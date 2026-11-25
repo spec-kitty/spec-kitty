@@ -1,0 +1,92 @@
+{
+  "event_count": 19,
+  "last_event_id": "01M81Y3ZNDZTA8SNVQJ358CKHN",
+  "materialized_at": "2026-11-22T15:31:12.173838+00:00",
+  "mission_number": "265",
+  "mission_slug": "single-branch-planning-pin-rebase-01M81KRS",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude::implementer-ivan",
+      "lane": "done",
+      "last_event_id": "01M81Y3YR8J43E090PBSNRFKQT",
+      "last_transition_at": "2026-11-22T15:31:11.241039+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-22T13:28:07Z – claude::implementer-ivan – shell_pid=10953 – Out-of-map edits, each tied to the goal: mission_finalize_pin_window.py (new helper module, so the 1376-line pin module does not grow); lanes/models.py + lanes/compute_and_persist.py + mission_finalize_lanes.py (the planning_commit_derived marker, research R4 revised: the stateless freeze froze timely pins and broke R17); test_finalize_tasks_commit_surface.py (two stale pins re-pinned to #7297 item 3, plus the SC-003 end-to-end test). Tests: make test-fast 3176 passed/7 skipped; blast radius 1587 passed/1 skipped; arch gates test_finalize_refresh_pin_authority + test_no_legacy_terminology 103 passed.",
+        "- 2026-11-22T14:26:28Z – claude::implementer-ivan – Cycle 1 fold (79bd20ef): B1 explicit refresh clears planning_commit_derived; B2 patch-id follow ignores copies reachable from target/primary (refuses PLANNING_PIN_NO_PATCH_ID_MATCH naming the upstream; residual: an upstream that is neither, for the ADR); B3 SC-004 asserts the window content, dropped the test that passed on base; B4 dead symbols removed (test_no_dead_symbols green); N2 per-WP guard; N3 docstring. N1 (doctor marker + pin line, tasks_finalize capture) and N4 (meta vs lanes.json mission_branch after landing) routed to WP02. Red witnessed: B1/B2 red on f134aeba, SC-004 red on 4a6b8cc4. Tests: blast radius + arch gates 1733 passed/1 skipped; make test-fast 3176 passed/7 skipped.",
+        "Review passed (cycle 2): B1-B4, N2, N3 folded and verified; red proofs witnessed against cycle-1 code; blast radius 1695 passed, test-fast 3176 passed; dead-symbol/layer/terminology/boundary gates green. Residuals for WP02 ADR: an upstream that is neither target nor primary (incl. a stale local primary when rebasing onto origin/<primary>) still widens; a missing upstream ref is skipped. N1/N4/N5 to WP02 and PR body."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/kitty-specs/single-branch-planning-pin-rebase-01M81KRS/tasks/WP01-pin-authority-and-finalize-decisions/review-cycle-2.md",
+        "reference": "review-cycle://single-branch-planning-pin-rebase-01M81KRS/WP01-pin-authority-and-finalize-decisions/review-cycle-2.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 29450,
+      "shell_pid_created_at": "1795358651.11",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude::implementer-ivan",
+      "lane": "done",
+      "last_event_id": "01M81Y3ZNDZTA8SNVQJ358CKHN",
+      "last_transition_at": "2026-11-22T15:31:12.173838+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-22T15:09:16Z – claude::implementer-ivan – shell_pid=254 – Out-of-map, each tied to the goal: tasks_finalize.py and tests/cli/test_tasks_finalize_lanes_minting.py (N1 pin-line capture), mission_finalize_pin_window.py (remote-tracking upstream refs, which the dispatcher asked for; the stale-local-main case moved from residual to covered), tests/unit/migration/test_rebuilt_planning_commit_7297.py (new), test_finalize_pin_decisions_7297.py (stale-main test + strict xfail residual). Red-first: wording tests 2 failed on old text; tasks_finalize pin-line test red on old capture; stale-main test red without remote refs. Tests: blast radius 2658 passed/6 skipped/1 xfailed; doctor mission-state suites 157 passed; docs+arch gates 180 passed; make test-fast 3176 passed/7 skipped.",
+        "Review passed: T010-T012 plus N1 and B2 remote-ref hardening verified. Red proofs witnessed against the WP01-approved code (5 failed, 1 import error). Blast radius 3182 passed / 1 xfailed; the strict xfail fails on its own assertion under --runxfail; make test-fast 3176 passed; ruff clean. Nits for the PR: the changelog/ADR 'always refused PLANNING_REFRESH_FAIL_CLOSED' overstates it (a plain minted refresh passed on base; the refusal was on the post-rebase re-pin); the remote-ref filter refuses, fail-closed, when the Mission's own work was pushed to a remote branch named like the target or primary; a pin the old code already moved to the tip is not recoverable by the re-pin remedy (manual edit)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/kitty-specs/single-branch-planning-pin-rebase-01M81KRS/tasks/WP02-messages-doctor-adr/review-cycle-1.md",
+        "reference": "review-cycle://single-branch-planning-pin-rebase-01M81KRS/WP02-messages-doctor-adr/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 18477,
+      "shell_pid_created_at": "1795361262.04",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
+    }
+  }
+}

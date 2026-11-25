@@ -1,0 +1,53 @@
+{
+  "accept_commit": "1e9ac64a927cd73b0435942a99154de07c17455b",
+  "acceptance_history": [
+    {
+      "accept_commit": "1e9ac64a927cd73b0435942a99154de07c17455b",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-20T12:31:28.999489+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "f1398680613834eccd6826b9f8695dae93351e13"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-20T12:31:28.999489+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "f1398680613834eccd6826b9f8695dae93351e13",
+  "baseline_merge_commit": "69fda8585c0db0902b269d05ac7b025a991b4e70",
+  "change_mode": "bulk_edit",
+  "contracts": "none",
+  "contracts_rationale": "No new interface beyond additive doctor JSON keys and two append-only finding codes, recorded in data-model.md.",
+  "coordination_branch": "kitty/mission-skill-surfaces-converge-01M7VRS0",
+  "create_return_branch": "issue-7700-skill-surfaces-converge",
+  "created_at": "2026-11-20T06:02:24.326750+00:00",
+  "flattened": false,
+  "friendly_name": "Skill surfaces converge",
+  "merged_at": "2026-11-20T12:44:57.106407+00:00",
+  "merged_commit": "60efd7e1418750742150f01679976d7879b7efd4",
+  "mid8": "01M7VRS0",
+  "mission_base_sha": "a053b67434d9b073da708a387a5aec93e88fe227",
+  "mission_branch": "kitty/mission-skill-surfaces-converge-01M7VRS0",
+  "mission_id": "01M7VRS0Q6CPC1HP3VD1TPNXRC",
+  "mission_number": 263,
+  "mission_slug": "skill-surfaces-converge-01M7VRS0",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Users who upgraded keep loading superseded skill doctrine because the CLI cannot prove its own historical output, loses ownership records when an agent root moves, and its two repair commands disagree. This mission gives every install surface one proof source and one verdict, reports what it must keep, and renames the last public skill id that still says feature.",
+  "purpose_tldr": "Stale and leftover Spec Kitty skills on a user's machine are refreshed when provably generated, and reported otherwise.",
+  "slug": "skill-surfaces-converge-01M7VRS0",
+  "status_phase": "1",
+  "target_branch": "issue-7700-skill-surfaces-converge",
+  "topology": "lanes_with_coord",
+  "topology_decision": {
+    "code_lane_count": 7,
+    "from": "single_branch",
+    "rule": "lanes_with_coord",
+    "target_protected": false,
+    "to": "lanes_with_coord",
+    "wp_count": 7
+  },
+  "topology_settled": true,
+  "topology_source": "default",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-20T06:41:35.641420+00:00"
+}

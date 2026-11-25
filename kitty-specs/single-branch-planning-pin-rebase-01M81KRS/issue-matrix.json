@@ -1,0 +1,89 @@
+{
+  "rows": {
+    "#4827": {
+      "evidence_ref": "cited for context: prior work this Mission builds on (not addressed by it)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5939": {
+      "evidence_ref": "cited for context: prior work this Mission builds on (not addressed by it)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7210": {
+      "evidence_ref": "cited for context: the derivation this Mission extends",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "finalize derives a missing planning pin (prior work)",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7297": {
+      "evidence_ref": "items 1-6: FR-004..FR-010, WP01+WP02",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "finalize-tasks: a derived planning pin can be replaced by a later run, and single_branch has no working route",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    },
+    "#7778": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: pr_or_commit_ref>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7793": {
+      "evidence_ref": "FR-001..FR-003, WP01",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "single_branch: --refresh-planning-commit --allow-orphaned after a rebase empties the implementation evidence window",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    },
+    "#7809": {
+      "evidence_ref": "cited for coordination: overlaps tasks_move_task.py and single_branch_landing.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "clone-and-ephemeral-state-gates Mission (overlap only)",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

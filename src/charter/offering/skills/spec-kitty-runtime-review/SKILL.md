@@ -129,14 +129,13 @@ Every blocking finding must map to a specific, verifiable remediation action.
 
 > **The feedback reference is mandatory, not optional.** A rejection moves the WP
 > along a backward "review-rejection" edge, and the status contract requires that
-> edge to carry a **rationale**: the `--review-feedback-file` (or `--note`) you
-> pass is recorded as the transition's `review_ref` / reason and travels on the
-> event wire. Rejecting a WP to `planned`/`in_progress` **without** a feedback
-> reference or note produces a contract-invalid status event that is accepted
-> locally but silently rejected by hosted sync — so the rejection never
-> propagates. Always attach the feedback file (or a `--note`) when you reject or
-> send a WP back for rework. The rework agent reads exactly that referenced
-> feedback to know what to fix.
+> edge to carry a **rationale**: the `--review-feedback-file` you pass is
+> recorded as the transition's `review_ref` / reason and travels on the event
+> wire. A rejection to `planned`/`in_progress` **without** a review feedback
+> file is refused: nothing is recorded, a `--note` alone does not satisfy it,
+> and `--force` does not bypass it. Always attach the feedback file when you
+> reject or send a WP back for rework. The rework agent reads exactly that
+> referenced feedback to know what to fix.
 
 ---
 

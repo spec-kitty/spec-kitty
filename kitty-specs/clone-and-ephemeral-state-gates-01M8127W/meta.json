@@ -1,0 +1,48 @@
+{
+  "accept_commit": "f71ab08b51847b47320a697998e57b165035cb8d",
+  "acceptance_history": [
+    {
+      "accept_commit": "f71ab08b51847b47320a697998e57b165035cb8d",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-22T12:29:40.065176+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "0a7ce253a1e660922fbd65723916fcf102dc6816"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-22T12:29:40.065176+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "0a7ce253a1e660922fbd65723916fcf102dc6816",
+  "baseline_merge_commit": "fd3a8c7f0666f48a22daabf3fb444d75dc2b9a25",
+  "create_return_branch": "issue-7809-clone-ephemeral-state-gates",
+  "created_at": "2026-11-22T07:24:00.447334+00:00",
+  "flattened": true,
+  "friendly_name": "Gates that work in teammate clones and ephemeral reviewers",
+  "merged_at": "2026-11-22T12:36:51.824544+00:00",
+  "merged_commit": "7023b520d59cfc8806d0fca6028dd2e816d8fc7a",
+  "mid8": "01M8127W",
+  "mission_base_sha": "fd3a8c7f0666f48a22daabf3fb444d75dc2b9a25",
+  "mission_branch": "kitty/mission-clone-and-ephemeral-state-gates-01M8127W",
+  "mission_id": "01M8127W3JTX5R46HKHR22P571",
+  "mission_number": 265,
+  "mission_slug": "clone-and-ephemeral-state-gates-01M8127W",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Real Missions run in cloud sessions and teammate clones broke on five gates: a docs work package judged against the target branch, a lane branch that exists only on origin, an approval stamp that names an unpushed review merge, and a hex colour read as an issue number. This Mission fixes those gates so a team can carry a Mission from agreed intent to a verified result across clones.",
+  "purpose_tldr": "Make review, approval and consolidation work when the state lives on origin, on a topic branch, or in a reviewer that never pushes.",
+  "slug": "clone-and-ephemeral-state-gates-01M8127W",
+  "status_phase": "1",
+  "target_branch": "issue-7809-clone-ephemeral-state-gates",
+  "topology_decision": {
+    "code_lane_count": 5,
+    "from": "single_branch",
+    "rule": "lanes_with_coord",
+    "target_protected": false,
+    "to": "lanes_with_coord",
+    "wp_count": 5
+  },
+  "topology_settled": true,
+  "topology_source": "default",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-22T07:37:09.396879+00:00"
+}

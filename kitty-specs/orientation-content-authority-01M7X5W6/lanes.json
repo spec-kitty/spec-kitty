@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "mission_slug": "orientation-content-authority-01M7X5W6",
+  "mission_id": "01M7X5W662X02G54DX0H3Q4YE6",
+  "mission_branch": "fix/5215-orientation-content-authority",
+  "target_branch": "fix/5215-orientation-content-authority",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/session_start.py",
+        "src/specify_cli/identity/project.py",
+        "src/specify_cli/session_presence/manager.py",
+        "src/specify_cli/session_presence/projection.py",
+        "src/specify_cli/session_presence/writers/markdown_rules.py",
+        "src/specify_cli/tool_surface/providers/session_presence.py",
+        "tests/architectural/dead_symbol_allowlist.yaml",
+        "tests/specify_cli/cli/commands/test_session_start.py",
+        "tests/specify_cli/identity/test_project_slug_git_remote.py",
+        "tests/specify_cli/session_presence/test_manager.py",
+        "tests/specify_cli/session_presence/test_markdown_rules_writer.py",
+        "tests/specify_cli/session_presence/test_orientation_projection_5215.py",
+        "tests/specify_cli/tool_surface/providers/test_session_presence.py",
+        "tests/specify_cli/tool_surface/providers/test_session_presence_orientation_5215.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-20T19:14:09.824930+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "e6d451b20791bfcfa0f1524492db15ac77a3b390"
+}

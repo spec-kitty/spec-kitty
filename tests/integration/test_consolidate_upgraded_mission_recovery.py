@@ -43,12 +43,20 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.slow]
 _SHARED_SOURCE = "src/shared.py"
 
 #: The stale refusal the CLI renders for the Story 5 AS-1 control (whitespace-normalised: the
-#: console wraps at its width). The remedy is the lane sync point, ``agent action implement``,
-#: which auto-rebases the lane; it never prints a ``git merge`` recipe (CLAUDE.md, #7311).
+#: console wraps at its width). lane-a is consolidated first, so the overlap comes from it: the
+#: refusal names lane-a's branch, which the run's rollback never moves (#7755), and starts with
+#: the reopen step an approved work package needs (#7754). No worktree exists, so no in-run
+#: auto-rebase ran and none is reported. It never prints a merge of the Mission branch, which the
+#: rollback restores without lane-a's change (CLAUDE.md, #7311).
 _GITATTRIBUTES_STALE_REFUSAL = (
     "✗ lane-b: Lane lane-b is stale: overlapping files ['.gitattributes']. "
-    "Lane lane-b must incorporate changes from kitty/mission-target-owned-01M5457A before it is consolidated. "
-    "Refresh it through auto-rebase: spec-kitty agent action implement WP02 --mission target-owned-01M5457A."
+    "The overlapping change comes from lane lane-a (branch kitty/mission-target-owned-01M5457A-lane-a), "
+    "consolidated into kitty/mission-target-owned-01M5457A ahead of it. "
+)
+_GITATTRIBUTES_STALE_REMEDY = (
+    "spec-kitty agent tasks move-task WP02 --to planned --review-feedback-file <file> --mission target-owned-01M5457A. "
+    "Then re-enter it with spec-kitty agent action implement WP02 --mission target-owned-01M5457A, which names the lane checkout; "
+    "in that checkout run git merge kitty/mission-target-owned-01M5457A-lane-a and resolve the conflicts, then commit."
 )
 
 
@@ -310,4 +318,6 @@ def test_lanes_that_change_gitattributes_differently_are_still_refused_as_stale(
     output = _output(result)
     assert result.returncode != 0, output
     assert _GITATTRIBUTES_STALE_REFUSAL in _normalised(output), output
-    assert "git merge kitty/mission-" not in _normalised(output), output
+    assert _GITATTRIBUTES_STALE_REMEDY in _normalised(output), output
+    assert f"git merge {project.mission_branch} " not in _normalised(output), output
+    assert "in-run auto-rebase" not in _normalised(output), output

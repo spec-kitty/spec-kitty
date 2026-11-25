@@ -6,22 +6,41 @@ import logging
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import Literal
 
 from specify_cli.runtime.bootstrap import _get_cli_version
-from specify_cli.runtime.asset_preparation import AssetPreparation, _GlobalAssetPreparation
+from specify_cli.runtime.asset_preparation import AssetPreparation, PredecessorProof, RetireProof, _GlobalAssetPreparation
 from specify_cli.runtime.home import get_kittify_home
 from specify_cli.core.config import AGENT_SKILL_CONFIG
 from specify_cli.skills.catalog import resolve_builtin_skill_catalog
+from specify_cli.skills.historical_renders import is_historical_render
 from specify_cli.skills.skill_frontmatter import SKILL_FILENAME, is_shared_root, project_skill_bytes
 from specify_cli.skills.paths import get_primary_global_skill_root, get_project_skill_root_for_global_root, iter_installable_agents
 from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 from specify_cli.skills.retired import RETIRED_CANONICAL_SKILL_NAMES
-from specify_cli.tool_surface.operations import ApplyConsent, OwnerAssessment
+from specify_cli.tool_surface.operations import ApplyConsent, Disposition, FileState, OwnerAssessment
 
 logger = logging.getLogger(__name__)
 
 _VERSION_FILENAME = "agent-skills.lock"
 _LOCK_FILENAME = ".agent-skills.lock"
+_KEPT_STATES = frozenset({"preserve", "consent_required"})
+
+KeptKind = Literal["stale_canonical", "edited_retired"]
+
+
+@dataclass(frozen=True)
+class KeptSkillFile:
+    """A global skill file the sync left in place because it could not prove Spec Kitty wrote it.
+
+    ``stale_canonical``: a file in a skill Spec Kitty ships today, so the skill stays out of
+    date there. ``edited_retired``: a file in a skill Spec Kitty retired, kept because its
+    bytes match no render that ever shipped. A user's own skill is neither and is not listed.
+    """
+
+    path: Path
+    kind: KeptKind
+    reason: str
 
 
 @dataclass(frozen=True, init=False)
@@ -66,6 +85,22 @@ def _discover_registry() -> SkillRegistry | None:
     return resolve_builtin_skill_catalog()
 
 
+def global_skill_names() -> frozenset[str]:
+    """Names of the skills Spec Kitty ships into the user-global roots (built-in only; empty when unavailable)."""
+    registry = _discover_registry()
+    return frozenset(skill.name for skill in registry.discover_skills()) if registry is not None else frozenset()
+
+
+def _skill_effect_owners(destination: Path, agents: tuple[str, ...]) -> tuple[str, ...]:
+    """The selected agents whose global skill root holds *destination*; every selected agent for a shared file."""
+    owners = tuple(
+        agent
+        for agent in agents
+        if (agent_root := get_primary_global_skill_root(agent)) is not None and (agent_root == destination or agent_root in destination.parents)
+    )
+    return owners or agents
+
+
 def _unique_global_roots(agent_keys: tuple[str, ...] | None = None) -> list[Path]:
     roots: list[Path] = []
     seen: set[Path] = set()
@@ -103,8 +138,14 @@ def _prepare_skill_tree(
     *,
     shared: bool = True,
     normalize_frontmatter: bool = True,
+    prefix: str = "",
 ) -> None:
-    """Stage *source* into *destination*; ``SKILL.md`` is projected for a shared or native root (A-M2)."""
+    """Stage *source* into *destination*; ``SKILL.md`` is projected for a shared or native root (A-M2).
+
+    A destination file whose bytes are a render an earlier release shipped for the same
+    ``<skill>/<path>`` is Spec Kitty's own output and is refreshed (#7700); any other
+    existing content is preserved by :meth:`AssetPreparation.asset`.
+    """
     state = prepared.observe(source, members=True)
     if state.kind != "directory":
         raise ValueError(f"Required skill directory unavailable: {source}")
@@ -123,14 +164,80 @@ def _prepare_skill_tree(
         child_state = prepared.observe(child)
         target = destination / child.name
         if child_state.kind == "directory":
-            _prepare_skill_tree(prepared, child, target, skill_name, shared=shared, normalize_frontmatter=False)
+            _prepare_skill_tree(prepared, child, target, skill_name, shared=shared, normalize_frontmatter=False, prefix=f"{prefix}{child.name}/")
         elif child_state.kind == "file":
             data = prepared.source(child)
             if child.name == SKILL_FILENAME and normalize_frontmatter:
                 data = project_skill_bytes(data, shared=shared, skill_name=skill_name)
-            prepared.asset(target, data, (child_state.mode or 0o644) & ~0o222)
+            proof = _shipped_render_proof(skill_name, f"{prefix}{child.name}")
+            prepared.asset(target, data, (child_state.mode or 0o644) & ~0o222, canonical_predecessor=proof)
         else:
             raise ValueError(f"Unsupported canonical skill source: {child}")
+
+
+def _shipped_render_proof(skill_name: str, relative: str) -> PredecessorProof:
+    """Proof, judged on ``asset()``'s own observation, that a destination holds a render shipped for ``<skill_name>/<relative>``."""
+
+    def proven(before: FileState) -> bool:
+        return before.kind == "file" and bool(is_historical_render(skill_name, relative, before.sha256))
+
+    return proven
+
+
+def _retired_render_proof(skill_dir: Path) -> RetireProof:
+    """Byte proof for a retired skill directory: each file must be a render shipped at its own path."""
+
+    def proven(path: Path, sha256: str | None) -> bool:
+        return bool(is_historical_render(skill_dir.name, path.relative_to(skill_dir).as_posix(), sha256))
+
+    return proven
+
+
+def _classify_kept(
+    dispositions: Sequence[Disposition],
+    root: Path,
+    skill_roots: Sequence[Path],
+    canonical: frozenset[str] | set[str],
+) -> tuple[KeptSkillFile, ...]:
+    """Kept files of canonical and retired skills, innermost path only; custom skills are not listed."""
+    found: dict[Path, KeptSkillFile] = {}
+    for disposition in dispositions:
+        if disposition.state not in _KEPT_STATES or disposition.path is None:
+            continue
+        path = root / disposition.path
+        skill = _skill_of(path, skill_roots)
+        if skill in canonical:
+            found[path] = KeptSkillFile(path, "stale_canonical", disposition.reason)
+        elif skill in RETIRED_CANONICAL_SKILL_NAMES:
+            found[path] = KeptSkillFile(path, "edited_retired", disposition.reason)
+    innermost = [item for path, item in found.items() if not any(other != path and path in other.parents for other in found)]
+    return tuple(sorted(innermost, key=lambda item: item.path))
+
+
+def _skill_of(path: Path, skill_roots: Sequence[Path]) -> str | None:
+    for skill_root in skill_roots:
+        if skill_root in path.parents:
+            return path.relative_to(skill_root).parts[0]
+    return None
+
+
+def kept_global_skill_files(
+    assessment: OwnerAssessment,
+    *,
+    canonical: frozenset[str] | set[str] | None = None,
+    skill_roots: Sequence[Path] | None = None,
+) -> tuple[KeptSkillFile, ...]:
+    """Classify the files a global skill assessment keeps (#7700, #5983): one rule for every reporter.
+
+    Reads the assessment's ``preserve`` / ``consent_required`` dispositions; a file of a skill
+    Spec Kitty ships today is ``stale_canonical``, one of a retired skill ``edited_retired``.
+    *canonical* and *skill_roots* default to the package catalog and every agent's global root,
+    which is what an unselected assessment used; pass the assessment's own when it had a selection.
+    """
+    if canonical is None:
+        canonical = global_skill_names()
+    roots = _unique_global_roots() if skill_roots is None else list(skill_roots)
+    return _classify_kept(assessment.dispositions, assessment.root.path, roots, canonical)
 
 
 def _observe_registry_catalog(prepared: AssetPreparation, skills: list[CanonicalSkill]) -> None:
@@ -188,7 +295,7 @@ def assess_global_agent_skills(
     root = global_asset_root("global_skills", (home, *roots))
 
     def _build() -> tuple[AssetPreparation, OwnerAssessment]:
-        prepared = AssetPreparation("global_skills", root, home / "cache", _LOCK_FILENAME, consent)
+        prepared = AssetPreparation("global_skills", root, home / "cache", _LOCK_FILENAME, consent, known_roots=roots)
         skills = (
             _load_registry_skills(prepared)
             if selection is None
@@ -219,20 +326,20 @@ def assess_global_agent_skills(
                 for existing in destination_root.iterdir():
                     if existing.name not in canonical:
                         if selection is None and existing.name in RETIRED_CANONICAL_SKILL_NAMES:
-                            prepared.retire(existing)
+                            prepared.retire(existing, proven=_retired_render_proof(existing))
                         else:
                             prepared.preserve(existing, "Unproven custom skill; preserve content and links")
-        assessment = prepared.finish(home / "cache" / _VERSION_FILENAME if selection is None else None, _get_cli_version())
-        effects = []
-        for effect in assessment.effects:
-            logical = tuple(
-                agent
-                for agent in agents
-                if (agent_root := get_primary_global_skill_root(agent)) is not None
-                and (agent_root == effect.destination or agent_root in effect.destination.parents)
-            )
-            effects.append(replace(effect, logical_owners=logical or agents))
-        assessment = replace(assessment, effects=tuple(effects))
+        # #7700 (b): never stamp the skills current while a canonical skill file stays stale.
+        stale = any(item.kind == "stale_canonical" for item in _classify_kept(prepared.dispositions, prepared.root.path, roots, {skill.name for skill in skills}))
+        stamp = home / "cache" / _VERSION_FILENAME if selection is None and not stale else None
+        assessment = prepared.finish(stamp, _get_cli_version())
+        if agents:
+            # With no agent selected (an upgrade whose agents have no user-global skill root),
+            # the effects keep the owner itself as logical owner, as agent_commands does: an
+            # empty owner tuple is not a valid effect. The one write then is the inventory's
+            # one-time move to the #7722 layout, which keeps every record.
+            effects = tuple(replace(effect, logical_owners=_skill_effect_owners(effect.destination, agents)) for effect in assessment.effects)
+            assessment = replace(assessment, effects=effects)
         return prepared, assessment
 
     try:

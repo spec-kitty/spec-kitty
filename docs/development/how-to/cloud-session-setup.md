@@ -3,7 +3,7 @@ title: Set Up a Claude Code Cloud Session
 description: Prepare a Claude Code cloud session so the Spec Kitty CLI, the test package and CodeGraph are ready before you run a Mission or an Op.
 doc_status: active
 kind: How-To
-updated: '2026-11-14T00:00:00Z'
+updated: '2026-11-20T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.
@@ -46,99 +46,14 @@ The `codegraph install` line has not been tested end to end, so it ends in
 `|| true`: a failure there does not stop the container build. If the CodeGraph
 tools are missing later, see [Troubleshooting](#troubleshooting).
 
-### Optional: resolve Maven Central through a mirror
+### The full environment setup script
 
-Use this when the environment also builds the Java repositories
-(`spec-kitty-charter`, `spec-kitty-events`) with Gradle. Maven Central
-rate-limits by address (HTTP 429), and the sessions of one environment share an
-address, so Gradle builds stall or cache false 404s. Google's mirror serves the
-same artifacts. Append this to the environment setup script:
-
-```bash
-mkdir -p ~/.gradle/init.d
-cat > ~/.gradle/init.d/central-mirror.gradle <<'EOF'
-def mirror = 'https://maven-central.storage-download.googleapis.com/maven2/'
-def centralHosts = ['repo.maven.apache.org', 'repo1.maven.org']
-def useMirror = { RepositoryHandler repos ->
-    repos.withType(MavenArtifactRepository).configureEach { r ->
-        if (r.url?.host in centralHosts) { r.url = mirror }
-    }
-    if (repos.findByName('CentralMirror') == null) {
-        def m = repos.maven { url = mirror; name = 'CentralMirror' }
-        repos.remove(m)
-        repos.addFirst(m)
-    }
-}
-beforeSettings { settings ->
-    useMirror(settings.pluginManagement.repositories)
-    settings.pluginManagement.repositories.gradlePluginPortal()
-}
-settingsEvaluated { settings ->
-    useMirror(settings.pluginManagement.repositories)
-    if (!settings.dependencyResolutionManagement.repositories.isEmpty()) {
-        useMirror(settings.dependencyResolutionManagement.repositories)
-    }
-}
-allprojects {
-    afterEvaluate {
-        if (!buildscript.repositories.isEmpty()) { useMirror(buildscript.repositories) }
-        if (!repositories.isEmpty()) { useMirror(repositories) }
-    }
-}
-EOF
-```
-
-- Allow `maven-central.storage-download.googleapis.com` in the environment's
-  network settings.
-- The init script lives in `~/.gradle/init.d/`, outside every repository, so it
-  changes no tracked file. The builds' strict SHA-256 dependency verification
-  still checks every artifact.
-- The mirror goes first in every repository list. Rewriting Central's URL alone
-  is not enough: `gradlePluginPortal()` redirects Central artifacts to
-  `repo.maven.apache.org` on its own server.
-- Declaring a plugin repository drops the implicit plugin portal, so the script
-  adds it back.
-- Put it in the environment setup script, not in a session. A session that
-  writes this script itself can be refused by its permission classifier; the
-  environment script is the sanctioned place.
-
-The same procedure is in `spec-kitty-charter`'s
-`docs/development/cloud-session-setup.md`. Verified on 2026-11-14: the charter
-`:kernel:compileJava` build resolved through the mirror with no 429.
-
-### Optional: install the CLI when core is not attached
-
-A session that works on another repository (`spec-kitty-charter`,
-`spec-kitty-events`, `spec-kitty-open-packs`) has no core checkout to install
-the CLI from. Append this to the environment setup script so those sessions get
-the CLI from current `main`:
-
-```bash
-export PATH="$HOME/.local/bin:$PATH"
-SK_SRC=./spec-kitty
-if [ ! -d spec-kitty ]; then
-  SK_SRC=/opt/spec-kitty
-  if [ -d "$SK_SRC/.git" ]; then
-    git -C "$SK_SRC" pull --ff-only -q || true
-  else
-    git clone -q https://github.com/spec-kitty/spec-kitty "$SK_SRC" || echo "note: clone failed"
-  fi
-  (cd "$SK_SRC" && make sync-packs >/dev/null 2>&1) || echo "note: packs sync failed"
-fi
-if [ -d "$SK_SRC" ]; then
-  uv tool install --force --editable "$SK_SRC" >/dev/null 2>&1 || echo "note: CLI install failed"
-fi
-```
-
-- The editable install from `/opt/spec-kitty` tracks that checkout, so the
-  session has the CLI from `main` as of container build.
-- A running session that needs a newer CLI runs
-  `git -C /opt/spec-kitty pull --ff-only`. A permission classifier can refuse
-  that pull in an auto-mode session; then the session keeps the build-time CLI
-  until a fresh container is built.
-- A session must not install the CLI itself (for example `uv tool install`
-  from a fresh clone): a permission classifier refuses that as code from an
-  external source. The environment setup script is the place for it.
+The script above is the minimum. The environment the core team uses also
+installs a pinned Java 25, resolves Maven Central through a mirror for the
+Gradle builds of the service repositories, warms up the core checkout, and
+installs the `spec-kitty` CLI from source, including for sessions that have no
+core checkout. That script, its network hosts and a step-by-step explanation
+are on [Set up a Claude Code cloud environment](cloud-environment-setup.md).
 
 ### Optional: environment variables
 

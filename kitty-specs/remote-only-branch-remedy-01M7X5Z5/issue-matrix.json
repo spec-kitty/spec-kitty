@@ -1,0 +1,89 @@
+{
+  "rows": {
+    "#2720": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: context_only>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4970": {
+      "evidence_ref": "Cited for context only: names the existing coordination write refusal whose remedy text WP01 rewires; the #4970 refusal behaviour itself is unchanged.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5287": {
+      "evidence_ref": "WP01 delivers the canonical remote-only remedy (FR-001..FR-005; commits e44b8c61 red, then the WP01 feat/fix commits); WP02 delivers the typed status-read refusal (FR-006..FR-009).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    },
+    "#5936": {
+      "evidence_ref": "Cited for context only: operator ruling 2026-11-20 keeps write-side materialisation from the remote-tracking ref separate and sequenced next (spec C-002); no work owed by this Mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7408": {
+      "evidence_ref": "Cited for context only: a remote-tracking status read source belongs to #7408 under its own ADR amendment (operator ruling 1, spec C-001); this Mission adds none.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7449": {
+      "evidence_ref": "Cited for context only: backfill settling on an unreadable ref stays with #7408 (operator ruling, spec C-003); MigrationResult unchanged.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7726": {
+      "evidence_ref": "Cited for context only: policy._missing_destination_remedy keeps its wording (spec C-005, research R-2); not shared with the builder.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

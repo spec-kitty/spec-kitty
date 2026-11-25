@@ -20,9 +20,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from specify_cli.config.path_conventions import load_project_path_conventions
-from specify_cli.core.paths import ContractsWaiver, read_contracts_waiver_from_meta
-from specify_cli.mission import get_deliverables_path
+from specify_cli.config.path_conventions import ProjectPathConventions, load_project_path_conventions
+from specify_cli.core.paths import ContractsWaiver, read_contracts_waiver_from_meta, read_path_conventions_waiver_from_meta
+from specify_cli.mission import MISSION_TYPE_SOFTWARE_DEV, get_deliverables_path, get_mission_type
 from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
 from specify_cli.task_utils import WorkPackage
 from specify_cli.validators.paths import artifact_tokens_for_mission, normalize_path_token, validate_mission_paths
@@ -223,6 +223,41 @@ def _with_notice(text: str, notice: str | None) -> str:
     return f"{text}\n{notice}" if notice else text
 
 
+def _joined_notice(*notices: str | None) -> str | None:
+    present = [notice for notice in notices if notice]
+    return "\n".join(present) if present else None
+
+
+#: Notices naming why path conventions were advisory (#7566), kept beside the
+#: misses so the decision stays auditable in the accept output.
+_RUN_WAIVER_NOTICE = "path conventions waived for this run (--waive-path-conventions): {reason}"
+_META_WAIVER_NOTICE = "path conventions waived by meta.json (path_conventions: waived): {rationale}"
+
+
+def _path_conventions_waiver_effect(planning_read_dir: Path, run_reason: str | None) -> tuple[bool, str | None]:
+    """Whether path conventions are waived for this Mission, and the notice saying why (#7566).
+
+    The per-run reason (``accept --waive-path-conventions``) and the Mission's own
+    ``meta.json`` declaration both waive; both notices are kept when both apply. A
+    malformed declaration waives nothing and returns its warning, which then rides
+    on the blocking text. Metadata validation is never touched (C-006).
+    """
+    run_notice = _RUN_WAIVER_NOTICE.format(reason=run_reason.strip()) if run_reason and run_reason.strip() else None
+    waiver: ContractsWaiver = read_path_conventions_waiver_from_meta(planning_read_dir)
+    meta_notice = _META_WAIVER_NOTICE.format(rationale=waiver.rationale) if waiver.waived else waiver.warning
+    return bool(run_notice) or waiver.waived, _joined_notice(run_notice, meta_notice)
+
+
+def _overrides_for(repo_root: Path, mission_type: str) -> dict[str, str]:
+    """The project's overrides for ``mission_type``: per-type over flat, key by key (#7748)."""
+    conventions = load_project_path_conventions(repo_root)
+    if isinstance(conventions, ProjectPathConventions):
+        overrides: dict[str, str] = conventions.for_mission_type(mission_type)
+        return overrides
+    # A plain mapping (a test double of the reader) carries flat overrides only.
+    return {str(key): str(value) for key, value in conventions.items()}
+
+
 def evaluate_path_conventions(
     mission: Any,
     repo_root: Path,
@@ -232,6 +267,7 @@ def evaluate_path_conventions(
     strict_metadata: bool,
     candidate_source_roots: Sequence[Path] = (),
     holding_checkout: Path | None = None,
+    path_conventions_waiver_reason: str | None = None,
 ) -> tuple[list[str], str | None, frozenset[str]]:
     """Evaluate mission path conventions; returns violations, warning, and dedup tokens.
 
@@ -255,10 +291,25 @@ def evaluate_path_conventions(
     returned with the dedup tokens (in both modes): the Mission declared the
     artifact absent on purpose, so the caller drops it from the
     "Optional artifacts missing" warning too.
+
+    #7748: overrides resolve per mission type -- the Mission's type comes from
+    ``meta.json`` (the expression ``get_mission_for_feature`` loads it with), and
+    ``project.path_conventions.<type>`` wins over the flat value for that type only.
+
+    #7566: path conventions are also advisory, with metadata still strict, when
+    the run passes ``path_conventions_waiver_reason`` (``accept
+    --waive-path-conventions``) or the Mission's ``meta.json`` declares
+    ``"path_conventions": "waived"`` with a rationale. The latter applies on every
+    accept path, orchestrator-api included (operator ruling Q4).
     """
     if not (mission and mission.config.paths):
         return [], None, frozenset()
     waived_tokens, waiver_notice = _contracts_waiver_effect(mission, feature_dir, planning_read_dir)
+    # The type is read from ``feature_dir``, the same meta.json ``get_mission_for_feature``
+    # loaded ``mission`` from, so the per-type overrides always match the conventions being
+    # checked. The waivers read ``planning_read_dir``, the one surface every #5298 / #7566
+    # waiver reader uses; the two answer different questions and need not share a file.
+    mission_type = get_mission_type(feature_dir) or MISSION_TYPE_SOFTWARE_DEV
 
     # Mission-artifact paths (e.g. ``contracts/``) live on the PRIMARY mission
     # surface, not the repo root — resolve them via the canonical
@@ -270,19 +321,26 @@ def evaluate_path_conventions(
         strict=False,
         path_prefix=_path_prefix_for_mission(mission, feature_dir),
         feature_dir=planning_read_dir,
-        path_overrides=load_project_path_conventions(repo_root),
+        path_overrides=_overrides_for(repo_root, mission_type),
         # #4254: acceptance runs BEFORE the approved lane's source is
         # integrated, so a build path introduced by that lane exists only in
         # its worktree. The caller supplies approved lanes only.
         candidate_source_roots=candidate_source_roots,
         waived_artifact_tokens=waived_tokens,
         holding_checkout=holding_checkout,
+        mission_type=mission_type,
     )
     if not path_result.missing_paths:
         return [], waiver_notice, waived_tokens
-    if strict_metadata:
-        artifact_tokens = artifact_tokens_for_mission(mission)
-        dedup_tokens = frozenset(normalize_path_token(token) for token in path_result.missing_artifact_tokens if normalize_path_token(token) in artifact_tokens)
+    paths_waived, paths_notice = _path_conventions_waiver_effect(planning_read_dir, path_conventions_waiver_reason)
+    waiver_notice = _joined_notice(waiver_notice, paths_notice)
+    artifact_tokens = artifact_tokens_for_mission(mission)
+    dedup_tokens = frozenset(normalize_path_token(token) for token in path_result.missing_artifact_tokens if normalize_path_token(token) in artifact_tokens)
+    # Landing fold (#7566): a path-convention waiver covers layout paths only. A
+    # missing Mission artifact (e.g. ``contracts/``) keeps blocking unless its own
+    # narrower waiver (#5298 ``contracts: none``) took it out of the result.
+    unwaived_artifacts = dedup_tokens - waived_tokens
+    if strict_metadata and (not paths_waived or unwaived_artifacts):
         return [_with_notice(path_result.format_errors() or _PATH_CONVENTIONS_NOT_SATISFIED, waiver_notice)], None, dedup_tokens | waived_tokens
     return [], _with_notice(path_result.format_warnings() or _PATH_CONVENTIONS_NOT_SATISFIED, waiver_notice), waived_tokens
 

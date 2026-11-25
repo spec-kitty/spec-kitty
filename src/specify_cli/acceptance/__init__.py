@@ -581,6 +581,11 @@ class AcceptanceSummary:
     #: ``acceptance_matrix_dir is None`` is allowed to bypass the FR-010 guard.
     #: ``None`` for every other "gate never ran" case.
     acceptance_matrix_gate_skip_reason: str | None = None
+    #: #7566: the reason given with ``accept --waive-path-conventions`` for this
+    #: run (``None`` when not waived). Path-convention misses were advisory for
+    #: this summary, and :func:`_stamp_acceptance_record` records the reason on
+    #: the acceptance history entry. Never set on the orchestrator-api path.
+    path_conventions_waiver_reason: str | None = None
 
     def _operator_provenance_by_wp(self) -> dict[str, bool]:
         """Per-WP operator-provenance lookup carried from the bucketing seam."""
@@ -1521,6 +1526,7 @@ def collect_feature_summary(
     strict_metadata: bool = True,
     mutate_matrix: bool = True,
     owned: OwnedCheckout | None = None,
+    path_conventions_waiver_reason: str | None = None,
 ) -> AcceptanceSummary:
     # WP09/FR-001 (kind-correct): ``_primary_anchor_feature_dir`` only needs
     # the coord-aware existence/identity read described in its own docstring
@@ -1631,6 +1637,7 @@ def collect_feature_summary(
         strict_metadata=strict_metadata,
         candidate_source_roots=_approved_lane_source_roots(repo_root, feature_dir, lanes),
         holding_checkout=_planning_holding_checkout(repo_root, primary_slug, owned=owned),
+        path_conventions_waiver_reason=path_conventions_waiver_reason,
     )
     if dedup_tokens:
         # FR-002: apply the dedup query result explicitly — evaluate_path_conventions
@@ -1707,6 +1714,7 @@ def collect_feature_summary(
         canceled_wps=gathered.canceled_wps,
         acceptance_matrix_dir=lane_gate_outcome.matrix_dir,
         acceptance_matrix_gate_skip_reason=lane_gate_outcome.skip_reason,
+        path_conventions_waiver_reason=path_conventions_waiver_reason,
     )
 
 
@@ -1775,7 +1783,15 @@ def _stamp_acceptance_record(
     matrix_dir = summary.acceptance_matrix_dir
     if matrix_dir is None:
         if summary.acceptance_matrix_gate_skip_reason == PLANNING_ARTIFACT_ONLY_SKIP_REASON:
-            record_acceptance(summary.feature_dir, accepted_by=actor_name, mode=mode, from_commit=parent_commit, accept_commit=None, lenient=lenient)
+            record_acceptance(
+                summary.feature_dir,
+                accepted_by=actor_name,
+                mode=mode,
+                from_commit=parent_commit,
+                accept_commit=None,
+                lenient=lenient,
+                path_conventions_waiver_reason=summary.path_conventions_waiver_reason,
+            )
             return
         raise AcceptanceError(
             "Cannot record acceptance: no acceptance-matrix gate outcome was recorded for "
@@ -1788,7 +1804,15 @@ def _stamp_acceptance_record(
 
     try:
         with locked_acceptance_verdict_guard(summary.repo_root, matrix_dir):
-            record_acceptance(summary.feature_dir, accepted_by=actor_name, mode=mode, from_commit=parent_commit, accept_commit=None, lenient=lenient)
+            record_acceptance(
+                summary.feature_dir,
+                accepted_by=actor_name,
+                mode=mode,
+                from_commit=parent_commit,
+                accept_commit=None,
+                lenient=lenient,
+                path_conventions_waiver_reason=summary.path_conventions_waiver_reason,
+            )
     except AcceptanceVerdictNotReadyError as exc:
         raise AcceptanceError(f"Acceptance matrix verdict is not ready to accept: {exc}") from exc
     except FeatureStatusLockTimeoutError as exc:
@@ -2236,7 +2260,8 @@ def pr_mode_lane_cleanup(
     remote = _pr_head_remote(repo_root, branch)
     landing = lane_cleanup.RemoteRef(remote=remote, ref=f"refs/remotes/{remote}/{branch}")
     context = residue_context_or_strictest(repo_root, manifest.mission_slug, CheckoutRole.LANE)
-    remover = lane_cleanup.GuardedLaneRemover(repo_root, context=context, probe=probe or processes_with_cwd_under)
+    # #7747 (G1): the Mission slug makes the landing proof set aside the bookkeeping a lane never authored.
+    remover = lane_cleanup.GuardedLaneRemover(repo_root, context=context, probe=probe or processes_with_cwd_under, mission_slug=manifest.mission_slug)
     return lane_cleanup.apply(items, remover, landing=landing, retention=retention)
 
 

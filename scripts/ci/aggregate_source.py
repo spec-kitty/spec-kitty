@@ -16,11 +16,13 @@ from prose_only import is_prose_only
 
 # Ordinary Git pathspecs match descendants without consulting the checkout.
 # Keep the existing critical-path policy here, not in diff-cover's filesystem glob.
+# #7789: the whole lanes package is critical (it was branch_naming.py alone, so
+# a change anywhere else in lanes produced an empty scored diff).
 CRITICAL_PATHS = (
     "src/kernel/*",
     "src/charter/*",
     "src/specify_cli/status/*",
-    "src/specify_cli/lanes/branch_naming.py",
+    "src/specify_cli/lanes/*",
     "src/specify_cli/consolidation/*",
     "src/runtime/next/*",
     "src/mission_runtime/*",

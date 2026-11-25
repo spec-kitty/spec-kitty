@@ -12,10 +12,34 @@
     {
       "group": "consolidation",
       "roots": [
-        "src/specify_cli/consolidation/**"
+        "src/specify_cli/consolidation/**",
+        "src/specify_cli/acceptance/**",
+        "src/specify_cli/decisions/**",
+        "src/specify_cli/frontmatter.py",
+        "src/specify_cli/git/**",
+        "src/specify_cli/invocation/**",
+        "src/specify_cli/migration/**",
+        "src/specify_cli/orchestrator_api/**",
+        "src/specify_cli/ownership/**",
+        "src/specify_cli/policy/**",
+        "src/specify_cli/status_lanes.py",
+        "src/specify_cli/tasks/**",
+        "src/specify_cli/workspace/**"
       ],
       "cov_targets": [
-        "specify_cli.consolidation"
+        "specify_cli.consolidation",
+        "specify_cli.acceptance",
+        "specify_cli.decisions",
+        "specify_cli.frontmatter",
+        "specify_cli.git",
+        "specify_cli.invocation",
+        "specify_cli.migration",
+        "specify_cli.orchestrator_api",
+        "specify_cli.ownership",
+        "specify_cli.policy",
+        "specify_cli.status_lanes",
+        "specify_cli.tasks",
+        "specify_cli.workspace"
       ],
       "census_evidence": "known-live"
     },
@@ -25,13 +49,31 @@
         "src/specify_cli/mission.py",
         "src/specify_cli/mission_metadata.py",
         "src/specify_cli/missions/**",
-        "src/charter/offering/missions/**"
+        "src/charter/offering/missions/**",
+        "src/specify_cli/acceptance/**",
+        "src/specify_cli/doc_analysis/**",
+        "src/specify_cli/git/**",
+        "src/specify_cli/invocation/**",
+        "src/specify_cli/migration/**",
+        "src/specify_cli/mission_step_contracts/**",
+        "src/specify_cli/mission_v1/**",
+        "src/specify_cli/retrospective/**",
+        "src/specify_cli/task_utils/**"
       ],
       "cov_targets": [
         "specify_cli.mission",
         "specify_cli.mission_metadata",
         "specify_cli.missions",
-        "charter.offering.missions"
+        "charter.offering.missions",
+        "specify_cli.acceptance",
+        "specify_cli.doc_analysis",
+        "specify_cli.git",
+        "specify_cli.invocation",
+        "specify_cli.migration",
+        "specify_cli.mission_step_contracts",
+        "specify_cli.mission_v1",
+        "specify_cli.retrospective",
+        "specify_cli.task_utils"
       ],
       "census_evidence": "known-live"
     },
@@ -59,21 +101,65 @@
       "group": "status",
       "roots": [
         "src/specify_cli/status/**",
-        "src/specify_cli/coordination/**"
+        "src/specify_cli/coordination/**",
+        "src/specify_cli/acceptance/**",
+        "src/specify_cli/agent_tasks_ports.py",
+        "src/specify_cli/context/**",
+        "src/specify_cli/decisions/**",
+        "src/specify_cli/events/**",
+        "src/specify_cli/frontmatter.py",
+        "src/specify_cli/git/**",
+        "src/specify_cli/identity/**",
+        "src/specify_cli/invocation/**",
+        "src/specify_cli/migration/**",
+        "src/specify_cli/orchestrator_api/**",
+        "src/specify_cli/ownership/**",
+        "src/specify_cli/retrospective/**",
+        "src/specify_cli/status_lanes.py",
+        "src/specify_cli/task_utils/**",
+        "src/specify_cli/workspace/**"
       ],
       "cov_targets": [
         "specify_cli.status",
-        "specify_cli.coordination"
+        "specify_cli.coordination",
+        "specify_cli.acceptance",
+        "specify_cli.agent_tasks_ports",
+        "specify_cli.context",
+        "specify_cli.decisions",
+        "specify_cli.events",
+        "specify_cli.frontmatter",
+        "specify_cli.git",
+        "specify_cli.identity",
+        "specify_cli.invocation",
+        "specify_cli.migration",
+        "specify_cli.orchestrator_api",
+        "specify_cli.ownership",
+        "specify_cli.retrospective",
+        "specify_cli.status_lanes",
+        "specify_cli.task_utils",
+        "specify_cli.workspace"
       ],
       "census_evidence": "known-live"
     },
     {
       "group": "review",
       "roots": [
-        "src/specify_cli/review/**"
+        "src/specify_cli/review/**",
+        "src/specify_cli/agent_tasks_ports.py",
+        "src/specify_cli/git/**",
+        "src/specify_cli/migration/**",
+        "src/specify_cli/mission_step_contracts/**",
+        "src/specify_cli/requirement_mapping/**",
+        "src/specify_cli/workspace/**"
       ],
       "cov_targets": [
-        "specify_cli.review"
+        "specify_cli.review",
+        "specify_cli.agent_tasks_ports",
+        "specify_cli.git",
+        "specify_cli.migration",
+        "specify_cli.mission_step_contracts",
+        "specify_cli.requirement_mapping",
+        "specify_cli.workspace"
       ],
       "census_evidence": "known-live"
     },
@@ -82,42 +168,126 @@
       "roots": [
         "src/specify_cli/runtime/**",
         "src/runtime/next/**",
-        "src/mission_runtime/**"
+        "src/mission_runtime/**",
+        "src/specify_cli/identity/**",
+        "src/specify_cli/invocation/**",
+        "src/specify_cli/requirement_mapping/**",
+        "src/specify_cli/status_lanes.py"
       ],
       "cov_targets": [
         "specify_cli.runtime",
         "runtime.next",
-        "mission_runtime"
+        "mission_runtime",
+        "specify_cli.identity",
+        "specify_cli.invocation",
+        "specify_cli.requirement_mapping",
+        "specify_cli.status_lanes"
       ],
       "census_evidence": "known-live"
     },
     {
       "group": "lanes",
       "roots": [
-        "src/specify_cli/lanes/**"
+        "src/specify_cli/lanes/**",
+        "src/specify_cli/acceptance/**",
+        "src/specify_cli/analysis_report.py",
+        "src/specify_cli/git/**",
+        "src/specify_cli/gitignore_manager.py",
+        "src/specify_cli/manifest.py",
+        "src/specify_cli/migration/**",
+        "src/specify_cli/orchestrator_api/**",
+        "src/specify_cli/ownership/**",
+        "src/specify_cli/policy/**",
+        "src/specify_cli/tasks/**",
+        "src/specify_cli/workspace/**"
       ],
       "cov_targets": [
-        "specify_cli.lanes"
+        "specify_cli.lanes",
+        "specify_cli.acceptance",
+        "specify_cli.analysis_report",
+        "specify_cli.git",
+        "specify_cli.gitignore_manager",
+        "specify_cli.manifest",
+        "specify_cli.migration",
+        "specify_cli.orchestrator_api",
+        "specify_cli.ownership",
+        "specify_cli.policy",
+        "specify_cli.tasks",
+        "specify_cli.workspace"
       ],
       "census_evidence": "known-live"
     },
     {
       "group": "upgrade",
       "roots": [
-        "src/specify_cli/upgrade/**"
+        "src/specify_cli/upgrade/**",
+        "src/specify_cli/audit/**",
+        "src/specify_cli/context/**",
+        "src/specify_cli/frontmatter.py",
+        "src/specify_cli/git/**",
+        "src/specify_cli/gitignore_manager.py",
+        "src/specify_cli/invocation/**",
+        "src/specify_cli/migration/**",
+        "src/specify_cli/shims/**",
+        "src/specify_cli/skills/**",
+        "src/specify_cli/task_utils/**",
+        "src/specify_cli/template/**"
       ],
       "cov_targets": [
-        "specify_cli.upgrade"
+        "specify_cli.upgrade",
+        "specify_cli.audit",
+        "specify_cli.context",
+        "specify_cli.frontmatter",
+        "specify_cli.git",
+        "specify_cli.gitignore_manager",
+        "specify_cli.invocation",
+        "specify_cli.migration",
+        "specify_cli.shims",
+        "specify_cli.skills",
+        "specify_cli.task_utils",
+        "specify_cli.template"
       ],
       "census_evidence": "known-live"
     },
     {
       "group": "cli",
       "roots": [
-        "src/specify_cli/cli/**"
+        "src/specify_cli/cli/**",
+        "src/specify_cli/agent_tasks_ports.py",
+        "src/specify_cli/charter_activate.py",
+        "src/specify_cli/charter_packs/**",
+        "src/specify_cli/context/**",
+        "src/specify_cli/git/**",
+        "src/specify_cli/gitignore_manager.py",
+        "src/specify_cli/intake/**",
+        "src/specify_cli/migration/**",
+        "src/specify_cli/mission_brief.py",
+        "src/specify_cli/retrospective/**",
+        "src/specify_cli/shims/**",
+        "src/specify_cli/skills/**",
+        "src/specify_cli/state/**",
+        "src/specify_cli/task_utils/**",
+        "src/specify_cli/template/**",
+        "src/specify_cli/workspace/**"
       ],
       "cov_targets": [
-        "specify_cli.cli"
+        "specify_cli.cli",
+        "specify_cli.agent_tasks_ports",
+        "specify_cli.charter_activate",
+        "specify_cli.charter_packs",
+        "specify_cli.context",
+        "specify_cli.git",
+        "specify_cli.gitignore_manager",
+        "specify_cli.intake",
+        "specify_cli.migration",
+        "specify_cli.mission_brief",
+        "specify_cli.retrospective",
+        "specify_cli.shims",
+        "specify_cli.skills",
+        "specify_cli.state",
+        "specify_cli.task_utils",
+        "specify_cli.template",
+        "specify_cli.workspace"
       ],
       "census_evidence": "known-live"
     },
@@ -126,11 +296,35 @@
       "roots": [
         "src/charter/**",
         "src/specify_cli/charter_runtime/**",
-        "src/kernel/activation_ledger_store.py"
+        "src/kernel/activation_ledger_store.py",
+        "src/specify_cli/analysis_inputs.py",
+        "src/specify_cli/charter_packs/**",
+        "src/specify_cli/doc_analysis/**",
+        "src/specify_cli/frontmatter.py",
+        "src/specify_cli/invocation/**",
+        "src/specify_cli/migration/**",
+        "src/specify_cli/mission_step_contracts/**",
+        "src/specify_cli/ownership/**",
+        "src/specify_cli/provisioning/**",
+        "src/specify_cli/skills/**",
+        "src/specify_cli/task_utils/**",
+        "src/specify_cli/template/**"
       ],
       "cov_targets": [
         "charter",
-        "specify_cli.charter_runtime"
+        "specify_cli.charter_runtime",
+        "specify_cli.analysis_inputs",
+        "specify_cli.charter_packs",
+        "specify_cli.doc_analysis",
+        "specify_cli.frontmatter",
+        "specify_cli.invocation",
+        "specify_cli.migration",
+        "specify_cli.mission_step_contracts",
+        "specify_cli.ownership",
+        "specify_cli.provisioning",
+        "specify_cli.skills",
+        "specify_cli.task_utils",
+        "specify_cli.template"
       ],
       "census_evidence": "known-live",
       "note": "spec-kitty#6336: src/kernel/activation_ledger_store.py (the activation ledger's kernel-side floor, ADR 2026-10-19-1) is claimed here as an OVERLAP root -- the `kernel` group still owns src/kernel/**. Its readers are tests/charter/activation/** and tests/charter/conformance/test_activation_ledger_conformance.py, which live in this module's test dirs, so a floor edit must select the charter shard (#6336's 2026-10-20 follow-up). Overlapping src ownership is the scrub's existing shape (core_misc/unit/execution_context each also own src/specify_cli/status/**). The activation STORE paths (.kittify/charter/*.yaml) and the internal-pack pin (packs/internal.source.yaml) deliberately do NOT join this group: they are non-src, and the router's `charter` filter must stay the verbatim transcription of this row, so they carry their own non-src router group (`charter_activation`, gate_selection.ACTIVATION_STORE_MODULE_FANOUT)."
@@ -149,20 +343,52 @@
     {
       "group": "agent",
       "roots": [
-        "src/specify_cli/agent_utils/**"
+        "src/specify_cli/agent_utils/**",
+        "src/specify_cli/acceptance/**",
+        "src/specify_cli/analysis_report.py",
+        "src/specify_cli/bulk_edit/**",
+        "src/specify_cli/doc_analysis/**",
+        "src/specify_cli/frontmatter.py",
+        "src/specify_cli/gitignore_manager.py",
+        "src/specify_cli/orchestrator_api/**",
+        "src/specify_cli/skills/**",
+        "src/specify_cli/task_utils/**",
+        "src/specify_cli/template/**",
+        "src/specify_cli/tracker/**",
+        "src/specify_cli/validators/**",
+        "src/specify_cli/workspace/**"
       ],
       "cov_targets": [
-        "specify_cli.agent_utils"
+        "specify_cli.agent_utils",
+        "specify_cli.acceptance",
+        "specify_cli.analysis_report",
+        "specify_cli.bulk_edit",
+        "specify_cli.doc_analysis",
+        "specify_cli.frontmatter",
+        "specify_cli.gitignore_manager",
+        "specify_cli.orchestrator_api",
+        "specify_cli.skills",
+        "specify_cli.task_utils",
+        "specify_cli.template",
+        "specify_cli.tracker",
+        "specify_cli.validators",
+        "specify_cli.workspace"
       ],
       "census_evidence": "known-live"
     },
     {
       "group": "kernel",
       "roots": [
-        "src/kernel/**"
+        "src/kernel/**",
+        "src/specify_cli/skills/**",
+        "src/specify_cli/task_utils/**",
+        "src/specify_cli/tracker/**"
       ],
       "cov_targets": [
-        "kernel"
+        "kernel",
+        "specify_cli.skills",
+        "specify_cli.task_utils",
+        "specify_cli.tracker"
       ],
       "census_evidence": "known-live"
     },
@@ -183,12 +409,66 @@
         "src/mission_runtime/**",
         "src/specify_cli/status/**",
         "src/runtime/next/**",
-        "src/specify_cli/cli/commands/agent/**"
+        "src/specify_cli/cli/commands/agent/**",
+        "src/specify_cli/acceptance/**",
+        "src/specify_cli/agent_tasks_ports.py",
+        "src/specify_cli/analysis_inputs.py",
+        "src/specify_cli/analysis_report.py",
+        "src/specify_cli/bulk_edit/**",
+        "src/specify_cli/context/**",
+        "src/specify_cli/decisions/**",
+        "src/specify_cli/diagnostics/**",
+        "src/specify_cli/events/**",
+        "src/specify_cli/frontmatter.py",
+        "src/specify_cli/git/**",
+        "src/specify_cli/invocation/**",
+        "src/specify_cli/meta_keys.py",
+        "src/specify_cli/migration/**",
+        "src/specify_cli/mission_loader/**",
+        "src/specify_cli/mission_step_contracts/**",
+        "src/specify_cli/orchestrator_api/**",
+        "src/specify_cli/ownership/**",
+        "src/specify_cli/requirement_mapping/**",
+        "src/specify_cli/retrospective/**",
+        "src/specify_cli/shims/**",
+        "src/specify_cli/skills/**",
+        "src/specify_cli/task_utils/**",
+        "src/specify_cli/tasks/**",
+        "src/specify_cli/template/**",
+        "src/specify_cli/version_utils.py",
+        "src/specify_cli/workspace/**"
       ],
       "cov_targets": [
         "mission_runtime",
         "specify_cli.status",
-        "runtime.next"
+        "runtime.next",
+        "specify_cli.acceptance",
+        "specify_cli.agent_tasks_ports",
+        "specify_cli.analysis_inputs",
+        "specify_cli.analysis_report",
+        "specify_cli.bulk_edit",
+        "specify_cli.context",
+        "specify_cli.decisions",
+        "specify_cli.diagnostics",
+        "specify_cli.events",
+        "specify_cli.frontmatter",
+        "specify_cli.git",
+        "specify_cli.invocation",
+        "specify_cli.meta_keys",
+        "specify_cli.migration",
+        "specify_cli.mission_loader",
+        "specify_cli.mission_step_contracts",
+        "specify_cli.orchestrator_api",
+        "specify_cli.ownership",
+        "specify_cli.requirement_mapping",
+        "specify_cli.retrospective",
+        "specify_cli.shims",
+        "specify_cli.skills",
+        "specify_cli.task_utils",
+        "specify_cli.tasks",
+        "specify_cli.template",
+        "specify_cli.version_utils",
+        "specify_cli.workspace"
       ],
       "census_evidence": "known-live"
     },
@@ -205,12 +485,76 @@
         "src/specify_cli/services/**",
         "pins/**",
         "scripts/sync_services.py",
-        ".github/actions/sync-services/**"
+        ".github/actions/sync-services/**",
+        "src/specify_cli/agent_tasks_ports.py",
+        "src/specify_cli/analysis_report.py",
+        "src/specify_cli/asset_preservation/**",
+        "src/specify_cli/bootstrap/**",
+        "src/specify_cli/calibration/**",
+        "src/specify_cli/compat/**",
+        "src/specify_cli/config/**",
+        "src/specify_cli/context/**",
+        "src/specify_cli/decisions/**",
+        "src/specify_cli/design/**",
+        "src/specify_cli/distribution/**",
+        "src/specify_cli/events/**",
+        "src/specify_cli/frontmatter.py",
+        "src/specify_cli/git/**",
+        "src/specify_cli/gitignore_manager.py",
+        "src/specify_cli/invocation/**",
+        "src/specify_cli/meta_keys.py",
+        "src/specify_cli/migration/**",
+        "src/specify_cli/orchestrator_api/**",
+        "src/specify_cli/ownership/**",
+        "src/specify_cli/retrospective/**",
+        "src/specify_cli/session_presence/**",
+        "src/specify_cli/skills/**",
+        "src/specify_cli/state/**",
+        "src/specify_cli/status_lanes.py",
+        "src/specify_cli/task_metadata_validation.py",
+        "src/specify_cli/task_utils/**",
+        "src/specify_cli/tasks/**",
+        "src/specify_cli/tasks_authoring/**",
+        "src/specify_cli/text_sanitization.py",
+        "src/specify_cli/version_utils.py",
+        "src/specify_cli/workspace/**"
       ],
       "cov_targets": [
         "specify_cli",
         "glossary",
-        "mission_runtime"
+        "mission_runtime",
+        "specify_cli.agent_tasks_ports",
+        "specify_cli.analysis_report",
+        "specify_cli.asset_preservation",
+        "specify_cli.bootstrap",
+        "specify_cli.calibration",
+        "specify_cli.compat",
+        "specify_cli.config",
+        "specify_cli.context",
+        "specify_cli.decisions",
+        "specify_cli.design",
+        "specify_cli.distribution",
+        "specify_cli.events",
+        "specify_cli.frontmatter",
+        "specify_cli.git",
+        "specify_cli.gitignore_manager",
+        "specify_cli.invocation",
+        "specify_cli.meta_keys",
+        "specify_cli.migration",
+        "specify_cli.orchestrator_api",
+        "specify_cli.ownership",
+        "specify_cli.retrospective",
+        "specify_cli.session_presence",
+        "specify_cli.skills",
+        "specify_cli.state",
+        "specify_cli.status_lanes",
+        "specify_cli.task_metadata_validation",
+        "specify_cli.task_utils",
+        "specify_cli.tasks",
+        "specify_cli.tasks_authoring",
+        "specify_cli.text_sanitization",
+        "specify_cli.version_utils",
+        "specify_cli.workspace"
       ],
       "census_evidence": "known-live"
     },
@@ -220,13 +564,31 @@
         "src/specify_cli/status/**",
         "src/runtime/next/**",
         "src/charter/offering/missions/**",
-        "src/kernel/**"
+        "src/kernel/**",
+        "src/specify_cli/contracts/**",
+        "src/specify_cli/frontmatter.py",
+        "src/specify_cli/git/**",
+        "src/specify_cli/intake/**",
+        "src/specify_cli/migration/**",
+        "src/specify_cli/mission_loader/**",
+        "src/specify_cli/task_utils/**",
+        "src/specify_cli/tracker/**",
+        "src/specify_cli/workspace/**"
       ],
       "cov_targets": [
         "specify_cli.status",
         "runtime.next",
         "charter.offering.missions",
-        "kernel"
+        "kernel",
+        "specify_cli.contracts",
+        "specify_cli.frontmatter",
+        "specify_cli.git",
+        "specify_cli.intake",
+        "specify_cli.migration",
+        "specify_cli.mission_loader",
+        "specify_cli.task_utils",
+        "specify_cli.tracker",
+        "specify_cli.workspace"
       ],
       "census_evidence": "known-live",
       "note": "TEST-INVENTORY row (mission sonar-per-pr-coverage-reuse-01M2FR32, WP02/FR-006). This group exists to give a live test directory a declared home in the module registry so retiring the duplicate broad-measurement step does not remove its PER-CHANGE execution. It owns no src/** surface of its own: every root below is a VERBATIM copy of a glob another kept group already owns, so the router's path->group mapping and the FR-004 fail-closed `unmatched` union are unchanged (no path gains or loses a match). Roots/cov_targets are the subset of already-owned surfaces the directory's tests actually import -- never a surface no other group claims, which would silently narrow an unmapped src/** change away from the run-all catch-all. Covers tests/unit (already the first directory of the CLAUDE.md fast tier)."
@@ -236,12 +598,20 @@
       "roots": [
         "src/specify_cli/runtime/**",
         "src/charter/offering/missions/**",
-        "src/specify_cli/core/**"
+        "src/specify_cli/core/**",
+        "src/specify_cli/acceptance/**",
+        "src/specify_cli/analysis_report.py",
+        "src/specify_cli/shims/**",
+        "src/specify_cli/skills/**"
       ],
       "cov_targets": [
         "specify_cli.runtime",
         "charter.offering.missions",
-        "specify_cli.core"
+        "specify_cli.core",
+        "specify_cli.acceptance",
+        "specify_cli.analysis_report",
+        "specify_cli.shims",
+        "specify_cli.skills"
       ],
       "census_evidence": "known-live",
       "note": "TEST-INVENTORY row (mission sonar-per-pr-coverage-reuse-01M2FR32, WP02/FR-006). This group exists to give a live test directory a declared home in the module registry so retiring the duplicate broad-measurement step does not remove its PER-CHANGE execution. It owns no src/** surface of its own: every root below is a VERBATIM copy of a glob another kept group already owns, so the router's path->group mapping and the FR-004 fail-closed `unmatched` union are unchanged (no path gains or loses a match). Roots/cov_targets are the subset of already-owned surfaces the directory's tests actually import -- never a surface no other group claims, which would silently narrow an unmapped src/** change away from the run-all catch-all. Covers tests/specify_cli/runtime (already the last directory of the CLAUDE.md fast tier)."

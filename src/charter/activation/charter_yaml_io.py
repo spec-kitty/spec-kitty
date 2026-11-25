@@ -37,6 +37,7 @@ from ruamel.yaml.nodes import MappingNode
 from ruamel.yaml.tokens import AliasToken, KeyToken
 
 from charter.bundle import CHARTER_YAML
+from kernel.file_modes import modes_equivalent
 
 __all__ = [
     "OWNED_SECTIONS",
@@ -219,7 +220,7 @@ def apply_yaml_write(prepared: PreparedYamlWrite) -> bool:
         or (*written.identity[:3], *written.identity[5:]) != handle
         or written.content != prepared.desired_bytes
         or (prepared.before_bytes is None and actual.st_nlink != 1)
-        or (os.name != "nt" and stat.S_IMODE(actual.st_mode) != prepared.mode)
+        or not modes_equivalent("file", stat.S_IMODE(actual.st_mode), prepared.mode)
     ):
         raise ValueError(f"precondition_changed: YAML written target {prepared.target}")
     completed.append(written)

@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-11-06'
-updated: '2026-11-06T00:00:00Z'
+updated: '2026-11-23T00:00:00Z'
 ---
 
 # A destructive git operation discharges named proof obligations
@@ -56,7 +56,7 @@ proof), so the guard stays free of application imports (C-005). For the prune th
 |---|------------|-------------------------------------|---------|
 | O1 | **Clean tree.** Nothing uncommitted or untracked would be destroyed. Ignored files are not protected: they are listed and go with the worktree. | `assert_worktree_clean(..., treat_untracked_as_dirty=True)` with the caller's residue context. | `MERGE_UNSAFE_WORKTREE_DIRTY` |
 | O2 | **No live process.** No process is standing in the worktree. | The caller's probe answers for the worktree; "cannot tell" is a refusal, not a pass. | `PROCESS_IN_WORKTREE`, `PROCESS_PROOF_UNAVAILABLE` |
-| O3 | **Landed against a named remote.** Every commit of the tip is on `refs/remotes/<remote>/<primary>` for a remote the repository configures: reachable from it, or absorbed by it (a `merge-tree` no-op, which covers squash landings). | The landing ref must sit under `refs/remotes/<remote>/` for a configured `<remote>` and resolve; the caller's absorption proof is re-run on that ref at the proven tip. Nothing is fetched. | `LANDING_REF_UNNAMED`, `NOT_LANDED_ON_NAMED_REMOTE` |
+| O3 | **Landed against a named remote.** Every commit of the tip is on `refs/remotes/<remote>/<primary>` for a remote the repository configures: reachable from it, or absorbed by it (a `merge-tree` no-op, which covers squash landings). For a Mission lane the absorption proof sets aside Mission bookkeeping the lane never authored (Amendment 2026-11-23). | The landing ref must sit under `refs/remotes/<remote>/` for a configured `<remote>` and resolve; the caller's absorption proof is re-run on that ref at the proven tip. Nothing is fetched. | `LANDING_REF_UNNAMED`, `NOT_LANDED_ON_NAMED_REMOTE` |
 | O4 | **Reflog-only commits are kept.** A commit that only the worktree `HEAD` reflog or the branch reflog still reaches would be lost when those reflogs go. | Before anything is removed, each such commit that no local ref reaches (`refs/heads`, `refs/tags`, `refs/spec-kitty`; a remote-tracking ref never vouches) is recorded under `refs/spec-kitty/discarded/reflog/<sha>`, create-only. A record that cannot be written refuses the removal. | `DESTRUCTIVE_OP_ONLY_COPY` |
 | O5 | **Compare-and-swap deletes.** A ref is deleted only while it still holds the commit the proof was about, and the worktree is removed only while its `HEAD` was still that commit one step earlier. | The branch delete is `git update-ref --no-deref -d <ref> <tip>`, so a branch that moves while the delete runs is kept, and a symbolic branch never takes its target with it. git has no compare-and-swap for a worktree, so its `HEAD` and branch are re-read twice: before the other checks, and again as the last step before the removal. | `WORKTREE_TIP_MOVED`, `BRANCH_TIP_MOVED`, `BRANCH_CHECKED_OUT` |
 | O6 | **Rebase-merged SHAs count as landed only by proof.** The pre-rebase commits of a rebase landing are reachable from nothing, yet their content is on the primary. | A reflog-only commit is left unrecorded only when every commit that would be lost with it replays onto the landing ref as a verbatim no-op (`git merge-tree --write-tree --merge-base <c>^ <landing-ref> <c>` returns the landing ref's own tree). A merge, a root or an empty commit, an empty range and any git error are no proof. `git cherry` is not used: its patch-id ignores whitespace, which can change what a program does. | (never refuses; it records) |
@@ -130,3 +130,158 @@ files never count as evidence for any obligation (epic #7276; #6466, #6884).
 - A remote-tracking ref is read as a local cache: a landing ref that is stale may still vouch for a
   tip since force-pushed off the remote. The discarded-tip record keeps such a tip reachable locally,
   but the verdict can be wrong, and a reflog-only commit proven against that ref is not recorded.
+
+## Amendment 2026-11-23: Mission bookkeeping in the O3 absorption proof
+
+**Rulings.** Operator rulings 2026-11-22 ("Ancestor blob + keep-code") and 2026-11-23 (Option A),
+Mission `lane-cleanup-landing-proof-01M81KHJ`, issues #7747 and #7325.
+
+**Problem.** A `lanes_with_coord` lane syncs with the coordination branch while it is implemented
+(`implement` merges it in). It therefore carries older copies of Mission files the tool rewrites after
+the sync: the status log, `status.json`, `meta.json`, and each work package prompt's claim frontmatter.
+A squash landing collapses the coordination history into one commit, and consolidate deletes the
+coordination branch before lane cleanup. The plain O3 proof (an exact `merge-tree` no-op) could
+therefore never pass such a lane. Consolidate kept every lane of an ordinary squash landing with
+`NOT_LANDED_ON_NAMED_REMOTE`, and `doctor workspaces --prune`, the printed remedy, refused the same
+lanes with `CONTENT_NOT_ON_PRIMARY` (#7747).
+
+**Decision.** O3's absorption evidence for a Mission lane is
+`specify_cli.lanes.lane_tip.is_absorbed_but_for_mission_bookkeeping`. Consolidate's lane cleanup and
+the `accept --mode pr` lane cleanup use it (the latter by operator ruling 2026-11-23, 3A: it matters
+when the pushed head does not carry the coordination history a lane merged). `doctor workspaces` uses
+it for the lanes of a released Mission only (consolidated or pr-accepted, no active consolidation
+record, no retention). Every other worktree keeps the plain proof.
+A lane is landed when its tip is an ancestor of the landing ref, or when every difference is accounted
+for:
+
+1. **Outside `kitty-specs/`**, merging the tip into the landing ref has no conflict and changes nothing.
+2. **The lane's own Mission status log**: every lane event line is in the landing's log. The log is
+   append-only. This set-aside shipped with #6736 (lane cleanup on a coordination topology) and was
+   not recorded here before; this amendment records it.
+3. **`status.json`, `meta.json` and `tasks/WP*.md` of the lane's own Mission** (#7747): both sides
+   have the file, and the lane never authored its copy. The lane's own commits are its first-parent
+   commits that neither the landing ref nor any branch it merged in reaches. A path is authored when
+   one of those commits changed it. A merge counts as authoring a path only when its result for that
+   path is none of its merged-in parents' versions, so a merge-driver or conflict resolution counts as
+   authored. Separately, a version the landing ref's own history holds also passes.
+4. **A `kitty-specs/` file the lane did not author** whose lane copy is the merge base's copy (only
+   the landing ref moved it), or that the lane has no copy of: nothing to lose. This is a blob
+   comparison, not a merge result.
+
+No merge or merge-driver result is evidence for a `kitty-specs/` path (#7302 item 3). Everything else
+fails closed: any other `kitty-specs/` change the lane made, a deletion the lane made, an unknown ref,
+or any git error. One deletion is the exception: the lane's own Mission status log, because the log is
+append-only and rule 2 judges it by its events, so a lane without a copy has none to lose. "Set aside"
+applies to the lane's own changes only: the matrices (`issue-matrix.json`, `acceptance-matrix.json`)
+and every other Mission file are never set aside when the lane changed them, while a file the lane
+left untouched (rule 4) is no lane change at all.
+
+**The kept legs (#7325).** `GuardedLaneRemover` no longer hands a lane with a branch leg to the older
+remover. A lane is kept with `LANDING_PROOF_UNAVAILABLE`, its branch untouched, in each of these cases:
+
+- there is no landing proof;
+- a local proof has an empty reconciliation PASS anchor;
+- the worktree is gone while the branch remains;
+- no tip can be named.
+
+A lane whose worktree and branch are both gone is reported removed. The retained-branch leg (worktree
+removed, branch kept by policy) stays on the guarded worktree removal: it deletes no branch (plan
+decision PD-1, decided by the operator on 2026-11-23, ruling 4A). The guard itself is unchanged.
+
+**Residual (amended 2026-11-24, below).** A version that a lane merged in from a branch other than the coordination branch, for
+example a dependency lane, counts as not authored on this lane. That branch's own lane is judged on its
+own, and only the bookkeeping kinds above can be set aside.
+
+
+## Amendment 2026-11-24: the lane's own changes only, the snapshot as a projection, and the Mission-branch proof
+
+**Ruling.** Operator ruling 2026-11-24, after the Mission's own landing kept all three of its lanes
+(dogfood run on `lane-cleanup-landing-proof-01M81KHJ`). It amends rules 3 and 4 above and adds one
+proof.
+
+**Problem.** Three shapes of an ordinary Mission still kept its lanes:
+
+- **A.** A dependent lane rewrote lines an earlier lane wrote. The squash's merge base is the
+  pre-Mission tip, so the earlier lane's exact version conflicts with the landing in `merge-tree`,
+  although approved work superseded it.
+- **B.** A planning file (`spec.md`, `analysis-report.md`, `acceptance-matrix.json`) changed on the
+  coordination branch after a lane's last sync. The lane never wrote its copy, but rule 4 above only
+  set aside a copy equal to the merge base's.
+- **C.** Consolidate's own auto-rebase merged the coordination branch into a stale lane, and the
+  status-snapshot merge driver produced a `status.json` equal to neither parent, which rule 3 counted
+  as the lane's authoring.
+
+**Decision.**
+
+- **B.** A file under the lane's own `kitty-specs/<mission>/` that the lane never authored does not
+  keep it, whatever the target did with it. Authorship is read as in rule 3 (merge results are still
+  distrusted). Rule 4 stays for other Missions' files, which still fail closed otherwise.
+- **C.** `status.json` is a projection of the status log. It is accounted for when the lane's
+  `status.events.jsonl` is contained in the landing's log (rule 2); its authorship is never read.
+- **A.** Before the coordination teardown deletes the Mission branch, `consolidate` records, per
+  lane, whether
+  `lane_tip.is_landed_through_mission_branch` holds: the lane tip is an ancestor of the Mission branch
+  tip, every path outside `kitty-specs/` the lane changed since its merge base with the anchor (read
+  from the tree diff, so a fast-forwarded lane is judged too) either has the lane's own final blob on
+  the anchor or was changed again by later approved work: an own non-merge commit of another
+  approved lane (a lane whose every work package is in the run's approved claim; the same
+  first-parent walk as authorship, less the Mission branch's own first-parent line) that is on the
+  Mission branch and descends from the lane's last commit changing that path (operator ruling
+  2026-11-24 on Tier R B1, option (b), and the Tier R confirm passes). A revert or rewrite made on the
+  Mission branch outside any lane, including one an approved lane forked from, a parallel lane's
+  edit of the same file, and work another lane only merged in (a resync) keep the lane; any probe or
+  attribution error keeps it too,
+  every path outside `kitty-specs/` the Mission branch changed since its merge base with the
+  reconciliation PASS anchor has the Mission branch's blob on the anchor (the target keeps its own
+  content elsewhere), and every `kitty-specs/` difference between the lane and the anchor is accounted for by the rules above (a
+  `meta.json` or `tasks/WP*.md` version the lane authored may also be in the Mission branch's history,
+  since a squash keeps only that branch's last version). The proven tips and the anchor reach the
+  guard as `MissionBranchProjection` on the `LocalTargetAtPass` proof; the guard's O3 evidence
+  accepts a proven tip, besides the content proof, only for a landing whose PASS anchor is the proven
+  anchor or descends from it. A descendant is accepted because consolidate carries the PASS anchor
+  over its own post-landing commits (`_carry_pass_anchor_over_own_commit`, FR-035), and the
+  projection lives only in memory within that one cleanup phase, so nothing else can advance it.
+  The check is ancestry only, not that the commits in between are consolidate's own: if the
+  projection is ever persisted (the `--resume` residual below), this becomes a gap, to be closed by
+  recording the carried SHAs or requiring the commits in between to touch only bookkeeping paths.
+  Building the projection never aborts cleanup: any error yields no projection, and the lanes are
+  judged by the content proof alone.
+- **Authorship** (R24 squad): a lane's own commits are its first-parent commits that no merged-in
+  branch's own first-parent line holds, so a lane commit the coordination branch merged back (and the
+  lane then resynced) stays the lane's; changed names are read NUL-separated, so a name git quotes is
+  still matched.
+
+**Residuals.**
+
+- `doctor workspaces` after a push has no Mission branch to read, so a lane in shape A is still
+  rated `not_landed` there. A per-path rule (a lane path is superseded when an approved lane that
+  depends on it changed that path later) is tracked as follow-up #7838.
+- Supersession is judged per path, not per line (operator ruling 2026-11-24 on Tier R confirm 2
+  N1, option (a); line attribution is not used). An approved lane that edits another line of the
+  same file therefore supersedes an out-of-workflow revert or rewrite of this lane's line, and the lane is
+  removed. Such a removal is recoverable: a lane that only the Mission-branch proof discharged (the
+  content proof runs first and failed) keeps `refs/spec-kitty/lane-tip/<branch>` at the removed tip
+  instead of having it cleared, and its `Removed` line names it
+  (`(recoverable: refs/spec-kitty/lane-tip/<branch>)`; operator ruling 2026-11-24). A lane the
+  content proof discharged still has its ref cleared: its work is on the target. The ref is written
+  at the tip before the guard may delete the branch and cleared afterwards only on the content-proof
+  leg, so a failed write keeps the lane and an interruption after the delete still leaves the tip
+  named; a lane the guard keeps gets its earlier ref back (Tier R confirm 4). The kept ref reads
+  like any lane whose branch is gone (FR-034): a cleanup re-run reports the lane removed and leaves
+  the ref, `git branch <branch> refs/spec-kitty/lane-tip/<branch>` recreates the lane, and a work
+  package reopened on it is refused `DESTROYED_LANE` naming the tip (its work is not on the target),
+  not `LANE_WORK_TIP_UNKNOWN`; `git update-ref -d` on the ref abandons it. The JSON cleanup report is
+  unchanged. Tracked in #7838.
+- A `--resume` whose earlier attempt already tore down the Mission branch runs without the
+  projection; the projection is not persisted.
+- `orchestrator-api consolidate-mission` has no reconciliation PASS anchor, so it does not use the
+  Mission-branch proof: a lane in shape A is kept there.
+- A lane commit that a branch other than the coordination branch carries on its own first-parent
+  line (for example a dependency lane forked from it, merged back into the lane) counts as not
+  authored on this lane.
+- A lane fast-forwarded to a coordination merge that contains its own commit loses that commit's
+  authorship: the commit then sits behind a second parent, off the lane's first-parent chain. Spec
+  Kitty's own syncs merge with `--no-ff`, so only a hand fast-forward reaches this. The Mission-branch
+  proof reads the lane's product paths from the tree diff, so it still judges such a lane path by
+  path; the authorship loss affects only the `kitty-specs/` rules, where a lane-written Mission file
+  of a fast-forwarded lane is treated as not authored (set aside).

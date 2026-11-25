@@ -1243,23 +1243,20 @@ def resolve_lane_base_ref(
     local-cut behavior. This is **base resolution, not a terminus write**, so it
     must not fail closed on a missing origin ref.
 
-    The origin-ref probe mirrors the ``git rev-parse --verify`` ref-resolution
-    semantics of ``lanes.implement_support.resolve_base_ref`` (WP03) via the canonical
-    :func:`specify_cli.lanes._git.ref_exists` helper, so the two base-resolution
-    sites agree on what "the origin lane exists" means. The returned value is the
+    The probe is :func:`kernel.git.tracking_branch.owning_tracking_ref` (#7806), the
+    one owning-remote rule the review lane and the coordination branch also use; it
+    accepts the ref only when it names a commit. The returned value is the
     fully-qualified ``refs/remotes/<remote>/<lane_branch>`` ref, unambiguous
     against a same-named tag. The remote is the one that owns the lane branch
     (:func:`kernel.git.remote.resolve_remote`; ``origin`` when none applies) and
     the ref is built by :func:`kernel.git.remote.tracking_ref`, the same builder
     ``lanes.implement_support.resolve_base_ref`` uses (FR-016).
     """
-    from kernel.git.remote import resolve_remote, tracking_ref
-    from specify_cli.lanes._git import ref_exists
+    from kernel.git.tracking_branch import owning_tracking_ref
 
-    origin_ref = tracking_ref(resolve_remote(repo_root, lane_branch) or "origin", lane_branch)
-    if ref_exists(repo_root, origin_ref):
-        return origin_ref
-    return fallback_base
+    # One owning-remote rule for the lane base, the review lane and the coordination
+    # branch (#7806); ``origin`` stays this resolver's documented fallback owner.
+    return owning_tracking_ref(repo_root, lane_branch, fallback_remote="origin") or fallback_base
 
 
 def resolve_feature_worktree(repo_root: Path, mission_slug: str) -> Path | None:

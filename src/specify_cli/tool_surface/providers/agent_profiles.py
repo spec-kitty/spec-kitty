@@ -65,6 +65,7 @@ from ..operations import (
     OwnershipProof,
     PhysicalEffect,
     coalesce_effects,
+    mode_equivalent,
 )
 from ..profiles._paths import confined_path, observe_node, observe_tree
 from ..profiles.amazon_q_renderer import FORMAT_AMAZON_Q_AGENT
@@ -830,9 +831,10 @@ def _sibling_created_planned_dir(before: FileState, observed: FileState, planned
     """True when a sibling owner made the identical planned directory first (#4275).
 
     Only the exact shape is accepted: planned absent -> directory, now an existing
-    directory with the planned mode.
+    directory whose mode satisfies the planned one on this host (#4927: on
+    Windows a directory always reads 0o777).
     """
-    return planned is not None and planned.kind == "directory" and before.kind == "absent" and observed.kind == "directory" and observed.mode == planned.mode
+    return planned is not None and planned.kind == "directory" and before.kind == "absent" and mode_equivalent(observed, planned)
 
 
 def _write_profile_effect(effect: PhysicalEffect, content: bytes | None) -> None:

@@ -78,7 +78,8 @@ def _find_latest_feature_worktree(repo_root: Path) -> Path | None:
 
 def _find_feature_worktree(repo_root: Path, mission_slug: str) -> Path | None:
     """Find a deterministic worktree for a feature slug."""
-    return resolve_feature_worktree(repo_root, mission_slug)
+    worktree: Path | None = resolve_feature_worktree(repo_root, mission_slug)
+    return worktree
 
 
 def accept_feature(
@@ -111,6 +112,17 @@ def accept_feature(
         ),
     ] = False,
     owned_checkout: OwnedCheckoutOption = None,
+    waive_path_conventions: Annotated[
+        bool,
+        typer.Option(
+            "--waive-path-conventions",
+            help="Path-convention misses are warnings for this run; metadata validation stays strict (#7566). Requires --waive-reason.",
+        ),
+    ] = False,
+    waive_reason: Annotated[
+        str | None,
+        typer.Option("--waive-reason", help="Why path conventions are waived for this run (required with --waive-path-conventions)."),
+    ] = None,
 ) -> None:
     """Perform mission acceptance workflow.
 
@@ -131,6 +143,9 @@ def accept_feature(
 
         # Lenient mode (skip strict validation)
         spec-kitty agent mission accept --mission 077-my-mission --lenient --json
+
+        # Waive only the path-convention check for this run (metadata stays strict)
+        spec-kitty agent mission accept --mission 077-my-mission --waive-path-conventions --waive-reason "layout migration" --json
     """
     # A-3: resolve the heavyweight accept delegator via the ``mission`` module so
     # this leaf never imports the accept graph at module scope, while preserving
@@ -154,6 +169,8 @@ def accept_feature(
             target_branch=target_branch,  # #4231: PR base branch passthrough
             attest_first_landing=attest_first_landing,  # #4231: anchor attestation passthrough
             owned_checkout=owned_checkout,
+            waive_path_conventions=waive_path_conventions,  # #7566: narrow path-convention waiver passthrough
+            waive_reason=waive_reason,
         )
     except typer.Exit:
         # Propagate typer.Exit cleanly

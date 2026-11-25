@@ -312,8 +312,9 @@ class TestUnmaterializedCoordWorktreeMerge:
 
     Ruling Q4 (coord-artifact-single-home): the executor's status location is
     the WRITE accessor (``write_dir``), which materializes an UNMATERIALIZED
-    surface whose coordination branch has a local head. Only a REMOTE-ONLY branch
-    (#4970) still aborts before any state change. This class used to hold ONE test
+    surface whose coordination branch has a local head, or (#5936) a remote-tracking
+    ref it can create one from. Only a branch this clone holds no ref for (#4970)
+    still aborts before any state change. This class used to hold ONE test
     pinning "abort on every UNMATERIALIZED cell"; that is split into the two
     tests below. The split is a deliberate behaviour change, not a stale test.
     """
@@ -345,19 +346,58 @@ class TestUnmaterializedCoordWorktreeMerge:
         coord_wt = CoordinationWorkspace.worktree_path(tmp_path, mission_slug, mid8)
         assert (coord_wt / "kitty-specs" / mission_slug / "meta.json").is_file()
 
-    def test_remote_only_coord_branch_still_aborts_before_state_change(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-        """#4970 control: a coordination branch that exists ONLY on a remote still aborts cleanly.
-
-        New fixture (a ``file://`` bare remote, the branch pushed, the local head
-        deleted); the assertions are the original test's, byte for byte.
-        """
-        mission_slug, coord_branch, _mid8 = _build_declared_coord_mission(tmp_path, "merge-unmat-coord")
+    @staticmethod
+    def _push_and_drop_local_head(tmp_path: Path, coord_branch: str) -> Path:
+        """A ``file://`` bare origin holding *coord_branch*; the local head is deleted (a teammate's clone)."""
         remote_dir = tmp_path.parent / f"{tmp_path.name}-remote.git"
         subprocess.run(["git", "init", "--bare", "-b", "main", str(remote_dir)], check=True, capture_output=True)
         subprocess.run(["git", "remote", "add", "origin", remote_dir.as_uri()], cwd=tmp_path, check=True, capture_output=True)
         subprocess.run(["git", "push", "origin", coord_branch], cwd=tmp_path, check=True, capture_output=True)
         subprocess.run(["git", "fetch", "origin", coord_branch], cwd=tmp_path, check=True, capture_output=True)
         subprocess.run(["git", "branch", "-D", coord_branch], cwd=tmp_path, check=True, capture_output=True)
+        return remote_dir
+
+    def test_remote_only_coord_branch_is_materialized_from_origin_before_merge(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        """#5936 (re-pins the #4970 control): a teammate's clone, where the coordination branch is
+        only ``origin/<b>``, no longer aborts. The origin-freshness gate fetches the branch, the
+        write seam creates the local head from that tracking ref (never from the primary branch,
+        the #4970 hazard) and consolidation proceeds past the surface phase.
+
+        The fixture has no ``lanes.json``, so the run stops later on that unrelated
+        precondition (``MissingLanesError``), as in the local-branch test above.
+        """
+        from specify_cli.coordination.surface_resolver import CoordState, probe_coord_state
+        from specify_cli.lanes.persistence import MissingLanesError
+
+        mission_slug, coord_branch, mid8 = _build_declared_coord_mission(tmp_path, "merge-unmat-coord")
+        remote_dir = self._push_and_drop_local_head(tmp_path, coord_branch)
+        origin_tip = subprocess.run(
+            ["git", "ls-remote", remote_dir.as_uri(), f"refs/heads/{coord_branch}"], check=True, capture_output=True, text=True
+        ).stdout.split()[0]
+
+        with pytest.raises(MissingLanesError):
+            _run_consolidation_expecting_abort_or_failure(tmp_path, mission_slug)
+
+        output = " ".join(capsys.readouterr().out.split())
+        assert "Merge aborted before any state change" not in output, output
+        assert probe_coord_state(tmp_path, mission_slug, mid8, coordination_branch=coord_branch) is CoordState.MATERIALIZED
+        local_tip = subprocess.run(["git", "rev-parse", f"refs/heads/{coord_branch}"], cwd=tmp_path, check=True, capture_output=True, text=True).stdout.strip()
+        ancestry = subprocess.run(["git", "merge-base", "--is-ancestor", origin_tip, local_tip], cwd=tmp_path, check=False)
+        assert ancestry.returncode == 0, f"the local coordination branch {local_tip} must start from origin's tip {origin_tip}"
+
+    def test_never_fetched_coord_branch_still_aborts_before_state_change(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """#4970 control: a coordination branch this clone holds NO ref for still aborts cleanly.
+
+        The branch lives on origin, but the clone never fetched it (no local head, no
+        remote-tracking ref) and the origin-freshness gate is off, so nothing fetches it:
+        nothing local proves its content. The assertions are the original test's, byte for byte.
+        """
+        mission_slug, coord_branch, _mid8 = _build_declared_coord_mission(tmp_path, "merge-unmat-coord")
+        self._push_and_drop_local_head(tmp_path, coord_branch)
+        subprocess.run(["git", "update-ref", "-d", f"refs/remotes/origin/{coord_branch}"], cwd=tmp_path, check=True, capture_output=True)
+        monkeypatch.setenv("SPEC_KITTY_ORIGIN_CHECK", "off")
 
         exit_exc = _run_consolidation_expecting_abort_or_failure(tmp_path, mission_slug)
 

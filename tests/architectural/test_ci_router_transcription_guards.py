@@ -87,13 +87,19 @@ def _changes_output_groups(workflow: dict[str, Any]) -> set[str]:
 def _unmatched_union_groups(workflow: dict[str, Any]) -> set[str]:
     """The src-backed groups the fail-closed ``unmatched`` step unions.
 
-    The step references ``steps.filter.outputs.<group>`` once per group inside its
-    ``for group_hit in ...`` loop (``any_src`` lives in the step ``env``, not the
-    ``run`` body, so it is not counted here).
+    Since #7775 the step is per path: it reads each src group's file list,
+    ``steps.filter.outputs.<group>_files``, through one ``SRC_GROUP_FILES_<group>`` env
+    entry (``any_src_files``, the probe, is the set being covered, not a covering group).
     """
     steps = workflow["jobs"]["changes"]["steps"]
     unmatched = next(step for step in steps if step.get("id") == "unmatched")
-    return set(_FILTER_OUTPUT_REF.findall(unmatched["run"]))
+    refs = {
+        ref.removesuffix("_files")
+        for name, expression in unmatched["env"].items()
+        if name.startswith("SRC_GROUP_FILES_")
+        for ref in _FILTER_OUTPUT_REF.findall(str(expression))
+    }
+    return refs
 
 
 # ---------------------------------------------------------------------------

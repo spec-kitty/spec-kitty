@@ -43,6 +43,7 @@ from __future__ import annotations
 import enum
 import logging
 import ntpath
+import shlex
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -50,6 +51,8 @@ from pathlib import Path
 import kernel.paths as kernel_paths
 from kernel.git import GitCommandError, tree_paths
 from kernel.git.read_cache import cached_git_read
+from kernel.git.remote import resolve_remote
+from kernel.git.tracking_branch import ensure_local_tracking_branch, is_local_head, owning_tracking_ref
 from mission_runtime import (
     CommitTarget,
     MissionArtifactKind,
@@ -83,6 +86,8 @@ __all__ = [
     "WorktreeRegistryUnavailable",
     "WorktreeTopology",
     "classify_worktree_topology",
+    "coord_branch_tracking_ref",
+    "ensure_coord_branch_local_head",
     "is_registered_coord_worktree",
     "is_under_worktrees_segment",
     "materialize_coord_surface_for_write",
@@ -324,9 +329,12 @@ class CoordinationWorktreeUnmaterialized(StatusReadPathNotFound):  # type: ignor
     (single-branch/shallow/CI clone, or a pruned remote-tracking ref) reached
     this state via :func:`_coord_branch_exists`'s new remote arm — ``doctor
     workspaces --fix``'s ``git worktree add`` would fail on that unfetched ref,
-    so the guidance leads with ``git fetch origin <branch>`` first. A local
-    head that is simply not yet checked out keeps the original
-    self-materializes-or-``doctor workspaces --fix`` guidance unchanged.
+    so the guidance leads with the canonical remote-only steps (#5287,
+    :mod:`mission_runtime.coord_remedy`): fetch the branch from the remote that
+    owns it into its remote-tracking ref (only when this clone lacks it), create
+    the local branch, then ``doctor coordination --fix``. A local head that is
+    simply not yet checked out keeps the self-materializes-or-``doctor
+    coordination --fix`` guidance.
     """
 
     error_code: str = "COORDINATION_WORKTREE_UNMATERIALIZED"
@@ -382,6 +390,12 @@ class CoordinationWorktreeUnmaterialized(StatusReadPathNotFound):  # type: ignor
         path is composed via the canonical ``CoordinationWorkspace.worktree_path``
         (a pure path composer; requires a non-empty mid8, guaranteed for an
         UNMATERIALIZED state), falling back to the read-path grammar defensively.
+
+        #5287: the remote-only arm prints the canonical steps from
+        :mod:`mission_runtime.coord_remedy` (fetch from the resolved remote only
+        when this clone lacks the tracking ref, create the local branch, then the
+        doctor). It no longer claims the checkout "has not fetched" the branch,
+        which is false on a fresh clone, nor hard-codes ``origin``.
         """
         if mid8:
             from specify_cli.coordination.workspace import CoordinationWorkspace
@@ -390,18 +404,23 @@ class CoordinationWorktreeUnmaterialized(StatusReadPathNotFound):  # type: ignor
         else:  # pragma: no cover - mid8 is always resolved for UNMATERIALIZED
             coord_worktree_root = coord_candidate.parent.parent
         doctor_cmd = f"spec-kitty doctor coordination --mission {mission_slug} --fix"
-        materialize_cmd = f"git -C {repo_root} worktree add {coord_worktree_root} {coordination_branch}"
+        materialize_cmd = f"git -C {shlex.quote(str(repo_root))} worktree add {shlex.quote(str(coord_worktree_root))} {coordination_branch}"
         if coordination_branch and not _coord_branch_is_local_head(repo_root, coordination_branch):
+            from mission_runtime import coordination_doctor_command, remote_only_branch, remote_only_steps
+
+            steps = remote_only_steps(
+                remote_only_branch(repo_root, coordination_branch),
+                repo_root,
+                coordination_doctor_command(mission_slug),
+            )
             return (
                 f"The coordination branch {coordination_branch!r} declared in "
-                f"meta.json exists on a remote, but this checkout has not "
-                f"fetched it, so its coordination worktree has not been "
-                f"materialized. Run `git fetch origin {coordination_branch}` "
-                f"(or fix a stale `remote.origin.fetch` refspec) first, then "
-                f"`{doctor_cmd}` to materialize it (if that command cannot, "
-                f"materialize it manually with `{materialize_cmd}`). Keep the "
-                f"`coordination_branch` key in meta.json as-is — the branch is "
-                f"not lost, only not yet fetched."
+                f"meta.json exists only on a remote: this checkout has no local "
+                f"branch for it, so its coordination worktree is not "
+                f"materialized. {steps} If that command cannot, materialize it "
+                f"manually with `{materialize_cmd}` once the local branch exists. "
+                f"Keep the `coordination_branch` key in meta.json as-is — the "
+                f"branch is not lost."
             )
         return (
             f"The coordination branch {coordination_branch!r} declared in "
@@ -785,16 +804,52 @@ def _coord_branch_is_local_head(repo_root: Path, coord_branch: str) -> bool:
     is a local head. Fails closed — an unreadable/foreign git context returns
     ``False`` (no local head proven ⇒ the WRITE must refuse rather than clobber).
     """
-    try:
-        result = subprocess.run(
-            ["git", "-C", str(repo_root), "rev-parse", "--verify", "--quiet", f"refs/heads/{coord_branch}"],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-    except OSError:
-        return False
-    return result.returncode == 0
+    return is_local_head(repo_root, coord_branch)
+
+
+def coord_branch_tracking_ref(repo_root: Path, coord_branch: str) -> str | None:
+    """Return the remote-tracking ref this clone holds for *coord_branch*, or ``None``.
+
+    #5936: the remote is the one that owns the branch
+    (:func:`kernel.git.remote.resolve_remote`: ``branch.<b>.remote``, then the
+    only configured remote, then ``origin``), never a scan of every remote, so
+    two remotes carrying different tips can never pick one silently. Local reads
+    only; no remote is contacted (ADR 2026-10-06-3). ``None`` when no owning
+    remote resolves, or this clone has no commit at
+    ``refs/remotes/<remote>/<coord_branch>`` (a single-branch / shallow clone
+    that never fetched it, or a pruned tracking ref).
+    """
+    # Delegates to the one owning-remote rule (#7806). ``resolve_remote`` is passed
+    # by this module's binding so it stays this helper's seam.
+    return owning_tracking_ref(repo_root, coord_branch, remote_resolver=resolve_remote)
+
+
+def ensure_coord_branch_local_head(repo_root: Path, coord_branch: str) -> bool:
+    """Make *coord_branch* a local head, creating it from its remote-tracking ref (#5936).
+
+    A teammate's clone (``git clone`` / ``git pull`` of a coordination Mission)
+    carries the coordination branch only as ``refs/remotes/<remote>/<branch>``.
+    That ref IS the branch's shared history, so a local branch started from it
+    never forks from the primary branch (the #4970 hazard): this is what rc5's
+    ``git worktree add <path> <branch>`` did through git's own remote-tracking
+    DWIM. The branch is created with ``--track`` so its upstream is the owning
+    remote.
+
+    Returns ``True`` when *coord_branch* is a local head afterwards (already was,
+    created here, or created by a concurrent process). Returns ``False``, writing
+    nothing, when this clone holds no remote-tracking ref for it
+    (:func:`coord_branch_tracking_ref`): the caller keeps refusing, fail-closed,
+    because nothing local proves the branch's content.
+
+    Write-side only: a read path must never call this (reads stay side-effect free).
+    """
+    # Delegates to the one helper (#7806); this module's two named probes stay its seams.
+    return ensure_local_tracking_branch(
+        repo_root,
+        coord_branch,
+        start_ref=coord_branch_tracking_ref,
+        local_head=_coord_branch_is_local_head,
+    )
 
 
 def coord_branch_has_committed_artifact(
@@ -956,8 +1011,10 @@ def materialize_coord_surface_for_write(
     2. Not :attr:`~...CoordState.UNMATERIALIZED` (``MATERIALIZED`` / ``EMPTY``):
        no-op — nothing to materialize, and ``DELETED`` is left to raise
        downstream exactly as it does today.
-    3. A remote-only branch (not a local head) is never auto-materialized
-       before a write (#4970 parity, S-C) — raises BEFORE any write.
+    3. A branch that is not a local head gets one from this clone's
+       remote-tracking ref (:func:`ensure_coord_branch_local_head`, #5936).
+       With no such ref it is never auto-materialized before a write (#4970
+       parity, S-C) — raises BEFORE any write.
     4. Otherwise materializes via the canonical resolver. A concurrent CLI race
        that materializes the worktree between this function's probe and its own
        ``resolve`` call (plan Risk 4) is tolerated: on a narrowed materialization
@@ -1002,7 +1059,10 @@ def materialize_coord_surface_for_write(
     if state is not CoordState.UNMATERIALIZED:
         return
 
-    if not _coord_branch_is_local_head(repo_root, coordination_branch):
+    # #5936: a branch this clone holds only as a remote-tracking ref (a teammate's
+    # clone / pull) gets its local head from that ref first, as rc5 did. With no
+    # such ref nothing local proves the branch's content, so the write refuses.
+    if not ensure_coord_branch_local_head(repo_root, coordination_branch):
         _raise_unmaterialized(repo_root, mission_slug, mid8, coordination_branch)
 
     from specify_cli.coordination.workspace import (  # noqa: PLC0415

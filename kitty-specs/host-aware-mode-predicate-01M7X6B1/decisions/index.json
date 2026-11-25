@@ -1,0 +1,29 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-20T19:18:53.323162Z",
+      "decision_id": "01M7X6BEMB6XKJZM2VPV9TDE44",
+      "final_answer": "Operator rulings 2026-11-20 (one host-aware predicate + folded #4810 ratchet gate; Windows: dirs kind-only, files write bit, symlinks ignore mode; POSIX raw; latent sites included; charter_yaml_io campsite)",
+      "input_key": "intent_scope_and_semantics",
+      "mission_id": "01M7X6B1MARTS68ADD3VQJD0Y6",
+      "mission_slug": "host-aware-mode-predicate-01M7X6B1",
+      "opened_by": "cli",
+      "options": [
+        "Operator rulings 2026-11-20 (one host-aware predicate + folded #4810 ratchet gate; Windows: dirs kind-only, files write bit, symlinks ignore mode; POSIX raw; latent sites included; charter_yaml_io campsite)",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "What is in scope and what are the Windows mode semantics for the shared predicate?",
+      "rationale": null,
+      "resolved_at": "2026-11-20T19:18:56.209543Z",
+      "resolved_by": null,
+      "slot_key": "specify.intent.scope-and-semantics",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M7X6B1MARTS68ADD3VQJD0Y6",
+  "version": 1
+}
