@@ -4,7 +4,7 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: approved-lane-resolution-route-01M7WW0Z
 mission_id: 01M7WW0ZHE3JCZ0KW6RP8X34G4
-generated_at: '2026-11-25T09:27:21.902106+00:00'
+generated_at: '2026-11-25T11:01:53.841918+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
@@ -22,9 +22,9 @@ input_artifacts:
 verdict: ready
 issue_counts:
   low: 2
-  high: 0
-  medium: 0
   critical: 0
+  medium: 0
+  high: 0
   info: 0
 findings:
 - id: A12
@@ -117,3 +117,8 @@ Third pass, after remediation commit 4c8c0ab and the reviewer-accepted task refi
 - No change to the spec, plan or FR set. The coverage matrix is unchanged.
 - WP05 binding addendum item 6 (WP08 review cycle 2): a real-git test for a merge with its own content inside a canceled WP's window that a later approval stamp reaches. The test must refuse. This applies FR-004 and the canceled-content rule; no new FR.
 - WP13: document the merge.renormalize refusal (WP01 cycle 3 product note). Documentation only.
+- WP07 and WP09 binding scope sections (operator ruling DM-01M88RZDBP57ZTYJHC5NP0ZH4R):
+  - Main's #7755 sibling code is the single authority.
+  - WP07 changes only three things: the refresh step to `--incorporate`, FR-009 recording, and the attribute guard (now also wrapping incorporate's window-merge probe).
+  - WP09 passes no siblings and bumps CONTRACT_VERSION 1.30.0 -> 1.31.0.
+  - The FR set is unchanged. Where they conflict, `contracts/stale-remedy.md` is superseded by main's reopen step; WP13 updates the contract.
