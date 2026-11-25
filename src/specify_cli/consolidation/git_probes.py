@@ -737,7 +737,7 @@ def changed_paths_of(repo_root: Path, sha: str) -> list[str]:
         raise GitProbeError(f"git show --name-only {sha} failed (exit {exc.returncode}): {exc.stderr.strip()}") from exc
 
 
-def merge_own_changed_paths(repo_root: Path, sha: str) -> list[str]:
+def merge_own_changed_paths(repo_root: Path, sha: str, *, attributes_source: str | None = None) -> list[str]:
     """Paths a merge commit changed BEYOND what its parents' automatic merge produced (#7307).
 
     ``git show --remerge-diff --name-only --format= <sha>`` re-runs the merge of the
@@ -753,17 +753,44 @@ def merge_own_changed_paths(repo_root: Path, sha: str) -> list[str]:
     so the caller REFUSEs instead of reading the merge as empty. An octopus merge (3 or
     more parents) also raises: ``--remerge-diff`` skips it ("Skipping remerge-diff for
     octopus merges", empty stdout, exit 0), which would read as "adds nothing of its own".
+
+    FR-010: the re-merge honours clone-local and unreviewed merge settings, which can make a
+    hand resolution re-merge to itself and read as "no own content". Every path the merge
+    changed against EITHER parent (a forged path differs from at least one) goes through
+    :func:`~specify_cli.consolidation.merge_attribute_guard.assert_registered_merge_behaviour`
+    first, which raises :class:`GitProbeError` unless git's built-in merge or a registered
+    spec-kitty driver merges it. *attributes_source* (the claim's pre-run target tip) lets a
+    committed ``merge=union`` stand; ``None`` refuses it.
     """
-    if len(commit_parents(repo_root, sha)) > 2:
+    from specify_cli.consolidation.merge_attribute_guard import assert_registered_merge_behaviour, merge_probe_env
+
+    parents = commit_parents(repo_root, sha)
+    if len(parents) > 2:
         raise GitProbeError(f"merge commit {sha} is an octopus merge (3+ parents); git show --remerge-diff skips it, so its own content cannot be judged")
     if not remerge_diff_available(repo_root):
         raise GitProbeError(f"judging merge commit {sha} needs git >= 2.36 (git show --remerge-diff); upgrade git")
+    assert_registered_merge_behaviour(repo_root, _paths_changed_against_parents(repo_root, sha, parents), attributes_source=attributes_source)
     from kernel.git import GitCommandError, remerge_paths
 
     try:
-        return [str(path) for path in remerge_paths(repo_root, sha)]
+        return [str(path) for path in remerge_paths(repo_root, sha, env=merge_probe_env())]
     except GitCommandError as exc:
         raise GitProbeError(f"git show --remerge-diff {sha} failed: {exc}") from exc
+
+
+def _paths_changed_against_parents(repo_root: Path, sha: str, parents: Sequence[str]) -> list[str]:
+    """Every path whose content *sha* differs in from any of *parents* (``git diff --name-only --no-renames``), first seen first.
+
+    Raises :class:`GitProbeError` on any git error; an unreadable parent is never read as "no change".
+    """
+    seen: dict[str, None] = {}
+    for parent in parents:
+        try:
+            listed = changed_paths(repo_root, parent, sha)
+        except GitCommandError as exc:
+            raise GitProbeError(f"git diff --name-only {parent} {sha} failed (exit {exc.returncode}): {exc.stderr.strip()}") from exc
+        seen.update(dict.fromkeys(str(path) for path in listed))
+    return list(seen)
 
 
 def path_state_at(repo_root: Path, ref: str, path: str) -> str | None:
@@ -870,8 +897,10 @@ def _merge_tree_step(repo_root: Path, ours: str, theirs: str) -> tuple[str, froz
     even when another path conflicted. Any exit code other than 0 (clean) or 1 (some
     conflict) raises :class:`GitProbeError`.
     """
+    from specify_cli.consolidation.merge_attribute_guard import merge_probe_env
+
     try:
-        result = merge_tree(repo_root, ours, theirs)
+        result = merge_tree(repo_root, ours, theirs, env=merge_probe_env())
     except GitCommandError as exc:
         raise GitProbeError(f"git merge-tree --write-tree {ours} {theirs} failed (exit {exc.returncode}): {exc.stderr.strip()}") from exc
     if not result.tree:
@@ -921,7 +950,14 @@ def _synthetic_merge_commit(repo_root: Path, tree: str, parents: Sequence[str]) 
     return commit
 
 
-def n_way_merge_blob(repo_root: Path, commits: Sequence[str], path: str, *, fold_cache: MergeFoldCache | None = None) -> str | None:
+def n_way_merge_blob(
+    repo_root: Path,
+    commits: Sequence[str],
+    path: str,
+    *,
+    fold_cache: MergeFoldCache | None = None,
+    attributes_source: str | None = None,
+) -> str | None:
     """Fold ``git merge-tree --write-tree`` over *commits* in order; return *path*'s resulting blob (#7626).
 
     The N-way generalization of #5051's two-lane ``git merge-tree`` simulation. Each step merges the
@@ -934,18 +970,25 @@ def n_way_merge_blob(repo_root: Path, commits: Sequence[str], path: str, *, fold
     Soundness does not depend on the fold order. With git's built-in merge a clean three-way
     merge takes every line of its result from one of its two sides (the base never adds a
     line), so the result is built only from the inputs' content at *path*; any order that reproduces
-    a blob proves that blob is made of the inputs. Exception: a custom ``merge=`` driver
-    set in ``.gitattributes`` (or git config) may write any bytes on a clean exit, so for a path
-    such a driver covers the "made of the inputs" claim does not hold; this probe does not detect
-    one (git's built-in merge has none, and a driver is an in-repo, reviewed choice). A different order may conflict
-    where this one does not, which only attributes less. Gate with
-    :func:`merge_tree_write_tree_available` first (git >= 2.38). A *fold_cache* shares one fold
-    across the paths of one verification.
+    a blob proves that blob is made of the inputs. A merge driver other than git's built-in
+    merge may write any bytes on a clean exit, so before folding (FR-010)
+    :func:`~specify_cli.consolidation.merge_attribute_guard.assert_registered_merge_behaviour`
+    raises :class:`GitProbeError` unless *path* merges with git's built-in merge or a registered
+    spec-kitty driver with its registered command on its registered pattern (``union``, any other
+    driver name, ``merge.default`` and a user ``merge.text.driver`` / ``merge.binary.driver``
+    all refuse; *attributes_source*, the claim's pre-run target tip, lets a committed
+    ``merge=union`` stand). A refusal is raised before the fold, so it never reaches
+    *fold_cache*. A different order may conflict where this one does not, which only attributes
+    less. Gate with :func:`merge_tree_write_tree_available` first (git >= 2.38). A *fold_cache*
+    shares one fold across the paths of one verification.
     """
     if not commits:
         return None
     if len(commits) == 1:
         return path_state_at(repo_root, commits[0], path)
+    from specify_cli.consolidation.merge_attribute_guard import assert_registered_merge_behaviour
+
+    assert_registered_merge_behaviour(repo_root, [path], attributes_source=attributes_source)
     tree, conflicted = _n_way_merge_fold(repo_root, tuple(commits), fold_cache)
     if path in conflicted:
         return None
