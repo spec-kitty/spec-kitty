@@ -310,8 +310,14 @@ jobs:
             # (tests/contract/test_orchestrator_api.py) carries no `corpus` mark, so both tests/contract router
             # jobs (`-m "corpus and not windows_ci"`) deselect it and no per-PR job ran it. The globs are what
             # the module reads: the verb package (it walks every module with inspect.getsource, so a docstring
-            # edit counts), the error classes it imports, the vendored contract its conftest loads, the two
-            # prose surfaces whose error-code enumerations it parses, and the module and conftest themselves.
+            # edit counts), the error classes it imports, the vendored contract its conftest loads, the
+            # contract layer every verb envelope passes through (core/contract_gate.py, and the
+            # MISSION_NOT_FOUND resolver missions/_read_path_resolver.py), the two prose surfaces whose
+            # error-code enumerations it parses, the module and conftest themselves, and what the tests run
+            # on (root conftest, pytest config, the lock; the contract_tools precedent). The package's other
+            # ~80 transitive imports are behaviour, not contract shape: the execution_context shard runs
+            # tests/specify_cli/orchestrator_api for those. The `**/` spelling also matches
+            # tests/specify_cli/orchestrator_api/** (cost only: ~2 s of pytest, accepted).
             # NON-src on purpose, like path_literal_audit above: every src path here is already mapped by a
             # src-backed group, so this is an extra narrow lane, never a code-shard group. The other
             # non-corpus tests/contract modules (#7874) join through gate_selection.CONTRACT_SHAPE_PR_PATHS
@@ -320,10 +326,16 @@ jobs:
               - '**/specify_cli/orchestrator_api/**'
               - '**/specify_cli/git/commit_helpers.py'
               - '**/specify_cli/core/upstream_contract.json'
+              - '**/specify_cli/core/contract_gate.py'
+              - '**/specify_cli/missions/_read_path_resolver.py'
               - '**/charter/offering/skills/spec-kitty-orchestrator-api-operator/references/orchestrator-api-contract.md'
               - 'docs/api/orchestrator-api.md'
               - 'tests/contract/test_orchestrator_api.py'
               - 'tests/contract/conftest.py'
+              - 'tests/conftest.py'
+              - 'pytest.ini'
+              - 'pyproject.toml'
+              - 'uv.lock'
             review:
               - 'src/specify_cli/review/**'
               - 'src/specify_cli/agent_tasks_ports.py'
