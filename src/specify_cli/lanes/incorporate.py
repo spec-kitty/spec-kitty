@@ -27,12 +27,16 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from kernel.git import GitCommandError, changed_paths, status_entries
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.compute import is_planning_lane, is_repo_root_lane
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.status import Lane, StatusEvent
+
+if TYPE_CHECKING:
+    from specify_cli.consolidation.wp_attribution import Unattributable
 
 __all__ = [
     "INCORPORATE_CONFLICT_EXIT",
@@ -213,6 +217,45 @@ def _refusal(lane_id: str, wp_id: str, stamp: str, why: str) -> IncorporateRefus
     )
 
 
+@dataclass(frozen=True)
+class _IncorporateRoute:
+    """The incorporating work package, its Mission and the sibling lane: what a refusal's remedy names."""
+
+    wp_id: str
+    mission_slug: str
+    sibling_lane_id: str
+
+    def rerun(self) -> str:
+        return f"spec-kitty agent action implement {self.wp_id} --mission {self.mission_slug} --incorporate {self.sibling_lane_id}"
+
+    def attest(self, canceled_wp_id: str) -> str:
+        from specify_cli.consolidation.canceled_attestation import ATTEST_FLAG, ATTEST_REASON_FLAG
+
+        return f'spec-kitty consolidate --mission {self.mission_slug} {ATTEST_FLAG} {canceled_wp_id} {ATTEST_REASON_FLAG} "<what you checked>"'
+
+
+def _unattributable_refusal(lane_id: str, wp_id: str, outcome: Unattributable, *, overridable: bool, route: _IncorporateRoute) -> IncorporateRefused:
+    """The refusal when the window authority cannot attribute a canceled WP's commits: a verdict of doubt, not a finding.
+
+    It names the reason code, the work package and (in the detail) the commits; an overridable
+    reason prints the attestation route ``consolidate`` owns, then the incorporate re-run.
+    """
+    lines = [
+        f"{lane_id}: canceled {wp_id}'s commits cannot be attributed ({outcome.reason.name}: {outcome.detail}), "
+        "so the approval stamp cannot be shown free of its work.",
+    ]
+    if overridable:
+        lines += [
+            f"If you checked by hand that {wp_id} left nothing on {lane_id}, record that with:",
+            f"  {route.attest(wp_id)}",
+            "  (only spec-kitty consolidate records this attestation, and the same command then starts a consolidation of the Mission)",
+        ]
+    else:
+        lines.append("Repair what the reason names; an attestation cannot lift it.")
+    lines.append(f"Then re-run: {route.rerun()}")
+    return IncorporateRefused(IncorporateCode.CANCELED_CONTENT_UNDER_STAMP, "\n".join(lines))
+
+
 def _refuse_attributed_commits(repo_root: Path, commits: frozenset[str], lane_id: str, wp_id: str, stamp: str) -> None:
     """Refuse when the stamp reaches a commit the window authority attributed to the canceled WP."""
     from specify_cli.consolidation.git_probes import sha_reachable_from
@@ -264,7 +307,7 @@ def _refuse_canceled_content_under_stamp(
     *,
     branch: str,
     base_ref: str,
-    mission_slug: str,
+    route: _IncorporateRoute,
 ) -> None:
     """Refuse when a canceled work package of the sibling lane has content the stamp reaches.
 
@@ -290,14 +333,14 @@ def _refuse_canceled_content_under_stamp(
             canceled_wp_id=wp_id,
             lane_branch=branch,
             coord_base_ref=base_ref,
-            is_bookkeeping=lambda path: _is_bookkeeping(path, mission_slug, None),
+            is_bookkeeping=lambda path: _is_bookkeeping(path, route.mission_slug, None),
             closed_world_anchors=anchors,
             never_exempt_commits=frozenset(),
         )
         if isinstance(outcome, Unattributable):
             if wp_id in attested and outcome.reason in OVERRIDABLE_REASONS:
                 continue
-            raise _refusal(sibling.lane_id, wp_id, stamp, f"cannot be cleared: the work {outcome.detail}")
+            raise _unattributable_refusal(sibling.lane_id, wp_id, outcome, overridable=outcome.reason in OVERRIDABLE_REASONS, route=route)
         _refuse_attributed_commits(repo_root, outcome.commits, sibling.lane_id, wp_id, stamp)
         _refuse_canceled_merges(repo_root, events, sibling.lane_id, wp_id, stamp)
 
@@ -310,6 +353,7 @@ def _resolve_sibling_stamp(
     own_lane_id: str,
     sibling_lane_id: str,
     events: Sequence[StatusEvent],
+    wp_id: str,
 ) -> SiblingStamp:
     """Resolve *sibling_lane_id*'s branch and newest approval stamp, or refuse (no side effect)."""
     sibling = _sibling_lane(manifest, own_lane_id, sibling_lane_id)
@@ -318,7 +362,13 @@ def _resolve_sibling_stamp(
     stamp = _newest_stamp(repo_root, stamps, sibling.lane_id)
     _require_stamp_on_branch(repo_root, stamp, branch, sibling.lane_id)
     _refuse_canceled_content_under_stamp(
-        repo_root, events, sibling, stamp, branch=branch, base_ref=f"refs/heads/{manifest.mission_branch}", mission_slug=mission_slug
+        repo_root,
+        events,
+        sibling,
+        stamp,
+        branch=branch,
+        base_ref=f"refs/heads/{manifest.mission_branch}",
+        route=_IncorporateRoute(wp_id=wp_id, mission_slug=mission_slug, sibling_lane_id=sibling.lane_id),
     )
     return SiblingStamp(lane_id=sibling.lane_id, branch=branch, stamp=stamp, wp_ids=tuple(sibling.wp_ids))
 
@@ -373,7 +423,7 @@ def prepare_incorporation(repo_root: Path, mission_slug: str, wp_id: str, siblin
         raise IncorporateRefused(
             IncorporateCode.PLANNING_LANE, f"{wp_id} runs in the repository root checkout (a planning lane); it has no lane checkout to incorporate into."
         )
-    return _resolve_sibling_stamp(repo_root, mission_slug, manifest, own_lane_id=own.lane_id, sibling_lane_id=sibling_lane_id, events=events)
+    return _resolve_sibling_stamp(repo_root, mission_slug, manifest, own_lane_id=own.lane_id, sibling_lane_id=sibling_lane_id, events=events, wp_id=wp_id)
 
 
 def _merge_env() -> dict[str, str]:

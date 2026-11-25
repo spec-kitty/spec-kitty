@@ -304,7 +304,7 @@ def test_planning_lane_is_refused(tmp_path: Path) -> None:
         computed_from="unit",
     )
     with pytest.raises(IncorporateRefused) as caught:
-        _resolve_sibling_stamp(tmp_path, "m-01M7WW0Z", manifest, own_lane_id=LANE_B, sibling_lane_id="lane-planning", events=[])
+        _resolve_sibling_stamp(tmp_path, "m-01M7WW0Z", manifest, own_lane_id=LANE_B, sibling_lane_id="lane-planning", events=[], wp_id="WP02")
     assert caught.value.code is IncorporateCode.PLANNING_LANE
 
 
@@ -583,7 +583,7 @@ def test_prepare_incorporation_in_process(tmp_path: Path, monkeypatch: pytest.Mo
     manifest = persistence.read_lanes_json(mission.feature_dir)
     assert manifest is not None
     assert "no approved work package" in _refused(
-        lambda: _resolve_sibling_stamp(repo, slug, manifest, own_lane_id=LANE_B, sibling_lane_id=LANE_A, events=[]), IncorporateCode.NO_APPROVAL_STAMP
+        lambda: _resolve_sibling_stamp(repo, slug, manifest, own_lane_id=LANE_B, sibling_lane_id=LANE_A, events=[], wp_id="WP02"), IncorporateCode.NO_APPROVAL_STAMP
     )
 
     def _corrupt(_path: Path) -> None:
@@ -610,7 +610,8 @@ def test_prepare_incorporation_in_process(tmp_path: Path, monkeypatch: pytest.Mo
             assert expected in _refused(lambda: prepare_incorporation(repo, slug, "WP02", LANE_A), code)
 
     assert "own lane" in _refused(
-        lambda: _resolve_sibling_stamp(repo, slug, manifest, own_lane_id=LANE_A, sibling_lane_id=LANE_A, events=_events(mission)), IncorporateCode.OWN_LANE
+        lambda: _resolve_sibling_stamp(repo, slug, manifest, own_lane_id=LANE_A, sibling_lane_id=LANE_A, events=_events(mission), wp_id="WP02"),
+        IncorporateCode.OWN_LANE,
     )
 
     workspace = resolve_workspace_for_wp(repo, slug, "WP02")
@@ -685,7 +686,9 @@ def test_canceled_content_under_the_stamp_is_refused(tmp_path: Path) -> None:
     assert stamp is not None
 
     message = _refused(
-        lambda: _resolve_sibling_stamp(mission.repo, mission.slug, _own_lane_manifest(mission), own_lane_id="lane-own", sibling_lane_id=LANE_A, events=events),
+        lambda: _resolve_sibling_stamp(
+            mission.repo, mission.slug, _own_lane_manifest(mission), own_lane_id="lane-own", sibling_lane_id=LANE_A, events=events, wp_id="WP77"
+        ),
         IncorporateCode.CANCELED_CONTENT_UNDER_STAMP,
     )
     assert "canceled WP02" in message and stamp[:12] in message
@@ -698,7 +701,9 @@ def test_canceled_wp_without_commits_does_not_refuse(tmp_path: Path) -> None:
     mission = build_coord_mission_mixed_lane_canceled(tmp_path, canceled_changes=(), mid8="01M7WW8B")
     events = _events(mission)
 
-    sibling = _resolve_sibling_stamp(mission.repo, mission.slug, _own_lane_manifest(mission), own_lane_id="lane-own", sibling_lane_id=LANE_A, events=events)
+    sibling = _resolve_sibling_stamp(
+        mission.repo, mission.slug, _own_lane_manifest(mission), own_lane_id="lane-own", sibling_lane_id=LANE_A, events=events, wp_id="WP77"
+    )
 
     assert sibling.stamp == approval_stamp(events, "WP01")
 
@@ -781,7 +786,7 @@ class _MixedLane:
             computed_at="2026-11-20T00:00:00+00:00",
             computed_from="unit",
         )
-        return _resolve_sibling_stamp(self.repo, _MIXED_SLUG, manifest, own_lane_id="lane-own", sibling_lane_id=LANE_A, events=self.events)
+        return _resolve_sibling_stamp(self.repo, _MIXED_SLUG, manifest, own_lane_id="lane-own", sibling_lane_id=LANE_A, events=self.events, wp_id="WP77")
 
 
 def _review_window_overlap(root: Path) -> tuple[_MixedLane, str]:
@@ -809,8 +814,44 @@ def test_approved_work_in_a_canceled_review_window_is_not_named_canceled_content
 
     message = _refused(lane.resolve, IncorporateCode.CANCELED_CONTENT_UNDER_STAMP)
 
-    assert "shares commit(s)" in message, message
-    assert f"reaches commits of canceled WP02 ({w1[:12]})" not in message, message
+    assert message.startswith(f"{LANE_A}: canceled WP02's commits cannot be attributed (CONTESTED_COMMIT: "), message
+    assert w1[:10] in message, message
+    assert "canceled content" not in message and "reaches commits" not in message, message
+    assert _ATTEST_ROUTE.format(wp="WP02") in message, message
+    assert "only spec-kitty consolidate records this attestation, and the same command then starts a consolidation of the Mission" in message, message
+    assert message.endswith(f"Then re-run: spec-kitty agent action implement WP77 --mission {_MIXED_SLUG} --incorporate {LANE_A}"), message
+
+
+_ATTEST_ROUTE = f'spec-kitty consolidate --mission {_MIXED_SLUG} --attest-canceled-superseded {{wp}} --attest-reason "<what you checked>"'
+
+
+def test_a_non_overridable_reason_stays_refused_with_an_attestation(tmp_path: Path) -> None:
+    """FR-012: an attestation lifts only ``OVERRIDABLE_REASONS``; an unreadable lane history is repaired, never attested away."""
+    from specify_cli.lanes.incorporate import IncorporateCode
+
+    lane, _w1 = _review_window_overlap(tmp_path)
+    _attest(lane, "WP02")
+    git(lane.repo, "branch", "-D", _MIXED_MISSION_BRANCH)
+
+    message = _refused(lane.resolve, IncorporateCode.CANCELED_CONTENT_UNDER_STAMP)
+
+    assert "(SPINE_UNREADABLE: " in message, message
+    assert "--attest-canceled-superseded" not in message, message
+    assert "an attestation cannot lift it" in message, message
+
+
+def _attest(lane: _MixedLane, wp_id: str) -> None:
+    from specify_cli.consolidation.canceled_attestation import ATTESTATION_KEY, CANCELED_SUPERSEDED
+    from specify_cli.status_lanes import OPERATOR_REASON_SOURCE
+
+    lane.move(
+        wp_id,
+        "canceled",
+        "canceled",
+        reason="operator: WP02 authored nothing",
+        reason_source=OPERATOR_REASON_SOURCE,
+        policy_metadata={"lane_head": lane.head(), ATTESTATION_KEY: CANCELED_SUPERSEDED},
+    )
 
 
 def test_attested_contested_canceled_wp_does_not_refuse(tmp_path: Path) -> None:
@@ -918,7 +959,8 @@ def test_canceled_window_without_lane_heads_refuses(tmp_path: Path) -> None:
 
     message = _refused(lane.resolve, IncorporateCode.CANCELED_CONTENT_UNDER_STAMP)
 
-    assert "no commit attribution" in message, message
+    assert "(NO_STAMP: " in message and "no commit attribution" in message, message
+    assert _ATTEST_ROUTE.format(wp="WP02") in message, message
 
 
 def test_canceled_merge_the_stamp_does_not_reach_is_not_judged(tmp_path: Path) -> None:
