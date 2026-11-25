@@ -4,7 +4,8 @@ The nightly acceptance scenario "Consolidating lands the approved work and leave
 files alone" (``tests/scenarios/consolidate/consolidate.feature``) timed out on a Windows runner:
 there a ``git`` process start costs far more than on Linux, and one ``consolidate`` run started
 671 of them, many repeating the same read. The run now reads repeated queries through a run-scoped
-git read cache (:mod:`kernel.git.read_cache`) and starts 470 for the same scenario.
+git read cache (:mod:`kernel.git.read_cache`) and starts 470 for the same scenario; after the
+squash-landing proof (#7747, 582) it starts 488 (#7848).
 
 This test builds that scenario with the real CLI (this checkout's ``src``), runs ``consolidate``
 in a shim that counts every ``git`` process the CLI starts, and requires the count to stay under
@@ -30,7 +31,9 @@ _SRC = str(Path(__file__).resolve().parents[2] / "src")
 _CLI_TIMEOUT_SECONDS = 300
 _TOPIC = "work"
 
-#: Measured: 671 git processes before #7689, 470 after. About 6% headroom.
+#: Measured: 671 git processes before #7689, 470 after. #7802, the retarget Mission and #7692
+#: brought it to 481; the #7747 landing proof to 582; #7848 (commit-id reads cached, the landing
+#: proof's blob lookups batched) back to 488. About 2% headroom.
 SPAWN_CEILING = 500
 
 #: Runs the CLI with every git process start counted; the count lands in ``SPAWN_COUNT_FILE``.

@@ -253,10 +253,13 @@ A consolidation run asks git the same questions many times across the repository
 
 **What may be cached.** Only a read whose answer is a pure function of git metadata files may use the cache. Never cache a read of the working tree or the index (`git status`, `git diff`, file contents): their answer is not in the files the cache watches.
 
+**Reads keyed on commit ids.** Since #7848 a read whose every revision is a full commit id (`cached_object_read`) may also use the cache. Examples are a `rev-list` or `merge-base` between two commits, a diff of two commits, or a listing of a commit's tree. An id names immutable content, so no ref is watched. What can still change the answer is a rewrite of the commit graph git presents, so the fingerprint covers replace refs (`refs/replace/`, `packed-refs`, the reftable stack), `shallow`, `info/grafts` and the repository config (`core.useReplaceRefs`). A ref name, an abbreviated id or `^id` is never cached this way. `merge-tree` is not cached at all: its result depends on merge drivers and on `.git/info/attributes`, which consolidate writes during the run. Inside a run, the lane landing proof pins a landing ref name to one commit before it reads, so the whole proof judges one commit.
+
 **When the cache stands aside.** Every read runs uncached, exactly as without the cache, in these cases:
 
 - outside a consolidate run;
 - when a `GIT_DIR`, `GIT_COMMON_DIR`, `GIT_WORK_TREE`, `GIT_NAMESPACE`, `GIT_OBJECT_DIRECTORY` or `GIT_CONFIG` variable redirects git;
+- for a read keyed on commit ids, also when `GIT_REPLACE_REF_BASE`, `GIT_NO_REPLACE_OBJECTS`, `GIT_GRAFT_FILE` or `GIT_SHALLOW_FILE` is set;
 - when the repository cannot be located from the read's directory;
 - when the repository stores refs in **reftable** (`extensions.refStorage = reftable`), whose layout the cache does not model yet.
 
