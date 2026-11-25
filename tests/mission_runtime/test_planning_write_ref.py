@@ -337,9 +337,11 @@ def test_an_uncoordinated_default_mission_gets_the_switch_remedy_not_the_coordin
         mission_runtime.planning_write_ref(repo, _SLUG, _TARGET)
 
     assert refused.value.coordinated is False
-    assert f"`git switch {_MISSION_BRANCH}` in the repository root checkout" in str(refused.value)
-    assert "doctor coordination" not in str(refused.value)
-    assert "the coordination branch" not in str(refused.value)
+    assert str(refused.value) == (
+        f"PLANNING_CHECKOUT_MISSING: the Mission branch {_MISSION_BRANCH} of Mission {_SLUG!r} is not checked out anywhere; "
+        "its planning work is written there until it lands. Its planning work is done in the repository root checkout: "
+        f"run `git switch {_MISSION_BRANCH}` there, then retry."
+    )
 
 
 def test_a_remote_whose_name_contains_a_slash_is_still_probed(tmp_path: Path) -> None:
@@ -366,3 +368,22 @@ def test_remote_refs_off_the_mission_namespace_are_ignored() -> None:
     assert _branch_and_remote("refs/remotes/origin/main") is None
     assert _branch_and_remote(f"refs/remotes/a/b/{_MISSION_BRANCH}") == (_MISSION_BRANCH, "a/b")
     assert _branch_and_remote(f"refs/heads/{_MISSION_BRANCH}") == (_MISSION_BRANCH, None)
+
+
+def test_a_stored_coordination_topology_without_a_coordination_branch_field_gets_the_doctor_remedy(tmp_path: Path) -> None:
+    """Review cycle 4: one coordination check (the stored topology), never the ``coordination_branch`` field alone."""
+    repo = tmp_path / "repo"
+    _init(repo)
+    meta = _default_meta(_SLUG, _MISSION_BRANCH)
+    del meta["coordination_branch"]
+    _branch_with_meta(repo, tmp_path, _MISSION_BRANCH, meta)
+
+    with pytest.raises(mission_runtime.PlanningCheckoutMissing) as refused:
+        mission_runtime.planning_write_ref(repo, _SLUG, _TARGET)
+
+    assert refused.value.coordinated is True
+    assert str(refused.value) == (
+        f"PLANNING_CHECKOUT_MISSING: the Mission branch {_MISSION_BRANCH} (the coordination branch) of Mission {_SLUG!r} "
+        "is not checked out anywhere; its planning work is written there until it lands. To restore the coordination "
+        f"worktree, run `spec-kitty doctor coordination --mission {_SLUG} --fix`, then retry."
+    )

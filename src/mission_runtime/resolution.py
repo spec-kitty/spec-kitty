@@ -1179,14 +1179,13 @@ class PlanningCheckoutMissing(RuntimeError):
         where = f"exists only as {remote}/{mission_branch}" if remote else "is not checked out anywhere"
         first = f"create it with `git branch {mission_branch} {remote}/{mission_branch}`, then " if remote else ""
         if coordinated:
-            name = "the coordination branch"
+            branch = f"the Mission branch {mission_branch} (the coordination branch)"
             restore = f"To restore the coordination worktree, {first}run {coordination_doctor_command(mission_slug)}"
         else:
-            name = "checked out in the repository root checkout"
-            restore = f"To restore it, {first}run `git switch {mission_branch}` in the repository root checkout"
+            branch = f"the Mission branch {mission_branch}"
+            restore = f"Its planning work is done in the repository root checkout: {first}run `git switch {mission_branch}` there"
         super().__init__(
-            f"{PLANNING_CHECKOUT_MISSING}: the Mission branch {mission_branch} ({name}) of Mission {mission_slug!r} {where}; "
-            f"its planning work is written there until it lands. {restore}, then retry."
+            f"{PLANNING_CHECKOUT_MISSING}: {branch} of Mission {mission_slug!r} {where}; its planning work is written there until it lands. {restore}, then retry."
         )
 
 
@@ -1243,6 +1242,18 @@ def _claims_default_mission(meta: Mapping[str, Any] | None, branch: str) -> bool
     return default_mission_rule_applies(meta.get("topology_source"), branch, bool(meta.get("merged_at")))
 
 
+def _meta_routes_through_coordination(meta: Mapping[str, Any], feature_dir: Path) -> bool:
+    """:func:`routes_through_coordination` over *meta*'s stored-or-derived topology (C-004).
+
+    The same check :func:`resolve_topology` feeds for a Mission read from disk
+    (``read_topology`` and ``topology_from_meta`` share the stored-or-derive logic), applied to
+    a ``meta.json`` read off a ref.
+    """
+    from specify_cli.migration.backfill_topology import topology_from_meta
+
+    return routes_through_coordination(topology_from_meta(meta, feature_dir))
+
+
 def _branch_claiming_mission(repo_root: Path, mission_slug: str) -> _ClaimingBranch | None:
     """The Mission branch a default, not-landed Mission's own ``meta.json`` records, found off any local or remote ref.
 
@@ -1269,7 +1280,8 @@ def _branch_claiming_mission(repo_root: Path, mission_slug: str) -> _ClaimingBra
             meta = decode_meta(raw) if raw is not None else None
             if not _claims_default_mission(meta, branch):
                 continue
-            claim = _ClaimingBranch(branch=branch, remote=remote, coordinated=bool((meta or {}).get("coordination_branch")))
+            coordinated = _meta_routes_through_coordination(meta or {}, repo_root / "kitty-specs" / mission_slug)
+            claim = _ClaimingBranch(branch=branch, remote=remote, coordinated=coordinated)
             if remote is None:
                 return claim
             remote_claim = remote_claim or claim

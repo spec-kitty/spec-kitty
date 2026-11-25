@@ -144,5 +144,6 @@ def test_an_uncoordinated_default_mission_off_its_branch_gets_the_switch_remedy(
         planning_lane_target(repo, _SLUG, _TARGET)
 
     assert refused.value.coordinated is False
-    assert f"`git switch {_MISSION_BRANCH}`" in str(refused.value)
+    assert f"run `git switch {_MISSION_BRANCH}` there, then retry." in str(refused.value)
     assert "doctor coordination" not in str(refused.value)
+    assert "coordination branch" not in str(refused.value)
