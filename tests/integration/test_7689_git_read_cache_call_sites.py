@@ -240,7 +240,7 @@ def test_remote_tracking_branch_exists_sees_create_and_delete(repo: Path, spawns
         assert _remote_tracking_branch_exists(repo, "side") is False
 
 
-def test_coordination_ref_resolves_sees_create_move_and_delete(repo: Path, spawns: _GitSpawns) -> None:
+def test_coordination_ref_resolves_sees_create_and_delete(repo: Path, spawns: _GitSpawns) -> None:
     """#7848: the decision ledger probes the coordination branch four times per consolidate run."""
     with git_read_cache_scope():
         assert _no_spawn_on_repeat(spawns, lambda: _coordination_ref_resolves(repo, "coord")) is False
@@ -258,3 +258,27 @@ def test_repo_supports_transactions_follows_core_bare(repo: Path, spawns: _GitSp
         assert _repo_supports_transactions(repo) is False
         _git(repo, "--work-tree", str(repo), "config", "core.bare", "false")
         assert _repo_supports_transactions(repo) is True
+
+
+def test_a_failed_coordination_ref_probe_is_asked_again_and_raises_each_time(repo: Path) -> None:
+    """#7848 review: only a definite answer (exit 0 or 1) is kept; any other exit raises every time."""
+    from specify_cli.decisions import fork
+
+    with mock.patch.object(fork, "run_command", return_value=(128, "", "boom")) as run, git_read_cache_scope():
+        for _ in range(2):
+            with pytest.raises(fork.LedgerProbeError):
+                fork._coordination_ref_resolves(repo, "coord")
+    assert run.call_count == 2
+
+
+def test_configured_remotes_is_read_per_checkout(repo: Path, tmp_path: Path) -> None:
+    """#7848 review: a conditional include can give a linked checkout its own remotes."""
+    linked = tmp_path / "linked"
+    _git(repo, "worktree", "add", "-q", str(linked), "side")
+    extra = tmp_path / "extra.cfg"
+    extra.write_text('[remote "linked"]\n\turl = /dev/null\n')
+    _git(repo, "config", "includeIf.gitdir:**/worktrees/linked/.path", str(extra))
+    with git_read_cache_scope():
+        assert configured_remotes(repo) == []
+        assert configured_remotes(linked) == ["linked"]
+        assert configured_remotes(repo) == []

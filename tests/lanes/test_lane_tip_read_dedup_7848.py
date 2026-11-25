@@ -237,3 +237,39 @@ def test_a_blob_lookup_inside_a_run_matches_the_per_path_read(shapes: tuple[Path
     with git_read_cache_scope():
         inside = lane_tip._blob_id(root, rev, path)
     assert inside == outside
+
+
+def test_a_product_path_is_read_alone_never_its_whole_top_level_tree(landed: Landed, spawns: _GitSpawns) -> None:
+    """#7848 review: only a Mission folder is listed whole; a product path costs one read per commit."""
+    landing = _landing_sha(landed)
+    listed: list[str] = []
+    real = lane_tip.subtree_entries
+
+    def recording(cwd: Path, rev: str, prefix: str, **kwargs: Any) -> Any:
+        listed.append(prefix)
+        return real(cwd, rev, prefix, **kwargs)
+
+    with mock.patch.object(lane_tip, "subtree_entries", recording), git_read_cache_scope():
+        before = spawns.count
+        first = lane_tip._blob_id(landed.root, landing, "src/lane.py")
+        assert lane_tip._blob_id(landed.root, landing, "src/lane.py") == first
+        assert spawns.count - before == 1
+        lane_tip._blob_id(landed.root, landing, _SPEC)
+    assert listed == [_MD]
+    assert first == lane_tip._blob_id(landed.root, landing, "src/lane.py")
+
+
+def test_the_landing_ref_pin_runs_on_the_oldest_supported_git(landed: Landed) -> None:
+    """#7848 review: ``rev-parse --end-of-options`` needs git 2.30; the project supports 2.25."""
+    seen: list[tuple[str, ...]] = []
+    real = lane_tip.run_git
+
+    def recording(cwd: Path, *args: str, **kwargs: Any) -> Any:
+        seen.append(args)
+        return real(cwd, *args, **kwargs)
+
+    with mock.patch.object(lane_tip, "run_git", recording), git_read_cache_scope():
+        assert _proof(landed, _TARGET)
+    pins = [args for args in seen if args[:1] == ("rev-parse",)]
+    assert pins, "the landing ref is pinned inside a run"
+    assert all("--end-of-options" not in args for args in pins)
