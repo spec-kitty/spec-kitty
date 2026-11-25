@@ -397,3 +397,71 @@ def test_store_if_keeps_a_rejected_answer_out_of_the_cache(repo: Path) -> None:
         assert read() == "main"
         assert read() == "main"
     assert calls == 3, "None is asked again each time; the first real answer is then reused"
+
+
+# --------------------------------------------------------------------------- object-id reads (#7848)
+
+
+def test_an_object_id_read_is_reused_within_a_scope(repo: Path) -> None:
+    from kernel.git.read_cache import cached_object_read
+
+    sha = _git(repo, "rev-parse", "HEAD")
+    read = _Counter(repo, "rev-list", "--parents", "-n1", sha)
+    with git_read_cache_scope():
+        first = cached_object_read(repo, ("parents", sha), (sha,), read)
+        # A ref update, a checkout and a config write cannot change what an object id names.
+        _git(repo, "commit", "-q", "--allow-empty", "-m", "two")
+        _git(repo, "checkout", "-q", "side")
+        _git(repo, "config", "core.x", "1")
+        assert cached_object_read(repo, ("parents", sha), (sha,), read) == first
+    assert read.calls == 1
+    assert cached_object_read(repo, ("parents", sha), (sha,), read) == first
+    assert read.calls == 2  # outside a scope it always runs
+
+
+@pytest.mark.parametrize("rev", ["main", "HEAD", "refs/heads/main", "ABC", "deadbeef"])
+def test_a_rev_that_is_not_a_full_object_id_always_runs(repo: Path, rev: str) -> None:
+    from kernel.git.read_cache import cached_object_read
+
+    read = _Counter(repo, "rev-parse", "--verify", "--quiet", f"{rev}^{{commit}}")
+    with git_read_cache_scope():
+        cached_object_read(repo, ("tip", rev), (rev,), read)
+        cached_object_read(repo, ("tip", rev), (rev,), read)
+    assert read.calls == 2
+
+
+def test_an_object_id_read_needs_every_rev_to_be_an_object_id(repo: Path) -> None:
+    from kernel.git.read_cache import cached_object_read, is_object_id
+
+    sha = _git(repo, "rev-parse", "HEAD")
+    assert is_object_id(sha) and is_object_id(f"^{sha}") and is_object_id("a" * 64)
+    assert not is_object_id(sha.upper()) and not is_object_id(sha[:12]) and not is_object_id(f"{sha}^{{commit}}")
+    read = _Counter(repo, "rev-list", sha, "^main")
+    with git_read_cache_scope():
+        cached_object_read(repo, ("range", sha, "main"), (sha, "^main"), read)
+        cached_object_read(repo, ("range", sha, "main"), (sha, "^main"), read)
+        cached_object_read(repo, ("none",), (), read)
+    assert read.calls == 3
+
+
+def test_an_object_id_read_that_raises_or_is_rejected_is_asked_again(repo: Path) -> None:
+    from kernel.git.read_cache import cached_object_read
+
+    sha = _git(repo, "rev-parse", "HEAD")
+    calls: list[int] = []
+
+    def failing() -> str:
+        calls.append(1)
+        raise RuntimeError("transient")
+
+    def rejected() -> int:
+        calls.append(1)
+        return 128
+
+    with git_read_cache_scope():
+        for _ in range(2):
+            with pytest.raises(RuntimeError):
+                cached_object_read(repo, ("boom", sha), (sha,), failing)
+        for _ in range(2):
+            assert cached_object_read(repo, ("exit", sha), (sha,), rejected, store_if=lambda code: code in (0, 1)) == 128
+    assert len(calls) == 4

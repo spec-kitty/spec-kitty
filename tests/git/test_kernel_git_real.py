@@ -185,3 +185,29 @@ def test_ignored_entries_collapse_directories_and_keep_a_nested_repository(repo:
         ("!!", P("src/local data"), True),
         ("!!", P("src/store/local.txt"), False),
     ]
+
+
+def test_tree_entries_at_answers_each_path_exactly_as_tree_entry(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7848: one batched read gives every path the answer ``tree_entry`` gives it alone.
+
+    A plain multi-path ``ls-tree`` drops a directory's own entry when another pathspec
+    descends into it (``x`` beside ``x/y``); the batched read must not.
+    """
+    from kernel.git import listing, tree_entries_at
+
+    _write(repo, "x/y")
+    _write(repo, "x/z/w", "w\n")
+    _write(repo, "star/*", "star\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "dirs")
+    paths = ["x", "x/y", "x/z", "x/z/w", "star/*", "a b/f", "a b", "missing", "x/missing"]
+    expected = {path: tree_entry(repo, "HEAD", path) for path in paths}
+
+    found = tree_entries_at(repo, "HEAD", paths)
+
+    assert {path: found.get(P(path)) for path in paths} == expected
+    assert expected["x"] is not None and expected["x"].type == "tree"
+    # Chunked below the command-line limit: the answers stay the same.
+    monkeypatch.setattr(listing, "_PATHSPEC_CHUNK_CHARS", 4)
+    assert tree_entries_at(repo, "HEAD", paths) == found
+    assert tree_entries_at(repo, "HEAD", []) == {}

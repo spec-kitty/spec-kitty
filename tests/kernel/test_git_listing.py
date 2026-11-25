@@ -327,6 +327,26 @@ def test_tree_entries_batches_literal_pathspecs(tmp_path: Path) -> None:
         assert listing.tree_entries(tmp_path, "HEAD", pathspecs=("nope",)) == ()
 
 
+def test_tree_entries_at_lists_trees_recursively_and_matches_exact_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7848: ``-r -t`` so a directory's own entry is listed beside its descendants; chunked argv."""
+    raw = (
+        b"040000 tree 5467ab1bbf443df81731a7aa3e3a04ce9ba9f497\tx\x00"
+        b"100644 blob 587be6b4c3f93f93c489c0111bba5596147a26cb\tx/y\x00"
+        b"100644 blob 0000000000000000000000000000000000000001\tx/z\x00"
+    )
+    with _stub(raw) as run:
+        found = listing.tree_entries_at(tmp_path, "HEAD", ["x/y", "x", "x/y", "missing"])
+    assert _argv(run) == ("--literal-pathspecs", "ls-tree", "--full-tree", "-r", "-t", "-z", "HEAD", "--", "missing", "x", "x/y")
+    assert {str(path): entry.type for path, entry in found.items()} == {"x": "tree", "x/y": "blob"}
+    monkeypatch.setattr(listing, "_PATHSPEC_CHUNK_CHARS", 3)
+    with _stub(b"") as run:
+        assert listing.tree_entries_at(tmp_path, "HEAD", ["aa", "bb", "cc"]) == {}
+    assert [call.args[-1] for call in run.call_args_list] == ["aa", "bb", "cc"]
+    with _stub(b"") as run:
+        assert listing.tree_entries_at(tmp_path, "HEAD", []) == {}
+    run.assert_not_called()
+
+
 def test_ignored_entries_argv_and_directory_marker(tmp_path: Path) -> None:
     with _stub(b".venv/\x00a b.log\x00") as run:
         entries = listing.ignored_entries(tmp_path, env={"E": "1"}, timeout=3.0)
