@@ -285,7 +285,8 @@
         "- 2026-11-20T20:03:18Z – claude::python-pedro – trace(design-decisions): no public git >= 2.40 probe is reachable from lane-j (the --attr-source probe _CHECK_ATTR_SOURCE_MIN_VERSION exists only on lane-a, WP01, which WP10 does not depend on), so per the coordinator ruling the --attr-source form prints unconditionally with a 'needs git >= 2.40' note instead of a second version authority. The attribute source is the range base (window open), not the empty tree. Follow-up for WP13/integration: once lane-a lands, gate the form on that probe and print a 'cannot neutralise attributes' line on older git.",
         "Review addendum fixed (2402dc94): resolution commands pin --attr-source to the range base; merge=union fixture test. Targeted 467 + no_dead_symbols 37 passed; make test-fast 3144 passed 7 skipped.",
         "review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
-        "APPROVE cycle 2 (fe066bc6, 2402dc94): review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner"
+        "APPROVE cycle 2 (fe066bc6, 2402dc94): review by claude::reviewer-renata (session_019C2Tk5ehA3TXonKhbxbaMR), relayed by the runner",
+        "Rebase onto 753fd3a9 rewrote lane-j; re-approval loop for the new head 05584e913c (operator ruling)"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
