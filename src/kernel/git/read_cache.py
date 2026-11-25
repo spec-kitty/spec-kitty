@@ -55,7 +55,6 @@ from pathlib import Path
 from typing import TypeVar, cast
 
 __all__ = [
-    "OBJECTS_ONLY",
     "Depends",
     "cached_git_read",
     "cached_object_read",
@@ -226,7 +225,7 @@ _OBJECT_ID = re.compile(r"\^?(?:[0-9a-f]{40}|[0-9a-f]{64})")
 #: states for peeling. Caveat: ``refs/replace/*``, ``info/grafts`` and the ``shallow`` file can
 #: change what git reads for an object id. No spec-kitty run writes them; a read that must
 #: follow such a change mid-run cannot use this dependency.
-OBJECTS_ONLY = Depends()
+_OBJECTS_ONLY = Depends()
 _OBJECTS_AND_CONFIG = Depends(config=True)
 
 
@@ -251,13 +250,13 @@ def cached_object_read(
     name, an abbreviated id or ``HEAD`` can name another object later, so such a read always
     runs. *key* must include every argument that shapes the answer (the revs too). A read that
     raises, or whose answer *store_if* rejects, is not stored, so a failure is asked again;
-    :data:`OBJECTS_ONLY` states the caveat. Pass *config* for a read whose output repository
+    :data:`_OBJECTS_ONLY` states the caveat. Pass *config* for a read whose output repository
     config can also shape (``diff`` and ``show`` honour ``diff.*`` keys such as
     ``diff.ignoreSubmodules``): a write to the repository config then invalidates it.
     """
     if not revs or not all(is_object_id(rev) for rev in revs):
         return compute()
-    depends = _OBJECTS_AND_CONFIG if config else OBJECTS_ONLY
+    depends = _OBJECTS_AND_CONFIG if config else _OBJECTS_ONLY
     return cached_git_read(cwd, ("object", key), compute, depends=depends, env=env, store_if=store_if)
 
 
