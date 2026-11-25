@@ -134,6 +134,24 @@ class LaneContribution:
 
 
 @dataclass(frozen=True)
+class UnreviewedMerge:
+    """A merge on an approved lane that no approval stamp of its own lane reaches (#7307; FR-006).
+
+    Data for the gate's hint only: it never attributes, exempts or lifts anything (C-002).
+    ``wp_ids`` are the lane's approved (or done) work packages. ``own_paths`` are the paths the
+    merge changed beyond its parents' automatic merge (``git show --remerge-diff``), and
+    ``own_blobs`` the ``(path, blob)`` of each of those paths present at the merge (a path the
+    merge deleted has no blob and is left out).
+    """
+
+    sha: str
+    lane_id: str
+    wp_ids: tuple[str, ...]
+    own_paths: tuple[str, ...]
+    own_blobs: tuple[tuple[str, str], ...]
+
+
+@dataclass(frozen=True)
 class ApprovedWpCommitSet:
     """The claim the verifier trusts — derived once per terminus transaction.
 
@@ -326,6 +344,15 @@ class ApprovedWpCommitSet:
     # on a hand-built claim and on a compound refusal. Appended last so positional constructions stay valid.
     window_gaps: tuple[GapEntry, ...] = ()
 
+    # FR-006 (Mission approved-lane-resolution-route-01M7WW0Z, WP04): every merge the authored-content
+    # walk dropped from an approved code lane's spine because no approval stamp of that lane reaches it
+    # (#7307), in manifest lane order then spine order, filled by ``_collect_authored`` in the production
+    # claim builder. Advisory data for the gate's hint, never authorship and never a verdict: an entry is
+    # skipped when its own-content probe raises, so the absence of an entry never means "the merge has no
+    # own content". Empty on a hand-built claim and on a refusal. Appended last so positional
+    # constructions stay valid.
+    unreviewed_merges: tuple[UnreviewedMerge, ...] = ()
+
     @property
     def is_vacuous_against_manifest(self) -> bool:
         """True when the derived claim is empty while the manifest lists WPs."""
@@ -339,6 +366,7 @@ __all__ = [
     "LaneContribution",
     "MissingApprovedContent",
     "PresenceGap",
+    "UnreviewedMerge",
     "_GAP_ABSENT",
     "_GAP_UNCHANGED",
 ]
