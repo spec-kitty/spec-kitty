@@ -17,8 +17,11 @@ import pytest
 from kernel.git.read_cache import (
     Depends,
     cached_git_read,
+    cached_object_read,
     cached_ref_read,
+    git_read_cache_active,
     git_read_cache_scope,
+    is_object_id,
 )
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
@@ -397,3 +400,109 @@ def test_store_if_keeps_a_rejected_answer_out_of_the_cache(repo: Path) -> None:
         assert read() == "main"
         assert read() == "main"
     assert calls == 3, "None is asked again each time; the first real answer is then reused"
+
+
+# --------------------------------------------------------------------------- immutable-object reads (#7848)
+
+
+def _log_of(repo: Path, rev: str) -> _Counter:
+    return _Counter(repo, "rev-list", rev)
+
+
+def test_an_object_read_repeat_inside_a_scope_spawns_nothing(repo: Path) -> None:
+    sha = _git(repo, "rev-parse", "main")
+    read = _log_of(repo, sha)
+    with git_read_cache_scope():
+        first = cached_object_read(repo, (sha,), "log", read)
+        (repo / "a.txt").write_text("b\n")
+        _git(repo, "commit", "-qam", "two")  # a ref move does not change what a commit id names
+        _git(repo, "checkout", "-q", "side")
+        second = cached_object_read(repo, (sha,), "log", read)
+    assert first == second == f"0:{sha}"
+    assert read.calls == 1
+
+
+def test_an_object_read_of_a_ref_name_is_never_cached(repo: Path) -> None:
+    read = _log_of(repo, "main")
+    with git_read_cache_scope() as stats:
+        cached_object_read(repo, ("main",), "log", read)
+        cached_object_read(repo, ("main",), "log", read)
+    assert read.calls == 2
+    assert stats.hits == 0
+
+
+def test_an_object_read_of_a_short_or_negated_id_is_never_cached(repo: Path) -> None:
+    sha = _git(repo, "rev-parse", "main")
+    read = _log_of(repo, sha[:12])
+    with git_read_cache_scope():
+        cached_object_read(repo, (sha[:12],), "log", read)
+        cached_object_read(repo, (sha[:12],), "log", read)
+    assert read.calls == 2
+
+
+def test_a_replace_ref_invalidates_an_object_read(repo: Path) -> None:
+    one = _git(repo, "rev-parse", "main")
+    (repo / "a.txt").write_text("b\n")
+    _git(repo, "commit", "-qam", "two")
+    two = _git(repo, "rev-parse", "main")
+    read = _Counter(repo, "rev-list", two)
+    with git_read_cache_scope():
+        before = cached_object_read(repo, (two,), "log", read)
+        _git(repo, "replace", two, _git(repo, "commit-tree", "-m", "root", f"{two}^{{tree}}"))  # cuts the history
+        after = cached_object_read(repo, (two,), "log", read)
+    assert before == f"0:{two}\n{one}"
+    assert after == f"0:{_git(repo, 'rev-list', two)}" == f"0:{two}"
+    assert read.calls == 2
+
+
+def test_a_shallow_or_graft_write_invalidates_an_object_read(repo: Path) -> None:
+    sha = _git(repo, "rev-parse", "main")
+    read = _log_of(repo, sha)
+    with git_read_cache_scope():
+        cached_object_read(repo, (sha,), "log", read)
+        (repo / ".git" / "shallow").write_text(f"{sha}\n")
+        cached_object_read(repo, (sha,), "log", read)
+        (repo / ".git" / "info").mkdir(exist_ok=True)
+        (repo / ".git" / "info" / "grafts").write_text(f"{sha}\n")
+        cached_object_read(repo, (sha,), "log", read)
+    assert read.calls == 3
+
+
+def test_an_object_read_takes_store_if(repo: Path) -> None:
+    sha = _git(repo, "rev-parse", "main")
+    calls = 0
+
+    def compute() -> int:
+        nonlocal calls
+        calls += 1
+        return 128
+
+    with git_read_cache_scope():
+        cached_object_read(repo, (sha,), "status", compute, store_if=lambda code: code in (0, 1))
+        cached_object_read(repo, (sha,), "status", compute, store_if=lambda code: code in (0, 1))
+    assert calls == 2
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("0" * 40, True),
+        ("a" * 64, True),
+        ("A" * 40, False),
+        ("0" * 39, False),
+        ("0" * 41, False),
+        ("^" + "0" * 40, False),
+        ("main", False),
+        ("refs/heads/main", False),
+        ("", False),
+    ],
+)
+def test_is_object_id_accepts_only_full_lowercase_ids(text: str, expected: bool) -> None:
+    assert is_object_id(text) is expected
+
+
+def test_git_read_cache_active_reports_the_scope() -> None:
+    assert not git_read_cache_active()
+    with git_read_cache_scope():
+        assert git_read_cache_active()
+    assert not git_read_cache_active()

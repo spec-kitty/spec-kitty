@@ -354,6 +354,14 @@ def test_tree_entries_batches_literal_pathspecs(tmp_path: Path) -> None:
         assert listing.tree_entries(tmp_path, "HEAD", pathspecs=("nope",)) == ()
 
 
+def test_subtree_entries_lists_every_blob_and_tree_under_one_prefix(tmp_path: Path) -> None:
+    raw = b"040000 tree 1f2e3d4c5b6a79881f2e3d4c5b6a79881f2e3d4c\tsrc\x00100644 blob 587be6b4c3f93f93c489c0111bba5596147a26cb\tsrc/a\x00"
+    with _stub(raw) as run:
+        entries = listing.subtree_entries(tmp_path, "HEAD", "src")
+    assert [(str(e.path), e.type) for e in entries] == [("src", "tree"), ("src/a", "blob")]
+    assert _argv(run) == ("--literal-pathspecs", "ls-tree", "--full-tree", "-r", "-t", "-z", "HEAD", "--", "src")
+
+
 def test_ignored_entries_argv_and_directory_marker(tmp_path: Path) -> None:
     with _stub(b".venv/\x00a b.log\x00") as run:
         entries = listing.ignored_entries(tmp_path, env={"E": "1"}, timeout=3.0)
