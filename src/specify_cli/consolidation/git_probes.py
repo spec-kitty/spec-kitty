@@ -769,7 +769,7 @@ def merge_own_changed_paths(repo_root: Path, sha: str, *, attributes_source: str
         raise GitProbeError(f"merge commit {sha} is an octopus merge (3+ parents); git show --remerge-diff skips it, so its own content cannot be judged")
     if not remerge_diff_available(repo_root):
         raise GitProbeError(f"judging merge commit {sha} needs git >= 2.36 (git show --remerge-diff); upgrade git")
-    assert_registered_merge_behaviour(repo_root, _paths_changed_against_parents(repo_root, sha, parents), attributes_source=attributes_source)
+    assert_registered_merge_behaviour(repo_root, paths_changed_against_parents(repo_root, sha, parents), attributes_source=attributes_source)
     from kernel.git import GitCommandError, remerge_paths
 
     try:
@@ -778,7 +778,7 @@ def merge_own_changed_paths(repo_root: Path, sha: str, *, attributes_source: str
         raise GitProbeError(f"git show --remerge-diff {sha} failed: {exc}") from exc
 
 
-def _paths_changed_against_parents(repo_root: Path, sha: str, parents: Sequence[str]) -> list[str]:
+def paths_changed_against_parents(repo_root: Path, sha: str, parents: Sequence[str]) -> list[str]:
     """Every path whose content *sha* differs in from any of *parents* (``git diff --name-only --no-renames``), first seen first.
 
     Raises :class:`GitProbeError` on any git error; an unreadable parent is never read as "no change".
@@ -1211,6 +1211,7 @@ __all__ = [
     "resolve_commit",
     "commits_in_range",
     "merge_own_changed_paths",
+    "paths_changed_against_parents",
     "patch_id_of",
     "patch_ids_in_range",
     "first_parent_commits_in_range",

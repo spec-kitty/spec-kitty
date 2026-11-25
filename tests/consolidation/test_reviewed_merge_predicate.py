@@ -17,7 +17,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import subprocess
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -455,7 +455,7 @@ def test_dropped_merges_skips_a_sha_whose_parents_cannot_be_read(tmp_path: Path,
     mission = _build_two_lane(tmp_path, variant="post")
     spine = _git(mission.repo, "rev-list", "--first-parent", f"{mission.base}..{_branch('lane-b')}").split()
     reviewed = [sha for sha in spine if sha != mission.merge]
-    real = reconciliation_authorship.is_merge_commit
+    real: Callable[[Path, str], bool] = reconciliation_authorship.is_merge_commit
     assert reconciliation_authorship._dropped_merges(mission.repo, spine, reviewed) == (mission.merge,), "precondition: the merge is listed"
 
     def raising(repo_root: Path, sha: str) -> bool:

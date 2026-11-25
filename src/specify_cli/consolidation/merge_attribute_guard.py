@@ -52,6 +52,7 @@ from specify_cli.git.merge_tree_probe import check_attr_source_available
 #: ``MergeAttributeRefused`` stays out of ``__all__`` until a src caller needs it; callers catch ``GitProbeError``.
 __all__ = [
     "assert_registered_merge_behaviour",
+    "check_merge_attributes",
 ]
 
 #: Attribute values that are git's built-in merge with no user-driver lookup: ``merge`` set
@@ -216,7 +217,7 @@ def _run_git(repo_root: Path, argv: Sequence[str], stdin: str | None = None) -> 
         raise GitProbeError(f"git {' '.join(argv)} could not be started: {exc}") from exc
 
 
-def _check_attr(repo_root: Path, paths: Sequence[str], source: str | None = None, attributes: Sequence[str] = ("merge",)) -> list[dict[str, str]]:
+def check_merge_attributes(repo_root: Path, paths: Sequence[str], source: str | None = None, attributes: Sequence[str] = ("merge",)) -> list[dict[str, str]]:
     """*attributes* of each of *paths*, in order, from ONE ``git check-attr --stdin`` (never cached: it reads the working tree).
 
     git prints one line per (path, attribute), path-major, in input order.
@@ -326,8 +327,8 @@ def _committed_union_refusals(repo_root: Path, paths: Sequence[str], config: Mer
         return {path: _refusal(path, _COMMITTABLE_BUILTIN, "git config merge.union.* is set") for path in paths}
     if not check_attr_source_available(repo_root):
         return {path: _refusal(path, _COMMITTABLE_BUILTIN, "honouring a committed value needs git >= 2.40") for path in paths}
-    committed = [values["merge"] for values in _check_attr(repo_root, paths, source=attributes_source)]
-    clone_local = [values["merge"] for values in _check_attr(repo_root, paths, source=_empty_tree(repo_root))]
+    committed = [values["merge"] for values in check_merge_attributes(repo_root, paths, source=attributes_source)]
+    clone_local = [values["merge"] for values in check_merge_attributes(repo_root, paths, source=_empty_tree(repo_root))]
     refusals = {}
     for path, at_source, local in zip(paths, committed, clone_local, strict=True):
         if at_source != _COMMITTABLE_BUILTIN:
@@ -357,7 +358,7 @@ def assert_registered_merge_behaviour(repo_root: Path, paths: Sequence[str], *, 
     renormalize = _renormalize_refusal(repo_root, unique)
     if renormalize:
         raise MergeAttributeRefused(renormalize)
-    values = [attributes["merge"] for attributes in _check_attr(repo_root, unique)]
+    values = [attributes["merge"] for attributes in check_merge_attributes(repo_root, unique)]
     registry = _registry()
     config = _merge_config(repo_root, values, registry)
     refusals = {path: reason for path, value in zip(unique, values, strict=True) if (reason := _path_refusal(path, value, config, registry))}

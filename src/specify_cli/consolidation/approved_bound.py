@@ -38,19 +38,19 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
+from specify_cli.core import git_ops
 from specify_cli.status import LANE_HEAD_KEY, LANE_HEAD_PRESYNC_KEY, StatusEvent, is_migration_event, stamp_of
 
 from .canceled_attestation import ATTESTATION_KEY
-from . import git_probes
 from .git_probes import (
     GitProbeError,
-    _paths_changed_against_parents,
     changed_paths_of,
     commit_in_clone,
     commit_parents,
     commits_in_range,
     is_merge_commit,
     merge_own_changed_paths,
+    paths_changed_against_parents,
     resolve_commit,
     sha_reachable_from,
 )
@@ -650,16 +650,16 @@ def first_parent_merges_beyond(repo_root: Path, tip: str, excluded: Sequence[str
     error: an unreadable spine is never read as "no merge" (NFR-002).
     """
     argv = ["git", "rev-list", "--first-parent", "--merges", tip, *(f"^{ref}" for ref in excluded)]
-    ret, out, err = git_probes.run_command(argv, capture=True, check_return=False, cwd=repo_root)
+    ret, out, err = git_ops.run_command(argv, capture=True, check_return=False, cwd=repo_root)
     if ret != 0:
         raise GitProbeError(f"git rev-list --first-parent --merges {tip} failed (exit {ret}): {(err or '').strip()}")
     return [line.strip() for line in (out or "").splitlines() if line.strip()]
 
 
 def _attributes_at(repo_root: Path, paths: Sequence[str], source: str) -> list[str]:
-    from .merge_attribute_guard import _check_attr
+    from .merge_attribute_guard import check_merge_attributes
 
-    return [values["merge"] for values in _check_attr(repo_root, paths, source=source)]
+    return [values["merge"] for values in check_merge_attributes(repo_root, paths, source=source)]
 
 
 def _recorded_merge_attributes_hold(repo_root: Path, sha: str, attributes_source: str | None) -> bool:
@@ -680,7 +680,7 @@ def _recorded_merge_attributes_hold(repo_root: Path, sha: str, attributes_source
         return False
     try:
         parents = commit_parents(repo_root, sha)
-        paths = _paths_changed_against_parents(repo_root, sha, parents)
+        paths = paths_changed_against_parents(repo_root, sha, parents)
         assert_registered_merge_behaviour(repo_root, paths, attributes_source=attributes_source)
         if not paths:
             return True

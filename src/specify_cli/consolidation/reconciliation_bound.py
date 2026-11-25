@@ -30,7 +30,7 @@ from specify_cli.consolidation.approved_bound import (
 )
 from specify_cli.consolidation.git_probes import GitProbeError, first_parent_commits_in_range, resolve_commit
 from specify_cli.consolidation.reconciliation_authorship import own_approval_stamps
-from specify_cli.consolidation.wp_attribution import GapEntry, _windows, _window_stamps
+from specify_cli.consolidation.wp_attribution import GapEntry, window_stamps, wp_windows
 from specify_cli.consolidation.write_branch_bound import (
     bind_lane_predicates,
     check_lane_windows,
@@ -356,9 +356,9 @@ def _canceled_window_merges(scope: _LaneScope, lane: ExecutionLane, merges: Sequ
         return {}
     pending = set(merges)
     inside: dict[str, str] = {}
-    for wp_id, windows in _windows(scope.events, frozenset(canceled)).items():
+    for wp_id, windows in wp_windows(scope.events, frozenset(canceled)).items():
         for window in windows:
-            stamps = None if window.still_open else _window_stamps(window)
+            stamps = None if window.still_open else window_stamps(window)
             held = pending if stamps is None else pending.intersection(first_parent_commits_in_range(scope.repo_root, *stamps))
             for sha in held:
                 inside.setdefault(sha, wp_id)
