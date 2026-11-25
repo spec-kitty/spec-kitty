@@ -38,7 +38,8 @@
         "- 2026-11-25T22:26:56Z – unknown – Review cycle 2 folded (63b4f6c3): probe accepts only a ref whose own meta records a default not-landed Mission naming that branch (explicit topology keeps today's behaviour, FR-006); probes refs/remotes/*/kitty/mission-* (fresh clone refuses with git branch <b> <remote>/<b> + coordination doctor; local wins); full refnames instead of refname:short. Tests 33 passed (+explicit single_branch, landed, fresh clone, local-over-remote, same-named tag). Blast: tests/mission_runtime tests/coordination tests/specify_cli/coordination + surface + layer rules (see run log); ruff/format/C901/mypy clean; spelling 0.",
         "Review cycle 2 folded (63b4f6c3)",
         "- 2026-11-25T22:42:16Z – unknown – Review cycle 3 folded (ea0adc94): PLANNING_CHECKOUT_MISSING names the coordination doctor only when the Mission records a coordination branch, else 'git switch <branch>' in the repository root checkout (probe reads coordination_branch off the claiming meta; planning_lane_target asks routes_through_coordination); remote-tracking refs listed under refs/remotes/ and split on /kitty/mission- (remote 'my/fork' probed). Tests 37 passed; blast see run; ruff/format/C901/mypy clean; spelling 0.",
-        "Review cycle 3 folded (ea0adc94)"
+        "Review cycle 3 folded (ea0adc94)",
+        "- 2026-11-25T22:57:35Z – unknown – Review cycle 4 folded (06400330): probe and planning_lane_target both use routes_through_coordination over the stored-or-derived topology (topology_from_meta) - one check; uncoordinated refusal reworded (no 'checked out' contradiction), both refusal texts pinned verbatim; test for stored lanes_with_coord meta without coordination_branch. Tests + layer/surface gates 118 passed; blast see run; ruff/format/C901/mypy clean; spelling 0."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -52,10 +53,10 @@
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
-        "T001": "planned",
-        "T002": "planned",
-        "T003": "planned",
-        "T004": "planned"
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
       }
     },
     "WP02": {
