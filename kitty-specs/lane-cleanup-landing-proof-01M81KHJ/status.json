@@ -2,9 +2,9 @@
   "event_count": 32,
   "last_event_id": "01M85HJE3QC121QCK876XJG4RB",
   "materialized_at": "2026-11-24T01:08:51.959059+00:00",
-  "mission_number": "",
+  "mission_number": "266",
   "mission_slug": "lane-cleanup-landing-proof-01M81KHJ",
-  "mission_type": "",
+  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -20,53 +20,100 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
-      "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M85HHXTHB2ASD8RG7DDBT5M5",
       "last_transition_at": "2026-11-24T01:08:35.281977+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP01 ready: landing proof (T001-T006) + pr-mode adoption (T014, ruling 3A). Lane tip 0653c20a48 pushed.",
+        "Approved by claude::reviewer-renata: R71 core sound; non-blocking follow-ups in the review notes"
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/lane-cleanup-landing-proof-01M81KHJ-coord/kitty-specs/lane-cleanup-landing-proof-01M81KHJ/tasks/WP01-landing-proof-and-consolidate/review-cycle-1.md",
         "reference": "review-cycle://lane-cleanup-landing-proof-01M81KHJ/WP01-landing-proof-and-consolidate/review-cycle-1.md",
         "reviewer": "claude::reviewer-renata",
         "verdict": "approved"
       },
-      "shell_pid": 3937,
-      "shell_pid_created_at": "1795457998.37"
+      "role": "reviewer",
+      "shell_pid": 13125,
+      "shell_pid_created_at": "1795464500.19",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T014": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
-      "agent": "claude::python-pedro",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 1,
-      "implementer_of_record": "claude::python-pedro",
       "lane": "done",
       "last_event_id": "01M85HJ5Y899XW4VY0VMBY6ZYC",
       "last_transition_at": "2026-11-24T01:08:43.592406+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP02 ready: doctor judges released Mission lanes with the shared landing proof. Lane tip 6364d35a pushed.",
+        "Review cycle 1 F1 fixed: ancestry proven before the merge-tree gate (28d86e40, red-first 91e68bd2)",
+        "Cycle 2 approved (reviewed 28d86e40). F1 fixed: _landed_on proves ancestry before the merge-tree gate; new test red on 6364d35a, green on 28d86e40. Adversarial: old git in landed_worktrees+lane_tip with merge_tree raising -> LANDED+pruned; dirty merge-landed lane -> UNCOMMITTED_CHANGES kept; unreleased -> MISSION_OWNED; local-only merge (not on origin/main) -> kept. Shortcut is identical to the predicate's and plain is_absorbed's ancestry leg, so new-git behaviour is unchanged. Targeted 395 passed/2 skipped; make test-fast 3222 passed/7 skipped; ruff/format/mypy clean; diff coverage 96.8% (line 509 only)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/lane-cleanup-landing-proof-01M81KHJ-coord/kitty-specs/lane-cleanup-landing-proof-01M81KHJ/tasks/WP02-doctor-adopts-landing-proof/review-cycle-2.md",
         "reference": "review-cycle://lane-cleanup-landing-proof-01M81KHJ/WP02-doctor-adopts-landing-proof/review-cycle-2.md",
         "reviewer": "claude::reviewer-renata",
         "verdict": "approved"
       },
-      "shell_pid": 10072,
-      "shell_pid_created_at": "1795473604.2"
+      "role": "reviewer",
+      "shell_pid": 25128,
+      "shell_pid_created_at": "1795474864.75",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
-      "agent": "claude::python-pedro",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
-      "implementer_of_record": "claude::python-pedro",
       "lane": "done",
       "last_event_id": "01M85HJE3QC121QCK876XJG4RB",
       "last_transition_at": "2026-11-24T01:08:51.959059+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review cycle 1 findings 1-4 folded (red ea15993f, fix 0d4ca468)",
+        "Review cycle 2 approved (claude::reviewer-renata), lane-c tip a3411275. All cycle-1 findings resolved: B1 (no 'then run: None' in real CLI consolidate output), N2, N3, N4 (kept-case parity pinned; consolidate and orchestrator-api agree). Red-first: on a596f0cf, 3 unit tests and the parity test fail for the stated reasons. _absorbed typed locals: annotation only; without them mypy reports 2 no-any-return errors. Tests: targeted 83 passed; tests/consolidation 3518 passed; lanes, specify_cli/lanes and acceptance 2000 passed; make test-fast 3222 passed; 0 failed. ruff, format and mypy clean. Diff-cover 93.8%. Non-blocking: (a) git -C <wt> reflog -1 fails ('does not have any commits yet') when the worktree is still on the deleted branch; it works only when detached. The lane-tip rev-parse alternative works when a tip was recorded. (b) The RemoteRef remedy line (lane_cleanup.py:595, the accept path) is not covered. (c) Under squash, git log <ref>..<branch> always lists the lane commits, so the check can make landed work look unlanded (pre-existing wording)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/lane-cleanup-landing-proof-01M81KHJ-coord/kitty-specs/lane-cleanup-landing-proof-01M81KHJ/tasks/WP03-proof-unavailable-keeps-lane/review-cycle-2.md",
         "reference": "review-cycle://lane-cleanup-landing-proof-01M81KHJ/WP03-proof-unavailable-keeps-lane/review-cycle-2.md",
         "reviewer": "claude::reviewer-renata",
         "verdict": "approved"
       },
-      "shell_pid": 596,
-      "shell_pid_created_at": "1795468045.39"
+      "role": "reviewer",
+      "shell_pid": 4471,
+      "shell_pid_created_at": "1795481872.54",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
     }
   }
 }
