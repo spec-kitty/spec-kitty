@@ -30,6 +30,7 @@ from tests.lanes.test_lane_tip_mission_bookkeeping import (
     _META,
     _SLUG,
     _SPEC,
+    _TARGET,
     _WP01,
     Landed,
     _commit,
@@ -160,3 +161,26 @@ def test_a_lane_moved_inside_the_scope_is_judged_on_its_new_tip(landed: Landed) 
         assert _proof(landed, landing)
         _lane_spec_edit(landed)
         assert not _proof(landed, landing)
+
+
+def test_a_landing_ref_name_is_resolved_once_per_proof(landed: Landed, spawns: _GitSpawns) -> None:
+    """Lane cleanup hands the proof ``refs/heads/<target>``: inside a run it is pinned to one commit."""
+    tip = landed.tip()
+    with git_read_cache_scope():
+        assert is_absorbed_but_for_mission_bookkeeping(landed.root, tip, _TARGET, _SLUG)
+        first = spawns.count
+        assert is_absorbed_but_for_mission_bookkeeping(landed.root, tip, _TARGET, _SLUG)
+    assert spawns.count - first <= 2, "only the ref resolution and merge-tree may run again"
+
+
+def test_a_landing_ref_that_moved_between_proofs_is_judged_at_its_new_commit(landed: Landed) -> None:
+    with git_read_cache_scope():
+        assert _proof(landed, _TARGET)
+        _commit(landed.root, "the target drops the lane's product", {"src/lane.py": "x = 0\n"})
+        assert not _proof(landed, _TARGET)
+    assert not _proof(landed, _TARGET)
+
+
+def test_an_unknown_landing_ref_fails_closed_inside_a_run(landed: Landed) -> None:
+    with git_read_cache_scope():
+        assert not _proof(landed, "refs/heads/nope")

@@ -506,3 +506,46 @@ def test_git_read_cache_active_reports_the_scope() -> None:
     with git_read_cache_scope():
         assert git_read_cache_active()
     assert not git_read_cache_active()
+
+
+def test_a_replace_setting_or_reftable_stack_write_invalidates_an_object_read(repo: Path) -> None:
+    sha = _git(repo, "rev-parse", "main")
+    read = _log_of(repo, sha)
+    with git_read_cache_scope():
+        cached_object_read(repo, (sha,), "log", read)
+        _git(repo, "config", "core.useReplaceRefs", "false")
+        cached_object_read(repo, (sha,), "log", read)
+        (repo / ".git" / "reftable").mkdir()
+        (repo / ".git" / "reftable" / "tables.list").write_text("x\n")
+        cached_object_read(repo, (sha,), "log", read)
+    assert read.calls == 3
+
+
+@pytest.mark.parametrize("variable", ["GIT_REPLACE_REF_BASE", "GIT_NO_REPLACE_OBJECTS", "GIT_GRAFT_FILE", "GIT_SHALLOW_FILE"])
+def test_a_history_variable_bypasses_an_object_read(repo: Path, monkeypatch: pytest.MonkeyPatch, variable: str) -> None:
+    sha = _git(repo, "rev-parse", "main")
+    read = _log_of(repo, sha)
+    monkeypatch.setenv(variable, "1")
+    with git_read_cache_scope() as stats:
+        cached_object_read(repo, (sha,), "log", read)
+        cached_object_read(repo, (sha,), "log", read)
+    assert read.calls == 2
+    assert stats.bypassed == 2
+
+
+def test_a_history_variable_in_the_passed_env_bypasses_an_object_read(repo: Path) -> None:
+    sha = _git(repo, "rev-parse", "main")
+    read = _log_of(repo, sha)
+    with git_read_cache_scope():
+        cached_object_read(repo, (sha,), "log", read, env={"GIT_NO_REPLACE_OBJECTS": "1"})
+        cached_object_read(repo, (sha,), "log", read, env={"GIT_NO_REPLACE_OBJECTS": "1"})
+    assert read.calls == 2
+
+
+def test_a_history_variable_does_not_bypass_a_ref_read(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GIT_NO_REPLACE_OBJECTS", "1")
+    read = _tip(repo, "refs/heads/main")
+    with git_read_cache_scope():
+        _read_tip(repo, read, "refs/heads/main")
+        _read_tip(repo, read, "refs/heads/main")
+    assert read.calls == 1
