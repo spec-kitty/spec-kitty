@@ -51,7 +51,7 @@
     {
       "created_at": "2026-11-25T20:41:50.119983Z",
       "decision_id": "01M8A72XS74148VWC20FR52SH8",
-      "final_answer": null,
+      "final_answer": "Guidance only: the refusal detects owned changes that exist only on the target and names the fix (cherry-pick onto the Mission branch, or --attest-no-implementation), plus a release note. Source: operator ruling 2026-11-25 on #7860.",
       "input_key": "in_flight_story",
       "mission_id": "01M8A725BGBKAK98Y7F392ZFZ5",
       "mission_slug": "planning-lane-write-branch-01M8A725",
@@ -66,10 +66,10 @@
       "other_answer": false,
       "question": "How are Missions already in flight handled when planning work was committed on the target under the old implement guidance?",
       "rationale": null,
-      "resolved_at": null,
+      "resolved_at": "2026-11-25T20:44:28.855424Z",
       "resolved_by": null,
       "slot_key": "specify.migration.in-flight",
-      "status": "open",
+      "status": "resolved",
       "step_id": null,
       "summary_json": null
     }
