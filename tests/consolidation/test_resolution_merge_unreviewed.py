@@ -791,3 +791,71 @@ def test_resume_with_a_hand_merge_added_after_the_interrupt_does_not_land(tmp_pa
     assert LATE_PATH not in _git(mission.repo, "ls-tree", "-r", "--name-only", mission.target_branch).split(), flat
     # The resume rebuilds the claim, so the claim-time refusal names the hidden merge before any branch moves.
     assert "at claim time, before any change" in flat and _CODE in flat and f"merge {hand[:7]}" in flat, flat
+
+
+# --------------------------------------------------------------------------- reviewer ruling: one-sided conflict resolutions
+
+
+def _one_sided_resolution(tmp_path: Path, *, reapprove: bool = False) -> tuple[Path, Path, LanesManifest, str, str]:
+    """lane-b (WP02, approved at b1) merges lane-c (WP03, approved at c1) after its approval; ``u/p.txt`` conflicts and the
+    resolution takes lane-c's side, so the merge's ``u/p.txt`` is byte-identical to its second parent."""
+    repo, feature_dir, manifest, base = _init_repo(tmp_path)
+    manifest.lanes = [_lane("lane-c", "WP03"), _lane("lane-b", "WP02", ("lane-c",))]
+    (feature_dir / "tasks" / "WP01-work.md").unlink()
+    write_lanes_json(feature_dir, manifest)
+    _write(repo, "u/p.txt", "base\n")
+    base = _commit(repo, "two lanes")
+    _git(repo, "checkout", "-q", "-b", _branch("lane-c"), base)
+    _write(repo, "u/p.txt", "from c\n")
+    c1 = _commit(repo, "WP03: p")
+    _git(repo, "checkout", "-q", "-b", _branch("lane-b"), base)
+    _write(repo, "u/p.txt", "from b\n")
+    b1 = _commit(repo, "WP02: p")
+    subprocess.run(["git", "-C", str(repo), "merge", "--no-edit", _branch("lane-c")], capture_output=True, check=False)
+    _git(repo, "checkout", "--theirs", "--", "u/p.txt")
+    merge = _commit(repo, "Merge lane-c into lane-b, taking theirs")
+    rows: list[dict[str, object]] = []
+    if reapprove:
+        for frm, to in (("approved", "in_progress"), ("in_progress", "for_review"), ("for_review", "in_review"), ("in_review", "approved")):
+            stamp = merge if to in ("for_review", "in_review", "approved") else b1
+            rows.append(_row(0, "WP02", frm, to, stamp, actor="reviewer-renata" if to in ("in_review", "approved") else "claude"))
+    approvals: list[dict[str, object]] = []
+    _approval_rows(approvals, "WP03", base, c1)
+    _approval_rows(approvals, "WP02", base, b1)
+    _write_events(feature_dir, [], extra=[*approvals, *rows])
+    _git(repo, "checkout", "-q", "main")
+    assert git_probes.merge_own_changed_paths(repo, merge) == ["u/p.txt"], "fixture: --remerge-diff lists the conflicted path"
+    assert _git(repo, "rev-parse", f"{merge}:u/p.txt") == _git(repo, "rev-parse", f"{c1}:u/p.txt"), "fixture: one side kept"
+    return repo, feature_dir, manifest, base, merge
+
+
+def test_one_sided_conflict_resolution_is_refused_and_named(tmp_path: Path) -> None:
+    repo, feature_dir, manifest, base, merge = _one_sided_resolution(tmp_path)
+    claim = _claim(repo, feature_dir, manifest, base)
+    assert _CODE in _codes(claim) and _refused_merges(claim) == {merge[:7]}, claim.refusal
+    assert "The merge kept one side of a conflicted path; the other side's change is dropped." in (claim.refusal or ""), claim.refusal
+
+
+def test_one_sided_conflict_resolution_is_lifted_by_an_unforced_reapproval(tmp_path: Path) -> None:
+    repo, feature_dir, manifest, base, _merge = _one_sided_resolution(tmp_path, reapprove=True)
+    claim = _claim(repo, feature_dir, manifest, base)
+    assert _CODE not in _codes(claim), claim.refusal
+
+
+def test_two_sided_resolution_text_does_not_claim_one_side(tmp_path: Path) -> None:
+    """The sentence is only for a merge whose every own path equals a parent's entry: the evil merge adds a new file."""
+    repo, feature_dir, manifest, base, _evil = _evil_claim(tmp_path)
+    claim = _claim(repo, feature_dir, manifest, base)
+    assert _CODE in _codes(claim) and "kept one side" not in (claim.refusal or ""), claim.refusal
+
+
+def test_one_side_probe_error_omits_the_sentence_and_still_refuses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo, feature_dir, manifest, base, merge = _one_sided_resolution(tmp_path)
+
+    def _broken(*_args: object, **_kwargs: object) -> object:
+        raise GitProbeError("ls-tree failed")
+
+    monkeypatch.setattr(approved_bound, "tree_entry", _broken)
+    claim = _claim(repo, feature_dir, manifest, base)
+    assert _CODE in _codes(claim) and _refused_merges(claim) == {merge[:7]}, claim.refusal
+    assert "kept one side" not in (claim.refusal or "")

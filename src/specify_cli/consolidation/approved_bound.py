@@ -38,6 +38,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
+from kernel.git import GitCommandError, tree_entry
 from specify_cli.core import git_ops
 from specify_cli.status import LANE_HEAD_KEY, LANE_HEAD_PRESYNC_KEY, StatusEvent, is_migration_event, stamp_of
 
@@ -173,6 +174,8 @@ class BoundRefusal:
     own_path_count: int = 0
     #: ``RESOLUTION_MERGE_UNREVIEWED`` only: the canceled work package whose window holds the merge, if any.
     canceled_wp: str | None = None
+    #: ``RESOLUTION_MERGE_UNREVIEWED`` only: every own path equals one parent's committed entry (a one-sided resolution).
+    kept_one_side: bool = False
 
     def render(self, mission_slug: str) -> str:
         """The operator-facing text of this one refusal, led by ``<CODE>: `` like the other claim refusals."""
@@ -301,9 +304,10 @@ def _unreviewed_merge_finding(refusal: BoundRefusal) -> str:
         f"lane {refusal.lane_id} ({', '.join(refusal.wp_ids)}): merge {_short(refusal.commits[0])} carries its own content "
         f"on {refusal.own_path_count} path(s) (e.g. '{refusal.path}')"
     )
+    side = " The merge kept one side of a conflicted path; the other side's change is dropped." if refusal.kept_one_side else ""
     if refusal.canceled_wp is not None:
-        return f"{head} and was made inside canceled {refusal.canceled_wp}'s window, so no review approval of the lane covers it."
-    return f"{head} and no review approval of the lane reaches it."
+        return f"{head} and was made inside canceled {refusal.canceled_wp}'s window, so no review approval of the lane covers it.{side}"
+    return f"{head} and no review approval of the lane reaches it.{side}"
 
 
 def _unreviewed_merge_block(group: Sequence[BoundRefusal], mission: str, term: _StampTerm) -> list[str]:
@@ -658,6 +662,28 @@ def merges_beyond(repo_root: Path, tip: str, excluded: Sequence[str], *, first_p
     return [line.strip() for line in (out or "").splitlines() if line.strip()]
 
 
+def _entry_key(repo_root: Path, ref: str, path: str) -> tuple[str, str] | None:
+    entry = tree_entry(repo_root, ref, path)
+    return None if entry is None else (entry.mode, entry.oid)
+
+
+def kept_one_side(repo_root: Path, sha: str, own_paths: Sequence[str]) -> bool:
+    """True iff every one of *own_paths* is, in merge *sha*'s committed tree, the same ``(mode, oid)`` as in one of its parents.
+
+    Such a merge resolved each conflicted path by keeping one side, so the other side's change is
+    dropped. Text only, never a verdict: any probe error reads as False (the refusal stands, the
+    sentence is omitted), and a merge is never exempted for it.
+    """
+    if not own_paths:
+        return False
+    try:
+        parents = commit_parents(repo_root, sha)
+        return all(any(_entry_key(repo_root, sha, path) == _entry_key(repo_root, parent, path) for parent in parents) for path in own_paths)
+    except (GitProbeError, GitCommandError, ValueError):
+        logger.debug("merge %s: whether it kept one side cannot be read; the sentence is omitted", sha, exc_info=True)
+        return False
+
+
 def unreviewed_merge_candidates(
     repo_root: Path, merges: Iterable[str], own_stamps: Sequence[str], canceled_window: Mapping[str, str] | None = None
 ) -> tuple[str, ...]:
@@ -768,6 +794,7 @@ def unreviewed_resolution_merges(
                     path=own[0],
                     own_path_count=len(own),
                     canceled_wp=canceled_wp,
+                    kept_one_side=kept_one_side(repo_root, sha, own),
                 )
             )
     return tuple(refusals)
