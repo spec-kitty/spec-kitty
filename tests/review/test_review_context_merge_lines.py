@@ -318,12 +318,26 @@ def test_git_without_attr_source_prints_the_cannot_neutralise_line() -> None:
     assert _ATTR_NOTE not in lines
 
 
+_EMPTY_TREE_NOTE = "the empty tree (the target branch could not be read, so no committed attribute applies)"
+
+
 @pytest.mark.fast
-def test_unreadable_target_falls_back_to_the_range_base_and_says_so() -> None:
+def test_unreadable_target_never_falls_back_to_the_range_base() -> None:
+    """Review cycle 1: the range base can hold a lane-committed ``merge=union``; with no source the empty tree is computed by git."""
     lines = render_review_context(_range(merges=(M1,), attributes_source=None), ())
 
-    assert f"--attr-source={BASE} " in next(line for line in lines if line.startswith(f"  {_LABEL}"))
-    assert any("the range base aaaaaaaaaaaa (the target branch could not be read)" in line for line in lines)
+    command = next(line for line in lines if line.startswith(f"  {_LABEL}"))
+    assert f"--attr-source={BASE}" not in command
+    assert "--attr-source=$(git hash-object -t tree /dev/null) show" in command, command
+    assert any(_EMPTY_TREE_NOTE in line for line in lines), lines
+
+
+@pytest.mark.fast
+def test_resolved_empty_tree_is_named_as_the_empty_tree() -> None:
+    lines = render_review_context(_range(merges=(M1,), attributes_source=M2, attributes_from_target=False), ())
+
+    assert f"--attr-source={M2} show" in next(line for line in lines if line.startswith(f"  {_LABEL}"))
+    assert any(_EMPTY_TREE_NOTE in line for line in lines), lines
 
 
 @pytest.mark.fast
@@ -377,11 +391,8 @@ def test_old_git_range_renders_unpinned_commands(tmp_path: Path, monkeypatch: py
     assert _UNPINNED_NOTE in lines
 
 
-@pytest.mark.integration
-@pytest.mark.git_repo
-def test_union_committed_before_the_window_base_is_neutralised_by_the_target_tip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """(c): ``merge=union`` committed on the lane BEFORE the window opened is in the range base; the printed command must
-    read attributes from the pre-run target tip, so running it lists the union-hidden path."""
+def _union_before_the_window(tmp_path: Path, mid8: str) -> tuple[cs.ShapeMission, Path, str]:
+    """A lane that commits ``src/pkg/a.py merge=union`` BEFORE its window opens, then a union-resolved merge; ``(mission, repo, merge)``."""
     mission, manifest = cs._bootstrap_one_lane_coord(tmp_path, mid8="01M7WM08", wps=("WP01",))
     tree, branch = allocate_lane_worktree(mission.repo, mission.slug, "WP01", manifest)
     _commit_in(tree, "src/pkg/a.py", "A = 1\n", "seed a.py on the lane")
@@ -397,17 +408,53 @@ def test_union_committed_before_the_window_base_is_neutralised_by_the_target_tip
     assert _git(tree, "show", "HEAD:src/pkg/a.py") == "A = 2\nA = 3", "precondition: the union driver resolved the conflict"
     transition(mission, "WP01", "for_review", actor=ACTOR, subtasks_complete=True)
     mission.lane_branches["WP01"] = branch
-    shaped = cs._from_coord(mission, "coord", subject_wp="WP01", window_wps=("WP01",))
+    return cs._from_coord(mission, "coord", subject_wp="WP01", window_wps=("WP01",)), mission.repo, merge
+
+
+def _command_argv(found: WpReviewRange) -> list[str]:
+    command = next(line for line in render_review_context(found, ()) if line.startswith(f"  {_LABEL}"))
+    return command.removeprefix(f"  {_LABEL} ").split()
+
+
+@pytest.mark.integration
+@pytest.mark.git_repo
+def test_union_committed_before_the_window_base_is_neutralised_by_the_target_tip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """(c): ``merge=union`` committed on the lane BEFORE the window opened is in the range base; the printed command must
+    read attributes from the pre-run target tip, so running it lists the union-hidden path."""
+    shaped, repo, merge = _union_before_the_window(tmp_path, "01M7WM08")
 
     found = _resolve(shaped, monkeypatch)
 
-    target = _git(mission.repo, "rev-parse", "main")
+    target = _git(repo, "rev-parse", "main")
     assert found.merges == (merge,)
-    assert _git(mission.repo, "cat-file", "-p", f"{found.base}:.gitattributes") == "src/pkg/a.py merge=union", "precondition: the base holds the union"
-    assert found.attributes_source == target
-    command = next(line for line in render_review_context(found, ()) if line.startswith(f"  {_LABEL}"))
-    argv = command.removeprefix(f"  {_LABEL} ").split()
+    assert _git(repo, "cat-file", "-p", f"{found.base}:.gitattributes") == "src/pkg/a.py merge=union", "precondition: the base holds the union"
+    assert found.attributes_source == target and found.attributes_from_target
+    argv = _command_argv(found)
     assert f"--attr-source={target}" in argv
-    assert "src/pkg/a.py" in _git(mission.repo, *argv[1:], "--format=", "--name-only")
+    assert "src/pkg/a.py" in _git(repo, *argv[1:], "--format=", "--name-only")
     from_base = [f"--attr-source={found.base}" if arg.startswith("--attr-source=") else arg for arg in argv]
-    assert "src/pkg/a.py" not in _git(mission.repo, *from_base[1:], "--format=", "--name-only"), "control: the range base hides it"
+    assert "src/pkg/a.py" not in _git(repo, *from_base[1:], "--format=", "--name-only"), "control: the range base hides it"
+
+
+@pytest.mark.integration
+@pytest.mark.git_repo
+def test_unreadable_target_reads_attributes_from_the_empty_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review cycle 1: with the target branch unreadable the command reads attributes from the empty tree, never the
+    range base (which holds the lane's union), so running it still lists the union-hidden path."""
+    shaped, repo, merge = _union_before_the_window(tmp_path, "01M7WM09")
+    real_run_git = wp_range.run_git
+
+    def _target_unreadable(repo_root: Path, *args: str, **kwargs: Any) -> Any:
+        if "rev-parse" in args and any(arg.startswith("refs/heads/main") for arg in args):
+            raise GitCommandError(argv=args, cwd=repo_root, returncode=128, stderr="unreadable target")
+        return real_run_git(repo_root, *args, **kwargs)
+
+    monkeypatch.setattr(wp_range, "run_git", _target_unreadable)
+    found = _resolve(shaped, monkeypatch)
+
+    empty_tree = _git(repo, "hash-object", "-t", "tree", "/dev/null")
+    assert found.merges == (merge,)
+    assert found.attributes_source == empty_tree and not found.attributes_from_target
+    argv = _command_argv(found)
+    assert f"--attr-source={empty_tree}" in argv and f"--attr-source={found.base}" not in argv
+    assert "src/pkg/a.py" in _git(repo, *argv[1:], "--format=", "--name-only")

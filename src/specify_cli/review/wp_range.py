@@ -204,7 +204,8 @@ class WpReviewRange:
     commit of ``base..tip`` (full history, no pathspec) and ``remerge_available`` whether this git can show each one's
     resolution. ``attributes_source`` is the Mission's target branch tip when the range was resolved (the pre-run
     target tip the FR-010 merge guard trusts, never the range base: a ``merge=union`` committed on the lane before
-    the window opened is in the base), ``None`` when it cannot be read; ``attr_source_available`` says whether this
+    the window opened is in the base). When the target cannot be read it is the empty tree (no committed attribute
+    applies) and ``attributes_from_target`` is false; ``None`` only when git cannot name even that. ``attr_source_available`` says whether this
     git can pin it (``--attr-source``, git >= 2.40). The three are probed only when the range has merges or its merge
     listing failed; the renderer reads them and runs nothing.
     """
@@ -228,6 +229,7 @@ class WpReviewRange:
     merges: tuple[str, ...] = ()
     remerge_available: bool = True
     attributes_source: str | None = None
+    attributes_from_target: bool = True
     attr_source_available: bool = True
 
     def __post_init__(self) -> None:
@@ -687,16 +689,30 @@ class _MergeReview:
     remerge_available: bool = True
     attr_source_available: bool = True
     attributes_source: str | None = None
+    attributes_from_target: bool = True
+
+
+def _empty_tree(repo_root: Path) -> str | None:
+    """git's empty tree id in this repository's hash (``git hash-object -t tree /dev/null``; nothing is written)."""
+    try:
+        result = run_git(repo_root, "hash-object", "-t", "tree", "/dev/null")
+    except GitCommandError:
+        logger.debug("review range: the empty tree id of %s is unreadable", repo_root, exc_info=True)
+        return None
+    return result.stdout.decode("ascii", "replace").strip() or None
 
 
 def _merge_review(ctx: _Context, listing: _Listing) -> _MergeReview:
     """Probe git and read the target tip only when there is a merge to show, or the merge listing failed (NFR-001)."""
     if not listing.merges and _MERGES_STEP not in listing.failed:
         return _MergeReview()
+    target = _target_tip(ctx)
     return _MergeReview(
         remerge_available=remerge_diff_available(ctx.repo_root),
         attr_source_available=check_attr_source_available(ctx.repo_root),
-        attributes_source=_target_tip(ctx),
+        # Never the range base: it can hold a lane-committed ``merge=union`` (review cycle 1).
+        attributes_source=target if target is not None else _empty_tree(ctx.repo_root),
+        attributes_from_target=target is not None,
     )
 
 
@@ -765,5 +781,6 @@ def resolve_wp_review_range(
         merges=listing.merges,
         remerge_available=merge_review.remerge_available,
         attributes_source=merge_review.attributes_source,
+        attributes_from_target=merge_review.attributes_from_target,
         attr_source_available=merge_review.attr_source_available,
     )

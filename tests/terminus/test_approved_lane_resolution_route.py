@@ -29,13 +29,18 @@ No ``xfail`` and no ``skip`` anywhere: a route gap is reported, never marked.
 from __future__ import annotations
 
 import re
+import subprocess
 import time
 from pathlib import Path
 
 import pytest
 
 from specify_cli.consolidation.approved_bound import approval_stamp
+from specify_cli.consolidation.approved_bound import refusal_codes
+from specify_cli.consolidation.reconciliation import build_approved_wp_set
 from specify_cli.lanes import auto_rebase_record
+from specify_cli.lanes.persistence import read_lanes_json
+from specify_cli.status import materialize_snapshot
 from specify_cli.status.models import actor_full_identity, actor_identities_independent
 from tests.terminus.approved_lane_route_support import (
     IMPLEMENTER,
@@ -76,6 +81,7 @@ from tests.terminus.approved_lane_route_support import (
     snapshot_written,
 )
 from tests.terminus.conftest import git_rev, sha_reachable
+from tests.terminus.mixed_lane_support import transition
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
 
@@ -220,6 +226,35 @@ def test_n3_forced_re_approval_does_not_restamp(tmp_path: Path) -> None:
     assert_no_branch_moved(route, before)
 
 
+@pytest.mark.parametrize("entry", ["forced_from_for_review", "forced_from_in_review"])
+def test_n3_forced_re_approval_keeps_the_claim_refusal(tmp_path: Path, entry: str) -> None:
+    """C-004 at the claim (review cycle 1): from the route's incorporation-merge state a forced approval without an
+    approved review result does not restamp, so ``build_approved_wp_set`` still refuses ``RESOLUTION_MERGE_UNREVIEWED``.
+
+    The CLI path stops earlier at the review-artifact gate (see the test above); this proves the claim on its own.
+    """
+    route = build_conflicting_lanes_mission(tmp_path, "coord", mid8="01M7WN3" + ("A" if entry == "forced_from_for_review" else "B"))
+    old_stamp = approval_stamp(events(route), "WP02")
+    refusal = refuse_as_stale(route, lane=LANE_B, sibling=LANE_A, strategy="squash")
+    _reopen, _commands, merge = follow_route_to_review(route, refusal, wp_id="WP02", sibling=LANE_A)
+    _assert_merge_has_own_content(route, merge)
+    if entry == "forced_from_in_review":
+        transition(route.mission, "WP02", "in_review", actor=REVIEWER)
+    forced = transition(route.mission, "WP02", "approved", actor=REVIEWER, force=True, reason="operator: forced approval", reason_source="operator")
+
+    assert forced.force is True and forced.review_result is None
+    assert approval_stamp(events(route), "WP02") == old_stamp, "a forced approval without an approved review result does not restamp"
+    coordination_dir = route.repo / ".worktrees" / f"{route.slug}-coord" / "kitty-specs" / route.slug
+    assert materialize_snapshot(coordination_dir).work_packages, "fixture: the status log is readable where the claim reads it"
+    manifest = read_lanes_json(route.mission.feature_dir)
+    assert manifest is not None
+    base = git_rev(route.repo, route.mission.target_branch)
+    claim = build_approved_wp_set(route.repo, coordination_dir, manifest, coord_base_ref=base, excluded_window_base=base)
+
+    assert claim.refusal is not None and RESOLUTION_MERGE_UNREVIEWED in refusal_codes(claim.refusal), claim.refusal
+    assert f"lane {LANE_B} (WP02): merge {merge[:7]} carries its own content" in claim.refusal, claim.refusal
+
+
 def test_n3_self_re_approval_is_refused(tmp_path: Path) -> None:
     route = build_conflicting_lanes_mission(tmp_path, "coord", mid8="01M7WN3S")
     target_before = git_rev(route.repo, route.mission.target_branch)
@@ -299,17 +334,34 @@ def test_reviewed_resolution_with_a_novel_line_lands(tmp_path: Path, strategy: S
 def test_gate_hint_names_re_review_first_then_scopes_dependency_ref_to_foreign_content(tmp_path: Path) -> None:
     """The partial shape: a dropped merge explains part of a gate FAIL, foreign content the rest.
 
-    The claim-time check exempts a tool-recorded merge (the auto-rebase record) whose merge attributes
-    hold, so a tool merge with content of its own reaches the gate; no approval stamp of lane-b reaches
-    it, so the claim drops it and names it in ``unreviewed_merges``. Foreign content committed on the
-    coordination branch is the rest. The hint gives the re-review route for the merge first, then the
-    ``--dependency-ref`` hint scoped to the one remaining item, exactly once.
+    A tool-merge simulation (same writer): the Mission branch is first given lane-a at its approval
+    stamp (the state an in-run auto-rebase meets once lane-a has landed), then lane-b gets the
+    auto-rebase's own shape, a two-parent merge of the Mission branch tip into the lane (parents
+    ``[before, mission tip]``), recorded by
+    ``auto_rebase_record.record``, the function the auto-rebase itself writes the record with. Its
+    resolution of ``src/pkg/shared.py`` is content of its own. The claim-time check exempts a recorded
+    merge whose merge attributes hold, so it reaches the gate; no approval stamp of lane-b reaches it,
+    so the claim drops it and names it in ``unreviewed_merges``. Foreign content committed on the
+    coordination branch afterwards is the rest. The hint gives the re-review route for the merge
+    first, then the ``--dependency-ref`` hint scoped to the one remaining item, exactly once.
     """
     route = build_conflicting_lanes_mission(tmp_path, "coord", mid8="01M7WPRT")
-    merge = hand_merge(route, lane=LANE_B, sibling=LANE_A)
+    coordination = route.repo / ".worktrees" / f"{route.slug}-coord"
+    lane_a_stamp = approval_stamp(events(route), "WP01")
+    assert lane_a_stamp is not None
+    git(coordination, "merge", "--no-ff", "-m", "lane-a lands on the Mission branch", lane_a_stamp)
+    checkout = route.checkouts[LANE_B]
+    before = git_rev(route.repo, route.lane_branches[LANE_B])
+    mission_tip = git_rev(route.repo, route.mission.coord_branch)
+    subprocess.run(["git", "merge", "--no-ff", "--no-commit", mission_tip], cwd=str(checkout), capture_output=True, check=False)
+    (checkout / SHARED_PATH).write_text(RESOLVED_TEXT, encoding="utf-8")
+    git(checkout, "add", SHARED_PATH)
+    git(checkout, "commit", "-q", "--no-edit")
+    merge = git_rev(checkout, "HEAD")
+    assert git(route.repo, "rev-list", "--parents", "-n", "1", merge).split()[1:] == [before, mission_tip], "the auto-rebase merge shape"
     _assert_merge_has_own_content(route, merge)
     assert auto_rebase_record.record(route.repo, route.lane_branches[LANE_B], merge)
-    coordination = route.repo / ".worktrees" / f"{route.slug}-coord"
+    assert auto_rebase_record.is_recorded(route.repo, route.lane_branches[LANE_B], merge)
     (coordination / "vendor").mkdir()
     (coordination / _FOREIGN_PATH).write_text("FOREIGN = True\n", encoding="utf-8")
     git(coordination, "add", _FOREIGN_PATH)

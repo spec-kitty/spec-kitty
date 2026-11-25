@@ -56,9 +56,9 @@ line instead; when the merge listing itself failed, one line names the command t
 (full SHAs), since the pathspec-scoped commands above can hide merges, or, on such a git, says it
 cannot show them. The commands are the FR-010 guard's own merge (Mission
 ``approved-lane-resolution-route``, WP01): they pin the attribute source to the trusted pre-run
-target tip (``WpReviewRange.attributes_source``; the range base only when the target cannot be read),
-never the range base by choice, because a ``merge=union`` committed on the lane before the window
-opened is in the base; they pin git's merge config with the guard's own table
+target tip (``WpReviewRange.attributes_source``; the empty tree when the target cannot be read),
+never the range base, because a ``merge=union`` committed on the lane before the window opened is
+in the base; they pin git's merge config with the guard's own table
 (:data:`~specify_cli.consolidation.merge_attribute_guard.MERGE_PROBE_CONFIG_PINS`, as ``-c`` flags);
 and they carry ``--no-ext-diff --no-textconv``, since a ``diff=<driver>`` textconv or a ``-diff``
 attribute can change or hide the bytes shown. On a git without ``--attr-source`` (git < 2.40,
@@ -263,9 +263,14 @@ def _command_lines(review_range: WpReviewRange) -> list[str]:
     ]
 
 
+#: git computes its empty tree when the resolver could not name one; the command still runs as printed in ``bash``.
+_EMPTY_TREE_COMMAND = "$(git hash-object -t tree /dev/null)"
+_EMPTY_TREE_NOTE = "the empty tree (the target branch could not be read, so no committed attribute applies)"
+
+
 def _attributes_source(review_range: WpReviewRange) -> str:
-    """The trusted attribute source: the target tip the range was resolved against, else the range base."""
-    return review_range.attributes_source or review_range.base or ""
+    """The trusted attribute source: the target tip, else the empty tree; never the range base (it can hold a lane's union)."""
+    return review_range.attributes_source or _EMPTY_TREE_COMMAND
 
 
 def resolution_command(review_range: WpReviewRange) -> str:
@@ -283,7 +288,7 @@ def _attributes_note(review_range: WpReviewRange) -> str:
     if not review_range.attr_source_available:
         return _MERGE_ATTRIBUTES_UNPINNED
     source = review_range.attributes_source
-    named = f"the target branch tip {_label(source)}" if source else f"the range base {_label(review_range.base)} (the target branch could not be read)"
+    named = f"the target branch tip {_label(source)}" if source and review_range.attributes_from_target else _EMPTY_TREE_NOTE
     return _MERGE_ATTRIBUTES_NOTE.format(source=named)
 
 
