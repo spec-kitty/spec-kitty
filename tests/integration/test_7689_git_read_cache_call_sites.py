@@ -19,6 +19,7 @@ from unittest import mock
 import pytest
 
 from kernel.git.read_cache import git_read_cache_scope
+from kernel.git.remote import configured_remotes
 from mission_runtime.lifecycle_phase import _target_ref_exists
 from specify_cli.consolidation.rollback import _live_tip
 from specify_cli.coordination.policy import _local_branch_exists
@@ -26,7 +27,7 @@ from specify_cli.coordination.surface_resolver import read_worktree_registry
 from specify_cli.core.git_ops import _origin_head_branch, get_current_branch
 from specify_cli.git.protection_policy import _remote_default_branch
 from specify_cli.git.ref_advance import advance_branch_ref, worktrees_with_branch_checked_out
-from specify_cli.lanes.consolidation import _git_config_get, _set_local_git_config
+from specify_cli.lanes.consolidation import _git_common_dir, _git_config_get, _set_local_git_config
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -197,3 +198,27 @@ def test_a_failed_lookup_of_a_configured_origin_is_asked_again(repo: Path, spawn
         before = spawns.count
         assert _remote_default_branch(repo) is None
         assert spawns.count > before, "a failed lookup of a configured origin must be asked again, never reused"
+
+
+def test_configured_remotes_follows_remote_add_and_remove(repo: Path, spawns: _GitSpawns) -> None:
+    """#7848: consolidate lists the remotes four times; the list is a function of the config."""
+    with git_read_cache_scope():
+        assert _no_spawn_on_repeat(spawns, lambda: configured_remotes(repo)) == []
+        _git(repo, "remote", "add", "origin", str(repo))
+        assert configured_remotes(repo) == ["origin"]
+        _git(repo, "remote", "rename", "origin", "upstream")
+        assert configured_remotes(repo) == ["upstream"]
+        _git(repo, "remote", "remove", "upstream")
+        assert configured_remotes(repo) == []
+
+
+def test_git_common_dir_is_read_once_per_checkout(repo: Path, tmp_path: Path, spawns: _GitSpawns) -> None:
+    """#7848: the merge-driver activation asks for the common dir around every lane merge."""
+    linked = tmp_path / "linked"
+    _git(repo, "worktree", "add", "-q", str(linked), "side")
+    with git_read_cache_scope():
+        main_dir = _no_spawn_on_repeat(spawns, lambda: _git_common_dir(repo))
+        linked_dir = _no_spawn_on_repeat(spawns, lambda: _git_common_dir(linked))
+    assert main_dir is not None and linked_dir is not None
+    assert Path(str(main_dir)).resolve() == Path(str(linked_dir)).resolve() == (repo / ".git").resolve()
+    assert _git_common_dir(tmp_path / "nowhere") is None
