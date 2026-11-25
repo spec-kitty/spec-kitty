@@ -108,6 +108,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#5571": {
+      "evidence_ref": "Context only: #5571 is cited in WP13's ADR notes (presence axis #5571; #7854/#7855 hotfix asymmetry). It is handled outside this Mission, so no work is owed here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#5604": {
       "evidence_ref": "Mission approved-lane-resolution-route-01M7WW0Z (route: WP07/WP08, refusal: WP05, proof: WP12)",
       "fr": null,
