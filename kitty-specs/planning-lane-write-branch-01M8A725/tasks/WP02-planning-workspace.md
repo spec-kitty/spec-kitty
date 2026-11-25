@@ -38,8 +38,9 @@ owned_files:
 - src/specify_cli/cli/commands/agent/tasks_status_view.py
 - src/specify_cli/core/worktree_topology.py
 - src/runtime/next/prompt_builder.py
-- src/specify_cli/ownership/workspace_strategy.py
-- src/specify_cli/ownership/kind_normalisation.py
+- src/specify_cli/core/stale_detection.py
+- src/specify_cli/cli/commands/agent/tasks_dependency_graph.py
+- src/specify_cli/review/lane_test_invocation.py
 - tests/specify_cli/workspace/test_planning_workspace_7860.py
 role: implementer
 tags: []
@@ -129,7 +130,8 @@ Requirements: FR-001, FR-002, FR-006, FR-014 (docstrings), NFR-002.
   2. explicit `--topology lanes_with_coord` (no `topology_source: default`) → `"repo_root"`, repo root, the target (today's values; assert them byte for byte against the pre-change behaviour);
   3. default, landed → `"repo_root"`, the target;
   4. default `single_branch` repo-root lane → unchanged (`"repo_root"`, write branch per `resolve_single_branch_write_ref`);
-  5. default, not landed, coordination worktree removed → raises WP01's named error (or the `ActionContextError` you translate it to); never the repo root;
+  5. default, not landed, coordination worktree removed (`git worktree remove`) → raises WP01's named `PlanningCheckoutMissing` (or the `ActionContextError` you translate it to); never the repo root. Do not hand-place `meta.json` on the root.
+  7. resume: a WP claimed before this change (no new-kind workspace record; a claim-base ref recorded at the repo root) resolves, on a re-invoked `implement`, to the Mission-branch checkout and prints it;
   6. an owned checkout → unchanged (the owned arm wins).
 - Optionally run a real-CLI check of `agent action implement` output in WP05's suite instead; keep this file at unit level with real git.
 
@@ -145,6 +147,8 @@ Requirements: FR-001, FR-002, FR-006, FR-014 (docstrings), NFR-002.
 
 ### Subtask T007 – Audit and update the `resolution_kind == "repo_root"` readers
 
+- **First**: `ResolvedWorkspace.runs_in_checkout_root` (`workspace/context.py:~236-263`) checks `("repo_root", _OWNED_CHECKOUT_KIND)`. `status_execution_mode` and `exists` read it, and so do `agent/workflow.py:~1960` (`--base` handling) and `:~2473`, `core/stale_detection.py:~490`, `mission_runtime/checkout_identity.py:~164` and `review/lane_test_invocation.py:~91`. Include the new kind in this predicate. The new kind is a shared checkout root, never a lane worktree, so its `execution_mode` is **`direct_repo`**, matching the orchestrator's `_start_execution_mode` (`orchestrator_api/wp_lifecycle.py:~150`, keyed on `is_repo_root_lane`). Record the decision; WP05 cites it in `docs/context/topology.md:155`.
+- Also audit the readers that use `branch_name is None` to mean "planning": `agent/tasks_dependency_graph.py:~171` (it would print `cd <coord> && git rebase <mission branch>`), `core/stale_detection.py:~84` (`worktree_exists`), and the move-task auto-commit guard (`agent/tasks_move_task.py:~1523`, owned and fixed by **WP04**, T025). `mission_runtime/checkout_identity.py:36-49` is exempt by default; record it as checked.
 - For each reader listed above, decide one of:
   - (a) the reader means "not a lane worktree / planning surface", so the new kind must behave like `"repo_root"`. Prefer one predicate on `ResolvedWorkspace` (for example `is_shared_checkout` / `has_no_lane_worktree`) over string comparisons repeated at every site; it shrinks the readers and keeps one authority.
   - (b) the reader means "literally the repository root checkout", so the new kind must not match.
@@ -169,8 +173,7 @@ Requirements: FR-001, FR-002, FR-006, FR-014 (docstrings), NFR-002.
 ### Subtask T009 – Docstrings and "main repository" campsite fixes
 
 - `workspace/context.py:14`, `:796`, `:893` ("main repository root/checkout") → "repository root checkout", and describe the Mission-branch case.
-- `ownership/workspace_strategy.py:9` and the module docstring: planning WPs work in the planning surface (the repository root checkout, or the Mission branch's checkout before a default Mission lands).
-- `ownership/kind_normalisation.py:4` ("`lane-planning`, whose branch is the target branch") → "whose branch is the target branch, or the Mission branch before a default Mission lands (#7860)".
+- The `ownership/workspace_strategy.py` and `ownership/kind_normalisation.py` docstrings moved to WP05 (session size, post-tasks squad).
 - Charter: never "main repository" (Branch-Intent Terminology Governance).
 
 ## Test Strategy

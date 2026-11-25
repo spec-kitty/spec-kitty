@@ -26,12 +26,13 @@
 | T016 | Per-work-package planning window in `wp_evidence` | WP04 | |
 | T017 | Move-task leg, refusal and remedy texts | WP04 | |
 | T018 | In-flight target-only probe and refusal addendum | WP04 | |
-| T019 | Per-caller coverage (accept, consolidate claim, orchestrator API, attestation) | WP04 | |
+| T019 | Per-caller coverage (accept, consolidate claim, orchestrator API, attestation) | WP05 | |
 | T020 | Proposed amendment to ADR 2026-10-04-5 | WP04 | [P] |
 | T021 | Rework the #7860 red test into the acceptance suite | WP05 | |
 | T022 | Consolidate end-to-end in both shapes; fix planning-lane attribution if red | WP05 | |
 | T023 | One-authority pin and review-range ratchet | WP05 | [P] |
-| T024 | Glossary, CLAUDE.md/AGENTS.md clause, migrations note, changelog fragments | WP05 | [P] |
+| T024 | Glossary, AGENTS.md clause (CLAUDE.md is a symlink), migrations note, changelog fragments, moved docstrings | WP05 | [P] |
+| T025 | Move-task auto-commit guard for the shared coordination worktree | WP04 | |
 
 ## Work Packages
 
@@ -74,16 +75,16 @@ T014 Ratchet: a status commit in the shared coordination worktree carries only s
 ### WP04 — Planning evidence window: start, end, callers, in-flight guidance
 
 **Goal**: the evidence window of a default, not-yet-landed planning work package runs from its claim commit on the Mission branch to the Mission branch. Every caller agrees. Refusals name the Mission branch, and target-only work gets the named remedy (FR-003, FR-004, FR-006, FR-007, FR-010). **Priority**: P1. **Independent test**: unit tests on real git repositories, plus a move-task CLI test.
-**Prompt**: [tasks/WP04-planning-evidence-window.md](tasks/WP04-planning-evidence-window.md) · **Dependencies**: WP01
+**Prompt**: [tasks/WP04-planning-evidence-window.md](tasks/WP04-planning-evidence-window.md) · **Dependencies**: WP01, WP02 (the new resolution kind: T025)
 
 T015 Red tests for the planning evidence window (start, end, hollow, controls) (WP04)
 T016 Per-work-package planning window in `wp_evidence` (WP04)
 T017 Move-task leg, refusal and remedy texts (WP04)
 T018 In-flight target-only probe and refusal addendum (WP04)
-T019 Per-caller coverage (accept, consolidate claim, orchestrator API, attestation) (WP04)
+T025 Move-task auto-commit guard for the shared coordination worktree (WP04)
 T020 Proposed amendment to ADR 2026-10-04-5 (WP04)
 
-Parallel: runs alongside WP02/WP03 after WP01.
+Parallel: runs alongside WP03 after WP02. T019 moved to WP05 (session size, post-tasks squad).
 
 ### WP05 — Acceptance suite, consolidation, docs and release note
 
@@ -91,6 +92,7 @@ Parallel: runs alongside WP02/WP03 after WP01.
 **Prompt**: [tasks/WP05-acceptance-consolidation-docs.md](tasks/WP05-acceptance-consolidation-docs.md) · **Dependencies**: WP02, WP03, WP04
 
 T021 Rework the #7860 red test into the acceptance suite (WP05)
+T019 Per-caller coverage (accept, consolidate claim, orchestrator API, attestation) (WP05)
 T022 Consolidate end-to-end in both shapes; fix planning-lane attribution if red (WP05)
 T023 One-authority pin and review-range ratchet (WP05)
 T024 Glossary, CLAUDE.md/AGENTS.md clause, migrations note, changelog fragments (WP05)
@@ -101,7 +103,8 @@ T024 Glossary, CLAUDE.md/AGENTS.md clause, migrations note, changelog fragments 
 flowchart LR
     WP01 --> WP02 --> WP03 --> WP05
     WP01 --> WP04 --> WP05
+    WP02 --> WP04
     WP02 --> WP05
 ```
 
-MVP: WP01 + WP02 + WP04. Together they make the #7860 move into review pass without `--force`.
+MVP: WP01 + WP02 + WP04. Post-tasks squad (planner-priti, implementer-ivan) findings are folded into the prompts. Together they make the #7860 move into review pass without `--force`.

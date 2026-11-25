@@ -3,6 +3,7 @@ work_package_id: WP04
 title: 'Planning evidence window: start, end, callers, in-flight guidance'
 dependencies:
 - WP01
+- WP02
 requirement_refs:
 - FR-003
 - FR-004
@@ -13,6 +14,9 @@ requirement_refs:
 - C-001
 - SC-002
 - SC-004
+- FR-006
+- FR-008
+- C-006
 planning_base_branch: fix/7860-planning-evidence-window
 merge_target_branch: fix/7860-planning-evidence-window
 branch_strategy: Planning artifacts for this mission were generated on fix/7860-planning-evidence-window. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/7860-planning-evidence-window unless the human explicitly redirects the landing branch.
@@ -21,7 +25,7 @@ subtasks:
 - T016
 - T017
 - T018
-- T019
+- T025
 - T020
 phase: Phase 2 - Evidence
 history:
@@ -88,10 +92,14 @@ Requirements: FR-003, FR-004, FR-006, FR-007, FR-010, NFR-001, NFR-002, FR-008 (
 ## Context & Constraints
 
 - Plan IC-04. Data model: PlanningEvidenceWindow, TargetOnlyEvidence. Contract C2. Research R-02 (window start ruling).
-- **Window start (operator ruling)**: use `status/wp_window_selector.window_opener_events(events, wp_id, cycle=True)` to pick the opener, then `mission_runtime/claim_commit.py::commit_introducing_status_event(surface, wp_id, event_id, rev=<mission branch>)` for its commit.
-  - That is the derivation `review/wp_range.py` uses for this shape (`_derived_bases`, `EVENT_COMMIT`). Read those modules; do **not** edit them (C-001).
-  - The status surface for a coordination Mission is the coordination branch. Get it through the status read door (`status/read_surface.py::resolve_status_read`) and pass a `StatusRef` or path as `wp_range._Context.event_surface` does.
+- **Window start (operator ruling)**:
+  - **Events**: reuse `scan.events` in `_scan_lane`. Its contract is "called at most once", so wrap it in a small cache if you need it twice. Do not re-open the status read door.
+  - **Opener**: `window_opener_events(events, wp_id, cycle=True)`, imported from the `specify_cli.status` facade (`status/__init__.py:~461`, SR-2). Take `candidates[0]`, falling back to `skipped[0]` (the review range's rule, `wp_range.py:351-354`).
+  - **Commit**: `mission_runtime.claim_commit.commit_introducing_status_event(StatusRef(repo_root=..., ref=<mission branch>, events_relpath="kitty-specs/<slug>/status.events.jsonl"), wp_id, event_id, rev=<mission branch>)`. Build the `StatusRef` directly, as `wp_range.py:371-376` does; a branch name works as `rev` (`claim_commit.py:94-97`).
+  - This is the **event-commit leg** of the review range's derivation (not its claim-base leg). Read `review/wp_range.py`; do **not** edit it (C-001).
   - `ClaimCommitUnresolved` → refuse (fail closed).
+  - **Facts**: use `planning_write_ref(...).on_mission_branch`, never a branch-string comparison. Call the strict reader only for the planning lane; a legacy Mission without `meta.json` keeps today's window (FR-006, WP01's rule).
+- The move-task auto-commit guard (`tasks_move_task.py:~1515-1537`) returns early only for `branch_name is None` or kind `"repo_root"`. WP02's new kind has a branch, so the guard would sweep **every** dirty file of the shared coordination worktree, including a sibling WP's half-done edits, into a "deliverables" commit. That breaks FR-013 and manufactures evidence (post-tasks squad, verified). T025 fixes it; this is why WP04 depends on WP02.
 - **Window end**: `planning_write_ref(...)` from WP01. Do not re-derive it.
 - `lane_evidence_window(lanes_manifest, lane)` cannot see `meta.json`; its signature must change (add `repo_root`), or add a planning-specific function that `_scan_lane` and move-task both call. Keep exactly one place that decides the planning window (FR-005); WP05 pins it with a test.
 - Today's callers:
@@ -153,9 +161,18 @@ Requirements: FR-003, FR-004, FR-006, FR-007, FR-010, NFR-001, NFR-002, FR-008 (
   - an unrelated later commit on the target touching another path → its SHA is absent;
   - hollow → no addendum (negative control).
 
-### Subtask T019 – Per-caller coverage
+### Subtask T025 – Move-task auto-commit guard for the shared coordination worktree
 
-- In `tests/consolidation/test_planning_evidence_window_7860.py` (or a second new file you add to `owned_files` via a history note), drive each caller on the same fixture:
+- Extend the early return in `tasks_move_task.py:~1523-1537` to WP02's new kind, using the same predicate WP02 introduced (for example `runs_in_checkout_root`) rather than a second string comparison. The agent commits their own work; the gate and the evidence axis judge it. Print the existing "commit your WP work yourself" note, naming the Mission branch checkout.
+- Test, in `tests/specify_cli/cli/commands/agent/test_move_task_planning_evidence_7860.py`, on a real repo:
+  - a sibling planning WP has an untracked and a modified file in the coordination worktree;
+  - moving this WP into review does not commit them;
+  - they stay dirty and intact.
+
+### Subtask T019 – (moved to WP05) Per-caller coverage
+
+- Moved to WP05 for session size (post-tasks squad). Keep the window function's signature simple enough for WP05 to drive each caller. The original guidance follows for reference.
+- Drive each caller on the same fixture:
   - `mission_evidence_report` (accept and orchestrator accept-mission);
   - `evaluate_evidence` through `reconciliation_claim.build_approved_wp_set` (consolidate claim), or call `evaluate_evidence` as the claim does;
   - `no_implementation_attestation` planning (`--attest-no-implementation` on a hollow planning WP lifts it; on a real one it is refused or a no-op, as today);
@@ -166,7 +183,7 @@ Requirements: FR-003, FR-004, FR-006, FR-007, FR-010, NFR-001, NFR-002, FR-008 (
 
 - **File**: `docs/adr/4.x/2026-10-04-5-approval-stamp-bounds-the-approved-claim.md`. Append `## Amendment 2026-11-25 (Proposed): a default Mission's planning evidence window runs on its Mission branch (#7860)`, using the heading form of ADR 2026-11-06-3's 2026-11-22 amendment. The italic line reads: *Proposed. The operator accepts or amends it on the pull request.*
   - **Gap**: Amendment 2026-10-29 (around :204) fixed the planning window at `planning_commit_sha..<target branch>`.
-  - **Decision**: before a default Mission lands, a planning WP's window is `<commit introducing its window-opening event>..<Mission branch>`, one per WP (operator ruling 2026-11-25). Its start is durable and readable across clones, and the same derivation as the review range (ADR 2026-11-08-2, Q10/Q12). Everything else is unchanged.
+  - **Decision**: before a default Mission lands, a planning WP's window is `<commit introducing its window-opening event>..<Mission branch>`, one per WP (operator ruling 2026-11-25). Its start is durable and readable across clones, and is the event-commit leg of the review range's derivation (ADR 2026-11-08-2, Q10/Q12). Everything else is unchanged.
   - **In-flight**: guidance only. Target-only owned commits are named with the two remedies.
   - **Residuals**:
     - a PR-landed Mission without a local landing record keeps the `--merge-commit` route;

@@ -12,11 +12,17 @@ requirement_refs:
 - SC-001
 - SC-005
 - SC-006
+- FR-005
+- FR-014
+- C-001
+- FR-003
+- FR-007
 planning_base_branch: fix/7860-planning-evidence-window
 merge_target_branch: fix/7860-planning-evidence-window
 branch_strategy: Planning artifacts for this mission were generated on fix/7860-planning-evidence-window. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/7860-planning-evidence-window unless the human explicitly redirects the landing branch.
 subtasks:
 - T021
+- T019
 - T022
 - T023
 - T024
@@ -33,6 +39,7 @@ create_intent:
 - docs/migrations/planning-lane-write-branch.md
 - docs/changelog/unreleased/7860.fixed.md
 - docs/changelog/unreleased/7860.upgrade-notes.md
+- tests/consolidation/test_planning_evidence_callers_7860.py
 execution_mode: code_change
 owned_files:
 - tests/integration/test_7860_planning_evidence_window.py
@@ -45,8 +52,10 @@ owned_files:
 - docs/migrations/planning-lane-write-branch.md
 - docs/changelog/unreleased/7860.fixed.md
 - docs/changelog/unreleased/7860.upgrade-notes.md
-- CLAUDE.md
 - AGENTS.md
+- src/specify_cli/ownership/workspace_strategy.py
+- src/specify_cli/ownership/kind_normalisation.py
+- tests/consolidation/test_planning_evidence_callers_7860.py
 role: implementer
 tags: []
 task_type: implement
@@ -121,31 +130,41 @@ Requirements: FR-005, FR-009, FR-012, FR-014, C-001, C-005, SC-001..SC-006.
 - Narrow `_commit_bookkeeping` to tool-written files (status events, status.json, meta.json, lanes.json, analysis-report, decisions/).
 - Keep `pytest.mark.timeout` explicit (see `test_6715_consolidate_lane_evidence.py`).
 
+### Subtask T019 – Per-caller coverage (moved from WP04)
+
+- **File**: `tests/consolidation/test_planning_evidence_callers_7860.py`. On one fixture (a default, not-landed Mission; owned planning work on the Mission branch; and a hollow sibling), drive each caller of the evidence axis:
+  - `mission_evidence_report` (accept and orchestrator API accept-mission);
+  - `evaluate_evidence` as `reconciliation_claim.build_approved_wp_set` calls it (the consolidate claim);
+  - `no_implementation_attestation` planning: `--attest-no-implementation` lifts a hollow planning WP, and does not lift anything else;
+  - move-task (WP04's leg).
+- **Assert**: identical windows across callers (the same `start..end` text in every refusal), the real WP passes everywhere, and the hollow one is refused everywhere.
+
 ### Subtask T022 – Consolidate end-to-end in both shapes
 
 - **File**: `tests/integration/test_7860_consolidate_planning_lane.py`, modelled on `tests/integration/test_6715_consolidate_lane_evidence.py`:
   - drive every WP to approved with an independent reviewer (code WPs with real owned commits in their lane worktrees; the planning WP in the coordination worktree);
   - `accept`, then `consolidate`.
 - **Assert**: exit 0, the "Reconciliation verified" banner, every WP `done`, the planning file on the target (`git cat-file -e main:<path>`).
-- **Shape A**: the owned file is in `kitty-specs/<slug>/research/`.
+- **Shape A** is a **control**, not FR-012 evidence: the owned file is in `kitty-specs/<slug>/research/`, which the reconciliation gate counts as bookkeeping (`_is_bookkeeping`), so it passes with or without a fix.
 - **Shape B (pre-#7816)**: the owned file is `curation/apply_curation.py`, in `lane-planning` (hand-built, see Context).
-- If shape B FAILs the reconciliation gate (an unattributable blob):
+- Shape B is **expected red** (post-tasks squad: `reconciliation_authorship.py:766` walks `(coord_base_ref, _lane_branch_for(planning))`, and the planning lane's branch is the target). Write it red first, then fix:
   - fix the planning-lane branch in `reconciliation_authorship.py:~766` (`_lane_branch_for(lanes_manifest, lane.lane_id)` → the planning write ref before landing) and in `approved_attestation.py:~203`, using `planning_write_ref`;
   - add unit coverage under `tests/consolidation/` (add the file to your history note).
-- If it passes without a fix, record that in `add-history` with the reason (bookkeeping definition, or how the squash attribution saw it).
+- If it unexpectedly passes without a fix, record that in `add-history` with the reason (bookkeeping definition, or how the squash attribution saw it), and keep the test as a ratchet.
 
 ### Subtask T023 – One-authority pin and review-range ratchet
 
 - **File**: `tests/consolidation/test_planning_write_ref_single_authority_7860.py`.
   - **(a)** Monkeypatch `mission_runtime.resolution.planning_write_ref` (and `planning_lane_target`) to return a sentinel branch or checkout. Assert that the workspace resolution (WP02), the claim-base recording (WP03) and the planning evidence window (WP04) all report the sentinel. A surface that ignores the authority fails.
-  - **(b)** An AST check that no module other than `resolution.py` calls `default_mission_primary_ref` on these paths except the known placement and review-range readers (allowlist exactly those two, each with an issue reference: #5604 for wp_range). A static allowlist here is a priced debt (Standing Order #5); give it an exit (#5604) in the test docstring.
+  - **(b)** An AST check that no module outside `mission_runtime/resolution.py` calls `default_mission_primary_ref`, with exactly one allowlisted caller, `review/wp_range.py:~567` (exit: #5604, operator ruling). Placement lives inside `resolution.py` itself.
+  - For (a), consumers must look the reader up at call time (WP01's rule). If a consumer imports it at module level, patch it at that use site and note it. A static allowlist here is a priced debt (Standing Order #5); give it an exit (#5604) in the test docstring.
 - Review-range ratchet: on the T021 fixture after the owned commit, run `resolve_wp_review_range(...)` (read only). Assert it is available, not withheld as bookkeeping-only, and that its commit list contains the owned commit.
 
 ### Subtask T024 – Docs, glossary, CLAUDE.md/AGENTS.md, migrations note, changelog
 
 - `docs/context/orchestration.md:~178` ("`lane-planning` … resolves to the write checkout, normally the repository root checkout"): add the exception. Before a default Mission lands, it resolves to the checkout that holds the Mission branch (the coordination worktree once settled).
 - `docs/context/topology.md:~77` ("always resolves to the write checkout"): restrict "always" to `single_branch`, and describe the default-Mission planning lane. At `:~155` (planning WPs stamped `direct_repo` "because they resolve to the repo-root lane"): state the `execution_mode` WP02 chose for the new kind.
-- CLAUDE.md and AGENTS.md: one identical sentence each, in "Create-time topology" (or near "Owned-file evidence"): "Before a default Mission lands, its planning lane writes to the Mission branch: `implement` names the coordination worktree, and the planning evidence window runs from the WP's claim commit to the Mission branch (#7860, ADR 2026-11-06-3 and ADR 2026-10-04-5, Amendments 2026-11-25, Proposed)."
+- `CLAUDE.md` is a symlink to `AGENTS.md`: edit **AGENTS.md only**, adding one sentence in "Create-time topology" (or near "Owned-file evidence"): "Before a default Mission lands, its planning lane writes to the Mission branch: `implement` names the coordination worktree, and the planning evidence window runs from the WP's claim commit to the Mission branch (#7860, ADR 2026-11-06-3 and ADR 2026-10-04-5, Amendments 2026-11-25, Proposed)."
 - `docs/migrations/planning-lane-write-branch.md`:
   - who is affected: default Missions in flight whose planning work was committed on the target;
   - the symptom: `IMPLEMENTATION_MISSING` with the target-only addendum;
@@ -156,6 +175,9 @@ Requirements: FR-005, FR-009, FR-012, FR-014, C-001, C-005, SC-001..SC-006.
   - `7860.upgrade-notes.md`: the in-flight guidance.
   - Run `uv run --frozen python -m scripts.docs.check_changelog_style` and `uv run --frozen python -m scripts.docs.check_spelling --pass unreleased`.
 - If a docs index or inventory check covers `docs/context/` or `docs/migrations/`, run it (`ls scripts/docs`).
+- Docstrings moved from WP02:
+  - `ownership/workspace_strategy.py:9` and the module docstring: planning WPs work in the planning surface (the repository root checkout, or the Mission branch's checkout before a default Mission lands). Fix the "main repository" wording.
+  - `ownership/kind_normalisation.py:4` ("`lane-planning`, whose branch is the target branch") → "whose branch is the target branch, or the Mission branch before a default Mission lands (#7860)".
 
 ## Test Strategy
 
@@ -172,7 +194,7 @@ Plus ruff, format and mypy on changed Python; the docs checks above.
 
 - Integration tests are slow (about 2 minutes each). Use `-n` with `--dist loadfile` only via the make targets; locally run them serially.
 - The hand-built pre-#7816 shape could drift from reality: assert the `lanes.json` shape you built before driving the CLI.
-- The CLAUDE.md and AGENTS.md copies must be identical: diff the clause.
+- `CLAUDE.md` is a symlink to `AGENTS.md`; one edit covers both.
 
 ## Standing rules
 

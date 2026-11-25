@@ -71,7 +71,7 @@ Give the codebase **one** answer to two questions:
 Both answers must **refuse** rather than guess when they cannot be computed.
 
 Done when:
-- `planning_write_ref(repo_root, mission_slug, target_branch) -> str` exists in `src/mission_runtime/resolution.py` and:
+- `planning_write_ref(repo_root, mission_slug, target_branch) -> PlanningWriteRef` exists in `src/mission_runtime/resolution.py`. It returns a small frozen facts object, `PlanningWriteRef(branch: str, on_mission_branch: bool, landed: bool)`, so WP03/WP04 never compare branch strings to re-derive "default and not landed" (post-tasks squad). The facts object:
   - returns `meta.mission_branch` for a default Mission (`topology_source: default`) that has not landed;
   - returns today's write ref for every other Mission (`resolve_single_branch_write_ref` semantics: the minted `mission_branch` for a stored `single_branch` Mission, else the target);
   - **raises** on an unreadable or malformed PRIMARY `meta.json` (NFR-002).
@@ -90,7 +90,8 @@ Requirements: FR-005, NFR-002, C-004, FR-008 (ADR 2026-11-06-3 part).
 - Spec: `kitty-specs/planning-lane-write-branch-01M8A725/spec.md`. Plan: `plan.md` IC-01. Data model: `data-model.md` (PlanningWriteRef, PlanningWorkspace). Research: `research.md` R-02.
 - Charter: single canonical authority (C-004). Add **no** third resolver: compose `default_mission_primary_ref` (resolution.py:1087), `resolve_single_branch_write_ref` and `mission_runtime.landing.mission_has_landed`.
 - Layering: `mission_runtime` sits below `specify_cli`. `_default_mission_facts` already lazily imports `specify_cli.core.paths`; keep any new import lazy and inside the function, and add no new top-level outbound import (see `tests/architectural/test_layer_rules.py`, `mission_runtime` outbound ledger: shrink-only).
-- Do **not** add the new name to `src/mission_runtime/__init__.py` unless the module already re-exports its siblings there. Callers can import from `mission_runtime.resolution`. If you must touch `__init__.py`, follow the `__all__` convention (charter C-007).
+- Do **not** touch `src/mission_runtime/__init__.py` (it re-exports siblings, but CLAUDE.md ties any `__init__.py` change to a version bump). Callers import from `mission_runtime.resolution` directly.
+- Consumers (WP02–WP05) look the reader up at call time through the module attribute (`from mission_runtime import resolution as _resolution; _resolution.planning_write_ref(...)`) or with a function-local import, so WP05's monkeypatch pin can see every use. Say so in the docstring.
 - **C-001**: do not edit `src/specify_cli/review/wp_range.py`, `src/specify_cli/status/lane_head.py` or `src/specify_cli/status/wp_window_selector.py`. The review range keeps its own read (it passes `landed=False`); record that drift in the ADR amendment.
 - Concurrent Mission #5604 confirmed it does not touch `resolution.py` or `planning_commit.py`.
 
@@ -116,7 +117,12 @@ Requirements: FR-005, NFR-002, C-004, FR-008 (ADR 2026-11-06-3 part).
      - explicit topology (`topology_source` absent or `"explicit"`) → returns what `resolve_single_branch_write_ref` returns (the target for `lanes_with_coord`; the minted `mission_branch` for a stored `single_branch` with `mission_branch`);
      - default, not landed, `mission_branch` missing or empty → target (today's `default_mission_primary_ref` fallback);
      - malformed `meta.json` (invalid JSON) → raises (assert the exception type you introduce, or `MissionMetaReadError`);
-     - missing `meta.json` → decide and document. Recommended: raise, because a planning lane with no PRIMARY meta is not a state this reader may guess about. If an existing caller requires the old fallback, keep it only in the non-raising wrapper.
+     - missing `meta.json`. This is the real "coordination worktree removed" shape: after settlement the repository root checkout carries no Mission directory, so placement falls back to the root, where `meta.json` is absent (post-tasks squad). The rule (decided, no silent fallback, NFR-002):
+       - if the Mission branch named by `lanes.json` `mission_branch` exists and carries `kitty-specs/<slug>/meta.json` (`git cat-file -e <branch>:kitty-specs/<slug>/meta.json`), raise the named `PlanningCheckoutMissing` error naming the coordination worktree remedy;
+       - otherwise (a legacy Mission with no `meta.json` anywhere) return the target with `on_mission_branch=False`, which is today's behaviour for legacy and explicit Missions (FR-006).
+
+       Test both legs. Build the first by **removing the coordination worktree** (`git worktree remove`), never by hand-placing `meta.json` on the root.
+     - `mission_has_landed` is non-raising (`landing.py:27`): an unreadable landing record reads as "not landed". Document this, and test that the consequence fails closed downstream (the window ends at the Mission branch; if that branch is gone, WP04 refuses `IMPLEMENTATION_UNREADABLE`).
   3. Add a test that the non-raising placement path (`_default_mission_facts`) is unchanged for a malformed meta (still returns `(None, None, False)`). This is the regression guard.
 - **Validation**: the tests fail (import error or assertion) before T002.
 
@@ -125,7 +131,7 @@ Requirements: FR-005, NFR-002, C-004, FR-008 (ADR 2026-11-06-3 part).
 - **Purpose**: the single branch authority for the planning lane (FR-005).
 - **Steps**:
   1. Add a raising facts reader beside `_default_mission_facts` (resolution.py:1104). It returns `(topology_source, mission_branch, landed)` and lets `MissionMetaReadError` (or a new, named `PlanningWriteRefUnavailable`) propagate. Better still, make `_default_mission_facts` a thin non-raising wrapper over it, so there is one parser.
-  2. Add `planning_write_ref(repo_root: Path, mission_slug: str, target_branch: str, *, resolver: MissionResolver | None = None) -> str`:
+  2. Add `planning_write_ref(repo_root: Path, mission_slug: str, target_branch: str, *, resolver: MissionResolver | None = None) -> PlanningWriteRef`. It computes `branch` as follows and sets `on_mission_branch` when the default-Mission rule picked `mission_branch`:
      ```python
      topology_source, mission_branch, landed = _default_mission_facts_strict(get_main_repo_root(repo_root), mission_slug, resolver=resolver)
      fallback = resolve_single_branch_write_ref(repo_root, mission_slug, target_branch)  # today's rule
@@ -143,7 +149,7 @@ Requirements: FR-005, NFR-002, C-004, FR-008 (ADR 2026-11-06-3 part).
 - **Steps**:
   1. Add a frozen dataclass, for example `PlanningLaneTarget(branch: str, checkout: Path, on_mission_branch: bool)`, and `planning_lane_target(repo_root: Path, mission_slug: str, target_branch: str) -> PlanningLaneTarget`:
      - `branch = planning_write_ref(...)`.
-     - If `branch` is the Mission branch of a default, not-yet-landed Mission (compare with the target and with the stored-`single_branch` ref, or have `planning_write_ref`'s helpers tell you), then `checkout = primary_partition_checkout(repo_root, slug)`.
+     - If `planning_write_ref(...).on_mission_branch`, then `checkout = primary_partition_checkout(repo_root, slug)`.
      - When that returns `None` but the Mission is on its Mission branch:
        - the repository root checkout itself holds the Mission branch (a default `single_branch` Mission, or a Mission not yet settled): `checkout = main repo root`;
        - otherwise raise a named error (for example `PlanningCheckoutMissing`) whose message names the Mission branch and the remedy. Look at how the coordination worktree is re-materialized today (`grep -rn "def ensure_coordination_worktree\|materialize.*coord" src/specify_cli/coordination`) and name that command.
@@ -164,7 +170,7 @@ Requirements: FR-005, NFR-002, C-004, FR-008 (ADR 2026-11-06-3 part).
      `## Amendment 2026-11-25 (Proposed): a default Mission's planning lane writes to its Mission branch until it lands (#7860)`
      - Italic line: *Proposed. The operator accepts or amends it on the pull request.*
      - **Gap**: Amendment 2026-11-22 kept `lane-planning` on the target branch. A default `lanes_with_coord` Mission's PRIMARY partition is on its Mission branch (Decision 5, FR-061), so planning work, its status and its review range sat on different branches. #7860 shows planning work on the Mission branch being refused; #7759 shows the reverse shape.
-     - **Decision**: before the landing, a default Mission's planning lane writes to the Mission branch, in the checkout that holds it (the coordination worktree once settled). `implement`, the claim base and the implementation-evidence window (ADR 2026-10-04-5, Amendment 2026-11-25) all read one rule (`planning_write_ref`, `planning_lane_target`). After the landing, and for every explicit topology, the planning lane writes to the target, as before.
+     - **Decision**: before the landing, a default Mission's planning lane writes to the Mission branch, in the checkout that holds it (the coordination worktree once settled). The window start reuses the event-commit leg of the review range's derivation (not its claim-base leg). `implement`, the claim base and the implementation-evidence window (ADR 2026-10-04-5, Amendment 2026-11-25) all read one rule (`planning_write_ref`, `planning_lane_target`). After the landing, and for every explicit topology, the planning lane writes to the target, as before.
      - **#7759**: work committed on the target before the landing under the old guidance is no longer the work package's evidence. The refusal names those commits and the remedies (operator ruling "guidance only"); there is no migration.
      - **Recorded drift risk**: the review range (`review/wp_range.py`) reads the same rule with "not landed" assumed. Folding it onto `planning_write_ref` waits for #5604 (operator ruling).
   2. Update the `**Status:**` line at the top to list "Amendment 2026-11-25 proposed" (pattern: `docs/adr/4.x/2026-10-03-1-charter-read-write-service-strangler.md:12`).

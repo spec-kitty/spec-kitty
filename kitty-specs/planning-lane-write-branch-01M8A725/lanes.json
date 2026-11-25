@@ -19,6 +19,7 @@
       ],
       "predicted_surfaces": [
         "api",
+        "legacy-cleanup",
         "workspace"
       ],
       "depends_on_lanes": [],
@@ -31,14 +32,15 @@
       ],
       "write_scope": [
         "src/runtime/next/prompt_builder.py",
+        "src/specify_cli/cli/commands/agent/tasks_dependency_graph.py",
         "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py",
         "src/specify_cli/cli/commands/agent/tasks_status_view.py",
         "src/specify_cli/cli/commands/agent/workflow.py",
         "src/specify_cli/cli/commands/agent/workflow_executor.py",
         "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/core/stale_detection.py",
         "src/specify_cli/core/worktree_topology.py",
-        "src/specify_cli/ownership/kind_normalisation.py",
-        "src/specify_cli/ownership/workspace_strategy.py",
+        "src/specify_cli/review/lane_test_invocation.py",
         "src/specify_cli/workspace/context.py",
         "tests/specify_cli/workspace/test_planning_workspace_7860.py"
       ],
@@ -46,28 +48,6 @@
         "api",
         "artifact-rendering",
         "legacy-cleanup",
-        "workspace"
-      ],
-      "depends_on_lanes": [
-        "lane-a"
-      ],
-      "parallel_group": 1
-    },
-    {
-      "lane_id": "lane-d",
-      "wp_ids": [
-        "WP04"
-      ],
-      "write_scope": [
-        "docs/adr/4.x/2026-10-04-5-approval-stamp-bounds-the-approved-claim.md",
-        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
-        "src/specify_cli/consolidation/wp_evidence.py",
-        "tests/consolidation/test_planning_evidence_window_7860.py",
-        "tests/specify_cli/cli/commands/agent/test_move_task_planning_evidence_7860.py"
-      ],
-      "predicted_surfaces": [
-        "api",
-        "artifact-rendering",
         "workspace"
       ],
       "depends_on_lanes": [
@@ -92,9 +72,34 @@
         "api",
         "artifact-rendering",
         "legacy-cleanup",
+        "tracker-integration",
         "workspace"
       ],
       "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/2026-10-04-5-approval-stamp-bounds-the-approved-claim.md",
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "src/specify_cli/consolidation/wp_evidence.py",
+        "tests/consolidation/test_planning_evidence_window_7860.py",
+        "tests/specify_cli/cli/commands/agent/test_move_task_planning_evidence_7860.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
         "lane-b"
       ],
       "parallel_group": 2
@@ -106,7 +111,6 @@
       ],
       "write_scope": [
         "AGENTS.md",
-        "CLAUDE.md",
         "docs/changelog/unreleased/7860.fixed.md",
         "docs/changelog/unreleased/7860.upgrade-notes.md",
         "docs/context/orchestration.md",
@@ -114,6 +118,9 @@
         "docs/migrations/planning-lane-write-branch.md",
         "src/specify_cli/consolidation/approved_attestation.py",
         "src/specify_cli/consolidation/reconciliation_authorship.py",
+        "src/specify_cli/ownership/kind_normalisation.py",
+        "src/specify_cli/ownership/workspace_strategy.py",
+        "tests/consolidation/test_planning_evidence_callers_7860.py",
         "tests/consolidation/test_planning_write_ref_single_authority_7860.py",
         "tests/integration/test_7860_consolidate_planning_lane.py",
         "tests/integration/test_7860_planning_evidence_window.py"
@@ -132,7 +139,7 @@
       "parallel_group": 3
     }
   ],
-  "computed_at": "2026-11-25T21:21:17.799127+00:00",
+  "computed_at": "2026-11-25T21:27:16.147871+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [],
   "planning_commit_sha": "f1ecef5db98350be4516c576bcc1f7b422a25ebe"

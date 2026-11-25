@@ -96,6 +96,7 @@ Requirements: FR-011, FR-013 (and FR-001 on the orchestrator path).
   1. A default, not-landed planning WP claimed through the CLI path (`ensure_repo_root_lane_workspace` or the function at implement_support.py:~350) → `read_claim_base(...)` equals the coordination worktree's HEAD, not the root checkout's HEAD (make the two differ: put a commit on the target after the Mission was created).
   2. Gate, hollow: right after the claim, with no commit, the `for_review` gate refuses, even though the Mission branch holds spec, plan and tasks commits beyond the target.
   3. Gate, positive control: one owned commit in the coordination worktree → the gate passes.
+  5. Sibling commit: another planning WP commits in the shared coordination worktree after this WP's claim. The gate is coarse (it counts any non-status commit since the claim base) and passes. This is a **documented residual**: the evidence axis (WP04) is the real check. Assert that the evidence axis refuses this hollow WP with `IMPLEMENTATION_MISSING` (call WP04's function if it has merged; otherwise mark the assertion with a strict `xfail` and a note to WP05).
   4. Explicit topology: claim base = repo root HEAD (unchanged).
 - Look at `tests/lanes/` for existing gate fixtures (`grep -rl "read_claim_base\|evaluate_for_review" tests/lanes`).
 
@@ -109,7 +110,8 @@ Requirements: FR-011, FR-013 (and FR-001 on the orchestrator path).
 - **File**: `orchestrator_api/wp_lifecycle.py`.
   - Use the workspace from `resolve_workspace_for_wp` (or `planning_lane_target`) for `workspace_path` and `lane_branch`.
   - Keep `_ensure_repo_root_checkout_or_fail` for `single_branch`.
-  - Update `_repo_root_lane_branch`'s docstring (:150–164), which states "a repo-root (planning-artifact) WP runs on the target branch". Either delegate it to `planning_write_ref`, or retire it if nothing else uses it (`grep -rn _repo_root_lane_branch src tests`).
+  - Update `_repo_root_lane_branch`'s docstring (:150–164), which states "a repo-root (planning-artifact) WP runs on the target branch". Delegate it to `planning_write_ref(...).branch`.
+  - Its second caller, the read-only `_resolve_existing_workspace` (`wp_lifecycle.py:~430-435`, the resume path), still returns `workspace_path=main_repo_root`. Fix it too, and assert **both start and resume** in the test.
 - **Test**: `tests/orchestrator_api/test_planning_start_7860.py`. Follow the existing `tests/orchestrator_api` start-implementation tests. Assert the envelope's `workspace_path` and `lane_branch` for the default shape and for an explicit-topology control.
 
 ### Subtask T013 – Gate message
@@ -124,7 +126,8 @@ Requirements: FR-011, FR-013 (and FR-001 on the orchestrator path).
   - the new commit's changed paths are status paths only (`git show --name-only HEAD`);
   - the three edits are still present and uncommitted, and the staged one is still staged;
   - the transition succeeded.
-- If it is red, the fix belongs where the status commit is made. Report it and keep the change minimal.
+- If it is red, the fix belongs where the status commit is made: `src/specify_cli/coordination/transaction.py` (`BookkeepingTransaction`), or `src/specify_cli/git/commit_helpers.py` (`safe_commit`). Those are the named fallback owners; record the out-of-map edit with its rationale, and keep the change minimal.
+- Residuals to record in `add-history`, not to fix here: other CLI paths that rewrite the coordination worktree (the rollback resync `resync_checkouts_to_tip`, the coord-strand heal, the resume recovery `reset --hard`) now meet a human's uncommitted planning edits. They already refuse a non-residue edit (#5638). Check that claim, and file an issue if any path discards edits.
 
 ## Test Strategy
 
