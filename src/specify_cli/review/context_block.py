@@ -25,11 +25,13 @@ Shape (``?`` lines are optional; an optional line renders with the two-space ite
     REVIEW COMMANDS:
       git log --oneline <base>..<tip> -- <listing pathspecs>
       git diff <base>..<tip> -- <listing pathspecs>
-    ? RESOLUTION MERGE (operator-authored, review these bytes): git --attr-source=<base> show --remerge-diff <sha>
+    ? RESOLUTION MERGE (operator-authored, review these bytes): git <pins> --attr-source=<target tip> show --remerge-diff --no-ext-diff --no-textconv <sha>
     ? RESOLUTION MERGE <sha12>: this git cannot show the resolution (needs git >= 2.36); review the merge by hand
     ? RESOLUTION MERGES: could not be listed; run git rev-list --merges --full-history <base>..<tip> and review each with
-        git --attr-source=<base> show --remerge-diff <sha>   (one line in the output)
-    ? note: the resolution commands read .gitattributes from the range base (--attr-source needs git >= 2.40; …)
+        git <pins> --attr-source=<target tip> show --remerge-diff --no-ext-diff --no-textconv <sha>   (one line in the output)
+    ? RESOLUTION MERGES: could not be listed, and this git cannot show a resolution (needs git >= 2.36); …
+    ? note: the resolution commands read .gitattributes from the target branch tip <tip12> and pin git's merge config; …
+    ? note: this git cannot neutralise attributes (--attr-source needs git >= 2.40); …
     CITED REQUIREMENTS:
       <ref> — <text>
     ? … <k> more cited (see spec.md)
@@ -51,9 +53,17 @@ RESOLUTION MERGE lines (one per merge of the range, ``WpReviewRange.merges``; FR
 resolution and, like the REVIEW COMMANDS lines, are printed in full outside the budget. On a git
 without ``--remerge-diff`` (``WpReviewRange.remerge_available`` false) each prints a cannot-show
 line instead; when the merge listing itself failed, one line names the command that lists them
-(full SHAs), since the pathspec-scoped commands above can hide merges. Both pin the attribute
-source to the range base (``git --attr-source=<base>``, git >= 2.40, named in one closing note),
-so a merge driver committed in the range cannot hide the resolution. The review proceeds either way.
+(full SHAs), since the pathspec-scoped commands above can hide merges, or, on such a git, says it
+cannot show them. The commands are the FR-010 guard's own merge (Mission
+``approved-lane-resolution-route``, WP01): they pin the attribute source to the trusted pre-run
+target tip (``WpReviewRange.attributes_source``; the range base only when the target cannot be read),
+never the range base by choice, because a ``merge=union`` committed on the lane before the window
+opened is in the base; they pin git's merge config with the guard's own table
+(:data:`~specify_cli.consolidation.merge_attribute_guard.MERGE_PROBE_CONFIG_PINS`, as ``-c`` flags);
+and they carry ``--no-ext-diff --no-textconv``, since a ``diff=<driver>`` textconv or a ``-diff``
+attribute can change or hide the bytes shown. On a git without ``--attr-source`` (git < 2.40,
+``WpReviewRange.attr_source_available`` false) the flag is left out and one closing line says that
+this git cannot neutralise attributes. The review proceeds either way.
 """
 
 from __future__ import annotations
@@ -62,6 +72,7 @@ import shlex
 import unicodedata
 from collections.abc import Callable, Sequence
 
+from specify_cli.consolidation.merge_attribute_guard import MERGE_PROBE_CONFIG_PINS
 from specify_cli.requirement_mapping.text import TEXT_LIMIT, TRUNCATION_MARKER, CitedRequirement, Resolution
 from specify_cli.review.wp_range import FileChange, RangeSource, RangeStatus, WpReviewRange
 
@@ -81,10 +92,22 @@ _REQUIREMENT_SEPARATOR = " — "
 UNSCOPED_LINE = f"{_INDENT}scope: unscoped (no owned_files declared)"
 _MERGE_LABEL = "RESOLUTION MERGE (operator-authored, review these bytes):"
 _MERGE_ATTRIBUTES_NOTE = (
-    f"{_INDENT}note: the resolution commands read .gitattributes from the range base (--attr-source needs git >= 2.40;"
-    " on older git drop it, and a merge driver committed in the range, such as merge=union, can hide the resolution)"
+    f"{_INDENT}note: the resolution commands read .gitattributes from {{source}} and pin git's merge config,"
+    " so a merge driver or a merge setting committed in the range, such as merge=union, cannot hide the resolution"
+)
+#: git < 2.40 (WP01's ``check_attr_source_available``): the commands run without ``--attr-source``.
+_MERGE_ATTRIBUTES_UNPINNED = (
+    f"{_INDENT}note: this git cannot neutralise attributes (--attr-source needs git >= 2.40): the resolution commands read"
+    " .gitattributes from the checkout, so a merge driver committed in the range, such as merge=union, can hide the"
+    " resolution; review the merges with git >= 2.40"
 )
 _MERGE_CANNOT_SHOW = "RESOLUTION MERGE {label}: this git cannot show the resolution (needs git >= 2.36); review the merge by hand"
+_MERGES_UNLISTED_CANNOT_SHOW = (
+    "RESOLUTION MERGES: could not be listed, and this git cannot show a resolution (needs git >= 2.36); list them with"
+    " git rev-list --merges --full-history {range} and review each merge by hand"
+)
+#: The FR-010 guard's pinned merge config, rendered once as ``-c`` flags, so the printed command cannot drift from it.
+_PINNED_CONFIG = " ".join(f"-c {shlex.quote(f'{key}={value}')}" for key, value in MERGE_PROBE_CONFIG_PINS)
 UNAVAILABLE_COMMAND_LINE = f"{_INDENT}(no deterministic range; inspect `spec-kitty agent tasks status` and the WP's commits)"
 
 _COMMANDS_HEADING = "REVIEW COMMANDS:"
@@ -240,23 +263,47 @@ def _command_lines(review_range: WpReviewRange) -> list[str]:
     ]
 
 
+def _attributes_source(review_range: WpReviewRange) -> str:
+    """The trusted attribute source: the target tip the range was resolved against, else the range base."""
+    return review_range.attributes_source or review_range.base or ""
+
+
+def resolution_command(review_range: WpReviewRange) -> str:
+    """The command that shows one merge's resolution (``<sha>`` appended): the guard's pinned merge, as the reviewer runs it.
+
+    Pinned config as ``-c`` flags, the trusted attribute source (when this git can pin it), and no
+    external diff driver or textconv, so the bytes shown are the bytes the merge committed.
+    """
+    attributes = f" --attr-source={_attributes_source(review_range)}" if review_range.attr_source_available else ""
+    return f"git {_PINNED_CONFIG}{attributes} show --remerge-diff --no-ext-diff --no-textconv"
+
+
+def _attributes_note(review_range: WpReviewRange) -> str:
+    """The closing line: what the attribute pin does, or, on git < 2.40, that this git cannot neutralise attributes."""
+    if not review_range.attr_source_available:
+        return _MERGE_ATTRIBUTES_UNPINNED
+    source = review_range.attributes_source
+    named = f"the target branch tip {_label(source)}" if source else f"the range base {_label(review_range.base)} (the target branch could not be read)"
+    return _MERGE_ATTRIBUTES_NOTE.format(source=named)
+
+
 def _merge_lines(review_range: WpReviewRange) -> list[str]:
     """One command line per merge of the range (full SHA), or the cannot-show line when this git lacks ``--remerge-diff``.
 
-    The commands pin the attribute source to the range base (``--attr-source``), so a merge driver
-    committed inside the range (``merge=union``) cannot re-merge the resolution away in the
-    reviewer's checkout. No git-version probe for ``--attr-source`` (git >= 2.40) is reachable
-    from here, so the form is printed unconditionally and the closing note names the requirement.
+    When the merge listing failed, one line names the listing command and the resolution command
+    (or, on a git without ``--remerge-diff``, says no resolution can be shown).
     """
-    show = f"git --attr-source={review_range.base} show --remerge-diff"
+    show = resolution_command(review_range)
     if review_range.merges_unlisted:
+        if not review_range.remerge_available:
+            return [f"{_INDENT}{_MERGES_UNLISTED_CANNOT_SHOW.format(range=f'{review_range.base}..{review_range.tip}')}"]
         return [
             f"{_INDENT}RESOLUTION MERGES: could not be listed; run git rev-list --merges --full-history "
             f"{review_range.base}..{review_range.tip} and review each with {show} <sha>",
-            _MERGE_ATTRIBUTES_NOTE,
+            _attributes_note(review_range),
         ]
     if review_range.remerge_available and review_range.merges:
-        return [*(f"{_INDENT}{_MERGE_LABEL} {show} {sha}" for sha in review_range.merges), _MERGE_ATTRIBUTES_NOTE]
+        return [*(f"{_INDENT}{_MERGE_LABEL} {show} {sha}" for sha in review_range.merges), _attributes_note(review_range)]
     return [f"{_INDENT}{_MERGE_CANNOT_SHOW.format(label=_label(sha))}" for sha in review_range.merges]
 
 
