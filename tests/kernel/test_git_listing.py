@@ -317,6 +317,33 @@ def test_tree_entry_matches_exact_path_only(tmp_path: Path) -> None:
     assert _argv(run)[-1] == "dir"
 
 
+def test_tree_entry_accepts_a_windows_spelled_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7849: on Windows a caller's native ``\\`` spelling names the same tree entry as ``/``."""
+    monkeypatch.setattr("kernel.paths.is_windows", lambda: True)
+    raw = b"100644 blob 587be6b4c3f93f93c489c0111bba5596147a26cb\tkitty-specs/m/status.events.jsonl\x00"
+    with _stub(raw) as run:
+        entry = listing.tree_entry(tmp_path, "HEAD", "kitty-specs\\m\\status.events.jsonl")
+    assert entry is not None and entry.path == P("kitty-specs/m/status.events.jsonl")
+    assert _argv(run)[-1] == "kitty-specs/m/status.events.jsonl"
+
+
+def test_blob_at_accepts_a_windows_spelled_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("kernel.paths.is_windows", lambda: True)
+    listed = GitResult(stdout=b"100644 blob 587be6b4c3f93f93c489c0111bba5596147a26cb\tsrc/a\x00", stderr=b"", returncode=0)
+    blob = GitResult(stdout=b"payload", stderr=b"", returncode=0)
+    with patch.object(listing, "run_git", MagicMock(side_effect=[listed, blob])):
+        assert listing.blob_at(tmp_path, "HEAD", "src\\a") == b"payload"
+
+
+def test_tree_entry_keeps_a_posix_backslash_as_a_filename_character(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("kernel.paths.is_windows", lambda: False)
+    raw = b"100644 blob 587be6b4c3f93f93c489c0111bba5596147a26cb\todd\\name\x00"
+    with _stub(raw) as run:
+        entry = listing.tree_entry(tmp_path, "HEAD", "odd\\name")
+    assert entry is not None and entry.path == P("odd\\name")
+    assert _argv(run)[-1] == "odd\\name"
+
+
 def test_tree_entries_batches_literal_pathspecs(tmp_path: Path) -> None:
     raw = b"100644 blob 587be6b4c3f93f93c489c0111bba5596147a26cb\tsrc/a\x00100755 blob 0000000000000000000000000000000000000001\tsrc/b\x00"
     with _stub(raw) as run:
