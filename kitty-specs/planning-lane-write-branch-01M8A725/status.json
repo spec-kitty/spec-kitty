@@ -30,12 +30,19 @@
       "last_transition_at": "2026-11-25T21:29:00.702615+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "- 2026-11-25T21:38:38Z – claude::python-pedro – shell_pid=6546 – Out-of-map edits (ownership leeway): src/mission_runtime/__init__.py and tests/architectural/test_mission_runtime_surface.py. resolution.py is import-forbidden from outside mission_runtime (MR-1/MR-2), so the new names (PlanningWriteRef, PlanningWriteRefUnavailable, planning_write_ref) are exported on the package root and pinned in the public surface, following precedent 2c1caf39 (no version bump). The WP prompt's 'do not touch __init__.py' is superseded by that rule; the CLAUDE.md __init__ version-bump rule is read as targeting specify_cli/__init__.py (flagged to the dispatcher). The missing-meta Mission-branch probe lives in coordination/planning_commit.py, not mission_runtime, so the mission_runtime outbound ledger does not grow."
+        "- 2026-11-25T21:38:38Z – claude::python-pedro – shell_pid=6546 – Out-of-map edits (ownership leeway): src/mission_runtime/__init__.py and tests/architectural/test_mission_runtime_surface.py. resolution.py is import-forbidden from outside mission_runtime (MR-1/MR-2), so the new names (PlanningWriteRef, PlanningWriteRefUnavailable, planning_write_ref) are exported on the package root and pinned in the public surface, following precedent 2c1caf39 (no version bump). The WP prompt's 'do not touch __init__.py' is superseded by that rule; the CLAUDE.md __init__ version-bump rule is read as targeting specify_cli/__init__.py (flagged to the dispatcher). The missing-meta Mission-branch probe lives in coordination/planning_commit.py, not mission_runtime, so the mission_runtime outbound ledger does not grow.",
+        "- 2026-11-25T21:45:39Z – claude::python-pedro – shell_pid=6546 – Tests: red-first on pre-WP01 base e6dd59d5~1 -> ImportError PlanningWriteRefUnavailable (collection error). Green: tests/mission_runtime/test_planning_write_ref.py + tests/coordination/test_planning_lane_target.py 16 passed. Blast: pytest tests/mission_runtime tests/coordination tests/specify_cli/coordination tests/architectural/test_mission_runtime_surface.py tests/architectural/test_layer_rules.py -n 4 --dist loadfile -> 2637 passed, 11 skipped. ruff/format/C901/mypy clean on 6 files; check_spelling --pass all 0 findings."
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 6546,
-      "shell_pid_created_at": "1795642121.3"
+      "shell_pid_created_at": "1795642121.3",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
     },
     "WP02": {
       "actor": "finalize-tasks",
