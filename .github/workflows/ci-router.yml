@@ -188,6 +188,9 @@ jobs:
       # Asset-install surface group (#7775): non-src, like cli_cmd_* above; gates no job BY DESIGN
       # (fanned out to upgrade + cli via gate_selection.ASSET_SURFACE_MODULE_FANOUT). Never in the unmatched loop.
       upgrade_asset_surface: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.upgrade_asset_surface }}
+      # Skill-source group (#7788/#7790): non-src, gates no job BY DESIGN (fanned out to cli via
+      # gate_selection.ASSET_SURFACE_MODULE_FANOUT). Never in the unmatched loop.
+      skill_sources: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.skill_sources }}
       # Acceptance-scenarios group (cli-acceptance-bdd-nightly, FR-012/C-005): non-src, like
       # mission_state above; gates no job BY DESIGN (seed CLI scenarios run in the nightly
       # acceptance-bdd job). Never in the unmatched loop.
@@ -518,13 +521,13 @@ jobs:
               - '**/specify_cli/skills/**'
               - '**/specify_cli/tool_surface/**'
               - '**/specify_cli/runtime/**'
-            # Skill-source group (#7788/#7790): NON-src (**/-prefixed), out of the unmatched loop, gates no
+            # Skill-source group (#7788/#7790): NON-src (no src/ glob), out of the unmatched loop, gates no
             # router job BY DESIGN. A shipped-skill edit must re-run the historical-digest assertion in
             # tests/specify_cli/skills; gate_selection.ASSET_SURFACE_MODULE_FANOUT fans it out to cli, the
             # module that claims that directory. Pinned by tests/ci/test_skill_source_routing.py.
             skill_sources:
               - '**/charter/offering/skills/**'
-              - '**/scripts/skills/**'
+              - 'scripts/skills/**'
             agent:
               - 'src/specify_cli/agent_utils/**'
               - 'src/specify_cli/acceptance/**'

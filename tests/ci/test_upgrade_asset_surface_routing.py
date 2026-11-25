@@ -133,7 +133,7 @@ def test_skills_only_diff_selects_upgrade_without_run_all() -> None:
 def test_group_is_non_src_and_wired() -> None:
     """The router group exists, carries only ``**/``-prefixed globs and fans out to ``upgrade`` + ``cli``."""
     router = load_router()
-    assert {ASSET_GROUP: frozenset({"upgrade", "cli"})} == ASSET_SURFACE_MODULE_FANOUT
+    assert ASSET_SURFACE_MODULE_FANOUT[ASSET_GROUP] == frozenset({"upgrade", "cli"})
     globs = router.filters[ASSET_GROUP]
     assert globs, "the asset-surface group must not be empty"
     assert all(glob.startswith("**/") for glob in globs), globs
