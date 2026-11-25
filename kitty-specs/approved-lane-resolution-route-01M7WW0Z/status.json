@@ -1,20 +1,20 @@
 {
-  "event_count": 112,
-  "last_event_id": "01M895ZK5NYYMMACP8GFZ41HE0",
-  "materialized_at": "2026-11-25T11:03:16.606955+00:00",
+  "event_count": 113,
+  "last_event_id": "01M89607WXS7ZQGE75YZN5N7KF",
+  "materialized_at": "2026-11-25T11:03:39.165441+00:00",
   "mission_number": "",
   "mission_slug": "approved-lane-resolution-route-01M7WW0Z",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 6,
+    "approved": 7,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 1,
     "in_progress": 1,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 5
   },
   "work_packages": {
@@ -229,9 +229,9 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "in_review",
-      "last_event_id": "01M895YMEPQ92Q72E7HF9TH4W6",
-      "last_transition_at": "2026-11-25T11:02:46.486337+00:00",
+      "lane": "approved",
+      "last_event_id": "01M89607WXS7ZQGE75YZN5N7KF",
+      "last_transition_at": "2026-11-25T11:03:39.165441+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-25T09:46:48Z – claude – shell_pid=11398 – red: uv run --frozen pytest tests/consolidation/test_unreviewed_merge_hint.py -n0 -> 26 failed, 18 passed at lane base. Behaviour reds: test_hand_merge_blob/commit/deletion get the --dependency-ref hint (assert '--dependency-ref' not in hint fails); helper tests AttributeError (_has_unattributable/_dropped_merges_covering/_re_review_hint/_DEPENDENCY_REF_HINT absent); probe-source tests raise MergeAttributeRefused 'union' with excluded_window_base set (attributes_source not passed). Controls (foreign, partial, N4, declared ref, describe) pass at base, as intended.",
@@ -248,10 +248,10 @@
       "provider": "__resolved_provider_absent__",
       "review": null,
       "review_result": {
-        "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP06-gate-hint-re-review/review-cycle-1.md",
-        "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP06-gate-hint-re-review/review-cycle-1.md",
+        "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP06-gate-hint-re-review/review-cycle-2.md",
+        "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP06-gate-hint-re-review/review-cycle-2.md",
         "reviewer": "claude::reviewer-renata",
-        "verdict": "changes_requested"
+        "verdict": "approved"
       },
       "role": "reviewer",
       "shell_pid": null,
