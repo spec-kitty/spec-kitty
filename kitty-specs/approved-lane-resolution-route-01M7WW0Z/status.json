@@ -549,7 +549,7 @@
     },
     "WP12": {
       "actor": "claude",
-      "agent": null,
+      "agent": "claude::python-pedro",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -577,7 +577,8 @@
         "- 2026-11-25T21:53:00Z – unknown – cycle 2 item 1: wp_range falls back to git's empty tree (git hash-object -t tree /dev/null) when the target tip is unreadable, sets WpReviewRange.attributes_from_target=False; context_block never uses the range base: the note names 'the empty tree (the target branch could not be read, so no committed attribute applies)', and with no source at all the command uses --attr-source=$(git hash-object -t tree /dev/null). Test: unreadable target + union committed before the window base -> command uses the empty tree and lists src/pkg/a.py",
         "- 2026-11-25T21:53:05Z – unknown – cycle 2 item 2: WP05's tests/consolidation/test_resolution_merge_unreviewed.py has no forced-approval case (only unforced re-approval controls), so added test_n3_forced_re_approval_keeps_the_claim_refusal[forced_from_for_review|forced_from_in_review] in the route module: from the incorporation-merge state, a forced approval without an approved review result keeps approval_stamp unchanged and build_approved_wp_set refuses RESOLUTION_MERGE_UNREVIEWED naming the merge. A pinning test of landed behaviour (green at first run); its control is the unforced route test, which lands",
         "- 2026-11-25T21:53:09Z – unknown – cycle 2 item 3: partial-shape docstring says 'tool-merge simulation (same writer)'. The merge now has the auto-rebase shape, parents [before, mission tip] (asserted): lane-a's stamp is merged into the coordination branch first (the mid-run state), then the Mission tip is merged into lane-b with an own-content resolution and recorded with auto_rebase_record.record. Red: the first attempt merged a Mission tip without lane-a, so lane-b went stale and no gate hint printed",
-        "- 2026-11-25T21:53:14Z – unknown – cycle 2 tests (-n0): tests/review/ 868 passed 7 skipped (verdict_save_performance ignored: pytest_benchmark missing, stale venv); WP12 module 17 passed (459s); test_no_dead_symbols 37 passed; ruff/format/mypy clean on the 5 changed files; also fixed mypy attr-defined (wp_range.run_git) in the merge-line tests"
+        "- 2026-11-25T21:53:14Z – unknown – cycle 2 tests (-n0): tests/review/ 868 passed 7 skipped (verdict_save_performance ignored: pytest_benchmark missing, stale venv); WP12 module 17 passed (459s); test_no_dead_symbols 37 passed; ruff/format/mypy clean on the 5 changed files; also fixed mypy attr-defined (wp_range.run_git) in the merge-line tests",
+        "Cycle 1 fixed: empty-tree attribute fallback (never the range base) + test; claim-level forced re-approval test (stamp unchanged, RESOLUTION_MERGE_UNREVIEWED); partial shape as tool-merge simulation with parents [before, mission tip]. tests/review 868 passed, module 17 passed, no_dead_symbols 37 passed (-n0)."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
