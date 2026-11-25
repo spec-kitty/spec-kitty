@@ -349,9 +349,10 @@ def _merged_in_first_parent_lines(repo_root: Path, merged_in: Sequence[str], lan
     Exactly the per-parent union ``rev-list --first-parent <p> ^<landing>`` restricted to
     ``chain`` (#7848). The multi-tip walk alone is not that union: with skewed commit dates it
     can print a tip that is an ancestor of the landing ref through second parents, which every
-    single-tip call excludes. Only membership in ``chain`` is ever asked of the result, so
-    restricting it to ``chain`` makes the answer the per-parent one whatever ``chain`` holds;
-    the extra commits observed so far are landing ancestors, which the chain walk leaves out.
+    single-tip call excludes. The result is used only to test membership of chain commits, so
+    the restriction is verdict-neutral at that call site; it keeps this helper's contract exact.
+    The multi-tip walk and the per-parent calls can disagree only on landing ancestors, which
+    the chain walk leaves out.
     """
     if not merged_in:
         return frozenset()
