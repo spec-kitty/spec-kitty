@@ -97,7 +97,7 @@
       "wp": null
     },
     "#7856": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Out of scope by operator ruling (spec C-005); tracked in #7856",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -105,7 +105,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "deferred-with-followup",
       "wp": null
     },
     "#7860": {
