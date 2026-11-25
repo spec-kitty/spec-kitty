@@ -168,8 +168,9 @@ def _config_value(cwd: Path, key: str) -> str | None:
 def configured_remotes(cwd: Path, *, env: dict[str, str] | None = None) -> list[str]:
     """Names of the remotes configured in *cwd*'s repository (``git remote``); local config read, no network.
 
-    Inside a git read cache scope the list is read once per state of the repository config
-    (#7848); a failed read is asked again.
+    Inside a git read cache scope the list is read once per checkout and state of the
+    repository config (#7848): per checkout, because a conditional include (``includeIf``)
+    can give a linked checkout its own remotes. A failed read is asked again.
     """
 
     def read() -> tuple[str, ...] | None:
@@ -180,7 +181,7 @@ def configured_remotes(cwd: Path, *, env: dict[str, str] | None = None) -> list[
 
     # Config injected through the passed env shapes the answer, so it is part of the key.
     injected = tuple(sorted((name, value) for name, value in (env or {}).items() if name.startswith("GIT_CONFIG")))
-    names = cached_git_read(cwd, ("remotes", injected), read, depends=Depends(config=True), env=env, store_if=lambda value: value is not None)
+    names = cached_git_read(cwd, ("remotes", injected), read, depends=Depends(head=True, config=True), env=env, store_if=lambda value: value is not None)
     return list(names or ())
 
 
