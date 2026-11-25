@@ -6,7 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.agent_utils.codex_home import CODEX_HOME_STATE_ENTRIES, is_codex_home
+from specify_cli.agent_utils import codex_home
+from specify_cli.agent_utils.codex_home import is_codex_home
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -87,7 +88,24 @@ def test_reads_os_environ_by_default(tmp_path: Path, monkeypatch: pytest.MonkeyP
     assert is_codex_home(tmp_path)
 
 
-def test_the_committed_layout_never_names_config_toml() -> None:
-    """``config.toml`` is team config in a plain project folder; only the per-clone exclusion covers it."""
-    assert all("config.toml" not in entry for entry in CODEX_HOME_STATE_ENTRIES)
-    assert all(entry.startswith(".codex/") for entry in CODEX_HOME_STATE_ENTRIES)
+def test_unreadable_codex_folder_is_not_a_codex_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    (tmp_path / ".codex").mkdir()
+
+    def _unreadable(_self: Path) -> object:
+        raise OSError("permission denied")
+
+    monkeypatch.setattr(Path, "iterdir", _unreadable)
+
+    assert not is_codex_home(tmp_path, environ={})
+
+
+def test_unresolvable_codex_home_env_is_ignored(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    folder = tmp_path / ".codex"
+    folder.mkdir()
+
+    def _unresolvable(_self: Path, strict: bool = False) -> Path:
+        raise OSError("loop")
+
+    monkeypatch.setattr(Path, "resolve", _unresolvable)
+
+    assert not codex_home._codex_home_env_points_at(folder, {"CODEX_HOME": str(folder)})

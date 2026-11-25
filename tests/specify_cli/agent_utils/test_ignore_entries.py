@@ -262,9 +262,9 @@ class TestSyncAgentBlock:
         assert not _is_ignored(tmp_path, ".codex/config.toml")
         assert ".claude/commands/spec-kitty.*" in result.entries_added
 
-    @pytest.mark.parametrize(
-        "path",
-        [
+    def test_block_ignores_codex_home_state(self, tmp_path: Path) -> None:
+        """#7729: a project-local CODEX_HOME's personal state stays ignored by the committed block alone."""
+        paths = [
             ".codex/auth.json",
             ".codex/history.jsonl",
             ".codex/sessions/2026/s.jsonl",
@@ -281,24 +281,23 @@ class TestSyncAgentBlock:
             ".codex/shell_snapshots/snap.sh",
             ".codex/memories/m.md",
             ".codex/skills/.system/foo/SKILL.md",
-        ],
-    )
-    def test_block_ignores_codex_home_state(self, tmp_path: Path, path: str) -> None:
-        """#7729: a project-local CODEX_HOME's personal state stays ignored by the committed block alone."""
+        ]
         subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
 
         assert GitignoreManager(tmp_path).protect_all_agents(["codex"]).success
 
-        assert _is_ignored(tmp_path, path)
+        visible = [path for path in paths if not _is_ignored(tmp_path, path)]
+        assert not visible, f"personal Codex state shows in git status: {visible}"
 
-    @pytest.mark.parametrize("path", [".codex/config.toml", ".codex/rules/team.rules", ".codex/skills/team-skill/SKILL.md"])
-    def test_block_keeps_codex_team_files_visible(self, tmp_path: Path, path: str) -> None:
+    def test_block_keeps_codex_team_files_visible(self, tmp_path: Path) -> None:
         """#7729: the committed block is the same in every clone, so a plain project .codex/ keeps its team files."""
+        paths = [".codex/config.toml", ".codex/rules/team.rules", ".codex/skills/team-skill/SKILL.md"]
         subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
 
         assert GitignoreManager(tmp_path).protect_all_agents(["codex"]).success
 
-        assert not _is_ignored(tmp_path, path)
+        ignored = [path for path in paths if _is_ignored(tmp_path, path)]
+        assert not ignored, f"team Codex files are ignored by the committed block: {ignored}"
 
     def test_block_codex_rows_do_not_depend_on_local_files(self, tmp_path: Path) -> None:
         """#7729 / C-002: a clone with a Codex home writes the same block as one without."""
