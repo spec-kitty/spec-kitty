@@ -616,10 +616,24 @@
       "last_event_id": "01M8AC28JSXY8VSER97BCV8DGV",
       "last_transition_at": "2026-11-25T22:08:50.357157+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-25T22:57:04Z – claude – shell_pid=6894 – route gap: T056 step 4 (lane-c route, printed re-entry). After lane-b's route (re-approved at its resolution merge), consolidate refuses lane-c as stale and prints the route; the printed re-entry 'spec-kitty agent action implement WP03 --mission <m> --agent claude::implementer-ivan' exits 1: 'Error self-healing workspace for WP03: cannot auto-merge dependency lane lane-b (kitty/mission-route-01M7X3RT-lane-b) into lane lane-c: the merge conflicts. merge kitty/mission-route-01M7X3RT-lane-b into lane lane-c manually, resolve the conflicts, commit, then re-run the implement command'. So the printed route cannot be followed for a dependent lane: implement's dependency self-heal runs before --incorporate and prescribes a manual git merge of the dependency's live tip (the remedy itself never prints git merge). Owners: WP07 (remedy) / WP08 (implement --incorporate). Diagnostic (not committed): following implement's own advice (hand-merge lane-b, resolve, re-run implement) lets the rest of the route run as printed and the Mission lands (exit 0, banner, SC-001 counts WP02 +1, WP03 +1, WP01/WP04 +0; 81 s). T056 test is committed red and NOT marked xfail/skip.",
+        "- 2026-11-25T22:57:09Z – claude – shell_pid=6894 – superseded step (T056 step 4): prompt says lane-c's refusal names lane-b only. Landed: it names lane-a AND lane-b ('comes from lane lane-a (branch ...), lane lane-b (branch ...)'; two --incorporate lines, lane-a first). lane-a's line 3 is the content that conflicts with lane-c's line 4 (spec Edge Case 'Three lanes': lane-c depends on both conflicting lanes), so this matches FR-002 ('the sibling lane(s) whose approved content conflicts'); lane-d is never named (asserted). The test asserts the exact set [lane-a, lane-b]. Runner: confirm or reopen WP07.",
+        "- 2026-11-25T22:57:13Z – claude – shell_pid=6894 – trace(approach): T055 clean variant built locally on WP12's frozen builder: WP02 sent back through the CLI (move-task planned --review-feedback-file, implement, commit moving lane-b's change to line 6, move-task for_review, independent review+approve unforced). git merge-tree --write-tree lane-a lane-b exits 0 (asserted). lane_rebase_moves read at the gate by wrapping the one-shot failing verifier.",
+        "- 2026-11-25T22:57:18Z – claude – shell_pid=6894 – trace(design-decisions): T055 record assertion narrowed to the run's own merge: implement re-entry and the hand-back already merge the Mission branch into lane-b and write their own auto-rebase records (merges still on lane-b); the test asserts the record naming the run's merge is gone, every remaining record names a commit still on lane-b, and the run's merge is off lane-b. Full-restore re-baseline LEAVES a record (no snapshot; '--abort clears the record'), so T055 runs the next run fresh and as --resume; both exit 0 with the banner.",
+        "- 2026-11-25T22:57:22Z – claude – shell_pid=6894 – trace(tooling-friction): T057 re-entry 'agent action implement WP03' refuses (cannot auto-merge dependency lane lane-b) once lane-b carries a hand merge that conflicts with lane-c; the test follows that message (hand-merge lane-b, re-run implement) as the setup of the negative scenario.",
+        "- 2026-11-25T22:57:27Z – claude – shell_pid=6894 – red: mutation evidence (each src mutation reverted, never committed): M1 _rollback_lane returns UNCHANGED_BY_RUN -> T055[fresh],[resume], foreign FAIL 'the rollback restored lane-b from its own auto-rebase move'; M1b keep the auto-rebase record after restore -> FAIL 'the durable record of the run's own merge is gone'; M2 check_lane/check_lane_windows disabled -> foreign control FAIL assert 0 == 1; M3 other lanes' approval stamps counted as own -> T057 FAIL assert 0 == 1; M4 unreviewed_resolution_merges returns () -> N1-lanes FAIL (no RESOLUTION_MERGE_UNREVIEWED) and T057 FAIL. T058 positive cells: N1-lanes is the same-fixture discriminating control. T056: red today on the route gap.",
+        "- 2026-11-25T22:57:31Z – claude – shell_pid=6894 – trace(approach): runtimes (-n 3): T055 fresh 41 s, resume 42 s, foreign 40 s; T057 34 s; T058 squash 36 s, merge 36 s; N1 lanes 9 s; T056 (diagnostic, gap bypassed) 81 s."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 6894,
-      "shell_pid_created_at": "1795644504.74"
+      "shell_pid_created_at": "1795644504.74",
+      "subtasks": {
+        "T055": "done",
+        "T057": "done",
+        "T058": "done"
+      }
     }
   }
 }
