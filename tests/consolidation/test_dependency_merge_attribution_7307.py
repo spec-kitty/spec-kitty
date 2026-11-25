@@ -203,7 +203,11 @@ def test_lane_own_dependency_merge_is_attributed(tmp_path: Path, conflict: bool)
 
 
 def test_foreign_conflict_resolution_merge_still_fails(tmp_path: Path) -> None:
-    """Negative control: a merge no lane owns, resolving by keeping one side (empty ``--cc``), FAILs."""
+    """Negative control: a merge no lane owns, resolving by keeping one side (empty ``--cc``), FAILs.
+
+    Operator ruling 2026-11-25 (#7857): a resolution that keeps one side is still content under
+    the per-commit closed world; the foreign commit it brought in is named as well.
+    """
     repo, feature_dir, manifest, base, _dep = _build_mission(tmp_path, conflict=False)
     _git(repo, "checkout", "-q", "-b", "foreign", base)
     _write(repo, _SHARED, _SHARED_BASE.replace("one", "FOREIGN"))
@@ -214,7 +218,27 @@ def test_foreign_conflict_resolution_merge_still_fails(tmp_path: Path) -> None:
     _git(repo, "add", "-A")
     _git(repo, "commit", "-qm", "merge foreign keeping ours")
     foreign_merge = _git(repo, "rev-parse", "HEAD")
+    foreign_edit = _git(repo, "rev-parse", f"{foreign_merge}^2")
     assert not _git(repo, "show", "--format=", foreign_merge), "fixture: the keep-ours resolution has an empty --cc diff"
+    status, unattributable = _verdict(repo, feature_dir, manifest, base)
+    flagged = {sha for sha, _pid in unattributable}
+    assert foreign_edit in flagged
+    assert foreign_merge in flagged, "a keep-ours resolution is content (#7307; operator ruling 2026-11-25)"
+    assert status is not VerifyStatus.PASS
+
+
+def test_foreign_merge_resolution_with_new_bytes_still_fails(tmp_path: Path) -> None:
+    """Negative control: a merge whose resolution writes a state neither parent holds is content."""
+    repo, feature_dir, manifest, base, _dep = _build_mission(tmp_path, conflict=False)
+    _git(repo, "checkout", "-q", "-b", "foreign", base)
+    _write(repo, _SHARED, _SHARED_BASE.replace("one", "FOREIGN"))
+    _commit(repo, "foreign edit")
+    _git(repo, "checkout", "-q", "target-merge")
+    subprocess.run(["git", "merge", "--no-edit", "foreign"], cwd=repo, check=False, capture_output=True)
+    _write(repo, _SHARED, _SHARED_BASE.replace("one", "NEITHER SIDE"))
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "merge foreign with a hand-written resolution")
+    foreign_merge = _git(repo, "rev-parse", "HEAD")
     status, unattributable = _verdict(repo, feature_dir, manifest, base)
     assert foreign_merge in {sha for sha, _pid in unattributable}
     assert status is not VerifyStatus.PASS
@@ -336,8 +360,7 @@ def _claim(repo: Path, feature_dir: Path, manifest: LanesManifest, base: str, *,
 def test_post_approval_dependency_merge_with_own_content_fails_under_merge(tmp_path: Path) -> None:
     repo, feature_dir, manifest, base, evil = _build_post_approval_merge(tmp_path, canceled_dependency=False)
     claim = _claim(repo, feature_dir, manifest, base)
-    if claim.refusal is not None:
-        return  # refused at claim time: fail-closed, acceptable
+    assert claim.refusal is None, claim.refusal  # the claim must build, so the gate verdict below is not vacuous
     verifier = MergeOutcomeVerifier(repo)
     assert evil in {sha for sha, _pid in verifier._unattributable_content("target-merge", claim)}
     assert verifier.verify("target-merge", claim).status is not VerifyStatus.PASS
@@ -402,3 +425,178 @@ def test_post_approval_octopus_merge_with_own_content_is_refused(tmp_path: Path)
     claim = _claim(repo, feature_dir, manifest, base)
     verifier = MergeOutcomeVerifier(repo)
     assert verifier.verify("target-merge", claim).status is VerifyStatus.REFUSE
+
+
+# --- #7854 reviewer condition: a one-side merge that drops approved content still FAILs ---------
+
+
+def test_one_side_merge_dropping_an_approved_edit_fails_approved_content_missing(tmp_path: Path) -> None:
+    """lane-a's approved edit to ``u/shared.txt`` is dropped by a take-ours merge into the landing.
+
+    The merge records the merge base's state (a revert of lane-a's change), so the closed world
+    names it as content (#7857 Tier R); the presence axis (#5571) independently FAILs the landing
+    with ``APPROVED_CONTENT_MISSING`` for the dropped path.
+    """
+    repo, feature_dir, manifest, base = _init_repo(tmp_path)
+    manifest.lanes = [_lane("lane-a", "WP01")]
+    for wp_id in ("WP02", "WP03"):
+        (feature_dir / "tasks" / f"{wp_id}-work.md").unlink()
+    write_lanes_json(feature_dir, manifest)
+    base = _commit(repo, "one lane")
+    _git(repo, "checkout", "-q", "-b", _branch("lane-a"), base)
+    _write(repo, _SHARED, _SHARED_BASE.replace("one", "ONE-approved"))
+    a_tip = _commit(repo, "WP01: approved edit of line one")
+    events: list[dict[str, object]] = []
+    _approve_chain(events, "WP01", claim_stamp=base, approve_stamp=a_tip)
+    (feature_dir / "status.events.jsonl").write_text("".join(json.dumps(e, sort_keys=True) + "\n" for e in events), encoding="utf-8")
+
+    # The landing side leaves the path alone; the merge keeps its first parent's version anyway,
+    # so it silently reverts lane-a's approved edit without writing a byte of its own.
+    _git(repo, "checkout", "-q", "-b", "target-merge", base)
+    _git(repo, "merge", "--no-ff", "--no-commit", _branch("lane-a"))
+    _git(repo, "checkout", "HEAD", "--", _SHARED)
+    _git(repo, "commit", "-qm", "merge lane-a keeping ours (drops the approved edit)")
+    drop_merge = _git(repo, "rev-parse", "HEAD")
+
+    claim = _claim(repo, feature_dir, manifest, base)
+    assert claim.refusal is None, claim.refusal
+    verifier = MergeOutcomeVerifier(repo)
+    assert drop_merge in {sha for sha, _pid in verifier._unattributable_content("target-merge", claim)}, "a revert to the base state is content"
+    result = verifier.verify("target-merge", claim)
+    assert result.status is VerifyStatus.FAIL, result.recovery_guidance()
+    assert result.divergence is not None
+    assert [entry.path for entry in result.divergence.approved_content_missing] == [_SHARED]
+    assert [sha for sha, _pid in result.divergence.unattributable_content] == [drop_merge]
+
+
+# --- #7857 Tier R blocker: a one-side merge that takes a stale (merge-base) state is a revert ---
+
+
+_AUTH = "lib/auth.py"
+
+
+def test_one_side_merge_reverting_target_content_to_a_stale_state_fails(tmp_path: Path) -> None:
+    """Tier R repro (#7857): after approval, lane-a merges a side cut BEFORE a target security fix and
+    takes that side's ``lib/auth.py``. The recorded state equals the second parent's, but that state
+    is the merge base's: the merge reverts the fix. Under ``--strategy merge`` it must not PASS.
+    """
+    repo, feature_dir, manifest, _base = _init_repo(tmp_path)
+    manifest.lanes = [_lane("lane-a", "WP01")]
+    for wp_id in ("WP02", "WP03"):
+        (feature_dir / "tasks" / f"{wp_id}-work.md").unlink()
+    write_lanes_json(feature_dir, manifest)
+    _write(repo, _AUTH, "CHECK = False\n")
+    old = _commit(repo, "auth: check off")
+    _write(repo, _AUTH, "CHECK = True\n")
+    base = _commit(repo, "auth: security fix")
+
+    _git(repo, "checkout", "-q", "-b", _branch("lane-a"), base)
+    _write(repo, _SHARED, _SHARED_BASE.replace("one", "ONE-approved"))
+    a_tip = _commit(repo, "WP01: approved edit")
+    events: list[dict[str, object]] = []
+    _approve_chain(events, "WP01", claim_stamp=base, approve_stamp=a_tip)
+    (feature_dir / "status.events.jsonl").write_text("".join(json.dumps(e, sort_keys=True) + "\n" for e in events), encoding="utf-8")
+
+    _git(repo, "checkout", "-q", "-b", "side", old)
+    _write(repo, f"kitty-specs/{_SLUG}/notes.md", "bookkeeping only\n")
+    _commit(repo, "bookkeeping-only side commit")
+    _git(repo, "checkout", "-q", _branch("lane-a"))
+    _git(repo, "merge", "--no-ff", "--no-commit", "side")
+    _git(repo, "checkout", "side", "--", _AUTH)
+    _git(repo, "commit", "-qm", "merge side, taking its auth.py")
+    revert_merge = _git(repo, "rev-parse", "HEAD")
+
+    _git(repo, "checkout", "-q", "-b", "target-merge", base)
+    _git(repo, "merge", "--no-ff", "--no-edit", _branch("lane-a"))
+    assert (repo / _AUTH).read_text(encoding="utf-8") == "CHECK = False\n", "fixture: the landing carries the revert"
+
+    claim = _claim(repo, feature_dir, manifest, base)
+    assert claim.refusal is None, claim.refusal  # the claim must build, so the gate verdict below is not vacuous
+    verifier = MergeOutcomeVerifier(repo)
+    assert revert_merge in {sha for sha, _pid in verifier._unattributable_content("target-merge", claim)}
+    assert verifier.verify("target-merge", claim).status is not VerifyStatus.PASS
+
+
+def test_merge_keeping_the_lanes_stale_state_against_a_target_fix_fails(tmp_path: Path) -> None:
+    """Tier R delta repro Q (#7857): the lane is cut before a target security fix; after approval it
+    merges the target and keeps its own pre-fix ``lib/auth.py`` (the FIRST parent's state, which is
+    the merge base's). The landing reverts the fix; under ``--strategy merge`` it must not PASS.
+    """
+    repo, feature_dir, manifest, _base = _init_repo(tmp_path)
+    manifest.lanes = [_lane("lane-a", "WP01")]
+    for wp_id in ("WP02", "WP03"):
+        (feature_dir / "tasks" / f"{wp_id}-work.md").unlink()
+    write_lanes_json(feature_dir, manifest)
+    _write(repo, _AUTH, "CHECK = False\n")
+    base = _commit(repo, "auth: check off")
+
+    _git(repo, "checkout", "-q", "-b", _branch("lane-a"), base)
+    _write(repo, _SHARED, _SHARED_BASE.replace("one", "ONE-approved"))
+    a_tip = _commit(repo, "WP01: approved edit")
+    events: list[dict[str, object]] = []
+    _approve_chain(events, "WP01", claim_stamp=base, approve_stamp=a_tip)
+    (feature_dir / "status.events.jsonl").write_text("".join(json.dumps(e, sort_keys=True) + "\n" for e in events), encoding="utf-8")
+
+    _git(repo, "checkout", "-q", _TARGET)
+    _write(repo, _AUTH, "CHECK = True\n")
+    fixed = _commit(repo, "auth: security fix on the target")
+
+    _git(repo, "checkout", "-q", _branch("lane-a"))
+    _git(repo, "merge", "--no-ff", "--no-commit", _TARGET)
+    _git(repo, "checkout", "HEAD", "--", _AUTH)
+    _git(repo, "commit", "-qm", "merge the target, keeping the lane's auth.py")
+    revert_merge = _git(repo, "rev-parse", "HEAD")
+
+    _git(repo, "checkout", "-q", "-b", "target-merge", fixed)
+    _git(repo, "merge", "--no-ff", "--no-edit", _branch("lane-a"))
+    assert (repo / _AUTH).read_text(encoding="utf-8") == "CHECK = False\n", "fixture: the landing carries the revert"
+
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=base, excluded_window_base=fixed)
+    assert claim.refusal is None, claim.refusal  # the claim must build, so the gate verdict below is not vacuous
+    verifier = MergeOutcomeVerifier(repo)
+    assert revert_merge in {sha for sha, _pid in verifier._unattributable_content("target-merge", claim)}
+    assert verifier.verify("target-merge", claim).status is not VerifyStatus.PASS
+
+
+def test_merge_keeping_the_lanes_change_over_a_target_fix_fails(tmp_path: Path) -> None:
+    """Operator ruling 2026-11-25 (#7857): both sides changed ``lib/auth.py``. The lane's approved edit
+    and a later target security fix differ; after approval the lane merges the target and keeps its
+    own (non-base) version. The landing drops the target's fix: under ``--strategy merge`` that merge
+    is content and the landing must not PASS.
+    """
+    repo, feature_dir, manifest, _base = _init_repo(tmp_path)
+    manifest.lanes = [_lane("lane-a", "WP01")]
+    for wp_id in ("WP02", "WP03"):
+        (feature_dir / "tasks" / f"{wp_id}-work.md").unlink()
+    write_lanes_json(feature_dir, manifest)
+    _write(repo, _AUTH, "CHECK = False\n")
+    base = _commit(repo, "auth: check off")
+
+    _git(repo, "checkout", "-q", "-b", _branch("lane-a"), base)
+    _write(repo, _AUTH, "CHECK = False  # lane: documented\n")
+    _write(repo, _SHARED, _SHARED_BASE.replace("one", "ONE-approved"))
+    a_tip = _commit(repo, "WP01: approved edit of auth.py and its owned file")
+    events: list[dict[str, object]] = []
+    _approve_chain(events, "WP01", claim_stamp=base, approve_stamp=a_tip)
+    (feature_dir / "status.events.jsonl").write_text("".join(json.dumps(e, sort_keys=True) + "\n" for e in events), encoding="utf-8")
+
+    _git(repo, "checkout", "-q", _TARGET)
+    _write(repo, _AUTH, "CHECK = True\n")
+    fixed = _commit(repo, "auth: security fix on the target")
+
+    _git(repo, "checkout", "-q", _branch("lane-a"))
+    subprocess.run(["git", "merge", "--no-edit", _TARGET], cwd=repo, check=False, capture_output=True)
+    _git(repo, "checkout", "--ours", "--", _AUTH)
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "merge the target, keeping the lane's auth.py")
+    drop_merge = _git(repo, "rev-parse", "HEAD")
+
+    _git(repo, "checkout", "-q", "-b", "target-merge", fixed)
+    _git(repo, "merge", "--no-ff", "--no-edit", _branch("lane-a"))
+    assert (repo / _AUTH).read_text(encoding="utf-8") == "CHECK = False  # lane: documented\n", "fixture: the landing drops the fix"
+
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=base, excluded_window_base=fixed)
+    assert claim.refusal is None, claim.refusal  # the claim must build, so the gate verdict below is not vacuous
+    verifier = MergeOutcomeVerifier(repo)
+    assert drop_merge in {sha for sha, _pid in verifier._unattributable_content("target-merge", claim)}
+    assert verifier.verify("target-merge", claim).status is not VerifyStatus.PASS

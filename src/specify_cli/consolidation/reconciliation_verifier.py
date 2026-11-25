@@ -621,7 +621,22 @@ class MergeOutcomeVerifier:
         """
         return self._unattributable_in((target_ref,), claim)
 
-    def _unattributable_in(self, refs: Sequence[str], claim: ApprovedWpCommitSet) -> list[tuple[str, str]]:
+    def _judged_by_squashed_tree(self, mission_branch: str, claim: ApprovedWpCommitSet) -> frozenset[str]:
+        """The window commits the Mission branch reaches: the squashed tree already judged their content (#7854, #7855).
+
+        The squash forecast judges the Mission branch by blob over the tree its squash stages,
+        as the real squash gate judges the landing, and never commit by commit. A lane that
+        merged the Mission branch reaches those same commits; judging them again commit by
+        commit refused landings the real run makes (a merge of the target into the Mission
+        branch, #7854; Mission branch commits whose content a later commit superseded, #7855).
+        Commits only a lane reaches are not in this set and stay scanned. Empty when the claim
+        does not run the closed world (the scan is a no-op then).
+        """
+        if not claim.enforce_closed_world or claim.excluded_window_base is None:
+            return frozenset()
+        return frozenset(commits_in_range(self._repo, claim.excluded_window_base, mission_branch))
+
+    def _unattributable_in(self, refs: Sequence[str], claim: ApprovedWpCommitSet, *, judged: frozenset[str] = frozenset()) -> list[tuple[str, str]]:
         """The closed-world window scan, over every commit *refs* reach (ONE authority).
 
         :meth:`_unattributable_content` scans the landed target under merge / rebase; the
@@ -630,13 +645,15 @@ class MergeOutcomeVerifier:
         predictable before any ref moves. Both run this same per-commit filter. A squash
         run never runs it (:meth:`_verify_squash_content` attributes blobs instead), so
         the forecast routes a squash through :meth:`forecast_content_verdict` (#7244).
+        *judged* names commits whose content a squash verdict already judged
+        (:meth:`_judged_by_squashed_tree`); they are skipped.
         """
         if not claim.enforce_closed_world or claim.excluded_window_base is None:
             return []
         unattributable: dict[str, str] = {}
         for ref in refs:
             for sha in commits_in_range(self._repo, claim.excluded_window_base, ref):
-                if sha in unattributable:
+                if sha in unattributable or sha in judged:
                     continue
                 pid = self._unattributable_patch_id(sha, claim)
                 if pid is not None:
@@ -691,12 +708,14 @@ class MergeOutcomeVerifier:
         A git probe error during the per-commit scan propagates as :class:`GitProbeError`
         (the forecast renders it); the squash check REFUSEs on one itself.
         """
+        judged: frozenset[str] = frozenset()
         if squashed_tree is not None:
             verdict = _with_attribution_hint(self._verify_squash_content(squashed_tree, claim), claim)
             if verdict.status is not VerifyStatus.PASS:
                 return verdict
+            judged = self._judged_by_squashed_tree(landing_refs[0], claim)
             landing_refs = landing_refs[1:]
-        unattributable = self._unattributable_in(landing_refs, claim)
+        unattributable = self._unattributable_in(landing_refs, claim, judged=judged)
         if not unattributable:
             return VerifyResult.passed()
         return _with_attribution_hint(VerifyResult.failed(Divergence(unattributable_content=tuple(unattributable))), claim)
