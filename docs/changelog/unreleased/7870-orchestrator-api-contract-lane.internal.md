@@ -1,0 +1,1 @@
+- **A change to `src/specify_cli/orchestrator_api/**`, the vendored contract or the orchestrator-api error-code docs runs `tests/contract/test_orchestrator_api.py` in a new path-routed `tests (orchestrator-api contract)` job on its pull request** (#7870).

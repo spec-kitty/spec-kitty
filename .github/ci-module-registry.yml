@@ -1201,6 +1201,9 @@ out_of_matrix_test_dirs:
     corpus path group.
     The resolved-version envelope pin (tests/contract/test_events_envelope_matches_resolved_version.py)
     runs in 'tests (events consumers)' on a uv.lock change (#6605).
+    The orchestrator-api contract-shape module (tests/contract/test_orchestrator_api.py, not corpus-marked)
+    runs in 'tests (orchestrator-api contract)', gated on the orchestrator_api_contract group (#7870,
+    operator ruling 2026-11-25); the other non-corpus modules have no per-PR home yet (#7874).
     Not a disguised snapshot (#2979 class).
   dirs:
   - tests/contract
