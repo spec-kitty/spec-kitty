@@ -612,8 +612,11 @@ class MergeOutcomeVerifier:
     def _refusal_reason(claim: ApprovedWpCommitSet) -> str | None:
         # Fail-closed claim integrity — applies to BOTH strategies, ahead of the
         # (strategy-dependent) content reachability checks.
-        if claim.refusal is not None:
-            return claim.refusal
+        # ``ApprovedWpCommitSet.refusal`` is ``str | None``; the typed local keeps that type when
+        # mypy skips the claim-types module in a narrow run (#7334 pattern, no ``Any`` leak).
+        refusal: str | None = claim.refusal
+        if refusal is not None:
+            return refusal
         if not claim.surface_resolved:
             return "coordination surface is unresolved or unmaterialized"
         return None
@@ -983,7 +986,10 @@ class MergeOutcomeVerifier:
         though the claim does not exist yet at that call site). See that
         function's docstring for the full anchoring rules.
         """
-        return _is_bookkeeping(path, claim.mission_slug, claim.planning_prefix)
+        # ``reconciliation_kernel._is_bookkeeping`` returns ``bool``; the typed local keeps it when
+        # mypy skips that module in a narrow run (#7334 pattern, no ``Any`` leak).
+        bookkeeping: bool = _is_bookkeeping(path, claim.mission_slug, claim.planning_prefix)
+        return bookkeeping
 
 
 def _inherited_deletion(path: str, claim: ApprovedWpCommitSet) -> bool:
