@@ -395,6 +395,18 @@
       "title": null,
       "verdict": "not-applicable",
       "wp": null
+    },
+    "#7861": {
+      "evidence_ref": "Operator ruling DM-01M89KDT5DZQ4DX6ZFX54HY3J3: move-task --to planned on protected coordination targets is fixed in WP07 (binding addition)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "in-mission",
+      "wp": "WP07"
     }
   },
   "schema_version": 1
