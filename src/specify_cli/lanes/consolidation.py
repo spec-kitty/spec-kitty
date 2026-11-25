@@ -543,18 +543,28 @@ def _git_config_get(repo_root: Path, key: str) -> str | None:
 
 
 def _git_common_dir(repo_root: Path) -> Path | None:
-    """Return the repository's shared git common dir (worktree-safe)."""
-    result = subprocess.run(
-        ["git", "rev-parse", "--git-common-dir"],
-        cwd=str(repo_root),
-        capture_output=True,
-        text=True,
-        env=_make_merge_env(),
-    )
-    if result.returncode != 0:
+    """Return the repository's shared git common dir (worktree-safe).
+
+    Read once per checkout inside a git read cache scope (#7848): the answer is the layout the
+    cache itself keys its entries by, so it cannot change while an entry for it is valid.
+    """
+    env = _make_merge_env()
+
+    def read() -> str | None:
+        result = subprocess.run(
+            ["git", "rev-parse", "--git-common-dir"],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        return result.stdout.strip() if result.returncode == 0 else None
+
+    raw = cached_git_read(repo_root, ("git-common-dir", str(repo_root)), read, depends=Depends(head=True), env=env, store_if=lambda value: value is not None)
+    if raw is None:
         return None
-    raw = Path(result.stdout.strip())
-    return raw if raw.is_absolute() else (repo_root / raw)
+    path = Path(raw)
+    return path if path.is_absolute() else (repo_root / path)
 
 
 def _set_local_git_config(repo_root: Path, key: str, value: str) -> None:

@@ -22,6 +22,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePath, PurePosixPath
 
+from kernel.git.read_cache import Depends, cached_git_read
 from kernel.git.runner import GitCommandError, GitResult, run_git
 
 __all__ = [
@@ -165,11 +166,22 @@ def _config_value(cwd: Path, key: str) -> str | None:
 
 
 def configured_remotes(cwd: Path, *, env: dict[str, str] | None = None) -> list[str]:
-    """Names of the remotes configured in *cwd*'s repository (``git remote``); local config read, no network."""
-    listed = run_git(cwd, "remote", check=False, env=env)
-    if listed.returncode != 0:
-        return []
-    return [line.strip() for line in listed.stdout.decode("utf-8", "replace").splitlines() if line.strip()]
+    """Names of the remotes configured in *cwd*'s repository (``git remote``); local config read, no network.
+
+    Inside a git read cache scope the list is read once per state of the repository config
+    (#7848); a failed read is asked again.
+    """
+
+    def read() -> tuple[str, ...] | None:
+        listed = run_git(cwd, "remote", check=False, env=env)
+        if listed.returncode != 0:
+            return None
+        return tuple(line.strip() for line in listed.stdout.decode("utf-8", "replace").splitlines() if line.strip())
+
+    # Config injected through the passed env shapes the answer, so it is part of the key.
+    injected = tuple(sorted((name, value) for name, value in (env or {}).items() if name.startswith("GIT_CONFIG")))
+    names = cached_git_read(cwd, ("remotes", injected), read, depends=Depends(config=True), env=env, store_if=lambda value: value is not None)
+    return list(names or ())
 
 
 def resolve_remote(cwd: Path, branch: str) -> str | None:
