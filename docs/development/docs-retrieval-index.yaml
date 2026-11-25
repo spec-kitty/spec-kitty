@@ -4160,6 +4160,8 @@ pages:
     - {slug: "why-not-the-others", text: "Why not the others", level: 3}
     - {slug: "scope", text: "Scope", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "amendment-2026-11-23-mission-bookkeeping-in-the-o3-absorption-proof", text: "Amendment 2026-11-23: Mission bookkeeping in the O3 absorption proof", level: 2}
+    - {slug: "amendment-2026-11-24-the-lane-s-own-changes-only-the-snapshot-as-a-projection-and-the-mission-branch-proof", text: "Amendment 2026-11-24: the lane's own changes only, the snapshot as a projection, and the Mission-branch proof", level: 2}
   - path: "docs/adr/4.x/2026-11-06-2-one-status-read-contract.md"
     title: "ADR: One status read contract"
     divio_type: "none"
@@ -4184,13 +4186,13 @@ pages:
     - {slug: "d-raise-on-an-unmaterialized-coordination-worktree", text: "D. Raise on an unmaterialized coordination worktree", level: 3}
     - {slug: "open-points", text: "Open points", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
-    - {slug: "amendment-2026-11-08-proposed-the-call-site-gate-lands-with-a-priced-allowlist-and-landed-has-one-signal", text: "Amendment 2026-11-08 (Proposed): the call-site gate lands with a priced allowlist, and \"landed\" has one signal", level: 2}
+    - {slug: "amendment-2026-11-08-accepted-the-call-site-gate-lands-with-a-priced-allowlist-and-landed-has-one-signal", text: "Amendment 2026-11-08 (Accepted): the call-site gate lands with a priced allowlist, and \"landed\" has one signal", level: 2}
     - {slug: "the-gate-invariant-4-fr-006", text: "The gate (invariant 4, FR-006)", level: 3}
     - {slug: "census-at-landing-45-entries", text: "Census at landing (45 entries)", level: 3}
     - {slug: "one-landed-signal", text: "One landed signal", level: 3}
     - {slug: "moved-onto-the-door-in-this-change", text: "Moved onto the door in this change", level: 3}
-    - {slug: "amendment-2026-11-11-owned-coordination-checkouts-read-vs-dispatch", text: "Amendment 2026-11-11: owned coordination checkouts, read vs dispatch", level: 2}
-    - {slug: "amendment-2026-11-20-a-remote-only-branch-is-a-typed-refusal-5287", text: "Amendment 2026-11-20: a remote-only branch is a typed refusal (#5287)", level: 2}
+    - {slug: "amendment-2026-11-11-accepted-owned-coordination-checkouts-read-vs-dispatch", text: "Amendment 2026-11-11 (Accepted): owned coordination checkouts, read vs dispatch", level: 2}
+    - {slug: "amendment-2026-11-20-accepted-a-remote-only-branch-is-a-typed-refusal-5287", text: "Amendment 2026-11-20 (Accepted): a remote-only branch is a typed refusal (#5287)", level: 2}
   - path: "docs/adr/4.x/2026-11-06-3-topology-is-settled-once-at-first-finalize.md"
     title: "ADR: a default Mission topology is settled once, by size, at the first finalize"
     divio_type: "none"
@@ -4219,8 +4221,8 @@ pages:
     - {slug: "option-5-the-write-checkout-holds-the-topic-branch-for-a-lanes-mission-s-life", text: "Option 5: the write checkout holds the topic branch for a `lanes` Mission's life", level: 3}
     - {slug: "option-6-land-planning-commits-on-an-unprotected-target-at-settlement-and-settle-to-lanes", text: "Option 6: land planning commits on an unprotected target at settlement and settle to `lanes`", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
-    - {slug: "amendment-2026-11-13-an-explicit-lanes-create-on-a-protected-target-is-refused", text: "Amendment 2026-11-13: an explicit `lanes` create on a protected target is refused", level: 2}
-    - {slug: "amendment-2026-11-22-a-docs-work-package-gets-its-own-lane-in-a-lane-topology", text: "Amendment 2026-11-22: a docs work package gets its own lane in a lane topology", level: 2}
+    - {slug: "amendment-2026-11-13-accepted-an-explicit-lanes-create-on-a-protected-target-is-refused", text: "Amendment 2026-11-13 (Accepted): an explicit `lanes` create on a protected target is refused", level: 2}
+    - {slug: "amendment-2026-11-22-accepted-a-docs-work-package-gets-its-own-lane-in-a-lane-topology", text: "Amendment 2026-11-22 (Accepted): a docs work package gets its own lane in a lane topology", level: 2}
   - path: "docs/adr/4.x/2026-11-06-4-coordination-branch-written-by-commit.md"
     title: "ADR: a coordination branch is written by commit, not through a coordination worktree"
     divio_type: "none"
@@ -10361,7 +10363,7 @@ pages:
     - {slug: "why-now", text: "Why now", level: 2}
     - {slug: "theme", text: "Theme", level: 2}
     - {slug: "goals", text: "Goals", level: 2}
-    - {slug: "g1-hosted-collaboration-team-kitty", text: "G1 — Hosted collaboration (Team Kitty)", level: 3}
+    - {slug: "g1-hosted-collaboration-team-kitty-retired", text: "G1 — Hosted collaboration (Team Kitty) — retired", level: 3}
     - {slug: "g2-next-generation-product-capabilities", text: "G2 — Next-generation product capabilities", level: 3}
     - {slug: "g3-finish-the-open-core-structural-strangler", text: "G3 — Finish the open-core structural strangler", level: 3}
     - {slug: "committed-scope-verified-milestone-4-0-0-2026-09-04", text: "Committed scope (verified milestone `4.0.0`, 2026-09-04)", level: 2}
@@ -14713,6 +14715,8 @@ pages:
     - {slug: "direction-update-2026-10-12-ga-is-done-when-done-and-the-gate-expands", text: "Direction update (2026-10-12): GA is done-when-done, and the gate expands", level: 2}
     - {slug: "direction-update-2026-10-01-hosted-collaboration-is-off-the-critical-path", text: "Direction update (2026-10-01): hosted collaboration is off the critical path", level: 2}
     - {slug: "release-posture", text: "Release posture", level: 2}
+    - {slug: "current-state-2026-11-24", text: "Current state (2026-11-24)", level: 3}
+    - {slug: "state-on-2026-10-06-history", text: "State on 2026-10-06 (history)", level: 3}
     - {slug: "drift-since-the-declaration", text: "Drift since the declaration", level: 2}
     - {slug: "the-dependency-spine", text: "The dependency spine", level: 2}
     - {slug: "per-theme-progress-and-scope", text: "Per-theme progress and scope", level: 2}
