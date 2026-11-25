@@ -193,7 +193,8 @@ def test_tree_entries_at_answers_each_path_exactly_as_tree_entry(repo: Path, mon
     A plain multi-path ``ls-tree`` drops a directory's own entry when another pathspec
     descends into it (``x`` beside ``x/y``); the batched read must not.
     """
-    from kernel.git import listing, tree_entries_at
+    from kernel.git import listing
+    from kernel.git.listing import tree_entries_at
 
     _write(repo, "x/y")
     _write(repo, "x/z/w", "w\n")

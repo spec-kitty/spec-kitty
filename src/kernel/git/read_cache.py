@@ -47,7 +47,7 @@ import hashlib
 import os
 import re
 import threading
-from collections.abc import Callable, Hashable, Iterator, Mapping
+from collections.abc import Callable, Hashable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
@@ -55,10 +55,13 @@ from pathlib import Path
 from typing import TypeVar, cast
 
 __all__ = [
+    "OBJECTS_ONLY",
     "Depends",
     "cached_git_read",
+    "cached_object_read",
     "cached_ref_read",
     "git_read_cache_scope",
+    "is_object_id",
 ]
 
 T = TypeVar("T")
@@ -212,6 +215,50 @@ def cached_ref_read(cwd: Path, ref: str, key: Hashable, compute: Callable[[], T]
     """
     depends = Depends(refs=(ref,)) if ref.startswith("refs/") else EVERYTHING
     return cached_git_read(cwd, ("ref", ref, key), compute, depends=depends, env=env)
+
+
+#: A full SHA-1 or SHA-256 object id, optionally behind a ``^`` exclusion (``rev-list a ^b``).
+_OBJECT_ID = re.compile(r"\^?(?:[0-9a-f]{40}|[0-9a-f]{64})")
+
+#: No git metadata at all: the answer is a function of object ids alone (#7848).
+#:
+#: Objects are content-addressed and immutable, the premise :func:`cached_ref_read` already
+#: states for peeling. Caveat: ``refs/replace/*``, ``info/grafts`` and the ``shallow`` file can
+#: change what git reads for an object id. No spec-kitty run writes them; a read that must
+#: follow such a change mid-run cannot use this dependency.
+OBJECTS_ONLY = Depends()
+_OBJECTS_AND_CONFIG = Depends(config=True)
+
+
+def is_object_id(rev: str) -> bool:
+    """``True`` when *rev* is a full lowercase object id (or a ``^`` exclusion of one)."""
+    return _OBJECT_ID.fullmatch(rev) is not None
+
+
+def cached_object_read(
+    cwd: Path,
+    key: Hashable,
+    revs: Sequence[str],
+    compute: Callable[[], T],
+    *,
+    env: Mapping[str, str] | None = None,
+    store_if: Callable[[T], bool] | None = None,
+    config: bool = False,
+) -> T:
+    """Cache a read whose answer is a function of the objects *revs* name (#7848).
+
+    Reused only when every one of *revs* is a full object id (:func:`is_object_id`): a branch
+    name, an abbreviated id or ``HEAD`` can name another object later, so such a read always
+    runs. *key* must include every argument that shapes the answer (the revs too). A read that
+    raises, or whose answer *store_if* rejects, is not stored, so a failure is asked again;
+    :data:`OBJECTS_ONLY` states the caveat. Pass *config* for a read whose output repository
+    config can also shape (``diff`` and ``show`` honour ``diff.*`` keys such as
+    ``diff.ignoreSubmodules``): a write to the repository config then invalidates it.
+    """
+    if not revs or not all(is_object_id(rev) for rev in revs):
+        return compute()
+    depends = _OBJECTS_AND_CONFIG if config else OBJECTS_ONLY
+    return cached_git_read(cwd, ("object", key), compute, depends=depends, env=env, store_if=store_if)
 
 
 # ---------------------------------------------------------------------------

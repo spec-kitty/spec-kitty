@@ -20,10 +20,13 @@ from __future__ import annotations
 
 import fnmatch
 import subprocess
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path, PurePosixPath
+from typing import TypeVar
 
 from kernel.git import GitCommandError, changed_paths, merge_tree, run_git, tree_entry, tree_paths
+from kernel.git.listing import tree_entries_at
+from kernel.git.read_cache import cached_object_read, is_object_id
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.git.merge_tree_probe import MERGE_TREE_WRITE_TREE_MIN_VERSION, merge_tree_write_tree_available
 from specify_cli.git.ref_advance import delete_bookkeeping_ref, write_bookkeeping_ref
@@ -281,10 +284,46 @@ def is_absorbed(repo_root: Path, tip: str, target: str, base: str | None) -> boo
 
 _MISSION_ROOT = KITTY_SPECS_DIR
 _WORK_PACKAGE_PROMPT = "WP*.md"
+T = TypeVar("T")
+
+
+def _object_read(repo_root: Path, key: tuple[object, ...], revs: Sequence[str], compute: Callable[[], T], *, config: bool = False) -> T:
+    """``compute()``, reused within the run's git read cache when every rev is a full object id (#7848).
+
+    Both landing proofs walk the same lane commits; inside one ``consolidate`` run the second walk
+    reuses the first one's reads. Outside a cache scope (``doctor workspaces``) every read runs.
+    """
+    return cached_object_read(repo_root, ("lane_tip", *key), revs, compute, config=config)
 
 
 def _git_lines(repo_root: Path, *args: str) -> list[str]:
-    return run_git(repo_root, *args).stdout.decode("utf-8", "replace").splitlines()
+    def compute() -> list[str]:
+        return run_git(repo_root, *args).stdout.decode("utf-8", "replace").splitlines()
+
+    revs = [arg for arg in args[1:] if not arg.startswith("-")]
+    return list(_object_read(repo_root, ("lines", *args), revs, compute))
+
+
+def _changed(repo_root: Path, *revs: str) -> list[str]:
+    """``changed_paths`` between *revs*, as strings (reused for object ids while the config holds)."""
+    paths = _object_read(repo_root, ("changed", *revs), revs, lambda: tuple(str(path) for path in changed_paths(repo_root, *revs)), config=True)
+    return list(paths)
+
+
+def _blob_ids(repo_root: Path, rev: str, paths: Sequence[str]) -> dict[str, str | None]:
+    """``_blob_id(rev, path)`` for every one of *paths*, in one batched tree read (#7848).
+
+    Each answer is exactly what :func:`_blob_id` gives for that path alone (``tree_entries_at``).
+    """
+    unique = tuple(sorted(set(paths)))
+    if not unique:
+        return {}
+
+    def compute() -> dict[str, str]:
+        return {str(path): entry.oid for path, entry in tree_entries_at(repo_root, rev, unique).items()}
+
+    found = _object_read(repo_root, ("blobs", rev, unique), (rev,), compute)
+    return {path: found.get(path) for path in unique}
 
 
 def _lane_own_commits(repo_root: Path, tip: str, landing_ref: str) -> tuple[tuple[str, tuple[str, ...]], ...]:
@@ -300,7 +339,7 @@ def _lane_own_commits(repo_root: Path, tip: str, landing_ref: str) -> tuple[tupl
     merged_in = sorted({parent for entry in chain for parent in entry[2:]})
     # Only a merged-in branch's own first-parent line is history the lane took: a lane commit that
     # branch merged back (the coordination branch consolidating the lane, then a resync) stays the lane's.
-    taken = {sha for parent in merged_in for sha in _git_lines(repo_root, "rev-list", "--first-parent", parent, f"^{landing_ref}")}
+    taken = set(_git_lines(repo_root, "rev-list", "--first-parent", *merged_in, f"^{landing_ref}")) if merged_in else set()
     return tuple((entry[0], tuple(entry[1:])) for entry in chain if entry[0] not in taken)
 
 
@@ -314,14 +353,14 @@ def _paths_changed_by(repo_root: Path, commit: str, parents: Sequence[str]) -> l
 
     Paths come decoded from ``kernel.git``, so a name git would quote (``core.quotePath``) still matches.
     """
-    paths = changed_paths(repo_root, parents[0], commit) if parents else tree_paths(repo_root, commit)
-    return [str(path) for path in paths]
+    if parents:
+        return _changed(repo_root, parents[0], commit)
+    return [str(path) for path in tree_paths(repo_root, commit)]
 
 
-def _taken_whole_from_merged_in(repo_root: Path, commit: str, merged_in: Sequence[str], path: str) -> bool:
+def _taken_whole_from_merged_in(version: dict[str, str | None], merged_in: Sequence[dict[str, str | None]], path: str) -> bool:
     """A merge's version of ``path`` equals one of its merged-in parents' versions (no resolution of its own)."""
-    version = _blob_id(repo_root, commit, path)
-    return any(_blob_id(repo_root, parent, path) == version for parent in merged_in)
+    return any(parent[path] == version[path] for parent in merged_in)
 
 
 def _authored_paths(repo_root: Path, tip: str, landing_ref: str) -> frozenset[str]:
@@ -332,10 +371,12 @@ def _authored_paths(repo_root: Path, tip: str, landing_ref: str) -> frozenset[st
     """
     authored: set[str] = set()
     for commit, parents in _lane_own_commits(repo_root, tip, landing_ref):
-        for path in _paths_changed_by(repo_root, commit, parents):
-            if len(parents) > 1 and _taken_whole_from_merged_in(repo_root, commit, parents[1:], path):
-                continue
-            authored.add(path)
+        paths = _paths_changed_by(repo_root, commit, parents)
+        if len(parents) > 1:
+            version = _blob_ids(repo_root, commit, paths)
+            merged_in = [_blob_ids(repo_root, parent, paths) for parent in parents[1:]]
+            paths = [path for path in paths if not _taken_whole_from_merged_in(version, merged_in, path)]
+        authored.update(paths)
     return frozenset(authored)
 
 
@@ -385,6 +426,19 @@ class _MissionFileJudge:
         self._snapshot_path = f"{self._mission_dir}/{SNAPSHOT_FILENAME}"
         self._authored = _authored_paths(repo_root, tip, landing_ref)
         self._bases = tuple(_git_lines(repo_root, "merge-base", "--all", tip, landing_ref))
+        self._lane_blobs: dict[str, str | None] = {}
+        self._landing_blobs: dict[str, str | None] = {}
+
+    def prefetch(self, paths: Sequence[str]) -> None:
+        """Read the lane's and the landing ref's versions of ``paths`` in one tree read each."""
+        self._lane_blobs = _blob_ids(self._repo_root, self._tip, paths)
+        self._landing_blobs = _blob_ids(self._repo_root, self._landing_ref, paths)
+
+    def _lane_blob(self, path: str) -> str | None:
+        return self._lane_blobs[path] if path in self._lane_blobs else _blob_id(self._repo_root, self._tip, path)
+
+    def _landing_blob(self, path: str) -> str | None:
+        return self._landing_blobs[path] if path in self._landing_blobs else _blob_id(self._repo_root, self._landing_ref, path)
 
     def _unchanged_since_base(self, path: str, lane_blob: str | None) -> bool:
         """The lane's copy is the merge base's copy: the lane changed nothing there (a blob comparison, no merge)."""
@@ -399,7 +453,7 @@ class _MissionFileJudge:
             # A log the lane never wrote holds no lane event (B); one it wrote is judged by its
             # events, append-only (#6736).
             return path not in self._authored or _status_log_contained(self._repo_root, self._tip, self._landing_ref, path)
-        lane_blob = _blob_id(self._repo_root, self._tip, path)
+        lane_blob = self._lane_blob(path)
         if path not in self._authored:
             if path.startswith(f"{self._mission_dir}/"):
                 return True  # ruling 2026-11-24, B: a file of its own Mission the lane never wrote
@@ -407,7 +461,7 @@ class _MissionFileJudge:
             return lane_blob is None or self._unchanged_since_base(path, lane_blob)
         if lane_blob is None or not _is_bookkeeping(path, self._mission_dir):
             return False
-        if _blob_id(self._repo_root, self._landing_ref, path) is None:
+        if self._landing_blob(path) is None:
             return False
         histories = (self._landing_ref,) if self._integrated_by is None else (self._landing_ref, self._integrated_by)
         return any(_in_landing_history(self._repo_root, ref, path, lane_blob) for ref in histories)
@@ -416,7 +470,8 @@ class _MissionFileJudge:
 def _mission_files_accounted(repo_root: Path, tip: str, landing_ref: str, mission_slug: str, *, integrated_by: str | None = None) -> bool:
     """Every ``kitty-specs/`` difference between ``tip`` and ``landing_ref`` is accounted for (:class:`_MissionFileJudge`)."""
     judge = _MissionFileJudge(repo_root, tip, landing_ref, mission_slug, integrated_by=integrated_by)
-    mission_paths = [str(path) for path in changed_paths(repo_root, landing_ref, tip) if str(path).startswith(f"{_MISSION_ROOT}/")]
+    mission_paths = [path for path in _changed(repo_root, landing_ref, tip) if path.startswith(f"{_MISSION_ROOT}/")]
+    judge.prefetch(mission_paths)
     return all(judge.accounted(path) for path in mission_paths)
 
 
@@ -439,6 +494,15 @@ def _product_absorbed(repo_root: Path, tip: str, landing_ref: str) -> bool:
 def is_ancestor(repo_root: Path, tip: str, landing_ref: str) -> bool:
     """``True`` only when git confirms ``tip`` is an ancestor of ``landing_ref``; any error is ``False`` (no proof)."""
     return run_git(repo_root, "merge-base", "--is-ancestor", tip, landing_ref, check=False).returncode == 0
+
+
+def _commit_id(repo_root: Path, rev: str) -> str | None:
+    """The commit ``rev`` names now (one snapshot for the whole proof), or ``None`` when it names none."""
+    if is_object_id(rev):
+        return rev
+    result = run_git(repo_root, "rev-parse", "--verify", "--quiet", f"{rev}^{{commit}}", check=False)
+    name = result.stdout.decode("ascii", "replace").strip()
+    return name if result.returncode == 0 and is_object_id(name) else None
 
 
 def is_absorbed_but_for_mission_bookkeeping(repo_root: Path, tip: str, landing_ref: str, mission_slug: str) -> bool:
@@ -469,6 +533,10 @@ def is_absorbed_but_for_mission_bookkeeping(repo_root: Path, tip: str, landing_r
     whose lines a later lane rewrote is proven by :func:`is_landed_through_mission_branch` instead.
     """
     try:
+        resolved = _commit_id(repo_root, landing_ref)
+        if resolved is None:
+            return False
+        landing_ref = resolved
         if is_ancestor(repo_root, tip, landing_ref):
             return True
         if not _product_absorbed(repo_root, tip, landing_ref):
@@ -483,8 +551,9 @@ def _mission_branch_landed(repo_root: Path, mission_tip: str, landing_ref: str) 
     bases = _git_lines(repo_root, "merge-base", "--all", mission_tip, landing_ref)
     if not bases:
         return False
-    integrated = {str(path) for base in bases for path in changed_paths(repo_root, base, mission_tip)}
-    return all(_blob_id(repo_root, landing_ref, path) == _blob_id(repo_root, mission_tip, path) for path in _outside_mission_files(sorted(integrated)))
+    integrated = _outside_mission_files(sorted({path for base in bases for path in _changed(repo_root, base, mission_tip)}))
+    landed, integrated_blobs = _blob_ids(repo_root, landing_ref, integrated), _blob_ids(repo_root, mission_tip, integrated)
+    return all(landed[path] == integrated_blobs[path] for path in integrated)
 
 
 def _lane_changed_product_paths(repo_root: Path, tip: str, landing_ref: str) -> list[str]:
@@ -496,7 +565,7 @@ def _lane_changed_product_paths(repo_root: Path, tip: str, landing_ref: str) -> 
     bases = _git_lines(repo_root, "merge-base", "--all", tip, landing_ref)
     if not bases:
         raise GitCommandError(argv=("merge-base", "--all", tip, landing_ref), cwd=repo_root, returncode=1, stderr="no merge base")
-    changed = {str(path) for base in bases for path in changed_paths(repo_root, base, tip)}
+    changed = {path for base in bases for path in _changed(repo_root, base, tip)}
     return _outside_mission_files(sorted(changed))
 
 
@@ -549,8 +618,10 @@ def _lane_product_landed_or_superseded(repo_root: Path, tip: str, mission_tip: s
     keeps the lane.
     """
     work: _ApprovedWork | None = None
-    for path in _lane_changed_product_paths(repo_root, tip, landing_ref):
-        if _blob_id(repo_root, landing_ref, path) == _blob_id(repo_root, tip, path):
+    paths = _lane_changed_product_paths(repo_root, tip, landing_ref)
+    landed, lane = _blob_ids(repo_root, landing_ref, paths), _blob_ids(repo_root, tip, paths)
+    for path in paths:
+        if landed[path] == lane[path]:
             continue
         work = work or _ApprovedWork(repo_root, tip, mission_tip, landing_ref, approved_tips)
         if not work.supersedes(path):

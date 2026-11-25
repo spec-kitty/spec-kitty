@@ -151,9 +151,15 @@ def _remote_tracking_branch_exists(repo_root: Path, branch: str) -> bool:
     candidates = [f"refs/remotes/{branch}"]
     if "/" not in branch:
         candidates.append(f"refs/remotes/origin/{branch}")
-    for candidate in candidates:
+    return any(_ref_exists(repo_root, candidate) for candidate in candidates)
+
+
+def _ref_exists(repo_root: Path, ref: str) -> bool:
+    """``git rev-parse --verify --quiet <ref>`` succeeds; cached for the run on that one ref (#7848)."""
+
+    def compute() -> bool:
         result = subprocess.run(
-            ["git", "rev-parse", "--verify", "--quiet", candidate],
+            ["git", "rev-parse", "--verify", "--quiet", ref],
             cwd=repo_root,
             capture_output=True,
             text=True,
@@ -161,9 +167,9 @@ def _remote_tracking_branch_exists(repo_root: Path, branch: str) -> bool:
             errors="replace",
             check=False,
         )
-        if result.returncode == 0:
-            return True
-    return False
+        return result.returncode == 0
+
+    return cached_ref_read(repo_root, ref, ("exists",), compute)
 
 
 class WorkflowMutationPolicy:

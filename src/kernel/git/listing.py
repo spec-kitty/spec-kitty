@@ -47,6 +47,7 @@ __all__ = [
     "status_entries",
     "tracked_paths",
     "tree_entries",
+    "tree_entries_at",
     "tree_entry",
     "tree_paths",
 ]
@@ -380,6 +381,37 @@ def tree_entries(
     A pathspec *ref* has no entry for is simply absent from the result.
     """
     return parse_tree_z(_git(cwd, ["ls-tree", "--full-tree", "-z", ref], pathspecs, env=env, timeout=timeout))
+
+
+#: Pathspec characters per ``ls-tree`` call in :func:`tree_entries_at`, below Windows' command-line limit.
+_PATHSPEC_CHUNK_CHARS: int = 8000
+
+
+def _pathspec_chunks(paths: Sequence[str]) -> Iterator[list[str]]:
+    chunk: list[str] = []
+    size = 0
+    for path in paths:
+        if chunk and size + len(path) + 1 > _PATHSPEC_CHUNK_CHARS:
+            yield chunk
+            chunk, size = [], 0
+        chunk.append(path)
+        size += len(path) + 1
+    if chunk:
+        yield chunk
+
+
+def tree_entries_at(cwd: Path, ref: str, paths: Sequence[str], *, env: Env = None, timeout: float | None = None) -> dict[GitPath, TreeEntry]:
+    """``tree_entry(cwd, ref, path)`` for every one of *paths*, in one ``ls-tree`` call per chunk.
+
+    A path *ref* has no entry for is absent from the result. ``-r -t`` makes each answer exact: a
+    plain multi-path ``ls-tree`` omits a directory's own entry when another path descends into it.
+    """
+    wanted = {GitPath.parse(path) for path in paths}
+    found: dict[GitPath, TreeEntry] = {}
+    for chunk in _pathspec_chunks(sorted(str(path) for path in wanted)):
+        raw = _git(cwd, ["ls-tree", "--full-tree", "-r", "-t", "-z", ref], chunk, env=env, timeout=timeout)
+        found.update((entry.path, entry) for entry in parse_tree_z(raw) if entry.path in wanted)
+    return found
 
 
 def _diff_args(flag: str, revs: Sequence[str], *, cached: bool, renames: bool, diff_filter: str | None) -> list[str]:

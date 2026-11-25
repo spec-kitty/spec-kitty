@@ -543,18 +543,28 @@ def _git_config_get(repo_root: Path, key: str) -> str | None:
 
 
 def _git_common_dir(repo_root: Path) -> Path | None:
-    """Return the repository's shared git common dir (worktree-safe)."""
-    result = subprocess.run(
-        ["git", "rev-parse", "--git-common-dir"],
-        cwd=str(repo_root),
-        capture_output=True,
-        text=True,
-        env=_make_merge_env(),
-    )
-    if result.returncode != 0:
-        return None
-    raw = Path(result.stdout.strip())
-    return raw if raw.is_absolute() else (repo_root / raw)
+    """Return the repository's shared git common dir (worktree-safe).
+
+    Cached for the run (#7848): the answer is a function of where *repo_root*'s repository lives,
+    and the cache files every entry under the repository it locates from the filesystem, so a
+    checkout that moves, is removed or points elsewhere is read again. A failure is not stored.
+    """
+    env = _make_merge_env()
+
+    def compute() -> Path | None:
+        result = subprocess.run(
+            ["git", "rev-parse", "--git-common-dir"],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        if result.returncode != 0:
+            return None
+        raw = Path(result.stdout.strip())
+        return raw if raw.is_absolute() else (repo_root / raw)
+
+    return cached_git_read(repo_root, ("git_common_dir", str(repo_root)), compute, depends=Depends(), env=env, store_if=lambda value: value is not None)
 
 
 def _set_local_git_config(repo_root: Path, key: str, value: str) -> None:

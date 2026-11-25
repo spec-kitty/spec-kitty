@@ -33,6 +33,7 @@ from kernel.git import (
     status_entries,
     tree_entry,
 )
+from kernel.git.read_cache import cached_object_read
 from specify_cli.cli.console import console
 from specify_cli.coordination.coherence import CheckoutRole, ResidueContext
 from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
@@ -432,13 +433,25 @@ def sha_reachable_from(repo_root: Path, sha: str, ref: str) -> bool:
     """
     if not sha:
         return False
-    ret, _out, _err = run_command(
-        ["git", "merge-base", "--is-ancestor", sha, ref],
-        capture=True,
-        check_return=False,
-        cwd=repo_root,
-    )
-    return bool(ret == 0)
+    return _ancestry(repo_root, sha, ref)[0] == 0
+
+
+def _ancestry(repo_root: Path, ancestor: str, descendant: str) -> tuple[int, str]:
+    """``git merge-base --is-ancestor``'s exit code and stderr; reused for object ids (#7848).
+
+    Only a definitive answer (exit 0 or 1) is stored; any other exit is asked again next time.
+    """
+
+    def compute() -> tuple[int, str]:
+        ret, _out, err = run_command(
+            ["git", "merge-base", "--is-ancestor", ancestor, descendant],
+            capture=True,
+            check_return=False,
+            cwd=repo_root,
+        )
+        return int(ret), err or ""
+
+    return cached_object_read(repo_root, ("is_ancestor", ancestor, descendant), (ancestor, descendant), compute, store_if=lambda answer: answer[0] in (0, 1))
 
 
 def commit_in_clone(repo_root: Path, sha: str) -> bool:
@@ -511,12 +524,7 @@ def is_ancestor_strict(repo_root: Path, ancestor: str, descendant: str) -> bool:
     "not reachable", this lets a caller tell a real answer from a probe it could not run. Both
     commits must be in the clone (:func:`commit_in_clone`); an absent one is a git failure here.
     """
-    ret, _out, err = run_command(
-        ["git", "merge-base", "--is-ancestor", ancestor, descendant],
-        capture=True,
-        check_return=False,
-        cwd=repo_root,
-    )
+    ret, err = _ancestry(repo_root, ancestor, descendant)
     if ret in (0, 1):
         return ret == 0
     raise GitProbeError(f"git merge-base --is-ancestor {ancestor} {descendant} exited {ret}: {err.strip()}")
@@ -529,16 +537,21 @@ def resolve_commit(repo_root: Path, ref: str) -> str:
     needs a reference frozen before a run mutates anything (the approved-bound anchors)
     resolves it here once; a branch name would move with the run.
     """
-    ret, out, err = run_command(
-        ["git", "rev-parse", "--verify", f"{ref}^{{commit}}"],
-        capture=True,
-        check_return=False,
-        cwd=repo_root,
-    )
-    sha = (out or "").strip()
-    if ret != 0 or not sha:
-        raise GitProbeError(f"git rev-parse --verify {ref}^{{commit}} failed (exit {ret}): {(err or '').strip()}")
-    return sha
+
+    def compute() -> str:
+        ret, out, err = run_command(
+            ["git", "rev-parse", "--verify", f"{ref}^{{commit}}"],
+            capture=True,
+            check_return=False,
+            cwd=repo_root,
+        )
+        sha = (out or "").strip()
+        if ret != 0 or not sha:
+            raise GitProbeError(f"git rev-parse --verify {ref}^{{commit}} failed (exit {ret}): {(err or '').strip()}")
+        return sha
+
+    # A full object id names the same commit for the whole run (#7848); a branch name is read each time.
+    return cached_object_read(repo_root, ("resolve_commit", ref), (ref,), compute)
 
 
 def commits_in_range(repo_root: Path, base: str, tip: str) -> list[str]:
@@ -552,15 +565,19 @@ def commits_in_range(repo_root: Path, base: str, tip: str) -> list[str]:
     claim translate that into a REFUSE-shaped claim; the verifier translates it
     into a REFUSE result — never a vacuous PASS.
     """
-    ret, out, err = run_command(
-        ["git", "rev-list", f"{base}..{tip}"],
-        capture=True,
-        check_return=False,
-        cwd=repo_root,
-    )
-    if ret != 0:
-        raise GitProbeError(f"git rev-list {base}..{tip} failed (exit {ret}): {(err or '').strip()}")
-    return [line for line in out.splitlines() if line.strip()]
+
+    def compute() -> tuple[str, ...]:
+        ret, out, err = run_command(
+            ["git", "rev-list", f"{base}..{tip}"],
+            capture=True,
+            check_return=False,
+            cwd=repo_root,
+        )
+        if ret != 0:
+            raise GitProbeError(f"git rev-list {base}..{tip} failed (exit {ret}): {(err or '').strip()}")
+        return tuple(line for line in out.splitlines() if line.strip())
+
+    return list(cached_object_read(repo_root, ("commits_in_range", base, tip), (base, tip), compute))
 
 
 def patch_id_of(repo_root: Path, sha: str) -> str:
@@ -731,10 +748,15 @@ def changed_paths_of(repo_root: Path, sha: str) -> list[str]:
     """
     if not sha:
         return []
-    try:
-        return [str(path) for path in commit_paths(repo_root, sha)]
-    except GitCommandError as exc:
-        raise GitProbeError(f"git show --name-only {sha} failed (exit {exc.returncode}): {exc.stderr.strip()}") from exc
+
+    def compute() -> tuple[str, ...]:
+        try:
+            return tuple(str(path) for path in commit_paths(repo_root, sha))
+        except GitCommandError as exc:
+            raise GitProbeError(f"git show --name-only {sha} failed (exit {exc.returncode}): {exc.stderr.strip()}") from exc
+
+    # ``git show`` honours ``diff.*`` config, so a config write invalidates the reuse (#7848).
+    return list(cached_object_read(repo_root, ("changed_paths_of", sha), (sha,), compute, config=True))
 
 
 def merge_own_changed_paths(repo_root: Path, sha: str) -> list[str]:
@@ -786,15 +808,19 @@ def path_state_at(repo_root: Path, ref: str, path: str) -> str | None:
     could not be read" must never be conflated — the former is legitimate
     content the verifier may need to FAIL on, the latter must REFUSE.
     """
-    try:
-        entry = tree_entry(repo_root, ref, path)
-    except GitCommandError as exc:
-        raise GitProbeError(f"git ls-tree {ref} -- {path} failed (exit {exc.returncode}): {exc.stderr.strip()}") from exc
-    except ValueError as exc:
-        # A path that is not repository-relative can never be recorded in a tree.
-        raise GitProbeError(f"git ls-tree {ref} -- {path} refused: {exc}") from exc
-    # A present path yields its entry; an absent one is a genuine ``None`` state.
-    return None if entry is None else entry.oid
+
+    def compute() -> str | None:
+        try:
+            entry = tree_entry(repo_root, ref, path)
+        except GitCommandError as exc:
+            raise GitProbeError(f"git ls-tree {ref} -- {path} failed (exit {exc.returncode}): {exc.stderr.strip()}") from exc
+        except ValueError as exc:
+            # A path that is not repository-relative can never be recorded in a tree.
+            raise GitProbeError(f"git ls-tree {ref} -- {path} refused: {exc}") from exc
+        # A present path yields its entry; an absent one is a genuine ``None`` state.
+        return None if entry is None else entry.oid
+
+    return cached_object_read(repo_root, ("path_state_at", ref, path), (ref,), compute)
 
 
 def commit_parents(repo_root: Path, sha: str) -> list[str]:
@@ -804,18 +830,22 @@ def commit_parents(repo_root: Path, sha: str) -> list[str]:
     one, a merge two or more. Raises :class:`GitProbeError` on any git error (an unresolvable
     *sha*, a corrupt object store, ...); an error is never read as "no parents".
     """
-    ret, out, err = run_command(
-        ["git", "rev-list", "--parents", "-n1", sha],
-        capture=True,
-        check_return=False,
-        cwd=repo_root,
-    )
-    if ret != 0:
-        raise GitProbeError(f"git rev-list --parents -n1 {sha} failed (exit {ret}): {(err or '').strip()}")
-    tokens = (out or "").split()
-    if not tokens:
-        raise GitProbeError(f"git rev-list --parents -n1 {sha} produced no output")
-    return tokens[1:]
+
+    def compute() -> tuple[str, ...]:
+        ret, out, err = run_command(
+            ["git", "rev-list", "--parents", "-n1", sha],
+            capture=True,
+            check_return=False,
+            cwd=repo_root,
+        )
+        if ret != 0:
+            raise GitProbeError(f"git rev-list --parents -n1 {sha} failed (exit {ret}): {(err or '').strip()}")
+        tokens = (out or "").split()
+        if not tokens:
+            raise GitProbeError(f"git rev-list --parents -n1 {sha} produced no output")
+        return tuple(tokens[1:])
+
+    return list(cached_object_read(repo_root, ("commit_parents", sha), (sha,), compute))
 
 
 def is_merge_commit(repo_root: Path, sha: str) -> bool:

@@ -28,8 +28,7 @@ def test_configured_remotes_follows_config_writes_inside_a_run(tmp_path: Path, m
     _git(root, "init", "-q")
     calls: list[tuple[str, ...]] = []
     import kernel.git.remote as remote
-
-    real = remote.run_git
+    from kernel.git.runner import run_git as real
 
     def counting(cwd: Path, *args: str, **kwargs: Any) -> Any:
         calls.append(args)

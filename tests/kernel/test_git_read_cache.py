@@ -465,3 +465,18 @@ def test_an_object_id_read_that_raises_or_is_rejected_is_asked_again(repo: Path)
         for _ in range(2):
             assert cached_object_read(repo, ("exit", sha), (sha,), rejected, store_if=lambda code: code in (0, 1)) == 128
     assert len(calls) == 4
+
+
+def test_a_config_shaped_object_id_read_follows_config_writes(repo: Path) -> None:
+    from kernel.git.read_cache import cached_object_read
+
+    sha = _git(repo, "rev-parse", "HEAD")
+    read = _Counter(repo, "show", "--name-only", "--format=", sha)
+    with git_read_cache_scope():
+        cached_object_read(repo, ("show", sha), (sha,), read, config=True)
+        _git(repo, "commit", "-q", "--allow-empty", "-m", "two")  # a ref move keeps it
+        cached_object_read(repo, ("show", sha), (sha,), read, config=True)
+        assert read.calls == 1
+        _git(repo, "config", "diff.ignoreSubmodules", "all")  # a config write invalidates it
+        cached_object_read(repo, ("show", sha), (sha,), read, config=True)
+    assert read.calls == 2
