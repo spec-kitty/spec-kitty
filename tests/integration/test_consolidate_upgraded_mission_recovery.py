@@ -55,8 +55,12 @@ _GITATTRIBUTES_STALE_REFUSAL = (
 )
 _GITATTRIBUTES_STALE_REMEDY = (
     "spec-kitty agent tasks move-task WP02 --to planned --review-feedback-file <file> --mission target-owned-01M5457A. "
-    "Then re-enter it with spec-kitty agent action implement WP02 --mission target-owned-01M5457A, which names the lane checkout; "
-    "in that checkout run git merge kitty/mission-target-owned-01M5457A-lane-a and resolve the conflicts, then commit."
+    # WP07 (ruling DM-01M88RZDBP57ZTYJHC5NP0ZH4R): the sibling lane is incorporated at its approval stamp, one command per line.
+    "Then run, in order, naming yourself as <agent> (the first command claims WP02 again; each incorporation merges "
+    "that sibling lane at its approval stamp, never its live tip): "
+    "spec-kitty agent action implement WP02 --mission target-owned-01M5457A --agent <agent> "
+    "spec-kitty agent action implement WP02 --mission target-owned-01M5457A --incorporate lane-a --agent <agent> "
+    "If it stops on a conflict, resolve it in the lane checkout that command names and commit the merge there."
 )
 
 
@@ -319,5 +323,5 @@ def test_lanes_that_change_gitattributes_differently_are_still_refused_as_stale(
     assert result.returncode != 0, output
     assert _GITATTRIBUTES_STALE_REFUSAL in _normalised(output), output
     assert _GITATTRIBUTES_STALE_REMEDY in _normalised(output), output
-    assert f"git merge {project.mission_branch} " not in _normalised(output), output
+    assert "git merge" not in _normalised(output), output
     assert "in-run auto-rebase" not in _normalised(output), output
