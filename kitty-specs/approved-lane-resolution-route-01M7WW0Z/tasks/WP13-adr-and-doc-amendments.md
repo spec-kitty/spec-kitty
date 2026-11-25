@@ -245,6 +245,15 @@ Stale remedy, #7861 and the orchestrator path (ADR and CLAUDE.md):
 - The orchestrator-api `consolidate-mission` path has no rollback door. Lanes consolidated before a refusal stay on the Mission branch, and the re-run is `orchestrator-api consolidate-mission` (or the host `consolidate`). The shared stale text says rolling back "can" remove the change (WP09 review).
 - `--incorporate` attribute-source residuals (WP07 review): the attributes are read from the Mission branch tip, not the pre-run target tip. A Mission-branch move between that read and the merge only affects honouring an already-reviewed union.
 
+## Further items to document (third batch; reviewer blocking checklist for WP13, 2026-11-25)
+
+The reviewer checks each item below as blocking. These items are additions; the two batches above still apply.
+- **`.gitattributes` fold.** The tool's auto-rebase merge honours `.gitattributes` committed on the lane (`merge=union`, `-merge`, `binary`). So a tool-recorded merge counts as exempt from `RESOLUTION_MERGE_UNREVIEWED` only when two things hold: the FR-010 guard passes, and the `merge` attributes at the merge and at each parent equal those at the pre-run target tip (WP05 binding addendum 1, committed-tree-only rule, operator ruling (a)). Document this in the FR-010 section of ADR 2026-09-29-1 and in the ADR 2026-10-04-5 amendment.
+- **Squash, cherry-pick and fast-forward residuals** (#7497, WP11). When a re-approved dependency lane's content reaches the target through a fast-forward, a `merge --squash` or a cherry-pick, the canceled WP's change lands as approved content. Only the re-approval guards it, by reviewing that content. Record this residual in the ADR 2026-09-29-1 amendment.
+- **Octopus probe/print disagreement** (WP10). The tool's merge probe treats octopus merges as unjudgeable (fail closed). The printed `git show --remerge-diff` command shows them on current git, so the probe and the reviewer's command can disagree depending on the git version. Record this in the ADR 2026-11-08-2 / review-context amendment.
+- **Superseded-lane record clearing** (WP02 delta). Lane cleanup keeps a superseded lane's lane-tip ref but clears its auto-rebase records. If the branch is recreated from the kept tip and the run resumed, its tool merges read as hand merges, which fails closed toward `RESOLUTION_MERGE_UNREVIEWED`. The second batch already lists this item; this entry confirms it is on the blocking list.
+- Each of these items, and each item of the two earlier batches, must appear in the landed ADR or doc text. In the WP13 review hand-off, give a checklist that maps every item to its file:line.
+
 ## Review Guidance
 
 - Check each of the seven checklist points above against the merged code (squad 2 dispositions in `squads/01-pre-spec-and-post-specify.md`: FR-013 must cover 2026-10-04-5, 2026-09-29-1, 2026-09-19-1, 2026-11-08-2 plus the contract, the #7285 rule and the CLAUDE.md residual sentence).
