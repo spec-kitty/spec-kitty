@@ -1,6 +1,6 @@
 {
   "mission_slug": "approved-lane-resolution-route-01M7WW0Z",
-  "mission_number": "",
+  "mission_number": "267",
   "mission_type": "software-dev",
   "overall_verdict": "pass",
   "criteria": [
@@ -48,11 +48,11 @@
       "criterion_id": "FR-005",
       "description": "Verify FR-005 is satisfied",
       "proof_type": "automated_test",
-      "evidence": "tests/lanes/test_auto_rebase_record.py; test_resolution_merge_unreviewed.py::test_forged_record_is_harmless_the_gate_still_fails",
+      "evidence": "tests/lanes/test_auto_rebase_record.py; tests/consolidation/test_resolution_merge_unreviewed.py::test_forged_record_is_harmless_the_claim_refuses_first; tests/consolidation/test_recorded_merge_resolution_5604.py; tests/lanes/test_auto_rebase_merge_attribute_guard.py",
       "pass_fail": "pass",
       "verified_by": "claude::architect-alphonso",
-      "verified_at": "2026-11-26T09:31:55.798754+00:00",
-      "notes": "Verified at lane-m b6df77436c (contains every lane). Source: squad-3 fidelity matrix (squads/03-pre-accept.md) and WP13 cycle-3 approval; tests/lanes+tests/consolidation 5225 passed."
+      "verified_at": "2026-11-26T20:13:12.352846+00:00",
+      "notes": "Re-recorded after the PR #7886 review fold: claim skip narrowed (A2), pre-merge guard in the lane checkout (I1)."
     },
     {
       "criterion_id": "FR-006",
