@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, NamedTuple
 
 from specify_cli.consolidation.canceled_attestation import OVERRIDABLE_REASONS, attestation_stamps
-from specify_cli.consolidation.git_probes import GitProbeError, commits_in_range
+from specify_cli.consolidation.git_probes import GitProbeError, commit_parents, commits_in_range, first_parent_commits_in_range
 from specify_cli.consolidation.reconciliation_claim_types import CanceledDependencyContent
 from specify_cli.consolidation.reconciliation_kernel import (
     _ClaimEventLog,
@@ -38,6 +38,7 @@ from specify_cli.consolidation.wp_attribution import (
     Attributed,
     AttributionOutcome,
     CanceledPathState,
+    LiveCanceledContent,
     Unattributable,
     UnattributableReason,
     canceled_spine_content,
@@ -337,10 +338,74 @@ def _fully_canceled_lane_own_commits(
     for lane in lanes_manifest.lanes:
         if is_planning_lane(lane) or not lane_fully_canceled(lane, excluded_canceled_wp_ids):
             continue
-        tip_commits = _lane_tip_commits(repo_root, coord_base_ref, _lane_branch_for(lanes_manifest, lane.lane_id))
+        lane_branch = _lane_branch_for(lanes_manifest, lane.lane_id)
+        tip_commits = _lane_tip_commits(repo_root, coord_base_ref, lane_branch)
+        if not tip_commits:  # a gone or empty canceled lane owns nothing, whatever its anchors
+            by_lane[lane.lane_id] = frozenset()
+            continue
         anchors = _closed_world_anchors(lanes_manifest, lane, target_base, excluded_canceled_wp_ids=excluded_canceled_wp_ids, frozen_tips=frozen_tips)
+        anchors = _canceled_lane_anchors(repo_root, coord_base_ref, anchors, target_base, lane_branch)
         by_lane[lane.lane_id] = lane_own_commits(repo_root, coord_base_ref, tip_commits, anchors)
     return by_lane
+
+
+def _canceled_lane_anchors(repo_root: Path, coord_base_ref: str, anchors: Sequence[str], target_base: str | None, canceled_branch: str) -> list[str]:
+    """A fully-canceled lane C's anchors, each dependency anchor taken from BEFORE it incorporated C (#7497).
+
+    The target base is kept as it is. A dependency anchor whose history never merged C stays
+    unchanged, so every Mission without that shape reads the same anchors as before. One whose
+    history (or C's) cannot be read anchors nothing (fail closed: fewer of C's commits are exempt,
+    never more).
+    """
+    kept: list[str] = []
+    for anchor in anchors:
+        if target_base is not None and anchor == target_base:
+            kept.append(anchor)
+            continue
+        try:
+            kept.append(_dependency_anchor_before_incorporating(repo_root, coord_base_ref, anchor, canceled_branch))
+        except GitProbeError:
+            continue
+    return kept
+
+
+def _dependency_anchor_before_incorporating(repo_root: Path, coord_base_ref: str, dependency_tip: str, canceled_branch: str) -> str:
+    """*dependency_tip* as it was before its first-parent spine first merged in C's own work (#7497).
+
+    A dependency lane A that merged the fully-canceled lane C (``git merge --no-ff``) reaches every
+    commit of C, so with A's live tip as an anchor C would own nothing and its content would never be
+    judged. Walking A's first-parent spine oldest first, a merge M incorporates C only when a commit
+    on M's non-first-parent side (``M^1..p`` for every other parent ``p``, M itself excluded) lies on
+    C's OWN first-parent spine: ``coord_base_ref..canceled_branch`` first-parent commits that A before
+    M (``M^1``) does not reach. Matching C's whole tip closure instead would read any ordinary merge on
+    A made before C was cut (a refresh of the Mission branch) as incorporating C, and move A's approved
+    work into C's canceled set (review cycle 1). The anchor is then ``M^1``; the earliest incorporation
+    decides, a later re-merge of C changes nothing. A dependency lane that never merged C keeps
+    *dependency_tip*.
+
+    Residuals (the graph shows C's change as A's own first-parent work, so it is NOT refused: it
+    lands as A's approved content, and only a re-approval that reviews that content guards it):
+
+    * a fast-forward of C onto A: C's commits become A's own first-parent commits, which the graph
+      alone cannot tell apart;
+    * ``git merge --squash`` of C into A: C keeps owning its commit, A is no carrier of it;
+    * a cherry-pick of C's commit onto A: a patch-equivalent copy, not C's commit.
+
+    Raises :class:`GitProbeError` when either history cannot be read.
+    """
+    spine = first_parent_commits_in_range(repo_root, coord_base_ref, dependency_tip)
+    canceled_spine = frozenset(first_parent_commits_in_range(repo_root, coord_base_ref, canceled_branch))
+    for sha in reversed(spine):
+        parents: list[str] = commit_parents(repo_root, sha)
+        if len(parents) > 1 and _merge_brings_in(repo_root, coord_base_ref, parents, canceled_spine):
+            return parents[0]
+    return dependency_tip
+
+
+def _merge_brings_in(repo_root: Path, coord_base_ref: str, parents: Sequence[str], canceled_spine: frozenset[str]) -> bool:
+    """True when a merge with *parents* brings in a commit of C's own first-parent spine its first parent does not reach."""
+    own = canceled_spine.difference(commits_in_range(repo_root, coord_base_ref, parents[0]))
+    return any(own.intersection(commits_in_range(repo_root, parents[0], other)) for other in parents[1:])
 
 
 @dataclass(frozen=True)
@@ -375,17 +440,61 @@ class _CanceledDependencyResolution:
     refusal: str | None = None
 
 
-def _carrier_spines(query: _CanceledLaneQuery, canceled_commits: frozenset[str]) -> dict[str, list[str]]:
-    """Approved, not fully-canceled lane id -> its first-parent spine, for lanes that carry a canceled-lane commit."""
-    carriers: dict[str, list[str]] = {}
+@dataclass(frozen=True)
+class _Carriers:
+    """The approved lanes that carry a fully-canceled lane's commit (#5613, #7497).
+
+    ``spines`` maps a carrier lane id to its newest-first spine: its first-parent spine with the
+    canceled commits a merge on it brought in (through a non-first parent) placed right after that
+    merge. ``unreadable`` names the lanes whose merged-in history could not be read; such a lane is
+    listed as a carrier of every canceled commit (fail closed) and refuses ``spine_unreadable``.
+    """
+
+    spines: dict[str, list[str]] = field(default_factory=dict)
+    unreadable: dict[str, GitProbeError] = field(default_factory=dict)
+
+
+def _with_merged_in_canceled(repo_root: Path, base: str, branch: str, spine: list[str], canceled_commits: frozenset[str]) -> list[str]:
+    """*spine* (newest-first) with every canceled commit a spine merge brought in inserted after that merge (#7497).
+
+    A ``git merge --no-ff`` of a fully-canceled lane into an approved lane puts the canceled commits
+    behind the merge's second parent, off the first-parent spine, so the lane would not count as their
+    carrier. Unchanged (and only one ``rev-list``) when the lane reaches no canceled commit off its
+    spine. Raises :class:`GitProbeError` when the history cannot be read.
+    """
+    off_spine = canceled_commits.intersection(commits_in_range(repo_root, base, branch)).difference(spine)
+    if not off_spine:
+        return spine
+    extended: list[str] = []
+    placed: set[str] = set()
+    for sha in spine:
+        extended.append(sha)
+        parents = commit_parents(repo_root, sha)
+        if len(parents) < 2:
+            continue
+        merged = [c for c in commits_in_range(repo_root, parents[0], sha) if c in off_spine and c not in placed]
+        extended.extend(merged)
+        placed.update(merged)
+    return extended
+
+
+def _carrier_spines(query: _CanceledLaneQuery, canceled_commits: frozenset[str]) -> _Carriers:
+    """The approved, not fully-canceled lanes that carry a canceled-lane commit, on their first-parent spine or through a merge on it."""
+    carriers = _Carriers()
     for lane in query.lanes_manifest.lanes:
         if not _lane_is_approved(lane, query.work_packages) or lane_fully_canceled(lane, query.excluded_ids):
             continue
         lane_branch = _lane_branch_for(query.lanes_manifest, lane.lane_id)
         base, branch = query.sb_window if query.sb_window and is_planning_lane(lane) else (query.coord_base_ref, lane_branch)
         spine = _lane_first_parent_spine(query.repo_root, base, branch)
+        if spine:
+            try:
+                spine = _with_merged_in_canceled(query.repo_root, base, branch, spine, canceled_commits)
+            except GitProbeError as exc:
+                carriers.unreadable[lane.lane_id] = exc
+                spine = [*spine, *sorted(canceled_commits.difference(spine))]
         if canceled_commits.intersection(spine):
-            carriers[lane.lane_id] = spine
+            carriers.spines[lane.lane_id] = spine
     return carriers
 
 
@@ -474,11 +583,22 @@ def _unreadable_carrier_refusal(
     return _join_refusals(refusals) if refusals else None
 
 
+def _spine_content(
+    repo_root: Path, spine: Sequence[str], canceled: frozenset[str], is_bookkeeping: Callable[[str], bool]
+) -> tuple[frozenset[str], dict[str, LiveCanceledContent]] | GitProbeError:
+    """:func:`canceled_spine_content` on one carrier spine, or the probe error that stopped it."""
+    try:
+        return canceled_spine_content(repo_root, spine, canceled, is_bookkeeping)
+    except GitProbeError as exc:
+        return exc
+
+
 def _carried_dependency_content(
     query: _CanceledLaneQuery,
     own_by_lane: Mapping[str, frozenset[str]],
     carriers: Mapping[str, list[str]],
     canceled: frozenset[str],
+    probe_errors: Mapping[str, GitProbeError] | None = None,
 ) -> tuple[frozenset[str], frozenset[CanceledDependencyContent], str | None]:
     """``(superseded commits, carried content, refusal)`` over every carrier lane's spine (#5613).
 
@@ -487,7 +607,8 @@ def _carried_dependency_content(
     not the lane's final state) and consolidation is not refused for it. A carrier
     whose spine cannot be read REFUSEs (#6313, :func:`_unreadable_carrier_refusal`):
     subtracting its canceled commits is not enough, because the canceled lines stay in
-    the carrier's authored blobs and would ship unnamed.
+    the carrier's authored blobs and would ship unnamed. *probe_errors* names the carriers
+    whose merged-in history already could not be read (#7497); they refuse the same way.
     """
     is_bookkeeping = functools.partial(_is_bookkeeping, mission_slug=query.lanes_manifest.mission_slug, planning_prefix=query.planning_prefix)
     lane_of = {sha: lane_id for lane_id, own in own_by_lane.items() for sha in own}
@@ -498,12 +619,12 @@ def _carried_dependency_content(
     unreadable: dict[str, tuple[list[str], GitProbeError]] = {}
     for carrier_id, spine in carriers.items():
         on_spine = canceled.intersection(spine)
-        try:
-            lane_superseded, live = canceled_spine_content(query.repo_root, spine, canceled, is_bookkeeping)
-        except GitProbeError as exc:
+        read = (probe_errors or {}).get(carrier_id) or _spine_content(query.repo_root, spine, canceled, is_bookkeeping)
+        if isinstance(read, GitProbeError):
             live_commits |= on_spine
-            unreadable[carrier_id] = (spine, exc)
+            unreadable[carrier_id] = (spine, read)
             continue
+        lane_superseded, live = read
         superseded |= lane_superseded
         live_commits |= on_spine - lane_superseded
         for path, entry in live.items():
@@ -534,13 +655,13 @@ def _resolve_canceled_dependency_lanes(query: _CanceledLaneQuery, event_log: _Cl
         query.repo_root, query.lanes_manifest, query.excluded_ids, query.coord_base_ref, query.target_base, frozen_tips=query.frozen_tips
     )
     own = frozenset().union(*own_by_lane.values())
-    carriers = _carrier_spines(query, own) if own else {}
-    if not carriers:
+    carriers = _carrier_spines(query, own) if own else _Carriers()
+    if not carriers.spines:
         return _CanceledDependencyResolution(unapproved_commits=own)
-    refusal = _unstamped_carried_refusal(query, own_by_lane, carriers, event_log or _ClaimEventLog(query.feature_dir))
+    refusal = _unstamped_carried_refusal(query, own_by_lane, carriers.spines, event_log or _ClaimEventLog(query.feature_dir))
     if refusal is not None:
         return _CanceledDependencyResolution(refusal=refusal)
-    superseded, content, unreadable_refusal = _carried_dependency_content(query, own_by_lane, carriers, own)
+    superseded, content, unreadable_refusal = _carried_dependency_content(query, own_by_lane, carriers.spines, own, carriers.unreadable)
     if unreadable_refusal is not None:
         return _CanceledDependencyResolution(refusal=unreadable_refusal)
     return _CanceledDependencyResolution(unapproved_commits=own - superseded, content=content)
