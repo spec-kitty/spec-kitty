@@ -1,7 +1,7 @@
 {
-  "event_count": 33,
-  "last_event_id": "01M8AJB3S5TQXNTA4N73KGDVTZ",
-  "materialized_at": "2026-11-25T23:58:32.741496+00:00",
+  "event_count": 34,
+  "last_event_id": "01M8AJDY15GKHT3K7NWV84H0PW",
+  "materialized_at": "2026-11-26T00:00:05.157270+00:00",
   "mission_number": "",
   "mission_slug": "planning-lane-write-branch-01M8A725",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 3
   },
   "work_packages": {
@@ -63,14 +63,14 @@
     },
     "WP02": {
       "actor": "claude",
-      "agent": "claude::python-pedro",
+      "agent": "claude::reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude::python-pedro",
-      "lane": "for_review",
-      "last_event_id": "01M8AJB3S5TQXNTA4N73KGDVTZ",
-      "last_transition_at": "2026-11-25T23:58:32.741496+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M8AJDY15GKHT3K7NWV84H0PW",
+      "last_transition_at": "2026-11-26T00:00:05.157270+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-25T23:51:18Z – claude::python-pedro – shell_pid=10478 – Evidence (commit 3bd8cddd). RED-FIRST: tests/specify_cli/workspace/test_planning_workspace_7860.py before the change: 8 failed / 4 passed (reds: kind 'repo_root' returned instead of mission_branch_checkout; no PLANNING_CHECKOUT_MISSING refusal, a ValueError 'WP not found' instead; missing is_shared_checkout). After: 22 passed. DECISION: new kind mission_branch_checkout, execution_mode direct_repo (runs_in_checkout_root includes it); stored single_branch Missions keep the repo-root lane unchanged (case 4), owned checkouts never read planning_lane_target. PlanningCheckoutMissing is translated to workspace.context.PlanningWorkspaceMissing (StructuredError, code PLANNING_CHECKOUT_MISSING, same message, original chained); when the coordination worktree is gone the WP index is unreadable, so the not-found path probes planning_lane_target and names the refusal (NFR-002). BLAST: tests/specify_cli/workspace tests/runtime tests/specify_cli/cli/commands/agent tests/core tests/lanes (-n 4 loadfile): 8196 passed, 1 failed, 11 skipped, 3 xfailed; the 1 red (test_reassess_under_lock::test_live_upgrade_dry_run_preview_is_deterministic_across_repeats, 'Source mismatch' editable .venv points at the root checkout) also fails at lane HEAD with my diff stashed: environmental (stale install), not mine. Architectural gates test_workspace_resolution_doc + test_owned_checkout_single_authority + test_layer_rules: 92 passed. make test-fast: 3222 passed, 7 skipped. ruff check, ruff format --check --force-exclude, C901: clean; mypy clean on changed files except pre-existing workflow_executor.py:2253 no-any-return (present at base, line 2248, not my hunk).",
@@ -78,9 +78,9 @@
         "Planning workspace resolves to the Mission-branch checkout (kind mission_branch_checkout, direct_repo) for a default not-landed Mission; explicit/landed/single_branch/owned unchanged; PLANNING_CHECKOUT_MISSING refusal; readers audited (see history); messages name the Mission branch. Commit 3bd8cddd."
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 10478,
-      "shell_pid_created_at": "1795648042.7",
+      "role": "reviewer",
+      "shell_pid": 30397,
+      "shell_pid_created_at": "1795651194.98",
       "subtasks": {
         "T005": "done",
         "T006": "done",
