@@ -29,6 +29,7 @@
   "purpose_context": "When two approved lanes conflict, consolidate currently tells operators to resolve and commit on the lane, then refuses that commit as unreviewed content; the rollback also erases the state the advice refers to. This mission names and makes executable the sanctioned route (re-review and re-approval of the resolution), refuses unreviewed resolutions early with a clear message, closes related soundness gaps, and keeps unreviewed content from ever landing.",
   "purpose_tldr": "Make consolidate's stale-lane advice and its reconciliation gate agree on how a conflict between approved lanes is resolved, so operators get one working, reviewed route instead of advice that leads into a refusal.",
   "slug": "approved-lane-resolution-route-01M7WW0Z",
+  "status_phase": "1",
   "target_branch": "fix/approved-lane-resolution-route",
   "topology": "lanes_with_coord",
   "topology_decision": {
