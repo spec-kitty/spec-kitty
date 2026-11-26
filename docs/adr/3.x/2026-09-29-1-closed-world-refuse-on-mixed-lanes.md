@@ -664,7 +664,9 @@ used from here on) and was never recorded here.
   `merge_attribute_guard.assert_registered_merge_behaviour`: one batched
   `git check-attr --stdin merge` over the paths involved (for the remerge probe, every path the
   merge changed against either parent, `git_probes.paths_changed_against_parents`), plus targeted
-  `git config --get` reads cached for the run. It raises `MergeAttributeRefused`, a
+  `git config --get` reads, read live on every call (review fold I2: the run's read cache
+  fingerprints only the repository's own config files, not global, system or `include.path`
+  config, so a cached answer could go stale while the merge honoured the change). It raises `MergeAttributeRefused`, a
   `GitProbeError`, so the gate REFUSEs and the claim refuses, unless each path merges with git's
   built-in merge (attribute unspecified, `merge` set, or `-merge`) or with a spec-kitty registered
   driver on its registered pattern with its registered command
@@ -678,7 +680,10 @@ used from here on) and was never recorded here.
   `ApprovedWpCommitSet.excluded_window_base`) is the effective one, no clone-local source sets it,
   and no `merge.union.*` driver is configured (operator ruling 2026-11-20, option (a)). An
   effective `merge.renormalize` refuses with a named reason (ADR `2026-10-04-5` Amendment
-  2026-11-26 gives the remedy). The probes also run git with `merge_probe_env`, which pins
+  2026-11-26 gives the remedy). The probes, the stale-lane auto-rebase merge and the `--incorporate` merge all run git with one
+  environment, `merge_attribute_guard.pinned_merge_env` (review fold A1: the lane-consolidation pipeline's
+  `make_merge_env`, so a registered driver resolves to the running spec-kitty, under the pins of
+  `merge_probe_env`), which pins
   `merge_attribute_guard.MERGE_PROBE_CONFIG_PINS` (`merge.directoryRenames=conflict`,
   `merge.renames=true`, `diff.algorithm=myers`, `merge.conflictStyle=merge`,
   `merge.renormalize=false`) over every other config source. A sanitized attribute source (an
@@ -690,6 +695,22 @@ used from here on) and was never recorded here.
   `merge` attributes at the merge and at each parent equal those at the pre-run target tip
   (`approved_bound._recorded_merge_attributes_hold`; WP05 binding addendum 1, committed-tree-only
   rule, operator ruling (a)). Otherwise the merge is judged as a hand merge.
+- **The guard runs where git merges (review fold I1).** The stale-lane auto-rebase
+  (`lanes.auto_rebase.attempt_auto_rebase`) and `implement --incorporate` run the guard in the
+  checkout that performs the merge, before the merge, over every path either side changed since
+  the merge base. The claim's own check above reads the repository root checkout, so before the
+  fold an uncommitted `merge=union` in a lane checkout let the tool record a union-resolved
+  conflict that the claim then exempted (the gate still FAILed its content, after the run's
+  mutations). A refusal halts the auto-rebase with its reason (`nothing was merged`) and records
+  nothing. A separate refusal of a dirty or untracked `.gitattributes` was considered and not
+  added: the guard reads the working tree's attributes, the source git's merge reads, so any
+  effective value from such a file is already judged.
+- **One committed-attributes source (review fold I3).** Every merge made before the claim (the
+  auto-rebase, `--incorporate`) trusts the target branch tip as it is then
+  (`merge_attribute_guard.committed_attributes_source`), the claim's rule (its pre-run target tip);
+  `--incorporate` previously trusted the Mission branch tip, so a `union` committed only on the
+  Mission branch let it merge what the claim would then treat as a hand merge. An unreadable or
+  absent target honours no committed `union`.
 - **The un-attributable hint names re-review for a dropped merge.** `_with_attribution_hint`
   (`reconciliation_verifier.py`) names the re-review route (send each work package back with
   `move_back_command`, an independent approval that reaches the merge, re-run) instead of the

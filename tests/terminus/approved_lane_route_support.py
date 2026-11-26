@@ -568,7 +568,7 @@ def follow_route_to_review(route: RouteMission, refusal: str, *, wp_id: str, sib
     sibling_stamp = approval_stamp(events(route), route.wp_of_lane[sibling])
     assert git_rev(checkout, "MERGE_HEAD") == sibling_stamp, "the incorporation merges the sibling at its approval stamp"
     merge = resolve_conflict(checkout, RESOLVED_TEXT, novel_line=novel_line)
-    handed_back = run_printed(route, [*_for_review_command(commands, wp_id), "--agent", route.implementer])
+    handed_back = run_printed(route, _for_review_command(commands, wp_id))  # exactly as printed (#5604 review fold F1)
     assert handed_back.returncode == 0, output(handed_back)
     return reopen, commands, merge
 
