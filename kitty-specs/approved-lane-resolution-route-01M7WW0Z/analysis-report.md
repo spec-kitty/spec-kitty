@@ -4,7 +4,7 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: approved-lane-resolution-route-01M7WW0Z
 mission_id: 01M7WW0ZHE3JCZ0KW6RP8X34G4
-generated_at: '2026-11-26T06:02:24.715641+00:00'
+generated_at: '2026-11-26T06:33:13.789917+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
@@ -21,10 +21,10 @@ input_artifacts:
     sha256: 83874f7451d21cf0615682164d7bb883844ee032e7622bb1359a343fd0e6fb03
 verdict: ready
 issue_counts:
-  high: 0
+  low: 2
   medium: 0
   critical: 0
-  low: 2
+  high: 0
   info: 0
 findings:
 - id: A12
@@ -135,3 +135,4 @@ Third pass, after remediation commit 4c8c0ab and the reviewer-accepted task refi
 - WP13: third batch added, so the reviewer's blocking checklist is complete (gitattributes fold, squash/cherry/ff residuals, octopus disagreement). No FR changes.
 - WP14 rulings: the dependent-lane self-heal gap is deferred to #7880 (residual for WP13); the three-lane sibling set [lane-a, lane-b] is accepted. No FR changes.
 - WP13: the #7880 residual is framed as usability, not integrity (WP14 review). No FR changes.
+- Contracts stale-remedy.md and review-context-merges.md now carry supersession banners pointing to the ADR amendments (reviewer request on WP13). No FR changes.

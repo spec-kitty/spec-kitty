@@ -1,5 +1,7 @@
 # Contract: approved-lane stale remedy
 
+> **Superseded.** The landed remedy text is recorded in ADR `docs/adr/4.x/2026-10-04-5-approval-stamp-bounds-the-approved-claim.md`, Amendment 2026-11-26 (stale-remedy paragraph). Two rulings changed it. Scope ruling DM-01M88RZDBP57ZTYJHC5NP0ZH4R keeps main's #7754 reopen step, `move-task <WP> --to planned --review-feedback-file <file>`, instead of the `--to in_progress` line below; it works on protected coordination targets since #7861. Every printed `implement` line also carries `--agent <agent>`. A dependent lane (#7880) is a recorded residual. Read the ADR, not this file, for the current text.
+
 The approved-lane remedy applies when every one of these holds:
 
 - the caller passes `approved_wp_ids`;
