@@ -63,7 +63,7 @@
     },
     "WP02": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -78,6 +78,7 @@
         "Planning workspace resolves to the Mission-branch checkout (kind mission_branch_checkout, direct_repo) for a default not-landed Mission; explicit/landed/single_branch/owned unchanged; PLANNING_CHECKOUT_MISSING refusal; readers audited (see history); messages name the Mission branch. Commit 3bd8cddd."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/planning-lane-write-branch-01M8A725-coord/kitty-specs/planning-lane-write-branch-01M8A725/tasks/WP02-planning-workspace/review-cycle-1.md",
         "reference": "review-cycle://planning-lane-write-branch-01M8A725/WP02-planning-workspace/review-cycle-1.md",
@@ -85,14 +86,14 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 30397,
-      "shell_pid_created_at": "1795651194.98",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T005": "done",
-        "T006": "done",
-        "T007": "done",
-        "T008": "done",
-        "T009": "done"
+        "T005": "planned",
+        "T006": "planned",
+        "T007": "planned",
+        "T008": "planned",
+        "T009": "planned"
       }
     },
     "WP03": {
