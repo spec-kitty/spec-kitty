@@ -91,7 +91,7 @@ from mission_runtime import (
     is_single_branch,
     routes_through_coordination,
 )
-from specify_cli.git.merge_tree_probe import remerge_diff_available
+from specify_cli.git.merge_tree_probe import check_attr_source_available, remerge_diff_available
 from specify_cli.lanes.claim_base import read_claim_base
 from specify_cli.lanes.for_review_gate import mission_tasks_index_path, status_only_excluded_prefixes
 from specify_cli.mission_metadata import load_meta_or_empty
@@ -202,7 +202,12 @@ class WpReviewRange:
     set when the submitted tip is not an ancestor of the write branch's live head (a rewritten lane): ``moved_past`` is
     then ``0``, because a count from a tip the branch no longer holds would mean nothing. ``merges`` lists every merge
     commit of ``base..tip`` (full history, no pathspec) and ``remerge_available`` whether this git can show each one's
-    resolution; the renderer reads both and runs nothing.
+    resolution. ``attributes_source`` is the Mission's target branch tip when the range was resolved (the pre-run
+    target tip the FR-010 merge guard trusts, never the range base: a ``merge=union`` committed on the lane before
+    the window opened is in the base). When the target cannot be read it is the empty tree (no committed attribute
+    applies) and ``attributes_from_target`` is false; ``None`` only when git cannot name even that. ``attr_source_available`` says whether this
+    git can pin it (``--attr-source``, git >= 2.40). The three are probed only when the range has merges or its merge
+    listing failed; the renderer reads them and runs nothing.
     """
 
     wp_id: str
@@ -223,6 +228,9 @@ class WpReviewRange:
     tip_off_branch: bool = False
     merges: tuple[str, ...] = ()
     remerge_available: bool = True
+    attributes_source: str | None = None
+    attributes_from_target: bool = True
+    attr_source_available: bool = True
 
     def __post_init__(self) -> None:
         unavailable = self.status is RangeStatus.UNAVAILABLE
@@ -660,6 +668,54 @@ def _bookkeeping_only_planning_range(ctx: _Context, base: str, tip: str, bookkee
         return False
 
 
+def _target_tip(ctx: _Context) -> str | None:
+    """The Mission's target branch tip (the attribute source the FR-010 guard trusts), ``None`` when it cannot be read."""
+    target = load_meta_or_empty(ctx.surface.parser_dir).get("target_branch")
+    if not isinstance(target, str) or not target:
+        return None
+    try:
+        result = run_git(ctx.repo_root, "rev-parse", "--verify", "--quiet", f"refs/heads/{target}^{{commit}}")
+    except GitCommandError:
+        logger.debug("review range: target branch %s of %s unreadable", target, ctx.surface.mission_dir_name, exc_info=True)
+        return None
+    sha = result.stdout.decode("ascii", "replace").strip()
+    return sha or None
+
+
+@dataclass(frozen=True)
+class _MergeReview:
+    """What the resolution commands need beyond the merge list: this git's abilities and the trusted attribute source."""
+
+    remerge_available: bool = True
+    attr_source_available: bool = True
+    attributes_source: str | None = None
+    attributes_from_target: bool = True
+
+
+def _empty_tree(repo_root: Path) -> str | None:
+    """git's empty tree id in this repository's hash (``git hash-object -t tree /dev/null``; nothing is written)."""
+    try:
+        result = run_git(repo_root, "hash-object", "-t", "tree", "/dev/null")
+    except GitCommandError:
+        logger.debug("review range: the empty tree id of %s is unreadable", repo_root, exc_info=True)
+        return None
+    return result.stdout.decode("ascii", "replace").strip() or None
+
+
+def _merge_review(ctx: _Context, listing: _Listing) -> _MergeReview:
+    """Probe git and read the target tip only when there is a merge to show, or the merge listing failed (NFR-001)."""
+    if not listing.merges and _MERGES_STEP not in listing.failed:
+        return _MergeReview()
+    target = _target_tip(ctx)
+    return _MergeReview(
+        remerge_available=remerge_diff_available(ctx.repo_root),
+        attr_source_available=check_attr_source_available(ctx.repo_root),
+        # Never the range base: it can hold a lane-committed ``merge=union`` (review cycle 1).
+        attributes_source=target if target is not None else _empty_tree(ctx.repo_root),
+        attributes_from_target=target is not None,
+    )
+
+
 def _status_of(base_source: RangeSource, tip_source: RangeSource) -> RangeStatus:
     recorded = base_source is RangeSource.RECORDED_WINDOW and tip_source is RangeSource.RECORDED_SUBMISSION
     return RangeStatus.RECORDED if recorded else RangeStatus.DERIVED
@@ -704,6 +760,7 @@ def resolve_wp_review_range(
             head=None if tip_off_branch else head,
         )
     )
+    merge_review = _merge_review(ctx, listing)
     return WpReviewRange(
         wp_id=wp_id,
         base=base,
@@ -722,6 +779,8 @@ def resolve_wp_review_range(
         bookkeeping_pathspecs=bookkeeping,
         tip_off_branch=tip_off_branch,
         merges=listing.merges,
-        # The version probe runs only when a merge exists, so a range without merges keeps its git cost.
-        remerge_available=remerge_diff_available(repo_root) if listing.merges else True,
+        remerge_available=merge_review.remerge_available,
+        attributes_source=merge_review.attributes_source,
+        attributes_from_target=merge_review.attributes_from_target,
+        attr_source_available=merge_review.attr_source_available,
     )

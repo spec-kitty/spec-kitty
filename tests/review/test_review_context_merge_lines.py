@@ -16,11 +16,12 @@ from typing import Any
 
 import pytest
 
-from kernel.git import GitCommandError
+from kernel.git import GitCommandError, run_git
 from runtime.next.prompt_builder import _review_command_lines
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
+from specify_cli.consolidation.merge_attribute_guard import MERGE_PROBE_CONFIG_PINS
 from specify_cli.review import wp_range
-from specify_cli.review.context_block import BYTE_BUDGET, render_review_context
+from specify_cli.review.context_block import BYTE_BUDGET, render_review_context, resolution_command
 from specify_cli.review.wp_range import FileChange, RangeCommit, RangeGap, RangeSource, RangeStatus, WpReviewRange, resolve_wp_review_range
 from tests.consolidation import characterization_support as cs
 from tests.terminus.canceled_dependency_support import ACTOR, _commit_in
@@ -30,11 +31,20 @@ BASE = "a" * 40
 TIP = "b" * 40
 M1 = "c" * 40
 M2 = "d" * 40
+TARGET = "e" * 40
 REQS = "CITED REQUIREMENTS:"
 _LABEL = "RESOLUTION MERGE (operator-authored, review these bytes):"
+#: WP12 binding DoD (b): the FR-010 guard's pinned merge config as ``-c`` flags, then no external diff driver or textconv.
+_PINS = " ".join(f"-c {key}={value}" for key, value in MERGE_PROBE_CONFIG_PINS)
+_SHOW = f"git {_PINS} --attr-source={TARGET} show --remerge-diff --no-ext-diff --no-textconv"
 _ATTR_NOTE = (
-    "  note: the resolution commands read .gitattributes from the range base (--attr-source needs git >= 2.40;"
-    " on older git drop it, and a merge driver committed in the range, such as merge=union, can hide the resolution)"
+    "  note: the resolution commands read .gitattributes from the target branch tip eeeeeeeeeeee and pin git's merge config,"
+    " so a merge driver or a merge setting committed in the range, such as merge=union, cannot hide the resolution"
+)
+_UNPINNED_NOTE = (
+    "  note: this git cannot neutralise attributes (--attr-source needs git >= 2.40): the resolution commands read"
+    " .gitattributes from the checkout, so a merge driver committed in the range, such as merge=union, can hide the"
+    " resolution; review the merges with git >= 2.40"
 )
 
 _BASE_RANGE = WpReviewRange(
@@ -48,6 +58,7 @@ _BASE_RANGE = WpReviewRange(
     commits=(RangeCommit("1" * 40, "feat(WP02): first"),),
     files=(FileChange("src/m2/real.py", 2, 0),),
     owned_pathspecs=("src/m2/**",),
+    attributes_source=TARGET,
 )
 
 
@@ -64,8 +75,8 @@ def test_merges_render_one_labelled_line_each() -> None:
 
     diff_at = lines.index(f"  git diff {BASE}..{TIP} -- 'src/m2/**'")
     assert lines[diff_at + 1 : diff_at + 4] == [
-        f"  {_LABEL} git --attr-source={BASE} show --remerge-diff {M1}",
-        f"  {_LABEL} git --attr-source={BASE} show --remerge-diff {M2}",
+        f"  {_LABEL} {_SHOW} {M1}",
+        f"  {_LABEL} {_SHOW} {M2}",
         _ATTR_NOTE,
     ]
     assert lines[diff_at + 4] == REQS
@@ -205,7 +216,7 @@ def test_range_without_merges_is_unchanged(tmp_path: Path, monkeypatch: pytest.M
 @pytest.mark.git_repo
 def test_merge_listing_failure_is_fail_soft(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     mission, _ = _lane_with_merges(tmp_path, mid8="01M7WM04", merges=(("docs/side.md", "A = 4\n"),))
-    real_run_git = wp_range.run_git
+    real_run_git = run_git
 
     def _failing(repo_root: Path, *args: str, **kwargs: Any) -> Any:
         if "--merges" in args:
@@ -219,14 +230,16 @@ def test_merge_listing_failure_is_fail_soft(tmp_path: Path, monkeypatch: pytest.
     assert found.merges == ()
     assert found.listing_gap == "merges"
 
+    target = _git(mission.repo, "rev-parse", "main")
+    assert found.attributes_source == target, "a failed merge listing still reads the trusted attribute source"
     lines = render_review_context(found, ())
     fallback = (
         f"  RESOLUTION MERGES: could not be listed; run git rev-list --merges --full-history {found.base}..{found.tip}"
-        f" and review each with git --attr-source={found.base} show --remerge-diff <sha>"
+        f" and review each with git {_PINS} --attr-source={target} show --remerge-diff --no-ext-diff --no-textconv <sha>"
     )
     diff_at = next(index for index, line in enumerate(lines) if line.startswith("  git diff "))
     assert lines[diff_at + 1] == fallback
-    assert lines[diff_at + 2] == _ATTR_NOTE
+    assert lines[diff_at + 2] == _ATTR_NOTE.replace("eeeeeeeeeeee", target[:12])
     assert lines[diff_at + 3] == REQS
 
 
@@ -243,10 +256,9 @@ def test_next_review_prompt_prints_the_hand_merge_resolution_command(tmp_path: P
     with cs.mission_environment(mission):
         lines = _review_command_lines(mission.repo, mission.slug, "WP01", wp_meta, workspace, None)
 
-    base = next(line for line in lines if line.startswith("REVIEW RANGE")).split()[3].split("..")[0]
     command = next(line for line in lines if line.startswith(f"  {_LABEL}"))
-    assert command.startswith(f"  {_LABEL} git --attr-source=") and command.endswith(f" show --remerge-diff {merge}")
-    assert base.startswith(command.split("--attr-source=")[1][:12])
+    target = _git(mission.repo, "rev-parse", "main")
+    assert command == f"  {_LABEL} git {_PINS} --attr-source={target} show --remerge-diff --no-ext-diff --no-textconv {merge}"
     assert len(merge) == 40
 
 
@@ -268,7 +280,7 @@ def test_pinned_command_shows_a_union_hidden_resolution(tmp_path: Path) -> None:
     _git(repo, "merge", "-q", "--no-ff", "-m", "Merge side", "side")
     merge = _git(repo, "rev-parse", "HEAD")
     assert _git(repo, "show", "HEAD:src/pkg/a.py") == "A = 2\nA = 3", "precondition: the union driver resolved the conflict"
-    review_range = _range(base=base, tip=merge, merges=(merge,), remerge_available=True)
+    review_range = _range(base=base, tip=merge, merges=(merge,), remerge_available=True, attributes_source=base)
 
     command = next(line for line in render_review_context(review_range, ()) if line.startswith(f"  {_LABEL}"))
     argv = command.removeprefix(f"  {_LABEL} ").split()
@@ -277,3 +289,172 @@ def test_pinned_command_shows_a_union_hidden_resolution(tmp_path: Path) -> None:
     assert argv != unpinned, "the printed command pins the attribute source"
     assert "src/pkg/a.py" in _git(repo, *argv[1:], "--format=", "--name-only")
     assert "src/pkg/a.py" not in _git(repo, *unpinned[1:], "--format=", "--name-only")
+
+
+# --------------------------------------------------------------------------- WP12 binding DoD (a)-(d)
+
+
+@pytest.mark.fast
+def test_resolution_command_is_shaped_by_the_guards_pin_table() -> None:
+    """(b): every ``MERGE_PROBE_CONFIG_PINS`` row is a ``-c`` flag, ``merge.renormalize=false`` included, then no ext-diff/textconv."""
+    command = resolution_command(_range())
+
+    assert command == _SHOW
+    for key, value in MERGE_PROBE_CONFIG_PINS:
+        assert f"-c {key}={value}" in command
+    assert "-c merge.renormalize=false" in command
+    assert command.endswith(" show --remerge-diff --no-ext-diff --no-textconv")
+
+
+@pytest.mark.fast
+def test_git_without_attr_source_prints_the_cannot_neutralise_line() -> None:
+    """(a): on git < 2.40 the commands drop ``--attr-source`` and one line says the attributes cannot be neutralised."""
+    lines = render_review_context(_range(merges=(M1,), attr_source_available=False), ())
+
+    command = next(line for line in lines if line.startswith(f"  {_LABEL}"))
+    assert "--attr-source" not in command
+    assert command == f"  {_LABEL} git {_PINS} show --remerge-diff --no-ext-diff --no-textconv {M1}"
+    assert lines[lines.index(command) + 1] == _UNPINNED_NOTE
+    assert _ATTR_NOTE not in lines
+
+
+_EMPTY_TREE_NOTE = "the empty tree (the target branch could not be read, so no committed attribute applies)"
+
+
+@pytest.mark.fast
+def test_unreadable_target_never_falls_back_to_the_range_base() -> None:
+    """Review cycle 1: the range base can hold a lane-committed ``merge=union``; with no source the empty tree is computed by git."""
+    lines = render_review_context(_range(merges=(M1,), attributes_source=None), ())
+
+    command = next(line for line in lines if line.startswith(f"  {_LABEL}"))
+    assert f"--attr-source={BASE}" not in command
+    assert "--attr-source=$(git hash-object -t tree /dev/null) show" in command, command
+    assert any(_EMPTY_TREE_NOTE in line for line in lines), lines
+
+
+@pytest.mark.fast
+def test_resolved_empty_tree_is_named_as_the_empty_tree() -> None:
+    lines = render_review_context(_range(merges=(M1,), attributes_source=M2, attributes_from_target=False), ())
+
+    assert f"--attr-source={M2} show" in next(line for line in lines if line.startswith(f"  {_LABEL}"))
+    assert any(_EMPTY_TREE_NOTE in line for line in lines), lines
+
+
+@pytest.mark.fast
+def test_unlisted_merges_on_git_without_remerge_diff_print_the_cannot_show_form() -> None:
+    """(d): the merge listing failed AND this git lacks ``--remerge-diff``: no ``show --remerge-diff`` instruction."""
+    lines = render_review_context(_range(listing_gap="merges", remerge_available=False), ())
+
+    expected = (
+        "  RESOLUTION MERGES: could not be listed, and this git cannot show a resolution (needs git >= 2.36); list them with"
+        f" git rev-list --merges --full-history {BASE}..{TIP} and review each merge by hand"
+    )
+    diff_at = next(index for index, line in enumerate(lines) if line.startswith("  git diff "))
+    assert lines[diff_at + 1] == expected
+    assert lines[diff_at + 2] == REQS
+    assert not any("--remerge-diff" in line for line in lines)
+
+
+@pytest.mark.integration
+@pytest.mark.git_repo
+def test_failed_listing_probes_this_gits_abilities(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """(a)/(d): a failed merge listing still probes ``--remerge-diff`` and ``--attr-source`` support (WP01's probes)."""
+    mission, _ = _lane_with_merges(tmp_path, mid8="01M7WM06", merges=(("docs/side.md", "A = 6\n"),))
+    real_run_git = run_git
+
+    def _failing(repo_root: Path, *args: str, **kwargs: Any) -> Any:
+        if "--merges" in args:
+            raise GitCommandError(argv=args, cwd=repo_root, returncode=128, stderr="boom")
+        return real_run_git(repo_root, *args, **kwargs)
+
+    monkeypatch.setattr(wp_range, "run_git", _failing)
+    monkeypatch.setattr(wp_range, "remerge_diff_available", lambda _repo: False)
+    monkeypatch.setattr(wp_range, "check_attr_source_available", lambda _repo: False)
+    found = _resolve(mission, monkeypatch)
+
+    assert found.merges_unlisted and found.remerge_available is False and found.attr_source_available is False
+    assert any(line.startswith("  RESOLUTION MERGES: could not be listed, and this git cannot show") for line in render_review_context(found, ()))
+
+
+@pytest.mark.integration
+@pytest.mark.git_repo
+def test_old_git_range_renders_unpinned_commands(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """(a) through the resolver: ``check_attr_source_available`` false reaches the block as the cannot-neutralise line."""
+    mission, (merge,) = _lane_with_merges(tmp_path, mid8="01M7WM07", merges=(("docs/side.md", "A = 7  # resolved by hand\n"),))
+    monkeypatch.setattr(wp_range, "check_attr_source_available", lambda _repo: False)
+
+    found = _resolve(mission, monkeypatch)
+
+    assert found.attr_source_available is False
+    lines = render_review_context(found, ())
+    assert f"  {_LABEL} git {_PINS} show --remerge-diff --no-ext-diff --no-textconv {merge}" in lines
+    assert _UNPINNED_NOTE in lines
+
+
+def _union_before_the_window(tmp_path: Path, mid8: str) -> tuple[cs.ShapeMission, Path, str]:
+    """A lane that commits ``src/pkg/a.py merge=union`` BEFORE its window opens, then a union-resolved merge; ``(mission, repo, merge)``."""
+    mission, manifest = cs._bootstrap_one_lane_coord(tmp_path, mid8="01M7WM08", wps=("WP01",))
+    tree, branch = allocate_lane_worktree(mission.repo, mission.slug, "WP01", manifest)
+    _commit_in(tree, "src/pkg/a.py", "A = 1\n", "seed a.py on the lane")
+    _commit_in(tree, ".gitattributes", "src/pkg/a.py merge=union\n", "lane: union driver, before the window opens")
+    for lane in ("planned", "claimed", "in_progress"):
+        transition(mission, "WP01", lane, actor=ACTOR)
+    _git(tree, "checkout", "-q", "-b", "side")
+    _commit_in(tree, "src/pkg/a.py", "A = 3\n", "side")
+    _git(tree, "checkout", "-q", branch)
+    _commit_in(tree, "src/pkg/a.py", "A = 2\n", f"feat({mission.slug}): a")
+    _git(tree, "merge", "-q", "--no-ff", "-m", "Merge side", "side")
+    merge = _git(tree, "rev-parse", "HEAD")
+    assert _git(tree, "show", "HEAD:src/pkg/a.py") == "A = 2\nA = 3", "precondition: the union driver resolved the conflict"
+    transition(mission, "WP01", "for_review", actor=ACTOR, subtasks_complete=True)
+    mission.lane_branches["WP01"] = branch
+    return cs._from_coord(mission, "coord", subject_wp="WP01", window_wps=("WP01",)), mission.repo, merge
+
+
+def _command_argv(found: WpReviewRange) -> list[str]:
+    command = next(line for line in render_review_context(found, ()) if line.startswith(f"  {_LABEL}"))
+    return command.removeprefix(f"  {_LABEL} ").split()
+
+
+@pytest.mark.integration
+@pytest.mark.git_repo
+def test_union_committed_before_the_window_base_is_neutralised_by_the_target_tip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """(c): ``merge=union`` committed on the lane BEFORE the window opened is in the range base; the printed command must
+    read attributes from the pre-run target tip, so running it lists the union-hidden path."""
+    shaped, repo, merge = _union_before_the_window(tmp_path, "01M7WM08")
+
+    found = _resolve(shaped, monkeypatch)
+
+    target = _git(repo, "rev-parse", "main")
+    assert found.merges == (merge,)
+    assert _git(repo, "cat-file", "-p", f"{found.base}:.gitattributes") == "src/pkg/a.py merge=union", "precondition: the base holds the union"
+    assert found.attributes_source == target and found.attributes_from_target
+    argv = _command_argv(found)
+    assert f"--attr-source={target}" in argv
+    assert "src/pkg/a.py" in _git(repo, *argv[1:], "--format=", "--name-only")
+    from_base = [f"--attr-source={found.base}" if arg.startswith("--attr-source=") else arg for arg in argv]
+    assert "src/pkg/a.py" not in _git(repo, *from_base[1:], "--format=", "--name-only"), "control: the range base hides it"
+
+
+@pytest.mark.integration
+@pytest.mark.git_repo
+def test_unreadable_target_reads_attributes_from_the_empty_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review cycle 1: with the target branch unreadable the command reads attributes from the empty tree, never the
+    range base (which holds the lane's union), so running it still lists the union-hidden path."""
+    shaped, repo, merge = _union_before_the_window(tmp_path, "01M7WM09")
+    real_run_git = run_git
+
+    def _target_unreadable(repo_root: Path, *args: str, **kwargs: Any) -> Any:
+        if "rev-parse" in args and any(arg.startswith("refs/heads/main") for arg in args):
+            raise GitCommandError(argv=args, cwd=repo_root, returncode=128, stderr="unreadable target")
+        return real_run_git(repo_root, *args, **kwargs)
+
+    monkeypatch.setattr(wp_range, "run_git", _target_unreadable)
+    found = _resolve(shaped, monkeypatch)
+
+    empty_tree = _git(repo, "hash-object", "-t", "tree", "/dev/null")
+    assert found.merges == (merge,)
+    assert found.attributes_source == empty_tree and not found.attributes_from_target
+    argv = _command_argv(found)
+    assert f"--attr-source={empty_tree}" in argv and f"--attr-source={found.base}" not in argv
+    assert "src/pkg/a.py" in _git(repo, *argv[1:], "--format=", "--name-only")
