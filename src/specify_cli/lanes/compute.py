@@ -42,7 +42,7 @@ from specify_cli.lanes.frozen_membership import (
 )
 from specify_cli.lanes.models import CollapseEvent, CollapseReport, ExecutionLane, LanesManifest
 from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
-from specify_cli.ownership.validation import _globs_overlap
+from specify_cli.ownership.validation import globs_overlap
 
 
 def is_planning_lane(lane: object) -> bool:
@@ -383,7 +383,7 @@ def _describe_overlap(
     overlapping: list[str] = []
     for glob_a in manifest_a.owned_files:
         for glob_b in manifest_b.owned_files:
-            if _globs_overlap(glob_a, glob_b):
+            if globs_overlap(glob_a, glob_b):
                 overlapping.append(f"{glob_a!r} vs {glob_b!r}")
     if overlapping:
         return "overlapping globs: " + ", ".join(overlapping)
@@ -410,7 +410,7 @@ def _are_disjoint(
     """Return True if no glob from manifest_a overlaps with any glob from manifest_b."""
     for glob_a in manifest_a.owned_files:
         for glob_b in manifest_b.owned_files:
-            if _globs_overlap(glob_a, glob_b):
+            if globs_overlap(glob_a, glob_b):
                 return False
     return True
 
@@ -491,7 +491,7 @@ def find_overlap_pairs(
     for wp_a, wp_b in combinations(wp_ids, 2):
         for glob_a in manifests[wp_a].owned_files:
             for glob_b in manifests[wp_b].owned_files:
-                if _globs_overlap(glob_a, glob_b):
+                if globs_overlap(glob_a, glob_b):
                     pairs.append((wp_a, wp_b))
                     break
             else:

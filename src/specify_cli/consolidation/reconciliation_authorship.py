@@ -14,11 +14,23 @@ every name, so no caller changes (C-005).
 
 Before a default Mission lands, its planning lane is walked on the Mission branch (#7860, FR-012,
 :func:`_lane_walk_range`), fail closed: the walk is scoped to the ``owned_files`` of the lane's
-approved work packages (:func:`_approved_planning_scope`; a canceled work package's paths never
-count, and an unreadable list or a whole-tree glob authors nothing), and a commit enters the claim
-by SHA and patch-id only when every path it changes is in that scope or bookkeeping
-(:func:`_scoped_commits`), so a mixed commit, and every copy of it, stays un-attributable on the
-merge / rebase closed world while its in-scope blobs still count on the squash axis.
+approved work packages (:func:`_approved_planning_scope`; a canceled or in-flight work package's
+paths never count), and a commit enters the claim by SHA and patch-id only when every path it
+changes is in that scope or bookkeeping (:func:`_scoped_commits`), so a mixed commit, and every
+copy of it, stays un-attributable on the merge / rebase closed world while its in-scope blobs
+still count on the squash axis. The scope is empty, and the lane authors nothing, when an approved
+``owned_files`` list cannot be read, when an approved pattern has fewer than two literal leading
+path segments and names no top-level file (:func:`_is_whole_tree_pattern`), or when a
+non-approved work package of the lane has ``owned_files`` that overlap the approved ones or cannot
+be read (:func:`_others_may_share_the_scope`): the claim admits a commit by its paths, never by who
+made it. Remedy for the operator: approve the overlapping work package, or cancel it and narrow
+the ownership, or give the work packages disjoint, narrower ``owned_files``.
+
+Two residuals of that window. The planning lane has no approval-stamp bound: a change to an
+approved work package's owned path made after its approval, by any commit on the Mission branch,
+still counts as approved authorship. And ``owned_files`` is read from the working tree's task
+files (the placement seam's ``tasks/`` directory), not at ``coord_base_ref``, and ``--resume``
+does not freeze it, so an ``owned_files`` edit between runs changes the scope.
 """
 
 from __future__ import annotations
@@ -51,8 +63,8 @@ from specify_cli.consolidation.reconciliation_claim_types import (
     PresenceGap,
 )
 from specify_cli.consolidation.reconciliation_kernel import (
-    _APPROVED_MEMBERSHIP_LANES,
     _dependency_lane_ids,
+    _is_approved_wp,
     _is_bookkeeping,
     _lane_branch_for,
     _lane_first_parent_spine,
@@ -275,7 +287,7 @@ def _lane_content(
     """
     state: dict[str, str | None] = dict.fromkeys(lane_deletions)
     state.update(dict(lane_blobs))
-    approved_wps = tuple(wp for wp in lane.wp_ids if str((work_packages.get(wp) or {}).get("lane", "")) in _APPROVED_MEMBERSHIP_LANES)
+    approved_wps = tuple(wp for wp in lane.wp_ids if _is_approved_wp(wp, work_packages))
     ancestors = _dependency_lane_ids(lanes_manifest, lane)
     return ApprovedLaneContent(
         lane_id=lane.lane_id,
@@ -294,7 +306,7 @@ def _approved_stamps(lane: object, work_packages: Mapping[str, Mapping[str, obje
         return ()
     stamps: list[str] = []
     for wp in getattr(lane, "wp_ids", ()):
-        if str((work_packages.get(wp) or {}).get("lane", "")) not in _APPROVED_MEMBERSHIP_LANES:
+        if not _is_approved_wp(wp, work_packages):
             continue
         # #7802: the pre-sync stamp is a reach anchor too. It is a first-parent ancestor
         # of ``lane_head``, so it never keeps a merge ``lane_head`` would not keep, and it
@@ -751,30 +763,122 @@ def _lane_walk_range(
 
 
 _GLOB_CHARS = frozenset("*?[")
+# A usable owned glob is led by at least this many literal path segments (#7860 review 3).
+_MIN_LITERAL_SEGMENTS = 2
+_PARENT_SEGMENT = ".."
+
+
+def _normalized_pattern(pattern: str) -> str:
+    """*pattern* as the ownership reader normalises it: ``\\`` to ``/`` and one leading ``./`` dropped."""
+    return pattern.replace("\\", "/").removeprefix("./")
+
+
+def _literal_prefix(pattern: str) -> tuple[str, ...] | None:
+    """The literal leading path segments of *pattern* (those before the first ``*``, ``?`` or ``[``).
+
+    A trailing ``/`` is stripped first. ``None`` for a pattern no prefix can bound: one with an empty
+    segment (an empty pattern, ``a//b``, or an absolute path, whose first segment is empty) or any
+    ``..`` segment.
+    """
+    segments = _normalized_pattern(pattern).rstrip("/").split("/")
+    if any(segment in ("", _PARENT_SEGMENT) for segment in segments):
+        return None
+    literal: list[str] = []
+    for segment in segments:
+        if any(char in _GLOB_CHARS for char in segment):
+            break
+        literal.append(segment)
+    return tuple(literal)
+
+
+def _names_a_top_level_file(pattern: str, literal: tuple[str, ...]) -> bool:
+    """True for one wildcard-free segment with an extension (``README.md``, ``pyproject.toml``) and no trailing ``/``.
+
+    Kept simple on purpose (fail closed): a name with no ``.`` after its first character
+    (``src``, ``.github``, ``.gitignore``) reads as a directory and is refused.
+    """
+    normalized = _normalized_pattern(pattern)
+    return len(literal) == 1 and normalized == literal[0] and "." in literal[0][1:]
 
 
 def _is_whole_tree_pattern(pattern: str) -> bool:
-    """True when an owned glob cannot scope the Mission-branch window (#7860 review 2).
+    """True when an owned glob is too broad to scope the Mission-branch window (#7860 reviews 2 and 3).
 
-    Two shapes: a pattern whose FIRST path segment holds a wildcard (``*``, ``**``, ``**/*``,
-    ``*.py``, ``?rc/**``): ``fnmatch``'s ``*`` crosses ``/``, so it matches every directory; and
-    the ownership inference fallback ``src/**`` (``SRC_FALLBACK_GLOB``), which a work package that
-    names no path gets with a warning only. A declared ``src/**`` reads the same and is treated the
-    same (fail closed).
+    Judged on structure, not spelling: a usable pattern is led by at least two literal path segments
+    (segments before the first one holding ``*``, ``?`` or ``[``, after dropping a leading ``./`` and
+    a trailing ``/``), or names one top-level file (:func:`_names_a_top_level_file`). Everything
+    else is refused: a wildcard in the first segment (``fnmatch``'s ``*`` crosses ``/``), the
+    inference fallback ``src/**`` and every pattern as broad as it (``src``, ``src/``, ``src/*``,
+    ``src/**/*``, ``src/*/**``, ``src/**/*.py``), and also ``docs/*.md`` or ``docs/**``; an absolute
+    path, an empty segment and a ``..`` segment are refused outright. The matcher's prefix rule
+    (:func:`matches_owned`) can reach a sibling of the last literal segment (``src/a/*b/**`` also owns
+    ``src/ab/...``); with two literal segments that sibling is still under the first one, so the
+    breadth stays bounded.
     """
-    from specify_cli.ownership.inference import SRC_FALLBACK_GLOB
+    literal = _literal_prefix(pattern)
+    if literal is None:
+        return True
+    return len(literal) < _MIN_LITERAL_SEGMENTS and not _names_a_top_level_file(pattern, literal)
 
-    first = pattern.split("/", 1)[0]
-    return pattern == SRC_FALLBACK_GLOB or any(char in _GLOB_CHARS for char in first)
+
+def _reach_roots(pattern: str) -> list[tuple[str, ...]] | None:
+    """The path prefixes every path *pattern* owns lies under: its literal prefix and the matcher's prefix rule's.
+
+    ``None`` when no prefix bounds it (:func:`_literal_prefix`).
+    """
+    literal = _literal_prefix(pattern)
+    if literal is None:
+        return None
+    matcher_prefix = _normalized_pattern(pattern).replace("/**", "").replace("/*", "").rstrip("/")
+    roots = [literal]
+    if matcher_prefix and _literal_prefix(matcher_prefix) is not None:
+        roots.append(tuple(matcher_prefix.split("/")))
+    return roots
+
+
+def _roots_meet(pattern_a: str, pattern_b: str) -> bool:
+    """True unless every reach root of the two patterns diverges at some segment (a path under both is impossible)."""
+    roots_a, roots_b = _reach_roots(pattern_a), _reach_roots(pattern_b)
+    if roots_a is None or roots_b is None:
+        return True
+    return any(a[: min(len(a), len(b))] == b[: min(len(a), len(b))] for a in roots_a for b in roots_b)
+
+
+def _ownership_overlaps(approved: Sequence[str], others: Sequence[str]) -> bool:
+    """True when a path may be owned by both an *approved* pattern and one of *others* (read conservatively).
+
+    ``ownership.validation.globs_overlap`` (the overlap rule finalize-tasks applies) misses pairs such as
+    ``src/a/**/x.py`` and ``src/a/b/**``; the reach-root check (:func:`_roots_meet`) closes them, so
+    the answer is never a false "no" (fail closed).
+    """
+    from specify_cli.ownership.validation import globs_overlap
+
+    return any(globs_overlap(a, b) or _roots_meet(a, b) for a in approved for b in others)
 
 
 def _planning_ownership(repo_root: Path, mission_slug: str, wp_ids: Sequence[str]) -> dict[str, tuple[str, ...]]:
     """*wp_ids*' authored ``owned_files`` globs, read through the evidence axis' one reader; an unresolved id is absent."""
-    from specify_cli.consolidation import wp_evidence
+    from specify_cli.consolidation.wp_evidence import read_wp_ownership
 
     # ``feature_dir`` is unused by the reader (it reads the placement seam's tasks dir, never a fallback).
-    resolved, _reasons, _tasks_dir = wp_evidence._read_ownership(repo_root, mission_slug, repo_root, tuple(wp_ids))
+    resolved, _reasons, _tasks_dir = read_wp_ownership(repo_root, mission_slug, repo_root, tuple(wp_ids))
     return dict(resolved)
+
+
+def _others_may_share_the_scope(repo_root: Path, mission_slug: str, others: Sequence[str], scope: Sequence[str]) -> bool:
+    """True when a non-approved planning work package may commit to a path of *scope* (#7860 review 3).
+
+    The claim admits a commit by its paths, never by who made it, and finalize-tasks allows
+    overlapping ``owned_files`` (dependency-ordered pairs, ``codebase-wide``). So a canceled or
+    in-flight work package whose ownership overlaps the approved scope, or whose ownership cannot
+    be read, makes the scope unusable (fail closed).
+    """
+    if not others:
+        return False
+    owned = _planning_ownership(repo_root, mission_slug, others)
+    if any(wp not in owned for wp in others):
+        return True
+    return _ownership_overlaps(scope, [pattern for wp in others for pattern in owned[wp]])
 
 
 def _approved_planning_scope(
@@ -785,12 +889,13 @@ def _approved_planning_scope(
 ) -> tuple[str, ...]:
     """The owned paths of *lane*'s approved work packages, or ``()`` when they cannot scope the window (fail closed).
 
-    Only a work package in an approved membership lane counts (a canceled one, or one still in
-    flight, never does). ``()`` when none is approved, when any approved one's ``owned_files``
-    cannot be read (no partial scope), or when any of its patterns is whole-tree
-    (:func:`_is_whole_tree_pattern`).
+    Only a work package in an approved membership lane counts (:func:`_is_approved_wp`; a canceled
+    one, or one still in flight, never does). ``()`` when none is approved, when any approved one's
+    ``owned_files`` cannot be read (no partial scope), when any of its patterns is too broad
+    (:func:`_is_whole_tree_pattern`), or when any other work package of the lane may share a path
+    of the scope (:func:`_others_may_share_the_scope`).
     """
-    approved = tuple(wp for wp in lane.wp_ids if str((work_packages.get(wp) or {}).get("lane", "")) in _APPROVED_MEMBERSHIP_LANES)
+    approved = tuple(wp for wp in lane.wp_ids if _is_approved_wp(wp, work_packages))
     if not approved:
         return ()
     owned = _planning_ownership(repo_root, lanes_manifest.mission_slug, approved)
@@ -798,6 +903,9 @@ def _approved_planning_scope(
         return ()
     scope = sorted({pattern for wp in approved for pattern in owned[wp]})
     if any(_is_whole_tree_pattern(pattern) for pattern in scope):
+        return ()
+    others = tuple(wp for wp in lane.wp_ids if wp not in approved)
+    if _others_may_share_the_scope(repo_root, lanes_manifest.mission_slug, others, scope):
         return ()
     return tuple(scope)
 
@@ -1031,7 +1139,6 @@ __all__ = [
     "StateAt",
     "_AuthoredClaim",
     "_PresenceScope",
-    "_approved_planning_scope",
     "_approved_stamps",
     "_collect_authored",
     "_commits_before",

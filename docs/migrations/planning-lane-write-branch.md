@@ -52,11 +52,26 @@ written, reviewed and evidenced (operator ruling A', recorded on #7860):
   approved work packages. A commit counts by SHA or patch-id only when every path it changes is
   in that scope or is Mission bookkeeping; a commit that also changes another path contributes
   only its in-scope files, so its other change (and any cherry-picked copy) is refused as
-  un-attributable at the gate. A canceled work package's files never count. When an approved
-  work package's `owned_files` cannot be read, or any of them is a whole-tree glob (one whose
-  first segment holds a wildcard, such as `*`, `**`, `**/*` or `*.py`) or the inferred fallback
-  `src/**`, the planning lane authors nothing and the gate refuses its content: narrow the
-  `owned_files` and run `consolidate` again.
+  un-attributable at the gate. A canceled work package's files never count. The planning lane
+  authors nothing, so the gate refuses its content, in three cases:
+  - an approved work package's `owned_files` cannot be read;
+  - any approved pattern is too broad. A pattern must be led by at least two literal path
+    segments (the segments before the first one holding `*`, `?` or `[`, after a leading `./`
+    and a trailing `/` are dropped), or name one top-level file with an extension such as
+    `README.md`. So `src/specify_cli/**`, `docs/context/topology.md` and
+    `kitty-specs/<slug>/notes.md` are usable, while `*`, `**`, `*.py`, the inferred fallback
+    `src/**` and every pattern as broad as it (`src`, `src/`, `src/*`, `src/**/*`, `src/*/**`,
+    `src/**/*.py`), and also `docs/*.md`, `docs/**`, `.github` or `.gitignore`, are not. An
+    absolute path, an empty segment or a `..` segment is refused outright;
+  - another work package of the planning lane that is not approved (canceled, or still in
+    flight) has `owned_files` that overlap an approved pattern, or its `owned_files` cannot be
+    read. The claim admits a commit by its paths, not by who made it, and overlapping ownership
+    is allowed between dependency-ordered work packages, so that work package's commit would
+    otherwise count as the approved one's.
+
+  Remedy: narrow the `owned_files` (two literal leading segments), or give the planning work
+  packages disjoint `owned_files`, or approve the overlapping work package, or cancel it and
+  narrow the remaining ownership; then run `consolidate` again.
 
 Nothing changes for an explicit-topology Mission (`--topology ...`), a Mission whose landing is
 recorded, a `single_branch` Mission or a code lane: their planning work is still worked in the
@@ -138,6 +153,15 @@ The orchestrator API reports it as
   package that a Mission finalized before #7816 placed in `lane-planning`, when it is moved to
   `done` before the Mission lands. The check fails safe: it asks for an override instead of
   passing.
+- **The planning lane has no approval-stamp bound.** Code lanes are bounded by each work
+  package's approval stamp; the planning lane is not stamped. A change to an approved planning
+  work package's owned path made after its approval, by any commit on the Mission branch, still
+  counts as approved authorship in the reconciliation claim.
+- **The planning scope is read from the live working tree.** The reconciliation claim reads the
+  planning work packages' `owned_files` from the task files in the working tree (the placement
+  seam's `tasks/` directory), not at the coordination base the rest of the claim is pinned to,
+  and `consolidate --resume` does not freeze it. An `owned_files` edit made between runs, even an
+  uncommitted one, changes the scope.
 - **The review range lists owned files only.** The review range of a planning work package is
   limited to its `owned_files` pathspecs, so a change the work package made outside its ownership
   map is not shown in the review commands. The review range keeps its own reading of the write

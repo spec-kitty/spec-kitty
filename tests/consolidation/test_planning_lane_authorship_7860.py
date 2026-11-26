@@ -118,17 +118,72 @@ def test_a_scoped_walk_keeps_only_owned_paths() -> None:
     assert authorship._scoped_walk(walk, ()) is walk
 
 
+_TOO_BROAD = [
+    # a wildcard in the first segment (``fnmatch``'s ``*`` crosses ``/``)
+    "*",
+    "**",
+    "**/*",
+    "*.py",
+    "?rc/**",
+    "[a-z]*/x.py",
+    # one literal leading segment: as broad as the inference fallback ``src/**`` (#7860 review 3)
+    "src/**",
+    "src/*",
+    "src",
+    "src/",
+    "src/**/*",
+    "src/*/**",
+    "src/**/*.py",
+    "./src/**",
+    "docs/*.md",
+    "docs/**",
+    "curation/**",
+    # a top-level name with no extension, or a dot-file / dot-directory, reads as a directory
+    ".github",
+    "README.md/",
+    # absolute paths and parent segments are refused outright
+    "/abs/x",
+    "../x",
+    "src/../x.py",
+    "",
+    "src//x.py",
+]
+
+
 @pytest.mark.unit
-@pytest.mark.parametrize("pattern", ["*", "**", "**/*", "*.py", "?rc/**", "[a-z]*/x.py", "src/**"])
-def test_a_whole_tree_or_inferred_fallback_pattern_is_unusable(pattern: str) -> None:
-    """A first segment holding a wildcard matches every directory (``fnmatch``'s ``*`` crosses ``/``); ``src/**`` is the inference fallback."""
+@pytest.mark.parametrize("pattern", _TOO_BROAD)
+def test_a_pattern_with_fewer_than_two_literal_leading_segments_is_unusable(pattern: str) -> None:
+    """A pattern is too broad to scope the window unless two literal path segments lead it (or it names one top-level file)."""
     assert authorship._is_whole_tree_pattern(pattern)
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize("pattern", [_OWNED, "curation/**", "src/specify_cli/**", "docs/*.md", f"kitty-specs/{_SLUG}/plan.md"])
+@pytest.mark.parametrize(
+    "pattern",
+    [
+        _OWNED,
+        "curation/pkg/**",
+        "src/specify_cli/**",
+        "src/specify_cli/*.py",
+        "docs/context/topology.md",
+        f"kitty-specs/{_SLUG}/notes.md",
+        "README.md",
+        "pyproject.toml",
+        "./README.md",
+        "src/a/*b/**",
+    ],
+)
 def test_an_anchored_pattern_is_usable(pattern: str) -> None:
     assert not authorship._is_whole_tree_pattern(pattern)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("pattern", ["src/*", "src", "src/", "src/**/*", "src/*/**", "src/**/*.py"])
+def test_every_refused_spelling_of_src_does_match_the_whole_src_tree(pattern: str) -> None:
+    """Why they are refused: each one owns a path no reasonable owner names (review 3 probe)."""
+    from specify_cli.ownership.matching import matches_owned
+
+    assert matches_owned("src/deep/nested/evil.py", (pattern,))
 
 
 def _ownership(monkeypatch: pytest.MonkeyPatch, owned: dict[str, tuple[str, ...]]) -> list[tuple[str, ...]]:
@@ -143,6 +198,8 @@ def _ownership(monkeypatch: pytest.MonkeyPatch, owned: dict[str, tuple[str, ...]
     return asked
 
 
+_PKG = "curation/pkg/**"
+_PKG_WP03 = "curation/pkg/wp03.py"
 _TWO_WP_PLANNING = ExecutionLane(PLANNING_LANE_ID, ("WP02", "WP03"), (_OWNED, "curation/wp03.py"), (), (), 0)
 
 
@@ -152,7 +209,7 @@ def test_the_scope_is_the_approved_work_packages_owned_files_only(monkeypatch: p
     states = {"WP02": {"lane": "approved"}, "WP03": {"lane": "canceled"}}
 
     assert authorship._approved_planning_scope(Path(), _manifest(), _TWO_WP_PLANNING, states) == (_OWNED,)
-    assert asked == [("WP02",)]
+    assert asked == [("WP02",), ("WP03",)]
 
 
 @pytest.mark.unit
@@ -180,6 +237,57 @@ def test_a_whole_tree_pattern_makes_the_whole_scope_unusable(monkeypatch: pytest
     assert authorship._approved_planning_scope(Path(), _manifest(), _TWO_WP_PLANNING, states) == ()
 
 
+@pytest.mark.unit
+@pytest.mark.parametrize("state", ["canceled", "for_review", "in_progress", "planned", "blocked"])
+def test_a_non_approved_work_package_overlapping_the_approved_scope_empties_it(monkeypatch: pytest.MonkeyPatch, state: str) -> None:
+    """Review 3, issue 1: WP02 approved owns ``curation/pkg/**``, WP03 owns ``curation/pkg/wp03.py``; WP03's commit must not read as WP02's."""
+    _ownership(monkeypatch, {"WP02": (_PKG,), "WP03": (_PKG_WP03,)})
+    states = {"WP02": {"lane": "approved"}, "WP03": {"lane": state}}
+
+    assert authorship._approved_planning_scope(Path(), _manifest(), _TWO_WP_PLANNING, states) == ()
+
+
+@pytest.mark.unit
+def test_a_non_approved_work_package_with_disjoint_ownership_keeps_the_scope(monkeypatch: pytest.MonkeyPatch) -> None:
+    asked = _ownership(monkeypatch, {"WP02": (_OWNED,), "WP03": ("curation/wp03.py",)})
+    states = {"WP02": {"lane": "approved"}, "WP03": {"lane": "for_review"}}
+
+    assert authorship._approved_planning_scope(Path(), _manifest(), _TWO_WP_PLANNING, states) == (_OWNED,)
+    assert asked == [("WP02",), ("WP03",)]
+
+
+@pytest.mark.unit
+def test_an_unreadable_non_approved_ownership_empties_the_scope(monkeypatch: pytest.MonkeyPatch) -> None:
+    """WP03 is in flight and its owned_files cannot be read: nothing proves it stays off WP02's paths (fail closed)."""
+    _ownership(monkeypatch, {"WP02": (_OWNED,)})
+    states = {"WP02": {"lane": "approved"}, "WP03": {"lane": "canceled"}}
+
+    assert authorship._approved_planning_scope(Path(), _manifest(), _TWO_WP_PLANNING, states) == ()
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("approved", "other", "overlap"),
+    [
+        (_PKG, _PKG_WP03, True),
+        (_PKG_WP03, _PKG, True),
+        ("curation/a.py", "curation/b.py", False),
+        ("curation/a/**", "curation/b/**", False),
+        ("docs/x.md", "docs/*.md", True),
+        ("src/a/**/x.py", "src/a/b/**", True),
+        ("src/a/x.py", "**", True),
+        ("src/a/x.py", "src/a*/**", True),
+        ("src/a/**", "src/ab/**", False),
+        # the matcher's prefix rule: ``src/a/*b/**`` also owns ``src/ab/...``
+        ("src/ab/x.py", "src/a/*b/**", True),
+        ("src/a/x.py", "/abs/x", True),
+    ],
+)
+def test_ownership_overlap_is_read_conservatively(approved: str, other: str, overlap: bool) -> None:
+    """``globs_overlap`` plus literal-prefix compatibility: a pair that may share a path overlaps (no false negative)."""
+    assert authorship._ownership_overlaps((approved,), (other,)) is overlap
+
+
 @pytest.mark.integration
 def test_the_ownership_reader_returns_only_resolved_work_packages(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """The reader delegates to the evidence axis' one ``owned_files`` read and drops every unresolved id."""
@@ -192,7 +300,7 @@ def test_the_ownership_reader_returns_only_resolved_work_packages(monkeypatch: p
         assert (repo_root, slug) == (tmp_path, _SLUG)
         return {"WP02": (_OWNED,)}, {"WP03": "unreadable"}, tmp_path
 
-    monkeypatch.setattr(wp_evidence, "_read_ownership", _read)
+    monkeypatch.setattr(wp_evidence, "read_wp_ownership", _read)
 
     assert authorship._planning_ownership(tmp_path, _SLUG, ("WP02", "WP03")) == {"WP02": (_OWNED,)}
     assert seen == [("WP02", "WP03")]
@@ -349,7 +457,43 @@ def test_a_canceled_planning_work_packages_content_stays_out_of_the_claim(tmp_pa
 
 
 @pytest.mark.integration
-@pytest.mark.parametrize("pattern", ["*", "**", "**/*", "src/**"])
+def test_a_disjoint_non_approved_work_package_keeps_the_approved_attribution(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Control for the probe below: with disjoint ownership WP02's own commit is attributed, WP03's is not."""
+    repo, pin, _shas = _mission(tmp_path)
+    _git(repo, "switch", "-q", _MISSION_BRANCH)
+    wp02 = _commit(repo, {"curation/pkg/wp02.py": "W = 1\n"}, "feat(WP02): approved work")
+    wp03 = _commit(repo, {"curation/other/wp03.py": "Z = 1\n"}, "feat(WP03): disjoint work")
+    monkeypatch.setattr(mission_runtime, "planning_write_ref", _reader(True))
+    _ownership(monkeypatch, {"WP02": (_PKG,), "WP03": ("curation/other/wp03.py",)})
+    lane = ExecutionLane(PLANNING_LANE_ID, ("WP02", "WP03"), (_PKG, "curation/other/wp03.py"), (), (), 0)
+
+    _coord_base, claim = _planning_claim(repo, pin, lane, {"WP02": {"lane": "approved"}, "WP03": {"lane": "for_review"}})
+
+    assert wp02 in claim.shas and wp03 not in claim.shas
+    assert {path for path, _blob in claim.blobs} == {"curation/pkg/wp02.py"}
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("state", ["canceled", "for_review", "in_progress"])
+def test_an_overlapping_non_approved_work_packages_commit_stays_out_of_the_claim(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, state: str) -> None:
+    """Review 3 probe: WP02 approved owns ``curation/pkg/**``, WP03 owns ``curation/pkg/wp03.py``; WP03's commit is in neither ``shas`` nor ``blobs``."""
+    repo, pin, shas = _mission(tmp_path)
+    _git(repo, "switch", "-q", _MISSION_BRANCH)
+    _commit(repo, {"curation/pkg/wp02.py": "W = 1\n"}, "feat(WP02): approved work")
+    wp03 = _commit(repo, {_PKG_WP03: "Z = 1\n"}, "feat(WP03): overlapping work")
+    monkeypatch.setattr(mission_runtime, "planning_write_ref", _reader(True))
+    _ownership(monkeypatch, {"WP02": (_PKG,), "WP03": (_PKG_WP03,)})
+    lane = ExecutionLane(PLANNING_LANE_ID, ("WP02", "WP03"), (_PKG, _PKG_WP03), (), (), 0)
+
+    _coord_base, claim = _planning_claim(repo, pin, lane, {"WP02": {"lane": "approved"}, "WP03": {"lane": state}})
+
+    assert wp03 not in claim.shas
+    assert _PKG_WP03 not in {path for path, _blob in claim.blobs}
+    assert not claim.shas & set(shas.values())
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("pattern", ["*", "**", "**/*", "src/**", "src/*", "src", "src/**/*.py"])
 def test_a_whole_tree_scope_authors_nothing_on_the_mission_branch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, pattern: str) -> None:
     """A whole-tree or inferred-fallback owned glob would turn the window into an unscoped walk: the lane authors nothing instead."""
     repo, pin, shas = _mission(tmp_path)

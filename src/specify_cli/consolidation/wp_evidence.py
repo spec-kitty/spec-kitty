@@ -459,7 +459,7 @@ def _failure_summary(exc: Exception) -> str:
     return f"{type(exc).__name__}: {message}"
 
 
-def _read_ownership(
+def read_wp_ownership(
     repo_root: Path,
     mission_slug: str,
     feature_dir: Path,
@@ -1198,7 +1198,7 @@ def evaluate_evidence(
     if not approved:
         return EvidenceReport()
     mission_slug = lanes_manifest.mission_slug
-    patterns, reasons, tasks_dir = _read_ownership(repo_root, mission_slug, feature_dir, approved, owned=owned)
+    patterns, reasons, tasks_dir = read_wp_ownership(repo_root, mission_slug, feature_dir, approved, owned=owned)
     scan = _Scan(feature_dir, events, patterns, [], set(), tasks_dir, unresolved_reasons=reasons)
     single_branch = is_single_branch_mission(repo_root, lanes_manifest, owned=owned) if is_single_branch is None else is_single_branch
     if single_branch:
@@ -1257,7 +1257,6 @@ __all__ = [
     "SINGLE_BRANCH_IMPLEMENTATION_MISSING",
     "SINGLE_BRANCH_IMPLEMENTATION_UNREADABLE",
     "SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT",
-    "MISSION_BRANCH_PHRASE",
     "PLANNING_WINDOW_RECOVERY",
     "PlanningWindowUnresolved",
     "absent_lane_window_cause",
@@ -1269,7 +1268,7 @@ __all__ = [
     "lane_evidence_window",
     "mission_evidence_report",
     "planning_evidence_window",
+    "read_wp_ownership",
     "target_only_evidence_addendum",
-    "target_only_owned_commits",
     "widened_lane_paths",
 ]
