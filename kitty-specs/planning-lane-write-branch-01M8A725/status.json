@@ -1,7 +1,7 @@
 {
-  "event_count": 42,
-  "last_event_id": "01M8AMB5AWXJ1NP5MKY300D1ZJ",
-  "materialized_at": "2026-11-26T00:33:30.701869+00:00",
+  "event_count": 44,
+  "last_event_id": "01M8AMP3ZCN537XAJ8RETWJ4GD",
+  "materialized_at": "2026-11-26T00:39:30.540168+00:00",
   "mission_number": "",
   "mission_slug": "planning-lane-write-branch-01M8A725",
   "mission_type": "software-dev",
@@ -13,8 +13,8 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
-    "in_review": 0,
+    "in_progress": 0,
+    "in_review": 1,
     "planned": 3
   },
   "work_packages": {
@@ -63,21 +63,23 @@
     },
     "WP02": {
       "actor": "claude",
-      "agent": null,
+      "agent": "claude::reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "implementer_of_record": "claude::python-pedro",
-      "lane": "in_progress",
-      "last_event_id": "01M8AMB5AWXJ1NP5MKY300D1ZJ",
-      "last_transition_at": "2026-11-26T00:33:30.701869+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M8AMP3ZCN537XAJ8RETWJ4GD",
+      "last_transition_at": "2026-11-26T00:39:30.540168+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-25T23:51:18Z – claude::python-pedro – shell_pid=10478 – Evidence (commit 3bd8cddd). RED-FIRST: tests/specify_cli/workspace/test_planning_workspace_7860.py before the change: 8 failed / 4 passed (reds: kind 'repo_root' returned instead of mission_branch_checkout; no PLANNING_CHECKOUT_MISSING refusal, a ValueError 'WP not found' instead; missing is_shared_checkout). After: 22 passed. DECISION: new kind mission_branch_checkout, execution_mode direct_repo (runs_in_checkout_root includes it); stored single_branch Missions keep the repo-root lane unchanged (case 4), owned checkouts never read planning_lane_target. PlanningCheckoutMissing is translated to workspace.context.PlanningWorkspaceMissing (StructuredError, code PLANNING_CHECKOUT_MISSING, same message, original chained); when the coordination worktree is gone the WP index is unreadable, so the not-found path probes planning_lane_target and names the refusal (NFR-002). BLAST: tests/specify_cli/workspace tests/runtime tests/specify_cli/cli/commands/agent tests/core tests/lanes (-n 4 loadfile): 8196 passed, 1 failed, 11 skipped, 3 xfailed; the 1 red (test_reassess_under_lock::test_live_upgrade_dry_run_preview_is_deterministic_across_repeats, 'Source mismatch' editable .venv points at the root checkout) also fails at lane HEAD with my diff stashed: environmental (stale install), not mine. Architectural gates test_workspace_resolution_doc + test_owned_checkout_single_authority + test_layer_rules: 92 passed. make test-fast: 3222 passed, 7 skipped. ruff check, ruff format --check --force-exclude, C901: clean; mypy clean on changed files except pre-existing workflow_executor.py:2253 no-any-return (present at base, line 2248, not my hunk).",
         "- 2026-11-25T23:51:32Z – claude::python-pedro – shell_pid=10478 – T007 AUDIT (a = means 'shared checkout / no lane worktree' -> new kind behaves like repo_root; b = literally the repository root checkout). context.py ResolvedWorkspace.runs_in_checkout_root -> a -> includes new kind (so status_execution_mode=direct_repo, exists=path exists). Its readers: workflow.py:~1960 --base -> a, automatic, no edit (C-003); workflow.py:~2473 _reconcile_review_lane -> a, automatic; stale_detection.py:~490 -> a, automatic (not_applicable); mission_runtime/checkout_identity.py:~164 (!= lane_workspace) -> a, automatic, checked, no edit; checkout_identity.py:36-49 exempt, checked; review/lane_test_invocation.py:~91 (== lane_workspace) -> a, automatic, no edit. prompt_builder.py:~397 _self_commit_branch -> a -> is_shared_checkout. implement.py:~339 single_branch code-WP banner -> b, kept; new kind gets its own banner and contract line first. tasks_parsing_validation.py:~948 -> a -> is_shared_checkout_kind (the claim-base for_review gate decides, branch is set). workflow.py:~2207 _resolve_review_context -> a, NO EDIT (C-003 limits workflow.py to the ancestry message): the worktree-branch arm computes the same resolve_wp_review_range and shows the checkout's branch, equivalent. tasks_status_view.py:~138,147 -> a -> is_shared_checkout_kind. workflow_executor.py:~2684 docstring of the repo_root review arm -> b, unchanged. worktree_topology.py:68,193,198,256,258 -> a -> is_shared_checkout_kind / workspace.is_shared_checkout (claim-commit base, diff command); :308 note -> new text for new kind, 'repository root planning workspace' kept for repo_root; entry branch_name now the resolved Mission branch for new kind (lane name alone gave the target). stale_detection.py:~84 worktree_exists -> a -> not is_shared_checkout_kind. tasks_dependency_graph.py:~171 (branch_name is None = planning) -> a: new kind printed as planning workspace on the Mission branch, no rebase; other shapes unchanged. tasks_move_task.py:~1523/1525 -> WP04 (not edited): new kind has a branch and kind != repo_root, so until WP04 the auto-commit guard does NOT return early; WP04 should use ResolvedWorkspace.is_shared_checkout. tasks_shared._wp_branch_merged_into_target (done ancestry, code_change WPs only): a code_change WP in lane-planning of a default not-landed Mission now checks the Mission branch against the target (not merged before landing) -- not edited (out of map), flagged. lanes/implement_support ancestry waiver (_root_checkout_is_target) and record_claim_base(repo_root, repo_root) -> WP03. OUT-OF-MAP EDITS: none.",
         "Planning workspace resolves to the Mission-branch checkout (kind mission_branch_checkout, direct_repo) for a default not-landed Mission; explicit/landed/single_branch/owned unchanged; PLANNING_CHECKOUT_MISSING refusal; readers audited (see history); messages name the Mission branch. Commit 3bd8cddd.",
         "- 2026-11-26T00:25:11Z – unknown – Review cycle 1 folded (commit b88982b0). F1: _planning_checkout_missing returns WP01's refusal or None; every other probe outcome (GuardedReadError incl. MissionMetaReadError, RuntimeError, OSError, ValueError) leaves the original 'WP not found' ValueError. RED-FIRST: test_a_corrupt_meta_and_an_unknown_wp_keep_the_original_not_found_error and test_a_probe_that_cannot_decide_keeps_the_original_not_found_error failed before the fix (MissionMetaReadError / RuntimeError escaped), pass after. F2 CLASSIFICATION (PlanningWorkspaceMissing = PLANNING_CHECKOUT_MISSING, StructuredError): ALL FAIL-CLOSED, no code change needed in any file: tasks_move_task_gates.py:314 _mt_resolve_pre_review_workspace -> fail-closed (no evidence is not 'no workspace'; propagates to move-task's catch-all, rendered by _output_error, no traceback) [owner: not WP02 file, no edit]; tasks_move_task_executor.py:230 emit stamp -> fail-closed (a stamp guessed as 'worktree' would mis-stamp; the move is refused) [no edit]; tasks_move_task.py:1511 auto-commit and :1790 done ancestry -> fail-closed [WP04-owned, no edit; WP04 keeps them uncaught]; tasks_parsing_validation.py:945 -> fail-closed [WP02, comment added documenting it]; orchestrator_api/wp_lifecycle.py:293 -> fail-closed, ALREADY named: it catches StructuredError and renders exc.error_code as the envelope [WP03-owned, no edit]. Tests: test_move_task_pre_review_workspace_fails_closed_when_the_coordination_worktree_is_gone (unit, raises PLANNING_CHECKOUT_MISSING) and test_move_task_refuses_by_name_when_the_coordination_worktree_is_gone (CLI, real git: exits 1, no traceback; the handle resolution refuses first with MISSION_NOT_FOUND because the Mission's only checkout is gone). Both pass before and after (they pin the classification; the behaviour already held). F3: workflow_executor review_cited_requirements returns a typed local; mypy 0 issues on all 11 WP02 files. F4: dependency alert says 'repository root checkout' / 'ensure the target branch is up to date'. F5: PlanningWorkspaceMissing(source: PlanningCheckoutMissing), _translate_checkout_missing inlined. F6: worktree_topology uses REPO_ROOT_KIND. TESTS: new file 26 passed; blast (tests/specify_cli/workspace tests/runtime tests/specify_cli/cli/commands/agent tests/core tests/lanes, -n 4 loadfile) 8200 passed, 1 failed (test_reassess_under_lock live-upgrade preview: stale editable install, red at lane HEAD without my diff, as cycle 0), 11 skipped, 3 xfailed; arch gates 92 passed; make test-fast 3222 passed, 7 skipped; ruff, format --force-exclude, C901 clean. Out-of-map edits: none.",
-        "Review cycle 1 folded (6/6): probe keeps the original error, tolerant callers classified fail-closed with tests, mypy 0 on changed files, terminology, typing, REPO_ROOT_KIND. Commit b88982b0."
+        "Review cycle 1 folded (6/6): probe keeps the original error, tolerant callers classified fail-closed with tests, mypy 0 on changed files, terminology, typing, REPO_ROOT_KIND. Commit b88982b0.",
+        "- 2026-11-26T00:36:26Z – claude::python-pedro – Review cycle 2 folded (commit f5572c5f): the CLI test is renamed test_move_task_without_the_coordination_worktree_refuses_without_a_traceback and asserts error_code == MISSION_NOT_FOUND exactly. Its docstring says the path never reaches the workspace resolver; the evidence for PLANNING_CHECKOUT_MISSING is the unit test test_move_task_pre_review_workspace_fails_closed_when_the_coordination_worktree_is_gone. Test file: 26 passed. ruff, format --force-exclude, mypy: clean on the test file. Test-only change; no source touched.",
+        "Review cycle 2 folded: the vacuous CLI assertion now pins MISSION_NOT_FOUND exactly as a no-traceback guard. Commit f5572c5f."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -87,15 +89,15 @@
         "reviewer": "claude::reviewer-renata",
         "verdict": "changes_requested"
       },
-      "role": "implementer",
-      "shell_pid": null,
-      "shell_pid_created_at": null,
+      "role": "reviewer",
+      "shell_pid": 4255,
+      "shell_pid_created_at": "1795653560.8",
       "subtasks": {
-        "T005": "planned",
-        "T006": "planned",
-        "T007": "planned",
-        "T008": "planned",
-        "T009": "planned"
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
       }
     },
     "WP03": {
