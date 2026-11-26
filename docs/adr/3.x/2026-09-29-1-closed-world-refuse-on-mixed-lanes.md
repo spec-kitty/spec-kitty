@@ -728,6 +728,10 @@ No attestation is added. The hint only changes text.
   honours no committed `union` (over-refusal).
 - The pre-existing squash residual #7862 (a dropped target change where both sides changed a path)
   is not touched by this amendment.
+- **Closes a residual of Amendment 2026-11-25.** That amendment lists "the remerge path set
+  depends on the clone's merge attributes and drivers (tracked by #5604 WP01)". The merge
+  attribute guard above closes it: an unregistered effective attribute or driver now refuses
+  instead of changing the remerge path set.
 
 **Confirmation.** `tests/consolidation/test_merge_attribute_guard.py` (every attack route against
 both probes, the committed `union` rule, `merge.renormalize`, the config pins),
