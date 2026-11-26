@@ -445,3 +445,17 @@ def test_fold_honours_a_committed_union_only_with_the_window_base(union_repo: _U
     without_base = ApprovedWpCommitSet(mission_slug=SLUG, path_contributions=contributions)
     with pytest.raises(GitProbeError, match="union"):
         rv.is_legitimate_merge_resolution(union_repo.repo, without_base, "p.py", union_repo.union_blob)
+
+
+@pytest.mark.git_repo
+def test_advisory_entry_probes_with_the_claims_attributes_source(union_repo: _UnionRepo) -> None:
+    """Squad-3 A7: on a memo miss the advisory FR-006 entry probes the merge with the claim's attributes source.
+
+    With the source the committed union stands (the merge adds nothing of its own); without it the
+    probe refuses and the advisory entry is skipped.
+    """
+    from specify_cli.consolidation.reconciliation_authorship import _unreviewed_merge
+
+    entry = _unreviewed_merge(union_repo.repo, union_repo.merge, "lane-a", ("WP01",), None, attributes_source=union_repo.tip)
+    assert entry is not None and entry.own_paths == ()
+    assert _unreviewed_merge(union_repo.repo, union_repo.merge, "lane-a", ("WP01",), None) is None

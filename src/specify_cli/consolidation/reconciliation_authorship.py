@@ -286,8 +286,12 @@ def _lane_content(
     )
 
 
-def _approved_wp_ids(lane: object, work_packages: Mapping[str, Mapping[str, object]]) -> tuple[str, ...]:
-    """*lane*'s WPs whose status lane is an approved membership lane (``approved``/``done``), in manifest order."""
+def approved_wp_ids(lane: object, work_packages: Mapping[str, Mapping[str, object]]) -> tuple[str, ...]:
+    """*lane*'s WPs whose status lane is an approved membership lane (``approved``/``done``), in manifest order.
+
+    The one approved-membership predicate of the reviewed-merge rule, read by the gate, the claim and
+    ``implement --incorporate`` (squad-3 A5).
+    """
     return tuple(wp for wp in getattr(lane, "wp_ids", ()) if str((work_packages.get(wp) or {}).get("lane", "")) in _APPROVED_MEMBERSHIP_LANES)
 
 
@@ -311,7 +315,7 @@ def own_approval_stamps(
     """
     presync = presync_stamps or {}
     stamps: list[str] = []
-    for wp in _approved_wp_ids(lane, work_packages):
+    for wp in approved_wp_ids(lane, work_packages):
         stamps.extend(stamp for stamp in (approval_stamps.get(wp), presync.get(wp)) if stamp)
     return tuple(stamps)
 
@@ -319,8 +323,12 @@ def own_approval_stamps(
 def merge_reviewed_by_own_stamps(repo_root: Path, sha: str, own_stamps: Sequence[str]) -> bool:
     """True iff one of *own_stamps* (the merge's OWN lane's approval stamps) reaches merge *sha* (#7307, FR-004).
 
-    The single definition of a reviewed merge, shared by the gate (:func:`_drop_unreviewed_merges`)
-    and the claim-time ``RESOLUTION_MERGE_UNREVIEWED`` check. Another lane's stamp never counts:
+    The own-stamp tier of a reviewed merge, shared by the gate (:func:`_drop_unreviewed_merges`) and
+    the claim-time ``RESOLUTION_MERGE_UNREVIEWED`` check. The two read it in two tiers (squad-3 A6):
+    the gate applies this predicate alone, while the claim adds the canceled-window term (a merge
+    inside a canceled work package's window is unreviewed even when a stamp reaches it,
+    :func:`~specify_cli.consolidation.wp_attribution.merges_in_canceled_windows`, addendum 6). The
+    claim refuses first, so the stricter claim tier is what an operator meets. Another lane's stamp never counts:
     pass only :func:`own_approval_stamps` of the lane whose first-parent spine holds the merge.
     A git error reads as "not reached" (:func:`~specify_cli.consolidation.git_probes.sha_reachable_from`),
     so an unreadable reach leaves the merge unreviewed (fail closed); no stamp reviews nothing.
@@ -377,18 +385,25 @@ def _dropped_merges(repo_root: Path, spine: Sequence[str], reviewed: Sequence[st
 
 
 def _unreviewed_merge(
-    repo_root: Path, sha: str, lane_id: str, wp_ids: tuple[str, ...], own_paths_memo: Mapping[str, tuple[str, ...]] | None = None
+    repo_root: Path,
+    sha: str,
+    lane_id: str,
+    wp_ids: tuple[str, ...],
+    own_paths_memo: Mapping[str, tuple[str, ...]] | None = None,
+    *,
+    attributes_source: str | None = None,
 ) -> UnreviewedMerge | None:
     """The :class:`UnreviewedMerge` record of *sha*, or ``None`` when its own content cannot be read.
 
     Advisory only (FR-006, C-002): a probe error is logged and the entry skipped, never raised
     out of the claim builder and never read as "no own content". The gate still judges the merge.
     *own_paths_memo* holds the claim's successful FR-004 probe results (one remerge per merge per
-    claim, NFR-001); a merge it does not hold is probed here.
+    claim, NFR-001); a merge it does not hold is probed here, with the claim's own committed
+    *attributes_source* (squad-3 A7), as the FR-004 probe reads it.
     """
     try:
         memo = (own_paths_memo or {}).get(sha)
-        own_paths = memo if memo is not None else tuple(merge_own_changed_paths(repo_root, sha))
+        own_paths = memo if memo is not None else tuple(merge_own_changed_paths(repo_root, sha, attributes_source=attributes_source))
         own_blobs = tuple((path, blob) for path in own_paths if (blob := path_state_at(repo_root, sha, path)) is not None)
     except GitProbeError as exc:
         logger.debug("unreviewed merge %s on %s: own content unreadable, no hint entry recorded: %s", sha, lane_id, exc)
@@ -405,6 +420,7 @@ def _record_unreviewed(
     sink: list[UnreviewedMerge] | None,
     own_paths_memo: Mapping[str, tuple[str, ...]] | None = None,
     candidates: Sequence[str] = (),
+    attributes_source: str | None = None,
 ) -> None:
     """Append to *sink* one :class:`UnreviewedMerge` per merge the drop removed from *lane*'s *spine* (FR-006),
     then one per *candidates* merge not already named.
@@ -412,14 +428,15 @@ def _record_unreviewed(
     *candidates* are the lane's merges no review covers as the approved bound judged them
     (:func:`~specify_cli.consolidation.approved_bound.unreviewed_merge_candidates`, every parent walked),
     so a hand merge hidden behind a clean merge, off the spine, is named too (WP05 review cycle 1).
-    No-op without a sink, or when nothing was dropped and there is no candidate.
+    No-op without a sink, or when nothing was dropped and there is no candidate. *attributes_source*
+    is the claim's committed merge-attributes source (:func:`_unreviewed_merge`).
     """
     if sink is None or (reviewed is spine and not candidates):
         return
-    wp_ids = _approved_wp_ids(lane, work_packages)
+    wp_ids = approved_wp_ids(lane, work_packages)
     dropped = _dropped_merges(repo_root, spine, reviewed) if reviewed is not spine else ()
     for sha in dict.fromkeys((*dropped, *candidates)):
-        entry = _unreviewed_merge(repo_root, sha, lane.lane_id, wp_ids, own_paths_memo)
+        entry = _unreviewed_merge(repo_root, sha, lane.lane_id, wp_ids, own_paths_memo, attributes_source=attributes_source)
         if entry is not None:
             sink.append(entry)
 
@@ -804,6 +821,7 @@ def _collect_authored(
     unreviewed_sink: list[UnreviewedMerge] | None = None,
     own_paths_memo: Mapping[str, tuple[str, ...]] | None = None,
     unreviewed_candidates: Mapping[str, Sequence[str]] | None = None,
+    attributes_source: str | None = None,
 ) -> _AuthoredClaim:
     """Approved lanes → their OWN first-parent SHAs + patch-ids + FINAL blobs + FINAL deletions + multi-lane paths.
 
@@ -885,7 +903,15 @@ def _collect_authored(
         reviewed = full_authored if is_planning_lane(lane) else _drop_unreviewed_merges(repo_root, full_authored, _approved_stamps(lane, work_packages, presence))
         # FR-006: name every merge just dropped, for the gate's hint only (never authorship).
         _record_unreviewed(
-            repo_root, lane, work_packages, full_authored, reviewed, unreviewed_sink, own_paths_memo, (unreviewed_candidates or {}).get(lane.lane_id, ())
+            repo_root,
+            lane,
+            work_packages,
+            full_authored,
+            reviewed,
+            unreviewed_sink,
+            own_paths_memo,
+            (unreviewed_candidates or {}).get(lane.lane_id, ()),
+            attributes_source,
         )
         # Presence (#5788/#5571): measured from the FULL ``coord_base_ref..lane``
         # spine, unchanged — approved content must be PRESENT on the target.
@@ -979,6 +1005,7 @@ __all__ = [
     "_record_lane_path_contribution",
     "_started_from",
     "_unsuperseded_holders",
+    "approved_wp_ids",
     "merge_reviewed_by_own_stamps",
     "own_approval_stamps",
     "unmet_approved_content",

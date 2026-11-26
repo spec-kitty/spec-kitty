@@ -383,6 +383,8 @@ def _build_claim(
         unreviewed_sink=unreviewed,
         own_paths_memo=bound.merge_own_paths,
         unreviewed_candidates=bound.unreviewed_candidates,
+        # Squad-3 A7: the claim's committed attributes source, as the FR-004 probe reads it.
+        attributes_source=excluded_window_base if excluded_window_base and presence.base == excluded_window_base else None,
     )
     excluded_shas, excluded_patch_ids = _collect_excluded(
         repo_root,
