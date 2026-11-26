@@ -134,10 +134,11 @@ def test_lane_sync_takes_coordination_metadata_under_target_owned_rule(
     assert TARGET_OWNED_RULE in subject
 
 
-def test_lane_sync_still_refuses_a_source_conflict_byte_identically(
+def test_lane_sync_refuses_a_source_conflict_naming_exactly_the_conflicted_paths(
     tmp_path: Path,
 ) -> None:
-    """Control (FR-008): a genuine source conflict still refuses, same text, then exactly the conflicted paths (#5604 FR-003)."""
+    """Control (FR-008): a genuine source conflict still refuses with the pre-#5604 text, now followed by exactly the
+    conflicted paths (#5604 FR-003); the text is no longer byte-identical to the pre-#5604 one."""
     # Arrange
     project = _broken_coord_project(tmp_path)
     assert project.coord_branch is not None
