@@ -21,6 +21,8 @@ from unittest import mock
 
 import pytest
 
+import kernel.paths as _kernel_paths
+
 from kernel.git.read_cache import git_read_cache_scope
 from specify_cli.lanes import lane_tip
 from specify_cli.lanes.lane_tip import is_absorbed_but_for_mission_bookkeeping
@@ -216,6 +218,7 @@ def shapes(tmp_path: Path) -> tuple[Path, str]:
     "path",
     [
         "kitty-specs/foo/tasks/WP01.md",
+        "kitty-specs\\foo\\tasks\\WP01.md",
         "kitty-specs/foo",
         "kitty-specs/foo/",
         "kitty-specs",
@@ -232,12 +235,16 @@ def shapes(tmp_path: Path) -> tuple[Path, str]:
         "gl/x",
     ],
 )
-def test_a_blob_lookup_inside_a_run_matches_the_per_path_read(shapes: tuple[Path, str], path: str) -> None:
+def test_a_blob_lookup_inside_a_run_matches_the_per_path_read(shapes: tuple[Path, str], path: str, monkeypatch: pytest.MonkeyPatch) -> None:
     root, rev = shapes
+    # A ``\\``-separated path is a Windows spelling (#7849): it must take the same batched route as ``/``.
+    monkeypatch.setattr(_kernel_paths, "is_windows", lambda: "\\" in path)
     outside = lane_tip._blob_id(root, rev, path)
     with git_read_cache_scope():
         inside = lane_tip._blob_id(root, rev, path)
     assert inside == outside
+    if "\\" in path:
+        assert inside is not None
 
 
 def test_a_product_path_is_read_alone_never_its_whole_top_level_tree(landed: Landed, spawns: _GitSpawns) -> None:

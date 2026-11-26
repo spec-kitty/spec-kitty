@@ -521,7 +521,9 @@ def test_a_replace_setting_or_reftable_stack_write_invalidates_an_object_read(re
     assert read.calls == 3
 
 
-@pytest.mark.parametrize("variable", ["GIT_REPLACE_REF_BASE", "GIT_NO_REPLACE_OBJECTS", "GIT_GRAFT_FILE", "GIT_SHALLOW_FILE"])
+@pytest.mark.parametrize(
+    "variable", ["GIT_REPLACE_REF_BASE", "GIT_NO_REPLACE_OBJECTS", "GIT_GRAFT_FILE", "GIT_SHALLOW_FILE", "GIT_CONFIG_PARAMETERS", "GIT_CONFIG_COUNT"]
+)
 def test_a_history_variable_bypasses_an_object_read(repo: Path, monkeypatch: pytest.MonkeyPatch, variable: str) -> None:
     sha = _git(repo, "rev-parse", "main")
     read = _log_of(repo, sha)

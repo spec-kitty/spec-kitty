@@ -107,7 +107,7 @@ _HISTORY_FILES = ("shallow", "info/grafts", "packed-refs", "reftable/tables.list
 #: Environment variables that change which commit graph git presents for an
 #: object id, through state the history fingerprint does not read. With any of
 #: them set, an object read steps aside.
-_HISTORY_ENV = ("GIT_REPLACE_REF_BASE", "GIT_NO_REPLACE_OBJECTS", "GIT_GRAFT_FILE", "GIT_SHALLOW_FILE")
+_HISTORY_ENV = ("GIT_REPLACE_REF_BASE", "GIT_NO_REPLACE_OBJECTS", "GIT_GRAFT_FILE", "GIT_SHALLOW_FILE", "GIT_CONFIG_PARAMETERS", "GIT_CONFIG_COUNT")
 
 #: A full SHA-1 or SHA-256 object id, as git prints it.
 _OBJECT_ID_RE = re.compile(r"\A(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
