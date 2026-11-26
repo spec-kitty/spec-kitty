@@ -151,3 +151,21 @@ def test_every_file_a_writer_writes_is_in_presence_file_paths(harness: str, tmp_
     WRITER_REGISTRY[harness].write(tmp_path, SessionPresenceContent("4.0.0", "demo", "healthy", None))
     written = {p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob("*") if p.is_file() and p not in before}
     assert written <= set(presence_file_paths()), f"{harness} wrote files presence_file_paths() leaves out: {sorted(written - set(presence_file_paths()))}"
+
+
+def test_content_hash_covers_every_module_that_decides_the_owned_paths() -> None:
+    """Every writer class's module (and its bases') and the hook module are hashed (#7879 confirm pass, LOW)."""
+    import inspect
+
+    from specify_cli.session_presence.hooks import claude_code_hook
+    from specify_cli.session_presence.writers import registry
+    from specify_cli.upgrade.ledger import _resolve_source
+
+    migration = ReportExposedAgentFilesMigration()
+    hashed = {_resolve_source(migration, name).resolve() for name in migration.content_hash_sources}
+    deciding = {
+        Path(inspect.getfile(cls)).resolve() for writer in WRITER_REGISTRY.values() for cls in type(writer).__mro__ if cls.__module__.startswith("specify_cli.")
+    }
+    deciding |= {Path(inspect.getfile(registry)).resolve(), Path(inspect.getfile(claude_code_hook)).resolve()}
+    assert all(path.is_file() for path in hashed)
+    assert deciding <= hashed, f"not hashed: {sorted(str(p) for p in deciding - hashed)}"

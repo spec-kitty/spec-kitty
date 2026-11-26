@@ -68,12 +68,19 @@ class ReportExposedAgentFilesMigration(BaseMigration):
     description = "List the untracked files git now shows in agent folders, leaving Spec Kitty's own out, once in every clone (#7878)"
     target_version = "4.0.0rc9"
     clone_local_effect = True  # a per-clone notice; nothing committed
-    #: Its behaviour is this module, the frozen helpers it reuses, and the writer registry that names the
-    #: session-presence files, so a change to any of them shows as drift (audit-only).
+    #: Its behaviour is this module, the frozen helpers it reuses, and the session-presence modules that say
+    #: which files the writers own (the registry, each writer class's module and the Claude Code hook path),
+    #: so a change to any of them shows as drift (audit-only).
     content_hash_sources = (
         "m_4_0_0rc9_report_exposed_agent_files.py",
         "m_4_0_0rc9_report_newly_visible_agent_files.py",
         "../../session_presence/writers/registry.py",
+        "../../session_presence/writers/markdown_rules.py",
+        "../../session_presence/writers/agents_md.py",
+        "../../session_presence/writers/skills_preamble.py",
+        "../../session_presence/writers/claude_code.py",
+        "../../session_presence/writers/null_writer.py",
+        "../../session_presence/hooks/claude_code_hook.py",
     )
 
     def detect(self, project_path: Path) -> bool:
