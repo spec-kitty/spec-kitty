@@ -39,7 +39,7 @@ from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.git.merge_conclusion import MergeConclusionRefused, conclude_in_progress_op
 from specify_cli.lanes.consolidation import (
     _ensure_merge_driver_git_config,
-    _make_merge_env,
+    make_merge_env,
     unmerged_stages,
 )
 from specify_cli.lanes.models import ExecutionLane
@@ -56,6 +56,7 @@ from specify_cli.state.contract import is_target_owned_path
 from specify_cli.status import EventLogMergeError, materialize, merge_event_log_texts, review_presync_ref, sits_on_through_merges
 from specify_cli.coordination.coherence import CheckoutRole, ResidueContext, is_coord_residue_churn
 from specify_cli.consolidation.git_probes import LagResidueContext
+from specify_cli.consolidation.merge_attribute_guard import merge_probe_env
 from specify_cli.git.destructive_guard import DestructiveOpRefused, guarded_merge_abort, guarded_reset_hard
 from specify_cli.lanes import auto_rebase_record
 from specify_cli.git.ref_advance import ResidueClassifier, write_bookkeeping_ref
@@ -185,23 +186,23 @@ def _abort_context(repo_root: Path, mission_slug: str | None) -> ResidueClassifi
 
 
 def _run(
-    cmd: list[str], cwd: Path, *, check: bool = False
+    cmd: list[str], cwd: Path, *, check: bool = False, env: dict[str, str] | None = None
 ) -> subprocess.CompletedProcess[str]:
-    """Run a subprocess command capturing stdout/stderr as text."""
+    """Run a subprocess command capturing stdout/stderr as text (*env* defaults to the merge pipeline's env)."""
     return subprocess.run(
         cmd,
         cwd=str(cwd),
         capture_output=True,
         text=True,
         check=check,
-        env=_make_merge_env(),
+        env=make_merge_env() if env is None else env,
     )
 
 
 def _list_conflicted_files(worktree: Path) -> list[Path]:
     """Return absolute paths to files currently in conflict in ``worktree``."""
     try:
-        conflicted = changed_paths(worktree, diff_filter="U", env=_make_merge_env())
+        conflicted = changed_paths(worktree, diff_filter="U", env=make_merge_env())
     except GitCommandError:
         # Advisory: the caller aborts the merge fail-closed on an empty list
         # ("git merge failed without conflicts"), so a failed probe never passes.
@@ -404,7 +405,7 @@ def _resolve_take_theirs(
     # "Stage 3 is absent" (the incoming side deleted the path) is read from the
     # unmerged index entries, never inferred from a failing ``git show``: a
     # spurious git failure must halt, not delete the file.
-    stages = unmerged_stages(worktree, rel_path, _make_merge_env())
+    stages = unmerged_stages(worktree, rel_path, make_merge_env())
     if not stages:
         return None, f"{rule_id}: could not read the unmerged index entries of {rel_path}"
     if 3 not in stages:
@@ -579,7 +580,7 @@ def _status_artifact_paths_from_ref(
     ref: str,
 ) -> tuple[set[str], str | None]:
     try:
-        tree = tree_paths(worktree, ref, pathspecs=[KITTY_SPECS_DIR], env=_make_merge_env())
+        tree = tree_paths(worktree, ref, pathspecs=[KITTY_SPECS_DIR], env=make_merge_env())
     except GitCommandError as exc:
         # Guard: reported to the caller as an error string, which refuses.
         return set(), exc.stderr.strip() or str(exc)
@@ -648,7 +649,7 @@ def _refuse_preexisting_lane_status_deletions(
 
 def _staged_status_artifact_dirs(worktree: Path) -> tuple[set[Path], str | None]:
     try:
-        staged = changed_entries(worktree, cached=True, renames=True, env=_make_merge_env())
+        staged = changed_entries(worktree, cached=True, renames=True, env=make_merge_env())
     except GitCommandError as exc:
         # Guard: reported to the caller as an error string, which refuses.
         return set(), exc.stderr.strip() or str(exc)
@@ -815,6 +816,12 @@ def _run_ruff_imports_fix(worktree: Path, file_path: Path) -> tuple[bool, str]:
     return True, ""
 
 
+def _with_conflicted_paths(halt_reason: str, conflicted: list[Path], worktree_path: Path) -> str:
+    """*halt_reason* followed by exactly the paths the merge left conflicted (FR-003), relative to the lane checkout."""
+    paths = sorted(path.relative_to(worktree_path).as_posix() if path.is_relative_to(worktree_path) else path.as_posix() for path in conflicted)
+    return f"{halt_reason}; conflicted paths: {', '.join(paths)}"
+
+
 def _abort_with_failure(
     context: ResidueClassifier,
     worktree_path: Path,
@@ -828,7 +835,7 @@ def _abort_with_failure(
     operator's that is not part of the merge itself; the report then says so.
     """
     try:
-        guarded_merge_abort(worktree_path, context=context, env=_make_merge_env())
+        guarded_merge_abort(worktree_path, context=context, env=make_merge_env())
     except DestructiveOpRefused as refusal:
         halt_reason = f"{halt_reason}; the merge was left in progress because aborting it would discard local changes: {refusal.remediation}"
     except RuntimeError as failure:
@@ -996,7 +1003,7 @@ def _undo_unrecorded_merge(
     pointed it at the undone merge. A refused or failed reset leaves the merge, and says so.
     """
     try:
-        guarded_reset_hard(worktree_path, before, context=context, env=_make_merge_env())
+        guarded_reset_hard(worktree_path, before, context=context, env=make_merge_env())
     except (DestructiveOpRefused, RuntimeError) as exc:
         detail = exc.remediation if isinstance(exc, DestructiveOpRefused) else str(exc)
         return (
@@ -1028,7 +1035,7 @@ def _commit_staged_merge(
     if staged_tree is None:
         return _abort_with_failure(context, worktree_path, lane_id, classifications, "could not read the staged merge tree before the commit")
     try:
-        commit_result = conclude_in_progress_op(worktree_path, env=_make_merge_env(), message=message)
+        commit_result = conclude_in_progress_op(worktree_path, env=make_merge_env(), message=message)
     except MergeConclusionRefused as exc:
         return _abort_with_failure(context, worktree_path, lane_id, classifications, f"merge commit failed: {exc}")
     if commit_result.returncode != 0:
@@ -1259,9 +1266,13 @@ def attempt_auto_rebase(
     if isinstance(tips, str):
         return _halted(lane.lane_id, [], tips)
 
+    # Squad-3 A2: the tool merge runs under WP01's pinned merge config, as ``--incorporate``'s merge
+    # does, so a clone-level or environment ``merge.directoryRenames`` / ``merge.renormalize`` /
+    # ``merge.renames`` cannot change what git computes for a merge the FR-004 check exempts.
     merge_result = _run(
         ["git", "merge", "--no-edit", "--no-ff", "--no-commit", mission_branch],
         worktree_path,
+        env=merge_probe_env(make_merge_env()),
     )
     if merge_result.returncode == 0:
         report = _conclude_clean_merge(context, worktree_path, repo_root, lane.lane_id, branch, tips)
@@ -1304,7 +1315,8 @@ def attempt_auto_rebase(
         classifications.extend(file_classifications)
         if halt_reason is not None:
             return _abort_with_failure(
-                context, worktree_path, lane.lane_id, classifications, halt_reason,
+                context, worktree_path, lane.lane_id, classifications,
+                _with_conflicted_paths(halt_reason, conflicted, worktree_path),
             )
         if is_init:
             init_py_touched.append(file_path)

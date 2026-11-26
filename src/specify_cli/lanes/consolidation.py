@@ -34,7 +34,14 @@ from specify_cli.lanes.branch_naming import lane_branch_name, worktree_path as _
 from specify_cli.lanes.compute import is_planning_lane
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import read_lanes_json
-from specify_cli.lanes.stale_check import SiblingLane, StaleCheckResult, check_lane_staleness, find_sibling_lanes, refine_stale_result
+from specify_cli.lanes.stale_check import (
+    NO_LANE_CHECKOUT_HALT,
+    SiblingLane,
+    StaleCheckResult,
+    check_lane_staleness,
+    find_sibling_lanes,
+    refine_stale_result,
+)
 from specify_cli.consolidation._constants import TARGET_BRANCH_CONTENT_CONFLICT
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.drivers import META_DRIVER_TWO_WAY_ENV
@@ -237,14 +244,14 @@ def _try_auto_rebase_if_stale(
     """If the lane is stale and a worktree exists, attempt auto-rebase and recheck.
 
     Returns the (re)checked result and, when the auto-rebase ran and stopped, its halt
-    reason, so the refusal can say why (#7755); ``None`` when no auto-rebase ran or it
-    succeeded.
+    reason, so the refusal can say why (#7755): :data:`NO_LANE_CHECKOUT_HALT` when the lane has no
+    checkout to rebase in (FR-003); ``None`` when the lane is not stale or the auto-rebase succeeded.
     """
     if not stale.is_stale:
         return stale, None
     worktree_path = _worktree_path(repo_root, mission_slug, lane_id=lane.lane_id)
     if not worktree_path.exists():
-        return stale, None
+        return stale, NO_LANE_CHECKOUT_HALT
     from specify_cli.lanes.auto_rebase import attempt_auto_rebase
 
     report = attempt_auto_rebase(lane, branch, mission_branch, repo_root, worktree_path, mission_slug=mission_slug)
@@ -512,9 +519,9 @@ def integrate_mission_into_target(
 
 def _branch_exists(repo_root: Path, branch: str) -> bool:
     # Routes the existence check through the shared lanes/_git helper while
-    # preserving the merge pipeline's single env authority (_make_merge_env);
+    # preserving the merge pipeline's single env authority (make_merge_env);
     # the env composes through rather than forking the helper (#1904).
-    return bool(_shared_branch_exists(repo_root, branch, env=_make_merge_env()))
+    return bool(_shared_branch_exists(repo_root, branch, env=make_merge_env()))
 
 
 def _git_config_get(repo_root: Path, key: str) -> str | None:
@@ -523,7 +530,7 @@ def _git_config_get(repo_root: Path, key: str) -> str | None:
     #7689: a function of the repository config alone; inside the run's git read
     cache scope a repeat spawns nothing until a config write changes the file.
     """
-    env = _make_merge_env()
+    env = make_merge_env()
     result = cached_git_read(
         repo_root,
         ("config-local-get", key),
@@ -549,7 +556,7 @@ def _git_common_dir(repo_root: Path) -> Path | None:
         cwd=str(repo_root),
         capture_output=True,
         text=True,
-        env=_make_merge_env(),
+        env=make_merge_env(),
     )
     if result.returncode != 0:
         return None
@@ -567,7 +574,7 @@ def _set_local_git_config(repo_root: Path, key: str, value: str) -> None:
         capture_output=True,
         text=True,
         check=True,
-        env=_make_merge_env(),
+        env=make_merge_env(),
     )
 
 
@@ -767,7 +774,7 @@ def _restore_merge_driver_config(
             ["git", "config", "--local", "--unset-all", key],
             cwd=str(repo_root),
             capture_output=True,
-            env=_make_merge_env(),
+            env=make_merge_env(),
         )
 
 
@@ -813,7 +820,7 @@ def _ephemeral_merge_driver_activation(
             _restore_merge_driver_config(repo_root, config_snapshot)
 
 
-def _make_merge_env() -> dict[str, str]:
+def make_merge_env() -> dict[str, str]:
     """Single environment authority for the lane-merge pipeline (AC-F1).
 
     Prepends the current venv's bin directory to PATH so that git's merge
@@ -852,7 +859,7 @@ def _rev_parse(repo_root: Path, ref: str) -> str | None:
         cwd=str(repo_root),
         capture_output=True,
         text=True,
-        env=_make_merge_env(),
+        env=make_merge_env(),
     )
     return result.stdout.strip() if result.returncode == 0 else None
 
@@ -1411,7 +1418,7 @@ def preview_mission_target_integration(
     import tempfile
 
     tmp_path = Path(tempfile.mkdtemp(prefix="kitty-merge-preview-"))
-    env = _make_merge_env()
+    env = make_merge_env()
     with ExitStack() as stack:
         stack.enter_context(_ephemeral_merge_driver_activation(repo_root, restore_config=True))
         # The preview worktree is this function's own scratch checkout (tool-owned, #5965).
@@ -1490,7 +1497,7 @@ def _merge_branch_into(
     tmp_path = Path(tmp_dir)
 
     # Single environment authority for the lane-merge pipeline (AC-F1).
-    _env = _make_merge_env()
+    _env = make_merge_env()
 
     # Seed the custom-driver ``info/attributes`` activation for the duration of
     # this ephemeral merge only, and remove the merge worktree on exit. The

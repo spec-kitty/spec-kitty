@@ -105,7 +105,7 @@ def test_operator_who_follows_the_remedy_lands_the_mission(tmp_path: Path) -> No
 
 
 def test_refusal_without_a_lane_worktree_still_names_the_sibling(tmp_path: Path) -> None:
-    """No worktree: no auto-rebase runs, so no halt is claimed, but the sibling branch is still the source."""
+    """No worktree: no auto-rebase runs, and the refusal says so (FR-003, squad-3 F1); the sibling branch is still the source."""
     scenario = build_stale_sibling_mission(tmp_path)
     _git(scenario.mission.repo, "worktree", "remove", "--force", str(scenario.lane_b_worktree))
 
@@ -113,5 +113,6 @@ def test_refusal_without_a_lane_worktree_still_names_the_sibling(tmp_path: Path)
 
     flat = _flat(result)
     assert result.returncode != 0, flat
-    assert "in-run auto-rebase" not in flat, flat
+    assert "Lane lane-b has no lane checkout, so no in-run auto-rebase ran onto" in flat, flat
+    assert "auto-rebase of lane lane-b" not in flat and "stopped:" not in flat, flat
     _assert_refusal_is_actionable(flat, scenario)

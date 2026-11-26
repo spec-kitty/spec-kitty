@@ -28,6 +28,8 @@ MISSION_PLACEHOLDER = "<mission>"
 WP_PLACEHOLDER = "<WP>"
 #: ``implement`` refuses to start or resume a work package without ``--agent`` (who works on it).
 AGENT_PLACEHOLDER = "<agent>"
+#: The halt reason when a stale lane has no lane checkout, so the consolidation could not auto-rebase it (FR-003).
+NO_LANE_CHECKOUT_HALT = "no lane checkout, so no in-run auto-rebase ran"
 
 
 @dataclass(frozen=True)
@@ -216,6 +218,15 @@ def refine_stale_result(
     )
 
 
+def _halt_sentence(lane: ExecutionLane, mission_branch: str, auto_rebase_halt: str | None) -> str:
+    """The sentence that leads the remedy with why the in-run auto-rebase did not refresh the lane (FR-003), or ``""``."""
+    if not auto_rebase_halt:
+        return ""
+    if auto_rebase_halt == NO_LANE_CHECKOUT_HALT:
+        return f"Lane {lane.lane_id} has {NO_LANE_CHECKOUT_HALT} onto {mission_branch}. "
+    return f"The in-run auto-rebase of lane {lane.lane_id} onto {mission_branch} stopped: {auto_rebase_halt}. "
+
+
 def _reentry_command(lane: ExecutionLane, mission_slug: str | None) -> str:
     """The A-10 re-entry command: re-running ``implement`` runs the lane sync point (auto-rebase).
 
@@ -344,7 +355,7 @@ def _stale_remediation(
             f"git add kitty-specs/<id>/status.json"
         )
     handle = mission_slug or MISSION_PLACEHOLDER
-    halt = f"The in-run auto-rebase of lane {lane.lane_id} onto {mission_branch} stopped: {auto_rebase_halt}. " if auto_rebase_halt else ""
+    halt = _halt_sentence(lane, mission_branch, auto_rebase_halt)
     head = f"{halt}{_cause_sentence(lane, mission_branch, sibling_lanes)} {_reopen_step(lane, handle)} "
     if sibling_lanes:
         return head + _incorporate_route(lane, handle, sibling_lanes)
