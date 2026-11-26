@@ -115,7 +115,12 @@ def test_occupied_single_branch_checkout_is_refused_on_orchestrator_path(repo: P
     with pytest.raises(typer.Exit):
         wp_lifecycle._resolve_start_workspace("start-implementation", repo, slug, repo / "kitty-specs" / slug, "WP01")
 
-    assert "WRITE_CHECKOUT_OCCUPIED" in capsys.readouterr().out
+    # Contract 1.31.0 (#7860): the unregistered code rides in data.workspace_error_code under
+    # the registered LANE_ALLOCATION_FAILED, never in the envelope error_code.
+    envelope = json.loads(capsys.readouterr().out)
+    assert envelope["error_code"] == "LANE_ALLOCATION_FAILED", envelope
+    assert envelope["data"]["workspace_error_code"] == "WRITE_CHECKOUT_OCCUPIED"
+    assert "error_code" not in envelope["data"]
 
 
 def test_wrong_branch_single_branch_checkout_is_refused_on_orchestrator_path(repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -127,7 +132,12 @@ def test_wrong_branch_single_branch_checkout_is_refused_on_orchestrator_path(rep
     with pytest.raises(typer.Exit):
         wp_lifecycle._resolve_start_workspace("start-implementation", repo, slug, repo / "kitty-specs" / slug, "WP01")
 
-    assert "WRITE_CHECKOUT_WRONG_BRANCH" in capsys.readouterr().out
+    # Contract 1.31.0 (#7860): the unregistered code rides in data.workspace_error_code under
+    # the registered LANE_ALLOCATION_FAILED, never in the envelope error_code.
+    envelope = json.loads(capsys.readouterr().out)
+    assert envelope["error_code"] == "LANE_ALLOCATION_FAILED", envelope
+    assert envelope["data"]["workspace_error_code"] == "WRITE_CHECKOUT_WRONG_BRANCH"
+    assert "error_code" not in envelope["data"]
 
 
 def _build_lanes_planning_mission(repo: Path, slug: str, mission_id: str) -> None:

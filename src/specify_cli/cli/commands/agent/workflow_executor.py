@@ -493,16 +493,38 @@ def warn_shared_workspace_writers(
     return lines
 
 
+def _record_shared_checkout_claim_base(main_repo_root: Path, mission_slug: str, wp_id: str, workspace: ResolvedWorkspace) -> None:
+    """Record a non-single_branch planning WP's claim base from its shared checkout (#7860, FR-011).
+
+    No-op for any other resolution kind (a lane worktree records its own at creation). A
+    checkout whose ``HEAD`` does not resolve (an unborn branch) records nothing and is logged:
+    the claim still proceeds as it did before this record existed, and the ``for_review`` gate
+    then refuses with no recorded claim base rather than passing vacuously.
+    """
+    from specify_cli.lanes.claim_base import record_claim_base
+    from specify_cli.workspace.context import is_shared_checkout_kind
+
+    if not is_shared_checkout_kind(workspace.resolution_kind):
+        return
+    try:
+        record_claim_base(main_repo_root, workspace.worktree_path, mission_slug, wp_id)
+    except RuntimeError as exc:
+        logger.warning("no claim base recorded for %s/%s: %s", mission_slug, wp_id, exc)
+
+
 def guard_repo_root_claim(main_repo_root: Path, mission_slug: str, wp_id: str, workspace: ResolvedWorkspace) -> None:
     """Run the shared repo-root claim seam for ``agent action implement`` (#5459).
 
     A no-op for an ordinary lane worktree, whose guard and claim base run
-    inside workspace creation, and for a non-single_branch mission (a
-    lanes/coord planning WP keeps its historical agent-path claim). For a
-    single_branch repo-root lane it delegates to
-    :func:`specify_cli.lanes.implement_support.guard_repo_root_claim` and
+    inside workspace creation. For a single_branch repo-root lane it delegates
+    to :func:`specify_cli.lanes.implement_support.guard_repo_root_claim` and
     renders a write-checkout refusal as an ``Error:`` line with exit 1, before
-    any status event is written.
+    any status event is written. For the planning lane of any other topology
+    (a shared checkout: the repository root checkout, or the Mission-branch
+    checkout of a default Mission that has not landed) it runs no
+    write-checkout refusal but records the claim base from that checkout, so
+    the ``for_review`` gate has a starting point (#7860, FR-011), exactly as
+    native ``implement`` does through workspace creation.
     """
     from specify_cli.lanes.checkout_occupancy import is_single_branch_repo_root_lane
     from specify_cli.lanes.implement_support import (
@@ -513,6 +535,7 @@ def guard_repo_root_claim(main_repo_root: Path, mission_slug: str, wp_id: str, w
     )
 
     if not is_single_branch_repo_root_lane(main_repo_root, mission_slug, workspace):
+        _record_shared_checkout_claim_base(main_repo_root, mission_slug, wp_id, workspace)
         return
     try:
         _guard(main_repo_root, mission_slug, wp_id, workspace)

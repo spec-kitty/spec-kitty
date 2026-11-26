@@ -247,9 +247,10 @@ def _paused_after_scan(
     else:
         original_check = wp_lifecycle._ensure_repo_root_checkout_or_fail
 
-        def _check(*args: Any, **kwargs: Any) -> None:
-            original_check(*args, **kwargs)
+        def _check(*args: Any, **kwargs: Any) -> Any:
+            result = original_check(*args, **kwargs)
             _after_scan()
+            return result
 
         monkeypatch.setattr(wp_lifecycle, "_ensure_repo_root_checkout_or_fail", _check)
 

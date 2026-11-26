@@ -362,12 +362,19 @@ def guard_repo_root_claim(
     ``agent action implement`` calls it directly, because the repository root
     checkout always exists and so never goes through workspace creation
     (#5459).
+
+    The base is the ``HEAD`` of the checkout the WP is worked in
+    (``resolved_workspace.worktree_path``, #7860 FR-011): the repository root
+    checkout for every shape but one, and the Mission-branch checkout for the
+    planning lane of a default Mission that has not landed. ``repo_root`` stays
+    the repository whose common git dir owns the ref. A shared checkout gets no
+    dirty refusal of its own: status commits there stage only their own paths.
     """
     _ensure_repo_root_checkout_available(repo_root, mission_slug, wp_id, resolved_workspace, occupancy_verified=occupancy_verified)
 
     from specify_cli.lanes.claim_base import record_claim_base
 
-    record_claim_base(repo_root, repo_root, mission_slug, wp_id)
+    record_claim_base(repo_root, resolved_workspace.worktree_path, mission_slug, wp_id)
 
 
 @dataclass
@@ -684,6 +691,23 @@ def _planning_dir(main_repo_root: Path, mission_slug: str) -> Path:
     return placement_seam(main_repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
 
 
+def _planning_self_heal_workspace(main_repo_root: Path, mission_slug: str, wp_id: str, lane: ExecutionLane, lanes_manifest: LanesManifest) -> Path:
+    """The checkout a planning lane's self-heal reconciles: the one the claim's ancestry was judged in (#7860).
+
+    The Mission-branch checkout for the planning lane of a default Mission that has not landed
+    (:func:`specify_cli.workspace.context.planning_mission_branch_target`, the planning
+    workspace's own rule, which keeps a stored ``single_branch`` Mission on the repository root
+    checkout), else the repository root checkout, as before. Reads no WP file.
+    """
+    from specify_cli.ownership.workspace_strategy import create_planning_workspace
+    from specify_cli.workspace.context import planning_mission_branch_target
+
+    target = planning_mission_branch_target(main_repo_root, mission_slug, lanes_manifest.target_branch)
+    if target is not None:
+        return Path(target.checkout)
+    return Path(create_planning_workspace(mission_slug, wp_id, list(lane.write_scope), main_repo_root))
+
+
 def reenter_lane_self_heal(
     main_repo_root: Path,
     mission_slug: str,
@@ -704,10 +728,12 @@ def reenter_lane_self_heal(
     SAME in-flight WP, so it passes ``"allow-dirty"``: the agent's
     uncommitted work-in-progress is legitimate, and git's own merge machinery
     already refuses a merge that would conflict with dirty local changes -- no
-    separate upfront gate is needed. A PLANNING lane instead reconciles the
-    shared repository-root checkout, so it passes ``"refuse-dirty"`` and keeps
-    its protected-branch guard: pending reconciliation there requires a clean,
-    unprotected checkout. Only fully approved dependency tips are merged into
+    separate upfront gate is needed. A PLANNING lane instead reconciles its
+    shared checkout -- the repository root checkout, or the Mission-branch
+    checkout of a default Mission that has not landed (#7860,
+    :func:`_planning_self_heal_workspace`) -- so it passes ``"refuse-dirty"``
+    and keeps its protected-branch guard: pending reconciliation there
+    requires a clean, unprotected checkout. Only fully approved dependency tips are merged into
     either.
 
     A workspace whose ancestry is already correct is a true no-op: the seam's
@@ -727,7 +753,6 @@ def reenter_lane_self_heal(
     """
     from specify_cli.lanes.worktree_allocator import adopt_lane_ancestry
     from specify_cli.lanes.compute import is_planning_lane
-    from specify_cli.ownership.workspace_strategy import create_planning_workspace
     from specify_cli.git import assert_not_protected_branch
 
     manifest = read_lanes_json(_planning_dir(main_repo_root, mission_slug))
@@ -738,11 +763,13 @@ def reenter_lane_self_heal(
         return None
     workspace_path: Path
     if is_planning_lane(lane):
-        workspace_path = create_planning_workspace(mission_slug, wp_id, list(lane.write_scope), main_repo_root)
+        workspace_path = _planning_self_heal_workspace(main_repo_root, mission_slug, wp_id, lane, manifest)
         status_dir = placement_seam(main_repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
         if check_claim_ancestry(main_repo_root, mission_slug, status_dir, wp_id, workspace_path).ok:
             return workspace_path
-        # Root is shared, not an allocator-owned disposable lane checkout.
+        # The planning checkout (the repository root checkout, or the
+        # Mission-branch checkout) is shared, not an allocator-owned
+        # disposable lane checkout.
         # Refuse a protected root before the seam can mutate it; the dirty
         # root is refused by the seam's own policy below.
         assert_not_protected_branch(workspace_path, operation="reconcile planning workspace ancestry")
@@ -857,11 +884,32 @@ def _root_checkout_is_target(main_repo_root: Path, lanes_manifest: LanesManifest
     return bool(result.stdout.strip() == lanes_manifest.target_branch)
 
 
-def _planning_claim_waives_code_lanes(main_repo_root: Path, lane: ExecutionLane, lanes_manifest: LanesManifest) -> bool:
-    """``True`` for the #5296 waiver scope: planning lane AND root checkout on the target."""
+def _planning_lane_writes_on_mission_branch(main_repo_root: Path, mission_slug: str, lanes_manifest: LanesManifest) -> bool:
+    """``True`` when the planning lane is worked in the Mission-branch checkout of a default Mission that has not landed (#7860).
+
+    That checkout is never the repository root checkout, so the root checkout's branch says
+    nothing about it. Decided by the planning workspace's own rule
+    (:func:`specify_cli.workspace.context.planning_mission_branch_target`), which excludes a
+    stored ``single_branch`` Mission: its planning lane stays the repository root checkout and
+    its #5296 waiver is unchanged.
+    """
+    from specify_cli.workspace.context import planning_mission_branch_target
+
+    return planning_mission_branch_target(main_repo_root, mission_slug, lanes_manifest.target_branch) is not None
+
+
+def _planning_claim_waives_code_lanes(main_repo_root: Path, mission_slug: str, lane: ExecutionLane, lanes_manifest: LanesManifest) -> bool:
+    """``True`` for the #5296 waiver scope: a planning lane whose workspace never takes code lanes.
+
+    Either the repository root checkout is on the target, or (#7860) the planning lane writes
+    on the Mission branch of a default Mission that has not landed: code lanes reach the target
+    through ``spec-kitty consolidate`` and are never merged into the Mission branch.
+    """
     from specify_cli.lanes.compute import is_planning_lane
 
-    return is_planning_lane(lane) and _root_checkout_is_target(main_repo_root, lanes_manifest)
+    if not is_planning_lane(lane):
+        return False
+    return _root_checkout_is_target(main_repo_root, lanes_manifest) or _planning_lane_writes_on_mission_branch(main_repo_root, mission_slug, lanes_manifest)
 
 
 def _approved_dependency_lane_refs(
@@ -901,7 +949,7 @@ def _approved_dependency_lane_refs(
     """
     from specify_cli.status import Lane
 
-    if _planning_claim_waives_code_lanes(main_repo_root, lane, lanes_manifest):
+    if _planning_claim_waives_code_lanes(main_repo_root, mission_slug, lane, lanes_manifest):
         return []
 
     dependency_lanes = _dependency_lane_status(mission_dir)
@@ -997,7 +1045,7 @@ def check_claim_ancestry(
         if not _is_git_ancestor(workspace_path, branch, head):
             missing.append(f"approved dependency lane {dep_id} ({branch})")
 
-    deferred = manifest.target_branch if _planning_claim_waives_code_lanes(main_repo_root, lane, manifest) else None
+    deferred = manifest.target_branch if _planning_claim_waives_code_lanes(main_repo_root, mission_slug, lane, manifest) else None
     return AncestryCheckResult(ok=not missing, missing_refs=tuple(missing), code_lanes_deferred_to=deferred)
 
 
