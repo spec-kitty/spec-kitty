@@ -43,6 +43,16 @@ from tests.lanes.landed_mission_support import (
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 
 
+@pytest.fixture(autouse=True)
+def _no_inherited_git_config_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A harness that exports ``GIT_CONFIG_COUNT``/``GIT_CONFIG_PARAMETERS`` makes the read cache bypass itself by design.
+
+    Agent containers export them for credential and URL rewrites; CI does not. Remove them so the cache is tested.
+    """
+    for name in ("GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS"):
+        monkeypatch.delenv(name, raising=False)
+
+
 @pytest.fixture
 def spawns() -> Iterator[GitSpawns]:
     with count_git_spawns() as counter:
