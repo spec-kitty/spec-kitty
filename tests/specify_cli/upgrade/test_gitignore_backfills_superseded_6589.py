@@ -43,6 +43,7 @@ from specify_cli.upgrade.migrations.m_3_2_5_agents_skills_gitignore_backfill imp
 from specify_cli.upgrade.migrations.m_3_2_6_gate_artifact_merge_drivers import GateArtifactMergeDriverMigration
 from specify_cli.upgrade.migrations.m_3_2_6rc3_narrow_cursor_gitignore import NarrowCursorGitignoreMigration
 from specify_cli.upgrade.migrations.m_4_0_0rc8_narrow_agent_gitignore import NarrowAgentGitignoreMigration
+from specify_cli.upgrade.migrations.m_4_0_0rc9_report_newly_visible_agent_files import ReportNewlyVisibleAgentFilesMigration
 from specify_cli.upgrade.migrations.m_unify_charter_activation import UnifyCharterActivationMigration
 from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.upgrade.runner import MigrationRunner
@@ -57,7 +58,7 @@ TARGET = "4.0.0rc8"
 
 #: Every shipped class in SUPERSEDED_MIGRATIONS (the #6589 gitignore backfills, the #6669 residue-aware
 #: pairs, the #6547 pre-globalize command writers, the #6954 command-globalization predecessor and the
-#: #7217 stale issue-matrix driver row).
+#: #7217 stale issue-matrix driver row, and the #7878 agent-folder notice).
 SHIPPED_SUPERSEDED: dict[str, type[BaseMigration]] = {
     cls.migration_id: cls
     for cls in (
@@ -72,6 +73,7 @@ SHIPPED_SUPERSEDED: dict[str, type[BaseMigration]] = {
         RestorePromptCommandsMigration302,
         GlobalizeCommandsMigration,
         GateArtifactMergeDriverMigration,
+        ReportNewlyVisibleAgentFilesMigration,
     )
 }
 
