@@ -5,10 +5,10 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-10-04'
-updated: '2026-11-22T00:00:00Z'
+updated: '2026-11-25T00:00:00Z'
 ---
 
-**Status:** Accepted
+**Status:** Accepted. Amendment 2026-11-25 proposed (#7860).
 
 **Date:** 2026-10-04
 
@@ -429,3 +429,24 @@ Every non-migration move of a lane-mapped work package into `claimed` or `in_pro
 - The lanes residual "a commit made during review" is unchanged: the stamp is still the lane head when the approval was recorded.
 
 **Confirmation.** `tests/consolidation/test_effective_stamp_rewritten_lane.py` (a `lane_head` in the clone but off a rewritten lane refuses `not_on_lane`; an absent `lane_head` still falls back), `tests/consolidation/test_approval_bound_effective_stamp.py` (two real clones: the review claim's sync merge, the approval through `emit_status_transition`, the integrator's clone passing; two merge-creating syncs keeping X, and an implementer commit between them moving the record to it; a non-merge commit after X refusing `LANE_MOVED_AFTER_APPROVAL`; the absent-object remedy; the rewritten-lane control; tier 2 ending at the effective stamp; a no-op sync recording nothing) and `tests/status/test_lane_head_presync_stamp.py` (the reading: merges only, a non-merge commit in between, no ref, a tip reached only through a second parent, a git failure; the single and batch stamps).
+
+## Amendment 2026-11-25 (Proposed): a default Mission's planning evidence window runs on its Mission branch (#7860)
+
+*Proposed. The operator accepts or amends it on the pull request.*
+
+Operator rulings of 2026-11-25 on [#7860](https://github.com/spec-kitty/spec-kitty/issues/7860) (A', "guidance only", and the window start), Mission `planning-lane-write-branch-01M8A725`. Companion: ADR 2026-11-06-3, Amendment 2026-11-25 (the planning lane's write branch).
+
+- **The gap.** Amendment 2026-10-29 fixed the planning lane's evidence window at `planning_commit_sha..<target branch>`. Before a default Mission lands, its planning work is written to its Mission branch (the coordination branch), which the target does not contain, so every planning work package committed there was refused with `IMPLEMENTATION_MISSING`. Ending the window at the Mission branch alone is not enough: from the planning pin, it would count Mission content written before the claim (spec, plan, earlier research), so a hollow work package owning such a file would pass.
+- **Decision.** Before a default Mission (`topology_source: default`) lands, each approved planning work package is judged on its own window `<commit introducing its window-opening status event>..<Mission branch>`. The opener is the review range's (`status.window_opener_events`, `cycle=True`: the first candidate, else the first skipped one), and its commit is found on the Mission branch by `mission_runtime.commit_introducing_status_event`: the event-commit leg of the review range's derivation (ADR 2026-11-08-2, Q10/Q12). The start is durable in branch history and reads the same in every clone. The end is `mission_runtime.planning_write_ref`, the one write-branch rule. `consolidation.wp_evidence.planning_evidence_window` is the one place that decides it; `consolidate`'s claim, `accept`, the orchestrator API (through `evaluate_evidence` and `mission_evidence_report`) and `move-task` call it. Refusals and recovery texts name the Mission branch (the coordination branch). Code lanes, explicit topologies and landed Missions keep the window of Amendment 2026-10-29, unchanged.
+- **Fail closed.** No recorded opener, or no single commit on the Mission branch that introduced it, refuses `EVIDENCE_WINDOW_UNCOMPUTABLE`; an unreadable `meta.json`, status log or git read refuses `IMPLEMENTATION_UNREADABLE`. Neither falls back to the target.
+- **In-flight Missions: guidance only.** After an `IMPLEMENTATION_MISSING` of this shape, one bounded probe lists the commits of `merge-base(planning_commit_sha, target)..target` that the Mission branch does not carry and that change one of the work package's `owned_files`. When there are any, the refusal names them and both remedies: cherry-pick them onto the Mission branch, or `--attest-no-implementation <WP> --attest-reason "..."` on `accept` or `consolidate` for a work package that owes no implementation. A hollow work package gets no addendum. A probe failure keeps the refusal and says the target branch could not be checked. There is no transition window and no migration.
+- **`move-task`'s auto-commit.** The deliverables auto-commit before review never runs in the shared checkout of the Mission branch, as it never ran in the repository root checkout: the checkout is shared with the other planning work packages, so a sweep would commit their uncommitted work as this one's evidence.
+
+**Residuals.** Each stays open.
+
+- **A Mission landed through a pull request** has no local landing record. A caller that passes a verified landing commit (`accept --mode pr --merge-commit`, Amendment 2026-10-31) keeps the planning window of Amendment 2026-10-29 and its stand-in route; without one, the window still ends at the Mission branch until it is pruned, and then refuses `IMPLEMENTATION_UNREADABLE`.
+- **NFR-001 is relaxed for this lane only.** A default Mission's planning lane takes one tree diff (and one `git log -S` for its start) per approved planning work package; the probe adds one read per refused work package. Code lanes stay at one diff per lane.
+- **The review range** reads the same rule through `default_mission_primary_ref` with "not landed" assumed; folding it onto `planning_write_ref` waits for #5604.
+- **`move-task --to done` before the landing.** For a `code_change` work package that a pre-#7816 Mission placed in `lane-planning`, the merge-ancestry check now compares the Mission branch with the target, so a move to `done` before the landing needs `--done-override-reason`. Before #7860 it compared the target with itself.
+
+Nothing else in this record changes.
