@@ -239,10 +239,16 @@ def test_an_unreadable_manifest_keeps_the_worktree_stamp(tmp_path: Path) -> None
 
 
 def test_a_claim_base_that_cannot_be_recorded_is_an_envelope(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """An unborn HEAD or a failed update-ref fails the start closed with one envelope, never a traceback."""
+    """An unborn HEAD or a failed update-ref fails the start closed with one envelope, never a traceback.
+
+    Fail closed means before any status event: the WP stays ``planned`` with no claim base, never
+    stranded ``claimed`` / ``in_progress`` without one.
+    """
     from specify_cli.lanes import claim_base
+    from specify_cli.status import read_events
 
     mission = _finalized(settled_default_mission(tmp_path))
+    events_before = [event.event_id for event in read_events(mission.mission_dir)]
 
     def _unrecordable(*_a: object, **_k: object) -> str:
         raise RuntimeError("cannot record claim base: HEAD does not resolve (test)")
@@ -255,3 +261,6 @@ def test_a_claim_base_that_cannot_be_recorded_is_an_envelope(tmp_path: Path, mon
     assert started["error_code"] == "LANE_ALLOCATION_FAILED", started
     assert started["data"]["error_type"] == "RuntimeError"
     assert "HEAD does not resolve (test)" in started["data"]["message"]
+    assert "error_code" not in started["data"]
+    assert [event.event_id for event in read_events(mission.mission_dir)] == events_before, "a status event was written"
+    assert read_claim_base(mission.repo, SLUG, PLANNING_WP) is None
