@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-09-19'
-updated: '2026-11-06T00:00:00Z'
+updated: '2026-11-26T00:00:00Z'
 ---
 
 ## Context and Problem Statement
@@ -200,7 +200,8 @@ The "unify, don't fork" rule above is kept and extended; on the rollback path it
   `resume_seeded_refs`, and the report calls them "snapshot taken when this record was resumed",
   not pre-consolidation. **Lane branches are report-only** (`snapshot_lane_branches`):
   consolidation never moves them, so they are snapshotted for the report but never recorded and
-  never restored. After every mutating phase the run records `post_mutation_refs` — the
+  never restored (amended 2026-11-26, see below: the run's own recorded auto-rebase move of a lane
+  is restored). After every mutating phase the run records `post_mutation_refs` — the
   compare-and-swap expected value — **only for the target/mission/coordination branches whose tip
   changed during that phase** (entry tips captured before the phase), except when the phase
   failed on a compare-and-swap refusal (`RefAdvanceError`/`RefRestoreError`: that tip belongs to
@@ -291,7 +292,7 @@ above is superseded by this follow-up.
   - A coord mission with a missing coord branch still fails closed after squashing (the door
     rolls it back).
   - A stale lane auto-rebased during lane consolidation keeps its merge commit after a rollback
-    (lanes are report-only).
+    (lanes are report-only). (Closed 2026-11-26, see the amendment below.)
   - The resume-start heal is a forward revert that runs before the attempt; a later rollback
     treats it as the restore floor.
   - A checkout whose resync failed after its branch moved looks dirty and is reported NOT
@@ -547,7 +548,8 @@ with "no post-mutation tip was recorded".
   for every lane. When `pre_mutation_coord_ref` is unset or equals the target (LANES,
   SINGLE_BRANCH), the "anchor" is a second copy of the dead attempt's target tip and is dropped.
   Lanes are report-only: one that moved during the failed attempt is accepted by the per-lane CAS
-  unless it diverged, which refuses closed.
+  unless it diverged, which refuses closed. (Amended 2026-11-26, see below: a lane the rollback
+  restored from its own recorded auto-rebase move is back at its pre-run tip.)
 - **`rebaselineable` is stricter than `fully_restored`.** It also refuses `KEPT_BY_OPERATOR` (the
   record is the only place that holds the release and its reason) and `LANE_MISSING` (the record
   holds the last copy of the deleted lane's snapshot SHA). An unsettled run-movable branch with
@@ -784,6 +786,72 @@ it landed cleanly, but with the bit on `status.events.jsonl` it landed and then 
 sparse index in memory: `ls-files --sparse` needs git 2.35, above the supported floor
 (`tests/terminus/test_consolidate_skip_worktree_checkout.py`,
 `tests/consolidation/test_skip_worktree_landing_refusal.py`).
+
+### Amendment 2026-11-26 — the rollback restores the run's own auto-rebase lane moves (#7767)
+
+Issue #7767, Mission `approved-lane-resolution-route-01M7WW0Z` (#5604). Lane consolidation
+auto-rebases a stale lane (`lanes.auto_rebase.attempt_auto_rebase`, a `git merge --no-ff` of the
+Mission branch into the lane). When the run then failed and rolled back, A2's "lane branches are
+report-only" left that merge on the lane. Red first at the base (WP03): after a rollback, the
+lane still carried the run's own merge; the next run exited 0, but its cleanup line named the
+first run's own merge, which had stayed on the lane. Nothing refused it: the per-lane CAS accepts
+a descendant tip.
+
+- **A narrow reversal of A2.** Lanes are no longer purely report-only. A lane is restored only
+  from this run's own recorded and verified auto-rebase move,
+  `ConsolidationState.lane_rebase_moves[branch] = [before, after]`. `phase_advance` now records
+  that entry after every lane consolidation attempt, successful or not, and only when the lane
+  moved by exactly the auto-rebase merge (`lane_cleanup.own_auto_rebase_move`). The entry is used
+  only when `before` is the lane's restore target (`rollback._own_lane_move`), and only when the
+  move is verified (`rollback._unverified_move_reason`): `after` is a two-parent merge whose first
+  parent is `before`, and the durable auto-rebase record (`refs/spec-kitty/auto-rebase/<lane>/<sha>`,
+  ADR `2026-10-04-5` Amendment 2026-11-26) names it. The restore is a compare-and-swap
+  `after -> before` through `restore_branch_ref` (with `resync_checkouts=True`, which refuses a
+  dirty checkout before the CAS and resyncs every checkout of the lane, #5638) inside
+  `rollback.py`, so the single rollback authority holds and the AST pin
+  (`tests/consolidation/test_single_rollback_authority.py`) is unchanged. After the restore, the
+  lane work-tip ref (`refs/spec-kitty/lane-tip/<branch>`, `lanes/lane_tip.py::tip_ref`) is reset to
+  `before` and the auto-rebase record is deleted; a failed follow-up keeps `RESTORED` and names the
+  residue in the outcome's reason. Every other lane move stays report-only (`UNCHANGED_BY_RUN`),
+  and `post_mutation_refs` never records a lane or makes one restorable.
+- **Outcomes.** An unverified move is reported `UNCHANGED_BY_RUN` with its reason and nothing is
+  moved. A probe error (the parents or the record cannot be read) is `NOT_RESTORED`
+  (`RESTORE_REFUSED`), keeping the record. A dirty checkout or a lost CAS is `NOT_RESTORED` as for
+  any branch.
+- **The new outcome `LANE_MOVED_SINCE_AUTO_REBASE`.** A lane no longer at `after` (commits on top
+  of the run's merge) is never reset. The report line reads `kept <lane> (moved since this run's
+  auto-rebase merge <after>, now at <live>; not restored)`, and the next step reads "<lane>: it
+  holds this run's auto-rebase merge <after> under later commits (git log --oneline
+  <before>..<live>); nothing was reset. The next consolidate judges those commits as it does
+  today." It counts as OK for `fully_restored`, so `--abort` can finish and reports it (a lane has
+  no release), but it is not re-baselineable (`RollbackReport.rebaselineable`, beside
+  `KEPT_BY_OPERATOR` and `LANE_MISSING`): its `lane_rebase_moves` entry is the only record that the
+  lane still carries this run's merge, and the re-baseline keeps the entries of every lane it did
+  not restore (`rollback._kept_lane_moves`: `LANE_MOVED_SINCE_AUTO_REBASE`, `NOT_RESTORED`,
+  `LANE_MISSING`).
+- **Resume.** `begin_attempt` keeps a lane's restore target when the lane is still at the `after`
+  of its own recorded move from that target, so a `--resume` of an interrupted run can still undo
+  the move; any other between-attempt move re-anchors the lane at its live tip.
+- **The residual "A stale lane auto-rebased during lane consolidation keeps its merge commit after
+  a rollback" (Follow-up 2026-09-30) is closed** for the run's own recorded move. On the
+  coordination-anchor rule of Follow-up 2026-10-31: a lane the rollback restored is back at its
+  pre-run tip, so the per-lane CAS no longer meets the left-over merge.
+
+**Residuals.**
+
+- A rollback killed between a lane restore and saving the record leaves a stale
+  `lane_rebase_moves` entry. A second `--abort` clears it, and lane cleanup keeps the lane (fails
+  closed).
+- A lane moved by anything other than the run's own recorded auto-rebase merge stays report-only.
+- `orchestrator-api consolidate-mission` has no rollback door and restores no lane.
+
+**Confirmation.** `tests/consolidation/test_rollback_own_lane_moves.py` (restore, checkout resync,
+work-tip reset, record delete, `LANE_MOVED_SINCE_AUTO_REBASE`, unverified and probe-error moves,
+resume), `tests/consolidation/test_rollback_authority.py` (the truth table; a non-recorded lane
+move is still report-only, and `post_mutation_refs` never makes a lane restorable) and
+`tests/terminus/test_approved_lane_resolution_route_three_lane.py`
+(`test_next_run_after_rollback_is_not_refused_by_own_auto_rebase_merge`,
+`test_foreign_commit_after_rollback_is_judged_not_reset`).
 
 ## Alternatives Considered
 
