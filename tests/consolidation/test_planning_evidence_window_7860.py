@@ -375,6 +375,7 @@ def test_owned_work_found_only_on_the_target_is_named_with_both_remedies(tmp_pat
     assert f"found on the target branch only: {owned_sha}" in report.refusal
     assert unrelated_sha not in report.refusal
     assert f"cherry-pick {owned_sha}" in report.refusal
+    assert "If they are this work package's work" in report.refusal
     assert f"{wp_evidence.ATTEST_NO_IMPLEMENTATION_FLAG} WP02" in report.refusal
 
 
@@ -414,3 +415,5 @@ def test_the_recovery_text_names_the_mission_branch() -> None:
 
     assert "the Mission branch before a default Mission lands" in recovery
     assert "on the target branch for a planning-artifact work package" not in recovery
+    planning_remedy = wp_evidence.PLANNING_WINDOW_RECOVERY[wp_evidence.EVIDENCE_WINDOW_UNCOMPUTABLE]
+    assert planning_remedy in wp_evidence._RECOVERY[wp_evidence.EVIDENCE_WINDOW_UNCOMPUTABLE]

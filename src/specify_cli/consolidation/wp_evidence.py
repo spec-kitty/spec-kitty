@@ -196,6 +196,20 @@ class PlanningWindowUnresolved(Exception):
 #: How a refusal names the planning lane's write branch of a default Mission that has not landed.
 MISSION_BRANCH_PHRASE = "the Mission branch (the coordination branch)"
 
+#: The next step for a planning window that cannot be proven, by refusal code (#7860). The one
+#: wording ``_RECOVERY`` (consolidate, accept) and ``move-task`` both print.
+PLANNING_WINDOW_RECOVERY: Mapping[str, str] = {
+    EVIDENCE_WINDOW_UNCOMPUTABLE: (
+        "for a planning work package of a default Mission that has not landed, the window starts at the commit on "
+        f"{MISSION_BRANCH_PHRASE} that introduced its claim: claim it through `spec-kitty agent action implement`, "
+        "whose status commit lands there, then re-run"
+    ),
+    IMPLEMENTATION_UNREADABLE: (
+        "for a planning work package of a default Mission that has not landed, make the Mission's meta.json, its status log "
+        f"and {MISSION_BRANCH_PHRASE} readable, then re-run"
+    ),
+}
+
 
 def _planning_window_end(repo_root: Path, lanes_manifest: LanesManifest) -> str | None:
     """The Mission branch when a default Mission that has not landed writes its planning lane there, else ``None``.
@@ -324,7 +338,9 @@ def target_only_evidence_addendum(repo_root: Path, lanes_manifest: LanesManifest
     """The in-flight guidance appended to a planning ``IMPLEMENTATION_MISSING`` (#7860, FR-007, guidance only).
 
     Empty when no owned change exists on the target only (a hollow work package never gets it).
-    Otherwise names the commits and both remedies. A probe error keeps the refusal and says why.
+    Otherwise names the commits and both remedies. A commit that touches an owned path may still
+    be someone else's work (another Mission, a hotfix), so the text states the shape as a
+    possibility, never as a finding. A probe error keeps the refusal and says why.
     """
     try:
         shas = target_only_owned_commits(repo_root, lanes_manifest, mission_branch, patterns)
@@ -334,8 +350,9 @@ def target_only_evidence_addendum(repo_root: Path, lanes_manifest: LanesManifest
         return ""
     listed = " ".join(shas)
     return (
-        f" Its owned change was found on the target branch only: {listed} (committed there under the guidance before #7860). "
-        f"Either cherry-pick {listed} onto the Mission branch {mission_branch} (in its coordination worktree), then re-run; "
+        f" Changes to its owned_files were found on the target branch only: {listed}. If they are this work package's work "
+        f"(for example committed there under the guidance before #7860), cherry-pick {listed} onto the Mission branch {mission_branch} "
+        "(in its coordination worktree), then re-run; "
         f'or, if {wp_id} owes no implementation, record that with `{ATTEST_NO_IMPLEMENTATION_FLAG} {wp_id} --attest-reason "<why>"` '
         "on `spec-kitty accept` or `spec-kitty consolidate`."
     )
@@ -662,15 +679,14 @@ def _single_branch_scan(repo_root: Path, lanes_manifest: LanesManifest, scan: _S
 
 _RECOVERY: Mapping[str, str] = {
     EVIDENCE_WINDOW_UNCOMPUTABLE: (
-        f"Recovery for {EVIDENCE_WINDOW_UNCOMPUTABLE}: for a planning work package of a default Mission that has not landed, the window "
-        f"starts at the commit on {MISSION_BRANCH_PHRASE} that introduced its claim: claim it through `spec-kitty agent action implement`, "
-        "whose status commit lands there, then re-run. Otherwise: "
+        f"Recovery for {EVIDENCE_WINDOW_UNCOMPUTABLE}: {PLANNING_WINDOW_RECOVERY[EVIDENCE_WINDOW_UNCOMPUTABLE]}. Otherwise: "
         f"{_FINALIZE_PIN_RECOVERY} "
         "For a Mission with no `lanes.json` (a `--skip-lanes` direct-on-target Mission) that command records nothing this gate reads: "
         "commit the Mission's planning artifacts (`kitty-specs/<slug>/`) on the target branch so its start is in history and the window is resolvable, then re-run."
     ),
     IMPLEMENTATION_UNREADABLE: (
-        f"Recovery for {IMPLEMENTATION_UNREADABLE}: restore or fetch the branch the window ends at (and the recorded planning commit) so it is readable again, "
+        f"Recovery for {IMPLEMENTATION_UNREADABLE}: {PLANNING_WINDOW_RECOVERY[IMPLEMENTATION_UNREADABLE]}. Otherwise: "
+        "restore or fetch the branch the window ends at (and the recorded planning commit) so it is readable again, "
         "or, for a Mission that landed through a pull request merge commit (not a squash), re-run `spec-kitty accept --mode pr --merge-commit <sha>` "
         "with the verified PR landing commit so the evidence is judged against the landed tree. Restore a lane branch only from its actual recorded history; "
         "a lane that never existed has no lane window to restore. If work exists only on the target branch and no verified PR landing commit is available, "
@@ -1227,6 +1243,7 @@ __all__ = [
     "SINGLE_BRANCH_IMPLEMENTATION_UNREADABLE",
     "SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT",
     "MISSION_BRANCH_PHRASE",
+    "PLANNING_WINDOW_RECOVERY",
     "PlanningWindowUnresolved",
     "absent_lane_window_cause",
     "branch_ref_absent",

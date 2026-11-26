@@ -152,6 +152,7 @@ def test_owned_work_on_the_target_only_is_named_with_both_remedies(planning: _Fa
 
     message = str(refused.value)
     assert "found on the target branch only: abc1234" in message
+    assert "If they are this work package's work" in message, "the cause is stated as a possibility, never as a finding"
     assert f"cherry-pick abc1234 onto the Mission branch {_MISSION_BRANCH}" in message
     assert f"{wp_evidence.ATTEST_NO_IMPLEMENTATION_FLAG} WP02" in message
 
@@ -178,6 +179,7 @@ def test_an_unprovable_planning_window_refuses(planning: _Facts, code: str) -> N
 
     assert refused.value.code == code
     assert "the start cannot be proven" in str(refused.value)
+    assert str(refused.value).endswith(f"Next step: {wp_evidence.PLANNING_WINDOW_RECOVERY[code]}."), "the refusal names its next step"
     assert planning.windows == [], "nothing is diffed on an unprovable window"
 
 

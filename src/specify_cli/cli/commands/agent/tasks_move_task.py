@@ -1353,7 +1353,8 @@ def _mt_planning_window(st: _MoveTaskState, manifest: LanesManifest, lane: Execu
     except wp_evidence.PlanningWindowUnresolved as exc:
         raise ActionContextError(
             exc.code,
-            f"{exc.code}: {st.task_id}'s evidence window ({lane.lane_id}) cannot be computed: {exc.detail}, so its implementation cannot be verified.",
+            f"{exc.code}: {st.task_id}'s evidence window ({lane.lane_id}) cannot be computed: {exc.detail}, so its implementation cannot be verified. "
+            f"Next step: {wp_evidence.PLANNING_WINDOW_RECOVERY[exc.code]}.",
         ) from exc
     return window
 
