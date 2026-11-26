@@ -26,7 +26,8 @@ Content conversion: git runs clean filters and line-ending conversion during a m
 resolution. An effective ``merge.renormalize`` (any scope or the environment) refuses, naming the
 cause; ``filter``, ``ident`` and ``working-tree-encoding`` attributes alone are inert in a merge
 and are not refused (git-lfs repositories keep working). The probes also run git with
-:func:`pinned_merge_env` (the lane-consolidation pipeline's env under :func:`merge_probe_env`), which pins :data:`MERGE_PROBE_CONFIG_PINS` (``merge.directoryRenames``,
+:func:`pinned_merge_env` (the lane-consolidation pipeline's env under :func:`merge_probe_env`),
+which pins :data:`MERGE_PROBE_CONFIG_PINS` (``merge.directoryRenames``,
 ``merge.renames``, ``diff.algorithm``, ``merge.conflictStyle``, ``merge.renormalize=false``)
 over every other config source, so a value changed after the guard's read cannot take effect.
 
