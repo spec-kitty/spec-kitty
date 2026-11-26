@@ -103,7 +103,7 @@
     },
     "WP03": {
       "actor": "claude",
-      "agent": null,
+      "agent": "claude::python-pedro",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 3,
@@ -120,7 +120,8 @@
         "Cycle 1 folded in 60aeb939: (1) agent action implement records the claim base from the shared checkout (CLI test + gate control; native implement covered); (2) xfail dropped, recorded for WP05; (3) unregistered codes go under LANE_ALLOCATION_FAILED with data.workspace_error_code, contract 1.31.0 with doc+changelog; (4) waiver uses planning_mission_branch_target, single_branch control test; (5) resolve once, lane_branch from the resolution; (6) docstrings fixed, gate and start fail closed on empty branch; (7) stamp direct_repo for planning-lane WPs on every topology, tests; (8a) recorded for WP05, (8c) public seam.",
         "- 2026-11-26T03:57:05Z – claude::python-pedro – Cycle-2 fold (commit e4af2b36): (1) the fallback drops error_code from the StructuredError.to_dict() spread, so only data.workspace_error_code carries the unregistered code; the test asserts data.error_code is absent. (2) Out-of-map edit to tests/specify_cli/orchestrator_api/test_single_branch_repo_root_workspace.py, rationale: pin the public 1.31.0 change; the occupied and wrong-branch tests now parse the envelope and assert error_code LANE_ALLOCATION_FAILED and data.workspace_error_code WRITE_CHECKOUT_OCCUPIED / WRITE_CHECKOUT_WRONG_BRANCH. (3) record_claim_base on start-implementation is wrapped: a RuntimeError fails closed as LANE_ALLOCATION_FAILED with data.error_type RuntimeError, chosen over a warning to match the orchestrator's one-envelope fail-closed contract; new test. TESTS: pytest tests/orchestrator_api tests/specify_cli/orchestrator_api tests/contract tests/lanes/test_planning_claim_base_7860.py -n 4 --dist loadfile: 2593 passed, 6 skipped, 0 failed. ruff/format/C901 clean; mypy clean on changed files (remaining findings are in pre-existing imported tests/utils.py and test_single_branch_implement_refusals.py).",
         "Cycle 2 folded: (1) data.error_code dropped from the fallback, only data.workspace_error_code, asserted absent; (2) WRITE_CHECKOUT_* on start-implementation pinned as LANE_ALLOCATION_FAILED + data.workspace_error_code; (3) claim-base recording failure is a LANE_ALLOCATION_FAILED envelope (error_type RuntimeError), tested.",
-        "- 2026-11-26T04:43:26Z – claude::python-pedro – Cycle-3 fold (commit 753d36d5): test_a_claim_base_that_cannot_be_recorded_is_an_envelope now compares read_events(mission_dir) event ids before and after the refused start-implementation (unchanged) and asserts read_claim_base is None and data.error_code absent. pytest tests/orchestrator_api: 97 passed. ruff/format/C901/mypy clean on the file."
+        "- 2026-11-26T04:43:26Z – claude::python-pedro – Cycle-3 fold (commit 753d36d5): test_a_claim_base_that_cannot_be_recorded_is_an_envelope now compares read_events(mission_dir) event ids before and after the refused start-implementation (unchanged) and asserts read_claim_base is None and data.error_code absent. pytest tests/orchestrator_api: 97 passed. ruff/format/C901/mypy clean on the file.",
+        "Cycle 3 folded: the RuntimeError test pins no status event written (event ids unchanged) and no claim base, beside the envelope."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
