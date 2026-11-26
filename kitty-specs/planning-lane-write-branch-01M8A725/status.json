@@ -183,7 +183,7 @@
     },
     "WP05": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -197,6 +197,7 @@
         "Acceptance suite (T021, 9 cases incl. sibling, review-range ratchet, 8a pin), per-caller coverage (T019), consolidate E2E both shapes with the FR-012 planning-lane attribution fix (T022), one-authority pin + AST scan (T023, found and fixed a rule copy in _read_path_resolver), docs/AGENTS.md/migration note/changelog (T024), wp_evidence git_unavailable wording fix."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/planning-lane-write-branch-01M8A725-coord/kitty-specs/planning-lane-write-branch-01M8A725/tasks/WP05-acceptance-consolidation-docs/review-cycle-1.md",
         "reference": "review-cycle://planning-lane-write-branch-01M8A725/WP05-acceptance-consolidation-docs/review-cycle-1.md",
@@ -204,14 +205,14 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 27649,
-      "shell_pid_created_at": "1795675391.38",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T019": "done",
-        "T021": "done",
-        "T022": "done",
-        "T023": "done",
-        "T024": "done"
+        "T019": "planned",
+        "T021": "planned",
+        "T022": "planned",
+        "T023": "planned",
+        "T024": "planned"
       }
     }
   }
