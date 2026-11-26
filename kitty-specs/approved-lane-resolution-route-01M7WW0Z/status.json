@@ -600,7 +600,7 @@
     },
     "WP13": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -620,6 +620,7 @@
         "WP13 ready for review (commit 5f2318bbd9). A1=docs/adr/4.x/2026-10-04-5, A2=docs/adr/3.x/2026-09-29-1, A3=docs/adr/3.x/2026-09-19-1, A4=docs/adr/4.x/2026-11-08-2, AG=AGENTS.md (CLAUDE.md symlink), CL=docs/changelog/unreleased/5604-approved-lane-resolution-route.fixed.md.\nCHECKLIST (original 1-7): 1 A1:433-487 (refusal 441, where/contract 1.31.0 448, text 449, residual closed 484, pointers 52 and 174, confirmation 486). 2 A2:570 (trust model 581, FR-010 607, R-06 630, FR-006 hint 639). 3 A3:790 (reversal 800, outcome 821, pointers 203/295/551, red evidence 790ff). 4 A4:740 (range 748, lines 759, contract 774, cost 778). 5 A1:465. 6 AG:491-509, 583, 591. 7 CL.\nRESIDUALS A14: operator-authored label A4:783; superseded-lane records A1:478; merge.renormalize A1:471, A2:607, AG:585, CL:4.\nBATCH 1: renormalize kept A1:471; CONTESTED_COMMIT A1:469; at-least-as-strict A1:466; #7866 gap A1:480, CL:7; WP06 behavior change A2:648; stale-remedy.md superseded A1:465.\nBATCH 2: any-parent walk A1:441; canceled-window sub-case A1:449; one-side asymmetry A1:461; forged record A1:462; residual :174 closed A1:484, A1:174; lanes not purely report-only/verified/UNCHANGED_BY_RUN/NOT_RESTORED A3:800,817, AG:591; LANE_MOVED_SINCE_AUTO_REBASE A3:821; killed-rollback residual A3:842; survive-a-rollback list AG:591; #7755 sentence AG:496-501; --agent AG:495, A1:465; #7861 AG:508-510, CL:7; orchestrator no rollback door A1:465, A3:844; --incorporate attribute source A1:481.\nBATCH 3: .gitattributes fold A2:633, A1:463; squash/cherry-pick/FF A2:667; octopus A4:785; superseded-lane A1:478; #7880 A1:479, AG:504-507, CL:1.\nNotes: the #7854/#7855 hotfix and test_one_side_merge_dropping_an_approved_edit_fails_approved_content_missing are not in this tree (origin/fix/7854-7855-forecast-lane-scan), documented as landing separately (#7857). Kitty-specs contracts not owned: supersession recorded in A1/A4. How-to page troubleshoot-merge.md not owned: operator text in AGENTS.md. Tests: arch gates 119 passed; make test-fast 3222 passed; changelog style/spelling clean."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/approved-lane-resolution-route-01M7WW0Z-coord/kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP13-adr-and-doc-amendments/review-cycle-1.md",
         "reference": "review-cycle://approved-lane-resolution-route-01M7WW0Z/WP13-adr-and-doc-amendments/review-cycle-1.md",
@@ -627,13 +628,13 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 3841,
-      "shell_pid_created_at": "1795672993.41",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T051": "done",
-        "T052": "done",
-        "T053": "done",
-        "T054": "done"
+        "T051": "planned",
+        "T052": "planned",
+        "T053": "planned",
+        "T054": "planned"
       }
     },
     "WP14": {
