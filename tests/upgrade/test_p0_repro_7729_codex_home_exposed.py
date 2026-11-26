@@ -41,12 +41,14 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 _TARGET = "4.0.0rc9"
 
 #: Migrations the reproduction leaves unsettled: the rc8 narrowing, and the two
-#: clone-local steps of the fix (the Codex home exclusion and the per-clone notice).
+#: clone-local steps of the fix (the Codex home exclusion and the per-clone notice,
+#: whose shipped step is superseded by ``4.0.0rc9_report_exposed_agent_files``, #7878).
 _UNDER_TEST = frozenset(
     {
         "4.0.0rc8_narrow_agent_gitignore",
         "4.0.0rc9_exclude_project_local_codex_home",
         "4.0.0rc9_report_newly_visible_agent_files",
+        "4.0.0rc9_report_exposed_agent_files",
     }
 )
 

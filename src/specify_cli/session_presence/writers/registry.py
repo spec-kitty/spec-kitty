@@ -19,6 +19,7 @@ Registry shape (see data-model.md):
 
 from __future__ import annotations
 
+from ..hooks.claude_code_hook import ClaudeCodeHookRegistrar
 from .agents_md import AgentsMdWriter
 from .base import Writer
 from .claude_code import ClaudeCodeWriter
@@ -26,7 +27,7 @@ from .markdown_rules import MarkdownRulesWriter
 from .null_writer import NullWriter
 from .skills_preamble import SkillsPreambleWriter
 
-__all__ = ["WRITER_REGISTRY", "get_writer"]
+__all__ = ["WRITER_REGISTRY", "get_writer", "presence_file_paths"]
 
 WRITER_REGISTRY: dict[str, Writer] = {
     # Pattern A — Claude Code (hook + CLAUDE.md section)
@@ -65,3 +66,15 @@ WRITER_REGISTRY: dict[str, Writer] = {
 def get_writer(agent_key: str) -> Writer:
     """Return the Writer for the given agent key, or NullWriter if unregistered."""
     return WRITER_REGISTRY.get(agent_key, NullWriter(agent_key))
+
+
+def presence_file_paths() -> tuple[str, ...]:
+    """Project-relative files the session-presence writers write, sorted.
+
+    The orientation file of every Markdown-based writer (``.claude/CLAUDE.md``,
+    the rules files, ``AGENTS.md``, ``GEMINI.md`` ...) plus Claude Code's hook
+    settings file. A stub writer that writes nothing adds no path.
+    """
+    paths = {writer.rules_path for writer in WRITER_REGISTRY.values() if isinstance(writer, MarkdownRulesWriter)}
+    paths.add(ClaudeCodeHookRegistrar().settings_relative_path)
+    return tuple(sorted(paths))

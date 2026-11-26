@@ -59,6 +59,10 @@ SUPERSEDED_MIGRATIONS: dict[str, str] = {
     # fresh clone, re-appending the retired row to a committed ``.gitattributes`` (#7174,
     # #7217); the successor keeps both ``.json`` gate-artifact drivers and removes the row.
     "3.2.6_gate_artifact_merge_drivers": "4.0.0rc8_retire_issue_matrix_md_row",
+    # It settled only when it found a file to list, and its detect() ran before upgrade's finalizer
+    # wrote the session-presence files: with auto-commit off the second upgrade listed those files
+    # and recorded a success row, so it changed bytes (#7878). The successor leaves them out.
+    "4.0.0rc9_report_newly_visible_agent_files": "4.0.0rc9_report_exposed_agent_files",
 }
 
 #: Class attributes the substitute carries over from the shipped class.
