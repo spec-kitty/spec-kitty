@@ -1,6 +1,8 @@
 {
+  "accept_commit": "2be8641aa8699cf438d120c26757e8821e12f235",
   "acceptance_history": [
     {
+      "accept_commit": "2be8641aa8699cf438d120c26757e8821e12f235",
       "acceptance_mode": "pr",
       "accepted_at": "2026-11-26T09:33:13.015138+00:00",
       "accepted_by": "claude::architect-alphonso",
