@@ -110,6 +110,10 @@ _PUBLIC_SURFACE = sorted(
         # (this surface list is not a WP01 owned file, but every new
         # mission_runtime public symbol must be pinned here).
         "PlacementSeam",
+        # #7860: the planning lane's write branch, its facts value and its typed refusals.
+        "PlanningCheckoutMissing",
+        "PlanningWriteRef",
+        "PlanningWriteRefUnavailable",
         # lifecycle-gate-execution-context-01KY72GQ WP02 (IC-11): the stamped
         # output + input bundle of the surface→filesystem translation seam — the
         # true schema root. Package-root public symbols, so pinned here.
@@ -207,6 +211,7 @@ _PUBLIC_SURFACE = sorted(
         "mission_context_for",
         "mission_has_landed",
         "placement_seam",
+        "planning_write_ref",
         # settled-placement-surface (#7595): core/paths.py and core/git_ops.py read a
         # Mission's target branch through it from the package root.
         "read_dir_for",
