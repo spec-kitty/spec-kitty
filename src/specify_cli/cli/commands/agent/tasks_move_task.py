@@ -1286,12 +1286,92 @@ def _mt_lane_window_paths(st: _MoveTaskState, manifest: LanesManifest, lane: Exe
     return widened
 
 
+def _mt_status_events(st: _MoveTaskState) -> list[Any] | None:
+    """The routed status events of this move's Mission, or ``None`` when the log cannot be read (the caller fails closed)."""
+    from specify_cli.cli.commands.agent import tasks as _tasks
+    from specify_cli.status import StoreError
+
+    try:
+        events: list[Any] = list(
+            _tasks.read_events_transactional(feature_dir=st.feature_dir, mission_slug=st.mission_slug, repo_root=st.main_repo_root, owned=st.owned)
+        )
+    except (StoreError, OSError):
+        logging.getLogger(__name__).debug("move-task: the status event log of %s could not be read", st.mission_slug, exc_info=True)
+        return None
+    return events
+
+
+def _mt_mission_branch_checkout(st: _MoveTaskState, manifest: LanesManifest) -> str:
+    """``", checked out in <path>"`` for the checkout holding the planning lane's Mission branch, else ``""`` (advisory)."""
+    import mission_runtime
+
+    from specify_cli.coordination import planning_commit
+
+    try:
+        target = planning_commit.planning_lane_target(st.main_repo_root, manifest.mission_slug, manifest.target_branch)
+    except (mission_runtime.PlanningCheckoutMissing, mission_runtime.PlanningWriteRefUnavailable):
+        return ""
+    return f", checked out in {target.checkout}"
+
+
+def _mt_require_planning_evidence(st: _MoveTaskState, manifest: LanesManifest, lane: ExecutionLane, window: tuple[str, str]) -> None:
+    """The planning leg of a default, not-landed Mission: the work package's own window on the Mission branch (#7860)."""
+    from specify_cli.consolidation import wp_evidence
+    from specify_cli.consolidation.git_probes import GitProbeError
+
+    start, end = window
+    try:
+        paths = wp_evidence.evidence_paths(st.main_repo_root, window, manifest.mission_slug)
+    except GitProbeError as exc:
+        code = wp_evidence.IMPLEMENTATION_UNREADABLE
+        raise ActionContextError(
+            code,
+            f"{code}: {st.task_id}'s evidence window {start}..{end} ({lane.lane_id}) could not be diffed ({exc}), so its "
+            f"implementation cannot be verified. Make the Mission branch {end} (the coordination branch) readable, then retry.",
+        ) from exc
+    patterns = _mt_owned_file_patterns(st)
+    if wp_evidence.has_owned_change(paths, patterns):
+        return
+    code = wp_evidence.IMPLEMENTATION_MISSING
+    raise ActionContextError(
+        code,
+        f"{code}: {st.task_id} cannot move into review: no change to its owned_files in its evidence window {start}..{end} "
+        f"({lane.lane_id}). Commit the work package's implementation to its owned_files on the Mission branch {end} (the "
+        f"coordination branch{_mt_mission_branch_checkout(st, manifest)}), then retry ({_NOT_SHIPPED_CODE})."
+        + wp_evidence.target_only_evidence_addendum(st.main_repo_root, manifest, end, st.task_id, patterns),
+    )
+
+
+def _mt_planning_window(st: _MoveTaskState, manifest: LanesManifest, lane: ExecutionLane | None) -> tuple[str, str] | None:
+    """``wp_evidence.planning_evidence_window`` for this move (the one decision, #7860); an unprovable window refuses."""
+    from specify_cli.consolidation import wp_evidence
+
+    if lane is None:
+        return None
+    try:
+        window: tuple[str, str] | None = wp_evidence.planning_evidence_window(st.main_repo_root, manifest, lane, st.task_id, lambda: _mt_status_events(st))
+    except wp_evidence.PlanningWindowUnresolved as exc:
+        raise ActionContextError(
+            exc.code,
+            f"{exc.code}: {st.task_id}'s evidence window ({lane.lane_id}) cannot be computed: {exc.detail}, so its implementation cannot be verified.",
+        ) from exc
+    return window
+
+
 def _mt_require_lane_evidence(st: _MoveTaskState, manifest: LanesManifest) -> None:
-    """The lanes/coord leg of :func:`_mt_require_implementation_evidence` (neutral codes, #6715)."""
+    """The lanes/coord leg of :func:`_mt_require_implementation_evidence` (neutral codes, #6715).
+
+    A planning work package of a default Mission that has not landed is judged on its own window
+    on the Mission branch (the coordination branch, #7860); every other lane keeps its lane window.
+    """
     from specify_cli.consolidation import wp_evidence
     from specify_cli.consolidation.git_probes import GitProbeError
 
     lane = manifest.lane_for_wp(st.task_id)
+    planning_window = _mt_planning_window(st, manifest, lane)
+    if lane is not None and planning_window is not None:
+        _mt_require_planning_evidence(st, manifest, lane, planning_window)
+        return
     window = wp_evidence.lane_evidence_window(manifest, lane) if lane is not None else None
     if lane is None or window is None:
         where = "it is in no lane of lanes.json" if lane is None else f"{lane.lane_id}: lanes.json records no planning commit"
@@ -1327,7 +1407,8 @@ def _mt_require_lane_evidence(st: _MoveTaskState, manifest: LanesManifest) -> No
             code,
             f"{code}: {st.task_id} cannot move into review: no change to its owned_files in its evidence window "
             f"{base}..{tip} ({lane.lane_id}). Commit the work package's implementation to its owned_files (on its lane "
-            f"branch, or on the target branch for a planning-artifact work package), then retry ({_NOT_SHIPPED_CODE}).",
+            f"branch, or, for a planning-artifact work package, on the branch its planning lane writes to: {tip}), then retry "
+            f"({_NOT_SHIPPED_CODE}).",
         )
 
 
@@ -1482,6 +1563,15 @@ def _mt_require_independent_approval(st: _MoveTaskState) -> None:
     )
 
 
+def _mt_shared_checkout_phrase(workspace: ResolvedWorkspace) -> str:
+    """How the auto-commit note names a shared checkout (#7860)."""
+    from specify_cli.workspace.context import MISSION_BRANCH_CHECKOUT_KIND
+
+    if workspace.resolution_kind == MISSION_BRANCH_CHECKOUT_KIND:
+        return f"the checkout of the Mission branch {workspace.branch_name} ({workspace.worktree_path}), which other work packages share"
+    return "the repository root checkout"
+
+
 def _mt_commit_lane_deliverables(st: _MoveTaskState) -> None:
     """Commit finished lane deliverables before a review transition (#2335).
 
@@ -1522,16 +1612,18 @@ def _mt_commit_lane_deliverables(st: _MoveTaskState) -> None:
     # to auto-commit, same as an isolated lane worktree.
     if workspace.branch_name is None:
         return
-    if st.owned is None and workspace.resolution_kind == "repo_root":
-        # single_branch repo-root WP: the write checkout is the operator's whole
-        # repository-root checkout, so ``git status`` there holds unrelated and
-        # stray files (``.env.local`` ...). Sweeping them into a "deliverables"
-        # commit could land them on a protected target -- and would let a
-        # no-work WP pass the gate. The WP author commits their own work; the
-        # claim-base for_review gate then refuses when there is none.
+    if st.owned is None and workspace.is_shared_checkout:
+        # A shared checkout: the repository root checkout of a single_branch
+        # repo-root WP, or the checkout holding a default Mission's branch (the
+        # coordination worktree) that the planning WPs share (#7860, FR-013).
+        # ``git status`` there holds unrelated or stray files (``.env.local``, a
+        # sibling WP's half-done edits ...). Sweeping them into a "deliverables"
+        # commit could land them on a protected target, would commit another WP's
+        # work, and would let a no-work WP pass the gate. The WP author commits
+        # their own work; the gate and the evidence axis then judge it.
         if not st.json_output:
             _tasks.console.print(
-                f"[yellow]Note:[/yellow] {st.task_id} runs in the repository root checkout; "
+                f"[yellow]Note:[/yellow] {st.task_id} runs in {_mt_shared_checkout_phrase(workspace)}; "
                 "commit your WP work yourself before moving to for_review (no auto-commit)."
             )
         return

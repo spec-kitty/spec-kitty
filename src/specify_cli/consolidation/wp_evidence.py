@@ -36,6 +36,15 @@ so a change committed and then reverted counts as nothing. At most one diff is t
 (NFR-001). Matching every changed path of the window against a work package's ``owned_files``
 rests on the disjoint-owner model, as the #5939 axis did.
 
+One exception (#7860, ADR 2026-10-04-5 Amendment 2026-11-25): before a default Mission
+(``topology_source: default``) lands, its planning lane writes to the Mission branch (the
+coordination branch), so each approved planning work package is judged on its own window
+``<commit introducing its window-opening status event>..<Mission branch>``
+(:func:`planning_evidence_window`, the one place that decides it): one diff per approved planning
+work package for that lane only. A start that cannot be proven refuses. A hollow work package of
+that shape whose owned change exists on the target branch only is named with both remedies
+(:func:`target_only_evidence_addendum`).
+
 A Mission landed through a pull request never runs ``consolidate``, and its lane branches are
 normally pruned once the landing is on the target (#6780). A caller that has verified the PR
 landing commit (``accept --mode pr --merge-commit``) passes it as *landed_commit*; a lane whose
@@ -145,7 +154,10 @@ def lane_evidence_window(lanes_manifest: LanesManifest, lane: ExecutionLane) -> 
     """``(planning_commit_sha, tip)`` for a lanes/coord lane, or ``None`` when no planning commit is recorded.
 
     The tip is the lane branch for a code lane and the target branch for a planning lane
-    (planning-artifact work lands on the target, never on a lane branch).
+    (planning-artifact work lands on the branch its planning lane writes to, never on a lane
+    branch). Before a default Mission lands, that branch is the Mission branch (the coordination
+    branch) and :func:`planning_evidence_window` decides the planning lane's window per work
+    package instead; callers ask it first.
     """
     base = lanes_manifest.planning_commit_sha
     if not base:
@@ -165,6 +177,168 @@ def evidence_paths(repo_root: Path, window: tuple[str, str], mission_slug: str) 
 def has_owned_change(paths: Iterable[str], patterns: Sequence[str]) -> bool:
     """True when some changed path matches the work package's ownership *patterns* (none: never)."""
     return bool(patterns) and any(matches_owned(path, patterns) for path in paths)
+
+
+class PlanningWindowUnresolved(Exception):
+    """A default Mission's planning evidence window cannot be proven (#7860, NFR-002): refuse, never pass.
+
+    ``code`` is the neutral code to refuse with (``EVIDENCE_WINDOW_UNCOMPUTABLE`` when the start
+    cannot be determined, ``IMPLEMENTATION_UNREADABLE`` when ``meta.json``, the event log or git
+    cannot be read); ``detail`` says why.
+    """
+
+    def __init__(self, code: str, detail: str) -> None:
+        self.code = code
+        self.detail = detail
+        super().__init__(f"{code}: {detail}")
+
+
+#: How a refusal names the planning lane's write branch of a default Mission that has not landed.
+MISSION_BRANCH_PHRASE = "the Mission branch (the coordination branch)"
+
+
+def _planning_window_end(repo_root: Path, lanes_manifest: LanesManifest) -> str | None:
+    """The Mission branch when a default Mission that has not landed writes its planning lane there, else ``None``.
+
+    Reads the one write-branch rule (``mission_runtime.planning_write_ref``, looked up at call
+    time); a Mission with no ``meta.json`` anywhere (legacy) or an explicit topology reads
+    ``None`` and keeps today's window (FR-006).
+    """
+    import mission_runtime
+
+    try:
+        ref = mission_runtime.planning_write_ref(repo_root, lanes_manifest.mission_slug, lanes_manifest.target_branch)
+    except (mission_runtime.PlanningWriteRefUnavailable, mission_runtime.PlanningCheckoutMissing) as exc:
+        raise PlanningWindowUnresolved(IMPLEMENTATION_UNREADABLE, f"the branch its planning lane writes to cannot be decided ({exc})") from exc
+    return ref.branch if ref.on_mission_branch else None
+
+
+def _planning_window_start(repo_root: Path, lanes_manifest: LanesManifest, wp_id: str, events: Sequence[Any] | None, mission_branch: str) -> str:
+    """The commit on *mission_branch* that introduced *wp_id*'s window-opening status event (operator ruling 2026-11-25).
+
+    The opener is the review range's: the first candidate of
+    :func:`~specify_cli.status.window_opener_events` (``cycle=True``), else the first skipped one.
+    Its commit is the event-commit leg of the review range's derivation. Raises
+    :class:`PlanningWindowUnresolved` when the log is unreadable, no opener is recorded, or no
+    single commit on the Mission branch introduced it.
+    """
+    import mission_runtime
+
+    from specify_cli.status import window_opener_events
+
+    if events is None:
+        raise PlanningWindowUnresolved(IMPLEMENTATION_UNREADABLE, "the status event log could not be read")
+    selection = window_opener_events(events, wp_id, cycle=True)
+    openers = (*selection.candidates, *selection.skipped)
+    if not openers:
+        raise PlanningWindowUnresolved(EVIDENCE_WINDOW_UNCOMPUTABLE, f"no window-opening (claim) status event is recorded for {wp_id}")
+    event_id = str(openers[0].event_id)
+    surface = mission_runtime.StatusRef(repo_root=repo_root, ref=mission_branch, events_relpath=f"kitty-specs/{lanes_manifest.mission_slug}/status.events.jsonl")
+    try:
+        start: str = mission_runtime.commit_introducing_status_event(surface, wp_id, event_id, rev=mission_branch)
+    except mission_runtime.ClaimCommitUnresolved as exc:
+        code = IMPLEMENTATION_UNREADABLE if exc.reason == "git_unavailable" else EVIDENCE_WINDOW_UNCOMPUTABLE
+        raise PlanningWindowUnresolved(
+            code,
+            f"no single commit on the Mission branch {mission_branch} introduced its window-opening status event {event_id} ({exc}); "
+            f"commit its status events on {MISSION_BRANCH_PHRASE}, then re-run",
+        ) from exc
+    return start
+
+
+def planning_evidence_window(
+    repo_root: Path,
+    lanes_manifest: LanesManifest,
+    lane: ExecutionLane,
+    wp_id: str,
+    events: Callable[[], Sequence[Any] | None],
+) -> tuple[str, str] | None:
+    """The ONE decision of a planning work package's evidence window (#7860, FR-003/FR-005/FR-010).
+
+    ``(start, mission_branch)`` for a work package of the planning lane of a default Mission that
+    has not landed: the start is the commit on the Mission branch that introduced the work
+    package's window-opening status event, so Mission content authored before the claim never
+    counts. ``None`` for every other shape (a code lane, an explicit topology, a landed or legacy
+    Mission): the caller keeps :func:`lane_evidence_window`. *events* returns the status events in
+    append order (``None`` when unreadable); it is called only for the shape that needs it.
+    Raises :class:`PlanningWindowUnresolved` when the end or the start cannot be proven.
+    """
+    if not is_planning_lane(lane):
+        return None
+    end = _planning_window_end(repo_root, lanes_manifest)
+    if end is None:
+        return None
+    return (_planning_window_start(repo_root, lanes_manifest, wp_id, events(), end), end)
+
+
+def _owned_log_pathspecs(patterns: Sequence[str]) -> tuple[str, ...]:
+    """Git pathspecs covering at least what :func:`matches_owned` matches (its directory-prefix rule included).
+
+    A superset is enough: git's default pathspec wildcards cross ``/`` as ``fnmatch`` does, and
+    every listed commit is filtered again with :func:`matches_owned`.
+    """
+    prefixes = (pattern.replace("/**", "").replace("/*", "").rstrip("/") for pattern in patterns)
+    return tuple(dict.fromkeys((*patterns, *(prefix for prefix in prefixes if prefix))))
+
+
+def target_only_owned_commits(repo_root: Path, lanes_manifest: LanesManifest, mission_branch: str, patterns: Sequence[str]) -> tuple[str, ...]:
+    """Commits that changed an owned path on the target only, oldest first (#7860, FR-007).
+
+    Range ``merge-base(planning_commit_sha, target)..target``, excluding what the Mission branch
+    already carries, limited to the owned paths. Raises :class:`GitProbeError` when it cannot be read.
+    """
+    from kernel.git import GitCommandError, run_git
+
+    if not patterns:
+        return ()
+    pin = lanes_manifest.planning_commit_sha
+    if not pin:
+        raise GitProbeError("lanes.json records no planning commit")
+    target = lanes_manifest.target_branch
+    base = _merge_base(repo_root, pin, target)
+    try:
+        listing = run_git(
+            repo_root,
+            "log",
+            "--reverse",
+            "--no-renames",
+            "--format=%x00%H",
+            "--name-only",
+            f"{base}..{target}",
+            "--not",
+            mission_branch,
+            "--",
+            *_owned_log_pathspecs(patterns),
+        ).stdout.decode("utf-8", errors="replace")
+    except (GitCommandError, OSError) as exc:
+        raise GitProbeError(f"git log {base}..{target} could not be read ({exc})") from exc
+    shas: list[str] = []
+    for record in listing.split("\0"):
+        sha, _sep, names = record.strip().partition("\n")
+        if sha and any(matches_owned(name, patterns) and _is_evidence_path(name, lanes_manifest.mission_slug) for name in names.splitlines() if name):
+            shas.append(sha)
+    return tuple(shas)
+
+
+def target_only_evidence_addendum(repo_root: Path, lanes_manifest: LanesManifest, mission_branch: str, wp_id: str, patterns: Sequence[str]) -> str:
+    """The in-flight guidance appended to a planning ``IMPLEMENTATION_MISSING`` (#7860, FR-007, guidance only).
+
+    Empty when no owned change exists on the target only (a hollow work package never gets it).
+    Otherwise names the commits and both remedies. A probe error keeps the refusal and says why.
+    """
+    try:
+        shas = target_only_owned_commits(repo_root, lanes_manifest, mission_branch, patterns)
+    except GitProbeError as exc:
+        return f" (could not check the target branch: {exc})"
+    if not shas:
+        return ""
+    listed = " ".join(shas)
+    return (
+        f" Its owned change was found on the target branch only: {listed} (committed there under the guidance before #7860). "
+        f"Either cherry-pick {listed} onto the Mission branch {mission_branch} (in its coordination worktree), then re-run; "
+        f'or, if {wp_id} owes no implementation, record that with `{ATTEST_NO_IMPLEMENTATION_FLAG} {wp_id} --attest-reason "<why>"` '
+        "on `spec-kitty accept` or `spec-kitty consolidate`."
+    )
 
 
 def _is_no_implementation_attestation(event: Any) -> bool:
@@ -353,10 +527,19 @@ class _Scan:
     verdicts: dict[str, str] = field(default_factory=dict)
     unresolved_reasons: dict[str, str] = field(default_factory=dict)
     _attested: frozenset[str] | None = None
+    _events_read: bool = False
+    _events: Sequence[Any] | None = None
+
+    def read_events(self) -> Sequence[Any] | None:
+        """The status events, read through *events* at most once (its contract) and shared by every reader here."""
+        if not self._events_read:
+            self._events = self.events()
+            self._events_read = True
+        return self._events
 
     def attested(self, wp_id: str) -> bool:
         if self._attested is None:
-            events = self.events()
+            events = self.read_events()
             # An unreadable log yields no attestation, so IMPLEMENTATION_MISSING stands (fail closed).
             self._attested = _no_implementation_attested_wp_ids(events) if events is not None else frozenset()
         return wp_id in self._attested
@@ -479,7 +662,10 @@ def _single_branch_scan(repo_root: Path, lanes_manifest: LanesManifest, scan: _S
 
 _RECOVERY: Mapping[str, str] = {
     EVIDENCE_WINDOW_UNCOMPUTABLE: (
-        f"Recovery for {EVIDENCE_WINDOW_UNCOMPUTABLE}: {_FINALIZE_PIN_RECOVERY} "
+        f"Recovery for {EVIDENCE_WINDOW_UNCOMPUTABLE}: for a planning work package of a default Mission that has not landed, the window "
+        f"starts at the commit on {MISSION_BRANCH_PHRASE} that introduced its claim: claim it through `spec-kitty agent action implement`, "
+        "whose status commit lands there, then re-run. Otherwise: "
+        f"{_FINALIZE_PIN_RECOVERY} "
         "For a Mission with no `lanes.json` (a `--skip-lanes` direct-on-target Mission) that command records nothing this gate reads: "
         "commit the Mission's planning artifacts (`kitty-specs/<slug>/`) on the target branch so its start is in history and the window is resolvable, then re-run."
     ),
@@ -491,8 +677,9 @@ _RECOVERY: Mapping[str, str] = {
         "escalate the evidence-policy question (#7120) instead of retrying that window. Do not manufacture a lane branch to satisfy this gate."
     ),
     IMPLEMENTATION_MISSING: (
-        f"Recovery for {IMPLEMENTATION_MISSING}: commit the work package's change to its owned_files (on its lane branch, or on the "
-        "target branch for a planning-artifact work package) and have it reviewed and approved again. A work package that owes no "
+        f"Recovery for {IMPLEMENTATION_MISSING}: commit the work package's change to its owned_files (on its lane branch, or, for a "
+        "planning-artifact work package, on the branch its planning lane writes to: the Mission branch before a default Mission lands "
+        f"({MISSION_BRANCH_PHRASE}), else the target branch) and have it reviewed and approved again. A work package that owes no "
         f'implementation is recorded with `{ATTEST_NO_IMPLEMENTATION_FLAG} <WP> --attest-reason "<why>"` on `spec-kitty accept` or '
         "`spec-kitty consolidate`."
     ),
@@ -583,7 +770,9 @@ def _lane_branches_absent_locally(repo_root: Path, lanes_manifest: LanesManifest
     A LOCAL fact, never a history: an absent ref cannot distinguish a branch that was never created
     from one pruned here or never fetched. That is why it is only used to choose the wording of a
     refusal, and why the wording states the shape as a possibility rather than a finding. False when
-    *branch* is not a code lane's branch (a planning lane's tip is the target branch) and False when
+    *branch* is not a code lane's branch (a planning lane's tip is the branch its planning lane
+    writes to: the Mission branch, the coordination branch, before a default Mission lands, else
+    the target branch) and False when
     any probe cannot be read (:func:`branch_ref_absent` fails closed), so an unknown never reads as
     the never-created shape.
     """
@@ -598,9 +787,11 @@ def absent_lane_window_cause(repo_root: Path, lanes_manifest: LanesManifest, bra
 
     Three local shapes share the failed diff; none establishes the missing branch's history:
 
-    * *branch* is not a code lane's branch — a planning lane's window ends at the target branch, and
-      a ``single_branch`` Mission's at its Mission branch. Neither is a lane window, so neither the
-      lane-tip ref nor the never-created shape is named; the branch is simply missing here.
+    * *branch* is not a code lane's branch — a planning lane's window ends at the branch its planning
+      lane writes to (the Mission branch, i.e. the coordination branch, before a default Mission
+      lands; the target branch otherwise), and a ``single_branch`` Mission's at its Mission branch.
+      None is a lane window, so neither the lane-tip ref nor the never-created shape is named; the
+      branch is simply missing here.
     * *branch* is a code lane's branch but not every code-lane ref is confirmed absent. A sibling
       may exist or be unreadable; neither proves this lane ever existed. Restoration is conditional
       on actual recorded lane history, never a new branch pointed at target-branch work.
@@ -815,7 +1006,55 @@ def widened_lane_paths(
     return paths
 
 
+def _scan_planning_wp(repo_root: Path, lanes_manifest: LanesManifest, scan: _Scan, lane: ExecutionLane, wp_id: str, window: tuple[str, str]) -> None:
+    """Judge one planning work package of a default, not-landed Mission on its own window (one diff, #7860)."""
+    start, end = window
+    try:
+        paths = evidence_paths(repo_root, window, lanes_manifest.mission_slug)
+    except GitProbeError as exc:
+        scan.add(
+            wp_id,
+            f"{IMPLEMENTATION_UNREADABLE}: {wp_id}'s evidence window {start}..{end} ({lane.lane_id}) cannot be read: the window on "
+            f"{MISSION_BRANCH_PHRASE} could not be diffed ({exc}), {_CANNOT_VERIFY}",
+        )
+        return
+
+    def missing(wp: str) -> str:
+        line = (
+            f"{IMPLEMENTATION_MISSING}: {wp} was approved with no change to its owned_files in its evidence window {start}..{end} "
+            f"({lane.lane_id}), which ends at {MISSION_BRANCH_PHRASE} {end}."
+        )
+        # FR-007: probed only here, after the refusal, and bounded to the work package's owned files.
+        return line + target_only_evidence_addendum(repo_root, lanes_manifest, end, wp, scan.owned.get(wp, ()))
+
+    _judge(scan, wp_id, paths, missing, REVIEW_NOT_INDEPENDENT, OWNERSHIP_UNRESOLVED)
+
+
+def _scan_planning_lane(repo_root: Path, lanes_manifest: LanesManifest, scan: _Scan, lane: ExecutionLane, approved: Sequence[str]) -> bool:
+    """Judge *lane* per work package when it is the planning lane of a default, not-landed Mission; ``False`` otherwise.
+
+    :func:`planning_evidence_window` decides the shape and each window; an unprovable one refuses
+    that work package (NFR-002). ``False`` hands the lane back to the lane-window path unchanged.
+    """
+    for wp_id in approved:
+        try:
+            window = planning_evidence_window(repo_root, lanes_manifest, lane, wp_id, scan.read_events)
+        except PlanningWindowUnresolved as exc:
+            scan.add(wp_id, f"{exc.code}: {wp_id}'s evidence window ({lane.lane_id}) cannot be computed: {exc.detail}, {_CANNOT_VERIFY}")
+            continue
+        if window is None:
+            # The shape is per Mission, so it reads None for the first work package or for none.
+            return False
+        _scan_planning_wp(repo_root, lanes_manifest, scan, lane, wp_id, window)
+    return True
+
+
 def _scan_lane(repo_root: Path, lanes_manifest: LanesManifest, scan: _Scan, lane: ExecutionLane, approved: Sequence[str], landed_commit: str | None = None) -> None:
+    # #7860: a caller-verified PR landing commit (#6780) means the Mission landed; a PR-landed
+    # Mission has no local landing record, so it keeps today's route (planning_commit..target and
+    # the --merge-commit stand-in) instead of the Mission-branch window.
+    if landed_commit is None and is_planning_lane(lane) and _scan_planning_lane(repo_root, lanes_manifest, scan, lane, approved):
+        return
     window = lane_evidence_window(lanes_manifest, lane)
     if window is None:
         for wp_id in approved:
@@ -984,6 +1223,8 @@ __all__ = [
     "SINGLE_BRANCH_IMPLEMENTATION_MISSING",
     "SINGLE_BRANCH_IMPLEMENTATION_UNREADABLE",
     "SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT",
+    "MISSION_BRANCH_PHRASE",
+    "PlanningWindowUnresolved",
     "absent_lane_window_cause",
     "branch_ref_absent",
     "evaluate_evidence",
@@ -992,5 +1233,8 @@ __all__ = [
     "in_force_no_implementation_attestation",
     "lane_evidence_window",
     "mission_evidence_report",
+    "planning_evidence_window",
+    "target_only_evidence_addendum",
+    "target_only_owned_commits",
     "widened_lane_paths",
 ]
