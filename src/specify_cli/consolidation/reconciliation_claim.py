@@ -381,6 +381,8 @@ def _build_claim(
         canceled_lane_commits=canceled_lane_commits,
         presence=presence,
         unreviewed_sink=unreviewed,
+        own_paths_memo=bound.merge_own_paths,
+        unreviewed_candidates=bound.unreviewed_candidates,
     )
     excluded_shas, excluded_patch_ids = _collect_excluded(
         repo_root,

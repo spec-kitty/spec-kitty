@@ -17,7 +17,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import subprocess
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -248,8 +248,8 @@ def _fixed_git_identity(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv(name, "t@example.invalid")
 
 
-def _claim(mission: _Mission, *, canceled: tuple[str, ...] = ()) -> ApprovedWpCommitSet:
-    claim = build_approved_wp_set(
+def _unbypassed_claim(mission: _Mission, *, canceled: tuple[str, ...] = ()) -> ApprovedWpCommitSet:
+    return build_approved_wp_set(
         mission.repo,
         mission.feature_dir,
         mission.manifest,
@@ -257,6 +257,21 @@ def _claim(mission: _Mission, *, canceled: tuple[str, ...] = ()) -> ApprovedWpCo
         excluded_window_base=mission.base,
         excluded_canceled_wp_ids=canceled,
     )
+
+
+def _claim(mission: _Mission, *, canceled: tuple[str, ...] = ()) -> ApprovedWpCommitSet:
+    """The claim with WP05's claim-time ``RESOLUTION_MERGE_UNREVIEWED`` check bypassed.
+
+    These tests pin the gate-side advisory field (``unreviewed_merges``) on claims that hold a merge no
+    own stamp reaches; since FR-004 the plain claim refuses such a merge before it is built
+    (:func:`test_the_plain_claim_refuses_the_unreviewed_merge`), so the field is read on a claim built
+    as the gate sees it.
+    """
+    from specify_cli.consolidation import reconciliation_bound
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(reconciliation_bound, "unreviewed_resolution_merges", lambda *_args, **_kwargs: ())
+        claim = _unbypassed_claim(mission, canceled=canceled)
     assert claim.surface_resolved and claim.refusal is None, f"claim refused: {claim.refusal!r}"
     return claim
 
@@ -356,6 +371,13 @@ def test_claim_records_the_dropped_merge(tmp_path: Path) -> None:
     )
 
 
+def test_the_plain_claim_refuses_the_unreviewed_merge(tmp_path: Path) -> None:
+    """Both layers visible: the unbypassed claim refuses the merge whose own content the advisory field names."""
+    mission = _build_two_lane(tmp_path, variant="post")
+    refusal = _unbypassed_claim(mission).refusal or ""
+    assert refusal.startswith(f"RESOLUTION_MERGE_UNREVIEWED: lane lane-b (WP02): merge {mission.merge[:7]}"), refusal
+
+
 def test_claim_records_a_clean_dropped_merge_with_no_own_content(tmp_path: Path) -> None:
     from specify_cli.consolidation.reconciliation_claim_types import UnreviewedMerge
 
@@ -433,7 +455,7 @@ def test_dropped_merges_skips_a_sha_whose_parents_cannot_be_read(tmp_path: Path,
     mission = _build_two_lane(tmp_path, variant="post")
     spine = _git(mission.repo, "rev-list", "--first-parent", f"{mission.base}..{_branch('lane-b')}").split()
     reviewed = [sha for sha in spine if sha != mission.merge]
-    real = reconciliation_authorship.is_merge_commit
+    real: Callable[[Path, str], bool] = reconciliation_authorship.is_merge_commit
     assert reconciliation_authorship._dropped_merges(mission.repo, spine, reviewed) == (mission.merge,), "precondition: the merge is listed"
 
     def raising(repo_root: Path, sha: str) -> bool:

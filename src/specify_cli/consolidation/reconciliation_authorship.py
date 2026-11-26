@@ -376,14 +376,19 @@ def _dropped_merges(repo_root: Path, spine: Sequence[str], reviewed: Sequence[st
     return tuple(dropped)
 
 
-def _unreviewed_merge(repo_root: Path, sha: str, lane_id: str, wp_ids: tuple[str, ...]) -> UnreviewedMerge | None:
+def _unreviewed_merge(
+    repo_root: Path, sha: str, lane_id: str, wp_ids: tuple[str, ...], own_paths_memo: Mapping[str, tuple[str, ...]] | None = None
+) -> UnreviewedMerge | None:
     """The :class:`UnreviewedMerge` record of *sha*, or ``None`` when its own content cannot be read.
 
     Advisory only (FR-006, C-002): a probe error is logged and the entry skipped, never raised
     out of the claim builder and never read as "no own content". The gate still judges the merge.
+    *own_paths_memo* holds the claim's successful FR-004 probe results (one remerge per merge per
+    claim, NFR-001); a merge it does not hold is probed here.
     """
     try:
-        own_paths = tuple(merge_own_changed_paths(repo_root, sha))
+        memo = (own_paths_memo or {}).get(sha)
+        own_paths = memo if memo is not None else tuple(merge_own_changed_paths(repo_root, sha))
         own_blobs = tuple((path, blob) for path in own_paths if (blob := path_state_at(repo_root, sha, path)) is not None)
     except GitProbeError as exc:
         logger.debug("unreviewed merge %s on %s: own content unreadable, no hint entry recorded: %s", sha, lane_id, exc)
@@ -398,16 +403,23 @@ def _record_unreviewed(
     spine: list[str],
     reviewed: list[str],
     sink: list[UnreviewedMerge] | None,
+    own_paths_memo: Mapping[str, tuple[str, ...]] | None = None,
+    candidates: Sequence[str] = (),
 ) -> None:
-    """Append to *sink* one :class:`UnreviewedMerge` per merge the drop removed from *lane*'s *spine* (FR-006).
+    """Append to *sink* one :class:`UnreviewedMerge` per merge the drop removed from *lane*'s *spine* (FR-006),
+    then one per *candidates* merge not already named.
 
-    No-op without a sink or when nothing was dropped (``reviewed is spine``).
+    *candidates* are the lane's merges no review covers as the approved bound judged them
+    (:func:`~specify_cli.consolidation.approved_bound.unreviewed_merge_candidates`, every parent walked),
+    so a hand merge hidden behind a clean merge, off the spine, is named too (WP05 review cycle 1).
+    No-op without a sink, or when nothing was dropped and there is no candidate.
     """
-    if sink is None or reviewed is spine:
+    if sink is None or (reviewed is spine and not candidates):
         return
     wp_ids = _approved_wp_ids(lane, work_packages)
-    for sha in _dropped_merges(repo_root, spine, reviewed):
-        entry = _unreviewed_merge(repo_root, sha, lane.lane_id, wp_ids)
+    dropped = _dropped_merges(repo_root, spine, reviewed) if reviewed is not spine else ()
+    for sha in dict.fromkeys((*dropped, *candidates)):
+        entry = _unreviewed_merge(repo_root, sha, lane.lane_id, wp_ids, own_paths_memo)
         if entry is not None:
             sink.append(entry)
 
@@ -790,6 +802,8 @@ def _collect_authored(
     canceled_lane_commits: frozenset[str],
     presence: _PresenceScope | None = None,
     unreviewed_sink: list[UnreviewedMerge] | None = None,
+    own_paths_memo: Mapping[str, tuple[str, ...]] | None = None,
+    unreviewed_candidates: Mapping[str, Sequence[str]] | None = None,
 ) -> _AuthoredClaim:
     """Approved lanes → their OWN first-parent SHAs + patch-ids + FINAL blobs + FINAL deletions + multi-lane paths.
 
@@ -870,7 +884,9 @@ def _collect_authored(
         # content FAILs), on the closed-world and the squash blob axes alike.
         reviewed = full_authored if is_planning_lane(lane) else _drop_unreviewed_merges(repo_root, full_authored, _approved_stamps(lane, work_packages, presence))
         # FR-006: name every merge just dropped, for the gate's hint only (never authorship).
-        _record_unreviewed(repo_root, lane, work_packages, full_authored, reviewed, unreviewed_sink)
+        _record_unreviewed(
+            repo_root, lane, work_packages, full_authored, reviewed, unreviewed_sink, own_paths_memo, (unreviewed_candidates or {}).get(lane.lane_id, ())
+        )
         # Presence (#5788/#5571): measured from the FULL ``coord_base_ref..lane``
         # spine, unchanged — approved content must be PRESENT on the target.
         if not is_planning_lane(lane):
@@ -963,5 +979,7 @@ __all__ = [
     "_record_lane_path_contribution",
     "_started_from",
     "_unsuperseded_holders",
+    "merge_reviewed_by_own_stamps",
+    "own_approval_stamps",
     "unmet_approved_content",
 ]
