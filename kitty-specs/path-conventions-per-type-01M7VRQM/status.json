@@ -2,9 +2,9 @@
   "event_count": 50,
   "last_event_id": "01M7WEZK3SN85RFY0YJRRGD11P",
   "materialized_at": "2026-11-20T12:30:27.449544+00:00",
-  "mission_number": "263",
+  "mission_number": "",
   "mission_slug": "path-conventions-per-type-01M7VRQM",
-  "mission_type": "software-dev",
+  "mission_type": "",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -19,165 +19,88 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
-      "agent": "claude::generic-reviewer",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
+      "agent": "claude",
       "force_count": 1,
+      "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M7WEYH0SM4V9C0XBZPE2MTP7",
       "last_transition_at": "2026-11-20T12:29:52.537667+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "Per-type reader implemented red-first: 20 new tests red on the old reader, 36/36 green; ruff, format and mypy clean; blast radius 104 passed.",
-        "Review cycle 1 addressed: shape-based dispatch (documentation sections work), readable errors for workspace:{..} and list sections, correct deliverables-warning stacklevel. 5 new tests red first; reader 42/42; blast radius 110 passed. Limitation: YAML allows one documentation key, so a flat documentation path and a documentation section cannot coexist; set documentation inside the relevant type sections instead.",
-        "Review cycle 2 passed: per-type sections decided by value shape (documentation section loads against the real layered roster); list section names the mapping rule; deliverables warning stacklevel 4 flat / 5 per-type, test-verified; flat error strings byte-identical; no existing test edited; no roster read for flat-only config. 74 targeted tests passed; make test-fast 3144 passed/7 skipped; ruff/format/mypy clean."
-      ],
-      "provider": "__resolved_provider_absent__",
-      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/path-conventions-per-type-01M7VRQM-coord/kitty-specs/path-conventions-per-type-01M7VRQM/tasks/WP01-per-type-config-reader/review-cycle-2.md",
         "reference": "review-cycle://path-conventions-per-type-01M7VRQM/WP01-per-type-config-reader/review-cycle-2.md",
         "reviewer": "claude::generic-reviewer",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 216,
-      "shell_pid_created_at": "1795165789.48",
-      "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done",
-        "T005": "done"
-      }
+      "shell_pid": 3343,
+      "shell_pid_created_at": "1795160133.07"
     },
     "WP02": {
       "actor": "merge",
-      "agent": "claude::generic-reviewer",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
+      "agent": "claude",
       "force_count": 0,
+      "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M7WEZ2B0Z0J0DPFQEE220P74",
       "last_transition_at": "2026-11-20T12:30:10.272424+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "Per-type resolution at the single caller, both waivers' effect at the seam, remedy text led by the per-type remap. 11 seam tests (open-packs fixture) and 6 remedy tests red first; blast radius 492 passed, 1 skipped; ruff/mypy clean. Deliberate re-pin: remedy order remap < waiver < --lenient < mkdir. Out-of-map: 2 assertions in test_accept_contracts_waiver.py now pin the contracts notice instead of the bare word 'waived'.",
-        "Review passed: per-type resolution at the single caller (mission_type from meta.json, default software-dev; per-type > flat > default); per-run and meta.json waivers make path misses advisory while metadata stays strict, malformed meta waiver rides on the blocking text; remedy leads with the per-type remap, names both waivers before --lenient (#3783 order kept: remap < waiver < --lenient < mkdir), demotes the mission.yaml copy to a last resort, mkdir only for real deliverables with contracts: none beside contracts/. Re-pins deliberate, not loosened (contracts-waiver pin narrowed to the exact notice). Nit: the strict text names the CLI-only --waive-path-conventions also on the orchestrator-api path. 473 targeted passed/1 skipped; make test-fast 3144 passed/7 skipped; ruff/format/mypy clean."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/path-conventions-per-type-01M7VRQM-coord/kitty-specs/path-conventions-per-type-01M7VRQM/tasks/WP02-seam-resolution-and-remedy/review-cycle-1.md",
         "reference": "review-cycle://path-conventions-per-type-01M7VRQM/WP02-seam-resolution-and-remedy/review-cycle-1.md",
         "reviewer": "claude::generic-reviewer",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 14271,
-      "shell_pid_created_at": "1795167729.25",
-      "subtasks": {
-        "T010": "done",
-        "T011": "done",
-        "T012": "done",
-        "T013": "done",
-        "T014": "done"
-      }
+      "shell_pid": 191,
+      "shell_pid_created_at": "1795165902.36"
     },
     "WP03": {
       "actor": "merge",
-      "agent": "claude::generic-reviewer",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
+      "agent": "claude",
       "force_count": 0,
+      "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M7WEYSQF5R9ETX5Y7TE7ECPA",
       "last_transition_at": "2026-11-20T12:30:01.455302+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "meta.json path-conventions waiver reader (generalized with the #5298 contracts reader; contracts text unchanged) and history field, red-first; 103 targeted tests passed; ruff and mypy clean.",
-        "Review passed: generalized meta.json waiver reader (_MetaWaiverSpec/_read_meta_waiver) keeps the contracts warning byte-identical (contracts tests unmodified, green); path_conventions waiver is exact-value 'waived' + non-blank rationale, fail-closed, MissionMetaReadError propagates; record_acceptance records path_conventions_waived only for a non-blank reason; new optional meta keys pass write_meta(validate=True). WP tests 103 passed; make test-fast 3144 passed/7 skipped; ruff/format/mypy clean."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/path-conventions-per-type-01M7VRQM-coord/kitty-specs/path-conventions-per-type-01M7VRQM/tasks/WP03-meta-waiver-reader/review-cycle-1.md",
         "reference": "review-cycle://path-conventions-per-type-01M7VRQM/WP03-meta-waiver-reader/review-cycle-1.md",
         "reviewer": "claude::generic-reviewer",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 8265,
-      "shell_pid_created_at": "1795159645.91",
-      "subtasks": {
-        "T006": "done",
-        "T007": "done",
-        "T008": "done",
-        "T009": "done"
-      }
+      "shell_pid": 8239,
+      "shell_pid_created_at": "1795157893.4"
     },
     "WP04": {
       "actor": "merge",
-      "agent": "claude::generic-reviewer",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
+      "agent": "claude",
       "force_count": 0,
+      "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M7WEZANSEXADMS3XAFMA5T40",
       "last_transition_at": "2026-11-20T12:30:18.809750+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "accept --waive-path-conventions --waive-reason: misuse refused (exit 2) before any work; reason carried on AcceptanceSummary and recorded on the history entry; metadata stays strict (SC-004 discriminator: never-claimed WP still reports missing agent); agent wrapper forwards; orchestrator call shape strict without meta waiver. 10 new tests red first; blast radius 523+645 passed; ruff/mypy clean (one pre-existing mypy error in mission_accept_merge.py:81, unchanged code). Deliberate re-pins: agent accept flag surface, 5 delegation-call pins, completion manifest.",
-        "Review passed: accept --waive-path-conventions --waive-reason clears path misses for the run while strict metadata still blocks (SC-004 discriminator); flag without non-blank reason or reason without flag exits 2 before any work (FR-011); reason rides on AcceptanceSummary to record_acceptance (to_dict unchanged); agent mission accept forwards both flags; orchestrator-api unchanged, meta.json waiver honoured on its call shape (FR-013 controls via collect_feature_summary). Re-pins deliberate (flag surface, delegation kwargs, completion manifest; freshness gate green). 601 targeted passed/1 skipped; make test-fast 3144 passed/7 skipped; ruff/format clean; one mypy error at mission_accept_merge.py:81 is pre-existing on the base, untouched."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/path-conventions-per-type-01M7VRQM-coord/kitty-specs/path-conventions-per-type-01M7VRQM/tasks/WP04-accept-waiver-flags/review-cycle-1.md",
         "reference": "review-cycle://path-conventions-per-type-01M7VRQM/WP04-accept-waiver-flags/review-cycle-1.md",
         "reviewer": "claude::generic-reviewer",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 17322,
-      "shell_pid_created_at": "1795174607.27",
-      "subtasks": {
-        "T015": "done",
-        "T016": "done",
-        "T017": "done",
-        "T018": "done",
-        "T019": "done"
-      }
+      "shell_pid": 190,
+      "shell_pid_created_at": "1795172729.02"
     },
     "WP05": {
       "actor": "merge",
-      "agent": "claude::generic-reviewer",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
+      "agent": "claude",
       "force_count": 2,
+      "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M7WEZK3SN85RFY0YJRRGD11P",
       "last_transition_at": "2026-11-20T12:30:27.449544+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "ADR 2026-08-28-1 amendment (per-type sections, precedence, fail-closed rules, remedy order, both waivers, orchestrator-api note), accept-and-merge how-to rewrite, changelog fragment. Changelog style and spelling clean; terminology guard 98 passed; docs gates 335 passed, 1 skipped.",
-        "Review cycle 1: framing sentence now matches format_errors (per-type remap, waivers, --lenient, last resort; mkdir only for real deliverables); bullets kept as the full list. Docs gates and terminology guard 128 passed.",
-        "Review cycle 2: honours -> honors in the how-to and the ADR amendment; tests/docs 2254 passed, 2 skipped (same as main a053b674).",
-        "Review cycle 3 passed (reviewed by hand on issue-7566-path-conventions-per-type 8ada3b14..55976e8e; CLI-derived range is coord-only, #7759): ADR amendment and accept-and-merge how-to match the implementation (flag/field names, precedence, fail-closed rules, remedy order, orchestrator-api has no per-run flag, YAML single-key note); changelog fragment accurate; US spelling fixed. tests/docs + terminology guard: 2352 passed/2 skipped (base-equivalent)."
-      ],
-      "provider": "__resolved_provider_absent__",
-      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/path-conventions-per-type-01M7VRQM-coord/kitty-specs/path-conventions-per-type-01M7VRQM/tasks/WP05-docs/review-cycle-3.md",
         "reference": "review-cycle://path-conventions-per-type-01M7VRQM/WP05-docs/review-cycle-3.md",
         "reviewer": "claude::generic-reviewer",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 2697,
-      "shell_pid_created_at": "1795177018.19",
-      "subtasks": {
-        "T020": "done",
-        "T021": "done",
-        "T022": "done"
-      }
+      "shell_pid": 191,
+      "shell_pid_created_at": "1795176448.1"
     }
   }
 }
