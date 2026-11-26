@@ -27,6 +27,9 @@ from pathlib import Path
 from kernel.git_topology import GitTopologyError, git_toplevel_uncached
 from specify_cli.core.git_ops import is_git_repo
 from specify_cli.session_presence.writers.registry import presence_file_paths
+
+# The two helpers are private to the superseded module, which is frozen (DIRECTIVE_044), so their behaviour
+# cannot drift; reusing them keeps the listing identical to the shipped step's apart from the presence filter.
 from specify_cli.upgrade.migrations.m_4_0_0rc9_report_newly_visible_agent_files import (
     _visibility_warning,
     _visible_agent_files,
@@ -65,6 +68,13 @@ class ReportExposedAgentFilesMigration(BaseMigration):
     description = "List the untracked files git now shows in agent folders, leaving Spec Kitty's own out, once in every clone (#7878)"
     target_version = "4.0.0rc9"
     clone_local_effect = True  # a per-clone notice; nothing committed
+    #: Its behaviour is this module, the frozen helpers it reuses, and the writer registry that names the
+    #: session-presence files, so a change to any of them shows as drift (audit-only).
+    content_hash_sources = (
+        "m_4_0_0rc9_report_exposed_agent_files.py",
+        "m_4_0_0rc9_report_newly_visible_agent_files.py",
+        "../../session_presence/writers/registry.py",
+    )
 
     def detect(self, project_path: Path) -> bool:
         """Whether git shows untracked files of the operator's own in an agent folder of this clone."""

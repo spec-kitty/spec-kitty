@@ -83,9 +83,13 @@ class ClaudeCodeWriter(MarkdownRulesWriter):
     rules_path: str = field(default=".claude/CLAUDE.md")
     append_mode: bool = field(default=True)
 
+    def owned_paths(self) -> tuple[str, ...]:
+        """The orientation file and the hook settings file, written together."""
+        return (self.rules_path, ClaudeCodeHookRegistrar().settings_relative_path)
+
     def write(self, project_root: Path, content: SessionPresenceContent) -> None:
         """Write the CLAUDE.md section AND register the SessionStart + Stop hooks."""
-        paths = (self.rules_path, ClaudeCodeHookRegistrar().settings_relative_path)
+        paths = self.owned_paths()
         before = tuple(observe_presence_path(project_root, path) for path in paths)
         prepared = self.prepare_batch(project_root, content)
         if before != tuple(observe_presence_path(project_root, path) for path in paths):
