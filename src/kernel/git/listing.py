@@ -66,6 +66,9 @@ _TWO_PATH_LETTERS: frozenset[str] = frozenset({"R", "C"})
 # ``diff.relative=true`` (git >= 2.28); ``--no-relative`` is newer than the
 # git 2.25 floor, and an unknown ``-c`` key is ignored by older git.
 _REPO_RELATIVE_DIFF: tuple[str, ...] = ("-c", "diff.relative=false")
+#: ``git show`` / ``git log`` options that keep a name listing free of user display config: no signature
+#: check (``log.showSignature`` prints it before the listing), no colour, no external diff.
+_PLAIN_LISTING: tuple[str, ...] = ("--no-show-signature", "--no-color", "--no-ext-diff")
 # ``git ls-files --error-unmatch`` exit code for "path is not tracked".
 _NOT_TRACKED_EXIT: int = 1
 
@@ -479,7 +482,7 @@ def commit_paths(
     A merge commit lists nothing by default (git shows a combined diff); pass
     *first_parent* to list what the merge brought in relative to its first parent.
     """
-    args = [*_REPO_RELATIVE_DIFF, "show", "--name-only", "--format=", "-z", "--no-renames"]
+    args = [*_REPO_RELATIVE_DIFF, "show", *_PLAIN_LISTING, "--name-only", "--format=", "-z", "--no-renames"]
     if first_parent:
         args += ["--first-parent", "-m"]
     return parse_paths_z(_git(cwd, [*args, commit], (), env=env, timeout=timeout))
@@ -522,7 +525,7 @@ def remerge_paths(cwd: Path, commit: str, *, env: Env = None, timeout: float | N
     ``git show --remerge-diff`` (git >= 2.36): a conflict resolution, or an edit
     folded into the merge. Empty for a clean merge.
     """
-    args = [*_REPO_RELATIVE_DIFF, "show", "--remerge-diff", "--name-only", "--format=", "-z", "--no-renames", commit]
+    args = [*_REPO_RELATIVE_DIFF, "show", *_PLAIN_LISTING, "--remerge-diff", "--name-only", "--format=", "-z", "--no-renames", commit]
     return parse_paths_z(_git(cwd, args, (), env=env, timeout=timeout))
 
 
@@ -549,7 +552,7 @@ def log_paths(
     """
     merges = ["--diff-merges=remerge"] if remerge_merges else []
     walk = ["--first-parent"] if first_parent else []
-    base = [*_REPO_RELATIVE_DIFF, "log", "-z", "--name-only", "--format=", "--no-renames", *walk]
+    base = [*_REPO_RELATIVE_DIFF, "log", *_PLAIN_LISTING, "-z", "--name-only", "--format=", "--no-renames", *walk]
     raw = _git(cwd, [*base, *merges, rev_range], pathspecs, glob=glob, env=env, timeout=timeout)
     if remerge_merges:
         octopus = ["--min-parents=3", "--diff-merges=first-parent"]

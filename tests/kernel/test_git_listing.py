@@ -233,20 +233,60 @@ def test_changed_entries_with_renames(tmp_path: Path) -> None:
 def test_commit_paths(tmp_path: Path) -> None:
     with _stub(b"x\x00") as run:
         assert listing.commit_paths(tmp_path, "abc") == (P("x"),)
-    assert _argv(run) == ("-c", "diff.relative=false", "show", "--name-only", "--format=", "-z", "--no-renames", "abc", "--")
+    assert _argv(run) == (
+        "-c",
+        "diff.relative=false",
+        "show",
+        "--no-show-signature",
+        "--no-color",
+        "--no-ext-diff",
+        "--name-only",
+        "--format=",
+        "-z",
+        "--no-renames",
+        "abc",
+        "--",
+    )
 
 
 def test_log_paths_dedups_in_first_seen_order(tmp_path: Path) -> None:
     with _stub(b"b\x00a\x00\x00b\x00") as run:
         assert listing.log_paths(tmp_path, "main..HEAD") == (P("b"), P("a"))
-    assert _argv(run) == ("-c", "diff.relative=false", "log", "-z", "--name-only", "--format=", "--no-renames", "main..HEAD", "--")
+    assert _argv(run) == (
+        "-c",
+        "diff.relative=false",
+        "log",
+        "--no-show-signature",
+        "--no-color",
+        "--no-ext-diff",
+        "-z",
+        "--name-only",
+        "--format=",
+        "--no-renames",
+        "main..HEAD",
+        "--",
+    )
 
 
 def test_log_paths_first_parent_walks_only_the_first_parent_chain(tmp_path: Path) -> None:
     """#7726: ``first_parent`` adds ``--first-parent``, so commits a merge brought in are not listed."""
     with _stub(b"a\x00") as run:
         assert listing.log_paths(tmp_path, "main..HEAD", first_parent=True) == (P("a"),)
-    assert _argv(run) == ("-c", "diff.relative=false", "log", "-z", "--name-only", "--format=", "--no-renames", "--first-parent", "main..HEAD", "--")
+    assert _argv(run) == (
+        "-c",
+        "diff.relative=false",
+        "log",
+        "--no-show-signature",
+        "--no-color",
+        "--no-ext-diff",
+        "-z",
+        "--name-only",
+        "--format=",
+        "--no-renames",
+        "--first-parent",
+        "main..HEAD",
+        "--",
+    )
 
 
 def test_tracked_paths_and_index_entries(tmp_path: Path) -> None:
@@ -384,7 +424,22 @@ def test_index_entries_with_tags_argv(tmp_path: Path) -> None:
 def test_commit_paths_first_parent(tmp_path: Path) -> None:
     with _stub() as run:
         listing.commit_paths(tmp_path, "abc", first_parent=True)
-    assert _argv(run) == ("-c", "diff.relative=false", "show", "--name-only", "--format=", "-z", "--no-renames", "--first-parent", "-m", "abc", "--")
+    assert _argv(run) == (
+        "-c",
+        "diff.relative=false",
+        "show",
+        "--no-show-signature",
+        "--no-color",
+        "--no-ext-diff",
+        "--name-only",
+        "--format=",
+        "-z",
+        "--no-renames",
+        "--first-parent",
+        "-m",
+        "abc",
+        "--",
+    )
 
 
 def test_blob_at_reads_the_blob_the_listing_named(tmp_path: Path) -> None:

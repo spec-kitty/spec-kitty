@@ -10,8 +10,8 @@ lanes, the halt reason and the reopen step; WP07 changes three things only, each
    then hands the work back for an independent review; T036 runs every printed command;
 2. ``phase_advance`` records the run's own auto-rebase move (``lane_rebase_moves``) whatever the lane's
    consolidation then does, so the rollback (WP03) can undo it (FR-009, R-03);
-3. ``--incorporate`` runs WP01's merge-attribute guard, with the Mission branch tip as the committed
-   attributes source, before its merge and inside its canceled-window merge probe, and refuses with
+3. ``--incorporate`` runs WP01's merge-attribute guard, with the target branch tip as the committed
+   attributes source (the claim's rule, #5604 review fold I3), before its merge and inside its canceled-window merge probe, and refuses with
    ``INCORPORATE_MERGE_ATTRIBUTES_REFUSED`` (fail closed).
 """
 
@@ -231,7 +231,7 @@ def test_a_union_committed_on_the_mission_branch_is_honoured(tmp_path: Path) -> 
 
 
 def test_without_an_attributes_source_a_committed_union_is_refused(tmp_path: Path) -> None:
-    """An unread Mission branch tip honours no committed ``union`` (fail closed), even one on ``main``."""
+    """An unread target branch tip honours no committed ``union`` (fail closed), even one on ``main``."""
     from dataclasses import replace
 
     from specify_cli.lanes.incorporate import incorporate_sibling
@@ -290,21 +290,26 @@ def test_the_incorporate_merge_runs_with_the_pinned_merge_config(tmp_path: Path,
         assert f"'{key}'='{value}'" in seen.get("GIT_CONFIG_PARAMETERS", ""), seen.get("GIT_CONFIG_PARAMETERS")
 
 
-# --- 3b. The canceled-window merge probe runs under the same guard, with the Mission branch tip as source ---------
+# --- 3b. The canceled-window merge probe runs under the same guard, with the target branch tip as source ----------
 
 _MIXED_SLUG = "m-01M7WW0Z"
 _MIXED_MISSION_BRANCH = f"kitty/mission-{_MIXED_SLUG}"
 
 
 class _CanceledWindowLane:
-    """``lane-a`` (WP01 approved, WP02 canceled); in WP02's window a merge's own resolution adds ``src/canceled.py``."""
+    """``lane-a`` (WP01 approved, WP02 canceled); in WP02's window a merge's own resolution adds ``src/canceled.py``.
 
-    def __init__(self, root: Path, *, mission_union: bool) -> None:
+    The lane commits ``*.py merge=union``; with *target_union* the target branch (``main``) commits it too.
+    """
+
+    def __init__(self, root: Path, *, target_union: bool) -> None:
         self.repo = _plain_repo(root)
         _commit(self.repo, ".gitattributes", _UNION, "lane attributes: union on python files")
-        git(self.repo, "branch", _MIXED_MISSION_BRANCH, "main" if mission_union else "main~1")
+        git(self.repo, "branch", _MIXED_MISSION_BRANCH, "main")
         self.branch = lane_branch_name(_MIXED_SLUG, "lane-a", target_branch="main")
         git(self.repo, "checkout", "-q", "-b", self.branch)
+        if not target_union:
+            git(self.repo, "branch", "-f", "main", "main~1")
         self.events: list[Any] = []
         self.claim("WP02")
         git(self.repo, "checkout", "-q", "-b", "side")
@@ -371,8 +376,8 @@ class _CanceledWindowLane:
 
 
 def test_a_canceled_window_merge_under_an_unreviewed_union_refuses_with_the_attributes_code(tmp_path: Path) -> None:
-    """The lane committed ``*.py merge=union``; the Mission branch did not, so the window merge cannot be judged."""
-    lane = _CanceledWindowLane(tmp_path, mission_union=False)
+    """The lane committed ``*.py merge=union``; the target branch did not, so the window merge cannot be judged."""
+    lane = _CanceledWindowLane(tmp_path, target_union=False)
 
     refusal = _refused(lane.resolve)
 
@@ -380,9 +385,9 @@ def test_a_canceled_window_merge_under_an_unreviewed_union_refuses_with_the_attr
     assert lane.merge[:12] in refusal.message and "nothing was merged" in refusal.message, refusal.message
 
 
-def test_a_canceled_window_merge_judged_against_the_mission_branch_attributes(tmp_path: Path) -> None:
-    """With ``union`` committed on the Mission branch tip the guard passes and the merge's own content is named."""
-    lane = _CanceledWindowLane(tmp_path, mission_union=True)
+def test_a_canceled_window_merge_judged_against_the_target_branch_attributes(tmp_path: Path) -> None:
+    """With ``union`` committed on the target branch tip the guard passes and the merge's own content is named."""
+    lane = _CanceledWindowLane(tmp_path, target_union=True)
 
     refusal = _refused(lane.resolve)
 
@@ -390,13 +395,16 @@ def test_a_canceled_window_merge_judged_against_the_mission_branch_attributes(tm
     assert f"reaches merge {lane.merge[:12]}, whose own resolution changed src/canceled.py" in refusal.message, refusal.message
 
 
-def test_the_mission_branch_tip_is_the_attributes_source(tmp_path: Path) -> None:
-    from specify_cli.lanes.incorporate import _read_attributes_source
+def test_the_target_branch_tip_is_the_attributes_source(tmp_path: Path) -> None:
+    """#5604 review fold I3: ``--incorporate`` trusts the target branch tip, the claim's rule, never the Mission branch tip."""
+    lane = _CanceledWindowLane(tmp_path, target_union=False)
+    assert (lane.repo / ".gitattributes").exists() and git_rev(lane.repo, "main") == git_rev(lane.repo, f"{_MIXED_MISSION_BRANCH}~1"), (
+        "fixture: the Mission branch commits the union, the target does not"
+    )
 
-    lane = _CanceledWindowLane(tmp_path, mission_union=True)
+    refusal = _refused(lane.resolve)
 
-    assert _read_attributes_source(lane.repo, _MIXED_MISSION_BRANCH) == git_rev(lane.repo, _MIXED_MISSION_BRANCH)
-    assert _read_attributes_source(lane.repo, "kitty/mission-missing") is None
+    assert refusal.code == _ATTRIBUTES_REFUSED, refusal
 
 
 # --- 1 + T036: the printed approved-lane route runs, command by command --------------------------------------------

@@ -216,7 +216,7 @@ def test_n_way_merge_blob_single_commit_is_not_guarded(conflict: Conflict) -> No
 
 def test_git_version_is_read_once_per_run_scope(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from kernel.git.read_cache import git_read_cache_scope
-    from specify_cli.git.merge_tree_probe import merge_tree_write_tree_available, remerge_diff_available
+    from specify_cli.git.merge_tree_probe import check_attr_source_available, merge_tree_write_tree_available, remerge_diff_available
 
     repo = _init(tmp_path / "repo")
     _write(repo, "f", "x\n")
@@ -235,7 +235,8 @@ def test_git_version_is_read_once_per_run_scope(tmp_path: Path, monkeypatch: pyt
         for _ in range(3):
             assert remerge_diff_available(repo)
             assert merge_tree_write_tree_available(repo)
-    assert len(version_calls) == 1
+            assert check_attr_source_available(repo)
+    assert len(version_calls) == 1, "NFR-001: one git --version per run scope, whichever probe asks"
     version_calls.clear()
     assert remerge_diff_available(repo)
     assert remerge_diff_available(repo)
@@ -477,18 +478,70 @@ def test_a_git_that_cannot_start_refuses(conflict: Conflict, monkeypatch: pytest
         merge_attribute_guard.assert_registered_merge_behaviour(conflict.repo, ["p.py"])
 
 
-def test_config_read_is_cached_inside_a_run_scope(conflict: Conflict, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_config_reads_are_live_inside_a_run_scope(conflict: Conflict, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#5604 review fold I2 (replaces the run-scoped cache pin): every guard call reads its config again.
+
+    The read cache fingerprints only the repository's own config files, so a cached answer could go
+    stale when global, system or ``include.path`` config changes; the reads are a few cheap ``git config --get``.
+    """
     from kernel.git.read_cache import git_read_cache_scope
     from specify_cli.consolidation.merge_attribute_guard import assert_registered_merge_behaviour
 
     calls = _count_git(monkeypatch, "config")
-    with git_read_cache_scope() as stats:
+    with git_read_cache_scope():
         assert_registered_merge_behaviour(conflict.repo, ["p.py"])
         first = len(calls)
         assert_registered_merge_behaviour(conflict.repo, ["p.py"])
     assert first >= 1
-    assert len(calls) == first, "the second call must be answered from the run's cache"
-    assert stats.hits >= first
+    assert len(calls) == 2 * first, "each call reads the merge config itself"
+
+
+def _shared_text_repo(tmp_path: Path) -> Path:
+    repo = _init(tmp_path / "repo")
+    _write(repo, ".gitattributes", "shared.py merge=text\n")
+    _write(repo, "shared.py", "x\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "attrs")
+    return repo
+
+
+def test_a_driver_added_through_an_included_config_file_mid_run_refuses(tmp_path: Path) -> None:
+    """#5604 review fold I2: the guard's config reads are not cached, so an ``include.path`` driver added mid-run is seen.
+
+    Red before the fold: the run-scoped cache fingerprinted only ``.git/config`` and served the
+    pre-change answer, while the merge itself honoured the new driver.
+    """
+    from kernel.git.read_cache import git_read_cache_scope
+    from specify_cli.consolidation.merge_attribute_guard import assert_registered_merge_behaviour
+
+    repo = _shared_text_repo(tmp_path)
+    included = tmp_path / "included.cfg"
+    included.write_text("", encoding="utf-8")
+    _git(repo, "config", "include.path", str(included))
+    with git_read_cache_scope():
+        assert_registered_merge_behaviour(repo, ["shared.py"])
+        included.write_text(f'[merge "text"]\n\tdriver = {FORGE_DRIVER}\n', encoding="utf-8")
+        with pytest.raises(GitProbeError, match="merge.text.driver"):
+            assert_registered_merge_behaviour(repo, ["shared.py"])
+
+
+def test_a_driver_added_to_the_global_config_mid_run_refuses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#5604 review fold I2: a ``$HOME/.gitconfig`` driver added mid-run is seen too (global scope, outside ``.git``)."""
+    from kernel.git.read_cache import git_read_cache_scope
+    from specify_cli.consolidation.merge_attribute_guard import assert_registered_merge_behaviour
+
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(home / ".config"))
+    monkeypatch.delenv("GIT_CONFIG_GLOBAL", raising=False)
+    monkeypatch.delenv("GIT_CONFIG_NOSYSTEM", raising=False)
+    repo = _shared_text_repo(tmp_path)
+    with git_read_cache_scope():
+        assert_registered_merge_behaviour(repo, ["shared.py"])
+        (home / ".gitconfig").write_text(f'[merge "text"]\n\tdriver = {FORGE_DRIVER}\n', encoding="utf-8")
+        with pytest.raises(GitProbeError, match="merge.text.driver"):
+            assert_registered_merge_behaviour(repo, ["shared.py"])
 
 
 def test_check_attr_is_not_cached(conflict: Conflict) -> None:
@@ -933,3 +986,52 @@ def test_merge_probe_env_pins_on_a_given_base() -> None:
     env = merge_probe_env({"PATH": "/bin"})
     assert env["PATH"] == "/bin"
     assert env["GIT_CONFIG_PARAMETERS"] == " ".join(f"'{key}'='{value}'" for key, value in MERGE_PROBE_CONFIG_PINS)
+
+
+def test_both_probes_run_git_with_the_one_pinned_merge_env(conflict: Conflict, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#5604 review fold A1: the probes run with the lane-consolidation pipeline's env (``make_merge_env``) under the pins,
+    as the auto-rebase and ``--incorporate`` merges do, so a registered driver resolves to the running spec-kitty."""
+    import sys
+
+    import kernel.git
+    from specify_cli.consolidation.drivers import META_DRIVER_TWO_WAY_ENV
+
+    monkeypatch.setenv(META_DRIVER_TWO_WAY_ENV, "1")
+    seen: list[Any] = []
+    real_merge_tree, real_remerge_paths = kernel.git.merge_tree, kernel.git.remerge_paths
+
+    def merge_tree_spy(cwd: Path, *args: str, env: Any = None, **kwargs: Any) -> Any:
+        seen.append(env)
+        return real_merge_tree(cwd, *args, env=env, **kwargs)
+
+    def remerge_spy(cwd: Path, commit: str, *, env: Any = None, **kwargs: Any) -> Any:
+        seen.append(env)
+        return real_remerge_paths(cwd, commit, env=env, **kwargs)
+
+    monkeypatch.setattr(git_probes, "merge_tree", merge_tree_spy)
+    monkeypatch.setattr(kernel.git, "remerge_paths", remerge_spy)
+    git_probes.n_way_merge_blob(conflict.repo, [conflict.one, conflict.two], "p.py")
+    git_probes.merge_own_changed_paths(conflict.repo, conflict.merge)
+    assert len(seen) == 2
+    venv_bin = str(Path(sys.executable).parent)
+    for env in seen:
+        assert env is not None
+        assert env["PATH"].split(":")[0] == venv_bin, "the running spec-kitty's drivers come first"
+        assert META_DRIVER_TWO_WAY_ENV not in env, "only a mission->target merge may carry the two-way opt-out"
+
+
+def test_pinned_merge_env_is_the_pipeline_env_under_the_pins() -> None:
+    from specify_cli.consolidation.merge_attribute_guard import merge_probe_env, pinned_merge_env
+    from specify_cli.lanes.consolidation import make_merge_env
+
+    assert pinned_merge_env() == merge_probe_env(make_merge_env())
+
+
+def test_committed_attributes_source_reads_the_target_tip(conflict: Conflict) -> None:
+    from specify_cli.consolidation.merge_attribute_guard import committed_attributes_source
+
+    assert committed_attributes_source(conflict.repo, "two") == conflict.two
+    assert committed_attributes_source(conflict.repo, "one") == _git(conflict.repo, "rev-parse", "one")
+    assert committed_attributes_source(conflict.repo, "no-such-branch") is None
+    assert committed_attributes_source(conflict.repo, None) is None
+    assert committed_attributes_source(conflict.repo, "") is None

@@ -240,6 +240,7 @@ def _try_auto_rebase_if_stale(
     mission_branch: str,
     mission_slug: str,
     repo_root: Path,
+    target_branch: str | None = None,
 ) -> tuple[StaleCheckResult, str | None]:
     """If the lane is stale and a worktree exists, attempt auto-rebase and recheck.
 
@@ -254,7 +255,7 @@ def _try_auto_rebase_if_stale(
         return stale, NO_LANE_CHECKOUT_HALT
     from specify_cli.lanes.auto_rebase import attempt_auto_rebase
 
-    report = attempt_auto_rebase(lane, branch, mission_branch, repo_root, worktree_path, mission_slug=mission_slug)
+    report = attempt_auto_rebase(lane, branch, mission_branch, repo_root, worktree_path, mission_slug=mission_slug, target_branch=target_branch)
     if report.succeeded:
         return check_lane_staleness(lane, branch, mission_branch, repo_root, mission_slug=mission_slug), None
     return stale, report.halt_reason
@@ -380,6 +381,7 @@ def consolidate_lane_into_mission(
         mission_branch,
         mission_slug,
         repo_root,
+        lanes_manifest.target_branch,
     )
     stale = _explain_stale(stale, halt_reason, lane, branch, lanes_manifest, mission_slug, repo_root)
     if stale.is_stale:

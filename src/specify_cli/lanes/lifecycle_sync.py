@@ -173,6 +173,7 @@ def sync_lane_after_coordination_commit(
         repo_root=repo_root,
         worktree_path=worktree_path,
         mission_slug=lanes_manifest.mission_slug,
+        target_branch=lanes_manifest.target_branch,
     )
     if report.succeeded:
         return report
