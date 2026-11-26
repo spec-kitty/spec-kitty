@@ -21,7 +21,7 @@ from specify_cli import __version__ as CURRENT_CLI_VERSION
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.lanes.consolidation import (
     _complete_merge_after_target_owned_resolution,
-    _make_merge_env,
+    make_merge_env,
     _merge_branch_into,
     _run_squash_merge,
     _SquashMergeConflict,
@@ -95,7 +95,7 @@ def _fail_git_probes(monkeypatch: pytest.MonkeyPatch, *subcommands: str) -> None
 @pytest.mark.parametrize("probe_fails", [False, True], ids=["resolves-to-ours", "spurious-git-probe-failure-deletes-nothing"])
 def test_both_modified_resolves_to_ours(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, probe_fails: bool) -> None:
     repo = _conflicted_repo(tmp_path, {METADATA: "version: ours\n"}, {METADATA: "version: theirs\n"})
-    env = _make_merge_env()
+    env = make_merge_env()
     if probe_fails:
         # A stage probe failing for a reason other than "the stage is absent"
         # must leave the path unresolved, never be read as "ours deleted it".
@@ -115,7 +115,7 @@ def test_both_modified_resolves_to_ours(tmp_path: Path, monkeypatch: pytest.Monk
 
 def test_modify_delete_with_ours_deleted_removes_the_path(tmp_path: Path) -> None:
     repo = _conflicted_repo(tmp_path, {METADATA: None}, {METADATA: "version: theirs\n"})
-    env = _make_merge_env()
+    env = make_merge_env()
 
     assert resolve_target_owned_conflicts(repo, env) == [METADATA]
 
@@ -126,7 +126,7 @@ def test_modify_delete_with_ours_deleted_removes_the_path(tmp_path: Path) -> Non
 
 def test_delete_modify_with_ours_modified_keeps_ours(tmp_path: Path) -> None:
     repo = _conflicted_repo(tmp_path, {METADATA: "version: ours\n"}, {METADATA: None})
-    env = _make_merge_env()
+    env = make_merge_env()
 
     assert resolve_target_owned_conflicts(repo, env) == [METADATA]
 
@@ -140,7 +140,7 @@ def test_mixed_set_resolves_only_the_target_owned_path(tmp_path: Path) -> None:
         {METADATA: "version: ours\n", SOURCE: "x = 1\n"},
         {METADATA: "version: theirs\n", SOURCE: "x = 2\n"},
     )
-    env = _make_merge_env()
+    env = make_merge_env()
 
     assert resolve_target_owned_conflicts(repo, env) == [METADATA]
 
@@ -163,7 +163,7 @@ def test_lookalike_paths_are_not_target_owned(tmp_path: Path) -> None:
     _commit(repo, {nested: "theirs\n"}, "theirs")
     _git(repo, "checkout", "-q", "ours")
     assert _git(repo, "merge", "--no-edit", "theirs", check=False).returncode != 0
-    env = _make_merge_env()
+    env = make_merge_env()
 
     assert resolve_target_owned_conflicts(repo, env) == []
     assert _unmerged_paths(repo, env) == (nested,)
@@ -178,7 +178,7 @@ def test_non_conflicted_tree_is_a_no_op(tmp_path: Path) -> None:
     _commit(repo, {METADATA: "version: base\n"}, "base")
     head = _git(repo, "rev-parse", "HEAD").stdout
 
-    assert resolve_target_owned_conflicts(repo, _make_merge_env()) == []
+    assert resolve_target_owned_conflicts(repo, make_merge_env()) == []
     assert _git(repo, "rev-parse", "HEAD").stdout == head
     assert _git(repo, "status", "--porcelain").stdout == ""
 
@@ -188,7 +188,7 @@ def test_resolution_is_idempotent_and_deterministic(tmp_path: Path) -> None:
     contents = []
     for run in ("a", "b"):
         repo = _conflicted_repo(tmp_path / run, {METADATA: "version: ours\n"}, {METADATA: "version: theirs\n"})
-        env = _make_merge_env()
+        env = make_merge_env()
         assert resolve_target_owned_conflicts(repo, env) == [METADATA]
         assert resolve_target_owned_conflicts(repo, env) == []
         contents.append((repo / METADATA).read_bytes())
@@ -203,7 +203,7 @@ def test_resolution_is_idempotent_and_deterministic(tmp_path: Path) -> None:
 def test_complete_merge_commits_when_only_target_owned_paths_conflicted(tmp_path: Path) -> None:
     repo = _conflicted_repo(tmp_path, {METADATA: "version: ours\n"}, {METADATA: "version: theirs\n", SOURCE: "x = 2\n"})
 
-    assert _complete_merge_after_target_owned_resolution(repo, _make_merge_env()) is True
+    assert _complete_merge_after_target_owned_resolution(repo, make_merge_env()) is True
 
     parents = _git(repo, "rev-list", "--parents", "-n", "1", "HEAD").stdout.split()
     assert len(parents) == 3, "a real merge commit with both parents"
@@ -220,7 +220,7 @@ def test_complete_merge_leaves_a_genuine_conflict_uncommitted(tmp_path: Path) ->
         {METADATA: "version: theirs\n", SOURCE: "x = 2\n"},
     )
     head = _git(repo, "rev-parse", "HEAD").stdout
-    env = _make_merge_env()
+    env = make_merge_env()
 
     assert _complete_merge_after_target_owned_resolution(repo, env) is False
 
@@ -231,7 +231,7 @@ def test_complete_merge_leaves_a_genuine_conflict_uncommitted(tmp_path: Path) ->
 def test_complete_merge_without_target_owned_conflicts_does_nothing(tmp_path: Path) -> None:
     repo = _conflicted_repo(tmp_path, {SOURCE: "x = 1\n"}, {SOURCE: "x = 2\n"})
     head = _git(repo, "rev-parse", "HEAD").stdout
-    env = _make_merge_env()
+    env = make_merge_env()
 
     assert _complete_merge_after_target_owned_resolution(repo, env) is False
 
@@ -340,7 +340,7 @@ def test_squash_conflict_of_only_target_owned_paths_reports_reconciliation_with_
     stage-2 resolution the index equals the target tree: nothing is staged.
     """
     repo = _integration_repo(tmp_path, lane_work=False)
-    env = _make_merge_env()
+    env = make_merge_env()
 
     assert _run_squash_merge(repo, repo, MISSION, TARGET, env) is True
 

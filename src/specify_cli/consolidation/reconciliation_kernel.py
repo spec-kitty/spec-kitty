@@ -337,6 +337,11 @@ class _LaneWalk:
     deletions: set[str]
 
 
+def is_mission_bookkeeping_path(path: str, mission_slug: str | None, planning_prefix: str | None = None) -> bool:
+    """The gate's one bookkeeping definition (:func:`_is_bookkeeping`), public for callers outside the consolidation family (squad-3 A3)."""
+    return _is_bookkeeping(path, mission_slug, planning_prefix)
+
+
 __all__ = [
     "_APPROVED_MEMBERSHIP_LANES",
     "_ClaimEventLog",
@@ -351,4 +356,5 @@ __all__ = [
     "_lane_is_approved",
     "_lane_tip_commits",
     "_planning_prefix",
+    "is_mission_bookkeeping_path",
 ]

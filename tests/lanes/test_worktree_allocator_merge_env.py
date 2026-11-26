@@ -15,7 +15,7 @@ reconciled, and :class:`PlanningCommitMergeConflictError` /
 succeeded.
 
 The fix routes both merges (and their aborts) through
-``lanes/merge.py::_make_merge_env``, which prepends THIS interpreter's venv
+``lanes/merge.py::make_merge_env``, which prepends THIS interpreter's venv
 bin dir to the subprocess PATH. These tests strip that directory from PATH
 entirely and drive the real production entry points: pre-fix both raise,
 post-fix the union driver reconciles the add/add divergence and BOTH sides'
@@ -104,7 +104,7 @@ def _strip_this_venvs_spec_kitty_from_path(monkeypatch: pytest.MonkeyPatch) -> N
 
     This is the exact condition under which #87 reproduced: the ambient PATH
     cannot resolve ``spec-kitty`` (nor any other copy of it — asserted below),
-    so only ``_make_merge_env()``'s prepend can put the CLI where git's driver
+    so only ``make_merge_env()``'s prepend can put the CLI where git's driver
     invocation finds it.
     """
     venv_bin = Path(sys.executable).parent

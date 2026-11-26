@@ -26,7 +26,7 @@ from specify_cli.coordination.types import CommitReceipt
 from specify_cli.lanes.branch_naming import code_lane_branch_name
 from specify_cli.lanes.consolidation import (
     _complete_merge_after_target_owned_resolution,
-    _make_merge_env,
+    make_merge_env,
     _merge_branch_into,
     _preserve_target_newer_planning_artifacts,
 )
@@ -222,7 +222,7 @@ def test_target_owned_conflict_is_concluded_with_the_merge_message(tmp_path: Pat
     _break_signing(repo)
     theirs = _out(repo, "rev-parse", "theirs")
 
-    assert _complete_merge_after_target_owned_resolution(repo, _make_merge_env()) is True
+    assert _complete_merge_after_target_owned_resolution(repo, make_merge_env()) is True
 
     assert len(_parents(repo)) == 2
     assert _parents(repo)[1] == theirs
@@ -234,7 +234,7 @@ def test_genuine_conflict_is_left_in_progress(tmp_path: Path) -> None:
     repo = _conflicted(tmp_path, {METADATA: "version: ours\n", CODE: "x = 1\n"}, {METADATA: "version: theirs\n", CODE: "x = 2\n"})
     head = _out(repo, "rev-parse", "HEAD")
 
-    assert _complete_merge_after_target_owned_resolution(repo, _make_merge_env()) is False
+    assert _complete_merge_after_target_owned_resolution(repo, make_merge_env()) is False
 
     assert _out(repo, "rev-parse", "HEAD") == head
     assert _has_ref(repo, "MERGE_HEAD")
@@ -262,7 +262,7 @@ def test_restored_planning_artifact_is_amended_into_the_squash_commit(tmp_path: 
     repo, wt, squash = _squash_worktree_with_stale_spec(tmp_path)
     parent = _parents(wt, squash)
 
-    restored = _preserve_target_newer_planning_artifacts(repo, wt, SOURCE, TARGET, _make_merge_env())
+    restored = _preserve_target_newer_planning_artifacts(repo, wt, SOURCE, TARGET, make_merge_env())
 
     assert restored == [SPEC_REL]
     assert _out(wt, "rev-parse", "HEAD") != squash, "the squash commit was amended"
@@ -281,7 +281,7 @@ def test_amend_records_only_the_restored_paths(tmp_path: Path) -> None:
     repo, wt, _ = _squash_worktree_with_stale_spec(tmp_path)
     _write(wt, "stray.txt", "operator work\n")
 
-    assert _preserve_target_newer_planning_artifacts(repo, wt, SOURCE, TARGET, _make_merge_env()) == [SPEC_REL]
+    assert _preserve_target_newer_planning_artifacts(repo, wt, SOURCE, TARGET, make_merge_env()) == [SPEC_REL]
 
     assert _out(wt, "show", f"HEAD:{SPEC_REL}") == "# Spec\n\nrefined on the target"
     assert not _in_tree(wt, "HEAD", "stray.txt")
@@ -301,7 +301,7 @@ def _coord_repo(tmp_path: Path) -> tuple[Path, str]:
 def test_recorded_strand_commit_is_reverted(tmp_path: Path) -> None:
     repo, sha = _coord_repo(tmp_path)
 
-    assert _revert_recorded_sha(repo, sha, _make_merge_env()) is None
+    assert _revert_recorded_sha(repo, sha, make_merge_env()) is None
 
     assert _subject(repo) == 'Revert "status: recorded strand"'
     assert _parents(repo) == [sha]
@@ -311,7 +311,7 @@ def test_recorded_strand_revert_refuses_over_a_stray_staged_file(tmp_path: Path)
     repo, sha = _coord_repo(tmp_path)
     _write(repo, "stray.txt", "operator work\n")
 
-    diagnostic = _revert_recorded_sha(repo, sha, _make_merge_env())
+    diagnostic = _revert_recorded_sha(repo, sha, make_merge_env())
 
     assert diagnostic
     assert _out(repo, "rev-parse", "HEAD") == sha
@@ -321,7 +321,7 @@ def test_recorded_strand_revert_refuses_over_a_stray_staged_file(tmp_path: Path)
 def test_recorded_strand_revert_honours_signing(tmp_path: Path) -> None:
     repo, sha = _coord_repo(tmp_path)
     _break_signing(repo)
-    assert _revert_recorded_sha(repo, sha, _make_merge_env())
+    assert _revert_recorded_sha(repo, sha, make_merge_env())
     assert _out(repo, "rev-parse", "HEAD") == sha
 
 

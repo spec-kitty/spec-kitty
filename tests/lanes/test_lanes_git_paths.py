@@ -20,7 +20,7 @@ from specify_cli.lanes.auto_rebase import (
     _status_artifact_paths_from_ref,
 )
 from specify_cli.lanes.checkout_occupancy import dirty_paths
-from specify_cli.lanes.consolidation import _make_merge_env, _unmerged_paths
+from specify_cli.lanes.consolidation import make_merge_env, _unmerged_paths
 from specify_cli.lanes.for_review_gate import _has_qualifying_commit_since_claim_base
 from specify_cli.lanes.worktree_allocator import DirtyWorktreeError, _validate_worktree_clean
 
@@ -165,13 +165,13 @@ class TestMergeConflictListings:
     def test_unmerged_paths_returns_quoted_path(self, repo: Path) -> None:
         rel = "local data/café conflict.txt"
         _conflicting_merge(repo, rel)
-        assert _unmerged_paths(repo, _make_merge_env()) == (rel,)
+        assert _unmerged_paths(repo, make_merge_env()) == (rel,)
 
     def test_unmerged_paths_raises_when_git_fails(self, tmp_path: Path) -> None:
         plain = tmp_path / "plain"
         plain.mkdir()
         with pytest.raises(RuntimeError, match="Could not inspect squash merge conflicts"):
-            _unmerged_paths(plain, _make_merge_env())
+            _unmerged_paths(plain, make_merge_env())
 
 
 class TestAutoRebaseStatusArtifacts:

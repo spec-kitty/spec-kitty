@@ -773,7 +773,7 @@ def test_ensure_merge_driver_config_raises_on_git_failure(tmp_path, monkeypatch)
     repo = _make_repo(tmp_path)  # real git repo; the helper's .git guard passes
 
     # A ``git`` that always exits non-zero, resolved via the merge pipeline's
-    # single env authority (``_make_merge_env``), so only the helper's own
+    # single env authority (``make_merge_env``), so only the helper's own
     # git-config calls fail -- not the real repo built above.
     fake_bin = tmp_path / "fake-bin"
     fake_bin.mkdir()
@@ -782,7 +782,7 @@ def test_ensure_merge_driver_config_raises_on_git_failure(tmp_path, monkeypatch)
     fake_git.chmod(0o755)
     monkeypatch.setattr(
         merge_module,
-        "_make_merge_env",
+        "make_merge_env",
         lambda: {"PATH": str(fake_bin)},
     )
 

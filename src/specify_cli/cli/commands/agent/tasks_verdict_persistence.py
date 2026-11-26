@@ -367,8 +367,8 @@ def _revert_committed_verdict_write_held(st: _MoveTaskState, signal: VerdictDura
     longer contains a readable verdict for a transition that never completed.
 
     A no-op when nothing was ever durably committed in the first place
-    (``--no-auto-commit``, ``skip_target_branch_commit``, or the no-op guard
-    never wrote anything -- ``signal`` is ``None``/non-durable/pathless).
+    (``--no-auto-commit``, or the no-op guard never wrote anything --
+    ``signal`` is ``None``/non-durable/pathless).
 
     Raises :class:`VerdictRevertError` if the deletion itself cannot be
     committed -- the caller must not swallow this (see that class's
