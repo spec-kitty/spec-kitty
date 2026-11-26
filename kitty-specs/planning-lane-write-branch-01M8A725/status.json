@@ -1,20 +1,20 @@
 {
-  "event_count": 59,
-  "last_event_id": "01M8ATZ0JTGKV3V2J5BR1ESVGM",
-  "materialized_at": "2026-11-26T02:29:12.532268+00:00",
+  "event_count": 64,
+  "last_event_id": "01M8AZ10Z0985EC2F37XC04GFS",
+  "materialized_at": "2026-11-26T03:40:13.664793+00:00",
   "mission_number": "",
   "mission_slug": "planning-lane-write-branch-01M8A725",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 2,
+    "approved": 3,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 2,
-    "in_review": 0,
+    "in_progress": 0,
+    "in_review": 1,
     "planned": 1
   },
   "work_packages": {
@@ -103,18 +103,21 @@
     },
     "WP03": {
       "actor": "claude",
-      "agent": null,
+      "agent": "claude::reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude::python-pedro",
-      "lane": "in_progress",
-      "last_event_id": "01M8ATZ0JTGKV3V2J5BR1ESVGM",
-      "last_transition_at": "2026-11-26T02:29:12.532268+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M8AZ10Z0985EC2F37XC04GFS",
+      "last_transition_at": "2026-11-26T03:40:13.664793+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-26T01:50:32Z – claude::python-pedro – shell_pid=9936 – Implemented in e94a5626 (signed, pushed). RED-FIRST: on base 8 red/6 green over the 3 new files (hollow planning WP passed gate; claim base = root HEAD; lane_branch=main; waiver required code lanes; orchestrator returned root). After: 14 passed + 1 strict xfail. BLAST: pytest tests/lanes tests/orchestrator_api tests/coordination tests/status tests/specify_cli/workspace tests/specify_cli/orchestrator_api tests/specify_cli/lanes tests/agent/test_orchestrator_commands_integration.py tests/specify_cli/cli/commands/agent/test_claim_ancestry_gate.py tests/specify_cli/cli/commands/test_implement_claim_concurrency.py -n 4 --dist loadfile: 5254 passed, 10 skipped, 1 xfailed, 0 failed (first run had 7 reds caused by me, fixed: self-heal no longer reads WP files; _ensure_repo_root_checkout_or_fail keeps its None return seam). make test-fast: 3222 passed, 7 skipped. ruff/format/C901/mypy clean on 6 changed files. DECISIONS: T011 no new dirty refusal on the Mission-branch checkout (status commits stage only their paths; FR-013 ratchet proves it). Waiver: planning lane on a default not-landed Mission branch waives code lanes regardless of root branch; self-heal reconciles that checkout (via workspace.context._mission_branch_target). Orchestrator: PlanningWriteRefUnavailable -> existing LANE_ALLOCATION_FAILED (TRANSITION_REJECTED on stamp path) with data.error_type; no new public code, no envelope key changes beyond data.error_type in that failure data. T014 FR-013 ratchet green through emit_status_transition_transactional: no fix needed. T010 case 5 evidence-axis assertion is a strict xfail for WP05 (expects wp_evidence.planning_evidence_window). RESIDUALS: rollback resync and resume reset --hard are residue-guarded (refuse non-residue edits, #5638); coord-strand heal restores only status paths and reverts recorded status SHAs; no edit-discarding path found (read, not tested). Removed coord worktree: start-implementation refuses MISSION_NOT_FOUND at lookup (lanes.json lives only on the Mission branch).",
-        "Claim base from resolved checkout, gate names Mission-branch checkout, orchestrator start+resume aligned, FR-013 ratchet green; commit e94a5626"
+        "Claim base from resolved checkout, gate names Mission-branch checkout, orchestrator start+resume aligned, FR-013 ratchet green; commit e94a5626",
+        "- 2026-11-26T03:14:49Z – claude::python-pedro – Out-of-map edits (review cycle 1 fold, commit 60aeb939): workflow_executor.py (finding 1: agent path records the claim base for a shared-checkout planning lane); workspace/context.py (finding 8c: _mission_branch_target made public as planning_mission_branch_target, WP02-owned); orchestrator_api/envelope.py + docs/api/orchestrator-api.md + tests/specify_cli/orchestrator_api/test_contract_version.py + two docs/changelog/unreleased/7860-* fragments (finding 3: contract 1.31.0); tests/specify_cli/cli/commands/test_implement_claim_concurrency.py (its _ensure_repo_root_checkout_or_fail wrapper now returns the seam's result, which the single-resolve start path uses).",
+        "- 2026-11-26T03:14:53Z – claude::python-pedro – Cycle-1 fold evidence. TESTS: new/changed WP03 tests pass; agent-path CLI test passes (its red is the reviewer's reproduction: no refs/spec-kitty after agent action implement); pre-fold code reds: single_branch waiver control and gate fail-closed. BLAST (same dirs as before plus tests/specify_cli/cli/commands/agent, tests/contract/test_orchestrator_api.py, tests/integration/test_7860_planning_evidence_window.py, -n 4 loadfile): 8518 passed, 15 skipped, 3 xfailed, 7 failed. Five of the seven were mine, fixed and rerun green (test_workflow_canonical_cleanup x2, test_agent_action_implement_base, test_wrapper_delegation x2: 192 passed with docs/arch gates). The remaining 2 are tests/integration/test_7860_planning_evidence_window.py: on_the_topic_branch is WP04's evidence axis (red on base); where_implement_puts_it commits on the root checkout, which #7860 no longer names as the workspace (red on base too; WP05 should re-pin it). make test-fast 3222 passed. ruff, format, C901, mypy clean. CONTRACT DECISION: bumped 1.30.0 -> 1.31.0 (precedent 1.24.0/1.27.0/1.30.0: additive data keys are minor bumps); unregistered codes, PLANNING_CHECKOUT_MISSING and the pre-existing WRITE_CHECKOUT_* leak, now go under LANE_ALLOCATION_FAILED/TRANSITION_REJECTED with data.workspace_error_code. FOR WP05: (a) sibling-commit residual: assert through the real move-task/accept evidence caller, with a real claim status event, that a hollow planning WP whose sibling committed after its claim is refused IMPLEMENTATION_MISSING (WP04 signature planning_evidence_window(repo_root, lanes_manifest, lane, wp_id, events)); the strict xfail was dropped. (b) residual 8a: with the coordination worktree removed, start-implementation refuses MISSION_NOT_FOUND at the Mission lookup before PLANNING_CHECKOUT_MISSING, so it fails closed but does not name the coordination doctor remedy. (c) re-pin test_planning_work_where_implement_puts_it_moves_into_review.",
+        "Cycle 1 folded in 60aeb939: (1) agent action implement records the claim base from the shared checkout (CLI test + gate control; native implement covered); (2) xfail dropped, recorded for WP05; (3) unregistered codes go under LANE_ALLOCATION_FAILED with data.workspace_error_code, contract 1.31.0 with doc+changelog; (4) waiver uses planning_mission_branch_target, single_branch control test; (5) resolve once, lane_branch from the resolution; (6) docstrings fixed, gate and start fail closed on empty branch; (7) stamp direct_repo for planning-lane WPs on every topology, tests; (8a) recorded for WP05, (8c) public seam."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -124,50 +127,53 @@
         "reviewer": "claude::reviewer-renata",
         "verdict": "changes_requested"
       },
-      "role": "implementer",
-      "shell_pid": null,
-      "shell_pid_created_at": null,
+      "role": "reviewer",
+      "shell_pid": 2960,
+      "shell_pid_created_at": "1795664401.86",
       "subtasks": {
-        "T010": "planned",
-        "T011": "planned",
-        "T012": "planned",
-        "T013": "planned",
-        "T014": "planned"
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
       }
     },
     "WP04": {
       "actor": "claude",
-      "agent": null,
+      "agent": "claude::reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude::python-pedro",
-      "lane": "in_progress",
-      "last_event_id": "01M8ATTEXHC9KTSKP51R37WXA7",
-      "last_transition_at": "2026-11-26T02:26:43.480189+00:00",
+      "lane": "approved",
+      "last_event_id": "01M8AXAMFAK1T5K2N4PVNXN1Z4",
+      "last_transition_at": "2026-11-26T03:10:31.402114+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-26T01:49:28Z – claude::python-pedro – shell_pid=9936 – WP04 implemented (commits f9ef5a6b, 140511ac on lane-d, pushed). One decision point: wp_evidence.planning_evidence_window(repo_root, manifest, lane, wp_id, events_callable) -> (start, mission_branch) | None; _scan_lane (via _scan_planning_lane) and move-task (_mt_planning_window) both call it. Start = commit_introducing_status_event on the Mission branch of window_opener_events(cycle=True) candidates[0] else skipped[0]; end = planning_write_ref(...).branch when on_mission_branch. No opener / no_commit / ambiguous -> EVIDENCE_WINDOW_UNCOMPUTABLE; meta/log/git unreadable -> IMPLEMENTATION_UNREADABLE. A caller-supplied landed_commit (accept --mode pr) keeps today's planning window. FR-007 probe: merge-base(pin,target)..target --not <mission branch>, owned pathspecs then matches_owned filter; the --not excludes commits the Mission branch already carries so 'target branch only' stays true (tested). OUT-OF-MAP EDIT: tests/consolidation/test_single_consolidation_event_door.py moves wp_evidence.py from _RAW_ALLOWLIST to _STAMP_READERS, because the window opener is a stamp seed; per that gate's own remedy wp_evidence now reads through consolidation_events (mission_evidence_report; the claim already did). T025: the auto-commit early return uses workspace.is_shared_checkout (red-first proven: old guard committed a sibling's dirty files). PlanningWorkspaceMissing (RuntimeError) stays uncaught at both move-task sites. RESIDUAL (not fixed, reported): tasks_shared._wp_branch_merged_into_target compares the Mission branch with the target for a code_change WP in lane-planning of a default not-landed (pre-#7816) Mission, so move-task --to done before the landing needs --done-override-reason; it was vacuous before (target vs target). Listed in the ADR residuals. ADR 2026-10-04-5 Amendment 2026-11-25 (Proposed) added, Status line updated; spelling 0 findings. Tests: new 15 + 14 pass; blast radius (tests/consolidation + move-task/accept evidence + 6715 integration) 3687 passed, 1 failed (door gate, fixed in 140511ac; rerun 155 passed); orchestrator evidence + integration 89 passed, 2 failed in tests/integration/test_7860_planning_evidence_window.py, both also red on base e2df9592 (topic-branch case now blocked by the WP03 for_review claim-base gate; the target control contradicts A' and now shows the FR-007 addendum; WP05 reworks); make test-fast 3222 passed. ruff/format/C901/mypy clean.",
-        "Per-WP planning evidence window on the Mission branch, move-task leg + T025 guard, FR-007 probe, Proposed ADR amendment; see history for evidence and the residual"
+        "Per-WP planning evidence window on the Mission branch, move-task leg + T025 guard, FR-007 probe, Proposed ADR amendment; see history for evidence and the residual",
+        "- 2026-11-26T02:37:56Z – claude::python-pedro – Review cycle 1 folded in f9d983bb (signed, pushed). (1) target_only_evidence_addendum now reads 'Changes to its owned_files were found on the target branch only: <shas>. If they are this work package's work (for example committed there under the guidance before #7860), cherry-pick <shas> onto the Mission branch ... or attest'; the C2 literal is kept; tests assert the possibility wording. (2) _mt_planning_window appends 'Next step: <remedy>' from the new shared wp_evidence.PLANNING_WINDOW_RECOVERY (by code); _RECOVERY[EVIDENCE_WINDOW_UNCOMPUTABLE] and _RECOVERY[IMPLEMENTATION_UNREADABLE] use the same constant; test_an_unprovable_planning_window_refuses asserts the next step for both codes. Tests (wp04-fold-tests.log): 239 passed. ruff/format/C901/mypy clean.",
+        "Review cycle 1 folded in f9d983bb: (1) the target-only addendum is worded as a possibility (C2 literal kept, tests assert it); (2) move-task's unprovable planning-window refusal ends with 'Next step:' from the shared wp_evidence.PLANNING_WINDOW_RECOVERY, which _RECOVERY also uses; asserted for both codes. 239 tests passed; gates clean.",
+        "Review cycle 2 passed: both cycle-1 findings folded (addendum worded as a possibility; move-task planning-window refusal names its next step via shared PLANNING_WINDOW_RECOVERY)"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
       "review_result": {
-        "feedback_path": "/home/user/spec-kitty/.worktrees/planning-lane-write-branch-01M8A725-coord/kitty-specs/planning-lane-write-branch-01M8A725/tasks/WP04-planning-evidence-window/review-cycle-1.md",
-        "reference": "review-cycle://planning-lane-write-branch-01M8A725/WP04-planning-evidence-window/review-cycle-1.md",
+        "feedback_path": "/home/user/spec-kitty/.worktrees/planning-lane-write-branch-01M8A725-coord/kitty-specs/planning-lane-write-branch-01M8A725/tasks/WP04-planning-evidence-window/review-cycle-2.md",
+        "reference": "review-cycle://planning-lane-write-branch-01M8A725/WP04-planning-evidence-window/review-cycle-2.md",
         "reviewer": "claude::reviewer-renata",
-        "verdict": "changes_requested"
+        "verdict": "approved"
       },
-      "role": "implementer",
-      "shell_pid": null,
-      "shell_pid_created_at": null,
+      "role": "reviewer",
+      "shell_pid": 13204,
+      "shell_pid_created_at": "1795662563.18",
       "subtasks": {
-        "T015": "planned",
-        "T016": "planned",
-        "T017": "planned",
-        "T018": "planned",
-        "T020": "planned",
-        "T025": "planned"
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T020": "done",
+        "T025": "done"
       }
     },
     "WP05": {
