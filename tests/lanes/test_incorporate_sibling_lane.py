@@ -543,6 +543,24 @@ def test_newest_stamp_and_stamp_on_branch(tmp_path: Path) -> None:
     assert "cannot read" in _refused(lambda: _require_stamp_on_branch(repo, first, "no-such-branch", "lane-s"), IncorporateCode.PROBE_FAILED)
 
 
+def test_the_planned_claim_line_carries_the_agent() -> None:
+    """#5604 review fold F2: ``implement`` refuses to start a work package without ``--agent``, so the printed line carries it."""
+    from specify_cli.lanes.incorporate import IncorporateCode, _check_wp_may_incorporate
+    from specify_cli.status import Lane
+
+    message = _refused(lambda: _check_wp_may_incorporate(Lane.PLANNED, "WP02", "m-01M7WW0Z"), IncorporateCode.WP_NOT_SENT_BACK)
+    assert message.endswith("Claim it first: spec-kitty agent action implement WP02 --mission m-01M7WW0Z --agent <agent>"), message
+
+
+def test_the_rerun_line_carries_the_agent() -> None:
+    """#5604 review fold F2: the incorporate re-run line renders ``--agent`` as the stale-lane route does."""
+    from specify_cli.lanes.incorporate import _IncorporateRoute
+    from specify_cli.lanes.stale_check import AGENT_PLACEHOLDER
+
+    route = _IncorporateRoute(wp_id="WP02", mission_slug="m-01M7WW0Z", sibling_lane_id="lane-a")
+    assert route.rerun() == f"spec-kitty agent action implement WP02 --mission m-01M7WW0Z --incorporate lane-a --agent {AGENT_PLACEHOLDER}"
+
+
 def test_check_wp_refuses_other_lanes() -> None:
     from specify_cli.lanes.incorporate import IncorporateCode, _check_wp_may_incorporate
     from specify_cli.status import Lane
@@ -834,7 +852,7 @@ def test_approved_work_in_a_canceled_review_window_is_not_named_canceled_content
     assert "canceled content" not in message and "reaches commits" not in message, message
     assert _ATTEST_ROUTE.format(wp="WP02") in message, message
     assert "only spec-kitty consolidate records this attestation, and the same command then starts a consolidation of the Mission" in message, message
-    assert message.endswith(f"Then re-run: spec-kitty agent action implement WP77 --mission {_MIXED_SLUG} --incorporate {LANE_A}"), message
+    assert message.endswith(f"Then re-run: spec-kitty agent action implement WP77 --mission {_MIXED_SLUG} --incorporate {LANE_A} --agent <agent>"), message
 
 
 _ATTEST_ROUTE = f'spec-kitty consolidate --mission {_MIXED_SLUG} --attest-canceled-superseded {{wp}} --attest-reason "<what you checked>"'

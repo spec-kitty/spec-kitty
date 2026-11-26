@@ -56,7 +56,8 @@ from specify_cli.state.contract import is_target_owned_path
 from specify_cli.status import EventLogMergeError, materialize, merge_event_log_texts, review_presync_ref, sits_on_through_merges
 from specify_cli.coordination.coherence import CheckoutRole, ResidueContext, is_coord_residue_churn
 from specify_cli.consolidation.git_probes import LagResidueContext
-from specify_cli.consolidation.merge_attribute_guard import merge_probe_env
+from specify_cli.consolidation.merge_attribute_guard import assert_registered_merge_behaviour, committed_attributes_source, pinned_merge_env
+from specify_cli.core.vcs.git import git_merge_base
 from specify_cli.git.destructive_guard import DestructiveOpRefused, guarded_merge_abort, guarded_reset_hard
 from specify_cli.lanes import auto_rebase_record
 from specify_cli.git.ref_advance import ResidueClassifier, write_bookkeeping_ref
@@ -1046,6 +1047,43 @@ def _commit_staged_merge(
     return staged_tree
 
 
+def _commit_tree(worktree_path: Path, sha: str) -> str:
+    """The tree id *sha* commits, from the raw commit object (``git cat-file commit``; ``""`` when unreadable).
+
+    #5604 review fold R1: plumbing, so no ``log.showSignature``, ``color.ui`` or ``format.pretty``
+    setting can put anything before the tree id (``git show -s --format=%T`` printed the signature
+    check first, and every recorded merge was then undone). No revision is composed.
+    """
+    result = _run(["git", "cat-file", "commit", sha], worktree_path)
+    if result.returncode != 0:
+        return ""
+    first = (result.stdout or "").split("\n", 1)[0]
+    kind, _, tree = first.partition(" ")
+    return tree.strip() if kind == "tree" else ""
+
+
+def _merge_attributes_refusal(repo_root: Path, worktree_path: Path, tips: _PreMergeTips, target_branch: str | None) -> str | None:
+    """WP01's guard in the lane checkout, before the merge (#5604 review fold I1); the halt reason, or ``None`` when it passes.
+
+    git computes the merge in the lane checkout, so the guard reads that checkout's attributes (an
+    uncommitted ``.gitattributes`` included), over every path either side changed since the merge
+    base, with the target branch tip as the committed attributes source (the claim's rule). Any
+    refusal or probe error halts the auto-rebase: no merge is made and nothing is recorded.
+    """
+    from specify_cli.consolidation.git_probes import GitProbeError
+
+    env = pinned_merge_env()
+    try:
+        base = git_merge_base(worktree_path, tips.before, tips.mission_before)
+        if base is None:
+            raise GitProbeError(f"the merge base of {tips.before[:12]} and {tips.mission_before[:12]} cannot be read")
+        paths = [str(path) for tip in (tips.before, tips.mission_before) for path in changed_paths(worktree_path, base, tip, env=env)]
+        assert_registered_merge_behaviour(worktree_path, paths, attributes_source=committed_attributes_source(repo_root, target_branch))
+    except (GitCommandError, GitProbeError) as exc:
+        return f"the merge attributes of the lane checkout {worktree_path} were refused ({exc}); nothing was merged"
+    return None
+
+
 def _record_tool_merge(
     context: ResidueClassifier,
     worktree_path: Path,
@@ -1077,7 +1115,7 @@ def _record_tool_merge(
             f"the lane tip {head[:12]} after the auto-rebase is not its merge of {tips.mission_before[:12]} into "
             f"{tips.before[:12]}; it was left on the lane unrecorded",
         )
-    committed_tree = _run(["git", "show", "-s", "--format=%T", head], worktree_path).stdout.strip()
+    committed_tree = _commit_tree(worktree_path, head)
     if committed_tree != staged_tree:
         reason = (
             f"the merge {head[:12]} carries tree {committed_tree[:12] or 'unreadable'}, not the tree {staged_tree[:12]} "
@@ -1220,6 +1258,7 @@ def attempt_auto_rebase(
     worktree_path: Path,
     *,
     mission_slug: str | None = None,
+    target_branch: str | None = None,
 ) -> AutoRebaseReport:
     """Attempt a stale-lane auto-rebase.
 
@@ -1232,6 +1271,10 @@ def attempt_auto_rebase(
     4. Applies ``Auto`` resolutions, regenerates ``uv.lock`` if needed, runs
        ``ruff --fix --select I001`` on touched ``__init__.py`` files, and
        commits with the audit message.
+
+    ``target_branch`` is the Mission's target branch: its tip is the committed attributes source of
+    the merge-attribute guard that runs in ``worktree_path`` before the merge (#5604 review fold I1);
+    ``None`` honours no committed ``merge=union``.
 
     ``mission_slug`` names the Mission whose lane worktree this is, so a failed attempt's
     ``merge --abort`` can tell the Mission's own regenerable residue from the operator's
@@ -1266,13 +1309,18 @@ def attempt_auto_rebase(
     if isinstance(tips, str):
         return _halted(lane.lane_id, [], tips)
 
+    # #5604 review fold I1: the guard runs in the checkout git merges in, before the merge.
+    attributes_halt = _merge_attributes_refusal(repo_root, worktree_path, tips, target_branch)
+    if attributes_halt is not None:
+        return _halted(lane.lane_id, [], attributes_halt)
+
     # Squad-3 A2: the tool merge runs under WP01's pinned merge config, as ``--incorporate``'s merge
     # does, so a clone-level or environment ``merge.directoryRenames`` / ``merge.renormalize`` /
     # ``merge.renames`` cannot change what git computes for a merge the FR-004 check exempts.
     merge_result = _run(
         ["git", "merge", "--no-edit", "--no-ff", "--no-commit", mission_branch],
         worktree_path,
-        env=merge_probe_env(make_merge_env()),
+        env=pinned_merge_env(),
     )
     if merge_result.returncode == 0:
         report = _conclude_clean_merge(context, worktree_path, repo_root, lane.lane_id, branch, tips)

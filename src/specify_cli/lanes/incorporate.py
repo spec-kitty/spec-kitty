@@ -26,10 +26,11 @@ attributes and drivers (a ``merge=union`` turns a conflict into bytes neither si
 preflight (before the claim and the sync point), again before its merge, and inside its
 canceled-window merge probe, ``--incorporate`` runs WP01's guard
 (:func:`~specify_cli.consolidation.merge_attribute_guard.assert_registered_merge_behaviour`) with the
-Mission branch tip, read once per resolution, as the committed attributes source, and the merge
-runs with WP01's pinned config (``merge_probe_env``). A guard refusal or a probe error refuses with
-``INCORPORATE_MERGE_ATTRIBUTES_REFUSED`` before any merge; an unreadable Mission branch tip honours
-no committed ``union`` (fail closed).
+target branch tip, read once per resolution, as the committed attributes source (the claim's own
+rule, :func:`~specify_cli.consolidation.merge_attribute_guard.committed_attributes_source`; #5604
+review fold I3), and the merge runs with the one pinned merge env (``pinned_merge_env``). A guard
+refusal or a probe error refuses with ``INCORPORATE_MERGE_ATTRIBUTES_REFUSED`` before any merge; an
+unreadable target branch tip honours no committed ``union`` (fail closed).
 """
 
 from __future__ import annotations
@@ -46,6 +47,7 @@ from specify_cli.git.merge_conclusion import run_committing_op
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.compute import is_planning_lane, is_repo_root_lane
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.lanes.stale_check import AGENT_PLACEHOLDER
 from specify_cli.status import Lane, StatusEvent
 
 if TYPE_CHECKING:
@@ -106,8 +108,8 @@ class SiblingStamp:
     branch: str
     stamp: str
     wp_ids: tuple[str, ...]
-    #: The Mission branch tip whose committed ``.gitattributes`` may set a reviewed ``union`` (WP07);
-    #: ``None`` (unread) honours no committed ``union``.
+    #: The target branch tip whose committed ``.gitattributes`` may set a reviewed ``union`` (WP07, #5604
+    #: review fold I3: the claim's rule); ``None`` (unread) honours no committed ``union``.
     attributes_source: str | None = None
 
 
@@ -148,7 +150,8 @@ def _check_wp_may_incorporate(lane: Lane, wp_id: str, mission_slug: str) -> None
             f"Send it back first: {_move_back(wp_id, mission_slug, lane)}"
         )
     elif lane is Lane.PLANNED:
-        message = f"{wp_id} is planned: there is nothing to resolve yet. Claim it first: spec-kitty agent action implement {wp_id} --mission {mission_slug}"
+        claim = f"spec-kitty agent action implement {wp_id} --mission {mission_slug} --agent {AGENT_PLACEHOLDER}"
+        message = f"{wp_id} is planned: there is nothing to resolve yet. Claim it first: {claim}"
     else:
         message = f"{wp_id} is {lane}; only a claimed or in-progress work package can incorporate a sibling lane."
     raise IncorporateRefused(IncorporateCode.WP_NOT_SENT_BACK, message)
@@ -245,7 +248,7 @@ class _IncorporateRoute:
     sibling_lane_id: str
 
     def rerun(self) -> str:
-        return f"spec-kitty agent action implement {self.wp_id} --mission {self.mission_slug} --incorporate {self.sibling_lane_id}"
+        return f"spec-kitty agent action implement {self.wp_id} --mission {self.mission_slug} --incorporate {self.sibling_lane_id} --agent {AGENT_PLACEHOLDER}"
 
     def attest(self, canceled_wp_id: str) -> str:
         from specify_cli.consolidation.canceled_attestation import ATTEST_FLAG, ATTEST_REASON_FLAG
@@ -397,7 +400,9 @@ def _resolve_sibling_stamp(
     wp_id: str,
 ) -> SiblingStamp:
     """Resolve *sibling_lane_id*'s branch and newest approval stamp, or refuse (no side effect)."""
-    attributes_source = _read_attributes_source(repo_root, manifest.mission_branch)
+    from specify_cli.consolidation.merge_attribute_guard import committed_attributes_source
+
+    attributes_source = committed_attributes_source(repo_root, manifest.target_branch)
     sibling = _sibling_lane(manifest, own_lane_id, sibling_lane_id)
     branch = lane_branch_name(mission_slug, sibling.lane_id, target_branch=manifest.target_branch)
     stamps = _approved_stamps(events, sibling)
@@ -416,16 +421,6 @@ def _resolve_sibling_stamp(
     return SiblingStamp(lane_id=sibling.lane_id, branch=branch, stamp=stamp, wp_ids=tuple(sibling.wp_ids), attributes_source=attributes_source)
 
 
-def _read_attributes_source(repo_root: Path, mission_branch: str) -> str | None:
-    """The Mission branch tip, the committed attributes source of the guard; ``None`` when it cannot be read (no ``union`` is honoured then)."""
-    from specify_cli.consolidation.git_probes import GitProbeError, resolve_commit
-
-    try:
-        return str(resolve_commit(repo_root, f"refs/heads/{mission_branch}"))
-    except GitProbeError:
-        return None
-
-
 def _read_manifest(repo_root: Path, mission_slug: str) -> LanesManifest:
     from mission_runtime import MissionArtifactKind, placement_seam
     from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
@@ -441,8 +436,7 @@ def _read_manifest(repo_root: Path, mission_slug: str) -> LanesManifest:
 
 def _read_events(repo_root: Path, mission_slug: str) -> list[StatusEvent]:
     from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
-    from specify_cli.coordination.surface_resolver import WorktreeRegistryUnavailable
-    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+    from specify_cli.coordination.surface_resolver import StatusReadPathNotFound, WorktreeRegistryUnavailable
     from specify_cli.status import StoreError, read_status_events, resolve_status_read
 
     try:
@@ -518,14 +512,12 @@ def prepare_incorporation(repo_root: Path, mission_slug: str, wp_id: str, siblin
 
 
 def _merge_env() -> dict[str, str]:
-    # The lane-consolidation pipeline's single environment authority, so spec-kitty's registered
-    # merge drivers resolve to the running spec-kitty (the auto-rebase uses the same one), with
-    # WP01's pinned merge config over every other source (WP07), so a value set after the guard's
-    # read cannot change the merge.
-    from specify_cli.consolidation.merge_attribute_guard import merge_probe_env
-    from specify_cli.lanes.consolidation import make_merge_env
+    # The one merge env (#5604 review fold A1): the lane-consolidation pipeline's environment, so
+    # spec-kitty's registered merge drivers resolve to the running spec-kitty, with WP01's pinned
+    # merge config over every other source (WP07), as the auto-rebase and the merge probes run.
+    from specify_cli.consolidation.merge_attribute_guard import pinned_merge_env
 
-    env: dict[str, str] = merge_probe_env(make_merge_env())
+    env: dict[str, str] = pinned_merge_env()
     return env
 
 

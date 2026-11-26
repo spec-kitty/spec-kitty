@@ -26,14 +26,15 @@ Content conversion: git runs clean filters and line-ending conversion during a m
 resolution. An effective ``merge.renormalize`` (any scope or the environment) refuses, naming the
 cause; ``filter``, ``ident`` and ``working-tree-encoding`` attributes alone are inert in a merge
 and are not refused (git-lfs repositories keep working). The probes also run git with
-:func:`merge_probe_env`, which pins :data:`MERGE_PROBE_CONFIG_PINS` (``merge.directoryRenames``,
+:func:`pinned_merge_env` (the lane-consolidation pipeline's env under :func:`merge_probe_env`), which pins :data:`MERGE_PROBE_CONFIG_PINS` (``merge.directoryRenames``,
 ``merge.renames``, ``diff.algorithm``, ``merge.conflictStyle``, ``merge.renormalize=false``)
 over every other config source, so a value changed after the guard's read cannot take effect.
 
 Cost (NFR-001): one batched ``git check-attr --stdin merge`` per call (three when a committed
 ``union`` is judged), plus targeted ``git config --get`` reads (``merge.renormalize``,
-``merge.default`` and the names in play; never a name listing, since a value may span lines)
-cached for the run.
+``merge.default`` and the names in play; never a name listing, since a value may span lines),
+read live on every call: the run's read cache cannot see global, system or ``include.path``
+config, so a cached answer could go stale mid-run (#5604 review fold I2).
 """
 
 from __future__ import annotations
@@ -53,6 +54,8 @@ from specify_cli.git.merge_tree_probe import check_attr_source_available
 __all__ = [
     "assert_registered_merge_behaviour",
     "check_merge_attributes",
+    "committed_attributes_source",
+    "pinned_merge_env",
 ]
 
 #: Attribute values that are git's built-in merge with no user-driver lookup: ``merge`` set
@@ -210,6 +213,35 @@ def merge_probe_env(base: Mapping[str, str] | None = None) -> dict[str, str]:
     return env
 
 
+def pinned_merge_env() -> dict[str, str]:
+    """The ONE environment every merge a verdict depends on runs with (#5604 review fold A1).
+
+    The lane-consolidation pipeline's environment authority
+    (:func:`specify_cli.lanes.consolidation.make_merge_env`: the running spec-kitty's drivers first
+    on ``PATH``, no two-way ``meta.json`` opt-out) with :data:`MERGE_PROBE_CONFIG_PINS` over it. The
+    merge probes, the stale-lane auto-rebase and ``--incorporate`` all build their env here.
+    """
+    # Function-local: ``lanes.consolidation`` imports ``git_probes`` at module top, which imports this module lazily.
+    from specify_cli.lanes.consolidation import make_merge_env
+
+    return merge_probe_env(make_merge_env())
+
+
+def committed_attributes_source(repo_root: Path, target_branch: str | None) -> str | None:
+    """The tip of *target_branch*: the committed attributes source the guard trusts, or ``None`` (#5604 review fold I3).
+
+    The claim trusts the target branch's pre-run tip; a merge made before the claim (the stale-lane
+    auto-rebase, ``--incorporate``) trusts the target's tip as it is then, the same rule. ``None``
+    (no target, or an unreadable one) honours no committed ``union`` (fail closed). Never cached:
+    the tip moves.
+    """
+    if not target_branch:
+        return None
+    result = _run_git(repo_root, ["rev-parse", "--verify", "--quiet", "--end-of-options", f"refs/heads/{target_branch}^{{commit}}"])
+    sha = (result.stdout or "").strip()
+    return sha if result.returncode == 0 and sha else None
+
+
 def _run_git(repo_root: Path, argv: Sequence[str], stdin: str | None = None) -> subprocess.CompletedProcess[str]:
     try:
         return subprocess.run(["git", *argv], cwd=str(repo_root), input=stdin, capture_output=True, text=True, check=False)
@@ -241,14 +273,19 @@ def check_merge_attributes(repo_root: Path, paths: Sequence[str], source: str | 
     return per_path
 
 
-def _cached_config(repo_root: Path, argv: Sequence[str]) -> subprocess.CompletedProcess[str]:
-    """One ``git config`` read, reused for the run while the repository config is unchanged (NFR-001)."""
-    return cached_git_read(repo_root, ("fr010-merge-config", *argv), lambda: _run_git(repo_root, argv), depends=Depends(config=True))
+def _read_config(repo_root: Path, argv: Sequence[str]) -> subprocess.CompletedProcess[str]:
+    """One ``git config`` read, never cached (#5604 review fold I2).
+
+    The run's read cache fingerprints only ``.git/config`` and ``config.worktree``, while git also
+    reads global, system and ``include.path`` config: a driver added there mid-run would be served
+    stale to the guard and honoured by the merge. The guard's few reads are cheap; they stay live.
+    """
+    return _run_git(repo_root, argv)
 
 
 def _config_value(repo_root: Path, key: str) -> str | None:
     """The value git uses for *key* (the last one, every scope), or ``None`` when unset. Only the output's own newline is stripped."""
-    result = _cached_config(repo_root, ["config", "--get", key])
+    result = _read_config(repo_root, ["config", "--get", key])
     if result.returncode == 1 and not (result.stderr or "").strip():
         return None
     if result.returncode != 0:
@@ -261,7 +298,7 @@ def _config_section_set(repo_root: Path, name: str) -> bool:
     """True when any ``merge.<name>.*`` key is configured in any scope."""
     if not _CONFIG_NAME.match(name):
         raise GitProbeError(f"merge driver name {name!r} cannot be looked up safely")
-    result = _cached_config(repo_root, ["config", "--get-regexp", rf"^merge\.{name}\."])
+    result = _read_config(repo_root, ["config", "--get-regexp", rf"^merge\.{name}\."])
     if result.returncode == 1 and not (result.stderr or "").strip():
         return False
     if result.returncode != 0:
@@ -275,7 +312,7 @@ def _renormalize_refusal(repo_root: Path, paths: Sequence[str]) -> str:
     Renormalizing runs each side through the clean filters and line-ending conversion before the
     merge, so a clone-local filter can rewrite either side into a hand resolution.
     """
-    result = _cached_config(repo_root, ["config", "--get", "--type=bool", _RENORMALIZE_KEY])
+    result = _read_config(repo_root, ["config", "--get", "--type=bool", _RENORMALIZE_KEY])
     if result.returncode == 1 and not (result.stderr or "").strip():
         return ""
     if result.returncode != 0:

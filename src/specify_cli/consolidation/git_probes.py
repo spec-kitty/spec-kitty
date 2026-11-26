@@ -492,7 +492,7 @@ def last_commit_touching(repo_root: Path, rev: str, pathspec: str) -> str | None
     ``--full-history`` keeps a side branch a merge made TREESAME from being pruned, so any commit
     that ever touched the path counts. A ``git log`` failure raises :class:`GitProbeError`.
     """
-    argv = ["git", "log", "-1", "--full-history", "--format=%H", rev, "--", pathspec]
+    argv = ["git", "log", "-1", "--no-show-signature", "--full-history", "--format=%H", rev, "--", pathspec]
     ret, out, err = run_command(argv, capture=True, check_return=False, cwd=repo_root)
     if ret != 0:
         raise GitProbeError(f"git log -1 {rev[:12]} -- {pathspec} failed (exit {ret}): {(err or '').strip()}")
@@ -505,7 +505,20 @@ def earliest_first_parent_adding(repo_root: Path, branch: str, pathspec: str) ->
     A merge commit is diffed against its first parent (``--diff-merges=first-parent``). A ``git log``
     failure raises :class:`GitProbeError`.
     """
-    argv = ["git", "log", "--first-parent", "--diff-merges=first-parent", "--no-patch", "--reverse", "--diff-filter=A", "--format=%H", branch, "--", pathspec]
+    argv = [
+        "git",
+        "log",
+        "--no-show-signature",
+        "--first-parent",
+        "--diff-merges=first-parent",
+        "--no-patch",
+        "--reverse",
+        "--diff-filter=A",
+        "--format=%H",
+        branch,
+        "--",
+        pathspec,
+    ]
     ret, out, err = run_command(argv, capture=True, check_return=False, cwd=repo_root)
     if ret != 0:
         raise GitProbeError(f"git log --first-parent {branch} failed (exit {ret}): {(err or '').strip()}")
@@ -613,7 +626,8 @@ def patch_id_of(repo_root: Path, sha: str) -> str:
     if not sha:
         return ""
     show = _subprocess.run(
-        ["git", "show", sha],
+        # #5604 review fold R1: no signature check, colour or external diff in the patch that is hashed.
+        ["git", "show", "--no-show-signature", "--no-color", "--no-ext-diff", sha],
         cwd=str(repo_root),
         capture_output=True,
         text=True,
@@ -783,7 +797,7 @@ def merge_own_changed_paths(repo_root: Path, sha: str, *, attributes_source: str
     spec-kitty driver merges it. *attributes_source* (the claim's pre-run target tip) lets a
     committed ``merge=union`` stand; ``None`` refuses it.
     """
-    from specify_cli.consolidation.merge_attribute_guard import assert_registered_merge_behaviour, merge_probe_env
+    from specify_cli.consolidation.merge_attribute_guard import assert_registered_merge_behaviour, pinned_merge_env
 
     parents = commit_parents(repo_root, sha)
     if len(parents) > 2:
@@ -794,7 +808,7 @@ def merge_own_changed_paths(repo_root: Path, sha: str, *, attributes_source: str
     from kernel.git import GitCommandError, remerge_paths
 
     try:
-        return [str(path) for path in remerge_paths(repo_root, sha, env=merge_probe_env())]
+        return [str(path) for path in remerge_paths(repo_root, sha, env=pinned_merge_env())]
     except GitCommandError as exc:
         raise GitProbeError(f"git show --remerge-diff {sha} failed: {exc}") from exc
 
@@ -922,10 +936,10 @@ def _merge_tree_step(repo_root: Path, ours: str, theirs: str) -> tuple[str, froz
     even when another path conflicted. Any exit code other than 0 (clean) or 1 (some
     conflict) raises :class:`GitProbeError`.
     """
-    from specify_cli.consolidation.merge_attribute_guard import merge_probe_env
+    from specify_cli.consolidation.merge_attribute_guard import pinned_merge_env
 
     try:
-        result = merge_tree(repo_root, ours, theirs, env=merge_probe_env())
+        result = merge_tree(repo_root, ours, theirs, env=pinned_merge_env())
     except GitCommandError as exc:
         raise GitProbeError(f"git merge-tree --write-tree {ours} {theirs} failed (exit {exc.returncode}): {exc.stderr.strip()}") from exc
     if not result.tree:

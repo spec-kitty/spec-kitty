@@ -83,6 +83,7 @@ __all__ = [
     "CoordinationBranchDeleted",
     "CoordinationWorktreeUnmaterialized",
     "ResolvedStatusSurface",
+    "StatusReadPathNotFound",
     "WorktreeRegistryUnavailable",
     "WorktreeTopology",
     "classify_worktree_topology",

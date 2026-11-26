@@ -643,6 +643,7 @@ class TestAutoRebaseAdditive:
             mission_branch=mission_branch,
             repo_root=repo,
             worktree_path=worktree_b,
+            target_branch="main",  # the reviewed ``merge=union`` is committed on the target (#5604 review fold I1)
         )
 
         assert report.succeeded is True, report.halt_reason
@@ -842,6 +843,7 @@ class TestAutoRebaseAdditive:
             mission_branch=mission_branch,
             repo_root=repo,
             worktree_path=worktree_b,
+            target_branch="main",  # the reviewed ``merge=union`` is committed on the target (#5604 review fold I1)
         )
 
         assert report.succeeded is False
