@@ -162,6 +162,8 @@ _PUBLIC_SURFACE = sorted(
         # #7578 (H1): the pure PRIMARY write-ref rule of a default Mission (FR-061);
         # the review range compares it with the coordination branch.
         "default_mission_primary_ref",
+        # #7860 (C-004): the one FR-061 predicate (the topic-holder locator reads it).
+        "default_mission_rule_applies",
         # owned-checkout-lifecycle-authority WP04 (review cycle 2, F4): the ONE
         # canonical handle-canonicalisation authority (slug / mid8 / full
         # mission-id forms) resolution.py and specify_cli.task_utils.support

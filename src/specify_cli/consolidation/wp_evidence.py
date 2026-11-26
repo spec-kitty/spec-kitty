@@ -78,7 +78,7 @@ from specify_cli.ownership.matching import matches_owned, owned_patterns
 from specify_cli.status import is_migration_actor
 
 if TYPE_CHECKING:
-    from mission_runtime import OwnedCheckout
+    from mission_runtime import ClaimCommitUnresolved, OwnedCheckout
 
 logger = logging.getLogger(__name__)
 
@@ -251,13 +251,28 @@ def _planning_window_start(repo_root: Path, lanes_manifest: LanesManifest, wp_id
     try:
         start: str = mission_runtime.commit_introducing_status_event(surface, wp_id, event_id, rev=mission_branch)
     except mission_runtime.ClaimCommitUnresolved as exc:
-        code = IMPLEMENTATION_UNREADABLE if exc.reason == "git_unavailable" else EVIDENCE_WINDOW_UNCOMPUTABLE
-        raise PlanningWindowUnresolved(
-            code,
-            f"no single commit on the Mission branch {mission_branch} introduced its window-opening status event {event_id} ({exc}); "
-            f"commit its status events on {MISSION_BRANCH_PHRASE}, then re-run",
-        ) from exc
+        raise _unresolved_start(exc, mission_branch, event_id) from exc
     return start
+
+
+def _unresolved_start(exc: ClaimCommitUnresolved, mission_branch: str, event_id: str) -> PlanningWindowUnresolved:
+    """The refusal for a window start that ``commit_introducing_status_event`` could not prove, worded by its reason.
+
+    ``git_unavailable`` means git could not read the Mission branch's history
+    (``IMPLEMENTATION_UNREADABLE``), not that the claim event is uncommitted, so its detail never
+    tells the operator to commit status events (#7860, WP04 review).
+    """
+    if exc.reason == "git_unavailable":
+        return PlanningWindowUnresolved(
+            IMPLEMENTATION_UNREADABLE,
+            f"git could not read the history of the Mission branch {mission_branch} to find the commit that introduced its "
+            f"window-opening status event {event_id} ({exc})",
+        )
+    return PlanningWindowUnresolved(
+        EVIDENCE_WINDOW_UNCOMPUTABLE,
+        f"no single commit on the Mission branch {mission_branch} introduced its window-opening status event {event_id} ({exc}); "
+        f"commit its status events on {MISSION_BRANCH_PHRASE}, then re-run",
+    )
 
 
 def planning_evidence_window(

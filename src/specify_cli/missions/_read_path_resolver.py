@@ -2156,16 +2156,20 @@ def default_mission_topic_dir(repo_root: Path, composed: Path) -> Path | None:
         if meta_dir == composed:
             return None
         raise
-    topic = meta.get("mission_branch") if meta else None
-    if not meta or meta.get("topology_source") != "default" or not isinstance(topic, str) or not topic:
+    if not meta:
         return None
-    from mission_runtime import mission_has_landed
+    from mission_runtime import default_mission_rule_applies, mission_has_landed
 
+    # The one FR-061 predicate (#7860, C-004): a default Mission's own Mission branch, until it lands.
+    # The landing is read lazily, and only off the composed copy, as before.
+    topic = meta.get("mission_branch")
+    if not default_mission_rule_applies(meta.get("topology_source"), topic, False):
+        return None
     if meta_dir == composed and mission_has_landed(composed):
         return None
     from specify_cli.status import topic_holder_mission_dir
 
-    held: Path | None = topic_holder_mission_dir(repo_root, topic, composed.name)
+    held: Path | None = topic_holder_mission_dir(repo_root, str(topic), composed.name)
     if held is None or held.resolve() == composed.resolve():
         return None
     return held

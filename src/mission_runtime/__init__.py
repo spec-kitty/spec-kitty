@@ -89,6 +89,7 @@ from mission_runtime.resolution import (
     coord_read_dir_for,
     declared_read_surface,
     default_mission_primary_ref,
+    default_mission_rule_applies,
     mission_context_for,
     placement_seam,
     planning_write_ref,
@@ -192,6 +193,8 @@ __all__ = [
     "declared_read_surface",
     # #7578 (H1): the pure PRIMARY write-ref rule of a default Mission (FR-061), read by the review range.
     "default_mission_primary_ref",
+    # #7860 (C-004): the one FR-061 predicate, shared by every reader of the default-Mission rule.
+    "default_mission_rule_applies",
     "enforce_checkout_identity",
     "handle_names_mission",
     "is_primary_artifact_kind",
