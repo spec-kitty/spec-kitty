@@ -11,6 +11,14 @@ the presence scope and the lane content measured from each lane's own base (#578
 verdict :func:`unmet_approved_content` (#5571) and the dependency-merge attribution of a lane's reviewed
 merges (#7307). Moved verbatim out of ``reconciliation.py``; no verdict changed. That module re-exports
 every name, so no caller changes (C-005).
+
+Before a default Mission lands, its planning lane is walked on the Mission branch (#7860, FR-012,
+:func:`_lane_walk_range`), fail closed: the walk is scoped to the ``owned_files`` of the lane's
+approved work packages (:func:`_approved_planning_scope`; a canceled work package's paths never
+count, and an unreadable list or a whole-tree glob authors nothing), and a commit enters the claim
+by SHA and patch-id only when every path it changes is in that scope or bookkeeping
+(:func:`_scoped_commits`), so a mixed commit, and every copy of it, stays un-attributable on the
+merge / rebase closed world while its in-scope blobs still count on the squash axis.
 """
 
 from __future__ import annotations
@@ -45,6 +53,7 @@ from specify_cli.consolidation.reconciliation_claim_types import (
 from specify_cli.consolidation.reconciliation_kernel import (
     _APPROVED_MEMBERSHIP_LANES,
     _dependency_lane_ids,
+    _is_bookkeeping,
     _lane_branch_for,
     _lane_first_parent_spine,
     _lane_is_approved,
@@ -717,46 +726,121 @@ def _lane_walk_range(
     lane: ExecutionLane,
     coord_base_ref: str,
     sb_window: tuple[str, str] | None,
+    planning_scope: Sequence[str] = (),
 ) -> tuple[str, str, tuple[str, ...]]:
-    """``(base, tip, scope)`` of a lane's authorship walk; a non-empty *scope* keeps only commits touching it.
+    """``(base, tip, scope)`` of a lane's authorship walk; a non-empty *scope* scopes the walk (:func:`_collect_authored`).
 
     A code lane walks ``coord_base_ref..<lane branch>`` and a ``single_branch`` planning lane its
     *sb_window*, as before. The planning lane of a default Mission that has not landed walks its
-    Mission-branch window (:func:`_planning_lane_mission_branch_window`), limited to commits that
-    touch the lane's owned paths (``write_scope``): the Mission branch also carries status and
-    other Mission work, which must never read as approved planning authorship. A planning lane with
-    an empty ``write_scope`` keeps today's range and authors nothing: an empty scope never turns the
+    Mission-branch window (:func:`_planning_lane_mission_branch_window`), scoped to
+    *planning_scope*: the owned paths of its APPROVED work packages
+    (:func:`_approved_planning_scope`), never the lane's ``write_scope``, which also holds a
+    canceled work package's paths. The Mission branch also carries status, canceled and other
+    Mission work, which must never read as approved planning authorship. An empty
+    *planning_scope* (no approved work package, an unreadable ``owned_files``, an authored empty
+    list, or a whole-tree glob) keeps today's range and authors nothing: it never turns the
     Mission-branch window into an unscoped walk (the empty tuple means "unscoped" for every other range).
     """
     if is_planning_lane(lane):
         if sb_window:
             return sb_window[0], sb_window[1], ()
-        window = _planning_lane_mission_branch_window(repo_root, lanes_manifest, coord_base_ref) if lane.write_scope else None
+        window = _planning_lane_mission_branch_window(repo_root, lanes_manifest, coord_base_ref) if planning_scope else None
         if window is not None:
-            return window[0], window[1], tuple(lane.write_scope)
+            return window[0], window[1], tuple(planning_scope)
     return coord_base_ref, _lane_branch_for(lanes_manifest, lane.lane_id), ()
 
 
-def _commits_touching(repo_root: Path, shas: Sequence[str], scope: Sequence[str]) -> list[str]:
-    """The commits of *shas* (order kept) that change at least one path matching *scope*; an unreadable commit is dropped (fail closed)."""
+_GLOB_CHARS = frozenset("*?[")
+
+
+def _is_whole_tree_pattern(pattern: str) -> bool:
+    """True when an owned glob cannot scope the Mission-branch window (#7860 review 2).
+
+    Two shapes: a pattern whose FIRST path segment holds a wildcard (``*``, ``**``, ``**/*``,
+    ``*.py``, ``?rc/**``): ``fnmatch``'s ``*`` crosses ``/``, so it matches every directory; and
+    the ownership inference fallback ``src/**`` (``SRC_FALLBACK_GLOB``), which a work package that
+    names no path gets with a warning only. A declared ``src/**`` reads the same and is treated the
+    same (fail closed).
+    """
+    from specify_cli.ownership.inference import SRC_FALLBACK_GLOB
+
+    first = pattern.split("/", 1)[0]
+    return pattern == SRC_FALLBACK_GLOB or any(char in _GLOB_CHARS for char in first)
+
+
+def _planning_ownership(repo_root: Path, mission_slug: str, wp_ids: Sequence[str]) -> dict[str, tuple[str, ...]]:
+    """*wp_ids*' authored ``owned_files`` globs, read through the evidence axis' one reader; an unresolved id is absent."""
+    from specify_cli.consolidation import wp_evidence
+
+    # ``feature_dir`` is unused by the reader (it reads the placement seam's tasks dir, never a fallback).
+    resolved, _reasons, _tasks_dir = wp_evidence._read_ownership(repo_root, mission_slug, repo_root, tuple(wp_ids))
+    return dict(resolved)
+
+
+def _approved_planning_scope(
+    repo_root: Path,
+    lanes_manifest: LanesManifest,
+    lane: ExecutionLane,
+    work_packages: Mapping[str, Mapping[str, object]],
+) -> tuple[str, ...]:
+    """The owned paths of *lane*'s approved work packages, or ``()`` when they cannot scope the window (fail closed).
+
+    Only a work package in an approved membership lane counts (a canceled one, or one still in
+    flight, never does). ``()`` when none is approved, when any approved one's ``owned_files``
+    cannot be read (no partial scope), or when any of its patterns is whole-tree
+    (:func:`_is_whole_tree_pattern`).
+    """
+    approved = tuple(wp for wp in lane.wp_ids if str((work_packages.get(wp) or {}).get("lane", "")) in _APPROVED_MEMBERSHIP_LANES)
+    if not approved:
+        return ()
+    owned = _planning_ownership(repo_root, lanes_manifest.mission_slug, approved)
+    if any(wp not in owned for wp in approved):
+        return ()
+    scope = sorted({pattern for wp in approved for pattern in owned[wp]})
+    if any(_is_whole_tree_pattern(pattern) for pattern in scope):
+        return ()
+    return tuple(scope)
+
+
+class _ScopedCommits(NamedTuple):
+    """A scoped walk's commits: those touching the scope (order kept) and those changing nothing outside it."""
+
+    touching: list[str]
+    whole: frozenset[str]
+
+
+def _scoped_commits(repo_root: Path, shas: Sequence[str], scope: Sequence[str], mission_slug: str) -> _ScopedCommits:
+    """The commits of *shas* that change a path matching *scope*, and those whose every path is in *scope* or bookkeeping.
+
+    Only a ``whole`` commit may enter the claim by SHA and patch-id: a mixed commit (an owned path
+    plus any other) would otherwise attribute its out-of-scope change, and every cherry-picked copy
+    of it, on the merge / rebase closed world. Its in-scope blobs are still attributed. Bookkeeping
+    is the gate's own :func:`_is_bookkeeping`. An unreadable commit is dropped (fail closed).
+    """
     from specify_cli.ownership.matching import matches_owned
 
-    kept: list[str] = []
+    touching: list[str] = []
+    whole: set[str] = set()
     for sha in shas:
         try:
             paths = changed_paths_of(repo_root, sha)
         except GitProbeError:
             continue
-        if any(matches_owned(path, scope) for path in paths):
-            kept.append(sha)
-    return kept
+        in_scope = [matches_owned(path, scope) for path in paths]
+        if not any(in_scope):
+            continue
+        touching.append(sha)
+        if all(owned or _is_bookkeeping(path, mission_slug, None) for path, owned in zip(paths, in_scope, strict=True)):
+            whole.add(sha)
+    return _ScopedCommits(touching, frozenset(whole))
 
 
 def _scoped_walk(walk: tuple[set[tuple[str, str]], set[str]], scope: Sequence[str]) -> tuple[set[tuple[str, str]], set[str]]:
     """*walk*'s ``(blobs, deletions)`` limited to paths matching *scope*; unchanged when *scope* is empty.
 
     A planning lane's commit that also changed a path outside its owned paths never makes that
-    path approved planning authorship (#7860).
+    path approved planning authorship (#7860); :func:`_scoped_commits` keeps such a commit's SHA
+    and patch-id out of the claim as well.
     """
     if not scope:
         return walk
@@ -764,6 +848,29 @@ def _scoped_walk(walk: tuple[set[tuple[str, str]], set[str]], scope: Sequence[st
 
     blobs, deletions = walk
     return {item for item in blobs if matches_owned(item[0], scope)}, {path for path in deletions if matches_owned(path, scope)}
+
+
+def _planning_walk(
+    repo_root: Path,
+    lanes_manifest: LanesManifest,
+    lane: ExecutionLane,
+    work_packages: Mapping[str, Mapping[str, object]],
+    coord_base_ref: str,
+    sb_window: tuple[str, str] | None,
+) -> tuple[str, str, tuple[str, ...], list[str], frozenset[str] | None]:
+    """``(base, tip, scope, first-parent spine, whole commits)`` of *lane*'s authorship walk.
+
+    ``whole`` is ``None`` on an unscoped walk (every spine commit may enter by SHA), else the
+    spine commits that change nothing outside the scope (:func:`_scoped_commits`). The approved
+    planning scope is read only for a planning lane that has no ``single_branch`` window.
+    """
+    planning_scope = _approved_planning_scope(repo_root, lanes_manifest, lane, work_packages) if is_planning_lane(lane) and not sb_window else ()
+    base, branch, scope = _lane_walk_range(repo_root, lanes_manifest, lane, coord_base_ref, sb_window, planning_scope)
+    first_parent = _lane_first_parent_spine(repo_root, base, branch)
+    if not scope:
+        return base, branch, scope, first_parent, None
+    scoped = _scoped_commits(repo_root, first_parent, scope, lanes_manifest.mission_slug)
+    return base, branch, scope, scoped.touching, scoped.whole
 
 
 def _collect_authored(
@@ -843,10 +950,7 @@ def _collect_authored(
     for lane in lanes_manifest.lanes:
         if not _lane_is_approved(lane, work_packages):
             continue
-        base, branch, scope = _lane_walk_range(repo_root, lanes_manifest, lane, coord_base_ref, sb_window)
-        first_parent = _lane_first_parent_spine(repo_root, base, branch)
-        if scope:
-            first_parent = _commits_touching(repo_root, first_parent, scope)
+        base, branch, scope, first_parent, whole = _planning_walk(repo_root, lanes_manifest, lane, work_packages, coord_base_ref, sb_window)
         full_authored = [sha for sha in first_parent if sha not in canceled_lane_commits]
         full_blobs, full_deletions = _scoped_walk(_final_authored_walk(repo_root, full_authored), scope)
         # #7307 review: a merge on the spine counts toward this lane's authorship only
@@ -904,7 +1008,9 @@ def _collect_authored(
             authoring = _authoring_merges(repo_root, authored, _trusted_history_roots(lanes_manifest, lane, work_packages, presence, coord_base_ref))
             if authoring:
                 lane_blobs, lane_deletions = _final_authored_walk(repo_root, authored, authoring_merges=authoring)
-        for sha in authored:
+        # A scoped walk (#7860 review 2) admits by SHA and patch-id only the commits whose every
+        # path is in scope or bookkeeping (``whole``); a mixed commit keeps only its in-scope blobs.
+        for sha in authored if whole is None else [sha for sha in authored if sha in whole]:
             shas.add(sha)
             pid = patch_id_of(repo_root, sha)
             if pid:
@@ -925,6 +1031,7 @@ __all__ = [
     "StateAt",
     "_AuthoredClaim",
     "_PresenceScope",
+    "_approved_planning_scope",
     "_approved_stamps",
     "_collect_authored",
     "_commits_before",

@@ -46,7 +46,17 @@ written, reviewed and evidenced (operator ruling A', recorded on #7860):
 - The evidence window runs from the commit on the Mission branch that introduced the work
   package's claim to the Mission branch tip. Content written before the claim (for example a
   `research/` draft from planning) never counts.
-- `consolidate` lands the planning work on the target with the rest of the Mission.
+- `consolidate` lands the planning work on the target with the rest of the Mission. Its
+  reconciliation claim reads the planning lane's authorship from the same Mission-branch window
+  (the planning commit to the Mission branch tip), scoped to the `owned_files` of the lane's
+  approved work packages. A commit counts by SHA or patch-id only when every path it changes is
+  in that scope or is Mission bookkeeping; a commit that also changes another path contributes
+  only its in-scope files, so its other change (and any cherry-picked copy) is refused as
+  un-attributable at the gate. A canceled work package's files never count. When an approved
+  work package's `owned_files` cannot be read, or any of them is a whole-tree glob (one whose
+  first segment holds a wildcard, such as `*`, `**`, `**/*` or `*.py`) or the inferred fallback
+  `src/**`, the planning lane authors nothing and the gate refuses its content: narrow the
+  `owned_files` and run `consolidate` again.
 
 Nothing changes for an explicit-topology Mission (`--topology ...`), a Mission whose landing is
 recorded, a `single_branch` Mission or a code lane: their planning work is still worked in the
