@@ -22,6 +22,16 @@ from tests._support.git_spawns import GitSpawns, count_git_spawns
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 
 
+@pytest.fixture(autouse=True)
+def _no_inherited_git_config_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A harness that exports ``GIT_CONFIG_COUNT``/``GIT_CONFIG_PARAMETERS`` makes the read cache bypass itself by design.
+
+    Agent containers export them for credential and URL rewrites; CI does not. Remove them so the cache is tested.
+    """
+    for name in ("GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS"):
+        monkeypatch.delenv(name, raising=False)
+
+
 def _git(cwd: Path, *args: str) -> str:
     return subprocess.run(
         ["git", "-c", "user.name=t", "-c", "user.email=t@e", "-c", "commit.gpgsign=false", *args],

@@ -24,6 +24,7 @@ import json
 import subprocess
 from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -371,6 +372,15 @@ def _bypassed_claim(
         return _claim(repo, feature_dir, manifest, base, canceled=canceled)
 
 
+def _bypassed_build(monkeypatch: pytest.MonkeyPatch, repo: Path, feature_dir: Path, manifest: LanesManifest, **kwargs: Any) -> ApprovedWpCommitSet:
+    """:func:`build_approved_wp_set` with the FR-004 claim-time check bypassed, so the gate's own rule judges (C-003)."""
+    from specify_cli.consolidation import reconciliation_bound
+
+    with monkeypatch.context() as patch:
+        patch.setattr(reconciliation_bound, "unreviewed_resolution_merges", lambda *_args, **_kwargs: ())
+        return build_approved_wp_set(repo, feature_dir, manifest, **kwargs)
+
+
 def test_post_approval_dependency_merge_with_own_content_fails_under_merge(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo, feature_dir, manifest, base, evil = _build_post_approval_merge(tmp_path, canceled_dependency=False)
     claim = _claim(repo, feature_dir, manifest, base)
@@ -512,7 +522,7 @@ def test_one_side_merge_dropping_an_approved_edit_fails_approved_content_missing
 _AUTH = "lib/auth.py"
 
 
-def test_one_side_merge_reverting_target_content_to_a_stale_state_fails(tmp_path: Path) -> None:
+def test_one_side_merge_reverting_target_content_to_a_stale_state_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Tier R repro (#7857): after approval, lane-a merges a side cut BEFORE a target security fix and
     takes that side's ``lib/auth.py``. The recorded state equals the second parent's, but that state
     is the merge base's: the merge reverts the fix. Under ``--strategy merge`` it must not PASS.
@@ -547,14 +557,18 @@ def test_one_side_merge_reverting_target_content_to_a_stale_state_fails(tmp_path
     _git(repo, "merge", "--no-ff", "--no-edit", _branch("lane-a"))
     assert (repo / _AUTH).read_text(encoding="utf-8") == "CHECK = False\n", "fixture: the landing carries the revert"
 
-    claim = _claim(repo, feature_dir, manifest, base)
-    assert claim.refusal is None, claim.refusal  # the claim must build, so the gate verdict below is not vacuous
+    refused = _claim(repo, feature_dir, manifest, base)
+    assert refused.refusal is not None and refused.refusal.startswith(f"{_UNREVIEWED_CODE}: lane lane-a (WP01): merge {revert_merge[:7]}"), refused.refusal
+    assert "kept one side" in refused.refusal, refused.refusal
+    # FR-004: the claim refuses first; with that check bypassed, the gate below still FAILs (C-003).
+    claim = _bypassed_claim(monkeypatch, repo, feature_dir, manifest, base)
+    assert claim.refusal is None, claim.refusal  # the bypassed claim must build, so the gate verdict below is not vacuous
     verifier = MergeOutcomeVerifier(repo)
     assert revert_merge in {sha for sha, _pid in verifier._unattributable_content("target-merge", claim)}
     assert verifier.verify("target-merge", claim).status is not VerifyStatus.PASS
 
 
-def test_merge_keeping_the_lanes_stale_state_against_a_target_fix_fails(tmp_path: Path) -> None:
+def test_merge_keeping_the_lanes_stale_state_against_a_target_fix_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Tier R delta repro Q (#7857): the lane is cut before a target security fix; after approval it
     merges the target and keeps its own pre-fix ``lib/auth.py`` (the FIRST parent's state, which is
     the merge base's). The landing reverts the fix; under ``--strategy merge`` it must not PASS.
@@ -588,14 +602,18 @@ def test_merge_keeping_the_lanes_stale_state_against_a_target_fix_fails(tmp_path
     _git(repo, "merge", "--no-ff", "--no-edit", _branch("lane-a"))
     assert (repo / _AUTH).read_text(encoding="utf-8") == "CHECK = False\n", "fixture: the landing carries the revert"
 
-    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=base, excluded_window_base=fixed)
-    assert claim.refusal is None, claim.refusal  # the claim must build, so the gate verdict below is not vacuous
+    refused = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=base, excluded_window_base=fixed)
+    assert refused.refusal is not None and refused.refusal.startswith(f"{_UNREVIEWED_CODE}: lane lane-a (WP01): merge {revert_merge[:7]}"), refused.refusal
+    assert "kept one side" in refused.refusal, refused.refusal
+    # FR-004: the claim refuses first; with that check bypassed, the gate below still FAILs (C-003).
+    claim = _bypassed_build(monkeypatch, repo, feature_dir, manifest, coord_base_ref=base, excluded_window_base=fixed)
+    assert claim.refusal is None, claim.refusal  # the bypassed claim must build, so the gate verdict below is not vacuous
     verifier = MergeOutcomeVerifier(repo)
     assert revert_merge in {sha for sha, _pid in verifier._unattributable_content("target-merge", claim)}
     assert verifier.verify("target-merge", claim).status is not VerifyStatus.PASS
 
 
-def test_merge_keeping_the_lanes_change_over_a_target_fix_fails(tmp_path: Path) -> None:
+def test_merge_keeping_the_lanes_change_over_a_target_fix_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Operator ruling 2026-11-25 (#7857): both sides changed ``lib/auth.py``. The lane's approved edit
     and a later target security fix differ; after approval the lane merges the target and keeps its
     own (non-base) version. The landing drops the target's fix: under ``--strategy merge`` that merge
@@ -632,8 +650,12 @@ def test_merge_keeping_the_lanes_change_over_a_target_fix_fails(tmp_path: Path) 
     _git(repo, "merge", "--no-ff", "--no-edit", _branch("lane-a"))
     assert (repo / _AUTH).read_text(encoding="utf-8") == "CHECK = False  # lane: documented\n", "fixture: the landing drops the fix"
 
-    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=base, excluded_window_base=fixed)
-    assert claim.refusal is None, claim.refusal  # the claim must build, so the gate verdict below is not vacuous
+    refused = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=base, excluded_window_base=fixed)
+    assert refused.refusal is not None and refused.refusal.startswith(f"{_UNREVIEWED_CODE}: lane lane-a (WP01): merge {drop_merge[:7]}"), refused.refusal
+    assert "kept one side" in refused.refusal, refused.refusal
+    # FR-004: the claim refuses first; with that check bypassed, the gate below still FAILs (C-003).
+    claim = _bypassed_build(monkeypatch, repo, feature_dir, manifest, coord_base_ref=base, excluded_window_base=fixed)
+    assert claim.refusal is None, claim.refusal  # the bypassed claim must build, so the gate verdict below is not vacuous
     verifier = MergeOutcomeVerifier(repo)
     assert drop_merge in {sha for sha, _pid in verifier._unattributable_content("target-merge", claim)}
     assert verifier.verify("target-merge", claim).status is not VerifyStatus.PASS
