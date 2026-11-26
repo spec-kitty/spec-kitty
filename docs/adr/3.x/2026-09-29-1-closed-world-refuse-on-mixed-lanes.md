@@ -697,8 +697,10 @@ used from here on) and was never recorded here.
   rule, operator ruling (a)). Otherwise the merge is judged as a hand merge.
 - **The guard runs where git merges (review fold I1).** The stale-lane auto-rebase
   (`lanes.auto_rebase.attempt_auto_rebase`) and `implement --incorporate` run the guard in the
-  checkout that performs the merge, before the merge, over every path either side changed since
-  the merge base. The claim's own check above reads the repository root checkout, so before the
+  checkout that performs the merge, before the merge. `--incorporate` guards every path either
+  side changed since the merge base; the auto-rebase guards the paths that differ between the two
+  tips, the same set less the paths both sides changed alike (git takes those without a content
+  merge, so no driver can run on them), read with one `diff` (#7689 spawn ceiling). The claim's own check above reads the repository root checkout, so before the
   fold an uncommitted `merge=union` in a lane checkout let the tool record a union-resolved
   conflict that the claim then exempted (the gate still FAILed its content, after the run's
   mutations). A refusal halts the auto-rebase with its reason (`nothing was merged`) and records

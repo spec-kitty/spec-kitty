@@ -597,3 +597,52 @@ def test_an_unreadable_staged_tree_aborts_the_merge_before_any_commit(tmp_path: 
     assert report.halt_reason is not None and report.halt_reason.startswith("could not read the staged merge tree")
     assert _git(worktree, "rev-parse", "HEAD") == before
     assert _refs_under(root, _PREFIX) == []
+
+
+# --- one-read helpers (#5604, the #7689 spawn ceiling) ---------------------------------------
+
+
+def test_head_commit_reads_id_tree_and_parents_in_one_raw_read(tmp_path: Path) -> None:
+    from specify_cli.lanes import auto_rebase
+
+    repo = tmp_path / "r"
+    repo.mkdir()
+    _git(repo, "init", "-q", "-b", "main")
+    _git(repo, "config", "user.email", "t@t.co")
+    _git(repo, "config", "user.name", "T")
+    _git(repo, "config", "commit.gpgsign", "false")
+    base = _commit(repo, "a.txt", "a\n")
+    _git(repo, "checkout", "-q", "-b", "side")
+    side = _commit(repo, "b.txt", "b\n")
+    _git(repo, "checkout", "-q", "main")
+    main = _commit(repo, "c.txt", "c\n")
+    _git(repo, "merge", "-q", "--no-edit", "side")
+    head = _git(repo, "rev-parse", "HEAD")
+    _git(repo, "config", "log.showSignature", "true")  # porcelain would print here; plumbing does not
+    assert auto_rebase._head_commit(repo) == (head, _git(repo, "rev-parse", "HEAD^{tree}"), (main, side))
+    assert base != head
+
+
+def test_head_commit_of_an_unborn_branch_is_unreadable(tmp_path: Path) -> None:
+    from specify_cli.lanes import auto_rebase
+
+    repo = tmp_path / "r"
+    repo.mkdir()
+    _git(repo, "init", "-q", "-b", "main")
+    assert auto_rebase._head_commit(repo) == ("", "", ())
+
+
+def test_pre_merge_tips_are_read_together_and_a_missing_one_halts(tmp_path: Path) -> None:
+    from specify_cli.lanes import auto_rebase
+
+    repo = tmp_path / "r"
+    repo.mkdir()
+    _git(repo, "init", "-q", "-b", "main")
+    _git(repo, "config", "user.email", "t@t.co")
+    _git(repo, "config", "user.name", "T")
+    _git(repo, "config", "commit.gpgsign", "false")
+    tip = _commit(repo, "a.txt", "a\n")
+    _git(repo, "branch", "mission")
+    assert auto_rebase._read_pre_merge_tips(repo, "mission") == auto_rebase._PreMergeTips(before=tip, mission_before=tip)
+    halted = auto_rebase._read_pre_merge_tips(repo, "nope")
+    assert isinstance(halted, str) and halted.startswith("could not read the tip of nope before the auto-rebase merge")

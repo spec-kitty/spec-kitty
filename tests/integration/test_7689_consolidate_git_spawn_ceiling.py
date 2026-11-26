@@ -33,7 +33,9 @@ _TOPIC = "work"
 
 #: Measured: 671 git processes before #7689, 470 after. #7802, the retarget Mission and #7692
 #: brought it to 481; the #7747 landing proof to 582; #7848 (commit-id reads cached, the landing
-#: proof's blob lookups batched) back to 488. About 2% headroom.
+#: proof's blob lookups batched) back to 488. #5604 (the merge attribute guard in the lane checkout
+#: and the auto-rebase record) to 498: one live ``merge.*`` config read per guard call, batched
+#: record deletes, and single ``cat-file`` reads for the tips and the recorded merge.
 SPAWN_CEILING = 500
 
 #: Runs the CLI with every git process start counted; the count lands in ``SPAWN_COUNT_FILE``.

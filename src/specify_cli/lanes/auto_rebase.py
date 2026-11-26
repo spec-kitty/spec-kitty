@@ -57,7 +57,6 @@ from specify_cli.status import EventLogMergeError, materialize, merge_event_log_
 from specify_cli.coordination.coherence import CheckoutRole, ResidueContext, is_coord_residue_churn
 from specify_cli.consolidation.git_probes import LagResidueContext
 from specify_cli.consolidation.merge_attribute_guard import assert_registered_merge_behaviour, committed_attributes_source, pinned_merge_env
-from specify_cli.core.vcs.git import git_merge_base
 from specify_cli.git.destructive_guard import DestructiveOpRefused, guarded_merge_abort, guarded_reset_hard
 from specify_cli.lanes import auto_rebase_record
 from specify_cli.git.ref_advance import ResidueClassifier, write_bookkeeping_ref
@@ -187,12 +186,13 @@ def _abort_context(repo_root: Path, mission_slug: str | None) -> ResidueClassifi
 
 
 def _run(
-    cmd: list[str], cwd: Path, *, check: bool = False, env: dict[str, str] | None = None
+    cmd: list[str], cwd: Path, *, check: bool = False, env: dict[str, str] | None = None, stdin: str | None = None
 ) -> subprocess.CompletedProcess[str]:
     """Run a subprocess command capturing stdout/stderr as text (*env* defaults to the merge pipeline's env)."""
     return subprocess.run(
         cmd,
         cwd=str(cwd),
+        input=stdin,
         capture_output=True,
         text=True,
         check=check,
@@ -966,14 +966,22 @@ class _PreMergeTips:
 
 
 def _read_pre_merge_tips(worktree_path: Path, mission_branch: str) -> _PreMergeTips | str:
-    """Both tips the record step checks the merge against, or the halt reason when one is unreadable."""
+    """Both tips the record step checks the merge against, or the halt reason when one is unreadable.
+
+    One ``git cat-file --batch-check`` reads both (plumbing; the #7689 spawn ceiling).
+    """
+    labels = ("the lane tip", f"the tip of {mission_branch}")
+    names = [f"{rev}^{{commit}}" for rev in ("HEAD", mission_branch)]
+    result = _run(["git", "cat-file", "--batch-check=%(objectname) %(objecttype)"], worktree_path, stdin="".join(f"{name}\n" for name in names))
+    lines = (result.stdout or "").splitlines()
+    if result.returncode != 0 or len(lines) != len(names):
+        detail = (result.stderr or result.stdout).strip() or f"git exited {result.returncode}"
+        return f"could not read the lane tip before the auto-rebase merge: {detail}"
     tips: list[str] = []
-    for label, rev in (("the lane tip", "HEAD"), (f"the tip of {mission_branch}", mission_branch)):
-        result = _run(["git", "rev-parse", "--verify", f"{rev}^{{commit}}"], worktree_path)
-        sha = result.stdout.strip()
-        if result.returncode != 0 or not sha:
-            detail = (result.stderr or result.stdout).strip() or f"git exited {result.returncode}"
-            return f"could not read {label} before the auto-rebase merge: {detail}"
+    for label, line in zip(labels, lines, strict=True):
+        sha, _, kind = line.partition(" ")
+        if kind != "commit":
+            return f"could not read {label} before the auto-rebase merge: {line}"
         tips.append(sha)
     return _PreMergeTips(before=tips[0], mission_before=tips[1])
 
@@ -1047,37 +1055,46 @@ def _commit_staged_merge(
     return staged_tree
 
 
-def _commit_tree(worktree_path: Path, sha: str) -> str:
-    """The tree id *sha* commits, from the raw commit object (``git cat-file commit``; ``""`` when unreadable).
+def _head_commit(worktree_path: Path) -> tuple[str, str, tuple[str, ...]]:
+    """The lane tip's id, tree id and parent ids from one raw commit read (``("", "", ())`` when unreadable).
 
-    #5604 review fold R1: plumbing, so no ``log.showSignature``, ``color.ui`` or ``format.pretty``
-    setting can put anything before the tree id (``git show -s --format=%T`` printed the signature
-    check first, and every recorded merge was then undone). No revision is composed.
+    #5604 review fold R1: plumbing (``git cat-file --batch``), so no ``log.showSignature``,
+    ``color.ui`` or ``format.pretty`` setting can put anything before the ids, and no revision is
+    composed. One read serves every check of :func:`_record_tool_merge` (the #7689 spawn ceiling).
     """
-    result = _run(["git", "cat-file", "commit", sha], worktree_path)
-    if result.returncode != 0:
-        return ""
-    first = (result.stdout or "").split("\n", 1)[0]
-    kind, _, tree = first.partition(" ")
-    return tree.strip() if kind == "tree" else ""
+    result = _run(["git", "cat-file", "--batch"], worktree_path, stdin="HEAD\n")
+    lines = (result.stdout or "").split("\n")
+    sha, _, rest = lines[0].partition(" ")
+    if result.returncode != 0 or not rest.startswith("commit ") or len(lines) < 2:
+        return "", "", ()
+    kind, _, tree = lines[1].partition(" ")
+    if kind != "tree":
+        return sha, "", ()
+    parents: list[str] = []
+    for line in lines[2:]:  # git writes the parent lines directly after the tree line
+        kind, _, parent = line.partition(" ")
+        if kind != "parent":
+            break
+        parents.append(parent.strip())
+    return sha, tree, tuple(parents)
 
 
 def _merge_attributes_refusal(repo_root: Path, worktree_path: Path, tips: _PreMergeTips, target_branch: str | None) -> str | None:
     """WP01's guard in the lane checkout, before the merge (#5604 review fold I1); the halt reason, or ``None`` when it passes.
 
     git computes the merge in the lane checkout, so the guard reads that checkout's attributes (an
-    uncommitted ``.gitattributes`` included), over every path either side changed since the merge
-    base, with the target branch tip as the committed attributes source (the claim's rule). Any
-    refusal or probe error halts the auto-rebase: no merge is made and nothing is recorded.
+    uncommitted ``.gitattributes`` included), over every path whose content differs between the two
+    tips, with the target branch tip as the committed attributes source (the claim's rule). That is
+    every path either side changed since the merge base except those both sides changed alike, which
+    git takes without a content merge, so it holds every path git can hand to a merge driver (one
+    ``diff`` instead of a merge base and two, the #7689 spawn ceiling). Any refusal or probe error
+    halts the auto-rebase: no merge is made and nothing is recorded.
     """
     from specify_cli.consolidation.git_probes import GitProbeError
 
     env = pinned_merge_env()
     try:
-        base = git_merge_base(worktree_path, tips.before, tips.mission_before)
-        if base is None:
-            raise GitProbeError(f"the merge base of {tips.before[:12]} and {tips.mission_before[:12]} cannot be read")
-        paths = [str(path) for tip in (tips.before, tips.mission_before) for path in changed_paths(worktree_path, base, tip, env=env)]
+        paths = [str(path) for path in changed_paths(worktree_path, tips.before, tips.mission_before, env=env)]
         assert_registered_merge_behaviour(worktree_path, paths, attributes_source=committed_attributes_source(repo_root, target_branch))
     except (GitCommandError, GitProbeError) as exc:
         return f"the merge attributes of the lane checkout {worktree_path} were refused ({exc}); nothing was merged"
@@ -1101,21 +1118,18 @@ def _record_tool_merge(
     the tool staged (``staged_tree``) is recorded: a ``pre-commit`` hook that changed the tree is
     undone like a record that could not be written.
     """
-    head_result = _run(["git", "rev-parse", "--verify", "HEAD"], worktree_path)
-    head = head_result.stdout.strip()
-    if head_result.returncode != 0 or not head:
+    head, committed_tree, parents = _head_commit(worktree_path)
+    if not head:
         return _halted(lane_id, classifications, "could not read the lane tip after the auto-rebase merge; the merge was left on the lane unrecorded")
     if head == tips.before:
         return None
-    parents = _run(["git", "rev-list", "--parents", "-n1", head], worktree_path).stdout.split()
-    if parents != [head, tips.before, tips.mission_before]:
+    if parents != (tips.before, tips.mission_before):
         return _halted(
             lane_id,
             classifications,
             f"the lane tip {head[:12]} after the auto-rebase is not its merge of {tips.mission_before[:12]} into "
             f"{tips.before[:12]}; it was left on the lane unrecorded",
         )
-    committed_tree = _commit_tree(worktree_path, head)
     if committed_tree != staged_tree:
         reason = (
             f"the merge {head[:12]} carries tree {committed_tree[:12] or 'unreadable'}, not the tree {staged_tree[:12]} "
