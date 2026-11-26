@@ -566,11 +566,14 @@ def test_move_task_pre_review_workspace_fails_closed_when_the_coordination_workt
     assert refused.value.error_code == "PLANNING_CHECKOUT_MISSING"
 
 
-def test_move_task_refuses_by_name_when_the_coordination_worktree_is_gone(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Finding 2, end to end: ``agent tasks move-task`` refuses by name and never prints a traceback.
+def test_move_task_without_the_coordination_worktree_refuses_without_a_traceback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A no-traceback guard on the refusal ``agent tasks move-task`` already gives.
 
-    With the Mission's only checkout gone, the handle resolution refuses first
-    (``MISSION_NOT_FOUND``), before any workspace resolution; the move never degrades to the root.
+    With the Mission's only checkout removed, move-task refuses on the Mission handle
+    (``MISSION_NOT_FOUND``) before it resolves any workspace, as it did before #7860. This path
+    never reaches the workspace resolver, so it is not evidence for ``PLANNING_CHECKOUT_MISSING``;
+    that evidence is
+    ``test_move_task_pre_review_workspace_fails_closed_when_the_coordination_worktree_is_gone``.
     """
     from typer.testing import CliRunner
 
@@ -587,4 +590,4 @@ def test_move_task_refuses_by_name_when_the_coordination_worktree_is_gone(tmp_pa
     assert result.exception is None or isinstance(result.exception, SystemExit)
     payload = json.loads(result.output.strip().splitlines()[-1])
     assert payload["success"] is False
-    assert payload["error_code"] in {"MISSION_NOT_FOUND", "PLANNING_CHECKOUT_MISSING"}
+    assert payload["error_code"] == "MISSION_NOT_FOUND"
