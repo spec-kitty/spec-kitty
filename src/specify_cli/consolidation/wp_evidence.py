@@ -530,7 +530,7 @@ class _Scan:
     _events_read: bool = False
     _events: Sequence[Any] | None = None
 
-    def read_events(self) -> Sequence[Any] | None:
+    def cached_events(self) -> Sequence[Any] | None:
         """The status events, read through *events* at most once (its contract) and shared by every reader here."""
         if not self._events_read:
             self._events = self.events()
@@ -539,7 +539,7 @@ class _Scan:
 
     def attested(self, wp_id: str) -> bool:
         if self._attested is None:
-            events = self.read_events()
+            events = self.cached_events()
             # An unreadable log yields no attestation, so IMPLEMENTATION_MISSING stands (fail closed).
             self._attested = _no_implementation_attested_wp_ids(events) if events is not None else frozenset()
         return wp_id in self._attested
@@ -1038,7 +1038,7 @@ def _scan_planning_lane(repo_root: Path, lanes_manifest: LanesManifest, scan: _S
     """
     for wp_id in approved:
         try:
-            window = planning_evidence_window(repo_root, lanes_manifest, lane, wp_id, scan.read_events)
+            window = planning_evidence_window(repo_root, lanes_manifest, lane, wp_id, scan.cached_events)
         except PlanningWindowUnresolved as exc:
             scan.add(wp_id, f"{exc.code}: {wp_id}'s evidence window ({lane.lane_id}) cannot be computed: {exc.detail}, {_CANNOT_VERIFY}")
             continue
@@ -1191,11 +1191,14 @@ def mission_evidence_report(
 
     Reads WP membership through :func:`specify_cli.status.materialize_snapshot` exactly as the
     claim builder does. A snapshot or status log that cannot be read raises (``StoreError``) so
-    the caller refuses; nothing here passes on an unreadable input. *landed_commit* is passed
+    the caller refuses; nothing here passes on an unreadable input. The events are read through
+    the consolidation door (:func:`~specify_cli.consolidation.commit_to_target_stamps.consolidation_events`),
+    because the planning window reads the window opener (#7860). *landed_commit* is passed
     straight to :func:`evaluate_evidence` (a caller-verified PR landing commit, #6780).
     *owned* carries the caller's validated checkout authority into the evidence reads.
     """
-    from specify_cli.status import materialize_snapshot, read_events
+    from specify_cli.consolidation.commit_to_target_stamps import consolidation_events
+    from specify_cli.status import materialize_snapshot
 
     snapshot = materialize_snapshot(feature_dir)
     return evaluate_evidence(
@@ -1204,7 +1207,7 @@ def mission_evidence_report(
         lanes_manifest,
         snapshot.work_packages or {},
         excluded_canceled_wp_ids,
-        events=lambda: read_events(feature_dir),
+        events=lambda: consolidation_events(feature_dir),
         landed_commit=landed_commit,
         owned=owned,
     )

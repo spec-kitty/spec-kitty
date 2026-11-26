@@ -99,7 +99,7 @@ _STAMP_HELPER_FLOOR = frozenset(
 #: The door, relative to ``consolidation/``.
 _DOOR = "commit_to_target_stamps.py"
 #: Readers of window stamps: each must call the door, never a raw reader.
-_STAMP_READERS = ("reconciliation_kernel.py", "reconciliation_closed_world.py", "approved_attestation.py")
+_STAMP_READERS = ("reconciliation_kernel.py", "reconciliation_closed_world.py", "approved_attestation.py", "wp_evidence.py")
 
 #: path relative to ``consolidation/`` -> why the raw, unfiltered log is the right input.
 #: None of them reads ``lane_head`` / ``wp_window``.
@@ -110,7 +110,6 @@ _RAW_ALLOWLIST: dict[str, str] = {
     "no_implementation_attestation.py": "the evidence axis reads actors and lanes, never window stamps",
     "phase_claim.py": "reduces lanes and lists lifted notices; reads no stamp",
     "preflight.py": "lenient read of implementer identities for the review preflight; reads no stamp",
-    "wp_evidence.py": "the evidence axis reads actors and lanes, never window stamps",
 }
 
 
