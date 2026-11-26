@@ -1,0 +1,315 @@
+schema_version: 1
+mission_id: 01M7WW0ZHE3JCZ0KW6RP8X34G4
+mission_slug: approved-lane-resolution-route-01M7WW0Z
+mission_number: 267
+friendly_name: Approved-lane conflict resolution route
+mission_type: software-dev
+target_branch: fix/approved-lane-resolution-route
+created_at: '2026-11-26T09:49:38.015329+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-11-26T09:49:38.015329+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP09 completed without rejection cycles
+  evidence_refs:
+  - e-019
+- id: h-002
+  category: implementation
+  summary: WP14 completed without rejection cycles
+  evidence_refs:
+  - e-019
+not_helpful:
+- id: n-019
+  category: doc
+  summary: analysis-report.md records 2 finding(s)
+  evidence_refs:
+  - e-038
+  details: The analysis-report.md artifact for this mission records 2 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-013
+  category: process
+  summary: WP02 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-032
+  details: WP WP02 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-016
+  category: process
+  summary: WP02 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-035
+  details: WP WP02 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-014
+  category: process
+  summary: WP04 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-033
+  details: WP WP04 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-017
+  category: process
+  summary: WP04 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-036
+  details: WP WP04 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-015
+  category: process
+  summary: WP10 had 2 lane bounce(s) before approval
+  evidence_refs:
+  - e-034
+  details: WP WP10 moved backward across workflow lanes 2 time(s) outside the documented reviewer-feedback flow.
+- id: n-018
+  category: process
+  summary: WP10 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-037
+  details: WP WP10 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP01 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-020
+  details: WP WP01 was sent back to an earlier lane with documented review feedback 2 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP02 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-021
+  details: WP WP02 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-003
+  category: review_loop
+  summary: WP03 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-022
+  details: WP WP03 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-004
+  category: review_loop
+  summary: WP04 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-023
+  details: WP WP04 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-005
+  category: review_loop
+  summary: WP05 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-024
+  details: WP WP05 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-006
+  category: review_loop
+  summary: WP06 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-025
+  details: WP WP06 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-007
+  category: review_loop
+  summary: WP07 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-026
+  details: WP WP07 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-008
+  category: review_loop
+  summary: WP08 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-027
+  details: WP WP08 was sent back to an earlier lane with documented review feedback 2 time(s).
+- id: n-009
+  category: review_loop
+  summary: WP10 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-028
+  details: WP WP10 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-010
+  category: review_loop
+  summary: WP11 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-029
+  details: WP WP11 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-011
+  category: review_loop
+  summary: WP12 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-030
+  details: WP WP12 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-012
+  category: review_loop
+  summary: WP13 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-031
+  details: WP WP13 was sent back to an earlier lane with documented review feedback 2 time(s).
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP01-merge-probe-attribute-guard.md
+- id: e-006
+  kind: file
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP02-auto-rebase-record.md
+- id: e-007
+  kind: file
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP03-rollback-own-lane-moves.md
+- id: e-008
+  kind: file
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP04-reviewed-merge-predicate.md
+- id: e-009
+  kind: file
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP05-resolution-merge-unreviewed.md
+- id: e-010
+  kind: file
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP06-gate-hint-re-review.md
+- id: e-011
+  kind: file
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP07-approved-lane-stale-remedy.md
+- id: e-012
+  kind: file
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP08-implement-incorporate.md
+- id: e-013
+  kind: file
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP09-orchestrator-api-surface.md
+- id: e-014
+  kind: file
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP10-review-context-merge-lines.md
+- id: e-015
+  kind: file
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP11-canceled-via-reapproved-dependency.md
+- id: e-016
+  kind: file
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP12-end-to-end-route.md
+- id: e-017
+  kind: file
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP13-adr-and-doc-amendments.md
+- id: e-018
+  kind: file
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/tasks/WP14-end-to-end-three-lane-and-rollback.md
+- id: e-019
+  kind: file
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/status.events.jsonl
+- id: e-020
+  kind: event_range
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/status.events.jsonl
+  range: 01M7X7N9GPGK8MX7CE80ZZT22S..01M7XA94XC46ARDTR6CR00CXKQ
+- id: e-021
+  kind: event_range
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/status.events.jsonl
+  range: 01M7X6E328R43HZ8NQEB153K1E
+- id: e-022
+  kind: event_range
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/status.events.jsonl
+  range: 01M8A1N36V83FKP9269B0MF21Q
+- id: e-023
+  kind: event_range
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/status.events.jsonl
+  range: 01M7X5DNST2PY7DEXMKW704VF2
+- id: e-024
+  kind: event_range
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/status.events.jsonl
+  range: 01M899168AZC3ACXZJRH587SNX
+- id: e-025
+  kind: event_range
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/status.events.jsonl
+  range: 01M893Q2FAP4E7DXQHSNA1P34W
+- id: e-026
+  kind: event_range
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/status.events.jsonl
+  range: 01M89S5RGWYRQKV5ECRMWVC7M9
+- id: e-027
+  kind: event_range
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/status.events.jsonl
+  range: 01M7X79SAAX80P0PNFA6TYVZTA..01M890EGXJ4YVAN2EPHJ4DQJQR
+- id: e-028
+  kind: event_range
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/status.events.jsonl
+  range: 01M7X6CZGPMEWD1WJZ01HYVEBE
+- id: e-029
+  kind: event_range
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/status.events.jsonl
+  range: 01M7X7BA0A5Q7Z7CSEBTDM8CTG
+- id: e-030
+  kind: event_range
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/status.events.jsonl
+  range: 01M8A94MHDS638736SG8J68QSM
+- id: e-031
+  kind: event_range
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/status.events.jsonl
+  range: 01M8B9GBPVZBRMX7Z1EDK3RS6C..01M8BBZXM3A7KYM7MYN8AXBG7Y
+- id: e-032
+  kind: event_range
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/status.events.jsonl
+  range: 01M88Z1HESR2BRNXZG5PD27KQK
+- id: e-033
+  kind: event_range
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/status.events.jsonl
+  range: 01M88ZYKC78MKWQC79JFCY29R6
+- id: e-034
+  kind: event_range
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/status.events.jsonl
+  range: 01M7X7KDFBT7YJZW05VX31GGGZ..01M88ZMJ4A3GGH96GTZ3ZEJV7D
+- id: e-035
+  kind: event_range
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/status.events.jsonl
+  range: 01M88Z1HESR2BRNXZG5PD27KQK
+- id: e-036
+  kind: event_range
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/status.events.jsonl
+  range: 01M88ZYKC78MKWQC79JFCY29R6
+- id: e-037
+  kind: event_range
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/status.events.jsonl
+  range: 01M7X7KDFBT7YJZW05VX31GGGZ..01M88ZMJ4A3GGH96GTZ3ZEJV7D
+- id: e-038
+  kind: file
+  path: kitty-specs/approved-lane-resolution-route-01M7WW0Z/analysis-report.md
+generator_version: '1.0'
+provenance_history: []
