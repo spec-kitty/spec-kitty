@@ -7,8 +7,11 @@ Every scenario starts from WP12's frozen builder
   gate once rolls ``lane-b`` back from its own verified auto-rebase move (tip, lane work-tip ref, no durable
   record left); the next ``consolidate`` lands without tripping over that move. The control: a foreign commit
   made on ``lane-b`` after the rollback is judged (``LANE_MOVED_AFTER_APPROVAL``), never reset.
-* T056 -- the three-lane route: exact sibling sets in every stale refusal (``lane-d`` never named), one review
-  cycle per conflicting lane, the Mission lands with every lane's content.
+* T056 -- the three-lane route: exact sibling sets in every stale refusal (``lane-b``: ``[lane-a]``; ``lane-c``:
+  ``[lane-a, lane-b]``, DM-01M8B4FMSP2S98Q732XX60YVNX; ``lane-d`` never named), one review cycle per conflicting
+  lane, the Mission lands with every lane's content. Documented #7880 residual (DM-01M8B4FD7H1DJC45MQEF26SEQ7):
+  ``lane-c``'s printed re-entry first refuses with ``DEPENDENCY_LANE_MERGE_CONFLICT``; the test follows that
+  message (merge ``lane-b``'s branch into ``lane-c``, resolve, commit) and then runs the rest of the printed route.
 * T057 -- the own-lane rule (R-04): ``lane-c``'s approval stamp reaching ``lane-b``'s unreviewed merge does not
   excuse it.
 * T058 -- the two-lane route on the LANES topology (no coordination branch) under squash and ``--strategy
@@ -30,6 +33,7 @@ import pytest
 
 from specify_cli.consolidation.approved_bound import approval_stamp
 from specify_cli.consolidation.reconciliation_verifier import MergeOutcomeVerifier, VerifyResult
+from specify_cli.lanes.worktree_allocator import DependencyLaneMergeConflictError
 from specify_cli.status.models import actor_full_identity
 from tests.terminus.approved_lane_route_support import (
     IMPLEMENTER,
@@ -316,8 +320,33 @@ def _incorporate(route: RouteMission, argv: Sequence[str], text: str) -> str | N
         assert git_rev(checkout, "MERGE_HEAD") == stamp, f"the incorporation merges {sibling} at its approval stamp"
         return resolve_conflict(checkout, text)
     tip = git_rev(checkout, "HEAD")
-    assert tip != head and stamp is not None and sha_reachable(route.repo, stamp, tip), output(result)
-    return tip
+    assert stamp is not None and sha_reachable(route.repo, stamp, tip), output(result)
+    return tip if tip != head else None  # None: the stamp was already in lane-c (the #7880 hand merge brought it)
+
+
+def _reenter_through_dependency_self_heal(route: RouteMission, reenter: Sequence[str]) -> str:
+    """The documented #7880 residual (DM-01M8B4FD7H1DJC45MQEF26SEQ7): the printed re-entry of the dependent lane fails first.
+
+    ``implement``'s dependency self-heal merges ``lane-b`` into ``lane-c`` before any ``--incorporate``; the merge
+    conflicts, so it refuses with ``DEPENDENCY_LANE_MERGE_CONFLICT`` (the CLI prints the exception's message, not the
+    code, so the message is pinned to the exception that carries that code). The operator follows the message:
+    merge ``lane-b``'s branch into ``lane-c`` in the lane checkout, resolve, commit, run the same command again.
+    Returns the operator's merge.
+    """
+    expected = DependencyLaneMergeConflictError(LANE_C, LANE_B, route.lane_branches[LANE_B])
+    assert expected.error_code == "DEPENDENCY_LANE_MERGE_CONFLICT"
+    first = run_printed(route, reenter)
+    text = output(first)
+    assert first.returncode == 1, text
+    assert str(expected) in text, f"the re-entry refuses with DEPENDENCY_LANE_MERGE_CONFLICT's message: {text}"
+    assert route.lane_branches[LANE_B] in text and expected.next_step in text, text
+    checkout = route.checkouts[LANE_C]
+    merged = subprocess.run(["git", "merge", "--no-ff", "--no-commit", route.lane_branches[LANE_B]], cwd=str(checkout), capture_output=True, text=True, check=False)
+    assert merged.returncode == 1, f"fixture: lane-b's resolution conflicts with lane-c's line: {merged.stdout}{merged.stderr}"
+    merge = resolve_conflict(checkout, _dependent_resolution(route))
+    again = run_printed(route, reenter)
+    assert again.returncode == 0, output(again)
+    return merge
 
 
 def _route_dependent_lane(route: RouteMission, strategy: Strategy) -> tuple[str, list[str]]:
@@ -325,7 +354,8 @@ def _route_dependent_lane(route: RouteMission, strategy: Strategy) -> tuple[str,
 
     WP12's :func:`run_route` assumes one sibling and resolves with ``lane-b``'s text, so the stages run here with the
     public pieces: the printed reopen, re-entry and every ``--incorporate``, the operator's resolution, the printed
-    hand-back and the independent review.
+    hand-back and the independent review. The re-entry goes through the documented #7880 residual
+    (:func:`_reenter_through_dependency_self_heal`); every other printed command runs unchanged.
     """
     result = cli(route, "consolidate", "--mission", route.slug, "--yes", "--strategy", strategy)
     refusal = output(result)
@@ -339,9 +369,9 @@ def _route_dependent_lane(route: RouteMission, strategy: Strategy) -> tuple[str,
     feedback = route.mission.home / "WP03-feedback.md"
     feedback.write_text("Incorporate the sibling lanes at their approval stamps and keep lane-c's line.\n", encoding="utf-8")
     assert run_printed(route, reopen_command(refusal, "WP03"), feedback=feedback).returncode == 0
-    reentered = run_printed(route, commands[0])
-    assert reentered.returncode == 0 and "--incorporate" not in commands[0], output(reentered)
-    merges = [_incorporate(route, argv, _dependent_resolution(route)) for argv in commands if "--incorporate" in argv]
+    assert "--incorporate" not in commands[0], commands
+    merges: list[str | None] = [_reenter_through_dependency_self_heal(route, commands[0])]
+    merges += [_incorporate(route, argv, _dependent_resolution(route)) for argv in commands if "--incorporate" in argv]
     assert run_printed(route, [*_for_review(commands, "WP03"), "--agent", IMPLEMENTER]).returncode == 0
     review_output, approve = independent_approval(route, "WP03")
     assert approve.returncode == 0, f"{review_output}\n{output(approve)}"
@@ -352,6 +382,11 @@ def _route_dependent_lane(route: RouteMission, strategy: Strategy) -> tuple[str,
 
 
 def test_three_lane_route_names_exact_siblings_and_lands(tmp_path: Path) -> None:
+    """FR-008 three-lane variant, FR-002 exact sets, SC-001 one cycle per conflicting lane.
+
+    Pins the documented #7880 residual (DM-01M8B4FD7H1DJC45MQEF26SEQ7): lane-c's printed re-entry first refuses
+    with ``DEPENDENCY_LANE_MERGE_CONFLICT`` and the operator follows its message before the rest of the printed route.
+    """
     started = time.monotonic()
     route = add_dependent_and_control_lanes(build_conflicting_lanes_mission(tmp_path, "coord", mid8="01M7X3RT"))
     approvals = _approval_counts(route)
