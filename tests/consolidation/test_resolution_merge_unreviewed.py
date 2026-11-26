@@ -564,9 +564,49 @@ def _off_spine(repo: Path, evil: str) -> str:
     return hider
 
 
+def _gate_drops(repo: Path, feature_dir: Path, manifest: LanesManifest, base: str) -> tuple[set[str], set[str]]:
+    """The gate's own verdict, built from ``_drop_unreviewed_merges`` alone (squad-3 F3), never from the claim's fields.
+
+    For each approved lane: its first-parent spine ``base..lane`` (the gate's walk) through
+    ``_drop_unreviewed_merges`` with the lane's own approval stamps. Returns every dropped merge,
+    and the dropped merges with a non-bookkeeping own path and no auto-rebase record (the ones the
+    claim must refuse), all as full SHAs.
+    """
+    from specify_cli.consolidation.approved_bound import approval_presync_stamps, approval_stamps
+    from specify_cli.consolidation.reconciliation_authorship import _drop_unreviewed_merges, approved_wp_ids, own_approval_stamps
+    from specify_cli.consolidation.reconciliation_kernel import is_mission_bookkeeping_path
+    from specify_cli.status.store import read_events
+
+    events = read_events(feature_dir)
+    work_packages = materialize_snapshot(feature_dir).work_packages
+    dropped: set[str] = set()
+    refusable: set[str] = set()
+    for lane in manifest.lanes:
+        wp_ids = list(lane.wp_ids)
+        if not approved_wp_ids(lane, work_packages):
+            continue
+        branch = _branch(lane.lane_id)
+        spine = _git(repo, "rev-list", "--first-parent", f"{base}..{branch}").split()
+        stamps = own_approval_stamps(lane, work_packages, approval_stamps(events, wp_ids), approval_presync_stamps(events, wp_ids))
+        kept = set(_drop_unreviewed_merges(repo, spine, stamps))
+        for sha in spine:
+            if sha in kept:
+                continue
+            dropped.add(sha)
+            own = [path for path in git_probes.merge_own_changed_paths(repo, sha) if not is_mission_bookkeeping_path(path, manifest.mission_slug)]
+            if own and not auto_rebase_record.is_recorded(repo, branch, sha):
+                refusable.add(sha)
+    return dropped, refusable
+
+
 @pytest.mark.parametrize("fixture", ["evil", "three_lane", "clean", "forged_message", "off_spine"])
-def test_claim_and_gate_agree_on_dropped_merges(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fixture: str) -> None:
-    """The claim refuses exactly the merges the gate drops (``claim.unreviewed_merges`` on a bypassed claim) that carry own content."""
+def test_claim_and_gate_agree_on_dropped_merges(tmp_path: Path, fixture: str) -> None:
+    """The claim refuses exactly the merges the gate's own ``_drop_unreviewed_merges`` drops that carry own content.
+
+    Both directions are real (squad-3 F3): the gate side is computed from ``_drop_unreviewed_merges``
+    alone. Off the spine (the all-parent walk the claim adds) the gate drops the clean merge that
+    hides the hand merge, and the claim names the hand merge that merge brings in.
+    """
     if fixture == "three_lane":
         repo, feature_dir, manifest, base, _m = _three_lane(tmp_path)
     else:
@@ -580,17 +620,16 @@ def test_claim_and_gate_agree_on_dropped_merges(tmp_path: Path, monkeypatch: pyt
         elif fixture == "off_spine":
             _off_spine(repo, evil)
     claimed = _refused_merges(_claim(repo, feature_dir, manifest, base))
-    with monkeypatch.context() as patch:
-        patch.setattr(reconciliation_bound, "unreviewed_resolution_merges", lambda *_a, **_k: ())
-        bypassed = _claim(repo, feature_dir, manifest, base)
-    assert bypassed.refusal is None, bypassed.refusal
-    for entry in bypassed.unreviewed_merges:  # precondition: every dropped merge probed cleanly
-        git_probes.merge_own_changed_paths(repo, entry.sha)
-    lane_branch = {lane.lane_id: _branch(lane.lane_id) for lane in manifest.lanes}
-    gate = {
-        entry.sha[:7] for entry in bypassed.unreviewed_merges if entry.own_paths and not auto_rebase_record.is_recorded(repo, lane_branch[entry.lane_id], entry.sha)
-    }
-    assert claimed == gate
+    dropped, refusable = _gate_drops(repo, feature_dir, manifest, base)
+    gate = {sha[:7] for sha in refusable}
+
+    assert gate <= claimed, f"{fixture}: the gate drops own content the claim does not refuse: {gate - claimed}"
+    if fixture == "off_spine":
+        assert gate == set() and len(claimed) == 1, (gate, claimed)
+        (hidden,) = claimed
+        assert any(git_probes.sha_reachable_from(repo, _git(repo, "rev-parse", hidden), sha) for sha in dropped), "the claimed merge rides a merge the gate drops"
+    else:
+        assert claimed <= gate, f"{fixture}: the claim refuses a merge the gate keeps: {claimed - gate}"
     assert (fixture == "clean") == (not claimed), f"{fixture}: {claimed}"
 
 
