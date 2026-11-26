@@ -2,9 +2,9 @@
   "event_count": 29,
   "last_event_id": "01M7YFD436YYZJH5W9PCRB9BW8",
   "materialized_at": "2026-11-21T07:16:19.686282+00:00",
-  "mission_number": "264",
+  "mission_number": "",
   "mission_slug": "host-aware-mode-predicate-01M7X6B1",
-  "mission_type": "software-dev",
+  "mission_type": "",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -19,104 +19,53 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
-      "agent": "claude::reviewer-renata",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
+      "agent": "claude",
       "force_count": 1,
+      "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M7YFCK0EA3JHF7M4WN843TPE",
       "last_transition_at": "2026-11-21T07:16:02.190737+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "- 2026-11-20T19:48:52Z – claude – shell_pid=5086 – Red-first: 11a789e0 (tests only) red on WP base: global convergence 4 failed / 2 passed (POSIX twins green), predicate matrix ImportError. Green at 33c25c23: tests/specify_cli/runtime/test_global_mode_convergence_windows.py + tests/specify_cli/tool_surface/test_mode_equivalence.py 60 passed. Blast radius: pytest tests/specify_cli/tool_surface tests/specify_cli/runtime tests/runtime tests/specify_cli/skills -n 6 --dist loadfile -> 4877 passed, 2 skipped, 3 failed, all pre-existing/environmental: test_historical_renders x2 also red on the base checkout (main 873ca367, CI green there -> container-specific); test_reassess_under_lock live preview fails on 'Source mismatch' (the subprocess imports the root-checkout install, not the lane: stale-install category). ruff check + ruff format --check --force-exclude clean on all 5 files; mypy clean per file (mypy on operations.py+asset_preparation.py together reports a pre-existing no-any-return at apply_assets, identical on the base). NFR-001 (analysis C1): cProfile over 5 global skill assessments -> effect_action 553 calls/assessment, about 2 ms of 1.9 s; median wall-clock base 0.586-0.596 s vs lane 0.600-0.641 s is variance between checkouts, not the predicate. SC-004 (analysis C2): assess_global_assets (upgrade's global_bootstrap entry) plans zero chmods under emulation (test_combined_global_assets_plan_no_chmod_under_emulated_windows). Exec-bit twin: no packaged asset is executable, so the twin pins a gained exec bit on a planned read-only skill file. Note: global skill files are planned read-only (0o444), so the Windows read-only twin clears the attribute.",
-        "Ready for review: predicate + effect_action + global planners converge under emulated Windows",
-        "Review passed: one host-aware predicate (exact on POSIX; Windows dir/symlink kind-only, file write bit only) in operations.py; effect_action is the single action ladder and PhysicalEffect validates with it; asset_preparation's duplicate _action removed; guards/conflict checks stay exact. Red verified on base (4F/2P + ImportError), 60 passed at tip; blast radius tool_surface+specify_cli/runtime+runtime+preview_oracle 3988 passed, make test-fast 3173 passed; historical_renders red reproduces on base (main-red, #7797). ruff/format/C901 clean; mypy no-any-return at asset_preparation populate_from_package is pre-existing on base. Notes (non-blocking): (1) state_equivalent has no production caller until WP02; (2) until WP02 lands, bundles/projection._stage_effect still plans raw chmod that the sharper validator now rejects on Windows; WP02 must land in the same PR; (3) commit message says planner and validator cannot disagree, true only for global planners. Anti-pattern checklist: 1 PASS(note), 2 PASS, 3 PASS, 4 PASS, 5 N/A, 6 PASS, 7 PASS (WP02 owns the other planners), 8 PASS.",
-        "Operator ruling 2026-11-21: re-review WP01. The cycle-1 approval stamp ce0c9066 was a reviewer-local merge, never pushed, and is lost (consolidate would refuse APPROVAL_STAMP_NOT_ON_LANE). Code unchanged since that review: lane-a 11a789e0 (red) + 33c25c23 (fix).",
-        "Re-review passed: code identical to the earlier approval (11a789e0 + 33c25c23, no other src/tests change); 60/60 WP01 tests, 56/56 test_operations; ruff + format clean; mypy one pre-existing no-any-return at asset_preparation.py (same on base)."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP01:20261121",
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 864,
-      "shell_pid_created_at": "1795244282.49",
-      "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done",
-        "T005": "done"
-      }
+      "shell_pid": 5086,
+      "shell_pid_created_at": "1795202763.31"
     },
     "WP02": {
       "actor": "merge",
-      "agent": "claude::reviewer-renata",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
+      "agent": "claude::python-pedro",
       "force_count": 0,
+      "implementer_of_record": "claude::python-pedro",
       "lane": "done",
       "last_event_id": "01M7YFCVCSJK55BPAZSY49H3CP",
       "last_transition_at": "2026-11-21T07:16:10.777246+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "- 2026-11-21T04:57:52Z – claude::python-pedro – shell_pid=1169 – Red-first: e82b507a (tests only) red on WP base: 8 failed / 6 passed (POSIX twins green): stage_effect raises in the host-aware validator, finalize refuses NTFS 0o777, sibling dir + profile write refuse, native postcondition False, project-skill writable drift not planned, charter YAML written-target refuses under the is_windows seam. Fix 2208593b + d3 test fix: all green. Targeted: latent sites + write-bit + charter seam + managed_skills_host_aware + test_installer + bundles + mode_equivalence -> 291 passed. Blast radius (tests/specify_cli/{tool_surface,skills,runtime} tests/runtime tests/charter tests/upgrade/test_preview_oracle.py + architectural test_os_detection_ban/test_layer_rules/test_no_follow_symlinks_apply_ban, -n 6 --dist loadfile): 10201 passed, 23 skipped, 5 failed, all not this change: test_historical_renders x2 (main-red from 2ce8f40a, fixed by #7797); test_reassess_under_lock live preview + test_preview_oracle x2 fail with 'Source mismatch' in lane worktrees (subprocess imports the root install) -- from the root checkout detached at the WP02 tip, test_preview_oracle.py + the reassess class pass 33/33. make test-fast: 3173 passed, 7 skipped. ruff check + format --check --force-exclude clean on every changed file; mypy per file: only pre-existing no-any-return (skills/paths.py:46, managed_skills preflight, projection same_observation), identical on lane-a; native_config's new return wrapped in bool() as before. Reviewer findings folded: projection._stage_effect via effect_action (MEDIUM); state_equivalent now has production callers (receipts, completion recheck, native postcondition). Re-pins (C-006 semantic change, operator ruling 2026-11-20): test_installer converged-Windows tests now emulate NTFS (read-only file reads 0o444 -> nothing planned) instead of chmod 0o666; managed_skills_host_aware helper tests re-pinned from the deleted windows_dir_mode_only_divergence to state_equivalent with the write-bit rule. Guards kept exact: same_observation, finalize fstat triple, before-state preconditions, check_assets. Note: the bundle recheck (_finish_selected_stage) is covered via the shared expected_with_mode helper (unit + finalize integration), not an end-to-end selected-bundle run.",
-        "Ready for review: remaining planners, rechecks and latent sites on the host-aware predicate; old helper retired",
-        "Review passed (claude::reviewer-renata). MEDIUM from WP01 fixed: _stage_effect uses effect_action; reproduced red on base (PhysicalEffect ValueError) and green under emulate_ntfs (0o666 observed vs 0o644 planned -> no effect; 0o444 -> chmod). windows_dir_mode_only_divergence gone from src/tests (one historical docstring mention). Guards exact: same_observation, finalize fstat triple, _apply_project_skill_write current!=before, command_installer observe/1351 recheck, check_assets, planned-vs-planned conflicts. No remaining raw observed-vs-planned mode compare in src (installer.py:189 backup symlink is observed-vs-observed). C-006 re-pin accepted: the installer chmods files read-only, so a converged NTFS file reads 0o444. LOW: tests/specify_cli/skills is out_of_matrix (nightly-only), so test_project_skill_windows_write_bit.py and the test_installer re-pins do not run per PR; per-PR proof is tests/specify_cli/tool_surface. LOW: _finish_selected_stage is covered on POSIX (only refusal line 175 missed) but not under NTFS emulation; non-blocking, expected_with_mode is unit-tested; suggest an emulated selected-bundle case in WP03 or a follow-up. Nit: mypy's 2 no-any-return errors (paths.py:46, projection same_observation) are pre-existing on base. Nit: the red commit shows 7 failed / 7 passed (the 8th test landed in the follow-up). Checks: ruff/C901/format --force-exclude clean; arch gates 148 passed (2 preview_oracle Source mismatch failures happen in the lane worktree only; 31/31 pass from the root checkout); blast radius 4902 passed, 1 failed (test_historical_renders, also red on base 873ca367)."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/host-aware-mode-predicate-01M7X6B1-coord/kitty-specs/host-aware-mode-predicate-01M7X6B1/tasks/WP02-project-planners-and-latent-sites/review-cycle-1.md",
         "reference": "review-cycle://host-aware-mode-predicate-01M7X6B1/WP02-project-planners-and-latent-sites/review-cycle-1.md",
         "reviewer": "claude::reviewer-renata",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 1021,
-      "shell_pid_created_at": "1795237638.45",
-      "subtasks": {
-        "T006": "done",
-        "T007": "done",
-        "T008": "done",
-        "T009": "done",
-        "T010": "done"
-      }
+      "shell_pid": 1169,
+      "shell_pid_created_at": "1795235019.58"
     },
     "WP03": {
       "actor": "merge",
-      "agent": "claude::reviewer-renata",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
+      "agent": "claude::python-pedro",
       "force_count": 1,
+      "implementer_of_record": "claude::python-pedro",
       "lane": "done",
       "last_event_id": "01M7YFD436YYZJH5W9PCRB9BW8",
       "last_transition_at": "2026-11-21T07:16:19.686282+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "- 2026-11-21T06:13:59Z – claude::python-pedro – shell_pid=244 – Red-first: 2c4dce16 (gate test only) red: ImportError, _mode_equality_scan absent. 042aa8a0 adds the scan; 246e5637 adds the selected-bundle NTFS case (WP02 review LOW, out-of-map in tests/specify_cli/tool_surface/bundles/, rationale: reviewer-requested coverage of _finish_selected_stage) and changelog fragment docs/changelog/unreleased/4927.fixed.md (check_changelog_style 0 errors, check_spelling 0 findings). Live tree: 77 files, 1616 comparisons, 4 findings, all adjudicated: observe_bundle_path read-stability guard, _finalize_staged_directories fstat identity guard, _unique_members planned-vs-planned conflict, installer._archive_existing_path backup-fidelity copy of an observed symlink mode. P2/P3: zero live hits. Gate: 17 passed; scan_tree 0.57 s (4 scans, about 2.5 s total, NFR-004 <5 s). Mutation proof: disabling P1 reds each_pattern + live_mutation + stale; disabling P2 or P3 reds each_pattern. Ran: pytest tests/architectural/test_mode_equality_authority.py test_layer_rules.py test_no_follow_symlinks_apply_ban.py test_os_detection_ban.py tests/specify_cli/tool_surface/bundles tests/specify_cli/tool_surface/test_mode_equivalence.py -n 4 -> 316 passed; selected-bundle test 3 passed; make test-fast 3173 passed, 7 skipped. ruff/format/mypy clean on all new files.",
-        "Ready for review: mutation-proven mode-equality gate + changelog",
-        "- 2026-11-21T06:42:24Z – unknown – Review cycle 1 folded. Red: 6b?? commit 'gate catches a second comparison...' (4 failed on the old scan). Fix de82744c: B1 findings carry ast.unparse text; ADJUDICATED keyed on (path, qualname, pattern, text) -- the reviewer's _finalize_staged_directories reproduction is now 1 unadjudicated finding (test_a_second_comparison_in_an_adjudicated_function_is_caught). B2 new P4: planned mode (<x>.after.mode) vs any non-mode operand (current = S_IMODE(...); current != after.mode caught); *_mode names and getattr(x,'mode') carry a mode for P1. Live tree unchanged: same 4 adjudicated sites, 0 new hits from P4/mode names. Mutation proof: P1/P2/P3/P4 off each red at least one test; a function-wide key reds the second-comparison test. Non-blocking: scan docstring lists out-of-scope evasions (alias, dict lookup, operator.*, match, helpers outside roots), gate docstring points at it; changelog 4927.internal.md (style 0 errors, spelling 0 findings); selected-bundle test type: ignore removed by typing the chmod wrapper. Tests: gate 23 passed; gate + selected bundle + test_layer_rules 106 passed; ruff/format/mypy clean.",
-        "Review cycle 1 addressed: text-keyed adjudications (B1), P4 one-sided planned-mode pattern (B2), non-blocking items",
-        "Review cycle 2 passed. B1 fixed: key is (path, qualname, pattern, ast.unparse text); a second comparison injected in each of the 4 adjudicated functions is reported; whitespace/paren/trailing-comma reformat keeps the key (ast.unparse normalizes), a rename gives both an unadjudicated file:line and a stale-entry message. B2 fixed: P4 + *_mode/getattr carriers catch the installer.py:1040 local-variable shape, getattr, param mode, bitmask vs expected_mode. Mutation proof: dropping P1/P2/P3/P4 or reverting to a function-wide key each turns the gate red. Retro scan of 873ca367 still flags 14 sites across all 9 files WP02 fixed. Live: 4 findings, all adjudicated; 77 files/1616 compares vs floors 60/1200; 0.5 s scan, 23 passed in 2.95 s. ruff/format/C901/mypy clean, changelog style 0 errors. Non-blocking: (1) docstring still omits __eq__, 'in {...}', arithmetic/xor and ordering-operator shapes from the residual list; (2) a byte-identical duplicate of an adjudicated comparison in the same function stays exempt (set key, no count); (3) a planned stamp not named after/planned (cur != target.mode) and plain aliases (p = effect.after.mode) are not followed, documented as alias evasions; (4) ownership-map leeway: tests/specify_cli/tool_surface/bundles/test_selected_bundle_windows.py is outside owned_files (type: ignore removal, typed chmod wrapper); accepted, recorded here."
-      ],
-      "provider": "__resolved_provider_absent__",
-      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/host-aware-mode-predicate-01M7X6B1-coord/kitty-specs/host-aware-mode-predicate-01M7X6B1/tasks/WP03-ratchet-gate-and-changelog/review-cycle-2.md",
         "reference": "review-cycle://host-aware-mode-predicate-01M7X6B1/WP03-ratchet-gate-and-changelog/review-cycle-2.md",
         "reviewer": "claude::reviewer-renata",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 902,
-      "shell_pid_created_at": "1795243677.51",
-      "subtasks": {
-        "T011": "done",
-        "T012": "done",
-        "T013": "done"
-      }
+      "shell_pid": 192,
+      "shell_pid_created_at": "1795242716.12"
     }
   }
 }
