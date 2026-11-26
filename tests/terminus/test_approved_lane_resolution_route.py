@@ -19,8 +19,9 @@ reviewer and their edits of ``src/pkg/shared.py`` conflict.
   named code, and that no branch moved.
 * T050 -- SC-003 with a discriminating control (a land-then-rollback DOES change reflog lengths),
   and the residual control: a reviewed resolution with a novel line lands (the review is the guard).
-* WP06 binding addition -- the gate hint's partial shape: a dropped merge explains part of a gate
-  FAIL and foreign content the rest.
+* WP06 binding addition, revised by #5604 review fold A2 -- a recorded tool merge with a novel
+  resolution (the former gate-hint partial shape) is refused at claim time; the hint's partial
+  scoping is pinned by ``tests/consolidation/test_unreviewed_merge_hint.py``.
 * T047 -- a smoke test of WP14's three-lane builder.
 
 No ``xfail`` and no ``skip`` anywhere: a route gap is reported, never marked.
@@ -90,7 +91,6 @@ _STRATEGIES = pytest.mark.parametrize("strategy", ["squash", "merge"])
 #: The flags an attestation would carry (C-002: none appears anywhere on the route).
 _ATTESTATION_FLAGS = ("--attest-approved-reviewed", "--attest-canceled-superseded", "--attest-no-implementation")
 _FOREIGN_PATH = "vendor/foreign.py"
-_DEPENDENCY_REF = "spec-kitty consolidate --dependency-ref <ref>"
 
 
 @pytest.fixture(autouse=True)
@@ -331,19 +331,19 @@ def test_reviewed_resolution_with_a_novel_line_lands(tmp_path: Path, strategy: S
 # --------------------------------------------------------------------------- WP06 binding addition
 
 
-def test_gate_hint_names_re_review_first_then_scopes_dependency_ref_to_foreign_content(tmp_path: Path) -> None:
-    """The partial shape: a dropped merge explains part of a gate FAIL, foreign content the rest.
+def test_recorded_tool_merge_with_a_novel_resolution_is_refused_at_claim(tmp_path: Path) -> None:
+    """#5604 review fold A2 (replaces the gate-hint shape): a recorded tool merge whose resolution wrote bytes no parent
+    and no target holds is refused at claim time, before the gate.
 
     A tool-merge simulation (same writer): the Mission branch is first given lane-a at its approval
     stamp (the state an in-run auto-rebase meets once lane-a has landed), then lane-b gets the
     auto-rebase's own shape, a two-parent merge of the Mission branch tip into the lane (parents
-    ``[before, mission tip]``), recorded by
-    ``auto_rebase_record.record``, the function the auto-rebase itself writes the record with. Its
-    resolution of ``src/pkg/shared.py`` is content of its own. The claim-time check exempts a recorded
-    merge whose merge attributes hold, so it reaches the gate; no approval stamp of lane-b reaches it,
-    so the claim drops it and names it in ``unreviewed_merges``. Foreign content committed on the
-    coordination branch afterwards is the rest. The hint gives the re-review route for the merge
-    first, then the ``--dependency-ref`` hint scoped to the one remaining item, exactly once.
+    ``[before, mission tip]``), recorded by ``auto_rebase_record.record``, the function the
+    auto-rebase itself writes the record with. Its resolution of ``src/pkg/shared.py`` is content of
+    its own. Before the fold the record exempted it at claim time and the gate FAILed it (with the
+    re-review hint, then ``--dependency-ref`` scoped to the foreign item). The gate cannot attribute
+    such a resolution, so the claim now refuses it first; the hint's partial scoping stays pinned by
+    ``tests/consolidation/test_unreviewed_merge_hint.py``.
     """
     route = build_conflicting_lanes_mission(tmp_path, "coord", mid8="01M7WPRT")
     coordination = route.repo / ".worktrees" / f"{route.slug}-coord"
@@ -370,13 +370,8 @@ def test_gate_hint_names_re_review_first_then_scopes_dependency_ref_to_foreign_c
     code, text = consolidate(route, "squash")
 
     assert code == 1, text
-    assert RECONCILIATION_VERIFIED not in text
-    re_review = f"Merge {merge[:7]} on lane {LANE_B} (WP02) was made after that lane's last review approval"
-    remaining = "For the remaining content (1 item(s) no dropped merge explains):"
-    assert re_review in text and remaining in text, text
-    assert text.index(re_review) < text.index(f"spec-kitty agent tasks move-task WP02 --to in_progress --mission {route.slug}") < text.index(remaining), text
-    assert text.count(_DEPENDENCY_REF) == 1, text
-    assert text.index(remaining) < text.index(_DEPENDENCY_REF), text
+    _assert_unreviewed_refusal(route, text, merge)
+    assert "Reconciliation FAILED" not in text, f"the refusal comes at claim time, not at the gate: {text}"
 
 
 # --------------------------------------------------------------------------- T047 smoke

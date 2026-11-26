@@ -740,6 +740,25 @@ def _recorded_merge_attributes_hold(repo_root: Path, sha: str, attributes_source
         return False
 
 
+def _recorded_resolution_attributable(repo_root: Path, sha: str, own_paths: Sequence[str], attributes_source: str | None) -> bool:
+    """True iff each of *own_paths* is, in merge *sha*, the ``(mode, oid)`` of one of its parents or of *attributes_source* (#5604 A2).
+
+    The reconciliation gate never reads the auto-rebase record; it attributes a recorded merge's
+    resolved bytes like any content. Bytes a parent or the claim's pre-run target tip already holds
+    (a take-one-side or target-owned resolution) are attributable or unchanged on landing; any other
+    resolution, made after the approval, is attributable to no approved work package, so the gate
+    FAILs it. The claim skips only the first kind. Any probe error is False (the merge is refused).
+    """
+    if not own_paths:
+        return True
+    try:
+        sources = [*commit_parents(repo_root, sha), *([attributes_source] if attributes_source else [])]
+        return all(any(_entry_key(repo_root, sha, path) == _entry_key(repo_root, source, path) for source in sources) for path in own_paths)
+    except (GitProbeError, GitCommandError, ValueError):
+        logger.debug("recorded merge %s: whether its resolution is attributable cannot be read; it is refused", sha, exc_info=True)
+        return False
+
+
 def _own_paths(repo_root: Path, sha: str, attributes_source: str | None, memo: dict[str, tuple[str, ...]] | None) -> tuple[str, ...]:
     """*sha*'s own-content paths from THIS call of the raising probe; a success is stored in *memo* for the claim's advisory reader."""
     own = tuple(merge_own_changed_paths(repo_root, sha, attributes_source=attributes_source))
@@ -765,12 +784,14 @@ def unreviewed_resolution_merges(
 
     *merges* are the lane's merges no review covers (:func:`unreviewed_merge_candidates` over
     :func:`merges_beyond`, every parent walked). *canceled_window* names the ones made inside a
-    canceled work package's window, for the text. Each one is skipped, cheapest check first (NFR-001), when
+    canceled work package's window, for the text. Each one is skipped when
 
-    * *is_recorded* says the tool made it (the auto-rebase record, exact SHA) AND its merge
-      attributes hold (:func:`_recorded_merge_attributes_hold`); otherwise it is a hand merge;
     * its own content (:func:`~specify_cli.consolidation.git_probes.merge_own_changed_paths`, run
-      here behind the FR-010 guard with *attributes_source*) has no non-bookkeeping path.
+      here behind the FR-010 guard with *attributes_source*) has no non-bookkeeping path;
+    * *is_recorded* says the tool made it (the auto-rebase record, exact SHA), its merge attributes
+      hold (:func:`_recorded_merge_attributes_hold`) AND each own path kept a parent's or the target
+      tip's entry (:func:`_recorded_resolution_attributable`, #5604 review fold A2: the only recorded
+      resolutions the gate accepts); otherwise it is judged as a hand merge.
 
     The verdict comes only from this function's own probe call; *memo* only records a successful
     result for the claim's advisory reader. Every probe error, an *is_recorded* error included,
@@ -780,10 +801,9 @@ def unreviewed_resolution_merges(
     refusals: list[BoundRefusal] = []
     for sha in merges:
         canceled_wp = (canceled_window or {}).get(sha)
-        if is_recorded(sha) and _recorded_merge_attributes_hold(repo_root, sha, attributes_source):
-            continue
+        recorded = is_recorded(sha) and _recorded_merge_attributes_hold(repo_root, sha, attributes_source)
         own = [path for path in _own_paths(repo_root, sha, attributes_source, memo) if not is_bookkeeping(path)]
-        if own:
+        if own and not (recorded and _recorded_resolution_attributable(repo_root, sha, own, attributes_source)):
             refusals.append(
                 BoundRefusal(
                     BoundRefusalCode.RESOLUTION_MERGE_UNREVIEWED,

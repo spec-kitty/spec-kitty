@@ -175,9 +175,10 @@ def test_clean_post_approval_merge_is_not_refused_end_to_end(tmp_path: Path) -> 
     mission = build_post_approval_mission(tmp_path, "lanes")
     _evil_merge(mission, add_late=False)
 
-    _code, flat = _consolidate(mission, "--yes")
+    code, flat = _consolidate(mission, "--yes")
 
     assert _CODE not in flat, flat
+    assert code == 0 and "Reconciliation verified" in flat, flat
 
 
 def test_merge_reached_by_own_stamp_is_not_refused(tmp_path: Path) -> None:
@@ -186,25 +187,32 @@ def test_merge_reached_by_own_stamp_is_not_refused(tmp_path: Path) -> None:
     _evil_merge(mission)
     rework_and_reapprove(mission, "WP01")
 
-    _code, flat = _consolidate(mission, "--yes")
+    code, flat = _consolidate(mission, "--yes")
 
     assert _CODE not in flat, flat
+    assert code == 0 and "Reconciliation verified" in flat, flat
+    assert LATE_PATH in _git(mission.repo, "ls-tree", "-r", "--name-only", mission.target_branch).split(), "the reviewed merge's content lands"
 
 
-def test_forged_record_is_harmless_the_gate_still_fails(tmp_path: Path) -> None:
-    """Binding addendum 2: a hand-written record may skip the claim-time refusal, but the content never lands."""
+def test_forged_record_is_harmless_the_claim_refuses_first(tmp_path: Path) -> None:
+    """Binding addendum 2 (#5604 review fold A2): a hand-written record no longer skips a novel resolution at claim time.
+
+    Before the fold it skipped the claim and the gate's attribution axis FAILed the content after the
+    run's mutations; the claim now refuses it, before any branch moves, and the content never lands.
+    """
     mission = build_post_approval_mission(tmp_path, "lanes")
     merge = _evil_merge(mission)
     lane_branch = mission.lane_branches["WP01"]
     _git(mission.repo, "update-ref", f"refs/spec-kitty/auto-rebase/{lane_branch}/{merge}", merge)
-    target_before = git_rev(mission.repo, mission.target_branch)
+    before = _reflog_lengths(mission)
 
     code, flat = _consolidate(mission, "--yes")
 
     assert code != 0, flat
-    assert git_rev(mission.repo, mission.target_branch) == target_before, "the target is restored"
+    assert _CODE in flat and f"merge {merge[:7]}" in flat, flat
+    assert "Reconciliation FAILED" not in flat, f"the refusal must come at claim time, not at the gate:\n{flat}"
     assert LATE_PATH not in _git(mission.repo, "ls-tree", "-r", "--name-only", mission.target_branch).split()
-    assert "Reconciliation FAILED" in flat and LATE_PATH in flat, f"the gate's attribution axis FAILs it:\n{flat}"
+    _assert_no_mutation(mission, before)
 
 
 def test_union_attribute_attack_refuses_at_claim_with_no_branch_moves(tmp_path: Path) -> None:
@@ -332,15 +340,16 @@ def test_clean_post_approval_merge_is_not_refused(tmp_path: Path) -> None:
     assert claim.refusal is None, claim.refusal
 
 
-def test_recorded_tool_merge_is_not_refused(tmp_path: Path) -> None:
-    """**control**: the record (WP02's ``record()``, never a hand-written ref) exempts the merge at claim time.
+def test_recorded_tool_merge_with_a_novel_resolution_is_refused(tmp_path: Path) -> None:
+    """#5604 review fold A2: a record no longer exempts a merge whose resolution holds bytes no parent and no target has.
 
-    US3 AS3: its auto-resolved content is still judged by the gate; only the claim's code is asserted here.
+    The gate (which never reads the record) FAILs exactly that content, so the claim refuses it first;
+    a take-one-side or target-owned resolution is still skipped (``test_recorded_merge_resolution_5604.py``).
     """
     repo, feature_dir, manifest, base, evil = _evil_claim(tmp_path)
     assert auto_rebase_record.record(repo, _branch("lane-b"), evil)
     claim = _claim(repo, feature_dir, manifest, base)
-    assert _CODE not in _codes(claim), claim.refusal
+    assert _CODE in _codes(claim) and evil[:7] in _refused_merges(claim), claim.refusal
 
 
 def test_message_forged_merge_is_refused(tmp_path: Path) -> None:
