@@ -1,20 +1,20 @@
 {
-  "event_count": 61,
-  "last_event_id": "01M8AX8W7VD5E2CKXNZ9RSBPHJ",
-  "materialized_at": "2026-11-26T03:09:33.819795+00:00",
+  "event_count": 62,
+  "last_event_id": "01M8AXAMFAK1T5K2N4PVNXN1Z4",
+  "materialized_at": "2026-11-26T03:10:31.402114+00:00",
   "mission_number": "",
   "mission_slug": "planning-lane-write-branch-01M8A725",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 2,
+    "approved": 3,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 1,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 1
   },
   "work_packages": {
@@ -142,9 +142,9 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude::python-pedro",
-      "lane": "in_review",
-      "last_event_id": "01M8AX8W7VD5E2CKXNZ9RSBPHJ",
-      "last_transition_at": "2026-11-26T03:09:33.819795+00:00",
+      "lane": "approved",
+      "last_event_id": "01M8AXAMFAK1T5K2N4PVNXN1Z4",
+      "last_transition_at": "2026-11-26T03:10:31.402114+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-26T01:49:28Z – claude::python-pedro – shell_pid=9936 – WP04 implemented (commits f9ef5a6b, 140511ac on lane-d, pushed). One decision point: wp_evidence.planning_evidence_window(repo_root, manifest, lane, wp_id, events_callable) -> (start, mission_branch) | None; _scan_lane (via _scan_planning_lane) and move-task (_mt_planning_window) both call it. Start = commit_introducing_status_event on the Mission branch of window_opener_events(cycle=True) candidates[0] else skipped[0]; end = planning_write_ref(...).branch when on_mission_branch. No opener / no_commit / ambiguous -> EVIDENCE_WINDOW_UNCOMPUTABLE; meta/log/git unreadable -> IMPLEMENTATION_UNREADABLE. A caller-supplied landed_commit (accept --mode pr) keeps today's planning window. FR-007 probe: merge-base(pin,target)..target --not <mission branch>, owned pathspecs then matches_owned filter; the --not excludes commits the Mission branch already carries so 'target branch only' stays true (tested). OUT-OF-MAP EDIT: tests/consolidation/test_single_consolidation_event_door.py moves wp_evidence.py from _RAW_ALLOWLIST to _STAMP_READERS, because the window opener is a stamp seed; per that gate's own remedy wp_evidence now reads through consolidation_events (mission_evidence_report; the claim already did). T025: the auto-commit early return uses workspace.is_shared_checkout (red-first proven: old guard committed a sibling's dirty files). PlanningWorkspaceMissing (RuntimeError) stays uncaught at both move-task sites. RESIDUAL (not fixed, reported): tasks_shared._wp_branch_merged_into_target compares the Mission branch with the target for a code_change WP in lane-planning of a default not-landed (pre-#7816) Mission, so move-task --to done before the landing needs --done-override-reason; it was vacuous before (target vs target). Listed in the ADR residuals. ADR 2026-10-04-5 Amendment 2026-11-25 (Proposed) added, Status line updated; spelling 0 findings. Tests: new 15 + 14 pass; blast radius (tests/consolidation + move-task/accept evidence + 6715 integration) 3687 passed, 1 failed (door gate, fixed in 140511ac; rerun 155 passed); orchestrator evidence + integration 89 passed, 2 failed in tests/integration/test_7860_planning_evidence_window.py, both also red on base e2df9592 (topic-branch case now blocked by the WP03 for_review claim-base gate; the target control contradicts A' and now shows the FR-007 addendum; WP05 reworks); make test-fast 3222 passed. ruff/format/C901/mypy clean.",
@@ -155,10 +155,10 @@
       "provider": "__resolved_provider_absent__",
       "review": null,
       "review_result": {
-        "feedback_path": "/home/user/spec-kitty/.worktrees/planning-lane-write-branch-01M8A725-coord/kitty-specs/planning-lane-write-branch-01M8A725/tasks/WP04-planning-evidence-window/review-cycle-1.md",
-        "reference": "review-cycle://planning-lane-write-branch-01M8A725/WP04-planning-evidence-window/review-cycle-1.md",
+        "feedback_path": "/home/user/spec-kitty/.worktrees/planning-lane-write-branch-01M8A725-coord/kitty-specs/planning-lane-write-branch-01M8A725/tasks/WP04-planning-evidence-window/review-cycle-2.md",
+        "reference": "review-cycle://planning-lane-write-branch-01M8A725/WP04-planning-evidence-window/review-cycle-2.md",
         "reviewer": "claude::reviewer-renata",
-        "verdict": "changes_requested"
+        "verdict": "approved"
       },
       "role": "reviewer",
       "shell_pid": 13204,
