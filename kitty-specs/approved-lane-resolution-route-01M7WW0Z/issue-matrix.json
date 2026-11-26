@@ -467,6 +467,18 @@
       "title": null,
       "verdict": "not-applicable",
       "wp": null
+    },
+    "#7880": {
+      "evidence_ref": "Operator ruling 2026-11-26: the dependent-lane self-heal gap is deferred to #7880. WP14 pins today's behaviour and WP13 records the residual.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP14"
     }
   },
   "schema_version": 1
