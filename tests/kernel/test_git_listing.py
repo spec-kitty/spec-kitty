@@ -490,3 +490,17 @@ def test_merge_tree_returns_a_result_for_a_clean_or_conflicted_merge(tmp_path: P
 def test_merge_tree_raises_on_any_other_exit(tmp_path: Path) -> None:
     with patch.object(listing, "run_git", return_value=GitResult(returncode=128, stdout=b"", stderr=b"fatal: bad")), pytest.raises(GitCommandError):
         listing.merge_tree(tmp_path, "main", "nope")
+
+
+def test_parse_config_entries_z_keeps_order_multiline_values_and_valueless_keys() -> None:
+    from kernel.git.listing import parse_config_entries_z
+
+    raw = "merge.a.driver\ncmd %A\0merge.renormalize\0merge.a.name\nline one\nmerge.fake.driver x\0merge.a.driver\nlast\0"
+    assert parse_config_entries_z(raw) == (
+        ("merge.a.driver", "cmd %A"),
+        ("merge.renormalize", None),
+        ("merge.a.name", "line one\nmerge.fake.driver x"),
+        ("merge.a.driver", "last"),
+    )
+    assert parse_config_entries_z("") == ()
+    assert parse_config_entries_z("merge.x.name\n\0") == (("merge.x.name", ""),)

@@ -47,6 +47,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from kernel.git.listing import parse_config_entries_z
 from kernel.git.read_cache import Depends, cached_git_read
 from specify_cli.consolidation.git_probes import GitProbeError
 from specify_cli.git.merge_tree_probe import check_attr_source_available
@@ -302,11 +303,8 @@ def _read_merge_keys(repo_root: Path) -> MergeKeys:
     if result.returncode != 0:
         raise GitProbeError(f"git {' '.join(argv)} exited {result.returncode}: {(result.stderr or '').strip()}")
     keys: dict[str, list[str | None]] = {}
-    for entry in (result.stdout or "").split("\0"):
-        if not entry:
-            continue
-        key, separator, value = entry.partition("\n")
-        keys.setdefault(key, []).append(value if separator else None)
+    for key, value in parse_config_entries_z(result.stdout or ""):
+        keys.setdefault(key, []).append(value)
     return {key: tuple(values) for key, values in keys.items()}
 
 
