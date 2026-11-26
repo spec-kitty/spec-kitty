@@ -2250,7 +2250,10 @@ def review_cited_requirements(
     Read exactly as ``spec-kitty next`` reads them (``review.context_inputs``), the owned checkout included.
     """
     wp_meta, _ = read_wp_frontmatter(wp.path)
-    return cited_requirements(repo_root, mission_slug, list(wp_meta.requirement_refs or []), mission_type=mission_type or _DEFAULT_MISSION_TYPE, owned=owned)
+    cited: tuple[CitedRequirement, ...] = cited_requirements(
+        repo_root, mission_slug, list(wp_meta.requirement_refs or []), mission_type=mission_type or _DEFAULT_MISSION_TYPE, owned=owned
+    )
+    return cited
 
 
 def _review_context_line(

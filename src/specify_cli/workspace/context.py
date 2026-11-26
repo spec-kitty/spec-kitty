@@ -29,7 +29,14 @@ from specify_cli.core.atomic import atomic_write
 from specify_cli.core.errors import StructuredError
 from kernel.git_topology import GitTopologyError, git_toplevel
 from specify_cli.lanes.branch_naming import worktree_dir_name, worktree_path as _seam_worktree_path
-from mission_runtime import MissionArtifactKind, OwnedCheckout, placement_seam, resolve_single_branch_write_ref, routes_through_coordination
+from mission_runtime import (
+    MissionArtifactKind,
+    OwnedCheckout,
+    PlanningCheckoutMissing,
+    placement_seam,
+    resolve_single_branch_write_ref,
+    routes_through_coordination,
+)
 from specify_cli.ownership.inference import infer_execution_mode, score_execution_mode_signals
 from specify_cli.ownership.models import WorkProductKind
 from specify_cli.ownership.workspace_strategy import create_planning_workspace
@@ -103,12 +110,12 @@ class PlanningWorkspaceMissing(StructuredError):
     original's; the original is chained as ``__cause__``.
     """
 
-    def __init__(self, source: Any) -> None:
-        self.error_code = str(source.error_code)
-        self.mission_slug = str(source.mission_slug)
-        self.mission_branch = str(source.mission_branch)
+    def __init__(self, source: PlanningCheckoutMissing) -> None:
+        self.error_code = source.error_code
+        self.mission_slug = source.mission_slug
+        self.mission_branch = source.mission_branch
         self.remote: str | None = source.remote
-        self.coordinated = bool(source.coordinated)
+        self.coordinated = source.coordinated
         super().__init__(str(source))
 
     def to_dict(self) -> dict[str, Any]:
@@ -976,11 +983,6 @@ def _recorded_target_branch(repo_root: Path, mission_slug: str) -> str:
     return get_feature_target_branch(repo_root, mission_slug)
 
 
-def _translate_checkout_missing(exc: Exception) -> PlanningWorkspaceMissing:
-    """:class:`PlanningWorkspaceMissing` for WP01's named refusal, the original chained by the caller."""
-    return PlanningWorkspaceMissing(exc)
-
-
 def _mission_branch_target(repo_root: Path, mission_slug: str, target_branch: str) -> PlanningLaneTarget | None:
     """The planning lane's Mission-branch target of a default Mission that has not landed, else ``None``.
 
@@ -1000,7 +1002,7 @@ def _mission_branch_target(repo_root: Path, mission_slug: str, target_branch: st
     try:
         target = planning_commit.planning_lane_target(repo_root, mission_slug, target_branch)
     except mission_runtime.PlanningCheckoutMissing as exc:
-        raise _translate_checkout_missing(exc) from exc
+        raise PlanningWorkspaceMissing(exc) from exc
     return target if target.on_mission_branch else None
 
 
@@ -1327,25 +1329,27 @@ def _owned_checkout_workspace(repo_root: Path, owned: OwnedCheckout, wp_id: str)
     )
 
 
-def _refuse_if_planning_checkout_missing(repo_root: Path, mission_slug: str) -> None:
-    """Raise :class:`PlanningWorkspaceMissing` when the Mission branch holding the Mission is checked out nowhere.
+def _planning_checkout_missing(repo_root: Path, mission_slug: str) -> PlanningCheckoutMissing | None:
+    """WP01's refusal when the Mission branch holding the Mission is checked out nowhere, else ``None``.
 
     A default Mission's work packages live on its Mission branch until it lands, so once the
     coordination worktree is gone no WP of it can be read from any checkout. The one authority
-    (``planning_lane_target``) recognises that shape from the branch's own ``meta.json`` and
-    raises WP01's named refusal, translated here. Any other shape, including an unreadable
-    write branch, returns so the caller's original error stands.
+    (``planning_lane_target``) recognises that shape from the branch's own ``meta.json``. Every
+    other outcome of the probe -- no refusal, or the probe itself failing (a corrupt ``meta.json``,
+    an unreadable write branch, git or topology errors) -- answers ``None``, so the caller's
+    original error stands (review cycle 1, finding 1).
     """
-    import mission_runtime
+    from kernel.errors import GuardedReadError
     from specify_cli.coordination import planning_commit
 
     try:
         planning_commit.planning_lane_target(repo_root, mission_slug, _recorded_target_branch(repo_root, mission_slug))
-    except mission_runtime.PlanningCheckoutMissing as exc:
-        raise _translate_checkout_missing(exc) from exc
-    except mission_runtime.PlanningWriteRefUnavailable:
-        # The probe cannot decide; the caller re-raises its own, more specific error.
-        return
+    except PlanningCheckoutMissing as exc:
+        return exc
+    except (GuardedReadError, RuntimeError, OSError, ValueError):
+        # The probe cannot decide; the caller's own "not found" error is the accurate one.
+        return None
+    return None
 
 
 def _normalized_wp_or_planning_refusal(
@@ -1365,8 +1369,9 @@ def _normalized_wp_or_planning_refusal(
     try:
         return get_normalized_wp(repo_root, mission_slug, wp_id, owned=owned)
     except ValueError:
-        if owned is None:
-            _refuse_if_planning_checkout_missing(repo_root, mission_slug)
+        missing = _planning_checkout_missing(repo_root, mission_slug) if owned is None else None
+        if missing is not None:
+            raise PlanningWorkspaceMissing(missing) from missing
         raise
 
 

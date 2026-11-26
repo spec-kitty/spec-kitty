@@ -180,8 +180,8 @@ def _dependent_rebase_line(dep: str, dep_workspace: ResolvedWorkspace, current_w
         return f"     {dep}: planning-lane workspace on {mission_branch_label(dep_workspace.branch_name)} ({dep_workspace.worktree_path}) — no rebase needed"
     if dep_workspace.branch_name is None:
         # Planning-lane WP: operates in the repository root checkout, no worktree
-        # to rebase. The planning workspace is always up-to-date with main.
-        return f"     {dep}: planning-lane workspace (main repo checkout) — no rebase needed; ensure main is up to date"
+        # to rebase. The planning workspace is up to date with the target branch.
+        return f"     {dep}: planning-lane workspace (repository root checkout) — no rebase needed; ensure the target branch is up to date"
     if dep_workspace.branch_name == current_workspace.branch_name:
         return f"     {dep}: shares {current_workspace.branch_name} (same lane, no separate rebase command)"
     return f"     cd {dep_workspace.worktree_path} && git rebase {current_workspace.branch_name}"

@@ -21,6 +21,7 @@ from specify_cli.mission_metadata import mission_identity_fields, resolve_missio
 from specify_cli.status import CanonicalStatusNotFoundError, Lane, get_wp_lane
 from specify_cli.workspace.context import (
     MISSION_BRANCH_CHECKOUT_KIND,
+    REPO_ROOT_KIND,
     get_normalized_wp,
     is_shared_checkout_kind,
     mission_branch_label,
@@ -338,7 +339,7 @@ def _topology_note(current_entry: WPTopologyEntry | None, current_wp_id: str) ->
     if current_entry.resolution_kind == MISSION_BRANCH_CHECKOUT_KIND:
         # #7860: a default Mission's planning lane writes on its Mission branch.
         return f"{current_wp_id} runs in the planning workspace on {mission_branch_label(current_entry.branch_name)}."
-    if current_entry.resolution_kind == "repo_root":
+    if current_entry.resolution_kind == REPO_ROOT_KIND:
         return f"{current_wp_id} runs in the repository root planning workspace."
     if len(current_entry.lane_wp_ids) > 1:
         shared = ", ".join(current_entry.lane_wp_ids)

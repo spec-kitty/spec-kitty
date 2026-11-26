@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -427,7 +428,10 @@ def test_the_dependency_alert_keeps_todays_lines_for_other_shapes(tmp_path: Path
     lane = replace(_mission_branch_workspace(tmp_path / "lane", _CODE_WP), resolution_kind="lane_workspace", branch_name="kitty/lane-a")
     current = replace(lane, wp_id="WP09")
 
-    assert "main repo checkout" in _dependent_rebase_line(_PLANNING_WP, planning, current)
+    planning_line = _dependent_rebase_line(_PLANNING_WP, planning, current)
+    assert "planning-lane workspace (repository root checkout)" in planning_line
+    assert "ensure the target branch is up to date" in planning_line
+    assert "main" not in planning_line
     assert "same lane" in _dependent_rebase_line(_CODE_WP, lane, current)
     assert _dependent_rebase_line(_CODE_WP, lane, replace(current, branch_name="kitty/lane-b")).endswith("git rebase kitty/lane-b")
 
@@ -511,3 +515,76 @@ def test_the_translated_refusal_carries_the_mission_branch_fields() -> None:
         "remote": "origin",
         "coordinated": True,
     }
+
+
+# --- review cycle 1 ------------------------------------------------------------------------------
+
+
+def test_a_corrupt_meta_and_an_unknown_wp_keep_the_original_not_found_error(tmp_path: Path) -> None:
+    """Finding 1: the missing-checkout probe never replaces the caller's own ``ValueError``."""
+    repo = tmp_path / "repo"
+    _init(repo)
+    _commit_mission(repo, _meta(topology_source=None))
+    (repo / "kitty-specs" / _SLUG / "meta.json").write_text("{not json", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Work package WP99 was not found"):
+        resolve_workspace_for_wp(repo, _SLUG, "WP99")
+
+
+def test_a_probe_that_cannot_decide_keeps_the_original_not_found_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Finding 1: any probe failure other than ``PlanningCheckoutMissing`` leaves the original error standing."""
+    from specify_cli.coordination import planning_commit
+
+    repo, _holder = _settled_default_mission(tmp_path)
+
+    def _broken(*_a: object, **_k: object) -> object:
+        raise RuntimeError("git is unusable")
+
+    monkeypatch.setattr(planning_commit, "planning_lane_target", _broken)
+
+    with pytest.raises(ValueError, match="Work package WP99 was not found"):
+        resolve_workspace_for_wp(repo, _SLUG, "WP99")
+
+
+def test_move_task_pre_review_workspace_fails_closed_when_the_coordination_worktree_is_gone(tmp_path: Path) -> None:
+    """Finding 2: the move-task pre-review resolution does not degrade a missing Mission-branch checkout.
+
+    ``_mt_resolve_pre_review_workspace`` degrades to ``None`` (no evidence) on a missing lanes manifest
+    or an unknown WP; a Mission branch checked out nowhere is not that case: it refuses (NFR-002).
+    """
+    from types import SimpleNamespace
+
+    from specify_cli.cli.commands.agent.tasks_move_task_gates import _mt_resolve_pre_review_workspace
+
+    repo, holder = _settled_default_mission(tmp_path)
+    git_out(repo, "worktree", "remove", "--force", str(holder))
+    st = SimpleNamespace(owned=None, main_repo_root=repo, mission_slug=_SLUG, task_id=_PLANNING_WP)
+
+    with pytest.raises(StructuredError) as refused:
+        _mt_resolve_pre_review_workspace(cast(Any, st))
+
+    assert refused.value.error_code == "PLANNING_CHECKOUT_MISSING"
+
+
+def test_move_task_refuses_by_name_when_the_coordination_worktree_is_gone(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Finding 2, end to end: ``agent tasks move-task`` refuses by name and never prints a traceback.
+
+    With the Mission's only checkout gone, the handle resolution refuses first
+    (``MISSION_NOT_FOUND``), before any workspace resolution; the move never degrades to the root.
+    """
+    from typer.testing import CliRunner
+
+    from specify_cli.cli.commands.agent.tasks import app
+
+    repo, holder = _settled_default_mission(tmp_path)
+    git_out(repo, "worktree", "remove", "--force", str(holder))
+    monkeypatch.chdir(repo)
+
+    result = CliRunner().invoke(app, ["move-task", _PLANNING_WP, "--to", "for_review", "--mission", _SLUG, "--agent", "claude", "--json"])
+
+    assert result.exit_code != 0
+    assert "Traceback" not in result.output
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert payload["success"] is False
+    assert payload["error_code"] in {"MISSION_NOT_FOUND", "PLANNING_CHECKOUT_MISSING"}

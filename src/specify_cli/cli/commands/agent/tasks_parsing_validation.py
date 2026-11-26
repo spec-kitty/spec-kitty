@@ -943,6 +943,8 @@ def _validate_worktree_state(
         try:
             workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id)
         except (ValueError, FileNotFoundError):
+            # PlanningWorkspaceMissing (PLANNING_CHECKOUT_MISSING, #7860) is deliberately not
+            # caught: a Mission branch checked out nowhere fails closed (NFR-002).
             workspace = None
 
     # A shared checkout (the repository root checkout, or a default Mission's
