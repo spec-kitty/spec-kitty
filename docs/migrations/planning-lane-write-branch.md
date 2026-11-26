@@ -119,8 +119,9 @@ The orchestrator API reports it as
 
 - **The Mission lookup refuses first when the coordination worktree is gone (8a).** The Mission
   directory and `lanes.json` exist only on the Mission branch, so `orchestrator-api
-  start-implementation` refuses with `MISSION_NOT_FOUND`, and `agent action implement` exits
-  non-zero, before the workspace resolver can say `PLANNING_CHECKOUT_MISSING`. Both fail closed
+  start-implementation` refuses with a lookup code (`WP_NOT_FOUND`, or `MISSION_NOT_FOUND` when
+  no Mission directory is found at all), and `agent action implement` refuses
+  with "Error locating work package: ... has no tasks directory", before the workspace resolver can say `PLANNING_CHECKOUT_MISSING`. Both fail closed
   (no claim is recorded, nothing falls back), but the refusal does not name the remedy above. Run
   `spec-kitty doctor coordination --mission <slug> --fix` in that case too.
 - **`move-task --to done` asks for `--done-override-reason` (#7877)** for a `code_change` work

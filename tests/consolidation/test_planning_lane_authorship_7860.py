@@ -22,6 +22,7 @@ from specify_cli.consolidation.git_probes import GitProbeError
 from specify_cli.lanes.compute import PLANNING_LANE_ID
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from tests._support.git_cli import git_out
+from tests.consolidation.reconciliation_family import setattr_reconciliation_family
 
 pytestmark = [pytest.mark.git_repo]
 
@@ -157,7 +158,7 @@ def test_an_unreadable_commit_is_dropped(tmp_path: Path, monkeypatch: pytest.Mon
     def _broken(_repo: Path, _sha: str) -> list[str]:
         raise GitProbeError("git show failed")
 
-    monkeypatch.setattr(authorship, "changed_paths_of", _broken)
+    setattr_reconciliation_family(monkeypatch, "changed_paths_of", _broken)
 
     assert authorship._commits_touching(repo, [shas["owned"]], (_OWNED,)) == []
 

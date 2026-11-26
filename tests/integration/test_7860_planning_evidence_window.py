@@ -249,6 +249,18 @@ def _write_and_commit(checkout: Path, relpath: str, text: str, message: str) -> 
     return _git(checkout, "rev-parse", "HEAD")
 
 
+def _claim_planning_wp(mission: _Mission) -> str:
+    """Claim WP02 of a settled default Mission and return its owned path (kept for ``tests/lanes/test_planning_claim_base_7860.py``)."""
+    _assert_default_mission(mission)
+    _implement_planning_wp(mission)
+    return mission.owned
+
+
+def _commit_owned(checkout: Path, relpath: str) -> None:
+    """Commit WP02's owned file in *checkout* (kept for ``tests/lanes/test_planning_claim_base_7860.py``)."""
+    _write_and_commit(checkout, relpath, "# WP02 research\n", "feat(WP02): research notes")
+
+
 def _move_into_review(mission: _Mission, wp: str = "WP02", subtask: str = "T2") -> subprocess.CompletedProcess[str]:
     _sk(mission, "agent", "tasks", "mark-status", subtask, "--status", "done", "--mission", mission.slug)
     _commit_bookkeeping(mission)
@@ -413,7 +425,9 @@ def test_a_removed_coordination_worktree_fails_closed(tmp_path: Path) -> None:
 
     ``lanes.json`` and the Mission directory exist only on the Mission branch, so the Mission
     lookup refuses before the workspace resolver can say ``PLANNING_CHECKOUT_MISSING``: the
-    orchestrator API answers ``MISSION_NOT_FOUND`` and ``agent action implement`` exits non-zero.
+    orchestrator API answers a lookup code (``WP_NOT_FOUND`` here, ``MISSION_NOT_FOUND`` when no
+    Mission directory is found at all) and ``agent action implement`` refuses with "Error locating
+    work package: ... has no tasks directory".
     Both fail closed: no claim is recorded, no workspace is named and nothing falls back to the
     repository root checkout. The lookup refusal does not yet name contract C1's remedy
     (``spec-kitty doctor coordination --mission <slug> --fix``); recorded as a residual in
@@ -428,8 +442,13 @@ def test_a_removed_coordination_worktree_fails_closed(tmp_path: Path) -> None:
     implement_output = _flat(implemented)
 
     assert implemented.returncode != 0, f"implement must refuse without the Mission branch checkout. output:\n{implement_output[-3000:]}"
+    # Today's order: the work package lookup refuses first ("no tasks directory"), not the resolver.
+    assert "Error locating work package" in implement_output, implement_output[-3000:]
     assert f"Workspace: {mission.repo}" not in implement_output and f"Workspace: cd {mission.repo} " not in implement_output, implement_output[-3000:]
     assert started.returncode != 0, started.stdout[-3000:]
-    assert json.loads(started.stdout)["error_code"] == "MISSION_NOT_FOUND", started.stdout[-3000:]
+    # A lookup refusal, never a workspace: WP_NOT_FOUND on this real-CLI shape (the repository root
+    # checkout no longer carries the Mission's work packages); MISSION_NOT_FOUND where no Mission
+    # directory is found at all (WP03 review, residual 8a).
+    assert json.loads(started.stdout)["error_code"] in {"WP_NOT_FOUND", "MISSION_NOT_FOUND"}, started.stdout[-3000:]
     claim_refs = _git(mission.repo, "for-each-ref", "--format=%(refname)", "refs/spec-kitty/")
     assert "WP02" not in claim_refs, f"no claim base may be recorded; refs={claim_refs}"
