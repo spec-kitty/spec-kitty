@@ -17,12 +17,14 @@ only a new independent review approval that reaches it makes it reviewed.
 
 Every precondition refuses with an :class:`IncorporateRefused` that names an
 :class:`IncorporateCode`, before any side effect; a probe that cannot answer refuses
-too (fail closed). The merge runs through the merge-conclusion owner
+too (fail closed). The merge-attribute guard is one of those preconditions (squad-3 I2): it
+judges every path the lane sync point and the incorporation merge would merge, before the claim. The merge runs through the merge-conclusion owner
 (:func:`specify_cli.git.merge_conclusion.run_committing_op`). This module never prints.
 
 Merge attributes (FR-010, WP07): git computes a merge with clone-local and unreviewed merge
-attributes and drivers (a ``merge=union`` turns a conflict into bytes neither side wrote). Before
-its merge, and inside its canceled-window merge probe, ``--incorporate`` runs WP01's guard
+attributes and drivers (a ``merge=union`` turns a conflict into bytes neither side wrote). In its
+preflight (before the claim and the sync point), again before its merge, and inside its
+canceled-window merge probe, ``--incorporate`` runs WP01's guard
 (:func:`~specify_cli.consolidation.merge_attribute_guard.assert_registered_merge_behaviour`) with the
 Mission branch tip, read once per resolution, as the committed attributes source, and the merge
 runs with WP01's pinned config (``merge_probe_env``). A guard refusal or a probe error refuses with
@@ -66,8 +68,6 @@ INCORPORATE_CONFLICT_EXIT = 3
 
 #: The lanes a work package may incorporate from: it was claimed, or sent back for rework.
 _MAY_INCORPORATE = frozenset({Lane.CLAIMED, Lane.IN_PROGRESS})
-#: The lanes whose newest approval stamp a sibling work package contributes.
-_APPROVED_LANES = frozenset({Lane.APPROVED, Lane.DONE})
 #: The lanes a work package leaves with the move-back command.
 _SEND_BACK_LANES = frozenset({Lane.FOR_REVIEW, Lane.IN_REVIEW, Lane.APPROVED, Lane.DONE})
 _IN_PROGRESS_REFS = ("MERGE_HEAD", "REBASE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD")
@@ -172,21 +172,25 @@ def _sibling_lane(manifest: LanesManifest, own_lane_id: str, sibling_lane_id: st
     return sibling
 
 
-def _approved_stamps(events: Sequence[StatusEvent], wp_ids: Sequence[str], lane_id: str) -> dict[str, str]:
-    """``{wp_id: newest approval stamp}`` of *lane_id*'s approved or done work packages; refuse an unstamped one."""
+def _approved_stamps(events: Sequence[StatusEvent], lane: ExecutionLane) -> dict[str, str]:
+    """``{wp_id: newest approval stamp}`` of *lane*'s approved or done work packages; refuse an unstamped one.
+
+    Approved membership is the gate's one predicate (``reconciliation_authorship.approved_wp_ids``, squad-3 A5).
+    """
     from specify_cli.consolidation.approved_bound import approval_stamp
+    from specify_cli.consolidation.reconciliation_authorship import approved_wp_ids
     from specify_cli.status import reduce
 
-    snapshot = reduce(list(events))
-    approved = [wp for wp in wp_ids if str((snapshot.work_packages.get(wp) or {}).get("lane")) in _APPROVED_LANES]
+    work_packages = reduce(list(events)).work_packages
+    approved = approved_wp_ids(lane, work_packages)
     if not approved:
-        raise IncorporateRefused(IncorporateCode.NO_APPROVAL_STAMP, f"{lane_id} has no approved work package, so it has no approval stamp to incorporate.")
+        raise IncorporateRefused(IncorporateCode.NO_APPROVAL_STAMP, f"{lane.lane_id} has no approved work package, so it has no approval stamp to incorporate.")
     stamps = {wp: approval_stamp(events, wp) for wp in approved}
     unstamped = [wp for wp, stamp in stamps.items() if stamp is None]
     if unstamped:
         raise IncorporateRefused(
             IncorporateCode.NO_APPROVAL_STAMP,
-            f"{lane_id}: {', '.join(unstamped)} is approved with no approval stamp, so its content cannot be shown reviewed.",
+            f"{lane.lane_id}: {', '.join(unstamped)} is approved with no approval stamp, so its content cannot be shown reviewed.",
         )
     return {wp: stamp for wp, stamp in stamps.items() if stamp is not None}
 
@@ -280,23 +284,21 @@ def _refuse_attributed_commits(repo_root: Path, commits: frozenset[str], lane_id
         raise _refusal(lane_id, wp_id, stamp, f"reaches commits ({', '.join(_short(sha) for sha in under)})")
 
 
-def _canceled_window_merges(repo_root: Path, events: Sequence[StatusEvent], wp_id: str) -> list[str]:
-    """The first-parent merge commits inside *wp_id*'s work windows, as ``wp_attribution`` bounds them.
+def _canceled_window_merges(repo_root: Path, events: Sequence[StatusEvent], wp_id: str, stamp: str, base_ref: str) -> list[str]:
+    """The merges the stamp reaches beyond *base_ref* (through any parent) that lie inside *wp_id*'s work windows.
 
-    ``resolve_canceled_wp`` never attributes a merge to a work package, so content folded
-    into a merge's own resolution needs this separate look. Raises ``GitProbeError`` for a
-    window with no recorded lane head at either end (the caller refuses).
+    ``resolve_canceled_wp`` never attributes a merge to a work package, so content folded into a
+    merge's own resolution needs this separate look. The window rule is the one
+    :func:`~specify_cli.consolidation.wp_attribution.merges_in_canceled_windows` (squad-3 A1), the
+    rule ``consolidate``'s claim reads: a window with a missing stamp holds every merge (fail
+    closed). A history git cannot read raises ``GitProbeError`` (the caller refuses).
     """
-    from specify_cli.consolidation.git_probes import GitProbeError, first_parent_commits_in_range, is_merge_commit
-    from specify_cli.consolidation.wp_attribution import window_stamps, wp_windows
+    from specify_cli.consolidation.approved_bound import merges_beyond
+    from specify_cli.consolidation.wp_attribution import merges_in_canceled_windows
 
-    merges: list[str] = []
-    for window in wp_windows(events, frozenset({wp_id}))[wp_id]:
-        bounds = window_stamps(window)
-        if bounds is None:
-            raise GitProbeError(f"a work window of {wp_id} has no recorded lane head at one end")
-        merges.extend(sha for sha in first_parent_commits_in_range(repo_root, *bounds) if is_merge_commit(repo_root, sha))
-    return merges
+    merges = merges_beyond(repo_root, stamp, [base_ref])
+    inside = merges_in_canceled_windows(repo_root, events, [wp_id], merges)
+    return [sha for sha in merges if sha in inside]
 
 
 _ATTRIBUTES_REMEDY = (
@@ -321,12 +323,14 @@ def _merge_own_paths(repo_root: Path, merge: str, lane_id: str, attributes_sourc
         raise _attributes_refusal(f"{lane_id}: merge {_short(merge)} in a canceled work window", exc) from exc
 
 
-def _refuse_canceled_merges(repo_root: Path, events: Sequence[StatusEvent], lane_id: str, wp_id: str, stamp: str, *, attributes_source: str | None) -> None:
+def _refuse_canceled_merges(
+    repo_root: Path, events: Sequence[StatusEvent], lane_id: str, wp_id: str, stamp: str, *, base_ref: str, attributes_source: str | None
+) -> None:
     """Refuse when the stamp reaches a merge in the canceled WP's window that adds content of its own, or cannot be judged."""
     from specify_cli.consolidation import git_probes
 
     try:
-        merges = [merge for merge in _canceled_window_merges(repo_root, events, wp_id) if git_probes.sha_reachable_from(repo_root, merge, stamp)]
+        merges = _canceled_window_merges(repo_root, events, wp_id, stamp, base_ref)
     except git_probes.GitProbeError as exc:
         raise _refusal(lane_id, wp_id, stamp, f"cannot be cleared: a merge in the window cannot be judged ({exc})") from exc
     for merge in merges:
@@ -355,7 +359,7 @@ def _refuse_canceled_content_under_stamp(
     whose own resolution changed paths refuses too, since the resolver never attributes merges.
     """
     from specify_cli.consolidation.canceled_attestation import OVERRIDABLE_REASONS, attestation_stamps
-    from specify_cli.consolidation.reconciliation_kernel import _is_bookkeeping
+    from specify_cli.consolidation.reconciliation_kernel import is_mission_bookkeeping_path
     from specify_cli.consolidation.wp_attribution import Unattributable, resolve_canceled_wp
 
     attested = attestation_stamps(events)
@@ -370,7 +374,7 @@ def _refuse_canceled_content_under_stamp(
             canceled_wp_id=wp_id,
             lane_branch=branch,
             coord_base_ref=base_ref,
-            is_bookkeeping=lambda path: _is_bookkeeping(path, route.mission_slug, None),
+            is_bookkeeping=lambda path: is_mission_bookkeeping_path(path, route.mission_slug),
             closed_world_anchors=anchors,
             never_exempt_commits=frozenset(),
         )
@@ -379,7 +383,7 @@ def _refuse_canceled_content_under_stamp(
                 continue
             raise _unattributable_refusal(sibling.lane_id, wp_id, outcome, overridable=outcome.reason in OVERRIDABLE_REASONS, route=route)
         _refuse_attributed_commits(repo_root, outcome.commits, sibling.lane_id, wp_id, stamp)
-        _refuse_canceled_merges(repo_root, events, sibling.lane_id, wp_id, stamp, attributes_source=attributes_source)
+        _refuse_canceled_merges(repo_root, events, sibling.lane_id, wp_id, stamp, base_ref=base_ref, attributes_source=attributes_source)
 
 
 def _resolve_sibling_stamp(
@@ -396,7 +400,7 @@ def _resolve_sibling_stamp(
     attributes_source = _read_attributes_source(repo_root, manifest.mission_branch)
     sibling = _sibling_lane(manifest, own_lane_id, sibling_lane_id)
     branch = lane_branch_name(mission_slug, sibling.lane_id, target_branch=manifest.target_branch)
-    stamps = _approved_stamps(events, sibling.wp_ids, sibling.lane_id)
+    stamps = _approved_stamps(events, sibling)
     stamp = _newest_stamp(repo_root, stamps, sibling.lane_id)
     _require_stamp_on_branch(repo_root, stamp, branch, sibling.lane_id)
     _refuse_canceled_content_under_stamp(
@@ -459,8 +463,44 @@ def _wp_lane(events: Sequence[StatusEvent], wp_id: str) -> Lane:
         raise IncorporateRefused(IncorporateCode.PROBE_FAILED, f"{wp_id} has no readable lane in the status log ({raw!r}).") from exc
 
 
+def _own_lane_ref(repo_root: Path, mission_slug: str, manifest: LanesManifest, own: ExecutionLane) -> str:
+    """The incorporating lane's branch ref, or the Mission branch's when the lane branch does not exist yet (the claim cuts it there)."""
+    from specify_cli.consolidation.git_probes import GitProbeError, resolve_commit
+
+    ref = f"refs/heads/{lane_branch_name(mission_slug, own.lane_id, target_branch=manifest.target_branch)}"
+    try:
+        resolve_commit(repo_root, ref)
+    except GitProbeError:
+        return f"refs/heads/{manifest.mission_branch}"
+    return ref
+
+
+def _guard_attributes_before_side_effects(repo_root: Path, own_ref: str, mission_branch: str, sibling: SiblingStamp) -> None:
+    """WP01's guard, before the claim and the lane sync point (squad-3 I2): every path the sync-point merge
+    (the Mission branch into the lane) or the incorporation merge (the stamp into the lane) would merge.
+
+    A refusal here leaves everything as it was: no status event, no lane sync, no merge.
+    """
+    from specify_cli.consolidation.git_probes import GitProbeError
+    from specify_cli.consolidation.merge_attribute_guard import assert_registered_merge_behaviour
+
+    env = _merge_env()
+    subject = f"the merge of {sibling.lane_id} at approval stamp {_short(sibling.stamp)} into {own_ref}"
+    paths: list[str] = []
+    try:
+        for side in (f"refs/heads/{mission_branch}", sibling.stamp):
+            base = git_merge_base(repo_root, own_ref, side)
+            if base is None:
+                raise GitProbeError(f"the merge base of {own_ref} and {side} cannot be read")
+            paths.extend(str(path) for tip in (own_ref, side) for path in changed_paths(repo_root, base, tip, env=env))
+        assert_registered_merge_behaviour(repo_root, list(dict.fromkeys(paths)), attributes_source=sibling.attributes_source)
+    except (GitCommandError, GitProbeError) as exc:
+        raise _attributes_refusal(subject, exc) from exc
+
+
 def prepare_incorporation(repo_root: Path, mission_slug: str, wp_id: str, sibling_lane_id: str, *, check_wp: bool = True) -> SiblingStamp:
-    """Every precondition of ``implement --incorporate``, read only: the WP's lane, its own lane, the sibling and its stamp."""
+    """Every precondition of ``implement --incorporate``, read only: the WP's lane, its own lane, the sibling and its stamp,
+    and the merge-attribute guard over both merges the command would make (squad-3 I2), so a refusal precedes every side effect."""
     events = _read_events(repo_root, mission_slug)
     if check_wp:
         _check_wp_may_incorporate(_wp_lane(events, wp_id), wp_id, mission_slug)
@@ -472,7 +512,9 @@ def prepare_incorporation(repo_root: Path, mission_slug: str, wp_id: str, siblin
         raise IncorporateRefused(
             IncorporateCode.PLANNING_LANE, f"{wp_id} runs in the repository root checkout (a planning lane); it has no lane checkout to incorporate into."
         )
-    return _resolve_sibling_stamp(repo_root, mission_slug, manifest, own_lane_id=own.lane_id, sibling_lane_id=sibling_lane_id, events=events, wp_id=wp_id)
+    sibling = _resolve_sibling_stamp(repo_root, mission_slug, manifest, own_lane_id=own.lane_id, sibling_lane_id=sibling_lane_id, events=events, wp_id=wp_id)
+    _guard_attributes_before_side_effects(repo_root, _own_lane_ref(repo_root, mission_slug, manifest, own), manifest.mission_branch, sibling)
+    return sibling
 
 
 def _merge_env() -> dict[str, str]:
@@ -481,9 +523,9 @@ def _merge_env() -> dict[str, str]:
     # WP01's pinned merge config over every other source (WP07), so a value set after the guard's
     # read cannot change the merge.
     from specify_cli.consolidation.merge_attribute_guard import merge_probe_env
-    from specify_cli.lanes.consolidation import _make_merge_env
+    from specify_cli.lanes.consolidation import make_merge_env
 
-    env: dict[str, str] = merge_probe_env(_make_merge_env())
+    env: dict[str, str] = merge_probe_env(make_merge_env())
     return env
 
 

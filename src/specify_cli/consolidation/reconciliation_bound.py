@@ -29,9 +29,9 @@ from specify_cli.consolidation.approved_bound import (
     unreviewed_merge_candidates,
     unreviewed_resolution_merges,
 )
-from specify_cli.consolidation.git_probes import GitProbeError, commits_in_range, resolve_commit
+from specify_cli.consolidation.git_probes import GitProbeError, resolve_commit
 from specify_cli.consolidation.reconciliation_authorship import own_approval_stamps
-from specify_cli.consolidation.wp_attribution import GapEntry, window_stamps, wp_windows
+from specify_cli.consolidation.wp_attribution import GapEntry, merges_in_canceled_windows
 from specify_cli.consolidation.write_branch_bound import (
     bind_lane_predicates,
     check_lane_windows,
@@ -363,23 +363,13 @@ def _record_reader(repo_root: Path, branch: str) -> Callable[[str], bool]:
 def _canceled_window_merges(scope: _LaneScope, lane: ExecutionLane, merges: Sequence[str]) -> dict[str, str]:
     """``{merge: canceled work package}`` for each of *merges* inside a canceled work package's window on *lane* (addendum 6).
 
-    The windows come from the one window reconstruction (:mod:`~specify_cli.consolidation.wp_attribution`);
-    a merge is inside a window when the close stamp reaches it and the open stamp does not, through any
-    parent (a hand merge hidden behind a clean merge is inside too). A window with a missing stamp
-    cannot be bounded, so every merge is read as inside it (fail closed); a range git cannot read
-    raises :class:`GitProbeError`.
+    The rule is :func:`~specify_cli.consolidation.wp_attribution.merges_in_canceled_windows`, the one
+    definition ``implement --incorporate`` reads too; this lane only names its canceled work packages
+    (the excluded ones, and those whose lane is ``canceled``).
     """
     canceled = [wp for wp in lane.wp_ids if wp in scope.excluded or str((scope.work_packages.get(wp) or {}).get("lane", "")) == _CANCELED_LANE]
-    if not canceled or not merges:
-        return {}
-    pending = set(merges)
-    inside: dict[str, str] = {}
-    for wp_id, windows in wp_windows(scope.events, frozenset(canceled)).items():
-        for window in windows:
-            stamps = None if window.still_open else window_stamps(window)
-            held = pending if stamps is None else pending.intersection(commits_in_range(scope.repo_root, *stamps))
-            for sha in held:
-                inside.setdefault(sha, wp_id)
+    # ``wp_attribution`` is a mypy-skipped module (#7334): the typed local keeps the return honest.
+    inside: dict[str, str] = merges_in_canceled_windows(scope.repo_root, scope.events, canceled, merges)
     return inside
 
 

@@ -254,8 +254,17 @@ def _rewrite_lane_a(route: Route) -> None:
     _commit_in(tree, "src/pkg/rewritten.py", "REWRITTEN = True\n", "feat: rewritten lane-a")
 
 
+def _clone_local_union(route: Route) -> None:
+    """Squad-3 I2: a clone-local ``merge=union`` the attribute guard refuses; it must refuse before the claim and the sync point."""
+    attributes = route.mission.repo / ".git" / "info" / "attributes"
+    attributes.parent.mkdir(parents=True, exist_ok=True)
+    with attributes.open("a", encoding="utf-8") as fh:
+        fh.write("src/** merge=union\n")
+
+
 _REFUSALS = {
     "INCORPORATE_LANE_UNKNOWN": ("lane-z", True, None),
+    "INCORPORATE_MERGE_ATTRIBUTES_REFUSED": (LANE_A, True, _clone_local_union),
     "INCORPORATE_OWN_LANE": (LANE_B, True, None),
     "INCORPORATE_NO_APPROVAL_STAMP": (LANE_A, True, _strip_stamps),
     "INCORPORATE_STAMP_NOT_ON_LANE": (LANE_A, True, _rewrite_lane_a),
@@ -990,13 +999,50 @@ def test_canceled_merge_the_stamp_does_not_reach_is_not_judged(tmp_path: Path) -
     assert lane.resolve().stamp == stamp
 
 
-def test_canceled_window_merges_refuse_an_unbounded_window(tmp_path: Path) -> None:
-    from specify_cli.consolidation.git_probes import GitProbeError
-    from specify_cli.lanes.incorporate import _canceled_window_merges
+def _hidden_hand_merge_in_canceled_window(root: Path) -> tuple[_MixedLane, str]:
+    """Squad-3 A1 repro: in canceled WP02's window a CLEAN first-parent merge brings in a side branch
+    whose own hand merge added src/canceled.py, so the hand merge is off the lane's first-parent spine."""
+    lane = _MixedLane(root)
+    lane.claim("WP02")
+    git(lane.repo, "checkout", "-q", "-b", "side", lane.head())
+    _commit_in(lane.repo, "src/side.py", "SIDE = 1\n", "side work")
+    git(lane.repo, "checkout", "-q", "-b", "side2", lane.head())
+    git(lane.repo, "reset", "-q", "--hard", "HEAD~1")
+    _commit_in(lane.repo, "src/side2.py", "SIDE2 = 1\n", "side2 work")
+    git(lane.repo, "checkout", "-q", "side")
+    git(lane.repo, "merge", "-q", "--no-ff", "--no-commit", "side2")
+    (lane.repo / "src" / "canceled.py").write_text("CANCELED = True\n", encoding="utf-8")
+    git(lane.repo, "add", "src/canceled.py")
+    git(lane.repo, "commit", "-qm", "hand merge side2")
+    hidden = git_rev(lane.repo, "HEAD")
+    git(lane.repo, "checkout", "-q", lane.branch)
+    git(lane.repo, "merge", "-q", "--no-ff", "-m", "clean merge side", "side")
+    assert _parents(lane.repo, "HEAD")[1] == hidden
+    lane.move("WP02", "in_progress", "canceled")
+    lane.claim("WP01")
+    lane.commit("src/wp01.py", "WP01 = 1\n")
+    lane.approve("WP01")
+    return lane, hidden
+
+
+def test_hand_merge_hidden_behind_a_clean_merge_in_a_canceled_window_is_refused(tmp_path: Path) -> None:
+    """A1: the one canceled-window rule walks every parent, so ``--incorporate`` refuses what ``consolidate`` refuses."""
+    from specify_cli.lanes.incorporate import IncorporateCode
+
+    lane, hidden = _hidden_hand_merge_in_canceled_window(tmp_path)
+
+    message = _refused(lane.resolve, IncorporateCode.CANCELED_CONTENT_UNDER_STAMP)
+
+    assert f"reaches merge {hidden[:12]}" in message and "src/canceled.py" in message, message
+
+
+def test_canceled_window_without_lane_heads_holds_every_merge(tmp_path: Path) -> None:
+    """A1: a canceled window with no recorded lane head cannot be bounded, so it holds every merge (fail closed, no raise)."""
+    from specify_cli.consolidation.wp_attribution import merges_in_canceled_windows
 
     lane = _MixedLane(tmp_path)
     lane.move("WP02", "planned", "claimed", policy_metadata=None)
     lane.move("WP02", "claimed", "canceled", policy_metadata=None)
 
-    with pytest.raises(GitProbeError, match="no recorded lane head"):
-        _canceled_window_merges(lane.repo, lane.events, "WP02")
+    assert merges_in_canceled_windows(lane.repo, lane.events, ["WP02"], ["m1", "m2"]) == {"m1": "WP02", "m2": "WP02"}
+    assert merges_in_canceled_windows(lane.repo, lane.events, [], ["m1"]) == {}

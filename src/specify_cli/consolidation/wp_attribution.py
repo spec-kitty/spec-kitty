@@ -361,6 +361,36 @@ def window_stamps(window: WorkWindow) -> tuple[str, str] | None:
     return window.open_head, window.close_head
 
 
+def merges_in_canceled_windows(
+    repo_root: Path,
+    events: Sequence[StatusEvent],
+    canceled_wp_ids: Iterable[str],
+    merges: Sequence[str],
+) -> dict[str, str]:
+    """``{merge: canceled work package}`` for each of *merges* inside a canceled work package's window.
+
+    The one canceled-window rule (squad-3 A1), read by the claim's FR-004 check
+    (``reconciliation_bound``) and by ``implement --incorporate``. The windows are this module's
+    own reconstruction (:func:`wp_windows`); a merge is inside a window when the close stamp
+    reaches it and the open stamp does not, through ANY parent (a hand merge hidden behind a
+    clean merge is inside too). A window that is still open, or that lacks a stamp at either end,
+    cannot be bounded, so it holds every merge (fail closed; never a raise). A range git cannot
+    read raises :class:`GitProbeError`.
+    """
+    canceled = frozenset(canceled_wp_ids)
+    if not canceled or not merges:
+        return {}
+    pending = set(merges)
+    inside: dict[str, str] = {}
+    for wp_id, windows in wp_windows(events, canceled).items():
+        for window in windows:
+            stamps = None if window.still_open else window_stamps(window)
+            held = pending if stamps is None else pending.intersection(commits_in_range(repo_root, *stamps))
+            for sha in held:
+                inside.setdefault(sha, wp_id)
+    return inside
+
+
 def _window_commits(
     repo_root: Path,
     window: WorkWindow,
@@ -1042,7 +1072,6 @@ __all__ = [
     "lane_exempt_commits",
     "lane_never_started",
     "lane_own_commits",
+    "merges_in_canceled_windows",
     "resolve_canceled_wp",
-    "window_stamps",
-    "wp_windows",
 ]
