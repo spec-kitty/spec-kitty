@@ -1,7 +1,7 @@
 {
-  "event_count": 75,
-  "last_event_id": "01M8B3RVYKMNR1DSRPYG61RKYA",
-  "materialized_at": "2026-11-26T05:03:09.267673+00:00",
+  "event_count": 77,
+  "last_event_id": "01M8B3TPM07SR4MMGNXZNF5AAA",
+  "materialized_at": "2026-11-26T05:04:08.509268+00:00",
   "mission_number": "",
   "mission_slug": "planning-lane-write-branch-01M8A725",
   "mission_type": "software-dev",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -182,11 +182,20 @@
       }
     },
     "WP05": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude::python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M8A9B4PJK4BVB0HW7CE8N5SM",
-      "last_transition_at": "2026-11-25T21:21:16.498391+00:00"
+      "implementer_of_record": "claude::python-pedro",
+      "lane": "in_progress",
+      "last_event_id": "01M8B3TPM07SR4MMGNXZNF5AAA",
+      "last_transition_at": "2026-11-26T05:04:08.509268+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 16930,
+      "shell_pid_created_at": "1795669426.39"
     }
   }
 }
