@@ -28,11 +28,11 @@
       "criterion_id": "FR-003",
       "description": "Verify FR-003 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/lanes: test_conflict_halt_lists_exactly_the_conflicted_paths; NO_LANE_CHECKOUT_HALT via test_7755_stale_sibling_lane_recovery.py::test_refusal_without_a_lane_worktree_still_names_the_sibling (squad-3 F1, d9effb445a)",
+      "pass_fail": "pass",
+      "verified_by": "claude::architect-alphonso",
+      "verified_at": "2026-11-26T09:31:41.274213+00:00",
+      "notes": "Verified at lane-m b6df77436c (contains every lane). Source: squad-3 fidelity matrix (squads/03-pre-accept.md) and WP13 cycle-3 approval; tests/lanes+tests/consolidation 5225 passed."
     },
     {
       "criterion_id": "FR-004",
