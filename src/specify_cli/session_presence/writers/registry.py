@@ -19,7 +19,6 @@ Registry shape (see data-model.md):
 
 from __future__ import annotations
 
-from ..hooks.claude_code_hook import ClaudeCodeHookRegistrar
 from .agents_md import AgentsMdWriter
 from .base import Writer
 from .claude_code import ClaudeCodeWriter
@@ -71,10 +70,9 @@ def get_writer(agent_key: str) -> Writer:
 def presence_file_paths() -> tuple[str, ...]:
     """Project-relative files the session-presence writers write, sorted.
 
-    The orientation file of every Markdown-based writer (``.claude/CLAUDE.md``,
-    the rules files, ``AGENTS.md``, ``GEMINI.md`` ...) plus Claude Code's hook
-    settings file. A stub writer that writes nothing adds no path.
+    The union of every registered writer's :meth:`Writer.owned_paths`: the
+    orientation files (``.claude/CLAUDE.md``, the rules files, ``AGENTS.md``,
+    ``GEMINI.md`` ...) and Claude Code's hook settings file. A stub writer that
+    writes nothing adds no path.
     """
-    paths = {writer.rules_path for writer in WRITER_REGISTRY.values() if isinstance(writer, MarkdownRulesWriter)}
-    paths.add(ClaudeCodeHookRegistrar().settings_relative_path)
-    return tuple(sorted(paths))
+    return tuple(sorted({path for writer in WRITER_REGISTRY.values() for path in writer.owned_paths()}))

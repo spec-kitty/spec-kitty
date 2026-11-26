@@ -24,6 +24,10 @@ class Writer(Protocol):
 
     harness_key: str
 
+    def owned_paths(self) -> tuple[str, ...]:
+        """Project-relative files this writer writes (empty for a writer that writes nothing)."""
+        ...
+
     def can_write(self, project_root: Path) -> bool:
         """Return ``True`` when the harness is installed in this project."""
         ...

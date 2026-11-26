@@ -173,3 +173,73 @@ def test_fresh_init_second_upgrade_is_pure_no_op(cli_app: tuple[Typer, Console],
     ledger_after_second = tracked_ledger.read_bytes() if tracked_ledger.exists() else b""
     assert ledger_after_second == ledger_after_first, "second upgrade appended to the ledger (re-application)"
     assert _commit_count() == commits_after_first, "second upgrade created an auto-commit on an already-current project"
+
+
+def _tree_digest(project: Path) -> dict[str, bytes]:
+    """Every file outside ``.git`` with its bytes (symlinks skipped)."""
+    return {
+        path.relative_to(project).as_posix(): path.read_bytes()
+        for path in project.rglob("*")
+        if path.is_file() and not path.is_symlink() and ".git" not in path.relative_to(project).parts
+    }
+
+
+def test_second_upgrade_changes_no_bytes_with_every_agent_and_auto_commit_off(
+    cli_app: tuple[Typer, Console], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#7878, every agent: files upgrade writes back untracked never re-open a clone-local step.
+
+    A committed project for all agents loses its session-presence files (the
+    files the upgrade's finalizer writes after the clone-local steps ran) and its
+    clone-local ledger (a fresh clone); auto-commit is off, so what upgrade writes
+    stays untracked. The second upgrade must change no byte in the tree.
+    """
+    import contextlib
+    import difflib
+
+    import typer
+    from specify_cli.cli.commands.upgrade import upgrade
+    from specify_cli.core.agent_config import load_agent_config, save_agent_config
+    from specify_cli.core.config import AI_CHOICES
+    from specify_cli.session_presence.writers.registry import presence_file_paths
+
+    monkeypatch.chdir(tmp_path)
+    _patch_common_init_seams(monkeypatch)
+    _copied_pack(tmp_path, monkeypatch)
+    every_agent = ",".join(sorted(AI_CHOICES))
+    result = CliRunner().invoke(cli_app[0], ["init", "all-agents", "--ai", every_agent, "--non-interactive"], catch_exceptions=True)
+    assert result.exit_code == 0, result.output
+    project = tmp_path / "all-agents"
+
+    for rel in presence_file_paths():
+        (project / rel).unlink(missing_ok=True)
+    (project / ".kittify" / "migrations" / "clone-local.jsonl").unlink(missing_ok=True)
+    config = load_agent_config(project)
+    config.auto_commit = False
+    save_agent_config(project, config)
+    git = ("git", "-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false")
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=project, check=True)
+    subprocess.run([*git, "add", "-A"], cwd=project, check=True)
+    subprocess.run([*git, "commit", "-q", "-m", "init"], cwd=project, check=True)
+
+    upgrade_app = typer.Typer(add_completion=False)
+    upgrade_app.command()(upgrade)
+
+    def _run_upgrade() -> None:
+        with contextlib.chdir(project):
+            res = CliRunner().invoke(upgrade_app, ["--yes", "--no-worktrees"], catch_exceptions=True)
+        assert res.exit_code == 0, res.output
+
+    _run_upgrade()
+    after_first = _tree_digest(project)
+    _run_upgrade()
+    after_second = _tree_digest(project)
+    changed = sorted(rel for rel in after_first.keys() | after_second.keys() if after_first.get(rel) != after_second.get(rel))
+    detail = "".join(
+        line
+        for rel in changed
+        for line in difflib.unified_diff(
+            after_first.get(rel, b"").decode(errors="replace").splitlines(True), after_second.get(rel, b"").decode(errors="replace").splitlines(True), rel, rel
+        )
+    )
+    assert changed == [], f"the second upgrade changed {changed}:\n{detail}"

@@ -128,3 +128,16 @@ def test_outside_a_repository_nothing_is_detected(tmp_path: Path) -> None:
     assert migration.can_apply(project) == (False, "Not a git repository")
     assert migration.apply(project).changes_made == ["Skipped: not a git repository"]
     assert successor._presence_paths_from_root(project) == frozenset(presence_file_paths())
+
+
+def test_presence_file_paths_is_the_union_of_every_writers_owned_paths() -> None:
+    """The writers own their file lists; the registry view only unions them (#7878 review, LOW 1)."""
+    from specify_cli.session_presence.writers.claude_code import ClaudeCodeWriter
+    from specify_cli.session_presence.writers.null_writer import NullWriter
+    from specify_cli.session_presence.writers.registry import WRITER_REGISTRY
+
+    assert ClaudeCodeWriter().owned_paths() == _PRESENCE_FILES
+    assert NullWriter("q").owned_paths() == ()
+    assert WRITER_REGISTRY["cursor"].owned_paths() == (".cursor/rules/spec-kitty.mdc",)
+    union = {path for writer in WRITER_REGISTRY.values() for path in writer.owned_paths()}
+    assert presence_file_paths() == tuple(sorted(union))

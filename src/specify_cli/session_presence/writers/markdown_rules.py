@@ -132,6 +132,10 @@ class MarkdownRulesWriter:
     append_mode: bool
     check_dir: str | None = None
 
+    def owned_paths(self) -> tuple[str, ...]:
+        """The one orientation file this writer writes."""
+        return (self.rules_path,)
+
     def can_write(self, project_root: Path) -> bool:
         """Return ``True`` when the harness root (or rules parent) directory exists."""
         if self.check_dir is not None:

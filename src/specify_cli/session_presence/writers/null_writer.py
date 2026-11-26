@@ -23,6 +23,10 @@ class NullWriter:
 
     harness_key: str
 
+    def owned_paths(self) -> tuple[str, ...]:
+        """No files: NullWriter never writes anything."""
+        return ()
+
     def can_write(self, _project_root: Path) -> bool:
         """Always returns ``False`` — NullWriter never writes anything."""
         return False
