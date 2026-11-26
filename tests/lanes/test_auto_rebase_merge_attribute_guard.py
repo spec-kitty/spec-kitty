@@ -185,6 +185,7 @@ def test_a_signed_auto_rebase_merge_is_recorded_with_log_show_signature(tmp_path
     use_throwaway_signing_key(tmp_path, monkeypatch)
     root, worktree = _clean_shape(tmp_path)
     sign_commits_and_show_signatures(root)
+
     def _signed(checkout: Path, *, env: dict[str, str] | None, message: str | None = None) -> subprocess.CompletedProcess[str]:
         result: subprocess.CompletedProcess[str] = conclude_in_progress_op(checkout, env=env, message=message, disable_gpgsign=False)
         return result
