@@ -16,18 +16,28 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.consolidation.approved_bound import approval_stamp
 from tests.terminus.approved_lane_route_support import (
+    IMPLEMENTER,
     LANE_A,
     LANE_B,
+    RECONCILIATION_VERIFIED,
     RESOLUTION_MERGE_UNREVIEWED,
+    RESOLVED_TEXT,
+    SHARED_PATH,
+    Strategy,
     build_conflicting_lanes_mission,
     cli,
     consolidate,
+    events,
     hand_merge,
+    independent_approval,
     lane_of,
+    merge_own_paths,
     output,
+    show,
 )
-from tests.terminus.conftest import git_rev
+from tests.terminus.conftest import git_rev, sha_reachable
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
 
@@ -72,3 +82,37 @@ def test_printed_move_back_runs_on_a_protected_main_coordination_mission(tmp_pat
     # The refusal stays until a new independent approval reaches the merge: a re-run still refuses.
     code, again = consolidate(route, "squash")
     assert code != 0, again
+
+
+@pytest.mark.parametrize("strategy", ["squash", "merge"])
+def test_printed_recovery_lands_the_mission_on_a_protected_main_coordination_mission(tmp_path: Path, strategy: Strategy) -> None:
+    """Squad-3 F2: the ``RESOLUTION_MERGE_UNREVIEWED`` recovery, followed exactly as printed, lands the Mission.
+
+    The printed send-back (``move-task <WP> --to in_progress``), then submit for review (the resolution is
+    already committed, so there is nothing more to resolve), then an independent approval whose stamp reaches
+    the merge, then ``consolidate``: exit 0 with the gate's banner, the resolved text on protected ``main``.
+    """
+    route = build_conflicting_lanes_mission(tmp_path, "coord", mid8="01M7WF2" + strategy[0].upper())
+    assert route.mission.target_branch == "main" and route.mission.coord_branch != "main", "fixture: protected-main coordination topology"
+    merge = hand_merge(route, lane=LANE_B, sibling=LANE_A)
+    assert SHARED_PATH in merge_own_paths(route, merge), "fixture: the hand merge carries its own content"
+
+    refused = cli(route, "consolidate", "--mission", route.slug, "--yes", "--strategy", strategy)
+    text = output(refused)
+    assert refused.returncode == 1 and RESOLUTION_MERGE_UNREVIEWED in text, text
+    assert f"the new approval must reach merge {merge[:7]}" in " ".join(text.split()), text
+
+    moved = cli(route, *_printed_move_back(text, "WP02", route.slug))
+    assert moved.returncode == 0, output(moved)
+    submitted = cli(route, "agent", "tasks", "move-task", "WP02", "--to", "for_review", "--agent", IMPLEMENTER, "--mission", route.slug)
+    assert submitted.returncode == 0, output(submitted)
+    review_output, approved = independent_approval(route, "WP02")
+    assert approved.returncode == 0, f"{review_output}\n{output(approved)}"
+    stamp = approval_stamp(events(route), "WP02")
+    assert stamp is not None and sha_reachable(route.repo, merge, stamp), "the re-approval stamp reaches the resolution merge"
+
+    code, landed = consolidate(route, strategy)
+
+    assert code == 0, landed
+    assert RECONCILIATION_VERIFIED in landed, landed
+    assert show(route.repo, "main", SHARED_PATH) == RESOLVED_TEXT
