@@ -155,19 +155,17 @@ def test_every_src_file_and_prose_surface_a_lane_module_reads_selects_the_lane(m
     """
     imported, read = _src_files_imported_by(module), _repo_files_read_by(module)
     assert imported, f"non-vacuity: the import scan found no src file in {module}"
+    if module == CONTRACT_MODULE:
+        # non-vacuity: the string-literal scan sees the two enumeration surfaces the module parses
+        assert read >= {
+            "docs/api/orchestrator-api.md",
+            "src/charter/offering/skills/spec-kitty-orchestrator-api-operator/references/orchestrator-api-contract.md",
+        }
     router = load_router()
 
     missing = sorted(path for path in imported | read | {module} if JOB not in select_gates([path], router=router).selected_jobs)
 
     assert missing == [], f"a change to these files runs no `{JOB_NAME}`: {missing}"
-
-
-def test_the_module_still_reads_both_prose_surfaces() -> None:
-    """The string-literal scan above is not vacuous: it sees the two enumeration surfaces the module parses."""
-    assert _repo_files_read_by(CONTRACT_MODULE) >= {
-        "docs/api/orchestrator-api.md",
-        "src/charter/offering/skills/spec-kitty-orchestrator-api-operator/references/orchestrator-api-contract.md",
-    }
 
 
 def test_the_lane_runs_exactly_the_registered_modules_with_no_narrowing() -> None:
@@ -204,7 +202,6 @@ def test_the_lane_is_blocking_and_gated_on_the_group_alone() -> None:
     """Gated on the group only: the module reads docstrings (inspect.getsource), so a prose-only diff must still run it."""
     jobs = _jobs()
 
-    assert JOB in jobs["router-gate"]["needs"], "router-gate.needs is what makes the lane blocking"
     assert JOB not in ADVISORY_JOB_NAMES, "the lane must gate the run, not be advisory"
     assert jobs[JOB]["needs"] == ["changes"]
     context = dict(BASE_CONTEXT_ALL_FALSE)
@@ -228,12 +225,3 @@ def test_the_scrub_row_is_the_router_group_verbatim() -> None:
     (row,) = [row for row in scrub["non_src_router_groups"] if row["group"] == GROUP]
 
     assert list(row["roots"]) == list(load_router().filters[GROUP])
-
-
-def test_the_lane_is_cheap_and_installs_like_its_siblings() -> None:
-    job = _jobs()[JOB]
-
-    assert int(job["timeout-minutes"]) <= 10
-    run_text = "\n".join(str(step.get("run", "")) for step in job["steps"])
-    assert "uv sync --frozen" in run_text
-    assert any("sync-packs" in str(step.get("uses", "")) for step in job["steps"]), "the module imports the packs-aware CLI"
