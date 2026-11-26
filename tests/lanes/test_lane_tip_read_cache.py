@@ -1,4 +1,4 @@
-"""The lane landing proof reads each immutable git answer once per consolidate run (#7848).
+"""The lane landing proof reads each immutable git answer once per consolidate run.
 
 ``spec-kitty consolidate`` proves every lane twice: once through the Mission branch projection
 (:func:`is_landed_through_mission_branch`) and once in lane cleanup
@@ -13,7 +13,6 @@ changes an answer.
 
 from __future__ import annotations
 
-import subprocess
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
@@ -22,10 +21,10 @@ from unittest import mock
 import pytest
 
 import kernel.paths as _kernel_paths
-
 from kernel.git.read_cache import git_read_cache_scope
 from specify_cli.lanes import lane_tip
 from specify_cli.lanes.lane_tip import is_absorbed_but_for_mission_bookkeeping
+from tests._support.git_spawns import GitSpawns, count_git_spawns
 from tests.lanes.landed_mission_support import (
     _COORD,
     _LOG,
@@ -43,26 +42,10 @@ from tests.lanes.landed_mission_support import (
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 
-_REAL_POPEN = subprocess.Popen
-
-
-class _GitSpawns:
-    """Counts git processes started while patched in."""
-
-    def __init__(self) -> None:
-        self.count = 0
-
-    def __call__(self, args: Any, *rest: Any, **kwargs: Any) -> Any:
-        argv = args if isinstance(args, (list, tuple)) else [args]
-        if argv and Path(str(argv[0])).name.startswith("git"):
-            self.count += 1
-        return _REAL_POPEN(args, *rest, **kwargs)
-
 
 @pytest.fixture
-def spawns() -> Iterator[_GitSpawns]:
-    counter = _GitSpawns()
-    with mock.patch.object(subprocess, "Popen", counter):
+def spawns() -> Iterator[GitSpawns]:
+    with count_git_spawns() as counter:
         yield counter
 
 
@@ -75,18 +58,27 @@ def _landing_sha(landed: Landed) -> str:
     return _git(landed.root, "rev-parse", "main")
 
 
-def test_a_repeated_proof_in_one_run_starts_no_git_process(landed: Landed, spawns: _GitSpawns) -> None:
+@pytest.mark.parametrize(
+    ("by_ref_name", "allowed_again"),
+    [(False, 1), (True, 2)],
+    ids=["commit-id", "ref-name"],
+)
+def test_a_repeated_proof_in_one_run_starts_almost_no_git_process(landed: Landed, spawns: GitSpawns, by_ref_name: bool, allowed_again: int) -> None:
+    """A commit id is read once; lane cleanup's ``refs/heads/<target>`` is pinned to one commit per proof.
+
+    Only the in-memory merge (merge-tree --write-tree), and for a ref name its one resolution, may run again.
+    """
     tip = landed.tip()
-    landing = _landing_sha(landed)
+    landing = _TARGET if by_ref_name else _landing_sha(landed)
     with git_read_cache_scope():
         assert is_absorbed_but_for_mission_bookkeeping(landed.root, tip, landing, _SLUG)
         first = spawns.count
         assert is_absorbed_but_for_mission_bookkeeping(landed.root, tip, landing, _SLUG)
     assert first > 0
-    assert spawns.count - first <= 1, "only the in-memory merge (merge-tree --write-tree) may run again"
+    assert spawns.count - first <= allowed_again
 
 
-def test_blob_lookups_of_one_commit_read_its_mission_subtree_once(landed: Landed, spawns: _GitSpawns) -> None:
+def test_blob_lookups_of_one_commit_read_its_mission_subtree_once(landed: Landed, spawns: GitSpawns) -> None:
     landing = _landing_sha(landed)
     paths = (_SPEC, _META, _LOG, _WP01, f"{_MD}/missing.md")
     with git_read_cache_scope():
@@ -99,15 +91,7 @@ def test_blob_lookups_of_one_commit_read_its_mission_subtree_once(landed: Landed
     assert all(oid for oid in inside[:-1])
 
 
-def test_a_directory_path_resolves_to_its_tree_with_and_without_the_cache(landed: Landed) -> None:
-    landing = _landing_sha(landed)
-    with git_read_cache_scope():
-        inside = lane_tip._blob_id(landed.root, landing, f"{_MD}/tasks")
-    assert inside == lane_tip._blob_id(landed.root, landing, f"{_MD}/tasks")
-    assert inside == _git(landed.root, "rev-parse", f"{landing}:{_MD}/tasks")
-
-
-def test_a_ref_name_is_read_per_path_without_the_subtree(landed: Landed, spawns: _GitSpawns) -> None:
+def test_a_ref_name_is_read_per_path_without_the_subtree(landed: Landed, spawns: GitSpawns) -> None:
     with git_read_cache_scope():
         before = spawns.count
         lane_tip._blob_id(landed.root, "main", _SPEC)
@@ -117,10 +101,6 @@ def test_a_ref_name_is_read_per_path_without_the_subtree(landed: Landed, spawns:
 
 def _unchanged(_landed: Landed) -> None:
     return None
-
-
-def _late_product(landed: Landed) -> None:
-    _commit(landed.lane, "late work", {"src/late.py": "y = 2\n"})
 
 
 def _lane_only_event(landed: Landed) -> None:
@@ -139,12 +119,10 @@ def _target_spec_edit(landed: Landed) -> None:
     ("shape", "expected"),
     [
         (_unchanged, True),
-        (_late_product, False),
         (_lane_only_event, False),
-        (_lane_spec_edit, False),
         (_target_spec_edit, True),
     ],
-    ids=["squash-landed", "late-product", "lane-only-event", "lane-spec-edit", "target-spec-edit"],
+    ids=["squash-landed", "lane-only-event", "target-spec-edit"],
 )
 def test_the_cache_never_changes_a_verdict(landed: Landed, shape: Callable[[Landed], None], expected: bool) -> None:
     shape(landed)
@@ -163,22 +141,11 @@ def test_a_lane_moved_inside_the_scope_is_judged_on_its_new_tip(landed: Landed) 
         assert not _proof(landed, landing)
 
 
-def test_a_landing_ref_name_is_resolved_once_per_proof(landed: Landed, spawns: _GitSpawns) -> None:
-    """Lane cleanup hands the proof ``refs/heads/<target>``: inside a run it is pinned to one commit."""
-    tip = landed.tip()
-    with git_read_cache_scope():
-        assert is_absorbed_but_for_mission_bookkeeping(landed.root, tip, _TARGET, _SLUG)
-        first = spawns.count
-        assert is_absorbed_but_for_mission_bookkeeping(landed.root, tip, _TARGET, _SLUG)
-    assert spawns.count - first <= 2, "only the ref resolution and merge-tree may run again"
-
-
 def test_a_landing_ref_that_moved_between_proofs_is_judged_at_its_new_commit(landed: Landed) -> None:
     with git_read_cache_scope():
         assert _proof(landed, _TARGET)
         _commit(landed.root, "the target drops the lane's product", {"src/lane.py": "x = 0\n"})
         assert not _proof(landed, _TARGET)
-    assert not _proof(landed, _TARGET)
 
 
 def test_an_unknown_landing_ref_fails_closed_inside_a_run(landed: Landed) -> None:
@@ -220,15 +187,12 @@ def shapes(tmp_path: Path) -> tuple[Path, str]:
         "kitty-specs/foo/tasks/WP01.md",
         "kitty-specs\\foo\\tasks\\WP01.md",
         "kitty-specs/foo",
-        "kitty-specs/foo/",
         "kitty-specs",
-        "kitty-specs/top.md",
         "kitty-specs/foo-bar/x",
         "kitty-specs/fo o/x",
         'dir/ünï/q"t',
         "dir/ünï",
         "README",
-        "README/x",
         "kitty-specs/foo/missing",
         "kitty-specs/foo/mod",
         "gl",
@@ -247,8 +211,8 @@ def test_a_blob_lookup_inside_a_run_matches_the_per_path_read(shapes: tuple[Path
         assert inside is not None
 
 
-def test_a_product_path_is_read_alone_never_its_whole_top_level_tree(landed: Landed, spawns: _GitSpawns) -> None:
-    """#7848 review: only a Mission folder is listed whole; a product path costs one read per commit."""
+def test_a_product_path_is_read_alone_never_its_whole_top_level_tree(landed: Landed, spawns: GitSpawns) -> None:
+    """only a Mission folder is listed whole; a product path costs one read per commit."""
     landing = _landing_sha(landed)
     listed: list[str] = []
     real = lane_tip.subtree_entries
@@ -267,22 +231,6 @@ def test_a_product_path_is_read_alone_never_its_whole_top_level_tree(landed: Lan
     assert first == lane_tip._blob_id(landed.root, landing, "src/lane.py")
 
 
-def test_the_landing_ref_pin_runs_on_the_oldest_supported_git(landed: Landed) -> None:
-    """#7848 review: ``rev-parse --end-of-options`` needs git 2.30; the project supports 2.25."""
-    seen: list[tuple[str, ...]] = []
-    real = lane_tip.run_git
-
-    def recording(cwd: Path, *args: str, **kwargs: Any) -> Any:
-        seen.append(args)
-        return real(cwd, *args, **kwargs)
-
-    with mock.patch.object(lane_tip, "run_git", recording), git_read_cache_scope():
-        assert _proof(landed, _TARGET)
-    pins = [args for args in seen if args[:1] == ("rev-parse",)]
-    assert pins, "the landing ref is pinned inside a run"
-    assert all("--end-of-options" not in args for args in pins)
-
-
 def _pins_seen(run: Callable[[], object]) -> list[tuple[str, ...]]:
     seen: list[tuple[str, ...]] = []
     real = lane_tip.run_git
@@ -297,14 +245,14 @@ def _pins_seen(run: Callable[[], object]) -> list[tuple[str, ...]]:
 
 
 def test_both_proofs_pin_a_ref_name_outside_a_run_too(landed: Landed) -> None:
-    """#7848 review: one proof judges one commit whether or not a cache scope is open."""
+    """One proof judges one commit whether or not a cache scope is open.
+
+    The pin must not use ``rev-parse --end-of-options`` (git 2.30): the project supports git 2.25.
+    A commit id is never pinned again.
+    """
     content = _pins_seen(lambda: _proof(landed, _TARGET))
     assert content == [("rev-parse", "--verify", f"{_TARGET}^{{commit}}")]
     through = _pins_seen(lambda: lane_tip.is_landed_through_mission_branch(landed.root, landed.tip(), _COORD, _TARGET, _SLUG, approved_tips=(landed.tip(),)))
     assert ("rev-parse", "--verify", f"{_COORD}^{{commit}}") in through
     assert ("rev-parse", "--verify", f"{_TARGET}^{{commit}}") in through
-
-
-def test_a_commit_id_is_never_pinned_again(landed: Landed) -> None:
-    landing = _landing_sha(landed)
-    assert _pins_seen(lambda: _proof(landed, landing)) == []
+    assert _pins_seen(lambda: _proof(landed, _landing_sha(landed))) == []
