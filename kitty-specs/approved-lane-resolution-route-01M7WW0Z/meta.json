@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-26T09:33:13.015138+00:00",
+      "accepted_by": "claude::architect-alphonso",
+      "accepted_from_commit": "ee594aee5000f11e8703bdaa70af4411d83a0ffc"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-26T09:33:13.015138+00:00",
+  "accepted_by": "claude::architect-alphonso",
+  "accepted_from_commit": "ee594aee5000f11e8703bdaa70af4411d83a0ffc",
   "coordination_branch": "kitty/mission-approved-lane-resolution-route-01M7WW0Z",
   "create_return_branch": "fix/approved-lane-resolution-route",
   "created_at": "2026-11-20T16:18:25.410533+00:00",
