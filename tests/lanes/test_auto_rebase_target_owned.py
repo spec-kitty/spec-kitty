@@ -137,7 +137,7 @@ def test_lane_sync_takes_coordination_metadata_under_target_owned_rule(
 def test_lane_sync_still_refuses_a_source_conflict_byte_identically(
     tmp_path: Path,
 ) -> None:
-    """Control (FR-008): a genuine source conflict still refuses, same text."""
+    """Control (FR-008): a genuine source conflict still refuses, same text, then exactly the conflicted paths (#5604 FR-003)."""
     # Arrange
     project = _broken_coord_project(tmp_path)
     assert project.coord_branch is not None
@@ -154,7 +154,10 @@ def test_lane_sync_still_refuses_a_source_conflict_byte_identically(
 
     # Assert
     assert exc_info.value.to_dict()["error_code"] == LANE_AUTO_REBASE_FAILED
-    assert str(exc_info.value) == (f"LANE_AUTO_REBASE_FAILED: auto-rebase refused for lane-a: no classifier rule matched {lane_worktree / 'src' / 'shared.txt'}")
+    assert str(exc_info.value) == (
+        f"LANE_AUTO_REBASE_FAILED: auto-rebase refused for lane-a: no classifier rule matched {lane_worktree / 'src' / 'shared.txt'}"
+        "; conflicted paths: src/shared.txt"
+    )
     assert _git_out(lane_worktree, "rev-parse", "HEAD").strip() == pre_sync_head
 
 
