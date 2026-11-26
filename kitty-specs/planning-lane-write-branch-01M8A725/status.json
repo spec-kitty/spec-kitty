@@ -1,7 +1,7 @@
 {
-  "event_count": 69,
-  "last_event_id": "01M8B0956Y6H2Q0YFMRGXWTCWA",
-  "materialized_at": "2026-11-26T04:02:08.734546+00:00",
+  "event_count": 70,
+  "last_event_id": "01M8B1XYVEGTFXSGC1HG951DT3",
+  "materialized_at": "2026-11-26T04:30:58.926729+00:00",
   "mission_number": "",
   "mission_slug": "planning-lane-write-branch-01M8A725",
   "mission_type": "software-dev",
@@ -14,8 +14,8 @@
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
-    "planned": 1
+    "in_review": 0,
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
@@ -106,11 +106,11 @@
       "agent": "claude::reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 2,
+      "force_count": 3,
       "implementer_of_record": "claude::python-pedro",
-      "lane": "in_review",
-      "last_event_id": "01M8B0956Y6H2Q0YFMRGXWTCWA",
-      "last_transition_at": "2026-11-26T04:02:08.734546+00:00",
+      "lane": "planned",
+      "last_event_id": "01M8B1XYVEGTFXSGC1HG951DT3",
+      "last_transition_at": "2026-11-26T04:30:58.926729+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-26T01:50:32Z – claude::python-pedro – shell_pid=9936 – Implemented in e94a5626 (signed, pushed). RED-FIRST: on base 8 red/6 green over the 3 new files (hollow planning WP passed gate; claim base = root HEAD; lane_branch=main; waiver required code lanes; orchestrator returned root). After: 14 passed + 1 strict xfail. BLAST: pytest tests/lanes tests/orchestrator_api tests/coordination tests/status tests/specify_cli/workspace tests/specify_cli/orchestrator_api tests/specify_cli/lanes tests/agent/test_orchestrator_commands_integration.py tests/specify_cli/cli/commands/agent/test_claim_ancestry_gate.py tests/specify_cli/cli/commands/test_implement_claim_concurrency.py -n 4 --dist loadfile: 5254 passed, 10 skipped, 1 xfailed, 0 failed (first run had 7 reds caused by me, fixed: self-heal no longer reads WP files; _ensure_repo_root_checkout_or_fail keeps its None return seam). make test-fast: 3222 passed, 7 skipped. ruff/format/C901/mypy clean on 6 changed files. DECISIONS: T011 no new dirty refusal on the Mission-branch checkout (status commits stage only their paths; FR-013 ratchet proves it). Waiver: planning lane on a default not-landed Mission branch waives code lanes regardless of root branch; self-heal reconciles that checkout (via workspace.context._mission_branch_target). Orchestrator: PlanningWriteRefUnavailable -> existing LANE_ALLOCATION_FAILED (TRANSITION_REJECTED on stamp path) with data.error_type; no new public code, no envelope key changes beyond data.error_type in that failure data. T014 FR-013 ratchet green through emit_status_transition_transactional: no fix needed. T010 case 5 evidence-axis assertion is a strict xfail for WP05 (expects wp_evidence.planning_evidence_window). RESIDUALS: rollback resync and resume reset --hard are residue-guarded (refuse non-residue edits, #5638); coord-strand heal restores only status paths and reverts recorded status SHAs; no edit-discarding path found (read, not tested). Removed coord worktree: start-implementation refuses MISSION_NOT_FOUND at lookup (lanes.json lives only on the Mission branch).",
@@ -124,8 +124,8 @@
       "provider": "__resolved_provider_absent__",
       "review": null,
       "review_result": {
-        "feedback_path": "/home/user/spec-kitty/.worktrees/planning-lane-write-branch-01M8A725-coord/kitty-specs/planning-lane-write-branch-01M8A725/tasks/WP03-claim-base-and-gate/review-cycle-2.md",
-        "reference": "review-cycle://planning-lane-write-branch-01M8A725/WP03-claim-base-and-gate/review-cycle-2.md",
+        "feedback_path": "/home/user/spec-kitty/.worktrees/planning-lane-write-branch-01M8A725-coord/kitty-specs/planning-lane-write-branch-01M8A725/tasks/WP03-claim-base-and-gate/review-cycle-3.md",
+        "reference": "review-cycle://planning-lane-write-branch-01M8A725/WP03-claim-base-and-gate/review-cycle-3.md",
         "reviewer": "claude::reviewer-renata",
         "verdict": "changes_requested"
       },
