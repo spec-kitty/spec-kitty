@@ -1,0 +1,133 @@
+---
+title: 'Migration: Planning Lane Writes to the Mission Branch'
+description: 'Before a default Mission lands, its planning work packages are worked, reviewed and evidenced on the Mission branch; how to recover planning work already committed on the target.'
+doc_status: active
+kind: How-To
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the operator of a Mission in flight when Spec Kitty is upgraded.
+updated: '2026-11-26T00:00:00Z'
+related:
+- adr/4.x/2026-11-06-3-topology-is-settled-once-at-first-finalize
+- adr/4.x/2026-10-04-5-approval-stamp-bounds-the-approved-claim
+- context/topology
+- changelog/CHANGELOG
+---
+
+# Planning lane writes to the Mission branch
+
+Use this page when a Mission created without `--topology` (a default Mission) has a
+planning-artifact work package, and you upgrade to a release that carries #7860. It matters most
+when that Mission is already in flight.
+
+## What changed
+
+A default Mission mints one Mission branch. When `finalize-tasks` settles it `lanes_with_coord`,
+that branch becomes its coordination branch and is checked out in the coordination worktree
+(`.worktrees/<slug>-coord`), while the repository root checkout returns to the target branch.
+
+Before this change, three surfaces disagreed about where a planning work package's work belongs:
+
+- `implement` sent the agent to the repository root checkout, on the target branch;
+- the implementation-evidence check (move into review, `accept`, `consolidate`, the orchestrator
+  API) ended the planning window at the target branch;
+- the review range read the Mission branch.
+
+So work committed next to the Mission's other planning artifacts, on the Mission branch, was
+refused with `IMPLEMENTATION_MISSING`, and operators forced the move into review by hand.
+
+Now, until the Mission lands, the Mission branch is the one place a planning work package is
+written, reviewed and evidenced (operator ruling A', recorded on #7860):
+
+- `agent action implement`, native `implement` and `orchestrator-api start-implementation` name
+  the coordination worktree as the workspace and say the work is committed on the Mission branch.
+- The claim base is recorded from that checkout, so the move-into-review gate counts the work
+  package's own commits.
+- The evidence window runs from the commit on the Mission branch that introduced the work
+  package's claim to the Mission branch tip. Content written before the claim (for example a
+  `research/` draft from planning) never counts.
+- `consolidate` lands the planning work on the target with the rest of the Mission.
+
+Nothing changes for an explicit-topology Mission (`--topology ...`), a Mission whose landing is
+recorded, a `single_branch` Mission or a code lane: their planning work is still worked in the
+repository root checkout and judged against the target branch.
+
+No migration runs, and no second evidence rule is kept for in-flight Missions (operator ruling
+"guidance only").
+
+## Who is affected
+
+A default Mission that settled `lanes_with_coord`, has not landed, and whose planning work package
+was committed in the repository root checkout on the target branch, as the old `implement`
+guidance said.
+
+## Symptom
+
+`move-task --to for_review`, `accept` or `consolidate` refuses the work package with
+`IMPLEMENTATION_MISSING`, names a window that ends at the Mission branch, and adds:
+
+```text
+Changes to its owned_files were found on the target branch only: <sha> ...
+```
+
+That addendum appears only when a commit on the target changed one of the work package's
+`owned_files`. A work package with no owned change anywhere is refused without it.
+
+## Recover
+
+Pick one remedy per work package.
+
+**The work is the work package's own.** Cherry-pick the named commits onto the Mission branch, in
+the coordination worktree, then retry:
+
+```bash
+cd .worktrees/<slug>-coord
+git cherry-pick <sha> [<sha> ...]
+cd -
+spec-kitty agent tasks move-task <WP> --to for_review --mission <slug>
+```
+
+The commits stay on the target as well. If they should not have landed there, revert them on the
+target through your usual review route.
+
+**The work package owes no implementation.** Record that on `accept` or `consolidate`:
+
+```bash
+spec-kitty accept --mission <slug> --attest-no-implementation <WP> --attest-reason "<why>"
+spec-kitty consolidate --mission <slug> --attest-no-implementation <WP> --attest-reason "<why>"
+```
+
+The attestation lifts only `IMPLEMENTATION_MISSING`. It is not a review.
+
+## `PLANNING_CHECKOUT_MISSING`
+
+`implement` refuses with `PLANNING_CHECKOUT_MISSING` when the planning work package must be worked
+on the Mission branch but no checkout holds it (the coordination worktree was removed, or the
+branch exists only on a remote). It never falls back to the repository root checkout. Restore
+the coordination worktree, then retry:
+
+```bash
+spec-kitty doctor coordination --mission <slug> --fix
+```
+
+When the branch exists only as a remote-tracking ref, create the local branch first
+(`git branch <mission-branch> <remote>/<mission-branch>`); the refusal prints that command.
+The orchestrator API reports it as
+`LANE_ALLOCATION_FAILED` with `data.workspace_error_code = "PLANNING_CHECKOUT_MISSING"`.
+
+## Known residuals
+
+- **The Mission lookup refuses first when the coordination worktree is gone (8a).** The Mission
+  directory and `lanes.json` exist only on the Mission branch, so `orchestrator-api
+  start-implementation` refuses with `MISSION_NOT_FOUND`, and `agent action implement` exits
+  non-zero, before the workspace resolver can say `PLANNING_CHECKOUT_MISSING`. Both fail closed
+  (no claim is recorded, nothing falls back), but the refusal does not name the remedy above. Run
+  `spec-kitty doctor coordination --mission <slug> --fix` in that case too.
+- **`move-task --to done` asks for `--done-override-reason` (#7877)** for a `code_change` work
+  package that a Mission finalized before #7816 placed in `lane-planning`, when it is moved to
+  `done` before the Mission lands. The check fails safe: it asks for an override instead of
+  passing.
+- **The review range lists owned files only.** The review range of a planning work package is
+  limited to its `owned_files` pathspecs, so a change the work package made outside its ownership
+  map is not shown in the review commands. The review range keeps its own reading of the write
+  branch until #5604 lands; a test pins that it agrees with the evidence window.

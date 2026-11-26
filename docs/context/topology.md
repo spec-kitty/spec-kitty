@@ -74,7 +74,7 @@ Terms describing the shape a mission is given at creation and where its work run
 
 | | |
 |---|---|
-| **Definition** | The single bookkeeping lane of a `single_branch` mission, keeping the existing lane id `lane-planning`. It always resolves to the [write checkout](#write-checkout), never to a `.worktrees/` path, and has no lane branch. It generalizes the planning lane that every topology already carries for `planning_artifact` work packages. |
+| **Definition** | The single bookkeeping lane of a `single_branch` mission, keeping the existing lane id `lane-planning`. In a `single_branch` mission it always resolves to the [write checkout](#write-checkout), never to a `.worktrees/` path, and has no lane branch. It generalizes the planning lane that every topology already carries for `planning_artifact` work packages. In a `lanes` or `lanes_with_coord` mission that planning lane resolves to the repository root checkout, with one exception (#7860): before a default Mission (created without `--topology`) lands, its planning lane writes to its [mission branch](#mission-branch), so `implement` names the checkout holding that branch (the coordination worktree once the topology is settled). Its implementation evidence is judged there too, from the commit that introduced the work package's claim to the mission branch. When no checkout holds that branch, `implement` refuses with `PLANNING_CHECKOUT_MISSING`; it never falls back to the repository root checkout. |
 | **Context** | Topology |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
@@ -152,7 +152,7 @@ Terms describing the shape a mission is given at creation and where its work run
 
 | | |
 |---|---|
-| **Definition** | The `execution_mode` recorded on status events: `worktree` or `direct_repo`. `direct_repo` is stamped for every work package that runs in a [write checkout](#write-checkout), and also for `planning_artifact` work packages of every topology, because they resolve to the repo-root lane. It is **not** the work-product kind (`code_change` / `planning_artifact`), which older code and work-package frontmatter also call `execution_mode`. |
+| **Definition** | The `execution_mode` recorded on status events: `worktree` or `direct_repo`. `direct_repo` is stamped for every work package that runs in a [write checkout](#write-checkout), and also for `planning_artifact` work packages of every topology, because they run in a shared checkout rather than a lane worktree: the repo-root lane, or, before a default Mission lands, the checkout holding its mission branch (resolution kind `mission_branch_checkout`, #7860). It is **not** the work-product kind (`code_change` / `planning_artifact`), which older code and work-package frontmatter also call `execution_mode`. |
 | **Context** | Topology |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
