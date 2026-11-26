@@ -88,11 +88,11 @@
       "criterion_id": "FR-009",
       "description": "Verify FR-009 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/consolidation/test_rollback_own_lane_moves.py; three-lane test_next_run_after_rollback_is_not_refused; test_a_second_auto_rebase_of_one_lane_in_one_attempt_is_reported_not_restored",
+      "pass_fail": "pass",
+      "verified_by": "claude::architect-alphonso",
+      "verified_at": "2026-11-26T09:32:25.611688+00:00",
+      "notes": "Verified at lane-m b6df77436c (contains every lane). Source: squad-3 fidelity matrix (squads/03-pre-accept.md) and WP13 cycle-3 approval; tests/lanes+tests/consolidation 5225 passed."
     },
     {
       "criterion_id": "FR-010",
