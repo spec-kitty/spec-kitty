@@ -30,10 +30,9 @@ from specify_cli.decisions.fork import _coordination_ref_resolves
 from specify_cli.git.protection_policy import _remote_default_branch
 from specify_cli.git.ref_advance import advance_branch_ref, worktrees_with_branch_checked_out
 from specify_cli.lanes.consolidation import _git_common_dir, _git_config_get, _set_local_git_config
+from tests._support.git_spawns import GitSpawns, count_git_spawns
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
-
-_REAL_POPEN = subprocess.Popen
 
 
 def _git(cwd: Path, *args: str) -> str:
@@ -60,27 +59,13 @@ def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return root
 
 
-class _GitSpawns:
-    """Counts git processes started while active."""
-
-    def __init__(self) -> None:
-        self.count = 0
-
-    def __call__(self, args: Any, *rest: Any, **kwargs: Any) -> Any:
-        argv = args if isinstance(args, (list, tuple)) else [args]
-        if argv and Path(str(argv[0])).name.startswith("git"):
-            self.count += 1
-        return _REAL_POPEN(args, *rest, **kwargs)
-
-
 @pytest.fixture
-def spawns() -> Iterator[_GitSpawns]:
-    counter = _GitSpawns()
-    with mock.patch("subprocess.Popen", side_effect=counter):
+def spawns() -> Iterator[GitSpawns]:
+    with count_git_spawns() as counter:
         yield counter
 
 
-def _no_spawn_on_repeat(spawns: _GitSpawns, read: Callable[[], object]) -> object:
+def _no_spawn_on_repeat(spawns: GitSpawns, read: Callable[[], object]) -> object:
     """Call *read* twice; the second call must start no git process. Returns the answer."""
     first = read()
     before = spawns.count
@@ -90,7 +75,7 @@ def _no_spawn_on_repeat(spawns: _GitSpawns, read: Callable[[], object]) -> objec
     return first
 
 
-def test_live_tip_follows_a_compare_and_swap_advance(repo: Path, spawns: _GitSpawns) -> None:
+def test_live_tip_follows_a_compare_and_swap_advance(repo: Path, spawns: GitSpawns) -> None:
     with git_read_cache_scope():
         old = _no_spawn_on_repeat(spawns, lambda: _live_tip(repo, "side"))
         _git(repo, "commit", "-q", "--allow-empty", "-m", "two")
@@ -99,14 +84,14 @@ def test_live_tip_follows_a_compare_and_swap_advance(repo: Path, spawns: _GitSpa
         assert _live_tip(repo, "side") == new
 
 
-def test_live_tip_sees_a_deleted_branch(repo: Path, spawns: _GitSpawns) -> None:
+def test_live_tip_sees_a_deleted_branch(repo: Path, spawns: GitSpawns) -> None:
     with git_read_cache_scope():
         assert _no_spawn_on_repeat(spawns, lambda: _live_tip(repo, "side"))
         _git(repo, "branch", "-D", "side")
         assert _live_tip(repo, "side") is None
 
 
-def test_local_branch_exists_sees_create_and_delete(repo: Path, spawns: _GitSpawns) -> None:
+def test_local_branch_exists_sees_create_and_delete(repo: Path, spawns: GitSpawns) -> None:
     with git_read_cache_scope():
         assert _no_spawn_on_repeat(spawns, lambda: _local_branch_exists(repo, "fresh")) is False
         _git(repo, "branch", "fresh")
@@ -115,7 +100,7 @@ def test_local_branch_exists_sees_create_and_delete(repo: Path, spawns: _GitSpaw
         assert _local_branch_exists(repo, "fresh") is False
 
 
-def test_target_ref_exists_sees_create_and_delete(repo: Path, spawns: _GitSpawns) -> None:
+def test_target_ref_exists_sees_create_and_delete(repo: Path, spawns: GitSpawns) -> None:
     with git_read_cache_scope():
         assert _no_spawn_on_repeat(spawns, lambda: _target_ref_exists(repo, "work")) is False
         _git(repo, "branch", "work")
@@ -124,7 +109,7 @@ def test_target_ref_exists_sees_create_and_delete(repo: Path, spawns: _GitSpawns
         assert _target_ref_exists(repo, "work") is False
 
 
-def test_current_branch_follows_a_checkout(repo: Path, spawns: _GitSpawns) -> None:
+def test_current_branch_follows_a_checkout(repo: Path, spawns: GitSpawns) -> None:
     with git_read_cache_scope():
         assert _no_spawn_on_repeat(spawns, lambda: get_current_branch(repo)) == "main"
         _git(repo, "checkout", "-q", "side")
@@ -133,7 +118,7 @@ def test_current_branch_follows_a_checkout(repo: Path, spawns: _GitSpawns) -> No
         assert get_current_branch(repo) is None
 
 
-def test_origin_head_follows_set_head(repo: Path, spawns: _GitSpawns) -> None:
+def test_origin_head_follows_set_head(repo: Path, spawns: GitSpawns) -> None:
     _git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
     _git(repo, "update-ref", "refs/remotes/origin/side", "side")
     with git_read_cache_scope():
@@ -144,7 +129,7 @@ def test_origin_head_follows_set_head(repo: Path, spawns: _GitSpawns) -> None:
         assert _origin_head_branch(repo) == "side"
 
 
-def test_remote_default_branch_follows_origin_head_and_config(repo: Path, spawns: _GitSpawns) -> None:
+def test_remote_default_branch_follows_origin_head_and_config(repo: Path, spawns: GitSpawns) -> None:
     with git_read_cache_scope():
         assert _no_spawn_on_repeat(spawns, lambda: _remote_default_branch(repo)) is None, "no origin is a definitive answer"
         _git(repo, "update-ref", "refs/remotes/origin/trunk", "HEAD")
@@ -157,7 +142,7 @@ def test_remote_default_branch_follows_origin_head_and_config(repo: Path, spawns
         assert spawns.count > before, "a config write must invalidate the remote default branch"
 
 
-def test_worktree_registry_follows_add_remove_and_prune(repo: Path, tmp_path: Path, spawns: _GitSpawns) -> None:
+def test_worktree_registry_follows_add_remove_and_prune(repo: Path, tmp_path: Path, spawns: GitSpawns) -> None:
     linked = tmp_path / "linked"
     with git_read_cache_scope():
         before = _no_spawn_on_repeat(spawns, lambda: read_worktree_registry(repo))
@@ -168,7 +153,7 @@ def test_worktree_registry_follows_add_remove_and_prune(repo: Path, tmp_path: Pa
         assert read_worktree_registry(repo) == before
 
 
-def test_ref_advance_worktree_listing_follows_a_checkout_switch(repo: Path, tmp_path: Path, spawns: _GitSpawns) -> None:
+def test_ref_advance_worktree_listing_follows_a_checkout_switch(repo: Path, tmp_path: Path, spawns: GitSpawns) -> None:
     linked = tmp_path / "linked"
     _git(repo, "worktree", "add", "-q", str(linked), "side")
     with git_read_cache_scope():
@@ -179,7 +164,7 @@ def test_ref_advance_worktree_listing_follows_a_checkout_switch(repo: Path, tmp_
         assert worktrees_with_branch_checked_out(repo, "side") == []
 
 
-def test_merge_driver_config_read_follows_a_config_write(repo: Path, spawns: _GitSpawns) -> None:
+def test_merge_driver_config_read_follows_a_config_write(repo: Path, spawns: GitSpawns) -> None:
     key = "merge.spec-kitty-test.name"
     with git_read_cache_scope():
         assert _no_spawn_on_repeat(spawns, lambda: _git_config_get(repo, key)) is None
@@ -192,7 +177,7 @@ def test_merge_driver_config_read_follows_a_config_write(repo: Path, spawns: _Gi
         assert _git_config_get(repo, key) == "v2"
 
 
-def test_a_failed_lookup_of_a_configured_origin_is_asked_again(repo: Path, spawns: _GitSpawns, tmp_path: Path) -> None:
+def test_a_failed_lookup_of_a_configured_origin_is_asked_again(repo: Path, spawns: GitSpawns, tmp_path: Path) -> None:
     """#7689 landing fold: an unreachable configured origin may be transient, so its None is never reused."""
     _git(repo, "remote", "add", "origin", str(tmp_path / "does-not-exist.git"))
     with git_read_cache_scope():
@@ -202,7 +187,7 @@ def test_a_failed_lookup_of_a_configured_origin_is_asked_again(repo: Path, spawn
         assert spawns.count > before, "a failed lookup of a configured origin must be asked again, never reused"
 
 
-def test_configured_remotes_follows_remote_add_and_remove(repo: Path, spawns: _GitSpawns) -> None:
+def test_configured_remotes_follows_remote_add_and_remove(repo: Path, spawns: GitSpawns, tmp_path: Path) -> None:
     """#7848: consolidate lists the remotes four times; the list is a function of the config."""
     with git_read_cache_scope():
         assert _no_spawn_on_repeat(spawns, lambda: configured_remotes(repo)) == []
@@ -212,9 +197,23 @@ def test_configured_remotes_follows_remote_add_and_remove(repo: Path, spawns: _G
         assert configured_remotes(repo) == ["upstream"]
         _git(repo, "remote", "remove", "upstream")
         assert configured_remotes(repo) == []
+    _assert_remotes_are_read_per_checkout(repo, tmp_path)
 
 
-def test_git_common_dir_is_read_once_per_checkout(repo: Path, tmp_path: Path, spawns: _GitSpawns) -> None:
+def _assert_remotes_are_read_per_checkout(repo: Path, tmp_path: Path) -> None:
+    """A conditional include can give a linked checkout its own remotes."""
+    linked = tmp_path / "linked"
+    _git(repo, "worktree", "add", "-q", str(linked), "side")
+    extra = tmp_path / "extra.cfg"
+    extra.write_text('[remote "linked"]\n\turl = /dev/null\n')
+    _git(repo, "config", "includeIf.onbranch:side.path", str(extra))  # the linked checkout holds side
+    with git_read_cache_scope():
+        assert configured_remotes(repo) == []
+        assert configured_remotes(linked) == ["linked"]
+        assert configured_remotes(repo) == []
+
+
+def test_git_common_dir_is_read_once_per_checkout(repo: Path, tmp_path: Path, spawns: GitSpawns) -> None:
     """#7848: the merge-driver activation asks for the common dir around every lane merge."""
     linked = tmp_path / "linked"
     _git(repo, "worktree", "add", "-q", str(linked), "side")
@@ -230,7 +229,7 @@ def test_git_common_dir_is_read_once_per_checkout(repo: Path, tmp_path: Path, sp
         assert _git_common_dir(plain) is None
 
 
-def test_remote_tracking_branch_exists_sees_create_and_delete(repo: Path, spawns: _GitSpawns) -> None:
+def test_remote_tracking_branch_exists_sees_create_and_delete(repo: Path, spawns: GitSpawns) -> None:
     """#7848: the bookkeeping policy asks this four times per consolidate run."""
     with git_read_cache_scope():
         assert _no_spawn_on_repeat(spawns, lambda: _remote_tracking_branch_exists(repo, "side")) is False
@@ -240,7 +239,7 @@ def test_remote_tracking_branch_exists_sees_create_and_delete(repo: Path, spawns
         assert _remote_tracking_branch_exists(repo, "side") is False
 
 
-def test_coordination_ref_resolves_sees_create_and_delete(repo: Path, spawns: _GitSpawns) -> None:
+def test_coordination_ref_resolves_sees_create_and_delete(repo: Path, spawns: GitSpawns) -> None:
     """#7848: the decision ledger probes the coordination branch four times per consolidate run."""
     with git_read_cache_scope():
         assert _no_spawn_on_repeat(spawns, lambda: _coordination_ref_resolves(repo, "coord")) is False
@@ -250,7 +249,7 @@ def test_coordination_ref_resolves_sees_create_and_delete(repo: Path, spawns: _G
         assert _coordination_ref_resolves(repo, "coord") is False
 
 
-def test_repo_supports_transactions_follows_core_bare(repo: Path, spawns: _GitSpawns) -> None:
+def test_repo_supports_transactions_follows_core_bare(repo: Path, spawns: GitSpawns) -> None:
     """#7848: the status transaction checks the checkout four times per consolidate run."""
     with git_read_cache_scope():
         assert _no_spawn_on_repeat(spawns, lambda: _repo_supports_transactions(repo)) is True
@@ -260,36 +259,32 @@ def test_repo_supports_transactions_follows_core_bare(repo: Path, spawns: _GitSp
         assert _repo_supports_transactions(repo) is True
 
 
-def test_a_failed_coordination_ref_probe_is_asked_again_and_raises_each_time(repo: Path) -> None:
-    """#7848 review: only a definite answer (exit 0 or 1) is kept; any other exit raises every time."""
+def _coordination_ref_probe(repo: Path) -> tuple[Any, Callable[[], object], type[Exception] | None]:
     from specify_cli.decisions import fork
 
-    with mock.patch.object(fork, "run_command", return_value=(128, "", "boom")) as run, git_read_cache_scope():
-        for _ in range(2):
-            with pytest.raises(fork.LedgerProbeError):
-                fork._coordination_ref_resolves(repo, "coord")
-    assert run.call_count == 2
+    return fork, lambda: fork._coordination_ref_resolves(repo, "coord"), fork.LedgerProbeError
 
 
-def test_configured_remotes_is_read_per_checkout(repo: Path, tmp_path: Path) -> None:
-    """#7848 review: a conditional include can give a linked checkout its own remotes."""
-    linked = tmp_path / "linked"
-    _git(repo, "worktree", "add", "-q", str(linked), "side")
-    extra = tmp_path / "extra.cfg"
-    extra.write_text('[remote "linked"]\n\turl = /dev/null\n')
-    _git(repo, "config", "includeIf.onbranch:side.path", str(extra))  # the linked checkout holds side
-    with git_read_cache_scope():
-        assert configured_remotes(repo) == []
-        assert configured_remotes(linked) == ["linked"]
-        assert configured_remotes(repo) == []
-
-
-def test_a_failed_remote_tracking_probe_is_asked_again(repo: Path) -> None:
-    """#7848 review: like the coordination-ref probe, only a definite answer (exit 0 or 1) is kept."""
+def _remote_tracking_probe(repo: Path) -> tuple[Any, Callable[[], object], type[Exception] | None]:
     from specify_cli.coordination import policy
 
+    return policy, lambda: policy._remote_tracking_branch_exists(repo, "origin/side"), None
+
+
+@pytest.mark.parametrize("probe", [_coordination_ref_probe, _remote_tracking_probe], ids=["coordination-ref", "remote-tracking"])
+def test_a_failed_probe_is_asked_again(repo: Path, probe: Callable[[Path], tuple[Any, Callable[[], object], type[Exception] | None]]) -> None:
+    """Only a definite answer (exit 0 or 1) is kept; any other exit is asked again (the coordination-ref probe raises every time)."""
+    module, ask, error = probe(repo)
     failed = subprocess.CompletedProcess(args=["git"], returncode=128, stdout="", stderr="boom")
-    with mock.patch.object(policy.subprocess, "run", return_value=failed) as run, git_read_cache_scope():
-        assert policy._remote_tracking_branch_exists(repo, "origin/side") is False
-        assert policy._remote_tracking_branch_exists(repo, "origin/side") is False
+    if error is not None:
+        patched = mock.patch.object(module, "run_command", return_value=(128, "", "boom"))
+    else:
+        patched = mock.patch.object(module.subprocess, "run", return_value=failed)
+    with patched as run, git_read_cache_scope():
+        for _ in range(2):
+            if error is not None:
+                with pytest.raises(error):
+                    ask()
+            else:
+                assert ask() is False
     assert run.call_count == 2
