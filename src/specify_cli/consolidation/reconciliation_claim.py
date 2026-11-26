@@ -37,7 +37,7 @@ from specify_cli.consolidation.reconciliation_canceled import (
     _unreadable_canceled_dependency_lanes,
     _unreadable_canceled_dependency_refusal_text,
 )
-from specify_cli.consolidation.reconciliation_claim_types import ApprovedWpCommitSet
+from specify_cli.consolidation.reconciliation_claim_types import ApprovedWpCommitSet, UnreviewedMerge
 from specify_cli.consolidation.reconciliation_closed_world import (
     _REFUSE_DEPENDENCY_PROBE,
     PreMissionHistory,
@@ -371,6 +371,7 @@ def _build_claim(
     # Authored (WP1/WP2 shared prerequisite): computed BEFORE the excluded axis so
     # #5018's commit-level narrowing (below) can subtract it. Collectors stay pure
     # (WP2 note) — no shared mutable state, just a value threaded as a parameter.
+    unreviewed: list[UnreviewedMerge] = []
     authored_shas, authored_patch_ids, authored_blobs, authored_deletions, path_contributions, approved_lane_content = _collect_authored(
         repo_root,
         lanes_manifest,
@@ -379,6 +380,11 @@ def _build_claim(
         sb_window,
         canceled_lane_commits=canceled_lane_commits,
         presence=presence,
+        unreviewed_sink=unreviewed,
+        own_paths_memo=bound.merge_own_paths,
+        unreviewed_candidates=bound.unreviewed_candidates,
+        # Squad-3 A7: the claim's committed attributes source, as the FR-004 probe reads it.
+        attributes_source=excluded_window_base if excluded_window_base and presence.base == excluded_window_base else None,
     )
     excluded_shas, excluded_patch_ids = _collect_excluded(
         repo_root,
@@ -420,6 +426,7 @@ def _build_claim(
         pre_mission_shas=pre_mission.shas,
         pre_mission_blobs=pre_mission.blobs,
         pre_mission_deletions=pre_mission.deletions,
+        unreviewed_merges=tuple(unreviewed),
     )
 
 

@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-09-29'
-updated: '2026-11-25T00:00:00Z'
+updated: '2026-11-26T00:00:00Z'
 ---
 
 ## Context and Problem Statement
@@ -620,3 +620,118 @@ branch's own commits a second time, commit by commit, although the real squash g
   tracked by #7862.
 - The remerge path set depends on the clone's merge attributes and drivers (pre-existing since
   #7307; tracked by #5604 WP01).
+
+## Amendment 2026-11-26: the reviewed-merge trust model and fail-closed merge probes (#7630, #5604)
+
+**Context.** Mission `approved-lane-resolution-route-01M7WW0Z` (#5604) made conflicting approved
+lanes leave through re-review (ADR `2026-10-04-5` Amendment 2026-11-26). That route ends in a
+reviewed merge on a lane, so this ADR has to say which merges author what they brought in, and
+the probes that judge a merge have to be sound against a clone's own merge settings. The trust
+model below already shipped with #7626 (the specification calls it #7630; the code cites #7626,
+used from here on) and was never recorded here.
+
+**Decision.**
+
+- **The #7626 trust model: a reviewed merge authors what it brought in only from trusted
+  roots.** On an approved lane's reviewed spine (every merge no approval stamp of the lane
+  reaches is already dropped, #7307), `reconciliation_authorship._authoring_merges` lets a merge
+  author the blobs it brought in for the squash axis only when every non-first parent is
+  reachable from a root of `reconciliation_authorship._trusted_history_roots`: the Mission branch
+  as the claim measures it (`coord_base_ref`, which a coordination topology freezes at the first
+  attempt's tip) and as the run froze it (the pre-mutation tip), the target's pre-run tip, and
+  the **approval stamps** of every other approved lane's work packages. Never the live Mission
+  branch (a foreign branch merged into a lane before its approval and into the Mission branch
+  afterwards would turn trusted, the #4977 carrier shape), never another lane's live tip, and
+  never the lane's own stamps (they reach every merge on its own spine). A probe error leaves the
+  merge out (fail closed). This is a different question from the #7307 own-dependency-merge rule
+  above (`_own_dependency_merges`), which keeps a lane's merge of a declared dependency lane as
+  authorship by SHA only, on the closed-world axis; the two trust models stay apart.
+  `implement --incorporate` merges a sibling at its approval stamp for exactly this reason.
+- **One predicate for "reviewed".** `reconciliation_authorship.merge_reviewed_by_own_stamps` is
+  the single definition of a reviewed merge: one of the merge's own lane's approval stamps
+  (`own_approval_stamps`: the newest `lane_head` and `lane_head_presync` of each approved or done
+  work package) reaches it. The gate's `_drop_unreviewed_merges` and the claim-time
+  `RESOLUTION_MERGE_UNREVIEWED` check both call it. The claim gains one additive field,
+  `ApprovedWpCommitSet.unreviewed_merges` (`UnreviewedMerge`: `sha`, `lane_id`, `wp_ids`,
+  `own_paths`, `own_blobs`), filled where the authorship walk drops a merge and with the
+  claim-time candidates found off the spine. It is advisory data for the gate's hint only: it
+  never attributes, exempts or lifts anything, and an entry whose own-content probe fails is
+  skipped, so a missing entry never means "no own content". Every existing claim field is
+  byte-identical.
+- **Merge probes fail closed on unregistered merge behavior.** Every merge probe the gate and the
+  claim rely on (`git_probes.n_way_merge_blob`, `git_probes.merge_own_changed_paths`, and through
+  it the kernel remerge path `kernel.git.remerge_paths`) first runs
+  `merge_attribute_guard.assert_registered_merge_behaviour`: one batched
+  `git check-attr --stdin merge` over the paths involved (for the remerge probe, every path the
+  merge changed against either parent, `git_probes.paths_changed_against_parents`), plus targeted
+  `git config --get` reads cached for the run. It raises `MergeAttributeRefused`, a
+  `GitProbeError`, so the gate REFUSEs and the claim refuses, unless each path merges with git's
+  built-in merge (attribute unspecified, `merge` set, or `-merge`) or with a spec-kitty registered
+  driver on its registered pattern with its registered command
+  (`lanes.consolidation.registered_merge_driver_specs`, the name/command/pattern triples). It
+  covers `$GIT_COMMON_DIR/info/attributes`, an uncommitted working-tree `.gitattributes`,
+  `core.attributesFile`, a custom `merge.<name>.driver` in any config scope (user drivers are
+  looked up before git's built-ins, so `merge=text` and `merge=binary` can be redirected and
+  refuse when one is configured), and a configured `merge.default`. A committed built-in
+  `merge=union` stands only when git is 2.40 or newer, the value committed at the claim's pre-run
+  target tip (the attribute source the claim and the gate pass,
+  `ApprovedWpCommitSet.excluded_window_base`) is the effective one, no clone-local source sets it,
+  and no `merge.union.*` driver is configured (operator ruling 2026-11-20, option (a)). An
+  effective `merge.renormalize` refuses with a named reason (ADR `2026-10-04-5` Amendment
+  2026-11-26 gives the remedy). The probes also run git with `merge_probe_env`, which pins
+  `merge_attribute_guard.MERGE_PROBE_CONFIG_PINS` (`merge.directoryRenames=conflict`,
+  `merge.renames=true`, `diff.algorithm=myers`, `merge.conflictStyle=merge`,
+  `merge.renormalize=false`) over every other config source. A sanitized attribute source (an
+  empty `--attr-source` or empty config) was rejected (research R-06): it would also disable
+  spec-kitty's own drivers and so diverge from the landing merge, which runs with them.
+- **The `.gitattributes` fold of a recorded tool merge.** The auto-rebase merge honours the
+  `.gitattributes` committed on the lane (`merge=union`, `-merge`, `binary`), so a recorded tool
+  merge is exempt from `RESOLUTION_MERGE_UNREVIEWED` only when the guard above passes and the
+  `merge` attributes at the merge and at each parent equal those at the pre-run target tip
+  (`approved_bound._recorded_merge_attributes_hold`; WP05 binding addendum 1, committed-tree-only
+  rule, operator ruling (a)). Otherwise the merge is judged as a hand merge.
+- **The un-attributable hint names re-review for a dropped merge.** `_with_attribution_hint`
+  (`reconciliation_verifier.py`) names the re-review route (send each work package back with
+  `move_back_command`, an independent approval that reaches the merge, re-run) instead of the
+  `--dependency-ref` hint when every un-attributable item (commit, blob or deletion) is the own
+  content of a merge in `unreviewed_merges`. When only some items are covered, the re-review
+  sentences come first and the `--dependency-ref` sentence follows, scoped to the remaining items
+  (WP06 cycle 2). Never when the divergence also carries a canceled or removed-work clause
+  (`canceled_content`, `canceled_reachable_via_dependency`, `reachable_excluded`), and never when
+  a covering merge names no work package. `Divergence.describe()` is unchanged, and no verdict
+  changes. Accepted behavior change (WP06 review 1): a recorded tool merge that the walk dropped
+  as unreviewed and that carries auto-resolved content now gets the re-review hint. Whether
+  `--dependency-ref` can be used to launder Mission work stays with #7766.
+- **#7497 was red at the base and is fixed.** A fully-canceled lane C merged (`--no-ff`) into
+  its approved dependency lane A, with A then re-approved by an unforced review whose stamp
+  descends from that merge: at the base a fresh run met a generic un-attributable FAIL (the
+  content did not land, but not under the canceled-dependency axis), because A's live tip reached
+  all of C, so C owned nothing, and C's commits sat off A's first-parent spine, so A was no
+  carrier. `reconciliation_canceled.py` now anchors C on A as it was before A's first-parent spine
+  first merged C's own work (`_dependency_anchor_before_incorporating`, through
+  `_canceled_lane_anchors`), and counts C's merged-in commits on the carrier spines
+  (`_with_merged_in_canceled`). The fresh run refuses `CANCELED_REACHABLE_VIA_DEPENDENCY`
+  (`tests/consolidation/test_canceled_via_reapproved_dependency_7497.py`).
+
+**Why this stays fail-closed.** Every probe error and every guard refusal raises `GitProbeError`.
+No attestation is added. The hint only changes text.
+
+**Residuals.**
+
+- **Squash, cherry-pick and fast-forward of a canceled lane into its dependency** (#7497, WP11).
+  When a re-approved dependency lane's content reaches the target through a fast-forward of C onto
+  A, a `git merge --squash` of C into A, or a cherry-pick of C's commit onto A, the graph shows C's
+  change as A's own first-parent work: the canceled work package's change lands as A's approved
+  content. Only the re-approval guards it, by reviewing that content.
+- **Committed `union` judged at the claim's pre-run target tip only.** A `union` committed on a
+  lane, or committed on the target after the run started, is not honoured; git older than 2.40
+  honours no committed `union` (over-refusal).
+- The pre-existing squash residual #7862 (a dropped target change where both sides changed a path)
+  is not touched by this amendment.
+
+**Confirmation.** `tests/consolidation/test_merge_attribute_guard.py` (every attack route against
+both probes, the committed `union` rule, `merge.renormalize`, the config pins),
+`tests/consolidation/test_reviewed_merge_predicate.py` (the shared predicate and the field),
+`tests/consolidation/test_unreviewed_merge_hint.py` (the hint),
+`tests/consolidation/test_canceled_via_reapproved_dependency_7497.py` (#7497) and
+`tests/consolidation/test_dependency_merge_attribution_7307.py`.

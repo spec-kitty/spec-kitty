@@ -142,7 +142,7 @@ def _use_this_venvs_spec_kitty_on_path(monkeypatch: pytest.MonkeyPatch) -> None:
     The drivers are invoked bare as ``spec-kitty ...`` per the real
     ``_MERGE_DRIVERS`` registry, so they must resolve to the SAME spec-kitty
     under test rather than any other ``spec-kitty`` a developer machine
-    happens to have on PATH — mirrors ``lanes/merge.py::_make_merge_env``'s
+    happens to have on PATH — mirrors ``lanes/merge.py::make_merge_env``'s
     identical concern.
     """
     venv_bin = str(Path(sys.executable).parent)

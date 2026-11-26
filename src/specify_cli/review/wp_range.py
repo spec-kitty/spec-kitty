@@ -44,6 +44,14 @@ follow the resolved Mission directory name, never the caller's handle (a mid8 or
   paths, split by ``ownership.matches_owned`` (the evidence axis' matcher, so review and
   ``IMPLEMENTATION_MISSING`` agree).
 * ``out_of_map_only_commits``: the non-bookkeeping commits of the range that are not in ``commits``.
+* ``merges``: every merge commit of ``base..tip``, oldest first, from
+  ``git rev-list --merges --full-history --reverse base..tip`` with no pathspec. It does not reuse
+  the commit list's pathspecs: under them default history simplification drops a merge whose
+  combined diff leaves the owned files alone, and a conflict resolution can hide a novel line in
+  content a sibling already had approved. The list exists so the reviewer reads each merge's own
+  resolution (FR-007 of Mission ``approved-lane-resolution-route``); ``remerge_available`` says
+  whether this git can show it (``git show --remerge-diff``, git >= 2.36), probed only when a
+  merge was found.
 * ``moved_past``: non-bookkeeping commits on the write branch after the tip
   (``status.read_lane_head``), so the work package's own status commits never count. A tip that
   is not an ancestor of the live head (a rewritten lane) sets ``tip_off_branch`` instead and
@@ -83,6 +91,7 @@ from mission_runtime import (
     is_single_branch,
     routes_through_coordination,
 )
+from specify_cli.git.merge_tree_probe import check_attr_source_available, remerge_diff_available
 from specify_cli.lanes.claim_base import read_claim_base
 from specify_cli.lanes.for_review_gate import mission_tasks_index_path, status_only_excluded_prefixes
 from specify_cli.mission_metadata import load_meta_or_empty
@@ -191,7 +200,14 @@ class WpReviewRange:
     Invariant: ``status is UNAVAILABLE`` iff ``base is None or tip is None`` (and then both are ``None``). Beyond the data
     model, ``listing_gap`` names a listing step that failed (the range itself still holds), and ``tip_off_branch`` is
     set when the submitted tip is not an ancestor of the write branch's live head (a rewritten lane): ``moved_past`` is
-    then ``0``, because a count from a tip the branch no longer holds would mean nothing.
+    then ``0``, because a count from a tip the branch no longer holds would mean nothing. ``merges`` lists every merge
+    commit of ``base..tip`` (full history, no pathspec) and ``remerge_available`` whether this git can show each one's
+    resolution. ``attributes_source`` is the Mission's target branch tip when the range was resolved (the pre-run
+    target tip the FR-010 merge guard trusts, never the range base: a ``merge=union`` committed on the lane before
+    the window opened is in the base). When the target cannot be read it is the empty tree (no committed attribute
+    applies) and ``attributes_from_target`` is false; ``None`` only when git cannot name even that. ``attr_source_available`` says whether this
+    git can pin it (``--attr-source``, git >= 2.40). The three are probed only when the range has merges or its merge
+    listing failed; the renderer reads them and runs nothing.
     """
 
     wp_id: str
@@ -210,12 +226,22 @@ class WpReviewRange:
     listing_gap: str | None = None
     bookkeeping_pathspecs: tuple[str, ...] = ()
     tip_off_branch: bool = False
+    merges: tuple[str, ...] = ()
+    remerge_available: bool = True
+    attributes_source: str | None = None
+    attributes_from_target: bool = True
+    attr_source_available: bool = True
 
     def __post_init__(self) -> None:
         unavailable = self.status is RangeStatus.UNAVAILABLE
         ends = (self.base, self.tip)
         if (unavailable and ends != (None, None)) or (not unavailable and None in ends):
             raise ValueError(f"an UNAVAILABLE review range has neither end, any other has both: {self.status}, base={self.base}, tip={self.tip}")
+
+    @property
+    def merges_unlisted(self) -> bool:
+        """Whether the merge listing step failed, so ``merges`` is empty for want of a listing, not of merges."""
+        return _MERGES_STEP in (self.listing_gap or "").split(", ")
 
     @property
     def listing_pathspecs(self) -> tuple[str, ...]:
@@ -449,6 +475,9 @@ def _select_base(ctx: _Context, tip: str) -> tuple[str | None, RangeSource, Rang
 
 # --------------------------------------------------------------------------- listing
 
+#: The merge listing's step name in ``listing_gap`` (FR-007): the renderer prints a manual fallback when it failed.
+_MERGES_STEP = "merges"
+
 
 @dataclass
 class _Listing:
@@ -457,6 +486,7 @@ class _Listing:
     files: tuple[FileChange, ...] = ()
     out_of_map: tuple[str, ...] = ()
     moved_past: int = 0
+    merges: tuple[str, ...] = ()
     failed: list[str] = field(default_factory=list)
 
     def attempt(self, step: str, action: Callable[[], None]) -> None:
@@ -538,7 +568,14 @@ def _listing(request: _ListingRequest) -> _Listing:
     listing.attempt("commits", _commits)
     listing.attempt("out-of-map commits", _out_of_map_only)
     listing.attempt("numstat", _stat)
+
+    def _merges() -> None:
+        # Full history and no pathspec: simplification under the owned pathspecs would drop a merge (FR-007).
+        result = run_git(request.repo_root, "rev-list", "--merges", "--full-history", "--reverse", rev_range)
+        listing.merges = tuple(line for line in result.stdout.decode("ascii", "replace").split() if line)
+
     listing.attempt("moved-past", _moved_past)
+    listing.attempt(_MERGES_STEP, _merges)
     return listing
 
 
@@ -631,6 +668,54 @@ def _bookkeeping_only_planning_range(ctx: _Context, base: str, tip: str, bookkee
         return False
 
 
+def _target_tip(ctx: _Context) -> str | None:
+    """The Mission's target branch tip (the attribute source the FR-010 guard trusts), ``None`` when it cannot be read."""
+    target = load_meta_or_empty(ctx.surface.parser_dir).get("target_branch")
+    if not isinstance(target, str) or not target:
+        return None
+    try:
+        result = run_git(ctx.repo_root, "rev-parse", "--verify", "--quiet", f"refs/heads/{target}^{{commit}}")
+    except GitCommandError:
+        logger.debug("review range: target branch %s of %s unreadable", target, ctx.surface.mission_dir_name, exc_info=True)
+        return None
+    sha = result.stdout.decode("ascii", "replace").strip()
+    return sha or None
+
+
+@dataclass(frozen=True)
+class _MergeReview:
+    """What the resolution commands need beyond the merge list: this git's abilities and the trusted attribute source."""
+
+    remerge_available: bool = True
+    attr_source_available: bool = True
+    attributes_source: str | None = None
+    attributes_from_target: bool = True
+
+
+def _empty_tree(repo_root: Path) -> str | None:
+    """git's empty tree id in this repository's hash (``git hash-object -t tree /dev/null``; nothing is written)."""
+    try:
+        result = run_git(repo_root, "hash-object", "-t", "tree", "/dev/null")
+    except GitCommandError:
+        logger.debug("review range: the empty tree id of %s is unreadable", repo_root, exc_info=True)
+        return None
+    return result.stdout.decode("ascii", "replace").strip() or None
+
+
+def _merge_review(ctx: _Context, listing: _Listing) -> _MergeReview:
+    """Probe git and read the target tip only when there is a merge to show, or the merge listing failed (NFR-001)."""
+    if not listing.merges and _MERGES_STEP not in listing.failed:
+        return _MergeReview()
+    target = _target_tip(ctx)
+    return _MergeReview(
+        remerge_available=remerge_diff_available(ctx.repo_root),
+        attr_source_available=check_attr_source_available(ctx.repo_root),
+        # Never the range base: it can hold a lane-committed ``merge=union`` (review cycle 1).
+        attributes_source=target if target is not None else _empty_tree(ctx.repo_root),
+        attributes_from_target=target is not None,
+    )
+
+
 def _status_of(base_source: RangeSource, tip_source: RangeSource) -> RangeStatus:
     recorded = base_source is RangeSource.RECORDED_WINDOW and tip_source is RangeSource.RECORDED_SUBMISSION
     return RangeStatus.RECORDED if recorded else RangeStatus.DERIVED
@@ -675,6 +760,7 @@ def resolve_wp_review_range(
             head=None if tip_off_branch else head,
         )
     )
+    merge_review = _merge_review(ctx, listing)
     return WpReviewRange(
         wp_id=wp_id,
         base=base,
@@ -692,4 +778,9 @@ def resolve_wp_review_range(
         listing_gap=", ".join(listing.failed) or None,
         bookkeeping_pathspecs=bookkeeping,
         tip_off_branch=tip_off_branch,
+        merges=listing.merges,
+        remerge_available=merge_review.remerge_available,
+        attributes_source=merge_review.attributes_source,
+        attributes_from_target=merge_review.attributes_from_target,
+        attr_source_available=merge_review.attr_source_available,
     )

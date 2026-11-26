@@ -14,9 +14,9 @@ Two load-bearing layering rules keep this module clean:
   never the working tree. A committed-vs-working diff at a #2786 mark point is
   empty (the rollback restores primary paths, not the coord worktree) and would
   silently drop the strand.
-* The repair (:func:`repair_coord_strand`) imports ``_make_merge_env``
+* The repair (:func:`repair_coord_strand`) imports ``make_merge_env``
   **function-locally**. A module-top ``from specify_cli.lanes.consolidation import
-  _make_merge_env`` creates the cycle ``merge.executor -> coordination.coherence
+  make_merge_env`` creates the cycle ``merge.executor -> coordination.coherence
   -> lanes.merge -> merge.config``. There is intentionally **no** module-top
   ``coordination -> merge`` / ``coordination -> lanes`` import in this file.
 """
@@ -871,9 +871,9 @@ def status_log_commits_in_range(
     """
     if env is None:
         # Function-local: see the module docstring (import-cycle rule).
-        from specify_cli.lanes.consolidation import _make_merge_env
+        from specify_cli.lanes.consolidation import make_merge_env
 
-        env = _make_merge_env()
+        env = make_merge_env()
     result = subprocess.run(
         [
             "git",
@@ -963,7 +963,7 @@ def _revert_recorded_sha(coord_worktree: Path, sha: str, env: dict[str, str]) ->
     in-progress revert is aborted and the swallowed diagnostic is returned so the
     caller can carry it on ``CoordRepairOutcome.error``; ``None`` signals success.
     """
-    # Function-local, like ``_make_merge_env`` below: ``specify_cli.git`` imports
+    # Function-local, like ``make_merge_env`` below: ``specify_cli.git`` imports
     # ``coordination`` back (report_transaction -> commit_router), see the module docstring.
     from specify_cli.git.merge_conclusion import run_committing_op
 
@@ -1038,7 +1038,7 @@ def repair_coord_strand(
 
     **Transport (AC-B3/AC-F1):** per-SHA forward ``git revert --no-edit <sha>`` of
     each recorded strand commit in the coordination worktree, subprocess env via
-    ``_make_merge_env`` (imported function-locally to avoid the import cycle).
+    ``make_merge_env`` (imported function-locally to avoid the import cycle).
     Each revert APPENDS a new commit — the append-only log invariant holds, history
     is never rewritten. NOT ``advance_branch_ref`` (it refuses the non-fast-forward
     move back to ``captured_sha`` by design); no raw ``git update-ref``.
@@ -1068,11 +1068,11 @@ def repair_coord_strand(
         return CoordRepairOutcome(healed=False, stranded_wp_ids=[])
 
     # Function-local import: a module-top ``from specify_cli.lanes.consolidation import
-    # _make_merge_env`` would create the cycle merge.executor ->
+    # make_merge_env`` would create the cycle merge.executor ->
     # coordination.coherence -> lanes.merge -> merge.config.
-    from specify_cli.lanes.consolidation import _make_merge_env
+    from specify_cli.lanes.consolidation import make_merge_env
 
-    env = _make_merge_env()
+    env = make_merge_env()
     head_sha = _rev_parse_head(coord_worktree, env)
     if head_sha is None or head_sha == captured_sha:
         # No commits since capture — the strand is not reachable as

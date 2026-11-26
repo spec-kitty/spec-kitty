@@ -3,7 +3,7 @@ title: How to Troubleshoot Merge Issues
 description: 'How to troubleshoot spec-kitty consolidate: resume or abort a stopped run and fix the refusals operators meet most, each with its command.'
 doc_status: active
 kind: How-To
-updated: '2026-11-06T00:00:00Z'
+updated: '2026-11-26T00:00:00Z'
 audience:
 - profile: external/project-owner
   guidance_text: Written for the Project Owner reader.
@@ -172,6 +172,21 @@ Do not push the local target branch to satisfy the check; its extra commits may 
 - **Run without `--push`.** Land locally, then publish through a topic branch and a pull request.
 - **Use the focused pull request path the refusal prints.** It creates a branch from the mission branch, pushes that branch, and opens the pull request into the target branch.
 
+### `merge.renormalize` is refused
+
+```text
+Reconciliation refused (fail-closed): ... git config merge.renormalize is true for the merge of <paths>; it rewrites each side before git merges it; refusing to classify a merge whose resolution git would compute with an unregistered driver
+```
+
+`consolidate` re-runs git's merge to judge a merge commit on a lane, and it refuses when this clone could make a hand resolution look like a clean merge: a `merge=` attribute from `.git/info/attributes`, an uncommitted `.gitattributes` or `core.attributesFile`, a custom merge driver, `merge.default`, or `merge.renormalize=true`. Teams that mix Windows and Unix machines often set `merge.renormalize` for line endings. Turn it off for this repository, which overrides a global or system value, then re-run:
+
+```bash
+git config --local merge.renormalize false
+spec-kitty consolidate --mission <slug>
+```
+
+A `merge=union` committed on the target branch is honored (git 2.40 or newer); spec-kitty's own registered merge drivers always are. For any other refusal of this kind, remove the clone-local attribute or driver it names.
+
 ## The Run Stopped After Moving Branches
 
 ### A lane failed to merge
@@ -268,6 +283,26 @@ If a `--resume` is refused this way after an earlier attempt already moved the t
 On a lane that holds both an approved and a canceled WP, `--attest-canceled-superseded` no longer covers work done after the approval. The approved WP must be approved again as well.
 
 The codes are defined in the [CLI reference](../../../api/cli-commands.md#spec-kitty-consolidate-exit-codes-and-refusal-codes). The attribution rules and the full verdict table are in the [status model](../../../architecture/status-model.md#commit-attribution-stamp-policy_metadatalane_head).
+
+### A merge on an approved lane was never reviewed
+
+```text
+Reconciliation refused (fail-closed) at claim time, before any change: RESOLUTION_MERGE_UNREVIEWED: lane <id> (<WP>): merge <sha> carries its own content on <n> path(s) (e.g. '<path>') and no review approval of the lane reaches it.
+```
+
+A merge commit on an approved lane resolved something itself (typically a conflict you resolved by hand), and no review approval of that lane came after it. A conflict resolution is new content, so it must be reviewed. Nothing moved. Run the commands the refusal prints:
+
+```bash
+spec-kitty agent tasks move-task <WP> --to in_progress --mission <slug>
+```
+
+A work package that is already done needs `--force --note "<why>"` on that command. Resolve the conflict if needed: to bring a sibling lane in at its approval stamp, run `spec-kitty agent action implement <WP> --mission <slug> --incorporate <lane> --agent <agent>`, which stops on a conflict with exit code 3 and leaves the merge for you to resolve and commit in the checkout it names. Then move the work package to `for_review`, have an independent reviewer approve it again (the new approval must reach the merge), and re-run `spec-kitty consolidate --mission <slug>`. No attestation lifts this code. A merge made inside a canceled work package's window stays refused after a new approval: rebuild the lane without it.
+
+### Two approved lanes conflict (stale lane)
+
+When a sibling lane consolidated ahead of it changed the same lines, `consolidate` stops, names the sibling lane and the auto-rebase halt reason, and prints a re-review route, one command per line: reopen the work package (`move-task <WP> --to planned --review-feedback-file <file>`), re-enter it with `spec-kitty agent action implement <WP> --mission <slug> --agent <agent>`, incorporate each sibling with `spec-kitty agent action implement <WP> --mission <slug> --incorporate <lane> --agent <agent>`, resolve and commit, `move-task <WP> --to for_review`, an independent approval, then `consolidate`. Run them as printed, filling in `<agent>` and `<file>`; never `git merge` the sibling lane's branch by hand, which the run then refuses as `RESOLUTION_MERGE_UNREVIEWED`.
+
+**A lane that depends on the sibling it must incorporate** (tracked by [#7880](https://github.com/spec-kitty/spec-kitty/issues/7880)): the first `implement` re-entry merges the dependency lane's current tip before any `--incorporate` and refuses with `DEPENDENCY_LANE_MERGE_CONFLICT`, asking for a manual merge. Follow that message (merge the dependency lane's branch in the lane checkout, resolve, commit), then continue with the rest of the printed route. The independent re-approval must cover that merge too.
 
 ### A branch moved without a record
 

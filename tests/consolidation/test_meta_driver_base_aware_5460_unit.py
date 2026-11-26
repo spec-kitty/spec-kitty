@@ -213,7 +213,7 @@ def test_empty_object_ancestor_selects_the_two_way_rule(tmp_path: Path) -> None:
 def test_mission_to_target_merge_sets_the_two_way_opt_out_and_lane_to_mission_does_not(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, strategy: MergeStrategy, entry: str, two_way: bool
 ) -> None:
-    """Only the mission->target leg (squash or merge) carries the opt-out; `_make_merge_env` never does.
+    """Only the mission->target leg (squash or merge) carries the opt-out; `make_merge_env` never does.
 
     A mission->target merge has no usable ancestry after a reopen, so it keeps the two-way
     rule. Lane->mission merges keep real ancestry and stay base-aware. An operator-exported
@@ -251,7 +251,7 @@ def test_mission_to_target_merge_sets_the_two_way_opt_out_and_lane_to_mission_do
 
     assert len(seen) == 1
     assert seen[0].get(TWO_WAY_ENV) == ("1" if two_way else None)
-    assert TWO_WAY_ENV not in lanes_consolidation._make_merge_env()
+    assert TWO_WAY_ENV not in lanes_consolidation.make_merge_env()
 
 
 def test_two_way_keyword_ignores_the_ancestor(tmp_path: Path) -> None:

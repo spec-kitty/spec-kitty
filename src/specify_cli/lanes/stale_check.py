@@ -26,6 +26,10 @@ from specify_cli.state.contract import is_target_owned_path
 #: Placeholders used when the remedy cannot name the concrete value.
 MISSION_PLACEHOLDER = "<mission>"
 WP_PLACEHOLDER = "<WP>"
+#: ``implement`` refuses to start or resume a work package without ``--agent`` (who works on it).
+AGENT_PLACEHOLDER = "<agent>"
+#: The halt reason when a stale lane has no lane checkout, so the consolidation could not auto-rebase it (FR-003).
+NO_LANE_CHECKOUT_HALT = "no lane checkout, so no in-run auto-rebase ran"
 
 
 @dataclass(frozen=True)
@@ -214,10 +218,23 @@ def refine_stale_result(
     )
 
 
+def _halt_sentence(lane: ExecutionLane, mission_branch: str, auto_rebase_halt: str | None) -> str:
+    """The sentence that leads the remedy with why the in-run auto-rebase did not refresh the lane (FR-003), or ``""``."""
+    if not auto_rebase_halt:
+        return ""
+    if auto_rebase_halt == NO_LANE_CHECKOUT_HALT:
+        return f"Lane {lane.lane_id} has {NO_LANE_CHECKOUT_HALT} onto {mission_branch}. "
+    return f"The in-run auto-rebase of lane {lane.lane_id} onto {mission_branch} stopped: {auto_rebase_halt}. "
+
+
 def _reentry_command(lane: ExecutionLane, mission_slug: str | None) -> str:
-    """The A-10 re-entry command: re-running ``implement`` runs the lane sync point (auto-rebase)."""
+    """The A-10 re-entry command: re-running ``implement`` runs the lane sync point (auto-rebase).
+
+    It carries ``--agent <agent>`` because ``implement`` refuses to start or resume a work package
+    without it, so the line runs as printed once the operator names themselves (#7861 ruling).
+    """
     wp_id = lane.wp_ids[0] if len(lane.wp_ids) == 1 else WP_PLACEHOLDER
-    return f"spec-kitty agent action implement {wp_id} --mission {mission_slug or MISSION_PLACEHOLDER}"
+    return f"spec-kitty agent action implement {wp_id} --mission {mission_slug or MISSION_PLACEHOLDER} --agent {AGENT_PLACEHOLDER}"
 
 
 def _reopen_step(lane: ExecutionLane, handle: str) -> str:
@@ -244,17 +261,42 @@ def _cause_sentence(lane: ExecutionLane, mission_branch: str, siblings: tuple[Si
     )
 
 
-def _refresh_step(lane: ExecutionLane, mission_slug: str | None, siblings: tuple[SiblingLane, ...]) -> str:
-    """Re-enter the lane, then bring the missing change in: merge each sibling branch, else auto-rebase."""
+def _refresh_step(lane: ExecutionLane, mission_slug: str | None) -> str:
+    """Re-enter the lane, then refresh it from the Mission branch through the auto-rebase (no sibling lane known)."""
     any_wp = "" if len(lane.wp_ids) == 1 else f" (any WP of the lane: {', '.join(lane.wp_ids)})"
-    reentry = f"Then re-enter it with {_reentry_command(lane, mission_slug)}{any_wp}"
-    if not siblings:
-        return (
-            f"{reentry}, which refreshes the lane through auto-rebase; if the auto-rebase stops on a conflict, "
-            f"resolve it in the lane checkout the command names and commit there."
-        )
-    merges = ", then ".join(f"git merge {sibling.branch}" for sibling in siblings)
-    return f"{reentry}, which names the lane checkout; in that checkout run {merges} and resolve the conflicts, then commit."
+    return (
+        f"Then re-enter it with {_reentry_command(lane, mission_slug)}{any_wp}, which refreshes the lane through auto-rebase; "
+        f"if the auto-rebase stops on a conflict, resolve it in the lane checkout the command names and commit there."
+    )
+
+
+def _incorporate_route(lane: ExecutionLane, handle: str, siblings: tuple[SiblingLane, ...]) -> str:
+    """The re-review route when sibling lanes are known (WP07, ruling DM-01M88RZDBP57ZTYJHC5NP0ZH4R): one runnable command per line.
+
+    Re-entering the first WP claims it again; ``--incorporate`` (WP08) merges each sibling lane at its
+    newest approval stamp, never its live tip, so the reconciliation gate can trust the merge once a new
+    independent approval reaches it. Every WP the reopen step sent back is re-entered and handed back.
+    """
+    wp_ids = lane.wp_ids or (WP_PLACEHOLDER,)
+    first = wp_ids[0]
+    agent = f"--agent {AGENT_PLACEHOLDER}"
+    implement = f"spec-kitty agent action implement {first} --mission {handle}"
+    lines = [f"{implement} {agent}"]
+    for sibling in siblings:
+        lines.append(f"{implement} --incorporate {sibling.lane_id} {agent}")
+        lines.append("If it stops on a conflict, resolve it in the lane checkout that command names and commit the merge there.")
+    lines.append(f"spec-kitty agent tasks move-task {first} --to for_review --mission {handle}")
+    for wp_id in wp_ids[1:]:
+        lines.append(f"spec-kitty agent action implement {wp_id} --mission {handle} {agent}")
+        lines.append(f"spec-kitty agent tasks move-task {wp_id} --to for_review --mission {handle}")
+    approves = "approves it again" if len(wp_ids) == 1 else "approves each of them again"
+    lines.append(f"An independent reviewer reviews {' and '.join(wp_ids)} and {approves}; the new approval must reach the incorporation merge.")
+    lines.append(f"spec-kitty consolidate --mission {handle}")
+    lead = (
+        f"Then run, in order, naming yourself as {AGENT_PLACEHOLDER} (the first command claims {first} again; "
+        "each incorporation merges that sibling lane at its approval stamp, never its live tip):"
+    )
+    return lead + "".join(f"\n  {line}" for line in lines)
 
 
 def _stale_remediation(
@@ -279,10 +321,13 @@ def _stale_remediation(
     reopen step and says what it costs. When the overlap comes from a sibling lane
     consolidated earlier in the same run (#7755), the run's rollback restores the
     Mission branch without it, so refreshing from the Mission branch brings in
-    nothing; no CLI command refreshes a lane from a sibling, so the remedy names the
-    sibling lane's branch (the rollback never moves a lane branch) to merge in the
-    checkout ``implement`` names. When the in-run auto-rebase stopped, its reason
-    leads the text.
+    nothing. The remedy then names the sibling lane (its branch is never moved by
+    the rollback) and prints the re-review route one command per line: re-enter the
+    WP, ``implement <WP> --incorporate <sibling lane>`` (which merges the sibling at
+    its approval stamp, WP08), resolve and commit, ``move-task --to for_review``, an
+    independent review, then ``consolidate`` (WP07). It never prints ``git merge``
+    or a ``.worktrees/`` path (A-10). When the in-run auto-rebase stopped, its
+    reason leads the text.
 
     The canonical planning lane (:func:`is_planning_lane`) never has a
     ``.worktrees/`` entry -- it resolves to the repository-root checkout on
@@ -310,10 +355,11 @@ def _stale_remediation(
             f"git add kitty-specs/<id>/status.json"
         )
     handle = mission_slug or MISSION_PLACEHOLDER
-    halt = f"The in-run auto-rebase of lane {lane.lane_id} onto {mission_branch} stopped: {auto_rebase_halt}. " if auto_rebase_halt else ""
+    halt = _halt_sentence(lane, mission_branch, auto_rebase_halt)
+    head = f"{halt}{_cause_sentence(lane, mission_branch, sibling_lanes)} {_reopen_step(lane, handle)} "
+    if sibling_lanes:
+        return head + _incorporate_route(lane, handle, sibling_lanes)
     return (
-        f"{halt}{_cause_sentence(lane, mission_branch, sibling_lanes)} "
-        f"{_reopen_step(lane, handle)} "
-        f"{_refresh_step(lane, mission_slug, sibling_lanes)} "
+        f"{head}{_refresh_step(lane, mission_slug)} "
         f"Then hand the lane's work back for review; once it is approved again, re-run: spec-kitty consolidate --mission {handle}"
     )

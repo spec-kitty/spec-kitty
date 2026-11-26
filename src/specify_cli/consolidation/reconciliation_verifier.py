@@ -13,6 +13,7 @@ from dataclasses import dataclass, replace
 from enum import Enum, auto
 from pathlib import Path
 
+from specify_cli.consolidation.approved_bound import move_back_command
 from specify_cli.consolidation.git_probes import (
     GitProbeError,
     blob_id_at,
@@ -30,7 +31,7 @@ from specify_cli.consolidation.git_probes import (
     n_way_merge_blob,
 )
 from specify_cli.consolidation.reconciliation_authorship import unmet_approved_content
-from specify_cli.consolidation.reconciliation_claim_types import ApprovedWpCommitSet, CanceledDependencyContent, MissingApprovedContent
+from specify_cli.consolidation.reconciliation_claim_types import ApprovedWpCommitSet, CanceledDependencyContent, MissingApprovedContent, UnreviewedMerge
 from specify_cli.consolidation.reconciliation_kernel import _is_bookkeeping
 from specify_cli.consolidation.reconciliation_rendering import (
     _RECOVERY_TAIL,
@@ -169,27 +170,118 @@ class Divergence:
         return "; ".join(parts) if parts else "no divergence"
 
 
-def _with_attribution_hint(result: VerifyResult, claim: ApprovedWpCommitSet) -> VerifyResult:
-    """Add the #6771 recovery to an un-attributable FAIL that declared no external dependency.
+#: #6771: the recovery for un-attributable content that no dropped merge explains (an external
+#: dependency branch a work-package branch brought in). Its bytes are pinned by the FR-006 tests.
+_DEPENDENCY_REF_HINT = (
+    "If a work-package branch brought an external dependency branch's newer head in, declare it and re-run: "
+    "spec-kitty consolidate --dependency-ref <ref>. Only a ref the mission branch or one of its lane branches reaches, "
+    "on which no commit of any mission lane or mission branch sits, is accepted — mission-authored work is never exempt."
+)
 
-    A mission whose work-package branch brought a dependency branch's newer head in (with a
-    real ``git merge --no-ff``, so the reviewed commits stand) sees every one of that
-    branch's commits reported as un-attributable, which reads as "removed work would ship" and
-    names no way out. The hint names the declaration that resolves it. It is added ONLY when
-    the claim declared nothing (a declared run is refused for a different, self-explaining
-    reason) and only to the un-attributable axes — never to a refusal, and never to a
-    divergence this change does not own.
+
+def _has_unattributable(divergence: Divergence) -> bool:
+    """True when any of the three un-attributable axes (commits, squash blobs, squash deletions) is non-empty."""
+    return bool(divergence.unattributable_content or divergence.unattributable_blobs or divergence.unattributable_deletions)
+
+
+def _merge_deleted_paths(merge: UnreviewedMerge) -> frozenset[str]:
+    """The own paths *merge* deleted: an own path with no own blob (``UnreviewedMerge`` leaves a deleted path's blob out)."""
+    written = {path for path, _blob in merge.own_blobs}
+    return frozenset(path for path in merge.own_paths if path not in written)
+
+
+def _merge_covers(merge: UnreviewedMerge, divergence: Divergence) -> bool:
+    """True when *merge* explains at least one un-attributable item of *divergence* (full SHA / blob id compare)."""
+    own_blobs = set(merge.own_blobs)
+    return (
+        any(sha == merge.sha for sha, _pid in divergence.unattributable_content)
+        or any(item in own_blobs for item in divergence.unattributable_blobs)
+        or any(path in _merge_deleted_paths(merge) for path in divergence.unattributable_deletions)
+    )
+
+
+def _uncovered_count(divergence: Divergence, merges: Sequence[UnreviewedMerge]) -> int:
+    """How many un-attributable items of *divergence* are NOT one of *merges*' own content (commit, blob or deletion)."""
+    shas = {merge.sha for merge in merges}
+    blobs = {item for merge in merges for item in merge.own_blobs}
+    deletions = {path for merge in merges for path in _merge_deleted_paths(merge)}
+    return (
+        sum(1 for sha, _pid in divergence.unattributable_content if sha not in shas)
+        + sum(1 for item in divergence.unattributable_blobs if item not in blobs)
+        + sum(1 for path in divergence.unattributable_deletions if path not in deletions)
+    )
+
+
+def _dropped_merges_covering(divergence: Divergence, claim: ApprovedWpCommitSet) -> tuple[UnreviewedMerge, ...] | None:
+    """The dropped, unreviewed merges (FR-006) that explain at least one of *divergence*'s un-attributable items, else ``None``.
+
+    Reads ``claim.unreviewed_merges`` (filled where the claim builder drops a merge no approval
+    stamp of its lane reaches); it never re-derives which merges were dropped (C-003). ``None``
+    (today's ``--dependency-ref`` hint) when the divergence also names canceled or removed work
+    (N4: ``canceled_content``, ``canceled_reachable_via_dependency``, ``reachable_excluded``), when
+    no merge was dropped, when no un-attributable item is a dropped merge's own content, or when a
+    covering merge names no work package (a re-review cannot be routed). A partial match returns the
+    covering merges; :func:`_uncovered_count` counts the rest. They come back ordered by lane, then SHA.
+    """
+    if divergence.canceled_content or divergence.canceled_reachable_via_dependency or divergence.reachable_excluded:
+        return None
+    merges = tuple(claim.unreviewed_merges)
+    if not merges or not _has_unattributable(divergence):
+        return None
+    covering = tuple(sorted((merge for merge in merges if _merge_covers(merge, divergence)), key=lambda merge: (merge.lane_id, merge.sha)))
+    if not covering or any(not merge.wp_ids for merge in covering):
+        return None
+    return covering
+
+
+def _re_review_hint(merges: Sequence[UnreviewedMerge], mission_slug: str | None) -> str:
+    """The FR-006 recovery: one sentence per dropped merge, then one route sentence.
+
+    The send-back wording is :func:`~specify_cli.consolidation.approved_bound.move_back_command`, so
+    every printed command carries the Mission slug; with no slug no command is printed at all.
+    """
+    sentences = [
+        f"Merge {merge.sha[:7]} on lane {merge.lane_id} ({', '.join(merge.wp_ids)}) was made after that lane's last review approval "
+        "and carries content of its own, so it authors nothing until a review approves it."
+        for merge in merges
+    ]
+    wp_ids = list(dict.fromkeys(wp_id for merge in merges for wp_id in merge.wp_ids))
+    subject = "the work package" if len(wp_ids) == 1 else "each work package"
+    review = "have the merge's resolution reviewed and approved again by an independent reviewer (the new approval must reach the merge)"
+    if mission_slug:
+        commands = "; ".join(move_back_command(wp_id, mission_slug) for wp_id in wp_ids)
+        route = f"Route: send {subject} back for rework ({commands}), {review}, then re-run spec-kitty consolidate --mission {mission_slug}."
+    else:
+        route = f"Route: send {subject} back for rework, {review}, then re-run the consolidation."
+    return " ".join([*sentences, route])
+
+
+def _with_attribution_hint(result: VerifyResult, claim: ApprovedWpCommitSet) -> VerifyResult:
+    """Add the recovery to an un-attributable FAIL that declared no external dependency.
+
+    #6771: a mission whose work-package branch brought a dependency branch's newer head in (with
+    a real ``git merge --no-ff``, so the reviewed commits stand) sees every one of that branch's
+    commits reported as un-attributable, which reads as "removed work would ship" and names no
+    way out; the ``--dependency-ref`` hint names the declaration that resolves it. FR-006 (#5604):
+    when every un-attributable item is the own content of a merge the claim dropped as unreviewed
+    (:func:`_dropped_merges_covering`), the hint names the re-review route instead; when only some
+    items are, the ``--dependency-ref`` hint follows, scoped to the items no dropped merge explains
+    (operator ruling: it never reads as the route for the merge's content). A hint is
+    added ONLY when the claim declared nothing (a declared run is refused for a different,
+    self-explaining reason) and only to the un-attributable axes — never to a refusal, and never to
+    a divergence this change does not own. It changes no verdict and leaves ``describe()`` alone.
     """
     if result.divergence is None or claim.external_dependency_refs:
         return result
-    divergence = result.divergence
-    if not (divergence.unattributable_content or divergence.unattributable_blobs or divergence.unattributable_deletions):
+    if not _has_unattributable(result.divergence):
         return result
-    hint = (
-        "If a work-package branch brought an external dependency branch's newer head in, declare it and re-run: "
-        "spec-kitty consolidate --dependency-ref <ref>. Only a ref the mission branch or one of its lane branches reaches, "
-        "on which no commit of any mission lane or mission branch sits, is accepted — mission-authored work is never exempt."
-    )
+    merges = _dropped_merges_covering(result.divergence, claim)
+    if not merges:
+        return replace(result, attribution_hint=_DEPENDENCY_REF_HINT)
+    hint = _re_review_hint(merges, claim.mission_slug)
+    remaining = _uncovered_count(result.divergence, merges)
+    if remaining:
+        hint = f"{hint} For the remaining content ({remaining} item(s) no dropped merge explains): {_DEPENDENCY_REF_HINT}"
     return replace(result, attribution_hint=hint)
 
 
@@ -527,8 +619,11 @@ class MergeOutcomeVerifier:
     def _refusal_reason(claim: ApprovedWpCommitSet) -> str | None:
         # Fail-closed claim integrity — applies to BOTH strategies, ahead of the
         # (strategy-dependent) content reachability checks.
-        if claim.refusal is not None:
-            return claim.refusal
+        # ``ApprovedWpCommitSet.refusal`` is ``str | None``; the typed local keeps that type when
+        # mypy skips the claim-types module in a narrow run (#7334 pattern, no ``Any`` leak).
+        refusal: str | None = claim.refusal
+        if refusal is not None:
+            return refusal
         if not claim.surface_resolved:
             return "coordination surface is unresolved or unmaterialized"
         return None
@@ -675,7 +770,7 @@ class MergeOutcomeVerifier:
         if sha in claim.pre_mission_shas:
             return None  # history below the Mission base the target lacks (#7560) — predates the Mission
         if is_merge_commit(self._repo, sha):
-            own_paths = merge_own_changed_paths(self._repo, sha)
+            own_paths = merge_own_changed_paths(self._repo, sha, attributes_source=claim.excluded_window_base)
             if not any(not self._is_bookkeeping_path(path, claim) for path in own_paths):
                 return None  # a clean merge, or one resolving only bookkeeping — no content of its own
             # ``patch_id_of`` comes from a mypy-skipped module (#7334): the typed
@@ -917,7 +1012,10 @@ class MergeOutcomeVerifier:
         though the claim does not exist yet at that call site). See that
         function's docstring for the full anchoring rules.
         """
-        return _is_bookkeeping(path, claim.mission_slug, claim.planning_prefix)
+        # ``reconciliation_kernel._is_bookkeeping`` returns ``bool``; the typed local keeps it when
+        # mypy skips that module in a narrow run (#7334 pattern, no ``Any`` leak).
+        bookkeeping: bool = _is_bookkeeping(path, claim.mission_slug, claim.planning_prefix)
+        return bookkeeping
 
 
 def _inherited_deletion(path: str, claim: ApprovedWpCommitSet) -> bool:
@@ -977,10 +1075,13 @@ def is_legitimate_merge_resolution(
     merge a clean three-way merge takes every line of its result from one of its two
     sides, never from the base, so whatever order the fold uses, a reproduced blob consists only of the
     approved lanes' authored content and the target's own pre-run content. Order
-    only decides whether a fold conflicts, which attributes less, never more. The one
-    exception is a custom ``merge=`` driver (``.gitattributes``) covering *path*: such a
-    driver may write bytes no side held on a clean exit, and this recognizer does not
-    detect it.
+    only decides whether a fold conflicts, which attributes less, never more. FR-010: an
+    unregistered ``merge=`` attribute or driver on *path* makes the fold raise
+    :class:`~specify_cli.consolidation.git_probes.GitProbeError`, which the squash axis turns
+    into a REFUSE; only git's built-in merge and spec-kitty's registered drivers (on their
+    registered patterns, with their registered commands) are folded, and a committed
+    ``merge=union`` counts only as read at the claim's pre-run target tip
+    (``excluded_window_base``, passed as the attribute source).
 
     A hand resolution (a conflicted path resolved by an operator) is not
     reproducible here. It is attributed only when a reviewed merge brought it into an
@@ -1000,7 +1101,7 @@ def is_legitimate_merge_resolution(
         inputs.append(claim.excluded_window_base)
     if len(inputs) < 2:
         return False
-    resolved_blob: str | None = n_way_merge_blob(repo_root, inputs, path, fold_cache=fold_cache)
+    resolved_blob: str | None = n_way_merge_blob(repo_root, inputs, path, fold_cache=fold_cache, attributes_source=claim.excluded_window_base)
     return resolved_blob == target_blob
 
 

@@ -1,0 +1,139 @@
+{
+  "mission_slug": "approved-lane-resolution-route-01M7WW0Z",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_approved_lane_stale_remedy.py::test_every_printed_route_command_runs_and_the_mission_lands; tests/terminus/test_approved_lane_resolution_route.py::test_route_lands_after_independent_re_review",
+      "pass_fail": "pass",
+      "verified_by": "claude::architect-alphonso",
+      "verified_at": "2026-11-26T09:31:25.539717+00:00",
+      "notes": "Verified at lane-m b6df77436c (contains every lane). Source: squad-3 fidelity matrix (squads/03-pre-accept.md) and WP13 cycle-3 approval; tests/lanes+tests/consolidation 5225 passed."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_approved_lane_resolution_route_three_lane.py::test_three_lane_route_names_exact_siblings_and_lands (ruling DM-01M8B4FMSP2S98)",
+      "pass_fail": "pass",
+      "verified_by": "claude::architect-alphonso",
+      "verified_at": "2026-11-26T09:31:33.531321+00:00",
+      "notes": "Verified at lane-m b6df77436c (contains every lane). Source: squad-3 fidelity matrix (squads/03-pre-accept.md) and WP13 cycle-3 approval; tests/lanes+tests/consolidation 5225 passed."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes: test_conflict_halt_lists_exactly_the_conflicted_paths; NO_LANE_CHECKOUT_HALT via test_7755_stale_sibling_lane_recovery.py::test_refusal_without_a_lane_worktree_still_names_the_sibling (squad-3 F1, d9effb445a)",
+      "pass_fail": "pass",
+      "verified_by": "claude::architect-alphonso",
+      "verified_at": "2026-11-26T09:31:41.274213+00:00",
+      "notes": "Verified at lane-m b6df77436c (contains every lane). Source: squad-3 fidelity matrix (squads/03-pre-accept.md) and WP13 cycle-3 approval; tests/lanes+tests/consolidation 5225 passed."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_resolution_merge_unreviewed.py; tests/orchestrator_api/test_consolidate_mission_resolution_merge.py; terminus test_printed_recovery_lands_the_mission_on_a_protected_main_coordination_mission[squash,merge]",
+      "pass_fail": "pass",
+      "verified_by": "claude::architect-alphonso",
+      "verified_at": "2026-11-26T09:31:48.801959+00:00",
+      "notes": "Verified at lane-m b6df77436c (contains every lane). Source: squad-3 fidelity matrix (squads/03-pre-accept.md) and WP13 cycle-3 approval; tests/lanes+tests/consolidation 5225 passed."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_auto_rebase_record.py; test_resolution_merge_unreviewed.py::test_forged_record_is_harmless_the_gate_still_fails",
+      "pass_fail": "pass",
+      "verified_by": "claude::architect-alphonso",
+      "verified_at": "2026-11-26T09:31:55.798754+00:00",
+      "notes": "Verified at lane-m b6df77436c (contains every lane). Source: squad-3 fidelity matrix (squads/03-pre-accept.md) and WP13 cycle-3 approval; tests/lanes+tests/consolidation 5225 passed."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_unreviewed_merge_hint.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::architect-alphonso",
+      "verified_at": "2026-11-26T09:32:03.004350+00:00",
+      "notes": "Verified at lane-m b6df77436c (contains every lane). Source: squad-3 fidelity matrix (squads/03-pre-accept.md) and WP13 cycle-3 approval; tests/lanes+tests/consolidation 5225 passed."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/review/test_review_context_merge_lines.py; route E2E asserts the --remerge-diff line in the real review prompt",
+      "pass_fail": "pass",
+      "verified_by": "claude::architect-alphonso",
+      "verified_at": "2026-11-26T09:32:10.337760+00:00",
+      "notes": "Verified at lane-m b6df77436c (contains every lane). Source: squad-3 fidelity matrix (squads/03-pre-accept.md) and WP13 cycle-3 approval; tests/lanes+tests/consolidation 5225 passed."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_approved_lane_resolution_route*.py (squash+merge, N1-N3, three-lane; no xfail/skip)",
+      "pass_fail": "pass",
+      "verified_by": "claude::architect-alphonso",
+      "verified_at": "2026-11-26T09:32:18.009928+00:00",
+      "notes": "Verified at lane-m b6df77436c (contains every lane). Source: squad-3 fidelity matrix (squads/03-pre-accept.md) and WP13 cycle-3 approval; tests/lanes+tests/consolidation 5225 passed."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_rollback_own_lane_moves.py; three-lane test_next_run_after_rollback_is_not_refused; test_a_second_auto_rebase_of_one_lane_in_one_attempt_is_reported_not_restored",
+      "pass_fail": "pass",
+      "verified_by": "claude::architect-alphonso",
+      "verified_at": "2026-11-26T09:32:25.611688+00:00",
+      "notes": "Verified at lane-m b6df77436c (contains every lane). Source: squad-3 fidelity matrix (squads/03-pre-accept.md) and WP13 cycle-3 approval; tests/lanes+tests/consolidation 5225 passed."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_merge_attribute_guard.py; test_union_attribute_attack_refuses_at_claim_with_no_branch_moves; tests/lanes/test_auto_rebase_pinned_merge_config.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::architect-alphonso",
+      "verified_at": "2026-11-26T09:32:32.770856+00:00",
+      "notes": "Verified at lane-m b6df77436c (contains every lane). Source: squad-3 fidelity matrix (squads/03-pre-accept.md) and WP13 cycle-3 approval; tests/lanes+tests/consolidation 5225 passed."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_canceled_via_reapproved_dependency_7497.py (incl. test_protection_is_load_bearing)",
+      "pass_fail": "pass",
+      "verified_by": "claude::architect-alphonso",
+      "verified_at": "2026-11-26T09:32:39.627219+00:00",
+      "notes": "Verified at lane-m b6df77436c (contains every lane). Source: squad-3 fidelity matrix (squads/03-pre-accept.md) and WP13 cycle-3 approval; tests/lanes+tests/consolidation 5225 passed."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_dependency_merge_attribution_7307.py (vacuous returns replaced by code assertions)",
+      "pass_fail": "pass",
+      "verified_by": "claude::architect-alphonso",
+      "verified_at": "2026-11-26T09:32:47.573119+00:00",
+      "notes": "Verified at lane-m b6df77436c (contains every lane). Source: squad-3 fidelity matrix (squads/03-pre-accept.md) and WP13 cycle-3 approval; tests/lanes+tests/consolidation 5225 passed."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "document_review",
+      "evidence": "ADR amendments 2026-10-04-5, 2026-09-29-1, 2026-09-19-1, 2026-11-08-2; AGENTS.md; docs troubleshoot-merge; orchestrator-api docs; docs/changelog/unreleased fragment",
+      "pass_fail": "pass",
+      "verified_by": "claude::architect-alphonso",
+      "verified_at": "2026-11-26T09:32:54.730286+00:00",
+      "notes": "Verified at lane-m b6df77436c (contains every lane). Source: squad-3 fidelity matrix (squads/03-pre-accept.md) and WP13 cycle-3 approval; tests/lanes+tests/consolidation 5225 passed."
+    }
+  ],
+  "negative_invariants": []
+}

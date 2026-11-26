@@ -875,7 +875,7 @@ def advance_branch_ref(
             pass it explicitly at every call site (``lanes/merge.py``,
             ``merge/ordering.py``, ``coordination/commit_router.py``).
         env: Optional subprocess environment (merge pipeline passes its
-            ``_make_merge_env()`` result through).
+            ``make_merge_env()`` result through).
         context: A :class:`ResidueClassifier` (``ResidueContext``); ``None`` exempts
             nothing. Every checked-out
             worktree is judged by its OWN role, so a coordination worktree's
