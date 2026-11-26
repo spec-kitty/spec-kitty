@@ -983,7 +983,7 @@ def _recorded_target_branch(repo_root: Path, mission_slug: str) -> str:
     return get_feature_target_branch(repo_root, mission_slug)
 
 
-def _mission_branch_target(repo_root: Path, mission_slug: str, target_branch: str) -> PlanningLaneTarget | None:
+def planning_mission_branch_target(repo_root: Path, mission_slug: str, target_branch: str) -> PlanningLaneTarget | None:
     """The planning lane's Mission-branch target of a default Mission that has not landed, else ``None``.
 
     Reads the one authority, :func:`specify_cli.coordination.planning_commit.planning_lane_target`,
@@ -1023,7 +1023,7 @@ def _planning_workspace(
     """
     from specify_cli.lanes.compute import PLANNING_LANE_ID
 
-    mission_branch_target = None if arm.owned is not None else _mission_branch_target(arm.repo_root, arm.mission_slug, target_branch())
+    mission_branch_target = None if arm.owned is not None else planning_mission_branch_target(arm.repo_root, arm.mission_slug, target_branch())
     if mission_branch_target is not None:
         kind, path, branch = MISSION_BRANCH_CHECKOUT_KIND, mission_branch_target.checkout, mission_branch_target.branch
     else:
@@ -1656,6 +1656,7 @@ __all__ = [
     "build_normalized_wp_index",
     "build_feature_context_index",
     "clear_workspace_resolution_caches",
+    "planning_mission_branch_target",
     "get_normalized_wp",
     "get_workspaces_dir",
     "get_context_path",

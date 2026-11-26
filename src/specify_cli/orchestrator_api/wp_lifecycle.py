@@ -133,8 +133,9 @@ class _StartWorkspace:
 def _status_execution_mode_for_start_workspace(start_ws: _StartWorkspace | None) -> str:
     """``ResolvedWorkspace.status_execution_mode``'s value for a ``_StartWorkspace`` (#5100 R-10).
 
-    ``None`` (no workspace was resolved -- every topology except single_branch
-    for a non-claim transition) stamps ``"worktree"``, exactly as before R-10.
+    ``None`` (no workspace was resolved: a code-lane WP of a non-``single_branch``
+    Mission on a non-claim transition, or an unreadable manifest there) stamps
+    ``"worktree"``; a planning-lane WP stamps ``"direct_repo"`` on every topology (#7860).
 
     The orchestrator-api's own workspace resolver (:func:`_resolve_start_workspace`
     / :func:`_resolve_existing_workspace`) returns ``_StartWorkspace``, not a
@@ -278,21 +279,37 @@ def _lane_assignment_or_legacy(main_repo_root: Path, mission: str, wp: str) -> t
     return manifest, lane
 
 
+#: The envelope data key carrying a workspace-resolution refusal's own code when that code is
+#: not registered in the contract's ``allowed_error_codes`` (#7860, contract 1.31.0). The
+#: envelope ``error_code`` is then the caller's registered fallback (the #5642
+#: ``BOOKKEEPING_FAILED`` / ``data.bookkeeping_error_code`` precedent, PR-CONTRACT-002).
+_WORKSPACE_ERROR_CODE_KEY = "workspace_error_code"
+
+
 def _fail_workspace_resolution(cmd: str, mission_dir: Path, wp: str, exc: Exception, *, fallback_code: str = "LANE_ALLOCATION_FAILED") -> NoReturn:
     """Envelope a repo-root-lane workspace resolution failure (one mapping for the start and resume paths).
 
-    A :class:`StructuredError` (``WRITE_CHECKOUT_*``, ``PLANNING_CHECKOUT_MISSING``) keeps its
-    own code. Anything else (unusable WP metadata, a missing WP file, a corrupt ``lanes.json``
-    or ``meta.json`` read, or :class:`mission_runtime.PlanningWriteRefUnavailable`, which carries
-    no code) is reported under the caller's existing *fallback_code* (``LANE_ALLOCATION_FAILED``,
-    or ``TRANSITION_REJECTED`` on the transition stamp path), named in ``data.error_type`` so it
-    never escapes as a traceback (#7860, NFR-002).
+    A :class:`StructuredError` whose code the contract registers keeps it. Every other failure
+    is reported under the caller's registered *fallback_code* (``LANE_ALLOCATION_FAILED``, or
+    ``TRANSITION_REJECTED`` on the transition stamp path), so an unregistered code never reaches
+    the public ``error_code``:
+
+    * an unregistered :class:`StructuredError` (``PLANNING_CHECKOUT_MISSING``,
+      ``WRITE_CHECKOUT_*``) carries its own code in ``data.workspace_error_code`` and its own
+      fields (``mission_branch``, ``remote``, ...) beside it;
+    * anything else (unusable WP metadata, a missing WP file, a corrupt ``lanes.json`` or
+      ``meta.json`` read, or :class:`mission_runtime.PlanningWriteRefUnavailable`, which carries
+      no code) is named in ``data.error_type``, so it never escapes as a traceback (#7860, NFR-002).
     """
+    from specify_cli.core.contract_gate import is_allowed_error_code
     from specify_cli.core.errors import StructuredError
 
     identity = {**_common._mission_identity_payload(mission_dir), "wp_id": wp}
     if isinstance(exc, StructuredError):
-        _fail(cmd, exc.error_code, str(exc), {**identity, **exc.to_dict()})
+        real_code = str(exc.error_code)
+        if is_allowed_error_code("orchestrator_api", real_code):
+            _fail(cmd, real_code, str(exc), {**identity, **exc.to_dict()})
+        _fail(cmd, fallback_code, str(exc), {**identity, **exc.to_dict(), "reason": str(exc), _WORKSPACE_ERROR_CODE_KEY: real_code})
     _fail(cmd, fallback_code, str(exc), {**identity, "reason": str(exc), "error_type": type(exc).__name__})
 
 
@@ -305,48 +322,94 @@ def _workspace_resolution_errors() -> tuple[type[Exception], ...]:
     return (StructuredError, ValueError, FileNotFoundError, GuardedReadError, PlanningWriteRefUnavailable)
 
 
+class PlanningBranchUndecided(RuntimeError):
+    """A Mission-branch checkout resolved with no branch name: fail closed, never name the target (#7860)."""
+
+
+def _planning_lane_branch(main_repo_root: Path, mission: str, manifest: Any, workspace: ResolvedWorkspace) -> str:
+    """The branch a repo-root lane WP is worked on, from the resolution that chose its checkout.
+
+    For the Mission-branch checkout the resolver already named the branch
+    (``workspace.branch_name``); an empty name raises :class:`PlanningBranchUndecided` rather
+    than silently naming the target. Every other shape keeps :func:`_repo_root_lane_branch`.
+    Called only inside :func:`_resolve_repo_root_workspace_or_fail`'s guarded block.
+    """
+    from specify_cli.workspace.context import MISSION_BRANCH_CHECKOUT_KIND
+
+    if workspace.resolution_kind == MISSION_BRANCH_CHECKOUT_KIND:
+        if not workspace.branch_name:
+            raise PlanningBranchUndecided(f"the Mission-branch checkout {workspace.worktree_path} of {mission} {workspace.wp_id} resolved with no branch")
+        return workspace.branch_name
+    return _repo_root_lane_branch(main_repo_root, mission, manifest)
+
+
+@dataclass(frozen=True)
+class _RepoRootLane:
+    """What a repo-root lane WP's start or resume needs, read once inside one guarded block."""
+
+    manifest: Any
+    lane: ExecutionLane
+
+
 def _resolve_repo_root_workspace_or_fail(
     cmd: str,
     main_repo_root: Path,
     mission: str,
     mission_dir: Path,
     wp: str,
+    assignment: _RepoRootLane,
     *,
     guard: bool,
     fallback_code: str = "LANE_ALLOCATION_FAILED",
-) -> ResolvedWorkspace:
-    """Resolve a repo-root lane WP's workspace through the one resolver, or fail with an envelope.
+) -> tuple[ResolvedWorkspace, _StartWorkspace]:
+    """Resolve a repo-root lane WP's workspace once through the one resolver, or fail with an envelope.
 
     ``guard`` runs ``implement``'s ``WRITE_CHECKOUT_*`` refusals (#5100 B5; ``single_branch``
     only, a no-op for every other topology) on the start path; the read-only resume path
     passes ``False``. The workspace is the repository root checkout, or the Mission-branch
-    checkout of a default Mission's planning lane before it lands (#7860).
+    checkout of a default Mission's planning lane before it lands (#7860). The write branch
+    and the base ref are read inside the same guarded block, so none of their failures can
+    escape as a traceback.
     """
     from specify_cli.lanes.implement_support import _ensure_repo_root_checkout_available
     from specify_cli.workspace.context import resolve_workspace_for_wp
 
+    handled: tuple[type[Exception], ...] = (*_workspace_resolution_errors(), PlanningBranchUndecided)
     try:
         resolved = resolve_workspace_for_wp(main_repo_root, mission, wp)
         if guard:
             _ensure_repo_root_checkout_available(main_repo_root, mission, wp, resolved)
-        return resolved
-    except _workspace_resolution_errors() as exc:
+        start = _StartWorkspace(
+            workspace_path=str(resolved.worktree_path),
+            lane_id=assignment.lane.lane_id,
+            lane_branch=_planning_lane_branch(main_repo_root, mission, assignment.manifest, resolved),
+            lane_base_ref=_lane_base_ref(main_repo_root, mission, assignment.manifest),
+        )
+    except handled as exc:
         _fail_workspace_resolution(cmd, mission_dir, wp, exc, fallback_code=fallback_code)
+    return resolved, start
 
 
-def _ensure_repo_root_checkout_or_fail(cmd: str, main_repo_root: Path, mission: str, mission_dir: Path, wp: str) -> None:
-    """Run ``implement``'s WRITE_CHECKOUT_* refusals for a repo-root lane (#5100 B5)."""
-    _resolve_repo_root_workspace_or_fail(cmd, main_repo_root, mission, mission_dir, wp, guard=True)
+def _ensure_repo_root_checkout_or_fail(cmd: str, main_repo_root: Path, mission: str, mission_dir: Path, wp: str) -> _StartWorkspace:
+    """Resolve once and run ``implement``'s WRITE_CHECKOUT_* refusals for a repo-root lane WP (#5100 B5).
 
+    Records the claim base from the resolved checkout (#7860, FR-011) and returns the start
+    workspace: the resolved checkout and the branch the resolver named. Called only for a WP
+    whose lane is the repo-root lane.
+    """
+    from kernel.errors import GuardedReadError
+    from specify_cli.lanes.claim_base import record_claim_base
 
-def _repo_root_start_workspace(main_repo_root: Path, mission: str, manifest: Any, lane: ExecutionLane, workspace: ResolvedWorkspace) -> _StartWorkspace:
-    """The ``_StartWorkspace`` of a repo-root lane WP: the resolved checkout and the planning write branch."""
-    return _StartWorkspace(
-        workspace_path=str(workspace.worktree_path),
-        lane_id=lane.lane_id,
-        lane_branch=_repo_root_lane_branch(main_repo_root, mission, manifest),
-        lane_base_ref=_lane_base_ref(main_repo_root, mission, manifest),
-    )
+    try:
+        lane_assignment = _lane_assignment_or_legacy(main_repo_root, mission, wp)
+    except (ValueError, FileNotFoundError, GuardedReadError) as exc:
+        _fail_workspace_resolution(cmd, mission_dir, wp, exc)
+    if isinstance(lane_assignment, _StartWorkspace):
+        _fail_workspace_resolution(cmd, mission_dir, wp, ValueError(f"{wp} of {mission} is not assigned to a lane in lanes.json"))
+    assignment = _RepoRootLane(*lane_assignment)
+    resolved, start = _resolve_repo_root_workspace_or_fail(cmd, main_repo_root, mission, mission_dir, wp, assignment, guard=True)
+    record_claim_base(main_repo_root, resolved.worktree_path, mission, wp)
+    return start
 
 
 def _resolve_start_workspace(cmd: str, main_repo_root: Path, mission: str, mission_dir: Path, wp: str) -> _StartWorkspace:
@@ -376,23 +439,17 @@ def _resolve_start_workspace(cmd: str, main_repo_root: Path, mission: str, missi
     from specify_cli.lanes.compute import is_repo_root_lane
 
     if is_repo_root_lane(lane):
-        # Repo-root lane: the WP executes directly in the write checkout,
-        # never a ``.worktrees/…`` path — ``allocate_lane_worktree`` /
-        # ``predict_lane_worktree`` refuse the planning lane id (#5100,
-        # T009). Record the claim base ONCE (idempotent-by-absence) so the
-        # for_review gate has a starting point (WP02/T007).
-        from specify_cli.lanes.claim_base import record_claim_base
-
+        # Repo-root lane: the WP executes directly in its checkout (the
+        # repository root checkout, or the Mission-branch checkout of a default
+        # Mission's planning lane before it lands, #7860), never a
+        # ``.worktrees/…`` lane path -- ``allocate_lane_worktree`` /
+        # ``predict_lane_worktree`` refuse the planning lane id (#5100, T009).
         # #5100 B5: the single_branch write-checkout refusals (wrong branch /
         # occupied / dirty) run on this path too, so sequential execution cannot
         # be bypassed by driving the orchestrator API instead of ``implement``.
-        # #7860 (FR-011): the claim base is the HEAD of the checkout the WP is
-        # worked in, the Mission-branch checkout for a default Mission's
-        # planning lane before it lands.
-        _ensure_repo_root_checkout_or_fail(cmd, main_repo_root, mission, mission_dir, wp)
-        workspace = _resolve_repo_root_workspace_or_fail(cmd, main_repo_root, mission, mission_dir, wp, guard=False)
-        record_claim_base(main_repo_root, workspace.worktree_path, mission, wp)
-        return _repo_root_start_workspace(main_repo_root, mission, manifest, lane, workspace)
+        # The claim base is recorded ONCE (idempotent-by-absence) from the
+        # resolved checkout so the for_review gate has a starting point.
+        return _ensure_repo_root_checkout_or_fail(cmd, main_repo_root, mission, mission_dir, wp)
 
     from specify_cli.lanes.worktree_allocator import (
         DependencyLaneMergeConflictError,
@@ -489,8 +546,10 @@ def _resolve_existing_workspace(
         # this function is read-only (no allocation, no guard, no claim-base
         # write). A resolution failure is enveloped under *cmd*.
         identity_dir = mission_dir if mission_dir is not None else _planning_read_dir(main_repo_root, mission)
-        workspace = _resolve_repo_root_workspace_or_fail(cmd, main_repo_root, mission, identity_dir, wp, guard=False, fallback_code=fallback_code)
-        return _repo_root_start_workspace(main_repo_root, mission, manifest, lane, workspace)
+        _resolved, start = _resolve_repo_root_workspace_or_fail(
+            cmd, main_repo_root, mission, identity_dir, wp, _RepoRootLane(manifest, lane), guard=False, fallback_code=fallback_code
+        )
+        return start
 
     worktree_path, lane_branch = predict_lane_worktree(main_repo_root, mission, lane.lane_id)
     return _StartWorkspace(
@@ -502,25 +561,47 @@ def _resolve_existing_workspace(
 
 
 def _existing_workspace_for_stamp(cmd: str, main_repo_root: Path, mission: str, mission_dir: Path, wp: str) -> _StartWorkspace | None:
-    """Existing-lane mirror used ONLY to stamp a status event's ``execution_mode`` (#5100 R-10).
+    """Existing-lane mirror used ONLY to stamp a status event's ``execution_mode`` (#5100 R-10, #7860).
 
-    A repo-root-lane WP exists only in a STORED ``single_branch`` mission, so
-    only there does the stamp differ from the historical ``"worktree"``; every
-    other topology returns ``None`` (stamp ``"worktree"``) WITHOUT reading
-    ``lanes.json`` -- a corrupt manifest must not break a ``--to done`` /
-    ``--to approved`` transition on a mission that never needed it. Inside
-    single_branch, an unreadable manifest / WP maps to the error envelope, not
-    a traceback.
+    Every Mission's planning lane is a repo-root lane: a shared checkout (the repository root
+    checkout, or the Mission-branch checkout of a default Mission before it lands), stamped
+    ``"direct_repo"`` exactly as ``start-implementation`` and the CLI's
+    ``ResolvedWorkspace.status_execution_mode`` stamp it. A code lane is stamped ``"worktree"``.
+
+    * A stored ``single_branch`` Mission resolves the existing workspace; an unreadable
+      manifest / WP maps to the error envelope, not a traceback.
+    * Any other topology reads only the lane assignment, fail-open: an unreadable
+      ``lanes.json`` keeps the historical ``"worktree"`` stamp, so a corrupt manifest never
+      breaks a ``--to done`` / ``--to approved`` transition.
     """
     from kernel.errors import GuardedReadError
     from mission_runtime import is_single_branch, resolve_topology
 
     if not is_single_branch(resolve_topology(main_repo_root, mission)):
-        return None
+        return _planning_lane_stamp_workspace(main_repo_root, mission, wp)
     try:
         return _resolve_existing_workspace(main_repo_root, mission, wp, cmd=cmd, mission_dir=mission_dir, fallback_code="TRANSITION_REJECTED")
     except (ValueError, FileNotFoundError, GuardedReadError) as exc:
         _fail(cmd, "TRANSITION_REJECTED", str(exc), {**_common._mission_identity_payload(mission_dir), "wp_id": wp, "reason": str(exc)})
+
+
+def _planning_lane_stamp_workspace(main_repo_root: Path, mission: str, wp: str) -> _StartWorkspace | None:
+    """The stamp-only workspace of a non-``single_branch`` WP: its lane when that is the planning lane, else ``None``.
+
+    Only ``lane_id`` is read (by :func:`_status_execution_mode_for_start_workspace`); no
+    checkout is resolved, so nothing here can refuse a transition.
+    """
+    from kernel.errors import GuardedReadError
+    from specify_cli.lanes.compute import is_repo_root_lane
+
+    try:
+        assignment = _lane_assignment_or_legacy(main_repo_root, mission, wp)
+    except (ValueError, FileNotFoundError, GuardedReadError) as exc:
+        logger.debug("execution_mode stamp keeps 'worktree' for %s/%s: %s", mission, wp, exc)
+        return None
+    if isinstance(assignment, _StartWorkspace) or not is_repo_root_lane(assignment[1]):
+        return None
+    return _StartWorkspace(workspace_path=str(main_repo_root), lane_id=assignment[1].lane_id)
 
 
 def resolve_workspace(

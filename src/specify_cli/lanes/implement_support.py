@@ -694,15 +694,15 @@ def _planning_dir(main_repo_root: Path, mission_slug: str) -> Path:
 def _planning_self_heal_workspace(main_repo_root: Path, mission_slug: str, wp_id: str, lane: ExecutionLane, lanes_manifest: LanesManifest) -> Path:
     """The checkout a planning lane's self-heal reconciles: the one the claim's ancestry was judged in (#7860).
 
-    The Mission-branch checkout for the planning lane of a default Mission that has not landed,
-    read through the planning workspace's own rule (``workspace.context._mission_branch_target``,
-    which keeps a stored ``single_branch`` Mission on the repository root checkout), else the
-    repository root checkout, as before. Reads no WP file.
+    The Mission-branch checkout for the planning lane of a default Mission that has not landed
+    (:func:`specify_cli.workspace.context.planning_mission_branch_target`, the planning
+    workspace's own rule, which keeps a stored ``single_branch`` Mission on the repository root
+    checkout), else the repository root checkout, as before. Reads no WP file.
     """
     from specify_cli.ownership.workspace_strategy import create_planning_workspace
-    from specify_cli.workspace.context import _mission_branch_target
+    from specify_cli.workspace.context import planning_mission_branch_target
 
-    target = _mission_branch_target(main_repo_root, mission_slug, lanes_manifest.target_branch)
+    target = planning_mission_branch_target(main_repo_root, mission_slug, lanes_manifest.target_branch)
     if target is not None:
         return Path(target.checkout)
     return Path(create_planning_workspace(mission_slug, wp_id, list(lane.write_scope), main_repo_root))
@@ -728,10 +728,12 @@ def reenter_lane_self_heal(
     SAME in-flight WP, so it passes ``"allow-dirty"``: the agent's
     uncommitted work-in-progress is legitimate, and git's own merge machinery
     already refuses a merge that would conflict with dirty local changes -- no
-    separate upfront gate is needed. A PLANNING lane instead reconciles the
-    shared repository-root checkout, so it passes ``"refuse-dirty"`` and keeps
-    its protected-branch guard: pending reconciliation there requires a clean,
-    unprotected checkout. Only fully approved dependency tips are merged into
+    separate upfront gate is needed. A PLANNING lane instead reconciles its
+    shared checkout -- the repository root checkout, or the Mission-branch
+    checkout of a default Mission that has not landed (#7860,
+    :func:`_planning_self_heal_workspace`) -- so it passes ``"refuse-dirty"``
+    and keeps its protected-branch guard: pending reconciliation there
+    requires a clean, unprotected checkout. Only fully approved dependency tips are merged into
     either.
 
     A workspace whose ancestry is already correct is a true no-op: the seam's
@@ -765,7 +767,9 @@ def reenter_lane_self_heal(
         status_dir = placement_seam(main_repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
         if check_claim_ancestry(main_repo_root, mission_slug, status_dir, wp_id, workspace_path).ok:
             return workspace_path
-        # Root is shared, not an allocator-owned disposable lane checkout.
+        # The planning checkout (the repository root checkout, or the
+        # Mission-branch checkout) is shared, not an allocator-owned
+        # disposable lane checkout.
         # Refuse a protected root before the seam can mutate it; the dirty
         # root is refused by the seam's own policy below.
         assert_not_protected_branch(workspace_path, operation="reconcile planning workspace ancestry")
@@ -881,15 +885,17 @@ def _root_checkout_is_target(main_repo_root: Path, lanes_manifest: LanesManifest
 
 
 def _planning_lane_writes_on_mission_branch(main_repo_root: Path, mission_slug: str, lanes_manifest: LanesManifest) -> bool:
-    """``True`` when the planning lane writes on the Mission branch of a default Mission that has not landed (#7860).
+    """``True`` when the planning lane is worked in the Mission-branch checkout of a default Mission that has not landed (#7860).
 
-    Its workspace is the checkout holding that branch, never the repository root checkout, so
-    the root checkout's branch says nothing about it. Read through the one write-branch rule,
-    :func:`mission_runtime.planning_write_ref`, looked up at call time.
+    That checkout is never the repository root checkout, so the root checkout's branch says
+    nothing about it. Decided by the planning workspace's own rule
+    (:func:`specify_cli.workspace.context.planning_mission_branch_target`), which excludes a
+    stored ``single_branch`` Mission: its planning lane stays the repository root checkout and
+    its #5296 waiver is unchanged.
     """
-    import mission_runtime
+    from specify_cli.workspace.context import planning_mission_branch_target
 
-    return mission_runtime.planning_write_ref(main_repo_root, mission_slug, lanes_manifest.target_branch).on_mission_branch
+    return planning_mission_branch_target(main_repo_root, mission_slug, lanes_manifest.target_branch) is not None
 
 
 def _planning_claim_waives_code_lanes(main_repo_root: Path, mission_slug: str, lane: ExecutionLane, lanes_manifest: LanesManifest) -> bool:

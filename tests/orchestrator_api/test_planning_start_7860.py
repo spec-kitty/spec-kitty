@@ -28,6 +28,7 @@ from specify_cli.workspace.context import clear_workspace_resolution_caches
 from tests._support.git_cli import git_out
 from tests.status.conftest import seed_wp_to_planned
 from tests.lanes.test_planning_claim_base_7860 import (
+    CODE_WP,
     MISSION_BRANCH,
     PLANNING_WP,
     SLUG,
@@ -153,7 +154,7 @@ def test_a_removed_coordination_worktree_is_a_named_envelope(tmp_path: Path) -> 
     assert read_claim_base(mission.repo, SLUG, PLANNING_WP) is None
 
 
-def test_a_mission_branch_no_checkout_holds_is_planning_checkout_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_mission_branch_no_checkout_holds_reports_planning_checkout_missing_in_data(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Past the lookup, the start and resume seams keep the resolver's own code (NFR-002), never the root."""
     import mission_runtime
     from specify_cli.coordination import planning_commit
@@ -167,8 +168,12 @@ def test_a_mission_branch_no_checkout_holds_is_planning_checkout_missing(tmp_pat
 
     for envelope in (_start(mission.repo), _resolve_workspace(mission.repo)):
         assert envelope["success"] is False
-        assert envelope["error_code"] == "PLANNING_CHECKOUT_MISSING", envelope
+        # The code is not registered in the contract: it never reaches the public error_code
+        # (#5642 / PR-CONTRACT-002); the refinement rides in data (contract 1.31.0).
+        assert envelope["error_code"] == "LANE_ALLOCATION_FAILED", envelope
+        assert envelope["data"]["workspace_error_code"] == "PLANNING_CHECKOUT_MISSING"
         assert envelope["data"]["mission_branch"] == MISSION_BRANCH
+        assert "PLANNING_CHECKOUT_MISSING" in envelope["data"]["message"]
     assert read_claim_base(mission.repo, SLUG, PLANNING_WP) is None
 
 
@@ -188,3 +193,45 @@ def test_an_unreadable_planning_write_ref_is_reported_by_name(tmp_path: Path, mo
         assert envelope["error_code"] == "LANE_ALLOCATION_FAILED", envelope
         assert envelope["data"]["error_type"] == "PlanningWriteRefUnavailable"
         assert "meta.json is unreadable (test)" in envelope["data"]["message"]
+
+
+def test_a_mission_branch_checkout_with_no_branch_fails_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The start never names the target as the Mission branch, and records no claim base."""
+    from dataclasses import replace
+
+    from specify_cli.workspace import context
+
+    mission = _finalized(settled_default_mission(tmp_path))
+    real = context.resolve_workspace_for_wp
+    monkeypatch.setattr(context, "resolve_workspace_for_wp", lambda *a, **k: replace(real(*a, **k), branch_name=None))
+
+    started = _start(mission.repo)
+
+    assert started["success"] is False
+    assert started["error_code"] == "LANE_ALLOCATION_FAILED", started
+    assert started["data"]["error_type"] == "PlanningBranchUndecided"
+    assert read_claim_base(mission.repo, SLUG, PLANNING_WP) is None
+
+
+# --- the execution_mode stamp of start-review / transition (review cycle 1, finding 7) ----------
+
+
+def test_the_transition_stamp_of_a_planning_wp_is_direct_repo_on_every_topology(tmp_path: Path) -> None:
+    """A planning-lane WP is a shared checkout: stamped ``direct_repo`` as start-implementation and the CLI stamp it."""
+    mission = settled_default_mission(tmp_path)
+
+    planning = wp_lifecycle._existing_workspace_for_stamp("transition", mission.repo, SLUG, mission.mission_dir, PLANNING_WP)
+    code = wp_lifecycle._existing_workspace_for_stamp("transition", mission.repo, SLUG, mission.mission_dir, CODE_WP)
+
+    assert wp_lifecycle._status_execution_mode_for_start_workspace(planning) == "direct_repo"
+    assert wp_lifecycle._status_execution_mode_for_start_workspace(code) == "worktree"
+
+
+def test_an_unreadable_manifest_keeps_the_worktree_stamp(tmp_path: Path) -> None:
+    """Fail-open: a corrupt lanes.json never breaks a non-single_branch transition."""
+    mission = settled_default_mission(tmp_path)
+    (mission.mission_dir / "lanes.json").write_text("{not json", encoding="utf-8")
+
+    stamp = wp_lifecycle._existing_workspace_for_stamp("transition", mission.repo, SLUG, mission.mission_dir, PLANNING_WP)
+
+    assert wp_lifecycle._status_execution_mode_for_start_workspace(stamp) == "worktree"

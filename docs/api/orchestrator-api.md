@@ -31,7 +31,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.30.0`
+- `CONTRACT_VERSION`: `1.31.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -282,6 +282,20 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   outside `kitty-specs/` (#7809), each `{"wp_id", "from", "to", "paths_outside_kitty_specs"}`.
   The list is empty when no work package was rewritten, and the key is present on every successful
   run and on `--validate-only`. Purely additive.
+- `1.31.0` — a planning-lane work package's workspace resolution (#7860) on `start-implementation`
+  and `resolve-workspace` (and the `start-review` / `transition` stamp path) never puts an
+  unregistered code in `error_code`. A refusal whose own code the contract does not register
+  (`PLANNING_CHECKOUT_MISSING`, and `WRITE_CHECKOUT_WRONG_BRANCH` / `WRITE_CHECKOUT_OCCUPIED` /
+  `WRITE_CHECKOUT_DIRTY`, which used to leak on `start-implementation`) is reported as
+  `LANE_ALLOCATION_FAILED` (`TRANSITION_REJECTED` on the stamp path) with that code in the new
+  optional `data.workspace_error_code`; a failure with no code (an unreadable `meta.json`, a work
+  package that cannot be resolved) is named in the new optional `data.error_type`.
+  `resolve-workspace` on a planning-lane work package now resolves its workspace and can fail
+  this way. For a default Mission's planning work package before it lands, `workspace_path` and
+  `lane_branch` name the Mission-branch checkout (the coordination worktree) and the Mission
+  branch, and the `execution_mode` stamp of a planning-lane work package is `direct_repo` on every
+  topology. Additive optional keys plus a changed `error_code` on previously-leaking refusals, so
+  a minor bump; no key is removed or renamed.
 
 ## Response Envelope
 
@@ -289,7 +303,7 @@ Every command returns exactly one JSON object with these 7 top-level keys:
 
 ```json
 {
-  "contract_version": "1.30.0",
+  "contract_version": "1.31.0",
   "command": "orchestrator-api.mission-state",
   "timestamp": "2026-04-08T12:00:00+00:00",
   "correlation_id": "corr-0123456789abcdef",
@@ -1000,6 +1014,11 @@ transitioning. Use it to resume a WP already past `start-implementation`
 interrupted run, where calling `start-implementation` would wrongly
 re-transition it). No `--policy` is required: the command mutates nothing.
 The composed path is not guaranteed to exist for a WP that was never started.
+For a planning-lane WP (contract >= 1.31.0) the workspace is resolved: a default
+Mission's planning WP resolves to the Mission-branch checkout and the Mission
+branch before the Mission lands, and a resolution failure is
+`LANE_ALLOCATION_FAILED` with `data.workspace_error_code` (for example
+`PLANNING_CHECKOUT_MISSING`) or `data.error_type`.
 
 ### Mark implementation ready for review
 
@@ -1107,7 +1126,7 @@ documented in the same change that registers it.
 - `UNSUPPORTED_STRATEGY`
 - `HISTORY_COMMIT_FAILED`
 - `DEPENDENCIES_NOT_SATISFIED`
-- `LANE_ALLOCATION_FAILED`
+- `LANE_ALLOCATION_FAILED` (`start-implementation`, `resolve-workspace`: since 1.31.0 a planning-lane workspace refusal whose own code is not registered carries it in `data.workspace_error_code`, e.g. `PLANNING_CHECKOUT_MISSING` or `WRITE_CHECKOUT_*`; a failure with no code is named in `data.error_type`)
 - `ANCESTRY_NOT_ESTABLISHED`
 - `STATUS_LOCK_HELD` (`start-implementation`: the single_branch write-checkout claim lock stayed held past its bound; retry)
 - `SAFE_COMMIT_BACKSTOP`

@@ -13,10 +13,13 @@ whole Mission history (spec, plan, tasks) and pass a hollow work package (resear
 * case 3: the positive control, one owned commit in that checkout passes;
 * case 4: an explicit topology keeps the repository root checkout's ``HEAD``;
 * case 5: a sibling planning work package's commit after the claim passes the coarse gate (the
-  documented residual); the evidence axis (WP04) is the real check and must refuse the hollow work
-  package with ``IMPLEMENTATION_MISSING``;
+  documented residual); the evidence axis (WP04) is the real check, and WP05's acceptance suite
+  asserts it refuses the hollow work package with ``IMPLEMENTATION_MISSING``;
+* the CLI claim paths: ``agent action implement`` (driven end to end) and native ``implement``
+  (``create_lane_workspace``) both record the base from the Mission-branch checkout;
 * the #5296 code-lane waiver holds for the Mission-branch checkout whatever branch the repository
-  root checkout is on: code lanes are never merged into the Mission branch.
+  root checkout is on: code lanes are never merged into the Mission branch; a stored
+  ``single_branch`` Mission's waiver is unchanged.
 """
 
 from __future__ import annotations
@@ -260,29 +263,6 @@ def test_a_sibling_commit_passes_the_coarse_gate(tmp_path: Path) -> None:
     assert evaluate_for_review_gate(mission.repo, SLUG, PLANNING_WP).passed is True
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=(ImportError, AttributeError, TypeError),
-    reason=(
-        "WP05: the evidence axis's planning window (WP04, consolidation.wp_evidence.planning_evidence_window) "
-        "is not merged into this lane. Once it is, drop this xfail and drive the real caller: the hollow "
-        "planning WP must be refused with IMPLEMENTATION_MISSING although a sibling committed after its claim."
-    ),
-)
-def test_the_evidence_axis_refuses_the_hollow_wp_a_sibling_commit_let_through(tmp_path: Path) -> None:
-    import importlib
-
-    wp_evidence = importlib.import_module("specify_cli.consolidation.wp_evidence")
-    mission = settled_default_mission(tmp_path)
-    claim(mission.repo)
-    commit_file(mission.holder, owned_path(SIBLING_WP), "WP02 research notes")
-
-    window = wp_evidence.planning_evidence_window(mission.repo, mission.mission_dir, manifest(), PLANNING_WP)
-    assert window is not None
-    paths = wp_evidence.evidence_paths(mission.repo, window, SLUG)
-    assert wp_evidence.has_owned_change(paths, [owned_path(PLANNING_WP)]) is False
-
-
 # --- the #5296 code-lane waiver for the Mission-branch checkout ---------------------------------
 
 
@@ -343,3 +323,115 @@ def test_the_planning_self_heal_reconciles_the_checkout_the_ancestry_was_judged_
 
     assert _planning_self_heal_workspace(mission.repo, SLUG, PLANNING_WP, planning_lane, manifest()).resolve() == mission.holder.resolve()
     assert _planning_self_heal_workspace(explicit, SLUG, PLANNING_WP, planning_lane, manifest()) == explicit
+
+
+def test_a_default_single_branch_missions_waiver_is_unchanged(tmp_path: Path) -> None:
+    """A stored ``single_branch`` Mission keeps the repository root checkout: nothing is deferred to the target."""
+    repo = tmp_path / "repo"
+    _init(repo)
+    git_out(repo, "checkout", "-q", "-b", MISSION_BRANCH)
+    commit_mission(repo, meta(topology="single_branch", coordination_branch=None))
+    workspace = resolve_workspace_for_wp(repo, SLUG, PLANNING_WP)
+    assert workspace.resolution_kind == "repo_root"
+
+    result = check_claim_ancestry(repo, SLUG, repo / "kitty-specs" / SLUG, PLANNING_WP, repo)
+
+    assert result.code_lanes_deferred_to is None
+
+
+def test_native_implement_records_the_mission_branch_checkouts_head(tmp_path: Path) -> None:
+    """``spec-kitty implement`` reaches the claim seam through workspace creation."""
+    from specify_cli.lanes.implement_support import create_lane_workspace
+
+    mission = settled_default_mission(tmp_path)
+    workspace = resolve_workspace_for_wp(mission.repo, SLUG, PLANNING_WP)
+    wp_file = mission.mission_dir / "tasks" / f"{PLANNING_WP}-plan.md"
+
+    result = create_lane_workspace(mission.repo, SLUG, PLANNING_WP, wp_file, workspace, manifest(), [], "git")
+
+    assert result.workspace_path.resolve() == mission.holder.resolve()
+    assert read_claim_base(mission.repo, SLUG, PLANNING_WP) == git_out(mission.holder, "rev-parse", "HEAD")
+
+
+def test_the_gate_fails_closed_when_the_mission_branch_checkout_has_no_branch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Never report the target as the Mission branch."""
+    from dataclasses import replace
+
+    from specify_cli.workspace import context
+
+    mission = settled_default_mission(tmp_path)
+    claim(mission.repo)
+    commit_file(mission.holder, owned_path(PLANNING_WP), "WP01 research notes")
+    real = context.resolve_workspace_for_wp
+    monkeypatch.setattr(context, "resolve_workspace_for_wp", lambda *a, **k: replace(real(*a, **k), branch_name=None))
+
+    decision = evaluate_for_review_gate(mission.repo, SLUG, PLANNING_WP)
+
+    assert decision.passed is False
+    assert decision.lane_branch is None
+    assert "resolved with no branch name" in decision.reason
+
+
+# --- the agent claim path, end to end (review cycle 1, finding 1) --------------------------------
+
+
+@pytest.mark.integration
+@pytest.mark.timeout(900)
+def test_agent_action_implement_records_the_claim_base_and_the_gate_passes_owned_work(tmp_path: Path) -> None:
+    """``agent action implement`` on a settled default Mission's planning WP records the base from the coordination worktree.
+
+    Then an owned commit there passes the ``for_review`` claim-base gate on ``move-task``. The
+    evidence axis is WP04's: until it is merged, its ``IMPLEMENTATION_MISSING`` refusal may still
+    follow the gate, never the gate's own "no implementation commit since claim" refusal.
+    """
+    from tests.integration.test_7860_planning_evidence_window import (
+        _claim_planning_wp,
+        _commit_owned,
+        _move_into_review,
+        setup_default_mission,
+    )
+
+    mission = setup_default_mission(tmp_path)
+    relpath = _claim_planning_wp(mission)
+
+    base = read_claim_base(mission.repo, mission.slug, "WP02")
+    assert base is not None, "agent action implement recorded no claim base"
+    # Recorded from the coordination worktree before the claim's own status commits: on the
+    # Mission branch, and never the target's tip (the repository root checkout).
+    git_out(mission.repo, "merge-base", "--is-ancestor", base, mission.topic_branch)
+    assert base != git_out(mission.repo, "rev-parse", "main")
+    assert git_out(mission.repo, "merge-base", base, "main") != base
+
+    hollow = evaluate_for_review_gate(mission.repo, mission.slug, "WP02")
+    assert hollow.passed is False, hollow
+    _commit_owned(mission.topic_checkout, relpath)
+    gate = evaluate_for_review_gate(mission.repo, mission.slug, "WP02")
+    assert gate.passed is True, gate
+    assert gate.lane_branch == mission.topic_branch
+    moved = _move_into_review(mission)
+    output = moved.stdout + moved.stderr
+
+    assert "no implementation commit since claim" not in output, output[-3000:]
+    assert moved.returncode == 0 or "IMPLEMENTATION_MISSING" in output, output[-3000:]
+
+
+def test_the_agent_claim_seam_records_only_for_a_shared_checkout_and_never_fails_the_claim(tmp_path: Path) -> None:
+    """A lane worktree records nothing here; an unborn ``HEAD`` records nothing and does not raise."""
+    from dataclasses import replace
+
+    from specify_cli.cli.commands.agent.workflow_executor import _record_shared_checkout_claim_base
+
+    (tmp_path / "m").mkdir()
+    mission = settled_default_mission(tmp_path / "m")
+    workspace = resolve_workspace_for_wp(mission.repo, SLUG, PLANNING_WP)
+    _record_shared_checkout_claim_base(mission.repo, SLUG, PLANNING_WP, replace(workspace, resolution_kind="lane_workspace"))
+    assert read_claim_base(mission.repo, SLUG, PLANNING_WP) is None
+
+    unborn = tmp_path / "unborn"
+    unborn.mkdir()
+    git_out(unborn, "init", "-q", "-b", TARGET)
+    _record_shared_checkout_claim_base(unborn, SLUG, PLANNING_WP, replace(workspace, worktree_path=unborn))
+    assert read_claim_base(unborn, SLUG, PLANNING_WP) is None
+
+    _record_shared_checkout_claim_base(mission.repo, SLUG, PLANNING_WP, workspace)
+    assert read_claim_base(mission.repo, SLUG, PLANNING_WP) == git_out(mission.holder, "rev-parse", "HEAD")
