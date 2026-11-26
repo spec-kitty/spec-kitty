@@ -44,6 +44,7 @@ __all__ = [
     "commit_tree",
     "merge_tree",
     "numstat_entries",
+    "parse_config_entries_z",
     "remerge_paths",
     "status_entries",
     "tracked_paths",
@@ -225,6 +226,21 @@ def parse_name_status_z(raw: bytes) -> tuple[NameStatusEntry, ...]:
             entries.append(NameStatusEntry(status=status, path=_path(_next_record(records, record))[0], orig_path=first))
         else:
             entries.append(NameStatusEntry(status=status, path=first))
+    return tuple(entries)
+
+
+def parse_config_entries_z(raw: str) -> tuple[tuple[str, str | None], ...]:
+    """Parse ``git config -z --get-regexp`` / ``--list -z``: ``key\\nvalue\\0``, or ``key\\0`` for a key without ``=``.
+
+    A key without ``=`` (git's implicit boolean true) has the value ``None``. NUL ends every entry,
+    so a value that spans lines can never be read as another key. Entries keep git's order.
+    """
+    entries: list[tuple[str, str | None]] = []
+    for record in raw.split("\0"):
+        if not record:
+            continue
+        key, separator, value = record.partition("\n")
+        entries.append((key, value if separator else None))
     return tuple(entries)
 
 
