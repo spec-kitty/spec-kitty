@@ -26,6 +26,7 @@ from types import MappingProxyType
 from typing import TypeVar
 
 from kernel.git import GitCommandError, GitPath, changed_paths, merge_tree, run_git, subtree_entries, tree_entry, tree_paths
+from kernel.git.listing import _tree_spelling
 from kernel.git.read_cache import cached_object_read, git_read_cache_active, is_object_id
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.git.merge_tree_probe import MERGE_TREE_WRITE_TREE_MIN_VERSION, merge_tree_write_tree_available
@@ -301,14 +302,15 @@ def _by_objects(repo_root: Path, revs: tuple[str, ...], key: Hashable, compute: 
 def _git_lines(repo_root: Path, *args: str, revs: tuple[str, ...] = ()) -> tuple[str, ...]:
     """The output lines of ``git <args>``; *revs* are the revisions the answer is a function of.
 
-    Run in ``repo_root``, a checkout root, so a pathspec in *args* names the same path from any
-    caller: the cache key does not carry the working directory.
+    Run in ``repo_root``, a checkout root; the cache key carries it, since a relative pathspec in
+    *args* names a path of that checkout.
     """
 
     def read() -> tuple[str, ...]:
         return tuple(run_git(repo_root, *args).stdout.decode("utf-8", "replace").splitlines())
 
-    return _by_objects(repo_root, revs, args, read)
+    # A pathspec after ``--`` is relative to ``repo_root``, so the key names it: two checkouts of one repository never share it.
+    return _by_objects(repo_root, revs, (str(repo_root), *args), read)
 
 
 def _diff_paths(repo_root: Path, old: str, new: str) -> tuple[str, ...]:
@@ -365,7 +367,7 @@ def _blob_id(repo_root: Path, rev: str, path: str) -> str | None:
 
     if not (git_read_cache_active() and is_object_id(rev)):
         return read()
-    wanted = str(GitPath.parse(path))
+    wanted = str(GitPath.parse(_tree_spelling(path)))
     folder = _mission_folder(wanted)
     if folder is None:
         return _by_objects(repo_root, (rev,), ("blob", wanted), read)
