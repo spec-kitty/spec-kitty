@@ -18,7 +18,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from specify_cli.git.ref_advance import delete_bookkeeping_ref, write_bookkeeping_ref
+from specify_cli.git.ref_advance import delete_bookkeeping_ref, delete_bookkeeping_refs, write_bookkeeping_ref
 
 # ``recorded_merges`` is public but joins ``__all__`` only once a caller outside this module exists
 # (the dead-symbol gate). ``is_recorded`` (FR-004's claim check) and ``delete`` (the rollback) have one.
@@ -138,4 +138,5 @@ def delete_for_lane(repo_root: Path, lane_branch: str) -> tuple[str, ...]:
     Raises:
         AutoRebaseRecordError: the records could not be listed.
     """
-    return tuple(_record_ref(lane_branch, sha) for sha in sorted(recorded_merges(repo_root, lane_branch)) if not delete(repo_root, lane_branch, sha))
+    refs = [_record_ref(lane_branch, sha) for sha in sorted(recorded_merges(repo_root, lane_branch))]
+    return delete_bookkeeping_refs(repo_root, refs)

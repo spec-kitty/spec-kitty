@@ -7,7 +7,7 @@ conflict into bytes neither side wrote; before the fold the tool committed that 
 it, and the claim then exempted it (its own attribute check reads the repository root checkout and
 the committed attributes only). The auto-rebase now runs
 :func:`~specify_cli.consolidation.merge_attribute_guard.assert_registered_merge_behaviour` in the lane
-checkout, over every path either side changed since the merge base, with the target branch tip as
+checkout, over every path that differs between the two tips (every path a merge driver can see), with the target branch tip as
 the committed attributes source (the claim's own rule), BEFORE the merge: a refusal halts with a
 reason, makes no merge and records nothing.
 """

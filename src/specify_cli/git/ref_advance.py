@@ -1208,3 +1208,31 @@ def delete_bookkeeping_ref(repo_root: Path, ref: str) -> bool:
     """
     _require_bookkeeping_ref(ref)
     return _run_git(repo_root, ["update-ref", "-d", ref]).returncode == 0
+
+
+def delete_bookkeeping_refs(repo_root: Path, refs: Collection[str]) -> tuple[str, ...]:
+    """Delete every bookkeeping ref in *refs* in one ``git update-ref --stdin`` transaction; return the refs not deleted.
+
+    Already-absent refs count as deleted, as with :func:`delete_bookkeeping_ref`. When the one
+    transaction fails, each ref is deleted on its own, so the result names exactly the refs that
+    could not be deleted (#5604: one git process per lane cleanup, the #7689 spawn ceiling).
+
+    Raises:
+        BookkeepingRefError: a ref is not under ``refs/spec-kitty/``.
+    """
+    ordered = list(dict.fromkeys(refs))
+    for ref in ordered:
+        _require_bookkeeping_ref(ref)
+    if not ordered:
+        return ()
+    batch = subprocess.run(
+        ["git", "update-ref", "--stdin"],
+        cwd=str(repo_root),
+        input="".join(f"delete {ref}\n" for ref in ordered),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if batch.returncode == 0:
+        return ()
+    return tuple(ref for ref in ordered if not delete_bookkeeping_ref(repo_root, ref))

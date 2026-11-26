@@ -32,10 +32,10 @@ which pins :data:`MERGE_PROBE_CONFIG_PINS` (``merge.directoryRenames``,
 over every other config source, so a value changed after the guard's read cannot take effect.
 
 Cost (NFR-001): one batched ``git check-attr --stdin merge`` per call (three when a committed
-``union`` is judged), plus targeted ``git config --get`` reads (``merge.renormalize``,
-``merge.default`` and the names in play; never a name listing, since a value may span lines),
-read live on every call: the run's read cache cannot see global, system or ``include.path``
-config, so a cached answer could go stale mid-run (#5604 review fold I2).
+``union`` is judged), plus one ``git config -z --get-regexp ^merge\\.`` read of every ``merge.*``
+key (NUL-separated, so a value that spans lines cannot pose as a key), read live on every call:
+the run's read cache cannot see global, system or ``include.path`` config, so a cached answer
+could go stale mid-run (#5604 review fold I2).
 """
 
 from __future__ import annotations
@@ -279,66 +279,96 @@ def _read_config(repo_root: Path, argv: Sequence[str]) -> subprocess.CompletedPr
 
     The run's read cache fingerprints only ``.git/config`` and ``config.worktree``, while git also
     reads global, system and ``include.path`` config: a driver added there mid-run would be served
-    stale to the guard and honoured by the merge. The guard's few reads are cheap; they stay live.
+    stale to the guard and honoured by the merge. The guard reads config once per call, live.
     """
     return _run_git(repo_root, argv)
 
 
-def _config_value(repo_root: Path, key: str) -> str | None:
-    """The value git uses for *key* (the last one, every scope), or ``None`` when unset. Only the output's own newline is stripped."""
-    result = _read_config(repo_root, ["config", "--get", key])
+#: Every ``merge.*`` key git sees, lower-cased section and variable as git prints them, each with its values in order.
+#: A key written without ``=`` (an implicit boolean true) has the value ``None``.
+MergeKeys = Mapping[str, tuple[str | None, ...]]
+
+
+def _read_merge_keys(repo_root: Path) -> MergeKeys:
+    """Every ``merge.*`` key in every scope (system, global, local, worktree, includes, the environment) in one live read.
+
+    ``-z`` separates entries with NUL and a key from its value with a newline, so a value that spans
+    lines cannot be misread as another key (#5604 review: one read per guard call, NFR-001).
+    """
+    argv = ["config", "-z", "--get-regexp", r"^merge\."]
+    result = _read_config(repo_root, argv)
     if result.returncode == 1 and not (result.stderr or "").strip():
+        return {}
+    if result.returncode != 0:
+        raise GitProbeError(f"git {' '.join(argv)} exited {result.returncode}: {(result.stderr or '').strip()}")
+    keys: dict[str, list[str | None]] = {}
+    for entry in (result.stdout or "").split("\0"):
+        if not entry:
+            continue
+        key, separator, value = entry.partition("\n")
+        keys.setdefault(key, []).append(value if separator else None)
+    return {key: tuple(values) for key, values in keys.items()}
+
+
+def _last_value(keys: MergeKeys, key: str) -> str | None:
+    """The value git uses for *key* (the last one), ``""`` for an implicit true, or ``None`` when unset."""
+    values = keys.get(key)
+    if not values:
         return None
-    if result.returncode != 0:
-        raise GitProbeError(f"git config --get {key} exited {result.returncode}: {(result.stderr or '').strip()}")
-    output = result.stdout or ""
-    return output[:-1] if output.endswith("\n") else output
+    last = values[-1]
+    return "" if last is None else last
 
 
-def _config_section_set(repo_root: Path, name: str) -> bool:
-    """True when any ``merge.<name>.*`` key is configured in any scope."""
-    if not _CONFIG_NAME.match(name):
-        raise GitProbeError(f"merge driver name {name!r} cannot be looked up safely")
-    result = _read_config(repo_root, ["config", "--get-regexp", rf"^merge\.{name}\."])
-    if result.returncode == 1 and not (result.stderr or "").strip():
+_GIT_TRUE = frozenset({"true", "yes", "on"})
+_GIT_FALSE = frozenset({"false", "no", "off", ""})
+
+
+def _git_bool(key: str, value: str | None) -> bool:
+    """git's boolean reading of one config value (``None`` is a key without ``=``: true); anything else refuses."""
+    if value is None:
+        return True
+    lowered = value.strip().lower()
+    if lowered in _GIT_TRUE:
+        return True
+    if lowered in _GIT_FALSE:
         return False
-    if result.returncode != 0:
-        raise GitProbeError(f"git config --get-regexp ^merge\\.{name}\\. exited {result.returncode}: {(result.stderr or '').strip()}")
-    return True
+    try:
+        return int(lowered, 0) != 0
+    except ValueError:
+        raise GitProbeError(f"git config {key} is not a boolean: {value!r}") from None
 
 
-def _renormalize_refusal(repo_root: Path, paths: Sequence[str]) -> str:
+def _renormalize_refusal(keys: MergeKeys, paths: Sequence[str]) -> str:
     """Refusal when the effective ``merge.renormalize`` (every scope and the environment) is true, or ``""``.
 
     Renormalizing runs each side through the clean filters and line-ending conversion before the
     merge, so a clone-local filter can rewrite either side into a hand resolution.
     """
-    result = _read_config(repo_root, ["config", "--get", "--type=bool", _RENORMALIZE_KEY])
-    if result.returncode == 1 and not (result.stderr or "").strip():
-        return ""
-    if result.returncode != 0:
-        raise GitProbeError(f"git config --get --type=bool {_RENORMALIZE_KEY} exited {result.returncode}: {(result.stderr or '').strip()}")
-    if (result.stdout or "").strip() == "false":
+    values = keys.get(_RENORMALIZE_KEY)
+    if not values or not _git_bool(_RENORMALIZE_KEY, values[-1]):
         return ""
     return f"git config {_RENORMALIZE_KEY} is true for the merge of {', '.join(paths)}; it rewrites each side before git merges it; {_REFUSAL_TAIL}"
 
 
-def _driver_config(repo_root: Path, name: str) -> DriverConfig:
-    if not _config_section_set(repo_root, name):
+def _driver_config(keys: MergeKeys, name: str) -> DriverConfig:
+    if not _CONFIG_NAME.match(name):
+        raise GitProbeError(f"merge driver name {name!r} cannot be looked up safely")
+    prefix = f"merge.{name}."
+    if not any(key.startswith(prefix) for key in keys):
         return DriverConfig()
     return DriverConfig(
-        driver=_config_value(repo_root, f"merge.{name}.{_DRIVER}"),
-        recursive=_config_value(repo_root, f"merge.{name}.{_RECURSIVE}") is not None,
+        driver=_last_value(keys, f"{prefix}{_DRIVER}"),
+        recursive=_last_value(keys, f"{prefix}{_RECURSIVE}") is not None,
         any_key=True,
     )
 
 
-def _merge_config(repo_root: Path, values: Sequence[str], registry: Sequence[RegisteredDriver]) -> MergeConfig:
+def _merge_config(keys: MergeKeys, values: Sequence[str], registry: Sequence[RegisteredDriver]) -> MergeConfig:
     """``merge.default`` and the driver config of every built-in or registered name among *values* (other names refuse outright)."""
     judged = _OVERRIDABLE_BUILTINS | {_COMMITTABLE_BUILTIN} | {row.config_key for row in registry}
     in_play = sorted(judged.intersection(values))
-    merge_default = _UNSPECIFIED in values and _config_value(repo_root, _MERGE_DEFAULT_KEY) is not None
-    return MergeConfig(merge_default=merge_default, names={name: _driver_config(repo_root, name) for name in in_play})
+    merge_default = _UNSPECIFIED in values and _last_value(keys, _MERGE_DEFAULT_KEY) is not None
+    return MergeConfig(merge_default=merge_default, names={name: _driver_config(keys, name) for name in in_play})
 
 
 def _registry() -> tuple[RegisteredDriver, ...]:
@@ -393,12 +423,13 @@ def assert_registered_merge_behaviour(repo_root: Path, paths: Sequence[str], *, 
     unique = _validated(paths)
     if not unique:
         return
-    renormalize = _renormalize_refusal(repo_root, unique)
+    keys = _read_merge_keys(repo_root)
+    renormalize = _renormalize_refusal(keys, unique)
     if renormalize:
         raise MergeAttributeRefused(renormalize)
     values = [attributes["merge"] for attributes in check_merge_attributes(repo_root, unique)]
     registry = _registry()
-    config = _merge_config(repo_root, values, registry)
+    config = _merge_config(keys, values, registry)
     refusals = {path: reason for path, value in zip(unique, values, strict=True) if (reason := _path_refusal(path, value, config, registry))}
     union_paths = [path for path, value in zip(unique, values, strict=True) if value == _COMMITTABLE_BUILTIN and path in refusals]
     if union_paths and attributes_source is not None:

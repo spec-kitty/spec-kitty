@@ -1035,3 +1035,77 @@ def test_committed_attributes_source_reads_the_target_tip(conflict: Conflict) ->
     assert committed_attributes_source(conflict.repo, "no-such-branch") is None
     assert committed_attributes_source(conflict.repo, None) is None
     assert committed_attributes_source(conflict.repo, "") is None
+
+
+# ---------------------------------------------------------------------------
+# One live read of every merge.* key per guard call (#5604 spawn ceiling, #7689)
+# ---------------------------------------------------------------------------
+
+
+def test_a_guard_call_reads_its_config_with_one_git_process(conflict: Conflict, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every registered and built-in name in play is judged from one ``git config -z --get-regexp ^merge\\.`` read."""
+    from specify_cli.consolidation.merge_attribute_guard import assert_registered_merge_behaviour
+
+    _git(conflict.repo, "config", "merge.spec-kitty-meta.driver", "spec-kitty merge-driver-meta %O %A %B")
+    _write(conflict.repo, ".gitattributes", "*.py merge=text\nkitty-specs/**/meta.json merge=spec-kitty-meta\n")
+    calls = _count_git(monkeypatch, "config")
+    assert_registered_merge_behaviour(conflict.repo, ["p.py", "kitty-specs/m/meta.json"])
+    assert calls == [["git", "config", "-z", "--get-regexp", r"^merge\."]]
+
+
+def test_a_value_that_spans_lines_is_not_read_as_another_key(conflict: Conflict) -> None:
+    """A value with a newline cannot smuggle a fake ``merge.<name>.driver`` key past the parse."""
+    from specify_cli.consolidation import merge_attribute_guard
+
+    _git(conflict.repo, "config", "merge.spec-kitty-meta.name", "x\nmerge.spec-kitty-meta.driver forged")
+    keys = merge_attribute_guard._read_merge_keys(conflict.repo)
+    assert keys["merge.spec-kitty-meta.name"] == ("x\nmerge.spec-kitty-meta.driver forged",)
+    assert "merge.spec-kitty-meta.driver" not in keys
+
+
+@pytest.mark.parametrize("value", ["true", "yes", "on", "1", "2"])
+def test_a_true_renormalize_refuses(conflict: Conflict, value: str) -> None:
+    from specify_cli.consolidation.merge_attribute_guard import assert_registered_merge_behaviour
+
+    _git(conflict.repo, "config", "merge.renormalize", value)
+    with pytest.raises(GitProbeError, match="merge.renormalize is true"):
+        assert_registered_merge_behaviour(conflict.repo, ["p.py"])
+
+
+def test_a_valueless_renormalize_is_true_and_refuses(conflict: Conflict) -> None:
+    """``[merge] renormalize`` with no ``=`` is git's implicit boolean true."""
+    from specify_cli.consolidation.merge_attribute_guard import assert_registered_merge_behaviour
+
+    config = Path(_git(conflict.repo, "rev-parse", "--git-path", "config"))
+    if not config.is_absolute():
+        config = conflict.repo / config
+    config.write_text(config.read_text(encoding="utf-8") + "[merge]\n\trenormalize\n", encoding="utf-8")
+    with pytest.raises(GitProbeError, match="merge.renormalize is true"):
+        assert_registered_merge_behaviour(conflict.repo, ["p.py"])
+
+
+@pytest.mark.parametrize("value", ["false", "no", "off", "0"])
+def test_a_false_renormalize_passes(conflict: Conflict, value: str) -> None:
+    from specify_cli.consolidation.merge_attribute_guard import assert_registered_merge_behaviour
+
+    _git(conflict.repo, "config", "merge.renormalize", "true")
+    _git(conflict.repo, "config", "--add", "merge.renormalize", value)  # the last value wins, as in git
+    assert_registered_merge_behaviour(conflict.repo, ["p.py"])
+
+
+def test_a_renormalize_that_is_not_a_boolean_refuses(conflict: Conflict) -> None:
+    from specify_cli.consolidation.merge_attribute_guard import assert_registered_merge_behaviour
+
+    _git(conflict.repo, "config", "merge.renormalize", "maybe")
+    with pytest.raises(GitProbeError, match="not a boolean"):
+        assert_registered_merge_behaviour(conflict.repo, ["p.py"])
+
+
+def test_a_renormalize_from_the_environment_refuses(conflict: Conflict, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.consolidation.merge_attribute_guard import assert_registered_merge_behaviour
+
+    monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+    monkeypatch.setenv("GIT_CONFIG_KEY_0", "merge.renormalize")
+    monkeypatch.setenv("GIT_CONFIG_VALUE_0", "true")
+    with pytest.raises(GitProbeError, match="merge.renormalize is true"):
+        assert_registered_merge_behaviour(conflict.repo, ["p.py"])
