@@ -549,6 +549,37 @@ def test_the_moved_lane_keeps_its_record_and_blocks_the_rebaseline(tmp_path: Pat
     assert env.lane not in env.state.unsettled_refs, "a lane is not run-movable; settling never touches it"
 
 
+def _second_auto_rebase(env: _Env, tmp_path: Path) -> str:
+    """A second tool merge of the same lane in the same attempt (the Mission branch advanced again), recorded like the first."""
+    mission_wt = tmp_path / "mission-wt-2"
+    _git(env.repo, "worktree", "add", "-q", str(mission_wt), _MISSION_BRANCH)
+    _commit_here(mission_wt, "mission-advance-2")
+    _git(env.repo, "worktree", "remove", "--force", str(mission_wt))
+    _git(env.worktree, "merge", "-q", "--no-ff", "--no-edit", _MISSION_BRANCH)
+    second = _git(env.worktree, "rev-parse", "HEAD")
+    assert auto_rebase_record.record(env.repo, env.lane, second)
+    return second
+
+
+@pytest.mark.parametrize("entry", ["first_move_kept", "second_move_recorded"])
+def test_a_second_auto_rebase_of_one_lane_in_one_attempt_is_reported_not_restored(tmp_path: Path, entry: str) -> None:
+    """Squad-3 F4: ``lane_rebase_moves`` holds ONE move per lane. A second move of the same lane in one attempt
+    is never restored, whichever move the entry holds: the lane stays where it is and is reported (fail closed)."""
+    env = _env(tmp_path)
+    second = _second_auto_rebase(env, tmp_path)
+    if entry == "second_move_recorded":
+        env.state.lane_rebase_moves[env.lane] = [env.after, second]
+
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+
+    outcome = _lane_outcome(report, env.lane)
+    expected = BranchOutcomeKind.LANE_MOVED_SINCE_AUTO_REBASE if entry == "first_move_kept" else BranchOutcomeKind.UNCHANGED_BY_RUN
+    assert outcome.kind is expected, outcome
+    assert outcome.kind is not BranchOutcomeKind.RESTORED
+    assert _git(env.repo, "rev-parse", f"refs/heads/{env.lane}") == second, "neither move is undone"
+    assert env.lane in report.render()
+
+
 def test_a_dirty_lane_checkout_is_not_restored(tmp_path: Path) -> None:
     env = _env(tmp_path)
     (env.worktree / "lane-work.txt").write_text("an uncommitted operator edit\n")

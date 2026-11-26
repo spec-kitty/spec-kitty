@@ -1061,6 +1061,13 @@ def _own_lane_move(state: ConsolidationState, branch: str, restore_to: str) -> t
     The ONLY restore source for a lane (FR-009): ``post_mutation_refs`` never makes a lane restorable.
     A malformed entry (not exactly two non-empty SHAs) or one recorded from another tip (an earlier
     attempt's, whose snapshot was re-captured) is not this attempt's move (fail closed).
+
+    ONE move per lane (squad-3 F4, a recorded residual of ADR 2026-09-19-1 Amendment 2026-11-26): a
+    second auto-rebase of the same lane in one attempt is never restored. If the entry still holds the
+    first move, the live tip is past its ``after`` (``LANE_MOVED_SINCE_AUTO_REBASE``); if it holds the
+    second, its ``before`` is not the snapshot (report-only). Today's lane loop rebases a lane once per
+    attempt; a multi-pass change must record a chain here first
+    (``test_a_second_auto_rebase_of_one_lane_in_one_attempt_is_reported_not_restored``).
     """
     move = state.lane_rebase_moves.get(branch)
     if not isinstance(move, list) or len(move) != 2 or not all(isinstance(sha, str) and sha for sha in move):

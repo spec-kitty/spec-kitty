@@ -843,6 +843,12 @@ a descendant tip.
   `lane_rebase_moves` entry. A second `--abort` clears it, and lane cleanup keeps the lane (fails
   closed).
 - A lane moved by anything other than the run's own recorded auto-rebase merge stays report-only.
+- `lane_rebase_moves` holds ONE `[before, after]` move per lane. A second auto-rebase of the same
+  lane in one attempt is never restored: the lane is reported (`LANE_MOVED_SINCE_AUTO_REBASE` when
+  the entry still holds the first move, report-only when it holds the second) and left where it is
+  (fail closed). Today's lane loop rebases a lane once per attempt; a multi-pass change must record
+  a chain first. Pinned by
+  `test_a_second_auto_rebase_of_one_lane_in_one_attempt_is_reported_not_restored`.
 - `orchestrator-api consolidate-mission` has no rollback door and restores no lane.
 
 **Confirmation.** `tests/consolidation/test_rollback_own_lane_moves.py` (restore, checkout resync,
