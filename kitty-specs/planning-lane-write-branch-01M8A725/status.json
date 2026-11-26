@@ -103,7 +103,7 @@
     },
     "WP03": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -117,6 +117,7 @@
         "Claim base from resolved checkout, gate names Mission-branch checkout, orchestrator start+resume aligned, FR-013 ratchet green; commit e94a5626"
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/planning-lane-write-branch-01M8A725-coord/kitty-specs/planning-lane-write-branch-01M8A725/tasks/WP03-claim-base-and-gate/review-cycle-1.md",
         "reference": "review-cycle://planning-lane-write-branch-01M8A725/WP03-claim-base-and-gate/review-cycle-1.md",
@@ -124,14 +125,14 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 17930,
-      "shell_pid_created_at": "1795659981.11",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T010": "done",
-        "T011": "done",
-        "T012": "done",
-        "T013": "done",
-        "T014": "done"
+        "T010": "planned",
+        "T011": "planned",
+        "T012": "planned",
+        "T013": "planned",
+        "T014": "planned"
       }
     },
     "WP04": {
