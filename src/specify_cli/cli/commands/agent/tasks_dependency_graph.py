@@ -39,7 +39,7 @@ from specify_cli.core.vcs.git import (
     git_rev_list_count,
 )
 from specify_cli.status import Lane, resolve_lane_alias
-from specify_cli.workspace.context import resolve_workspace_for_wp
+from specify_cli.workspace.context import MISSION_BRANCH_CHECKOUT_KIND, ResolvedWorkspace, mission_branch_label, resolve_workspace_for_wp
 
 __all__ = [
     "compute_incomplete_dependents",
@@ -168,15 +168,23 @@ def _check_dependent_warnings(repo_root: Path, mission_slug: str, wp_id: str, ta
         console.print("  2. Dependent workspaces may need to incorporate your changes")
         for dep in incomplete:
             dep_workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, dep)
-            if dep_workspace.branch_name is None:
-                # Planning-lane WP: operates in the main repo checkout, no worktree
-                # to rebase.  The planning workspace is always up-to-date with main.
-                console.print(f"     {dep}: planning-lane workspace (main repo checkout) — no rebase needed; ensure main is up to date")
-            elif dep_workspace.branch_name == current_workspace.branch_name:
-                console.print(f"     {dep}: shares {current_workspace.branch_name} (same lane, no separate rebase command)")
-            else:
-                console.print(f"     cd {dep_workspace.worktree_path} && git rebase {current_workspace.branch_name}")
+            console.print(_dependent_rebase_line(dep, dep_workspace, current_workspace))
         console.print()
+
+
+def _dependent_rebase_line(dep: str, dep_workspace: ResolvedWorkspace, current_workspace: ResolvedWorkspace) -> str:
+    """The Dependency Alert line telling the agent of dependent *dep* how to take the changes in."""
+    if dep_workspace.resolution_kind == MISSION_BRANCH_CHECKOUT_KIND:
+        # #7860: a default Mission's planning lane works on its Mission branch, in the checkout
+        # holding it; it has no lane worktree of its own to rebase.
+        return f"     {dep}: planning-lane workspace on {mission_branch_label(dep_workspace.branch_name)} ({dep_workspace.worktree_path}) — no rebase needed"
+    if dep_workspace.branch_name is None:
+        # Planning-lane WP: operates in the repository root checkout, no worktree
+        # to rebase. The planning workspace is up to date with the target branch.
+        return f"     {dep}: planning-lane workspace (repository root checkout) — no rebase needed; ensure the target branch is up to date"
+    if dep_workspace.branch_name == current_workspace.branch_name:
+        return f"     {dep}: shares {current_workspace.branch_name} (same lane, no separate rebase command)"
+    return f"     cd {dep_workspace.worktree_path} && git rebase {current_workspace.branch_name}"
 
 
 def _behind_commits_touch_only_planning_artifacts(

@@ -2033,11 +2033,21 @@ def implement(
             )
             raise typer.Exit(1)
         if ancestry.code_lanes_deferred_to is not None:
-            print(
-                "Planning work package: code dependency lanes are not merged into the repository root "
-                f"checkout on the target branch; they reach {ancestry.code_lanes_deferred_to} "
-                "through `spec-kitty consolidate` (#5296)."
-            )
+            from specify_cli.workspace.context import MISSION_BRANCH_CHECKOUT_KIND, mission_branch_label
+
+            if workspace.resolution_kind == MISSION_BRANCH_CHECKOUT_KIND:
+                # #7860 (FR-002): a default Mission's planning lane writes on its Mission branch.
+                print(
+                    "Planning work package: code dependency lanes are not merged into "
+                    f"{mission_branch_label(workspace.branch_name)}, checked out in {workspace_path}; "
+                    f"they reach {ancestry.code_lanes_deferred_to} through `spec-kitty consolidate` (#5296)."
+                )
+            else:
+                print(
+                    "Planning work package: code dependency lanes are not merged into the repository root "
+                    f"checkout on the target branch; they reach {ancestry.code_lanes_deferred_to} "
+                    "through `spec-kitty consolidate` (#5296)."
+                )
 
         subtask_ids = [str(item) for item in wp_meta.subtasks if isinstance(item, str)]
         subtask_cmd = " ".join(subtask_ids) if subtask_ids else "<subtask-ids>"

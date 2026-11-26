@@ -943,9 +943,15 @@ def _validate_worktree_state(
         try:
             workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id)
         except (ValueError, FileNotFoundError):
+            # PlanningWorkspaceMissing (PLANNING_CHECKOUT_MISSING, #7860) is deliberately not
+            # caught: a Mission branch checked out nowhere fails closed (NFR-002).
             workspace = None
 
-    if workspace is not None and workspace.resolution_kind == "repo_root":
+    # A shared checkout (the repository root checkout, or a default Mission's
+    # Mission-branch checkout, #7860) has no lane worktree of its own to inspect.
+    from specify_cli.workspace.context import is_shared_checkout_kind
+
+    if workspace is not None and is_shared_checkout_kind(workspace.resolution_kind):
         return _validate_repo_root_workspace(
             workspace=workspace,
             workspace_override=workspace_override,

@@ -78,7 +78,7 @@ from specify_cli.status import FORCE_NOTE_HINT, ActorRole, Lane, StoreError, Wor
 from specify_cli.status import RollbackOutcome, RollbackPoint, RollbackRefusal, UNBOUNDED_LOCK_WAIT, appended_event_ids, capture_rollback_point, mission_write_lock
 from specify_cli import status as _status_facade
 from specify_cli.task_utils import extract_scalar
-from specify_cli.workspace.context import ResolvedWorkspace, husk_resolution_error
+from specify_cli.workspace.context import MISSION_BRANCH_CHECKOUT_KIND, ResolvedWorkspace, husk_resolution_error, mission_branch_label
 
 if TYPE_CHECKING:
     from specify_cli.coordination.types import CommitReceipt
@@ -1746,7 +1746,10 @@ def build_implement_prompt_lines(
     lines.append("")
     lines.append("📍 WORKING DIRECTORY:")
     lines.append(f"   cd {workspace_path}")
-    if workspace.lane_id:
+    if workspace.resolution_kind == MISSION_BRANCH_CHECKOUT_KIND:
+        lines.append(f"   # Planning-artifact work for this WP is committed on {mission_branch_label(workspace.branch_name)}, in this checkout")
+        lines.append("   # `spec-kitty consolidate` lands it on the target branch")
+    elif workspace.lane_id:
         lines.append("   # All implementation work happens in this workspace")
         lines.append(f"   # When done, return to repo root: cd {repo_root}")
     else:
@@ -1855,6 +1858,8 @@ def implement_finalize_and_print(
         print(f"   Lane workspace: {workspace.lane_id} (shared by {shared})")
     else:
         print("   Repository-root planning workspace")
+    if workspace.resolution_kind == MISSION_BRANCH_CHECKOUT_KIND:
+        print(f"   Commit this WP's planning-artifact work on {mission_branch_label(workspace.branch_name)}, in this checkout")
     if has_feedback:
         if review_feedback_ref:
             print(f"⚠️  Has review feedback - read reference: {review_feedback_ref}")
@@ -2245,7 +2250,10 @@ def review_cited_requirements(
     Read exactly as ``spec-kitty next`` reads them (``review.context_inputs``), the owned checkout included.
     """
     wp_meta, _ = read_wp_frontmatter(wp.path)
-    return cited_requirements(repo_root, mission_slug, list(wp_meta.requirement_refs or []), mission_type=mission_type or _DEFAULT_MISSION_TYPE, owned=owned)
+    cited: tuple[CitedRequirement, ...] = cited_requirements(
+        repo_root, mission_slug, list(wp_meta.requirement_refs or []), mission_type=mission_type or _DEFAULT_MISSION_TYPE, owned=owned
+    )
+    return cited
 
 
 def _review_context_line(

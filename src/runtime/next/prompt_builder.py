@@ -49,7 +49,7 @@ from specify_cli.review.context_block import describe_gap, render_review_context
 from specify_cli.review.context_inputs import review_context_inputs
 from specify_cli.review.wp_range import RangeStatus
 from specify_cli.status import FrontmatterError, read_authored_wp_frontmatter
-from specify_cli.workspace.context import resolve_workspace_for_wp
+from specify_cli.workspace.context import MISSION_BRANCH_CHECKOUT_KIND, mission_branch_label, resolve_workspace_for_wp
 
 
 _DEFAULT_MISSION_TYPE = "software-dev"
@@ -253,6 +253,8 @@ def _build_wp_prompt(
     lines.append(f"  cd {workspace_path}")
     if owned is not None:
         lines.append("  # Work for this WP happens in the owned checkout")
+    elif workspace.resolution_kind == MISSION_BRANCH_CHECKOUT_KIND:
+        lines.append(f"  # Planning-artifact work for this WP is committed on {mission_branch_label(workspace.branch_name)}, in this checkout")
     elif not workspace.lane_id:
         lines.append("  # Planning-artifact work for this WP happens in the repository root")
     lines.append("")
@@ -296,6 +298,8 @@ def _workspace_header_lines(
         f"Mission Type: {mission_type}",
         f"Workspace: {workspace.worktree_path}",
     ]
+    if workspace.resolution_kind == MISSION_BRANCH_CHECKOUT_KIND:
+        lines.append(f"Workspace branch: {mission_branch_label(workspace.branch_name)}")
     if workspace.lane_id:
         shared = ", ".join(workspace.lane_wp_ids or [wp_id])
         lines.append(f"Workspace contract: lane {workspace.lane_id} shared by {shared}")
@@ -389,12 +393,14 @@ def _self_commit_branch(workspace: ResolvedWorkspace | None, owned: OwnedCheckou
     """The write branch when ``move-task --to for_review`` will not commit this WP's work itself, else ``None``.
 
     Mirrors the no-auto-commit arm of ``_mt_commit_lane_deliverables``
-    (``tasks_move_task.py``): a WP whose workspace is the repository root
-    checkout and that has a write branch. There the for_review gate refuses a
-    WP with no implementation commit since claim. A lane worktree and an owned
-    checkout are auto-committed; a WP with no write branch has no such gate.
+    (``tasks_move_task.py``): a WP whose workspace is a shared checkout (the
+    repository root checkout, or a default Mission's Mission-branch checkout,
+    #7860: :attr:`ResolvedWorkspace.is_shared_checkout`) and that has a write
+    branch. There the for_review gate refuses a WP with no implementation
+    commit since claim. A lane worktree and an owned checkout are
+    auto-committed; a WP with no write branch has no such gate.
     """
-    if owned is not None or workspace is None or workspace.resolution_kind != "repo_root":
+    if owned is not None or workspace is None or not workspace.is_shared_checkout:
         return None
     branch: str | None = workspace.branch_name
     return branch

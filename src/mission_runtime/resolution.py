@@ -113,6 +113,10 @@ __all__ = [
     # at all and fell back to a bare ``Exception`` catch.
     "IssueMatrixRefReadError",
     "PlacementSeam",
+    # #7860: the planning lane's write branch (one rule for workspace, claim base and evidence window).
+    "PlanningCheckoutMissing",
+    "PlanningWriteRef",
+    "PlanningWriteRefUnavailable",
     # ResolvedSurface / SurfaceLocations / translate_surface: demoted -- the
     # stamped output, the input bundle, and the member->path translation of
     # ``resolve_artifact_surface`` are consumed as *instances* by src/ callers,
@@ -123,6 +127,7 @@ __all__ = [
     "declared_read_surface",
     "mission_context_for",
     "placement_seam",
+    "planning_write_ref",
     "read_issue_matrix_ref_content",
     "resolve_action_context",
     "resolve_artifact_surface",
@@ -1084,6 +1089,16 @@ def single_branch_write_ref(
     return target_branch
 
 
+def default_mission_rule_applies(topology_source: object, mission_branch: object, landed: bool) -> bool:
+    """Whether FR-061's default-Mission rule puts the PRIMARY partition on ``mission_branch`` -- pure.
+
+    True for a ``topology_source: default`` Mission that has not landed and records a Mission
+    branch. The one predicate :func:`default_mission_primary_ref` and :func:`planning_write_ref`
+    share (#7860, C-004).
+    """
+    return topology_source == "default" and not landed and isinstance(mission_branch, str) and bool(mission_branch)
+
+
 def default_mission_primary_ref(topology_source: object, mission_branch: object, landed: bool, fallback_ref: str) -> str:
     """The PRIMARY write ref of a ``topology_source: default`` Mission (FR-061) -- pure.
 
@@ -1094,27 +1109,226 @@ def default_mission_primary_ref(topology_source: object, mission_branch: object,
     callers also use it for status and code writes. The review range (#7578) reads it to tell
     whether a coordination Mission's planning work shares the coordination branch.
     """
-    if topology_source != "default" or landed:
-        return fallback_ref
-    if isinstance(mission_branch, str) and mission_branch:
-        return mission_branch
+    if default_mission_rule_applies(topology_source, mission_branch, landed):
+        return str(mission_branch)
     return fallback_ref
 
 
-def _default_mission_facts(primary_root: Path, mission_slug: str, *, resolver: MissionResolver | None = None) -> tuple[object, object, bool]:
-    """``(topology_source, mission_branch, landed)`` from the PRIMARY ``meta.json`` (non-raising)."""
-    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
+def _default_mission_facts_strict(primary_root: Path, mission_slug: str, *, resolver: MissionResolver | None = None) -> tuple[object, object, bool] | None:
+    """``(topology_source, mission_branch, landed)`` from the PRIMARY ``meta.json``, or ``None`` when it is absent.
+
+    Raises :class:`specify_cli.core.paths.MissionMetaReadError` when ``meta.json`` exists but
+    cannot be read. The one parser behind both :func:`_default_mission_facts` (placement,
+    non-raising) and :func:`planning_write_ref` (raising, #7860).
+    """
+    from specify_cli.core.paths import load_meta_fail_closed
 
     from .landing import mission_has_landed
 
     primary_dir = read_dir_for(primary_root, mission_slug, kind=MissionArtifactKind.PRIMARY_METADATA, resolver=resolver)
+    meta = load_meta_fail_closed(primary_dir)
+    if not meta:
+        return None
+    return meta.get("topology_source"), meta.get("mission_branch"), mission_has_landed(primary_dir)
+
+
+def _default_mission_facts(primary_root: Path, mission_slug: str, *, resolver: MissionResolver | None = None) -> tuple[object, object, bool]:
+    """``(topology_source, mission_branch, landed)`` from the PRIMARY ``meta.json`` (non-raising)."""
+    from specify_cli.core.paths import MissionMetaReadError
+
     try:
-        meta = load_meta_fail_closed(primary_dir)
+        facts = _default_mission_facts_strict(primary_root, mission_slug, resolver=resolver)
     except MissionMetaReadError:
         return None, None, False
-    if not meta:
-        return None, None, False
-    return meta.get("topology_source"), meta.get("mission_branch"), mission_has_landed(primary_dir)
+    return facts if facts is not None else (None, None, False)
+
+
+PLANNING_CHECKOUT_MISSING = "PLANNING_CHECKOUT_MISSING"
+
+
+class PlanningWriteRefUnavailable(RuntimeError):
+    """The planning lane's write branch cannot be decided: ``meta.json`` or git is unreadable (#7860, NFR-002)."""
+
+    def __init__(self, mission_slug: str, reason: str) -> None:
+        self.mission_slug = mission_slug
+        self.reason = reason
+        super().__init__(f"cannot decide the planning lane's write branch of Mission {mission_slug!r}: {reason}")
+
+
+class PlanningCheckoutMissing(RuntimeError):
+    """No checkout holds the Mission branch a default Mission's planning lane writes to (#7860).
+
+    Raised instead of falling back to the repository root checkout or the target (NFR-002): the
+    planning work of a default Mission that has not landed belongs on its Mission branch. When
+    the branch exists only as a remote-tracking ref (*remote* set, e.g. a fresh clone), the
+    remedy first creates the local branch. A *coordinated* Mission (one that records a
+    coordination branch) is restored through the coordination doctor; any other default Mission
+    (settled ``single_branch``) writes in the repository root checkout, which is switched back to
+    its Mission branch.
+    """
+
+    error_code = PLANNING_CHECKOUT_MISSING
+
+    def __init__(self, mission_slug: str, mission_branch: str, *, remote: str | None = None, coordinated: bool = True) -> None:
+        from mission_runtime.coord_remedy import coordination_doctor_command
+
+        self.mission_slug = mission_slug
+        self.mission_branch = mission_branch
+        self.remote = remote
+        self.coordinated = coordinated
+        where = f"exists only as {remote}/{mission_branch}" if remote else "is not checked out anywhere"
+        first = f"create it with `git branch {mission_branch} {remote}/{mission_branch}`, then " if remote else ""
+        if coordinated:
+            branch = f"the Mission branch {mission_branch} (the coordination branch)"
+            restore = f"To restore the coordination worktree, {first}run {coordination_doctor_command(mission_slug)}"
+        else:
+            branch = f"the Mission branch {mission_branch}"
+            restore = f"Its planning work is done in the repository root checkout: {first}run `git switch {mission_branch}` there"
+        super().__init__(
+            f"{PLANNING_CHECKOUT_MISSING}: {branch} of Mission {mission_slug!r} {where}; its planning work is written there until it lands. {restore}, then retry."
+        )
+
+
+@dataclass(frozen=True)
+class PlanningWriteRef:
+    """Where a Mission's planning lane writes (#7860, ADR 2026-11-06-3 Amendment 2026-11-25).
+
+    ``branch`` is the write branch. ``on_mission_branch`` is True when the default-Mission rule
+    (FR-061, :func:`default_mission_rule_applies`) put it on ``meta.mission_branch``. ``landed``
+    is the one "landed" signal (:func:`mission_has_landed`, non-raising: an unreadable landing
+    record reads as not landed, so the Mission branch is kept and a reader of a deleted branch
+    fails closed downstream).
+    """
+
+    branch: str
+    on_mission_branch: bool
+    landed: bool
+
+
+#: The Mission branch namespace (``kitty/mission-<slug>[-<mid8>]``); lane branches share it.
+_MISSION_BRANCH_PREFIX = "kitty/mission-"
+#: Local Mission branches, and every remote-tracking ref (filtered by name: a remote name may contain ``/``).
+_MISSION_BRANCH_PATTERNS = (f"refs/heads/{_MISSION_BRANCH_PREFIX}*", "refs/remotes/")
+
+
+@dataclass(frozen=True)
+class _ClaimingBranch:
+    """A ref whose own ``meta.json`` records it as a default, not-landed Mission's ``mission_branch``."""
+
+    branch: str
+    remote: str | None
+    coordinated: bool
+
+
+def _branch_and_remote(refname: str) -> tuple[str, str | None] | None:
+    """``refs/heads/<b>`` -> ``(<b>, None)``; ``refs/remotes/<r>/<b>`` -> ``(<b>, <r>)``; ``None`` off the namespace.
+
+    Full refnames, never ``:short`` (a same-named tag makes it ambiguous). The remote is
+    everything before the first ``/kitty/mission-``, so a remote name containing ``/`` is kept.
+    """
+    if refname.startswith("refs/heads/"):
+        return refname.removeprefix("refs/heads/"), None
+    rest = refname.removeprefix("refs/remotes/")
+    remote, sep, tail = rest.partition("/" + _MISSION_BRANCH_PREFIX)
+    if not sep or not remote:
+        return None
+    return _MISSION_BRANCH_PREFIX + tail, remote
+
+
+def _claims_default_mission(meta: Mapping[str, Any] | None, branch: str) -> bool:
+    """Whether *meta* (read off *branch*) is a default, not-landed Mission recording *branch* as its Mission branch."""
+    if not meta or meta.get("mission_branch") != branch:
+        return False
+    return default_mission_rule_applies(meta.get("topology_source"), branch, bool(meta.get("merged_at")))
+
+
+def _meta_routes_through_coordination(meta: Mapping[str, Any], feature_dir: Path) -> bool:
+    """:func:`routes_through_coordination` over *meta*'s stored-or-derived topology (C-004).
+
+    The same check :func:`resolve_topology` feeds for a Mission read from disk
+    (``read_topology`` and ``topology_from_meta`` share the stored-or-derive logic), applied to
+    a ``meta.json`` read off a ref.
+    """
+    from specify_cli.migration.backfill_topology import topology_from_meta
+
+    return routes_through_coordination(topology_from_meta(meta, feature_dir))
+
+
+def _branch_claiming_mission(repo_root: Path, mission_slug: str) -> _ClaimingBranch | None:
+    """The Mission branch a default, not-landed Mission's own ``meta.json`` records, found off any local or remote ref.
+
+    Used only when no PRIMARY ``meta.json`` was found where the placement seam looked. A ref
+    qualifies only when its ``kitty-specs/<slug>/meta.json`` records that same branch as the
+    ``mission_branch`` of a default Mission that has not landed: a lane branch carrying a copy
+    names another branch, and an explicit-topology Mission (FR-006) never qualifies. No branch
+    name is guessed from the slug. A local branch wins over a remote-tracking one. Any git or
+    decode failure raises :class:`PlanningWriteRefUnavailable` (fail closed).
+    """
+    from kernel.git import blob_at, run_git
+    from kernel.meta_decode import MetaDecodeError, decode_meta
+
+    meta_path = f"kitty-specs/{mission_slug}/meta.json"
+    remote_claim: _ClaimingBranch | None = None
+    try:
+        listing = run_git(repo_root, "for-each-ref", "--format=%(refname)", *_MISSION_BRANCH_PATTERNS).stdout
+        for refname in listing.decode("utf-8", errors="replace").split():
+            parsed = _branch_and_remote(refname)
+            if parsed is None:
+                continue
+            branch, remote = parsed
+            raw = blob_at(repo_root, refname, meta_path)
+            meta = decode_meta(raw) if raw is not None else None
+            if not _claims_default_mission(meta, branch):
+                continue
+            coordinated = _meta_routes_through_coordination(meta or {}, repo_root / "kitty-specs" / mission_slug)
+            claim = _ClaimingBranch(branch=branch, remote=remote, coordinated=coordinated)
+            if remote is None:
+                return claim
+            remote_claim = remote_claim or claim
+    except (GitCommandError, MetaDecodeError) as exc:
+        raise PlanningWriteRefUnavailable(mission_slug, f"could not probe the Mission branches ({exc})") from exc
+    return remote_claim
+
+
+def planning_write_ref(repo_root: Path, mission_slug: str, target_branch: str, *, resolver: MissionResolver | None = None) -> PlanningWriteRef:
+    """The planning lane's write branch: one rule for the workspace, the claim base and the evidence window.
+
+    FR-061 extended to the planning lane (#7860): before a default Mission lands, its planning
+    lane writes to its Mission branch; otherwise to the write ref every Mission already uses
+    (:func:`resolve_single_branch_write_ref`: the minted Mission branch of a stored
+    ``single_branch`` Mission, else the target).
+
+    Never falls back silently (NFR-002):
+
+    * an unreadable PRIMARY ``meta.json``, or a git failure while probing, raises
+      :class:`PlanningWriteRefUnavailable`;
+    * no PRIMARY ``meta.json`` where the placement seam looked, while a local or remote-tracking
+      branch's own ``meta.json`` records it as this default, not-landed Mission's branch (its
+      checkout is gone, or the branch was never fetched locally), raises
+      :class:`PlanningCheckoutMissing`;
+    * otherwise (no such ``meta.json`` on any ref: a legacy or explicit-topology Mission) the
+      target, as today.
+
+    The non-raising placement reader :func:`_default_mission_facts` is unchanged. Consumers look
+    this up at call time (``mission_runtime.planning_write_ref``) so one monkeypatch reaches
+    every use.
+    """
+    from specify_cli.core.paths import MissionMetaReadError, get_main_repo_root
+
+    main_root = get_main_repo_root(repo_root)
+    try:
+        facts = _default_mission_facts_strict(main_root, mission_slug, resolver=resolver)
+    except MissionMetaReadError as exc:
+        raise PlanningWriteRefUnavailable(mission_slug, f"meta.json is unreadable ({exc})") from exc
+    fallback = resolve_single_branch_write_ref(repo_root, mission_slug, target_branch, resolver=resolver)
+    if facts is None:
+        claimed = _branch_claiming_mission(main_root, mission_slug)
+        if claimed is not None:
+            raise PlanningCheckoutMissing(mission_slug, claimed.branch, remote=claimed.remote, coordinated=claimed.coordinated)
+        return PlanningWriteRef(branch=fallback, on_mission_branch=False, landed=False)
+    topology_source, mission_branch, landed = facts
+    applies = default_mission_rule_applies(topology_source, mission_branch, landed)
+    return PlanningWriteRef(branch=str(mission_branch) if applies else fallback, on_mission_branch=applies, landed=landed)
 
 
 def resolve_single_branch_write_ref(
