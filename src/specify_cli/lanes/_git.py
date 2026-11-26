@@ -16,7 +16,7 @@ Behavior is byte-identical to the strictest pre-consolidation call site:
 ``cwd=<repo>`` form the lanes sites used. ``--quiet`` only suppresses stderr,
 which was already swallowed by ``capture_output=True`` at every site, so adding
 it changes no observable behavior. ``env`` is parameterized so the merge
-pipeline's ``_make_merge_env()`` composes through rather than forking the
+pipeline's ``make_merge_env()`` composes through rather than forking the
 helper.
 """
 

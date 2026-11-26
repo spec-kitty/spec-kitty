@@ -3,7 +3,9 @@
 
 (Superseded repeatedly since. The pin's current value is whatever ``envelope.CONTRACT_VERSION``
 is — this module is the only place allowed to spell it, so read the assertion, not this paragraph.
-It read ``1.30.0`` after the ``tasks`` verb's ``data`` gained ``kind_normalised`` (#7829, #7809);
+It reads ``1.31.0`` after ``consolidate-mission`` gained the FR-004 resolution-merge refusal
+(``RESOLUTION_MERGE_UNREVIEWED`` in ``data.preflight_error_code``, #5604);
+it read ``1.30.0`` after the ``tasks`` verb's ``data`` gained ``kind_normalised`` (#7829, #7809);
 It read ``1.29.0`` after ``consolidate-mission`` gained the #7692 skip-worktree refusal
 (``CHECKOUT_SKIP_WORKTREE_ENTRIES`` in ``data.preflight_error_code``);
 it read ``1.28.0`` after ``consolidate-mission`` gained the #5783 retarget refusal
@@ -95,8 +97,8 @@ def test_contract_version_response_reports_the_current_contract_version() -> Non
     assert result.exit_code == 0, result.output
     envelope = json.loads(result.output.strip().split("\n")[0])
     assert envelope["success"] is True
-    assert envelope["data"]["api_version"] == "1.30.0"
-    assert envelope["contract_version"] == "1.30.0"
+    assert envelope["data"]["api_version"] == "1.31.0"
+    assert envelope["contract_version"] == "1.31.0"
 
 
 def test_min_provider_version_unchanged() -> None:

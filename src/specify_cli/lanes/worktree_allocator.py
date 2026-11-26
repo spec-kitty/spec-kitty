@@ -49,7 +49,7 @@ from specify_cli.lanes.compute import PLANNING_LANE_ID, has_code_lanes
 from specify_cli.lanes.consolidation import (
     _complete_merge_after_target_owned_resolution,
     _ephemeral_merge_driver_activation,
-    _make_merge_env,
+    make_merge_env,
     reconcile_derived_status_snapshot_conflicts,
 )
 from specify_cli.lanes.lane_checkout import LaneCheckoutRequest, LaneCheckoutRoute, lane_mission_dir_name, open_lane_checkout
@@ -1642,7 +1642,7 @@ def _merge_recorded_planning_commit(
     # name to the RUNNING CLI, not to whatever the ambient PATH happens to
     # carry — an agent harness / CI wrapper may not have this CLI on PATH at
     # all. Route through the pipeline's single env authority (AC-F1).
-    env = _make_merge_env()
+    env = make_merge_env()
     with _ephemeral_merge_driver_activation(repo_root):
         merge = run_committing_op(
             worktree_path,
@@ -1822,7 +1822,7 @@ def _merge_dependency_lane_tips(
     # drivers fire inside this merge and resolve ``spec-kitty`` by name, so
     # route the env through the pipeline's single authority (AC-F1) instead
     # of inheriting whatever PATH the caller happens to have.
-    env = _make_merge_env()
+    env = make_merge_env()
     # Snapshot the lane ref before the loop so a later-dep conflict can roll
     # the worktree back to its exact pre-merge HEAD (#1915 atomicity).
     pre_loop_ref = _current_head(worktree_path)

@@ -357,32 +357,60 @@ def _claim(repo: Path, feature_dir: Path, manifest: LanesManifest, base: str, *,
     return build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=base, excluded_window_base=base, excluded_canceled_wp_ids=canceled)
 
 
-def test_post_approval_dependency_merge_with_own_content_fails_under_merge(tmp_path: Path) -> None:
+_UNREVIEWED_CODE = "RESOLUTION_MERGE_UNREVIEWED"
+
+
+def _bypassed_claim(
+    monkeypatch: pytest.MonkeyPatch, repo: Path, feature_dir: Path, manifest: LanesManifest, base: str, *, canceled: tuple[str, ...] = ()
+) -> ApprovedWpCommitSet:
+    """The claim with the FR-004 claim-time check bypassed, so the gate's own unreviewed-merge rule is what judges (FR-012, C-003)."""
+    from specify_cli.consolidation import reconciliation_bound
+
+    with monkeypatch.context() as patch:
+        patch.setattr(reconciliation_bound, "unreviewed_resolution_merges", lambda *_args, **_kwargs: ())
+        return _claim(repo, feature_dir, manifest, base, canceled=canceled)
+
+
+def test_post_approval_dependency_merge_with_own_content_fails_under_merge(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo, feature_dir, manifest, base, evil = _build_post_approval_merge(tmp_path, canceled_dependency=False)
     claim = _claim(repo, feature_dir, manifest, base)
-    assert claim.refusal is None, claim.refusal  # the claim must build, so the gate verdict below is not vacuous
+    assert claim.refusal is not None and claim.refusal.startswith(f"{_UNREVIEWED_CODE}: lane lane-b (WP02): merge {evil[:7]}"), claim.refusal
+    # Defence in depth: with the claim-time check bypassed the gate still drops the merge and FAILs.
+    bypassed = _bypassed_claim(monkeypatch, repo, feature_dir, manifest, base)
+    assert bypassed.refusal is None, bypassed.refusal
     verifier = MergeOutcomeVerifier(repo)
-    assert evil in {sha for sha, _pid in verifier._unattributable_content("target-merge", claim)}
-    assert verifier.verify("target-merge", claim).status is not VerifyStatus.PASS
+    assert evil in {sha for sha, _pid in verifier._unattributable_content("target-merge", bypassed)}
+    assert verifier.verify("target-merge", bypassed).status is not VerifyStatus.PASS
 
 
-def test_post_approval_dependency_merge_with_own_content_fails_under_squash(tmp_path: Path) -> None:
-    repo, feature_dir, manifest, base, _evil = _build_post_approval_merge(tmp_path, canceled_dependency=False)
+def test_post_approval_dependency_merge_with_own_content_fails_under_squash(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo, feature_dir, manifest, base, evil = _build_post_approval_merge(tmp_path, canceled_dependency=False)
     claim = _claim(repo, feature_dir, manifest, base)
-    if claim.refusal is not None:
-        return
-    result = MergeOutcomeVerifier(repo).verify("target-squash", replace(claim, verify_reachability=False))
+    assert claim.refusal is not None and claim.refusal.startswith(f"{_UNREVIEWED_CODE}: lane lane-b (WP02): merge {evil[:7]}"), claim.refusal
+    bypassed = _bypassed_claim(monkeypatch, repo, feature_dir, manifest, base)
+    assert bypassed.refusal is None, bypassed.refusal
+    result = MergeOutcomeVerifier(repo).verify("target-squash", replace(bypassed, verify_reachability=False))
     assert result.status is not VerifyStatus.PASS, f"unreviewed {_EVIL} landed under squash"
 
 
-def test_post_approval_merge_of_canceled_dependency_fails(tmp_path: Path) -> None:
-    repo, feature_dir, manifest, base, _evil = _build_post_approval_merge(tmp_path, canceled_dependency=True)
+def test_post_approval_merge_of_canceled_dependency_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """lane-c is fully canceled (WP03 excluded). The canceled-dependency resolution refuses first (WP03's approval
+    lifecycle events carry no commit attribution), and the claim compounds the approved bound after
+    ``This Mission also has:`` (precedence matrix: ``canceled_dependency`` before ``bound``): lane-b's post-approval
+    commit ``c2`` (``LANE_MOVED_AFTER_APPROVAL``, tier 1) and, last, the unreviewed resolution merge."""
+    repo, feature_dir, manifest, base, evil = _build_post_approval_merge(tmp_path, canceled_dependency=True)
     claim = _claim(repo, feature_dir, manifest, base, canceled=("WP03",))
-    if claim.refusal is not None:
-        return
+    refusal = claim.refusal or ""
+    first, _sep, compounded = refusal.partition("This Mission also has:")
+    assert "canceled WP03 (lane lane-c)" in first and "--attest-canceled-superseded WP03" in first, refusal
+    assert compounded.lstrip().startswith("LANE_MOVED_AFTER_APPROVAL: "), refusal
+    assert f"{_UNREVIEWED_CODE}: lane lane-b (WP02): merge {evil[:7]}" in compounded, refusal
+    assert compounded.index("LANE_MOVED_AFTER_APPROVAL") < compounded.index(_UNREVIEWED_CODE)
+    # The gate layer, with the claim refusals out of the way, still refuses to land it.
+    bypassed = _bypassed_claim(monkeypatch, repo, feature_dir, manifest, base, canceled=("WP03",))
     verifier = MergeOutcomeVerifier(repo)
-    assert verifier.verify("target-merge", claim).status is not VerifyStatus.PASS
-    assert verifier.verify("target-squash", replace(claim, verify_reachability=False)).status is not VerifyStatus.PASS
+    assert verifier.verify("target-merge", bypassed).status is not VerifyStatus.PASS
+    assert verifier.verify("target-squash", replace(bypassed, verify_reachability=False)).status is not VerifyStatus.PASS
 
 
 def test_clean_post_approval_dependency_merge_carries_nothing(tmp_path: Path) -> None:
@@ -396,7 +424,12 @@ def test_clean_post_approval_dependency_merge_carries_nothing(tmp_path: Path) ->
 
 
 def _octopus_merge_with_own_file(repo: Path) -> str:
-    """A 3-parent merge on lane-b whose tree adds ``u/octo.txt`` (content of its own)."""
+    """A 3-parent merge on lane-b whose tree adds ``u/octo.txt`` (content of its own).
+
+    Returns to the checkout it started on: the status log is committed on ``target-squash`` only,
+    so staying on lane-b would leave a claim with no status log (an empty snapshot) to judge.
+    """
+    prior = _git(repo, "rev-parse", "--abbrev-ref", "HEAD")
     _git(repo, "checkout", "-q", _branch("lane-b"))
     head = _git(repo, "rev-parse", "HEAD")
     side1 = _git(repo, "commit-tree", f"{head}^{{tree}}", "-p", head, "-m", "side one")
@@ -406,6 +439,7 @@ def _octopus_merge_with_own_file(repo: Path) -> str:
     tree = _git(repo, "write-tree")
     octo = _git(repo, "commit-tree", tree, "-p", head, "-p", side1, "-p", side2, "-m", "octopus")
     _git(repo, "reset", "-q", "--hard", octo)
+    _git(repo, "checkout", "-q", prior)
     return octo
 
 
@@ -417,12 +451,15 @@ def test_merge_own_changed_paths_refuses_an_octopus_merge(tmp_path: Path) -> Non
         git_probes.merge_own_changed_paths(repo, octo)
 
 
-def test_post_approval_octopus_merge_with_own_content_is_refused(tmp_path: Path) -> None:
-    """The closed world REFUSEs (never PASSes) an octopus merge the remerge probe cannot judge."""
+def test_post_approval_octopus_merge_with_own_content_is_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Both layers refuse an octopus merge the remerge probe cannot judge: the claim raises (``phase_claim``
+    turns that into a pre-mutation exit) and the gate's closed world REFUSEs (never PASSes)."""
     repo, feature_dir, manifest, base, _evil = _build_post_approval_merge(tmp_path, canceled_dependency=False)
     _octopus_merge_with_own_file(repo)
     _git(repo, "branch", "-f", "target-merge", _branch("lane-b"))
-    claim = _claim(repo, feature_dir, manifest, base)
+    with pytest.raises(GitProbeError, match="octopus"):
+        _claim(repo, feature_dir, manifest, base)
+    claim = _bypassed_claim(monkeypatch, repo, feature_dir, manifest, base)
     verifier = MergeOutcomeVerifier(repo)
     assert verifier.verify("target-merge", claim).status is VerifyStatus.REFUSE
 

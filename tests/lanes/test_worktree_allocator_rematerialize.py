@@ -22,7 +22,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.lanes.branch_naming import code_lane_branch_name
-from specify_cli.lanes.consolidation import _ensure_merge_driver_git_config, _make_merge_env, reconcile_derived_status_snapshot_conflicts
+from specify_cli.lanes.consolidation import _ensure_merge_driver_git_config, make_merge_env, reconcile_derived_status_snapshot_conflicts
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.worktree_allocator import (
     DependencyLaneMergeConflictError,
@@ -211,7 +211,7 @@ def test_reconcile_fails_closed_when_no_event_log_to_derive_from(tmp_path: Path)
     _git(repo, "add", "-A")
     _git(repo, "commit", "-q", "-m", "main: snapshot only, no event log")
 
-    env = _make_merge_env()
+    env = make_merge_env()
     merge = subprocess.run(
         ["git", "-C", str(repo), "merge", "--no-commit", "--no-ff", other],
         capture_output=True,
@@ -266,7 +266,7 @@ def test_index_regenerated_snapshot_keeps_mission_metadata(tmp_path: Path, monke
     exclude_lane_status_files(dependent_wt, MISSION_SLUG)
     assert not (dependent_wt / log_rel).exists()
     _ensure_merge_driver_git_config(repo)
-    env = _make_merge_env()
+    env = make_merge_env()
     merge = subprocess.run(["git", "-C", str(dependent_wt), "merge", "--no-commit", "--no-ff", dep_branch], capture_output=True, text=True, env=env)
     assert merge.returncode != 0, "the divergent status.json must conflict"
 

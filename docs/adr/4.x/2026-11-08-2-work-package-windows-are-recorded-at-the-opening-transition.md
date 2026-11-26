@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-11-08'
-updated: '2026-11-12T00:00:00Z'
+updated: '2026-11-26T00:00:00Z'
 ---
 
 # Work-package windows are recorded at the opening transition
@@ -737,6 +737,65 @@ keeps the range (fail-soft).
 `2026-11-06-3`, Amendment 2026-11-22), which removes most planning-lane ranges of this shape; the
 check covers the `kitty-specs/`-only planning work packages that remain.
 
+## Amendment 2026-11-26 (#5604): the review range lists merge resolutions
+
+**Status:** Accepted (Mission `approved-lane-resolution-route-01M7WW0Z`, WP10; ruling Q11).
+
+**What changes.** A conflict resolution on a lane is new content, and the re-review route of ADR
+`2026-10-04-5` Amendment 2026-11-26 asks the reviewer to approve it. The review range now shows
+the reviewer every merge commit of the window.
+
+- **The range lists every merge.** `review/wp_range.py::resolve_wp_review_range` lists the merge
+  commits of `base..tip` with `git rev-list --merges --full-history --reverse` and no pathspec,
+  oldest first. It does not reuse the commit list's pathspecs: under them git's default history
+  simplification drops a merge whose combined diff leaves the owned files alone, and a resolution
+  can hide a novel line in content a sibling already had approved. `WpReviewRange` carries
+  `merges`, `remerge_available` (git 2.36 or newer, `git show --remerge-diff`),
+  `attributes_source` (the Mission's target branch tip; the empty tree, with
+  `attributes_from_target` false, when the target cannot be read; never the range base, which can
+  hold a `merge=union` committed on the lane before the window opened) and
+  `attr_source_available` (git 2.40 or newer, `--attr-source`). A failed listing is recorded in
+  `listing_gap` (`WpReviewRange.merges_unlisted`).
+- **The review context prints one labeled command line per merge.**
+  `review/context_block.py::render_review_context` prints, after the range commands,
+  `RESOLUTION MERGE (operator-authored, review these bytes): git <pins> --attr-source=<target tip> show --remerge-diff --no-ext-diff --no-textconv <sha>`
+  (`context_block.resolution_command`). The pins are the merge attribute guard's own
+  `MERGE_PROBE_CONFIG_PINS` as `-c` flags, so the printed command cannot drift from the merge the
+  probes judge, and `--no-ext-diff --no-textconv` keep a diff driver or textconv from changing the
+  bytes shown. A closing note says the commands read `.gitattributes` from the target tip and pin
+  git's merge config; on git older than 2.40 the `--attr-source` flag is left out and the note
+  says this git cannot neutralise attributes. On git older than 2.36 each merge prints the
+  cannot-show line `RESOLUTION MERGE <sha12>: this git cannot show the resolution (needs git >=
+  2.36); review the merge by hand`. When the listing itself failed, one line names the listing
+  command (`git rev-list --merges --full-history <base>..<tip>`) and the resolution command; when
+  the listing failed on git older than 2.36, that line takes the cannot-show form instead
+  (`RESOLUTION MERGES: could not be listed, and this git cannot show a resolution (needs git >=
+  2.36); list them with git rev-list --merges --full-history <base>..<tip> and review each merge by
+  hand`). These
+  lines are commands and sit outside the byte budget, like the REVIEW COMMANDS lines (ruling
+  Q11). No patch text is rendered: contract C-001 (commands only) is kept, and the review
+  proceeds either way.
+- **Which contract this amends.** This amends the review-context contract of Mission
+  `review-context-wp-diff-01M774QF` (`kitty-specs/review-context-wp-diff-01M774QF/contracts/review-context-block.md`).
+  That file belongs to another Mission and is not edited; the module docstring of
+  `review/context_block.py` (updated by WP10) is the living copy of the block's shape.
+- **Cost.** One more `git rev-list` per range. The git version probes and the target tip read run
+  only when the range has a merge or its merge listing failed.
+
+**Residuals.**
+
+- **Every merge is labeled "operator-authored"**, including a recorded tool auto-rebase merge
+  inside the review window. The label does not consult the auto-rebase record (analysis A14).
+- **Octopus merges: the probe and the printed command can disagree** (WP10). The tool's merge
+  probe (`git_probes.merge_own_changed_paths`) treats an octopus merge as unjudgeable and refuses
+  (fail closed). The printed `git show --remerge-diff` command shows an octopus merge's resolution
+  on current git, so, depending on the git version, the reviewer may see a resolution the
+  consolidate probe refuses to judge.
+
+**Confirmation.** `tests/review/test_review_context_merge_lines.py` (the range's merges, full
+history, the labeled lines, the cannot-show and unlisted lines, the attribute pin and note) and
+`tests/review/test_wp_range_git_calls.py` (the git-call budget).
+
 ## References
 
 - Contract: `kitty-specs/consolidation-window-provenance-01M6Y84D/contracts/status-event-wp-window.md`.
@@ -750,4 +809,4 @@ check covers the `kitty-specs/`-only planning work packages that remain.
   `01M6YAG2HE6Q2XNQMGK6X3MBEK` (events issue filing).
 - [spec-kitty/spec-kitty-events#229](https://github.com/spec-kitty/spec-kitty-events/issues/229):
   the Java write service adopts and types `policy_metadata.wp_window` (context citation, FR-006).
-- Issues: #7403, #7358, #5721, #5048, #7359, #7362, #5703, #7759.
+- Issues: #7403, #7358, #5721, #5048, #7359, #7362, #5703, #7759, #5604.

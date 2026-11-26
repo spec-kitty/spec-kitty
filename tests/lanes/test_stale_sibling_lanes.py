@@ -143,23 +143,47 @@ def test_refined_remedy_leads_with_the_halt_and_names_the_sibling_branch(repo: P
     assert refined.sibling_lanes == (SIBLING_A,)
     assert text.startswith(f"The in-run auto-rebase of lane lane-b onto {MISSION} stopped: no classifier rule matched shared.txt. ")
     assert f"lane lane-a (branch {LANE_A})" in text
-    assert f"git merge {LANE_A} and resolve" in text
     assert f"incorporate changes from {MISSION}" not in text
-    assert f"git merge {MISSION} " not in text
+    assert "git merge" not in text and "cd .worktrees" not in text
     reopen = "spec-kitty agent tasks move-task WP02 --to planned --review-feedback-file <file> --mission demo"
-    assert text.index(reopen) < text.index("spec-kitty agent action implement WP02 --mission demo") < text.index(f"git merge {LANE_A}")
-    assert text.endswith("re-run: spec-kitty consolidate --mission demo")
+    # WP07 (ruling DM-01M88RZDBP57ZTYJHC5NP0ZH4R): the sibling is incorporated at its approval stamp, never ``git merge``d.
+    route = [
+        "spec-kitty agent action implement WP02 --mission demo --agent <agent>",
+        "spec-kitty agent action implement WP02 --mission demo --incorporate lane-a --agent <agent>",
+        "If it stops on a conflict, resolve it in the lane checkout that command names and commit the merge there.",
+        "spec-kitty agent tasks move-task WP02 --to for_review --mission demo",
+        "An independent reviewer reviews WP02 and approves it again; the new approval must reach the incorporation merge.",
+        "spec-kitty consolidate --mission demo",
+    ]
+    assert text.index(reopen) < text.index("\n")
+    assert text.splitlines()[1:] == [f"  {line}" for line in route]
 
 
 def test_remedy_names_every_sibling_and_reopens_every_wp_of_a_multi_wp_lane() -> None:
     text = _stale_remediation(_lane(wp_ids=("WP02", "WP03")), LANE_B, MISSION, mission_slug="demo", sibling_lanes=(SIBLING_A, SIBLING_C))
 
-    assert f"git merge {LANE_A}, then git merge {LANE_C} and resolve" in text
+    assert "git merge" not in text
     assert "those branches" in text
     assert "move-task WP02 --to planned" in text and "move-task WP03 --to planned" in text
     assert "reopen each of them first" in text
-    assert "(any WP of the lane: WP02, WP03)" in text
     assert "in-run auto-rebase" not in text
+    # WP07: one --incorporate line per sibling, in sibling order, through one concrete WP (never ``<WP>``).
+    assert "<WP>" not in text
+    incorporate = [line.strip() for line in text.splitlines()[1:] if "--incorporate" in line]
+    assert incorporate == [
+        "spec-kitty agent action implement WP02 --mission demo --incorporate lane-a --agent <agent>",
+        "spec-kitty agent action implement WP02 --mission demo --incorporate lane-c --agent <agent>",
+    ]
+    commands = [line.strip() for line in text.splitlines()[1:] if line.strip().startswith("spec-kitty ")]
+    assert commands == [
+        "spec-kitty agent action implement WP02 --mission demo --agent <agent>",
+        *incorporate,
+        "spec-kitty agent tasks move-task WP02 --to for_review --mission demo",
+        "spec-kitty agent action implement WP03 --mission demo --agent <agent>",
+        "spec-kitty agent tasks move-task WP03 --to for_review --mission demo",
+        "spec-kitty consolidate --mission demo",
+    ]
+    assert "An independent reviewer reviews WP02 and WP03 and approves each of them again" in text
 
 
 def test_remedy_without_a_sibling_keeps_the_auto_rebase_refresh_after_the_reopen_step() -> None:

@@ -1602,11 +1602,11 @@ def _patch_auto_rebase_run(
     calls: list[list[str]] = []
     real_run: Callable[..., subprocess.CompletedProcess[str]] = auto_rebase._run
 
-    def recording_run(cmd: list[str], cwd: Path, *, check: bool = False) -> subprocess.CompletedProcess[str]:
+    def recording_run(cmd: list[str], cwd: Path, *, check: bool = False, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
         calls.append(list(cmd))
         if reject_sparse and "--sparse" in cmd:
             return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="error: unknown option `sparse'")
-        return real_run(cmd, cwd, check=check)
+        return real_run(cmd, cwd, check=check, env=env)
 
     monkeypatch.setattr(auto_rebase, "_run", recording_run)
     return calls

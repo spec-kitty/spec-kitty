@@ -7,7 +7,7 @@ Recurrence guards for mission ``coordination-merge-stabilization-01KTXRVR``:
   site re-inherits #1826 (a checked-out worktree left behind its own HEAD)
   unless it goes through :func:`specify_cli.git.ref_advance.advance_branch_ref`.
 * **AC-F1** — every subprocess call site in ``lanes/consolidation.py`` routes its
-  environment through ``_make_merge_env()`` (FR-008b): no bare ``os.environ``
+  environment through ``make_merge_env()`` (FR-008b): no bare ``os.environ``
   copies outside the helper, and no subprocess call without an ``env=``
   keyword. Widened repo-wide for ``rebase``/``cherry-pick`` argv sites by
   #266, since #106 and #87 both slipped through the file-scoped version of
@@ -167,7 +167,7 @@ def test_is_subprocess_run_call_does_not_match_unrelated_name_call() -> None:
 
 def test_lanes_merge_subprocess_calls_route_env_through_helper() -> None:
     """AC-F1 (FR-008b): every ``subprocess.run`` in ``lanes/consolidation.py`` carries
-    an explicit ``env=`` keyword (sourced from ``_make_merge_env``), so the
+    an explicit ``env=`` keyword (sourced from ``make_merge_env``), so the
     pipeline has exactly one environment authority."""
     tree = ast.parse(LANES_MERGE.read_text(encoding="utf-8"), filename=str(LANES_MERGE))
     module_names, direct_run_names = _subprocess_run_names(tree)
@@ -180,21 +180,21 @@ def test_lanes_merge_subprocess_calls_route_env_through_helper() -> None:
     ]
     assert not missing_env, (
         "subprocess.run call(s) in lanes/consolidation.py without an env= keyword "
-        f"(must route through _make_merge_env, AC-F1): lines {missing_env}"
+        f"(must route through make_merge_env, AC-F1): lines {missing_env}"
     )
 
 
 def test_lanes_merge_no_bare_os_environ_outside_helper() -> None:
     """AC-F1 (FR-008b): no ``os.environ`` access in ``lanes/consolidation.py`` outside
-    the ``_make_merge_env`` helper — no ad-hoc PATH/GIT_* mutations."""
+    the ``make_merge_env`` helper — no ad-hoc PATH/GIT_* mutations."""
     tree = ast.parse(LANES_MERGE.read_text(encoding="utf-8"), filename=str(LANES_MERGE))
     helper_spans: list[tuple[int, int]] = [
         (node.lineno, node.end_lineno or node.lineno)
         for node in ast.walk(tree)
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-        and node.name == "_make_merge_env"
+        and node.name == "make_merge_env"
     ]
-    assert helper_spans, "_make_merge_env must exist in lanes/consolidation.py (AC-F1)"
+    assert helper_spans, "make_merge_env must exist in lanes/consolidation.py (AC-F1)"
 
     offenders = [
         node.lineno
@@ -206,7 +206,7 @@ def test_lanes_merge_no_bare_os_environ_outside_helper() -> None:
         and not any(start <= node.lineno <= end for start, end in helper_spans)
     ]
     assert not offenders, (
-        "bare os.environ access in lanes/consolidation.py outside _make_merge_env "
+        "bare os.environ access in lanes/consolidation.py outside make_merge_env "
         f"(AC-F1): lines {offenders}"
     )
 
@@ -216,14 +216,14 @@ def test_make_merge_env_matches_historical_inline_construction() -> None:
     construction it replaced (venv-bin PATH prepend over ``os.environ``), apart
     from dropping an exported meta-driver two-way opt-out (#5460)."""
     from specify_cli.consolidation.drivers import META_DRIVER_TWO_WAY_ENV
-    from specify_cli.lanes.consolidation import _make_merge_env
+    from specify_cli.lanes.consolidation import make_merge_env
 
     expected = os.environ.copy()
     expected.pop(META_DRIVER_TWO_WAY_ENV, None)
     expected["PATH"] = (
         str(Path(sys.executable).parent) + os.pathsep + expected.get("PATH", "")
     )
-    assert _make_merge_env() == expected
+    assert make_merge_env() == expected
 
 
 def _argv_includes_git_merge(node: ast.Call) -> bool:
@@ -285,14 +285,14 @@ def test_rebase_and_cherry_pick_calls_route_env_through_helper_repo_wide() -> No
                 offenders.append(f"{source.relative_to(SRC_ROOT)}:{node.lineno}")
     assert not offenders, (
         "subprocess.run call(s) with 'rebase'/'cherry-pick' in argv without "
-        "an env= keyword (must route through _make_merge_env so the "
+        "an env= keyword (must route through make_merge_env so the "
         f"registered merge drivers resolve the running CLI, #266): {offenders}"
     )
 
 
 def test_worktree_allocator_git_merges_route_env_through_helper() -> None:
     """#87: every ``git merge`` subprocess call in ``lanes/worktree_allocator.py``
-    carries an explicit ``env=`` keyword sourced from ``_make_merge_env``.
+    carries an explicit ``env=`` keyword sourced from ``make_merge_env``.
 
     The drivers registered by ``_ensure_merge_driver_git_config`` invoke bare
     ``spec-kitty ...``, so a merge run without that env resolves ``spec-kitty``
@@ -315,7 +315,7 @@ def test_worktree_allocator_git_merges_route_env_through_helper() -> None:
     ]
     assert not missing_env, (
         "git merge subprocess.run call(s) in lanes/worktree_allocator.py "
-        "without an env= keyword (must route through _make_merge_env so the "
+        "without an env= keyword (must route through make_merge_env so the "
         f"registered merge drivers resolve the running CLI, #87): {missing_env}"
     )
 

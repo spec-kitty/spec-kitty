@@ -10,9 +10,10 @@ work package (#7754).
 
 The recovery test follows the printed remedy literally: it reopens the work
 package (approved -> planned with review feedback, through the production status
-shell, as the printed ``move-task`` does), merges the branch the remedy names in
-lane-b's checkout, resolves, commits, has the work package reviewed and approved
-again, and re-runs ``consolidate``, which must pass lane-b and land the Mission.
+shell, as the printed ``move-task`` does), incorporates the sibling lane the remedy
+names at its approval stamp (what the printed ``implement --incorporate`` runs,
+WP07), resolves, commits, has the work package reviewed and approved again, and
+re-runs ``consolidate``, which must pass lane-b and land the Mission.
 """
 
 from __future__ import annotations
@@ -61,9 +62,11 @@ def _assert_refusal_is_actionable(flat: str, scenario: StaleSiblingMission) -> s
     assert implement == -1 or reopen < implement, flat
     # #7755: the change to incorporate is the sibling lane's branch, never the rolled-back Mission branch.
     assert f"incorporate changes from {scenario.mission.coord_branch}" not in flat, flat
-    named = re.findall(r"git merge (\S+?)[`.,]?(?:\s|$)", flat)
-    assert named == [scenario.lane_a_branch], flat
-    assert "lane-a" in flat, flat
+    # WP07: the sibling is incorporated at its approval stamp through the CLI, never ``git merge``d.
+    assert not re.search(r"git merge(?! --abort)", flat), flat
+    named = re.findall(r"--incorporate (\S+)", flat)
+    assert named == ["lane-a"], flat
+    assert scenario.lane_a_branch in flat, flat
     return str(named[0])
 
 
@@ -77,15 +80,17 @@ def test_operator_who_follows_the_remedy_lands_the_mission(tmp_path: Path) -> No
     assert "restored" in flat, flat  # precondition: the run rolled the Mission branch back
     # FR-001: the refusal says the in-run auto-rebase stopped, with its reason.
     assert re.search(r"in-run auto-rebase .{0,80}stopped: \S", flat), flat
-    branch = _assert_refusal_is_actionable(flat, scenario)
+    sibling_lane = _assert_refusal_is_actionable(flat, scenario)
 
-    # Follow the remedy: reopen WP02 with review feedback, re-enter it, merge the named branch, resolve, commit.
+    # Follow the remedy: reopen WP02 with review feedback, re-enter it, incorporate the named lane, resolve, commit.
     transition(mission, "WP02", "planned", actor=IMPLEMENTER, review_ref="review-WP02-incorporate-lane-a")
     transition(mission, "WP02", "claimed", actor=IMPLEMENTER)
     transition(mission, "WP02", "in_progress", actor=IMPLEMENTER)
     checkout = scenario.lane_b_worktree
-    merge = subprocess.run(["git", "-C", str(checkout), "merge", "--no-edit", branch], capture_output=True, text=True, check=False)
-    assert merge.returncode != 0 and "CONFLICT" in merge.stdout, merge.stdout  # the conflict the auto-rebase hit
+    from specify_cli.lanes.incorporate import incorporate_sibling, prepare_incorporation
+
+    outcome = incorporate_sibling(checkout, prepare_incorporation(mission.repo, mission.slug, "WP02", sibling_lane))
+    assert outcome.conflicted_paths == (POPUP,), outcome  # the conflict the auto-rebase hit
     (checkout / POPUP).write_text(RESOLVED_TEXT, encoding="utf-8")
     _git(checkout, "add", POPUP)
     _git(checkout, "commit", "-q", "--no-edit")
@@ -100,7 +105,7 @@ def test_operator_who_follows_the_remedy_lands_the_mission(tmp_path: Path) -> No
 
 
 def test_refusal_without_a_lane_worktree_still_names_the_sibling(tmp_path: Path) -> None:
-    """No worktree: no auto-rebase runs, so no halt is claimed, but the sibling branch is still the source."""
+    """No worktree: no auto-rebase runs, and the refusal says so (FR-003, squad-3 F1); the sibling branch is still the source."""
     scenario = build_stale_sibling_mission(tmp_path)
     _git(scenario.mission.repo, "worktree", "remove", "--force", str(scenario.lane_b_worktree))
 
@@ -108,5 +113,6 @@ def test_refusal_without_a_lane_worktree_still_names_the_sibling(tmp_path: Path)
 
     flat = _flat(result)
     assert result.returncode != 0, flat
-    assert "in-run auto-rebase" not in flat, flat
+    assert "Lane lane-b has no lane checkout, so no in-run auto-rebase ran onto" in flat, flat
+    assert "auto-rebase of lane lane-b" not in flat and "stopped:" not in flat, flat
     _assert_refusal_is_actionable(flat, scenario)

@@ -108,9 +108,10 @@ def test_agent_on_a_non_planned_move_still_records_the_owner(tmp_path: Path, mon
 def test_coord_skip_arm_rejection_leaves_the_owner_untouched(tmp_path: Path) -> None:
     """The coordination skip arm (protected primary) never rebinds on a rejection.
 
-    Every hand-back move needs review feedback, and on this arm that verdict
-    cannot be committed to the protected primary, so the move refuses before any
-    write: the ownership slot keeps its holder. The envelope's
+    Since #7861 (operator ruling DM-01M89KDT5DZQ4DX6ZFX54HY3J3) the hand-back's
+    review-cycle verdict is committed to the coordination branch (its
+    COORD-partition home), so the rejection succeeds; the reviewer's ``--agent``
+    still never takes the ownership slot. The envelope's
     ``frontmatter_fields_skipped`` keys off the same ``_mt_agent_binds_owner``
     predicate the emit uses (pinned by the predicate tests below).
     """
@@ -136,8 +137,8 @@ def test_coord_skip_arm_rejection_leaves_the_owner_untouched(tmp_path: Path) -> 
             ]
         )
 
-    assert code == 1, text
-    assert "protected" in text
+    assert code == 0, text
+    assert (wp_snapshot_state(ctx.coord_feature_dir, "WP01") or {}).get("lane") == "planned"
     assert (wp_snapshot_state(ctx.coord_feature_dir, "WP01") or {}).get("agent") == owner_before
 
 
