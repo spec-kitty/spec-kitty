@@ -1,7 +1,7 @@
 {
-  "event_count": 156,
-  "last_event_id": "01M8B6DA93QGB5138EWEXGWPQQ",
-  "materialized_at": "2026-11-26T05:49:16.451139+00:00",
+  "event_count": 157,
+  "last_event_id": "01M8B71PA3RBD4NR4J3D3HHSG6",
+  "materialized_at": "2026-11-26T06:00:24.131923+00:00",
   "mission_number": "",
   "mission_slug": "approved-lane-resolution-route-01M7WW0Z",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 1
   },
   "work_packages": {
@@ -612,9 +612,9 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "for_review",
-      "last_event_id": "01M8B6DA93QGB5138EWEXGWPQQ",
-      "last_transition_at": "2026-11-26T05:49:16.451139+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M8B71PA3RBD4NR4J3D3HHSG6",
+      "last_transition_at": "2026-11-26T06:00:24.131923+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-25T22:57:04Z – claude – shell_pid=6894 – route gap: T056 step 4 (lane-c route, printed re-entry). After lane-b's route (re-approved at its resolution merge), consolidate refuses lane-c as stale and prints the route; the printed re-entry 'spec-kitty agent action implement WP03 --mission <m> --agent claude::implementer-ivan' exits 1: 'Error self-healing workspace for WP03: cannot auto-merge dependency lane lane-b (kitty/mission-route-01M7X3RT-lane-b) into lane lane-c: the merge conflicts. merge kitty/mission-route-01M7X3RT-lane-b into lane lane-c manually, resolve the conflicts, commit, then re-run the implement command'. So the printed route cannot be followed for a dependent lane: implement's dependency self-heal runs before --incorporate and prescribes a manual git merge of the dependency's live tip (the remedy itself never prints git merge). Owners: WP07 (remedy) / WP08 (implement --incorporate). Diagnostic (not committed): following implement's own advice (hand-merge lane-b, resolve, re-run implement) lets the rest of the route run as printed and the Mission lands (exit 0, banner, SC-001 counts WP02 +1, WP03 +1, WP01/WP04 +0; 81 s). T056 test is committed red and NOT marked xfail/skip.",
@@ -630,7 +630,7 @@
         "- 2026-11-26T05:25:12Z – claude – shell_pid=6894 – green: T056 'uv run --frozen pytest -n0 tests/terminus/test_approved_lane_resolution_route_three_lane.py -k exact_siblings' 1 passed (route wall time 67.6 s), red before on the #7880 re-entry. Discriminating mutation M5 (reverted): find_sibling_lanes returns every other consolidated lane -> T056 FAILS at the stale refusal's exact sibling text (over-inclusion caught)."
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
+      "role": "reviewer",
       "shell_pid": 6894,
       "shell_pid_created_at": "1795644504.74",
       "subtasks": {
