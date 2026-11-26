@@ -307,7 +307,7 @@ def lane_never_started(events: Sequence[StatusEvent], wp_ids: Iterable[str]) -> 
     return canceled_unstarted == ids
 
 
-def _windows(events: Sequence[StatusEvent], wp_ids: frozenset[str]) -> dict[str, list[WorkWindow]]:
+def wp_windows(events: Sequence[StatusEvent], wp_ids: frozenset[str]) -> dict[str, list[WorkWindow]]:
     """Reconstruct each WP's :class:`WorkWindow` sequence from events in append order (T016).
 
     A transition among states of the SAME class (``claimed`` -> ``in_progress``,
@@ -349,7 +349,7 @@ def _windows(events: Sequence[StatusEvent], wp_ids: frozenset[str]) -> dict[str,
     return result
 
 
-def _window_stamps(window: WorkWindow) -> tuple[str, str] | None:
+def window_stamps(window: WorkWindow) -> tuple[str, str] | None:
     """``(open_head, close_head)`` of *window*, or ``None`` when either stamp is missing.
 
     The one statement of the ``no_stamp`` rule, shared by :func:`_window_commits`
@@ -379,7 +379,7 @@ def _window_commits(
     """
     if window.still_open:
         return frozenset(), UnattributableReason.OPEN_WINDOW
-    stamps = _window_stamps(window)
+    stamps = window_stamps(window)
     if stamps is None:
         return frozenset(), UnattributableReason.NO_STAMP
     open_head, close_head = stamps
@@ -667,7 +667,7 @@ def first_governed_open_stamp(events: Sequence[StatusEvent], wp_ids: frozenset[s
     """
     for event in events:
         if event.wp_id in wp_ids and not is_migration_event(event) and _classify(event.to_lane) is WindowKind.IMPLEMENTATION:
-            stamp = stamp_of(event)
+            stamp: str | None = stamp_of(event)
             if stamp is not None:
                 return stamp
     return None
@@ -886,7 +886,7 @@ def resolve_canceled_wp(
             _detail_for(UnattributableReason.SPINE_UNREADABLE, lane_id, canceled_wp_id),
         )
     spine_set = frozenset(spine)
-    windows_by_wp = _windows(events, wp_ids)
+    windows_by_wp = wp_windows(events, wp_ids)
     merge_cache: dict[str, bool] = {}
 
     canceled_by_kind: dict[WindowKind, frozenset[str]] = {WindowKind.IMPLEMENTATION: frozenset(), WindowKind.REVIEW: frozenset()}
@@ -938,7 +938,7 @@ def lacks_lane_head_stamps(events: Sequence[StatusEvent], wp_id: str) -> bool:
     """True when *wp_id* did governed work but a closed work window carries no ``lane_head`` stamp (#5613).
 
     The event-only half of the ``no_stamp`` rule of :func:`_window_commits`
-    (:func:`_window_stamps`): a legacy mission (created before lane-head stamps), a
+    (:func:`window_stamps`): a legacy mission (created before lane-head stamps), a
     transition made outside the governed workflow, or a modern mission whose
     best-effort stamp capture failed. No git is read. A WP that never entered implementation
     has no work to attribute and is not "unstamped"; a window that never closed is
@@ -946,8 +946,8 @@ def lacks_lane_head_stamps(events: Sequence[StatusEvent], wp_id: str) -> bool:
     """
     if not _entered_implementation(events, wp_id):
         return False
-    windows = _windows(events, frozenset({wp_id}))[wp_id]
-    return any(not window.still_open and _window_stamps(window) is None for window in windows)
+    windows = wp_windows(events, frozenset({wp_id}))[wp_id]
+    return any(not window.still_open and window_stamps(window) is None for window in windows)
 
 
 class LiveCanceledContent(NamedTuple):
@@ -1043,4 +1043,6 @@ __all__ = [
     "lane_never_started",
     "lane_own_commits",
     "resolve_canceled_wp",
+    "window_stamps",
+    "wp_windows",
 ]
