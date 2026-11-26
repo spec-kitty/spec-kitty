@@ -19,7 +19,10 @@ import pytest
 
 from specify_cli.core.agent_config import AgentConfig, save_agent_config
 from specify_cli.gitignore_manager import GitignoreManager
-from specify_cli.session_presence.writers.registry import presence_file_paths
+from specify_cli.session_presence.content import SessionPresenceContent
+from specify_cli.session_presence.writers.claude_code import ClaudeCodeWriter
+from specify_cli.session_presence.writers.null_writer import NullWriter
+from specify_cli.session_presence.writers.registry import WRITER_REGISTRY, presence_file_paths
 from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.migrations import m_4_0_0rc9_report_exposed_agent_files as successor
 from specify_cli.upgrade.migrations.base import BaseMigration
@@ -132,12 +135,19 @@ def test_outside_a_repository_nothing_is_detected(tmp_path: Path) -> None:
 
 def test_presence_file_paths_is_the_union_of_every_writers_owned_paths() -> None:
     """The writers own their file lists; the registry view only unions them (#7878 review, LOW 1)."""
-    from specify_cli.session_presence.writers.claude_code import ClaudeCodeWriter
-    from specify_cli.session_presence.writers.null_writer import NullWriter
-    from specify_cli.session_presence.writers.registry import WRITER_REGISTRY
-
     assert ClaudeCodeWriter().owned_paths() == _PRESENCE_FILES
     assert NullWriter("q").owned_paths() == ()
     assert WRITER_REGISTRY["cursor"].owned_paths() == (".cursor/rules/spec-kitty.mdc",)
     union = {path for writer in WRITER_REGISTRY.values() for path in writer.owned_paths()}
     assert presence_file_paths() == tuple(sorted(union))
+
+
+@pytest.mark.parametrize("harness", sorted(WRITER_REGISTRY))
+def test_every_file_a_writer_writes_is_in_presence_file_paths(harness: str, tmp_path: Path) -> None:
+    """Each writer, run for real, writes only files ``presence_file_paths()`` names (#7878 review, LOW 1)."""
+    for folder in (".claude", ".cursor", ".windsurf", ".github", ".kiro"):
+        (tmp_path / folder).mkdir()
+    before = {p for p in tmp_path.rglob("*") if p.is_file()}
+    WRITER_REGISTRY[harness].write(tmp_path, SessionPresenceContent("4.0.0", "demo", "healthy", None))
+    written = {p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob("*") if p.is_file() and p not in before}
+    assert written <= set(presence_file_paths()), f"{harness} wrote files presence_file_paths() leaves out: {sorted(written - set(presence_file_paths()))}"
