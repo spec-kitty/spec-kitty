@@ -600,7 +600,7 @@
     },
     "WP13": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
@@ -635,10 +635,10 @@
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
-        "T051": "done",
-        "T052": "done",
-        "T053": "done",
-        "T054": "done"
+        "T051": "planned",
+        "T052": "planned",
+        "T053": "planned",
+        "T054": "planned"
       }
     },
     "WP14": {
