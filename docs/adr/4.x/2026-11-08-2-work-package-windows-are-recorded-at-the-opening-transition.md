@@ -767,7 +767,11 @@ the reviewer every merge commit of the window.
   says this git cannot neutralise attributes. On git older than 2.36 each merge prints the
   cannot-show line `RESOLUTION MERGE <sha12>: this git cannot show the resolution (needs git >=
   2.36); review the merge by hand`. When the listing itself failed, one line names the listing
-  command (`git rev-list --merges --full-history <base>..<tip>`) and the resolution command. These
+  command (`git rev-list --merges --full-history <base>..<tip>`) and the resolution command; when
+  the listing failed on git older than 2.36, that line takes the cannot-show form instead
+  (`RESOLUTION MERGES: could not be listed, and this git cannot show a resolution (needs git >=
+  2.36); list them with git rev-list --merges --full-history <base>..<tip> and review each merge by
+  hand`). These
   lines are commands and sit outside the byte budget, like the REVIEW COMMANDS lines (ruling
   Q11). No patch text is rendered: contract C-001 (commands only) is kept, and the review
   proceeds either way.
