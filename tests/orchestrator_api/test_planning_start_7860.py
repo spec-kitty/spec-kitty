@@ -172,6 +172,7 @@ def test_a_mission_branch_no_checkout_holds_reports_planning_checkout_missing_in
         # (#5642 / PR-CONTRACT-002); the refinement rides in data (contract 1.31.0).
         assert envelope["error_code"] == "LANE_ALLOCATION_FAILED", envelope
         assert envelope["data"]["workspace_error_code"] == "PLANNING_CHECKOUT_MISSING"
+        assert "error_code" not in envelope["data"], envelope["data"]
         assert envelope["data"]["mission_branch"] == MISSION_BRANCH
         assert "PLANNING_CHECKOUT_MISSING" in envelope["data"]["message"]
     assert read_claim_base(mission.repo, SLUG, PLANNING_WP) is None
@@ -235,3 +236,22 @@ def test_an_unreadable_manifest_keeps_the_worktree_stamp(tmp_path: Path) -> None
     stamp = wp_lifecycle._existing_workspace_for_stamp("transition", mission.repo, SLUG, mission.mission_dir, PLANNING_WP)
 
     assert wp_lifecycle._status_execution_mode_for_start_workspace(stamp) == "worktree"
+
+
+def test_a_claim_base_that_cannot_be_recorded_is_an_envelope(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An unborn HEAD or a failed update-ref fails the start closed with one envelope, never a traceback."""
+    from specify_cli.lanes import claim_base
+
+    mission = _finalized(settled_default_mission(tmp_path))
+
+    def _unrecordable(*_a: object, **_k: object) -> str:
+        raise RuntimeError("cannot record claim base: HEAD does not resolve (test)")
+
+    monkeypatch.setattr(claim_base, "record_claim_base", _unrecordable)
+
+    started = _start(mission.repo)
+
+    assert started["success"] is False
+    assert started["error_code"] == "LANE_ALLOCATION_FAILED", started
+    assert started["data"]["error_type"] == "RuntimeError"
+    assert "HEAD does not resolve (test)" in started["data"]["message"]

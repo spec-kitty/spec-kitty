@@ -309,7 +309,10 @@ def _fail_workspace_resolution(cmd: str, mission_dir: Path, wp: str, exc: Except
         real_code = str(exc.error_code)
         if is_allowed_error_code("orchestrator_api", real_code):
             _fail(cmd, real_code, str(exc), {**identity, **exc.to_dict()})
-        _fail(cmd, fallback_code, str(exc), {**identity, **exc.to_dict(), "reason": str(exc), _WORKSPACE_ERROR_CODE_KEY: real_code})
+        # Only the refinement key carries the real code: the base ``to_dict()``'s ``error_code``
+        # would put the unregistered code beside the envelope's (PR-CONTRACT-002).
+        refusal_fields = {key: value for key, value in exc.to_dict().items() if key != "error_code"}
+        _fail(cmd, fallback_code, str(exc), {**identity, **refusal_fields, _WORKSPACE_ERROR_CODE_KEY: real_code})
     _fail(cmd, fallback_code, str(exc), {**identity, "reason": str(exc), "error_type": type(exc).__name__})
 
 
@@ -339,7 +342,7 @@ def _planning_lane_branch(main_repo_root: Path, mission: str, manifest: Any, wor
     if workspace.resolution_kind == MISSION_BRANCH_CHECKOUT_KIND:
         if not workspace.branch_name:
             raise PlanningBranchUndecided(f"the Mission-branch checkout {workspace.worktree_path} of {mission} {workspace.wp_id} resolved with no branch")
-        return workspace.branch_name
+        return str(workspace.branch_name)
     return _repo_root_lane_branch(main_repo_root, mission, manifest)
 
 
@@ -408,7 +411,12 @@ def _ensure_repo_root_checkout_or_fail(cmd: str, main_repo_root: Path, mission: 
         _fail_workspace_resolution(cmd, mission_dir, wp, ValueError(f"{wp} of {mission} is not assigned to a lane in lanes.json"))
     assignment = _RepoRootLane(*lane_assignment)
     resolved, start = _resolve_repo_root_workspace_or_fail(cmd, main_repo_root, mission, mission_dir, wp, assignment, guard=True)
-    record_claim_base(main_repo_root, resolved.worktree_path, mission, wp)
+    try:
+        record_claim_base(main_repo_root, resolved.worktree_path, mission, wp)
+    except RuntimeError as exc:
+        # Fail closed with one envelope (NFR-002): an unborn HEAD or a failed update-ref
+        # stops the claim before any status event, never a traceback.
+        _fail_workspace_resolution(cmd, mission_dir, wp, exc)
     return start
 
 
