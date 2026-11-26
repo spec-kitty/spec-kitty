@@ -686,6 +686,84 @@ def _presence_lane_content(
     return _lane_content(repo_root, lanes_manifest, lane, work_packages, spine, blobs, deletions)
 
 
+def _planning_lane_mission_branch_window(repo_root: Path, lanes_manifest: LanesManifest, coord_base_ref: str) -> tuple[str, str] | None:
+    """``(planning pin, frozen Mission-branch tip)`` when the planning lane writes to the Mission branch (#7860, FR-012), else ``None``.
+
+    Before a default Mission lands, its planning lane writes to its Mission branch
+    (:func:`mission_runtime.planning_write_ref`, looked up at call time), which *coord_base_ref*
+    (the coordination base, the Mission branch's pre-mutation tip) already carries; measured
+    ``coord_base_ref..<target>`` the planning lane authors nothing, so its owned content outside
+    the bookkeeping paths reads as un-attributable at the gate. The planning work is instead read
+    from ``lanes.json``'s planning pin to that frozen tip. ``None`` (every other shape, no pin, or
+    a write branch that cannot be decided) keeps today's range: a planning lane that authors
+    nothing, so the gate still refuses content it cannot attribute (fail closed). The evidence
+    axis, which runs before the collectors, already refused an undecidable write branch.
+    """
+    import mission_runtime
+
+    pin = lanes_manifest.planning_commit_sha
+    if not pin:
+        return None
+    try:
+        ref = mission_runtime.planning_write_ref(repo_root, lanes_manifest.mission_slug, lanes_manifest.target_branch)
+    except (mission_runtime.PlanningWriteRefUnavailable, mission_runtime.PlanningCheckoutMissing):
+        return None
+    return (pin, coord_base_ref) if ref.on_mission_branch else None
+
+
+def _lane_walk_range(
+    repo_root: Path,
+    lanes_manifest: LanesManifest,
+    lane: ExecutionLane,
+    coord_base_ref: str,
+    sb_window: tuple[str, str] | None,
+) -> tuple[str, str, tuple[str, ...]]:
+    """``(base, tip, scope)`` of a lane's authorship walk; a non-empty *scope* keeps only commits touching it.
+
+    A code lane walks ``coord_base_ref..<lane branch>`` and a ``single_branch`` planning lane its
+    *sb_window*, as before. The planning lane of a default Mission that has not landed walks its
+    Mission-branch window (:func:`_planning_lane_mission_branch_window`), limited to commits that
+    touch the lane's owned paths (``write_scope``): the Mission branch also carries status and
+    other Mission work, which must never read as approved planning authorship.
+    """
+    if is_planning_lane(lane):
+        if sb_window:
+            return sb_window[0], sb_window[1], ()
+        window = _planning_lane_mission_branch_window(repo_root, lanes_manifest, coord_base_ref)
+        if window is not None:
+            return window[0], window[1], tuple(lane.write_scope)
+    return coord_base_ref, _lane_branch_for(lanes_manifest, lane.lane_id), ()
+
+
+def _commits_touching(repo_root: Path, shas: Sequence[str], scope: Sequence[str]) -> list[str]:
+    """The commits of *shas* (order kept) that change at least one path matching *scope*; an unreadable commit is dropped (fail closed)."""
+    from specify_cli.ownership.matching import matches_owned
+
+    kept: list[str] = []
+    for sha in shas:
+        try:
+            paths = changed_paths_of(repo_root, sha)
+        except GitProbeError:
+            continue
+        if any(matches_owned(path, scope) for path in paths):
+            kept.append(sha)
+    return kept
+
+
+def _scoped_walk(walk: tuple[set[tuple[str, str]], set[str]], scope: Sequence[str]) -> tuple[set[tuple[str, str]], set[str]]:
+    """*walk*'s ``(blobs, deletions)`` limited to paths matching *scope*; unchanged when *scope* is empty.
+
+    A planning lane's commit that also changed a path outside its owned paths never makes that
+    path approved planning authorship (#7860).
+    """
+    if not scope:
+        return walk
+    from specify_cli.ownership.matching import matches_owned
+
+    blobs, deletions = walk
+    return {item for item in blobs if matches_owned(item[0], scope)}, {path for path in deletions if matches_owned(path, scope)}
+
+
 def _collect_authored(
     repo_root: Path,
     lanes_manifest: LanesManifest,
@@ -763,10 +841,12 @@ def _collect_authored(
     for lane in lanes_manifest.lanes:
         if not _lane_is_approved(lane, work_packages):
             continue
-        base, branch = sb_window if sb_window and is_planning_lane(lane) else (coord_base_ref, _lane_branch_for(lanes_manifest, lane.lane_id))
+        base, branch, scope = _lane_walk_range(repo_root, lanes_manifest, lane, coord_base_ref, sb_window)
         first_parent = _lane_first_parent_spine(repo_root, base, branch)
+        if scope:
+            first_parent = _commits_touching(repo_root, first_parent, scope)
         full_authored = [sha for sha in first_parent if sha not in canceled_lane_commits]
-        full_blobs, full_deletions = _final_authored_walk(repo_root, full_authored)
+        full_blobs, full_deletions = _scoped_walk(_final_authored_walk(repo_root, full_authored), scope)
         # #7307 review: a merge on the spine counts toward this lane's authorship only
         # when one of its approved WPs' approval stamps reaches it (it was in a reviewed
         # tip). A merge made after the approval is the lane's unreviewed work: the
