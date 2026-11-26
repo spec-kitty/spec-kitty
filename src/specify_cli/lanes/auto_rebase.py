@@ -1077,7 +1077,7 @@ def _record_tool_merge(
             f"the lane tip {head[:12]} after the auto-rebase is not its merge of {tips.mission_before[:12]} into "
             f"{tips.before[:12]}; it was left on the lane unrecorded",
         )
-    committed_tree = _run(["git", "rev-parse", "--verify", f"{head}^{{tree}}"], worktree_path).stdout.strip()
+    committed_tree = _run(["git", "show", "-s", "--format=%T", head], worktree_path).stdout.strip()
     if committed_tree != staged_tree:
         reason = (
             f"the merge {head[:12]} carries tree {committed_tree[:12] or 'unreadable'}, not the tree {staged_tree[:12]} "
