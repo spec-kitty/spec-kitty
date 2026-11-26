@@ -129,7 +129,7 @@ def _dropped_own_change(holder: ApprovedLaneContent, path: str, base: str | None
     A content without ``tip`` / ``fork_point`` (hand-built) is read as cut from the
     pre-consolidation target: only the net-change fact applies, against *base*.
     """
-    final = holder.final_state[path]
+    final: str | None = holder.final_state[path]
     if state_at is None or holder.tip is None or holder.fork_point is None:
         return final != base
     found_at_fork = state_at(holder.fork_point, path)
@@ -724,12 +724,14 @@ def _lane_walk_range(
     *sb_window*, as before. The planning lane of a default Mission that has not landed walks its
     Mission-branch window (:func:`_planning_lane_mission_branch_window`), limited to commits that
     touch the lane's owned paths (``write_scope``): the Mission branch also carries status and
-    other Mission work, which must never read as approved planning authorship.
+    other Mission work, which must never read as approved planning authorship. A planning lane with
+    an empty ``write_scope`` keeps today's range and authors nothing: an empty scope never turns the
+    Mission-branch window into an unscoped walk (the empty tuple means "unscoped" for every other range).
     """
     if is_planning_lane(lane):
         if sb_window:
             return sb_window[0], sb_window[1], ()
-        window = _planning_lane_mission_branch_window(repo_root, lanes_manifest, coord_base_ref)
+        window = _planning_lane_mission_branch_window(repo_root, lanes_manifest, coord_base_ref) if lane.write_scope else None
         if window is not None:
             return window[0], window[1], tuple(lane.write_scope)
     return coord_base_ref, _lane_branch_for(lanes_manifest, lane.lane_id), ()

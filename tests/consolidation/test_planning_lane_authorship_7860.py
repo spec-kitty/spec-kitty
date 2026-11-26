@@ -30,6 +30,7 @@ _SLUG = "auth-01M8EEEE"
 _MISSION_BRANCH = f"kitty/mission-{_SLUG}"
 _OWNED = "curation/apply_curation.py"
 _PLANNING = ExecutionLane(PLANNING_LANE_ID, ("WP02",), (_OWNED,), (), (), 0)
+_EMPTY_PLANNING = ExecutionLane(PLANNING_LANE_ID, ("WP02",), (), (), (), 0)
 _CODE = ExecutionLane("lane-a", ("WP01",), ("src/**",), (), (), 0)
 
 
@@ -72,6 +73,14 @@ def test_every_other_shape_keeps_its_range(monkeypatch: pytest.MonkeyPatch) -> N
     assert authorship._lane_walk_range(Path(), _manifest(), _PLANNING, "coord0000", None) == ("coord0000", "main", ())
     assert authorship._lane_walk_range(Path(), _manifest(), _PLANNING, "coord0000", ("sb0", "sb1")) == ("sb0", "sb1", ())
     assert authorship._lane_walk_range(Path(), _manifest(), _CODE, "coord0000", None) == ("coord0000", f"kitty/mission-{_SLUG}-lane-a", ())
+
+
+@pytest.mark.unit
+def test_an_empty_write_scope_keeps_the_target_range(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An empty owned scope on the Mission-branch window authors nothing: it never widens to an unscoped walk."""
+    monkeypatch.setattr(mission_runtime, "planning_write_ref", _reader(True))
+
+    assert authorship._lane_walk_range(Path(), _manifest(), _EMPTY_PLANNING, "coord0000", None) == ("coord0000", "main", ())
 
 
 @pytest.mark.unit
@@ -193,3 +202,19 @@ def test_without_the_mission_branch_rule_the_planning_lane_authors_nothing(tmp_p
     claim = authorship._collect_authored(repo, manifest, {"WP02": {"lane": "approved"}}, coord_base, None, canceled_lane_commits=frozenset())
 
     assert not claim.blobs
+
+
+@pytest.mark.integration
+def test_an_empty_planning_write_scope_authors_nothing_on_the_mission_branch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A ``planning_artifact`` WP with ``owned_files: []`` gives the planning lane an empty scope: status, stray and code commits stay unattributed."""
+    repo, pin, shas = _mission(tmp_path)
+    coord_base = _git(repo, "rev-parse", "HEAD")
+    manifest = _manifest(pin=pin)
+    manifest.lanes = [_EMPTY_PLANNING]
+    monkeypatch.setattr(mission_runtime, "planning_write_ref", _reader(True))
+
+    claim = authorship._collect_authored(repo, manifest, {"WP02": {"lane": "approved"}}, coord_base, None, canceled_lane_commits=frozenset())
+
+    paths = {path for path, _blob in claim.blobs}
+    assert not paths & {"stray.py", "sneaky.py", f"kitty-specs/{_SLUG}/status.events.jsonl", _OWNED}
+    assert not claim.shas & set(shas.values())
