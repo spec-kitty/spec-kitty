@@ -18,11 +18,11 @@
       "criterion_id": "FR-002",
       "description": "Verify FR-002 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/terminus/test_approved_lane_resolution_route_three_lane.py::test_three_lane_route_names_exact_siblings_and_lands (ruling DM-01M8B4FMSP2S98)",
+      "pass_fail": "pass",
+      "verified_by": "claude::architect-alphonso",
+      "verified_at": "2026-11-26T09:31:33.531321+00:00",
+      "notes": "Verified at lane-m b6df77436c (contains every lane). Source: squad-3 fidelity matrix (squads/03-pre-accept.md) and WP13 cycle-3 approval; tests/lanes+tests/consolidation 5225 passed."
     },
     {
       "criterion_id": "FR-003",
