@@ -379,6 +379,7 @@ def _build_claim(
         sb_window,
         canceled_lane_commits=canceled_lane_commits,
         presence=presence,
+        events=event_log.read,
     )
     excluded_shas, excluded_patch_ids = _collect_excluded(
         repo_root,

@@ -47,31 +47,35 @@ written, reviewed and evidenced (operator ruling A', recorded on #7860):
   package's claim to the Mission branch tip. Content written before the claim (for example a
   `research/` draft from planning) never counts.
 - `consolidate` lands the planning work on the target with the rest of the Mission. Its
-  reconciliation claim reads the planning lane's authorship from the same Mission-branch window
-  (the planning commit to the Mission branch tip), scoped to the `owned_files` of the lane's
-  approved work packages. A commit counts by SHA or patch-id only when every path it changes is
-  in that scope or is Mission bookkeeping; a commit that also changes another path contributes
-  only its in-scope files, so its other change (and any cherry-picked copy) is refused as
-  un-attributable at the gate. A canceled work package's files never count. The planning lane
-  authors nothing, so the gate refuses its content, in three cases:
-  - an approved work package's `owned_files` cannot be read;
-  - any approved pattern is too broad. A pattern must be led by at least two literal path
-    segments (the segments before the first one holding `*`, `?` or `[`, after a leading `./`
-    and a trailing `/` are dropped), or name one top-level file with an extension such as
+  reconciliation claim reads the planning lane's authorship from the Mission branch (the planning
+  commit to the Mission branch tip). Each approved work package is credited only for its own
+  `owned_files` and only inside its own window, from the commit that introduced its claim to the
+  Mission branch tip (the same start as the evidence window), so an owned-path change made before
+  that claim is never its work. A commit counts by SHA or patch-id only when every path it changes
+  is credited that way or is Mission bookkeeping; a commit that also changes another path
+  contributes only its credited files, so its other change (and any cherry-picked copy) is refused
+  as un-attributable at the gate. The planning lane authors nothing, so the gate refuses its
+  content, in these cases:
+  - any work package of the planning lane is not approved or done (canceled, still in flight, or
+    with no status). The claim admits a commit by its paths, not by who made it, so another work
+    package's commit into an approved path would otherwise count as approved work, whatever that
+    work package's own `owned_files` say;
+  - a work package's `owned_files` cannot be read;
+  - any pattern is too broad. A pattern must be led by at least two literal path segments (the
+    segments before the first one holding `*`, `?` or `[`, after `\` is read as `/` and a leading
+    `./` and a trailing `/` are dropped), or name one top-level file with an extension such as
     `README.md`. So `src/specify_cli/**`, `docs/context/topology.md` and
     `kitty-specs/<slug>/notes.md` are usable, while `*`, `**`, `*.py`, the inferred fallback
     `src/**` and every pattern as broad as it (`src`, `src/`, `src/*`, `src/**/*`, `src/*/**`,
     `src/**/*.py`), and also `docs/*.md`, `docs/**`, `.github` or `.gitignore`, are not. An
     absolute path, an empty segment or a `..` segment is refused outright;
-  - another work package of the planning lane that is not approved (canceled, or still in
-    flight) has `owned_files` that overlap an approved pattern, or its `owned_files` cannot be
-    read. The claim admits a commit by its paths, not by who made it, and overlapping ownership
-    is allowed between dependency-ordered work packages, so that work package's commit would
-    otherwise count as the approved one's.
+  - every work package's `owned_files` is empty;
+  - the commit that introduced a work package's claim on the Mission branch cannot be found.
 
-  Remedy: narrow the `owned_files` (two literal leading segments), or give the planning work
-  packages disjoint `owned_files`, or approve the overlapping work package, or cancel it and
-  narrow the remaining ownership; then run `consolidate` again.
+  Remedy: no attestation lifts this (`--attest-canceled-superseded` included). Take every planning
+  work package to `approved` (a canceled one leaves `canceled` only with `--force`), narrow a
+  too-broad `owned_files` to two literal leading segments, or commit the missing claim on the
+  Mission branch; then run `consolidate` again.
 
 Nothing changes for an explicit-topology Mission (`--topology ...`), a Mission whose landing is
 recorded, a `single_branch` Mission or a code lane: their planning work is still worked in the

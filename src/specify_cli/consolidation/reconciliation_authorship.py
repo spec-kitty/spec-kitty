@@ -13,18 +13,20 @@ merges (#7307). Moved verbatim out of ``reconciliation.py``; no verdict changed.
 every name, so no caller changes (C-005).
 
 Before a default Mission lands, its planning lane is walked on the Mission branch (#7860, FR-012,
-:func:`_lane_walk_range`), fail closed: the walk is scoped to the ``owned_files`` of the lane's
-approved work packages (:func:`_approved_planning_scope`; a canceled or in-flight work package's
-paths never count), and a commit enters the claim by SHA and patch-id only when every path it
-changes is in that scope or bookkeeping (:func:`_scoped_commits`), so a mixed commit, and every
-copy of it, stays un-attributable on the merge / rebase closed world while its in-scope blobs
-still count on the squash axis. The scope is empty, and the lane authors nothing, when an approved
-``owned_files`` list cannot be read, when an approved pattern has fewer than two literal leading
-path segments and names no top-level file (:func:`_is_whole_tree_pattern`), or when a
-non-approved work package of the lane has ``owned_files`` that overlap the approved ones or cannot
-be read (:func:`_others_may_share_the_scope`): the claim admits a commit by its paths, never by who
-made it. Remedy for the operator: approve the overlapping work package, or cancel it and narrow
-the ownership, or give the work packages disjoint, narrower ``owned_files``.
+:func:`_lane_walk_range`), fail closed, from ``lanes.json``'s planning pin to the coordination base.
+Each approved work package is credited only inside its own window, from the commit that introduced
+its claim on the Mission branch (``wp_evidence.planning_evidence_window``, the evidence axis' one
+decision) to the coordination base, and only for its own ``owned_files`` (:func:`_planning_scope`,
+operator ruling R2, 2026-11-27). A commit enters the claim by SHA and patch-id only when every path
+it changes is credited there or is bookkeeping (:func:`_scoped_commits`); a mixed commit, and every
+copy of it, stays un-attributable on the merge / rebase closed world while its credited blobs still
+count on the squash axis. The lane authors nothing (:func:`_approved_planning_scope`) when any of its
+work packages is not approved (canceled, in flight, or with no status row: the claim admits a commit
+by its paths, never by who made it, operator ruling R1), when any ``owned_files`` cannot be read,
+when a pattern has fewer than two literal leading path segments and names no top-level file
+(:func:`_is_whole_tree_pattern`), when every ``owned_files`` list is empty, or when any approved work
+package's window start cannot be proven. No attestation lifts this; take every planning work
+package to approved, then run ``consolidate`` again.
 
 Two residuals of that window. The planning lane has no approval-stamp bound: a change to an
 approved work package's owned path made after its approval, by any commit on the Mission branch,
@@ -425,6 +427,7 @@ def _final_authored_walk(
     first_parent_shas: list[str],
     *,
     authoring_merges: frozenset[str] = frozenset(),
+    keep: Callable[[str, str], bool] | None = None,
 ) -> tuple[set[tuple[str, str]], set[str]]:
     """FINAL ``(path, blob)``s AND final DELETED paths across a lane's first-parent spine (F5, #5022).
 
@@ -454,6 +457,10 @@ def _final_authored_walk(
     blob the merge left at a path is the lane's final state there. Every other
     merge keeps contributing nothing, as above. Empty by default: the presence axis
     and every pre-#7626 caller read the walk unchanged.
+
+    *keep* (#7860) is ``(sha, path) -> bool``: a path whose newest touching commit it rejects is
+    marked seen and recorded nowhere, so an older commit cannot stand in for it. ``None`` keeps
+    every path.
 
     FIX D (#5001 landing remediation) — the invariant this axis rests on: the
     squash content axis's soundness depends on lanes being sliced by DISJOINT
@@ -486,6 +493,8 @@ def _final_authored_walk(
             if path in seen_paths:
                 continue
             seen_paths.add(path)
+            if keep is not None and not keep(sha, path):
+                continue
             try:
                 state = path_state_at(repo_root, sha, path)
             except GitProbeError as exc:
@@ -745,13 +754,11 @@ def _lane_walk_range(
     A code lane walks ``coord_base_ref..<lane branch>`` and a ``single_branch`` planning lane its
     *sb_window*, as before. The planning lane of a default Mission that has not landed walks its
     Mission-branch window (:func:`_planning_lane_mission_branch_window`), scoped to
-    *planning_scope*: the owned paths of its APPROVED work packages
-    (:func:`_approved_planning_scope`), never the lane's ``write_scope``, which also holds a
-    canceled work package's paths. The Mission branch also carries status, canceled and other
-    Mission work, which must never read as approved planning authorship. An empty
-    *planning_scope* (no approved work package, an unreadable ``owned_files``, an authored empty
-    list, or a whole-tree glob) keeps today's range and authors nothing: it never turns the
-    Mission-branch window into an unscoped walk (the empty tuple means "unscoped" for every other range).
+    *planning_scope*: the owned paths of its approved work packages (:func:`_planning_scope`,
+    which also says when there is none), never the lane's ``write_scope``. The Mission branch also
+    carries status, canceled and other Mission work, which must never read as approved planning
+    authorship. An empty *planning_scope* keeps today's range and authors nothing: it never turns
+    the Mission-branch window into an unscoped walk (the empty tuple means "unscoped" for every other range).
     """
     if is_planning_lane(lane):
         if sb_window:
@@ -821,41 +828,6 @@ def _is_whole_tree_pattern(pattern: str) -> bool:
     return len(literal) < _MIN_LITERAL_SEGMENTS and not _names_a_top_level_file(pattern, literal)
 
 
-def _reach_roots(pattern: str) -> list[tuple[str, ...]] | None:
-    """The path prefixes every path *pattern* owns lies under: its literal prefix and the matcher's prefix rule's.
-
-    ``None`` when no prefix bounds it (:func:`_literal_prefix`).
-    """
-    literal = _literal_prefix(pattern)
-    if literal is None:
-        return None
-    matcher_prefix = _normalized_pattern(pattern).replace("/**", "").replace("/*", "").rstrip("/")
-    roots = [literal]
-    if matcher_prefix and _literal_prefix(matcher_prefix) is not None:
-        roots.append(tuple(matcher_prefix.split("/")))
-    return roots
-
-
-def _roots_meet(pattern_a: str, pattern_b: str) -> bool:
-    """True unless every reach root of the two patterns diverges at some segment (a path under both is impossible)."""
-    roots_a, roots_b = _reach_roots(pattern_a), _reach_roots(pattern_b)
-    if roots_a is None or roots_b is None:
-        return True
-    return any(a[: min(len(a), len(b))] == b[: min(len(a), len(b))] for a in roots_a for b in roots_b)
-
-
-def _ownership_overlaps(approved: Sequence[str], others: Sequence[str]) -> bool:
-    """True when a path may be owned by both an *approved* pattern and one of *others* (read conservatively).
-
-    ``ownership.validation.globs_overlap`` (the overlap rule finalize-tasks applies) misses pairs such as
-    ``src/a/**/x.py`` and ``src/a/b/**``; the reach-root check (:func:`_roots_meet`) closes them, so
-    the answer is never a false "no" (fail closed).
-    """
-    from specify_cli.ownership.validation import globs_overlap
-
-    return any(globs_overlap(a, b) or _roots_meet(a, b) for a in approved for b in others)
-
-
 def _planning_ownership(repo_root: Path, mission_slug: str, wp_ids: Sequence[str]) -> dict[str, tuple[str, ...]]:
     """*wp_ids*' authored ``owned_files`` globs, read through the evidence axis' one reader; an unresolved id is absent."""
     from specify_cli.consolidation.wp_evidence import read_wp_ownership
@@ -865,49 +837,108 @@ def _planning_ownership(repo_root: Path, mission_slug: str, wp_ids: Sequence[str
     return dict(resolved)
 
 
-def _others_may_share_the_scope(repo_root: Path, mission_slug: str, others: Sequence[str], scope: Sequence[str]) -> bool:
-    """True when a non-approved planning work package may commit to a path of *scope* (#7860 review 3).
-
-    The claim admits a commit by its paths, never by who made it, and finalize-tasks allows
-    overlapping ``owned_files`` (dependency-ordered pairs, ``codebase-wide``). So a canceled or
-    in-flight work package whose ownership overlaps the approved scope, or whose ownership cannot
-    be read, makes the scope unusable (fail closed).
-    """
-    if not others:
-        return False
-    owned = _planning_ownership(repo_root, mission_slug, others)
-    if any(wp not in owned for wp in others):
-        return True
-    return _ownership_overlaps(scope, [pattern for wp in others for pattern in owned[wp]])
-
-
 def _approved_planning_scope(
     repo_root: Path,
     lanes_manifest: LanesManifest,
     lane: ExecutionLane,
     work_packages: Mapping[str, Mapping[str, object]],
-) -> tuple[str, ...]:
-    """The owned paths of *lane*'s approved work packages, or ``()`` when they cannot scope the window (fail closed).
+) -> dict[str, tuple[str, ...]]:
+    """Each planning work package's ``owned_files``, or ``{}`` when they cannot scope the window (fail closed).
 
-    Only a work package in an approved membership lane counts (:func:`_is_approved_wp`; a canceled
-    one, or one still in flight, never does). ``()`` when none is approved, when any approved one's
-    ``owned_files`` cannot be read (no partial scope), when any of its patterns is too broad
-    (:func:`_is_whole_tree_pattern`), or when any other work package of the lane may share a path
-    of the scope (:func:`_others_may_share_the_scope`).
+    ``{}`` when any work package of the lane is not approved (:func:`_is_approved_wp`: canceled,
+    in flight, or with no status row; operator ruling R1, 2026-11-27): the claim admits a commit by
+    its paths, never by who made it, so a canceled or in-flight work package's commit into an
+    approved path, whatever its own ``owned_files`` say, would otherwise read as approved work.
+    ``{}`` as well when any ``owned_files`` cannot be read (no partial scope) or any pattern is too
+    broad (:func:`_is_whole_tree_pattern`).
     """
-    approved = tuple(wp for wp in lane.wp_ids if _is_approved_wp(wp, work_packages))
-    if not approved:
-        return ()
-    owned = _planning_ownership(repo_root, lanes_manifest.mission_slug, approved)
-    if any(wp not in owned for wp in approved):
-        return ()
-    scope = sorted({pattern for wp in approved for pattern in owned[wp]})
-    if any(_is_whole_tree_pattern(pattern) for pattern in scope):
-        return ()
-    others = tuple(wp for wp in lane.wp_ids if wp not in approved)
-    if _others_may_share_the_scope(repo_root, lanes_manifest.mission_slug, others, scope):
-        return ()
-    return tuple(scope)
+    if not lane.wp_ids or not all(_is_approved_wp(wp, work_packages) for wp in lane.wp_ids):
+        return {}
+    owned = _planning_ownership(repo_root, lanes_manifest.mission_slug, lane.wp_ids)
+    if any(wp not in owned for wp in lane.wp_ids):
+        return {}
+    if any(_is_whole_tree_pattern(pattern) for patterns in owned.values() for pattern in patterns):
+        return {}
+    return {wp: tuple(owned[wp]) for wp in lane.wp_ids}
+
+
+def _planning_window_starts(
+    repo_root: Path,
+    lanes_manifest: LanesManifest,
+    lane: ExecutionLane,
+    wp_ids: Sequence[str],
+    events: Callable[[], Sequence[Any] | None] | None,
+) -> dict[str, str] | None:
+    """Each work package's window start, the commit that introduced its claim on the Mission branch, or ``None``.
+
+    Read through the evidence axis' one decision (:func:`~specify_cli.consolidation.wp_evidence.planning_evidence_window`,
+    operator ruling R2, 2026-11-27). ``None`` (the lane then authors nothing) when no event reader
+    was given, when any start cannot be proven, or when the shape is not the Mission-branch window.
+    """
+    from specify_cli.consolidation.wp_evidence import PlanningWindowUnresolved, planning_evidence_window
+
+    if events is None:
+        return None
+    starts: dict[str, str] = {}
+    for wp_id in wp_ids:
+        try:
+            window = planning_evidence_window(repo_root, lanes_manifest, lane, wp_id, events)
+        except PlanningWindowUnresolved:
+            return None
+        if window is None:
+            return None
+        starts[wp_id] = window[0]
+    return starts
+
+
+@dataclass(frozen=True)
+class _PlanningScope:
+    """Per approved work package: its ``owned_files`` and the commits of its window ``<claim commit>..<coordination base>`` (ruling R2)."""
+
+    windows: tuple[tuple[tuple[str, ...], frozenset[str]], ...]
+
+    @property
+    def patterns(self) -> tuple[str, ...]:
+        """Every owned pattern of the lane, whatever the window."""
+        return tuple(sorted({pattern for owned, _commits in self.windows for pattern in owned}))
+
+    def at(self, sha: str) -> tuple[str, ...]:
+        """The owned patterns of the work packages whose window holds *sha*."""
+        return tuple(pattern for owned, commits in self.windows if sha in commits for pattern in owned)
+
+    def owns(self, sha: str, path: str) -> bool:
+        """True when *path* lies in the ``owned_files`` of a work package whose window holds *sha*."""
+        from specify_cli.ownership.matching import matches_owned
+
+        patterns = self.at(sha)
+        return bool(patterns) and matches_owned(path, patterns)
+
+
+def _planning_scope(
+    repo_root: Path,
+    lanes_manifest: LanesManifest,
+    lane: ExecutionLane,
+    work_packages: Mapping[str, Mapping[str, object]],
+    coord_base_ref: str,
+    events: Callable[[], Sequence[Any] | None] | None,
+) -> _PlanningScope | None:
+    """The :class:`_PlanningScope` of a planning lane, or ``None`` when the lane authors nothing (fail closed).
+
+    ``None`` when :func:`_approved_planning_scope` gives nothing, when any work package's window
+    start cannot be computed (:func:`_planning_window_starts`), or when a window's commits cannot be
+    read. A scope whose every ``owned_files`` list is empty has no patterns and keeps today's range.
+    """
+    owned = _approved_planning_scope(repo_root, lanes_manifest, lane, work_packages)
+    if not owned:
+        return None
+    starts = _planning_window_starts(repo_root, lanes_manifest, lane, tuple(owned), events)
+    if starts is None or any(wp not in starts for wp in owned):
+        return None
+    try:
+        windows = tuple((owned[wp], frozenset(commits_in_range(repo_root, starts[wp], coord_base_ref))) for wp in owned)
+    except GitProbeError:
+        return None
+    return _PlanningScope(windows)
 
 
 class _ScopedCommits(NamedTuple):
@@ -917,16 +948,16 @@ class _ScopedCommits(NamedTuple):
     whole: frozenset[str]
 
 
-def _scoped_commits(repo_root: Path, shas: Sequence[str], scope: Sequence[str], mission_slug: str) -> _ScopedCommits:
-    """The commits of *shas* that change a path matching *scope*, and those whose every path is in *scope* or bookkeeping.
+def _scoped_commits(repo_root: Path, shas: Sequence[str], scope: _PlanningScope, mission_slug: str) -> _ScopedCommits:
+    """The commits of *shas* that change a path *scope* credits there, and those whose every path it credits or is bookkeeping.
 
-    Only a ``whole`` commit may enter the claim by SHA and patch-id: a mixed commit (an owned path
-    plus any other) would otherwise attribute its out-of-scope change, and every cherry-picked copy
-    of it, on the merge / rebase closed world. Its in-scope blobs are still attributed. Bookkeeping
-    is the gate's own :func:`_is_bookkeeping`. An unreadable commit is dropped (fail closed).
+    A path is credited at a commit only when it lies in the ``owned_files`` of an approved work
+    package whose own window holds that commit (:meth:`_PlanningScope.owns`). Only a ``whole``
+    commit may enter the claim by SHA and patch-id: a mixed commit (a credited path plus any other)
+    would otherwise attribute its other change, and every cherry-picked copy of it, on the merge /
+    rebase closed world. Its credited blobs are still attributed. Bookkeeping is the gate's own
+    :func:`_is_bookkeeping`. An unreadable commit is dropped (fail closed).
     """
-    from specify_cli.ownership.matching import matches_owned
-
     touching: list[str] = []
     whole: set[str] = set()
     for sha in shas:
@@ -934,28 +965,23 @@ def _scoped_commits(repo_root: Path, shas: Sequence[str], scope: Sequence[str], 
             paths = changed_paths_of(repo_root, sha)
         except GitProbeError:
             continue
-        in_scope = [matches_owned(path, scope) for path in paths]
-        if not any(in_scope):
+        credited = [scope.owns(sha, path) for path in paths]
+        if not any(credited):
             continue
         touching.append(sha)
-        if all(owned or _is_bookkeeping(path, mission_slug, None) for path, owned in zip(paths, in_scope, strict=True)):
+        if all(owned or _is_bookkeeping(path, mission_slug, None) for path, owned in zip(paths, credited, strict=True)):
             whole.add(sha)
     return _ScopedCommits(touching, frozenset(whole))
 
 
-def _scoped_walk(walk: tuple[set[tuple[str, str]], set[str]], scope: Sequence[str]) -> tuple[set[tuple[str, str]], set[str]]:
-    """*walk*'s ``(blobs, deletions)`` limited to paths matching *scope*; unchanged when *scope* is empty.
+class _LaneAuthorshipWalk(NamedTuple):
+    """A lane's authorship walk; ``whole`` and ``scope`` are ``None`` on an unscoped walk (every spine commit may enter by SHA)."""
 
-    A planning lane's commit that also changed a path outside its owned paths never makes that
-    path approved planning authorship (#7860); :func:`_scoped_commits` keeps such a commit's SHA
-    and patch-id out of the claim as well.
-    """
-    if not scope:
-        return walk
-    from specify_cli.ownership.matching import matches_owned
-
-    blobs, deletions = walk
-    return {item for item in blobs if matches_owned(item[0], scope)}, {path for path in deletions if matches_owned(path, scope)}
+    base: str
+    branch: str
+    spine: list[str]
+    whole: frozenset[str] | None
+    scope: _PlanningScope | None
 
 
 def _planning_walk(
@@ -965,20 +991,23 @@ def _planning_walk(
     work_packages: Mapping[str, Mapping[str, object]],
     coord_base_ref: str,
     sb_window: tuple[str, str] | None,
-) -> tuple[str, str, tuple[str, ...], list[str], frozenset[str] | None]:
-    """``(base, tip, scope, first-parent spine, whole commits)`` of *lane*'s authorship walk.
-
-    ``whole`` is ``None`` on an unscoped walk (every spine commit may enter by SHA), else the
-    spine commits that change nothing outside the scope (:func:`_scoped_commits`). The approved
-    planning scope is read only for a planning lane that has no ``single_branch`` window.
-    """
-    planning_scope = _approved_planning_scope(repo_root, lanes_manifest, lane, work_packages) if is_planning_lane(lane) and not sb_window else ()
-    base, branch, scope = _lane_walk_range(repo_root, lanes_manifest, lane, coord_base_ref, sb_window, planning_scope)
+    events: Callable[[], Sequence[Any] | None] | None = None,
+) -> _LaneAuthorshipWalk:
+    """*lane*'s walk; the planning scope (:func:`_planning_scope`) is read only for a planning lane with no ``single_branch`` window."""
+    scope = _planning_scope(repo_root, lanes_manifest, lane, work_packages, coord_base_ref, events) if is_planning_lane(lane) and not sb_window else None
+    base, branch, patterns = _lane_walk_range(repo_root, lanes_manifest, lane, coord_base_ref, sb_window, scope.patterns if scope else ())
     first_parent = _lane_first_parent_spine(repo_root, base, branch)
-    if not scope:
-        return base, branch, scope, first_parent, None
+    if not patterns or scope is None:
+        return _LaneAuthorshipWalk(base, branch, first_parent, None, None)
     scoped = _scoped_commits(repo_root, first_parent, scope, lanes_manifest.mission_slug)
-    return base, branch, scope, scoped.touching, scoped.whole
+    return _LaneAuthorshipWalk(base, branch, scoped.touching, scoped.whole, scope)
+
+
+def _lane_final_walk(repo_root: Path, spine: list[str], scope: _PlanningScope | None) -> tuple[set[tuple[str, str]], set[str]]:
+    """:func:`_final_authored_walk` of *spine*; a scoped walk (#7860) keeps a path only where an approved work package's own window credits it."""
+    if scope is None:
+        return _final_authored_walk(repo_root, spine)
+    return _final_authored_walk(repo_root, spine, keep=scope.owns)
 
 
 def _collect_authored(
@@ -990,6 +1019,7 @@ def _collect_authored(
     *,
     canceled_lane_commits: frozenset[str],
     presence: _PresenceScope | None = None,
+    events: Callable[[], Sequence[Any] | None] | None = None,
 ) -> _AuthoredClaim:
     """Approved lanes → their OWN first-parent SHAs + patch-ids + FINAL blobs + FINAL deletions + multi-lane paths.
 
@@ -1048,6 +1078,9 @@ def _collect_authored(
     made outside every lane before the lane was cut would read as the lane's
     approved content. The authorship axes keep *coord_base_ref*. ``None`` measures
     from *coord_base_ref* too.
+
+    *events* (#7860) reads the status events for the planning lane's per-work-package windows
+    (:func:`_planning_window_starts`); without it a default Mission's planning lane authors nothing.
     """
     shas: set[str] = set()
     patch_ids: set[str] = set()
@@ -1058,9 +1091,10 @@ def _collect_authored(
     for lane in lanes_manifest.lanes:
         if not _lane_is_approved(lane, work_packages):
             continue
-        base, branch, scope, first_parent, whole = _planning_walk(repo_root, lanes_manifest, lane, work_packages, coord_base_ref, sb_window)
+        walk = _planning_walk(repo_root, lanes_manifest, lane, work_packages, coord_base_ref, sb_window, events)
+        base, branch, first_parent, whole = walk.base, walk.branch, walk.spine, walk.whole
         full_authored = [sha for sha in first_parent if sha not in canceled_lane_commits]
-        full_blobs, full_deletions = _scoped_walk(_final_authored_walk(repo_root, full_authored), scope)
+        full_blobs, full_deletions = _lane_final_walk(repo_root, full_authored, walk.scope)
         # #7307 review: a merge on the spine counts toward this lane's authorship only
         # when one of its approved WPs' approval stamps reaches it (it was in a reviewed
         # tip). A merge made after the approval is the lane's unreviewed work: the
