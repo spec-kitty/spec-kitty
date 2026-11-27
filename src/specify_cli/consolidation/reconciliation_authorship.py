@@ -19,7 +19,11 @@ its claim on the Mission branch (``wp_evidence.planning_evidence_window``, the e
 decision) to the coordination base, counting only the commits that descend from that claim commit
 (``git rev-list --ancestry-path``: a commit a merge brought in beside the claim never came after
 it), and only for its own ``owned_files`` (:func:`_planning_scope`, operator ruling R2,
-2026-11-27). A merge commit changes no path of its own on the walk, so it credits nothing. A commit enters the claim by SHA and patch-id only when every path
+2026-11-27). No merge commit is in any window, so no merge is credited by SHA, patch-id, blob or
+deletion: a merge that resolved a conflict lists the resolved path, and its blob can carry a change
+made before the claim (review 6). The final-state walk reads the whole first-parent spine, so a path
+whose newest change is such a merge is attributed to nothing, never to an older credited commit
+(fail closed). A commit enters the claim by SHA and patch-id only when every path
 it changes is credited there or is bookkeeping (:func:`_scoped_commits`); a mixed commit, and every
 copy of it, stays un-attributable on the merge / rebase closed world while its credited blobs still
 count on the squash axis. The lane authors nothing (:func:`_approved_planning_scope`) when any of its
@@ -27,9 +31,10 @@ work packages is not approved (canceled, in flight, or with no status row: the c
 by its paths, never by who made it, operator ruling R1), when any ``owned_files`` cannot be read,
 when a pattern has fewer than two literal leading path segments and names no top-level file
 (:func:`_is_whole_tree_pattern`, ``planning_lane_scope``), when every ``owned_files`` list is empty,
-or when any approved work package's window start cannot be proven. No attestation lifts this.
-The un-attributable FAIL then names the lane, the reason, the work packages and the remedy
-(``planning_lane_scope.planning_lane_notes``), with no change to the verdict.
+or when any approved work package's window start cannot be proven. No attestation lifts this
+planning-lane credit rule. An un-attributable FAIL about the lane's paths then names the lane, the
+reason, the work packages and the remedy (``planning_lane_scope.planning_lane_notes``), with no
+change to the verdict.
 
 Two residuals of that window. The planning lane has no approval-stamp bound: a change to an
 approved work package's owned path made after its approval, by any commit on the Mission branch,
@@ -841,7 +846,9 @@ def _planning_window_starts(
 class _PlanningScope:
     """Per approved work package: its ``owned_files`` and its window's commits (ruling R2).
 
-    The window holds the commits of ``<claim commit>..<coordination base>`` that descend from the claim commit.
+    The window holds the commits of ``<claim commit>..<coordination base>`` that descend from the claim
+    commit, less every merge commit (review 6): a merge that resolved a conflict lists the resolved path
+    and its blob can carry a change made before the claim, so no merge is ever credited.
     """
 
     windows: tuple[tuple[tuple[str, ...], frozenset[str]], ...]
@@ -884,7 +891,7 @@ def _planning_scope(
     if starts is None or any(wp not in starts for wp in owned):
         return None
     try:
-        windows = tuple((owned[wp], frozenset(commits_on_ancestry_path(repo_root, starts[wp], coord_base_ref))) for wp in owned)
+        windows = tuple((owned[wp], frozenset(commits_on_ancestry_path(repo_root, starts[wp], coord_base_ref, no_merges=True))) for wp in owned)
     except GitProbeError:
         return None
     return _PlanningScope(windows)
@@ -924,13 +931,19 @@ def _scoped_commits(repo_root: Path, shas: Sequence[str], scope: _PlanningScope,
 
 
 class _LaneAuthorshipWalk(NamedTuple):
-    """A lane's authorship walk; ``whole`` and ``scope`` are ``None`` on an unscoped walk (every spine commit may enter by SHA)."""
+    """A lane's authorship walk; ``whole`` and ``scope`` are ``None`` on an unscoped walk (every spine commit may enter by SHA).
+
+    ``first_parent`` is the lane's whole first-parent spine. A scoped walk's ``spine`` holds only the
+    commits it credits, so its final-state walk reads ``first_parent`` instead: a path whose newest
+    change it does not credit (a merge, review 6) is then attributed to nothing, never to an older commit.
+    """
 
     base: str
     branch: str
     spine: list[str]
     whole: frozenset[str] | None
     scope: _PlanningScope | None
+    first_parent: list[str]
 
 
 def _planning_walk(
@@ -947,16 +960,21 @@ def _planning_walk(
     base, branch, patterns = _lane_walk_range(repo_root, lanes_manifest, lane, coord_base_ref, sb_window, scope.patterns if scope else ())
     first_parent = _lane_first_parent_spine(repo_root, base, branch)
     if not patterns or scope is None:
-        return _LaneAuthorshipWalk(base, branch, first_parent, None, None)
+        return _LaneAuthorshipWalk(base, branch, first_parent, None, None, first_parent)
     scoped = _scoped_commits(repo_root, first_parent, scope, lanes_manifest.mission_slug)
-    return _LaneAuthorshipWalk(base, branch, scoped.touching, scoped.whole, scope)
+    return _LaneAuthorshipWalk(base, branch, scoped.touching, scoped.whole, scope, first_parent)
 
 
-def _lane_final_walk(repo_root: Path, spine: list[str], scope: _PlanningScope | None) -> tuple[set[tuple[str, str]], set[str]]:
-    """:func:`_final_authored_walk` of *spine*; a scoped walk (#7860) keeps a path only where an approved work package's own window credits it."""
-    if scope is None:
-        return _final_authored_walk(repo_root, spine)
-    return _final_authored_walk(repo_root, spine, keep=scope.owns)
+def _lane_final_walk(repo_root: Path, walk: _LaneAuthorshipWalk, dropped: frozenset[str]) -> tuple[set[tuple[str, str]], set[str]]:
+    """:func:`_final_authored_walk` of *walk* less the *dropped* commits.
+
+    A scoped walk (#7860) reads the whole first-parent spine and keeps a path only where its newest
+    change is credited by an approved work package's own window (:meth:`_PlanningScope.owns`), so a
+    merge that last changed the path (review 6) leaves it attributed to nothing.
+    """
+    if walk.scope is None:
+        return _final_authored_walk(repo_root, [sha for sha in walk.spine if sha not in dropped])
+    return _final_authored_walk(repo_root, [sha for sha in walk.first_parent if sha not in dropped], keep=walk.scope.owns)
 
 
 def _collect_authored(
@@ -1043,7 +1061,7 @@ def _collect_authored(
         walk = _planning_walk(repo_root, lanes_manifest, lane, work_packages, coord_base_ref, sb_window, events)
         base, branch, first_parent, whole = walk.base, walk.branch, walk.spine, walk.whole
         full_authored = [sha for sha in first_parent if sha not in canceled_lane_commits]
-        full_blobs, full_deletions = _lane_final_walk(repo_root, full_authored, walk.scope)
+        full_blobs, full_deletions = _lane_final_walk(repo_root, walk, canceled_lane_commits)
         # #7307 review: a merge on the spine counts toward this lane's authorship only
         # when one of its approved WPs' approval stamps reaches it (it was in a reviewed
         # tip). A merge made after the approval is the lane's unreviewed work: the

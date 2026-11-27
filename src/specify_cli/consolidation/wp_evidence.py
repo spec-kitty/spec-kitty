@@ -196,13 +196,34 @@ class PlanningWindowUnresolved(Exception):
 #: How a refusal names the planning lane's write branch of a default Mission that has not landed.
 MISSION_BRANCH_PHRASE = "the Mission branch (the coordination branch)"
 
+
+def planning_window_restart(wp: str, mission: str) -> str:
+    """How to start a new evidence window for a planning work package whose claim commit cannot be proven (#7860 review 6).
+
+    Driven end to end through the CLI for an approved work package with no claim event and for one
+    whose claim event more than one commit introduced: ``implement`` refuses an approved work package
+    (#7754), and a move to ``planned`` out of review is rework that keeps the old claim as the window
+    start (``window_opener_events(cycle=True)``), so only a move to ``planned`` from ``claimed`` or
+    ``in_progress`` starts a new window. The old work predates the new claim and no longer counts.
+    """
+    reopen = f"`spec-kitty agent tasks move-task {wp} --to planned --review-feedback-file <file> --mission {mission}`"
+    implement = f"`spec-kitty agent action implement {wp} --agent <agent> --mission {mission}`"
+    return (
+        f"if {wp} is approved, done, for_review or in_review, first reopen it with {reopen} and claim it with {implement} "
+        "(a move out of review keeps the old claim as the window start, and the work package is reviewed and approved again); "
+        f"then start a new window: run {reopen} again (a move to planned from claimed or in_progress starts a new window) and "
+        f"{implement}, whose claim's status commit on {MISSION_BRANCH_PHRASE} starts it; commit the change to each of its "
+        "owned_files again (a commit made before the new claim does not count), move it to for_review, have it reviewed and "
+        "approved, then re-run"
+    )
+
+
 #: The next step for a planning window that cannot be proven, by refusal code (#7860). The one
 #: wording ``_RECOVERY`` (consolidate, accept) and ``move-task`` both print.
 PLANNING_WINDOW_RECOVERY: Mapping[str, str] = {
     EVIDENCE_WINDOW_UNCOMPUTABLE: (
         "for a planning work package of a default Mission that has not landed, the window starts at the commit on "
-        f"{MISSION_BRANCH_PHRASE} that introduced its claim: claim it through `spec-kitty agent action implement`, "
-        "whose status commit lands there, then re-run"
+        f"{MISSION_BRANCH_PHRASE} that introduced its claim; {planning_window_restart('<WP>', '<slug>')}"
     ),
     IMPLEMENTATION_UNREADABLE: (
         "for a planning work package of a default Mission that has not landed, make the Mission's meta.json, its status log "
@@ -1258,6 +1279,7 @@ __all__ = [
     "SINGLE_BRANCH_IMPLEMENTATION_UNREADABLE",
     "SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT",
     "PLANNING_WINDOW_RECOVERY",
+    "planning_window_restart",
     "PlanningWindowUnresolved",
     "absent_lane_window_cause",
     "branch_ref_absent",

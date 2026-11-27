@@ -182,14 +182,18 @@ def _with_attribution_hint(result: VerifyResult, claim: ApprovedWpCommitSet) -> 
 
     A planning lane that credits none of its Mission-branch work (``claim.planning_lane_notes``,
     #7860 review 5) is named first, with its reason, work packages and remedy, declared ref or
-    not: it is the likelier cause on such a Mission. The verdict is unchanged.
+    not, but only when the FAIL is about that lane (review 6): an un-attributable path in its scope
+    or an un-attributable commit of its walk that changes one (:meth:`PlanningLaneNote.explains`).
+    A code lane's stray content never prints it. The verdict is unchanged.
     """
     if result.divergence is None:
         return result
     divergence = result.divergence
     if not (divergence.unattributable_content or divergence.unattributable_blobs or divergence.unattributable_deletions):
         return result
-    hints = list(claim.planning_lane_notes)
+    paths = (*(path for path, _blob in divergence.unattributable_blobs), *divergence.unattributable_deletions)
+    commits = tuple(sha for sha, _patch_id in divergence.unattributable_content if sha)
+    hints = [note.text for note in claim.planning_lane_notes if note.explains(paths, commits)]
     if not claim.external_dependency_refs:
         hints.append(
             "If a work-package branch brought an external dependency branch's newer head in, declare it and re-run: "

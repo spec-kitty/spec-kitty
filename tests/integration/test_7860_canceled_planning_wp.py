@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
 from pathlib import Path
 
 import pytest
@@ -73,15 +74,20 @@ def test_a_dropped_planning_work_package_is_named_and_its_printed_remedy_lands(t
     assert "belongs to NO approved WP" in said, said[-3000:]
     assert f"The planning lane {shape._PLANNING_LANE} credits none of its work on the Mission branch" in said, said[-3000:]
     assert f"{_DROPPED} is canceled" in said, said[-3000:]
-    assert "spec-kitty agent tasks move-task <WP> --to claimed --force" in said
-    assert "spec-kitty agent tasks move-task <WP> --to approved --force" in said
-    assert "spec-kitty consolidate --attest-no-implementation <WP>" in said
+    claim, approve, attest = (
+        f"spec-kitty agent tasks move-task {_DROPPED} --to claimed --force --agent <implementer> --mission {mission.slug}",
+        f"spec-kitty agent tasks move-task {_DROPPED} --to approved --force --agent <reviewer> --mission {mission.slug}",
+        f'spec-kitty consolidate --mission {mission.slug} --attest-no-implementation {_DROPPED} --attest-reason "<why>"',
+    )
+    for command in (claim, approve, attest):
+        assert f"`{command}`" in said, command
     assert not shape.on_target(mission, shape._CURATION), "the refused landing is rolled back"
 
-    # The printed remedy, as printed: record the claim, force the approval, attest no implementation.
-    _move(mission, "claimed", "alice", "record the claim of the dropped work package")
-    _move(mission, "approved", "bob", "owes no work")
-    landed = shape._sk(mission, "consolidate", "--mission", mission.slug, "--attest-no-implementation", _DROPPED, "--attest-reason", "dropped, owes no work")
+    # The printed remedy, run as printed with its placeholders filled (review 6 N1): record the claim, force the approval, attest.
+    for command in (claim.replace("<implementer>", "alice"), approve.replace("<reviewer>", "bob")):
+        shape._sk(mission, *shlex.split(command)[1:], check=True)
+        shape._commit_bookkeeping(mission)
+    landed = shape._sk(mission, *shlex.split(attest.replace("<why>", "dropped, owes no work"))[1:])
     output = landed.stdout + landed.stderr
 
     assert landed.returncode == 0, output[-4000:]

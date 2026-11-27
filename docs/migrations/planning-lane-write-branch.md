@@ -6,7 +6,7 @@ kind: How-To
 audience:
 - profile: external/project-owner
   guidance_text: Written for the operator of a Mission in flight when Spec Kitty is upgraded.
-updated: '2026-11-26T00:00:00Z'
+updated: '2026-11-27T00:00:00Z'
 related:
 - adr/4.x/2026-11-06-3-topology-is-settled-once-at-first-finalize
 - adr/4.x/2026-10-04-5-approval-stamp-bounds-the-approved-claim
@@ -53,8 +53,11 @@ written, reviewed and evidenced (operator ruling A', recorded on #7860):
   Mission branch tip (the same start as the evidence window), so an owned-path change made before
   that claim is never its work. Only commits made on top of the claim commit count: when the
   Mission branch brings the claim in through a merge (for example a `git pull` in a second clone),
-  a commit on the other side of that merge is not in the window, and the merge commit itself
-  credits nothing. A commit counts by SHA or patch-id only when every path it changes
+  a commit on the other side of that merge is not in the window. No merge commit is credited at
+  all, by SHA, patch-id, file content or deletion: a merge that resolved a conflict lists the
+  resolved file, and its content can carry a change made before the claim. A file whose newest
+  change on the Mission branch is a merge is therefore refused as un-attributable, never credited
+  to an older commit. A commit counts by SHA or patch-id only when every path it changes
   is credited that way or is Mission bookkeeping; a commit that also changes another path
   contributes only its credited files, so its other change (and any cherry-picked copy) is refused
   as un-attributable at the gate. The planning lane authors nothing, so the gate refuses its
@@ -75,24 +78,49 @@ written, reviewed and evidenced (operator ruling A', recorded on #7860):
   - every work package's `owned_files` is empty;
   - the commit that introduced a work package's claim on the Mission branch cannot be found.
 
-  The refusal names the planning lane, the reason and the work packages, and prints the remedy.
-  No attestation lifts this (`--attest-canceled-superseded` included). The remedies, each driven
-  end to end through the CLI:
+  The refusal names the planning lane, the reason and the work packages, and prints the remedy
+  with the work package ids and `--mission <slug>` filled in. It is printed only when the
+  un-attributable content is the planning lane's: a file inside the lane's `write_scope` or its
+  work packages' `owned_files`, or a commit of the lane's Mission-branch walk that changes one. A
+  code lane's stray content does not print it. No attestation lifts the planning-lane credit rule
+  (operator ruling R1), `--attest-canceled-superseded` included. The remedies, each driven end to
+  end through the CLI:
   - a work package still in flight: finish its review and approval;
   - a canceled work package that was claimed before it was canceled and owes no work:
-    `spec-kitty agent tasks move-task <WP> --to approved --force`, then
-    `spec-kitty consolidate --attest-no-implementation <WP> --attest-reason "<why>"`;
+    `spec-kitty agent tasks move-task <WP> --to approved --force --agent <reviewer> --mission <slug>`, then
+    `spec-kitty consolidate --mission <slug> --attest-no-implementation <WP> --attest-reason "<why>"`;
   - a canceled work package that was never claimed (a dropped work package) and owes no work:
-    record its claim first with `spec-kitty agent tasks move-task <WP> --to claimed --force` (that
-    status commit on the Mission branch starts its window; without it the evidence check refuses
-    `EVIDENCE_WINDOW_UNCOMPUTABLE` and the attestation does not lift that), then the two commands
-    above. `canceled` cannot go back to `planned`, even with `--force`;
-  - a canceled work package that owes work: move it with `--to claimed --force`, claim it through
-    `spec-kitty agent action implement <WP>`, commit its change, move it to `for_review`, and have
-    it reviewed and approved;
+    record its claim first with `spec-kitty agent tasks move-task <WP> --to claimed --force --agent <implementer> --mission <slug>`
+    (that status commit on the Mission branch starts its window; without it the evidence check
+    refuses `EVIDENCE_WINDOW_UNCOMPUTABLE` and the attestation does not lift that), then the two
+    commands above. `canceled` cannot go back to `planned`, even with `--force`;
+  - a canceled work package that owes work: move it with `--to claimed --force`, claim it with
+    `spec-kitty agent action implement <WP> --agent <agent> --mission <slug>`, commit its change, move it to
+    `for_review`, and have it reviewed and approved;
   - a too-broad `owned_files`: narrow it to two literal leading segments;
-  - a claim commit that cannot be found: claim the work package through
-    `spec-kitty agent action implement <WP>`, whose status commit lands on the Mission branch.
+  - a claim commit that cannot be found (for example an approved work package with no recorded
+    claim, or one whose claim event more than one commit introduced). The evidence check refuses
+    it first with `EVIDENCE_WINDOW_UNCOMPUTABLE`. `implement` refuses an approved work package
+    (#7754), and a move back to `planned` out of review keeps the old claim as the window start,
+    so start a new window, at the cost of a second review:
+    1. `spec-kitty agent tasks move-task <WP> --to planned --review-feedback-file <file> --mission <slug>`
+       (reopen; skip this and the next step when the work package is already `claimed` or
+       `in_progress`);
+    2. `spec-kitty agent action implement <WP> --agent <agent> --mission <slug>`;
+    3. `spec-kitty agent tasks move-task <WP> --to planned --review-feedback-file <file> --mission <slug>`
+       again (a move to `planned` from `claimed` or `in_progress` starts a new window);
+    4. `spec-kitty agent action implement <WP> --agent <agent> --mission <slug>`, whose claim's status commit on the
+       Mission branch starts the new window;
+    5. commit the change to each of its `owned_files` again in the coordination worktree (a commit
+       made before the new claim does not count), move it to `for_review`, and have it reviewed and
+       approved.
+
+  The forced moves are operator transitions recorded in the status log, and the attestation
+  records why the work package owes no work. The attestation answers only the owned-file evidence
+  check (`IMPLEMENTATION_MISSING`); the planning-lane credit rule is met by the forced approval.
+  Record the forced approval as an identity other than the one that claimed the work package
+  (`--agent <reviewer>`, not the `<implementer>`), or the independence check refuses
+  `REVIEW_NOT_INDEPENDENT`.
 
   Then run `consolidate` again.
 

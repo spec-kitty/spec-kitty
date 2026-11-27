@@ -373,5 +373,6 @@ def test_the_claim_names_a_planning_lane_a_canceled_work_package_empties(tmp_pat
     )
 
     assert claim.refusal is None, claim.refusal
-    (note,) = claim.planning_lane_notes
+    (lane_note,) = claim.planning_lane_notes
+    note = lane_note.text
     assert note.startswith(f"The planning lane {PLANNING_LANE_ID} credits none of its work") and "WP03 is canceled" in note

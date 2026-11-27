@@ -27,6 +27,33 @@ _GAP_UNCHANGED: PresenceGap = "unchanged"
 
 
 @dataclass(frozen=True)
+class PlanningLaneNote:
+    """Why a default Mission's planning lane credits none of its Mission-branch work (#7860), and what it covers.
+
+    *text* names the lane, the reason, the work packages and the remedy. The note is printed with an
+    un-attributable FAIL only when that FAIL is about the lane (:meth:`explains`, review 6): an
+    un-attributable path matches *patterns* (the lane's ``write_scope`` and its readable
+    ``owned_files``), or an un-attributable commit is in *commits* (the commits of the lane's
+    Mission-branch walk that change such a path; ``None`` when that walk could not be read, so every
+    un-attributable commit counts).
+    """
+
+    text: str
+    patterns: tuple[str, ...]
+    commits: frozenset[str] | None
+
+    def explains(self, paths: tuple[str, ...], commits: tuple[str, ...]) -> bool:
+        """True when an un-attributable path or commit of the FAIL lies in this planning lane's scope."""
+        from specify_cli.ownership.matching import matches_owned
+
+        if self.patterns and any(matches_owned(path, self.patterns) for path in paths):
+            return True
+        if not commits:
+            return False
+        return self.commits is None or any(sha in self.commits for sha in commits)
+
+
+@dataclass(frozen=True)
 class MissingApprovedContent:
     """One path whose approved final content is not on the target (#5571, ``APPROVED_CONTENT_MISSING``).
 
@@ -326,11 +353,12 @@ class ApprovedWpCommitSet:
     # on a hand-built claim and on a compound refusal. Appended last so positional constructions stay valid.
     window_gaps: tuple[GapEntry, ...] = ()
 
-    # #7860 review 5: one line per planning lane of a default, not-landed Mission that credits none of
+    # #7860 review 5: one note per planning lane of a default, not-landed Mission that credits none of
     # its Mission-branch work (``planning_lane_scope.planning_lane_notes``): the lane, the reason, the
-    # work packages and the remedy. Printed with an un-attributable FAIL; it changes no verdict. Empty
-    # on a hand-built claim, on a REFUSE-shaped claim and on every other shape.
-    planning_lane_notes: tuple[str, ...] = ()
+    # work packages and the remedy. Printed with an un-attributable FAIL about that lane (review 6,
+    # :meth:`PlanningLaneNote.explains`); it changes no verdict. Empty on a hand-built claim, on a
+    # REFUSE-shaped claim and on every other shape.
+    planning_lane_notes: tuple[PlanningLaneNote, ...] = ()
 
     @property
     def is_vacuous_against_manifest(self) -> bool:
@@ -344,6 +372,7 @@ __all__ = [
     "CanceledDependencyContent",
     "LaneContribution",
     "MissingApprovedContent",
+    "PlanningLaneNote",
     "PresenceGap",
     "_GAP_ABSENT",
     "_GAP_UNCHANGED",

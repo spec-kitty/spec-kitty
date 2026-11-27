@@ -16,6 +16,7 @@ shape keeps its range.
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -23,7 +24,7 @@ import pytest
 import mission_runtime
 from specify_cli.consolidation import planning_lane_scope
 from specify_cli.consolidation import reconciliation_authorship as authorship
-from specify_cli.consolidation.git_probes import GitProbeError
+from specify_cli.consolidation.git_probes import GitProbeError, patch_id_of
 from specify_cli.consolidation.reconciliation import ApprovedWpCommitSet, MergeOutcomeVerifier
 from specify_cli.consolidation.reconciliation_verifier import VerifyStatus
 from specify_cli.lanes.compute import PLANNING_LANE_ID
@@ -207,6 +208,7 @@ def _ownership(monkeypatch: pytest.MonkeyPatch, owned: dict[str, tuple[str, ...]
 
 
 _PKG = "curation/pkg/**"
+_CONFLICT_PATH = "curation/pkg/x.py"
 _PKG_WP03 = "curation/pkg/wp03.py"
 _TWO_WP_PLANNING = ExecutionLane(PLANNING_LANE_ID, ("WP02", "WP03"), (_OWNED, "curation/wp03.py"), (), (), 0)
 
@@ -596,7 +598,7 @@ def _r2_merge_mission(tmp_path: Path) -> tuple[Path, str, dict[str, str]]:
 
 @pytest.mark.integration
 def test_a_change_the_claim_does_not_reach_across_a_merge_is_not_credited(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """R2, review 5 issue 1: only descendants of the claim commit count (``--ancestry-path``), and the merge itself credits nothing."""
+    """R2, review 5 issue 1: only descendants of the claim commit count (``--ancestry-path``); no merge is in a window (review 6)."""
     repo, pin, shas = _r2_merge_mission(tmp_path)
     monkeypatch.setattr(mission_runtime, "planning_write_ref", _reader(True))
     _ownership(monkeypatch, {"WP02": (_PKG,)})
@@ -609,6 +611,80 @@ def test_a_change_the_claim_does_not_reach_across_a_merge_is_not_credited(tmp_pa
     assert shas["early"] not in claim.shas and shas["merge"] not in claim.shas and shas["side_early"] not in claim.shas
     assert {path for path, _blob in claim.blobs} == {"curation/pkg/late.py"}
     assert not claim.deletions
+
+
+def _conflict_merge(repo: Path, path: str, resolved: str) -> str:
+    """Merge ``side`` into the Mission branch, resolve the conflict at *path* to *resolved*, and return the merge."""
+    subprocess.run(["git", "merge", "-q", "--no-ff", "--no-edit", "side"], cwd=repo, capture_output=True, check=False)
+    (repo / path).write_text(resolved, encoding="utf-8")
+    _git(repo, "add", "--", path)
+    _git(repo, "commit", "-qm", "merge side, conflict resolved")
+    return _git(repo, "rev-parse", "HEAD")
+
+
+def _r2_conflict_mission(tmp_path: Path) -> tuple[Path, str, dict[str, str]]:
+    """The review-6 shape: the claim and an owned change on a side branch; the Mission branch edits that path before the merge.
+
+    The merge conflicts at ``curation/pkg/x.py`` and is resolved keeping both lines, so its blob holds
+    ``early``'s pre-claim line.
+    """
+    repo, pin, _shas = _mission(tmp_path)
+    _git(repo, "switch", "-q", _MISSION_BRANCH)
+    _commit(repo, {_CONFLICT_PATH: "BASE = 0\n"}, "the owned file, before the planning work")
+    _git(repo, "switch", "-qc", "side", _MISSION_BRANCH)
+    claim_commit = _commit(repo, {f"kitty-specs/{_SLUG}/status.events.jsonl": "{}\n{}\n{}\n"}, "chore: claim WP02")
+    side = _commit(repo, {_CONFLICT_PATH: "BASE = 0\nS = 1\n"}, "feat(WP02): after the claim, on the side branch")
+    _git(repo, "switch", "-q", _MISSION_BRANCH)
+    early = _commit(repo, {_CONFLICT_PATH: "BASE = 0\nE = 1  # pre-claim\n"}, "an owned change before the claim was merged in")
+    merge = _conflict_merge(repo, _CONFLICT_PATH, "BASE = 0\nE = 1  # pre-claim\nS = 1\n")
+    return repo, pin, {"claim": claim_commit, "side": side, "early": early, "merge": merge}
+
+
+@pytest.mark.integration
+def test_a_merge_that_resolves_a_conflict_in_an_owned_path_credits_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """R2, review 6 issue 1: a conflict-resolving merge carries pre-claim content, so no merge credits anything.
+
+    The merge descends from the claim commit and lists the resolved path, but it is not credited: not by
+    SHA, not by patch-id, not by its blob. The path's newest touching commit is that merge, so the path is
+    attributed to nothing at all (fail closed).
+    """
+    repo, pin, shas = _r2_conflict_mission(tmp_path)
+    monkeypatch.setattr(mission_runtime, "planning_write_ref", _reader(True))
+    _ownership(monkeypatch, {"WP02": (_PKG,)})
+    _starts(monkeypatch, {"WP02": shas["claim"]})
+    lane = ExecutionLane(PLANNING_LANE_ID, ("WP02",), (_PKG,), (), (), 0)
+
+    _coord_base, claim = _planning_claim(repo, pin, lane, {"WP02": {"lane": "approved"}})
+
+    assert shas["merge"] not in claim.shas and shas["early"] not in claim.shas
+    merge_patch_id = patch_id_of(repo, shas["merge"])
+    assert not merge_patch_id or merge_patch_id not in claim.patch_ids
+    assert _CONFLICT_PATH not in {path for path, _blob in claim.blobs}
+    assert _CONFLICT_PATH not in claim.deletions
+
+
+@pytest.mark.integration
+def test_an_owned_path_a_merge_changed_last_falls_back_to_no_older_commit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review 6 issue 1: the credited change before a conflict-resolving merge never stands in for the merge's blob."""
+    repo, pin, _shas = _mission(tmp_path)
+    _git(repo, "switch", "-q", _MISSION_BRANCH)
+    _commit(repo, {_CONFLICT_PATH: "BASE = 0\n"}, "the owned file, before the planning work")
+    _git(repo, "switch", "-qc", "side", _MISSION_BRANCH)
+    _commit(repo, {_CONFLICT_PATH: "BASE = 0\nOTHER = 1\n"}, "a change on a side branch")
+    _git(repo, "switch", "-q", _MISSION_BRANCH)
+    claim_commit = _commit(repo, {f"kitty-specs/{_SLUG}/status.events.jsonl": "{}\n{}\n{}\n"}, "chore: claim WP02")
+    credited = _commit(repo, {_CONFLICT_PATH: "BASE = 0\nW = 1\n"}, "feat(WP02): after the claim")
+    merge = _conflict_merge(repo, _CONFLICT_PATH, "BASE = 0\nW = 1\nOTHER = 1\n")
+    monkeypatch.setattr(mission_runtime, "planning_write_ref", _reader(True))
+    _ownership(monkeypatch, {"WP02": (_PKG,)})
+    _starts(monkeypatch, {"WP02": claim_commit})
+    lane = ExecutionLane(PLANNING_LANE_ID, ("WP02",), (_PKG,), (), (), 0)
+
+    _coord_base, claim = _planning_claim(repo, pin, lane, {"WP02": {"lane": "approved"}})
+
+    assert credited in claim.shas and merge not in claim.shas
+    assert _CONFLICT_PATH not in {path for path, _blob in claim.blobs}
+    assert _CONFLICT_PATH not in claim.deletions
 
 
 @pytest.mark.integration
