@@ -468,4 +468,6 @@ __all__ = [
     "_planning_walk",
     "_planning_window_starts",
     "_scoped_final_walk",
+    "_taint_base",
+    "_taint_spine",
 ]

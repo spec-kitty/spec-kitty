@@ -68,7 +68,7 @@ written, reviewed and evidenced (operator ruling A', recorded on #7860):
   before that scaffold sits below a derived base, so the planning lane authors nothing then (see
   the list below). A recorded value that is not on the target (for example a hand-written
   Mission-branch commit) starts nothing either; so a target branch rewritten below the base
-  (force-pushed) or a Mission retargeted onto another branch credits nothing (fail closed). A target change brought into the
+  (force-pushed) or a Mission retargeted onto a branch that does not contain its recorded base credits nothing (fail closed). A target change brought into the
   Mission branch (a merge of the target, a rebase onto it or a cherry-pick of it, before
   `finalize-tasks`, or a merge after it) to a file a work package then edits is on that history
   and no window credits it, so the file is refused as un-attributable, although only the

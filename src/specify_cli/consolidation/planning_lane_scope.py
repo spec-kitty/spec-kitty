@@ -283,7 +283,8 @@ def _no_taint_base_reason(mission_base: MissionBase | None, taint_base: str | No
     A derived base is the scaffold commit's first parent, so ``git merge-base <target> <derived>``
     is the remedy command with the start filled in (review 10). A recorded base that is not on the
     target was still checked to be at or below the scaffold's parent, so its merge base with the
-    target is the commit the branch was cut from too (review 11).
+    target is a commit on the target at or below the cut (the cut itself unless the target was
+    rewritten or the Mission retargeted; an older start only lengthens the taint walk, review 11).
     """
     if mission_base is not None and mission_base.sha is not None:
         if mission_base.provenance is MissionBaseProvenance.DERIVED:
