@@ -373,15 +373,10 @@ def _scoped_final_walk(repo_root: Path, first_parent: Sequence[str], scope: _Pla
 
 __all__ = [
     "_LaneAuthorshipWalk",
-    "_PlanningScope",
-    "_ScopedCommits",
-    "_approved_planning_scope",
-    "_lane_walk_range",
     "_planning_lane_mission_branch_window",
     "_planning_ownership",
     "_planning_scope",
     "_planning_walk",
     "_planning_window_starts",
-    "_scoped_commits",
     "_scoped_final_walk",
 ]
