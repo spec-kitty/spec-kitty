@@ -695,7 +695,7 @@ def _presence_lane_content(
 def _lane_final_walk(repo_root: Path, walk: _LaneAuthorshipWalk, dropped: frozenset[str]) -> tuple[set[tuple[str, str]], set[str]]:
     """:func:`_final_authored_walk` of *walk* less the *dropped* commits.
 
-    A scoped walk (#7860) reads the whole first-parent spine from the Mission base through
+    A scoped walk (#7860) reads the whole first-parent spine from the recorded Mission base through
     :func:`_scoped_final_walk`: a path is attributed only when every change to it on that spine is
     credited, so neither a merge that changed it (review 6), nor an owned-path change made before
     the claim (review 7) or before the planning pin (review 9), nor one carried into a renamed or
@@ -780,9 +780,10 @@ def _collect_authored(
 
     *events* (#7860) reads the status events for the planning lane's per-work-package windows
     (:func:`_planning_window_starts`); without it a default Mission's planning lane authors nothing.
-    *mission_base* (#7860 review 9, the claim's one ``mission_base.resolve_mission_base`` answer) is
-    where that lane's final-state taint walk starts (``planning_lane_walk._taint_spine``); ``None``
-    (unavailable) leaves the lane authoring nothing too.
+    *mission_base* (#7860 review 9, the claim's one ``mission_base.resolve_mission_base`` answer,
+    passed only when it is recorded: ``planning_lane_walk._taint_base``, review 10) is where that
+    lane's final-state taint walk starts (``planning_lane_walk._taint_spine``); ``None`` (no
+    recorded base) leaves the lane authoring nothing too.
     """
     shas: set[str] = set()
     patch_ids: set[str] = set()

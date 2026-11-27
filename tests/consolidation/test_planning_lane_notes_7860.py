@@ -19,6 +19,7 @@ from specify_cli.consolidation import planning_lane_scope
 from specify_cli.consolidation import planning_lane_walk as planning_walk
 from specify_cli.consolidation import git_probes
 from specify_cli.consolidation.git_probes import GitProbeError
+from specify_cli.consolidation.mission_base import MissionBase, MissionBaseProvenance
 from specify_cli.consolidation.reconciliation import ApprovedWpCommitSet
 from specify_cli.consolidation.reconciliation_claim_types import PlanningLaneNote
 from specify_cli.consolidation.reconciliation_verifier import Divergence, VerifyResult, _with_attribution_hint
@@ -32,6 +33,7 @@ _PLANNING = ExecutionLane(PLANNING_LANE_ID, ("WP02", "WP03"), ("curation/pkg/**"
 _CODE = ExecutionLane("lane-a", ("WP01",), ("src/m1/**",), (), (), 0)
 _APPROVED = {"WP01": {"lane": "approved"}, "WP02": {"lane": "approved"}, "WP03": {"lane": "done"}}
 _OWNED = {"WP02": ("curation/pkg/**",), "WP03": ("docs/notes/x.md",)}
+_RECORDED = MissionBase("base0000", MissionBaseProvenance.RECORDED)
 
 
 def _manifest() -> LanesManifest:
@@ -77,15 +79,20 @@ def shape(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     monkeypatch.setattr(planning_lane_scope, "_opener_recorded", lambda *_args: knobs["opener"])
 
     def _taint(_root: Path, mission_base: str | None, pin: str, coord: str) -> object:
-        assert (mission_base, pin, coord) == ("base0000", "pin0000", "coord0000")
+        assert (pin, coord) == ("pin0000", "coord0000")
+        if mission_base is None:
+            return None
+        assert mission_base == "base0000"
         return knobs["taint"]
 
     monkeypatch.setattr(planning_walk, "_taint_spine", _taint)
     return knobs
 
 
-def _notes(work_packages: Mapping[str, Mapping[str, object]] = _APPROVED, sb_window: tuple[str, str] | None = None) -> tuple[str, ...]:
-    notes: tuple[PlanningLaneNote, ...] = planning_lane_scope.planning_lane_notes(Path(), _manifest(), work_packages, "coord0000", sb_window, _events, "base0000")
+def _notes(
+    work_packages: Mapping[str, Mapping[str, object]] = _APPROVED, sb_window: tuple[str, str] | None = None, base: MissionBase | None = _RECORDED
+) -> tuple[str, ...]:
+    notes: tuple[PlanningLaneNote, ...] = planning_lane_scope.planning_lane_notes(Path(), _manifest(), work_packages, "coord0000", sb_window, _events, base)
     return tuple(note.text for note in notes)
 
 
@@ -102,8 +109,32 @@ def test_a_credited_lane_with_no_readable_mission_base_gets_a_note(shape: dict[s
 
     (text,) = _notes()
 
-    assert "the Mission base (the commit the Mission branch was cut from) cannot be resolved" in text
-    assert "`mission_base_sha`" in text and text.endswith("then run `spec-kitty consolidate` again.")
+    assert "no recorded Mission base (`mission_base_sha` in the Mission's meta.json, the commit the Mission branch was cut from) can start" in text
+    assert "none resolves, it is not below the planning commit" in text
+    assert text.endswith("then run `spec-kitty consolidate` again.")
+
+
+@pytest.mark.parametrize("base", [None, MissionBase(None, MissionBaseProvenance.UNAVAILABLE, "gone")])
+def test_a_credited_lane_with_no_mission_base_at_all_gets_the_unusable_base_note(shape: dict[str, object], base: MissionBase | None) -> None:
+    shape["scope"] = planning_walk._PlanningScope(((("curation/pkg/**",), frozenset({"c1"})),))
+
+    (text,) = _notes(base=base)
+
+    assert "no recorded Mission base" in text and "records no usable Mission base" not in text
+
+
+@pytest.mark.parametrize(("reason", "shown"), [("no mission_base_sha recorded", "no mission_base_sha recorded"), (None, "no `mission_base_sha` recorded")])
+def test_a_credited_lane_with_a_derived_mission_base_gets_a_not_recorded_note(shape: dict[str, object], reason: str | None, shown: str) -> None:
+    """Review 10: a derived base never starts the taint walk, and the note says the Mission records none, and the remedy."""
+    shape["scope"] = planning_walk._PlanningScope(((("curation/pkg/**",), frozenset({"c1"})),))
+    shape["taint"] = ["c1"]
+
+    (text,) = _notes(base=MissionBase("base0000", MissionBaseProvenance.DERIVED, reason))
+
+    assert f"the Mission records no usable Mission base ({shown})" in text
+    assert "a commit made on the Mission branch before that scaffold" in text
+    assert "as `mission_base_sha` in the Mission's meta.json and commit it on the Mission branch" in text
+    assert text.endswith("then run `spec-kitty consolidate` again.")
 
 
 def test_another_shape_gets_no_note(shape: dict[str, object]) -> None:

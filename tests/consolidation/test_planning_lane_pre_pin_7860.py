@@ -20,6 +20,7 @@ import mission_runtime
 from specify_cli.consolidation import planning_lane_walk as planning_walk
 from specify_cli.consolidation import reconciliation_authorship as authorship
 from specify_cli.consolidation.git_probes import GitProbeError
+from specify_cli.consolidation.mission_base import MissionBase, MissionBaseProvenance, resolve_mission_base
 from specify_cli.consolidation.reconciliation import MergeOutcomeVerifier
 from specify_cli.consolidation.reconciliation_verifier import VerifyResult, VerifyStatus
 from specify_cli.lanes.compute import PLANNING_LANE_ID
@@ -32,6 +33,7 @@ from tests.consolidation.test_planning_lane_authorship_7860 import (
     _SLUG,
     _commit,
     _commit_set,
+    _default_meta,
     _git,
     _manifest,
     _ownership,
@@ -50,8 +52,9 @@ _SPEC = f"kitty-specs/{_SLUG}/spec.md"
 def _pre_pin_mission(tmp_path: Path, pre_pin: dict[str, str]) -> tuple[Path, str, str]:
     """A default Mission: scaffold, *pre_pin* (committed before ``finalize-tasks``), the planning pin, WP02's claim.
 
-    Returns ``(repo, pin, claim commit)``. The scaffold commit adds the Mission directory, so the
-    Mission base (``mission_base.resolve_mission_base``, derived) is the ``main`` commit below it.
+    Returns ``(repo, pin, claim commit)``. The meta.json records the ``main`` commit the Mission
+    branch was cut from as ``mission_base_sha``, as ``agent mission create`` does (review 10: the
+    taint walk starts only at a recorded base).
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -61,7 +64,7 @@ def _pre_pin_mission(tmp_path: Path, pre_pin: dict[str, str]) -> tuple[Path, str
     _git(repo, "switch", "-qc", _MISSION_BRANCH)
     _commit(repo, {_SPEC: "# spec\n"}, "chore: create the Mission")
     _commit(repo, pre_pin, "committed to the Mission branch before finalize-tasks")
-    meta = {"mission_slug": _SLUG, "target_branch": "main", "topology": "lanes_with_coord", "topology_source": "default", "mission_branch": _MISSION_BRANCH}
+    meta = _default_meta(repo, base=_git(repo, "rev-parse", "main"))
     pin = _commit(repo, {f"kitty-specs/{_SLUG}/meta.json": json.dumps(meta)}, "planning")
     claim = _commit(repo, {f"kitty-specs/{_SLUG}/status.events.jsonl": "{}\n"}, "chore: claim WP02")
     return repo, pin, claim
@@ -140,7 +143,7 @@ def test_a_change_in_the_planning_pin_commit_itself_is_not_credited(tmp_path: Pa
     """The pin commit is walked too: an owned file it adds stays un-attributed under a later credited edit."""
     repo, pin, claim_commit = _pre_pin_mission(tmp_path, {_SPEC: "# spec\n\nmore\n"})
     _git(repo, "reset", "-q", "--hard", f"{pin}^1")
-    meta = {"mission_slug": _SLUG, "target_branch": "main", "topology": "lanes_with_coord", "topology_source": "default", "mission_branch": _MISSION_BRANCH}
+    meta = _default_meta(repo, base=_git(repo, "rev-parse", "main"))
     pin = _commit(repo, {f"kitty-specs/{_SLUG}/meta.json": json.dumps(meta), _SAME_PATH: _PRE_TEXT}, "planning, with code in it")
     claim_commit = _commit(repo, {f"kitty-specs/{_SLUG}/status.events.jsonl": "{}\n"}, "chore: claim WP02")
     _commit(repo, {_SAME_PATH: _PRE_TEXT + "L = 1\n", _OTHER: "O = 1\n"}, "feat(WP02): touch same.py")
@@ -223,3 +226,74 @@ def test_the_claim_without_a_mission_base_credits_nothing(tmp_path: Path, monkey
     claim = authorship._collect_authored(repo, manifest, {"WP02": {"lane": "approved"}}, coord_base, None, canceled_lane_commits=frozenset(), mission_base=None)
 
     assert late not in claim.shas and not claim.blobs and not claim.deletions
+
+
+def _pre_scaffold_mission(tmp_path: Path, *, recorded: bool) -> tuple[Path, str, str, str]:
+    """Review 10's shape: an owned file committed on the Mission branch BEFORE the scaffold commit.
+
+    Returns ``(repo, pin, claim commit, cut)``, where *cut* is the ``main`` commit the branch was
+    cut from. The base derived from the scaffold (its first parent) is the pre-scaffold commit,
+    above that commit; *recorded* records *cut* as ``mission_base_sha``.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    for args in (("init", "-q", "-b", "main"), ("config", "user.email", "t@example.com"), ("config", "user.name", "Test"), ("config", "commit.gpgsign", "false")):
+        _git(repo, *args)
+    cut = _commit(repo, {"README.md": "x\n"}, "init")
+    _git(repo, "switch", "-qc", _MISSION_BRANCH)
+    _commit(repo, {_SAME_PATH: _PRE_TEXT}, "code on the Mission branch before the scaffold")
+    _commit(repo, {_SPEC: "# spec\n"}, "chore: create the Mission")
+    meta: dict[str, str] = _default_meta(repo, base=cut)
+    if not recorded:
+        del meta["mission_base_sha"]
+    pin = _commit(repo, {f"kitty-specs/{_SLUG}/meta.json": json.dumps(meta)}, "planning")
+    claim = _commit(repo, {f"kitty-specs/{_SLUG}/status.events.jsonl": "{}\n"}, "chore: claim WP02")
+    _commit(repo, {_SAME_PATH: _PRE_TEXT + "L = 1\n", _OTHER: "O = 1\n"}, "feat(WP02): edit")
+    return repo, pin, claim, cut
+
+
+def _resolved_base(repo: Path) -> MissionBase:
+    return resolve_mission_base(repo, repo / "kitty-specs" / _SLUG, mission_branch=_MISSION_BRANCH, mission_slug=_SLUG)
+
+
+@pytest.mark.integration
+def test_pre_scaffold_commit_below_derived_base(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review 10 issue 1: a derived base sits above a pre-scaffold commit, so the planning lane authors nothing.
+
+    Before the fix the taint walk started at the derived base, credited ``same.py``'s final blob
+    and the 20 unreviewed lines landed with a squash PASS.
+    """
+    repo, pin, claim_commit, cut = _pre_scaffold_mission(tmp_path, recorded=False)
+    base = _resolved_base(repo)
+    assert base.provenance is MissionBaseProvenance.DERIVED and base.sha not in (None, cut), base
+
+    coord_base, claim = _wp02_claim(repo, pin, claim_commit, monkeypatch)
+
+    assert not claim.blobs and not claim.deletions and not claim.shas
+    assert _squash(repo, coord_base, claim).status is VerifyStatus.REFUSE
+
+
+@pytest.mark.integration
+def test_pre_scaffold_commit_below_a_recorded_base_taints_its_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The control: with the cut recorded, the pre-scaffold commit is on the taint walk; ``other.py`` is still credited."""
+    repo, pin, claim_commit, cut = _pre_scaffold_mission(tmp_path, recorded=True)
+    assert _resolved_base(repo) == MissionBase(cut, MissionBaseProvenance.RECORDED)
+
+    coord_base, claim = _wp02_claim(repo, pin, claim_commit, monkeypatch)
+
+    assert _SAME_PATH not in _credited(claim) and _OTHER in _credited(claim)
+    _assert_fails_on(_squash(repo, coord_base, claim), _SAME_PATH)
+
+
+@pytest.mark.parametrize(
+    ("base", "expected"),
+    [
+        (MissionBase("a" * 40, MissionBaseProvenance.RECORDED), "a" * 40),
+        (MissionBase("b" * 40, MissionBaseProvenance.DERIVED, "no mission_base_sha recorded"), None),
+        (MissionBase(None, MissionBaseProvenance.UNAVAILABLE, "gone"), None),
+        (None, None),
+    ],
+)
+def test_the_taint_walk_starts_only_at_a_recorded_base(base: MissionBase | None, expected: str | None) -> None:
+    """Review 10: mirror ``_pre_mission_attribution``: only a recorded base is trusted as where Mission work starts."""
+    assert planning_walk._taint_base(base) == expected

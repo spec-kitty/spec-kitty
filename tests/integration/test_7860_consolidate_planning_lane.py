@@ -171,6 +171,8 @@ def setup_mission(tmp_path: Path, planning_owned: str) -> _Mission:
     mission = _Mission(repo, env, slug, mission_branch, _checkout_of(repo, mission_branch))
     meta = json.loads((mission.feature_dir / "meta.json").read_text(encoding="utf-8"))
     assert (meta.get("topology"), meta.get("topology_source")) == ("lanes_with_coord", "default"), f"fixture: a default lanes_with_coord Mission; meta={meta}"
+    # Review 10: the planning lane's taint walk starts only at a recorded Mission base; the CLI records it at create (#7560).
+    assert meta.get("mission_base_sha") == _git(repo, "rev-parse", "main"), f"fixture: the CLI records the Mission base; meta={meta}"
     assert mission.coord != repo, "fixture: the Mission branch is checked out in the coordination worktree"
     (tmp_path / "analysis.md").write_text("# Analysis\n\nNo blocking findings.\n", encoding="utf-8")
     _sk(mission, "agent", "mission", "record-analysis", "--mission", slug, "--input-file", str(tmp_path / "analysis.md"), check=True)

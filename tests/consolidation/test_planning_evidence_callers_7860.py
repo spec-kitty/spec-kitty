@@ -358,6 +358,54 @@ def test_the_claim_hands_the_authorship_walk_the_reader_that_proves_each_window_
     assert planning_walk._planning_window_starts(fx.repo, manifest, lane, ("WP02", "WP03"), events) == {"WP02": claim_wp02, "WP03": claim_wp03}
 
 
+@pytest.mark.parametrize("recorded", [True, False], ids=["recorded", "derived"])
+def test_the_claim_starts_the_taint_walk_only_at_a_recorded_mission_base(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, recorded: bool) -> None:
+    """Review 10 issue 1: ``build_approved_wp_set`` hands the taint walk the Mission base only when it is recorded.
+
+    A derived base (the scaffold commit's first parent) can sit above a commit made on the Mission
+    branch before the scaffold, so it must start nothing (mirrors ``_pre_mission_attribution``).
+    The notes receive the whole base so they can name a derived one.
+    """
+    from specify_cli.consolidation import reconciliation_claim
+    from specify_cli.consolidation.mission_base import MissionBaseProvenance
+    from specify_cli.consolidation.planning_lane_scope import planning_lane_notes as real_notes
+    from specify_cli.consolidation.reconciliation_authorship import _collect_authored as real_collect
+
+    fx = _build(tmp_path)
+    cut = _git(fx.repo, "rev-parse", f"{_TARGET}")
+    if recorded:
+        meta = json.loads((fx.feature_dir / "meta.json").read_text(encoding="utf-8"))
+        meta["mission_base_sha"] = cut
+        (fx.feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+        _git(fx.repo, "commit", "-qam", "record the Mission base")
+    _claim(fx, "WP02")
+    _commit_file(fx.repo, _OWNED["WP02"], "# notes\n", "feat(WP02): research notes")
+    _approve(fx, "WP02")
+    _claim(fx, "WP03")
+    _commit_file(fx.repo, _OWNED["WP03"], "# other\n", "feat(WP03): other research")
+    _approve(fx, "WP03")
+    seen: dict[str, object] = {}
+
+    def _collect(*args: Any, **kwargs: Any) -> Any:
+        seen["taint"] = kwargs.get("mission_base")
+        return real_collect(*args, **kwargs)
+
+    def _notes(*args: Any) -> Any:
+        seen["notes"] = args[-1]
+        return real_notes(*args)
+
+    monkeypatch.setattr(reconciliation_claim, "_collect_authored", _collect)
+    monkeypatch.setattr(reconciliation_claim, "planning_lane_notes", _notes)
+
+    claim = reconciliation_claim.build_approved_wp_set(fx.repo, fx.feature_dir, fx.manifest(), coord_base_ref=_git(fx.repo, "rev-parse", "HEAD"))
+
+    assert claim.refusal is None, claim.refusal
+    base = seen["notes"]
+    assert getattr(base, "sha", None) == cut
+    assert getattr(base, "provenance", None) is (MissionBaseProvenance.RECORDED if recorded else MissionBaseProvenance.DERIVED)
+    assert seen["taint"] == (cut if recorded else None)
+
+
 def test_the_claim_names_a_planning_lane_a_canceled_work_package_empties(tmp_path: Path) -> None:
     """Review 5 issue 2: the claim carries the planning lane's note (ruling R1), naming the lane and the canceled work package."""
     from specify_cli.consolidation import reconciliation_claim

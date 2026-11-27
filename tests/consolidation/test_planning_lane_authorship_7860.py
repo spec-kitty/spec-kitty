@@ -284,6 +284,23 @@ def _commit(repo: Path, files: dict[str, str], message: str) -> str:
     return _git(repo, "rev-parse", "HEAD")
 
 
+def _default_meta(repo: Path, *, base: str | None = None) -> dict[str, str]:
+    """A default Mission's meta.json; its Mission base is *base*, else *repo*'s HEAD (right after the cut from ``main``).
+
+    It records ``mission_base_sha`` as ``agent mission create`` does at mint
+    (``mission_creation_protected_mint`` / ``mission_creation_meta``, #7560): the planning lane's
+    taint walk starts only at a recorded base (review 10).
+    """
+    return {
+        "mission_slug": _SLUG,
+        "target_branch": "main",
+        "topology": "lanes_with_coord",
+        "topology_source": "default",
+        "mission_branch": _MISSION_BRANCH,
+        "mission_base_sha": base or _git(repo, "rev-parse", "HEAD"),
+    }
+
+
 def _mission(tmp_path: Path) -> tuple[Path, str, dict[str, str]]:
     """A default, not-landed Mission on its Mission branch: status, owned, owned+status, mixed and stray commits."""
     repo = tmp_path / "repo"
@@ -294,7 +311,7 @@ def _mission(tmp_path: Path) -> tuple[Path, str, dict[str, str]]:
     _git(repo, "config", "commit.gpgsign", "false")
     _commit(repo, {"README.md": "x\n"}, "init")
     _git(repo, "switch", "-qc", _MISSION_BRANCH)
-    meta = {"mission_slug": _SLUG, "target_branch": "main", "topology": "lanes_with_coord", "topology_source": "default", "mission_branch": _MISSION_BRANCH}
+    meta = _default_meta(repo)
     pin = _commit(repo, {f"kitty-specs/{_SLUG}/meta.json": json.dumps(meta)}, "planning")
     shas = {
         "status": _commit(repo, {f"kitty-specs/{_SLUG}/status.events.jsonl": "{}\n"}, "chore: status"),
@@ -310,9 +327,10 @@ def _planning_claim(repo: Path, pin: str, lane: ExecutionLane, states: dict[str,
     coord_base = _git(repo, "rev-parse", _MISSION_BRANCH)
     manifest = _manifest(pin=pin)
     manifest.lanes = [lane]
-    # The Mission base as the claim resolves it (``build_approved_wp_set``): the taint walk starts there (review 9).
-    mission_base = resolve_mission_base(repo, None, mission_branch=_MISSION_BRANCH, mission_slug=_SLUG).sha
-    assert mission_base is not None
+    # The Mission base as the claim resolves and gates it (``build_approved_wp_set``): the taint walk
+    # starts there (review 9), and only at a recorded base (review 10).
+    base = resolve_mission_base(repo, repo / "kitty-specs" / _SLUG, mission_branch=_MISSION_BRANCH, mission_slug=_SLUG)
+    mission_base = planning_walk._taint_base(base)
     return coord_base, authorship._collect_authored(repo, manifest, states, coord_base, None, canceled_lane_commits=frozenset(), mission_base=mission_base)
 
 
@@ -735,7 +753,7 @@ def _same_file_mission(tmp_path: Path, *, pre_claim: dict[str, str] | None, afte
         _git(repo, *args)
     _commit(repo, {"README.md": "x\n"}, "init")
     _git(repo, "switch", "-qc", _MISSION_BRANCH)
-    meta = {"mission_slug": _SLUG, "target_branch": "main", "topology": "lanes_with_coord", "topology_source": "default", "mission_branch": _MISSION_BRANCH}
+    meta = _default_meta(repo)
     pin = _commit(repo, {f"kitty-specs/{_SLUG}/meta.json": json.dumps(meta)}, "planning")
     shas = {"pin": pin}
     if pre_claim is not None:

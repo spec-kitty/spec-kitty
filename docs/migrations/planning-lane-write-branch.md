@@ -57,10 +57,21 @@ written, reviewed and evidenced (operator ruling A', recorded on #7860):
   all, by SHA, patch-id, file content or deletion: a merge that resolved a conflict lists the
   resolved file, and its content can carry a change made before the claim. A file's final content
   (or its deletion) is credited only when every commit on the Mission branch's first-parent
-  history from the Mission base (the commit the Mission branch was cut from) that changed the file
-  is credited for it. That history starts below the planning commit, because `consolidate`
+  history from the recorded Mission base (`mission_base_sha` in the Mission's meta.json: the
+  commit the Mission branch was cut from, which `agent mission create` records) that changed the
+  file is credited for it. That history starts below the planning commit, because `consolidate`
   compares the landing with the target, so it holds the planning commit itself and every commit
-  made on the Mission branch before `finalize-tasks`. A file's content holds every earlier change
+  made on the Mission branch before `finalize-tasks`. Only a recorded base starts it: a Mission
+  that records none (created before #7560) gets a base derived from its first scaffold commit,
+  and a commit made on the Mission branch before that scaffold sits below a derived base, so the
+  planning lane authors nothing then (see the list below). A target change brought into the
+  Mission branch (a merge of the target, a rebase onto it or a cherry-pick of it, before
+  `finalize-tasks`, or a merge after it) to a file a work package then edits is on that history
+  and no window credits it, so the file is refused as un-attributable, although only the
+  reviewed edit is missing from the target. When the planning lane credits other work, the
+  refusal names no planning lane. There is no verified remedy today; #7891 tracks naming the
+  tainting commit in the refusal. Keep target changes to the work packages' owned files out of
+  the Mission branch until it lands. A file's content holds every earlier change
   to it, so a file that a merge, a commit made before the claim (also one made before
   `finalize-tasks`), or any other uncredited commit changed is refused as un-attributable, even
   when a credited commit changed it later, and is never credited to an older commit. A file that a credited commit
@@ -89,8 +100,9 @@ written, reviewed and evidenced (operator ruling A', recorded on #7860):
     absolute path, an empty segment or a `..` segment is refused outright;
   - every work package's `owned_files` is empty;
   - the commit that introduced a work package's claim on the Mission branch cannot be found;
-  - the Mission base cannot be resolved, is not below the planning commit, or the history from it
-    cannot be read.
+  - the Mission records no `mission_base_sha` (a base derived from the scaffold commit is not
+    trusted), its recorded base cannot be used (it is not on the history the Mission started from,
+    or not below the planning commit), or the history from it cannot be read.
 
   The refusal names the planning lane, the reason and the work packages, and prints the remedy
   with the work package ids and `--mission <slug>` filled in. It is printed only when the
@@ -112,6 +124,9 @@ written, reviewed and evidenced (operator ruling A', recorded on #7860):
     `spec-kitty agent action implement <WP> --agent <agent> --mission <slug>`, commit its change, move it to
     `for_review`, and have it reviewed and approved;
   - a too-broad `owned_files`: narrow it to two literal leading segments;
+  - a Mission that records no `mission_base_sha`: record the commit the Mission branch was cut
+    from (the target commit the branch started at) as `mission_base_sha` in the Mission's
+    `meta.json`, commit it on the Mission branch, and run `spec-kitty consolidate` again;
   - a claim commit that cannot be found (for example an approved work package with no recorded
     claim, or one whose claim event more than one commit introduced). The evidence check refuses
     it first with `EVIDENCE_WINDOW_UNCOMPUTABLE`. `implement` refuses an approved work package
