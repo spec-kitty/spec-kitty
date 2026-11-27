@@ -45,7 +45,8 @@ follow the resolved Mission directory name, never the caller's handle (a mid8 or
   ``IMPLEMENTATION_MISSING`` agree).
 * ``out_of_map_only_commits``: the non-bookkeeping commits of the range that are not in ``commits``.
 * ``merges``: every merge commit of ``base..tip``, oldest first, from
-  ``git rev-list --merges --full-history --reverse base..tip`` with no pathspec. It does not reuse
+  ``git rev-list --merges --reverse base..tip`` with no pathspec (no history simplification applies
+  without one, so no ``--full-history`` is needed). It does not reuse
   the commit list's pathspecs: under them default history simplification drops a merge whose
   combined diff leaves the owned files alone, and a conflict resolution can hide a novel line in
   content a sibling already had approved. The list exists so the reviewer reads each merge's own
@@ -570,8 +571,8 @@ def _listing(request: _ListingRequest) -> _Listing:
     listing.attempt("numstat", _stat)
 
     def _merges() -> None:
-        # Full history and no pathspec: simplification under the owned pathspecs would drop a merge (FR-007).
-        result = run_git(request.repo_root, "rev-list", "--merges", "--full-history", "--reverse", rev_range)
+        # No pathspec: simplification under the owned pathspecs would drop a merge (FR-007).
+        result = run_git(request.repo_root, "rev-list", "--merges", "--reverse", rev_range)
         listing.merges = tuple(line for line in result.stdout.decode("ascii", "replace").split() if line)
 
     listing.attempt("moved-past", _moved_past)
