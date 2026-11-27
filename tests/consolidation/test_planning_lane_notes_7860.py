@@ -56,7 +56,7 @@ def _events() -> list[object]:
 @pytest.fixture
 def shape(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     """The Mission-branch window applies; ownership and window starts read from ``knobs`` (patched on the authorship module)."""
-    knobs: dict[str, object] = {"window": ("pin0000", "coord0000"), "owned": dict(_OWNED), "unproven": set(), "scope": None, "opener": True}
+    knobs: dict[str, object] = {"window": ("pin0000", "coord0000"), "owned": dict(_OWNED), "unproven": set(), "scope": None, "opener": True, "taint": []}
 
     monkeypatch.setattr(planning_walk, "_planning_lane_mission_branch_window", lambda *_args: knobs["window"])
 
@@ -75,11 +75,17 @@ def shape(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     monkeypatch.setattr(planning_walk, "_planning_window_starts", _starts)
     monkeypatch.setattr(planning_walk, "_planning_scope", lambda *_args: knobs["scope"])
     monkeypatch.setattr(planning_lane_scope, "_opener_recorded", lambda *_args: knobs["opener"])
+
+    def _taint(_root: Path, mission_base: str | None, pin: str, coord: str) -> object:
+        assert (mission_base, pin, coord) == ("base0000", "pin0000", "coord0000")
+        return knobs["taint"]
+
+    monkeypatch.setattr(planning_walk, "_taint_spine", _taint)
     return knobs
 
 
 def _notes(work_packages: Mapping[str, Mapping[str, object]] = _APPROVED, sb_window: tuple[str, str] | None = None) -> tuple[str, ...]:
-    notes: tuple[PlanningLaneNote, ...] = planning_lane_scope.planning_lane_notes(Path(), _manifest(), work_packages, "coord0000", sb_window, _events)
+    notes: tuple[PlanningLaneNote, ...] = planning_lane_scope.planning_lane_notes(Path(), _manifest(), work_packages, "coord0000", sb_window, _events, "base0000")
     return tuple(note.text for note in notes)
 
 
@@ -87,6 +93,17 @@ def test_a_credited_lane_gets_no_note(shape: dict[str, object]) -> None:
     shape["scope"] = planning_walk._PlanningScope(((("curation/pkg/**",), frozenset({"c1"})),))
 
     assert _notes() == ()
+
+
+def test_a_credited_lane_with_no_readable_mission_base_gets_a_note(shape: dict[str, object]) -> None:
+    """Review 9: a scoped lane whose taint walk cannot start at the Mission base credits nothing, and its note says why."""
+    shape["scope"] = planning_walk._PlanningScope(((("curation/pkg/**",), frozenset({"c1"})),))
+    shape["taint"] = None
+
+    (text,) = _notes()
+
+    assert "the Mission base (the commit the Mission branch was cut from) cannot be resolved" in text
+    assert "`mission_base_sha`" in text and text.endswith("then run `spec-kitty consolidate` again.")
 
 
 def test_another_shape_gets_no_note(shape: dict[str, object]) -> None:

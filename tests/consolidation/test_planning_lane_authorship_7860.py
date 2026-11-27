@@ -27,6 +27,7 @@ from specify_cli.consolidation import planning_lane_scope
 from specify_cli.consolidation import reconciliation_authorship as authorship
 from specify_cli.consolidation import planning_lane_walk as planning_walk
 from specify_cli.consolidation.git_probes import GitProbeError, patch_id_of
+from specify_cli.consolidation.mission_base import resolve_mission_base
 from specify_cli.consolidation.reconciliation import ApprovedWpCommitSet, MergeOutcomeVerifier
 from specify_cli.consolidation.reconciliation_verifier import VerifyStatus, _with_attribution_hint
 from specify_cli.lanes.compute import PLANNING_LANE_ID
@@ -309,15 +310,23 @@ def _planning_claim(repo: Path, pin: str, lane: ExecutionLane, states: dict[str,
     coord_base = _git(repo, "rev-parse", _MISSION_BRANCH)
     manifest = _manifest(pin=pin)
     manifest.lanes = [lane]
-    return coord_base, authorship._collect_authored(repo, manifest, states, coord_base, None, canceled_lane_commits=frozenset())
+    # The Mission base as the claim resolves it (``build_approved_wp_set``): the taint walk starts there (review 9).
+    mission_base = resolve_mission_base(repo, None, mission_branch=_MISSION_BRANCH, mission_slug=_SLUG).sha
+    assert mission_base is not None
+    return coord_base, authorship._collect_authored(repo, manifest, states, coord_base, None, canceled_lane_commits=frozenset(), mission_base=mission_base)
 
 
-def _commit_set(pin: str, claim: authorship._AuthoredClaim) -> ApprovedWpCommitSet:
-    """The production claim's shape, as :func:`build_approved_wp_set` fills it from :func:`_collect_authored`."""
+def _commit_set(repo: Path, claim: authorship._AuthoredClaim) -> ApprovedWpCommitSet:
+    """The production claim's shape, as :func:`build_approved_wp_set` fills it from :func:`_collect_authored`.
+
+    The window base is the target tip, as in production (``claim_inputs.build_claim`` passes the
+    target's pre-run tip), never the planning pin: a pin base would hide every Mission-branch
+    commit below the pin from the squash axis (review 9).
+    """
     return ApprovedWpCommitSet(
         approved={"WP02": tuple(sorted(claim.shas))},
         manifest_wp_ids=frozenset({"WP02", "WP03"}),
-        excluded_window_base=pin,
+        excluded_window_base=_git(repo, "rev-parse", "main"),
         enforce_closed_world=True,
         authored_shas=claim.shas,
         authored_patch_ids=claim.patch_ids,
@@ -380,7 +389,7 @@ def test_the_merge_strategy_closed_world_refuses_the_mixed_and_stray_commits_and
     _git(repo, "cherry-pick", shas["mixed"])
     copy = _git(repo, "rev-parse", "HEAD")
     verifier = MergeOutcomeVerifier(repo)
-    commit_set = _commit_set(pin, claim)
+    commit_set = _commit_set(repo, claim)
 
     flagged = {sha for sha, _pid in verifier._unattributable_in((coord_base, "side"), commit_set)}
 
@@ -394,7 +403,7 @@ def test_the_squash_blob_axis_refuses_the_stray_and_sneaked_in_paths(tmp_path: P
     _ownership(monkeypatch, {"WP02": (_OWNED,)})
     coord_base, claim = _planning_claim(repo, pin, _PLANNING, {"WP02": {"lane": "approved"}})
 
-    result = MergeOutcomeVerifier(repo)._verify_squash_content(coord_base, _commit_set(pin, claim))
+    result = MergeOutcomeVerifier(repo)._verify_squash_content(coord_base, _commit_set(repo, claim))
 
     assert result.status is VerifyStatus.FAIL
     assert result.divergence is not None
@@ -507,7 +516,7 @@ def test_an_all_empty_ownership_note_prints_with_the_squash_fail_it_explains(tmp
     # A code lane's approved work stands beside it, as in a real Mission, so the squash axis judges paths.
     code_blob = _git(repo, "rev-parse", f"{coord_base}:README.md")
     commit_set = dataclasses.replace(
-        _commit_set(pin, claim), approved={"WP01": (pin,)}, authored_blobs=claim.blobs | {("README.md", code_blob)}, planning_lane_notes=notes
+        _commit_set(repo, claim), approved={"WP01": (pin,)}, authored_blobs=claim.blobs | {("README.md", code_blob)}, planning_lane_notes=notes
     )
 
     result = _with_attribution_hint(MergeOutcomeVerifier(repo)._verify_squash_content(coord_base, commit_set), commit_set)
@@ -759,7 +768,7 @@ def test_a_pre_claim_change_never_rides_a_credited_commits_blob(tmp_path: Path, 
     assert shas["early"] not in claim.shas
     assert _SAME_PATH not in {path for path, _blob in claim.blobs}
     assert _SAME_PATH not in claim.deletions
-    result = MergeOutcomeVerifier(repo)._verify_squash_content(coord_base, _commit_set(pin, claim))
+    result = MergeOutcomeVerifier(repo)._verify_squash_content(coord_base, _commit_set(repo, claim))
     # No blob or deletion is left to attribute while WP02 resolved commits: the squash axis refuses.
     assert result.status is VerifyStatus.REFUSE
 
@@ -793,7 +802,7 @@ def test_a_clean_merge_of_a_pre_claim_change_taints_the_path(tmp_path: Path, mon
     assert touch in claim.shas
     assert _SAME_PATH not in {path for path, _blob in claim.blobs}
     assert "curation/pkg/other.py" in {path for path, _blob in claim.blobs}
-    result = MergeOutcomeVerifier(repo)._verify_squash_content(coord_base, _commit_set(pin, claim))
+    result = MergeOutcomeVerifier(repo)._verify_squash_content(coord_base, _commit_set(repo, claim))
     assert result.status is VerifyStatus.FAIL
     assert result.divergence is not None
     assert {path for path, _blob in result.divergence.unattributable_blobs} == {_SAME_PATH}
@@ -808,7 +817,7 @@ def test_without_a_pre_claim_change_the_credited_blob_is_attributed_and_the_squa
     coord_base, claim = _wp02_claim(repo, pin, shas["claim"], monkeypatch)
 
     assert (_SAME_PATH, _git(repo, "rev-parse", f"{shas['late']}:{_SAME_PATH}")) in claim.blobs
-    result = MergeOutcomeVerifier(repo)._verify_squash_content(coord_base, _commit_set(pin, claim))
+    result = MergeOutcomeVerifier(repo)._verify_squash_content(coord_base, _commit_set(repo, claim))
     assert result.status is VerifyStatus.PASS
 
 
@@ -838,7 +847,7 @@ def test_a_credited_rename_of_a_pre_claim_file_carries_its_taint(tmp_path: Path,
     assert _MOVED not in _credited_paths(claim) and _MOVED not in claim.deletions
     assert _PRE not in claim.deletions
     assert _OTHER in _credited_paths(claim)
-    result = MergeOutcomeVerifier(repo)._verify_squash_content(coord_base, _commit_set(pin, claim))
+    result = MergeOutcomeVerifier(repo)._verify_squash_content(coord_base, _commit_set(repo, claim))
     assert result.status is VerifyStatus.FAIL
     assert result.divergence is not None
     assert {path for path, _blob in result.divergence.unattributable_blobs} == {_MOVED}
@@ -855,7 +864,7 @@ def test_a_credited_copy_of_a_pre_claim_file_carries_its_taint(tmp_path: Path, m
     coord_base, claim = _wp02_claim(repo, pin, shas["claim"], monkeypatch)
 
     assert copy not in _credited_paths(claim) and _PRE not in _credited_paths(claim)
-    result = MergeOutcomeVerifier(repo)._verify_squash_content(coord_base, _commit_set(pin, claim))
+    result = MergeOutcomeVerifier(repo)._verify_squash_content(coord_base, _commit_set(repo, claim))
     assert result.status is VerifyStatus.FAIL
     assert result.divergence is not None
     assert {copy, _PRE} <= {path for path, _blob in result.divergence.unattributable_blobs}
@@ -872,7 +881,7 @@ def test_a_credited_rename_of_the_work_packages_own_file_is_credited(tmp_path: P
 
     assert (_MOVED, _git(repo, "rev-parse", f"HEAD:{_MOVED}")) in claim.blobs
     assert _PRE in claim.deletions
-    result = MergeOutcomeVerifier(repo)._verify_squash_content(coord_base, _commit_set(pin, claim))
+    result = MergeOutcomeVerifier(repo)._verify_squash_content(coord_base, _commit_set(repo, claim))
     assert result.status is VerifyStatus.PASS
 
 

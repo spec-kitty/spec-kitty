@@ -381,6 +381,7 @@ def _build_claim(
         canceled_lane_commits=canceled_lane_commits,
         presence=presence,
         events=event_log.read,
+        mission_base=pre_mission.base.sha,
     )
     excluded_shas, excluded_patch_ids = _collect_excluded(
         repo_root,
@@ -413,7 +414,7 @@ def _build_claim(
         bound_lane_branches=bound.lane_branches,
         no_implementation_attested_wp_ids=evidence.lifted_wp_ids,
         window_gaps=bound.window_gaps,
-        planning_lane_notes=planning_lane_notes(repo_root, lanes_manifest, work_packages, coord_base_ref, sb_window, event_log.read),
+        planning_lane_notes=planning_lane_notes(repo_root, lanes_manifest, work_packages, coord_base_ref, sb_window, event_log.read, pre_mission.base.sha),
         external_dependency_refs=external_dependency.refs,
         external_dependency_pins=dict(external_dependency.pins),
         external_dependency_shas=external_dependency.shas,

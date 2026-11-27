@@ -57,14 +57,19 @@ written, reviewed and evidenced (operator ruling A', recorded on #7860):
   all, by SHA, patch-id, file content or deletion: a merge that resolved a conflict lists the
   resolved file, and its content can carry a change made before the claim. A file's final content
   (or its deletion) is credited only when every commit on the Mission branch's first-parent
-  history from the planning commit that changed the file is credited for it: a file's content
-  holds every earlier change to it, so a file that a merge, a commit made before the claim, or any
-  other uncredited commit changed is refused as un-attributable, even when a credited commit
-  changed it later, and is never credited to an older commit. A file that a credited commit
+  history from the Mission base (the commit the Mission branch was cut from) that changed the file
+  is credited for it. That history starts below the planning commit, because `consolidate`
+  compares the landing with the target, so it holds the planning commit itself and every commit
+  made on the Mission branch before `finalize-tasks`. A file's content holds every earlier change
+  to it, so a file that a merge, a commit made before the claim (also one made before
+  `finalize-tasks`), or any other uncredited commit changed is refused as un-attributable, even
+  when a credited commit changed it later, and is never credited to an older commit. A file that a credited commit
   renamed or copied from another file also carries every uncredited change to that other file,
   so a file made before the claim and then moved or copied by the work package is refused under
-  its new name too (git's default copy detection: a copy whose source the same commit left
-  unchanged reads as a new file, whose whole content the review diff shows). A commit counts by SHA or patch-id only when every path it changes
+  its new name too. Two shapes read as a new file instead, whose whole content the review diff
+  shows as added lines: a copy whose source the same commit left unchanged (git's default copy
+  detection), and a rename git scores below its similarity threshold, which reads as a delete
+  and an add. A commit counts by SHA or patch-id only when every path it changes
   is credited that way or is Mission bookkeeping; a commit that also changes another path
   contributes only its credited files, so its other change (and any cherry-picked copy) is refused
   as un-attributable at the gate. The planning lane authors nothing, so the gate refuses its
@@ -83,7 +88,9 @@ written, reviewed and evidenced (operator ruling A', recorded on #7860):
     `src/**/*.py`), and also `docs/*.md`, `docs/**`, `.github` or `.gitignore`, are not. An
     absolute path, an empty segment or a `..` segment is refused outright;
   - every work package's `owned_files` is empty;
-  - the commit that introduced a work package's claim on the Mission branch cannot be found.
+  - the commit that introduced a work package's claim on the Mission branch cannot be found;
+  - the Mission base cannot be resolved, is not below the planning commit, or the history from it
+    cannot be read.
 
   The refusal names the planning lane, the reason and the work packages, and prints the remedy
   with the work package ids and `--mission <slug>` filled in. It is printed only when the

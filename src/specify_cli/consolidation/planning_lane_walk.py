@@ -16,9 +16,12 @@ it), and only for its own ``owned_files`` (:func:`_planning_scope`, operator rul
 2026-11-27). No merge commit is in any window, so no merge is credited by SHA, patch-id, blob or
 deletion: a merge that resolved a conflict lists the resolved path, and its blob can carry a change
 made before the claim (review 6). The final-state walk (:func:`_scoped_final_walk`) reads the whole
-first-parent spine, oldest first, and attributes a path's final blob or deletion only when every
-commit of that spine that changed the path is credited for it there: that blob holds every earlier
-change to the file, so a path changed by a merge, by a commit before the claim, or by any other
+first-parent spine from the Mission base (:func:`_taint_spine`, ``mission_base.resolve_mission_base``)
+to the coordination base, oldest first: the squash axis diffs the landing from the target, so the
+planning pin and every commit made on the Mission branch before it are in the landing too (review
+9). It attributes a path's final blob or deletion only when every commit of that spine that changed
+the path is credited for it there: that blob holds every earlier change to the file, so a path
+changed by a merge, by a commit before the claim (one before the pin included), or by any other
 commit no window credits, is attributed to nothing, never through a later credited commit (fail
 closed, review 7). Each commit is read with rename and copy detection (``git diff -C`` against its
 first parent): a renamed or copied path also carries every uncredited change its source had on the
@@ -32,7 +35,8 @@ packages is not approved (canceled, in flight, or with no status row: the claim 
 its paths, never by who made it, operator ruling R1), when any ``owned_files`` cannot be read, when
 a pattern has fewer than two literal leading path segments and names no top-level file
 (:func:`_is_whole_tree_pattern`, ``planning_lane_scope``), when every ``owned_files`` list is empty,
-or when any approved work package's window start cannot be proven. No attestation lifts this
+when any approved work package's window start cannot be proven, or when the Mission base is
+unavailable, is not below the pin, or its spine cannot be read. No attestation lifts this
 planning-lane credit rule. An un-attributable FAIL about the lane's paths then names the lane, the
 reason, the work packages and the remedy (``planning_lane_scope.planning_lane_notes``), with no
 change to the verdict.
@@ -41,9 +45,12 @@ Residuals of that window. The planning lane has no approval-stamp bound: a chang
 work package's owned path made after its approval, by any commit on the Mission branch, still
 counts as approved authorship. ``owned_files`` is read from the working tree's task files (the
 placement seam's ``tasks/`` directory), not at ``coord_base_ref``, and ``--resume`` does not freeze
-it, so an ``owned_files`` edit between runs changes the scope. And copy detection is git's default:
-a copy whose source the same commit left unchanged reads as an added file, whose whole content the
-review diff shows.
+it, so an ``owned_files`` edit between runs changes the scope. And two shapes read as an added
+file, credited as the commit's own work, whose whole content the review diff shows as added lines:
+a copy whose source the same commit left unchanged (copy detection is git's default ``-C``, not
+``--find-copies-harder``, whose cost grows with the tree: about 170 ms a commit on this
+repository's 41,000 files, against 3 ms), and a rename git scores below its similarity threshold,
+which reads as a delete and an add.
 """
 
 from __future__ import annotations
@@ -58,7 +65,9 @@ from specify_cli.consolidation.git_probes import (
     LineageChange,
     changed_paths_of,
     commits_on_ancestry_path,
+    first_parent_commits_in_range,
     first_parent_lineage_changes,
+    is_ancestor_strict,
     path_state_at,
 )
 from specify_cli.consolidation.planning_lane_scope import is_whole_tree_pattern as _is_whole_tree_pattern
@@ -279,10 +288,13 @@ def _scoped_commits(repo_root: Path, shas: Sequence[str], scope: _PlanningScope,
 class _LaneAuthorshipWalk(NamedTuple):
     """A lane's authorship walk; ``whole`` and ``scope`` are ``None`` on an unscoped walk (every spine commit may enter by SHA).
 
-    ``first_parent`` is the lane's whole first-parent spine. A scoped walk's ``spine`` holds only the
-    commits it credits, so its final-state walk reads ``first_parent`` instead: a path any change of
-    which it does not credit (a merge, review 6; a change before the claim, review 7) is then
-    attributed to nothing, never to an older commit (:func:`_scoped_final_walk`).
+    ``first_parent`` is the spine its final states are read from. On an unscoped walk it is the
+    lane's whole first-parent spine. A scoped walk's ``spine`` holds only the commits it credits
+    (``pin..coordination base``), and its ``first_parent`` is the taint spine, from the Mission
+    base to the coordination base (:func:`_taint_spine`, review 9): a path any change of which it
+    does not credit (a merge, review 6; a change before the claim, review 7; a change committed
+    before the planning pin, review 9) is then attributed to nothing, never to an older commit
+    (:func:`_scoped_final_walk`).
     """
 
     base: str
@@ -293,6 +305,29 @@ class _LaneAuthorshipWalk(NamedTuple):
     first_parent: list[str]
 
 
+def _taint_spine(repo_root: Path, mission_base: str | None, pin: str, coord_base_ref: str) -> list[str] | None:
+    """The first-parent spine ``<Mission base>..<coordination base>`` the taint walk reads, or ``None`` (fail closed).
+
+    The squash axis diffs the landing from the target's pre-run tip, so every Mission-branch
+    commit above the Mission base (``mission_base.resolve_mission_base``, the one authority for
+    where Mission work starts, #7560) is in the landing: the commits between the Mission base and
+    the planning pin and the pin commit itself included. Below the Mission base the content is
+    either on the target already or pre-Mission history the squash axes exempt by exact
+    ``(path, blob)`` (#7560). No window credits a commit before a claim (operator ruling R2), so
+    each of them taints the paths it changed. ``None`` (the lane then authors nothing) when the
+    Mission base is unavailable, is not an ancestor of the pin, or when git cannot read either.
+    """
+    if mission_base is None:
+        return None
+    try:
+        if not is_ancestor_strict(repo_root, mission_base, pin):
+            return None
+        spine: list[str] = first_parent_commits_in_range(repo_root, mission_base, coord_base_ref)
+    except GitProbeError:
+        return None
+    return spine
+
+
 def _planning_walk(
     repo_root: Path,
     lanes_manifest: LanesManifest,
@@ -301,15 +336,23 @@ def _planning_walk(
     coord_base_ref: str,
     sb_window: tuple[str, str] | None,
     events: Callable[[], Sequence[Any] | None] | None = None,
+    mission_base: str | None = None,
 ) -> _LaneAuthorshipWalk:
-    """*lane*'s walk; the planning scope (:func:`_planning_scope`) is read only for a planning lane with no ``single_branch`` window."""
+    """*lane*'s walk; the planning scope (:func:`_planning_scope`) is read only for a planning lane with no ``single_branch`` window.
+
+    A scoped walk needs its taint spine from *mission_base* (:func:`_taint_spine`); without one
+    the lane keeps today's range and authors nothing (fail closed).
+    """
     scope = _planning_scope(repo_root, lanes_manifest, lane, work_packages, coord_base_ref, events) if is_planning_lane(lane) and not sb_window else None
     base, branch, patterns = _lane_walk_range(repo_root, lanes_manifest, lane, coord_base_ref, sb_window, scope.patterns if scope else ())
-    first_parent = _lane_first_parent_spine(repo_root, base, branch)
-    if not patterns or scope is None:
+    taint = _taint_spine(repo_root, mission_base, base, branch) if patterns and scope is not None else None
+    if scope is None or taint is None:
+        if patterns:
+            base, branch, patterns = _lane_walk_range(repo_root, lanes_manifest, lane, coord_base_ref, sb_window, ())
+        first_parent = _lane_first_parent_spine(repo_root, base, branch)
         return _LaneAuthorshipWalk(base, branch, first_parent, None, None, first_parent)
-    scoped = _scoped_commits(repo_root, first_parent, scope, lanes_manifest.mission_slug)
-    return _LaneAuthorshipWalk(base, branch, scoped.touching, scoped.whole, scope, first_parent)
+    scoped = _scoped_commits(repo_root, _lane_first_parent_spine(repo_root, base, branch), scope, lanes_manifest.mission_slug)
+    return _LaneAuthorshipWalk(base, branch, scoped.touching, scoped.whole, scope, taint)
 
 
 def _touched_paths(change: LineageChange) -> tuple[str, ...]:
@@ -339,7 +382,7 @@ def _walk_commit(repo_root: Path, sha: str, scope: _PlanningScope, dropped: froz
 def _scoped_final_walk(repo_root: Path, first_parent: Sequence[str], scope: _PlanningScope, dropped: frozenset[str]) -> tuple[set[tuple[str, str]], set[str]]:
     """The final ``(path, blob)``s and deleted paths a planning scope credits on *first_parent* (#7860, reviews 7 and 8).
 
-    *first_parent* is the first-parent spine (``pin..coordination base``), newest first, as
+    *first_parent* is the taint spine (``<Mission base>..<coordination base>``, :func:`_taint_spine`), newest first, as
     :func:`_lane_first_parent_spine` gives it; it is walked oldest first. A path's final state is
     attributed only when EVERY commit of that spine that changed it is credited for it at that
     commit (:meth:`_PlanningScope.owns`), and, when a commit renamed or copied it, its source was

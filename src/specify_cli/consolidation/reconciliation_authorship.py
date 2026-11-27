@@ -695,10 +695,11 @@ def _presence_lane_content(
 def _lane_final_walk(repo_root: Path, walk: _LaneAuthorshipWalk, dropped: frozenset[str]) -> tuple[set[tuple[str, str]], set[str]]:
     """:func:`_final_authored_walk` of *walk* less the *dropped* commits.
 
-    A scoped walk (#7860) reads the whole first-parent spine through :func:`_scoped_final_walk`: a
-    path is attributed only when every change to it on that spine is credited, so neither a merge
-    that changed it (review 6), nor an owned-path change made before the claim (review 7), nor
-    one carried into a renamed or copied path (review 8) rides in.
+    A scoped walk (#7860) reads the whole first-parent spine from the Mission base through
+    :func:`_scoped_final_walk`: a path is attributed only when every change to it on that spine is
+    credited, so neither a merge that changed it (review 6), nor an owned-path change made before
+    the claim (review 7) or before the planning pin (review 9), nor one carried into a renamed or
+    copied path (review 8) rides in.
     """
     if walk.scope is None:
         return _final_authored_walk(repo_root, [sha for sha in walk.spine if sha not in dropped])
@@ -717,6 +718,7 @@ def _collect_authored(
     canceled_lane_commits: frozenset[str],
     presence: _PresenceScope | None = None,
     events: Callable[[], Sequence[Any] | None] | None = None,
+    mission_base: str | None = None,
 ) -> _AuthoredClaim:
     """Approved lanes → their OWN first-parent SHAs + patch-ids + FINAL blobs + FINAL deletions + multi-lane paths.
 
@@ -778,6 +780,9 @@ def _collect_authored(
 
     *events* (#7860) reads the status events for the planning lane's per-work-package windows
     (:func:`_planning_window_starts`); without it a default Mission's planning lane authors nothing.
+    *mission_base* (#7860 review 9, the claim's one ``mission_base.resolve_mission_base`` answer) is
+    where that lane's final-state taint walk starts (``planning_lane_walk._taint_spine``); ``None``
+    (unavailable) leaves the lane authoring nothing too.
     """
     shas: set[str] = set()
     patch_ids: set[str] = set()
@@ -788,7 +793,7 @@ def _collect_authored(
     for lane in lanes_manifest.lanes:
         if not _lane_is_approved(lane, work_packages):
             continue
-        walk = _planning_walk(repo_root, lanes_manifest, lane, work_packages, coord_base_ref, sb_window, events)
+        walk = _planning_walk(repo_root, lanes_manifest, lane, work_packages, coord_base_ref, sb_window, events, mission_base)
         base, branch, first_parent, whole = walk.base, walk.branch, walk.spine, walk.whole
         full_authored = [sha for sha in first_parent if sha not in canceled_lane_commits]
         full_blobs, full_deletions = _lane_final_walk(repo_root, walk, canceled_lane_commits)

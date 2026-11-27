@@ -92,6 +92,13 @@ def is_whole_tree_pattern(pattern: str) -> bool:
 
 _NO_STATUS_ROW = "no status row"
 _RERUN = "then run `spec-kitty consolidate` again"
+#: Review 9: the taint walk starts at the Mission base; without a readable one the lane credits nothing.
+_NO_MISSION_BASE = (
+    "the Mission base (the commit the Mission branch was cut from) cannot be resolved, is not below the planning "
+    "commit, or the Mission branch's history from it cannot be read, so no change on the Mission branch is shown to "
+    "come after a claim (the Mission base note says why). Restore the Mission branch's history, or record the commit "
+    f"the Mission branch was cut from as `mission_base_sha` in the Mission's meta.json, {_RERUN}"
+)
 _CANCELED = "canceled"
 #: N3 (review 6): the rule no attestation lifts, and the check the attestation step answers instead.
 _R1_RULE = (
@@ -249,6 +256,7 @@ def planning_lane_notes(
     coord_base_ref: str,
     sb_window: tuple[str, str] | None,
     events: Callable[[], Sequence[Any] | None] | None,
+    mission_base: str | None = None,
 ) -> tuple[PlanningLaneNote, ...]:
     """One note per planning lane of a default, not-landed Mission that credits nothing, naming the reason, the work packages and the remedy.
 
@@ -256,6 +264,8 @@ def planning_lane_notes(
     pin) and for a lane the claim's own scope decision credits. Each note carries the lane's scope,
     so the verifier prints it only with a FAIL about that lane (:meth:`PlanningLaneNote.explains`,
     review 6). Looked up through the planning walk module so a patch of its names reaches this read too.
+    A lane whose scope credits work still gets a note when its taint walk cannot start at
+    *mission_base* (``planning_lane_walk._taint_spine``, review 9): it credits nothing then either.
     """
     from specify_cli.consolidation import planning_lane_walk as walk
 
@@ -270,8 +280,11 @@ def planning_lane_notes(
             continue
         scope = walk._planning_scope(repo_root, lanes_manifest, lane, work_packages, coord_base_ref, events)
         if scope is not None and scope.patterns:
-            continue
-        reason = _why_unscoped(repo_root, lanes_manifest, lane, work_packages, events)
+            if walk._taint_spine(repo_root, mission_base, window[0], window[1]) is not None:
+                continue
+            reason = _NO_MISSION_BASE
+        else:
+            reason = _why_unscoped(repo_root, lanes_manifest, lane, work_packages, events)
         text = f"The planning lane {lane.lane_id} credits none of its work on the Mission branch to any work package (#7860): {reason}."
         patterns = _note_patterns(repo_root, lanes_manifest, lane)
         commits, paths = _note_coverage(repo_root, window, patterns, lanes_manifest.mission_slug)
