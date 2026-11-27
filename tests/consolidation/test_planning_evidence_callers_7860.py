@@ -313,3 +313,65 @@ def test_an_unproven_window_start_is_worded_by_its_reason(
     assert refused.value.code == code
     assert present in refused.value.detail
     assert absent not in refused.value.detail
+
+
+# ---------------------------------------------------------------- the claim's event reader (review 5 issue 3)
+
+
+class _ReachedAuthorship(Exception):
+    """Raised by the spy once the claim has handed the authorship walk its inputs."""
+
+
+def test_the_claim_hands_the_authorship_walk_the_reader_that_proves_each_window_start(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``build_approved_wp_set`` must pass ``_collect_authored`` the claim's event reader; without it the planning lane credits nothing.
+
+    The window starts are read with the real reader (no autouse stub here), so dropping
+    ``events=event_log.read`` from the claim, or handing a reader that cannot prove the claims,
+    turns this red.
+    """
+    from specify_cli.consolidation import reconciliation_authorship as authorship
+    from specify_cli.consolidation import reconciliation_claim
+
+    fx = _build(tmp_path)
+    _claim(fx, "WP02")
+    claim_wp02 = _git(fx.repo, "rev-parse", "HEAD")
+    _commit_file(fx.repo, _OWNED["WP02"], "# notes\n", "feat(WP02): research notes")
+    _claim(fx, "WP03")
+    claim_wp03 = _git(fx.repo, "rev-parse", "HEAD")
+    _commit_file(fx.repo, _OWNED["WP03"], "# other\n", "feat(WP03): other research")
+    _approve(fx, "WP02")
+    _approve(fx, "WP03")
+    seen: dict[str, object] = {}
+
+    def _spy(*_args: object, **kwargs: object) -> object:
+        seen.update(kwargs)
+        raise _ReachedAuthorship
+
+    monkeypatch.setattr(reconciliation_claim, "_collect_authored", _spy)
+    manifest = fx.manifest()
+    with pytest.raises(_ReachedAuthorship):
+        reconciliation_claim.build_approved_wp_set(fx.repo, fx.feature_dir, manifest, coord_base_ref=_git(fx.repo, "rev-parse", "HEAD"))
+
+    events = seen.get("events")
+    assert callable(events), f"the claim handed the authorship walk no event reader: {seen.get('events')!r}"
+    lane = manifest.lanes[0]
+    assert authorship._planning_window_starts(fx.repo, manifest, lane, ("WP02", "WP03"), events) == {"WP02": claim_wp02, "WP03": claim_wp03}
+
+
+def test_the_claim_names_a_planning_lane_a_canceled_work_package_empties(tmp_path: Path) -> None:
+    """Review 5 issue 2: the claim carries the planning lane's note (ruling R1), naming the lane and the canceled work package."""
+    from specify_cli.consolidation import reconciliation_claim
+
+    fx = _build(tmp_path)
+    _claim(fx, "WP02")
+    _commit_file(fx.repo, _OWNED["WP02"], "# notes\n", "feat(WP02): research notes")
+    _approve(fx, "WP02")
+    _transition(fx, "WP03", (("planned", "canceled", "op"),), "chore: drop WP03")
+
+    claim = reconciliation_claim.build_approved_wp_set(
+        fx.repo, fx.feature_dir, fx.manifest(), coord_base_ref=_git(fx.repo, "rev-parse", "HEAD"), excluded_canceled_wp_ids=("WP03",)
+    )
+
+    assert claim.refusal is None, claim.refusal
+    (note,) = claim.planning_lane_notes
+    assert note.startswith(f"The planning lane {PLANNING_LANE_ID} credits none of its work") and "WP03 is canceled" in note

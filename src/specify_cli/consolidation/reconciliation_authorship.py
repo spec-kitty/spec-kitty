@@ -16,17 +16,20 @@ Before a default Mission lands, its planning lane is walked on the Mission branc
 :func:`_lane_walk_range`), fail closed, from ``lanes.json``'s planning pin to the coordination base.
 Each approved work package is credited only inside its own window, from the commit that introduced
 its claim on the Mission branch (``wp_evidence.planning_evidence_window``, the evidence axis' one
-decision) to the coordination base, and only for its own ``owned_files`` (:func:`_planning_scope`,
-operator ruling R2, 2026-11-27). A commit enters the claim by SHA and patch-id only when every path
+decision) to the coordination base, counting only the commits that descend from that claim commit
+(``git rev-list --ancestry-path``: a commit a merge brought in beside the claim never came after
+it), and only for its own ``owned_files`` (:func:`_planning_scope`, operator ruling R2,
+2026-11-27). A merge commit changes no path of its own on the walk, so it credits nothing. A commit enters the claim by SHA and patch-id only when every path
 it changes is credited there or is bookkeeping (:func:`_scoped_commits`); a mixed commit, and every
 copy of it, stays un-attributable on the merge / rebase closed world while its credited blobs still
 count on the squash axis. The lane authors nothing (:func:`_approved_planning_scope`) when any of its
 work packages is not approved (canceled, in flight, or with no status row: the claim admits a commit
 by its paths, never by who made it, operator ruling R1), when any ``owned_files`` cannot be read,
 when a pattern has fewer than two literal leading path segments and names no top-level file
-(:func:`_is_whole_tree_pattern`), when every ``owned_files`` list is empty, or when any approved work
-package's window start cannot be proven. No attestation lifts this; take every planning work
-package to approved, then run ``consolidate`` again.
+(:func:`_is_whole_tree_pattern`, ``planning_lane_scope``), when every ``owned_files`` list is empty,
+or when any approved work package's window start cannot be proven. No attestation lifts this.
+The un-attributable FAIL then names the lane, the reason, the work packages and the remedy
+(``planning_lane_scope.planning_lane_notes``), with no change to the verdict.
 
 Two residuals of that window. The planning lane has no approval-stamp bound: a change to an
 approved work package's owned path made after its approval, by any commit on the Mission branch,
@@ -49,12 +52,14 @@ from specify_cli.consolidation.git_probes import (
     changed_paths_of,
     commit_parents,
     commits_in_range,
+    commits_on_ancestry_path,
     first_parent_changed_paths,
     is_merge_commit,
     patch_id_of,
     path_state_at,
     sha_reachable_from,
 )
+from specify_cli.consolidation.planning_lane_scope import is_whole_tree_pattern as _is_whole_tree_pattern
 from specify_cli.consolidation.reconciliation_canceled import _fully_canceled_lane_commits
 from specify_cli.consolidation.reconciliation_claim_types import (
     _GAP_ABSENT,
@@ -769,65 +774,6 @@ def _lane_walk_range(
     return coord_base_ref, _lane_branch_for(lanes_manifest, lane.lane_id), ()
 
 
-_GLOB_CHARS = frozenset("*?[")
-# A usable owned glob is led by at least this many literal path segments (#7860 review 3).
-_MIN_LITERAL_SEGMENTS = 2
-_PARENT_SEGMENT = ".."
-
-
-def _normalized_pattern(pattern: str) -> str:
-    """*pattern* as the ownership reader normalises it: ``\\`` to ``/`` and one leading ``./`` dropped."""
-    return pattern.replace("\\", "/").removeprefix("./")
-
-
-def _literal_prefix(pattern: str) -> tuple[str, ...] | None:
-    """The literal leading path segments of *pattern* (those before the first ``*``, ``?`` or ``[``).
-
-    A trailing ``/`` is stripped first. ``None`` for a pattern no prefix can bound: one with an empty
-    segment (an empty pattern, ``a//b``, or an absolute path, whose first segment is empty) or any
-    ``..`` segment.
-    """
-    segments = _normalized_pattern(pattern).rstrip("/").split("/")
-    if any(segment in ("", _PARENT_SEGMENT) for segment in segments):
-        return None
-    literal: list[str] = []
-    for segment in segments:
-        if any(char in _GLOB_CHARS for char in segment):
-            break
-        literal.append(segment)
-    return tuple(literal)
-
-
-def _names_a_top_level_file(pattern: str, literal: tuple[str, ...]) -> bool:
-    """True for one wildcard-free segment with an extension (``README.md``, ``pyproject.toml``) and no trailing ``/``.
-
-    Kept simple on purpose (fail closed): a name with no ``.`` after its first character
-    (``src``, ``.github``, ``.gitignore``) reads as a directory and is refused.
-    """
-    normalized = _normalized_pattern(pattern)
-    return len(literal) == 1 and normalized == literal[0] and "." in literal[0][1:]
-
-
-def _is_whole_tree_pattern(pattern: str) -> bool:
-    """True when an owned glob is too broad to scope the Mission-branch window (#7860 reviews 2 and 3).
-
-    Judged on structure, not spelling: a usable pattern is led by at least two literal path segments
-    (segments before the first one holding ``*``, ``?`` or ``[``, after dropping a leading ``./`` and
-    a trailing ``/``), or names one top-level file (:func:`_names_a_top_level_file`). Everything
-    else is refused: a wildcard in the first segment (``fnmatch``'s ``*`` crosses ``/``), the
-    inference fallback ``src/**`` and every pattern as broad as it (``src``, ``src/``, ``src/*``,
-    ``src/**/*``, ``src/*/**``, ``src/**/*.py``), and also ``docs/*.md`` or ``docs/**``; an absolute
-    path, an empty segment and a ``..`` segment are refused outright. The matcher's prefix rule
-    (:func:`matches_owned`) can reach a sibling of the last literal segment (``src/a/*b/**`` also owns
-    ``src/ab/...``); with two literal segments that sibling is still under the first one, so the
-    breadth stays bounded.
-    """
-    literal = _literal_prefix(pattern)
-    if literal is None:
-        return True
-    return len(literal) < _MIN_LITERAL_SEGMENTS and not _names_a_top_level_file(pattern, literal)
-
-
 def _planning_ownership(repo_root: Path, mission_slug: str, wp_ids: Sequence[str]) -> dict[str, tuple[str, ...]]:
     """*wp_ids*' authored ``owned_files`` globs, read through the evidence axis' one reader; an unresolved id is absent."""
     from specify_cli.consolidation.wp_evidence import read_wp_ownership
@@ -893,7 +839,10 @@ def _planning_window_starts(
 
 @dataclass(frozen=True)
 class _PlanningScope:
-    """Per approved work package: its ``owned_files`` and the commits of its window ``<claim commit>..<coordination base>`` (ruling R2)."""
+    """Per approved work package: its ``owned_files`` and its window's commits (ruling R2).
+
+    The window holds the commits of ``<claim commit>..<coordination base>`` that descend from the claim commit.
+    """
 
     windows: tuple[tuple[tuple[str, ...], frozenset[str]], ...]
 
@@ -935,7 +884,7 @@ def _planning_scope(
     if starts is None or any(wp not in starts for wp in owned):
         return None
     try:
-        windows = tuple((owned[wp], frozenset(commits_in_range(repo_root, starts[wp], coord_base_ref))) for wp in owned)
+        windows = tuple((owned[wp], frozenset(commits_on_ancestry_path(repo_root, starts[wp], coord_base_ref))) for wp in owned)
     except GitProbeError:
         return None
     return _PlanningScope(windows)

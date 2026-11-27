@@ -21,6 +21,7 @@ from pathlib import Path
 import pytest
 
 import mission_runtime
+from specify_cli.consolidation import planning_lane_scope
 from specify_cli.consolidation import reconciliation_authorship as authorship
 from specify_cli.consolidation.git_probes import GitProbeError
 from specify_cli.consolidation.reconciliation import ApprovedWpCommitSet, MergeOutcomeVerifier
@@ -161,7 +162,7 @@ _TOO_BROAD = [
 @pytest.mark.parametrize("pattern", _TOO_BROAD)
 def test_a_pattern_with_fewer_than_two_literal_leading_segments_is_unusable(pattern: str) -> None:
     """A pattern is too broad to scope the window unless two literal path segments lead it (or it names one top-level file)."""
-    assert authorship._is_whole_tree_pattern(pattern)
+    assert planning_lane_scope.is_whole_tree_pattern(pattern)
 
 
 @pytest.mark.unit
@@ -181,7 +182,7 @@ def test_a_pattern_with_fewer_than_two_literal_leading_segments_is_unusable(patt
     ],
 )
 def test_an_anchored_pattern_is_usable(pattern: str) -> None:
-    assert not authorship._is_whole_tree_pattern(pattern)
+    assert not planning_lane_scope.is_whole_tree_pattern(pattern)
 
 
 @pytest.mark.unit
@@ -570,6 +571,42 @@ def test_an_owned_change_made_before_the_claim_is_not_credited_one_after_it_is(t
     _coord_base, claim = _planning_claim(repo, pin, lane, {"WP02": {"lane": "approved"}})
 
     assert late in claim.shas and early not in claim.shas
+    assert {path for path, _blob in claim.blobs} == {"curation/pkg/late.py"}
+    assert not claim.deletions
+
+
+def _r2_merge_mission(tmp_path: Path) -> tuple[Path, str, dict[str, str]]:
+    """The claim commit reaches the Mission branch through a merge (review 5 issue 1).
+
+    The Mission branch forks a side branch that holds an owned change and then WP02's claim commit;
+    the Mission branch meanwhile commits an owned change (``early``), merges the side branch
+    (``merge``), then commits WP02's work (``late``). ``early`` and ``side_early`` predate the claim.
+    """
+    repo, pin, _shas = _mission(tmp_path)
+    _git(repo, "switch", "-qc", "side", _MISSION_BRANCH)
+    side_early = _commit(repo, {"curation/pkg/side_early.py": "S = 1\n"}, "an owned change on the side branch before the claim")
+    claim_commit = _commit(repo, {f"kitty-specs/{_SLUG}/status.events.jsonl": "{}\n{}\n{}\n"}, "chore: claim WP02")
+    _git(repo, "switch", "-q", _MISSION_BRANCH)
+    early = _commit(repo, {"curation/pkg/early.py": "E = 1\n"}, "an owned change on the Mission branch before the claim was merged in")
+    _git(repo, "merge", "-q", "--no-ff", "--no-edit", "side")
+    merge = _git(repo, "rev-parse", "HEAD")
+    late = _commit(repo, {"curation/pkg/late.py": "L = 1\n"}, "feat(WP02): after the claim")
+    return repo, pin, {"side_early": side_early, "claim": claim_commit, "early": early, "merge": merge, "late": late}
+
+
+@pytest.mark.integration
+def test_a_change_the_claim_does_not_reach_across_a_merge_is_not_credited(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """R2, review 5 issue 1: only descendants of the claim commit count (``--ancestry-path``), and the merge itself credits nothing."""
+    repo, pin, shas = _r2_merge_mission(tmp_path)
+    monkeypatch.setattr(mission_runtime, "planning_write_ref", _reader(True))
+    _ownership(monkeypatch, {"WP02": (_PKG,)})
+    _starts(monkeypatch, {"WP02": shas["claim"]})
+    lane = ExecutionLane(PLANNING_LANE_ID, ("WP02",), (_PKG,), (), (), 0)
+
+    _coord_base, claim = _planning_claim(repo, pin, lane, {"WP02": {"lane": "approved"}})
+
+    assert shas["late"] in claim.shas
+    assert shas["early"] not in claim.shas and shas["merge"] not in claim.shas and shas["side_early"] not in claim.shas
     assert {path for path, _blob in claim.blobs} == {"curation/pkg/late.py"}
     assert not claim.deletions
 

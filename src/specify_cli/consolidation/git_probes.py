@@ -563,6 +563,26 @@ def commits_in_range(repo_root: Path, base: str, tip: str) -> list[str]:
     return [line for line in out.splitlines() if line.strip()]
 
 
+def commits_on_ancestry_path(repo_root: Path, base: str, tip: str) -> list[str]:
+    """Return the SHAs of ``base..tip`` that descend from *base* (``git rev-list --ancestry-path base..tip``).
+
+    ``base..tip`` (:func:`commits_in_range`) also holds every commit a merge brought in beside
+    *base*, which *base* cannot reach but which never came after it. The ancestry path keeps only
+    the commits made on top of *base* (#7860 review 5: a planning work package's window starts at
+    its claim commit). An empty result is a genuinely empty path; a git error raises
+    :class:`GitProbeError` (fail closed), as :func:`commits_in_range` does.
+    """
+    ret, out, err = run_command(
+        ["git", "rev-list", "--ancestry-path", f"{base}..{tip}"],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret != 0:
+        raise GitProbeError(f"git rev-list --ancestry-path {base}..{tip} failed (exit {ret}): {(err or '').strip()}")
+    return [line for line in out.splitlines() if line.strip()]
+
+
 def patch_id_of(repo_root: Path, sha: str) -> str:
     """Return the stable patch-id of *sha* — the identity of the CHANGE, not the commit.
 
@@ -1167,6 +1187,7 @@ __all__ = [
     "is_ancestor_strict",
     "resolve_commit",
     "commits_in_range",
+    "commits_on_ancestry_path",
     "merge_own_changed_paths",
     "patch_id_of",
     "patch_ids_in_range",

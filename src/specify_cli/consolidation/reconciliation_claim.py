@@ -20,6 +20,7 @@ from typing import Any
 
 from specify_cli.consolidation.git_probes import GitProbeError
 from specify_cli.consolidation.mission_base import MissionBase, resolve_mission_base
+from specify_cli.consolidation.planning_lane_scope import planning_lane_notes
 from specify_cli.consolidation.reconciliation_authorship import (
     _collect_authored,
     _presence_range_unreadable_refusal,
@@ -412,6 +413,7 @@ def _build_claim(
         bound_lane_branches=bound.lane_branches,
         no_implementation_attested_wp_ids=evidence.lifted_wp_ids,
         window_gaps=bound.window_gaps,
+        planning_lane_notes=planning_lane_notes(repo_root, lanes_manifest, work_packages, coord_base_ref, sb_window, event_log.read),
         external_dependency_refs=external_dependency.refs,
         external_dependency_pins=dict(external_dependency.pins),
         external_dependency_shas=external_dependency.shas,

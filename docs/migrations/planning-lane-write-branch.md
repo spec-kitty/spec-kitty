@@ -51,7 +51,10 @@ written, reviewed and evidenced (operator ruling A', recorded on #7860):
   commit to the Mission branch tip). Each approved work package is credited only for its own
   `owned_files` and only inside its own window, from the commit that introduced its claim to the
   Mission branch tip (the same start as the evidence window), so an owned-path change made before
-  that claim is never its work. A commit counts by SHA or patch-id only when every path it changes
+  that claim is never its work. Only commits made on top of the claim commit count: when the
+  Mission branch brings the claim in through a merge (for example a `git pull` in a second clone),
+  a commit on the other side of that merge is not in the window, and the merge commit itself
+  credits nothing. A commit counts by SHA or patch-id only when every path it changes
   is credited that way or is Mission bookkeeping; a commit that also changes another path
   contributes only its credited files, so its other change (and any cherry-picked copy) is refused
   as un-attributable at the gate. The planning lane authors nothing, so the gate refuses its
@@ -72,10 +75,26 @@ written, reviewed and evidenced (operator ruling A', recorded on #7860):
   - every work package's `owned_files` is empty;
   - the commit that introduced a work package's claim on the Mission branch cannot be found.
 
-  Remedy: no attestation lifts this (`--attest-canceled-superseded` included). Take every planning
-  work package to `approved` (a canceled one leaves `canceled` only with `--force`), narrow a
-  too-broad `owned_files` to two literal leading segments, or commit the missing claim on the
-  Mission branch; then run `consolidate` again.
+  The refusal names the planning lane, the reason and the work packages, and prints the remedy.
+  No attestation lifts this (`--attest-canceled-superseded` included). The remedies, each driven
+  end to end through the CLI:
+  - a work package still in flight: finish its review and approval;
+  - a canceled work package that was claimed before it was canceled and owes no work:
+    `spec-kitty agent tasks move-task <WP> --to approved --force`, then
+    `spec-kitty consolidate --attest-no-implementation <WP> --attest-reason "<why>"`;
+  - a canceled work package that was never claimed (a dropped work package) and owes no work:
+    record its claim first with `spec-kitty agent tasks move-task <WP> --to claimed --force` (that
+    status commit on the Mission branch starts its window; without it the evidence check refuses
+    `EVIDENCE_WINDOW_UNCOMPUTABLE` and the attestation does not lift that), then the two commands
+    above. `canceled` cannot go back to `planned`, even with `--force`;
+  - a canceled work package that owes work: move it with `--to claimed --force`, claim it through
+    `spec-kitty agent action implement <WP>`, commit its change, move it to `for_review`, and have
+    it reviewed and approved;
+  - a too-broad `owned_files`: narrow it to two literal leading segments;
+  - a claim commit that cannot be found: claim the work package through
+    `spec-kitty agent action implement <WP>`, whose status commit lands on the Mission branch.
+
+  Then run `consolidate` again.
 
 Nothing changes for an explicit-topology Mission (`--topology ...`), a Mission whose landing is
 recorded, a `single_branch` Mission or a code lane: their planning work is still worked in the

@@ -382,3 +382,48 @@ def test_is_merge_commit_raises_on_bad_sha(tmp_path: Path) -> None:
     repo = _init_committed_repo(tmp_path)
     with pytest.raises(git_probes.GitProbeError):
         git_probes.is_merge_commit(repo, "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
+
+
+# --- commits_on_ancestry_path (#7860 review 5) --------------------------------
+
+
+def _probe_git(repo: Path, *args: str) -> str:
+    import subprocess
+
+    return subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, text=True).stdout.strip()
+
+
+def _probe_commit(repo: Path, name: str) -> str:
+    (repo / name).write_text(name + "\n", encoding="utf-8")
+    _probe_git(repo, "add", "--", name)
+    _probe_git(repo, "commit", "-qm", name)
+    return _probe_git(repo, "rev-parse", "HEAD")
+
+
+def test_commits_on_ancestry_path_keeps_only_descendants_of_the_base(tmp_path: Path) -> None:
+    """``base..tip`` also holds commits a merge brought in beside *base*; the ancestry path drops them."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _probe_git(repo, "init", "-q", "-b", "main")
+    _probe_git(repo, "config", "user.email", "t@example.com")
+    _probe_git(repo, "config", "user.name", "Test")
+    _probe_git(repo, "config", "commit.gpgsign", "false")
+    _probe_commit(repo, "root")
+    _probe_git(repo, "switch", "-qc", "side")
+    base = _probe_commit(repo, "claim")
+    _probe_git(repo, "switch", "-q", "main")
+    beside = _probe_commit(repo, "beside")
+    _probe_git(repo, "merge", "-q", "--no-ff", "--no-edit", "side")
+    merge = _probe_git(repo, "rev-parse", "HEAD")
+    after = _probe_commit(repo, "after")
+
+    assert beside in git_probes.commits_in_range(repo, base, "main")
+    assert git_probes.commits_on_ancestry_path(repo, base, "main") == [after, merge]
+
+
+def test_commits_on_ancestry_path_raises_on_git_error(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _probe_git(repo, "init", "-q", "-b", "main")
+    with pytest.raises(git_probes.GitProbeError):
+        git_probes.commits_on_ancestry_path(repo, "no-such-ref-xyz", "main")

@@ -326,6 +326,12 @@ class ApprovedWpCommitSet:
     # on a hand-built claim and on a compound refusal. Appended last so positional constructions stay valid.
     window_gaps: tuple[GapEntry, ...] = ()
 
+    # #7860 review 5: one line per planning lane of a default, not-landed Mission that credits none of
+    # its Mission-branch work (``planning_lane_scope.planning_lane_notes``): the lane, the reason, the
+    # work packages and the remedy. Printed with an un-attributable FAIL; it changes no verdict. Empty
+    # on a hand-built claim, on a REFUSE-shaped claim and on every other shape.
+    planning_lane_notes: tuple[str, ...] = ()
+
     @property
     def is_vacuous_against_manifest(self) -> bool:
         """True when the derived claim is empty while the manifest lists WPs."""

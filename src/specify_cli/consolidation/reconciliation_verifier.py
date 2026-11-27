@@ -170,7 +170,7 @@ class Divergence:
 
 
 def _with_attribution_hint(result: VerifyResult, claim: ApprovedWpCommitSet) -> VerifyResult:
-    """Add the #6771 recovery to an un-attributable FAIL that declared no external dependency.
+    """Add the recoveries an un-attributable FAIL needs: the planning lane's note (#7860) and the #6771 declaration.
 
     A mission whose work-package branch brought a dependency branch's newer head in (with a
     real ``git merge --no-ff``, so the reviewed commits stand) sees every one of that
@@ -179,18 +179,24 @@ def _with_attribution_hint(result: VerifyResult, claim: ApprovedWpCommitSet) -> 
     the claim declared nothing (a declared run is refused for a different, self-explaining
     reason) and only to the un-attributable axes — never to a refusal, and never to a
     divergence this change does not own.
+
+    A planning lane that credits none of its Mission-branch work (``claim.planning_lane_notes``,
+    #7860 review 5) is named first, with its reason, work packages and remedy, declared ref or
+    not: it is the likelier cause on such a Mission. The verdict is unchanged.
     """
-    if result.divergence is None or claim.external_dependency_refs:
+    if result.divergence is None:
         return result
     divergence = result.divergence
     if not (divergence.unattributable_content or divergence.unattributable_blobs or divergence.unattributable_deletions):
         return result
-    hint = (
-        "If a work-package branch brought an external dependency branch's newer head in, declare it and re-run: "
-        "spec-kitty consolidate --dependency-ref <ref>. Only a ref the mission branch or one of its lane branches reaches, "
-        "on which no commit of any mission lane or mission branch sits, is accepted — mission-authored work is never exempt."
-    )
-    return replace(result, attribution_hint=hint)
+    hints = list(claim.planning_lane_notes)
+    if not claim.external_dependency_refs:
+        hints.append(
+            "If a work-package branch brought an external dependency branch's newer head in, declare it and re-run: "
+            "spec-kitty consolidate --dependency-ref <ref>. Only a ref the mission branch or one of its lane branches reaches, "
+            "on which no commit of any mission lane or mission branch sits, is accepted — mission-authored work is never exempt."
+        )
+    return replace(result, attribution_hint=" ".join(hints)) if hints else result
 
 
 #: #5318/#5296 (FR-009): printed BEFORE the single rollback authority runs, so it
