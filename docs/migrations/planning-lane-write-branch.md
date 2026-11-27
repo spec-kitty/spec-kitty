@@ -61,10 +61,14 @@ written, reviewed and evidenced (operator ruling A', recorded on #7860):
   commit the Mission branch was cut from, which `agent mission create` records) that changed the
   file is credited for it. That history starts below the planning commit, because `consolidate`
   compares the landing with the target, so it holds the planning commit itself and every commit
-  made on the Mission branch before `finalize-tasks`. Only a recorded base starts it: a Mission
-  that records none (created before #7560) gets a base derived from its first scaffold commit,
-  and a commit made on the Mission branch before that scaffold sits below a derived base, so the
-  planning lane authors nothing then (see the list below). A target change brought into the
+  made on the Mission branch before `finalize-tasks`. Only a recorded base that is a commit on the
+  target (an ancestor of the target's tip before the run) starts it, so everything below it is on
+  the target already. A Mission that records none (created on 4.0.0rc8 or earlier, before #7560)
+  gets a base derived from its first scaffold commit, and a commit made on the Mission branch
+  before that scaffold sits below a derived base, so the planning lane authors nothing then (see
+  the list below). A recorded value that is not on the target (for example a hand-written
+  Mission-branch commit) starts nothing either; so a target branch rewritten below the base
+  (force-pushed) or a Mission retargeted onto another branch credits nothing (fail closed). A target change brought into the
   Mission branch (a merge of the target, a rebase onto it or a cherry-pick of it, before
   `finalize-tasks`, or a merge after it) to a file a work package then edits is on that history
   and no window credits it, so the file is refused as un-attributable, although only the
@@ -102,7 +106,8 @@ written, reviewed and evidenced (operator ruling A', recorded on #7860):
   - the commit that introduced a work package's claim on the Mission branch cannot be found;
   - the Mission records no `mission_base_sha` (a base derived from the scaffold commit is not
     trusted), its recorded base cannot be used (it is not on the history the Mission started from,
-    or not below the planning commit), or the history from it cannot be read.
+    it is not a commit on the target, or it is not below the planning commit), or the history from
+    it cannot be read.
 
   The refusal names the planning lane, the reason and the work packages, and prints the remedy
   with the work package ids and `--mission <slug>` filled in. It is printed only when the
@@ -124,9 +129,15 @@ written, reviewed and evidenced (operator ruling A', recorded on #7860):
     `spec-kitty agent action implement <WP> --agent <agent> --mission <slug>`, commit its change, move it to
     `for_review`, and have it reviewed and approved;
   - a too-broad `owned_files`: narrow it to two literal leading segments;
-  - a Mission that records no `mission_base_sha`: record the commit the Mission branch was cut
-    from (the target commit the branch started at) as `mission_base_sha` in the Mission's
-    `meta.json`, commit it on the Mission branch, and run `spec-kitty consolidate` again;
+  - a Mission that records no `mission_base_sha`, or records one that is not a commit on the
+    target: record a commit on `<target>` as `mission_base_sha` in the Mission's `meta.json`: the
+    commit the Mission branch was cut from, which `git merge-base <target> <scaffold>^` prints
+    (`<scaffold>` is the Mission's first commit, the earliest on the Mission branch that adds
+    `kitty-specs/<slug>/`; the refusal prints the command with the start filled in). Commit it on
+    the Mission branch and run `spec-kitty consolidate --mission <slug>` again. Do not record
+    `<scaffold>^` itself: when a commit was made on the Mission branch before the scaffold, that
+    commit is not on the target and starts nothing. No command records the base yet; #7892 tracks
+    one;
   - a claim commit that cannot be found (for example an approved work package with no recorded
     claim, or one whose claim event more than one commit introduced). The evidence check refuses
     it first with `EVIDENCE_WINDOW_UNCOMPUTABLE`. `implement` refuses an approved work package

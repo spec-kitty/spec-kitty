@@ -93,23 +93,35 @@ def is_whole_tree_pattern(pattern: str) -> bool:
 
 _NO_STATUS_ROW = "no status row"
 _RERUN = "then run `spec-kitty consolidate` again"
+#: Review 11: the one validated remedy for a taint walk with no start. No command records the base yet (#7892).
+_RECORD_BASE = (
+    "Record a commit on `{target}` as `mission_base_sha` in the Mission's meta.json: the commit the Mission branch was cut "
+    "from, which `{command}` prints; commit it on the Mission branch (no command records it yet, #7892), "
+    f"{_RERUN}"
+)
 #: Review 9: the taint walk starts at the recorded Mission base; without a readable one the lane credits nothing.
 _NO_MISSION_BASE = (
     "no recorded Mission base (`mission_base_sha` in the Mission's meta.json, the commit the Mission branch was cut "
     "from) can start the walk: none resolves, it is not below the planning commit, or the Mission branch's history from "
     "it cannot be read, so no change on the Mission branch is shown to come after a claim (the Mission base note says why). "
-    "Restore the Mission branch's history, or record the commit the Mission branch was cut from as `mission_base_sha` "
-    f"in the Mission's meta.json, {_RERUN}"
+    "Restore the Mission branch's history, or: {remedy}"
 )
 #: Review 10: a derived base (the scaffold commit's first parent) can sit above a commit made on the
 #: Mission branch before the scaffold, so the taint walk never starts there.
 _BASE_NOT_RECORDED = (
     "the Mission records no usable Mission base ({why}), and the one derived from its first commit (the scaffold "
     "commit's first parent) can sit above a commit made on the Mission branch before that scaffold, which the landing "
-    "carries, so no change on the Mission branch is shown to come after a claim. Record the commit the Mission branch "
-    "was cut from as `mission_base_sha` in the Mission's meta.json and commit it on the Mission branch, "
-    f"{_RERUN}"
+    "carries, so no change on the Mission branch is shown to come after a claim. {remedy}"
 )
+#: Review 11: a recorded base is trusted only when it is a commit on the target (an ancestor of its pre-run tip).
+_BASE_NOT_ON_TARGET = (
+    "the recorded Mission base `{sha}` (`mission_base_sha` in the Mission's meta.json) is not a commit on `{target}` "
+    "(not an ancestor of its tip before this run, or that could not be read), so the Mission-branch history below it "
+    "is not shown to be on the target and no change on the Mission branch is shown to come after a claim. {remedy}"
+)
+#: The placeholder the remedy command names when no start commit is known.
+_SCAFFOLD_PARENT = "<scaffold>^"
+_SHORT_SHA = 12
 _CANCELED = "canceled"
 #: N3 (review 6): the rule no attestation lifts, and the check the attestation step answers instead.
 _R1_RULE = (
@@ -260,11 +272,27 @@ def _note_coverage(repo_root: Path, window: tuple[str, str], patterns: tuple[str
     return frozenset(commits), frozenset() if patterns else frozenset(paths)
 
 
-def _no_taint_base_reason(mission_base: MissionBase | None) -> str:
-    """The note's reason when the taint walk has no start: a derived base is named apart (review 10)."""
-    if mission_base is not None and mission_base.provenance is MissionBaseProvenance.DERIVED:
-        return _BASE_NOT_RECORDED.format(why=mission_base.reason or "no `mission_base_sha` recorded")
-    return _NO_MISSION_BASE
+def _record_base_remedy(target: str, start: str) -> str:
+    """The validated remedy: record a commit on *target*, the merge base of *target* and *start* (review 11)."""
+    return _RECORD_BASE.format(target=target, command=f"git merge-base {target} {start}")
+
+
+def _no_taint_base_reason(mission_base: MissionBase | None, taint_base: str | None, target: str) -> str:
+    """The note's reason when the taint walk has no start: a derived base, and a recorded one off the target, are named apart.
+
+    A derived base is the scaffold commit's first parent, so ``git merge-base <target> <derived>``
+    is the remedy command with the start filled in (review 10). A recorded base that is not on the
+    target was still checked to be at or below the scaffold's parent, so its merge base with the
+    target is the commit the branch was cut from too (review 11).
+    """
+    if mission_base is not None and mission_base.sha is not None:
+        if mission_base.provenance is MissionBaseProvenance.DERIVED:
+            why = mission_base.reason or "no `mission_base_sha` recorded"
+            return _BASE_NOT_RECORDED.format(why=why, remedy=_record_base_remedy(target, mission_base.sha))
+        if mission_base.provenance is MissionBaseProvenance.RECORDED and taint_base is None:
+            remedy = _record_base_remedy(target, mission_base.sha)
+            return _BASE_NOT_ON_TARGET.format(sha=mission_base.sha[:_SHORT_SHA], target=target, remedy=remedy)
+    return _NO_MISSION_BASE.format(remedy=_record_base_remedy(target, _SCAFFOLD_PARENT))
 
 
 def planning_lane_notes(
@@ -275,6 +303,8 @@ def planning_lane_notes(
     sb_window: tuple[str, str] | None,
     events: Callable[[], Sequence[Any] | None] | None,
     mission_base: MissionBase | None = None,
+    *,
+    taint_base: str | None = None,
 ) -> tuple[PlanningLaneNote, ...]:
     """One note per planning lane of a default, not-landed Mission that credits nothing, naming the reason, the work packages and the remedy.
 
@@ -283,8 +313,10 @@ def planning_lane_notes(
     so the verifier prints it only with a FAIL about that lane (:meth:`PlanningLaneNote.explains`,
     review 6). Looked up through the planning walk module so a patch of its names reaches this read too.
     A lane whose scope credits work still gets a note when its taint walk cannot start at
-    *mission_base* (``planning_lane_walk._taint_base`` and ``_taint_spine``, reviews 9 and 10): it
-    credits nothing then either, and a derived base is named as not recorded.
+    *taint_base*, the claim's one ``planning_lane_walk._taint_base`` answer for *mission_base* (a
+    recorded base that is a commit on the target, or ``None``; reviews 9 to 11), read through
+    ``_taint_spine``: it credits nothing then either, and a derived base, or a recorded one that is
+    not on the target, is named.
     """
     from specify_cli.consolidation import planning_lane_walk as walk
 
@@ -299,9 +331,9 @@ def planning_lane_notes(
             continue
         scope = walk._planning_scope(repo_root, lanes_manifest, lane, work_packages, coord_base_ref, events)
         if scope is not None and scope.patterns:
-            if walk._taint_spine(repo_root, walk._taint_base(mission_base), window[0], window[1]) is not None:
+            if walk._taint_spine(repo_root, taint_base, window[0], window[1]) is not None:
                 continue
-            reason = _no_taint_base_reason(mission_base)
+            reason = _no_taint_base_reason(mission_base, taint_base, lanes_manifest.target_branch)
         else:
             reason = _why_unscoped(repo_root, lanes_manifest, lane, work_packages, events)
         text = f"The planning lane {lane.lane_id} credits none of its work on the Mission branch to any work package (#7860): {reason}."

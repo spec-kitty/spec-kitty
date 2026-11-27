@@ -781,7 +781,7 @@ def _collect_authored(
     *events* (#7860) reads the status events for the planning lane's per-work-package windows
     (:func:`_planning_window_starts`); without it a default Mission's planning lane authors nothing.
     *mission_base* (#7860 review 9, the claim's one ``mission_base.resolve_mission_base`` answer,
-    passed only when it is recorded: ``planning_lane_walk._taint_base``, review 10) is where that
+    passed only when it is recorded and a commit on the target: ``planning_lane_walk._taint_base``, reviews 10 and 11) is where that
     lane's final-state taint walk starts (``planning_lane_walk._taint_spine``); ``None`` (no
     recorded base) leaves the lane authoring nothing too.
     """

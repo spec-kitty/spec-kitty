@@ -6,43 +6,44 @@ imports :func:`_planning_walk` and :func:`_scoped_final_walk` from here, and eve
 (window, scope, ownership, window starts) is looked up in this one namespace, so a patch of one
 reaches every read, ``planning_lane_scope``'s notes included.
 
-Before a default Mission lands, its planning lane is walked on the Mission branch, fail closed,
-from ``lanes.json``'s planning pin to the coordination base (:func:`_lane_walk_range`). Each
-approved work package is credited only inside its own window, from the commit that introduced its
-claim on the Mission branch (``wp_evidence.planning_evidence_window``, the evidence axis' one
-decision) to the coordination base, counting only the commits that descend from that claim commit
-(``git rev-list --ancestry-path``: a commit a merge brought in beside the claim never came after
-it), and only for its own ``owned_files`` (:func:`_planning_scope`, operator ruling R2,
-2026-11-27). No merge commit is in any window, so no merge is credited by SHA, patch-id, blob or
-deletion: a merge that resolved a conflict lists the resolved path, and its blob can carry a change
-made before the claim (review 6). The final-state walk (:func:`_scoped_final_walk`) reads the whole
-first-parent spine from the recorded Mission base (:func:`_taint_spine`, :func:`_taint_base`,
-``mission_base.resolve_mission_base``) to the coordination base, oldest first: the squash axis
-diffs the landing from the target, so the planning pin and every commit made on the Mission branch
-before it are in the landing too (review 9). Only a recorded base (``mission_base_sha``, written at
-create) starts it: a derived base can sit above a commit made on the Mission branch before the
-scaffold (review 10). It attributes a path's final blob or deletion only when every commit of that spine that changed
-the path is credited for it there: that blob holds every earlier change to the file, so a path
-changed by a merge, by a commit before the claim (one before the pin included), or by any other
-commit no window credits, is attributed to nothing, never through a later credited commit (fail
-closed, review 7). Each commit is read with rename and copy detection (``git diff -C`` against its
-first parent): a renamed or copied path also carries every uncredited change its source had on the
-walk, so a file made before the claim and then moved or copied by a credited commit is attributed to
-nothing under its new name either (review 8). So an owned-path change made before the claim is never
-its work. A commit enters the claim by SHA and patch-id only when every path it changes is credited
-there or is bookkeeping (:func:`_scoped_commits`); a mixed commit, and every copy of it, stays
-un-attributable on the merge / rebase closed world while its credited blobs still count on the
-squash axis. The lane authors nothing (:func:`_approved_planning_scope`) when any of its work
-packages is not approved (canceled, in flight, or with no status row: the claim admits a commit by
-its paths, never by who made it, operator ruling R1), when any ``owned_files`` cannot be read, when
-a pattern has fewer than two literal leading path segments and names no top-level file
-(:func:`_is_whole_tree_pattern`, ``planning_lane_scope``), when every ``owned_files`` list is empty,
-when any approved work package's window start cannot be proven, or when the Mission records no
-Mission base (a derived one is not trusted), its recorded base is not below the pin, or its spine
-cannot be read. No attestation lifts this
-planning-lane credit rule. An un-attributable FAIL about the lane's paths then names the lane, the
-reason, the work packages and the remedy (``planning_lane_scope.planning_lane_notes``), with no
-change to the verdict.
+Before a default Mission lands, its planning lane is walked on the Mission branch, fail closed, from
+``lanes.json``'s planning pin to the coordination base (:func:`_lane_walk_range`). Each approved
+work package is credited only inside its own window, from the commit that introduced its claim on
+the Mission branch (``wp_evidence.planning_evidence_window``, the evidence axis' one decision) to
+the coordination base, counting only the commits that descend from that claim commit (``git rev-list
+--ancestry-path``: a commit a merge brought in beside the claim never came after it), and only for
+its own ``owned_files`` (:func:`_planning_scope`, operator ruling R2, 2026-11-27). No merge commit
+is in any window, so no merge is credited by SHA, patch-id, blob or deletion: a merge that resolved
+a conflict lists the resolved path, and its blob can carry a change made before the claim (review
+6). The final-state walk (:func:`_scoped_final_walk`) reads the whole first-parent spine from the
+recorded Mission base (:func:`_taint_spine`, :func:`_taint_base`,
+``mission_base.resolve_mission_base``) to the coordination base, oldest first: the squash axis diffs
+the landing from the target, so the planning pin and every commit made on the Mission branch before
+it are in the landing too (review 9). Only a recorded base (``mission_base_sha``, written at create)
+that is a commit on the target (an ancestor of the target's pre-run tip) starts it: a derived base
+can sit above a commit made on the Mission branch before the scaffold (review 10), and so can a
+hand-written one, which only the target check rejects (review 11). It attributes a path's final blob
+or deletion only when every commit of that spine that changed the path is credited for it there:
+that blob holds every earlier change to the file, so a path changed by a merge, by a commit before
+the claim (one before the pin included), or by any other commit no window credits, is attributed to
+nothing, never through a later credited commit (fail closed, review 7). Each commit is read with
+rename and copy detection (``git diff -C`` against its first parent): a renamed or copied path also
+carries every uncredited change its source had on the walk, so a file made before the claim and then
+moved or copied by a credited commit is attributed to nothing under its new name either (review 8).
+So an owned-path change made before the claim is never its work. A commit enters the claim by SHA
+and patch-id only when every path it changes is credited there or is bookkeeping
+(:func:`_scoped_commits`); a mixed commit, and every copy of it, stays un-attributable on the merge
+/ rebase closed world while its credited blobs still count on the squash axis. The lane authors
+nothing (:func:`_approved_planning_scope`) when any of its work packages is not approved (canceled,
+in flight, or with no status row: the claim admits a commit by its paths, never by who made it,
+operator ruling R1), when any ``owned_files`` cannot be read, when a pattern has fewer than two
+literal leading path segments and names no top-level file (:func:`_is_whole_tree_pattern`,
+``planning_lane_scope``), when every ``owned_files`` list is empty, when any approved work package's
+window start cannot be proven, or when the Mission records no Mission base (a derived one is not
+trusted), its recorded base is not a commit on the target or not below the pin, or its spine cannot
+be read. No attestation lifts this planning-lane credit rule. An un-attributable FAIL about the
+lane's paths then names the lane, the reason, the work packages and the remedy
+(``planning_lane_scope.planning_lane_notes``), with no change to the verdict.
 
 Residuals of that window. The planning lane has no approval-stamp bound: a change to an approved
 work package's owned path made after its approval, by any commit on the Mission branch, still
@@ -314,33 +315,50 @@ class _LaneAuthorshipWalk(NamedTuple):
     first_parent: list[str]
 
 
-def _taint_base(mission_base: MissionBase | None) -> str | None:
-    """Where the taint walk may start: the Mission base's commit only when it is **recorded** (review 10).
+def _taint_base(repo_root: Path, mission_base: MissionBase | None, target_base: str | None) -> str | None:
+    """Where the taint walk may start: a **recorded** Mission base that is a commit on the target (reviews 10 and 11).
 
     Mirrors ``reconciliation_closed_world._pre_mission_attribution``: a derived base is the first
     parent of the Mission's first scaffold commit, not the commit the branch was cut from, so a
     commit made on the Mission branch before the scaffold sits at or below it. That commit is in
     the landing (the squash axis diffs from the target's pre-run tip), is not exempt as pre-Mission
     history (only a recorded base exempts) and would not be on a taint walk from the derived base,
-    so a credited edit of its file would land it unreviewed (fail-open). ``None`` (the planning lane
-    then authors nothing) for a derived or unavailable base, or none.
+    so a credited edit of its file would land it unreviewed (fail-open).
+
+    A recorded value is validated too (review 11): ``mission_base.resolve_mission_base`` checks it
+    only against the Mission's origin (the scaffold commit's first parent), which a hand-written
+    pre-scaffold commit passes. The commit a Mission branch was cut from was a tip of the target,
+    so the base is used only when it is an ancestor of (or equal to) *target_base*, the target's
+    pre-run tip (the claim's ``excluded_window_base``): then everything below it is on the target
+    already. One ``git merge-base --is-ancestor`` probe. ``None`` (the planning lane then authors
+    nothing) for a derived or unavailable base, or none, for no *target_base*, for a base that is
+    not on the target (a hand-written Mission-branch commit, a rewritten target or a retargeted
+    Mission) and when the probe cannot run.
     """
     if mission_base is None or mission_base.provenance is not MissionBaseProvenance.RECORDED:
         return None
-    sha: str | None = mission_base.sha
-    return sha
+    sha = mission_base.sha
+    if sha is None or target_base is None:
+        return None
+    try:
+        on_target = is_ancestor_strict(repo_root, sha, target_base)
+    except GitProbeError:
+        return None
+    return sha if on_target else None
 
 
 def _taint_spine(repo_root: Path, mission_base: str | None, pin: str, coord_base_ref: str) -> list[str] | None:
     """The first-parent spine ``<Mission base>..<coordination base>`` the taint walk reads, or ``None`` (fail closed).
 
-    *mission_base* is the **recorded** Mission base only (:func:`_taint_base`, review 10): the
-    commit the Mission branch was cut from, written to meta.json at create (#7560). The squash axis
-    diffs the landing from the target's pre-run tip, so every Mission-branch commit above it is in
-    the landing: the commits between it and the planning pin and the pin commit itself included.
-    Below a recorded base the content is either on the target already or pre-Mission history the
-    squash axes exempt by exact ``(path, blob)`` (#7560). A derived base gives no such guarantee (a
-    commit made on the Mission branch before the scaffold sits below it), so it never reaches here.
+    *mission_base* is the **recorded** Mission base only, and only when it is a commit on the
+    target (:func:`_taint_base`, reviews 10 and 11): the commit the Mission branch was cut from,
+    written to meta.json at create (#7560). The squash axis diffs the landing from the target's
+    pre-run tip, so every Mission-branch commit above it is in the landing: the commits between it
+    and the planning pin and the pin commit itself included. Because :func:`_taint_base` checked
+    that the base is an ancestor of (or equal to) the target's pre-run tip, everything below it is
+    on the target already. A derived base, or a recorded one that is not on the target, gives no
+    such guarantee (a commit made on the Mission branch before the scaffold can sit below it), so it
+    never reaches here.
     No window credits a commit before a claim (operator ruling R2), so each commit of the spine
     taints the paths it changed. ``None`` (the lane then authors nothing) when there is no recorded
     base, when it is not an ancestor of the pin, or when git cannot read either.

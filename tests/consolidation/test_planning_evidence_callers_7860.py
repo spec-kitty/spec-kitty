@@ -358,8 +358,11 @@ def test_the_claim_hands_the_authorship_walk_the_reader_that_proves_each_window_
     assert planning_walk._planning_window_starts(fx.repo, manifest, lane, ("WP02", "WP03"), events) == {"WP02": claim_wp02, "WP03": claim_wp03}
 
 
+@pytest.mark.parametrize("with_target", [True, False], ids=["target-tip", "no-target-tip"])
 @pytest.mark.parametrize("recorded", [True, False], ids=["recorded", "derived"])
-def test_the_claim_starts_the_taint_walk_only_at_a_recorded_mission_base(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, recorded: bool) -> None:
+def test_the_claim_starts_the_taint_walk_only_at_a_recorded_mission_base(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, recorded: bool, with_target: bool
+) -> None:
     """Review 10 issue 1: ``build_approved_wp_set`` hands the taint walk the Mission base only when it is recorded.
 
     A derived base (the scaffold commit's first parent) can sit above a commit made on the Mission
@@ -373,6 +376,7 @@ def test_the_claim_starts_the_taint_walk_only_at_a_recorded_mission_base(tmp_pat
 
     fx = _build(tmp_path)
     cut = _git(fx.repo, "rev-parse", f"{_TARGET}")
+    target_base = cut if with_target else None
     if recorded:
         meta = json.loads((fx.feature_dir / "meta.json").read_text(encoding="utf-8"))
         meta["mission_base_sha"] = cut
@@ -390,20 +394,27 @@ def test_the_claim_starts_the_taint_walk_only_at_a_recorded_mission_base(tmp_pat
         seen["taint"] = kwargs.get("mission_base")
         return real_collect(*args, **kwargs)
 
-    def _notes(*args: Any) -> Any:
+    def _notes(*args: Any, **kwargs: Any) -> Any:
         seen["notes"] = args[-1]
-        return real_notes(*args)
+        seen["notes_taint"] = kwargs.get("taint_base")
+        return real_notes(*args, **kwargs)
 
     monkeypatch.setattr(reconciliation_claim, "_collect_authored", _collect)
     monkeypatch.setattr(reconciliation_claim, "planning_lane_notes", _notes)
 
-    claim = reconciliation_claim.build_approved_wp_set(fx.repo, fx.feature_dir, fx.manifest(), coord_base_ref=_git(fx.repo, "rev-parse", "HEAD"))
+    claim = reconciliation_claim.build_approved_wp_set(
+        fx.repo, fx.feature_dir, fx.manifest(), coord_base_ref=_git(fx.repo, "rev-parse", "HEAD"), excluded_window_base=target_base
+    )
 
     assert claim.refusal is None, claim.refusal
     base = seen["notes"]
     assert getattr(base, "sha", None) == cut
     assert getattr(base, "provenance", None) is (MissionBaseProvenance.RECORDED if recorded else MissionBaseProvenance.DERIVED)
-    assert seen["taint"] == (cut if recorded else None)
+    # Review 11: the recorded base starts the walk only when the target's pre-run tip reaches it,
+    # and the notes read the same one answer (one probe).
+    expected = cut if recorded and target_base is not None else None
+    assert seen["taint"] == expected
+    assert seen["notes_taint"] == expected
 
 
 def test_the_claim_names_a_planning_lane_a_canceled_work_package_empties(tmp_path: Path) -> None:

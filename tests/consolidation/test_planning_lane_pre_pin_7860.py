@@ -228,12 +228,14 @@ def test_the_claim_without_a_mission_base_credits_nothing(tmp_path: Path, monkey
     assert late not in claim.shas and not claim.blobs and not claim.deletions
 
 
-def _pre_scaffold_mission(tmp_path: Path, *, recorded: bool) -> tuple[Path, str, str, str]:
+def _pre_scaffold_mission(tmp_path: Path, *, recorded: bool, record_pre_scaffold: bool = False) -> tuple[Path, str, str, str]:
     """Review 10's shape: an owned file committed on the Mission branch BEFORE the scaffold commit.
 
     Returns ``(repo, pin, claim commit, cut)``, where *cut* is the ``main`` commit the branch was
     cut from. The base derived from the scaffold (its first parent) is the pre-scaffold commit,
-    above that commit; *recorded* records *cut* as ``mission_base_sha``.
+    above that commit; *recorded* records *cut* as ``mission_base_sha``, or, with
+    *record_pre_scaffold* (review 11), the pre-scaffold commit itself, as a hand edit of
+    ``git rev-parse <scaffold>^`` would.
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -241,9 +243,9 @@ def _pre_scaffold_mission(tmp_path: Path, *, recorded: bool) -> tuple[Path, str,
         _git(repo, *args)
     cut = _commit(repo, {"README.md": "x\n"}, "init")
     _git(repo, "switch", "-qc", _MISSION_BRANCH)
-    _commit(repo, {_SAME_PATH: _PRE_TEXT}, "code on the Mission branch before the scaffold")
+    pre_scaffold = _commit(repo, {_SAME_PATH: _PRE_TEXT}, "code on the Mission branch before the scaffold")
     _commit(repo, {_SPEC: "# spec\n"}, "chore: create the Mission")
-    meta: dict[str, str] = _default_meta(repo, base=cut)
+    meta: dict[str, str] = _default_meta(repo, base=pre_scaffold if record_pre_scaffold else cut)
     if not recorded:
         del meta["mission_base_sha"]
     pin = _commit(repo, {f"kitty-specs/{_SLUG}/meta.json": json.dumps(meta)}, "planning")
@@ -285,15 +287,65 @@ def test_pre_scaffold_commit_below_a_recorded_base_taints_its_path(tmp_path: Pat
     _assert_fails_on(_squash(repo, coord_base, claim), _SAME_PATH)
 
 
+@pytest.mark.integration
+def test_a_recorded_base_that_is_not_on_the_target_starts_no_taint_walk(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review 11 issue 1: a hand-recorded pre-scaffold commit passes every Mission-base check but is not on ``main``.
+
+    Before the fix it started the taint walk above the pre-scaffold commit, ``same.py`` was
+    credited and the 20 unreviewed lines landed with a squash PASS. Now a recorded base must be
+    an ancestor of (or equal to) the target's pre-run tip, so the planning lane authors nothing.
+    """
+    repo, pin, claim_commit, cut = _pre_scaffold_mission(tmp_path, recorded=True, record_pre_scaffold=True)
+    base = _resolved_base(repo)
+    assert base.provenance is MissionBaseProvenance.RECORDED and base.sha not in (None, cut), base
+
+    coord_base, claim = _wp02_claim(repo, pin, claim_commit, monkeypatch)
+
+    assert _SAME_PATH not in _credited(claim)
+    assert not claim.blobs and not claim.deletions and not claim.shas
+    assert _squash(repo, coord_base, claim).status is VerifyStatus.REFUSE
+
+
 @pytest.mark.parametrize(
     ("base", "expected"),
     [
-        (MissionBase("a" * 40, MissionBaseProvenance.RECORDED), "a" * 40),
         (MissionBase("b" * 40, MissionBaseProvenance.DERIVED, "no mission_base_sha recorded"), None),
         (MissionBase(None, MissionBaseProvenance.UNAVAILABLE, "gone"), None),
         (None, None),
     ],
 )
-def test_the_taint_walk_starts_only_at_a_recorded_base(base: MissionBase | None, expected: str | None) -> None:
-    """Review 10: mirror ``_pre_mission_attribution``: only a recorded base is trusted as where Mission work starts."""
-    assert planning_walk._taint_base(base) == expected
+def test_the_taint_walk_starts_only_at_a_recorded_base(base: MissionBase | None, expected: str | None, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review 10: mirror ``_pre_mission_attribution``: only a recorded base is trusted as where Mission work starts (no probe runs)."""
+
+    def _no_probe(*_args: object) -> bool:
+        raise AssertionError("a base that is not recorded needs no target probe")
+
+    monkeypatch.setattr(planning_walk, "is_ancestor_strict", _no_probe)
+    assert planning_walk._taint_base(Path(), base, "t" * 40) == expected
+
+
+_RECORDED_A = MissionBase("a" * 40, MissionBaseProvenance.RECORDED)
+
+
+@pytest.mark.parametrize(("on_target", "expected"), [(True, "a" * 40), (False, None), (GitProbeError("boom"), None)], ids=["on", "off", "probe-error"])
+def test_a_recorded_base_starts_the_taint_walk_only_when_it_is_on_the_target(
+    on_target: bool | GitProbeError, expected: str | None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review 11: one ``--is-ancestor`` probe against the target's pre-run tip; off the target or unreadable starts nothing."""
+    seen: list[tuple[str, str]] = []
+
+    def _probe(_root: Path, ancestor: str, descendant: str) -> bool:
+        seen.append((ancestor, descendant))
+        if isinstance(on_target, GitProbeError):
+            raise on_target
+        return on_target
+
+    monkeypatch.setattr(planning_walk, "is_ancestor_strict", _probe)
+    assert planning_walk._taint_base(Path(), _RECORDED_A, "t" * 40) == expected
+    assert seen == [("a" * 40, "t" * 40)]
+
+
+def test_a_recorded_base_with_no_target_tip_starts_no_taint_walk(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review 11: no target pre-run tip (``excluded_window_base`` is ``None``) proves nothing, so the lane authors nothing."""
+    monkeypatch.setattr(planning_walk, "is_ancestor_strict", lambda *_args: True)
+    assert planning_walk._taint_base(Path(), _RECORDED_A, None) is None

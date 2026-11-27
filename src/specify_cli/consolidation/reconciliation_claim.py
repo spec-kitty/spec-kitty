@@ -370,6 +370,9 @@ def _build_claim(
     presence_refusal = _presence_range_unreadable_refusal(lanes_manifest, work_packages, presence, coord_base_ref)
     if presence_refusal is not None:
         return refuse(presence_refusal)
+    # The planning lane's taint walk starts only at a recorded Mission base that is a commit on the
+    # target (#7860 reviews 10 and 11): one probe, read by the authorship walk and the notes alike.
+    taint_base = _taint_base(repo_root, pre_mission.base, excluded_window_base)
     # Authored (WP1/WP2 shared prerequisite): computed BEFORE the excluded axis so
     # #5018's commit-level narrowing (below) can subtract it. Collectors stay pure
     # (WP2 note) — no shared mutable state, just a value threaded as a parameter.
@@ -382,7 +385,7 @@ def _build_claim(
         canceled_lane_commits=canceled_lane_commits,
         presence=presence,
         events=event_log.read,
-        mission_base=_taint_base(pre_mission.base),
+        mission_base=taint_base,
     )
     excluded_shas, excluded_patch_ids = _collect_excluded(
         repo_root,
@@ -415,7 +418,9 @@ def _build_claim(
         bound_lane_branches=bound.lane_branches,
         no_implementation_attested_wp_ids=evidence.lifted_wp_ids,
         window_gaps=bound.window_gaps,
-        planning_lane_notes=planning_lane_notes(repo_root, lanes_manifest, work_packages, coord_base_ref, sb_window, event_log.read, pre_mission.base),
+        planning_lane_notes=planning_lane_notes(
+            repo_root, lanes_manifest, work_packages, coord_base_ref, sb_window, event_log.read, pre_mission.base, taint_base=taint_base
+        ),
         external_dependency_refs=external_dependency.refs,
         external_dependency_pins=dict(external_dependency.pins),
         external_dependency_shas=external_dependency.shas,

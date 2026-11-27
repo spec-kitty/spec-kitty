@@ -330,7 +330,7 @@ def _planning_claim(repo: Path, pin: str, lane: ExecutionLane, states: dict[str,
     # The Mission base as the claim resolves and gates it (``build_approved_wp_set``): the taint walk
     # starts there (review 9), and only at a recorded base (review 10).
     base = resolve_mission_base(repo, repo / "kitty-specs" / _SLUG, mission_branch=_MISSION_BRANCH, mission_slug=_SLUG)
-    mission_base = planning_walk._taint_base(base)
+    mission_base = planning_walk._taint_base(repo, base, _git(repo, "rev-parse", "main"))
     return coord_base, authorship._collect_authored(repo, manifest, states, coord_base, None, canceled_lane_commits=frozenset(), mission_base=mission_base)
 
 
@@ -530,7 +530,7 @@ def test_an_all_empty_ownership_note_prints_with_the_squash_fail_it_explains(tmp
     coord_base, claim = _planning_claim(repo, pin, _EMPTY_PLANNING, {"WP02": {"lane": "approved"}})
     manifest = _manifest(pin=pin)
     manifest.lanes = [_EMPTY_PLANNING]
-    notes = planning_lane_scope.planning_lane_notes(repo, manifest, {"WP02": {"lane": "approved"}}, coord_base, None, lambda: [])
+    notes = planning_lane_scope.planning_lane_notes(repo, manifest, {"WP02": {"lane": "approved"}}, coord_base, None, lambda: [], taint_base=None)
     # A code lane's approved work stands beside it, as in a real Mission, so the squash axis judges paths.
     code_blob = _git(repo, "rev-parse", f"{coord_base}:README.md")
     commit_set = dataclasses.replace(

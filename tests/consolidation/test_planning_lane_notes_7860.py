@@ -89,10 +89,22 @@ def shape(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     return knobs
 
 
+_ON_TARGET = object()
+
+
 def _notes(
-    work_packages: Mapping[str, Mapping[str, object]] = _APPROVED, sb_window: tuple[str, str] | None = None, base: MissionBase | None = _RECORDED
+    work_packages: Mapping[str, Mapping[str, object]] = _APPROVED,
+    sb_window: tuple[str, str] | None = None,
+    base: MissionBase | None = _RECORDED,
+    taint_base: object = _ON_TARGET,
 ) -> tuple[str, ...]:
-    notes: tuple[PlanningLaneNote, ...] = planning_lane_scope.planning_lane_notes(Path(), _manifest(), work_packages, "coord0000", sb_window, _events, base)
+    """The notes' texts; *taint_base* defaults to the claim's answer for a recorded base on the target (its sha)."""
+    if taint_base is _ON_TARGET:
+        taint_base = base.sha if base is not None and base.provenance is MissionBaseProvenance.RECORDED else None
+    assert taint_base is None or isinstance(taint_base, str)
+    notes: tuple[PlanningLaneNote, ...] = planning_lane_scope.planning_lane_notes(
+        Path(), _manifest(), work_packages, "coord0000", sb_window, _events, base, taint_base=taint_base
+    )
     return tuple(note.text for note in notes)
 
 
@@ -111,6 +123,8 @@ def test_a_credited_lane_with_no_readable_mission_base_gets_a_note(shape: dict[s
 
     assert "no recorded Mission base (`mission_base_sha` in the Mission's meta.json, the commit the Mission branch was cut from) can start" in text
     assert "none resolves, it is not below the planning commit" in text
+    assert "Restore the Mission branch's history, or: Record a commit on `main`" in text
+    assert "which `git merge-base main <scaffold>^` prints" in text
     assert text.endswith("then run `spec-kitty consolidate` again.")
 
 
@@ -133,7 +147,22 @@ def test_a_credited_lane_with_a_derived_mission_base_gets_a_not_recorded_note(sh
 
     assert f"the Mission records no usable Mission base ({shown})" in text
     assert "a commit made on the Mission branch before that scaffold" in text
-    assert "as `mission_base_sha` in the Mission's meta.json and commit it on the Mission branch" in text
+    assert "Record a commit on `main` as `mission_base_sha` in the Mission's meta.json" in text
+    assert "which `git merge-base main base0000` prints; commit it on the Mission branch (no command records it yet, #7892)" in text
+    assert text.endswith("then run `spec-kitty consolidate` again.")
+
+
+def test_a_credited_lane_with_a_recorded_base_off_the_target_gets_its_own_note(shape: dict[str, object]) -> None:
+    """Review 11: a recorded base the claim found not on the target starts nothing, and the note says so."""
+    shape["scope"] = planning_walk._PlanningScope(((("curation/pkg/**",), frozenset({"c1"})),))
+    shape["taint"] = ["c1"]
+    sha = "f" * 40
+
+    (text,) = _notes(base=MissionBase(sha, MissionBaseProvenance.RECORDED), taint_base=None)
+
+    assert f"the recorded Mission base `{'f' * 12}` (`mission_base_sha` in the Mission's meta.json) is not a commit on `main`" in text
+    assert "records no usable Mission base" not in text and "no recorded Mission base" not in text
+    assert f"which `git merge-base main {sha}` prints" in text and "#7892" in text
     assert text.endswith("then run `spec-kitty consolidate` again.")
 
 
