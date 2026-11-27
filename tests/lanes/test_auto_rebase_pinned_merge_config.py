@@ -1,4 +1,4 @@
-"""The auto-rebase tool merge runs under the pinned merge config (squad-3 A2).
+"""The auto-rebase tool merge runs under the pinned merge config.
 
 ``--incorporate`` runs its merge under ``merge_probe_env``: ``MERGE_PROBE_CONFIG_PINS`` override every
 clone-level or environment config source, so a hostile ``merge.directoryRenames`` cannot change what git

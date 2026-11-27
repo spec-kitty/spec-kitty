@@ -734,7 +734,7 @@ used from here on) and was never recorded here.
   first merged C's own work (`_dependency_anchor_before_incorporating`, through
   `_canceled_lane_anchors`), and counts C's merged-in commits on the carrier spines
   (`_with_merged_in_canceled`). The fresh run refuses `CANCELED_REACHABLE_VIA_DEPENDENCY`
-  (`tests/consolidation/test_canceled_via_reapproved_dependency_7497.py`).
+  (`tests/consolidation/test_canceled_via_reapproved_dependency.py`).
 
 **Why this stays fail-closed.** Every probe error and every guard refusal raises `GitProbeError`.
 No attestation is added. The hint only changes text.
@@ -760,5 +760,5 @@ No attestation is added. The hint only changes text.
 both probes, the committed `union` rule, `merge.renormalize`, the config pins),
 `tests/consolidation/test_reviewed_merge_predicate.py` (the shared predicate and the field),
 `tests/consolidation/test_unreviewed_merge_hint.py` (the hint),
-`tests/consolidation/test_canceled_via_reapproved_dependency_7497.py` (#7497) and
+`tests/consolidation/test_canceled_via_reapproved_dependency.py` (#7497) and
 `tests/consolidation/test_dependency_merge_attribution_7307.py`.

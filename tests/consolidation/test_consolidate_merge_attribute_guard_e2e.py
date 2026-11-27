@@ -69,7 +69,7 @@ def test_an_in_run_novel_tool_resolution_is_failed_by_the_gate_and_rolled_back(t
     Both lanes add a dependency; the in-run auto-rebase resolves the conflict additively and records the merge. The
     claim ran before that merge existed, so the gate is its judge here: it FAILs ``pyproject.toml`` as un-attributable
     and the one rollback restores every branch, the auto-rebased lane included. A merge recorded BEFORE a run is now
-    refused at claim time instead (``test_recorded_merge_resolution_5604.py``,
+    refused at claim time instead (the predicate section of ``test_resolution_merge_unreviewed.py``,
     ``test_forged_record_is_harmless_the_claim_refuses_first``).
     """
     monkeypatch.setattr(stale_sibling_lane_support, "POPUP", "pyproject.toml")
