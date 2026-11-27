@@ -1121,6 +1121,25 @@ def _unverified_move_reason(repo_root: Path, branch: str, before: str, after: st
     return None
 
 
+def _reset_work_tip(repo_root: Path, branch: str, before: str, after: str) -> bool:
+    """Point the lane work-tip ref at ``before``, but only from a value this run wrote; ``False`` when it is not reset.
+
+    The ref is the run's own when it is absent, still at the merge (``after``) or already at ``before``.
+    Any other value was written by another actor since the merge, so it is left alone. The write is a
+    compare-and-swap (``expected_old``, or ``create_only`` for an absent ref), never a blind overwrite.
+    """
+    ref = tip_ref(branch)
+    probe = subprocess.run(["git", "rev-parse", "--verify", "--quiet", ref], cwd=str(repo_root), capture_output=True, text=True, check=False)
+    current = probe.stdout.strip() if probe.returncode == 0 else None
+    if current == before:
+        return True
+    if current is None:
+        return bool(write_bookkeeping_ref(repo_root, ref, before, create_only=True))
+    if current == after:
+        return bool(write_bookkeeping_ref(repo_root, ref, before, expected_old=after))
+    return False
+
+
 def _after_lane_restore(repo_root: Path, state: ConsolidationState, outcome: BranchOutcome, before: str, after: str) -> BranchOutcome:
     """Reset the lane work-tip ref, delete the durable auto-rebase record and drop the spent entry.
 
@@ -1130,7 +1149,7 @@ def _after_lane_restore(repo_root: Path, state: ConsolidationState, outcome: Bra
     """
     branch = outcome.branch
     residue: list[str] = []
-    if not write_bookkeeping_ref(repo_root, tip_ref(branch), before):
+    if not _reset_work_tip(repo_root, branch, before, after):
         residue.append(f"lane work-tip ref {tip_ref(branch)} not reset to {before[:12]}")
     if not auto_rebase_record.delete(repo_root, branch, after):
         residue.append(f"auto-rebase record {after[:12]} not deleted")

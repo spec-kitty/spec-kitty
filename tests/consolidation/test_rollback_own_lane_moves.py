@@ -47,6 +47,7 @@ from specify_cli.consolidation.rollback import (
     rollback_to_snapshot,
 )
 from specify_cli.consolidation.state import ConsolidationState, load_state
+from specify_cli.git.ref_advance import write_bookkeeping_ref
 from specify_cli.lanes import auto_rebase_record
 from specify_cli.lanes import consolidation as lane_consolidation
 from specify_cli.lanes.branch_naming import mission_branch_name
@@ -626,6 +627,21 @@ def test_a_deleted_lane_branch_keeps_its_record(tmp_path: Path) -> None:
     assert _lane_outcome(report, env.lane).kind is BranchOutcomeKind.LANE_MISSING
     assert report.rebaselineable is False
     assert env.state.lane_rebase_moves[env.lane] == [env.before, env.after]
+
+
+def test_a_work_tip_ref_moved_after_the_merge_is_not_overwritten_by_the_restore(tmp_path: Path) -> None:
+    """The work-tip reset is compare-and-swap: a tip another writer moved off the merge stays put and is named."""
+    env = _env(tmp_path)
+    foreign = _git(env.repo, "rev-parse", "HEAD")
+    assert foreign not in (env.before, env.after)
+    assert write_bookkeeping_ref(env.repo, tip_ref(env.lane), foreign)
+
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+
+    outcome = _lane_outcome(report, env.lane)
+    assert outcome.kind is BranchOutcomeKind.RESTORED
+    assert _git(env.repo, "rev-parse", tip_ref(env.lane)) == foreign
+    assert outcome.reason is not None and "work-tip" in outcome.reason
 
 
 def test_a_failed_record_cleanup_still_reports_the_restore(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
