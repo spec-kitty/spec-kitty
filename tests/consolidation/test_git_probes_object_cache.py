@@ -17,6 +17,7 @@ import pytest
 
 from kernel.git.read_cache import git_read_cache_scope
 from specify_cli.consolidation.git_probes import GitProbeError, commit_parents, commits_in_range, resolve_commit, sha_reachable_from
+from tests._support.git_env import remove_inherited_git_config_env
 from tests._support.git_spawns import GitSpawns, count_git_spawns
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
@@ -24,12 +25,7 @@ pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 
 @pytest.fixture(autouse=True)
 def _no_inherited_git_config_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A harness that exports ``GIT_CONFIG_COUNT``/``GIT_CONFIG_PARAMETERS`` makes the read cache bypass itself by design.
-
-    Agent containers export them for credential and URL rewrites; CI does not. Remove them so the cache is tested.
-    """
-    for name in ("GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS"):
-        monkeypatch.delenv(name, raising=False)
+    remove_inherited_git_config_env(monkeypatch)
 
 
 def _git(cwd: Path, *args: str) -> str:

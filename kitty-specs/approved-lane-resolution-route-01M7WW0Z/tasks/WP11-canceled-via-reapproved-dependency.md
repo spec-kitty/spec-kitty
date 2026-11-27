@@ -23,14 +23,14 @@ history:
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/consolidation/
 create_intent:
-- tests/consolidation/test_canceled_via_reapproved_dependency_7497.py
+- tests/consolidation/test_canceled_via_reapproved_dependency.py
 execution_mode: code_change
 model: ''
 owned_files:
 - src/specify_cli/consolidation/reconciliation_canceled.py
 - src/specify_cli/consolidation/reconciliation_kernel.py
 - src/specify_cli/consolidation/wp_attribution.py
-- tests/consolidation/test_canceled_via_reapproved_dependency_7497.py
+- tests/consolidation/test_canceled_via_reapproved_dependency.py
 role: implementer
 tags: []
 task_type: implement

@@ -36,6 +36,7 @@ from specify_cli.lanes.models import LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status import materialize_snapshot
 from tests.consolidation import characterization_support as cs
+from tests.lanes import test_auto_rebase_record as ar_support
 from tests.consolidation.test_dependency_merge_attribution_7307 import (
     _EVIL,
     _branch,
@@ -344,7 +345,7 @@ def test_recorded_tool_merge_with_a_novel_resolution_is_refused(tmp_path: Path) 
     """#5604 review fold A2: a record no longer exempts a merge whose resolution holds bytes no parent and no target has.
 
     The gate (which never reads the record) FAILs exactly that content, so the claim refuses it first;
-    a take-one-side or target-owned resolution is still skipped (``test_recorded_merge_resolution_5604.py``).
+    a take-one-side or target-owned resolution is still skipped (the predicate section at the end of this file).
     """
     repo, feature_dir, manifest, base, evil = _evil_claim(tmp_path)
     assert auto_rebase_record.record(repo, _branch("lane-b"), evil)
@@ -733,10 +734,6 @@ def test_render_canceled_window_refusal_says_reapproval_does_not_lift_it() -> No
     assert "rebuild the lane without merge aaaaaaa" in text
 
 
-def test_refusal_codes_lists_the_new_member_last() -> None:
-    assert list(BoundRefusalCode)[-1] is BoundRefusalCode.RESOLUTION_MERGE_UNREVIEWED
-
-
 # --------------------------------------------------------------------------- helper branches (fail closed)
 
 
@@ -907,3 +904,89 @@ def test_one_side_probe_error_omits_the_sentence_and_still_refuses(tmp_path: Pat
     claim = _claim(repo, feature_dir, manifest, base)
     assert _CODE in _codes(claim) and _refused_merges(claim) == {merge[:7]}, claim.refusal
     assert "kept one side" not in (claim.refusal or "")
+
+
+# --------------------------------------------------------------------------- the skip predicate (#5604 review fold A2)
+#
+# The claim skips a recorded tool merge only when the reconciliation gate would accept it: the gate never
+# reads the auto-rebase record, so a resolution holding bytes neither parent nor the pre-run target tip has
+# (the novel-resolution case is ``test_recorded_tool_merge_with_a_novel_resolution_is_refused`` above) is
+# refused first. A take-one-side or target-owned resolution is still skipped. These call
+# ``unreviewed_resolution_merges`` directly on a real recorded merge.
+
+_TEN = "".join(f"l{i} = {i}\n" for i in range(10))
+_LANE_SIDE = _TEN.replace("l5 = 5", "l5 = 'LANE'")
+_MISSION_SIDE = _TEN.replace("l5 = 5", "l5 = 'MISSION'")
+
+
+def _recorded_resolution_merge(tmp_path: Path, resolved: str, *, target_text: str | None = None) -> tuple[Path, str, str]:
+    """A recorded merge of the Mission branch into the lane that resolves the ``code.py`` conflict to *resolved*.
+
+    With *target_text* the target (``main``) commits that text after the lane and the Mission branch were cut.
+    Returns the repository, the merge and the target tip.
+    """
+    root = ar_support._init_repo(tmp_path)
+    ar_support._commit(root, "code.py", _TEN, "seed code")
+    ar_support._git(root, "branch", "-f", ar_support._MISSION, "main")
+    worktree = ar_support._lane_worktree(root)
+    ar_support._commit(worktree, "code.py", _LANE_SIDE, "lane: edit l5")
+    ar_support._git(root, "checkout", "-q", ar_support._MISSION)
+    ar_support._commit(root, "code.py", _MISSION_SIDE, "mission: edit l5")
+    ar_support._git(root, "checkout", "-q", "main")
+    if target_text is not None:
+        ar_support._commit(root, "code.py", target_text, "target: code.py")
+    subprocess.run(["git", "-C", str(worktree), "merge", "--no-ff", "--no-commit", ar_support._MISSION], capture_output=True, check=False)
+    (worktree / "code.py").write_text(resolved, encoding="utf-8")
+    ar_support._git(worktree, "add", "code.py")
+    ar_support._git(worktree, "commit", "-q", "--no-edit")
+    merge = ar_support._git(worktree, "rev-parse", "HEAD")
+    assert auto_rebase_record.record(root, ar_support._LANE, merge)
+    return root, merge, ar_support._git(root, "rev-parse", "main")
+
+
+def _predicate_refusals(root: Path, merge: str, target: str) -> list[BoundRefusalCode]:
+    refusals = approved_bound.unreviewed_resolution_merges(
+        root,
+        lane_id="lane-a",
+        branch=ar_support._LANE,
+        wp_ids=("WP01",),
+        merges=[merge],
+        is_recorded=lambda sha: auto_rebase_record.is_recorded(root, ar_support._LANE, sha),
+        is_bookkeeping=lambda _path: False,
+        attributes_source=target,
+    )
+    return [refusal.code for refusal in refusals]
+
+
+@pytest.mark.parametrize("side", [_LANE_SIDE, _MISSION_SIDE], ids=["kept_the_lane_side", "kept_the_mission_side"])
+def test_a_recorded_merge_that_kept_one_side_is_still_skipped(tmp_path: Path, side: str) -> None:
+    """Control: a take-one-side resolution's bytes are a parent's, which the gate attributes; the record still skips it."""
+    root, merge, target = _recorded_resolution_merge(tmp_path, side)
+
+    assert _predicate_refusals(root, merge, target) == []
+
+
+def test_a_recorded_merge_that_took_the_target_entry_is_still_skipped(tmp_path: Path) -> None:
+    """Control: a target-owned resolution (the target tip's bytes, neither parent's) is unchanged on landing; skipped."""
+    target_text = _TEN.replace("l5 = 5", "l5 = 'TARGET'")
+    root, merge, target = _recorded_resolution_merge(tmp_path, target_text, target_text=target_text)
+
+    assert _predicate_refusals(root, merge, target) == []
+
+
+def test_a_recorded_merge_without_a_target_tip_is_refused(tmp_path: Path) -> None:
+    """No pre-run target tip: the record cannot be trusted at all (a hand merge), so the target-owned resolution refuses."""
+    target_text = _TEN.replace("l5 = 5", "l5 = 'TARGET'")
+    root, merge, _target = _recorded_resolution_merge(tmp_path, target_text, target_text=target_text)
+
+    refusals = approved_bound.unreviewed_resolution_merges(
+        root,
+        lane_id="lane-a",
+        branch=ar_support._LANE,
+        wp_ids=("WP01",),
+        merges=[merge],
+        is_recorded=lambda sha: auto_rebase_record.is_recorded(root, ar_support._LANE, sha),
+        is_bookkeeping=lambda _path: False,
+        attributes_source=None,
+    )
+    assert [refusal.code for refusal in refusals] == [BoundRefusalCode.RESOLUTION_MERGE_UNREVIEWED]

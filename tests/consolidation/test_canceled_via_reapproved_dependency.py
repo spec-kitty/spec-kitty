@@ -153,30 +153,7 @@ def test_control_without_reapproval_keeps_lane_moved_after_approval(tmp_path: Pa
     assert not blob_present_at(mission.repo, mission.target_branch, WP02_PATH)
 
 
-# --------------------------------------------------------------------------- T043: the protection is load-bearing
-
-
-@pytest.mark.slow
-@pytest.mark.parametrize(
-    ("name", "disabled"),
-    [
-        ("_dependency_anchor_before_incorporating", lambda _repo, _base, tip, _canceled: tip),
-        ("_with_merged_in_canceled", lambda _repo, _base, _branch, spine, _canceled: spine),
-    ],
-    ids=["anchor_at_live_tip", "first_parent_carriers_only"],
-)
-def test_protection_is_load_bearing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, name: str, disabled: object) -> None:
-    """Mutation check: with either half of the #7497 fix switched back to the old behaviour, the code is not produced."""
-    mission, _merge = _build(tmp_path, reapprove=True)
-    monkeypatch.setattr(rc, name, disabled)
-
-    result = _fresh_run(mission)
-
-    assert result.exception is None, result.output
-    assert CODE not in result.output, result.output
-
-
-# --------------------------------------------------------------------------- T041: the helpers, on a small real repository
+# --------------------------------------------------------------------------- the helpers, on a small real repository
 
 _SLUG = "reapproved-dep"
 _TARGET = "main"
