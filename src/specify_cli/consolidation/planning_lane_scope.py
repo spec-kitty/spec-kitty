@@ -12,7 +12,8 @@ nor the work package behind it.
 :func:`planning_lane_notes` names them. It runs the claim's own scope decision first and explains
 only a lane that decision left empty, so a note never disagrees with the scope decision. Each note
 carries the lane's scope (its ``write_scope``, its readable ``owned_files`` and the commits of its
-Mission-branch walk that change such a path), and the verifier prints it only with an
+Mission-branch walk that change such a path; when every ``owned_files`` list is empty, the walk's
+non-bookkeeping paths and the commits that change them, review 7), and the verifier prints it only with an
 un-attributable FAIL about that scope (``reconciliation_verifier._with_attribution_hint``,
 ``PlanningLaneNote.explains``, review 6), so a code lane's stray content never prints it. Its
 remedy commands carry the work package ids and ``--mission <slug>``, and each was driven end to end
@@ -144,6 +145,27 @@ def _named(wp_ids: Sequence[str]) -> str:
     return ", ".join(wp_ids)
 
 
+def _opener_recorded(
+    repo_root: Path, lanes_manifest: LanesManifest, lane: ExecutionLane, wp: str, events: Callable[[], Sequence[Any] | None] | None
+) -> bool | None:
+    """Whether *wp*'s unprovable window has a recorded opener (review 7 item 4), read from the evidence axis' one decision.
+
+    ``None`` when it cannot tell (no event reader, or the window resolves now), so the restart text
+    then prints both cases.
+    """
+    from specify_cli.consolidation.wp_evidence import PlanningWindowUnresolved, planning_evidence_window
+
+    if events is None:
+        return None
+    try:
+        planning_evidence_window(repo_root, lanes_manifest, lane, wp, events)
+    except PlanningWindowUnresolved as exc:
+        # A typed local: under ``follow_imports = "skip"`` the exception's attribute reads as ``Any``.
+        recorded: bool = exc.opener_recorded
+        return recorded
+    return None
+
+
 def _why_unscoped(
     repo_root: Path,
     lanes_manifest: LanesManifest,
@@ -171,7 +193,10 @@ def _why_unscoped(
         )
     unproven = [wp for wp in lane.wp_ids if authorship._planning_window_starts(repo_root, lanes_manifest, lane, (wp,), events) is None]
     if unproven:
-        steps = "; ".join(f"for {wp}: {planning_window_restart(wp, lanes_manifest.mission_slug)}" for wp in unproven)
+        steps = "; ".join(
+            f"for {wp}: {planning_window_restart(wp, lanes_manifest.mission_slug, opener_recorded=_opener_recorded(repo_root, lanes_manifest, lane, wp, events))}"
+            for wp in unproven
+        )
         return f"the commit that introduced the claim of {_named(unproven)} on the Mission branch cannot be proven. Recovery, {steps}"
     if not any(owned.values()):
         return f"every planning work package's owned_files list is empty. List the paths each one changes in its owned_files, {_RERUN}"
@@ -186,20 +211,33 @@ def _note_patterns(repo_root: Path, lanes_manifest: LanesManifest, lane: Executi
     return tuple(sorted({*lane.write_scope, *(pattern for patterns in owned.values() for pattern in patterns)}))
 
 
-def _note_commits(repo_root: Path, window: tuple[str, str], patterns: tuple[str, ...]) -> frozenset[str] | None:
-    """The commits of the lane's Mission-branch walk (``pin..coordination base``) that change a path in *patterns*.
+def _note_coverage(repo_root: Path, window: tuple[str, str], patterns: tuple[str, ...], mission_slug: str) -> tuple[frozenset[str] | None, frozenset[str]]:
+    """The commits of the lane's Mission-branch walk (``pin..coordination base``) a note covers, and the paths it covers beyond *patterns*.
 
-    ``None`` when the walk cannot be read, so the note then covers every un-attributable commit.
+    With *patterns*: the walk's commits that change a path in them, and no extra path. With none
+    (every ``owned_files`` list is empty, review 7): the walk's commits that change a path outside
+    the Mission bookkeeping (``_is_bookkeeping``), and those paths, so the note stays reachable.
+    The commits are ``None`` when the walk cannot be read, so the note then covers every
+    un-attributable commit.
     """
     from specify_cli.consolidation.git_probes import GitProbeError, changed_paths_of, commits_in_range
+    from specify_cli.consolidation.reconciliation_kernel import _is_bookkeeping
     from specify_cli.ownership.matching import matches_owned
 
-    if not patterns:
-        return frozenset()
+    def covered(path: str) -> bool:
+        return matches_owned(path, patterns) if patterns else not _is_bookkeeping(path, mission_slug, None)
+
+    commits: set[str] = set()
+    paths: set[str] = set()
     try:
-        return frozenset(sha for sha in commits_in_range(repo_root, *window) if any(matches_owned(path, patterns) for path in changed_paths_of(repo_root, sha)))
+        for sha in commits_in_range(repo_root, *window):
+            changed = [path for path in changed_paths_of(repo_root, sha) if covered(path)]
+            if changed:
+                commits.add(sha)
+                paths.update(changed)
     except GitProbeError:
-        return None
+        return None, frozenset()
+    return frozenset(commits), frozenset() if patterns else frozenset(paths)
 
 
 def planning_lane_notes(
@@ -234,7 +272,8 @@ def planning_lane_notes(
         reason = _why_unscoped(repo_root, lanes_manifest, lane, work_packages, events)
         text = f"The planning lane {lane.lane_id} credits none of its work on the Mission branch to any work package (#7860): {reason}."
         patterns = _note_patterns(repo_root, lanes_manifest, lane)
-        notes.append(PlanningLaneNote(text, patterns, _note_commits(repo_root, window, patterns)))
+        commits, paths = _note_coverage(repo_root, window, patterns, lanes_manifest.mission_slug)
+        notes.append(PlanningLaneNote(text, patterns, commits, paths))
     return tuple(notes)
 
 

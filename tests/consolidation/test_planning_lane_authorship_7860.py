@@ -15,6 +15,7 @@ shape keeps its range.
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import subprocess
 from pathlib import Path
@@ -26,7 +27,7 @@ from specify_cli.consolidation import planning_lane_scope
 from specify_cli.consolidation import reconciliation_authorship as authorship
 from specify_cli.consolidation.git_probes import GitProbeError, patch_id_of
 from specify_cli.consolidation.reconciliation import ApprovedWpCommitSet, MergeOutcomeVerifier
-from specify_cli.consolidation.reconciliation_verifier import VerifyStatus
+from specify_cli.consolidation.reconciliation_verifier import VerifyStatus, _with_attribution_hint
 from specify_cli.lanes.compute import PLANNING_LANE_ID
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from tests._support.git_cli import git_out
@@ -492,6 +493,28 @@ def test_an_empty_planning_write_scope_authors_nothing_on_the_mission_branch(tmp
     assert not claim.shas & set(shas.values())
 
 
+@pytest.mark.integration
+def test_an_all_empty_ownership_note_prints_with_the_squash_fail_it_explains(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review 7 issue 2: empty ``write_scope`` and ``owned_files``; the reason-4 note now rides on the squash FAIL."""
+    repo, pin, _shas = _mission(tmp_path)
+    monkeypatch.setattr(mission_runtime, "planning_write_ref", _reader(True))
+    _ownership(monkeypatch, {"WP02": ()})
+    coord_base, claim = _planning_claim(repo, pin, _EMPTY_PLANNING, {"WP02": {"lane": "approved"}})
+    manifest = _manifest(pin=pin)
+    manifest.lanes = [_EMPTY_PLANNING]
+    notes = planning_lane_scope.planning_lane_notes(repo, manifest, {"WP02": {"lane": "approved"}}, coord_base, None, lambda: [])
+    # A code lane's approved work stands beside it, as in a real Mission, so the squash axis judges paths.
+    code_blob = _git(repo, "rev-parse", f"{coord_base}:README.md")
+    commit_set = dataclasses.replace(
+        _commit_set(pin, claim), approved={"WP01": (pin,)}, authored_blobs=claim.blobs | {("README.md", code_blob)}, planning_lane_notes=notes
+    )
+
+    result = _with_attribution_hint(MergeOutcomeVerifier(repo)._verify_squash_content(coord_base, commit_set), commit_set)
+
+    assert result.status is VerifyStatus.FAIL
+    assert "every planning work package's owned_files list is empty" in result.recovery_guidance()
+
+
 # ---------------------------------------------------------------- review 4: operator rulings R1 and R2 (2026-11-27)
 
 
@@ -687,6 +710,107 @@ def test_an_owned_path_a_merge_changed_last_falls_back_to_no_older_commit(tmp_pa
     assert _CONFLICT_PATH not in claim.deletions
 
 
+_SAME_PATH = "curation/pkg/same.py"
+
+
+def _same_file_mission(tmp_path: Path, *, pre_claim: dict[str, str] | None, after_claim: dict[str, str] | None = None) -> tuple[Path, str, dict[str, str]]:
+    """A clean default Mission: *pre_claim* (if any), WP02's claim commit, then WP02's own change.
+
+    WP02 owns ``curation/pkg/**``. Its own change is *after_claim* (default: appends ``L = 1`` to
+    :data:`_SAME_PATH`), so a pre-claim change to that file rides in the credited commit's blob.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    for args in (("init", "-q", "-b", "main"), ("config", "user.email", "t@example.com"), ("config", "user.name", "Test"), ("config", "commit.gpgsign", "false")):
+        _git(repo, *args)
+    _commit(repo, {"README.md": "x\n"}, "init")
+    _git(repo, "switch", "-qc", _MISSION_BRANCH)
+    meta = {"mission_slug": _SLUG, "target_branch": "main", "topology": "lanes_with_coord", "topology_source": "default", "mission_branch": _MISSION_BRANCH}
+    pin = _commit(repo, {f"kitty-specs/{_SLUG}/meta.json": json.dumps(meta)}, "planning")
+    shas = {"pin": pin}
+    if pre_claim is not None:
+        shas["early"] = _commit(repo, pre_claim, "an owned change before WP02 was claimed")
+    shas["claim"] = _commit(repo, {f"kitty-specs/{_SLUG}/status.events.jsonl": "{}\n"}, "chore: claim WP02")
+    early_text = (pre_claim or {}).get(_SAME_PATH, "")
+    shas["late"] = _commit(repo, after_claim or {_SAME_PATH: early_text + "L = 1\n"}, "feat(WP02): after the claim")
+    return repo, pin, shas
+
+
+def _wp02_claim(repo: Path, pin: str, claim_commit: str, monkeypatch: pytest.MonkeyPatch) -> tuple[str, authorship._AuthoredClaim]:
+    monkeypatch.setattr(mission_runtime, "planning_write_ref", _reader(True))
+    _ownership(monkeypatch, {"WP02": (_PKG,)})
+    _starts(monkeypatch, {"WP02": claim_commit})
+    lane = ExecutionLane(PLANNING_LANE_ID, ("WP02",), (_PKG,), (), (), 0)
+    return _planning_claim(repo, pin, lane, {"WP02": {"lane": "approved"}})
+
+
+@pytest.mark.integration
+def test_a_pre_claim_change_never_rides_a_credited_commits_blob(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """R2, review 7 issue 1: a path an uncredited commit changed on the walk is attributed to nothing.
+
+    ``late`` is credited, but its blob of ``same.py`` still holds ``early``'s pre-claim line, so
+    neither that blob nor a deletion is attributed (fail closed).
+    """
+    repo, pin, shas = _same_file_mission(tmp_path, pre_claim={_SAME_PATH: "E = 1  # pre-claim, never reviewed\n"})
+
+    coord_base, claim = _wp02_claim(repo, pin, shas["claim"], monkeypatch)
+
+    assert shas["early"] not in claim.shas
+    assert _SAME_PATH not in {path for path, _blob in claim.blobs}
+    assert _SAME_PATH not in claim.deletions
+    result = MergeOutcomeVerifier(repo)._verify_squash_content(coord_base, _commit_set(pin, claim))
+    # No blob or deletion is left to attribute while WP02 resolved commits: the squash axis refuses.
+    assert result.status is VerifyStatus.REFUSE
+
+
+@pytest.mark.integration
+def test_a_pre_claim_change_to_a_path_the_work_package_then_deletes_attributes_no_deletion(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review 7 issue 1: a credited deletion is not attributed either when an uncredited commit changed the path."""
+    repo, pin, shas = _same_file_mission(tmp_path, pre_claim={_SAME_PATH: "E = 1\n"}, after_claim={"curation/pkg/other.py": "O = 1\n"})
+    _git(repo, "rm", "-q", "--", _SAME_PATH)
+    _git(repo, "commit", "-qm", "feat(WP02): drop same.py")
+
+    _coord_base, claim = _wp02_claim(repo, pin, shas["claim"], monkeypatch)
+
+    assert _SAME_PATH not in claim.deletions
+    assert _SAME_PATH not in {path for path, _blob in claim.blobs}
+    assert "curation/pkg/other.py" in {path for path, _blob in claim.blobs}
+
+
+@pytest.mark.integration
+def test_a_clean_merge_of_a_pre_claim_change_taints_the_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review 7 issue 1: a clean merge's first-parent diff counts as a change no window credits."""
+    repo, pin, shas = _same_file_mission(tmp_path, pre_claim=None, after_claim={"curation/pkg/other.py": "O = 1\n"})
+    _git(repo, "switch", "-qc", "side", shas["pin"])
+    _commit(repo, {_SAME_PATH: "E = 1  # pre-claim, on a side branch\n"}, "an owned change on a side branch")
+    _git(repo, "switch", "-q", _MISSION_BRANCH)
+    _git(repo, "merge", "-q", "--no-ff", "--no-edit", "side")
+    touch = _commit(repo, {_SAME_PATH: "E = 1  # pre-claim, on a side branch\nL = 1\n"}, "feat(WP02): touch same.py")
+
+    coord_base, claim = _wp02_claim(repo, pin, shas["claim"], monkeypatch)
+
+    assert touch in claim.shas
+    assert _SAME_PATH not in {path for path, _blob in claim.blobs}
+    assert "curation/pkg/other.py" in {path for path, _blob in claim.blobs}
+    result = MergeOutcomeVerifier(repo)._verify_squash_content(coord_base, _commit_set(pin, claim))
+    assert result.status is VerifyStatus.FAIL
+    assert result.divergence is not None
+    assert {path for path, _blob in result.divergence.unattributable_blobs} == {_SAME_PATH}
+
+
+@pytest.mark.integration
+def test_without_a_pre_claim_change_the_credited_blob_is_attributed_and_the_squash_passes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The control of review 7 issue 1: status commits on the walk change no owned path, so a normal Mission still lands."""
+    repo, pin, shas = _same_file_mission(tmp_path, pre_claim=None)
+    _commit(repo, {f"kitty-specs/{_SLUG}/status.events.jsonl": "{}\n{}\n"}, "chore: WP02 for_review")
+
+    coord_base, claim = _wp02_claim(repo, pin, shas["claim"], monkeypatch)
+
+    assert (_SAME_PATH, _git(repo, "rev-parse", f"{shas['late']}:{_SAME_PATH}")) in claim.blobs
+    result = MergeOutcomeVerifier(repo)._verify_squash_content(coord_base, _commit_set(pin, claim))
+    assert result.status is VerifyStatus.PASS
+
+
 @pytest.mark.integration
 def test_an_uncomputable_window_start_authors_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """R2: when an approved work package's claim commit cannot be found, the lane authors nothing (fail closed)."""
@@ -759,17 +883,40 @@ def test_the_planning_scope_credits_a_path_only_inside_its_owners_window() -> No
 
 
 @pytest.mark.integration
-def test_the_final_walk_drops_a_path_whose_newest_change_keep_rejects(tmp_path: Path) -> None:
-    """A rejected newest change is never replaced by an older, accepted one (``keep``)."""
+def test_the_scoped_final_walk_attributes_a_path_only_when_every_change_to_it_is_credited(tmp_path: Path) -> None:
+    """Review 7: one uncredited or dropped change to a path leaves it attributed to nothing; an older credited commit never stands in."""
     repo, pin, shas = _mission(tmp_path)
     spine = git_out(repo, "rev-list", "--first-parent", f"{pin}..HEAD").split()
+    owned_everywhere = authorship._PlanningScope((((_OWNED,), frozenset(spine)),))
+    owned_but_mixed = authorship._PlanningScope((((_OWNED,), frozenset(spine) - {shas["mixed"]}),))
 
-    def _keep(sha: str, _path: str) -> bool:
-        return sha != shas["mixed"]
+    blobs, deletions = authorship._scoped_final_walk(repo, spine, owned_everywhere, frozenset())
+    assert blobs == {(_OWNED, _git(repo, "rev-parse", f"{shas['mixed']}:{_OWNED}"))} and not deletions
+    assert authorship._scoped_final_walk(repo, spine, owned_but_mixed, frozenset()) == (set(), set())
+    assert authorship._scoped_final_walk(repo, spine, owned_everywhere, frozenset({shas["owned"]})) == (set(), set())
 
-    blobs, _deletions = authorship._final_authored_walk(repo, spine, keep=_keep)
 
-    assert {path for path, _blob in blobs} == {"stray.py", f"kitty-specs/{_SLUG}/status.events.jsonl"}
+@pytest.mark.integration
+def test_the_scoped_final_walk_attributes_a_credited_deletion(tmp_path: Path) -> None:
+    repo, pin, _shas = _mission(tmp_path)
+    _git(repo, "rm", "-q", "--", _OWNED)
+    _git(repo, "commit", "-qm", "feat(WP02): drop the curation file")
+    spine = git_out(repo, "rev-list", "--first-parent", f"{pin}..HEAD").split()
+
+    assert authorship._scoped_final_walk(repo, spine, authorship._PlanningScope((((_OWNED,), frozenset(spine)),)), frozenset()) == (set(), {_OWNED})
+
+
+@pytest.mark.integration
+def test_the_scoped_final_walk_names_the_path_it_cannot_read(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo, pin, _shas = _mission(tmp_path)
+    spine = git_out(repo, "rev-list", "--first-parent", f"{pin}..HEAD").split()
+
+    def _unreadable(_repo: Path, _ref: str, _path: str) -> str | None:
+        raise GitProbeError("boom")
+
+    setattr_reconciliation_family(monkeypatch, "path_state_at", _unreadable)
+    with pytest.raises(GitProbeError, match=f"reading {_OWNED} at .* on the planning walk failed: boom"):
+        authorship._scoped_final_walk(repo, spine, authorship._PlanningScope((((_OWNED,), frozenset(spine)),)), frozenset())
 
 
 def _window_events() -> list[object]:

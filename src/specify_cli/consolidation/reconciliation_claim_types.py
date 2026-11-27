@@ -33,19 +33,24 @@ class PlanningLaneNote:
     *text* names the lane, the reason, the work packages and the remedy. The note is printed with an
     un-attributable FAIL only when that FAIL is about the lane (:meth:`explains`, review 6): an
     un-attributable path matches *patterns* (the lane's ``write_scope`` and its readable
-    ``owned_files``), or an un-attributable commit is in *commits* (the commits of the lane's
-    Mission-branch walk that change such a path; ``None`` when that walk could not be read, so every
-    un-attributable commit counts).
+    ``owned_files``) or is one of *paths*, or an un-attributable commit is in *commits* (the commits
+    of the lane's Mission-branch walk that change such a path; ``None`` when that walk could not be
+    read, so every un-attributable commit counts). *paths* is filled only when the lane has no
+    pattern at all (every ``owned_files`` list empty, review 7): it then holds the walk's
+    non-bookkeeping paths, and *commits* the walk's commits that change one.
     """
 
     text: str
     patterns: tuple[str, ...]
     commits: frozenset[str] | None
+    paths: frozenset[str] = frozenset()
 
     def explains(self, paths: tuple[str, ...], commits: tuple[str, ...]) -> bool:
         """True when an un-attributable path or commit of the FAIL lies in this planning lane's scope."""
         from specify_cli.ownership.matching import matches_owned
 
+        if any(path in self.paths for path in paths):
+            return True
         if self.patterns and any(matches_owned(path, self.patterns) for path in paths):
             return True
         if not commits:

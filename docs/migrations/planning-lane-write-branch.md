@@ -45,7 +45,7 @@ written, reviewed and evidenced (operator ruling A', recorded on #7860):
   package's own commits.
 - The evidence window runs from the commit on the Mission branch that introduced the work
   package's claim to the Mission branch tip. Content written before the claim (for example a
-  `research/` draft from planning) never counts.
+  `research/` draft from planning) is never evidence.
 - `consolidate` lands the planning work on the target with the rest of the Mission. Its
   reconciliation claim reads the planning lane's authorship from the Mission branch (the planning
   commit to the Mission branch tip). Each approved work package is credited only for its own
@@ -55,9 +55,12 @@ written, reviewed and evidenced (operator ruling A', recorded on #7860):
   Mission branch brings the claim in through a merge (for example a `git pull` in a second clone),
   a commit on the other side of that merge is not in the window. No merge commit is credited at
   all, by SHA, patch-id, file content or deletion: a merge that resolved a conflict lists the
-  resolved file, and its content can carry a change made before the claim. A file whose newest
-  change on the Mission branch is a merge is therefore refused as un-attributable, never credited
-  to an older commit. A commit counts by SHA or patch-id only when every path it changes
+  resolved file, and its content can carry a change made before the claim. A file's final content
+  (or its deletion) is credited only when every commit on the Mission branch's first-parent
+  history from the planning commit that changed the file is credited for it: a file's content
+  holds every earlier change to it, so a file that a merge, a commit made before the claim, or any
+  other uncredited commit changed is refused as un-attributable, even when a credited commit
+  changed it later, and is never credited to an older commit. A commit counts by SHA or patch-id only when every path it changes
   is credited that way or is Mission bookkeeping; a commit that also changes another path
   contributes only its credited files, so its other change (and any cherry-picked copy) is refused
   as un-attributable at the gate. The planning lane authors nothing, so the gate refuses its
@@ -106,14 +109,20 @@ written, reviewed and evidenced (operator ruling A', recorded on #7860):
     1. `spec-kitty agent tasks move-task <WP> --to planned --review-feedback-file <file> --mission <slug>`
        (reopen; skip this and the next step when the work package is already `claimed` or
        `in_progress`);
-    2. `spec-kitty agent action implement <WP> --agent <agent> --mission <slug>`;
+    2. `spec-kitty agent action implement <WP> --agent <agent> --mission <slug>`. When the refusal
+       says no window-opening (claim) status event is recorded, this first claim starts the window:
+       go to step 5;
     3. `spec-kitty agent tasks move-task <WP> --to planned --review-feedback-file <file> --mission <slug>`
-       again (a move to `planned` from `claimed` or `in_progress` starts a new window);
+       again (a claim event is recorded but no single commit introduced it, so the move out of
+       review kept that old claim; a move to `planned` from `claimed` or `in_progress` starts a new
+       window);
     4. `spec-kitty agent action implement <WP> --agent <agent> --mission <slug>`, whose claim's status commit on the
        Mission branch starts the new window;
     5. commit the change to each of its `owned_files` again in the coordination worktree (a commit
        made before the new claim does not count), move it to `for_review`, and have it reviewed and
        approved.
+
+    The planning-lane note prints only the steps that apply to each work package.
 
   The forced moves are operator transitions recorded in the status log, and the attestation
   records why the work package owes no work. The attestation answers only the owned-file evidence

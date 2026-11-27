@@ -289,6 +289,23 @@ def test_a_planning_work_package_with_no_opener_refuses(tmp_path: Path) -> None:
     assert report.verdicts == {"WP02": wp_evidence.EVIDENCE_WINDOW_UNCOMPUTABLE}
 
 
+def _unresolved(fx: _Fixture, wp_id: str) -> wp_evidence.PlanningWindowUnresolved:
+    manifest = fx.manifest()
+    (lane,) = [lane for lane in manifest.lanes if lane.lane_id == PLANNING_LANE_ID]
+    events = read_events(fx.feature_dir)
+    with pytest.raises(wp_evidence.PlanningWindowUnresolved) as raised:
+        wp_evidence.planning_evidence_window(fx.repo, manifest, lane, wp_id, lambda: events)
+    return raised.value
+
+
+def test_the_unresolved_window_says_whether_an_opener_is_recorded(tmp_path: Path) -> None:
+    """Review 7 item 4: no opener needs one reopen; an opener that cannot be proven needs two."""
+    fx = _build(tmp_path)
+    assert _unresolved(fx, "WP02").opener_recorded is False
+    _claim(fx, "WP02", commit=False)
+    assert _unresolved(fx, "WP02").opener_recorded is True
+
+
 def test_an_unreadable_event_log_refuses(tmp_path: Path) -> None:
     fx = _build(tmp_path)
     _claim(fx, "WP02")

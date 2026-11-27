@@ -187,9 +187,12 @@ class PlanningWindowUnresolved(Exception):
     cannot be read); ``detail`` says why.
     """
 
-    def __init__(self, code: str, detail: str) -> None:
+    def __init__(self, code: str, detail: str, *, opener_recorded: bool = True) -> None:
         self.code = code
         self.detail = detail
+        #: ``False`` only when no window-opening (claim) status event is recorded: one reopen then
+        #: starts a window (:func:`planning_window_restart`, review 7).
+        self.opener_recorded = opener_recorded
         super().__init__(f"{code}: {detail}")
 
 
@@ -197,7 +200,14 @@ class PlanningWindowUnresolved(Exception):
 MISSION_BRANCH_PHRASE = "the Mission branch (the coordination branch)"
 
 
-def planning_window_restart(wp: str, mission: str) -> str:
+_NO_OPENER = "no window-opening (claim) status event is recorded"
+_RECOMMIT = (
+    "commit the change to each of its owned_files again (a commit made before the new claim does not count), move it to "
+    "for_review, have it reviewed and approved, then re-run"
+)
+
+
+def planning_window_restart(wp: str, mission: str, *, opener_recorded: bool | None = None) -> str:
     """How to start a new evidence window for a planning work package whose claim commit cannot be proven (#7860 review 6).
 
     Driven end to end through the CLI for an approved work package with no claim event and for one
@@ -205,16 +215,32 @@ def planning_window_restart(wp: str, mission: str) -> str:
     (#7754), and a move to ``planned`` out of review is rework that keeps the old claim as the window
     start (``window_opener_events(cycle=True)``), so only a move to ``planned`` from ``claimed`` or
     ``in_progress`` starts a new window. The old work predates the new claim and no longer counts.
+
+    *opener_recorded* (review 7, :attr:`PlanningWindowUnresolved.opener_recorded`) picks the steps:
+    ``False`` (no window-opening event is recorded, so the first claim opens the window) needs one
+    reopen; ``True`` (one is recorded but no single commit introduced it) needs two; ``None`` (a
+    shared text that cannot know) prints both and says which applies when.
     """
     reopen = f"`spec-kitty agent tasks move-task {wp} --to planned --review-feedback-file <file> --mission {mission}`"
     implement = f"`spec-kitty agent action implement {wp} --agent <agent> --mission {mission}`"
+    starts = f"whose claim's status commit on {MISSION_BRANCH_PHRASE} starts it"
+    if opener_recorded is False:
+        return (
+            f"{_NO_OPENER} for {wp}, so its first claim starts the window: if {wp} is approved, done, for_review or in_review, "
+            f"first reopen it with {reopen} (the work package is reviewed and approved again); claim it with {implement}, "
+            f"{starts}; {_RECOMMIT}"
+        )
+    first = f"if {wp} is approved, done, for_review or in_review, first reopen it with {reopen} and claim it with {implement} "
+    second = f"run {reopen} again (a move to planned from claimed or in_progress starts a new window) and {implement}, {starts}"
+    if opener_recorded:
+        return (
+            f"{first}(a move out of review keeps the old claim as the window start, and the work package is reviewed and approved "
+            f"again); then start a new window: {second}; {_RECOMMIT}"
+        )
     return (
-        f"if {wp} is approved, done, for_review or in_review, first reopen it with {reopen} and claim it with {implement} "
-        "(a move out of review keeps the old claim as the window start, and the work package is reviewed and approved again); "
-        f"then start a new window: run {reopen} again (a move to planned from claimed or in_progress starts a new window) and "
-        f"{implement}, whose claim's status commit on {MISSION_BRANCH_PHRASE} starts it; commit the change to each of its "
-        "owned_files again (a commit made before the new claim does not count), move it to for_review, have it reviewed and "
-        "approved, then re-run"
+        f"{first}(the work package is reviewed and approved again); when a window-opening (claim) status event is recorded but no "
+        f"single commit introduced it, a move out of review keeps that old claim as the window start, so then start a new window: "
+        f"{second}; when none is recorded, that first claim already starts the window; {_RECOMMIT}"
     )
 
 
@@ -266,7 +292,7 @@ def _planning_window_start(repo_root: Path, lanes_manifest: LanesManifest, wp_id
     selection = window_opener_events(events, wp_id, cycle=True)
     openers = (*selection.candidates, *selection.skipped)
     if not openers:
-        raise PlanningWindowUnresolved(EVIDENCE_WINDOW_UNCOMPUTABLE, f"no window-opening (claim) status event is recorded for {wp_id}")
+        raise PlanningWindowUnresolved(EVIDENCE_WINDOW_UNCOMPUTABLE, f"{_NO_OPENER} for {wp_id}", opener_recorded=False)
     event_id = str(openers[0].event_id)
     surface = mission_runtime.StatusRef(repo_root=repo_root, ref=mission_branch, events_relpath=f"kitty-specs/{lanes_manifest.mission_slug}/status.events.jsonl")
     try:

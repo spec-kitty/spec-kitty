@@ -21,9 +21,12 @@ decision) to the coordination base, counting only the commits that descend from 
 it), and only for its own ``owned_files`` (:func:`_planning_scope`, operator ruling R2,
 2026-11-27). No merge commit is in any window, so no merge is credited by SHA, patch-id, blob or
 deletion: a merge that resolved a conflict lists the resolved path, and its blob can carry a change
-made before the claim (review 6). The final-state walk reads the whole first-parent spine, so a path
-whose newest change is such a merge is attributed to nothing, never to an older credited commit
-(fail closed). A commit enters the claim by SHA and patch-id only when every path
+made before the claim (review 6). The final-state walk (:func:`_scoped_final_walk`) reads the whole
+first-parent spine and attributes a path's final blob or deletion only when every commit of that
+spine that changed the path is credited for it there: that blob holds every earlier change to the
+file, so a path changed by a merge, by a commit before the claim, or by any other commit no window
+credits, is attributed to nothing, never through a later credited commit (fail closed, review 7).
+So an owned-path change made before the claim is never its work. A commit enters the claim by SHA and patch-id only when every path
 it changes is credited there or is bookkeeping (:func:`_scoped_commits`); a mixed commit, and every
 copy of it, stays un-attributable on the merge / rebase closed world while its credited blobs still
 count on the squash axis. The lane authors nothing (:func:`_approved_planning_scope`) when any of its
@@ -437,7 +440,6 @@ def _final_authored_walk(
     first_parent_shas: list[str],
     *,
     authoring_merges: frozenset[str] = frozenset(),
-    keep: Callable[[str, str], bool] | None = None,
 ) -> tuple[set[tuple[str, str]], set[str]]:
     """FINAL ``(path, blob)``s AND final DELETED paths across a lane's first-parent spine (F5, #5022).
 
@@ -467,10 +469,6 @@ def _final_authored_walk(
     blob the merge left at a path is the lane's final state there. Every other
     merge keeps contributing nothing, as above. Empty by default: the presence axis
     and every pre-#7626 caller read the walk unchanged.
-
-    *keep* (#7860) is ``(sha, path) -> bool``: a path whose newest touching commit it rejects is
-    marked seen and recorded nowhere, so an older commit cannot stand in for it. ``None`` keeps
-    every path.
 
     FIX D (#5001 landing remediation) — the invariant this axis rests on: the
     squash content axis's soundness depends on lanes being sliced by DISJOINT
@@ -503,8 +501,6 @@ def _final_authored_walk(
             if path in seen_paths:
                 continue
             seen_paths.add(path)
-            if keep is not None and not keep(sha, path):
-                continue
             try:
                 state = path_state_at(repo_root, sha, path)
             except GitProbeError as exc:
@@ -934,8 +930,9 @@ class _LaneAuthorshipWalk(NamedTuple):
     """A lane's authorship walk; ``whole`` and ``scope`` are ``None`` on an unscoped walk (every spine commit may enter by SHA).
 
     ``first_parent`` is the lane's whole first-parent spine. A scoped walk's ``spine`` holds only the
-    commits it credits, so its final-state walk reads ``first_parent`` instead: a path whose newest
-    change it does not credit (a merge, review 6) is then attributed to nothing, never to an older commit.
+    commits it credits, so its final-state walk reads ``first_parent`` instead: a path any change of
+    which it does not credit (a merge, review 6; a change before the claim, review 7) is then
+    attributed to nothing, never to an older commit (:func:`_scoped_final_walk`).
     """
 
     base: str
@@ -965,16 +962,51 @@ def _planning_walk(
     return _LaneAuthorshipWalk(base, branch, scoped.touching, scoped.whole, scope, first_parent)
 
 
+def _scoped_final_walk(repo_root: Path, first_parent: Sequence[str], scope: _PlanningScope, dropped: frozenset[str]) -> tuple[set[tuple[str, str]], set[str]]:
+    """The final ``(path, blob)``s and deleted paths a planning scope credits on *first_parent* (#7860, review 7).
+
+    A path's final state is attributed only when EVERY commit of the first-parent spine
+    (``pin..coordination base``) that changed it is credited for it at that commit
+    (:meth:`_PlanningScope.owns`). A path's final blob holds every earlier change to the file, so
+    one uncredited change (made before the claim, outside every window, by a merge, by another work
+    package, or by a *dropped* commit) leaves the path attributed to nothing, fail closed. Each commit
+    is read through its first-parent diff (:func:`first_parent_changed_paths`), so a clean merge's
+    brought-in paths count as its changes. A git error propagates, re-raised with the path named
+    when a state cannot be read, like :func:`_final_authored_walk`.
+    """
+    newest: dict[str, str] = {}
+    uncredited: set[str] = set()
+    for sha in first_parent:
+        for path in first_parent_changed_paths(repo_root, sha):
+            newest.setdefault(path, sha)
+            if sha in dropped or not scope.owns(sha, path):
+                uncredited.add(path)
+    blobs: set[tuple[str, str]] = set()
+    deletions: set[str] = set()
+    for path, sha in newest.items():
+        if path in uncredited:
+            continue
+        try:
+            state = path_state_at(repo_root, sha, path)
+        except GitProbeError as exc:
+            raise GitProbeError(f"reading {path} at {sha[:10]} on the planning walk failed: {exc}") from exc
+        if state is None:
+            deletions.add(path)
+        else:
+            blobs.add((path, state))
+    return blobs, deletions
+
+
 def _lane_final_walk(repo_root: Path, walk: _LaneAuthorshipWalk, dropped: frozenset[str]) -> tuple[set[tuple[str, str]], set[str]]:
     """:func:`_final_authored_walk` of *walk* less the *dropped* commits.
 
-    A scoped walk (#7860) reads the whole first-parent spine and keeps a path only where its newest
-    change is credited by an approved work package's own window (:meth:`_PlanningScope.owns`), so a
-    merge that last changed the path (review 6) leaves it attributed to nothing.
+    A scoped walk (#7860) reads the whole first-parent spine through :func:`_scoped_final_walk`: a
+    path is attributed only when every change to it on that spine is credited, so neither a merge
+    that changed it (review 6) nor an owned-path change made before the claim (review 7) rides in.
     """
     if walk.scope is None:
         return _final_authored_walk(repo_root, [sha for sha in walk.spine if sha not in dropped])
-    return _final_authored_walk(repo_root, [sha for sha in walk.first_parent if sha not in dropped], keep=walk.scope.owns)
+    return _scoped_final_walk(repo_root, walk.first_parent, walk.scope, dropped)
 
 
 def _collect_authored(
