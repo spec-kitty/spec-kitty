@@ -329,7 +329,7 @@ def test_the_claim_hands_the_authorship_walk_the_reader_that_proves_each_window_
     ``events=event_log.read`` from the claim, or handing a reader that cannot prove the claims,
     turns this red.
     """
-    from specify_cli.consolidation import reconciliation_authorship as authorship
+    from specify_cli.consolidation import planning_lane_walk as planning_walk
     from specify_cli.consolidation import reconciliation_claim
 
     fx = _build(tmp_path)
@@ -355,7 +355,7 @@ def test_the_claim_hands_the_authorship_walk_the_reader_that_proves_each_window_
     events = seen.get("events")
     assert callable(events), f"the claim handed the authorship walk no event reader: {seen.get('events')!r}"
     lane = manifest.lanes[0]
-    assert authorship._planning_window_starts(fx.repo, manifest, lane, ("WP02", "WP03"), events) == {"WP02": claim_wp02, "WP03": claim_wp03}
+    assert planning_walk._planning_window_starts(fx.repo, manifest, lane, ("WP02", "WP03"), events) == {"WP02": claim_wp02, "WP03": claim_wp03}
 
 
 def test_the_claim_names_a_planning_lane_a_canceled_work_package_empties(tmp_path: Path) -> None:

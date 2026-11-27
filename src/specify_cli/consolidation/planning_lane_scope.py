@@ -2,7 +2,7 @@
 
 Before a default Mission lands, the reconciliation claim credits its planning lane's work on the
 Mission branch only inside each approved work package's window and owned paths
-(``reconciliation_authorship._planning_scope``). The lane credits nothing, fail closed, when any
+(``planning_lane_walk._planning_scope``). The lane credits nothing, fail closed, when any
 of its work packages is not approved (operator ruling R1), when an ``owned_files`` list cannot be
 read, when a pattern is too broad (:func:`is_whole_tree_pattern`), when a window start cannot be
 proven, when a window cannot be read, or when every ``owned_files`` list is empty. The gate then
@@ -150,8 +150,9 @@ def _opener_recorded(
 ) -> bool | None:
     """Whether *wp*'s unprovable window has a recorded opener (review 7 item 4), read from the evidence axis' one decision.
 
-    ``None`` when it cannot tell (no event reader, or the window resolves now), so the restart text
-    then prints both cases.
+    ``None`` when it cannot tell (no event reader, the window resolves now, or the window's cause
+    says nothing about the opener: an unreadable log, write branch or git), so the restart text then
+    prints both cases.
     """
     from specify_cli.consolidation.wp_evidence import PlanningWindowUnresolved, planning_evidence_window
 
@@ -161,7 +162,8 @@ def _opener_recorded(
         planning_evidence_window(repo_root, lanes_manifest, lane, wp, events)
     except PlanningWindowUnresolved as exc:
         # A typed local: under ``follow_imports = "skip"`` the exception's attribute reads as ``Any``.
-        recorded: bool = exc.opener_recorded
+        # ``None`` (the cause says nothing about the opener, review 8) passes through to the shared text.
+        recorded: bool | None = exc.opener_recorded
         return recorded
     return None
 
@@ -174,14 +176,14 @@ def _why_unscoped(
     events: Callable[[], Sequence[Any] | None] | None,
 ) -> str:
     """The first reason, in the claim's own order, why *lane* credits nothing, with its remedy."""
-    from specify_cli.consolidation import reconciliation_authorship as authorship
+    from specify_cli.consolidation import planning_lane_walk as walk
     from specify_cli.consolidation.wp_evidence import planning_window_restart
 
     not_approved = [wp for wp in lane.wp_ids if not _is_approved_wp(wp, work_packages)]
     if not_approved:
         states = ", ".join(f"{wp} is {_lane_state(wp, work_packages)}" for wp in not_approved)
         return f"{states}. {_not_approved_remedy(not_approved, work_packages, lanes_manifest.mission_slug)}"
-    owned = authorship._planning_ownership(repo_root, lanes_manifest.mission_slug, lane.wp_ids)
+    owned = walk._planning_ownership(repo_root, lanes_manifest.mission_slug, lane.wp_ids)
     unreadable = [wp for wp in lane.wp_ids if wp not in owned]
     if unreadable:
         return f"the owned_files of {_named(unreadable)} cannot be read. Restore each task file with its owned_files list, {_RERUN}"
@@ -191,7 +193,7 @@ def _why_unscoped(
             f"an owned_files pattern is too broad ({', '.join(broad)}): a usable pattern is led by at least two literal path "
             f"segments or names one top-level file. Narrow it in the task file, {_RERUN}"
         )
-    unproven = [wp for wp in lane.wp_ids if authorship._planning_window_starts(repo_root, lanes_manifest, lane, (wp,), events) is None]
+    unproven = [wp for wp in lane.wp_ids if walk._planning_window_starts(repo_root, lanes_manifest, lane, (wp,), events) is None]
     if unproven:
         steps = "; ".join(
             f"for {wp}: {planning_window_restart(wp, lanes_manifest.mission_slug, opener_recorded=_opener_recorded(repo_root, lanes_manifest, lane, wp, events))}"
@@ -205,9 +207,9 @@ def _why_unscoped(
 
 def _note_patterns(repo_root: Path, lanes_manifest: LanesManifest, lane: ExecutionLane) -> tuple[str, ...]:
     """The lane's ``write_scope`` and every readable ``owned_files`` pattern of its work packages: what a note covers."""
-    from specify_cli.consolidation import reconciliation_authorship as authorship
+    from specify_cli.consolidation import planning_lane_walk as walk
 
-    owned = authorship._planning_ownership(repo_root, lanes_manifest.mission_slug, lane.wp_ids)
+    owned = walk._planning_ownership(repo_root, lanes_manifest.mission_slug, lane.wp_ids)
     return tuple(sorted({*lane.write_scope, *(pattern for patterns in owned.values() for pattern in patterns)}))
 
 
@@ -253,9 +255,9 @@ def planning_lane_notes(
     Empty for every other shape (a ``single_branch`` window, a landed or legacy Mission, no planning
     pin) and for a lane the claim's own scope decision credits. Each note carries the lane's scope,
     so the verifier prints it only with a FAIL about that lane (:meth:`PlanningLaneNote.explains`,
-    review 6). Looked up through the authorship module so a patch of its names reaches this read too.
+    review 6). Looked up through the planning walk module so a patch of its names reaches this read too.
     """
-    from specify_cli.consolidation import reconciliation_authorship as authorship
+    from specify_cli.consolidation import planning_lane_walk as walk
 
     if sb_window is not None:
         return ()
@@ -263,10 +265,10 @@ def planning_lane_notes(
     for lane in lanes_manifest.lanes:
         if not is_planning_lane(lane) or not lane.wp_ids:
             continue
-        window = authorship._planning_lane_mission_branch_window(repo_root, lanes_manifest, coord_base_ref)
+        window = walk._planning_lane_mission_branch_window(repo_root, lanes_manifest, coord_base_ref)
         if window is None:
             continue
-        scope = authorship._planning_scope(repo_root, lanes_manifest, lane, work_packages, coord_base_ref, events)
+        scope = walk._planning_scope(repo_root, lanes_manifest, lane, work_packages, coord_base_ref, events)
         if scope is not None and scope.patterns:
             continue
         reason = _why_unscoped(repo_root, lanes_manifest, lane, work_packages, events)

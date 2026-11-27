@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.consolidation import planning_lane_scope
-from specify_cli.consolidation import reconciliation_authorship as authorship
+from specify_cli.consolidation import planning_lane_walk as planning_walk
 from specify_cli.consolidation import git_probes
 from specify_cli.consolidation.git_probes import GitProbeError
 from specify_cli.consolidation.reconciliation import ApprovedWpCommitSet
@@ -58,7 +58,7 @@ def shape(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     """The Mission-branch window applies; ownership and window starts read from ``knobs`` (patched on the authorship module)."""
     knobs: dict[str, object] = {"window": ("pin0000", "coord0000"), "owned": dict(_OWNED), "unproven": set(), "scope": None, "opener": True}
 
-    monkeypatch.setattr(authorship, "_planning_lane_mission_branch_window", lambda *_args: knobs["window"])
+    monkeypatch.setattr(planning_walk, "_planning_lane_mission_branch_window", lambda *_args: knobs["window"])
 
     def _ownership(_root: Path, _slug: str, wp_ids: tuple[str, ...]) -> dict[str, tuple[str, ...]]:
         owned = knobs["owned"]
@@ -71,9 +71,9 @@ def shape(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
         assert isinstance(unproven, set)
         return None if any(wp in unproven for wp in wp_ids) else dict.fromkeys(wp_ids, "claim0")
 
-    monkeypatch.setattr(authorship, "_planning_ownership", _ownership)
-    monkeypatch.setattr(authorship, "_planning_window_starts", _starts)
-    monkeypatch.setattr(authorship, "_planning_scope", lambda *_args: knobs["scope"])
+    monkeypatch.setattr(planning_walk, "_planning_ownership", _ownership)
+    monkeypatch.setattr(planning_walk, "_planning_window_starts", _starts)
+    monkeypatch.setattr(planning_walk, "_planning_scope", lambda *_args: knobs["scope"])
     monkeypatch.setattr(planning_lane_scope, "_opener_recorded", lambda *_args: knobs["opener"])
     return knobs
 
@@ -84,7 +84,7 @@ def _notes(work_packages: Mapping[str, Mapping[str, object]] = _APPROVED, sb_win
 
 
 def test_a_credited_lane_gets_no_note(shape: dict[str, object]) -> None:
-    shape["scope"] = authorship._PlanningScope(((("curation/pkg/**",), frozenset({"c1"})),))
+    shape["scope"] = planning_walk._PlanningScope(((("curation/pkg/**",), frozenset({"c1"})),))
 
     assert _notes() == ()
 
@@ -219,6 +219,65 @@ def test_the_opener_reading_comes_from_the_evidence_axis(monkeypatch: pytest.Mon
     assert recorded is {"no_opener": False, "unprovable": True}.get(outcome)
 
 
+def _unreadable_raises(monkeypatch: pytest.MonkeyPatch) -> list[object]:
+    """The three ``IMPLEMENTATION_UNREADABLE`` raises of the evidence axis, each driven through its own raise site."""
+    import mission_runtime
+
+    from specify_cli.consolidation import wp_evidence
+
+    def _undecidable(*_args: object, **_kwargs: object) -> object:
+        raise mission_runtime.PlanningWriteRefUnavailable("m", "meta.json unreadable")
+
+    raised: list[object] = []
+    with monkeypatch.context() as patch:
+        patch.setattr(mission_runtime, "planning_write_ref", _undecidable)
+        with pytest.raises(wp_evidence.PlanningWindowUnresolved) as write_branch:
+            wp_evidence._planning_window_end(Path(), _manifest())
+    raised.append(write_branch.value)
+    with pytest.raises(wp_evidence.PlanningWindowUnresolved) as unreadable_log:
+        wp_evidence._planning_window_start(Path(), _manifest(), "WP02", None, "kitty/mission-x")
+    raised.append(unreadable_log.value)
+    unavailable = mission_runtime.ClaimCommitUnresolved("WP02", "git_unavailable", "boom")
+    raised.append(wp_evidence._unresolved_start(unavailable, "kitty/mission-x", "01EVENT"))
+    return raised
+
+
+def _raising(error: BaseException) -> object:
+    def _window(*_args: object) -> None:
+        raise error
+
+    return _window
+
+
+def test_the_unreadable_raises_say_nothing_about_the_opener(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review 8 issue 3: an unreadable log, an undecidable write branch or unreadable git tells nothing about the opener.
+
+    Each raise leaves ``opener_recorded`` at ``None``, so the planning-lane note prints the shared
+    restart text, never the steps for an opener that is recorded but unprovable.
+    """
+    from specify_cli.consolidation import wp_evidence
+    from specify_cli.consolidation.wp_evidence import IMPLEMENTATION_UNREADABLE, planning_window_restart
+
+    for error in _unreadable_raises(monkeypatch):
+        assert isinstance(error, wp_evidence.PlanningWindowUnresolved)
+        assert error.code == IMPLEMENTATION_UNREADABLE and error.opener_recorded is None
+        monkeypatch.setattr(wp_evidence, "planning_evidence_window", _raising(error))
+        recorded = planning_lane_scope._opener_recorded(Path(), _manifest(), _PLANNING, "WP02", _events)
+        assert recorded is None
+        assert planning_window_restart("WP02", "m", opener_recorded=recorded) == planning_window_restart("WP02", "m")
+
+
+def test_an_unprovable_claim_commit_records_its_opener() -> None:
+    """Review 8 issue 3: only the unprovable-claim-commit raise sets ``opener_recorded`` True."""
+    import mission_runtime
+
+    from specify_cli.consolidation import wp_evidence
+
+    error = wp_evidence._unresolved_start(mission_runtime.ClaimCommitUnresolved("WP02", "ambiguous", "two"), "kitty/mission-x", "01EVENT")
+
+    assert error.code == wp_evidence.EVIDENCE_WINDOW_UNCOMPUTABLE and error.opener_recorded is True
+
+
 def test_the_evidence_refusal_prints_the_same_restart_steps() -> None:
     from specify_cli.consolidation.wp_evidence import EVIDENCE_WINDOW_UNCOMPUTABLE, PLANNING_WINDOW_RECOVERY, planning_window_restart
 
@@ -230,7 +289,7 @@ def test_the_evidence_refusal_prints_the_same_restart_steps() -> None:
 
 def test_all_empty_ownership_is_named(shape: dict[str, object]) -> None:
     shape["owned"] = {"WP02": (), "WP03": ()}
-    shape["scope"] = authorship._PlanningScope((((), frozenset()), ((), frozenset())))
+    shape["scope"] = planning_walk._PlanningScope((((), frozenset()), ((), frozenset())))
 
     (note,) = _notes()
 

@@ -881,6 +881,35 @@ def first_parent_changed_paths(repo_root: Path, sha: str) -> list[str]:
         raise GitProbeError(f"git diff --name-only {sha}^1 {sha} failed (exit {exc.returncode}): {exc.stderr.strip()}") from exc
 
 
+@dataclass(frozen=True)
+class LineageChange:
+    """One path *sha* changed against its first parent, with the path its content came from (#7860, review 8).
+
+    ``source`` is the path a rename or copy took the content from (``None`` for any other
+    change); ``renamed`` is True for a rename, whose source the same commit removed.
+    """
+
+    path: str
+    source: str | None = None
+    renamed: bool = False
+
+
+def first_parent_lineage_changes(repo_root: Path, sha: str) -> list[LineageChange]:
+    """The paths *sha* changed against its FIRST parent, with renames and copies detected (#7860, review 8).
+
+    ``kernel.git.changed_entries(<sha>^1, <sha>, copies=True)`` (``git diff -C --name-status``,
+    which detects renames as well): a renamed or copied path names the path its content came from,
+    so a caller can carry what it knows of that source across the move. A rename lists only its new
+    path; the source it removed is :attr:`LineageChange.source`. Raises :class:`GitProbeError` on
+    any git error (a root commit has no ``^1``), never ``[]``.
+    """
+    try:
+        entries = changed_entries(repo_root, f"{sha}^1", sha, copies=True)
+    except GitCommandError as exc:
+        raise GitProbeError(f"git diff -C --name-status {sha}^1 {sha} failed (exit {exc.returncode}): {exc.stderr.strip()}") from exc
+    return [LineageChange(str(entry.path), str(entry.orig_path) if entry.orig_path is not None else None, entry.status.startswith("R")) for entry in entries]
+
+
 def _merge_tree_step(repo_root: Path, ours: str, theirs: str) -> tuple[str, frozenset[str]]:
     """``git merge-tree --write-tree`` of *ours* + *theirs* (``kernel.git.merge_tree``): the written tree and the conflicted paths.
 
@@ -1201,4 +1230,6 @@ __all__ = [
     "MergeFoldCache",
     "n_way_merge_blob",
     "first_parent_changed_paths",
+    "LineageChange",
+    "first_parent_lineage_changes",
 ]

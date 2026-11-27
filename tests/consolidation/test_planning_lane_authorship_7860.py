@@ -25,6 +25,7 @@ import pytest
 import mission_runtime
 from specify_cli.consolidation import planning_lane_scope
 from specify_cli.consolidation import reconciliation_authorship as authorship
+from specify_cli.consolidation import planning_lane_walk as planning_walk
 from specify_cli.consolidation.git_probes import GitProbeError, patch_id_of
 from specify_cli.consolidation.reconciliation import ApprovedWpCommitSet, MergeOutcomeVerifier
 from specify_cli.consolidation.reconciliation_verifier import VerifyStatus, _with_attribution_hint
@@ -36,7 +37,7 @@ from tests.consolidation.reconciliation_family import setattr_reconciliation_fam
 pytestmark = [pytest.mark.git_repo]
 
 #: The real window-start reader, kept before the autouse stub replaces it (R2 unit tests below).
-_REAL_WINDOW_STARTS = authorship._planning_window_starts
+_REAL_WINDOW_STARTS = planning_walk._planning_window_starts
 
 _SLUG = "auth-01M8EEEE"
 _MISSION_BRANCH = f"kitty/mission-{_SLUG}"
@@ -76,7 +77,7 @@ def _windows_start_at_the_pin(monkeypatch: pytest.MonkeyPatch) -> None:
         assert manifest.planning_commit_sha is not None
         return dict.fromkeys(wp_ids, manifest.planning_commit_sha)
 
-    monkeypatch.setattr(authorship, "_planning_window_starts", _read)
+    monkeypatch.setattr(planning_walk, "_planning_window_starts", _read)
 
 
 # ---------------------------------------------------------------- the walk range
@@ -86,16 +87,16 @@ def _windows_start_at_the_pin(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_a_default_missions_planning_lane_walks_its_mission_branch_window(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(mission_runtime, "planning_write_ref", _reader(True))
 
-    assert authorship._lane_walk_range(Path(), _manifest(), _PLANNING, "coord0000", None, (_OWNED,)) == ("pin0000", "coord0000", (_OWNED,))
+    assert planning_walk._lane_walk_range(Path(), _manifest(), _PLANNING, "coord0000", None, (_OWNED,)) == ("pin0000", "coord0000", (_OWNED,))
 
 
 @pytest.mark.unit
 def test_every_other_shape_keeps_its_range(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(mission_runtime, "planning_write_ref", _reader(False))
 
-    assert authorship._lane_walk_range(Path(), _manifest(), _PLANNING, "coord0000", None, (_OWNED,)) == ("coord0000", "main", ())
-    assert authorship._lane_walk_range(Path(), _manifest(), _PLANNING, "coord0000", ("sb0", "sb1"), (_OWNED,)) == ("sb0", "sb1", ())
-    assert authorship._lane_walk_range(Path(), _manifest(), _CODE, "coord0000", None, (_OWNED,)) == ("coord0000", f"kitty/mission-{_SLUG}-lane-a", ())
+    assert planning_walk._lane_walk_range(Path(), _manifest(), _PLANNING, "coord0000", None, (_OWNED,)) == ("coord0000", "main", ())
+    assert planning_walk._lane_walk_range(Path(), _manifest(), _PLANNING, "coord0000", ("sb0", "sb1"), (_OWNED,)) == ("sb0", "sb1", ())
+    assert planning_walk._lane_walk_range(Path(), _manifest(), _CODE, "coord0000", None, (_OWNED,)) == ("coord0000", f"kitty/mission-{_SLUG}-lane-a", ())
 
 
 @pytest.mark.unit
@@ -103,14 +104,14 @@ def test_an_empty_write_scope_keeps_the_target_range(monkeypatch: pytest.MonkeyP
     """An empty owned scope on the Mission-branch window authors nothing: it never widens to an unscoped walk."""
     monkeypatch.setattr(mission_runtime, "planning_write_ref", _reader(True))
 
-    assert authorship._lane_walk_range(Path(), _manifest(), _PLANNING, "coord0000", None, ()) == ("coord0000", "main", ())
+    assert planning_walk._lane_walk_range(Path(), _manifest(), _PLANNING, "coord0000", None, ()) == ("coord0000", "main", ())
 
 
 @pytest.mark.unit
 def test_no_planning_pin_keeps_the_target_range(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(mission_runtime, "planning_write_ref", _reader(True))
 
-    assert authorship._lane_walk_range(Path(), _manifest(pin=None), _PLANNING, "coord0000", None, (_OWNED,)) == ("coord0000", "main", ())
+    assert planning_walk._lane_walk_range(Path(), _manifest(pin=None), _PLANNING, "coord0000", None, (_OWNED,)) == ("coord0000", "main", ())
 
 
 @pytest.mark.unit
@@ -125,7 +126,7 @@ def test_an_undecidable_write_branch_keeps_the_target_range(monkeypatch: pytest.
 
     monkeypatch.setattr(mission_runtime, "planning_write_ref", _raise)
 
-    assert authorship._lane_walk_range(Path(), _manifest(), _PLANNING, "coord0000", None, (_OWNED,)) == ("coord0000", "main", ())
+    assert planning_walk._lane_walk_range(Path(), _manifest(), _PLANNING, "coord0000", None, (_OWNED,)) == ("coord0000", "main", ())
 
 
 _TOO_BROAD = [
@@ -204,7 +205,7 @@ def _ownership(monkeypatch: pytest.MonkeyPatch, owned: dict[str, tuple[str, ...]
         asked.append(tuple(wp_ids))
         return {wp: owned[wp] for wp in wp_ids if wp in owned}
 
-    monkeypatch.setattr(authorship, "_planning_ownership", _read, raising=False)
+    monkeypatch.setattr(planning_walk, "_planning_ownership", _read, raising=False)
     return asked
 
 
@@ -219,7 +220,7 @@ def test_the_scope_is_each_approved_work_packages_owned_files(monkeypatch: pytes
     asked = _ownership(monkeypatch, {"WP02": (_OWNED,), "WP03": ("curation/wp03.py",)})
     states = {"WP02": {"lane": "approved"}, "WP03": {"lane": "done"}}
 
-    assert authorship._approved_planning_scope(Path(), _manifest(), _TWO_WP_PLANNING, states) == {"WP02": (_OWNED,), "WP03": ("curation/wp03.py",)}
+    assert planning_walk._approved_planning_scope(Path(), _manifest(), _TWO_WP_PLANNING, states) == {"WP02": (_OWNED,), "WP03": ("curation/wp03.py",)}
     assert asked == [("WP02", "WP03")]
 
 
@@ -227,7 +228,7 @@ def test_the_scope_is_each_approved_work_packages_owned_files(monkeypatch: pytes
 def test_no_approved_work_package_gives_an_empty_scope(monkeypatch: pytest.MonkeyPatch) -> None:
     asked = _ownership(monkeypatch, {"WP02": (_OWNED,)})
 
-    assert not authorship._approved_planning_scope(Path(), _manifest(), _PLANNING, {"WP02": {"lane": "in_progress"}})
+    assert not planning_walk._approved_planning_scope(Path(), _manifest(), _PLANNING, {"WP02": {"lane": "in_progress"}})
     assert asked == []
 
 
@@ -237,7 +238,7 @@ def test_an_unreadable_approved_ownership_gives_an_empty_scope(monkeypatch: pyte
     _ownership(monkeypatch, {"WP02": (_OWNED,)})
     states = {"WP02": {"lane": "approved"}, "WP03": {"lane": "done"}}
 
-    assert not authorship._approved_planning_scope(Path(), _manifest(), _TWO_WP_PLANNING, states)
+    assert not planning_walk._approved_planning_scope(Path(), _manifest(), _TWO_WP_PLANNING, states)
 
 
 @pytest.mark.unit
@@ -245,7 +246,7 @@ def test_a_whole_tree_pattern_makes_the_whole_scope_unusable(monkeypatch: pytest
     _ownership(monkeypatch, {"WP02": (_OWNED,), "WP03": ("src/**",)})
     states = {"WP02": {"lane": "approved"}, "WP03": {"lane": "approved"}}
 
-    assert not authorship._approved_planning_scope(Path(), _manifest(), _TWO_WP_PLANNING, states)
+    assert not planning_walk._approved_planning_scope(Path(), _manifest(), _TWO_WP_PLANNING, states)
 
 
 @pytest.mark.integration
@@ -262,7 +263,7 @@ def test_the_ownership_reader_returns_only_resolved_work_packages(monkeypatch: p
 
     monkeypatch.setattr(wp_evidence, "read_wp_ownership", _read)
 
-    assert authorship._planning_ownership(tmp_path, _SLUG, ("WP02", "WP03")) == {"WP02": (_OWNED,)}
+    assert planning_walk._planning_ownership(tmp_path, _SLUG, ("WP02", "WP03")) == {"WP02": (_OWNED,)}
     assert seen == [("WP02", "WP03")]
 
 
@@ -332,7 +333,7 @@ def test_scoped_commits_keep_touching_commits_and_name_the_whole_ones(tmp_path: 
     repo, pin, shas = _mission(tmp_path)
     spine = git_out(repo, "rev-list", "--first-parent", f"{pin}..HEAD").split()
 
-    scoped = authorship._scoped_commits(repo, spine, authorship._PlanningScope((((_OWNED,), frozenset(spine)),)), _SLUG)
+    scoped = planning_walk._scoped_commits(repo, spine, planning_walk._PlanningScope((((_OWNED,), frozenset(spine)),)), _SLUG)
 
     assert scoped.touching == [shas["mixed"], shas["owned_and_status"], shas["owned"]]
     assert scoped.whole == frozenset({shas["owned"], shas["owned_and_status"]})
@@ -347,7 +348,7 @@ def test_an_unreadable_commit_is_dropped(tmp_path: Path, monkeypatch: pytest.Mon
 
     setattr_reconciliation_family(monkeypatch, "changed_paths_of", _broken)
 
-    scoped = authorship._scoped_commits(repo, [shas["owned"]], authorship._PlanningScope((((_OWNED,), frozenset({shas["owned"]})),)), _SLUG)
+    scoped = planning_walk._scoped_commits(repo, [shas["owned"]], planning_walk._PlanningScope((((_OWNED,), frozenset({shas["owned"]})),)), _SLUG)
     assert scoped.touching == [] and scoped.whole == frozenset()
 
 
@@ -524,7 +525,7 @@ def _starts(monkeypatch: pytest.MonkeyPatch, starts: dict[str, str] | None) -> N
     def _read(_repo_root: Path, _manifest: LanesManifest, _lane: ExecutionLane, wp_ids: tuple[str, ...], _events: object) -> dict[str, str] | None:
         return None if starts is None else {wp: starts[wp] for wp in wp_ids if wp in starts}
 
-    monkeypatch.setattr(authorship, "_planning_window_starts", _read)
+    monkeypatch.setattr(planning_walk, "_planning_window_starts", _read)
 
 
 @pytest.mark.unit
@@ -533,7 +534,7 @@ def test_any_non_approved_planning_work_package_empties_the_scope(monkeypatch: p
     """R1: the claim admits by path, not by author, so a lane holding a non-approved work package authors nothing, even with disjoint ownership."""
     asked = _ownership(monkeypatch, {"WP02": (_OWNED,), "WP03": ("docs/other/x.md",)})
 
-    assert not authorship._approved_planning_scope(Path(), _manifest(), _TWO_WP_PLANNING, {"WP02": {"lane": "approved"}, "WP03": {"lane": state}})
+    assert not planning_walk._approved_planning_scope(Path(), _manifest(), _TWO_WP_PLANNING, {"WP02": {"lane": "approved"}, "WP03": {"lane": state}})
     assert asked == []
 
 
@@ -541,7 +542,7 @@ def test_any_non_approved_planning_work_package_empties_the_scope(monkeypatch: p
 def test_a_planning_work_package_with_no_status_row_empties_the_scope(monkeypatch: pytest.MonkeyPatch) -> None:
     _ownership(monkeypatch, {"WP02": (_OWNED,), "WP03": ("docs/other/x.md",)})
 
-    assert not authorship._approved_planning_scope(Path(), _manifest(), _TWO_WP_PLANNING, {"WP02": {"lane": "approved"}})
+    assert not planning_walk._approved_planning_scope(Path(), _manifest(), _TWO_WP_PLANNING, {"WP02": {"lane": "approved"}})
 
 
 def _r1_mission(tmp_path: Path) -> tuple[Path, str, str, str]:
@@ -811,6 +812,98 @@ def test_without_a_pre_claim_change_the_credited_blob_is_attributed_and_the_squa
     assert result.status is VerifyStatus.PASS
 
 
+_PRE = "curation/pkg/pre.py"
+_MOVED = "curation/pkg/moved.py"
+_OTHER = "curation/pkg/other.py"
+_PRE_TEXT = "E = 1  # pre-claim, never reviewed\nF = 2\nG = 3\nH = 4\n"
+
+
+def _credited_paths(claim: authorship._AuthoredClaim) -> set[str]:
+    return {path for path, _blob in claim.blobs}
+
+
+@pytest.mark.integration
+def test_a_credited_rename_of_a_pre_claim_file_carries_its_taint(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review 8 issue 2: a pre-claim file ``git mv``'d by a credited commit stays un-attributed under its new name.
+
+    Read with ``--no-renames`` the move's only change to ``moved.py`` is the credited commit, so the
+    pre-claim blob was credited and the squash axis passed. The rename now inherits the source's taint.
+    """
+    repo, pin, shas = _same_file_mission(tmp_path, pre_claim={_PRE: _PRE_TEXT}, after_claim={_OTHER: "O = 1\n"})
+    _git(repo, "mv", _PRE, _MOVED)
+    _git(repo, "commit", "-qm", "feat(WP02): move pre.py")
+
+    coord_base, claim = _wp02_claim(repo, pin, shas["claim"], monkeypatch)
+
+    assert _MOVED not in _credited_paths(claim) and _MOVED not in claim.deletions
+    assert _PRE not in claim.deletions
+    assert _OTHER in _credited_paths(claim)
+    result = MergeOutcomeVerifier(repo)._verify_squash_content(coord_base, _commit_set(pin, claim))
+    assert result.status is VerifyStatus.FAIL
+    assert result.divergence is not None
+    assert {path for path, _blob in result.divergence.unattributable_blobs} == {_MOVED}
+
+
+@pytest.mark.integration
+def test_a_credited_copy_of_a_pre_claim_file_carries_its_taint(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review 8 issue 2, copies: a credited commit that edits a pre-claim file and copies it leaves the copy un-attributed."""
+    repo, pin, shas = _same_file_mission(tmp_path, pre_claim={_PRE: _PRE_TEXT}, after_claim={_OTHER: "O = 1\n"})
+    copy = "curation/pkg/copy.py"
+    _commit(repo, {_PRE: _PRE_TEXT + "I = 5\n", copy: _PRE_TEXT}, "feat(WP02): edit pre.py and copy it")
+    assert any(line.startswith("C") for line in _git(repo, "diff", "-M", "-C", "--name-status", "HEAD^1", "HEAD").splitlines())
+
+    coord_base, claim = _wp02_claim(repo, pin, shas["claim"], monkeypatch)
+
+    assert copy not in _credited_paths(claim) and _PRE not in _credited_paths(claim)
+    result = MergeOutcomeVerifier(repo)._verify_squash_content(coord_base, _commit_set(pin, claim))
+    assert result.status is VerifyStatus.FAIL
+    assert result.divergence is not None
+    assert {copy, _PRE} <= {path for path, _blob in result.divergence.unattributable_blobs}
+
+
+@pytest.mark.integration
+def test_a_credited_rename_of_the_work_packages_own_file_is_credited(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The control of review 8 issue 2: a rename between two of the work package's own credited files still lands."""
+    repo, pin, shas = _same_file_mission(tmp_path, pre_claim=None, after_claim={_PRE: _PRE_TEXT})
+    _git(repo, "mv", _PRE, _MOVED)
+    _git(repo, "commit", "-qm", "feat(WP02): rename its own file")
+
+    coord_base, claim = _wp02_claim(repo, pin, shas["claim"], monkeypatch)
+
+    assert (_MOVED, _git(repo, "rev-parse", f"HEAD:{_MOVED}")) in claim.blobs
+    assert _PRE in claim.deletions
+    result = MergeOutcomeVerifier(repo)._verify_squash_content(coord_base, _commit_set(pin, claim))
+    assert result.status is VerifyStatus.PASS
+
+
+@pytest.mark.unit
+def test_a_rename_touches_its_source_and_a_copy_does_not() -> None:
+    """Review 8: a rename also changes (removes) its source; a copy and a plain change touch only their own path."""
+    from specify_cli.consolidation.git_probes import LineageChange
+
+    assert planning_walk._touched_paths(LineageChange(_MOVED, _PRE, renamed=True)) == (_MOVED, _PRE)
+    assert planning_walk._touched_paths(LineageChange(_MOVED, _PRE)) == (_MOVED,)
+    assert planning_walk._touched_paths(LineageChange(_MOVED, None, renamed=True)) == (_MOVED,)
+
+
+@pytest.mark.integration
+def test_the_lineage_probe_reads_renames_and_copies_and_refuses_a_root_commit(tmp_path: Path) -> None:
+    from specify_cli.consolidation.git_probes import LineageChange, first_parent_lineage_changes
+
+    repo, _pin, shas = _same_file_mission(tmp_path, pre_claim={_PRE: _PRE_TEXT}, after_claim={_OTHER: "O = 1\n"})
+    _git(repo, "mv", _PRE, _MOVED)
+    _git(repo, "commit", "-qm", "rename")
+    renamed = _git(repo, "rev-parse", "HEAD")
+    _commit(repo, {_MOVED: _PRE_TEXT + "I = 5\n", "curation/pkg/copy.py": _PRE_TEXT}, "edit and copy")
+
+    assert first_parent_lineage_changes(repo, renamed) == [LineageChange(_MOVED, _PRE, renamed=True)]
+    assert LineageChange("curation/pkg/copy.py", _MOVED) in first_parent_lineage_changes(repo, "HEAD")
+    assert first_parent_lineage_changes(repo, shas["late"]) == [LineageChange(_OTHER)]
+    root = _git(repo, "rev-list", "--max-parents=0", "HEAD")
+    with pytest.raises(GitProbeError, match="git diff -C --name-status"):
+        first_parent_lineage_changes(repo, root)
+
+
 @pytest.mark.integration
 def test_an_uncomputable_window_start_authors_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """R2: when an approved work package's claim commit cannot be found, the lane authors nothing (fail closed)."""
@@ -874,7 +967,7 @@ def test_an_unreadable_window_authors_nothing(tmp_path: Path, monkeypatch: pytes
 
 @pytest.mark.unit
 def test_the_planning_scope_credits_a_path_only_inside_its_owners_window() -> None:
-    scope = authorship._PlanningScope((((_PKG,), frozenset({"c2"})), (("docs/a/x.md",), frozenset({"c1", "c2"}))))
+    scope = planning_walk._PlanningScope((((_PKG,), frozenset({"c2"})), (("docs/a/x.md",), frozenset({"c1", "c2"}))))
 
     assert scope.patterns == ("curation/pkg/**", "docs/a/x.md")
     assert scope.at("c1") == ("docs/a/x.md",)
@@ -887,13 +980,13 @@ def test_the_scoped_final_walk_attributes_a_path_only_when_every_change_to_it_is
     """Review 7: one uncredited or dropped change to a path leaves it attributed to nothing; an older credited commit never stands in."""
     repo, pin, shas = _mission(tmp_path)
     spine = git_out(repo, "rev-list", "--first-parent", f"{pin}..HEAD").split()
-    owned_everywhere = authorship._PlanningScope((((_OWNED,), frozenset(spine)),))
-    owned_but_mixed = authorship._PlanningScope((((_OWNED,), frozenset(spine) - {shas["mixed"]}),))
+    owned_everywhere = planning_walk._PlanningScope((((_OWNED,), frozenset(spine)),))
+    owned_but_mixed = planning_walk._PlanningScope((((_OWNED,), frozenset(spine) - {shas["mixed"]}),))
 
-    blobs, deletions = authorship._scoped_final_walk(repo, spine, owned_everywhere, frozenset())
+    blobs, deletions = planning_walk._scoped_final_walk(repo, spine, owned_everywhere, frozenset())
     assert blobs == {(_OWNED, _git(repo, "rev-parse", f"{shas['mixed']}:{_OWNED}"))} and not deletions
-    assert authorship._scoped_final_walk(repo, spine, owned_but_mixed, frozenset()) == (set(), set())
-    assert authorship._scoped_final_walk(repo, spine, owned_everywhere, frozenset({shas["owned"]})) == (set(), set())
+    assert planning_walk._scoped_final_walk(repo, spine, owned_but_mixed, frozenset()) == (set(), set())
+    assert planning_walk._scoped_final_walk(repo, spine, owned_everywhere, frozenset({shas["owned"]})) == (set(), set())
 
 
 @pytest.mark.integration
@@ -903,7 +996,7 @@ def test_the_scoped_final_walk_attributes_a_credited_deletion(tmp_path: Path) ->
     _git(repo, "commit", "-qm", "feat(WP02): drop the curation file")
     spine = git_out(repo, "rev-list", "--first-parent", f"{pin}..HEAD").split()
 
-    assert authorship._scoped_final_walk(repo, spine, authorship._PlanningScope((((_OWNED,), frozenset(spine)),)), frozenset()) == (set(), {_OWNED})
+    assert planning_walk._scoped_final_walk(repo, spine, planning_walk._PlanningScope((((_OWNED,), frozenset(spine)),)), frozenset()) == (set(), {_OWNED})
 
 
 @pytest.mark.integration
@@ -916,7 +1009,7 @@ def test_the_scoped_final_walk_names_the_path_it_cannot_read(tmp_path: Path, mon
 
     setattr_reconciliation_family(monkeypatch, "path_state_at", _unreadable)
     with pytest.raises(GitProbeError, match=f"reading {_OWNED} at .* on the planning walk failed: boom"):
-        authorship._scoped_final_walk(repo, spine, authorship._PlanningScope((((_OWNED,), frozenset(spine)),)), frozenset())
+        planning_walk._scoped_final_walk(repo, spine, planning_walk._PlanningScope((((_OWNED,), frozenset(spine)),)), frozenset())
 
 
 def _window_events() -> list[object]:

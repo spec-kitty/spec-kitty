@@ -187,11 +187,13 @@ class PlanningWindowUnresolved(Exception):
     cannot be read); ``detail`` says why.
     """
 
-    def __init__(self, code: str, detail: str, *, opener_recorded: bool = True) -> None:
+    def __init__(self, code: str, detail: str, *, opener_recorded: bool | None = None) -> None:
         self.code = code
         self.detail = detail
-        #: ``False`` only when no window-opening (claim) status event is recorded: one reopen then
-        #: starts a window (:func:`planning_window_restart`, review 7).
+        #: ``False`` when no window-opening (claim) status event is recorded (one reopen then starts a
+        #: window), ``True`` when one is recorded but no single commit introduced it (two reopens),
+        #: ``None`` when the cause says nothing about the opener (an unreadable log, write branch or
+        #: git; review 8), so :func:`planning_window_restart` prints its shared text (review 7).
         self.opener_recorded = opener_recorded
         super().__init__(f"{code}: {detail}")
 
@@ -319,6 +321,7 @@ def _unresolved_start(exc: ClaimCommitUnresolved, mission_branch: str, event_id:
         EVIDENCE_WINDOW_UNCOMPUTABLE,
         f"no single commit on the Mission branch {mission_branch} introduced its window-opening status event {event_id} ({exc}); "
         f"commit its status events on {MISSION_BRANCH_PHRASE}, then re-run",
+        opener_recorded=True,
     )
 
 
