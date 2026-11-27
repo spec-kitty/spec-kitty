@@ -385,6 +385,9 @@ def _merge_bases(scope: _LaneScope) -> list[str]:
 
 def _other_lanes_spine_merges(scope: _LaneScope, lane: ExecutionLane, bases: Sequence[str]) -> frozenset[str]:
     """The merges on every OTHER bound lane's own first-parent spine: that lane's FR-004 check judges them (one query per lane, cached)."""
+    # Soundness (FR-004): every lane in ``scope.lane_tips`` gets its own ``_lane_verdict``, so a merge
+    # dropped here is judged on the lane whose spine carries it; a lane added to the tips without a
+    # verdict would leave its merges unjudged.
     found: set[str] = set()
     for lane_id, tip in scope.lane_tips.items():
         if lane_id == lane.lane_id:
