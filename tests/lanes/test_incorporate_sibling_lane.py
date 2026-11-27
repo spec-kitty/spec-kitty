@@ -707,7 +707,7 @@ def _own_lane_manifest(mission: CoordMission) -> LanesManifest:
     return LanesManifest(**{**manifest.__dict__, "lanes": [*manifest.lanes, own]})
 
 
-def test_canceled_content_under_the_stamp_is_refused(tmp_path: Path) -> None:
+def test_canceled_content_under_the_stamp_is_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.lanes.incorporate import IncorporateCode, _resolve_sibling_stamp
     from tests.terminus.conftest import PlantedChange, build_coord_mission_mixed_lane_canceled
 
@@ -725,6 +725,21 @@ def test_canceled_content_under_the_stamp_is_refused(tmp_path: Path) -> None:
         IncorporateCode.CANCELED_CONTENT_UNDER_STAMP,
     )
     assert "canceled WP02" in message and stamp[:12] in message
+
+    # A reachability probe that errors must refuse, never read as "not reachable".
+    from specify_cli.consolidation import git_probes
+
+    def broken(*_a: object, **_k: object) -> bool:
+        raise git_probes.GitProbeError("boom")
+
+    monkeypatch.setattr(git_probes, "is_ancestor_strict", broken)
+    failed = _refused(
+        lambda: _resolve_sibling_stamp(
+            mission.repo, mission.slug, _own_lane_manifest(mission), own_lane_id="lane-own", sibling_lane_id=LANE_A, events=events, wp_id="WP77"
+        ),
+        IncorporateCode.PROBE_FAILED,
+    )
+    assert "boom" in failed
 
 
 def test_canceled_wp_without_commits_does_not_refuse(tmp_path: Path) -> None:

@@ -280,9 +280,13 @@ def _unattributable_refusal(lane_id: str, wp_id: str, outcome: Unattributable, *
 
 def _refuse_attributed_commits(repo_root: Path, commits: frozenset[str], lane_id: str, wp_id: str, stamp: str) -> None:
     """Refuse when the stamp reaches a commit the window authority attributed to the canceled WP."""
-    from specify_cli.consolidation.git_probes import sha_reachable_from
+    from specify_cli.consolidation.git_probes import GitProbeError, is_ancestor_strict
 
-    under = sorted(sha for sha in commits if sha_reachable_from(repo_root, sha, stamp))
+    # A probe that errors must refuse: reading "cannot tell" as "not reachable" would pass the stamp.
+    try:
+        under = sorted(sha for sha in commits if is_ancestor_strict(repo_root, sha, stamp))
+    except GitProbeError as exc:
+        raise IncorporateRefused(IncorporateCode.PROBE_FAILED, f"cannot tell whether {wp_id}'s commits are under {lane_id}'s stamp {_short(stamp)}: {exc}") from exc
     if under:
         raise _refusal(lane_id, wp_id, stamp, f"reaches commits ({', '.join(_short(sha) for sha in under)})")
 
