@@ -1,0 +1,67 @@
+schema_version: 1
+mission_id: 01M8HPDMCQ7NQAX6310ZBT9YQE
+mission_slug: architecture-recovery-assessment-01M8HPDM
+mission_number:
+friendly_name: Architecture recovery assessment
+mission_type: plan
+target_branch: claude/spec-kitty-arch-reconnaissance-fdeicj
+created_at: '2026-11-28T19:33:34.989212+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-11-28T19:33:34.989212+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: ran_no_findings
+helped: []
+not_helpful: []
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/architecture-recovery-assessment-01M8HPDM/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/architecture-recovery-assessment-01M8HPDM/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/architecture-recovery-assessment-01M8HPDM/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/architecture-recovery-assessment-01M8HPDM/status.events.jsonl
+generator_version: '1.0'
+provenance_history: []
